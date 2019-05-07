@@ -13,6 +13,15 @@ client {
   server_join {
     retry_join = ["127.0.0.1:4647", "127.0.0.1:5647", "127.0.0.1:6647"]
   }
+  meta {
+    tag = "foo"
+  }
+}
+
+plugin "raw_exec" {
+  config {
+    enabled = true
+  }
 }
 
 ports {

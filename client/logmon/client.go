@@ -4,10 +4,14 @@ import (
 	"context"
 
 	"github.com/hashicorp/nomad/client/logmon/proto"
+	"github.com/hashicorp/nomad/helper/pluginutils/grpcutils"
 )
 
 type logmonClient struct {
 	client proto.LogMonClient
+
+	// doneCtx is closed when the plugin exits
+	doneCtx context.Context
 }
 
 func (c *logmonClient) Start(cfg *LogConfig) error {
@@ -21,11 +25,11 @@ func (c *logmonClient) Start(cfg *LogConfig) error {
 		StderrFifo:     cfg.StderrFifo,
 	}
 	_, err := c.client.Start(context.Background(), req)
-	return err
+	return grpcutils.HandleGrpcErr(err, c.doneCtx)
 }
 
 func (c *logmonClient) Stop() error {
 	req := &proto.StopRequest{}
 	_, err := c.client.Stop(context.Background(), req)
-	return err
+	return grpcutils.HandleGrpcErr(err, c.doneCtx)
 }

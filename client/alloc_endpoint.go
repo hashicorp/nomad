@@ -48,6 +48,20 @@ func (a *Allocations) GarbageCollect(args *nstructs.AllocSpecificRequest, reply 
 	return nil
 }
 
+// Signal is used to send a signal to an allocation's tasks on a client.
+func (a *Allocations) Signal(args *nstructs.AllocSignalRequest, reply *nstructs.GenericResponse) error {
+	defer metrics.MeasureSince([]string{"client", "allocations", "signal"}, time.Now())
+
+	// Check alloc-lifecycle permissions
+	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
+		return nstructs.ErrPermissionDenied
+	}
+
+	return a.c.SignalAllocation(args.AllocID, args.Task, args.Signal)
+}
+
 // Restart is used to trigger a restart of an allocation or a subtask on a client.
 func (a *Allocations) Restart(args *nstructs.AllocRestartRequest, reply *nstructs.GenericResponse) error {
 	defer metrics.MeasureSince([]string{"client", "allocations", "restart"}, time.Now())

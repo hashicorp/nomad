@@ -1,12 +1,39 @@
-## 0.9.1 (Unreleased)
+## 0.9.2 (Unreleased)
 
 FEATURES:
 
  * vault: Add initial support for Vault namespaces [[GH-5520](https://github.com/hashicorp/nomad/pull/5520)]
- 
+ * core: Add `nomad alloc restart` command to restart allocs and tasks [[GH-5502](https://github.com/hashicorp/nomad/pull/5502)]
+ * core: Add `nomad alloc stop` command to reschedule allocs [[GH-5512](https://github.com/hashicorp/nomad/pull/5512)]
+
 IMPROVEMENTS:
 
  * core: Add node name to output of `nomad node status` command in verbose mode [[GH-5224](https://github.com/hashicorp/nomad/pull/5224)]
+ * core: Add `-verbose` flag to `nomad status` wrapper command [[GH-5516](https://github.com/hashicorp/nomad/pull/5516)]
+ * core: Reduce the size of the raft transaction for plans by only sending fields updated by the plan applier [[GH-5602](https://github.com/hashicorp/nomad/pull/5602)]
+ * api: Add preemption related fields to API results that return an allocation list. [[GH-5580](https://github.com/hashicorp/nomad/pull/5580)]
+ * api: Add additional config options to scheduler configuration endpoint to disable preemption [[GH-5628](https://github.com/hashicorp/nomad/issues/5628)]
+
+BUG FIXES:
+
+ * vault: Fix renewal time to be 1/2 lease duration with jitter [[GH-5479](https://github.com/hashicorp/nomad/issues/5479)]
+ * metrics: Fixed stale metrics [[GH-5540](https://github.com/hashicorp/nomad/issues/5540)]
+ * client: Fix network fingerprinting to honor manual configuration [[GH-2619](https://github.com/hashicorp/nomad/issues/2619)]
+ * client: Fix issue with terminal state deployments being modified when allocation subsequently fails [[GH-5645](https://github.com/hashicorp/nomad/issues/5645)]
+ * core: Change configuration parsing to use the HCL library's decode, improving JSON support [[GH-1290](https://github.com/hashicorp/nomad/issues/1290)]
+ * cli: Fix output and exit status for system jobs with constraints [[GH-2381][https://github.com/hashicorp/nomad/issues/2381]] and [[GH-5169][https://github.com/hashicorp/nomad/issues/5169]]
+
+## 0.9.1 (April 29, 2019)
+
+BUG FIXES:
+
+* core: Fix bug with incorrect metrics on pending allocations [[GH-5541](https://github.com/hashicorp/nomad/pull/5541)]
+* client: Fix issue with recovering from logmon failures [[GH-5577](https://github.com/hashicorp/nomad/pull/5577)], [[GH-5616](https://github.com/hashicorp/nomad/pull/5616)]
+* client: Fix deadlock on client startup after reboot [[GH-5568](https://github.com/hashicorp/nomad/pull/5568)]
+* client: Fix issue with node registration where newly registered nodes would not run system jobs [[GH-5585](https://github.com/hashicorp/nomad/pull/5585)]
+* driver/docker: Fix regression around volume handling [[GH-5572](https://github.com/hashicorp/nomad/pull/5572)]
+* driver/docker: Fix regression in which logs aren't collected for docker container with `tty` set to true [[GH-5609](https://github.com/hashicorp/nomad/pull/5609)]
+* driver/exec: Fix an issue where raw_exec and exec processes are leaked when nomad agent is restarted [[GH-5598](https://github.com/hashicorp/nomad/pull/5598)]
 
 ## 0.9.0 (April 9, 2019)
 
@@ -187,7 +214,7 @@ BUG FIXES:
 * vault: Fix a regression in which Nomad was only compatible with Vault versions
   greater than 0.10.0 [[GH-4698](https://github.com/hashicorp/nomad/issues/4698)]
 
-# 0.8.5 (September 13, 2018)
+## 0.8.5 (September 13, 2018)
 
 IMPROVEMENTS:
 

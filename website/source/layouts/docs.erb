@@ -9,6 +9,21 @@
             <a href="/docs/internals/architecture.html">Architecture</a>
           </li>
 
+          <li<%= sidebar_current("docs-internals-plugins") %>>
+            <a href="/docs/internals/plugins/index.html">Plugins</a>
+                <ul class="nav">
+                    <li <%= sidebar_current("docs-internals-plugins-base") %>>
+                        <a href="/docs/internals/plugins/base.html">Base</a>
+                    </li>
+                    <li <%= sidebar_current("docs-internals-plugins-task-driver") %>>
+                        <a href="/docs/internals/plugins/task-drivers.html">Task Drivers</a>
+                    </li>
+                    <li <%= sidebar_current("docs-internals-plugins-device") %>>
+                        <a href="/docs/internals/plugins/devices.html">Devices</a>
+                    </li>
+                </ul>
+          </li>
+
           <li<%= sidebar_current("docs-internals-scheduling") %>>
            <a href="/docs/internals/scheduling/index.html">Scheduling</a>
                   <ul class="nav">
@@ -126,8 +141,17 @@
               <li<%= sidebar_current("docs-commands-alloc-logs") %>>
                 <a href="/docs/commands/alloc/logs.html">logs</a>
               </li>
+              <li<%= sidebar_current("docs-commands-alloc-restart") %>>
+                <a href="/docs/commands/alloc/restart.html">restart</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-alloc-signal") %>>
+                <a href="/docs/commands/alloc/signal.html">signal</a>
+              </li>
               <li<%= sidebar_current("docs-commands-alloc-status") %>>
                 <a href="/docs/commands/alloc/status.html">status</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-alloc-stop") %>>
+                <a href="/docs/commands/alloc/stop.html">stop</a>
               </li>
             </ul>
           </li>
@@ -180,6 +204,9 @@
               </li>
               <li<%= sidebar_current("docs-commands-job-plan") %>>
                 <a href="/docs/commands/job/plan.html">plan</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-job-periodic-force") %>>
+                <a href="/docs/commands/job/periodic-force.html">periodic force</a>
               </li>
               <li<%= sidebar_current("docs-commands-job-promote") %>>
                 <a href="/docs/commands/job/promote.html">promote</a>
@@ -444,6 +471,9 @@
               <li<%= sidebar_current("docs-drivers-community-lxc") %>>
                 <a href="/docs/drivers/external/lxc.html">LXC</a>
               </li>
+              <li<%= sidebar_current("docs-drivers-community-singularity") %>>
+              <a href="/docs/drivers/external/singularity.html">Singularity</a>
+            </li>
             </ul>
           </li>
 
@@ -470,7 +500,7 @@
       <li<%= sidebar_current("docs-runtime-environment") %>>
         <a href="/docs/runtime/environment.html">Runtime Environment</a>
       </li>
-      
+
       <li<%= sidebar_current("docs-telemetry") %>>
         <a href="/docs/telemetry/index.html">Telemetry</a>
       </li>

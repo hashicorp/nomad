@@ -47,8 +47,10 @@ job "docs" {
 ```
 
 The Nomad client will make the Vault token available to the task by writing it
-to the secret directory at `secrets/vault_token` and by injecting a VAULT_TOKEN
-environment variable.
+to the secret directory at `secrets/vault_token` and by injecting a `VAULT_TOKEN`
+environment variable. If the Nomad cluster is [configured](http://localhost:4567/docs/configuration/vault.html#namespace)
+to use [Vault Namespaces](https://www.vaultproject.io/docs/enterprise/namespaces/index.html), 
+a `VAULT_NAMESPACE` environment variable will be injected whenever `VAULT_TOKEN` is.
 
 If Nomad is unable to renew the Vault token (perhaps due to a Vault outage or
 network error), the client will attempt to retrieve a new Vault token. If successful, the
@@ -71,8 +73,8 @@ with Vault as well.
   string like `"SIGUSR1"` or `"SIGINT"`. This option is required if the
   `change_mode` is `signal`.
 
-- `env` `(bool: true)` - Specifies if the `VAULT_TOKEN` environment variable
-  should be set when starting the task.
+- `env` `(bool: true)` - Specifies if the `VAULT_TOKEN` and `VAULT_NAMESPACE`
+  environment variables should be set when starting the task.
 
 - `policies` `(array<string>: [])` - Specifies the set of Vault policies that
   the task requires. The Nomad client will retrieve a Vault token that is

@@ -8,6 +8,38 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
+gpg_signing_key=348FFC4C
+
+verify_hc_releases() {
+    if ! command -v  hc-releases 2>/dev/null >/dev/null
+    then
+        echo "hc-releases binary is not present" >&2
+        exit 1
+    fi
+}
+
+verify_gpg_key() {
+    if ! gpg --list-keys "${gpg_signing_key}" >/dev/null 2>/dev/null
+    then
+        echo "gpg key ${gpg_signing_key} is not present" >&2
+        exit 1
+    fi
+}
+
+verify_s3_access() {
+    if ! aws s3 ls s3://hc-releases/ >dev/null 2>/dev/null
+    then
+        echo "AWS credentials is not configured" >&2
+        exit 1
+    fi
+}
+
+if [ -z "${NO_PREFLIGHT}" ]; then
+    verify_hc_releases
+    verify_gpg_key
+    verify_s3_access
+fi
+
 # Get the parent directory of where this script is.
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
@@ -19,8 +51,8 @@ cd "$DIR"
 # Generate the tag.
 if [ -z "$NOTAG" ]; then
   echo "==> Tagging..."
-  git commit --allow-empty -a --gpg-sign=348FFC4C -m "Release v$VERSION"
-  git tag -a -m "Version $VERSION" -s -u 348FFC4C "v${VERSION}"
+  git commit --allow-empty -a --gpg-sign=${gpg_signing_key} -m "Release v$VERSION"
+  git tag -a -m "Version $VERSION" -s -u ${gpg_signing_key} "v${VERSION}" master
 fi
 
 # Zip all the files

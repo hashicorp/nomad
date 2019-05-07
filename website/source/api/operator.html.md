@@ -363,7 +363,9 @@ $ curl \
     "CreateIndex": 5,
     "ModifyIndex": 5,
     "PreemptionConfig": {
-      "SystemSchedulerEnabled": true
+      "SystemSchedulerEnabled": true,
+      "BatchSchedulerEnabled": true,
+      "ServiceSchedulerEnabled": true,
     }
   }
 }
@@ -378,6 +380,10 @@ $ curl \
 
   - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
          - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
+         this defaults to true.
+         - `BatchSchedulerEnabled` `(bool: true)` (Enterprise Only) - Specifies whether preemption for batch jobs is enabled. Note that
+         this defaults to true.
+         - `ServiceSchedulerEnabled` `(bool: true)` (Enterprise Only) - Specifies whether preemption for service jobs is enabled. Note that
          this defaults to true.
   - `CreateIndex` - The Raft index at which the config was created.
   - `ModifyIndex` - The Raft index at which the config was modified.
@@ -409,7 +415,9 @@ The table below shows this endpoint's support for
 ```json
 {
   "PreemptionConfig": {
-    "EnablePreemption": false
+    "SystemSchedulerEnabled": false,
+    "BatchSchedulerEnabled": false,
+    "ServiceSchedulerEnabled": true,
   }
 }
 ```
@@ -417,3 +425,7 @@ The table below shows this endpoint's support for
 - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
  - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
          if this is set to true, then system jobs can preempt any other jobs.
+ - `BatchSchedulerEnabled` `(bool: true)` (Enterprise Only) - Specifies whether preemption for batch jobs is enabled. Note that
+         if this is set to true, then batch jobs can preempt any other jobs.
+ - `ServiceSchedulerEnabled` `(bool: true)` (Enterprise Only) - Specifies whether preemption for service jobs is enabled. Note that
+         if this is set to true, then service jobs can preempt any other jobs.

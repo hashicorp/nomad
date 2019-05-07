@@ -100,9 +100,9 @@ module('Unit | Util | Log', function(hooks) {
     });
 
     await settled();
-    assert.ok(log.get('output').endsWith(truncationMessage), 'Truncation message is shown');
+    assert.ok(log.get('output').toString().endsWith(truncationMessage), 'Truncation message is shown');
     assert.equal(
-      log.get('output').length,
+      log.get('output').toString().length,
       50000 + truncationMessage.length,
       'Output is truncated the appropriate amount'
     );

@@ -89,6 +89,37 @@ func (a *Allocations) Restart(alloc *Allocation, taskName string, q *QueryOption
 	return err
 }
 
+func (a *Allocations) Stop(alloc *Allocation, q *QueryOptions) (*AllocStopResponse, error) {
+	var resp AllocStopResponse
+	_, err := a.client.putQuery("/v1/allocation/"+alloc.ID+"/stop", nil, &resp, q)
+	return &resp, err
+}
+
+// AllocStopResponse is the response to an `AllocStopRequest`
+type AllocStopResponse struct {
+	// EvalID is the id of the follow up evalution for the rescheduled alloc.
+	EvalID string
+
+	WriteMeta
+}
+
+func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal string) error {
+	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
+	if err != nil {
+		return err
+	}
+
+	req := AllocSignalRequest{
+		AllocID: alloc.ID,
+		Signal:  signal,
+		Task:    task,
+	}
+
+	var resp GenericResponse
+	_, err = nodeClient.putQuery("/v1/client/allocation/"+alloc.ID+"/signal", &req, &resp, q)
+	return err
+}
+
 // Allocation is used for serialization of allocations.
 type Allocation struct {
 	ID                    string
@@ -155,28 +186,30 @@ type NodeScoreMeta struct {
 // AllocationListStub is used to return a subset of an allocation
 // during list operations.
 type AllocationListStub struct {
-	ID                 string
-	EvalID             string
-	Name               string
-	Namespace          string
-	NodeID             string
-	NodeName           string
-	JobID              string
-	JobType            string
-	JobVersion         uint64
-	TaskGroup          string
-	DesiredStatus      string
-	DesiredDescription string
-	ClientStatus       string
-	ClientDescription  string
-	TaskStates         map[string]*TaskState
-	DeploymentStatus   *AllocDeploymentStatus
-	FollowupEvalID     string
-	RescheduleTracker  *RescheduleTracker
-	CreateIndex        uint64
-	ModifyIndex        uint64
-	CreateTime         int64
-	ModifyTime         int64
+	ID                    string
+	EvalID                string
+	Name                  string
+	Namespace             string
+	NodeID                string
+	NodeName              string
+	JobID                 string
+	JobType               string
+	JobVersion            uint64
+	TaskGroup             string
+	DesiredStatus         string
+	DesiredDescription    string
+	ClientStatus          string
+	ClientDescription     string
+	TaskStates            map[string]*TaskState
+	DeploymentStatus      *AllocDeploymentStatus
+	FollowupEvalID        string
+	RescheduleTracker     *RescheduleTracker
+	PreemptedAllocations  []string
+	PreemptedByAllocation string
+	CreateIndex           uint64
+	ModifyIndex           uint64
+	CreateTime            int64
+	ModifyTime            int64
 }
 
 // AllocDeploymentStatus captures the status of the allocation as part of the
@@ -258,6 +291,18 @@ func (a Allocation) RescheduleInfo(t time.Time) (int, int) {
 
 type AllocationRestartRequest struct {
 	TaskName string
+}
+
+type AllocSignalRequest struct {
+	AllocID string
+	Task    string
+	Signal  string
+}
+
+// GenericResponse is used to respond to a request where no
+// specific response information is needed.
+type GenericResponse struct {
+	WriteMeta
 }
 
 // RescheduleTracker encapsulates previous reschedule events

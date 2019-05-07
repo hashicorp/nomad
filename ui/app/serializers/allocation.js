@@ -45,6 +45,10 @@ export default ApplicationSerializer.extend({
     hash.NextAllocationID = hash.NextAllocation ? hash.NextAllocation : null;
     hash.FollowUpEvaluationID = hash.FollowupEvalID ? hash.FollowupEvalID : null;
 
+    hash.PreemptedAllocationIDs = hash.PreemptedAllocations || [];
+    hash.PreemptedByAllocationID = hash.PreemptedByAllocation || null;
+    hash.WasPreempted = !!hash.PreemptedByAllocationID;
+
     return this._super(typeHash, hash);
   },
 });

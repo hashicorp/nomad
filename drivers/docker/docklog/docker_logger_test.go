@@ -107,6 +107,89 @@ func TestDockerLogger_Success(t *testing.T) {
 	})
 }
 
+func TestDockerLogger_Success_TTY(t *testing.T) {
+	ctu.DockerCompatible(t)
+
+	t.Parallel()
+	require := require.New(t)
+
+	containerImage, containerImageName, containerImageTag := testContainerDetails()
+
+	client, err := docker.NewClientFromEnv()
+	if err != nil {
+		t.Skip("docker unavailable:", err)
+	}
+
+	if img, err := client.InspectImage(containerImage); err != nil || img == nil {
+		t.Log("image not found locally, downloading...")
+		err = client.PullImage(docker.PullImageOptions{
+			Repository: containerImageName,
+			Tag:        containerImageTag,
+		}, docker.AuthConfiguration{})
+		require.NoError(err, "failed to pull image")
+	}
+
+	containerConf := docker.CreateContainerOptions{
+		Config: &docker.Config{
+			Cmd: []string{
+				"sh", "-c", "touch ~/docklog; tail -f ~/docklog",
+			},
+			Image: containerImage,
+			Tty:   true,
+		},
+		Context: context.Background(),
+	}
+
+	container, err := client.CreateContainer(containerConf)
+	require.NoError(err)
+
+	defer client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:    container.ID,
+		Force: true,
+	})
+
+	err = client.StartContainer(container.ID, nil)
+	require.NoError(err)
+
+	testutil.WaitForResult(func() (bool, error) {
+		container, err = client.InspectContainer(container.ID)
+		if err != nil {
+			return false, err
+		}
+		if !container.State.Running {
+			return false, fmt.Errorf("container not running")
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+
+	stdout := &noopCloser{bytes.NewBuffer(nil)}
+	stderr := &noopCloser{bytes.NewBuffer(nil)}
+
+	dl := NewDockerLogger(testlog.HCLogger(t)).(*dockerLogger)
+	dl.stdout = stdout
+	dl.stderr = stderr
+	require.NoError(dl.Start(&StartOpts{
+		ContainerID: container.ID,
+		TTY:         true,
+	}))
+
+	echoToContainer(t, client, container.ID, "abc")
+	echoToContainer(t, client, container.ID, "123")
+
+	testutil.WaitForResult(func() (bool, error) {
+		act := stdout.String()
+		if "abc\r\n123\r\n" != act {
+			return false, fmt.Errorf("expected abc\\n123\\n for stdout but got %s", act)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+}
+
 func echoToContainer(t *testing.T, client *docker.Client, id string, line string) {
 	op := docker.CreateExecOptions{
 		Container: id,
