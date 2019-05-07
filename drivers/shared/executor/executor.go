@@ -579,47 +579,6 @@ func lookupBin(taskDir string, bin string) (string, error) {
 	return "", fmt.Errorf("binary %q could not be found", bin)
 }
 
-// lookupTaskBin finds the file in:
-// taskDir/local, taskDir, PATH search inside taskDir
-// and returns an absolute path
-func lookupTaskBin(taskDir string, bin string) (string, error) {
-	// Check in the local directory
-	localDir := filepath.Join(taskDir, allocdir.TaskLocal)
-	local := filepath.Join(localDir, bin)
-	if _, err := os.Stat(local); err == nil {
-		return local, nil
-	}
-
-	// Check at the root of the task's directory
-	root := filepath.Join(taskDir, bin)
-	if _, err := os.Stat(root); err == nil {
-		return root, nil
-	}
-
-	// Check the host PATH anchored inside the taskDir
-	if !strings.Contains(bin, "/") {
-		envPath := os.Getenv("PATH")
-		for _, dir := range filepath.SplitList(envPath) {
-			if dir == "" {
-				// match unix shell behavior, empty path element == .
-				dir = "."
-			}
-			for _, root := range []string{localDir, taskDir} {
-				path := filepath.Join(root, dir, bin)
-				f, err := os.Stat(path)
-				if err != nil {
-					continue
-				}
-				if m := f.Mode(); !m.IsDir() {
-					return path, nil
-				}
-			}
-		}
-	}
-
-	return "", fmt.Errorf("file %s not found under path %s", bin, taskDir)
-}
-
 // makeExecutable makes the given file executable for root,group,others.
 func makeExecutable(binPath string) error {
 	if runtime.GOOS == "windows" {
