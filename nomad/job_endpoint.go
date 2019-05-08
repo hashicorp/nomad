@@ -97,6 +97,14 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			}
 			j.logger.Warn("policy override set for job", "job", args.Job.ID)
 		}
+		// Validate Volume Permsissions
+		for _, tg := range args.Job.TaskGroups {
+			for _, vol := range tg.HostVolumes {
+				if !aclObj.AllowHostVolumeOperation(vol.Config.Source, acl.HostVolumeCapabilityMount) {
+					return structs.ErrPermissionDenied
+				}
+			}
+		}
 	}
 
 	// Lookup the job
