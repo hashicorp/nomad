@@ -175,6 +175,15 @@ type Capabilities struct {
 	MustInitiateNetwork bool
 }
 
+func (c *Capabilities) HasNetIsolationMode(m NetIsolationMode) bool {
+	for _, mode := range c.NetIsolationModes {
+		if mode == m {
+			return true
+		}
+	}
+	return false
+}
+
 type NetIsolationMode string
 
 var (
