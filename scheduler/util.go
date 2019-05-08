@@ -392,7 +392,7 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		}
 
 		// Inspect the network to see if the dynamic ports are different
-		if networkUpdated(at.Resources.Networks, at.Resources.Networks) {
+		if networkUpdated(at.Resources.Networks, bt.Resources.Networks) {
 			return true
 		}
 
