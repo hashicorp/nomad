@@ -24,7 +24,7 @@ func (ar *allocRunner) initNetworkManager() (nm drivers.DriverNetworkManager, er
 	nm = &defaultNetworkManager{}
 	tg := ar.Alloc().Job.LookupTaskGroup(ar.Alloc().TaskGroup)
 
-	// default netmode to host, this can be overriden by the task or task group
+	// default netmode to host, this can be overridden by the task or task group
 	tgNetMode := "host"
 	if len(tg.Networks) > 0 && tg.Networks[0].Mode != "" {
 		tgNetMode = tg.Networks[0].Mode
@@ -38,7 +38,7 @@ func (ar *allocRunner) initNetworkManager() (nm drivers.DriverNetworkManager, er
 	// to do extra work
 	driverCaps := make(map[string]struct{})
 	for _, task := range tg.Tasks {
-		// the task's netmode defaults to the the task group but can be overriden
+		// the task's netmode defaults to the the task group but can be overridden
 		taskNetMode := tgNetMode
 		if len(task.Resources.Networks) > 0 && task.Resources.Networks[0].Mode != "" {
 			taskNetMode = task.Resources.Networks[0].Mode
