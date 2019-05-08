@@ -432,10 +432,6 @@ type SearchResponse struct {
 // list of matches made up of jobs, allocations, evaluations, and/or nodes,
 // along with whether or not the information returned is truncated.
 type SearchRequest struct {
-	// Prefix is what ids are matched to. I.e, if the given prefix were
-	// "a", potential matches might be "abcd" or "aabb"
-	Prefix string
-
 	// Context is the type that can be matched against. A context can be a job,
 	// node, evaluation, allocation, or empty (indicated every context should be
 	// matched)
