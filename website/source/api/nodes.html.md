@@ -930,7 +930,7 @@ $ curl \
 
   - `Message` - The specific message for the event, detailing what occurred.
 
-  - `Subsystem` - The subsystem where the node event took place. Subsysystems
+  - `Subsystem` - The subsystem where the node event took place. Subsystems
     include:
 
     - `Drain` - The Nomad server draining subsystem.

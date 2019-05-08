@@ -33,7 +33,7 @@ PluginInfoResponse{
 
 #### `ConfigSchema() (*hclspec.Spec, error)`
 
-The `ConfigSchema` function allows a plugin to tell Nomad the schema for it's
+The `ConfigSchema` function allows a plugin to tell Nomad the schema for its
 configuration. This configuration is given in a [plugin block][pluginblock] of
 the client configuration. The schema is defined with the [hclspec][hclspec]
 package.
