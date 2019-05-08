@@ -4818,6 +4818,45 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 	}
 
+	// Check that there is only one leader task if any
+	tasks := make(map[string]int)
+	leaderTasks := 0
+	for idx, task := range tg.Tasks {
+		if task.Name == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %d missing name", idx+1))
+		} else if existing, ok := tasks[task.Name]; ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %d redefines '%s' from task %d", idx+1, task.Name, existing+1))
+		} else {
+			tasks[task.Name] = idx
+		}
+
+		if task.Leader {
+			leaderTasks++
+		}
+	}
+
+	if leaderTasks > 1 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Only one task may be marked as leader"))
+	}
+
+	// Validate task group and task network resources
+	if err := tg.validateNetworks(); err != nil {
+		outer := fmt.Errorf("Task group network validation failed: %v", err)
+		mErr.Errors = append(mErr.Errors, outer)
+	}
+
+	// Validate the tasks
+	for _, task := range tg.Tasks {
+		if err := task.Validate(tg.EphemeralDisk, j.Type); err != nil {
+			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+func (tg *TaskGroup) validateNetworks() error {
+	var mErr multierror.Error
 	portLabels := make(map[string]string)
 	staticPorts := make(map[int]string)
 	mappedPorts := make(map[int]string)
@@ -4850,24 +4889,8 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			}
 		}
 	}
-
-	// Check for duplicate tasks or port labels, that there is only one leader task if any,
-	// and no duplicated static or mapped ports
-	tasks := make(map[string]int)
-	leaderTasks := 0
-	for idx, task := range tg.Tasks {
-		if task.Name == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %d missing name", idx+1))
-		} else if existing, ok := tasks[task.Name]; ok {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %d redefines '%s' from task %d", idx+1, task.Name, existing+1))
-		} else {
-			tasks[task.Name] = idx
-		}
-
-		if task.Leader {
-			leaderTasks++
-		}
-
+	// Check for duplicate tasks or port labels, and no duplicated static or mapped ports
+	for _, task := range tg.Tasks {
 		if task.Resources == nil {
 			continue
 		}
@@ -4896,18 +4919,6 @@ func (tg *TaskGroup) Validate(j *Job) error {
 					}
 				}
 			}
-		}
-	}
-
-	if leaderTasks > 1 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Only one task may be marked as leader"))
-	}
-
-	// Validate the tasks
-	for _, task := range tg.Tasks {
-		if err := task.Validate(tg.EphemeralDisk, j.Type); err != nil {
-			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
-			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
 	return mErr.ErrorOrNil()
