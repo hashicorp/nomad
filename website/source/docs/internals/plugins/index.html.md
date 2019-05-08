@@ -13,7 +13,7 @@ functionality of some components within Nomad. The design of the plugin system
 is inspired by the lessons learned from plugin systems implemented in other
 HashiCorp products such as Terraform and Vault.
 
-The following components are currently plugable within Nomad:
+The following components are currently pluggable within Nomad:
 
 - [Task Drivers](/docs/internals/plugins/task-drivers.html)
 - [Devices](/docs/internals/plugins/devices.html)
