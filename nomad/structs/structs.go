@@ -4843,7 +4843,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 	}
 
-	// Check for duplicate tasks or port labels, that there is only leader task if any,
+	// Check for duplicate tasks or port labels, that there is only one leader task if any,
 	// and no duplicated static or mapped ports
 	tasks := make(map[string]int)
 	leaderTasks := 0
