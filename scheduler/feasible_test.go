@@ -91,33 +91,31 @@ func TestHostVolumeChecker(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 	}
-	nodes[1].HostVolumes = map[string]*structs.Volume{"foo": &structs.Volume{Type: "host"}}
-	nodes[2].HostVolumes = map[string]*structs.Volume{
-		"foo": &structs.Volume{},
-		"bar": &structs.Volume{},
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": &structs.ClientHostVolumeConfig{Name: "foo", Type: "host"}}
+	nodes[2].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": &structs.ClientHostVolumeConfig{},
+		"bar": &structs.ClientHostVolumeConfig{},
 	}
-	nodes[3].HostVolumes = map[string]*structs.Volume{
-		"foo": &structs.Volume{},
-		"bar": &structs.Volume{},
+	nodes[3].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": &structs.ClientHostVolumeConfig{},
+		"bar": &structs.ClientHostVolumeConfig{},
 	}
-	nodes[4].HostVolumes = map[string]*structs.Volume{
-		"foo": &structs.Volume{},
-		"baz": &structs.Volume{},
+	nodes[4].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": &structs.ClientHostVolumeConfig{},
+		"baz": &structs.ClientHostVolumeConfig{},
 	}
 
-	noVolumes := map[string]*structs.Volume{}
+	noVolumes := map[string]*structs.HostVolumeRequest{}
 
-	// three requested volumes, with one that should be filtered, leaving two
-	volumes := map[string]*structs.Volume{
-		"foo": {Type: "host"},
-		"bar": {Type: "host"},
-		"baz": {Type: "cluster_volume"},
+	volumes := map[string]*structs.HostVolumeRequest{
+		"foo": {Config: &structs.HostVolumeConfig{Source: "foo"}},
+		"bar": {Config: &structs.HostVolumeConfig{Source: "bar"}},
 	}
 
 	checker := NewHostVolumeChecker(ctx)
 	cases := []struct {
 		Node             *structs.Node
-		RequestedVolumes map[string]*structs.Volume
+		RequestedVolumes map[string]*structs.HostVolumeRequest
 		Result           bool
 	}{
 		{ // Nil Volumes, some requested
