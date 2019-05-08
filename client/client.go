@@ -315,6 +315,9 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Initialize the server manager
 	c.servers = servers.New(c.logger, c.shutdownCh, c)
 
+	// Start server manager rebalancing go routine
+	go c.servers.Start()
+
 	// Initialize the client
 	if err := c.init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize client: %v", err)
@@ -1345,7 +1348,6 @@ func (c *Client) registerAndHeartbeat() {
 		case <-c.shutdownCh:
 			return
 		}
-
 		if err := c.updateNodeStatus(); err != nil {
 			// The servers have changed such that this node has not been
 			// registered before
@@ -2341,13 +2343,6 @@ func (c *Client) consulDiscovery() {
 
 func (c *Client) consulDiscoveryImpl() error {
 	consulLogger := c.logger.Named("consul")
-
-	// Acquire heartbeat lock to prevent heartbeat from running
-	// concurrently with discovery. Concurrent execution is safe, however
-	// discovery is usually triggered when heartbeating has failed so
-	// there's no point in allowing it.
-	c.heartbeatLock.Lock()
-	defer c.heartbeatLock.Unlock()
 
 	dcs, err := c.consulCatalog.Datacenters()
 	if err != nil {
