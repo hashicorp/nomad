@@ -1,3 +1,5 @@
+// +build linux
+
 package allocrunner
 
 import (
@@ -17,17 +19,8 @@ import (
 )
 
 const (
-	NsRunDir = "/var/run/netns"
+	NetNSRunDir = "/var/run/netns"
 )
-
-type networkManager interface {
-	CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, error)
-	DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSpec) error
-}
-
-func (ar *allocRunner) netNSPath() string {
-	return path.Join(NsRunDir, netNSName(ar.Alloc().ID))
-}
 
 func netNSName(id string) string {
 	return fmt.Sprintf("nomad-%s", id)
@@ -35,14 +28,14 @@ func netNSName(id string) string {
 
 type networkHook struct {
 	setter   *allocNetworkIsolationSetter
-	manager  networkManager
+	manager  drivers.DriverNetworkManager
 	alloc    *structs.Allocation
 	spec     *drivers.NetworkIsolationSpec
 	specLock sync.Mutex
 	logger   hclog.Logger
 }
 
-func newNetworkHook(ns *allocNetworkIsolationSetter, logger hclog.Logger, alloc *structs.Allocation, netManager networkManager) *networkHook {
+func newNetworkHook(ns *allocNetworkIsolationSetter, logger hclog.Logger, alloc *structs.Allocation, netManager drivers.DriverNetworkManager) *networkHook {
 	return &networkHook{
 		setter:  ns,
 		alloc:   alloc,
@@ -120,7 +113,7 @@ func newNS(id string) (ns.NetNS, error) {
 	// Create the directory for mounting network namespaces
 	// This needs to be a shared mountpoint in case it is mounted in to
 	// other namespaces (containers)
-	err = os.MkdirAll(NsRunDir, 0755)
+	err = os.MkdirAll(NetNSRunDir, 0755)
 	if err != nil {
 		return nil, err
 	}
@@ -128,23 +121,23 @@ func newNS(id string) (ns.NetNS, error) {
 	// Remount the namespace directory shared. This will fail if it is not
 	// already a mountpoint, so bind-mount it on to itself to "upgrade" it
 	// to a mountpoint.
-	err = unix.Mount("", NsRunDir, "none", unix.MS_SHARED|unix.MS_REC, "")
+	err = unix.Mount("", NetNSRunDir, "none", unix.MS_SHARED|unix.MS_REC, "")
 	if err != nil {
 		if err != unix.EINVAL {
-			return nil, fmt.Errorf("mount --make-rshared %s failed: %q", NsRunDir, err)
+			return nil, fmt.Errorf("mount --make-rshared %s failed: %q", NetNSRunDir, err)
 		}
 
 		// Recursively remount /var/run/netns on itself. The recursive flag is
 		// so that any existing netns bindmounts are carried over.
-		err = unix.Mount(NsRunDir, NsRunDir, "none", unix.MS_BIND|unix.MS_REC, "")
+		err = unix.Mount(NetNSRunDir, NetNSRunDir, "none", unix.MS_BIND|unix.MS_REC, "")
 		if err != nil {
-			return nil, fmt.Errorf("mount --rbind %s %s failed: %q", NsRunDir, NsRunDir, err)
+			return nil, fmt.Errorf("mount --rbind %s %s failed: %q", NetNSRunDir, NetNSRunDir, err)
 		}
 
 		// Now we can make it shared
-		err = unix.Mount("", NsRunDir, "none", unix.MS_SHARED|unix.MS_REC, "")
+		err = unix.Mount("", NetNSRunDir, "none", unix.MS_SHARED|unix.MS_REC, "")
 		if err != nil {
-			return nil, fmt.Errorf("mount --make-rshared %s failed: %q", NsRunDir, err)
+			return nil, fmt.Errorf("mount --make-rshared %s failed: %q", NetNSRunDir, err)
 		}
 
 	}
@@ -152,7 +145,7 @@ func newNS(id string) (ns.NetNS, error) {
 	nsName := netNSName(id)
 
 	// create an empty file at the mount point
-	nsPath := path.Join(NsRunDir, nsName)
+	nsPath := path.Join(NetNSRunDir, nsName)
 	mountPointFd, err := os.Create(nsPath)
 	if err != nil {
 		return nil, err
@@ -212,7 +205,7 @@ func newNS(id string) (ns.NetNS, error) {
 // UnmountNS unmounts the NS held by the netns object
 func unmountNS(nsPath string) error {
 	// Only unmount if it's been bind-mounted (don't touch namespaces in /proc...)
-	if strings.HasPrefix(nsPath, NsRunDir) {
+	if strings.HasPrefix(nsPath, NetNSRunDir) {
 		if err := unix.Unmount(nsPath, 0); err != nil {
 			return fmt.Errorf("failed to unmount NS: at %s: %v", nsPath, err)
 		}

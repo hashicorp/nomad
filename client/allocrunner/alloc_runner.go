@@ -195,55 +195,6 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 	return ar, nil
 }
 
-func (ar *allocRunner) initNetworkManager() (nm networkManager, err error) {
-	nm = &defaultNetworkManager{}
-	tg := ar.Alloc().Job.LookupTaskGroup(ar.Alloc().TaskGroup)
-	tgNetMode := "host"
-	if len(tg.Networks) > 0 && tg.Networks[0].Mode != "" {
-		tgNetMode = tg.Networks[0].Mode
-	}
-	var networkInitiator string
-	driverCaps := make(map[string]struct{})
-	for _, task := range tg.Tasks {
-		taskNetMode := tgNetMode
-		if len(task.Resources.Networks) > 0 && task.Resources.Networks[0].Mode != "" {
-			taskNetMode = task.Resources.Networks[0].Mode
-		}
-
-		if taskNetMode == "host" {
-			continue
-		}
-
-		if _, ok := driverCaps[task.Driver]; ok {
-			continue
-		}
-
-		driver, err := ar.driverManager.Dispense(task.Driver)
-		if err != nil {
-			return nil, fmt.Errorf("failed to dispense driver %s: %v", task.Driver, err)
-		}
-
-		caps, err := driver.Capabilities()
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrive capabilities for driver %s: %v",
-				task.Driver, err)
-		}
-
-		if caps.MustInitiateNetwork {
-			if networkInitiator != "" {
-				return nil, fmt.Errorf("tasks %s and %s want to initiate networking but only one is able", networkInitiator, task.Name)
-			}
-
-			nm = driver
-			networkInitiator = task.Name
-		}
-
-		driverCaps[task.Driver] = struct{}{}
-	}
-
-	return nm, nil
-}
-
 // initTaskRunners creates task runners but does *not* run them.
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
