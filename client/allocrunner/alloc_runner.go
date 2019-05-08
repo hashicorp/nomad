@@ -179,7 +179,9 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 	ar.allocDir = allocdir.NewAllocDir(ar.logger, filepath.Join(config.ClientConfig.AllocDir, alloc.ID))
 
 	// Initialize the runners hooks.
-	ar.initRunnerHooks()
+	if err := ar.initRunnerHooks(); err != nil {
+		return nil, err
+	}
 
 	// Create the TaskRunners
 	if err := ar.initTaskRunners(tg.Tasks); err != nil {

@@ -94,7 +94,7 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 }
 
 // initRunnerHooks intializes the runners hooks.
-func (ar *allocRunner) initRunnerHooks() {
+func (ar *allocRunner) initRunnerHooks() error {
 	hookLogger := ar.logger.Named("runner_hook")
 
 	// create health setting shim
@@ -110,7 +110,7 @@ func (ar *allocRunner) initRunnerHooks() {
 	}
 
 	// initialize platform specific hooks
-	ar.initPlatformRunnerHooks(hookLogger)
+	return ar.initPlatformRunnerHooks(hookLogger)
 }
 
 // prerun is used to run the runners prerun hooks.
