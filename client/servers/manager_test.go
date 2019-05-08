@@ -74,6 +74,11 @@ func TestServers_SetServers(t *testing.T) {
 	require.False(m.SetServers([]*servers.Server{s1, s2}))
 	after := m.GetServers()
 	require.Equal(before, after)
+
+	// Send a shuffled list, verify original order doesn't change
+	require.False(m.SetServers([]*servers.Server{s2, s1}))
+	afterShuffledInput := m.GetServers()
+	require.Equal(after, afterShuffledInput)
 }
 
 func TestServers_FindServer(t *testing.T) {

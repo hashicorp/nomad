@@ -204,7 +204,7 @@ func (m *Manager) SetServers(servers Servers) bool {
 	// Determine if they are equal
 	equal := m.serversAreEqual(servers)
 
-	// If server list is equal don't change the list and return immediatly
+	// If server list is equal don't change the list and return immediately
 	// This prevents unnecessary shuffling of a failed server that was moved to the
 	// bottom of the list
 	if equal {
