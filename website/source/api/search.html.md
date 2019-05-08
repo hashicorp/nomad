@@ -32,7 +32,7 @@ job related results will not be returned. If the token is only valid for
 
 ### Parameters
 
-- `Prefix` `(string: <required>)` - Specifies the identifer against which
+- `Prefix` `(string: <required>)` - Specifies the identifier against which
   matches will be found. For example, if the given prefix were "a", potential
   matches might be "abcd", or "aabb".
 - `Context` `(string: <required>)` - Defines the scope in which a search for a
