@@ -3,10 +3,10 @@ layout: "intro"
 page_title: "Nomad vs. Mesos with Aurora, Marathon, etc"
 sidebar_current: "vs-other-mesos"
 description: |-
-  Comparison between Nomad and Mesos with Aurora, Marathon, etc
+  Comparison between Nomad and Mesos with Marathon
 ---
 
-# Nomad vs. Mesos with Aurora, Marathon
+# Nomad vs. Mesos with Marathon
 
 Mesos is a resource manager, which is used to pool together the
 resources of a datacenter and exposes an API to integrate with
@@ -35,4 +35,3 @@ the scale that can be supported.
 Mesos does not support federation or multiple failure isolation regions.
 Nomad supports multi-datacenter and multi-region configurations for failure
 isolation and scalability.
-

@@ -10,6 +10,7 @@ description: |-
 # Load Balancing
 
 There are multiple approaches to set up load balancing across a Nomad cluster.
+
 Most of these methods assume Consul is installed alongside Nomad (see [Load
 Balancing Strategies for
 Consul](https://www.hashicorp.com/blog/load-balancing-strategies-for-consul)).
