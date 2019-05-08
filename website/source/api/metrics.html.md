@@ -26,7 +26,7 @@ The table below shows this endpoint's support for
 
 - `format` `(string: "")` - Specifies the metrics format to be other than the
   JSON default. Currently, only `prometheus` is supported as an alternative
-  format. This is specified as a querystring parameter.
+  format. This is specified as a query string parameter.
 
 ### Sample Request
 
