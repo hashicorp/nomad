@@ -39,7 +39,7 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `stale` - Specifies if the cluster should respond without an active leader.
-  This is specified as a querystring parameter.
+  This is specified as a query string parameter.
 
 ### Sample Request
 
