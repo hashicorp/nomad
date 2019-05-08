@@ -92,7 +92,7 @@ artifact {
 }
 ```
 
-To download from private repo, sshkey need to be set. The key must be
+To download from private repo, sshkey needs to be set. The key must be
 base64-encoded string. Run `base64 -w0 <file>`
 
 ```hcl
