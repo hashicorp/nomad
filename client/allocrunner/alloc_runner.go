@@ -721,6 +721,15 @@ func (ar *allocRunner) handleAllocUpdate(update *structs.Allocation) {
 
 }
 
+// MarkLive unblocks restored tasks that failed to reattach and are waiting to
+// contact a server before restarting the dead task. The Client will call this
+// method when the task should run, otherwise the task will be killed.
+func (ar *allocRunner) MarkLive() {
+	for _, tr := range ar.tasks {
+		tr.MarkLive()
+	}
+}
+
 func (ar *allocRunner) Listener() *cstructs.AllocListener {
 	return ar.allocBroadcaster.Listen()
 }

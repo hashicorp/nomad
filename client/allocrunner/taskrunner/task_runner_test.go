@@ -25,10 +25,12 @@ import (
 	"github.com/hashicorp/nomad/client/vaultclient"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	mockdriver "github.com/hashicorp/nomad/drivers/mock"
+	"github.com/hashicorp/nomad/drivers/rawexec"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
@@ -124,8 +126,8 @@ func runTestTaskRunner(t *testing.T, alloc *structs.Allocation, taskName string)
 	}
 }
 
-// TestTaskRunner_Restore asserts restoring a running task does not rerun the
-// task.
+// TestTaskRunner_Restore_Running asserts restoring a running task does not
+// rerun the task.
 func TestTaskRunner_Restore_Running(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -176,6 +178,142 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 1, started)
+}
+
+// setupRestoreFailureTest starts a service, shuts down the task runner, and
+// kills the task before restarting a new TaskRunner. The new TaskRunner is
+// returned once it is running and waiting in pending along with a cleanup
+// func.
+func setupRestoreFailureTest(t *testing.T) (*TaskRunner, func()) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "raw_exec"
+	task.Config = map[string]interface{}{
+		"command": "sleep",
+		"args":    []string{"30"},
+	}
+	conf, cleanup1 := testTaskRunnerConfig(t, alloc, task.Name)
+	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between runs
+
+	// Run the first TaskRunner
+	origTR, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	go origTR.Run()
+	cleanup2 := func() {
+		origTR.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+		cleanup1()
+	}
+
+	// Wait for it to be running
+	testWaitForTaskToStart(t, origTR)
+
+	handle := origTR.getDriverHandle()
+	require.NotNil(t, handle)
+	taskID := handle.taskID
+
+	// Cause TR to exit without shutting down task
+	origTR.Shutdown()
+
+	// Get the mock driver plugin
+	driverPlugin, err := conf.DriverManager.Dispense(rawexec.PluginID.Name)
+	require.NoError(t, err)
+	rawexecDriver := driverPlugin.(*rawexec.Driver)
+
+	// Assert the task is still running despite TR having exited
+	taskStatus, err := rawexecDriver.InspectTask(taskID)
+	require.NoError(t, err)
+	require.Equal(t, drivers.TaskStateRunning, taskStatus.State)
+
+	// Kill the task so it fails to recover when restore is called
+	require.NoError(t, rawexecDriver.DestroyTask(taskID, true))
+	_, err = rawexecDriver.InspectTask(taskID)
+	require.EqualError(t, err, drivers.ErrTaskNotFound.Error())
+
+	// Create a new TaskRunner and Restore the task
+	newTR, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	require.NoError(t, newTR.Restore())
+
+	// Assert the restore gate is *closed* because reattachment failed
+	require.True(t, newTR.restoreGate.IsClosed())
+
+	// Start new TR
+	go newTR.Run()
+	cleanup3 := func() {
+		newTR.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+		cleanup2()
+		cleanup1()
+	}
+
+	// Assert task has not been restarted
+	_, err = rawexecDriver.InspectTask(taskID)
+	require.EqualError(t, err, drivers.ErrTaskNotFound.Error())
+	ts := newTR.TaskState()
+	require.Equal(t, structs.TaskStatePending, ts.State)
+
+	return newTR, cleanup3
+}
+
+// TestTaskRunner_Restore_Restart asserts restoring a dead task blocks until
+// MarkAlive is called. #1795
+func TestTaskRunner_Restore_Restart(t *testing.T) {
+	newTR, cleanup := setupRestoreFailureTest(t)
+	defer cleanup()
+
+	// Fake contacting the server by opening the restore gate
+	newTR.MarkLive()
+
+	testutil.WaitForResult(func() (bool, error) {
+		ts := newTR.TaskState().State
+		return ts == structs.TaskStateRunning, fmt.Errorf("expected task to be running but found %q", ts)
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+}
+
+// TestTaskRunner_Restore_Kill asserts restoring a dead task blocks until
+// the task is killed. #1795
+func TestTaskRunner_Restore_Kill(t *testing.T) {
+	newTR, cleanup := setupRestoreFailureTest(t)
+	defer cleanup()
+
+	// Sending the task a terminal update shouldn't kill it or mark it live
+	alloc := newTR.Alloc().Copy()
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
+	newTR.Update(alloc)
+
+	require.Equal(t, structs.TaskStatePending, newTR.TaskState().State)
+
+	// AllocRunner will immediately kill tasks after sending a terminal
+	// update.
+	newTR.Kill(context.Background(), structs.NewTaskEvent(structs.TaskKilling))
+
+	select {
+	case <-newTR.WaitCh():
+		// It died as expected!
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "timeout waiting for task to die")
+	}
+}
+
+// TestTaskRunner_Restore_Update asserts restoring a dead task blocks until
+// Update is called. #1795
+func TestTaskRunner_Restore_Update(t *testing.T) {
+	newTR, cleanup := setupRestoreFailureTest(t)
+	defer cleanup()
+
+	// Fake contacting the server by opening the restore gate
+	alloc := newTR.Alloc().Copy()
+	newTR.Update(alloc)
+
+	testutil.WaitForResult(func() (bool, error) {
+		ts := newTR.TaskState().State
+		return ts == structs.TaskStateRunning, fmt.Errorf("expected task to be running but found %q", ts)
+	}, func(err error) {
+		require.NoError(t, err)
+	})
 }
 
 // TestTaskRunner_TaskEnv_Interpolated asserts driver configurations are

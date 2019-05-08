@@ -25,6 +25,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/helper/gate"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -193,6 +194,10 @@ type TaskRunner struct {
 	// maxEvents is the capacity of the TaskEvents on the TaskState.
 	// Defaults to defaultMaxEvents but overrideable for testing.
 	maxEvents int
+
+	// restoreGate is used to block restored tasks that failed to reattach
+	// from restarting until servers are contacted. #1795
+	restoreGate *gate.G
 }
 
 type Config struct {
@@ -245,6 +250,12 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		tstate = ts.Copy()
 	}
 
+	// Initialize restoreGate as open. It will only be closed if Restore is
+	// called and fails to reconnect to the task handle. In that case the
+	// we must wait until contact with the server is made before restarting
+	// or killing the task. #1795
+	restoreGate := gate.NewOpen()
+
 	tr := &TaskRunner{
 		alloc:               config.Alloc,
 		allocID:             config.Alloc.ID,
@@ -270,6 +281,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		devicemanager:       config.DeviceManager,
 		driverManager:       config.DriverManager,
 		maxEvents:           defaultMaxEvents,
+		restoreGate:         restoreGate,
 	}
 
 	// Create the logger based on the allocation ID
@@ -380,6 +392,18 @@ func (tr *TaskRunner) Run() {
 	// triggered update - whether due to alloc updates or a new vault token
 	// - should be handled serially.
 	go tr.handleUpdates()
+
+	// If restore failed, don't proceed until servers are contacted
+	if tr.restoreGate.IsClosed() {
+		tr.logger.Info("task failed to restore; waiting to contact server before restarting")
+		select {
+		case <-tr.killCtx.Done():
+		case <-tr.shutdownCtx.Done():
+			return
+		case <-tr.restoreGate.Wait():
+			tr.logger.Trace("server contacted; unblocking waiting task")
+		}
+	}
 
 MAIN:
 	for !tr.Alloc().TerminalStatus() {
@@ -858,7 +882,18 @@ func (tr *TaskRunner) Restore() error {
 	if taskHandle := tr.localState.TaskHandle; taskHandle != nil {
 		//TODO if RecoverTask returned the DriverNetwork we wouldn't
 		//     have to persist it at all!
-		tr.restoreHandle(taskHandle, tr.localState.DriverNetwork)
+		restored := tr.restoreHandle(taskHandle, tr.localState.DriverNetwork)
+		if !restored && !tr.Alloc().TerminalStatus() {
+			// Restore failed, close the restore gate to block
+			// until server is contacted to prevent restarting
+			// terminal allocs. #1795
+			tr.logger.Trace("failed to reattach to task; will not run until server is contacted")
+			tr.restoreGate.Close()
+
+			ev := structs.NewTaskEvent(structs.TaskRestoreFailed).
+				SetDisplayMessage("failed to restore task; will not run until server is contacted")
+			tr.UpdateState(structs.TaskStatePending, ev)
+		}
 	}
 	return nil
 }
@@ -1073,6 +1108,10 @@ func (tr *TaskRunner) Update(update *structs.Allocation) {
 	// Trigger update hooks if not terminal
 	if !update.TerminalStatus() {
 		tr.triggerUpdateHooks()
+
+		// MarkLive in case task had failed to restore and were waiting
+		// to hear from the server.
+		tr.MarkLive()
 	}
 }
 
@@ -1087,6 +1126,13 @@ func (tr *TaskRunner) triggerUpdateHooks() {
 	default:
 		// already an update hook pending
 	}
+}
+
+// MarkLive unblocks restored tasks that failed to reattach and are waiting to
+// contact a server before restarting the dead task. The Client will call this
+// method when the task should run, otherwise the task will be killed.
+func (tr *TaskRunner) MarkLive() {
+	tr.restoreGate.Open()
 }
 
 // Shutdown TaskRunner gracefully without affecting the state of the task.

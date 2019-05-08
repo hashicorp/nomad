@@ -5971,6 +5971,10 @@ const (
 
 	// TaskHookFailed indicates that one of the hooks for a task failed.
 	TaskHookFailed = "Task hook failed"
+
+	// TaskRestoreFailed indicates Nomad was unable to reattach to a
+	// restored task.
+	TaskRestoreFailed = "Failed Restoring Task"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
