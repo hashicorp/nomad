@@ -11,13 +11,17 @@ import (
 )
 
 // initialize linux specific alloc runner hooks
-func (ar *allocRunner) initPlatformRunnerHooks(hookLogger hclog.Logger) {
+func (ar *allocRunner) initPlatformRunnerHooks(hookLogger hclog.Logger) error {
 
 	// determine how the network must be created
 	ns := &allocNetworkIsolationSetter{ar: ar}
-	nm, _ := ar.initNetworkManager()
+	nm, err := ar.initNetworkManager()
+	if err != nil {
+		return err
+	}
 
 	ar.runnerHooks = append(ar.runnerHooks, newNetworkHook(ns, hookLogger, ar.Alloc(), nm))
+	return nil
 }
 
 func (ar *allocRunner) initNetworkManager() (nm drivers.DriverNetworkManager, err error) {
