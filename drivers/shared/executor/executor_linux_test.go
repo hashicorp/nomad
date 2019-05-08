@@ -170,6 +170,9 @@ func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
 	require.Nil(err)
 	defer os.Remove(tmpDir)
 
+	// Create the command
+	cmd := &ExecCommand{Env: []string{"PATH=/bin"}, TaskDir: tmpDir}
+
 	// Make a foo subdir
 	os.MkdirAll(filepath.Join(tmpDir, "foo"), 0700)
 
@@ -179,7 +182,8 @@ func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
 	require.NoError(err)
 
 	// Lookout with an absolute path to the binary
-	_, err = lookupTaskBin(tmpDir, "/foo/tmp.txt")
+	cmd.Cmd = "/foo/tmp.txt"
+	_, err = lookupTaskBin(cmd)
 	require.NoError(err)
 
 	// Write a file under local subdir
@@ -188,11 +192,13 @@ func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
 	ioutil.WriteFile(filePath2, []byte{1, 2}, os.ModeAppend)
 
 	// Lookup with file name, should find the one we wrote above
-	_, err = lookupTaskBin(tmpDir, "tmp.txt")
+	cmd.Cmd = "tmp.txt"
+	_, err = lookupTaskBin(cmd)
 	require.NoError(err)
 
 	// Lookup a host absolute path
-	_, err = lookupTaskBin(tmpDir, "/bin/sh")
+	cmd.Cmd = "/bin/sh"
+	_, err = lookupTaskBin(cmd)
 	require.Error(err)
 }
 
