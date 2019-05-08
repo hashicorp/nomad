@@ -10,6 +10,10 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
+type networkIsolationSetter interface {
+	SetNetworkIsolation(*drivers.NetworkIsolationSpec)
+}
+
 // allocNetworkIsolationSetter is a shim to allow the alloc network hook to
 // set the alloc network isolation configuration without full access
 // to the alloc runner
@@ -105,6 +109,7 @@ func (ar *allocRunner) initRunnerHooks() {
 		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
 	}
 
+	// initialize platform specific hooks
 	ar.initPlatformRunnerHooks(hookLogger)
 }
 
