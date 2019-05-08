@@ -96,10 +96,6 @@ func (ar *allocRunner) initRunnerHooks() {
 	// create health setting shim
 	hs := &allocHealthSetter{ar}
 
-	// determine how the network must be created
-	ns := &allocNetworkIsolationSetter{ar: ar}
-	nm, _ := ar.initNetworkManager()
-
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
 	ar.runnerHooks = []interfaces.RunnerHook{
@@ -107,8 +103,9 @@ func (ar *allocRunner) initRunnerHooks() {
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
-		newNetworkHook(ns, hookLogger, ar.Alloc(), nm),
 	}
+
+	ar.initPlatformRunnerHooks(hookLogger)
 }
 
 // prerun is used to run the runners prerun hooks.
