@@ -908,33 +908,34 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 
 func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkResource {
 	var out []*structs.NetworkResource
-	if l := len(in); l != 0 {
-		out = make([]*structs.NetworkResource, l)
-		for i, nw := range in {
-			out[i] = &structs.NetworkResource{
-				Mode:  nw.Mode,
-				CIDR:  nw.CIDR,
-				IP:    nw.IP,
-				MBits: *nw.MBits,
-			}
+	if len(in) == 0 {
+		return out
+	}
+	out = make([]*structs.NetworkResource, len(in))
+	for i, nw := range in {
+		out[i] = &structs.NetworkResource{
+			Mode:  nw.Mode,
+			CIDR:  nw.CIDR,
+			IP:    nw.IP,
+			MBits: *nw.MBits,
+		}
 
-			if l := len(nw.DynamicPorts); l != 0 {
-				out[i].DynamicPorts = make([]structs.Port, l)
-				for j, dp := range nw.DynamicPorts {
-					out[i].DynamicPorts[j] = structs.Port{
-						Label: dp.Label,
-						Value: dp.Value,
-					}
+		if l := len(nw.DynamicPorts); l != 0 {
+			out[i].DynamicPorts = make([]structs.Port, l)
+			for j, dp := range nw.DynamicPorts {
+				out[i].DynamicPorts[j] = structs.Port{
+					Label: dp.Label,
+					Value: dp.Value,
 				}
 			}
+		}
 
-			if l := len(nw.ReservedPorts); l != 0 {
-				out[i].ReservedPorts = make([]structs.Port, l)
-				for j, rp := range nw.ReservedPorts {
-					out[i].ReservedPorts[j] = structs.Port{
-						Label: rp.Label,
-						Value: rp.Value,
-					}
+		if l := len(nw.ReservedPorts); l != 0 {
+			out[i].ReservedPorts = make([]structs.Port, l)
+			for j, rp := range nw.ReservedPorts {
+				out[i].ReservedPorts[j] = structs.Port{
+					Label: rp.Label,
+					Value: rp.Value,
 				}
 			}
 		}
