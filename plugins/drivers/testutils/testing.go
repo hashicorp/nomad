@@ -194,6 +194,19 @@ type MockDriver struct {
 	TaskEventsF       func(context.Context) (<-chan *drivers.TaskEvent, error)
 	SignalTaskF       func(string, string) error
 	ExecTaskF         func(string, []string, time.Duration) (*drivers.ExecTaskResult, error)
+	MockNetworkManager
+}
+
+type MockNetworkManager struct {
+	CreateNetworkF  func(string) (*drivers.NetworkIsolationSpec, error)
+	DestroyNetworkF func(string, *drivers.NetworkIsolationSpec) error
+}
+
+func (m *MockNetworkManager) CreateNetwork(id string) (*drivers.NetworkIsolationSpec, error) {
+	return m.CreateNetworkF(id)
+}
+func (m *MockNetworkManager) DestroyNetwork(id string, spec *drivers.NetworkIsolationSpec) error {
+	return m.DestroyNetworkF(id, spec)
 }
 
 func (d *MockDriver) TaskConfigSchema() (*hclspec.Spec, error) { return d.TaskConfigSchemaF() }
