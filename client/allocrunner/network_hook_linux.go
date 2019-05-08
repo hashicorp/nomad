@@ -19,6 +19,8 @@ import (
 )
 
 const (
+	// NetNSRunDir is the path to the directory which network namespace file
+	// descriptors will be bind mounted
 	NetNSRunDir = "/var/run/netns"
 )
 
@@ -26,16 +28,28 @@ func netNSName(id string) string {
 	return fmt.Sprintf("nomad-%s", id)
 }
 
+// networkHook is an alloc lifecycle hook that manages the network namespace
+// for an alloc
 type networkHook struct {
-	setter   *allocNetworkIsolationSetter
-	manager  drivers.DriverNetworkManager
-	alloc    *structs.Allocation
+	// setter is a callback to set the network isolation spec when after the
+	// network is created
+	setter networkIsolationSetter
+
+	// manager is used when creating the network namespace. This defaults to
+	// bind mounting a network namespace descritor under /var/run/netns but
+	// can be created by a driver if nessicary
+	manager drivers.DriverNetworkManager
+
+	// alloc should only be read from
+	alloc *structs.Allocation
+
+	// spec described the network namespace and is syncronized by specLock
 	spec     *drivers.NetworkIsolationSpec
 	specLock sync.Mutex
 	logger   hclog.Logger
 }
 
-func newNetworkHook(ns *allocNetworkIsolationSetter, logger hclog.Logger, alloc *structs.Allocation, netManager drivers.DriverNetworkManager) *networkHook {
+func newNetworkHook(ns networkIsolationSetter, logger hclog.Logger, alloc *structs.Allocation, netManager drivers.DriverNetworkManager) *networkHook {
 	return &networkHook{
 		setter:  ns,
 		alloc:   alloc,
@@ -72,13 +86,13 @@ func (h *networkHook) Postrun() error {
 	h.specLock.Lock()
 	defer h.specLock.Unlock()
 	if h.spec == nil {
-		h.logger.Debug("spec was nil")
 		return nil
 	}
 
 	return h.manager.DestroyNetwork(h.alloc.ID, h.spec)
 }
 
+// defaultNetworkManager creates a network namespace for the alloc
 type defaultNetworkManager struct{}
 
 func (_ *defaultNetworkManager) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, error) {

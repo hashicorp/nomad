@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
+// initialize linux specific alloc runner hooks
 func (ar *allocRunner) initPlatformRunnerHooks(hookLogger hclog.Logger) {
 
 	// determine how the network must be created
