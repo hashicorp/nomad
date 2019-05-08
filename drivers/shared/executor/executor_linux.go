@@ -143,7 +143,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	l.container = container
 
 	// Look up the binary path and make it executable
-	absPath, err := lookupTaskBin(command.TaskDir, command.Cmd)
+	absPath, err := lookupTaskBin(command)
 
 	if err != nil {
 		return nil, err
@@ -774,7 +774,10 @@ func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
 
 // lookupTaskBin finds the file `bin` in taskDir/local, taskDir in that order, then performs
 // a PATH search inside taskDir. It returns an absolute path. See also executor.lookupBin
-func lookupTaskBin(taskDir string, bin string) (string, error) {
+func lookupTaskBin(command *ExecCommand) (string, error) {
+	taskDir := command.TaskDir
+	bin := command.Cmd
+
 	// Check in the local directory
 	localDir := filepath.Join(taskDir, allocdir.TaskLocal)
 	local := filepath.Join(localDir, bin)
@@ -788,10 +791,17 @@ func lookupTaskBin(taskDir string, bin string) (string, error) {
 		return root, nil
 	}
 
+	// Find the PATH
+	path := "/usr/local/bin:/usr/bin:/bin"
+	for _, e := range command.Env {
+		if strings.HasPrefix("PATH=", e) {
+			path = e[5:]
+		}
+	}
+
 	// Check the host PATH anchored inside the taskDir
 	if !strings.Contains(bin, "/") {
-		envPath := os.Getenv("PATH")
-		for _, dir := range filepath.SplitList(envPath) {
+		for _, dir := range filepath.SplitList(path) {
 			if dir == "" {
 				// match unix shell behavior, empty path element == .
 				dir = "."
