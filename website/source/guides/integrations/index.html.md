@@ -8,6 +8,6 @@ description: |-
 
 # HashiCorp Integrations
 
-Nomad integrates seamlessly with Terraform, Consul, Vault for provisioning, service discovery, and secrets management.
+Nomad integrates seamlessly with Consul and Vault for service discovery and secrets management.
 
 Please navigate the appropriate sub-sections for more information.

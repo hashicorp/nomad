@@ -13,7 +13,7 @@ This page features Nomad's core use cases.
 
 Note that the full range of potential use cases is broader than what is covered here.  
 
-## Docker Container Management
+## Docker Container Orchestration
 
 Organizations are increasingly moving towards a Docker centric workflow for
 application deployment and management. This transition requires new tooling
