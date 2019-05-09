@@ -92,11 +92,13 @@ func WaitForLeader(t testing.T, rpc rpcFn) {
 	})
 }
 
-func RegisterJob(t testing.T, rpc rpcFn, job *structs.Job) {
+func RegisterJobWithToken(t testing.T, rpc rpcFn, job *structs.Job, token string) {
 	WaitForResult(func() (bool, error) {
 		args := &structs.JobRegisterRequest{}
 		args.Job = job
 		args.WriteRequest.Region = "global"
+		args.AuthToken = token
+		args.Namespace = structs.DefaultNamespace
 		var jobResp structs.JobRegisterResponse
 		err := rpc("Job.Register", args, &jobResp)
 		return err == nil, fmt.Errorf("Job.Register error: %v", err)
@@ -107,9 +109,12 @@ func RegisterJob(t testing.T, rpc rpcFn, job *structs.Job) {
 	t.Logf("Job %q registered", job.ID)
 }
 
-// WaitForRunning runs a job and blocks until all allocs are out of pending.
-func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocListStub {
-	RegisterJob(t, rpc, job)
+func RegisterJob(t testing.T, rpc rpcFn, job *structs.Job) {
+	RegisterJobWithToken(t, rpc, job, "")
+}
+
+func WaitForRunningWithToken(t testing.T, rpc rpcFn, job *structs.Job, token string) []*structs.AllocListStub {
+	RegisterJobWithToken(t, rpc, job, token)
 
 	var resp structs.JobAllocationsResponse
 
@@ -117,6 +122,8 @@ func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocLi
 		args := &structs.JobSpecificRequest{}
 		args.JobID = job.ID
 		args.QueryOptions.Region = "global"
+		args.AuthToken = token
+		args.Namespace = structs.DefaultNamespace
 		err := rpc("Job.Allocations", args, &resp)
 		if err != nil {
 			return false, fmt.Errorf("Job.Allocations error: %v", err)
@@ -139,4 +146,9 @@ func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocLi
 	})
 
 	return resp.Allocations
+}
+
+// WaitForRunning runs a job and blocks until all allocs are out of pending.
+func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocListStub {
+	return WaitForRunningWithToken(t, rpc, job, "")
 }

@@ -156,6 +156,7 @@
 		{"path":"github.com/gorhill/cronexpr/cronexpr","checksumSHA1":"Nd/7mZb0T6Gj6+AymyOPsNCQSJs=","comment":"1.0.0","revision":"a557574d6c024ed6e36acc8b610f5f211c91568a"},
 		{"path":"github.com/gorilla/context","checksumSHA1":"g/V4qrXjUGG9B+e3hB+4NAYJ5Gs=","revision":"08b5f424b9271eedf6f9f0ce86cb9396ed337a42","revisionTime":"2016-08-17T18:46:32Z"},
 		{"path":"github.com/gorilla/mux","checksumSHA1":"STQSdSj2FcpCf0NLfdsKhNutQT0=","revision":"e48e440e4c92e3251d812f8ce7858944dfa3331c","revisionTime":"2018-08-07T07:52:56Z"},
+		{"path":"github.com/gorilla/websocket","checksumSHA1":"gr0edNJuVv4+olNNZl5ZmwLgscA=","revision":"0ec3d1bd7fe50c503d6df98ee649d81f4857c564","revisionTime":"2019-03-06T00:42:57Z"},
 		{"path":"github.com/hashicorp/consul-template","checksumSHA1":"+AGSqY+9kpGX5rrQDBWpgzaDKSA=","revision":"9a0f301b69d841c32f36b78008afb2dee8a9c40b","revisionTime":"2019-02-20T00:40:33Z"},
 		{"path":"github.com/hashicorp/consul-template/child","checksumSHA1":"AhDPiKa7wzh3SE6Gx0WrsDYwBHg=","revision":"9a0f301b69d841c32f36b78008afb2dee8a9c40b","revisionTime":"2019-02-20T00:40:33Z"},
 		{"path":"github.com/hashicorp/consul-template/config","checksumSHA1":"0vr6paBMXD7ZYSmtfJpjfjZJKic=","revision":"9a0f301b69d841c32f36b78008afb2dee8a9c40b","revisionTime":"2019-02-20T00:40:33Z"},

@@ -181,19 +181,20 @@ func (h *DriverHarness) WaitUntilStarted(taskID string, timeout time.Duration) e
 // is passed through the base plugin layer.
 type MockDriver struct {
 	base.MockPlugin
-	TaskConfigSchemaF func() (*hclspec.Spec, error)
-	FingerprintF      func(context.Context) (<-chan *drivers.Fingerprint, error)
-	CapabilitiesF     func() (*drivers.Capabilities, error)
-	RecoverTaskF      func(*drivers.TaskHandle) error
-	StartTaskF        func(*drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error)
-	WaitTaskF         func(context.Context, string) (<-chan *drivers.ExitResult, error)
-	StopTaskF         func(string, time.Duration, string) error
-	DestroyTaskF      func(string, bool) error
-	InspectTaskF      func(string) (*drivers.TaskStatus, error)
-	TaskStatsF        func(context.Context, string, time.Duration) (<-chan *drivers.TaskResourceUsage, error)
-	TaskEventsF       func(context.Context) (<-chan *drivers.TaskEvent, error)
-	SignalTaskF       func(string, string) error
-	ExecTaskF         func(string, []string, time.Duration) (*drivers.ExecTaskResult, error)
+	TaskConfigSchemaF  func() (*hclspec.Spec, error)
+	FingerprintF       func(context.Context) (<-chan *drivers.Fingerprint, error)
+	CapabilitiesF      func() (*drivers.Capabilities, error)
+	RecoverTaskF       func(*drivers.TaskHandle) error
+	StartTaskF         func(*drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error)
+	WaitTaskF          func(context.Context, string) (<-chan *drivers.ExitResult, error)
+	StopTaskF          func(string, time.Duration, string) error
+	DestroyTaskF       func(string, bool) error
+	InspectTaskF       func(string) (*drivers.TaskStatus, error)
+	TaskStatsF         func(context.Context, string, time.Duration) (<-chan *drivers.TaskResourceUsage, error)
+	TaskEventsF        func(context.Context) (<-chan *drivers.TaskEvent, error)
+	SignalTaskF        func(string, string) error
+	ExecTaskF          func(string, []string, time.Duration) (*drivers.ExecTaskResult, error)
+	ExecTaskStreamingF func(context.Context, string, *drivers.ExecOptions) (*drivers.ExitResult, error)
 }
 
 func (d *MockDriver) TaskConfigSchema() (*hclspec.Spec, error) { return d.TaskConfigSchemaF() }
@@ -228,6 +229,10 @@ func (d *MockDriver) SignalTask(taskID string, signal string) error {
 }
 func (d *MockDriver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
 	return d.ExecTaskF(taskID, cmd, timeout)
+}
+
+func (d *MockDriver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts *drivers.ExecOptions) (*drivers.ExitResult, error) {
+	return d.ExecTaskStreamingF(ctx, taskID, execOpts)
 }
 
 // SetEnvvars sets path and host env vars depending on the FS isolation used.

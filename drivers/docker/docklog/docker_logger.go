@@ -98,7 +98,11 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 				Follow:       true,
 				Stdout:       true,
 				Stderr:       true,
-				RawTerminal:  opts.TTY,
+
+				// When running in TTY, we must use a raw terminal.
+				// If not, we set RawTerminal to false to allow docker client
+				// to interpret special stdout/stderr messages
+				RawTerminal: opts.TTY,
 			}
 
 			err := client.Logs(logOpts)

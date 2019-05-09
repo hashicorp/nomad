@@ -70,6 +70,10 @@ service Driver {
 
     // ExecTask executes a command inside the tasks execution context
     rpc ExecTask(ExecTaskRequest) returns (ExecTaskResponse) {}
+
+    // ExecTaskStreaming executes a command inside the tasks execution context
+    // and streams back results
+    rpc ExecTaskStreaming(stream ExecTaskStreamingRequest) returns (stream ExecTaskStreamingResponse) {}
 }
 
 message TaskConfigSchemaRequest {}
@@ -278,6 +282,36 @@ message ExecTaskResponse {
 
     // Result from the exec
     ExitResult result = 3;
+}
+
+message ExecTaskStreamingIOOperation {
+    bytes data = 1;
+    bool close = 2;
+}
+
+message ExecTaskStreamingRequest {
+    message Setup {
+        string task_id = 1;
+        repeated string command = 2;
+        bool tty = 3;
+    }
+
+    message TerminalSize {
+        int32 height = 1;
+        int32 width = 2;
+    }
+
+    Setup setup = 1;
+    TerminalSize tty_size = 2;
+    ExecTaskStreamingIOOperation stdin = 3;
+}
+
+message ExecTaskStreamingResponse {
+    ExecTaskStreamingIOOperation stdout = 1;
+    ExecTaskStreamingIOOperation stderr = 2;
+
+    bool exited = 3;
+    ExitResult result = 4;
 }
 
 message DriverCapabilities {
