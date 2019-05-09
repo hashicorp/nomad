@@ -23,9 +23,9 @@ nodes increases scheduling time but provides greater guarantees about the
 optimality of a job placement, which given the service workload is highly
 desirable.
 
-Service jobs will be considered failed by Nomad upon failure or exit
-regardless of exit code and handled according to the job's [restart]
-and [reschedule] stanzas.
+Service jobs are intended to run until explicitly stopped by an operator. If a
+service task exits it is considered a failure and handled according to the job's
+[restart] and [reschedule] stanzas.
 
 ## Batch
 
@@ -37,9 +37,9 @@ the set of nodes that meet the job's constraints it uses the power of two
 choices described in Berkeley's Sparrow scheduler to limit the number of nodes
 that are ranked.
 
-Successful Batch jobs–having an exit code of 0–will not be restarted/rescheduled
-by Nomad. All other cases will be considered failures and handled 
-according to the job's [restart] and [reschedule] stanzas.
+Batch jobs are intended to run until they exit successfully. Batch tasks that
+exit with an error are handled according to the job's [restart] and [reschedule]
+stanzas.
 
 ## System
 
@@ -58,9 +58,9 @@ Since Nomad 0.9, the system scheduler will preempt eligible lower priority
 tasks running on a node if there isn't enough capacity to place a system job.
 See [preemption] for details on how tasks that get preempted are chosen.
 
-System jobs will be considered failed by Nomad upon failure or exit, **except
-when preempted**, regardless of exit code and handled according to the
-job's [restart] and [reschedule] stanzas.
+Systems jobs are intended to run until explicitly stopped either by an operator
+or [preemption]. If a system task exits it is considered a failure and handled
+according to the job's [restart] stanza; system jobs do not have rescheduling.
 
 [Borg]: https://research.google.com/pubs/pub43438.html
 [preemption]: /docs/internals/scheduling/preemption.html
