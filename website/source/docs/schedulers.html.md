@@ -6,6 +6,11 @@ description: |-
   Learn about Nomad's various schedulers.
 ---
 
+[Borg]: https://research.google.com/pubs/pub43438.html
+[preemption]: /docs/internals/scheduling/preemption.html
+[restart]: /docs/job-specification/restart.html
+[reschedule]: /docs/job-specification/reschedule.html
+
 # Schedulers
 
 Nomad has three scheduler types that can be used when creating your job:
@@ -17,10 +22,15 @@ each of these schedulers.
 The `service` scheduler is designed for scheduling long lived services that
 should never go down. As such, the `service` scheduler ranks a large portion
 of the nodes that meet the job's constraints and selects the optimal node to
-place a task group on. The `service` scheduler uses a best fit scoring algorithm influenced by Google's work on
-[Borg](https://research.google.com/pubs/pub43438.html). Ranking this larger set of candidate nodes
-increases scheduling time but provides greater guarantees about the optimality
-of a job placement, which given the service workload is highly desirable.
+place a task group on. The `service` scheduler uses a best fit scoring algorithm
+influenced by Google's work on [Borg]. Ranking this larger set of candidate
+nodes increases scheduling time but provides greater guarantees about the
+optimality of a job placement, which given the service workload is highly
+desirable.
+
+Service jobs will be considered failed by Nomad upon failure or exit
+regardless of exit code and and handled according to the job's [restart]
+and [reschedule] stanzas.
 
 ## Batch
 
@@ -28,9 +38,13 @@ Batch jobs are much less sensitive to short term performance fluctuations and
 are short lived, finishing in a few minutes to a few days. Although the `batch`
 scheduler is very similar to the `service` scheduler, it makes certain
 optimizations for the batch workload. The main distinction is that after finding
-the set of nodes that meet the job's constraints it uses the power of two choices
-described in Berkeley's Sparrow scheduler to limit the number of nodes that are
-ranked.
+the set of nodes that meet the job's constraints it uses the power of two
+choices described in Berkeley's Sparrow scheduler to limit the number of nodes
+that are ranked.
+
+Successful Batch jobs–having an exit code of 0–will not be restarted/rescheduled
+by Nomad. All other cases will be considered failures and handled 
+according to the job's [restart] and [reschedule] stanzas.
 
 ## System
 
@@ -47,5 +61,8 @@ service discovery and more.
 
 Since Nomad 0.9, the system scheduler will preempt eligible lower priority
 tasks running on a node if there isn't enough capacity to place a system job.
-See [preemption](/docs/internals/scheduling/preemption.html) for details on how
-tasks that get preempted are chosen.
+See [preemption] for details on how tasks that get preempted are chosen.
+
+Service jobs will be considered failed by Nomad upon failure or exit, **except
+when preempted**, regardless of exit code and and handled according to the
+job's [restart] and [reschedule] stanzas.
