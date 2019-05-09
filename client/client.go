@@ -14,11 +14,11 @@ import (
 	"sync"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
-	hclog "github.com/hashicorp/go-hclog"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -314,6 +314,9 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Initialize the server manager
 	c.servers = servers.New(c.logger, c.shutdownCh, c)
+
+	// Start server manager rebalancing go routine
+	go c.servers.Start()
 
 	// Initialize the client
 	if err := c.init(); err != nil {
@@ -1345,7 +1348,6 @@ func (c *Client) registerAndHeartbeat() {
 		case <-c.shutdownCh:
 			return
 		}
-
 		if err := c.updateNodeStatus(); err != nil {
 			// The servers have changed such that this node has not been
 			// registered before
@@ -2342,13 +2344,6 @@ func (c *Client) consulDiscovery() {
 func (c *Client) consulDiscoveryImpl() error {
 	consulLogger := c.logger.Named("consul")
 
-	// Acquire heartbeat lock to prevent heartbeat from running
-	// concurrently with discovery. Concurrent execution is safe, however
-	// discovery is usually triggered when heartbeating has failed so
-	// there's no point in allowing it.
-	c.heartbeatLock.Lock()
-	defer c.heartbeatLock.Unlock()
-
 	dcs, err := c.consulCatalog.Datacenters()
 	if err != nil {
 		return fmt.Errorf("client.consul: unable to query Consul datacenters: %v", err)
@@ -2709,11 +2704,11 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 	}
 
 	// Sum the allocated resources
-	allocs := c.allAllocs()
 	var allocated structs.ComparableResources
 	allocatedDeviceMbits := make(map[string]int)
-	for _, alloc := range allocs {
-		if alloc.TerminalStatus() {
+	for _, ar := range c.getAllocRunners() {
+		alloc := ar.Alloc()
+		if alloc.ServerTerminalStatus() || ar.AllocState().ClientTerminalStatus() {
 			continue
 		}
 
@@ -2758,17 +2753,6 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 	}
 
 	return &allocated
-}
-
-// allAllocs returns all the allocations managed by the client
-func (c *Client) allAllocs() map[string]*structs.Allocation {
-	ars := c.getAllocRunners()
-	allocs := make(map[string]*structs.Allocation, len(ars))
-	for _, ar := range ars {
-		a := ar.Alloc()
-		allocs[a.ID] = a
-	}
-	return allocs
 }
 
 // GetTaskEventHandler returns an event handler for the given allocID and task name

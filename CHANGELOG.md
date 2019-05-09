@@ -1,24 +1,42 @@
 ## 0.9.2 (Unreleased)
 
+__BACKWARDS INCOMPATIBILITIES:__
+
+ * client: The format of service IDs in Consul has changed. If you rely upon
+   Nomad's service IDs (*not* service names; those are stable), you will need
+   to update your code.  [[GH-5536](https://github.com/hashicorp/nomad/pull/5536)]
+ * client: The format of check IDs in Consul has changed. If you rely upon
+   Nomad's check IDs you will need to update your code.  [[GH-5536](https://github.com/hashicorp/nomad/pull/5536)]
+
 FEATURES:
 
- * vault: Add initial support for Vault namespaces [[GH-5520](https://github.com/hashicorp/nomad/pull/5520)]
  * core: Add `nomad alloc restart` command to restart allocs and tasks [[GH-5502](https://github.com/hashicorp/nomad/pull/5502)]
  * core: Add `nomad alloc stop` command to reschedule allocs [[GH-5512](https://github.com/hashicorp/nomad/pull/5512)]
+ * core: Add `nomad alloc signal` command to signal allocs and tasks [[GH-5515](https://github.com/hashicorp/nomad/pull/5515)]
+ * vault: Add initial support for Vault namespaces [[GH-5520](https://github.com/hashicorp/nomad/pull/5520)]
 
 IMPROVEMENTS:
 
  * core: Add node name to output of `nomad node status` command in verbose mode [[GH-5224](https://github.com/hashicorp/nomad/pull/5224)]
  * core: Add `-verbose` flag to `nomad status` wrapper command [[GH-5516](https://github.com/hashicorp/nomad/pull/5516)]
  * core: Reduce the size of the raft transaction for plans by only sending fields updated by the plan applier [[GH-5602](https://github.com/hashicorp/nomad/pull/5602)]
+ * client: Reduce unnecessary lost nodes on server failure [[GH-5654](https://github.com/hashicorp/nomad/issues/5654)]
  * api: Add preemption related fields to API results that return an allocation list. [[GH-5580](https://github.com/hashicorp/nomad/pull/5580)]
+ * api: Add additional config options to scheduler configuration endpoint to disable preemption [[GH-5628](https://github.com/hashicorp/nomad/issues/5628)]
+ * client: Allow use of maintenance mode and externally registered checks against Nomad-registered consul services [[GH-4537](https://github.com/hashicorp/nomad/issues/4537)]
+ * client: Canary Promotion no longer causes services registered in Consul to become unhealthy [[GH-4566](https://github.com/hashicorp/nomad/issues/4566)]
 
 BUG FIXES:
 
- * vault: Fix renewal time to be 1/2 lease duration with jitter [[GH-5479](https://github.com/hashicorp/nomad/issues/5479)]
- * metrics: Fixed stale metrics [[GH-5540](https://github.com/hashicorp/nomad/issues/5540)]
+ * core: Fixed accounting of allocated resources in metrics. [[GH-5637](https://github.com/hashicorp/nomad/issues/5637)]
+ * core: Fixed disaster recovering with raft 3 protocol peers.json [[GH-5629](https://github.com/hashicorp/nomad/issues/5629)], [[GH-5651](https://github.com/hashicorp/nomad/issues/5651)]
+ * core: Change configuration parsing to use the HCL library's decode, improving JSON support [[GH-1290](https://github.com/hashicorp/nomad/issues/1290)]
+ * cli: Fix output and exit status for system jobs with constraints [[GH-2381](https://github.com/hashicorp/nomad/issues/2381)] and [[GH-5169](https://github.com/hashicorp/nomad/issues/5169])]
  * client: Fix network fingerprinting to honor manual configuration [[GH-2619](https://github.com/hashicorp/nomad/issues/2619)]
+ * client: Fix network port mapping  related environment variables when running with Nomad 0.8 servers [[GH-5587](https://github.com/hashicorp/nomad/issues/5587)]
  * client: Fix issue with terminal state deployments being modified when allocation subsequently fails [[GH-5645](https://github.com/hashicorp/nomad/issues/5645)]
+ * metrics: Fixed stale metrics [[GH-5540](https://github.com/hashicorp/nomad/issues/5540)]
+ * vault: Fix renewal time to be 1/2 lease duration with jitter [[GH-5479](https://github.com/hashicorp/nomad/issues/5479)]
 
 ## 0.9.1 (April 29, 2019)
 

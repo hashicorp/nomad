@@ -1282,7 +1282,6 @@ type EmitNodeEventsRequest struct {
 // EmitNodeEventsResponse is a response to the client about the status of
 // the node event source update.
 type EmitNodeEventsResponse struct {
-	Index uint64
 	WriteMeta
 }
 
