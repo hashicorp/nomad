@@ -1116,6 +1116,8 @@ func makeTaskServiceID(allocID, taskName string, service *structs.Service, canar
 }
 
 // makeCheckID creates a unique ID for a check.
+//
+//  Example Check ID: _nomad-check-434ae42f9a57c5705344974ac38de2aee0ee089d
 func makeCheckID(serviceID string, check *structs.ServiceCheck) string {
 	return fmt.Sprintf("%s%s", nomadCheckPrefix, check.Hash(serviceID))
 }
