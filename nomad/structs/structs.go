@@ -3804,6 +3804,7 @@ var (
 		HealthyDeadline:  5 * time.Minute,
 		ProgressDeadline: 10 * time.Minute,
 		AutoRevert:       false,
+		AutoPromote:      false,
 		Canary:           0,
 	}
 )
@@ -3841,6 +3842,10 @@ type UpdateStrategy struct {
 	// allocations, there should be an attempt to auto-revert the job to a
 	// stable version.
 	AutoRevert bool
+
+	// AutoPromote declares that the deployment should be promoted when all canaries are
+	// healthy
+	AutoPromote bool
 
 	// Canary is the number of canaries to deploy when a change to the task
 	// group is detected.
@@ -7162,6 +7167,10 @@ type DeploymentState struct {
 	// reverted on failure
 	AutoRevert bool
 
+	// AutoPromote marks promotion triggered automatically by healthy canaries
+	// copied from TaskGroup UpdateStrategy in scheduler.reconcile
+	AutoPromote bool
+
 	// ProgressDeadline is the deadline by which an allocation must transition
 	// to healthy before the deployment is considered failed.
 	ProgressDeadline time.Duration
@@ -7202,6 +7211,7 @@ func (d *DeploymentState) GoString() string {
 	base += fmt.Sprintf("\n\tHealthy: %d", d.HealthyAllocs)
 	base += fmt.Sprintf("\n\tUnhealthy: %d", d.UnhealthyAllocs)
 	base += fmt.Sprintf("\n\tAutoRevert: %v", d.AutoRevert)
+	base += fmt.Sprintf("\n\tAutoPromote: %v", d.AutoPromote)
 	return base
 }
 

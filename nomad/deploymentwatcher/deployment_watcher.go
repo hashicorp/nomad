@@ -597,9 +597,6 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 		// We need to create an eval so the job can progress.
 		if alloc.DeploymentStatus.IsHealthy() && alloc.DeploymentStatus.ModifyIndex > latestEval {
 			res.createEval = true
-			if alloc.DeploymentStatus.IsCanary() {
-				dstate.HealthyCanaries += 1
-			}
 		}
 
 		// If the group is using a progress deadline, we don't have to do anything.

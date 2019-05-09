@@ -1979,6 +1979,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeDeleted,
+								Name: "AutoPromote",
+								Old:  "false",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
 								Name: "AutoRevert",
 								Old:  "true",
 								New:  "",
@@ -2035,6 +2041,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeAdded,
+								Name: "AutoPromote",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "AutoRevert",
 								Old:  "",
 								New:  "true",
@@ -2084,6 +2096,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					HealthyDeadline:  30 * time.Second,
 					ProgressDeadline: 29 * time.Second,
 					AutoRevert:       true,
+					AutoPromote:      true,
 					Canary:           2,
 				},
 			},
@@ -2095,6 +2108,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					HealthyDeadline:  31 * time.Second,
 					ProgressDeadline: 32 * time.Second,
 					AutoRevert:       false,
+					AutoPromote:      false,
 					Canary:           1,
 				},
 			},
@@ -2105,6 +2119,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Update",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "AutoPromote",
+								Old:  "true",
+								New:  "false",
+							},
 							{
 								Type: DiffTypeEdited,
 								Name: "AutoRevert",
@@ -2163,6 +2183,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					HealthyDeadline:  30 * time.Second,
 					ProgressDeadline: 30 * time.Second,
 					AutoRevert:       true,
+					AutoPromote:      true,
 					Canary:           2,
 				},
 			},
@@ -2174,6 +2195,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					HealthyDeadline:  30 * time.Second,
 					ProgressDeadline: 30 * time.Second,
 					AutoRevert:       true,
+					AutoPromote:      true,
 					Canary:           2,
 				},
 			},
@@ -2184,6 +2206,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Update",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "AutoPromote",
+								Old:  "true",
+								New:  "true",
+							},
 							{
 								Type: DiffTypeNone,
 								Name: "AutoRevert",

@@ -691,6 +691,9 @@ determined. The potential values are:
   they can be promoted which unblocks a rolling update of the remaining
   allocations at a rate of `max_parallel`.
 
+- `AutoPromote` - Specifies if the job should automatically promote to
+  the new deployment if all canaries become healthy.
+
 - `Stagger` - Specifies the delay between migrating allocations off nodes marked
   for draining.
 
@@ -704,6 +707,7 @@ An example `Update` block:
         "MinHealthyTime": 15000000000,
         "HealthyDeadline": 180000000000,
         "AutoRevert": false,
+        "AutoPromote": false,
         "Canary": 1
   }
 }

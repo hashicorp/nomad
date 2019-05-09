@@ -376,6 +376,7 @@ type UpdateStrategy struct {
 	HealthyDeadline  *time.Duration `mapstructure:"healthy_deadline"`
 	ProgressDeadline *time.Duration `mapstructure:"progress_deadline"`
 	AutoRevert       *bool          `mapstructure:"auto_revert"`
+	AutoPromote      *bool          `mapstructure:"auto_promote"`
 	Canary           *int           `mapstructure:"canary"`
 }
 
@@ -433,6 +434,10 @@ func (u *UpdateStrategy) Copy() *UpdateStrategy {
 		copy.Canary = intToPtr(*u.Canary)
 	}
 
+	if u.AutoPromote != nil {
+		copy.AutoPromote = boolToPtr(*u.AutoPromote)
+	}
+
 	return copy
 }
 
@@ -471,6 +476,10 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 
 	if o.Canary != nil {
 		u.Canary = intToPtr(*o.Canary)
+	}
+
+	if o.AutoPromote != nil {
+		u.AutoPromote = boolToPtr(*o.AutoPromote)
 	}
 }
 

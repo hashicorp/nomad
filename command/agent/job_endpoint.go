@@ -719,6 +719,7 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 			HealthyDeadline:  *taskGroup.Update.HealthyDeadline,
 			ProgressDeadline: *taskGroup.Update.ProgressDeadline,
 			AutoRevert:       *taskGroup.Update.AutoRevert,
+			AutoPromote:      *taskGroup.Update.AutoPromote,
 			Canary:           *taskGroup.Update.Canary,
 		}
 	}

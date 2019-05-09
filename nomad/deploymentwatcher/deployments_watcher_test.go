@@ -594,7 +594,7 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 		func() (bool, error) {
 			ds, _ := m.state.DeploymentsByJobID(ws, j.Namespace, j.ID, true)
 			d = ds[0]
-			return 2 == d.TaskGroups["web"].HealthyCanaries, nil
+			return 2 == d.TaskGroups["web"].HealthyAllocs, nil
 		},
 		func(err error) { require.NoError(t, err) },
 	)

@@ -1624,6 +1624,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					HealthyDeadline:  5 * time.Minute,
 					ProgressDeadline: 5 * time.Minute,
 					AutoRevert:       true,
+					AutoPromote:      false,
 					Canary:           1,
 				},
 				Meta: map[string]string{
