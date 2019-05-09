@@ -1,5 +1,13 @@
 ## 0.9.2 (Unreleased)
 
+__BACKWARDS INCOMPATIBILITIES:__
+
+ * client: The format of service IDs in Consul has changed. If you rely upon
+   Nomad's service IDs (*not* service names; those are stable), you will need
+   to update your code.  [[GH-5536](https://github.com/hashicorp/nomad/pull/5536)]
+ * client: The format of check IDs in Consul has changed. If you rely upon
+   Nomad's check IDs you will need to update your code.  [[GH-5536](https://github.com/hashicorp/nomad/pull/5536)]
+
 FEATURES:
 
  * core: Add `nomad alloc restart` command to restart allocs and tasks [[GH-5502](https://github.com/hashicorp/nomad/pull/5502)]
@@ -14,6 +22,8 @@ IMPROVEMENTS:
  * client: Reduce unnecessary lost nodes on server failure [[GH-5654](https://github.com/hashicorp/nomad/issues/5654)]
  * api: Add preemption related fields to API results that return an allocation list. [[GH-5580](https://github.com/hashicorp/nomad/pull/5580)]
  * api: Add additional config options to scheduler configuration endpoint to disable preemption [[GH-5628](https://github.com/hashicorp/nomad/issues/5628)]
+ * client: Allow use of maintenance mode and externally registered checks against Nomad-registered consul services [[GH-4537](https://github.com/hashicorp/nomad/issues/4537)]
+ * client: Canary Promotion no longer causes services registered in Consul to become unhealthy [[GH-4566](https://github.com/hashicorp/nomad/issues/4566)]
 
 BUG FIXES:
 
