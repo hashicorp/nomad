@@ -32,16 +32,12 @@ func TestHTTP_JobsList(t *testing.T) {
 				},
 			}
 			var resp structs.JobRegisterResponse
-			if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
-				t.Fatalf("err: %v", err)
-			}
+			require.NoError(t, s.Agent.RPC("Job.Register", &args, &resp))
 		}
 
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/jobs", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(t, err)
 		respW := httptest.NewRecorder()
 
 		// Make the request
@@ -51,21 +47,13 @@ func TestHTTP_JobsList(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
-			t.Fatalf("missing index")
-		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
-			t.Fatalf("missing known leader")
-		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
-			t.Fatalf("missing last contact")
-		}
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-Index"), "Missing index")
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-KnownLeader"), "Missing KnownLeader")
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-LastContact"), "Missing LastContact")
 
 		// Check the job
 		j := obj.([]*structs.JobListStub)
-		if len(j) != 3 {
-			t.Fatalf("bad: %#v", j)
-		}
+		require.Len(t, j, 3, "Expected 3 jobs")
 	})
 }
 
