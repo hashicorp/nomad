@@ -6,11 +6,6 @@ description: |-
   Learn about Nomad's various schedulers.
 ---
 
-[Borg]: https://research.google.com/pubs/pub43438.html
-[preemption]: /docs/internals/scheduling/preemption.html
-[restart]: /docs/job-specification/restart.html
-[reschedule]: /docs/job-specification/reschedule.html
-
 # Schedulers
 
 Nomad has three scheduler types that can be used when creating your job:
@@ -66,3 +61,8 @@ See [preemption] for details on how tasks that get preempted are chosen.
 System jobs will be considered failed by Nomad upon failure or exit, **except
 when preempted**, regardless of exit code and handled according to the
 job's [restart] and [reschedule] stanzas.
+
+[Borg]: https://research.google.com/pubs/pub43438.html
+[preemption]: /docs/internals/scheduling/preemption.html
+[restart]: /docs/job-specification/restart.html
+[reschedule]: /docs/job-specification/reschedule.html
