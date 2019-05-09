@@ -298,23 +298,16 @@ func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
 			expectedVolumes: []string{"/tmp/nomad/alloc-dir/demo/test-path:/tmp/taskpath"},
 		},
 		{
-			name:            "relative local driver",
-			requiresVolumes: false,
+			name:            "named volume local driver",
+			requiresVolumes: true,
 			volumeDriver:    "local",
 			volumes:         []string{"test-path:/tmp/taskpath"},
-			expectedVolumes: []string{"/tmp/nomad/alloc-dir/demo/test-path:/tmp/taskpath"},
+			expectedVolumes: []string{"test-path:/tmp/taskpath"},
 		},
 		{
 			name:            "relative outside task-dir default driver",
 			requiresVolumes: false,
 			volumeDriver:    "",
-			volumes:         []string{"../test-path:/tmp/taskpath"},
-			expectedVolumes: []string{"/tmp/nomad/alloc-dir/test-path:/tmp/taskpath"},
-		},
-		{
-			name:            "relative outside task-dir local driver",
-			requiresVolumes: false,
-			volumeDriver:    "local",
 			volumes:         []string{"../test-path:/tmp/taskpath"},
 			expectedVolumes: []string{"/tmp/nomad/alloc-dir/test-path:/tmp/taskpath"},
 		},
@@ -326,11 +319,11 @@ func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
 			expectedVolumes: []string{"/tmp/nomad/test-path:/tmp/taskpath"},
 		},
 		{
-			name:            "relative outside task-dir local driver",
+			name:            "clean path local driver",
 			requiresVolumes: true,
 			volumeDriver:    "local",
-			volumes:         []string{"../../test-path:/tmp/taskpath"},
-			expectedVolumes: []string{"/tmp/nomad/test-path:/tmp/taskpath"},
+			volumes:         []string{"/tmp/nomad/../test-path:/tmp/taskpath"},
+			expectedVolumes: []string{"/tmp/test-path:/tmp/taskpath"},
 		},
 	}
 

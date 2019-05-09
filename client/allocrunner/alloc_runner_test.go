@@ -780,7 +780,7 @@ func TestAllocRunner_HandlesArtifactFailure(t *testing.T) {
 
 // Test that alloc runner kills tasks in task group when another task fails
 func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
-	alloc := mock.BatchAlloc()
+	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
 
@@ -791,6 +791,22 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	task.KillTimeout = 10 * time.Millisecond
 	task.Config = map[string]interface{}{
 		"run_for": "10s",
+	}
+	// Set a service with check
+	task.Services = []*structs.Service{
+		{
+			Name:      "fakservice",
+			PortLabel: "http",
+			Checks: []*structs.ServiceCheck{
+				{
+					Name:     "fakecheck",
+					Type:     structs.ServiceCheckScript,
+					Command:  "true",
+					Interval: 30 * time.Second,
+					Timeout:  5 * time.Second,
+				},
+			},
+		},
 	}
 
 	task2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
@@ -803,8 +819,38 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	alloc.AllocatedResources.Tasks[task.Name] = tr
 	alloc.AllocatedResources.Tasks[task2.Name] = tr
 
+	// Make the alloc be part of a deployment
+	alloc.DeploymentID = uuid.Generate()
+	alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_Checks
+	alloc.Job.TaskGroups[0].Update.MaxParallel = 1
+	alloc.Job.TaskGroups[0].Update.MinHealthyTime = 10 * time.Millisecond
+	alloc.Job.TaskGroups[0].Update.HealthyDeadline = 2 * time.Second
+
+	checkHealthy := &api.AgentCheck{
+		CheckID: uuid.Generate(),
+		Status:  api.HealthPassing,
+	}
+
 	conf, cleanup := testAllocRunnerConfig(t, alloc)
 	defer cleanup()
+
+	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
+	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
+		return &consul.AllocRegistration{
+			Tasks: map[string]*consul.TaskRegistration{
+				task.Name: {
+					Services: map[string]*consul.ServiceRegistration{
+						"123": {
+							Service: &api.AgentService{Service: "fakeservice"},
+							Checks:  []*api.AgentCheck{checkHealthy},
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	defer destroy(ar)
@@ -848,6 +894,10 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 		}
 		if !state2.Failed {
 			return false, fmt.Errorf("task2 should have failed")
+		}
+
+		if !last.DeploymentStatus.HasHealth() {
+			return false, fmt.Errorf("Expected deployment health to be non nil")
 		}
 
 		return true, nil

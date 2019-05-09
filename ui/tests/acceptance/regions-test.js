@@ -15,7 +15,7 @@ module('Acceptance | regions (only one)', function(hooks) {
   hooks.beforeEach(function() {
     server.create('agent');
     server.create('node');
-    server.createList('job', 5);
+    server.createList('job', 2, { createAllocations: false, noDeployments: true });
   });
 
   test('when there is only one region, the region switcher is not shown in the nav bar', async function(assert) {
@@ -68,7 +68,8 @@ module('Acceptance | regions (many)', function(hooks) {
   hooks.beforeEach(function() {
     server.create('agent');
     server.create('node');
-    server.createList('job', 5);
+    server.createList('job', 2, { createAllocations: false, noDeployments: true });
+    server.create('allocation');
     server.create('region', { id: 'global' });
     server.create('region', { id: 'region-2' });
   });

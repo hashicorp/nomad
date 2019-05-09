@@ -394,6 +394,51 @@ func TestHTTP_AllocRestart_ACL(t *testing.T) {
 	})
 }
 
+func TestHTTP_AllocStop(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Directly manipulate the state
+		state := s.Agent.server.State()
+		alloc := mock.Alloc()
+		require := require.New(t)
+		require.NoError(state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
+
+		require.NoError(state.UpsertAllocs(1000, []*structs.Allocation{alloc}))
+
+		// Test that the happy path works
+		{
+			// Make the HTTP request
+			req, err := http.NewRequest("POST", "/v1/allocation/"+alloc.ID+"/stop", nil)
+			require.NoError(err)
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			obj, err := s.Server.AllocSpecificRequest(respW, req)
+			require.NoError(err)
+
+			a := obj.(*structs.AllocStopResponse)
+			require.NotEmpty(a.EvalID, "missing eval")
+			require.NotEmpty(a.Index, "missing index")
+		}
+
+		// Test that we 404 when the allocid is invalid
+		{
+			// Make the HTTP request
+			req, err := http.NewRequest("POST", "/v1/allocation/"+alloc.ID+"/stop", nil)
+			require.NoError(err)
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			obj, err := s.Server.AllocSpecificRequest(respW, req)
+			require.NoError(err)
+
+			a := obj.(*structs.AllocStopResponse)
+			require.NotEmpty(a.EvalID, "missing eval")
+			require.NotEmpty(a.Index, "missing index")
+		}
+	})
+}
+
 func TestHTTP_AllocStats(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

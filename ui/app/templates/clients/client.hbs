@@ -95,7 +95,17 @@
 
   <div class="boxed-section">
     <div class="boxed-section-head">
-      <div>Allocations <span class="badge is-white">{{model.allocations.length}}</span></div>
+      <div>
+        Allocations
+        <button role="button" class="badge is-white" onclick={{action "setPreemptionFilter" false}} data-test-filter-all>
+          {{model.allocations.length}}
+        </button>
+        {{#if preemptions.length}}
+          <button role="button" class="badge is-warning" onclick={{action "setPreemptionFilter" true}} data-test-filter-preemptions>
+            {{preemptions.length}} {{pluralize "preemption" preemptions.length}}
+          </button>
+        {{/if}}
+      </div>
       {{search-box
         searchTerm=(mut searchTerm)
         onChange=(action resetPagination)

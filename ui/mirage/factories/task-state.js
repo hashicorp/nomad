@@ -17,7 +17,7 @@ export default Factory.extend({
   afterCreate(state, server) {
     const props = [
       'task-event',
-      faker.random.number({ min: 1, max: 10 }),
+      faker.random.number({ min: 1, max: 3 }),
       {
         taskStateId: state.id,
       },

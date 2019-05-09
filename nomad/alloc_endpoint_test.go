@@ -567,3 +567,65 @@ func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
 	require.True(*out1.DesiredTransition.Migrate)
 	require.True(*out2.DesiredTransition.Migrate)
 }
+
+func TestAllocEndpoint_Stop_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, _ := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	alloc := mock.Alloc()
+	alloc2 := mock.Alloc()
+	state := s1.fsm.State()
+	require.Nil(state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
+	require.Nil(state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc, alloc2}))
+
+	req := &structs.AllocStopRequest{
+		AllocID: alloc.ID,
+	}
+	req.Namespace = structs.DefaultNamespace
+	req.Region = alloc.Job.Region
+
+	// Try without permissions
+	var resp structs.AllocStopResponse
+	err := msgpackrpc.CallWithCodec(codec, "Alloc.Stop", req, &resp)
+	require.True(structs.IsErrPermissionDenied(err), "expected permissions error, got: %v", err)
+
+	// Try with management permissions
+	req.WriteRequest.AuthToken = s1.getLeaderAcl()
+	var resp2 structs.AllocStopResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.Stop", req, &resp2))
+	require.NotZero(resp2.Index)
+
+	// Try with alloc-lifecycle permissions
+	validToken := mock.CreatePolicyAndToken(t, state, 1002, "valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityAllocLifecycle}))
+	req.WriteRequest.AuthToken = validToken.SecretID
+	req.AllocID = alloc2.ID
+
+	var resp3 structs.AllocStopResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.Stop", req, &resp3))
+	require.NotZero(resp3.Index)
+
+	// Look up the allocations
+	out1, err := state.AllocByID(nil, alloc.ID)
+	require.Nil(err)
+	out2, err := state.AllocByID(nil, alloc2.ID)
+	require.Nil(err)
+	e1, err := state.EvalByID(nil, resp2.EvalID)
+	require.Nil(err)
+	e2, err := state.EvalByID(nil, resp3.EvalID)
+	require.Nil(err)
+
+	require.NotNil(out1.DesiredTransition.Migrate)
+	require.NotNil(out2.DesiredTransition.Migrate)
+	require.NotNil(e1)
+	require.NotNil(e2)
+	require.True(*out1.DesiredTransition.Migrate)
+	require.True(*out2.DesiredTransition.Migrate)
+}

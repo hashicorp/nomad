@@ -10,6 +10,8 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -203,6 +205,63 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 		},
 	}
 	return a.srv.blockingRPC(&opts)
+}
+
+// Stop is used to stop an allocation and migrate it to another node.
+func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopResponse) error {
+	if done, err := a.srv.forward("Alloc.Stop", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "alloc", "stop"}, time.Now())
+
+	// Check that it is a management token.
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
+		return structs.ErrPermissionDenied
+	}
+
+	if args.AllocID == "" {
+		return fmt.Errorf("must provide an alloc id")
+	}
+
+	ws := memdb.NewWatchSet()
+	alloc, err := a.srv.State().AllocByID(ws, args.AllocID)
+	if err != nil {
+		return err
+	}
+
+	eval := &structs.Evaluation{
+		ID:             uuid.Generate(),
+		Namespace:      alloc.Namespace,
+		Priority:       alloc.Job.Priority,
+		Type:           alloc.Job.Type,
+		TriggeredBy:    structs.EvalTriggerAllocStop,
+		JobID:          alloc.Job.ID,
+		JobModifyIndex: alloc.Job.ModifyIndex,
+		Status:         structs.EvalStatusPending,
+	}
+
+	transitionReq := &structs.AllocUpdateDesiredTransitionRequest{
+		Evals: []*structs.Evaluation{eval},
+		Allocs: map[string]*structs.DesiredTransition{
+			args.AllocID: {
+				Migrate: helper.BoolToPtr(true),
+			},
+		},
+	}
+
+	// Commit this update via Raft
+	_, index, err := a.srv.raftApply(structs.AllocUpdateDesiredTransitionRequestType, transitionReq)
+	if err != nil {
+		a.logger.Error("AllocUpdateDesiredTransitionRequest failed", "error", err)
+		return err
+	}
+
+	// Setup the response
+	reply.Index = index
+	reply.EvalID = eval.ID
+	return nil
 }
 
 // UpdateDesiredTransition is used to update the desired transitions of an

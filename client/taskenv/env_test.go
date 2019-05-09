@@ -228,12 +228,11 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 				Device: "eth0",
 				IP:     "192.168.0.100",
 				ReservedPorts: []structs.Port{
-					{Label: "admin", Value: 5000},
 					{Label: "ssh", Value: 22},
 					{Label: "other", Value: 1234},
 				},
 				MBits:        50,
-				DynamicPorts: []structs.Port{{Label: "http"}},
+				DynamicPorts: []structs.Port{{Label: "http", Value: 2000}},
 			},
 		},
 	}
@@ -244,10 +243,10 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 			Networks: []*structs.NetworkResource{
 				{
 					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+					IP:            "127.0.0.1",
+					ReservedPorts: []structs.Port{{Label: "https", Value: 8080}},
 					MBits:         50,
-					DynamicPorts:  []structs.Port{{Label: "http", Value: 2000}},
+					DynamicPorts:  []structs.Port{{Label: "http", Value: 80}},
 				},
 			},
 		},
@@ -270,10 +269,11 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 		"taskEnvKey": "taskEnvVal",
 	}
 	task.Resources.Networks = []*structs.NetworkResource{
+		// Nomad 0.8 didn't fully populate the fields in task Resource Networks
 		{
-			IP:            "127.0.0.1",
-			ReservedPorts: []structs.Port{{Label: "http", Value: 80}},
-			DynamicPorts:  []structs.Port{{Label: "https", Value: 8080}},
+			IP:            "",
+			ReservedPorts: []structs.Port{{Label: "https"}},
+			DynamicPorts:  []structs.Port{{Label: "http"}},
 		},
 	}
 	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
@@ -468,27 +468,58 @@ func TestEnvironment_VaultToken(t *testing.T) {
 	n := mock.Node()
 	a := mock.Alloc()
 	env := NewBuilder(n, a, a.Job.TaskGroups[0].Tasks[0], "global")
-	env.SetVaultToken("123", false)
+	env.SetVaultToken("123", "vault-namespace", false)
 
 	{
 		act := env.Build().All()
 		if act[VaultToken] != "" {
 			t.Fatalf("Unexpected environment variables: %s=%q", VaultToken, act[VaultToken])
 		}
+		if act[VaultNamespace] != "" {
+			t.Fatalf("Unexpected environment variables: %s=%q", VaultNamespace, act[VaultNamespace])
+		}
 	}
 
 	{
-		act := env.SetVaultToken("123", true).Build().List()
+		act := env.SetVaultToken("123", "", true).Build().List()
 		exp := "VAULT_TOKEN=123"
 		found := false
+		foundNs := false
 		for _, entry := range act {
 			if entry == exp {
 				found = true
-				break
+			}
+			if strings.HasPrefix(entry, "VAULT_NAMESPACE=") {
+				foundNs = true
 			}
 		}
 		if !found {
 			t.Fatalf("did not find %q in:\n%s", exp, strings.Join(act, "\n"))
+		}
+		if foundNs {
+			t.Fatalf("found unwanted VAULT_NAMESPACE in:\n%s", strings.Join(act, "\n"))
+		}
+	}
+
+	{
+		act := env.SetVaultToken("123", "vault-namespace", true).Build().List()
+		exp := "VAULT_TOKEN=123"
+		expNs := "VAULT_NAMESPACE=vault-namespace"
+		found := false
+		foundNs := false
+		for _, entry := range act {
+			if entry == exp {
+				found = true
+			}
+			if entry == expNs {
+				foundNs = true
+			}
+		}
+		if !found {
+			t.Fatalf("did not find %q in:\n%s", exp, strings.Join(act, "\n"))
+		}
+		if !foundNs {
+			t.Fatalf("did not find %q in:\n%s", expNs, strings.Join(act, "\n"))
 		}
 	}
 }

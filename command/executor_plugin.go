@@ -2,7 +2,6 @@ package command
 
 import (
 	"encoding/json"
-	"io"
 	"os"
 	"strings"
 
@@ -11,15 +10,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 
 	"github.com/hashicorp/nomad/drivers/shared/executor"
-	"github.com/hashicorp/nomad/lib/circbufwriter"
 	"github.com/hashicorp/nomad/plugins/base"
-)
-
-const (
-	// circleBufferSize is the size of the in memory ring buffer used for
-	// go-plugin logging to stderr. When the buffer exceeds this size before
-	// flushing it will begin overwriting data
-	circleBufferSize = 64 * 1024
 )
 
 type ExecutorPluginCommand struct {
@@ -55,20 +46,11 @@ func (e *ExecutorPluginCommand) Run(args []string) int {
 		return 1
 	}
 
-	// If the client detatches from go-plugin it will block on logging to stderr.
-	// This buffered writer will never block on write, and instead buffer the
-	// writes to a ring buffer.
-	bufferedStderrW := circbufwriter.New(os.Stderr, circleBufferSize)
-
-	// Tee the logs to stderr and the file so that they are streamed to the
-	// client
-	out := io.MultiWriter(f, bufferedStderrW)
-
 	// Create the logger
 	logger := log.New(&log.LoggerOptions{
 		Level:      hclog.LevelFromString(executorConfig.LogLevel),
 		JSONFormat: true,
-		Output:     out,
+		Output:     f,
 	})
 
 	plugin.Serve(&plugin.ServeConfig{

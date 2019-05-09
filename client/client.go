@@ -93,6 +93,11 @@ const (
 	allocSyncRetryIntv = 5 * time.Second
 )
 
+var (
+	// grace period to allow for batch fingerprint processing
+	batchFirstFingerprintsProcessingGrace = batchFirstFingerprintsTimeout + 5*time.Second
+)
+
 // ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
 // Client
 type ClientStatsReporter interface {
@@ -123,6 +128,7 @@ type AllocRunner interface {
 	WaitCh() <-chan struct{}
 	DestroyCh() <-chan struct{}
 	ShutdownCh() <-chan struct{}
+	Signal(taskName, signal string) error
 	GetTaskEventHandler(taskName string) drivermanager.EventHandler
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
@@ -419,6 +425,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		return nil, fmt.Errorf("failed to setup vault client: %v", err)
 	}
 
+	// wait until drivers are healthy before restoring or registering with servers
+	select {
+	case <-c.Ready():
+	case <-time.After(batchFirstFingerprintsProcessingGrace):
+		logger.Warn("batch fingerprint operation timed out; proceeding to register with fingerprinted plugins so far")
+	}
+
 	// Restore the state
 	if err := c.restoreState(); err != nil {
 		logger.Error("failed to restore state", "error", err)
@@ -692,6 +705,18 @@ func (c *Client) Stats() map[string]map[string]string {
 		"runtime": hstats.RuntimeStats(),
 	}
 	return stats
+}
+
+// SignalAllocation sends a signal to the tasks within an allocation.
+// If the provided task is empty, then every allocation will be signalled.
+// If a task is provided, then only an exactly matching task will be signalled.
+func (c *Client) SignalAllocation(allocID, task, signal string) error {
+	ar, err := c.getAllocRunner(allocID)
+	if err != nil {
+		return err
+	}
+
+	return ar.Signal(task, signal)
 }
 
 // CollectAllocation garbage collects a single allocation on a node. Returns
@@ -1227,14 +1252,30 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	}
 
 	// COMPAT(0.10): Remove in 0.10
-	if response.Resources != nil && !resourcesAreEqual(c.config.Node.Resources, response.Resources) {
-		nodeHasChanged = true
-		c.config.Node.Resources.Merge(response.Resources)
+	// update the response networks with the config
+	// if we still have node changes, merge them
+	if response.Resources != nil {
+		response.Resources.Networks = updateNetworks(
+			c.config.Node.Resources.Networks,
+			response.Resources.Networks,
+			c.config)
+		if !c.config.Node.Resources.Equals(response.Resources) {
+			c.config.Node.Resources.Merge(response.Resources)
+			nodeHasChanged = true
+		}
 	}
 
-	if response.NodeResources != nil && !c.config.Node.NodeResources.Equals(response.NodeResources) {
-		nodeHasChanged = true
-		c.config.Node.NodeResources.Merge(response.NodeResources)
+	// update the response networks with the config
+	// if we still have node changes, merge them
+	if response.NodeResources != nil {
+		response.NodeResources.Networks = updateNetworks(
+			c.config.Node.NodeResources.Networks,
+			response.NodeResources.Networks,
+			c.config)
+		if !c.config.Node.NodeResources.Equals(response.NodeResources) {
+			c.config.Node.NodeResources.Merge(response.NodeResources)
+			nodeHasChanged = true
+		}
 	}
 
 	if nodeHasChanged {
@@ -1244,32 +1285,27 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	return c.configCopy.Node
 }
 
-// resourcesAreEqual is a temporary function to compare whether resources are
-// equal. We can use this until we change fingerprinters to set pointers on a
-// return type.
-func resourcesAreEqual(first, second *structs.Resources) bool {
-	if first.CPU != second.CPU {
-		return false
-	}
-	if first.MemoryMB != second.MemoryMB {
-		return false
-	}
-	if first.DiskMB != second.DiskMB {
-		return false
-	}
-	if len(first.Networks) != len(second.Networks) {
-		return false
-	}
-	for i, e := range first.Networks {
-		if len(second.Networks) < i {
-			return false
+// updateNetworks preserves manually configured network options, but
+// applies fingerprint updates
+func updateNetworks(ns structs.Networks, up structs.Networks, c *config.Config) structs.Networks {
+	if c.NetworkInterface == "" {
+		ns = up
+	} else {
+		// if a network is configured, use only that network
+		// use the fingerprinted data
+		for _, n := range up {
+			if c.NetworkInterface == n.Device {
+				ns = []*structs.NetworkResource{n}
+			}
 		}
-		f := second.Networks[i]
-		if !e.Equals(f) {
-			return false
+		// if not matched, ns has the old data
+	}
+	if c.NetworkSpeed != 0 {
+		for _, n := range ns {
+			n.MBits = c.NetworkSpeed
 		}
 	}
-	return true
+	return ns
 }
 
 // retryIntv calculates a retry interval value given the base
@@ -1456,13 +1492,7 @@ func (c *Client) watchNodeEvents() {
 	// batchEvents stores events that have yet to be published
 	var batchEvents []*structs.NodeEvent
 
-	// Create and drain the timer
-	timer := time.NewTimer(0)
-	timer.Stop()
-	select {
-	case <-timer.C:
-	default:
-	}
+	timer := stoppedTimer()
 	defer timer.Stop()
 
 	for {
@@ -1918,7 +1948,8 @@ func (c *Client) updateNodeLocked() {
 // it will update the client node copy and re-register the node.
 func (c *Client) watchNodeUpdates() {
 	var hasChanged bool
-	timer := time.NewTimer(c.retryIntv(nodeUpdateRetryIntv))
+
+	timer := stoppedTimer()
 	defer timer.Stop()
 
 	for {
@@ -2631,7 +2662,7 @@ func (c *Client) emitClientMetrics() {
 	// Emit allocation metrics
 	blocked, migrating, pending, running, terminal := 0, 0, 0, 0, 0
 	for _, ar := range c.getAllocRunners() {
-		switch ar.Alloc().ClientStatus {
+		switch ar.AllocState().ClientStatus {
 		case structs.AllocClientStatusPending:
 			switch {
 			case ar.IsWaiting():

@@ -7,7 +7,7 @@ import (
 
 	testing "github.com/mitchellh/go-testing-interface"
 
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -53,6 +53,8 @@ type Harness struct {
 
 	nextIndex     uint64
 	nextIndexLock sync.Mutex
+
+	optimizePlan bool
 }
 
 // NewHarness is used to make a new testing harness
@@ -101,47 +103,90 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	result.AllocIndex = index
 
 	// Flatten evicts and allocs
-	var allocs []*structs.Allocation
-	for _, updateList := range plan.NodeUpdate {
-		allocs = append(allocs, updateList...)
-	}
-	for _, allocList := range plan.NodeAllocation {
-		allocs = append(allocs, allocList...)
-	}
-
-	// Set the time the alloc was applied for the first time. This can be used
-	// to approximate the scheduling time.
 	now := time.Now().UTC().UnixNano()
-	for _, alloc := range allocs {
-		if alloc.CreateTime == 0 {
-			alloc.CreateTime = now
-		}
-	}
 
-	// Set modify time for preempted allocs and flatten them
-	var preemptedAllocs []*structs.Allocation
-	for _, preemptions := range result.NodePreemptions {
-		for _, alloc := range preemptions {
-			alloc.ModifyTime = now
-			preemptedAllocs = append(preemptedAllocs, alloc)
-		}
+	allocsUpdated := make([]*structs.Allocation, 0, len(result.NodeAllocation))
+	for _, allocList := range plan.NodeAllocation {
+		allocsUpdated = append(allocsUpdated, allocList...)
 	}
+	updateCreateTimestamp(allocsUpdated, now)
 
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job:   plan.Job,
-			Alloc: allocs,
+			Job: plan.Job,
 		},
 		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,
 		EvalID:            plan.EvalID,
-		NodePreemptions:   preemptedAllocs,
+	}
+
+	if h.optimizePlan {
+		stoppedAllocDiffs := make([]*structs.AllocationDiff, 0, len(result.NodeUpdate))
+		for _, updateList := range plan.NodeUpdate {
+			for _, stoppedAlloc := range updateList {
+				stoppedAllocDiffs = append(stoppedAllocDiffs, stoppedAlloc.AllocationDiff())
+			}
+		}
+		req.AllocsStopped = stoppedAllocDiffs
+
+		req.AllocsUpdated = allocsUpdated
+
+		preemptedAllocDiffs := make([]*structs.AllocationDiff, 0, len(result.NodePreemptions))
+		for _, preemptions := range plan.NodePreemptions {
+			for _, preemptedAlloc := range preemptions {
+				allocDiff := preemptedAlloc.AllocationDiff()
+				allocDiff.ModifyTime = now
+				preemptedAllocDiffs = append(preemptedAllocDiffs, allocDiff)
+			}
+		}
+		req.AllocsPreempted = preemptedAllocDiffs
+	} else {
+		// COMPAT 0.11: Handles unoptimized log format
+		var allocs []*structs.Allocation
+
+		allocsStopped := make([]*structs.Allocation, 0, len(result.NodeUpdate))
+		for _, updateList := range plan.NodeUpdate {
+			allocsStopped = append(allocsStopped, updateList...)
+		}
+		allocs = append(allocs, allocsStopped...)
+
+		allocs = append(allocs, allocsUpdated...)
+		updateCreateTimestamp(allocs, now)
+
+		req.Alloc = allocs
+
+		// Set modify time for preempted allocs and flatten them
+		var preemptedAllocs []*structs.Allocation
+		for _, preemptions := range result.NodePreemptions {
+			for _, alloc := range preemptions {
+				alloc.ModifyTime = now
+				preemptedAllocs = append(preemptedAllocs, alloc)
+			}
+		}
+
+		req.NodePreemptions = preemptedAllocs
 	}
 
 	// Apply the full plan
 	err := h.State.UpsertPlanResults(index, &req)
 	return result, nil, err
+}
+
+// OptimizePlan is a function used only for Harness to help set the optimzePlan field,
+// since Harness doesn't have access to a Server object
+func (h *Harness) OptimizePlan(optimize bool) {
+	h.optimizePlan = optimize
+}
+
+func updateCreateTimestamp(allocations []*structs.Allocation, now int64) {
+	// Set the time the alloc was applied for the first time. This can be used
+	// to approximate the scheduling time.
+	for _, alloc := range allocations {
+		if alloc.CreateTime == 0 {
+			alloc.CreateTime = now
+		}
+	}
 }
 
 func (h *Harness) UpdateEval(eval *structs.Evaluation) error {

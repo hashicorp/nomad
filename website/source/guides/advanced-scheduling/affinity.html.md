@@ -120,7 +120,7 @@ job "redis" {
 }
 ```
 Note that we used the `affinity` stanza and specified `dc2` as the
-value for the [attribute][attributes] `${node.datacenter}`. We used the value `100` for the [weight][weight] which will cause the Nomad schedular to rank nodes in datacenter `dc2` with a higher score. Keep in mind that weights can range from -100 to 100, inclusive. Negative weights serve as anti-affinities which cause Nomad to avoid placing allocations on nodes that match the criteria.
+value for the [attribute][attributes] `${node.datacenter}`. We used the value `100` for the [weight][weight] which will cause the Nomad scheduler to rank nodes in datacenter `dc2` with a higher score. Keep in mind that weights can range from -100 to 100, inclusive. Negative weights serve as anti-affinities which cause Nomad to avoid placing allocations on nodes that match the criteria.
 
 ### Step 3: Register the Job `redis.nomad`
 

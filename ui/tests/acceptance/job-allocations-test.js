@@ -13,6 +13,7 @@ const makeSearchAllocations = server => {
     .map((_, index) => {
       server.create('allocation', {
         id: index < 5 ? `ffffff-dddddd-${index}` : `111111-222222-${index}`,
+        shallow: true,
       });
     });
 };
@@ -28,7 +29,7 @@ module('Acceptance | job allocations', function(hooks) {
   });
 
   test('lists all allocations for the job', async function(assert) {
-    server.createList('allocation', Allocations.pageSize - 1);
+    server.createList('allocation', Allocations.pageSize - 1, { shallow: true });
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
     await Allocations.visit({ id: job.id });

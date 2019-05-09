@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
@@ -13,7 +14,10 @@ import (
 	"github.com/hashicorp/nomad/client/logmon"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 const (
@@ -95,22 +99,62 @@ func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig,
 func (h *logmonHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 
-	// Create a logmon client by reattaching or launching a new instance
-	if h.logmonPluginClient == nil || h.logmonPluginClient.Exited() {
+	attempts := 0
+	for {
+		err := h.prestartOneLoop(ctx, req)
+		if err == bstructs.ErrPluginShutdown || grpc.Code(err) == codes.Unavailable {
+			h.logger.Warn("logmon shutdown while making request", "error", err)
+
+			if attempts > 3 {
+				h.logger.Warn("logmon shutdown while making request; giving up", "attempts", attempts, "error", err)
+				return err
+			}
+
+			// retry after killing process and ensure we start a new logmon process
+			attempts++
+			h.logger.Warn("logmon shutdown while making request; retrying", "attempts", attempts, "error", err)
+			h.logmonPluginClient.Kill()
+			time.Sleep(1 * time.Second)
+			continue
+		} else if err != nil {
+			return err
+		}
+
+		rCfg := pstructs.ReattachConfigFromGoPlugin(h.logmonPluginClient.ReattachConfig())
+		jsonCfg, err := json.Marshal(rCfg)
+		if err != nil {
+			return err
+		}
+		resp.State = map[string]string{logmonReattachKey: string(jsonCfg)}
+		return nil
+	}
+}
+
+func (h *logmonHook) prestartOneLoop(ctx context.Context, req *interfaces.TaskPrestartRequest) error {
+	// attach to a running logmon if state indicates one
+	if h.logmonPluginClient == nil {
 		reattachConfig, err := reattachConfigFromHookData(req.PreviousState)
 		if err != nil {
 			h.logger.Error("failed to load reattach config", "error", err)
 			return err
 		}
+		if reattachConfig != nil {
+			if err := h.launchLogMon(reattachConfig); err != nil {
+				h.logger.Warn("failed to reattach to logmon process", "error", err)
+				// if we failed to launch logmon, try again below
+			}
+		}
 
-		// Launch or reattach logmon instance for the task.
-		if err := h.launchLogMon(reattachConfig); err != nil {
-			// Retry errors launching logmon as logmon may have crashed and
+	}
+
+	// create a new client in initial starts, failed reattachment, or if we detect exits
+	if h.logmonPluginClient == nil || h.logmonPluginClient.Exited() {
+		if err := h.launchLogMon(nil); err != nil {
+			// Retry errors launching logmon as logmon may have crashed on start and
 			// subsequent attempts will start a new one.
 			h.logger.Error("failed to launch logmon process", "error", err)
 			return structs.NewRecoverableError(err, true)
 		}
-
 	}
 
 	err := h.logmon.Start(&logmon.LogConfig{
@@ -127,12 +171,6 @@ func (h *logmonHook) Prestart(ctx context.Context,
 		return err
 	}
 
-	rCfg := pstructs.ReattachConfigFromGoPlugin(h.logmonPluginClient.ReattachConfig())
-	jsonCfg, err := json.Marshal(rCfg)
-	if err != nil {
-		return err
-	}
-	resp.State = map[string]string{logmonReattachKey: string(jsonCfg)}
 	return nil
 }
 

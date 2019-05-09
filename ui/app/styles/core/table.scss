@@ -14,6 +14,10 @@
     }
   }
 
+  &.is-isolated {
+    margin-bottom: 0;
+  }
+
   &.with-foot {
     margin-bottom: 0;
     border-bottom-left-radius: 0;

@@ -85,6 +85,9 @@ const (
 
 	// VaultToken is the environment variable for passing the Vault token
 	VaultToken = "VAULT_TOKEN"
+
+	// VaultNamespace is the environment variable for passing the Vault namespace, if applicable
+	VaultNamespace = "VAULT_NAMESPACE"
 )
 
 // The node values that can be interpreted.
@@ -305,6 +308,7 @@ type Builder struct {
 	allocName        string
 	groupName        string
 	vaultToken       string
+	vaultNamespace   string
 	injectVaultToken bool
 	jobName          string
 
@@ -423,6 +427,11 @@ func (b *Builder) Build() *TaskEnv {
 		envMap[VaultToken] = b.vaultToken
 	}
 
+	// Build the Vault Namespace
+	if b.injectVaultToken && b.vaultNamespace != "" {
+		envMap[VaultNamespace] = b.vaultNamespace
+	}
+
 	// Copy task meta
 	for k, v := range b.taskMeta {
 		envMap[k] = v
@@ -535,15 +544,9 @@ func (b *Builder) setTask(task *structs.Task) *Builder {
 	if task.Resources == nil {
 		b.memLimit = 0
 		b.cpuLimit = 0
-		b.networks = []*structs.NetworkResource{}
 	} else {
 		b.memLimit = int64(task.Resources.MemoryMB)
 		b.cpuLimit = int64(task.Resources.CPU)
-		// Copy networks to prevent sharing
-		b.networks = make([]*structs.NetworkResource, len(task.Resources.Networks))
-		for i, n := range task.Resources.Networks {
-			b.networks[i] = n.Copy()
-		}
 	}
 	return b
 }
@@ -613,6 +616,15 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 			}
 		}
 	} else if alloc.TaskResources != nil {
+		if tr, ok := alloc.TaskResources[b.taskName]; ok {
+			// Copy networks to prevent sharing
+			b.networks = make([]*structs.NetworkResource, len(tr.Networks))
+			for i, n := range tr.Networks {
+				b.networks[i] = n.Copy()
+			}
+
+		}
+
 		for taskName, resources := range alloc.TaskResources {
 			// Add ports from other tasks
 			if taskName == b.taskName {
@@ -753,9 +765,10 @@ func (b *Builder) SetTemplateEnv(m map[string]string) *Builder {
 	return b
 }
 
-func (b *Builder) SetVaultToken(token string, inject bool) *Builder {
+func (b *Builder) SetVaultToken(token, namespace string, inject bool) *Builder {
 	b.mu.Lock()
 	b.vaultToken = token
+	b.vaultNamespace = namespace
 	b.injectVaultToken = inject
 	b.mu.Unlock()
 	return b

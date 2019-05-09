@@ -28,7 +28,7 @@ To manually configure provision a cluster, see the Nomad
 basic prerequisites to using the Spark integration once you have a cluster up 
 and running:
 
-- Access to a [Spark distribution](https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz) 
+- Access to a [Spark distribution](https://nomad-spark.s3.amazonaws.com/spark-2.1.0-bin-nomad.tgz) 
 built with Nomad support. This is required for the machine that will submit 
 applications as well as the Nomad tasks that will run the Spark executors.
 
@@ -55,7 +55,7 @@ Install Spark:
 
 
 ```shell
-$ wget -O - https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz \
+$ wget -O - https://nomad-spark.s3.amazonaws.com/spark-2.1.0-bin-nomad.tgz \
   | sudo tar xz -C /usr/local
 $ export PATH=$PATH:/usr/local/spark-2.1.0-bin-nomad/bin
 ```
@@ -83,8 +83,8 @@ $ spark-submit \
     --master nomad \
     --deploy-mode cluster \
     --conf spark.executor.instances=4 \
-    --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz \
-    https://s3.amazonaws.com/nomad-spark/spark-examples_2.11-2.1.0-SNAPSHOT.jar 100
+    --conf spark.nomad.sparkDistribution=https://nomad-spark.s3.amazonaws.com/spark-2.1.0-bin-nomad.tgz \
+    https://nomad-spark.s3.amazonaws.com/spark-examples_2.11-2.1.0-SNAPSHOT.jar 100
 ```
 
 ### Using a Docker Image

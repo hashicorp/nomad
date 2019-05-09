@@ -18,6 +18,7 @@ func (c *dockerLoggerClient) Start(opts *StartOpts) error {
 		ContainerId: opts.ContainerID,
 		StdoutFifo:  opts.Stdout,
 		StderrFifo:  opts.Stderr,
+		Tty:         opts.TTY,
 
 		TlsCert: opts.TLSCert,
 		TlsKey:  opts.TLSKey,

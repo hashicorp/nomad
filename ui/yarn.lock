@@ -1129,6 +1129,11 @@ amdefine@>=0.0.4:
   resolved "https://registry.yarnpkg.com/amdefine/-/amdefine-1.0.1.tgz#4a5282ac164729e93619bcfd3ad151f817ce91f5"
   integrity sha1-SlKCrBZHKek2Gbz9OtFR+BfOkfU=
 
+anser@^1.4.8:
+  version "1.4.8"
+  resolved "https://registry.yarnpkg.com/anser/-/anser-1.4.8.tgz#19a3bfc5f0e31c49efaea38f58fd0d136597f2a3"
+  integrity sha512-tVHucTCKIt9VRrpQKzPtOlwm/3AmyQ7J+QE29ixFnvuE2hm83utEVrN7jJapYkHV6hI0HOHkEX9TOMCzHtwvuA==
+
 ansi-escapes@^1.1.0:
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/ansi-escapes/-/ansi-escapes-1.4.0.tgz#d3a8a83b319aa67793662b13e761c7911422306e"

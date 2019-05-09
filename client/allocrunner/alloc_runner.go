@@ -551,10 +551,11 @@ func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *st
 	if a.ClientTerminalStatus() {
 		alloc := ar.Alloc()
 
-		// If we are part of a deployment and the task has failed, mark the
+		// If we are part of a deployment and the alloc has failed, mark the
 		// alloc as unhealthy. This guards against the watcher not be started.
+		// If the health status is already set then terminal allocations should not
 		if a.ClientStatus == structs.AllocClientStatusFailed &&
-			alloc.DeploymentID != "" && !a.DeploymentStatus.IsUnhealthy() {
+			alloc.DeploymentID != "" && !a.DeploymentStatus.HasHealth() {
 			a.DeploymentStatus = &structs.AllocDeploymentStatus{
 				Healthy: helper.BoolToPtr(false),
 			}
@@ -958,6 +959,32 @@ func (ar *allocRunner) RestartAll(taskEvent *structs.TaskEvent) error {
 		rerr := ar.RestartTask(tn, taskEvent.Copy())
 		if rerr != nil {
 			err = multierror.Append(err, rerr)
+		}
+	}
+
+	return err.ErrorOrNil()
+}
+
+// Signal sends a signal request to task runners inside an allocation. If the
+// taskName is empty, then it is sent to all tasks.
+func (ar *allocRunner) Signal(taskName, signal string) error {
+	event := structs.NewTaskEvent(structs.TaskSignaling).SetSignalText(signal)
+
+	if taskName != "" {
+		tr, ok := ar.tasks[taskName]
+		if !ok {
+			return fmt.Errorf("Task not found")
+		}
+
+		return tr.Signal(event, signal)
+	}
+
+	var err *multierror.Error
+
+	for tn, tr := range ar.tasks {
+		rerr := tr.Signal(event.Copy(), signal)
+		if rerr != nil {
+			err = multierror.Append(err, fmt.Errorf("Failed to signal task: %s, err: %v", tn, rerr))
 		}
 	}
 

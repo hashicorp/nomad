@@ -28,8 +28,8 @@ import (
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/consul/api"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
-	multierror "github.com/hashicorp/go-multierror"
-	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
@@ -660,9 +660,15 @@ type ApplyPlanResultsRequest struct {
 	// the evaluation itself being updated.
 	EvalID string
 
+	// COMPAT 0.11
 	// NodePreemptions is a slice of allocations from other lower priority jobs
 	// that are preempted. Preempted allocations are marked as evicted.
+	// Deprecated: Replaced with AllocsPreempted which contains only the diff
 	NodePreemptions []*Allocation
+
+	// AllocsPreempted is a slice of allocation diffs from other lower priority jobs
+	// that are preempted. Preempted allocations are marked as evicted.
+	AllocsPreempted []*AllocationDiff
 
 	// PreemptionEvals is a slice of follow up evals for jobs whose allocations
 	// have been preempted to place allocs in this plan
@@ -673,8 +679,17 @@ type ApplyPlanResultsRequest struct {
 // to cause evictions or to assign new allocations. Both can be done
 // within a single transaction
 type AllocUpdateRequest struct {
+	// COMPAT 0.11
 	// Alloc is the list of new allocations to assign
+	// Deprecated: Replaced with two separate slices, one containing stopped allocations
+	// and another containing updated allocations
 	Alloc []*Allocation
+
+	// Allocations to stop. Contains only the diff, not the entire allocation
+	AllocsStopped []*AllocationDiff
+
+	// New or updated allocations
+	AllocsUpdated []*Allocation
 
 	// Evals is the list of new evaluations to create
 	// Evals are valid only when used in the Raft RPC
@@ -700,6 +715,21 @@ type AllocUpdateDesiredTransitionRequest struct {
 	WriteRequest
 }
 
+// AllocStopRequest is used to stop and reschedule a running Allocation.
+type AllocStopRequest struct {
+	AllocID string
+
+	WriteRequest
+}
+
+// AllocStopResponse is the response to an `AllocStopRequest`
+type AllocStopResponse struct {
+	// EvalID is the id of the follow up evalution for the rescheduled alloc.
+	EvalID string
+
+	WriteMeta
+}
+
 // AllocListRequest is used to request a list of allocations
 type AllocListRequest struct {
 	QueryOptions
@@ -708,6 +738,14 @@ type AllocListRequest struct {
 // AllocSpecificRequest is used to query a specific allocation
 type AllocSpecificRequest struct {
 	AllocID string
+	QueryOptions
+}
+
+// AllocSignalRequest is used to signal a specific allocation
+type AllocSignalRequest struct {
+	AllocID string
+	Task    string
+	Signal  string
 	QueryOptions
 }
 
@@ -1715,7 +1753,7 @@ type Resources struct {
 	DiskMB   int
 	IOPS     int // COMPAT(0.10): Only being used to issue warnings
 	Networks Networks
-	Devices  []*RequestedDevice
+	Devices  ResourceDevices
 }
 
 const (
@@ -1771,6 +1809,7 @@ func (r *Resources) Validate() error {
 }
 
 // Merge merges this resource with another resource.
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) Merge(other *Resources) {
 	if other.CPU != 0 {
 		r.CPU = other.CPU
@@ -1789,6 +1828,52 @@ func (r *Resources) Merge(other *Resources) {
 	}
 }
 
+// COMPAT(0.10): Remove in 0.10
+func (r *Resources) Equals(o *Resources) bool {
+	if r == o {
+		return true
+	}
+	if r == nil || o == nil {
+		return false
+	}
+	return r.CPU == o.CPU &&
+		r.MemoryMB == o.MemoryMB &&
+		r.DiskMB == o.DiskMB &&
+		r.IOPS == o.IOPS &&
+		r.Networks.Equals(&o.Networks) &&
+		r.Devices.Equals(&o.Devices)
+}
+
+// COMPAT(0.10): Remove in 0.10
+// ResourceDevices are part of Resources
+type ResourceDevices []*RequestedDevice
+
+// COMPAT(0.10): Remove in 0.10
+// Equals ResourceDevices as set keyed by Name
+func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
+	if d == o {
+		return true
+	}
+	if d == nil || o == nil {
+		return false
+	}
+	if len(*d) != len(*o) {
+		return false
+	}
+	m := make(map[string]*RequestedDevice, len(*d))
+	for _, e := range *d {
+		m[e.Name] = e
+	}
+	for _, oe := range *o {
+		de, ok := m[oe.Name]
+		if !ok || !de.Equals(oe) {
+			return false
+		}
+	}
+	return true
+}
+
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) Canonicalize() {
 	// Ensure that an empty and nil slices are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
@@ -1807,6 +1892,7 @@ func (r *Resources) Canonicalize() {
 // MeetsMinResources returns an error if the resources specified are less than
 // the minimum allowed.
 // This is based on the minimums defined in the Resources type
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) MeetsMinResources() error {
 	var mErr multierror.Error
 	minResources := MinResources()
@@ -1855,6 +1941,7 @@ func (r *Resources) Copy() *Resources {
 }
 
 // NetIndex finds the matching net index using device name
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) NetIndex(n *NetworkResource) int {
 	return r.Networks.NetIndex(n)
 }
@@ -1862,6 +1949,7 @@ func (r *Resources) NetIndex(n *NetworkResource) int {
 // Superset checks if one set of resources is a superset
 // of another. This ignores network resources, and the NetworkIndex
 // should be used for that.
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) Superset(other *Resources) (bool, string) {
 	if r.CPU < other.CPU {
 		return false, "cpu"
@@ -1877,6 +1965,7 @@ func (r *Resources) Superset(other *Resources) (bool, string) {
 
 // Add adds the resources of the delta to this, potentially
 // returning an error if not possible.
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) Add(delta *Resources) error {
 	if delta == nil {
 		return nil
@@ -1897,6 +1986,7 @@ func (r *Resources) Add(delta *Resources) error {
 	return nil
 }
 
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) GoString() string {
 	return fmt.Sprintf("*%#v", *r)
 }
@@ -2074,11 +2164,24 @@ type RequestedDevice struct {
 
 	// Constraints are a set of constraints to apply when selecting the device
 	// to use.
-	Constraints []*Constraint
+	Constraints Constraints
 
 	// Affinities are a set of affinites to apply when selecting the device
 	// to use.
-	Affinities []*Affinity
+	Affinities Affinities
+}
+
+func (r *RequestedDevice) Equals(o *RequestedDevice) bool {
+	if r == o {
+		return true
+	}
+	if r == nil || o == nil {
+		return false
+	}
+	return r.Name == o.Name &&
+		r.Count == o.Count &&
+		r.Constraints.Equals(&o.Constraints) &&
+		r.Affinities.Equals(&o.Affinities)
 }
 
 func (r *RequestedDevice) Copy() *RequestedDevice {
@@ -2249,14 +2352,8 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 	if !n.Disk.Equals(&o.Disk) {
 		return false
 	}
-
-	if len(n.Networks) != len(o.Networks) {
+	if !n.Networks.Equals(&o.Networks) {
 		return false
-	}
-	for i, n := range n.Networks {
-		if !n.Equals(o.Networks[i]) {
-			return false
-		}
 	}
 
 	// Check the devices
@@ -2267,7 +2364,30 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 	return true
 }
 
-// DevicesEquals returns true if the two device arrays are equal
+// Equals equates Networks as a set
+func (n *Networks) Equals(o *Networks) bool {
+	if n == o {
+		return true
+	}
+	if n == nil || o == nil {
+		return false
+	}
+	if len(*n) != len(*o) {
+		return false
+	}
+SETEQUALS:
+	for _, ne := range *n {
+		for _, oe := range *o {
+			if ne.Equals(oe) {
+				continue SETEQUALS
+			}
+		}
+		return false
+	}
+	return true
+}
+
+// DevicesEquals returns true if the two device arrays are set equal
 func DevicesEquals(d1, d2 []*NodeDeviceResource) bool {
 	if len(d1) != len(d2) {
 		return false
@@ -6132,6 +6252,11 @@ func (e *TaskEvent) SetSignal(s int) *TaskEvent {
 	return e
 }
 
+func (e *TaskEvent) SetSignalText(s string) *TaskEvent {
+	e.Details["signal"] = s
+	return e
+}
+
 func (e *TaskEvent) SetExitMessage(err error) *TaskEvent {
 	if err != nil {
 		e.Message = err.Error()
@@ -6415,10 +6540,15 @@ type Constraint struct {
 }
 
 // Equal checks if two constraints are equal
+func (c *Constraint) Equals(o *Constraint) bool {
+	return c == o ||
+		c.LTarget == o.LTarget &&
+			c.RTarget == o.RTarget &&
+			c.Operand == o.Operand
+}
+
 func (c *Constraint) Equal(o *Constraint) bool {
-	return c.LTarget == o.LTarget &&
-		c.RTarget == o.RTarget &&
-		c.Operand == o.Operand
+	return c.Equals(o)
 }
 
 func (c *Constraint) Copy() *Constraint {
@@ -6494,6 +6624,31 @@ func (c *Constraint) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+type Constraints []*Constraint
+
+// Equals compares Constraints as a set
+func (xs *Constraints) Equals(ys *Constraints) bool {
+	if xs == ys {
+		return true
+	}
+	if xs == nil || ys == nil {
+		return false
+	}
+	if len(*xs) != len(*ys) {
+		return false
+	}
+SETEQUALS:
+	for _, x := range *xs {
+		for _, y := range *ys {
+			if x.Equals(y) {
+				continue SETEQUALS
+			}
+		}
+		return false
+	}
+	return true
+}
+
 // Affinity is used to score placement options based on a weight
 type Affinity struct {
 	LTarget string // Left-hand target
@@ -6504,11 +6659,16 @@ type Affinity struct {
 }
 
 // Equal checks if two affinities are equal
+func (a *Affinity) Equals(o *Affinity) bool {
+	return a == o ||
+		a.LTarget == o.LTarget &&
+			a.RTarget == o.RTarget &&
+			a.Operand == o.Operand &&
+			a.Weight == o.Weight
+}
+
 func (a *Affinity) Equal(o *Affinity) bool {
-	return a.LTarget == o.LTarget &&
-		a.RTarget == o.RTarget &&
-		a.Operand == o.Operand &&
-		a.Weight == o.Weight
+	return a.Equals(o)
 }
 
 func (a *Affinity) Copy() *Affinity {
@@ -6587,6 +6747,31 @@ type Spread struct {
 
 	// Memoized string representation
 	str string
+}
+
+type Affinities []*Affinity
+
+// Equals compares Affinities as a set
+func (xs *Affinities) Equals(ys *Affinities) bool {
+	if xs == ys {
+		return true
+	}
+	if xs == nil || ys == nil {
+		return false
+	}
+	if len(*xs) != len(*ys) {
+		return false
+	}
+SETEQUALS:
+	for _, x := range *xs {
+		for _, y := range *ys {
+			if x.Equals(y) {
+				continue SETEQUALS
+			}
+		}
+		return false
+	}
+	return true
 }
 
 func (s *Spread) Copy() *Spread {
@@ -7153,6 +7338,9 @@ const (
 
 // Allocation is used to allocate the placement of a task group to a node.
 type Allocation struct {
+	// msgpack omit empty fields during serialization
+	_struct bool `codec:",omitempty"` // nolint: structcheck
+
 	// ID of the allocation (UUID)
 	ID string
 
@@ -7281,11 +7469,12 @@ func (a *Allocation) Index() uint {
 	return uint(num)
 }
 
+// Copy provides a copy of the allocation and deep copies the job
 func (a *Allocation) Copy() *Allocation {
 	return a.copyImpl(true)
 }
 
-// Copy provides a copy of the allocation but doesn't deep copy the job
+// CopySkipJob provides a copy of the allocation but doesn't deep copy the job
 func (a *Allocation) CopySkipJob() *Allocation {
 	return a.copyImpl(false)
 }
@@ -7627,57 +7816,74 @@ func (a *Allocation) LookupTask(name string) *Task {
 // Stub returns a list stub for the allocation
 func (a *Allocation) Stub() *AllocListStub {
 	return &AllocListStub{
-		ID:                 a.ID,
-		EvalID:             a.EvalID,
-		Name:               a.Name,
-		Namespace:          a.Namespace,
-		NodeID:             a.NodeID,
-		NodeName:           a.NodeName,
-		JobID:              a.JobID,
-		JobType:            a.Job.Type,
-		JobVersion:         a.Job.Version,
-		TaskGroup:          a.TaskGroup,
-		DesiredStatus:      a.DesiredStatus,
-		DesiredDescription: a.DesiredDescription,
-		ClientStatus:       a.ClientStatus,
-		ClientDescription:  a.ClientDescription,
-		DesiredTransition:  a.DesiredTransition,
-		TaskStates:         a.TaskStates,
-		DeploymentStatus:   a.DeploymentStatus,
-		FollowupEvalID:     a.FollowupEvalID,
-		RescheduleTracker:  a.RescheduleTracker,
-		CreateIndex:        a.CreateIndex,
-		ModifyIndex:        a.ModifyIndex,
-		CreateTime:         a.CreateTime,
-		ModifyTime:         a.ModifyTime,
+		ID:                    a.ID,
+		EvalID:                a.EvalID,
+		Name:                  a.Name,
+		Namespace:             a.Namespace,
+		NodeID:                a.NodeID,
+		NodeName:              a.NodeName,
+		JobID:                 a.JobID,
+		JobType:               a.Job.Type,
+		JobVersion:            a.Job.Version,
+		TaskGroup:             a.TaskGroup,
+		DesiredStatus:         a.DesiredStatus,
+		DesiredDescription:    a.DesiredDescription,
+		ClientStatus:          a.ClientStatus,
+		ClientDescription:     a.ClientDescription,
+		DesiredTransition:     a.DesiredTransition,
+		TaskStates:            a.TaskStates,
+		DeploymentStatus:      a.DeploymentStatus,
+		FollowupEvalID:        a.FollowupEvalID,
+		RescheduleTracker:     a.RescheduleTracker,
+		PreemptedAllocations:  a.PreemptedAllocations,
+		PreemptedByAllocation: a.PreemptedByAllocation,
+		CreateIndex:           a.CreateIndex,
+		ModifyIndex:           a.ModifyIndex,
+		CreateTime:            a.CreateTime,
+		ModifyTime:            a.ModifyTime,
 	}
 }
 
+// AllocationDiff converts an Allocation type to an AllocationDiff type
+// If at any time, modification are made to AllocationDiff so that an
+// Allocation can no longer be safely converted to AllocationDiff,
+// this method should be changed accordingly.
+func (a *Allocation) AllocationDiff() *AllocationDiff {
+	return (*AllocationDiff)(a)
+}
+
+// AllocationDiff is another named type for Allocation (to use the same fields),
+// which is used to represent the delta for an Allocation. If you need a method
+// defined on the al
+type AllocationDiff Allocation
+
 // AllocListStub is used to return a subset of alloc information
 type AllocListStub struct {
-	ID                 string
-	EvalID             string
-	Name               string
-	Namespace          string
-	NodeID             string
-	NodeName           string
-	JobID              string
-	JobType            string
-	JobVersion         uint64
-	TaskGroup          string
-	DesiredStatus      string
-	DesiredDescription string
-	ClientStatus       string
-	ClientDescription  string
-	DesiredTransition  DesiredTransition
-	TaskStates         map[string]*TaskState
-	DeploymentStatus   *AllocDeploymentStatus
-	FollowupEvalID     string
-	RescheduleTracker  *RescheduleTracker
-	CreateIndex        uint64
-	ModifyIndex        uint64
-	CreateTime         int64
-	ModifyTime         int64
+	ID                    string
+	EvalID                string
+	Name                  string
+	Namespace             string
+	NodeID                string
+	NodeName              string
+	JobID                 string
+	JobType               string
+	JobVersion            uint64
+	TaskGroup             string
+	DesiredStatus         string
+	DesiredDescription    string
+	ClientStatus          string
+	ClientDescription     string
+	DesiredTransition     DesiredTransition
+	TaskStates            map[string]*TaskState
+	DeploymentStatus      *AllocDeploymentStatus
+	FollowupEvalID        string
+	RescheduleTracker     *RescheduleTracker
+	PreemptedAllocations  []string
+	PreemptedByAllocation string
+	CreateIndex           uint64
+	ModifyIndex           uint64
+	CreateTime            int64
+	ModifyTime            int64
 }
 
 // SetEventDisplayMessage populates the display message if its not already set,
@@ -7974,6 +8180,7 @@ const (
 	EvalTriggerPeriodicJob       = "periodic-job"
 	EvalTriggerNodeDrain         = "node-drain"
 	EvalTriggerNodeUpdate        = "node-update"
+	EvalTriggerAllocStop         = "alloc-stop"
 	EvalTriggerScheduled         = "scheduled"
 	EvalTriggerRollingUpdate     = "rolling-update"
 	EvalTriggerDeploymentWatcher = "deployment-watcher"
@@ -8017,6 +8224,9 @@ const (
 // potentially taking action (allocation of work) or doing nothing if the state
 // of the world does not require it.
 type Evaluation struct {
+	// msgpack omit empty fields during serialization
+	_struct bool `codec:",omitempty"` // nolint: structcheck
+
 	// ID is a randomly generated UUID used for this evaluation. This
 	// is assigned upon the creation of the evaluation.
 	ID string
@@ -8284,6 +8494,9 @@ func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 // are submitted to the leader which verifies that resources have
 // not been overcommitted before admitting the plan.
 type Plan struct {
+	// msgpack omit empty fields during serialization
+	_struct bool `codec:",omitempty"` // nolint: structcheck
+
 	// EvalID is the evaluation ID this plan is associated with
 	EvalID string
 
@@ -8335,9 +8548,9 @@ type Plan struct {
 	NodePreemptions map[string][]*Allocation
 }
 
-// AppendUpdate marks the allocation for eviction. The clientStatus of the
+// AppendStoppedAlloc marks an allocation to be stopped. The clientStatus of the
 // allocation may be optionally set by passing in a non-empty value.
-func (p *Plan) AppendUpdate(alloc *Allocation, desiredStatus, desiredDesc, clientStatus string) {
+func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus string) {
 	newAlloc := new(Allocation)
 	*newAlloc = *alloc
 
@@ -8353,7 +8566,7 @@ func (p *Plan) AppendUpdate(alloc *Allocation, desiredStatus, desiredDesc, clien
 	// Strip the resources as it can be rebuilt.
 	newAlloc.Resources = nil
 
-	newAlloc.DesiredStatus = desiredStatus
+	newAlloc.DesiredStatus = AllocDesiredStatusStop
 	newAlloc.DesiredDescription = desiredDesc
 
 	if clientStatus != "" {
@@ -8367,12 +8580,12 @@ func (p *Plan) AppendUpdate(alloc *Allocation, desiredStatus, desiredDesc, clien
 
 // AppendPreemptedAlloc is used to append an allocation that's being preempted to the plan.
 // To minimize the size of the plan, this only sets a minimal set of fields in the allocation
-func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, desiredStatus, preemptingAllocID string) {
+func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string) {
 	newAlloc := &Allocation{}
 	newAlloc.ID = alloc.ID
 	newAlloc.JobID = alloc.JobID
 	newAlloc.Namespace = alloc.Namespace
-	newAlloc.DesiredStatus = desiredStatus
+	newAlloc.DesiredStatus = AllocDesiredStatusEvict
 	newAlloc.PreemptedByAllocation = preemptingAllocID
 
 	desiredDesc := fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID)
@@ -8423,6 +8636,29 @@ func (p *Plan) IsNoOp() bool {
 		len(p.NodeAllocation) == 0 &&
 		p.Deployment == nil &&
 		len(p.DeploymentUpdates) == 0
+}
+
+// NormalizeAllocations normalizes allocations to remove fields that can
+// be fetched from the MemDB instead of sending over the wire
+func (p *Plan) NormalizeAllocations() {
+	for _, allocs := range p.NodeUpdate {
+		for i, alloc := range allocs {
+			allocs[i] = &Allocation{
+				ID:                 alloc.ID,
+				DesiredDescription: alloc.DesiredDescription,
+				ClientStatus:       alloc.ClientStatus,
+			}
+		}
+	}
+
+	for _, allocs := range p.NodePreemptions {
+		for i, alloc := range allocs {
+			allocs[i] = &Allocation{
+				ID:                    alloc.ID,
+				PreemptedByAllocation: alloc.PreemptedByAllocation,
+			}
+		}
+	}
 }
 
 // PlanResult is the result of a plan submitted to the leader.

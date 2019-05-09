@@ -123,6 +123,23 @@ module('Integration | Component | allocation row', function(hooks) {
       });
   });
 
+  test('Allocation row shows an icon indicator when it was preempted', async function(assert) {
+    const allocId = this.server.create('allocation', 'preempted').id;
+
+    const allocation = await this.store.findRecord('allocation', allocId);
+    await settled();
+
+    this.setProperties({ allocation, context: 'job' });
+    await render(hbs`
+      {{allocation-row
+        allocation=allocation
+        context=context}}
+    `);
+    await settled();
+
+    assert.ok(find('[data-test-icon="preemption"]'), 'Preempted icon is shown');
+  });
+
   test('when an allocation is not running, the utilization graphs are omitted', function(assert) {
     this.setProperties({
       context: 'job',

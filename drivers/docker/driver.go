@@ -144,6 +144,7 @@ func (d *Driver) setupNewDockerLogger(container *docker.Container, cfg *drivers.
 	if err := dlogger.Start(&docklog.StartOpts{
 		Endpoint:    d.config.Endpoint,
 		ContainerID: container.ID,
+		TTY:         container.Config.Tty,
 		Stdout:      cfg.StdoutPath,
 		Stderr:      cfg.StderrPath,
 		TLSCert:     d.config.TLS.Cert,
@@ -603,30 +604,42 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
-	localBindVolume := driverConfig.VolumeDriver == "" || driverConfig.VolumeDriver == "local"
+	taskLocalBindVolume := driverConfig.VolumeDriver == ""
 
-	if !d.config.Volumes.Enabled && !localBindVolume {
+	if !d.config.Volumes.Enabled && !taskLocalBindVolume {
 		return nil, fmt.Errorf("volumes are not enabled; cannot use volume driver %q", driverConfig.VolumeDriver)
 	}
 
 	for _, userbind := range driverConfig.Volumes {
-		parts := strings.Split(userbind, ":")
-		if len(parts) < 2 {
-			return nil, fmt.Errorf("invalid docker volume: %q", userbind)
+		// This assumes host OS = docker container OS.
+		// Not true, when we support Linux containers on Windows
+		src, dst, mode, err := parseVolumeSpec(userbind, runtime.GOOS)
+		if err != nil {
+			return nil, fmt.Errorf("invalid docker volume %q: %v", userbind, err)
 		}
 
-		// Paths inside task dir are always allowed, Relative paths are always allowed as they mount within a container
-		// When a VolumeDriver is set, we assume we receive a binding in the format volume-name:container-dest
-		// Otherwise, we assume we receive a relative path binding in the format relative/to/task:/also/in/container
-		if localBindVolume {
-			parts[0] = expandPath(task.TaskDir().Dir, parts[0])
-
-			if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, parts[0]) {
-				return nil, fmt.Errorf("volumes are not enabled; cannot mount host paths: %+q", userbind)
-			}
+		// Paths inside task dir are always allowed when using the default driver,
+		// Relative paths are always allowed as they mount within a container
+		// When a VolumeDriver is set, we assume we receive a binding in the format
+		// volume-name:container-dest
+		// Otherwise, we assume we receive a relative path binding in the format
+		// relative/to/task:/also/in/container
+		if taskLocalBindVolume {
+			src = expandPath(task.TaskDir().Dir, src)
+		} else {
+			// Resolve dotted path segments
+			src = filepath.Clean(src)
 		}
 
-		binds = append(binds, strings.Join(parts, ":"))
+		if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, src) {
+			return nil, fmt.Errorf("volumes are not enabled; cannot mount host paths: %+q", userbind)
+		}
+
+		bind := src + ":" + dst
+		if mode != "" {
+			bind += ":" + mode
+		}
+		binds = append(binds, bind)
 	}
 
 	if selinuxLabel := d.config.Volumes.SelinuxLabel; selinuxLabel != "" {
