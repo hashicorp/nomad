@@ -29,7 +29,7 @@ optimality of a job placement, which given the service workload is highly
 desirable.
 
 Service jobs will be considered failed by Nomad upon failure or exit
-regardless of exit code and and handled according to the job's [restart]
+regardless of exit code and handled according to the job's [restart]
 and [reschedule] stanzas.
 
 ## Batch
@@ -63,6 +63,6 @@ Since Nomad 0.9, the system scheduler will preempt eligible lower priority
 tasks running on a node if there isn't enough capacity to place a system job.
 See [preemption] for details on how tasks that get preempted are chosen.
 
-Service jobs will be considered failed by Nomad upon failure or exit, **except
-when preempted**, regardless of exit code and and handled according to the
+System jobs will be considered failed by Nomad upon failure or exit, **except
+when preempted**, regardless of exit code and handled according to the
 job's [restart] and [reschedule] stanzas.
