@@ -1994,11 +1994,13 @@ func (r *Resources) GoString() string {
 type Port struct {
 	Label string
 	Value int
+	To    int
 }
 
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
+	Mode          string // Mode of the network
 	Device        string // Name of the device
 	CIDR          string // CIDR block of addresses
 	IP            string // Host IP address
@@ -2008,6 +2010,10 @@ type NetworkResource struct {
 }
 
 func (nr *NetworkResource) Equals(other *NetworkResource) bool {
+	if nr.Mode != other.Mode {
+		return false
+	}
+
 	if nr.Device != other.Device {
 		return false
 	}
@@ -2953,15 +2959,17 @@ func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
 
 // AllocatedSharedResources are the set of resources allocated to a task group.
 type AllocatedSharedResources struct {
-	DiskMB int64
+	Networks Networks
+	DiskMB   int64
 }
 
 func (a *AllocatedSharedResources) Add(delta *AllocatedSharedResources) {
 	if delta == nil {
 		return
 	}
-
+	a.Networks = append(a.Networks, delta.Networks...)
 	a.DiskMB += delta.DiskMB
+
 }
 
 func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
@@ -2969,6 +2977,17 @@ func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
 		return
 	}
 
+	diff := map[*NetworkResource]bool{}
+	for _, n := range delta.Networks {
+		diff[n] = true
+	}
+	var nets Networks
+	for _, n := range a.Networks {
+		if _, ok := diff[n]; !ok {
+			nets = append(nets, n)
+		}
+	}
+	a.Networks = nets
 	a.DiskMB -= delta.DiskMB
 }
 
@@ -4581,6 +4600,10 @@ type TaskGroup struct {
 	// Spread can be specified at the task group level to express spreading
 	// allocations across a desired attribute, such as datacenter
 	Spreads []*Spread
+
+	// Networks are the network configuration for the task group. This can be
+	// overridden in the task.
+	Networks Networks
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -4595,6 +4618,15 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.ReschedulePolicy = ntg.ReschedulePolicy.Copy()
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
+
+	// Copy the network objects
+	if tg.Networks != nil {
+		n := len(tg.Networks)
+		ntg.Networks = make([]*NetworkResource, n)
+		for i := 0; i < n; i++ {
+			ntg.Networks[i] = tg.Networks[i].Copy()
+		}
+	}
 
 	if tg.Tasks != nil {
 		tasks := make([]*Task, len(ntg.Tasks))
@@ -4744,10 +4776,8 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 	}
 
-	// Check for duplicate tasks, that there is only leader task if any,
-	// and no duplicated static ports
+	// Check that there is only one leader task if any
 	tasks := make(map[string]int)
-	staticPorts := make(map[int]string)
 	leaderTasks := 0
 	for idx, task := range tg.Tasks {
 		if task.Name == "" {
@@ -4761,25 +4791,16 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		if task.Leader {
 			leaderTasks++
 		}
-
-		if task.Resources == nil {
-			continue
-		}
-
-		for _, net := range task.Resources.Networks {
-			for _, port := range net.ReservedPorts {
-				if other, ok := staticPorts[port.Value]; ok {
-					err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
-					mErr.Errors = append(mErr.Errors, err)
-				} else {
-					staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
-				}
-			}
-		}
 	}
 
 	if leaderTasks > 1 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Only one task may be marked as leader"))
+	}
+
+	// Validate task group and task network resources
+	if err := tg.validateNetworks(); err != nil {
+		outer := fmt.Errorf("Task group network validation failed: %v", err)
+		mErr.Errors = append(mErr.Errors, outer)
 	}
 
 	// Validate the tasks
@@ -4787,6 +4808,75 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		if err := task.Validate(tg.EphemeralDisk, j.Type); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+func (tg *TaskGroup) validateNetworks() error {
+	var mErr multierror.Error
+	portLabels := make(map[string]string)
+	staticPorts := make(map[int]string)
+	mappedPorts := make(map[int]string)
+
+	for _, net := range tg.Networks {
+		for _, port := range append(net.ReservedPorts, net.DynamicPorts...) {
+			if other, ok := portLabels[port.Label]; ok {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Port label %s already in use by %s", port.Label, other))
+			} else {
+				portLabels[port.Label] = "taskgroup network"
+			}
+
+			if port.Value != 0 {
+				// static port
+				if other, ok := staticPorts[port.Value]; ok {
+					err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
+					mErr.Errors = append(mErr.Errors, err)
+				} else {
+					staticPorts[port.Value] = fmt.Sprintf("taskgroup network:%s", port.Label)
+				}
+			}
+
+			if port.To != 0 {
+				if other, ok := mappedPorts[port.To]; ok {
+					err := fmt.Errorf("Port mapped to %d already in use by %s", port.To, other)
+					mErr.Errors = append(mErr.Errors, err)
+				} else {
+					mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
+				}
+			}
+		}
+	}
+	// Check for duplicate tasks or port labels, and no duplicated static or mapped ports
+	for _, task := range tg.Tasks {
+		if task.Resources == nil {
+			continue
+		}
+
+		for _, net := range task.Resources.Networks {
+			for _, port := range append(net.ReservedPorts, net.DynamicPorts...) {
+				if other, ok := portLabels[port.Label]; ok {
+					mErr.Errors = append(mErr.Errors, fmt.Errorf("Port label %s already in use by %s", port.Label, other))
+				}
+
+				if port.Value != 0 {
+					if other, ok := staticPorts[port.Value]; ok {
+						err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
+						mErr.Errors = append(mErr.Errors, err)
+					} else {
+						staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
+					}
+				}
+
+				if port.To != 0 {
+					if other, ok := mappedPorts[port.To]; ok {
+						err := fmt.Errorf("Port mapped to %d already in use by %s", port.To, other)
+						mErr.Errors = append(mErr.Errors, err)
+					} else {
+						mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
+					}
+				}
+			}
 		}
 	}
 	return mErr.ErrorOrNil()

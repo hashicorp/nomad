@@ -315,6 +315,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"vault",
 			"migrate",
 			"spread",
+			"network",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -334,6 +335,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		delete(m, "vault")
 		delete(m, "migrate")
 		delete(m, "spread")
+		delete(m, "network")
 
 		// Build the group with the basic decode
 		var g api.TaskGroup
@@ -368,6 +370,15 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			if err := parseSpread(&g.Spreads, o); err != nil {
 				return multierror.Prefix(err, "spread ->")
 			}
+		}
+
+		// Parse network
+		if o := listVal.Filter("network"); len(o.Items) > 0 {
+			networks, err := parseNetwork(o)
+			if err != nil {
+				return err
+			}
+			g.Networks = []*api.NetworkResource{networks}
 		}
 
 		// Parse reschedule policy
@@ -1434,39 +1445,11 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 
 	// Parse the network resources
 	if o := listVal.Filter("network"); len(o.Items) > 0 {
-		if len(o.Items) > 1 {
-			return fmt.Errorf("only one 'network' resource allowed")
+		r, err := parseNetwork(o)
+		if err != nil {
+			return fmt.Errorf("resource, %v", err)
 		}
-
-		// Check for invalid keys
-		valid := []string{
-			"mbits",
-			"port",
-		}
-		if err := helper.CheckHCLKeys(o.Items[0].Val, valid); err != nil {
-			return multierror.Prefix(err, "resources, network ->")
-		}
-
-		var r api.NetworkResource
-		var m map[string]interface{}
-		if err := hcl.DecodeObject(&m, o.Items[0].Val); err != nil {
-			return err
-		}
-		if err := mapstructure.WeakDecode(m, &r); err != nil {
-			return err
-		}
-
-		var networkObj *ast.ObjectList
-		if ot, ok := o.Items[0].Val.(*ast.ObjectType); ok {
-			networkObj = ot.List
-		} else {
-			return fmt.Errorf("resource: should be an object")
-		}
-		if err := parsePorts(networkObj, &r); err != nil {
-			return multierror.Prefix(err, "resources, network, ports ->")
-		}
-
-		result.Networks = []*api.NetworkResource{&r}
+		result.Networks = []*api.NetworkResource{r}
 	}
 
 	// Parse the device resources
@@ -1536,11 +1519,49 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 	return nil
 }
 
+func parseNetwork(o *ast.ObjectList) (*api.NetworkResource, error) {
+	if len(o.Items) > 1 {
+		return nil, fmt.Errorf("only one 'network' resource allowed")
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"mode",
+		"mbits",
+		"port",
+	}
+	if err := helper.CheckHCLKeys(o.Items[0].Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "network ->")
+	}
+
+	var r api.NetworkResource
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Items[0].Val); err != nil {
+		return nil, err
+	}
+	if err := mapstructure.WeakDecode(m, &r); err != nil {
+		return nil, err
+	}
+
+	var networkObj *ast.ObjectList
+	if ot, ok := o.Items[0].Val.(*ast.ObjectType); ok {
+		networkObj = ot.List
+	} else {
+		return nil, fmt.Errorf("should be an object")
+	}
+	if err := parsePorts(networkObj, &r); err != nil {
+		return nil, multierror.Prefix(err, "network, ports ->")
+	}
+
+	return &r, nil
+}
+
 func parsePorts(networkObj *ast.ObjectList, nw *api.NetworkResource) error {
 	// Check for invalid keys
 	valid := []string{
 		"mbits",
 		"port",
+		"mode",
 	}
 	if err := helper.CheckHCLKeys(networkObj, valid); err != nil {
 		return err

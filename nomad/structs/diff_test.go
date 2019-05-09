@@ -3289,6 +3289,7 @@ func TestTaskDiff(t *testing.T) {
 							DynamicPorts: []Port{
 								{
 									Label: "bar",
+									To:    8080,
 								},
 							},
 						},
@@ -3312,6 +3313,7 @@ func TestTaskDiff(t *testing.T) {
 							DynamicPorts: []Port{
 								{
 									Label: "baz",
+									To:    8081,
 								},
 							},
 						},
@@ -3349,6 +3351,12 @@ func TestTaskDiff(t *testing.T) {
 											},
 											{
 												Type: DiffTypeAdded,
+												Name: "To",
+												Old:  "",
+												New:  "0",
+											},
+											{
+												Type: DiffTypeAdded,
 												Name: "Value",
 												Old:  "",
 												New:  "81",
@@ -3364,6 +3372,12 @@ func TestTaskDiff(t *testing.T) {
 												Name: "Label",
 												Old:  "",
 												New:  "baz",
+											},
+											{
+												Type: DiffTypeAdded,
+												Name: "To",
+												Old:  "",
+												New:  "8081",
 											},
 										},
 									},
@@ -3393,6 +3407,12 @@ func TestTaskDiff(t *testing.T) {
 											},
 											{
 												Type: DiffTypeDeleted,
+												Name: "To",
+												Old:  "0",
+												New:  "",
+											},
+											{
+												Type: DiffTypeDeleted,
 												Name: "Value",
 												Old:  "80",
 												New:  "",
@@ -3407,6 +3427,12 @@ func TestTaskDiff(t *testing.T) {
 												Type: DiffTypeDeleted,
 												Name: "Label",
 												Old:  "bar",
+												New:  "",
+											},
+											{
+												Type: DiffTypeDeleted,
+												Name: "To",
+												Old:  "8080",
 												New:  "",
 											},
 										},
@@ -3850,6 +3876,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "boom.Label",
 								Old:  "boom_port",
 								New:  "boom_port",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "boom.To",
+								Old:  "0",
+								New:  "0",
 							},
 							{
 								Type: DiffTypeNone,

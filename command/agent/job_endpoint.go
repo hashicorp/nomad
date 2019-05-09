@@ -373,7 +373,6 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	if jobName != "" && *args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match name")
 	}
-
 	sJob := ApiJobToStructJob(args.Job)
 
 	regReq := structs.JobRegisterRequest{
@@ -667,6 +666,7 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	tg.Meta = taskGroup.Meta
 	tg.Constraints = ApiConstraintsToStructs(taskGroup.Constraints)
 	tg.Affinities = ApiAffinitiesToStructs(taskGroup.Affinities)
+	tg.Networks = ApiNetworkResourceToStructs(taskGroup.Networks)
 
 	tg.RestartPolicy = &structs.RestartPolicy{
 		Attempts: *taskGroup.RestartPolicy.Attempts,
@@ -860,35 +860,8 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		out.IOPS = *in.IOPS
 	}
 
-	if l := len(in.Networks); l != 0 {
-		out.Networks = make([]*structs.NetworkResource, l)
-		for i, nw := range in.Networks {
-			out.Networks[i] = &structs.NetworkResource{
-				CIDR:  nw.CIDR,
-				IP:    nw.IP,
-				MBits: *nw.MBits,
-			}
-
-			if l := len(nw.DynamicPorts); l != 0 {
-				out.Networks[i].DynamicPorts = make([]structs.Port, l)
-				for j, dp := range nw.DynamicPorts {
-					out.Networks[i].DynamicPorts[j] = structs.Port{
-						Label: dp.Label,
-						Value: dp.Value,
-					}
-				}
-			}
-
-			if l := len(nw.ReservedPorts); l != 0 {
-				out.Networks[i].ReservedPorts = make([]structs.Port, l)
-				for j, rp := range nw.ReservedPorts {
-					out.Networks[i].ReservedPorts[j] = structs.Port{
-						Label: rp.Label,
-						Value: rp.Value,
-					}
-				}
-			}
-		}
+	if len(in.Networks) != 0 {
+		out.Networks = ApiNetworkResourceToStructs(in.Networks)
 	}
 
 	if l := len(in.Devices); l != 0 {
@@ -899,6 +872,44 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 				Count:       *d.Count,
 				Constraints: ApiConstraintsToStructs(d.Constraints),
 				Affinities:  ApiAffinitiesToStructs(d.Affinities),
+			}
+		}
+	}
+
+	return out
+}
+
+func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkResource {
+	var out []*structs.NetworkResource
+	if len(in) == 0 {
+		return out
+	}
+	out = make([]*structs.NetworkResource, len(in))
+	for i, nw := range in {
+		out[i] = &structs.NetworkResource{
+			Mode:  nw.Mode,
+			CIDR:  nw.CIDR,
+			IP:    nw.IP,
+			MBits: *nw.MBits,
+		}
+
+		if l := len(nw.DynamicPorts); l != 0 {
+			out[i].DynamicPorts = make([]structs.Port, l)
+			for j, dp := range nw.DynamicPorts {
+				out[i].DynamicPorts[j] = structs.Port{
+					Label: dp.Label,
+					Value: dp.Value,
+				}
+			}
+		}
+
+		if l := len(nw.ReservedPorts); l != 0 {
+			out[i].ReservedPorts = make([]structs.Port, l)
+			for j, rp := range nw.ReservedPorts {
+				out[i].ReservedPorts[j] = structs.Port{
+					Label: rp.Label,
+					Value: rp.Value,
+				}
 			}
 		}
 	}
