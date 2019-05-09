@@ -42,7 +42,7 @@ func (iter *PreemptionScoringIterator) Next() *RankedNode {
 		return option
 	}
 
-	netPriority := netAggregatePriority(option.PreemptedAllocs)
+	netPriority := netPriority(option.PreemptedAllocs)
 	// preemption score is inversely proportional to netPriority
 	preemptionScore := preemptionScore(netPriority)
 	option.Scores = append(option.Scores, preemptionScore)
@@ -51,23 +51,31 @@ func (iter *PreemptionScoringIterator) Next() *RankedNode {
 	return option
 }
 
-// netAggregatePriority is the sum of distinct priorities of jobs in the input slice of allocations
-func netAggregatePriority(allocs []*structs.Allocation) int {
-	priorities := map[int]struct{}{}
-	netPriority := 0
+// netPriority is a scoring heuristic that represents a combination of two factors.
+// First factor is the max priority in the set of allocations, with
+// an additional factor that takes into account the individual priorities of allocations
+func netPriority(allocs []*structs.Allocation) float64 {
+	sumPriority := 0
+	max := 0.0
 	for _, alloc := range allocs {
-		if _, ok := priorities[alloc.Job.Priority]; !ok {
-			priorities[alloc.Job.Priority] = struct{}{}
-			netPriority += alloc.Job.Priority
+		if float64(alloc.Job.Priority) > max {
+			max = float64(alloc.Job.Priority)
 		}
+		sumPriority += alloc.Job.Priority
 	}
-	return netPriority
+	// We use the maximum priority across all allocations
+	// with an additional penalty that increases proportional to the
+	// ratio of the sum by max
+	// This ensures that we penalize nodes that have a low max but a high
+	// number of preemptible allocations
+	ret := max + (float64(sumPriority) / max)
+	return ret
 }
 
 // preemptionScore is calculated using a logistic function
 // see https://www.desmos.com/calculator/alaeiuaiey for a visual representation of the curve.
 // Lower values of netPriority get a score closer to 1 and the inflection point is around 1500
-func preemptionScore(netPriority int) float64 {
+func preemptionScore(netPriority float64) float64 {
 	// This function manifests as an s curve that asympotically moves towards zero for large values of netPriority
-	return 1.0 / (1 + math.Exp(rate*(float64(netPriority)-origin)))
+	return 1.0 / (1 + math.Exp(rate*(netPriority-origin)))
 }

@@ -24,7 +24,7 @@ func (s *GenericScheduler) handlePreemptions(option *RankedNode, alloc *structs.
 	// If this placement involves preemption, set DesiredState to evict for those allocations
 	var preemptedAllocIDs []string
 	for _, stop := range option.PreemptedAllocs {
-		s.plan.AppendPreemptedAlloc(stop, structs.AllocDesiredStatusEvict, alloc.ID)
+		s.plan.AppendPreemptedAlloc(stop, alloc.ID)
 		preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
 
 		if s.eval.AnnotatePlan && s.plan.Annotations != nil {
