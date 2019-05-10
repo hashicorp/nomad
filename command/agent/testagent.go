@@ -16,7 +16,7 @@ import (
 	testing "github.com/mitchellh/go-testing-interface"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/consul/internal/freeport"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/fingerprint"

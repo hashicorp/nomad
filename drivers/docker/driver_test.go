@@ -14,7 +14,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/consul/internal/freeport"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"

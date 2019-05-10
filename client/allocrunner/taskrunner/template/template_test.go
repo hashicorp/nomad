@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	ctestutil "github.com/hashicorp/consul/testutil"
+	ctestutil "github.com/hashicorp/consul/internal/testutil"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
