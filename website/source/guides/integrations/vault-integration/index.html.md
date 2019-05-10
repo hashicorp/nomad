@@ -678,7 +678,7 @@ below </h2>
 [role]: https://www.vaultproject.io/docs/auth/token.html
 [seal]: https://www.vaultproject.io/docs/concepts/seal.html
 [secrets-task-directory]: /docs/runtime/environment.html#secrets-
-[step-5]: /guides/operations/vault-integration/index.html#step-5-create-a-token-role
+[step-5]: /guides/integrations/vault-integration/index.html#step-5-create-a-token-role
 [template]: /docs/job-specification/template.html
 [token]: https://www.vaultproject.io/docs/concepts/tokens.html
 [vault]: https://www.vaultproject.io/

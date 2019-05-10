@@ -189,6 +189,20 @@
 /guides/quotas.html                /guides/security/quotas.html
 /guides/securing-nomad.html        /guides/security/securing-nomad.html
 /guides/sentinel-policy.html       /guides/security/sentinel-policy.html
-/guides/sentinel/job.html          /guides/security/sentinel/job.html
+/guides/sentinel/job.html          /guides/governance-and-policy/sentinel/job.html
 
-
+/guides/spark/                                    /guides/analytical-workloads/spark/
+/guides/security/namespaces.html                  /guides/governance-and-policy/namespaces.html
+/guides/security/quotas.html                      /guides/governance-and-policy/quotas.html
+/guides/security/sentinel/job.html                /guides/governance-and-policy/sentinel/job.html
+/guides/security/sentinel-policy.html             /guides/governance-and-policy/sentinel/sentinel-policy.html
+/guides/operations/install/index.html             /guides/install/index.html
+/guides/operations/deployment-guide.html          /guides/install/production/deployment-guide.html
+/guides/operations/agent/index.html               /guides/install/production/nomad-agent.html
+/guides/operations/reference-architecture.html    /guides/install/production/reference-architecture.html
+/guides/operations/requirements.html              /guides/install/production/requirements.html
+/guides/operations/consul-integration/index.html  /guides/integrations/consul-integration/index.html
+/guides/operations/vault-integration/index.html   /guides/integrations/vault-integration/index.html
+/guides/advanced-scheduling/                      /guides/operating-a-job/advanced-scheduling/
+/guides/external/                                 /guides/operating-a-job/external/
+/guides/operations/upgrade/                       /guides/upgrade/

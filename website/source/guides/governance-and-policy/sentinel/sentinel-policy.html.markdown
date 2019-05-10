@@ -205,4 +205,4 @@ The following objects are made available in the `submit-job` scope:
 | ------ | ------------------------- |
 | `job`  | The job being submitted   |
 
-See the [Sentinel Job Object](/guides/security/sentinel/job.html) for details on the fields that are available.
+See the [Sentinel Job Object](/guides/governance-and-policy/sentinel/job.html) for details on the fields that are available.

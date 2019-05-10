@@ -79,4 +79,4 @@ $ spark-submit --class org.apache.spark.examples.SparkPi \
 
 ## Next Steps
 
-Learn how to [customize applications](/guides/spark/customizing.html).
+Learn how to [customize applications](/guides/analytical-workloads/spark/customizing.html).
