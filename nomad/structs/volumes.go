@@ -10,11 +10,10 @@ const (
 
 // ClientHostVolumeConfig is used to configure access to host paths on a Nomad Client
 type ClientHostVolumeConfig struct {
-	Name     string
-	Type     string
-	Source   string
-	ReadOnly bool `mapstructure:"read_only"`
-	Hidden   bool
+	Name     string `hcl:",key"`
+	Source   string `hcl:"source"`
+	ReadOnly bool   `hcl:"read_only"`
+	Hidden   bool   `hcl:"hidden"`
 }
 
 func (p *ClientHostVolumeConfig) Copy() *ClientHostVolumeConfig {
@@ -27,13 +26,23 @@ func (p *ClientHostVolumeConfig) Copy() *ClientHostVolumeConfig {
 	return c
 }
 
-func HostVolumeSetMerge(a, b map[string]*ClientHostVolumeConfig) map[string]*ClientHostVolumeConfig {
-	n := make(map[string]*ClientHostVolumeConfig, len(a))
+func HostVolumeSliceMerge(a, b []*ClientHostVolumeConfig) []*ClientHostVolumeConfig {
+	n := make([]*ClientHostVolumeConfig, len(a))
+	seenKeys := make(map[string]struct{}, len(a))
+
 	for k, v := range a {
+		if _, ok := seenKeys[v.Name]; ok {
+			continue
+		}
 		n[k] = v.Copy()
+		seenKeys[v.Name] = struct{}{}
 	}
 	for k, v := range b {
+		if _, ok := seenKeys[v.Name]; ok {
+			continue
+		}
 		n[k] = v.Copy()
+		seenKeys[v.Name] = struct{}{}
 	}
 
 	return n

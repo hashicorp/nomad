@@ -463,6 +463,12 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
 	conf.HostVolumes = agentConfig.Client.HostVolumes
 
+	hvMap := make(map[string]*structs.ClientHostVolumeConfig, len(agentConfig.Client.HostVolumes))
+	for _, v := range agentConfig.Client.HostVolumes {
+		hvMap[v.Name] = v
+	}
+	conf.HostVolumes = hvMap
+
 	// Setup the node
 	conf.Node = new(structs.Node)
 	conf.Node.Datacenter = agentConfig.Datacenter

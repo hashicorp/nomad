@@ -44,12 +44,22 @@
       "client_max_port": 2000,
       "client_min_port": 1000,
       "cpu_total_compute": 4444,
+      "disable_remote_exec": true,
       "enabled": true,
       "gc_disk_usage_threshold": 82,
       "gc_inode_usage_threshold": 91,
       "gc_interval": "6s",
       "gc_max_allocs": 50,
       "gc_parallel_destroys": 6,
+      "host_volume": [
+        {
+          "tmp": [
+            {
+              "source": "/tmp"
+            }
+          ]
+        }
+      ],
       "max_kill_timeout": "10s",
       "meta": [
         {
@@ -60,7 +70,6 @@
       "network_interface": "eth0",
       "network_speed": 100,
       "no_host_uuid": false,
-      "disable_remote_exec": true,
       "node_class": "linux-medium-64bit",
       "options": [
         {
@@ -137,25 +146,39 @@
   "log_json": true,
   "log_level": "ERR",
   "name": "my-web",
-  "plugin": {
-    "docker": {
-      "args": [
-        "foo",
-        "bar"
-      ],
-      "config": {
-        "foo": "bar",
-        "nested": {
-          "bam": 2
+  "plugin": [
+    {
+      "docker": [
+        {
+          "args": [
+            "foo",
+            "bar"
+          ],
+          "config": [
+            {
+              "foo": "bar",
+              "nested": [
+                {
+                  "bam": 2
+                }
+              ]
+            }
+          ]
         }
-      }
+      ]
     },
-    "exec": {
-      "config": {
-          "foo": true
+    {
+      "exec": [
+        {
+          "config": [
+            {
+              "foo": true
+            }
+          ]
         }
+      ]
     }
-  },
+  ],
   "plugin_dir": "/tmp/nomad-plugins",
   "ports": [
     {
