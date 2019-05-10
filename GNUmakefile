@@ -25,7 +25,11 @@ endif
 # On Linux we build for Linux and Windows
 ifeq (Linux,$(THIS_OS))
 
-VERBOSE="true"
+ifeq ($(CI),true)
+	$(info Running in a CI environment, verbose mode is disabled)
+else
+	VERBOSE="true"
+endif
 
 
 ALL_TARGETS += linux_386 \
@@ -270,7 +274,10 @@ test-nomad: dev ## Run Nomad test suites
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=15m \
-		$(GOTEST_PKGS)
+		$(GOTEST_PKGS) $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+	@if [ $(VERBOSE) ] ; then \
+		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
+	fi
 
 .PHONY: e2e-test
 e2e-test: dev ## Run the Nomad e2e test suite
