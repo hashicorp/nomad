@@ -150,7 +150,7 @@ $ nomad status redis
 ```
 
 You should see 4 instances of your job running in the `Summary` section of the
-output as show below:
+output as shown below:
 
 ```shell
 ...
