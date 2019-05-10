@@ -34,7 +34,7 @@ are short lived, finishing in a few minutes to a few days. Although the `batch`
 scheduler is very similar to the `service` scheduler, it makes certain
 optimizations for the batch workload. The main distinction is that after finding
 the set of nodes that meet the job's constraints it uses the power of two
-choices described in Berkeley's Sparrow scheduler to limit the number of nodes
+choices described in Berkeley's [Sparrow] scheduler to limit the number of nodes
 that are ranked.
 
 Batch jobs are intended to run until they exit successfully. Batch tasks that
@@ -63,6 +63,7 @@ or [preemption]. If a system task exits it is considered a failure and handled
 according to the job's [restart] stanza; system jobs do not have rescheduling.
 
 [Borg]: https://research.google.com/pubs/pub43438.html
+[Sparrow]: https://cs.stanford.edu/~matei/papers/2013/sosp_sparrow.pdf
 [preemption]: /docs/internals/scheduling/preemption.html
 [restart]: /docs/job-specification/restart.html
 [reschedule]: /docs/job-specification/reschedule.html
