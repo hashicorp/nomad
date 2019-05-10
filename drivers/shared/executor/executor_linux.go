@@ -791,6 +791,10 @@ func lookupTaskBin(command *ExecCommand) (string, error) {
 		return root, nil
 	}
 
+	if strings.Contains(bin, "/") {
+		return "", fmt.Errorf("file %s not found under path %s", bin, taskDir)
+	}
+
 	// Find the PATH
 	path := "/usr/local/bin:/usr/bin:/bin"
 	for _, e := range command.Env {
@@ -799,25 +803,25 @@ func lookupTaskBin(command *ExecCommand) (string, error) {
 		}
 	}
 
-	// Check the host PATH anchored inside the taskDir
-	if !strings.Contains(bin, "/") {
-		for _, dir := range filepath.SplitList(path) {
-			if dir == "" {
-				// match unix shell behavior, empty path element == .
-				dir = "."
-			}
-			for _, root := range []string{localDir, taskDir} {
-				path := filepath.Join(root, dir, bin)
-				f, err := os.Stat(path)
-				if err != nil {
-					continue
-				}
-				if m := f.Mode(); !m.IsDir() {
-					return path, nil
-				}
-			}
+	return lookPathIn(path, taskDir, bin)
+}
+
+// lookPathIn looks for a file with PATH inside the directory root. Like exec.LookPath
+func lookPathIn(path string, root string, bin string) (string, error) {
+	// exec.LookPath(file string)
+	for _, dir := range filepath.SplitList(path) {
+		if dir == "" {
+			// match unix shell behavior, empty path element == .
+			dir = "."
+		}
+		path := filepath.Join(root, dir, bin)
+		f, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		if m := f.Mode(); !m.IsDir() {
+			return path, nil
 		}
 	}
-
-	return "", fmt.Errorf("file %s not found under path %s", bin, taskDir)
+	return "", fmt.Errorf("file %s not found under path %s", bin, root)
 }
