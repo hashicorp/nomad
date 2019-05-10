@@ -19,7 +19,7 @@ can be used to quickly provision a Spark-enabled Nomad environment in
  AWS. The embedded [Spark example](https://github.com/hashicorp/nomad/tree/master/terraform/examples/spark)
  provides for a quickstart experience that can be used in conjunction with
  this guide. When you have a cluster up and running, you can proceed to
-[Submitting applications](/guides/spark/submit.html).
+[Submitting applications](/guides/analytical-workloads/spark/submit.html).
 
 ## Manually Provision a Cluster
 
@@ -95,20 +95,20 @@ $ spark-submit \
 ### Using a Docker Image
 
 An alternative to installing the JRE on every client node is to set the
-[spark.nomad.dockerImage](/guides/spark/configuration.html#spark-nomad-dockerimage)
+[spark.nomad.dockerImage](/guides/analytical-workloads/spark/configuration.html#spark-nomad-dockerimage)
  configuration property to the URL of a Docker image that has the Java runtime
 installed. If set, Nomad will use the `docker` driver to run Spark executors in
 a container created from the image. The
-[spark.nomad.dockerAuth](/guides/spark/configuration.html#spark-nomad-dockerauth)
+[spark.nomad.dockerAuth](/guides/analytical-workloads/spark/configuration.html#spark-nomad-dockerauth)
  configuration property can be set to a JSON object to provide Docker repository
  authentication configuration.
 
 When using a Docker image, both the Spark distribution and the application
 itself can be included (in which case local URLs can be used for `spark-submit`).
 
-Here, we include [spark.nomad.dockerImage](/guides/spark/configuration.html#spark-nomad-dockerimage)
+Here, we include [spark.nomad.dockerImage](/guides/analytical-workloads/spark/configuration.html#spark-nomad-dockerimage)
 and use local paths for
-[spark.nomad.sparkDistribution](/guides/spark/configuration.html#spark-nomad-sparkdistribution)
+[spark.nomad.sparkDistribution](/guides/analytical-workloads/spark/configuration.html#spark-nomad-sparkdistribution)
 and the application JAR file:
 
 ```shell
@@ -124,4 +124,4 @@ $ spark-submit \
 
 ## Next Steps
 
-Learn how to [submit applications](/guides/spark/submit.html).
+Learn how to [submit applications](/guides/analytical-workloads/spark/submit.html).

@@ -27,7 +27,7 @@ When combined with ACLs, the isolation of namespaces can be enforced, only
 allowing designated users access to read or modify the jobs and associated
 objects in a namespace.
 
-When [resource quotas](/guides/security/quotas.html) are applied to a namespace they
+When [resource quotas](/guides/governance-and-policy/quotas.html) are applied to a namespace they
 provide a means to limit resource consumption by the jobs in the namespace. This
 can prevent a single actor from consuming excessive cluster resources and
 negatively impacting other teams and applications sharing the cluster.
@@ -39,8 +39,8 @@ jobs, allocations, deployments, and evaluations.
 
 Nomad does not namespace objects that are shared across multiple namespaces.
 This includes nodes, [ACL policies](/guides/security/acl.html), [Sentinel
-policies](/guides/security/sentinel-policy.html), and [quota
-specifications](/guides/security/quotas.html).
+policies](/guides/governance-and-policy/sentinel/sentinel-policy.html), and [quota
+specifications](/guides/governance-and-policy/quotas.html).
 
 ## Working with Namespaces
 

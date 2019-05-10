@@ -11,17 +11,17 @@ product_version: 0.8
 
 # Nomad Reference Install Guide
 
-This deployment guide covers the steps required to install and configure a single HashiCorp Nomad cluster as defined in the [Nomad Reference Architecture](/guides/operations/reference-architecture.html).
+This deployment guide covers the steps required to install and configure a single HashiCorp Nomad cluster as defined in the [Nomad Reference Architecture](/guides/install/production/reference-architecture.html).
 
 These instructions are for installing and configuring Nomad on Linux hosts running the systemd system and service manager.
 
 ## Reference Material
 
-This deployment guide is designed to work in combination with the [Nomad Reference Architecture](/guides/operations/reference-architecture.html) and [Consul Deployment Guide](https://www.consul.io/docs/guides/deployment-guide.html). Although it is not a strict requirement to follow the Nomad Reference Architecture, please ensure you are familiar with the overall architecture design. For example, installing Nomad server agents on multiple physical or virtual (with correct anti-affinity) hosts for high-availability.
+This deployment guide is designed to work in combination with the [Nomad Reference Architecture](/guides/install/production/reference-architecture.html) and [Consul Deployment Guide](https://www.consul.io/docs/guides/deployment-guide.html). Although it is not a strict requirement to follow the Nomad Reference Architecture, please ensure you are familiar with the overall architecture design. For example, installing Nomad server agents on multiple physical or virtual (with correct anti-affinity) hosts for high-availability.
 
 ## Overview
 
-To provide a highly-available single cluster architecture, we recommend Nomad server agents be deployed to more than one host, as shown in the [Nomad Reference Architecture](/guides/operations/reference-architecture.html).
+To provide a highly-available single cluster architecture, we recommend Nomad server agents be deployed to more than one host, as shown in the [Nomad Reference Architecture](/guides/install/production/reference-architecture.html).
 
 ![Reference diagram](/assets/images/nomad_reference_diagram.png)
 

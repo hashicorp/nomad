@@ -22,7 +22,7 @@ The following topics are addressed:
 - [High Availability](#high-availability)
 - [Failure Scenarios](#failure-scenarios)
 
-This document describes deploying a Nomad cluster in combination with, or with access to, a [Consul cluster](/guides/operations/consul-integration/index.html). We recommend the use of Consul with Nomad to provide automatic clustering, service discovery, health checking and dynamic configuration.
+This document describes deploying a Nomad cluster in combination with, or with access to, a [Consul cluster](/guides/integrations/consul-integration/index.html). We recommend the use of Consul with Nomad to provide automatic clustering, service discovery, health checking and dynamic configuration.
 
 ## <a name="ra"></a>Reference Architecture
 
@@ -32,7 +32,7 @@ In a Nomad multi-region architecture, communication happens via [WAN gossip](/do
 
 In cloud environments, a single cluster may be deployed across multiple availability zones. For example, in AWS each Nomad server can be deployed to an associated EC2 instance, and those EC2 instances distributed across multiple AZs. Similarly, Nomad server clusters can be deployed to multiple cloud regions to allow for region level HA scenarios.
 
-For more information on Nomad server cluster design, see the [cluster requirements documentation](/guides/operations/requirements.html).
+For more information on Nomad server cluster design, see the [cluster requirements documentation](/guides/install/production/requirements.html).
 
 The design shared in this document is the recommended architecture for production environments, as it provides flexibility and resilience. Nomad utilizes an existing Consul server cluster; however, the deployment design of the Consul server cluster is outside the scope of this document.
 
@@ -66,7 +66,7 @@ Nomad servers are expected to be able to communicate in high bandwidth, low late
 
 Nomad client clusters require the ability to receive traffic as noted above in the Network Connectivity Details; however, clients can be separated into any type of infrastructure (multi-cloud, on-prem, virtual, bare metal, etc.) as long as they are reachable and can receive job requests from the Nomad servers.
 
-Additional documentation is available to learn more about [Nomad networking](/guides/operations/requirements.html#network-topology).
+Additional documentation is available to learn more about [Nomad networking](/guides/install/production/requirements.html#network-topology).
 
 ## <a name="system-reqs"></a>Deployment System Requirements
 
@@ -127,5 +127,5 @@ In the event of a region-level failure (which would contain an entire Nomad serv
 
 ## Next Steps
 
-- Read [Deployment Guide](/guides/operations/deployment-guide.html) to learn
+- Read [Deployment Guide](/guides/install/production/deployment-guide.html) to learn
   the steps required to install and configure a single HashiCorp Nomad cluster.

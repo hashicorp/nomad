@@ -135,5 +135,5 @@ Availability](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-h
 
 ## Next Steps
 
-Learn how to [monitor the output](/guides/spark/monitoring.html) of your
+Learn how to [monitor the output](/guides/analytical-workloads/spark/monitoring.html) of your
 Spark applications.

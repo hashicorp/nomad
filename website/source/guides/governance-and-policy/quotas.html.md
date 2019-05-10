@@ -21,7 +21,7 @@ This is not present in the open source version of Nomad.
 When many teams or users are sharing Nomad clusters, there is the concern that a
 single user could use more than their fair share of resources. Resource quotas
 provide a mechanism for cluster administrators to restrict the resources that a
-[namespace](/guides/security/namespaces.html) has access to.
+[namespace](/guides/governance-and-policy/namespaces.html) has access to.
 
 ## Quotas Objects
 

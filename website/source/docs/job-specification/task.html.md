@@ -205,7 +205,7 @@ task "server" {
 [java]: /docs/drivers/java.html "Nomad Java Driver"
 [Docker]: /docs/drivers/docker.html "Nomad Docker Driver"
 [rkt]: /docs/drivers/rkt.html "Nomad rkt Driver"
-[service_discovery]: /guides/operations/consul-integration/index.html#service-discovery/index.html "Nomad Service Discovery"
+[service_discovery]: /guides/integrations/consul-integration/index.html#service-discovery/index.html "Nomad Service Discovery"
 [template]: /docs/job-specification/template.html "Nomad template Job Specification"
 [user_drivers]: /docs/configuration/client.html#_quot_user_checked_drivers_quot_
 [user_blacklist]: /docs/configuration/client.html#_quot_user_blacklist_quot_

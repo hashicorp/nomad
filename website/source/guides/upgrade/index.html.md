@@ -23,7 +23,7 @@ For upgrades we strive to ensure backwards compatibility. For most upgrades, the
 process is as simple as upgrading the binary and restarting the service.
 
 Prior to starting the upgrade please check the
-[specific version details](/guides/operations/upgrade/upgrade-specific.html) page as some
+[specific version details](/guides/upgrade/upgrade-specific.html) page as some
 version differences may require specific steps.
 
 At a high level we complete the following steps to upgrade Nomad:
@@ -118,5 +118,5 @@ are in a `ready` state.
 The process of upgrading to a Nomad Enterprise version is identical to upgrading
 between versions of open source Nomad. The same guidance above should be
 followed and as always, prior to starting the upgrade please check the [specific
-version details](/guides/operations/upgrade/upgrade-specific.html) page as some version
+version details](/guides/upgrade/upgrade-specific.html) page as some version
 differences may require specific steps.
