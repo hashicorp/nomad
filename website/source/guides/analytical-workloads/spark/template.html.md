@@ -19,4 +19,4 @@ description: |-
 
 ## Next Steps
 
-[Next step](/guides/spark/name.html)
+[Next step](/guides/analytical-workloads/spark/name.html)

@@ -16,4 +16,4 @@ drivers available for Nomad.
 
   - [LXC][lxc]
 
-[lxc]: /guides/external/lxc.html
+[lxc]: /guides/operating-a-job/external/lxc.html

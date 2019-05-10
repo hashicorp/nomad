@@ -19,7 +19,7 @@ application:
 
 The Spark integration will use a generic job template by default. The template
 includes groups and tasks for the driver, executors and (optionally) the
-[shuffle service](/guides/spark/dynamic.html). The job itself and the tasks that
+[shuffle service](/guides/analytical-workloads/spark/dynamic.html). The job itself and the tasks that
  are created have the `spark.nomad.role` meta value defined accordingly:
 
 ```hcl
@@ -57,7 +57,7 @@ job "structure" {
 ```
 
 The default template can be customized indirectly by explicitly [setting
-configuration properties](/guides/spark/configuration.html).
+configuration properties](/guides/analytical-workloads/spark/configuration.html).
 
 ## Using a Custom Job Template
 
@@ -122,5 +122,5 @@ The order of precedence for customized settings is as follows:
 
 ## Next Steps
 
-Learn how to [allocate resources](/guides/spark/resource.html) for your Spark
+Learn how to [allocate resources](/guides/analytical-workloads/spark/resource.html) for your Spark
 applications.

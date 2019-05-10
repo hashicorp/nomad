@@ -9,7 +9,7 @@ description: |-
 
 # Upgrade Guides
 
-The [upgrading page](/guides/operations/upgrade/index.html) covers the details of doing
+The [upgrading page](/guides/upgrade/index.html) covers the details of doing
 a standard upgrade. However, specific versions of Nomad may have more
 details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
@@ -141,7 +141,7 @@ in a Nomad cluster must be running with Raft protocol version 3 or later.
 
 #### Upgrading to Raft Protocol 3
 
-This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all servers in order to work. See [Raft Protocol Version Compatibility](/guides/operations/upgrade/upgrade-specific.html#raft-protocol-version-compatibility) for more details. Also the format of `peers.json` used for outage recovery is different when running with the latest Raft protocol. See [Manual Recovery Using peers.json](/guides/operations/outage.html#manual-recovery-using-peers-json) for a description of the required format.
+This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all servers in order to work. See [Raft Protocol Version Compatibility](/guides/upgrade/upgrade-specific.html#raft-protocol-version-compatibility) for more details. Also the format of `peers.json` used for outage recovery is different when running with the latest Raft protocol. See [Manual Recovery Using peers.json](/guides/operations/outage.html#manual-recovery-using-peers-json) for a description of the required format.
 
 Please note that the Raft protocol is different from Nomad's internal protocol as shown in commands like `nomad server members`. To see the version of the Raft protocol in use on each server, use the `nomad operator raft list-peers` command.
 

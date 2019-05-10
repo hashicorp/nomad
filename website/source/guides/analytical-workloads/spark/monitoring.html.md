@@ -10,7 +10,7 @@ description: |-
 
 By default, `spark-submit` in `cluster` mode will submit your application
  to the Nomad cluster and return immediately. You can use the
- [spark.nomad.cluster.monitorUntil](/guides/spark/configuration.html#spark-nomad-cluster-monitoruntil) configuration property to have
+ [spark.nomad.cluster.monitorUntil](/guides/analytical-workloads/spark/configuration.html#spark-nomad-cluster-monitoruntil) configuration property to have
  `spark-submit` monitor the job continuously. Note that, with this flag set,
  killing `spark-submit` will *not* stop the spark application, since it will be
   running independently in the Nomad cluster.
@@ -31,7 +31,7 @@ cause the driver process to continue to run. You can force termination
 It is possible to reconstruct the web UI of a completed application using
 Spark’s [history server](https://spark.apache.org/docs/latest/monitoring.html#viewing-after-the-fact).
 The history server requires the event log to have been written to an accessible
-location like [HDFS](/guides/spark/hdfs.html) or Amazon S3.
+location like [HDFS](/guides/analytical-workloads/spark/hdfs.html) or Amazon S3.
 
 Sample history server job file:
 
@@ -85,7 +85,7 @@ job "spark-history-server" {
 
 The job file above can also be found [here](https://github.com/hashicorp/nomad/blob/master/terraform/examples/spark/spark-history-server-hdfs.nomad).
 
-To run the history server, first [deploy HDFS](/guides/spark/hdfs.html) and then
+To run the history server, first [deploy HDFS](/guides/analytical-workloads/spark/hdfs.html) and then
 create a directory in HDFS to store events:
 
 ```shell
@@ -164,4 +164,4 @@ job "template" {
 
 ## Next Steps
 
-Review the Nomad/Spark [configuration properties](/guides/spark/configuration.html).
+Review the Nomad/Spark [configuration properties](/guides/analytical-workloads/spark/configuration.html).

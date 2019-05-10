@@ -25,4 +25,4 @@ allocation in Nomad, the resources allocated to the executor tasks are not
 
 ## Next Steps
 
-Learn how to [integrate Spark with HDFS](/guides/spark/hdfs.html).
+Learn how to [integrate Spark with HDFS](/guides/analytical-workloads/spark/hdfs.html).

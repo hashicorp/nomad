@@ -33,4 +33,4 @@ enough to join just one known server.
 If bootstrapped via Consul and the Consul clusters in the Nomad regions are
 federated, then federation occurs automatically.
 
-[ports]: /guides/operations/requirements.html#ports-used
+[ports]: /guides/install/production/requirements.html#ports-used
