@@ -3,6 +3,7 @@ jobs:
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
     # to cd into the website/ directory for commands
+    go: &GOLANG_IMAGE circleci/golang:1.12.1
     working_directory: ~/project/website
     docker:
       - image: hashicorp/middleman-hashicorp:0.3.35
