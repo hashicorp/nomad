@@ -265,6 +265,55 @@ func (w *deploymentWatcher) PromoteDeployment(
 	return nil
 }
 
+// autoPromoteDeployment creates a synthetic promotion request, and upserts it for processing
+func (w *deploymentWatcher) autoPromoteDeployment(allocs []*structs.AllocListStub) error {
+	d := w.getDeployment()
+	if !d.HasPlacedCanaries() || !d.RequiresPromotion() {
+		return nil
+	}
+
+	// Find the promotable groups
+	groups := []string{}
+
+TASKGROUP:
+	for tk, tv := range d.TaskGroups {
+		if !tv.AutoPromote || tv.DesiredCanaries != len(tv.PlacedCanaries) {
+			continue
+		}
+
+		// Find the health status of each canary
+		for _, c := range tv.PlacedCanaries {
+			for _, a := range allocs {
+				if c == a.ID && !a.DeploymentStatus.IsHealthy() {
+					continue TASKGROUP
+				}
+			}
+		}
+
+		groups = append(groups, tk)
+	}
+
+	if len(groups) == 0 {
+		return nil
+	}
+
+	// Create the request
+	req := structs.DeploymentPromoteRequest{DeploymentID: d.GetID()}
+	if len(groups) == len(d.TaskGroups) {
+		req.All = true
+	} else {
+		req.All = false
+		req.Groups = groups
+	}
+
+	// Send the request
+	_, err := w.upsertDeploymentPromotion(&structs.ApplyDeploymentPromoteRequest{
+		DeploymentPromoteRequest: req,
+		Eval:                     w.getEval(),
+	})
+	return err
+}
+
 func (w *deploymentWatcher) PauseDeployment(
 	req *structs.DeploymentPauseRequest,
 	resp *structs.DeploymentUpdateResponse) error {
@@ -381,6 +430,7 @@ FAIL:
 	for {
 		select {
 		case <-w.ctx.Done():
+			// This is the successful case, and we stop the loop
 			return
 		case <-deadlineTimer.C:
 			// We have hit the progress deadline so fail the deployment. We need
@@ -459,6 +509,9 @@ FAIL:
 				rollback = res.rollback
 				break FAIL
 			}
+
+			// If permitted, automatically promote this canary deployment
+			w.autoPromoteDeployment(updates.allocs)
 
 			// Create an eval to push the deployment along
 			if res.createEval || len(res.allowReplacements) != 0 {
@@ -544,6 +597,9 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 		// We need to create an eval so the job can progress.
 		if alloc.DeploymentStatus.IsHealthy() && alloc.DeploymentStatus.ModifyIndex > latestEval {
 			res.createEval = true
+			if alloc.DeploymentStatus.IsCanary() {
+				dstate.HealthyCanaries += 1
+			}
 		}
 
 		// If the group is using a progress deadline, we don't have to do anything.
@@ -779,8 +835,10 @@ type allocUpdates struct {
 	err    error
 }
 
-// getAllocsCh retrieves the allocations that are part of the deployment blocking
-// at the given index.
+// getAllocsCh creates a channel and starts a goroutine that
+// 1. parks a blocking query for allocations on the state
+// 2. reads those and drops them on the channel
+// This query runs once here, but watch calls it in a loop
 func (w *deploymentWatcher) getAllocsCh(index uint64) <-chan *allocUpdates {
 	out := make(chan *allocUpdates, 1)
 	go func() {
