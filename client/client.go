@@ -1299,10 +1299,10 @@ func updateNetworks(ns structs.Networks, up structs.Networks, c *config.Config) 
 				upd = append(upd, n)
 			}
 		}
+		// If updates, use them. Otherwise, ns contains the configured interfaces
 		if len(upd) > 0 {
 			ns = upd
 		}
-		// Otherwise, ns has the old data
 	}
 
 	// ns is set, apply the config NetworkSpeed to all
