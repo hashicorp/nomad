@@ -11,6 +11,7 @@ daysUntilClose: 30
 exemptLabels:
   - "enhancement"
   - "bug"
+  - "thinking"
 
 # Label to use when marking as stale
 staleLabel: "waiting-reply"
