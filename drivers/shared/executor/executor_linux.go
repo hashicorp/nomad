@@ -506,7 +506,7 @@ func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []strin
 
 }
 
-func (l *LibcontainerExecutor) newTerminalSocket() (master func() (*os.File, error), socket *os.File, err error) {
+func (l *LibcontainerExecutor) newTerminalSocket() (pty func() (*os.File, error), tty *os.File, err error) {
 	parent, child, err := lutils.NewSockPair("socket")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create terminal: %v", err)

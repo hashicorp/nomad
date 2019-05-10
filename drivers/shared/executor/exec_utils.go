@@ -19,8 +19,8 @@ type execHelper struct {
 	logger hclog.Logger
 
 	// newTerminal function creates a tty appropriate for the command
-	// The returned master end of tty function is to be called after process start.
-	newTerminal func() (master func() (*os.File, error), slave *os.File, err error)
+	// The returned pty end of tty function is to be called after process start.
+	newTerminal func() (pty func() (*os.File, error), tty *os.File, err error)
 
 	// setTTY is a callback to configure the command with slave end of the tty of the terminal, when tty is enabled
 	setTTY func(tty *os.File) error
@@ -61,7 +61,7 @@ func (e *execHelper) runTTY(ctx context.Context, stream drivers.ExecTaskStream) 
 
 	pty, err := ptyF()
 	if err != nil {
-		return fmt.Errorf("failed to get tty master: %v", err)
+		return fmt.Errorf("failed to get pty: %v", err)
 	}
 
 	defer pty.Close()
