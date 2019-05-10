@@ -95,17 +95,18 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	}
 
 	conf := &Config{
-		Alloc:         alloc,
-		ClientConfig:  clientConf,
-		Consul:        consulapi.NewMockConsulServiceClient(t, logger),
-		Task:          thisTask,
-		TaskDir:       taskDir,
-		Logger:        clientConf.Logger,
-		Vault:         vaultclient.NewMockVaultClient(),
-		StateDB:       cstate.NoopDB{},
-		StateUpdater:  NewMockTaskStateUpdater(),
-		DeviceManager: devicemanager.NoopMockManager(),
-		DriverManager: drivermanager.TestDriverManager(t),
+		Alloc:              alloc,
+		ClientConfig:       clientConf,
+		Consul:             consulapi.NewMockConsulServiceClient(t, logger),
+		Task:               thisTask,
+		TaskDir:            taskDir,
+		Logger:             clientConf.Logger,
+		Vault:              vaultclient.NewMockVaultClient(),
+		StateDB:            cstate.NoopDB{},
+		StateUpdater:       NewMockTaskStateUpdater(),
+		DeviceManager:      devicemanager.NoopMockManager(),
+		DriverManager:      drivermanager.TestDriverManager(t),
+		ServersContactedCh: make(chan struct{}),
 	}
 	return conf, trCleanup
 }
@@ -184,7 +185,7 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 // kills the task before restarting a new TaskRunner. The new TaskRunner is
 // returned once it is running and waiting in pending along with a cleanup
 // func.
-func setupRestoreFailureTest(t *testing.T) (*TaskRunner, func()) {
+func setupRestoreFailureTest(t *testing.T) (*TaskRunner, *Config, func()) {
 	t.Parallel()
 
 	alloc := mock.Alloc()
@@ -234,10 +235,10 @@ func setupRestoreFailureTest(t *testing.T) (*TaskRunner, func()) {
 	// Create a new TaskRunner and Restore the task
 	newTR, err := NewTaskRunner(conf)
 	require.NoError(t, err)
-	require.NoError(t, newTR.Restore())
 
-	// Assert the restore gate is *closed* because reattachment failed
-	require.True(t, newTR.restoreGate.IsClosed())
+	// Assert the TR will wait on servers because reattachment failed
+	require.NoError(t, newTR.Restore())
+	require.True(t, newTR.waitOnServers)
 
 	// Start new TR
 	go newTR.Run()
@@ -253,17 +254,17 @@ func setupRestoreFailureTest(t *testing.T) (*TaskRunner, func()) {
 	ts := newTR.TaskState()
 	require.Equal(t, structs.TaskStatePending, ts.State)
 
-	return newTR, cleanup3
+	return newTR, conf, cleanup3
 }
 
 // TestTaskRunner_Restore_Restart asserts restoring a dead task blocks until
 // MarkAlive is called. #1795
 func TestTaskRunner_Restore_Restart(t *testing.T) {
-	newTR, cleanup := setupRestoreFailureTest(t)
+	newTR, conf, cleanup := setupRestoreFailureTest(t)
 	defer cleanup()
 
-	// Fake contacting the server by opening the restore gate
-	newTR.MarkLive()
+	// Fake contacting the server by closing the chan
+	close(conf.ServersContactedCh)
 
 	testutil.WaitForResult(func() (bool, error) {
 		ts := newTR.TaskState().State
@@ -276,10 +277,10 @@ func TestTaskRunner_Restore_Restart(t *testing.T) {
 // TestTaskRunner_Restore_Kill asserts restoring a dead task blocks until
 // the task is killed. #1795
 func TestTaskRunner_Restore_Kill(t *testing.T) {
-	newTR, cleanup := setupRestoreFailureTest(t)
+	newTR, _, cleanup := setupRestoreFailureTest(t)
 	defer cleanup()
 
-	// Sending the task a terminal update shouldn't kill it or mark it live
+	// Sending the task a terminal update shouldn't kill it or unblock it
 	alloc := newTR.Alloc().Copy()
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	newTR.Update(alloc)
@@ -301,12 +302,13 @@ func TestTaskRunner_Restore_Kill(t *testing.T) {
 // TestTaskRunner_Restore_Update asserts restoring a dead task blocks until
 // Update is called. #1795
 func TestTaskRunner_Restore_Update(t *testing.T) {
-	newTR, cleanup := setupRestoreFailureTest(t)
+	newTR, conf, cleanup := setupRestoreFailureTest(t)
 	defer cleanup()
 
-	// Fake contacting the server by opening the restore gate
+	// Fake Client.runAllocs behavior by calling Update then closing chan
 	alloc := newTR.Alloc().Copy()
 	newTR.Update(alloc)
+	close(conf.ServersContactedCh)
 
 	testutil.WaitForResult(func() (bool, error) {
 		ts := newTR.TaskState().State

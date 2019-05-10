@@ -136,6 +136,11 @@ type allocRunner struct {
 	// driverManager is responsible for dispensing driver plugins and registering
 	// event handlers
 	driverManager drivermanager.Manager
+
+	// serversContactedCh is passed to TaskRunners so they can detect when
+	// servers have been contacted for the first time in case of a failed
+	// restore.
+	serversContactedCh chan struct{}
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -167,6 +172,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		prevAllocMigrator:        config.PrevAllocMigrator,
 		devicemanager:            config.DeviceManager,
 		driverManager:            config.DriverManager,
+		serversContactedCh:       config.ServersContactedCh,
 	}
 
 	// Create the logger based on the allocation ID
@@ -205,6 +211,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			DeviceStatsReporter: ar.deviceStatsReporter,
 			DeviceManager:       ar.devicemanager,
 			DriverManager:       ar.driverManager,
+			ServersContactedCh:  ar.serversContactedCh,
 		}
 
 		// Create, but do not Run, the task runner
@@ -719,15 +726,6 @@ func (ar *allocRunner) handleAllocUpdate(update *structs.Allocation) {
 		ar.killTasks()
 	}
 
-}
-
-// MarkLive unblocks restored tasks that failed to reattach and are waiting to
-// contact a server before restarting the dead task. The Client will call this
-// method when the task should run, otherwise the task will be killed.
-func (ar *allocRunner) MarkLive() {
-	for _, tr := range ar.tasks {
-		tr.MarkLive()
-	}
 }
 
 func (ar *allocRunner) Listener() *cstructs.AllocListener {

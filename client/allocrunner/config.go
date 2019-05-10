@@ -51,4 +51,8 @@ type Config struct {
 
 	// DriverManager handles dispensing of driver plugins
 	DriverManager drivermanager.Manager
+
+	// ServersContactedCh is closed when the first GetClientAllocs call to
+	// servers succeeds and allocs are synced.
+	ServersContactedCh chan struct{}
 }

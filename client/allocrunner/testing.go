@@ -55,17 +55,18 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, fu
 	clientConf, cleanup := clientconfig.TestClientConfig(t)
 	conf := &Config{
 		// Copy the alloc in case the caller edits and reuses it
-		Alloc:             alloc.Copy(),
-		Logger:            clientConf.Logger,
-		ClientConfig:      clientConf,
-		StateDB:           state.NoopDB{},
-		Consul:            consul.NewMockConsulServiceClient(t, clientConf.Logger),
-		Vault:             vaultclient.NewMockVaultClient(),
-		StateUpdater:      &MockStateUpdater{},
-		PrevAllocWatcher:  allocwatcher.NoopPrevAlloc{},
-		PrevAllocMigrator: allocwatcher.NoopPrevAlloc{},
-		DeviceManager:     devicemanager.NoopMockManager(),
-		DriverManager:     drivermanager.TestDriverManager(t),
+		Alloc:              alloc.Copy(),
+		Logger:             clientConf.Logger,
+		ClientConfig:       clientConf,
+		StateDB:            state.NoopDB{},
+		Consul:             consul.NewMockConsulServiceClient(t, clientConf.Logger),
+		Vault:              vaultclient.NewMockVaultClient(),
+		StateUpdater:       &MockStateUpdater{},
+		PrevAllocWatcher:   allocwatcher.NoopPrevAlloc{},
+		PrevAllocMigrator:  allocwatcher.NoopPrevAlloc{},
+		DeviceManager:      devicemanager.NoopMockManager(),
+		DriverManager:      drivermanager.TestDriverManager(t),
+		ServersContactedCh: make(chan struct{}),
 	}
 	return conf, cleanup
 }

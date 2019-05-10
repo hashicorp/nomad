@@ -126,7 +126,6 @@ type AllocRunner interface {
 	Run()
 	StatsReporter() interfaces.AllocStatsReporter
 	Update(*structs.Allocation)
-	MarkLive()
 	WaitCh() <-chan struct{}
 	DestroyCh() <-chan struct{}
 	ShutdownCh() <-chan struct{}
@@ -260,6 +259,11 @@ type Client struct {
 	// fpInitialized chan is closed when the first batch of fingerprints are
 	// applied to the node and the server is updated
 	fpInitialized chan struct{}
+
+	// serversContactedCh is closed when GetClientAllocs and runAllocs have
+	// successfully run once.
+	serversContactedCh   chan struct{}
+	serversContactedOnce sync.Once
 }
 
 var (
@@ -310,6 +314,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
 		fpInitialized:        make(chan struct{}),
 		invalidAllocs:        make(map[string]struct{}),
+		serversContactedCh:   make(chan struct{}),
+		serversContactedOnce: sync.Once{},
 	}
 
 	c.batchNodeUpdates = newBatchNodeUpdates(
@@ -2000,12 +2006,6 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 	errs := 0
 
-	// Mark existing allocations as live in case they failed to reattach on
-	// restore and are waiting to hear from the server before restarting.
-	for _, live := range diff.ignore {
-		c.markAllocLive(live)
-	}
-
 	// Remove the old allocations
 	for _, remove := range diff.removed {
 		c.removeAlloc(remove)
@@ -2036,6 +2036,12 @@ func (c *Client) runAllocs(update *allocUpdates) {
 			}
 		}
 	}
+
+	// Mark servers as having been contacted so blocked tasks that failed
+	// to restore can now restart.
+	c.serversContactedOnce.Do(func() {
+		close(c.serversContactedCh)
+	})
 
 	// Trigger the GC once more now that new allocs are started that could
 	// have caused thresholds to be exceeded
@@ -2087,24 +2093,6 @@ func makeFailedAlloc(add *structs.Allocation, err error) *structs.Allocation {
 		}
 	}
 	return stripped
-}
-
-// markAllocLive is invoked when an alloc should be running but has not been
-// updated or just been added. This allows unblocking tasks that failed to
-// reattach on restored and are waiting to hear from the server.
-func (c *Client) markAllocLive(allocID string) {
-	c.allocLock.Lock()
-	defer c.allocLock.Unlock()
-
-	ar, ok := c.allocs[allocID]
-	if !ok {
-		// This should never happen as alloc diffing should cause
-		// unknown allocs to be added, not marked live.
-		c.logger.Warn("unknown alloc should be running but is not", "alloc_id", allocID)
-		return
-	}
-
-	ar.MarkLive()
 }
 
 // removeAlloc is invoked when we should remove an allocation because it has
