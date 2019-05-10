@@ -951,7 +951,7 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture the allocations
-			allocs, err := state.AllocsByJob(ws, args.RequestNamespace(), args.JobID, args.AllAllocs)
+			allocs, err := state.AllocsByJob(ws, args.RequestNamespace(), args.JobID, args.All)
 			if err != nil {
 				return err
 			}
@@ -1042,7 +1042,7 @@ func (j *Job) Deployments(args *structs.JobSpecificRequest,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture the deployments
-			deploys, err := state.DeploymentsByJobID(ws, args.RequestNamespace(), args.JobID)
+			deploys, err := state.DeploymentsByJobID(ws, args.RequestNamespace(), args.JobID, args.All)
 			if err != nil {
 				return err
 			}
@@ -1084,7 +1084,7 @@ func (j *Job) LatestDeployment(args *structs.JobSpecificRequest,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture the deployments
-			deploys, err := state.DeploymentsByJobID(ws, args.RequestNamespace(), args.JobID)
+			deploys, err := state.DeploymentsByJobID(ws, args.RequestNamespace(), args.JobID, args.All)
 			if err != nil {
 				return err
 			}

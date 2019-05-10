@@ -508,8 +508,8 @@ type EvalOptions struct {
 
 // JobSpecificRequest is used when we just need to specify a target job
 type JobSpecificRequest struct {
-	JobID     string
-	AllAllocs bool
+	JobID string
+	All   bool
 	QueryOptions
 }
 

@@ -71,13 +71,14 @@ func (c *JobDeploymentsCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobDeploymentsCommand) Name() string { return "job deployments" }
 
 func (c *JobDeploymentsCommand) Run(args []string) int {
-	var json, latest, verbose bool
+	var json, latest, verbose, all bool
 	var tmpl string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&latest, "latest", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&all, "all", false, "")
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
 
@@ -146,7 +147,7 @@ func (c *JobDeploymentsCommand) Run(args []string) int {
 		return 0
 	}
 
-	deploys, _, err := client.Jobs().Deployments(jobID, nil)
+	deploys, _, err := client.Jobs().Deployments(jobID, all, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving deployments: %s", err))
 		return 1

@@ -179,9 +179,17 @@ func (j *Jobs) Allocations(jobID string, allAllocs bool, q *QueryOptions) ([]*Al
 
 // Deployments is used to query the deployments associated with the given job
 // ID.
-func (j *Jobs) Deployments(jobID string, q *QueryOptions) ([]*Deployment, *QueryMeta, error) {
+func (j *Jobs) Deployments(jobID string, all bool, q *QueryOptions) ([]*Deployment, *QueryMeta, error) {
 	var resp []*Deployment
-	qm, err := j.client.query("/v1/job/"+jobID+"/deployments", &resp, q)
+	u, err := url.Parse("/v1/job/" + jobID + "/deployments")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	v := u.Query()
+	v.Add("all", strconv.FormatBool(all))
+	u.RawQuery = v.Encode()
+	qm, err := j.client.query(u.String(), &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}

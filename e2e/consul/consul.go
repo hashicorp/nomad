@@ -113,7 +113,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 	g := NewGomegaWithT(f.T())
 
 	g.Eventually(func() []string {
-		deploys, _, err := jobs.Deployments(jobId, nil)
+		deploys, _, err := jobs.Deployments(jobId, false, nil)
 		require.Nil(err)
 		healthyDeploys := make([]string, 0, len(deploys))
 		for _, d := range deploys {
@@ -135,7 +135,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 	// Eventually have a canary
 	var deploys []*api.Deployment
 	g.Eventually(func() []*api.Deployment {
-		deploys, _, err = jobs.Deployments(*job.ID, nil)
+		deploys, _, err = jobs.Deployments(*job.ID, false, nil)
 		require.Nil(err)
 		return deploys
 	}, 2*time.Second, 20*time.Millisecond).Should(HaveLen(2))

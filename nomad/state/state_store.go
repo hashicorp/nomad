@@ -481,7 +481,7 @@ func (s *StateStore) deploymentByIDImpl(ws memdb.WatchSet, deploymentID string, 
 	return nil, nil
 }
 
-func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID string) ([]*structs.Deployment, error) {
+func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Deployment, error) {
 	txn := s.db.Txn(false)
 
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
@@ -503,8 +503,24 @@ func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID stri
 		if raw == nil {
 			break
 		}
-
 		d := raw.(*structs.Deployment)
+
+		// If the allocation belongs to a job with the same ID but a different
+		// create index and we are not getting all the allocations whose Jobs
+		// matches the same Job ID then we skip it
+
+		watchCh, existing, err := txn.FirstWatch("jobs", "id", namespace, jobID)
+		if err != nil {
+			return nil, fmt.Errorf("job lookup failed: %v", err)
+		}
+		ws.Add(watchCh)
+		var job *structs.Job
+		if existing != nil {
+			job = existing.(*structs.Job)
+		}
+		if !all && job != nil && d.JobCreateIndex != job.CreateIndex {
+			continue
+		}
 		out = append(out, d)
 	}
 
