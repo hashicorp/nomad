@@ -16,7 +16,7 @@ as simple as possible, Nomad provides:
 
 - Job specification for [log rotation](/docs/job-specification/logs.html)
 - CLI command for [log viewing](/docs/commands/alloc/logs.html)
-- API for programatic [log access](/api/client.html#stream-logs)
+- API for programmatic [log access](/api/client.html#stream-logs)
 
 This section will utilize the job named "docs" from the [previous
 sections](/guides/operating-a-job/submitting-jobs.html), but these operations
