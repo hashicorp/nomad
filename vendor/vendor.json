@@ -244,6 +244,7 @@
 		{"path":"github.com/hpcloud/tail/watch","checksumSHA1":"TP4OAv5JMtzj2TB6OQBKqauaKDc=","revision":"37f4271387456dd1bf82ab1ad9229f060cc45386","revisionTime":"2017-08-14T16:06:53Z"},
 		{"path":"github.com/jmespath/go-jmespath","checksumSHA1":"3/Bhy+ua/DCv2ElMD5GzOYSGN6g=","comment":"0.2.2-2-gc01cf91","revision":"c01cf91b011868172fdcd9f41838e80c9d716264"},
 		{"path":"github.com/kr/pretty","checksumSHA1":"eOXF2PEvYLMeD8DSzLZJWbjYzco=","revision":"cfb55aafdaf3ec08f0db22699ab822c50091b1c4","revisionTime":"2016-08-23T17:07:15Z"},
+		{"path":"github.com/kr/pty","checksumSHA1":"WD7GMln/NoduJr0DbumjOE59xI8=","revision":"b6e1bdd4a4f88614e0c6e5e8089c7abed98aae17","revisionTime":"2019-04-01T03:15:51Z"},
 		{"path":"github.com/kr/text","checksumSHA1":"uulQHQ7IsRKqDudBC8Go9J0gtAc=","revision":"7cafcd837844e784b526369c9bce262804aebc60","revisionTime":"2016-05-04T02:26:26Z"},
 		{"path":"github.com/mattn/go-colorable","checksumSHA1":"SEnjvwVyfuU2xBaOfXfwPD5MZqk=","revision":"efa589957cd060542a26d2dd7832fd6a6c6c3ade","revisionTime":"2018-03-10T13:32:14Z"},
 		{"path":"github.com/mattn/go-isatty","checksumSHA1":"AZO2VGorXTMDiSVUih3k73vORHY=","revision":"6ca4dbf54d38eea1a992b3c722a76a5d1c4cb25c","revisionTime":"2017-11-07T05:05:31Z"},
