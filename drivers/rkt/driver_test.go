@@ -913,3 +913,67 @@ config {
 
 	require.EqualValues(t, expected, tc)
 }
+
+func TestRkt_ExecTaskStreaming(t *testing.T) {
+	ctestutil.RktCompatible(t)
+	if !testutil.IsCI() {
+		t.Parallel()
+	}
+
+	require := require.New(t)
+	d := NewRktDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+
+	task := &drivers.TaskConfig{
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		Name:    "etcd",
+		Resources: &drivers.Resources{
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
+			},
+			LinuxResources: &drivers.LinuxResources{
+				MemoryLimitBytes: 134217728,
+				CPUShares:        100,
+			},
+		},
+	}
+
+	tc := &TaskConfig{
+		ImageName: "docker://busybox:1.29.3",
+		Command:   "/bin/sleep",
+		Args:      []string{"1000"},
+		Net:       []string{"none"},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	testtask.SetTaskConfigEnv(task)
+
+	cleanup := harness.MkAllocDir(task, true)
+	defer cleanup()
+
+	_, _, err := harness.StartTask(task)
+	require.NoError(err)
+	defer d.DestroyTask(task.ID, true)
+
+	// wait for container to be up and executable
+	testutil.WaitForResult(func() (bool, error) {
+		res, err := d.ExecTask(task.ID, []string{"/bin/sh", "-c", "echo hi"}, time.Second)
+		if err != nil {
+			return false, fmt.Errorf("failed to exec: %#v", err)
+		}
+		if !res.ExitResult.Successful() {
+			return false, fmt.Errorf("ps failed: %#v %#v", res.ExitResult, res)
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+
+	dtestutil.ExecTaskStreamingConformanceTests(t, harness, task.ID)
+
+}
