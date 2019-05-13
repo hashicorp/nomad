@@ -3381,6 +3381,12 @@ func (j *Job) Validate() error {
 	}
 	if len(j.Datacenters) == 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job datacenters"))
+	} else {
+		for _, v := range j.Datacenters {
+			if v == "" {
+				mErr.Errors = append(mErr.Errors, errors.New("Job datacenter must be non-empty string"))
+			}
+		}
 	}
 	if len(j.TaskGroups) == 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job task groups"))

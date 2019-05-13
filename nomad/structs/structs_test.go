@@ -110,6 +110,16 @@ func TestJob_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[2].Error(), "Task group web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
+
+	// test for empty datacenters
+	j = &Job{
+		Datacenters: []string{""},
+	}
+	err = j.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Error(), "datacenter must be non-empty string") {
+		t.Fatalf("err: %s", err)
+	}
 }
 
 func TestJob_Warnings(t *testing.T) {
