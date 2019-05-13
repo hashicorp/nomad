@@ -863,7 +863,7 @@ func (d *Driver) SignalTask(taskID string, signal string) error {
 
 func (d *Driver) ExecTask(taskID string, cmdArgs []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
 	if len(cmdArgs) == 0 {
-		return nil, fmt.Errorf("error cmd must have atleast one value")
+		return nil, fmt.Errorf("error cmd must have at least one value")
 	}
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
@@ -900,7 +900,7 @@ func (d *Driver) ExecTaskStreamingRaw(ctx context.Context,
 	stream drivers.ExecTaskStream) error {
 
 	if len(command) == 0 {
-		return fmt.Errorf("error cmd must have atleast one value")
+		return fmt.Errorf("error cmd must have at least one value")
 	}
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {

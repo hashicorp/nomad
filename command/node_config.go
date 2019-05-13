@@ -82,7 +82,7 @@ func (c *NodeConfigCommand) Run(args []string) int {
 	if updateServers {
 		// Get the server addresses
 		if len(args) == 0 {
-			c.Ui.Error("If the '-update-servers' flag is set, atleast one server argument must be provided")
+			c.Ui.Error("If the '-update-servers' flag is set, at least one server argument must be provided")
 			c.Ui.Error(commandErrorText(c))
 			return 1
 		}
