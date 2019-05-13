@@ -3771,6 +3771,7 @@ func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
 	d2 := mock.Deployment()
 	d2.JobID = j.ID
 	require.Nil(state.UpsertJob(50, j), "UpsertJob")
+	d2.JobCreateIndex = j.CreateIndex
 
 	// First upsert an unrelated eval
 	time.AfterFunc(100*time.Millisecond, func() {

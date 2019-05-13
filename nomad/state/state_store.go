@@ -489,6 +489,16 @@ func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID stri
 		namespace = structs.DefaultNamespace
 	}
 
+	var job *structs.Job
+	// Read job from state store
+	_, existing, err := txn.FirstWatch("jobs", "id", namespace, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("job lookup failed: %v", err)
+	}
+	if existing != nil {
+		job = existing.(*structs.Job)
+	}
+
 	// Get an iterator over the deployments
 	iter, err := txn.Get("deployment", "job", namespace, jobID)
 	if err != nil {
@@ -508,16 +518,6 @@ func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID stri
 		// If the allocation belongs to a job with the same ID but a different
 		// create index and we are not getting all the allocations whose Jobs
 		// matches the same Job ID then we skip it
-
-		watchCh, existing, err := txn.FirstWatch("jobs", "id", namespace, jobID)
-		if err != nil {
-			return nil, fmt.Errorf("job lookup failed: %v", err)
-		}
-		ws.Add(watchCh)
-		var job *structs.Job
-		if existing != nil {
-			job = existing.(*structs.Job)
-		}
 		if !all && job != nil && d.JobCreateIndex != job.CreateIndex {
 			continue
 		}
