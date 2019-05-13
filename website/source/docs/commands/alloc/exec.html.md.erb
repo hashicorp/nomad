@@ -1,0 +1,68 @@
+---
+layout: "docs"
+page_title: "Commands: alloc exec"
+sidebar_current: "docs-commands-alloc-exec"
+description: >
+Stream the exec of a task.
+---
+
+# Command: alloc exec
+**Alias: `nomad exec`**
+
+The `alloc exec` command runs a command in a running allocation.
+
+## Usage
+
+```
+nomad alloc exec [options] <allocation> <command> [<args>...]
+```
+
+
+This command runs the passed command inside the environment of the given allocation and task.
+
+This command streams the exec of the given task in the allocation. If the
+allocation is only running a single task, the task name can be omitted.
+Optionally, the `-job` option may be used in which case a random allocation from
+the given job will be chosen.
+#
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Exec Options
+
+* `task`: Sets the task to exec command in.  Defaults to first task
+
+* `-job`: Use a random allocation from the specified job ID.
+
+* `-i`: Pass stdin to the container, defaults to true.  Pass `-i=false` to disable explicitly.
+
+* `-t`: Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty session.  Pass `-t=false` to disable explicitly.
+
+
+## Examples
+
+```
+$ nomad alloc exec eb17e557 /bin/sh
+/ # echo hi
+hi
+
+$ nomad alloc exec eb17e557 echo hi
+hi
+
+$ nomad alloc exec -job example echo hi
+hi
+```
+
+## Using Job ID instead of Allocation ID
+
+Setting the `-job` flag causes a random allocation of the specified job to be
+selected.
+
+```
+nomad alloc exec -job <job-id> <command> [<args>...]
+```
+
+
+This can be useful for debugging a job that has multiple allocations, and it's
+not really required to use a specific allocation ID.
