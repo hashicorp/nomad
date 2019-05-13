@@ -777,9 +777,10 @@ func TestConsul_ShutdownSlow(t *testing.T) {
 		t.Errorf("unexpected error shutting down client: %v", err)
 	}
 
-	// Shutdown time should have taken: 1s <= shutdown <= 3s
+	// Shutdown time should have taken: ~1s <= shutdown <= 3s
+	// actual timing might be less than 1s, to account for shutdown invocation overhead
 	shutdownTime := time.Now().Sub(preShutdown)
-	if shutdownTime < time.Second || shutdownTime > ctx.ServiceClient.shutdownWait {
+	if shutdownTime < 900*time.Millisecond || shutdownTime > ctx.ServiceClient.shutdownWait {
 		t.Errorf("expected shutdown to take >1s and <%s but took: %s", ctx.ServiceClient.shutdownWait, shutdownTime)
 	}
 
