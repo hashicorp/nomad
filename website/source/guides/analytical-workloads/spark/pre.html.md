@@ -28,13 +28,8 @@ To manually configure provision a cluster, see the Nomad
 basic prerequisites to using the Spark integration once you have a cluster up
 and running:
 
-<<<<<<< HEAD:website/source/guides/spark/pre.html.md
-- Access to a [Spark distribution](https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz) 
-built with Nomad support. This is required for the machine that will submit 
-=======
 - Access to a [Spark distribution](https://nomad-spark.s3.amazonaws.com/spark-2.1.0-bin-nomad.tgz)
 built with Nomad support. This is required for the machine that will submit
->>>>>>> ac76fc2fd... Merge pull request #5667 from hashicorp/yishan/revised-nomadproject-structure:website/source/guides/analytical-workloads/spark/pre.html.md
 applications as well as the Nomad tasks that will run the Spark executors.
 
 - A Java runtime environment (JRE) for the submitting machine and the executors.
