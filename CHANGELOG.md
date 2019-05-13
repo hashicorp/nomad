@@ -35,6 +35,7 @@ BUG FIXES:
  * client: Fix network fingerprinting to honor manual configuration [[GH-2619](https://github.com/hashicorp/nomad/issues/2619)]
  * client: Fix network port mapping  related environment variables when running with Nomad 0.8 servers [[GH-5587](https://github.com/hashicorp/nomad/issues/5587)]
  * client: Fix issue with terminal state deployments being modified when allocation subsequently fails [[GH-5645](https://github.com/hashicorp/nomad/issues/5645)]
+ * client: Add validation for non-empty strings in datacenter configuration [[GH-5665](https://github.com/hashicorp/nomad/pull/5665)]
  * metrics: Fixed stale metrics [[GH-5540](https://github.com/hashicorp/nomad/issues/5540)]
  * vault: Fix renewal time to be 1/2 lease duration with jitter [[GH-5479](https://github.com/hashicorp/nomad/issues/5479)]
 
