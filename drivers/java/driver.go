@@ -563,7 +563,7 @@ func (d *Driver) ExecTaskStreamingRaw(ctx context.Context,
 	stream drivers.ExecTaskStream) error {
 
 	if len(command) == 0 {
-		return fmt.Errorf("error cmd must have atleast one value")
+		return fmt.Errorf("error cmd must have at least one value")
 	}
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
