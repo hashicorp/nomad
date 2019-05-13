@@ -27,11 +27,17 @@ details.
 
 ### Task Driver Plugins
 
-All task drivers have become [plugins][plugins] in Nomad 0.9.0. There are no user visible
-differences between 0.8 and 0.9 drivers except for [LXC][lxc]. There is a new
-method for client driver configuration options, but existing `client.options`
-settings are supported in 0.9. See [plugin configuration][plugin-stanza] for
-details.
+All task drivers have become [plugins][plugins] in Nomad 0.9.0. There are two
+user visible differences between 0.8 and 0.9 drivers:
+
+ * [LXC][lxc] is now community supported and distributed independently.
+ * Task driver [`config`][task-config] stanzas are no longer validated by
+   the [`nomad job validate`][validate] command. This is a regression that will
+   be fixed in a future release.
+
+There is a new method for client driver configuration options, but existing
+`client.options` settings are supported in 0.9. See [plugin
+configuration][plugin-stanza] for details.
 
 #### LXC
 
@@ -335,3 +341,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [plugin-stanza]: /docs/configuration/plugin.html
 [preemption]: /docs/internals/scheduling/preemption.html
 [task-config]: /docs/job-specification/task.html#config
+[validate]: /docs/commands/job/validate.html
