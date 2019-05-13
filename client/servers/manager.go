@@ -208,9 +208,10 @@ func (m *Manager) SetServers(servers Servers) bool {
 	// This prevents unnecessary shuffling of a failed server that was moved to the
 	// bottom of the list
 	if equal {
-		m.logger.Debug("Not replacing server list, current server list is identical to servers discovered in Consul")
 		return !equal
 	}
+
+	m.logger.Debug("new server list", "new_servers", servers, "old_servers", m.servers)
 
 	// Randomize the incoming servers
 	servers.shuffle()
