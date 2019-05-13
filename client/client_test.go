@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"testing"
 	"time"
@@ -1316,6 +1317,44 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	})
 	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[0].Device)
 	assert.Equal(t, 100, client.config.Node.NodeResources.Networks[0].MBits)
+}
+
+// Support multiple IP addresses (ipv4 vs. 6, e.g.) on the configured network interface
+func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
+	t.Parallel()
+
+	var dev string
+	switch runtime.GOOS {
+	case "linux":
+		dev = "lo"
+	case "darwin":
+		dev = "lo0"
+	}
+
+	// Client without network configured updates to match fingerprint
+	client, cleanup := TestClient(t, func(c *config.Config) {
+		c.NetworkInterface = dev
+		c.Node.NodeResources.Networks[0].Device = dev
+		c.Node.Resources.Networks = c.Node.NodeResources.Networks
+	})
+	defer cleanup()
+
+	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
+		NodeResources: &structs.NodeResources{
+			Cpu: structs.NodeCpuResources{CpuShares: 123},
+			Networks: []*structs.NetworkResource{
+				{Device: dev, IP: "127.0.0.1"},
+				{Device: dev, IP: "::1"},
+			},
+		},
+	})
+
+	two := structs.Networks{
+		{Device: dev, IP: "127.0.0.1"},
+		{Device: dev, IP: "::1"},
+	}
+
+	require.Equal(t, two, client.config.Node.NodeResources.Networks)
 }
 
 func TestClient_computeAllocatedDeviceStats(t *testing.T) {
