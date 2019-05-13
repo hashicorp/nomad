@@ -3528,6 +3528,9 @@ func TestJobEndpoint_Deployments(t *testing.T) {
 	d1.JobID = j.ID
 	d2.JobID = j.ID
 	require.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	d1.JobCreateIndex = j.CreateIndex
+	d2.JobCreateIndex = j.CreateIndex
+
 	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
 	require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
 
@@ -3562,6 +3565,8 @@ func TestJobEndpoint_Deployments_ACL(t *testing.T) {
 	d1.JobID = j.ID
 	d2.JobID = j.ID
 	require.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	d1.JobCreateIndex = j.CreateIndex
+	d2.JobCreateIndex = j.CreateIndex
 	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
 	require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
 
@@ -3622,7 +3627,7 @@ func TestJobEndpoint_Deployments_Blocking(t *testing.T) {
 	d2 := mock.Deployment()
 	d2.JobID = j.ID
 	require.Nil(state.UpsertJob(50, j), "UpsertJob")
-
+	d2.JobCreateIndex = j.CreateIndex
 	// First upsert an unrelated eval
 	time.AfterFunc(100*time.Millisecond, func() {
 		require.Nil(state.UpsertDeployment(100, d1), "UpsertDeployment")
@@ -3671,6 +3676,8 @@ func TestJobEndpoint_LatestDeployment(t *testing.T) {
 	d2.CreateIndex = d1.CreateIndex + 100
 	d2.ModifyIndex = d2.CreateIndex + 100
 	require.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	d1.JobCreateIndex = j.CreateIndex
+	d2.JobCreateIndex = j.CreateIndex
 	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
 	require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
 
@@ -3708,6 +3715,8 @@ func TestJobEndpoint_LatestDeployment_ACL(t *testing.T) {
 	d2.CreateIndex = d1.CreateIndex + 100
 	d2.ModifyIndex = d2.CreateIndex + 100
 	require.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	d1.JobCreateIndex = j.CreateIndex
+	d2.JobCreateIndex = j.CreateIndex
 	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
 	require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
 
