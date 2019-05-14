@@ -191,8 +191,8 @@
 /guides/sentinel-policy.html       /guides/security/sentinel-policy.html
 /guides/sentinel/job.html          /guides/governance-and-policy/sentinel/job.html
 
-/guides/spark/                                    /guides/analytical-workloads/spark/
-/guides/spark/pre.html                            /guides/analytical-workloads/spark/spark.html
+/guides/spark/                                    /guides/analytical-workloads/spark/spark.html
+/guides/spark/pre.html                            /guides/analytical-workloads/spark/pre.html
 /guides/security/namespaces.html                  /guides/governance-and-policy/namespaces.html
 /guides/security/quotas.html                      /guides/governance-and-policy/quotas.html
 /guides/security/sentinel/job.html                /guides/governance-and-policy/sentinel/job.html
