@@ -210,6 +210,11 @@ func (b *EvalBroker) EnqueueAll(evals map[*structs.Evaluation]string) {
 // outstanding, the evaluation is blocked until an Ack/Nack is received.
 // processEnqueue must be called with the lock held.
 func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
+	// If we're not enabled, don't enable more queuing.
+	if !b.enabled {
+		return
+	}
+
 	// Check if already enqueued
 	if _, ok := b.evals[eval.ID]; ok {
 		if token == "" {
@@ -261,8 +266,10 @@ func (b *EvalBroker) processWaitingEnqueue(eval *structs.Evaluation) {
 func (b *EvalBroker) enqueueWaiting(eval *structs.Evaluation) {
 	b.l.Lock()
 	defer b.l.Unlock()
+
 	delete(b.timeWait, eval.ID)
 	b.stats.TotalWaiting -= 1
+
 	b.enqueueLocked(eval, eval.Type)
 }
 
