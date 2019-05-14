@@ -310,6 +310,12 @@ var (
 		SendSignals: true,
 		Exec:        true,
 		FSIsolation: drivers.FSIsolationImage,
+		NetIsolationModes: []drivers.NetIsolationMode{
+			drivers.NetIsolationModeHost,
+			drivers.NetIsolationModeGroup,
+			drivers.NetIsolationModeTask,
+		},
+		MustInitiateNetwork: true,
 	}
 )
 
