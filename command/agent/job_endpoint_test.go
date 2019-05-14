@@ -841,6 +841,7 @@ func TestHTTP_JobDeployment(t *testing.T) {
 		state := s.Agent.server.State()
 		d := mock.Deployment()
 		d.JobID = j.ID
+		d.JobCreateIndex = resp.JobModifyIndex
 		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 		// Make the HTTP request
