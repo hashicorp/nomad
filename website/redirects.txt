@@ -191,7 +191,11 @@
 /guides/sentinel-policy.html       /guides/security/sentinel-policy.html
 /guides/sentinel/job.html          /guides/governance-and-policy/sentinel/job.html
 
-/guides/spark/                                    /guides/analytical-workloads/spark/spark.html
+/guides/analytical-workloads/spark/spark.html     /guides/analytical-workloads/spark/index.html
+/guides/spark                                     /guides/analytical-workloads/spark/index.html
+/guides/spark/                                    /guides/analytical-workloads/spark/index.html
+/guides/spark/index.html                          /guides/analytical-workloads/spark/index.html
+/guides/spark/spark.html                          /guides/analytical-workloads/spark/index.html
 /guides/spark/pre.html                            /guides/analytical-workloads/spark/pre.html
 /guides/security/namespaces.html                  /guides/governance-and-policy/namespaces.html
 /guides/security/quotas.html                      /guides/governance-and-policy/quotas.html
@@ -205,5 +209,11 @@
 /guides/operations/consul-integration/index.html  /guides/integrations/consul-integration/index.html
 /guides/operations/vault-integration/index.html   /guides/integrations/vault-integration/index.html
 /guides/advanced-scheduling/                      /guides/operating-a-job/advanced-scheduling/
-/guides/external/                                 /guides/operating-a-job/external/
-/guides/operations/upgrade/                       /guides/upgrade/
+/guides/external                                  /guides/operating-a-job/external/index.html
+/guides/external/                                 /guides/operating-a-job/external/index.html
+/guides/external/index.html                       /guides/operating-a-job/external/index.html
+/guides/external/lxc.html                         /guides/operating-a-job/external/lxc.html
+/guides/operations/upgrade                        /guides/upgrade/index.html
+/guides/operations/upgrade/                       /guides/upgrade/index.html
+/guides/operations/upgrade/index.html             /guides/upgrade/index.html
+/guides/operations/upgrade/upgrade-specific.html  /guides/upgrade/upgrade-specific.html
