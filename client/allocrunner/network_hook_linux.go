@@ -49,7 +49,7 @@ type networkHook struct {
 	logger   hclog.Logger
 }
 
-func newNetworkHook(ns networkIsolationSetter, logger hclog.Logger, alloc *structs.Allocation, netManager drivers.DriverNetworkManager) *networkHook {
+func newNetworkHook(logger hclog.Logger, ns networkIsolationSetter, alloc *structs.Allocation, netManager drivers.DriverNetworkManager) *networkHook {
 	return &networkHook{
 		setter:  ns,
 		alloc:   alloc,
@@ -186,6 +186,7 @@ func newNS(id string) (ns.NetNS, error) {
 		var origNS ns.NetNS
 		origNS, err = ns.GetNS(getCurrentThreadNetNSPath())
 		if err != nil {
+			err = fmt.Errorf("failed to get the current netns: %v", err)
 			return
 		}
 		defer origNS.Close()
@@ -193,6 +194,7 @@ func newNS(id string) (ns.NetNS, error) {
 		// create a new netns on the current thread
 		err = unix.Unshare(unix.CLONE_NEWNET)
 		if err != nil {
+			err = fmt.Errorf("error from unshare: %v", err)
 			return
 		}
 

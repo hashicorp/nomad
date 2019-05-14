@@ -328,9 +328,32 @@ func (b *driverPluginServer) TaskEvents(req *proto.TaskEventsRequest, srv proto.
 }
 
 func (b *driverPluginServer) CreateNetwork(ctx context.Context, req *proto.CreateNetworkRequest) (*proto.CreateNetworkResponse, error) {
-	return nil, nil
+	nm, ok := b.impl.(DriverNetworkManager)
+	if !ok {
+		return nil, fmt.Errorf("CreateNetwork RPC not supported by driver")
+	}
+
+	spec, err := nm.CreateNetwork(req.AllocId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &proto.CreateNetworkResponse{
+		IsolationSpec: NetworkIsolationSpecToProto(spec),
+	}, nil
+
 }
 
 func (b *driverPluginServer) DestroyNetwork(ctx context.Context, req *proto.DestroyNetworkRequest) (*proto.DestroyNetworkResponse, error) {
-	return nil, nil
+	nm, ok := b.impl.(DriverNetworkManager)
+	if !ok {
+		return nil, fmt.Errorf("DestroyNetwork RPC not supported by driver")
+	}
+
+	err := nm.DestroyNetwork(req.AllocId, NetworkIsolationSpecFromProto(req.IsolationSpec))
+	if err != nil {
+		return nil, err
+	}
+
+	return &proto.DestroyNetworkResponse{}, nil
 }

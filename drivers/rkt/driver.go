@@ -171,7 +171,6 @@ type TaskState struct {
 // Driver is a driver for running images via Rkt We attempt to chose sane
 // defaults for now, with more configuration available planned in the future.
 type Driver struct {
-	drivers.NetworkManagementNotSupported
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
