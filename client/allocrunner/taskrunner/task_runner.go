@@ -195,8 +195,7 @@ type TaskRunner struct {
 	maxEvents int
 
 	// serversContactedCh is passed to TaskRunners so they can detect when
-	// servers have been contacted for the first time in case of a failed
-	// restore.
+	// GetClientAllocs has been called in case of a failed restore.
 	serversContactedCh <-chan struct{}
 
 	// waitOnServers defaults to false but will be set true if a restore
