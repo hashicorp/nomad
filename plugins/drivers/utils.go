@@ -571,3 +571,55 @@ func memoryUsageMeasuredFieldsFromProto(fields []proto.MemoryUsage_Fields) []str
 
 	return r
 }
+
+func netIsolationModeToProto(mode NetIsolationMode) proto.NetworkIsolationSpec_NetworkIsolationMode {
+	switch mode {
+	case NetIsolationModeHost:
+		return proto.NetworkIsolationSpec_HOST
+	case NetIsolationModeGroup:
+		return proto.NetworkIsolationSpec_GROUP
+	case NetIsolationModeTask:
+		return proto.NetworkIsolationSpec_TASK
+	case NetIsolationModeNone:
+		return proto.NetworkIsolationSpec_NONE
+	default:
+		return proto.NetworkIsolationSpec_HOST
+	}
+}
+
+func netIsolationModeFromProto(pb proto.NetworkIsolationSpec_NetworkIsolationMode) NetIsolationMode {
+	switch pb {
+	case proto.NetworkIsolationSpec_HOST:
+		return NetIsolationModeHost
+	case proto.NetworkIsolationSpec_GROUP:
+		return NetIsolationModeGroup
+	case proto.NetworkIsolationSpec_TASK:
+		return NetIsolationModeTask
+	case proto.NetworkIsolationSpec_NONE:
+		return NetIsolationModeNone
+	default:
+		return NetIsolationModeHost
+	}
+}
+
+func NetworkIsolationSpecToProto(spec *NetworkIsolationSpec) *proto.NetworkIsolationSpec {
+	if spec == nil {
+		return nil
+	}
+	return &proto.NetworkIsolationSpec{
+		Path:   spec.Path,
+		Labels: spec.Labels,
+		Mode:   netIsolationModeToProto(spec.Mode),
+	}
+}
+
+func NetworkIsolationSpecFromProto(pb *proto.NetworkIsolationSpec) *NetworkIsolationSpec {
+	if pb == nil {
+		return nil
+	}
+	return &NetworkIsolationSpec{
+		Path:   pb.Path,
+		Labels: pb.Labels,
+		Mode:   netIsolationModeFromProto(pb.Mode),
+	}
+}

@@ -7,7 +7,25 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
+
+type networkIsolationSetter interface {
+	SetNetworkIsolation(*drivers.NetworkIsolationSpec)
+}
+
+// allocNetworkIsolationSetter is a shim to allow the alloc network hook to
+// set the alloc network isolation configuration without full access
+// to the alloc runner
+type allocNetworkIsolationSetter struct {
+	ar *allocRunner
+}
+
+func (a *allocNetworkIsolationSetter) SetNetworkIsolation(n *drivers.NetworkIsolationSpec) {
+	for _, tr := range a.ar.tasks {
+		tr.SetNetworkIsolation(n)
+	}
+}
 
 // allocHealthSetter is a shim to allow the alloc health watcher hook to set
 // and clear the alloc health without full access to the alloc runner state
@@ -76,20 +94,28 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 }
 
 // initRunnerHooks intializes the runners hooks.
-func (ar *allocRunner) initRunnerHooks() {
+func (ar *allocRunner) initRunnerHooks() error {
 	hookLogger := ar.logger.Named("runner_hook")
+
+	// initialize platform specific hooks
+	hooks, err := ar.initPlatformRunnerHooks(hookLogger)
+	if err != nil {
+		return err
+	}
 
 	// create health setting shim
 	hs := &allocHealthSetter{ar}
 
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
-	ar.runnerHooks = []interfaces.RunnerHook{
+	ar.runnerHooks = append([]interfaces.RunnerHook{
 		newAllocDirHook(hookLogger, ar.allocDir),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
-	}
+	}, hooks...)
+
+	return nil
 }
 
 // prerun is used to run the runners prerun hooks.
