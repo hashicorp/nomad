@@ -162,7 +162,7 @@ func TestAR_initNetworkManager(t *testing.T) {
 				},
 			},
 			err:         true,
-			errContains: "want to initiate networking but only one is able",
+			errContains: "want to initiate networking but only one",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
