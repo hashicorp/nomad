@@ -785,13 +785,13 @@ func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context) {
 // This peeks at the heap to return the top. If the heap is empty, this returns nil and zero time.
 func (b *EvalBroker) nextDelayedEval() (*structs.Evaluation, time.Time) {
 	b.l.RLock()
+	defer b.l.RUnlock()
+
 	// If there is nothing wait for an update.
 	if b.delayHeap.Length() == 0 {
-		b.l.RUnlock()
 		return nil, time.Time{}
 	}
 	nextEval := b.delayHeap.Peek()
-	b.l.RUnlock()
 	if nextEval == nil {
 		return nil, time.Time{}
 	}
