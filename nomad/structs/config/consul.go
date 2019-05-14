@@ -44,8 +44,8 @@ type ConsulConfig struct {
 	ClientHTTPCheckName string `hcl:"client_http_check_name"`
 
 	// Tags are optional service tags that get registered with the service
-        // in Consul
-	Tags []string `mapstructure:"tags"`
+	// in Consul
+	Tags []string `hcl:"tags"`
 
 	// AutoAdvertise determines if this Nomad Agent will advertise its
 	// services via Consul.  When true, Nomad Agent will register
