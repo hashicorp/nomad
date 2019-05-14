@@ -7,21 +7,21 @@ import (
 	"strings"
 
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 // initialize linux specific alloc runner hooks
-func (ar *allocRunner) initPlatformRunnerHooks(hookLogger hclog.Logger) error {
+func (ar *allocRunner) initPlatformRunnerHooks(hookLogger hclog.Logger) ([]interfaces.RunnerHook, error) {
 
 	// determine how the network must be created
 	ns := &allocNetworkIsolationSetter{ar: ar}
 	nm, err := ar.initNetworkManager()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	ar.runnerHooks = append(ar.runnerHooks, newNetworkHook(ns, hookLogger, ar.Alloc(), nm))
-	return nil
+	return []interfaces.RunnerHook{newNetworkHook(hookLogger, ns, ar.Alloc(), nm)}, nil
 }
 
 func (ar *allocRunner) initNetworkManager() (nm drivers.DriverNetworkManager, err error) {
@@ -80,10 +80,14 @@ func (ar *allocRunner) initNetworkManager() (nm drivers.DriverNetworkManager, er
 		// driver has already claimed it needs to initiate the network
 		if caps.MustInitiateNetwork {
 			if networkInitiator != "" {
-				return nil, fmt.Errorf("tasks %s and %s want to initiate networking but only one is able", networkInitiator, task.Name)
+				return nil, fmt.Errorf("tasks %s and %s want to initiate networking but only driver can do so", networkInitiator, task.Name)
+			}
+			netManager, ok := driver.(drivers.DriverNetworkManager)
+			if !ok {
+				return nil, fmt.Errorf("driver %s does not implement network management RPCs", task.Driver)
 			}
 
-			nm = driver
+			nm = netManager
 			networkInitiator = task.Name
 		}
 

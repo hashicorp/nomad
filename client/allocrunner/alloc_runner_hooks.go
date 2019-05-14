@@ -97,20 +97,25 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 func (ar *allocRunner) initRunnerHooks() error {
 	hookLogger := ar.logger.Named("runner_hook")
 
+	// initialize platform specific hooks
+	hooks, err := ar.initPlatformRunnerHooks(hookLogger)
+	if err != nil {
+		return err
+	}
+
 	// create health setting shim
 	hs := &allocHealthSetter{ar}
 
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
-	ar.runnerHooks = []interfaces.RunnerHook{
+	ar.runnerHooks = append([]interfaces.RunnerHook{
 		newAllocDirHook(hookLogger, ar.allocDir),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
-	}
+	}, hooks...)
 
-	// initialize platform specific hooks
-	return ar.initPlatformRunnerHooks(hookLogger)
+	return nil
 }
 
 // prerun is used to run the runners prerun hooks.
