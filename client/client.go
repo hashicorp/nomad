@@ -259,6 +259,11 @@ type Client struct {
 	// fpInitialized chan is closed when the first batch of fingerprints are
 	// applied to the node and the server is updated
 	fpInitialized chan struct{}
+
+	// serversContactedCh is closed when GetClientAllocs and runAllocs have
+	// successfully run once.
+	serversContactedCh   chan struct{}
+	serversContactedOnce sync.Once
 }
 
 var (
@@ -309,6 +314,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
 		fpInitialized:        make(chan struct{}),
 		invalidAllocs:        make(map[string]struct{}),
+		serversContactedCh:   make(chan struct{}),
+		serversContactedOnce: sync.Once{},
 	}
 
 	c.batchNodeUpdates = newBatchNodeUpdates(
@@ -439,6 +446,9 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		logger.Warn("batch fingerprint operation timed out; proceeding to register with fingerprinted plugins so far")
 	}
 
+	// Register and then start heartbeating to the servers.
+	c.shutdownGroup.Go(c.registerAndHeartbeat)
+
 	// Restore the state
 	if err := c.restoreState(); err != nil {
 		logger.Error("failed to restore state", "error", err)
@@ -452,9 +462,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 			"https://github.com/hashicorp/nomad/issues")
 		return nil, fmt.Errorf("failed to restore state")
 	}
-
-	// Register and then start heartbeating to the servers.
-	c.shutdownGroup.Go(c.registerAndHeartbeat)
 
 	// Begin periodic snapshotting of state.
 	c.shutdownGroup.Go(c.periodicSnapshot)
@@ -2029,6 +2036,12 @@ func (c *Client) runAllocs(update *allocUpdates) {
 			}
 		}
 	}
+
+	// Mark servers as having been contacted so blocked tasks that failed
+	// to restore can now restart.
+	c.serversContactedOnce.Do(func() {
+		close(c.serversContactedCh)
+	})
 
 	// Trigger the GC once more now that new allocs are started that could
 	// have caused thresholds to be exceeded

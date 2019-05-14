@@ -193,6 +193,15 @@ type TaskRunner struct {
 	// maxEvents is the capacity of the TaskEvents on the TaskState.
 	// Defaults to defaultMaxEvents but overrideable for testing.
 	maxEvents int
+
+	// serversContactedCh is passed to TaskRunners so they can detect when
+	// GetClientAllocs has been called in case of a failed restore.
+	serversContactedCh <-chan struct{}
+
+	// waitOnServers defaults to false but will be set true if a restore
+	// fails and the Run method should wait until serversContactedCh is
+	// closed.
+	waitOnServers bool
 }
 
 type Config struct {
@@ -222,6 +231,10 @@ type Config struct {
 	// DriverManager is used to dispense driver plugins and register event
 	// handlers
 	DriverManager drivermanager.Manager
+
+	// ServersContactedCh is closed when the first GetClientAllocs call to
+	// servers succeeds and allocs are synced.
+	ServersContactedCh chan struct{}
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -270,6 +283,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		devicemanager:       config.DeviceManager,
 		driverManager:       config.DriverManager,
 		maxEvents:           defaultMaxEvents,
+		serversContactedCh:  config.ServersContactedCh,
 	}
 
 	// Create the logger based on the allocation ID
@@ -380,6 +394,19 @@ func (tr *TaskRunner) Run() {
 	// triggered update - whether due to alloc updates or a new vault token
 	// - should be handled serially.
 	go tr.handleUpdates()
+
+	// If restore failed wait until servers are contacted before running.
+	// #1795
+	if tr.waitOnServers {
+		tr.logger.Info("task failed to restore; waiting to contact server before restarting")
+		select {
+		case <-tr.killCtx.Done():
+		case <-tr.shutdownCtx.Done():
+			return
+		case <-tr.serversContactedCh:
+			tr.logger.Trace("server contacted; unblocking waiting task")
+		}
+	}
 
 MAIN:
 	for !tr.Alloc().TerminalStatus() {
@@ -858,8 +885,28 @@ func (tr *TaskRunner) Restore() error {
 	if taskHandle := tr.localState.TaskHandle; taskHandle != nil {
 		//TODO if RecoverTask returned the DriverNetwork we wouldn't
 		//     have to persist it at all!
-		tr.restoreHandle(taskHandle, tr.localState.DriverNetwork)
+		restored := tr.restoreHandle(taskHandle, tr.localState.DriverNetwork)
+
+		// If the handle could not be restored, the alloc is
+		// non-terminal, and the task isn't a system job: wait until
+		// servers have been contacted before running. #1795
+		if restored {
+			return nil
+		}
+
+		alloc := tr.Alloc()
+		if alloc.TerminalStatus() || alloc.Job.Type == structs.JobTypeSystem {
+			return nil
+		}
+
+		tr.logger.Trace("failed to reattach to task; will not run until server is contacted")
+		tr.waitOnServers = true
+
+		ev := structs.NewTaskEvent(structs.TaskRestoreFailed).
+			SetDisplayMessage("failed to restore task; will not run until server is contacted")
+		tr.UpdateState(structs.TaskStatePending, ev)
 	}
+
 	return nil
 }
 

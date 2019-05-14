@@ -10,11 +10,15 @@ KillMode=process
 KillSignal=SIGINT
 LimitNOFILE=infinity
 LimitNPROC=infinity
+TasksMax=infinity
 Restart=on-failure
 RestartSec=2
+
+# systemd>=230 prefer StartLimitIntervalSec,StartLimitBurst in Unit,
+# however Ubuntu 16.04 only has systemd==229. Use these old style settings
+# as they will be supported by newer systemds.
 StartLimitBurst=3
-StartLimitIntervalSec=10
-TasksMax=infinity
+StartLimitInterval=10
 
 [Install]
 WantedBy=multi-user.target

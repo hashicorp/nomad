@@ -555,7 +555,13 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 }
 
 func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
-	panic("not implemented")
+	h, ok := d.tasks.Get(taskID)
+	if !ok {
+		return nil, drivers.ErrTaskNotFound
+	}
+
+	return h.TaskStatus(), nil
+
 }
 
 func (d *Driver) TaskStats(ctx context.Context, taskID string, interval time.Duration) (<-chan *drivers.TaskResourceUsage, error) {

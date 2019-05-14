@@ -7,6 +7,10 @@ __BACKWARDS INCOMPATIBILITIES:__
    to update your code.  [[GH-5536](https://github.com/hashicorp/nomad/pull/5536)]
  * client: The format of check IDs in Consul has changed. If you rely upon
    Nomad's check IDs you will need to update your code.  [[GH-5536](https://github.com/hashicorp/nomad/pull/5536)]
+ * client: On startup a client will reattach to running tasks as before but
+   will not restart exited tasks. Exited tasks will be restarted only after the
+   client has reestablished communication with servers. System jobs will always
+   be restarted. [[GH-5669](https://github.com/hashicorp/nomad/pull/5669)]
 
 FEATURES:
 
