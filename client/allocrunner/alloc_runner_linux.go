@@ -80,7 +80,7 @@ func (ar *allocRunner) initNetworkManager() (nm drivers.DriverNetworkManager, er
 		// driver has already claimed it needs to initiate the network
 		if caps.MustInitiateNetwork {
 			if networkInitiator != "" {
-				return nil, fmt.Errorf("tasks %s and %s want to initiate networking but only driver can do so", networkInitiator, task.Name)
+				return nil, fmt.Errorf("tasks %s and %s want to initiate networking but only one driver can do so", networkInitiator, task.Name)
 			}
 			netManager, ok := driver.(drivers.DriverNetworkManager)
 			if !ok {
