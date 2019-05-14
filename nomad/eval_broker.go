@@ -161,6 +161,8 @@ func (b *EvalBroker) Enabled() bool {
 // should only be enabled on the active leader.
 func (b *EvalBroker) SetEnabled(enabled bool) {
 	b.l.Lock()
+	defer b.l.Unlock()
+
 	prevEnabled := b.enabled
 	b.enabled = enabled
 	if !prevEnabled && enabled {
@@ -169,7 +171,7 @@ func (b *EvalBroker) SetEnabled(enabled bool) {
 		b.delayedEvalCancelFunc = cancel
 		go b.runDelayedEvalsWatcher(ctx)
 	}
-	b.l.Unlock()
+
 	if !enabled {
 		b.flush()
 	}
@@ -678,11 +680,9 @@ func (b *EvalBroker) ResumeNackTimeout(evalID, token string) error {
 	return nil
 }
 
-// Flush is used to clear the state of the broker
+// Flush is used to clear the state of the broker. It must be called from within
+// the lock.
 func (b *EvalBroker) flush() {
-	b.l.Lock()
-	defer b.l.Unlock()
-
 	// Unblock any waiters
 	for _, waitCh := range b.waiting {
 		close(waitCh)
