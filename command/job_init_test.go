@@ -81,7 +81,7 @@ func TestInitCommand_defaultJob(t *testing.T) {
 	// Ensure the job file is always written with spaces instead of tabs. Since
 	// the default job file is embedded in the go file, it's easy for tabs to
 	// slip in.
-	if strings.Contains("\t", defaultJob) {
+	if strings.Contains(defaultJob, "\t") {
 		t.Error("default job contains tab character - please convert to spaces")
 	}
 }

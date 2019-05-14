@@ -6,7 +6,7 @@
   </span>
   <span class="pair is-faded">
     <span class="term">Submitted</span>
-    <span data-test-version-submit-time class="submit-date">{{moment-format version.submitTime "MM/DD/YY HH:mm:ss"}}</span>
+    <span data-test-version-submit-time class="submit-date">{{format-ts version.submitTime}}</span>
   </span>
   {{#if version.diff}}
     <button class="button is-light is-compact pull-right" {{action "toggleDiff"}}>{{changeCount}} {{pluralize "Change" changeCount}}</button>

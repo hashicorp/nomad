@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -1401,6 +1401,11 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 			break
 		}
 		job := rawJob.(*structs.Job)
+
+		// Nothing to do for queued allocations if the job is a parent periodic/parameterized job
+		if job.IsParameterized() || job.IsPeriodic() {
+			continue
+		}
 		planner := &scheduler.Harness{
 			State: &snap.StateStore,
 		}

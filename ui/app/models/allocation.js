@@ -3,7 +3,7 @@ import { computed } from '@ember/object';
 import { equal } from '@ember/object/computed';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
-import { belongsTo } from 'ember-data/relationships';
+import { belongsTo, hasMany } from 'ember-data/relationships';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import intersection from 'lodash.intersection';
 import shortUUIDProperty from '../utils/properties/short-uuid';
@@ -36,7 +36,7 @@ export default Model.extend({
   clientStatus: attr('string'),
   desiredStatus: attr('string'),
   statusIndex: computed('clientStatus', function() {
-    return STATUS_ORDER[this.get('clientStatus')] || 100;
+    return STATUS_ORDER[this.clientStatus] || 100;
   }),
 
   isRunning: equal('clientStatus', 'running'),
@@ -45,6 +45,10 @@ export default Model.extend({
   // is left linking all reschedule attempts.
   previousAllocation: belongsTo('allocation', { inverse: 'nextAllocation' }),
   nextAllocation: belongsTo('allocation', { inverse: 'previousAllocation' }),
+
+  preemptedAllocations: hasMany('allocation', { inverse: 'preemptedByAllocation' }),
+  preemptedByAllocation: belongsTo('allocation', { inverse: 'preemptedAllocations' }),
+  wasPreempted: attr('boolean'),
 
   followUpEvaluation: belongsTo('evaluation'),
 
@@ -57,12 +61,12 @@ export default Model.extend({
       lost: 'is-light',
     };
 
-    return classMap[this.get('clientStatus')] || 'is-dark';
+    return classMap[this.clientStatus] || 'is-dark';
   }),
 
   taskGroup: computed('taskGroupName', 'job.taskGroups.[]', function() {
     const taskGroups = this.get('job.taskGroups');
-    return taskGroups && taskGroups.findBy('name', this.get('taskGroupName'));
+    return taskGroups && taskGroups.findBy('name', this.taskGroupName);
   }),
 
   unhealthyDrivers: computed('taskGroup.drivers.[]', 'node.unhealthyDriverNames.[]', function() {
@@ -80,18 +84,18 @@ export default Model.extend({
   rescheduleEvents: fragmentArray('reschedule-event'),
 
   hasRescheduleEvents: computed('rescheduleEvents.length', 'nextAllocation', function() {
-    return this.get('rescheduleEvents.length') > 0 || this.get('nextAllocation');
+    return this.get('rescheduleEvents.length') > 0 || this.nextAllocation;
   }),
 
   hasStoppedRescheduling: computed(
     'nextAllocation',
     'clientStatus',
-    'followUpEvaluation',
+    'followUpEvaluation.content',
     function() {
       return (
         !this.get('nextAllocation.content') &&
         !this.get('followUpEvaluation.content') &&
-        this.get('clientStatus') === 'failed'
+        this.clientStatus === 'failed'
       );
     }
   ),

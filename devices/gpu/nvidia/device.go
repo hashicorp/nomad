@@ -9,6 +9,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
@@ -31,10 +32,23 @@ const (
 
 const (
 	// Nvidia-container-runtime environment variable names
-	nvidiaVisibleDevices = "NVIDIA_VISIBLE_DEVICES"
+	NvidiaVisibleDevices = "NVIDIA_VISIBLE_DEVICES"
 )
 
 var (
+	// PluginID is the nvidia plugin metadata registered in the plugin
+	// catalog.
+	PluginID = loader.PluginID{
+		Name:       pluginName,
+		PluginType: base.PluginTypeDevice,
+	}
+
+	// PluginConfig is the nvidia factory function registered in the
+	// plugin catalog.
+	PluginConfig = &loader.InternalPluginConfig{
+		Factory: func(l log.Logger) interface{} { return NewNvidiaDevice(l) },
+	}
+
 	// pluginInfo describes the plugin
 	pluginInfo = &base.PluginInfoResponse{
 		Type:              base.PluginTypeDevice,
@@ -181,7 +195,7 @@ func (d *NvidiaDevice) Reserve(deviceIDs []string) (*device.ContainerReservation
 
 	return &device.ContainerReservation{
 		Envs: map[string]string{
-			nvidiaVisibleDevices: strings.Join(deviceIDs, ","),
+			NvidiaVisibleDevices: strings.Join(deviceIDs, ","),
 		},
 	}, nil
 }

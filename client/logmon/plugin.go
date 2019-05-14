@@ -12,26 +12,34 @@ import (
 	"google.golang.org/grpc"
 )
 
-// LaunchLogMon an instance of logmon
+// LaunchLogMon launches a new logmon or reattaches to an existing one.
 // TODO: Integrate with base plugin loader
-func LaunchLogMon(logger hclog.Logger) (LogMon, *plugin.Client, error) {
+func LaunchLogMon(logger hclog.Logger, reattachConfig *plugin.ReattachConfig) (LogMon, *plugin.Client, error) {
 	logger = logger.Named("logmon")
 	bin, err := discover.NomadExecutable()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	client := plugin.NewClient(&plugin.ClientConfig{
+	conf := &plugin.ClientConfig{
 		HandshakeConfig: base.Handshake,
 		Plugins: map[string]plugin.Plugin{
 			"logmon": &Plugin{},
 		},
-		Cmd: exec.Command(bin, "logmon"),
 		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolGRPC,
 		},
 		Logger: logger,
-	})
+	}
+
+	// Only set one of Cmd or Reattach
+	if reattachConfig == nil {
+		conf.Cmd = exec.Command(bin, "logmon")
+	} else {
+		conf.Reattach = reattachConfig
+	}
+
+	client := plugin.NewClient(conf)
 
 	rpcClient, err := client.Client()
 	if err != nil {
@@ -45,7 +53,6 @@ func LaunchLogMon(logger hclog.Logger) (LogMon, *plugin.Client, error) {
 
 	l := raw.(LogMon)
 	return l, client, nil
-
 }
 
 type Plugin struct {
@@ -66,5 +73,8 @@ func (p *Plugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
 }
 
 func (p *Plugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
-	return &logmonClient{client: proto.NewLogMonClient(c)}, nil
+	return &logmonClient{
+		doneCtx: ctx,
+		client:  proto.NewLogMonClient(c),
+	}, nil
 }

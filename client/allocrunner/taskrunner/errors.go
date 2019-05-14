@@ -14,10 +14,7 @@ var (
 	ErrTaskNotRunning = errors.New(errTaskNotRunning)
 )
 
-// NewHookError returns an implementation of a HookError with an underlying err
-// and a pre-formatted task event.
-// If the taskEvent is nil, then we won't attempt to generate one during error
-// handling.
+// NewHookError contains an underlying err and a pre-formatted task event.
 func NewHookError(err error, taskEvent *structs.TaskEvent) error {
 	return &hookError{
 		err:       err,
@@ -32,4 +29,9 @@ type hookError struct {
 
 func (h *hookError) Error() string {
 	return h.err.Error()
+}
+
+// Recoverable is true if the underlying error is recoverable.
+func (h *hookError) IsRecoverable() bool {
+	return structs.IsRecoverable(h.err)
 }

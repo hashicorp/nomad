@@ -1,7 +1,6 @@
 package allocrunner
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -46,10 +45,11 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 	a.ar.stateLock.Lock()
 	a.ar.state.SetDeploymentStatus(time.Now(), healthy)
 	a.ar.persistDeploymentStatus(a.ar.state.DeploymentStatus)
+	terminalDesiredState := a.ar.alloc.ServerTerminalStatus()
 	a.ar.stateLock.Unlock()
 
 	// If deployment is unhealthy emit task events explaining why
-	if !healthy && isDeploy {
+	if !healthy && isDeploy && !terminalDesiredState {
 		for task, event := range trackerTaskEvents {
 			if tr, ok := a.ar.tasks[task]; ok {
 				// Append but don't emit event since the server
@@ -109,8 +109,6 @@ func (ar *allocRunner) prerun() error {
 			continue
 		}
 
-		//TODO Check hook state
-
 		name := pre.Name()
 		var start time.Time
 		if ar.logger.IsTrace() {
@@ -118,15 +116,13 @@ func (ar *allocRunner) prerun() error {
 			ar.logger.Trace("running pre-run hook", "name", name, "start", start)
 		}
 
-		if err := pre.Prerun(context.TODO()); err != nil {
+		if err := pre.Prerun(); err != nil {
 			return fmt.Errorf("pre-run hook %q failed: %v", name, err)
 		}
 
-		//TODO Persist hook state locally
-
 		if ar.logger.IsTrace() {
 			end := time.Now()
-			ar.logger.Trace("finished pre-run hooks", "name", name, "end", end, "duration", end.Sub(start))
+			ar.logger.Trace("finished pre-run hook", "name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 
@@ -249,7 +245,7 @@ func (ar *allocRunner) destroy() error {
 		}
 	}
 
-	return nil
+	return merr.ErrorOrNil()
 }
 
 // shutdownHooks calls graceful shutdown hooks for when the agent is exiting.

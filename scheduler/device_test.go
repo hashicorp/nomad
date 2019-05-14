@@ -161,7 +161,7 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 			Name: "gpu",
 			Constraints: []*structs.Constraint{
 				{
-					LTarget: "${driver.attr.cuda_cores}",
+					LTarget: "${device.attr.cuda_cores}",
 					Operand: ">",
 					RTarget: "4000",
 				},
@@ -172,7 +172,7 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 			Name: "gpu",
 			Constraints: []*structs.Constraint{
 				{
-					LTarget: "${driver.attr.cuda_cores}",
+					LTarget: "${device.attr.cuda_cores}",
 					Operand: "<",
 					RTarget: "4000",
 				},
@@ -184,17 +184,17 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 			Constraints: []*structs.Constraint{
 				// First two are shared across both devices
 				{
-					LTarget: "${driver.attr.memory_bandwidth}",
+					LTarget: "${device.attr.memory_bandwidth}",
 					Operand: ">",
 					RTarget: "10 GB/s",
 				},
 				{
-					LTarget: "${driver.attr.memory}",
+					LTarget: "${device.attr.memory}",
 					Operand: "is",
 					RTarget: "11264 MiB",
 				},
 				{
-					LTarget: "${driver.attr.graphics_clock}",
+					LTarget: "${device.attr.graphics_clock}",
 					Operand: ">",
 					RTarget: "1.4 GHz",
 				},
@@ -209,18 +209,18 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 			Name: "nvidia/gpu",
 			Constraints: []*structs.Constraint{
 				{
-					LTarget: "${driver.attr.memory_bandwidth}",
+					LTarget: "${device.attr.memory_bandwidth}",
 					Operand: ">",
 					RTarget: "10 GB/s",
 				},
 				{
-					LTarget: "${driver.attr.memory}",
+					LTarget: "${device.attr.memory}",
 					Operand: "is",
 					RTarget: "11264 MiB",
 				},
 				// Rules both out
 				{
-					LTarget: "${driver.attr.graphics_clock}",
+					LTarget: "${device.attr.graphics_clock}",
 					Operand: ">",
 					RTarget: "2.4 GHz",
 				},
@@ -271,10 +271,10 @@ func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
 			Name: "gpu",
 			Affinities: []*structs.Affinity{
 				{
-					LTarget: "${driver.attr.cuda_cores}",
+					LTarget: "${device.attr.cuda_cores}",
 					Operand: ">",
 					RTarget: "4000",
-					Weight:  0.6,
+					Weight:  60,
 				},
 			},
 			ExpectedDevice: nvidia1,
@@ -283,10 +283,10 @@ func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
 			Name: "gpu",
 			Affinities: []*structs.Affinity{
 				{
-					LTarget: "${driver.attr.cuda_cores}",
+					LTarget: "${device.attr.cuda_cores}",
 					Operand: "<",
 					RTarget: "4000",
-					Weight:  0.1,
+					Weight:  10,
 				},
 			},
 			ExpectedDevice: nvidia0,
@@ -295,10 +295,10 @@ func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
 			Name: "gpu",
 			Affinities: []*structs.Affinity{
 				{
-					LTarget: "${driver.attr.cuda_cores}",
+					LTarget: "${device.attr.cuda_cores}",
 					Operand: ">",
 					RTarget: "4000",
-					Weight:  -0.2,
+					Weight:  -20,
 				},
 			},
 			ZeroScore:      true,
@@ -309,22 +309,22 @@ func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
 			Affinities: []*structs.Affinity{
 				// First two are shared across both devices
 				{
-					LTarget: "${driver.attr.memory_bandwidth}",
+					LTarget: "${device.attr.memory_bandwidth}",
 					Operand: ">",
 					RTarget: "10 GB/s",
-					Weight:  0.2,
+					Weight:  20,
 				},
 				{
-					LTarget: "${driver.attr.memory}",
+					LTarget: "${device.attr.memory}",
 					Operand: "is",
 					RTarget: "11264 MiB",
-					Weight:  0.2,
+					Weight:  20,
 				},
 				{
-					LTarget: "${driver.attr.graphics_clock}",
+					LTarget: "${device.attr.graphics_clock}",
 					Operand: ">",
 					RTarget: "1.4 GHz",
-					Weight:  0.9,
+					Weight:  90,
 				},
 			},
 			ExpectedDevice: nvidia0,

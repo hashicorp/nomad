@@ -6,14 +6,16 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
+
+	testing "github.com/mitchellh/go-testing-interface"
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/logmon"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -21,9 +23,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,7 +32,6 @@ type DriverHarness struct {
 	client *plugin.GRPCClient
 	server *plugin.GRPCServer
 	t      testing.T
-	lm     logmon.LogMon
 	logger hclog.Logger
 	impl   drivers.DriverPlugin
 }
@@ -43,7 +42,7 @@ func (d *DriverHarness) Impl() drivers.DriverPlugin {
 func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 	logger := testlog.HCLogger(t).Named("driver_harness")
 
-	pd := drivers.NewDriverPlugin(d).(*drivers.PluginDriver)
+	pd := drivers.NewDriverPlugin(d, logger)
 
 	client, server := plugin.TestPluginGRPCConn(t,
 		map[string]plugin.Plugin{
@@ -68,12 +67,6 @@ func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 		impl:         d,
 	}
 
-	raw, err = client.Dispense("logmon")
-	if err != nil {
-		t.Fatalf("err dispensing plugin: %v", err)
-	}
-
-	h.lm = raw.(logmon.LogMon)
 	return h
 }
 
@@ -99,12 +92,8 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 	caps, err := h.Capabilities()
 	require.NoError(h.t, err)
 
-	var entries map[string]string
 	fsi := caps.FSIsolation
-	if fsi == cstructs.FSIsolationChroot {
-		entries = config.DefaultChrootEnv
-	}
-	require.NoError(h.t, taskDir.Build(false, entries, fsi))
+	require.NoError(h.t, taskDir.Build(fsi == drivers.FSIsolationChroot, config.DefaultChrootEnv))
 
 	task := &structs.Task{
 		Name: t.Name,
@@ -118,7 +107,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 	}
 
 	taskBuilder := taskenv.NewBuilder(mock.Node(), alloc, task, "global")
-	utils.SetEnvvars(taskBuilder, fsi, taskDir, config.DefaultConfig())
+	SetEnvvars(taskBuilder, fsi, taskDir, config.DefaultConfig())
 
 	taskEnv := taskBuilder.Build()
 	if t.Env == nil {
@@ -133,6 +122,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 
 	//logmon
 	if enableLogs {
+		lm := logmon.NewLogMon(h.logger.Named("logmon"))
 		if runtime.GOOS == "windows" {
 			id := uuid.Generate()[:8]
 			t.StdoutPath = fmt.Sprintf("//./pipe/%s-%s.stdout", t.Name, id)
@@ -141,7 +131,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 			t.StdoutPath = filepath.Join(taskDir.LogDir, fmt.Sprintf(".%s.stdout.fifo", t.Name))
 			t.StderrPath = filepath.Join(taskDir.LogDir, fmt.Sprintf(".%s.stderr.fifo", t.Name))
 		}
-		err = h.lm.Start(&logmon.LogConfig{
+		err = lm.Start(&logmon.LogConfig{
 			LogDir:        taskDir.LogDir,
 			StdoutLogFile: fmt.Sprintf("%s.stdout", t.Name),
 			StderrLogFile: fmt.Sprintf("%s.stderr", t.Name),
@@ -153,16 +143,13 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 		require.NoError(h.t, err)
 
 		return func() {
-			h.lm.Stop()
+			lm.Stop()
 			h.client.Close()
 			allocDir.Destroy()
 		}
 	}
 
 	return func() {
-		if h.lm != nil {
-			h.lm.Stop()
-		}
 		h.client.Close()
 		allocDir.Destroy()
 	}
@@ -194,19 +181,20 @@ func (h *DriverHarness) WaitUntilStarted(taskID string, timeout time.Duration) e
 // is passed through the base plugin layer.
 type MockDriver struct {
 	base.MockPlugin
-	TaskConfigSchemaF func() (*hclspec.Spec, error)
-	FingerprintF      func(context.Context) (<-chan *drivers.Fingerprint, error)
-	CapabilitiesF     func() (*drivers.Capabilities, error)
-	RecoverTaskF      func(*drivers.TaskHandle) error
-	StartTaskF        func(*drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error)
-	WaitTaskF         func(context.Context, string) (<-chan *drivers.ExitResult, error)
-	StopTaskF         func(string, time.Duration, string) error
-	DestroyTaskF      func(string, bool) error
-	InspectTaskF      func(string) (*drivers.TaskStatus, error)
-	TaskStatsF        func(string) (*cstructs.TaskResourceUsage, error)
-	TaskEventsF       func(context.Context) (<-chan *drivers.TaskEvent, error)
-	SignalTaskF       func(string, string) error
-	ExecTaskF         func(string, []string, time.Duration) (*drivers.ExecTaskResult, error)
+	TaskConfigSchemaF  func() (*hclspec.Spec, error)
+	FingerprintF       func(context.Context) (<-chan *drivers.Fingerprint, error)
+	CapabilitiesF      func() (*drivers.Capabilities, error)
+	RecoverTaskF       func(*drivers.TaskHandle) error
+	StartTaskF         func(*drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error)
+	WaitTaskF          func(context.Context, string) (<-chan *drivers.ExitResult, error)
+	StopTaskF          func(string, time.Duration, string) error
+	DestroyTaskF       func(string, bool) error
+	InspectTaskF       func(string) (*drivers.TaskStatus, error)
+	TaskStatsF         func(context.Context, string, time.Duration) (<-chan *drivers.TaskResourceUsage, error)
+	TaskEventsF        func(context.Context) (<-chan *drivers.TaskEvent, error)
+	SignalTaskF        func(string, string) error
+	ExecTaskF          func(string, []string, time.Duration) (*drivers.ExecTaskResult, error)
+	ExecTaskStreamingF func(context.Context, string, *drivers.ExecOptions) (*drivers.ExitResult, error)
 }
 
 func (d *MockDriver) TaskConfigSchema() (*hclspec.Spec, error) { return d.TaskConfigSchemaF() }
@@ -215,7 +203,7 @@ func (d *MockDriver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerpri
 }
 func (d *MockDriver) Capabilities() (*drivers.Capabilities, error) { return d.CapabilitiesF() }
 func (d *MockDriver) RecoverTask(h *drivers.TaskHandle) error      { return d.RecoverTaskF(h) }
-func (d *MockDriver) StartTask(c *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *MockDriver) StartTask(c *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	return d.StartTaskF(c)
 }
 func (d *MockDriver) WaitTask(ctx context.Context, id string) (<-chan *drivers.ExitResult, error) {
@@ -230,8 +218,8 @@ func (d *MockDriver) DestroyTask(taskID string, force bool) error {
 func (d *MockDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	return d.InspectTaskF(taskID)
 }
-func (d *MockDriver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
-	return d.TaskStats(taskID)
+func (d *MockDriver) TaskStats(ctx context.Context, taskID string, i time.Duration) (<-chan *drivers.TaskResourceUsage, error) {
+	return d.TaskStats(ctx, taskID, i)
 }
 func (d *MockDriver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
 	return d.TaskEventsF(ctx)
@@ -241,4 +229,31 @@ func (d *MockDriver) SignalTask(taskID string, signal string) error {
 }
 func (d *MockDriver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
 	return d.ExecTaskF(taskID, cmd, timeout)
+}
+
+func (d *MockDriver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts *drivers.ExecOptions) (*drivers.ExitResult, error) {
+	return d.ExecTaskStreamingF(ctx, taskID, execOpts)
+}
+
+// SetEnvvars sets path and host env vars depending on the FS isolation used.
+func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *allocdir.TaskDir, conf *config.Config) {
+	// Set driver-specific environment variables
+	switch fsi {
+	case drivers.FSIsolationNone:
+		// Use host paths
+		envBuilder.SetAllocDir(taskDir.SharedAllocDir)
+		envBuilder.SetTaskLocalDir(taskDir.LocalDir)
+		envBuilder.SetSecretsDir(taskDir.SecretsDir)
+	default:
+		// filesystem isolation; use container paths
+		envBuilder.SetAllocDir(allocdir.SharedAllocContainerPath)
+		envBuilder.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+		envBuilder.SetSecretsDir(allocdir.TaskSecretsContainerPath)
+	}
+
+	// Set the host environment variables for non-image based drivers
+	if fsi != drivers.FSIsolationImage {
+		filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+		envBuilder.SetHostEnvvars(filter)
+	}
 }

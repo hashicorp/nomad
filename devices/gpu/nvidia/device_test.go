@@ -73,7 +73,7 @@ func TestReserve(t *testing.T) {
 			Name: "All RequestedIDs are managed by Device",
 			ExpectedReservation: &device.ContainerReservation{
 				Envs: map[string]string{
-					nvidiaVisibleDevices: "UUID1,UUID2,UUID3",
+					NvidiaVisibleDevices: "UUID1,UUID2,UUID3",
 				},
 			},
 			ExpectedError: nil,

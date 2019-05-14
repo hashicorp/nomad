@@ -28,6 +28,15 @@ client {
 }
 ```
 
+## Plugin Options
+
+Nomad 0.9 now supports pluggable drivers. Operators should use the new
+[plugin][plugin-stanza] syntax to modify driver configuration. To find the
+plugin options supported by each individual Nomad driver, please see the
+[drivers documentation](/docs/drivers/index.html). The pre-0.9 `client.options`
+stanza will be supported in 0.9 for backward compatibility (except for the `lxc`
+driver) but will be removed in a future release.
+
 ## `client` Parameters
 
 - `alloc_dir` `(string: "[data_dir]/alloc")` - Specifies the directory to use
@@ -157,6 +166,9 @@ see the [Nomad `exec` driver documentation](/docs/drivers/exec.html#chroot) for
 the full list.
 
 ### `options` Parameters
+
+~> Note: client configuration options for drivers will soon be deprecated. See
+the [plugin stanza][plugin-stanza] documentation for more information.
 
 The following is not an exhaustive list of options for only the Nomad
 client. To find the options supported by each individual Nomad driver, please
@@ -356,4 +368,6 @@ client {
   }
 }
 ```
+[plugin-options]: #plugin-options
+[plugin-stanza]: /docs/configuration/plugin.html
 [server-join]: /docs/configuration/server_join.html "Server Join"

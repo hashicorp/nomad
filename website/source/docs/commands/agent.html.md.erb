@@ -14,7 +14,7 @@ or server functionality, including exposing interfaces for client consumption
 and running jobs.
 
 Due to the power and flexibility of this command, the Nomad agent is documented
-in its own section. See the [Nomad Agent](/guides/operations/agent/index.html) 
+in its own section. See the [Nomad Agent](/guides/install/production/nomad-agent.html) 
 guide and the [Configuration](/docs/configuration/index.html) documentation section for
 more information on how to use this command and the options it has.
 
@@ -59,7 +59,8 @@ via CLI arguments. The `agent` command accepts the following arguments:
 * `-encrypt`: Set the Serf encryption key. See the [Encryption Overview](/guides/security/encryption.html) for more details.
 * `-join=<address>`: Address of another agent to join upon starting up. This can
   be specified multiple times to specify multiple agents to join.
-* `-log-level=<level>`: Equivalent to the [log_level](#log_level) config option.
+* `-log-level=<level>`: Equivalent to the [log_level](/docs/configuration/index.html#log_level) config option.
+* `-log-json`: Equivalent to the [log_json](/docs/configuration/index.html#log_json) config option.
 * `-meta=<key=value>`: Equivalent to the Client [meta](#meta) config option.
 * `-network-interface=<interface>`: Equivalent to the Client
    [network_interface](#network_interface) config option.
@@ -100,6 +101,9 @@ via CLI arguments. The `agent` command accepts the following arguments:
   integration.
 * `vault-cert-file=<path>`: The path to the certificate for Vault communication.
 * `vault-key-file=<path>`: The path to the private key for Vault communication.
+* `vault-namespace=<namespace>`: The Vault namespace used for the integration. 
+  Required for servers and clients. Overrides the Vault namespace read from the 
+  VAULT_NAMESPACE environment variable.  
 * `vault-tls-skip-verify`: A boolean that determines whether to skip SSL
   certificate verification.
 * `vault-tls-server-name=<name>`: Used to set the SNI host when connecting to

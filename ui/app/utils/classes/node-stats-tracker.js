@@ -24,24 +24,24 @@ const NodeStatsTracker = EmberObject.extend(AbstractStatsTracker, {
     const timestamp = new Date(Math.floor(frame.Timestamp / 1000000));
 
     const cpuUsed = Math.floor(frame.CPUTicksConsumed) || 0;
-    this.get('cpu').pushObject({
+    this.cpu.pushObject({
       timestamp,
       used: cpuUsed,
-      percent: percent(cpuUsed, this.get('reservedCPU')),
+      percent: percent(cpuUsed, this.reservedCPU),
     });
 
     const memoryUsed = frame.Memory.Used;
-    this.get('memory').pushObject({
+    this.memory.pushObject({
       timestamp,
       used: memoryUsed,
-      percent: percent(memoryUsed / 1024 / 1024, this.get('reservedMemory')),
+      percent: percent(memoryUsed / 1024 / 1024, this.reservedMemory),
     });
   },
 
   pause() {
     const ts = new Date();
-    this.get('memory').pushObject(empty(ts));
-    this.get('cpu').pushObject(empty(ts));
+    this.memory.pushObject(empty(ts));
+    this.cpu.pushObject(empty(ts));
   },
 
   // Static figures, denominators for stats
@@ -51,10 +51,10 @@ const NodeStatsTracker = EmberObject.extend(AbstractStatsTracker, {
   // Dynamic figures, collected over time
   // []{ timestamp: Date, used: Number, percent: Number }
   cpu: computed('node', function() {
-    return RollingArray(this.get('bufferSize'));
+    return RollingArray(this.bufferSize);
   }),
   memory: computed('node', function() {
-    return RollingArray(this.get('bufferSize'));
+    return RollingArray(this.bufferSize);
   }),
 });
 

@@ -1,10 +1,15 @@
 package state
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 // allocRunnerMutableState08 is state that had to be written on each save as it
@@ -29,19 +34,44 @@ type allocRunnerMutableState08 struct {
 // 0.8.
 //
 // https://github.com/hashicorp/nomad/blob/v0.8.6/client/task_runner.go#L188-L197
-//
+// COMPAT(0.10): Allows upgrading from 0.8.X to 0.9.0.
 type taskRunnerState08 struct {
 	Version            string
 	HandleID           string
 	ArtifactDownloaded bool
 	TaskDirBuilt       bool
 	PayloadRendered    bool
-	DriverNetwork      *cstructs.DriverNetwork
+	DriverNetwork      *drivers.DriverNetwork
 	// Created Resources are no longer used.
 	//CreatedResources   *driver.CreatedResources
 }
 
-func (t *taskRunnerState08) Upgrade() *state.LocalState {
+type TaskRunnerHandle08 struct {
+	// Docker specific handle info
+	ContainerID string `json:"ContainerID"`
+	Image       string `json:"Image"`
+
+	// LXC specific handle info
+	ContainerName string `json:"ContainerName"`
+	LxcPath       string `json:"LxcPath"`
+
+	// Executor reattach config
+	PluginConfig struct {
+		Pid      int    `json:"Pid"`
+		AddrNet  string `json:"AddrNet"`
+		AddrName string `json:"AddrName"`
+	} `json:"PluginConfig"`
+}
+
+func (t *TaskRunnerHandle08) ReattachConfig() *pstructs.ReattachConfig {
+	return &pstructs.ReattachConfig{
+		Network: t.PluginConfig.AddrNet,
+		Addr:    t.PluginConfig.AddrName,
+		Pid:     t.PluginConfig.Pid,
+	}
+}
+
+func (t *taskRunnerState08) Upgrade(allocID, taskName string) (*state.LocalState, error) {
 	ls := state.NewLocalState()
 
 	// Reuse DriverNetwork
@@ -54,7 +84,11 @@ func (t *taskRunnerState08) Upgrade() *state.LocalState {
 
 	// Upgrade task dir state
 	ls.Hooks["task_dir"] = &state.HookState{
-		PrestartDone: t.TaskDirBuilt,
+		Data: map[string]string{
+			// "is_done" is equivalent to task_dir_hook.TaskDirHookIsDoneKey
+			// Does not import to avoid import cycle
+			"is_done": fmt.Sprintf("%v", t.TaskDirBuilt),
+		},
 	}
 
 	// Upgrade dispatch payload state
@@ -62,17 +96,40 @@ func (t *taskRunnerState08) Upgrade() *state.LocalState {
 		PrestartDone: t.PayloadRendered,
 	}
 
-	//TODO How to convert handles?! This does not work.
-	ls.TaskHandle = drivers.NewTaskHandle("TODO")
+	// Add necessary fields to TaskConfig
+	ls.TaskHandle = drivers.NewTaskHandle(drivers.Pre09TaskHandleVersion)
+	ls.TaskHandle.Config = &drivers.TaskConfig{
+		ID:      fmt.Sprintf("pre09-%s", uuid.Generate()),
+		Name:    taskName,
+		AllocID: allocID,
+	}
 
-	//TODO where do we get this from?
-	ls.TaskHandle.Config = nil
-
-	//TODO do we need to se this accurately? Or will RecoverTask handle it?
 	ls.TaskHandle.State = drivers.TaskStateUnknown
 
-	//TODO do we need an envelope so drivers know this is an old state?
-	ls.TaskHandle.SetDriverState(t.HandleID)
+	// The docker driver prefixed the handle with 'DOCKER:'
+	// Strip so that it can be unmarshalled
+	data := t.HandleID
+	if strings.HasPrefix(data, "DOCKER:") {
+		data = data[7:]
+	}
 
-	return ls
+	// The pre09 driver handle ID is given to the driver. It is unmarshalled
+	// here to check for errors
+	if _, err := UnmarshalPre09HandleID([]byte(data)); err != nil {
+		return nil, err
+	}
+
+	ls.TaskHandle.DriverState = []byte(data)
+
+	return ls, nil
+}
+
+// UnmarshalPre09HandleID decodes the pre09 json encoded handle ID
+func UnmarshalPre09HandleID(raw []byte) (*TaskRunnerHandle08, error) {
+	var handle TaskRunnerHandle08
+	if err := json.Unmarshal(raw, &handle); err != nil {
+		return nil, fmt.Errorf("failed to decode 0.8 driver state: %v", err)
+	}
+
+	return &handle, nil
 }

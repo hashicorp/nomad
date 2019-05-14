@@ -24,22 +24,22 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
     const timestamp = new Date(Math.floor(frame.Timestamp / 1000000));
 
     const cpuUsed = Math.floor(frame.ResourceUsage.CpuStats.TotalTicks) || 0;
-    this.get('cpu').pushObject({
+    this.cpu.pushObject({
       timestamp,
       used: cpuUsed,
-      percent: percent(cpuUsed, this.get('reservedCPU')),
+      percent: percent(cpuUsed, this.reservedCPU),
     });
 
     const memoryUsed = frame.ResourceUsage.MemoryStats.RSS;
-    this.get('memory').pushObject({
+    this.memory.pushObject({
       timestamp,
       used: memoryUsed,
-      percent: percent(memoryUsed / 1024 / 1024, this.get('reservedMemory')),
+      percent: percent(memoryUsed / 1024 / 1024, this.reservedMemory),
     });
 
     for (var taskName in frame.Tasks) {
       const taskFrame = frame.Tasks[taskName];
-      const stats = this.get('tasks').findBy('task', taskName);
+      const stats = this.tasks.findBy('task', taskName);
 
       // If for whatever reason there is a task in the frame data that isn't in the
       // allocation, don't attempt to append data for the task.
@@ -65,9 +65,9 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
 
   pause() {
     const ts = new Date();
-    this.get('memory').pushObject(empty(ts));
-    this.get('cpu').pushObject(empty(ts));
-    this.get('tasks').forEach(task => {
+    this.memory.pushObject(empty(ts));
+    this.cpu.pushObject(empty(ts));
+    this.tasks.forEach(task => {
       task.memory.pushObject(empty(ts));
       task.cpu.pushObject(empty(ts));
     });
@@ -80,14 +80,14 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
   // Dynamic figures, collected over time
   // []{ timestamp: Date, used: Number, percent: Number }
   cpu: computed('allocation', function() {
-    return RollingArray(this.get('bufferSize'));
+    return RollingArray(this.bufferSize);
   }),
   memory: computed('allocation', function() {
-    return RollingArray(this.get('bufferSize'));
+    return RollingArray(this.bufferSize);
   }),
 
   tasks: computed('allocation', function() {
-    const bufferSize = this.get('bufferSize');
+    const bufferSize = this.bufferSize;
     const tasks = this.get('allocation.taskGroup.tasks') || [];
     return tasks.map(task => ({
       task: get(task, 'name'),

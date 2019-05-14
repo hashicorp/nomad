@@ -15,12 +15,12 @@ export default Controller.extend({
   tokenRecord: null,
 
   resetStore() {
-    this.get('store').unloadAll();
+    this.store.unloadAll();
   },
 
   actions: {
     clearTokenProperties() {
-      this.get('token').setProperties({
+      this.token.setProperties({
         secret: undefined,
       });
       this.setProperties({
@@ -32,7 +32,7 @@ export default Controller.extend({
     },
 
     verifyToken() {
-      const { secret } = this.getProperties('secret', 'accessor');
+      const { secret } = this;
       const TokenAdapter = getOwner(this).lookup('adapter:token');
 
       this.set('token.secret', secret);
@@ -44,11 +44,11 @@ export default Controller.extend({
 
           // Clear out all data to ensure only data the new token is privileged to
           // see is shown
-          this.get('system').reset();
+          this.system.reset();
           this.resetStore();
 
           // Immediately refetch the token now that the store is empty
-          const newToken = this.get('store').findRecord('token', tokenId);
+          const newToken = this.store.findRecord('token', tokenId);
 
           this.setProperties({
             tokenIsValid: true,

@@ -1,73 +1,60 @@
 import EmberObject from '@ember/object';
-import { getOwner } from '@ember/application';
 import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
-import { test } from 'ember-qunit';
-import wait from 'ember-test-helpers/wait';
+import { settled } from '@ember/test-helpers';
+import { setupTest } from 'ember-qunit';
+import { module, test } from 'qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
-import moduleForAdapter from '../../helpers/module-for-adapter';
 
-moduleForAdapter('job', 'Unit | Adapter | Job', {
-  needs: [
-    'adapter:application',
-    'adapter:job',
-    'adapter:namespace',
-    'model:task-group',
-    'model:allocation',
-    'model:deployment',
-    'model:evaluation',
-    'model:job-summary',
-    'model:job-version',
-    'model:namespace',
-    'model:task-group-summary',
-    'serializer:namespace',
-    'serializer:job',
-    'serializer:job-summary',
-    'service:token',
-    'service:system',
-    'service:watchList',
-    'transform:fragment',
-    'transform:fragment-array',
-  ],
-  beforeEach() {
+module('Unit | Adapter | Job', function(hooks) {
+  setupTest(hooks);
+
+  hooks.beforeEach(async function() {
+    this.store = this.owner.lookup('service:store');
+    this.subject = () => this.store.adapterFor('job');
+
     window.sessionStorage.clear();
     window.localStorage.clear();
 
     this.server = startMirage();
-    this.server.create('namespace');
-    this.server.create('namespace', { id: 'some-namespace' });
-    this.server.create('node');
-    this.server.create('job', { id: 'job-1', namespaceId: 'default' });
-    this.server.create('job', { id: 'job-2', namespaceId: 'some-namespace' });
 
-    this.server.create('region', { id: 'region-1' });
-    this.server.create('region', { id: 'region-2' });
+    this.initializeUI = async () => {
+      this.server.create('namespace');
+      this.server.create('namespace', { id: 'some-namespace' });
+      this.server.create('node');
+      this.server.create('job', { id: 'job-1', namespaceId: 'default' });
+      this.server.create('job', { id: 'job-2', namespaceId: 'some-namespace' });
 
-    this.system = getOwner(this).lookup('service:system');
+      this.server.create('region', { id: 'region-1' });
+      this.server.create('region', { id: 'region-2' });
 
-    // Namespace, default region, and all regions are requests that all
-    // job requests depend on. Fetching them ahead of time means testing
-    // job adapter behavior in isolation.
-    this.system.get('namespaces');
-    this.system.get('shouldIncludeRegion');
-    this.system.get('defaultRegion');
+      this.system = this.owner.lookup('service:system');
 
-    // Reset the handledRequests array to avoid accounting for this
-    // namespaces request everywhere.
-    this.server.pretender.handledRequests.length = 0;
-  },
-  afterEach() {
+      // Namespace, default region, and all regions are requests that all
+      // job requests depend on. Fetching them ahead of time means testing
+      // job adapter behavior in isolation.
+      await this.system.get('namespaces');
+      this.system.get('shouldIncludeRegion');
+      await this.system.get('defaultRegion');
+
+      // Reset the handledRequests array to avoid accounting for this
+      // namespaces request everywhere.
+      this.server.pretender.handledRequests.length = 0;
+    };
+  });
+
+  hooks.afterEach(function() {
     this.server.shutdown();
-  },
-});
+  });
 
-test('The job endpoint is the only required endpoint for fetching a job', function(assert) {
-  const { pretender } = this.server;
-  const jobName = 'job-1';
-  const jobNamespace = 'default';
-  const jobId = JSON.stringify([jobName, jobNamespace]);
+  test('The job endpoint is the only required endpoint for fetching a job', async function(assert) {
+    await this.initializeUI();
 
-  return wait().then(() => {
+    const { pretender } = this.server;
+    const jobName = 'job-1';
+    const jobNamespace = 'default';
+    const jobId = JSON.stringify([jobName, jobNamespace]);
+
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.deepEqual(
@@ -76,18 +63,17 @@ test('The job endpoint is the only required endpoint for fetching a job', functi
       'The only request made is /job/:id'
     );
   });
-});
 
-test('When a namespace is set in localStorage but a job in the default namespace is requested, the namespace query param is not present', function(assert) {
-  window.localStorage.nomadActiveNamespace = 'some-namespace';
+  test('When a namespace is set in localStorage but a job in the default namespace is requested, the namespace query param is not present', async function(assert) {
+    window.localStorage.nomadActiveNamespace = 'some-namespace';
 
-  const { pretender } = this.server;
-  const jobName = 'job-1';
-  const jobNamespace = 'default';
-  const jobId = JSON.stringify([jobName, jobNamespace]);
+    await this.initializeUI();
 
-  this.system.get('namespaces');
-  return wait().then(() => {
+    const { pretender } = this.server;
+    const jobName = 'job-1';
+    const jobNamespace = 'default';
+    const jobId = JSON.stringify([jobName, jobNamespace]);
+
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.deepEqual(
@@ -96,17 +82,17 @@ test('When a namespace is set in localStorage but a job in the default namespace
       'The only request made is /job/:id with no namespace query param'
     );
   });
-});
 
-test('When a namespace is in localStorage and the requested job is in the default namespace, the namespace query param is left out', function(assert) {
-  window.localStorage.nomadActiveNamespace = 'red-herring';
+  test('When a namespace is in localStorage and the requested job is in the default namespace, the namespace query param is left out', async function(assert) {
+    window.localStorage.nomadActiveNamespace = 'red-herring';
 
-  const { pretender } = this.server;
-  const jobName = 'job-1';
-  const jobNamespace = 'default';
-  const jobId = JSON.stringify([jobName, jobNamespace]);
+    await this.initializeUI();
 
-  return wait().then(() => {
+    const { pretender } = this.server;
+    const jobName = 'job-1';
+    const jobNamespace = 'default';
+    const jobId = JSON.stringify([jobName, jobNamespace]);
+
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.deepEqual(
@@ -115,15 +101,15 @@ test('When a namespace is in localStorage and the requested job is in the defaul
       'The request made is /job/:id with no namespace query param'
     );
   });
-});
 
-test('When the job has a namespace other than default, it is in the URL', function(assert) {
-  const { pretender } = this.server;
-  const jobName = 'job-2';
-  const jobNamespace = 'some-namespace';
-  const jobId = JSON.stringify([jobName, jobNamespace]);
+  test('When the job has a namespace other than default, it is in the URL', async function(assert) {
+    await this.initializeUI();
 
-  return wait().then(() => {
+    const { pretender } = this.server;
+    const jobName = 'job-2';
+    const jobNamespace = 'some-namespace';
+    const jobId = JSON.stringify([jobName, jobNamespace]);
+
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.deepEqual(
@@ -132,13 +118,13 @@ test('When the job has a namespace other than default, it is in the URL', functi
       'The only request made is /job/:id?namespace=:namespace'
     );
   });
-});
 
-test('When there is no token set in the token service, no x-nomad-token header is set', function(assert) {
-  const { pretender } = this.server;
-  const jobId = JSON.stringify(['job-1', 'default']);
+  test('When there is no token set in the token service, no x-nomad-token header is set', async function(assert) {
+    await this.initializeUI();
 
-  return wait().then(() => {
+    const { pretender } = this.server;
+    const jobId = JSON.stringify(['job-1', 'default']);
+
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.notOk(
@@ -146,14 +132,14 @@ test('When there is no token set in the token service, no x-nomad-token header i
       'No token header present on either job request'
     );
   });
-});
 
-test('When a token is set in the token service, then x-nomad-token header is set', function(assert) {
-  const { pretender } = this.server;
-  const jobId = JSON.stringify(['job-1', 'default']);
-  const secret = 'here is the secret';
+  test('When a token is set in the token service, then x-nomad-token header is set', async function(assert) {
+    await this.initializeUI();
 
-  return wait().then(() => {
+    const { pretender } = this.server;
+    const jobId = JSON.stringify(['job-1', 'default']);
+    const secret = 'here is the secret';
+
     this.subject().set('token.secret', secret);
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
@@ -164,25 +150,26 @@ test('When a token is set in the token service, then x-nomad-token header is set
       'The token header is present on both job requests'
     );
   });
-});
 
-test('findAll can be watched', function(assert) {
-  const { pretender } = this.server;
+  test('findAll can be watched', async function(assert) {
+    await this.initializeUI();
 
-  const request = () =>
-    this.subject().findAll(null, { modelName: 'job' }, null, {
-      reload: true,
-      adapterOptions: { watch: true },
-    });
+    const { pretender } = this.server;
 
-  request();
-  assert.equal(
-    pretender.handledRequests[0].url,
-    '/v1/jobs?index=1',
-    'Second request is a blocking request for jobs'
-  );
+    const request = () =>
+      this.subject().findAll(null, { modelName: 'job' }, null, {
+        reload: true,
+        adapterOptions: { watch: true },
+      });
 
-  return wait().then(() => {
+    request();
+    assert.equal(
+      pretender.handledRequests[0].url,
+      '/v1/jobs?index=1',
+      'Second request is a blocking request for jobs'
+    );
+
+    await settled();
     request();
     assert.equal(
       pretender.handledRequests[1].url,
@@ -190,28 +177,29 @@ test('findAll can be watched', function(assert) {
       'Third request is a blocking request with an incremented index param'
     );
 
-    return wait();
+    await settled();
   });
-});
 
-test('findRecord can be watched', function(assert) {
-  const jobId = JSON.stringify(['job-1', 'default']);
-  const { pretender } = this.server;
+  test('findRecord can be watched', async function(assert) {
+    await this.initializeUI();
 
-  const request = () =>
-    this.subject().findRecord(null, { modelName: 'job' }, jobId, {
-      reload: true,
-      adapterOptions: { watch: true },
-    });
+    const jobId = JSON.stringify(['job-1', 'default']);
+    const { pretender } = this.server;
 
-  request();
-  assert.equal(
-    pretender.handledRequests[0].url,
-    '/v1/job/job-1?index=1',
-    'Second request is a blocking request for job-1'
-  );
+    const request = () =>
+      this.subject().findRecord(null, { modelName: 'job' }, jobId, {
+        reload: true,
+        adapterOptions: { watch: true },
+      });
 
-  return wait().then(() => {
+    request();
+    assert.equal(
+      pretender.handledRequests[0].url,
+      '/v1/job/job-1?index=1',
+      'Second request is a blocking request for job-1'
+    );
+
+    await settled();
     request();
     assert.equal(
       pretender.handledRequests[1].url,
@@ -219,38 +207,40 @@ test('findRecord can be watched', function(assert) {
       'Third request is a blocking request with an incremented index param'
     );
 
-    return wait();
+    await settled();
   });
-});
 
-test('relationships can be reloaded', function(assert) {
-  const { pretender } = this.server;
-  const plainId = 'job-1';
-  const mockModel = makeMockModel(plainId);
+  test('relationships can be reloaded', async function(assert) {
+    await this.initializeUI();
 
-  this.subject().reloadRelationship(mockModel, 'summary');
-  return wait().then(() => {
+    const { pretender } = this.server;
+    const plainId = 'job-1';
+    const mockModel = makeMockModel(plainId);
+
+    this.subject().reloadRelationship(mockModel, 'summary');
+    await settled();
     assert.equal(
       pretender.handledRequests[0].url,
       `/v1/job/${plainId}/summary`,
       'Relationship was reloaded'
     );
   });
-});
 
-test('relationship reloads can be watched', function(assert) {
-  const { pretender } = this.server;
-  const plainId = 'job-1';
-  const mockModel = makeMockModel(plainId);
+  test('relationship reloads can be watched', async function(assert) {
+    await this.initializeUI();
 
-  this.subject().reloadRelationship(mockModel, 'summary', true);
-  assert.equal(
-    pretender.handledRequests[0].url,
-    '/v1/job/job-1/summary?index=1',
-    'First request is a blocking request for job-1 summary relationship'
-  );
+    const { pretender } = this.server;
+    const plainId = 'job-1';
+    const mockModel = makeMockModel(plainId);
 
-  return wait().then(() => {
+    this.subject().reloadRelationship(mockModel, 'summary', true);
+    assert.equal(
+      pretender.handledRequests[0].url,
+      '/v1/job/job-1/summary?index=1',
+      'First request is a blocking request for job-1 summary relationship'
+    );
+
+    await settled();
     this.subject().reloadRelationship(mockModel, 'summary', true);
     assert.equal(
       pretender.handledRequests[1].url,
@@ -258,149 +248,155 @@ test('relationship reloads can be watched', function(assert) {
       'Second request is a blocking request with an incremented index param'
     );
   });
-});
 
-test('findAll can be canceled', function(assert) {
-  const { pretender } = this.server;
-  pretender.get('/v1/jobs', () => [200, {}, '[]'], true);
+  test('findAll can be canceled', async function(assert) {
+    await this.initializeUI();
 
-  this.subject()
-    .findAll(null, { modelName: 'job' }, null, {
+    const { pretender } = this.server;
+    pretender.get('/v1/jobs', () => [200, {}, '[]'], true);
+
+    this.subject()
+      .findAll(null, { modelName: 'job' }, null, {
+        reload: true,
+        adapterOptions: { watch: true },
+      })
+      .catch(() => {});
+
+    const { request: xhr } = pretender.requestReferences[0];
+    assert.equal(xhr.status, 0, 'Request is still pending');
+
+    // Schedule the cancelation before waiting
+    run.next(() => {
+      this.subject().cancelFindAll('job');
+    });
+
+    await settled();
+    assert.ok(xhr.aborted, 'Request was aborted');
+  });
+
+  test('findRecord can be canceled', async function(assert) {
+    await this.initializeUI();
+
+    const { pretender } = this.server;
+    const jobId = JSON.stringify(['job-1', 'default']);
+
+    pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
+
+    this.subject().findRecord(null, { modelName: 'job' }, jobId, {
       reload: true,
       adapterOptions: { watch: true },
-    })
-    .catch(() => {});
+    });
 
-  const { request: xhr } = pretender.requestReferences[0];
-  assert.equal(xhr.status, 0, 'Request is still pending');
+    const { request: xhr } = pretender.requestReferences[0];
+    assert.equal(xhr.status, 0, 'Request is still pending');
 
-  // Schedule the cancelation before waiting
-  run.next(() => {
-    this.subject().cancelFindAll('job');
-  });
+    // Schedule the cancelation before waiting
+    run.next(() => {
+      this.subject().cancelFindRecord('job', jobId);
+    });
 
-  return wait().then(() => {
+    await settled();
     assert.ok(xhr.aborted, 'Request was aborted');
   });
-});
 
-test('findRecord can be canceled', function(assert) {
-  const { pretender } = this.server;
-  const jobId = JSON.stringify(['job-1', 'default']);
+  test('relationship reloads can be canceled', async function(assert) {
+    await this.initializeUI();
 
-  pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
+    const { pretender } = this.server;
+    const plainId = 'job-1';
+    const mockModel = makeMockModel(plainId);
+    pretender.get('/v1/job/:id/summary', () => [200, {}, '{}'], true);
 
-  this.subject().findRecord(null, { modelName: 'job' }, jobId, {
-    reload: true,
-    adapterOptions: { watch: true },
-  });
+    this.subject().reloadRelationship(mockModel, 'summary', true);
 
-  const { request: xhr } = pretender.requestReferences[0];
-  assert.equal(xhr.status, 0, 'Request is still pending');
+    const { request: xhr } = pretender.requestReferences[0];
+    assert.equal(xhr.status, 0, 'Request is still pending');
 
-  // Schedule the cancelation before waiting
-  run.next(() => {
-    this.subject().cancelFindRecord('job', jobId);
-  });
+    // Schedule the cancelation before waiting
+    run.next(() => {
+      this.subject().cancelReloadRelationship(mockModel, 'summary');
+    });
 
-  return wait().then(() => {
+    await settled();
     assert.ok(xhr.aborted, 'Request was aborted');
   });
-});
 
-test('relationship reloads can be canceled', function(assert) {
-  const { pretender } = this.server;
-  const plainId = 'job-1';
-  const mockModel = makeMockModel(plainId);
-  pretender.get('/v1/job/:id/summary', () => [200, {}, '{}'], true);
+  test('requests can be canceled even if multiple requests for the same URL were made', async function(assert) {
+    await this.initializeUI();
 
-  this.subject().reloadRelationship(mockModel, 'summary', true);
+    const { pretender } = this.server;
+    const jobId = JSON.stringify(['job-1', 'default']);
 
-  const { request: xhr } = pretender.requestReferences[0];
-  assert.equal(xhr.status, 0, 'Request is still pending');
+    pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
 
-  // Schedule the cancelation before waiting
-  run.next(() => {
-    this.subject().cancelReloadRelationship(mockModel, 'summary');
-  });
+    this.subject().findRecord(null, { modelName: 'job' }, jobId, {
+      reload: true,
+      adapterOptions: { watch: true },
+    });
 
-  return wait().then(() => {
+    this.subject().findRecord(null, { modelName: 'job' }, jobId, {
+      reload: true,
+      adapterOptions: { watch: true },
+    });
+
+    const { request: xhr } = pretender.requestReferences[0];
+    assert.equal(xhr.status, 0, 'Request is still pending');
+    assert.equal(pretender.requestReferences.length, 2, 'Two findRecord requests were made');
+    assert.equal(
+      pretender.requestReferences.mapBy('url').uniq().length,
+      1,
+      'The two requests have the same URL'
+    );
+
+    // Schedule the cancelation before waiting
+    run.next(() => {
+      this.subject().cancelFindRecord('job', jobId);
+    });
+
+    await settled();
     assert.ok(xhr.aborted, 'Request was aborted');
   });
-});
 
-test('requests can be canceled even if multiple requests for the same URL were made', function(assert) {
-  const { pretender } = this.server;
-  const jobId = JSON.stringify(['job-1', 'default']);
+  test('canceling a find record request will never cancel a request with the same url but different method', async function(assert) {
+    await this.initializeUI();
 
-  pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
+    const { pretender } = this.server;
+    const jobId = JSON.stringify(['job-1', 'default']);
 
-  this.subject().findRecord(null, { modelName: 'job' }, jobId, {
-    reload: true,
-    adapterOptions: { watch: true },
-  });
+    pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
+    pretender.delete('/v1/job/:id', () => [204, {}, ''], 200);
 
-  this.subject().findRecord(null, { modelName: 'job' }, jobId, {
-    reload: true,
-    adapterOptions: { watch: true },
-  });
+    this.subject().findRecord(null, { modelName: 'job' }, jobId, {
+      reload: true,
+      adapterOptions: { watch: true },
+    });
 
-  const { request: xhr } = pretender.requestReferences[0];
-  assert.equal(xhr.status, 0, 'Request is still pending');
-  assert.equal(pretender.requestReferences.length, 2, 'Two findRecord requests were made');
-  assert.equal(
-    pretender.requestReferences.mapBy('url').uniq().length,
-    1,
-    'The two requests have the same URL'
-  );
+    this.subject().stop(EmberObject.create({ id: jobId }));
 
-  // Schedule the cancelation before waiting
-  run.next(() => {
-    this.subject().cancelFindRecord('job', jobId);
-  });
+    const { request: getXHR } = pretender.requestReferences[0];
+    const { request: deleteXHR } = pretender.requestReferences[1];
+    assert.equal(getXHR.status, 0, 'Get request is still pending');
+    assert.equal(deleteXHR.status, 0, 'Delete request is still pending');
 
-  return wait().then(() => {
-    assert.ok(xhr.aborted, 'Request was aborted');
-  });
-});
+    // Schedule the cancelation before waiting
+    run.next(() => {
+      this.subject().cancelFindRecord('job', jobId);
+    });
 
-test('canceling a find record request will never cancel a request with the same url but different method', function(assert) {
-  const { pretender } = this.server;
-  const jobId = JSON.stringify(['job-1', 'default']);
-
-  pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
-  pretender.delete('/v1/job/:id', () => [204, {}, ''], 200);
-
-  this.subject().findRecord(null, { modelName: 'job' }, jobId, {
-    reload: true,
-    adapterOptions: { watch: true },
-  });
-
-  this.subject().stop(EmberObject.create({ id: jobId }));
-
-  const { request: getXHR } = pretender.requestReferences[0];
-  const { request: deleteXHR } = pretender.requestReferences[1];
-  assert.equal(getXHR.status, 0, 'Get request is still pending');
-  assert.equal(deleteXHR.status, 0, 'Delete request is still pending');
-
-  // Schedule the cancelation before waiting
-  run.next(() => {
-    this.subject().cancelFindRecord('job', jobId);
-  });
-
-  return wait().then(() => {
+    await settled();
     assert.ok(getXHR.aborted, 'Get request was aborted');
     assert.notOk(deleteXHR.aborted, 'Delete request was aborted');
   });
-});
 
-test('when there is no region set, requests are made without the region query param', function(assert) {
-  const { pretender } = this.server;
-  const jobName = 'job-1';
-  const jobNamespace = 'default';
-  const jobId = JSON.stringify([jobName, jobNamespace]);
+  test('when there is no region set, requests are made without the region query param', async function(assert) {
+    await this.initializeUI();
 
-  return wait().then(() => {
+    const { pretender } = this.server;
+    const jobName = 'job-1';
+    const jobNamespace = 'default';
+    const jobId = JSON.stringify([jobName, jobNamespace]);
+
+    await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
     this.subject().findAll(null, { modelName: 'job' }, null);
 
@@ -410,18 +406,19 @@ test('when there is no region set, requests are made without the region query pa
       'No requests include the region query param'
     );
   });
-});
 
-test('when there is a region set, requests are made with the region query param', function(assert) {
-  const region = 'region-2';
-  window.localStorage.nomadActiveRegion = region;
+  test('when there is a region set, requests are made with the region query param', async function(assert) {
+    const region = 'region-2';
+    window.localStorage.nomadActiveRegion = region;
 
-  const { pretender } = this.server;
-  const jobName = 'job-1';
-  const jobNamespace = 'default';
-  const jobId = JSON.stringify([jobName, jobNamespace]);
+    await this.initializeUI();
 
-  return wait().then(() => {
+    const { pretender } = this.server;
+    const jobName = 'job-1';
+    const jobNamespace = 'default';
+    const jobId = JSON.stringify([jobName, jobNamespace]);
+
+    await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
     this.subject().findAll(null, { modelName: 'job' }, null);
 
@@ -431,17 +428,18 @@ test('when there is a region set, requests are made with the region query param'
       'Requests include the region query param'
     );
   });
-});
 
-test('when the region is set to the default region, requests are made without the region query param', function(assert) {
-  window.localStorage.nomadActiveRegion = 'region-1';
+  test('when the region is set to the default region, requests are made without the region query param', async function(assert) {
+    window.localStorage.nomadActiveRegion = 'region-1';
 
-  const { pretender } = this.server;
-  const jobName = 'job-1';
-  const jobNamespace = 'default';
-  const jobId = JSON.stringify([jobName, jobNamespace]);
+    await this.initializeUI();
 
-  return wait().then(() => {
+    const { pretender } = this.server;
+    const jobName = 'job-1';
+    const jobNamespace = 'default';
+    const jobId = JSON.stringify([jobName, jobNamespace]);
+
+    await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
     this.subject().findAll(null, { modelName: 'job' }, null);
 

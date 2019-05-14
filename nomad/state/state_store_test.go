@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -88,6 +88,7 @@ func TestStateStore_Blocking_MinQuery(t *testing.T) {
 	}
 }
 
+// COMPAT 0.11: Uses AllocUpdateRequest.Alloc
 // This test checks that:
 // 1) The job is denormalized
 // 2) Allocations are created
@@ -138,6 +139,86 @@ func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing
 	assert.Nil(err)
 	assert.NotNil(evalOut)
 	assert.EqualValues(1000, evalOut.ModifyIndex)
+}
+
+// This test checks that:
+// 1) The job is denormalized
+// 2) Allocations are denormalized and updated with the diff
+func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	job := alloc.Job
+	alloc.Job = nil
+
+	stoppedAlloc := mock.Alloc()
+	stoppedAlloc.Job = job
+	stoppedAllocDiff := &structs.AllocationDiff{
+		ID:                 stoppedAlloc.ID,
+		DesiredDescription: "desired desc",
+		ClientStatus:       structs.AllocClientStatusLost,
+	}
+	preemptedAlloc := mock.Alloc()
+	preemptedAlloc.Job = job
+	preemptedAllocDiff := &structs.AllocationDiff{
+		ID:                    preemptedAlloc.ID,
+		PreemptedByAllocation: alloc.ID,
+	}
+
+	require := require.New(t)
+	require.NoError(state.UpsertAllocs(900, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
+	require.NoError(state.UpsertJob(999, job))
+
+	eval := mock.Eval()
+	eval.JobID = job.ID
+
+	// Create an eval
+	require.NoError(state.UpsertEvals(1, []*structs.Evaluation{eval}))
+
+	// Create a plan result
+	res := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			AllocsUpdated: []*structs.Allocation{alloc},
+			AllocsStopped: []*structs.AllocationDiff{stoppedAllocDiff},
+			Job:           job,
+		},
+		EvalID:          eval.ID,
+		AllocsPreempted: []*structs.AllocationDiff{preemptedAllocDiff},
+	}
+	assert := assert.New(t)
+	planModifyIndex := uint64(1000)
+	err := state.UpsertPlanResults(planModifyIndex, &res)
+	require.NoError(err)
+
+	ws := memdb.NewWatchSet()
+	out, err := state.AllocByID(ws, alloc.ID)
+	require.NoError(err)
+	assert.Equal(alloc, out)
+
+	updatedStoppedAlloc, err := state.AllocByID(ws, stoppedAlloc.ID)
+	require.NoError(err)
+	assert.Equal(stoppedAllocDiff.DesiredDescription, updatedStoppedAlloc.DesiredDescription)
+	assert.Equal(structs.AllocDesiredStatusStop, updatedStoppedAlloc.DesiredStatus)
+	assert.Equal(stoppedAllocDiff.ClientStatus, updatedStoppedAlloc.ClientStatus)
+	assert.Equal(planModifyIndex, updatedStoppedAlloc.AllocModifyIndex)
+	assert.Equal(planModifyIndex, updatedStoppedAlloc.AllocModifyIndex)
+
+	updatedPreemptedAlloc, err := state.AllocByID(ws, preemptedAlloc.ID)
+	require.NoError(err)
+	assert.Equal(structs.AllocDesiredStatusEvict, updatedPreemptedAlloc.DesiredStatus)
+	assert.Equal(preemptedAllocDiff.PreemptedByAllocation, updatedPreemptedAlloc.PreemptedByAllocation)
+	assert.Equal(planModifyIndex, updatedPreemptedAlloc.AllocModifyIndex)
+	assert.Equal(planModifyIndex, updatedPreemptedAlloc.AllocModifyIndex)
+
+	index, err := state.Index("allocs")
+	require.NoError(err)
+	assert.EqualValues(planModifyIndex, index)
+
+	require.False(watchFired(ws))
+
+	evalOut, err := state.EvalByID(ws, eval.ID)
+	require.NoError(err)
+	require.NotNil(evalOut)
+	assert.EqualValues(planModifyIndex, evalOut.ModifyIndex)
 }
 
 // This test checks that the deployment is created and allocations count towards
@@ -271,11 +352,9 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 	require.NoError(err)
 
 	minimalPreemptedAlloc := &structs.Allocation{
-		ID:                 preemptedAlloc.ID,
-		Namespace:          preemptedAlloc.Namespace,
-		DesiredStatus:      structs.AllocDesiredStatusEvict,
-		ModifyTime:         time.Now().Unix(),
-		DesiredDescription: fmt.Sprintf("Preempted by allocation %v", alloc.ID),
+		ID:                    preemptedAlloc.ID,
+		PreemptedByAllocation: alloc.ID,
+		ModifyTime:            time.Now().Unix(),
 	}
 
 	// Create eval for preempted job
@@ -316,7 +395,7 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 	preempted, err := state.AllocByID(ws, preemptedAlloc.ID)
 	require.NoError(err)
 	require.Equal(preempted.DesiredStatus, structs.AllocDesiredStatusEvict)
-	require.Equal(preempted.DesiredDescription, fmt.Sprintf("Preempted by allocation %v", alloc.ID))
+	require.Equal(preempted.DesiredDescription, fmt.Sprintf("Preempted by alloc ID %v", alloc.ID))
 
 	// Verify eval for preempted job
 	preemptedJobEval, err := state.EvalByID(ws, eval2.ID)
@@ -4354,6 +4433,95 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 	}
 }
 
+func TestStateStore_ReconcileParentJobSummary(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	state := testStateStore(t)
+
+	// Add a node
+	node := mock.Node()
+	state.UpsertNode(80, node)
+
+	// Make a parameterized job
+	job1 := mock.BatchJob()
+	job1.ID = "test"
+	job1.ParameterizedJob = &structs.ParameterizedJobConfig{
+		Payload: "random",
+	}
+	job1.TaskGroups[0].Count = 1
+	state.UpsertJob(100, job1)
+
+	// Make a child job
+	childJob := job1.Copy()
+	childJob.ID = job1.ID + "dispatch-23423423"
+	childJob.ParentID = job1.ID
+	childJob.Dispatched = true
+	childJob.Status = structs.JobStatusRunning
+
+	// Make some allocs for child job
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	alloc.Job = childJob
+	alloc.JobID = childJob.ID
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+
+	alloc2 := mock.Alloc()
+	alloc2.NodeID = node.ID
+	alloc2.Job = childJob
+	alloc2.JobID = childJob.ID
+	alloc2.ClientStatus = structs.AllocClientStatusFailed
+
+	require.Nil(state.UpsertJob(110, childJob))
+	require.Nil(state.UpsertAllocs(111, []*structs.Allocation{alloc, alloc2}))
+
+	// Make the summary incorrect in the state store
+	summary, err := state.JobSummaryByID(nil, job1.Namespace, job1.ID)
+	require.Nil(err)
+
+	summary.Children = nil
+	summary.Summary = make(map[string]structs.TaskGroupSummary)
+	summary.Summary["web"] = structs.TaskGroupSummary{
+		Queued: 1,
+	}
+
+	// Delete the child job summary
+	state.DeleteJobSummary(125, childJob.Namespace, childJob.ID)
+
+	state.ReconcileJobSummaries(120)
+
+	ws := memdb.NewWatchSet()
+
+	// Verify parent summary is corrected
+	summary, _ = state.JobSummaryByID(ws, alloc.Namespace, job1.ID)
+	expectedSummary := structs.JobSummary{
+		JobID:     job1.ID,
+		Namespace: job1.Namespace,
+		Summary:   make(map[string]structs.TaskGroupSummary),
+		Children: &structs.JobChildrenSummary{
+			Running: 1,
+		},
+		CreateIndex: 100,
+		ModifyIndex: 120,
+	}
+	require.Equal(&expectedSummary, summary)
+
+	// Verify child job summary is also correct
+	childSummary, _ := state.JobSummaryByID(ws, childJob.Namespace, childJob.ID)
+	expectedChildSummary := structs.JobSummary{
+		JobID:     childJob.ID,
+		Namespace: childJob.Namespace,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": {
+				Running: 1,
+				Failed:  1,
+			},
+		},
+		CreateIndex: 110,
+		ModifyIndex: 120,
+	}
+	require.Equal(&expectedChildSummary, childSummary)
+}
+
 func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
 	state := testStateStore(t)
 
@@ -6884,6 +7052,31 @@ func TestStateStore_Abandon(t *testing.T) {
 	default:
 		t.Fatalf("bad")
 	}
+}
+
+// Verifies that an error is returned when an allocation doesn't exist in the state store.
+func TestStateSnapshot_DenormalizeAllocationDiffSlice_AllocDoesNotExist(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	require := require.New(t)
+
+	// Insert job
+	err := state.UpsertJob(999, alloc.Job)
+	require.NoError(err)
+
+	allocDiffs := []*structs.AllocationDiff{
+		{
+			ID: alloc.ID,
+		},
+	}
+
+	snap, err := state.Snapshot()
+	require.NoError(err)
+
+	denormalizedAllocs, err := snap.DenormalizeAllocationDiffSlice(allocDiffs, alloc.Job)
+
+	require.EqualError(err, fmt.Sprintf("alloc %v doesn't exist", alloc.ID))
+	require.Nil(denormalizedAllocs)
 }
 
 // watchFired is a helper for unit tests that returns if the given watch set

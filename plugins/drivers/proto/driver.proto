@@ -56,7 +56,7 @@ service Driver {
     rpc InspectTask(InspectTaskRequest) returns (InspectTaskResponse) {}
 
     // TaskStats collects and returns runtime metrics for the given task
-    rpc TaskStats(TaskStatsRequest) returns (TaskStatsResponse) {}
+    rpc TaskStats(TaskStatsRequest) returns (stream TaskStatsResponse) {}
 
     // TaskEvents starts a streaming RPC where all task events emitted by the
     // driver are streamed to the caller.
@@ -70,6 +70,10 @@ service Driver {
 
     // ExecTask executes a command inside the tasks execution context
     rpc ExecTask(ExecTaskRequest) returns (ExecTaskResponse) {}
+
+    // ExecTaskStreaming executes a command inside the tasks execution context
+    // and streams back results
+    rpc ExecTaskStreaming(stream ExecTaskStreamingRequest) returns (stream ExecTaskStreamingResponse) {}
 }
 
 message TaskConfigSchemaRequest {}
@@ -231,6 +235,9 @@ message TaskStatsRequest {
 
     // TaskId is the ID of the target task
     string task_id = 1;
+
+    // CollectionInterval is the interval at which to stream stats to the caller
+    google.protobuf.Duration collection_interval = 2;
 }
 
 message TaskStatsResponse {
@@ -275,6 +282,36 @@ message ExecTaskResponse {
 
     // Result from the exec
     ExitResult result = 3;
+}
+
+message ExecTaskStreamingIOOperation {
+    bytes data = 1;
+    bool close = 2;
+}
+
+message ExecTaskStreamingRequest {
+    message Setup {
+        string task_id = 1;
+        repeated string command = 2;
+        bool tty = 3;
+    }
+
+    message TerminalSize {
+        int32 height = 1;
+        int32 width = 2;
+    }
+
+    Setup setup = 1;
+    TerminalSize tty_size = 2;
+    ExecTaskStreamingIOOperation stdin = 3;
+}
+
+message ExecTaskStreamingResponse {
+    ExecTaskStreamingIOOperation stdout = 1;
+    ExecTaskStreamingIOOperation stderr = 2;
+
+    bool exited = 3;
+    ExitResult result = 4;
 }
 
 message DriverCapabilities {
@@ -445,14 +482,18 @@ enum TaskState {
 // TaskHandle is created when starting a task and is used to recover task
 message TaskHandle {
 
+    // Version is used by the driver to version the DriverState schema.
+    // Version 0 is reserved by Nomad and should not be used.
+    int32 version = 1;
+
     // Config is the TaskConfig for the task
-    TaskConfig config = 1;
+    TaskConfig config = 2;
 
     // State is the state of the task's execution
-    TaskState state = 2;
+    TaskState state = 3;
 
     // DriverState is the encoded state for the specific driver
-    bytes driver_state = 3;
+    bytes driver_state = 4;
 }
 
 // NetworkOverride contains network settings which the driver may override
@@ -561,6 +602,8 @@ message MemoryUsage {
     uint64 max_usage = 3;
     uint64 kernel_usage = 4;
     uint64 kernel_max_usage = 5;
+    uint64 usage = 7;
+    uint64 swap = 8;
 
     enum Fields {
         RSS = 0;
@@ -568,6 +611,8 @@ message MemoryUsage {
         MAX_USAGE = 2;
         KERNEL_USAGE = 3;
         KERNEL_MAX_USAGE = 4;
+        USAGE = 5;
+        SWAP = 6;
     }
     // MeasuredFields indicates which fields were actually sampled
     repeated Fields measured_fields = 6;

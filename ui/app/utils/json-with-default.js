@@ -1,4 +1,4 @@
-import { copy } from '@ember/object/internals';
+import { copy } from 'ember-copy';
 
 // Used with fetch.
 // Fetch only goes into the promise catch if there is a network error.

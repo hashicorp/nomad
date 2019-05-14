@@ -1,0 +1,64 @@
+
+[[constraint]]
+  name = "github.com/burntsushi/toml"
+  version = "0.3.0"
+
+[[constraint]]
+  name = "github.com/hashicorp/consul"
+  branch = "master"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/hashicorp/go-gatedio"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/hashicorp/go-multierror"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/hashicorp/go-rootcerts"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/hashicorp/go-syslog"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/hashicorp/hcl"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/hashicorp/logutils"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/hashicorp/vault"
+
+[[constraint]]
+  name = "github.com/mattn/go-shellwords"
+  version = "1.0.3"
+
+[[constraint]]
+  name = "github.com/mgutz/logxi"
+  version = "1.0.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/mitchellh/go-homedir"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/mitchellh/mapstructure"
+
+[[constraint]]
+  name = "github.com/pkg/errors"
+  version = "0.8.0"
+
+[[constraint]]
+  name = "github.com/stretchr/testify"
+  version = "1.1.4"
+
+[[constraint]]
+  branch = "v2"
+  name = "gopkg.in/yaml.v2"

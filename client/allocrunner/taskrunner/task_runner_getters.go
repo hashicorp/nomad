@@ -1,6 +1,7 @@
 package taskrunner
 
 import (
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -56,7 +57,7 @@ func (tr *TaskRunner) setVaultToken(token string) {
 	tr.vaultToken = token
 
 	// Update the task's environment
-	tr.envBuilder.SetVaultToken(token, tr.task.Vault.Env)
+	tr.envBuilder.SetVaultToken(token, tr.clientConfig.VaultConfig.Namespace, tr.task.Vault.Env)
 }
 
 // getDriverHandle returns a driver handle.
@@ -84,4 +85,31 @@ func (tr *TaskRunner) clearDriverHandle() {
 		tr.driver.DestroyTask(tr.handle.ID(), true)
 	}
 	tr.handle = nil
+}
+
+// setKillErr stores any error that arouse while killing the task
+func (tr *TaskRunner) setKillErr(err error) {
+	tr.killErrLock.Lock()
+	defer tr.killErrLock.Unlock()
+	tr.killErr = err
+}
+
+// getKillErr returns any error that arouse while killing the task
+func (tr *TaskRunner) getKillErr() error {
+	tr.killErrLock.Lock()
+	defer tr.killErrLock.Unlock()
+	return tr.killErr
+}
+
+// hookState returns the state for the given hook or nil if no state is
+// persisted for the hook.
+func (tr *TaskRunner) hookState(name string) *state.HookState {
+	tr.stateLock.RLock()
+	defer tr.stateLock.RUnlock()
+
+	var s *state.HookState
+	if tr.localState.Hooks != nil {
+		s = tr.localState.Hooks[name].Copy()
+	}
+	return s
 }

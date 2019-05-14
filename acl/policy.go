@@ -28,6 +28,9 @@ const (
 	NamespaceCapabilityDispatchJob      = "dispatch-job"
 	NamespaceCapabilityReadLogs         = "read-logs"
 	NamespaceCapabilityReadFS           = "read-fs"
+	NamespaceCapabilityAllocExec        = "alloc-exec"
+	NamespaceCapabilityAllocNodeExec    = "alloc-node-exec"
+	NamespaceCapabilityAllocLifecycle   = "alloc-lifecycle"
 	NamespaceCapabilitySentinelOverride = "sentinel-override"
 )
 
@@ -93,7 +96,8 @@ func isNamespaceCapabilityValid(cap string) bool {
 	switch cap {
 	case NamespaceCapabilityDeny, NamespaceCapabilityListJobs, NamespaceCapabilityReadJob,
 		NamespaceCapabilitySubmitJob, NamespaceCapabilityDispatchJob, NamespaceCapabilityReadLogs,
-		NamespaceCapabilityReadFS:
+		NamespaceCapabilityReadFS, NamespaceCapabilityAllocLifecycle,
+		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec:
 		return true
 	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride:
@@ -122,6 +126,8 @@ func expandNamespacePolicy(policy string) []string {
 			NamespaceCapabilityDispatchJob,
 			NamespaceCapabilityReadLogs,
 			NamespaceCapabilityReadFS,
+			NamespaceCapabilityAllocExec,
+			NamespaceCapabilityAllocLifecycle,
 		}
 	default:
 		return nil

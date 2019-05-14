@@ -1,8 +1,9 @@
 package state
 
 import (
+	testing "github.com/mitchellh/go-testing-interface"
+
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/mitchellh/go-testing-interface"
 )
 
 func TestStateStore(t testing.T) *StateStore {

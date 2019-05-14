@@ -7,7 +7,7 @@ export default Mixin.create(WithVisibilityDetection, {
   watchers: computed(() => []),
 
   cancelAllWatchers() {
-    this.get('watchers').forEach(watcher => {
+    this.watchers.forEach(watcher => {
       assert('Watchers must be Ember Concurrency Tasks.', !!watcher.cancelAll);
       watcher.cancelAll();
     });

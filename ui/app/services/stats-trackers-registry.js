@@ -11,6 +11,9 @@ import AllocationStatsTracker from 'nomad-ui/utils/classes/allocation-stats-trac
 const MAX_STAT_TRACKERS = 10;
 let registry;
 
+const exists = (tracker, prop) =>
+  tracker.get(prop) && !tracker.get(prop).isDestroyed && !tracker.get(prop).isDestroying;
+
 export default Service.extend({
   token: service(),
 
@@ -30,15 +33,19 @@ export default Service.extend({
 
     const type = resource && resource.constructor.modelName;
     const key = `${type}:${resource.get('id')}`;
-
-    const cachedTracker = registry.get(key);
-    if (cachedTracker) return cachedTracker;
-
     const Constructor = type === 'node' ? NodeStatsTracker : AllocationStatsTracker;
     const resourceProp = type === 'node' ? 'node' : 'allocation';
 
+    const cachedTracker = registry.get(key);
+    if (cachedTracker) {
+      // It's possible for the resource on a cachedTracker to have been
+      // deleted. Rebind it if that's the case.
+      if (!exists(cachedTracker, resourceProp)) cachedTracker.set(resourceProp, resource);
+      return cachedTracker;
+    }
+
     const tracker = Constructor.create({
-      fetch: url => this.get('token').authorizedRequest(url),
+      fetch: url => this.token.authorizedRequest(url),
       [resourceProp]: resource,
     });
 

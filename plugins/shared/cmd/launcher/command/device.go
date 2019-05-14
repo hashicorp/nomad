@@ -14,12 +14,11 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
-	hcl2 "github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/hcl2/hcldec"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
-	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty/msgpack"
@@ -176,7 +175,7 @@ func (c *Device) getSpec() (hcldec.Spec, error) {
 	c.logger.Trace("device spec", "spec", hclog.Fmt("% #v", pretty.Formatter(spec)))
 
 	// Convert the schema
-	schema, diag := hclspec.Convert(spec)
+	schema, diag := hclspecutils.Convert(spec)
 	if diag.HasErrors() {
 		errStr := "failed to convert HCL schema: "
 		for _, err := range diag.Errs() {
@@ -197,11 +196,7 @@ func (c *Device) setConfig(spec hcldec.Spec, apiVersion string, config []byte, n
 
 	c.logger.Trace("raw hcl config", "config", hclog.Fmt("% #v", pretty.Formatter(configVal)))
 
-	ctx := &hcl2.EvalContext{
-		Functions: hclutils.GetStdlibFuncs(),
-	}
-
-	val, diag := hclutils.ParseHclInterface(configVal, spec, ctx)
+	val, diag := hclutils.ParseHclInterface(configVal, spec, nil)
 	if diag.HasErrors() {
 		errStr := "failed to parse config"
 		for _, err := range diag.Errs() {

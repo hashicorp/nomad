@@ -31,6 +31,7 @@ func LaunchDockerLogger(logger hclog.Logger) (DockerLogger, *plugin.Client, erro
 		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolGRPC,
 		},
+		Logger: logger,
 	})
 
 	rpcClient, err := client.Client()

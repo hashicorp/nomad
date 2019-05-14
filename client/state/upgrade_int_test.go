@@ -22,7 +22,7 @@ import (
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/shared"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -103,7 +103,7 @@ func TestBoltStateDB_UpgradeOld_Ok(t *testing.T) {
 			require.Nil(t, ps)
 
 			ps = &dmstate.PluginState{
-				ReattachConfigs: map[string]*shared.ReattachConfig{
+				ReattachConfigs: map[string]*pstructs.ReattachConfig{
 					"test": {Pid: 1},
 				},
 			}

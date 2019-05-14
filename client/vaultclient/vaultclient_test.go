@@ -9,10 +9,14 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
 	vaultapi "github.com/hashicorp/vault/api"
+	vaultconsts "github.com/hashicorp/vault/helper/consts"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestVaultClient_TokenRenewals(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
@@ -67,29 +71,52 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 			for {
 				select {
 				case err := <-errCh:
-					if err != nil {
-						t.Fatalf("error while renewing the token: %v", err)
-					}
+					require.NoError(err, "unexpected error while renewing vault token")
 				}
 			}
 		}(errCh)
 	}
 
-	if c.heap.Length() != num {
-		t.Fatalf("bad: heap length: expected: %d, actual: %d", num, c.heap.Length())
+	c.lock.Lock()
+	length := c.heap.Length()
+	c.lock.Unlock()
+	if length != num {
+		t.Fatalf("bad: heap length: expected: %d, actual: %d", num, length)
 	}
 
 	time.Sleep(time.Duration(testutil.TestMultiplier()) * time.Second)
 
 	for i := 0; i < num; i++ {
 		if err := c.StopRenewToken(tokens[i]); err != nil {
-			t.Fatal(err)
+			require.NoError(err)
 		}
 	}
 
-	if c.heap.Length() != 0 {
-		t.Fatalf("bad: heap length: expected: 0, actual: %d", c.heap.Length())
+	c.lock.Lock()
+	length = c.heap.Length()
+	c.lock.Unlock()
+	if length != 0 {
+		t.Fatalf("bad: heap length: expected: 0, actual: %d", length)
 	}
+}
+
+// TestVaultClient_NamespaceSupport tests that the Vault namespace config, if present, will result in the
+// namespace header being set on the created Vault client.
+func TestVaultClient_NamespaceSupport(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	tr := true
+	testNs := "test-namespace"
+
+	logger := testlog.HCLogger(t)
+
+	conf := config.DefaultConfig()
+	conf.VaultConfig.Enabled = &tr
+	conf.VaultConfig.Token = "testvaulttoken"
+	conf.VaultConfig.Namespace = testNs
+	c, err := NewVaultClient(conf.VaultConfig, logger, nil)
+	require.NoError(err)
+	require.Equal(testNs, c.client.Headers().Get(vaultconsts.NamespaceHeaderName))
 }
 
 func TestVaultClient_Heap(t *testing.T) {
@@ -275,7 +302,49 @@ func TestVaultClient_RenewNonexistentLease(t *testing.T) {
 	_, err = c.RenewToken(c.client.Token(), 10)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
-	} else if !strings.Contains(err.Error(), "lease not found") {
-		t.Fatalf("expected \"%s\" in error message, got \"%v\"", "lease not found", err)
+		// The Vault error message changed between 0.10.2 and 1.0.1
+	} else if !strings.Contains(err.Error(), "lease not found") && !strings.Contains(err.Error(), "lease is not renewable") {
+		t.Fatalf("expected \"%s\" or \"%s\" in error message, got \"%v\"", "lease not found", "lease is not renewable", err.Error())
 	}
+}
+
+// TestVaultClient_RenewalTime_Long asserts that for leases over 1m the renewal
+// time is jittered.
+func TestVaultClient_RenewalTime_Long(t *testing.T) {
+	t.Parallel()
+
+	// highRoller is a randIntn func that always returns the max value
+	highRoller := func(n int) int {
+		return n - 1
+	}
+
+	// lowRoller is a randIntn func that always returns the min value (0)
+	lowRoller := func(int) int {
+		return 0
+	}
+
+	assert.Equal(t, 39*time.Second, renewalTime(highRoller, 60))
+	assert.Equal(t, 20*time.Second, renewalTime(lowRoller, 60))
+
+	assert.Equal(t, 309*time.Second, renewalTime(highRoller, 600))
+	assert.Equal(t, 290*time.Second, renewalTime(lowRoller, 600))
+
+	const days3 = 60 * 60 * 24 * 3
+	assert.Equal(t, (days3/2+9)*time.Second, renewalTime(highRoller, days3))
+	assert.Equal(t, (days3/2-10)*time.Second, renewalTime(lowRoller, days3))
+}
+
+// TestVaultClient_RenewalTime_Short asserts that for leases under 1m the renewal
+// time is lease/2.
+func TestVaultClient_RenewalTime_Short(t *testing.T) {
+	t.Parallel()
+
+	dice := func(int) int {
+		require.Fail(t, "dice should not have been called")
+		panic("unreachable")
+	}
+
+	assert.Equal(t, 29*time.Second, renewalTime(dice, 58))
+	assert.Equal(t, 15*time.Second, renewalTime(dice, 30))
+	assert.Equal(t, 1*time.Second, renewalTime(dice, 2))
 }

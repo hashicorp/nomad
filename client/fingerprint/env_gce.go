@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
+	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	log "github.com/hashicorp/go-hclog"
 
-	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 )

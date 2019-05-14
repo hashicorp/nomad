@@ -4,8 +4,7 @@ import { HOSTS } from './common';
 import { logFrames, logEncode } from './data/logs';
 import { generateDiff } from './factories/job-version';
 import { generateTaskGroupFailures } from './factories/evaluation';
-
-const { copy } = Ember;
+import { copy } from 'ember-copy';
 
 export function findLeader(schema) {
   const agent = schema.agents.first();
@@ -47,11 +46,10 @@ export default function() {
       const json = this.serialize(jobs.all());
       const namespace = queryParams.namespace || 'default';
       return json
-        .filter(
-          job =>
-            namespace === 'default'
-              ? !job.NamespaceID || job.NamespaceID === namespace
-              : job.NamespaceID === namespace
+        .filter(job =>
+          namespace === 'default'
+            ? !job.NamespaceID || job.NamespaceID === namespace
+            : job.NamespaceID === namespace
         )
         .map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
     })

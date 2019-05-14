@@ -11,12 +11,12 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtu "github.com/hashicorp/nomad/plugins/drivers/testutils"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -100,7 +100,7 @@ func mockTaskEvent(taskID string) *drivers.TaskEvent {
 func noopUpdater(string, *structs.DriverInfo)             {}
 func noopEventHandlerFactory(string, string) EventHandler { return nil }
 
-func TestMananger_Fingerprint(t *testing.T) {
+func TestManager_Fingerprint(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	fpChan, _, mgr := testSetup(t)
@@ -114,7 +114,7 @@ func TestMananger_Fingerprint(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		mgr.instancesMu.Lock()
 		defer mgr.instancesMu.Unlock()
-		return len(mgr.instances) == 1, fmt.Errorf("mananger should have registered 1 instance")
+		return len(mgr.instances) == 1, fmt.Errorf("manager should have registered 1 instance")
 	}, func(err error) {
 		require.NoError(err)
 	})
@@ -167,7 +167,7 @@ func TestMananger_Fingerprint(t *testing.T) {
 	require.False(infos[2].Detected)
 }
 
-func TestMananger_TaskEvents(t *testing.T) {
+func TestManager_TaskEvents(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	fpChan, evChan, mgr := testSetup(t)
@@ -177,7 +177,7 @@ func TestMananger_TaskEvents(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		mgr.instancesMu.Lock()
 		defer mgr.instancesMu.Unlock()
-		return len(mgr.instances) == 1, fmt.Errorf("mananger should have registered 1 instance")
+		return len(mgr.instances) == 1, fmt.Errorf("manager should have registered 1 instance")
 	}, func(err error) {
 		require.NoError(err)
 	})
@@ -212,7 +212,7 @@ func TestManager_Run_AllowedDrivers(t *testing.T) {
 	testutil.AssertUntil(200*time.Millisecond, func() (bool, error) {
 		mgr.instancesMu.Lock()
 		defer mgr.instancesMu.Unlock()
-		return len(mgr.instances) == 0, fmt.Errorf("mananger should have no registered instances")
+		return len(mgr.instances) == 0, fmt.Errorf("manager should have no registered instances")
 	}, func(err error) {
 		require.NoError(err)
 	})
@@ -232,7 +232,7 @@ func TestManager_Run_BlockedDrivers(t *testing.T) {
 	testutil.AssertUntil(200*time.Millisecond, func() (bool, error) {
 		mgr.instancesMu.Lock()
 		defer mgr.instancesMu.Unlock()
-		return len(mgr.instances) == 0, fmt.Errorf("mananger should have no registered instances")
+		return len(mgr.instances) == 0, fmt.Errorf("manager should have no registered instances")
 	}, func(err error) {
 		require.NoError(err)
 	})
@@ -285,7 +285,7 @@ func TestManager_Run_AllowedBlockedDrivers_Combined(t *testing.T) {
 	testutil.AssertUntil(250*time.Millisecond, func() (bool, error) {
 		mgr.instancesMu.Lock()
 		defer mgr.instancesMu.Unlock()
-		return len(mgr.instances) < 2, fmt.Errorf("mananger should have 1 registered instance, %v", len(mgr.instances))
+		return len(mgr.instances) < 2, fmt.Errorf("manager should have 1 registered instance, %v", len(mgr.instances))
 	}, func(err error) {
 		require.NoError(err)
 	})

@@ -42,9 +42,9 @@ export default ApplicationAdapter.extend({
       if (previousBeforeSend) {
         previousBeforeSend(...arguments);
       }
-      this.get('xhrs').track(key, jqXHR);
+      this.xhrs.track(key, jqXHR);
       jqXHR.always(() => {
-        this.get('xhrs').remove(key, jqXHR);
+        this.xhrs.remove(key, jqXHR);
       });
     };
 
@@ -60,7 +60,7 @@ export default ApplicationAdapter.extend({
     const url = this.urlForFindAll(type.modelName);
 
     if (get(snapshotRecordArray || {}, 'adapterOptions.watch')) {
-      params.index = this.get('watchList').getIndexFor(url);
+      params.index = this.watchList.getIndexFor(url);
     }
 
     return this.ajax(url, 'GET', {
@@ -73,7 +73,7 @@ export default ApplicationAdapter.extend({
     params = assign(queryString.parse(params) || {}, this.buildQuery(), additionalParams);
 
     if (get(snapshot || {}, 'adapterOptions.watch')) {
-      params.index = this.get('watchList').getIndexFor(url);
+      params.index = this.watchList.getIndexFor(url);
     }
 
     return this.ajax(url, 'GET', {
@@ -97,7 +97,7 @@ export default ApplicationAdapter.extend({
       let params = {};
 
       if (watch) {
-        params.index = this.get('watchList').getIndexFor(url);
+        params.index = this.watchList.getIndexFor(url);
       }
 
       // Avoid duplicating existing query params by passing them to ajax
@@ -113,7 +113,7 @@ export default ApplicationAdapter.extend({
         data: params,
       }).then(
         json => {
-          const store = this.get('store');
+          const store = this.store;
           const normalizeMethod =
             relationship.kind === 'belongsTo'
               ? 'normalizeFindBelongsToResponse'
@@ -138,7 +138,7 @@ export default ApplicationAdapter.extend({
     // case sensitive.
     const newIndex = headers['x-nomad-index'] || headers['X-Nomad-Index'];
     if (newIndex) {
-      this.get('watchList').setIndexFor(requestData.url, newIndex);
+      this.watchList.setIndexFor(requestData.url, newIndex);
     }
 
     return this._super(...arguments);
@@ -149,7 +149,7 @@ export default ApplicationAdapter.extend({
       return;
     }
     const url = this.urlForFindRecord(id, modelName);
-    this.get('xhrs').cancel(`GET ${url}`);
+    this.xhrs.cancel(`GET ${url}`);
   },
 
   cancelFindAll(modelName) {
@@ -161,7 +161,7 @@ export default ApplicationAdapter.extend({
     if (params) {
       url = `${url}?${params}`;
     }
-    this.get('xhrs').cancel(`GET ${url}`);
+    this.xhrs.cancel(`GET ${url}`);
   },
 
   cancelReloadRelationship(model, relationshipName) {
@@ -175,7 +175,7 @@ export default ApplicationAdapter.extend({
       );
     } else {
       const url = model[relationship.kind](relationship.key).link();
-      this.get('xhrs').cancel(`GET ${url}`);
+      this.xhrs.cancel(`GET ${url}`);
     }
   },
 });

@@ -17,7 +17,7 @@ type PluginGroup struct {
 	// shutdown indicates if shutdown has been called, access is synced by mLock
 	shutdown bool
 
-	// mLock gaurds manangers and shutdown
+	// mLock gaurds managers and shutdown
 	mLock sync.Mutex
 
 	logger log.Logger
@@ -45,7 +45,7 @@ func (m *PluginGroup) RegisterAndRun(manager PluginManager) error {
 	return nil
 }
 
-// Ready returns a channel which will be closed once all plugin manangers are ready.
+// Ready returns a channel which will be closed once all plugin managers are ready.
 // A timeout for waiting on each manager is given
 func (m *PluginGroup) WaitForFirstFingerprint(ctx context.Context) (<-chan struct{}, error) {
 	m.mLock.Lock()
@@ -64,14 +64,14 @@ func (m *PluginGroup) WaitForFirstFingerprint(ctx context.Context) (<-chan struc
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			logger.Debug("waiting on plugin mananger initial fingerprint")
+			logger.Debug("waiting on plugin manager initial fingerprint")
 			select {
 			case <-manager.WaitForFirstFingerprint(ctx):
 				select {
 				case <-ctx.Done():
 					logger.Warn("timeout waiting for plugin manager to be ready")
 				default:
-					logger.Debug("finished plugin mananger initial fingerprint")
+					logger.Debug("finished plugin manager initial fingerprint")
 				}
 			}
 		}()

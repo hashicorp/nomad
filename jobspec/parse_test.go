@@ -50,14 +50,14 @@ func TestParse(t *testing.T) {
 						LTarget: "${meta.team}",
 						RTarget: "mobile",
 						Operand: "=",
-						Weight:  50,
+						Weight:  helper.Int8ToPtr(50),
 					},
 				},
 
 				Spreads: []*api.Spread{
 					{
 						Attribute: "${meta.rack}",
-						Weight:    100,
+						Weight:    helper.Int8ToPtr(100),
 						SpreadTarget: []*api.SpreadTarget{
 							{
 								Value:   "r1",
@@ -114,7 +114,7 @@ func TestParse(t *testing.T) {
 								LTarget: "${node.datacenter}",
 								RTarget: "dc2",
 								Operand: "=",
-								Weight:  100,
+								Weight:  helper.Int8ToPtr(100),
 							},
 						},
 						Meta: map[string]string{
@@ -131,7 +131,7 @@ func TestParse(t *testing.T) {
 						Spreads: []*api.Spread{
 							{
 								Attribute: "${node.datacenter}",
-								Weight:    50,
+								Weight:    helper.Int8ToPtr(50),
 								SpreadTarget: []*api.SpreadTarget{
 									{
 										Value:   "dc1",
@@ -189,7 +189,7 @@ func TestParse(t *testing.T) {
 										LTarget: "${meta.foo}",
 										RTarget: "a,b,c",
 										Operand: "set_contains",
-										Weight:  25,
+										Weight:  helper.Int8ToPtr(25),
 									},
 								},
 								Services: []*api.Service{
@@ -235,17 +235,17 @@ func TestParse(t *testing.T) {
 											Count: helper.Uint64ToPtr(10),
 											Constraints: []*api.Constraint{
 												{
-													LTarget: "${driver.attr.memory}",
+													LTarget: "${device.attr.memory}",
 													RTarget: "2GB",
 													Operand: ">",
 												},
 											},
 											Affinities: []*api.Affinity{
 												{
-													LTarget: "${driver.model}",
+													LTarget: "${device.model}",
 													RTarget: "1080ti",
 													Operand: "=",
-													Weight:  50,
+													Weight:  helper.Int8ToPtr(50),
 												},
 											},
 										},

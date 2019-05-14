@@ -13,10 +13,10 @@ import (
 
 	"strings"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-version"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -42,10 +42,14 @@ const (
 
 var minAutopilotVersion = version.Must(version.NewVersion("0.8.0"))
 
+var minSchedulerConfigVersion = version.Must(version.NewVersion("0.9.0"))
+
 // Default configuration for scheduler with preemption enabled for system jobs
 var defaultSchedulerConfig = &structs.SchedulerConfiguration{
 	PreemptionConfig: structs.PreemptionConfig{
-		SystemSchedulerEnabled: true,
+		SystemSchedulerEnabled:  true,
+		BatchSchedulerEnabled:   true,
+		ServiceSchedulerEnabled: true,
 	},
 }
 
@@ -529,6 +533,7 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			followupEvalWait := s.config.EvalFailedFollowupBaselineDelay +
 				time.Duration(rand.Int63n(int64(s.config.EvalFailedFollowupDelayRange)))
 			followupEval := eval.CreateFailedFollowUpEval(followupEvalWait)
+			updateEval.NextEval = followupEval.ID
 
 			// Update via Raft
 			req := structs.EvalUpdateRequest{
@@ -1240,7 +1245,7 @@ func (s *Server) getOrCreateAutopilotConfig() *structs.AutopilotConfig {
 		return config
 	}
 
-	if !ServersMeetMinimumVersion(s.Members(), minAutopilotVersion) {
+	if !ServersMeetMinimumVersion(s.Members(), minAutopilotVersion, false) {
 		s.logger.Named("autopilot").Warn("can't initialize until all servers are above minimum version", "min_version", minAutopilotVersion)
 		return nil
 	}
@@ -1266,6 +1271,10 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 	}
 	if config != nil {
 		return config
+	}
+	if !ServersMeetMinimumVersion(s.Members(), minSchedulerConfigVersion, false) {
+		s.logger.Named("core").Warn("can't initialize scheduler config until all servers are above minimum version", "min_version", minSchedulerConfigVersion)
+		return nil
 	}
 
 	req := structs.SchedulerSetConfigRequest{Config: *defaultSchedulerConfig}

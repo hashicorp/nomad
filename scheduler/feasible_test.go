@@ -1862,22 +1862,22 @@ func TestDeviceChecker(t *testing.T) {
 					Constraints: []*structs.Constraint{
 						{
 							Operand: "=",
-							LTarget: "${driver.model}",
+							LTarget: "${device.model}",
 							RTarget: "1080ti",
 						},
 						{
 							Operand: ">",
-							LTarget: "${driver.attr.memory}",
+							LTarget: "${device.attr.memory}",
 							RTarget: "1320.5 MB",
 						},
 						{
 							Operand: "<=",
-							LTarget: "${driver.attr.pci_bandwidth}",
+							LTarget: "${device.attr.pci_bandwidth}",
 							RTarget: ".98   GiB/s",
 						},
 						{
 							Operand: "=",
-							LTarget: "${driver.attr.cores_clock}",
+							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
 						},
 					},
@@ -1895,22 +1895,22 @@ func TestDeviceChecker(t *testing.T) {
 					Constraints: []*structs.Constraint{
 						{
 							Operand: "=",
-							LTarget: "${driver.model}",
+							LTarget: "${device.model}",
 							RTarget: "1080ti",
 						},
 						{
 							Operand: ">",
-							LTarget: "${driver.attr.memory}",
+							LTarget: "${device.attr.memory}",
 							RTarget: "1320.5 MB",
 						},
 						{
 							Operand: "<=",
-							LTarget: "${driver.attr.pci_bandwidth}",
+							LTarget: "${device.attr.pci_bandwidth}",
 							RTarget: ".98   GiB/s",
 						},
 						{
 							Operand: "=",
-							LTarget: "${driver.attr.cores_clock}",
+							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
 						},
 					},
@@ -1928,22 +1928,22 @@ func TestDeviceChecker(t *testing.T) {
 					Constraints: []*structs.Constraint{
 						{
 							Operand: "=",
-							LTarget: "${driver.model}",
+							LTarget: "${device.model}",
 							RTarget: "1080ti",
 						},
 						{
 							Operand: ">",
-							LTarget: "${driver.attr.memory}",
+							LTarget: "${device.attr.memory}",
 							RTarget: "1320.5 MB",
 						},
 						{
 							Operand: "<=",
-							LTarget: "${driver.attr.pci_bandwidth}",
+							LTarget: "${device.attr.pci_bandwidth}",
 							RTarget: ".98   GiB/s",
 						},
 						{
 							Operand: "=",
-							LTarget: "${driver.attr.cores_clock}",
+							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
 						},
 					},
@@ -1961,22 +1961,22 @@ func TestDeviceChecker(t *testing.T) {
 					Constraints: []*structs.Constraint{
 						{
 							Operand: "=",
-							LTarget: "${driver.model}",
+							LTarget: "${device.model}",
 							RTarget: "2080ti",
 						},
 						{
 							Operand: ">",
-							LTarget: "${driver.attr.memory}",
+							LTarget: "${device.attr.memory}",
 							RTarget: "1320.5 MB",
 						},
 						{
 							Operand: "<=",
-							LTarget: "${driver.attr.pci_bandwidth}",
+							LTarget: "${device.attr.pci_bandwidth}",
 							RTarget: ".98   GiB/s",
 						},
 						{
 							Operand: "=",
-							LTarget: "${driver.attr.cores_clock}",
+							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
 						},
 					},
@@ -1994,22 +1994,22 @@ func TestDeviceChecker(t *testing.T) {
 					Constraints: []*structs.Constraint{
 						{
 							Operand: "=",
-							LTarget: "${driver.model}",
+							LTarget: "${device.model}",
 							RTarget: "1080ti",
 						},
 						{
 							Operand: "<",
-							LTarget: "${driver.attr.memory}",
+							LTarget: "${device.attr.memory}",
 							RTarget: "1320.5 MB",
 						},
 						{
 							Operand: "<=",
-							LTarget: "${driver.attr.pci_bandwidth}",
+							LTarget: "${device.attr.pci_bandwidth}",
 							RTarget: ".98   GiB/s",
 						},
 						{
 							Operand: "=",
-							LTarget: "${driver.attr.cores_clock}",
+							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
 						},
 					},

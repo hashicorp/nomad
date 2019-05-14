@@ -9,10 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -185,8 +182,8 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
 	require.Nil(err)
-	if out.SchedulingEligibility != structs.NodeSchedulingIneligible {
-		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingIneligible)
+	if out.SchedulingEligibility != NodeSchedulingIneligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, NodeSchedulingIneligible)
 	}
 
 	// Toggle off again
@@ -203,7 +200,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	if out.DrainStrategy != nil {
 		t.Fatalf("drain strategy should be unset")
 	}
-	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
+	if out.SchedulingEligibility != NodeSchedulingEligible {
 		t.Fatalf("should be eligible")
 	}
 }
@@ -237,7 +234,7 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
+	if out.SchedulingEligibility != NodeSchedulingEligible {
 		t.Fatalf("node should be eligible")
 	}
 
@@ -253,8 +250,8 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if out.SchedulingEligibility != structs.NodeSchedulingIneligible {
-		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingIneligible)
+	if out.SchedulingEligibility != NodeSchedulingIneligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, NodeSchedulingIneligible)
 	}
 
 	// Toggle on
@@ -269,8 +266,8 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
-		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingEligible)
+	if out.SchedulingEligibility != NodeSchedulingEligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, NodeSchedulingEligible)
 	}
 	if out.DrainStrategy != nil {
 		t.Fatalf("drain strategy should be unset")
@@ -352,30 +349,6 @@ func TestNodes_Sort(t *testing.T) {
 	if !reflect.DeepEqual(nodes, expect) {
 		t.Fatalf("\n\n%#v\n\n%#v", nodes, expect)
 	}
-}
-
-func TestNodes_GC(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-	c, s := makeClient(t, nil, nil)
-	defer s.Stop()
-	nodes := c.Nodes()
-
-	err := nodes.GC(uuid.Generate(), nil)
-	require.NotNil(err)
-	require.True(structs.IsErrUnknownNode(err))
-}
-
-func TestNodes_GcAlloc(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-	c, s := makeClient(t, nil, nil)
-	defer s.Stop()
-	nodes := c.Nodes()
-
-	err := nodes.GcAlloc(uuid.Generate(), nil)
-	require.NotNil(err)
-	require.True(structs.IsErrUnknownAllocation(err))
 }
 
 // Unittest monitorDrainMultiplex when an error occurs
@@ -542,69 +515,69 @@ func TestNodeStatValueFormatting(t *testing.T) {
 	}{
 		{
 			"true",
-			StatValue{BoolVal: helper.BoolToPtr(true)},
+			StatValue{BoolVal: boolToPtr(true)},
 		},
 		{
 			"false",
-			StatValue{BoolVal: helper.BoolToPtr(false)},
+			StatValue{BoolVal: boolToPtr(false)},
 		},
 		{
 			"myvalue",
-			StatValue{StringVal: helper.StringToPtr("myvalue")},
+			StatValue{StringVal: stringToPtr("myvalue")},
 		},
 		{
 			"2.718",
 			StatValue{
-				FloatNumeratorVal: helper.Float64ToPtr(2.718),
+				FloatNumeratorVal: float64ToPtr(2.718),
 			},
 		},
 		{
 			"2.718 / 3.14",
 			StatValue{
-				FloatNumeratorVal:   helper.Float64ToPtr(2.718),
-				FloatDenominatorVal: helper.Float64ToPtr(3.14),
+				FloatNumeratorVal:   float64ToPtr(2.718),
+				FloatDenominatorVal: float64ToPtr(3.14),
 			},
 		},
 		{
 			"2.718 MHz",
 			StatValue{
-				FloatNumeratorVal: helper.Float64ToPtr(2.718),
+				FloatNumeratorVal: float64ToPtr(2.718),
 				Unit:              "MHz",
 			},
 		},
 		{
 			"2.718 / 3.14 MHz",
 			StatValue{
-				FloatNumeratorVal:   helper.Float64ToPtr(2.718),
-				FloatDenominatorVal: helper.Float64ToPtr(3.14),
+				FloatNumeratorVal:   float64ToPtr(2.718),
+				FloatDenominatorVal: float64ToPtr(3.14),
 				Unit:                "MHz",
 			},
 		},
 		{
 			"2",
 			StatValue{
-				IntNumeratorVal: helper.Int64ToPtr(2),
+				IntNumeratorVal: int64ToPtr(2),
 			},
 		},
 		{
 			"2 / 3",
 			StatValue{
-				IntNumeratorVal:   helper.Int64ToPtr(2),
-				IntDenominatorVal: helper.Int64ToPtr(3),
+				IntNumeratorVal:   int64ToPtr(2),
+				IntDenominatorVal: int64ToPtr(3),
 			},
 		},
 		{
 			"2 MHz",
 			StatValue{
-				IntNumeratorVal: helper.Int64ToPtr(2),
+				IntNumeratorVal: int64ToPtr(2),
 				Unit:            "MHz",
 			},
 		},
 		{
 			"2 / 3 MHz",
 			StatValue{
-				IntNumeratorVal:   helper.Int64ToPtr(2),
-				IntDenominatorVal: helper.Int64ToPtr(3),
+				IntNumeratorVal:   int64ToPtr(2),
+				IntDenominatorVal: int64ToPtr(3),
 				Unit:              "MHz",
 			},
 		},

@@ -2816,6 +2816,78 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	}
 }
 
+// COMPAT: Remove in 0.11
+func TestFSM_ReconcileParentJobSummary(t *testing.T) {
+	// This test exercises code to handle https://github.com/hashicorp/nomad/issues/3886
+	t.Parallel()
+
+	require := require.New(t)
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+
+	// Add a node
+	node := mock.Node()
+	state.UpsertNode(800, node)
+
+	// Make a parameterized job
+	job1 := mock.BatchJob()
+	job1.ID = "test"
+	job1.ParameterizedJob = &structs.ParameterizedJobConfig{
+		Payload: "random",
+	}
+	job1.TaskGroups[0].Count = 1
+	state.UpsertJob(1000, job1)
+
+	// Make a child job
+	childJob := job1.Copy()
+	childJob.ID = job1.ID + "dispatch-23423423"
+	childJob.ParentID = job1.ID
+	childJob.Dispatched = true
+	childJob.Status = structs.JobStatusRunning
+
+	// Create an alloc for child job
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	alloc.Job = childJob
+	alloc.JobID = childJob.ID
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+
+	state.UpsertJob(1010, childJob)
+	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
+
+	// Make the summary incorrect in the state store
+	summary, err := state.JobSummaryByID(nil, job1.Namespace, job1.ID)
+	require.Nil(err)
+
+	summary.Children = nil
+	summary.Summary = make(map[string]structs.TaskGroupSummary)
+	summary.Summary["web"] = structs.TaskGroupSummary{
+		Queued: 1,
+	}
+
+	req := structs.GenericRequest{}
+	buf, err := structs.Encode(structs.ReconcileJobSummariesRequestType, req)
+	require.Nil(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	ws := memdb.NewWatchSet()
+	out1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
+	expected := structs.JobSummary{
+		JobID:       job1.ID,
+		Namespace:   job1.Namespace,
+		Summary:     make(map[string]structs.TaskGroupSummary),
+		CreateIndex: 1000,
+		ModifyIndex: out1.ModifyIndex,
+		Children: &structs.JobChildrenSummary{
+			Running: 1,
+		},
+	}
+	require.Equal(&expected, out1)
+}
+
 func TestFSM_LeakedDeployments(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -2899,11 +2971,12 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 
 	require := require.New(t)
 
-	// Set the autopilot config using a request.
+	// Set the scheduler config using a request.
 	req := structs.SchedulerSetConfigRequest{
 		Config: structs.SchedulerConfiguration{
 			PreemptionConfig: structs.PreemptionConfig{
 				SystemSchedulerEnabled: true,
+				BatchSchedulerEnabled:  true,
 			},
 		},
 	}
@@ -2920,10 +2993,11 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 	require.Nil(err)
 
 	require.Equal(config.PreemptionConfig.SystemSchedulerEnabled, req.Config.PreemptionConfig.SystemSchedulerEnabled)
+	require.Equal(config.PreemptionConfig.BatchSchedulerEnabled, req.Config.PreemptionConfig.BatchSchedulerEnabled)
 
 	// Now use CAS and provide an old index
 	req.CAS = true
-	req.Config.PreemptionConfig = structs.PreemptionConfig{SystemSchedulerEnabled: false}
+	req.Config.PreemptionConfig = structs.PreemptionConfig{SystemSchedulerEnabled: false, BatchSchedulerEnabled: false}
 	req.Config.ModifyIndex = config.ModifyIndex - 1
 	buf, err = structs.Encode(structs.SchedulerConfigRequestType, req)
 	require.Nil(err)
@@ -2937,4 +3011,5 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 	require.Nil(err)
 	// Verify that preemption is still enabled
 	require.True(config.PreemptionConfig.SystemSchedulerEnabled)
+	require.True(config.PreemptionConfig.BatchSchedulerEnabled)
 }

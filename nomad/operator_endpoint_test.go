@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/lib/freeport"
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -337,7 +337,9 @@ func TestOperator_RaftRemovePeerByID_ACL(t *testing.T) {
 
 func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
+	s1 := TestServer(t, func(c *Config) {
+		c.Build = "0.9.0+unittest"
+	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -358,7 +360,9 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 
 func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
+	s1 := TestServer(t, func(c *Config) {
+		c.Build = "0.9.0+unittest"
+	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -399,6 +403,7 @@ func TestOperator_SchedulerGetConfiguration_ACL(t *testing.T) {
 	t.Parallel()
 	s1, root := TestACLServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
+		c.Build = "0.9.0+unittest"
 	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -444,6 +449,7 @@ func TestOperator_SchedulerSetConfiguration_ACL(t *testing.T) {
 	t.Parallel()
 	s1, root := TestACLServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
+		c.Build = "0.9.0+unittest"
 	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)

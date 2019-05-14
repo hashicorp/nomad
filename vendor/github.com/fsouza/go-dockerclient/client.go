@@ -10,6 +10,7 @@ package docker
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -32,10 +33,8 @@ import (
 
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
-	"golang.org/x/net/context"
-	"golang.org/x/net/context/ctxhttp"
+	"github.com/fsouza/go-dockerclient/internal/jsonmessage"
 )
 
 const (
@@ -59,6 +58,7 @@ var (
 	apiVersion119, _ = NewAPIVersion("1.19")
 	apiVersion124, _ = NewAPIVersion("1.24")
 	apiVersion125, _ = NewAPIVersion("1.25")
+	apiVersion135, _ = NewAPIVersion("1.35")
 )
 
 // APIVersion is an internal representation of a version of the Remote API.
@@ -218,11 +218,19 @@ func NewVersionedClient(endpoint string, apiVersionString string) (*Client, erro
 		eventMonitor:        new(eventMonitoringState),
 		requestedAPIVersion: requestedAPIVersion,
 	}
-	c.initializeNativeClient()
+	c.initializeNativeClient(defaultTransport)
 	return c, nil
 }
 
-// NewVersionnedTLSClient has been DEPRECATED, please use NewVersionedTLSClient.
+// WithTransport replaces underlying HTTP client of Docker Client by accepting
+// a function that returns pointer to a transport object.
+func (c *Client) WithTransport(trFunc func() *http.Transport) {
+	c.initializeNativeClient(trFunc)
+}
+
+// NewVersionnedTLSClient is like NewVersionedClient, but with ann extra n.
+//
+// Deprecated: Use NewVersionedTLSClient instead.
 func NewVersionnedTLSClient(endpoint string, cert, key, ca, apiVersionString string) (*Client, error) {
 	return NewVersionedTLSClient(endpoint, cert, key, ca, apiVersionString)
 }
@@ -339,7 +347,7 @@ func NewVersionedTLSClientFromBytes(endpoint string, certPEMBlock, keyPEMBlock, 
 		eventMonitor:        new(eventMonitoringState),
 		requestedAPIVersion: requestedAPIVersion,
 	}
-	c.initializeNativeClient()
+	c.initializeNativeClient(defaultTransport)
 	return c, nil
 }
 
@@ -469,7 +477,7 @@ func (c *Client) do(method, path string, doOptions doOptions) (*http.Response, e
 		ctx = context.Background()
 	}
 
-	resp, err := ctxhttp.Do(ctx, c.HTTPClient, req)
+	resp, err := c.HTTPClient.Do(req.WithContext(ctx))
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
 			return nil, ErrConnectionRefused
@@ -585,7 +593,7 @@ func (c *Client) stream(method, path string, streamOptions streamOptions) error 
 			return chooseError(subCtx, err)
 		}
 	} else {
-		if resp, err = ctxhttp.Do(subCtx, c.HTTPClient, req); err != nil {
+		if resp, err = c.HTTPClient.Do(req.WithContext(subCtx)); err != nil {
 			if strings.Contains(err.Error(), "connection refused") {
 				return ErrConnectionRefused
 			}
@@ -909,6 +917,10 @@ func addQueryStringValue(items url.Values, key string, v reflect.Value) {
 		if v.Int() > 0 {
 			items.Add(key, strconv.FormatInt(v.Int(), 10))
 		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if v.Uint() > 0 {
+			items.Add(key, strconv.FormatUint(v.Uint(), 10))
+		}
 	case reflect.Float32, reflect.Float64:
 		if v.Float() > 0 {
 			items.Add(key, strconv.FormatFloat(v.Float(), 'f', -1, 64))
@@ -946,12 +958,20 @@ type Error struct {
 }
 
 func newError(resp *http.Response) *Error {
+	type ErrMsg struct {
+		Message string `json:"message"`
+	}
 	defer resp.Body.Close()
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return &Error{Status: resp.StatusCode, Message: fmt.Sprintf("cannot read body, err: %v", err)}
 	}
-	return &Error{Status: resp.StatusCode, Message: string(data)}
+	var emsg ErrMsg
+	err = json.Unmarshal(data, &emsg)
+	if err != nil {
+		return &Error{Status: resp.StatusCode, Message: string(data)}
+	}
+	return &Error{Status: resp.StatusCode, Message: emsg.Message}
 }
 
 func (e *Error) Error() string {

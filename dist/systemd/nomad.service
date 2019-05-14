@@ -4,21 +4,24 @@ Documentation=https://nomadproject.io/docs/
 Wants=network-online.target
 After=network-online.target
 
-# If you are running Consul, please uncomment following Wants/After configs.
-# Assuming your Consul service unit name is "consul"
+# When using Nomad with Consul it is not necessary to start Consul first. These
+# lines start Consul before Nomad as an optimization to avoid Nomad logging
+# that Consul is unavailable at startup.
 #Wants=consul.service
 #After=consul.service
 
 [Service]
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/local/bin/nomad agent -config /etc/nomad.d
 KillMode=process
 KillSignal=SIGINT
-ExecStart=/usr/bin/nomad agent -config /etc/nomad
-ExecReload=/bin/kill -HUP $MAINPID
+LimitNOFILE=infinity
+LimitNPROC=infinity
 Restart=on-failure
 RestartSec=2
 StartLimitBurst=3
 StartLimitIntervalSec=10
-LimitNOFILE=65536
+TasksMax=infinity
 
 [Install]
 WantedBy=multi-user.target

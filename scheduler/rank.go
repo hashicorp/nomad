@@ -147,6 +147,7 @@ type BinPackIterator struct {
 	source    RankIterator
 	evict     bool
 	priority  int
+	jobId     *structs.NamespacedID
 	taskGroup *structs.TaskGroup
 }
 
@@ -162,8 +163,9 @@ func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority i
 	return iter
 }
 
-func (iter *BinPackIterator) SetPriority(p int) {
-	iter.priority = p
+func (iter *BinPackIterator) SetJob(job *structs.Job) {
+	iter.priority = job.Priority
+	iter.jobId = job.NamespacedID()
 }
 
 func (iter *BinPackIterator) SetTaskGroup(taskGroup *structs.TaskGroup) {
@@ -211,7 +213,7 @@ OUTER:
 		var allocsToPreempt []*structs.Allocation
 
 		// Initialize preemptor with node
-		preemptor := NewPreemptor(iter.priority, iter.ctx)
+		preemptor := NewPreemptor(iter.priority, iter.ctx, iter.jobId)
 		preemptor.SetNode(option.Node)
 
 		// Count the number of existing preemptions
@@ -324,7 +326,7 @@ OUTER:
 				// Add the scores
 				if len(req.Affinities) != 0 {
 					for _, a := range req.Affinities {
-						totalDeviceAffinityWeight += math.Abs(a.Weight)
+						totalDeviceAffinityWeight += math.Abs(float64(a.Weight))
 					}
 					sumMatchingAffinities += sumAffinities
 				}
@@ -572,13 +574,13 @@ func (iter *NodeAffinityIterator) Next() *RankedNode {
 	// TODO(preetha): we should calculate normalized weights once and reuse it here
 	sumWeight := 0.0
 	for _, affinity := range iter.affinities {
-		sumWeight += math.Abs(affinity.Weight)
+		sumWeight += math.Abs(float64(affinity.Weight))
 	}
 
 	totalAffinityScore := 0.0
 	for _, affinity := range iter.affinities {
 		if matchesAffinity(iter.ctx, affinity, option.Node) {
-			totalAffinityScore += affinity.Weight
+			totalAffinityScore += float64(affinity.Weight)
 		}
 	}
 	normScore := totalAffinityScore / sumWeight

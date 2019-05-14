@@ -15,7 +15,7 @@ export default Factory.extend({
     return this.id;
   },
 
-  groupsCount: () => faker.random.number({ min: 1, max: 5 }),
+  groupsCount: () => faker.random.number({ min: 1, max: 2 }),
 
   region: () => 'global',
   type: faker.list.random(...JOB_TYPES),
@@ -27,7 +27,7 @@ export default Factory.extend({
     faker.list.random(...DATACENTERS)
   ),
 
-  childrenCount: () => faker.random.number({ min: 1, max: 5 }),
+  childrenCount: () => faker.random.number({ min: 1, max: 2 }),
 
   periodic: trait({
     type: 'batch',
@@ -98,6 +98,9 @@ export default Factory.extend({
   // When true, allocations for this job will fail and reschedule, randomly succeeding or not
   withRescheduling: false,
 
+  // When true, only task groups and allocations are made
+  shallow: false,
+
   afterCreate(job, server) {
     if (!job.namespaceId) {
       const namespace = server.db.namespaces.length ? pickOne(server.db.namespaces).id : null;
@@ -115,6 +118,7 @@ export default Factory.extend({
       job,
       createAllocations: job.createAllocations,
       withRescheduling: job.withRescheduling,
+      shallow: job.shallow,
     });
 
     job.update({
@@ -137,7 +141,7 @@ export default Factory.extend({
     });
 
     if (!job.noDeployments) {
-      Array(faker.random.number({ min: 1, max: 10 }))
+      Array(faker.random.number({ min: 1, max: 3 }))
         .fill(null)
         .map((_, index) => {
           return server.create('job-version', {
@@ -150,32 +154,34 @@ export default Factory.extend({
         });
     }
 
-    const knownEvaluationProperties = {
-      job,
-      namespace: job.namespace,
-    };
-    server.createList(
-      'evaluation',
-      faker.random.number({ min: 1, max: 5 }),
-      knownEvaluationProperties
-    );
-    if (!job.noFailedPlacements) {
+    if (!job.shallow) {
+      const knownEvaluationProperties = {
+        job,
+        namespace: job.namespace,
+      };
       server.createList(
         'evaluation',
-        faker.random.number(3),
-        'withPlacementFailures',
+        faker.random.number({ min: 1, max: 5 }),
         knownEvaluationProperties
       );
-    }
+      if (!job.noFailedPlacements) {
+        server.createList(
+          'evaluation',
+          faker.random.number(3),
+          'withPlacementFailures',
+          knownEvaluationProperties
+        );
+      }
 
-    if (job.failedPlacements) {
-      server.create(
-        'evaluation',
-        'withPlacementFailures',
-        assign(knownEvaluationProperties, {
-          modifyIndex: 4000,
-        })
-      );
+      if (job.failedPlacements) {
+        server.create(
+          'evaluation',
+          'withPlacementFailures',
+          assign(knownEvaluationProperties, {
+            modifyIndex: 4000,
+          })
+        );
+      }
     }
 
     if (job.periodic) {
@@ -185,6 +191,7 @@ export default Factory.extend({
         namespaceId: job.namespaceId,
         namespace: job.namespace,
         createAllocations: job.createAllocations,
+        shallow: job.shallow,
       });
     }
 
@@ -195,6 +202,7 @@ export default Factory.extend({
         namespaceId: job.namespaceId,
         namespace: job.namespace,
         createAllocations: job.createAllocations,
+        shallow: job.shallow,
       });
     }
   },

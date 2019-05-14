@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"

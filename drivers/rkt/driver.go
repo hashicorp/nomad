@@ -1,5 +1,3 @@
-// +build linux
-
 package rkt
 
 import (
@@ -23,20 +21,18 @@ import (
 	appcschema "github.com/appc/spec/schema"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
-	plugin "github.com/hashicorp/go-plugin"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	rktv1 "github.com/rkt/rkt/api/v1"
 )
 
 const (
@@ -57,6 +53,10 @@ const (
 	// networkDeadline is how long to wait for container network
 	// information to become available.
 	networkDeadline = 1 * time.Minute
+
+	// taskHandleVersion is the version of task handle which this driver sets
+	// and understands how to decode driver state
+	taskHandleVersion = 1
 )
 
 var (
@@ -111,7 +111,7 @@ var (
 		"dns_servers":        hclspec.NewAttr("dns_servers", "list(string)", false),
 		"dns_search_domains": hclspec.NewAttr("dns_search_domains", "list(string)", false),
 		"net":                hclspec.NewAttr("net", "list(string)", false),
-		"port_map":           hclspec.NewBlockAttrs("port_map", "string", false),
+		"port_map":           hclspec.NewAttr("port_map", "list(map(string))", false),
 		"volumes":            hclspec.NewAttr("volumes", "list(string)", false),
 		"insecure_options":   hclspec.NewAttr("insecure_options", "list(string)", false),
 		"no_overlay":         hclspec.NewAttr("no_overlay", "bool", false),
@@ -124,7 +124,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: true,
 		Exec:        true,
-		FSIsolation: cstructs.FSIsolationImage,
+		FSIsolation: drivers.FSIsolationImage,
 	}
 
 	reRktVersion  = regexp.MustCompile(`rkt [vV]ersion[:]? (\d[.\d]+)`)
@@ -141,16 +141,16 @@ type Config struct {
 
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
-	ImageName        string            `codec:"image"`
-	Command          string            `codec:"command"`
-	Args             []string          `codec:"args"`
-	TrustPrefix      string            `codec:"trust_prefix"`
-	DNSServers       []string          `codec:"dns_servers"`        // DNS Server for containers
-	DNSSearchDomains []string          `codec:"dns_search_domains"` // DNS Search domains for containers
-	Net              []string          `codec:"net"`                // Networks for the containers
-	PortMap          map[string]string `codec:"port_map"`           // A map of host port and the port name defined in the image manifest file
-	Volumes          []string          `codec:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
-	InsecureOptions  []string          `codec:"insecure_options"`   // list of args for --insecure-options
+	ImageName        string             `codec:"image"`
+	Command          string             `codec:"command"`
+	Args             []string           `codec:"args"`
+	TrustPrefix      string             `codec:"trust_prefix"`
+	DNSServers       []string           `codec:"dns_servers"`        // DNS Server for containers
+	DNSSearchDomains []string           `codec:"dns_search_domains"` // DNS Search domains for containers
+	Net              []string           `codec:"net"`                // Networks for the containers
+	PortMap          hclutils.MapStrStr `codec:"port_map"`           // A map of host port and the port name defined in the image manifest file
+	Volumes          []string           `codec:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
+	InsecureOptions  []string           `codec:"insecure_options"`   // list of args for --insecure-options
 
 	NoOverlay bool   `codec:"no_overlay"` // disable overlayfs for rkt run
 	Debug     bool   `codec:"debug"`      // Enable debug option for rkt command
@@ -161,7 +161,7 @@ type TaskConfig struct {
 // StartTask. This information is needed to rebuild the taskConfig state and handler
 // during recovery.
 type TaskState struct {
-	ReattachConfig *shared.ReattachConfig
+	ReattachConfig *pstructs.ReattachConfig
 	TaskConfig     *drivers.TaskConfig
 	Pid            int
 	StartedAt      time.Time
@@ -195,9 +195,10 @@ type Driver struct {
 	// logger will log to the Nomad agent
 	logger hclog.Logger
 
-	// hasFingerprinted is used to store whether we have fingerprinted before
-	hasFingerprinted bool
-	fingerprintLock  sync.Mutex
+	// A tri-state boolean to know if the fingerprinting has happened and
+	// whether it has been successful
+	fingerprintSuccess *bool
+	fingerprintLock    sync.Mutex
 }
 
 func NewRktDriver(logger hclog.Logger) drivers.DriverPlugin {
@@ -266,25 +267,29 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 	}
 }
 
-// setFingerprinted marks the driver as having fingerprinted once before
-func (d *Driver) setFingerprinted() {
+// setFingerprintSuccess marks the driver as having fingerprinted successfully
+func (d *Driver) setFingerprintSuccess() {
 	d.fingerprintLock.Lock()
-	d.hasFingerprinted = true
+	d.fingerprintSuccess = helper.BoolToPtr(true)
 	d.fingerprintLock.Unlock()
 }
 
-// fingerprinted returns whether the driver has fingerprinted before
-func (d *Driver) fingerprinted() bool {
+// setFingerprintFailure marks the driver as having failed fingerprinting
+func (d *Driver) setFingerprintFailure() {
+	d.fingerprintLock.Lock()
+	d.fingerprintSuccess = helper.BoolToPtr(false)
+	d.fingerprintLock.Unlock()
+}
+
+// fingerprintSuccessful returns true if the driver has
+// never fingerprinted or has successfully fingerprinted
+func (d *Driver) fingerprintSuccessful() bool {
 	d.fingerprintLock.Lock()
 	defer d.fingerprintLock.Unlock()
-	return d.hasFingerprinted
+	return d.fingerprintSuccess == nil || *d.fingerprintSuccess
 }
 
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
-	defer func() {
-		d.setFingerprinted()
-	}()
-
 	fingerprint := &drivers.Fingerprint{
 		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
@@ -293,9 +298,10 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 	// Only enable if we are root
 	if syscall.Geteuid() != 0 {
-		if !d.fingerprinted() {
+		if d.fingerprintSuccessful() {
 			d.logger.Debug("must run as root user, disabling")
 		}
+		d.setFingerprintFailure()
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = drivers.DriverRequiresRootMessage
 		return fingerprint
@@ -305,6 +311,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if err != nil {
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = fmt.Sprintf("Failed to execute %s version: %v", rktCmd, err)
+		d.setFingerprintFailure()
 		return fingerprint
 	}
 	out := strings.TrimSpace(string(outBytes))
@@ -314,6 +321,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if len(rktMatches) != 2 || len(appcMatches) != 2 {
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = "Unable to parse rkt version string"
+		d.setFingerprintFailure()
 		return fingerprint
 	}
 
@@ -323,10 +331,11 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		// Do not allow ancient rkt versions
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = fmt.Sprintf("Unsuported rkt version %s", currentVersion)
-		if !d.fingerprinted() {
+		if d.fingerprintSuccessful() {
 			d.logger.Warn("unsupported rkt version please upgrade to >= "+minVersion.String(),
 				"rkt_version", currentVersion)
 		}
+		d.setFingerprintFailure()
 		return fingerprint
 	}
 
@@ -336,7 +345,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if d.config.VolumesEnabled {
 		fingerprint.Attributes["driver.rkt.volumes.enabled"] = pstructs.NewBoolAttribute(true)
 	}
-
+	d.setFingerprintSuccess()
 	return fingerprint
 
 }
@@ -344,6 +353,11 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	if handle == nil {
 		return fmt.Errorf("error: handle cannot be nil")
+	}
+
+	// COMPAT(0.10): pre 0.9 upgrade path check
+	if handle.Version == 0 {
+		return d.recoverPre09Task(handle)
 	}
 
 	// If already attached to handle there's nothing to recover.
@@ -361,17 +375,14 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to decode taskConfig state from handle: %v", err)
 	}
 
-	plugRC, err := shared.ReattachConfigToGoPlugin(taskState.ReattachConfig)
+	plugRC, err := pstructs.ReattachConfigToGoPlugin(taskState.ReattachConfig)
 	if err != nil {
 		d.logger.Error("failed to build ReattachConfig from taskConfig state", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to build ReattachConfig from taskConfig state: %v", err)
 	}
 
-	pluginConfig := &plugin.ClientConfig{
-		Reattach: plugRC,
-	}
-
-	execImpl, pluginClient, err := executor.CreateExecutorWithConfig(pluginConfig, os.Stderr)
+	execImpl, pluginClient, err := executor.ReattachToExecutor(plugRC,
+		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID))
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to reattach to executor: %v", err)
@@ -402,7 +413,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("taskConfig with ID '%s' already started", cfg.ID)
 	}
@@ -413,7 +424,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-	handle := drivers.NewTaskHandle(pluginName)
+	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
 
 	// todo(preetha) - port map in client v1 is a slice of maps that get merged. figure out if the caller will do this
@@ -547,7 +558,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--memory=%v", cfg.Resources.LinuxResources.MemoryLimitBytes))
 
 	// Add CPU isolator
-	prepareArgs = append(prepareArgs, fmt.Sprintf("--cpu-shares=%v", cfg.Resources.LinuxResources.CPUShares))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--cpu=%v", cfg.Resources.LinuxResources.CPUShares))
 
 	// Add DNS servers
 	if len(driverConfig.DNSServers) == 1 && (driverConfig.DNSServers[0] == "host" || driverConfig.DNSServers[0] == "none") {
@@ -651,7 +662,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		LogLevel: "debug",
 	}
 
-	execImpl, pluginClient, err := executor.CreateExecutor(os.Stderr, hclog.Debug, d.nomadConfig, executorConfig)
+	execImpl, pluginClient, err := executor.CreateExecutor(
+		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID),
+		d.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -718,7 +731,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	rktDriverState := TaskState{
-		ReattachConfig: shared.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
+		ReattachConfig: pstructs.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
 		Pid:            ps.Pid,
 		TaskConfig:     cfg,
 		StartedAt:      h.startedAt,
@@ -739,7 +752,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	//  - "host" means the container itself has no networking metadata
 	//  - "none" means no network is configured
 	// https://coreos.com/rkt/docs/latest/networking/overview.html#no-loopback-only-networking
-	var driverNetwork *cstructs.DriverNetwork
+	var driverNetwork *drivers.DriverNetwork
 	if network != "host" && network != "none" {
 		d.logger.Debug("retrieving network information for pod", "pod", img, "UUID", uuid, "task_name", cfg.Name)
 		driverNetwork, err = rktGetDriverNetwork(uuid, driverConfig.PortMap, d.logger)
@@ -819,13 +832,13 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	return handle.TaskStatus(), nil
 }
 
-func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
+func (d *Driver) TaskStats(ctx context.Context, taskID string, interval time.Duration) (<-chan *drivers.TaskResourceUsage, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	return handle.exec.Stats()
+	return handle.exec.Stats(ctx, interval)
 }
 
 func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
@@ -840,15 +853,17 @@ func (d *Driver) SignalTask(taskID string, signal string) error {
 
 	sig := os.Interrupt
 	if s, ok := signals.SignalLookup[signal]; ok {
-		d.logger.Warn("signal to send to task unknown, using SIGINT", "signal", signal, "task_id", handle.taskConfig.ID, "task_name", handle.taskConfig.Name)
 		sig = s
+	} else {
+		d.logger.Warn("unknown signal to send to task, using SIGINT instead", "signal", signal, "task_id", handle.taskConfig.ID, "task_name", handle.taskConfig.Name)
+
 	}
 	return handle.exec.Signal(sig)
 }
 
 func (d *Driver) ExecTask(taskID string, cmdArgs []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
 	if len(cmdArgs) == 0 {
-		return nil, fmt.Errorf("error cmd must have atleast one value")
+		return nil, fmt.Errorf("error cmd must have at least one value")
 	}
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
@@ -876,6 +891,28 @@ func (d *Driver) ExecTask(taskID string, cmdArgs []string, timeout time.Duration
 
 }
 
+var _ drivers.ExecTaskStreamingRawDriver = (*Driver)(nil)
+
+func (d *Driver) ExecTaskStreamingRaw(ctx context.Context,
+	taskID string,
+	command []string,
+	tty bool,
+	stream drivers.ExecTaskStream) error {
+
+	if len(command) == 0 {
+		return fmt.Errorf("error cmd must have at least one value")
+	}
+	handle, ok := d.tasks.Get(taskID)
+	if !ok {
+		return drivers.ErrTaskNotFound
+	}
+
+	enterCmd := []string{rktCmd, "enter", handle.uuid, handle.env.ReplaceEnv(command[0])}
+	enterCmd = append(enterCmd, handle.env.ParseAndReplace(command[1:])...)
+
+	return handle.exec.ExecStreaming(ctx, enterCmd, tty, stream)
+}
+
 // GetAbsolutePath returns the absolute path of the passed binary by resolving
 // it in the path and following symlinks.
 func GetAbsolutePath(bin string) (string, error) {
@@ -887,7 +924,7 @@ func GetAbsolutePath(bin string) (string, error) {
 	return filepath.EvalSymlinks(lp)
 }
 
-func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, logger hclog.Logger) (*cstructs.DriverNetwork, error) {
+func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, logger hclog.Logger) (*drivers.DriverNetwork, error) {
 	deadline := time.Now().Add(networkDeadline)
 	var lastErr error
 	try := 0
@@ -918,7 +955,7 @@ func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, log
 				if try > 1 {
 					logger.Debug("retrieved network info for pod", "uuid", uuid, "attempt", try)
 				}
-				return &cstructs.DriverNetwork{
+				return &drivers.DriverNetwork{
 					PortMap: portmap,
 					IP:      status.Networks[0].IP.String(),
 				}, nil
@@ -966,7 +1003,7 @@ func rktManifestMakePortMap(manifest *appcschema.PodManifest, configPortMap map[
 }
 
 // Retrieve pod status for the pod with the given UUID.
-func rktGetStatus(uuid string, logger hclog.Logger) (*rktv1.Pod, error) {
+func rktGetStatus(uuid string, logger hclog.Logger) (*Pod, error) {
 	statusArgs := []string{
 		"status",
 		"--format=json",
@@ -986,7 +1023,7 @@ func rktGetStatus(uuid string, logger hclog.Logger) (*rktv1.Pod, error) {
 		logger.Debug("status error output", "uuid", uuid, "error", elide(errBuf))
 		return nil, fmt.Errorf("%s. stderr: %q", err, elide(errBuf))
 	}
-	var status rktv1.Pod
+	var status Pod
 	if err := json.Unmarshal(outBuf.Bytes(), &status); err != nil {
 		return nil, err
 	}

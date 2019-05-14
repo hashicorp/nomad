@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -10,7 +11,7 @@ import (
 )
 
 // NewDriverHandle returns a handle for task operations on a specific task
-func NewDriverHandle(driver drivers.DriverPlugin, taskID string, task *structs.Task, net *cstructs.DriverNetwork) *DriverHandle {
+func NewDriverHandle(driver drivers.DriverPlugin, taskID string, task *structs.Task, net *drivers.DriverNetwork) *DriverHandle {
 	return &DriverHandle{
 		driver: driver,
 		net:    net,
@@ -23,7 +24,7 @@ func NewDriverHandle(driver drivers.DriverPlugin, taskID string, task *structs.T
 // an api to perform driver operations on the task
 type DriverHandle struct {
 	driver drivers.DriverPlugin
-	net    *cstructs.DriverNetwork
+	net    *drivers.DriverNetwork
 	task   *structs.Task
 	taskID string
 }
@@ -44,14 +45,15 @@ func (h *DriverHandle) Kill() error {
 	return h.driver.StopTask(h.taskID, h.task.KillTimeout, h.task.KillSignal)
 }
 
-func (h *DriverHandle) Stats() (*cstructs.TaskResourceUsage, error) {
-	return h.driver.TaskStats(h.taskID)
+func (h *DriverHandle) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
+	return h.driver.TaskStats(ctx, h.taskID, interval)
 }
 
 func (h *DriverHandle) Signal(s string) error {
 	return h.driver.SignalTask(h.taskID, s)
 }
 
+// Exec is the handled used by client endpoint handler to invoke the appropriate task driver exec.
 func (h *DriverHandle) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
 	command := append([]string{cmd}, args...)
 	res, err := h.driver.ExecTask(h.taskID, command, timeout)
@@ -61,6 +63,46 @@ func (h *DriverHandle) Exec(timeout time.Duration, cmd string, args []string) ([
 	return res.Stdout, res.ExitResult.ExitCode, res.ExitResult.Err
 }
 
-func (h *DriverHandle) Network() *cstructs.DriverNetwork {
+// ExecStreaming is the handled used by client endpoint handler to invoke the appropriate task driver exec.
+// while allowing to stream input and output
+func (h *DriverHandle) ExecStreaming(ctx context.Context,
+	command []string,
+	tty bool,
+	stream drivers.ExecTaskStream) error {
+
+	if impl, ok := h.driver.(drivers.ExecTaskStreamingRawDriver); ok {
+		return impl.ExecTaskStreamingRaw(ctx, h.taskID, command, tty, stream)
+	}
+
+	d, ok := h.driver.(drivers.ExecTaskStreamingDriver)
+	if !ok {
+		return fmt.Errorf("task driver does not support exec")
+	}
+
+	execOpts, doneCh := drivers.StreamToExecOptions(
+		ctx, command, tty, stream)
+
+	result, err := d.ExecTaskStreaming(ctx, h.taskID, execOpts)
+	if err != nil {
+		return err
+	}
+
+	execOpts.Stdout.Close()
+	execOpts.Stderr.Close()
+
+	select {
+	case err = <-doneCh:
+	case <-ctx.Done():
+		err = fmt.Errorf("exec task timed out: %v", ctx.Err())
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return stream.Send(drivers.NewExecStreamingResponseExit(result.ExitCode))
+}
+
+func (h *DriverHandle) Network() *drivers.DriverNetwork {
 	return h.net
 }

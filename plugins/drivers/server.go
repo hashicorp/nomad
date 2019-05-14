@@ -6,7 +6,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	plugin "github.com/hashicorp/go-plugin"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	dstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -46,11 +45,11 @@ func (b *driverPluginServer) Capabilities(ctx context.Context, req *proto.Capabi
 	}
 
 	switch caps.FSIsolation {
-	case cstructs.FSIsolationNone:
+	case FSIsolationNone:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_NONE
-	case cstructs.FSIsolationChroot:
+	case FSIsolationChroot:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_CHROOT
-	case cstructs.FSIsolationImage:
+	case FSIsolationImage:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_IMAGE
 	default:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_NONE
@@ -222,22 +221,41 @@ func (b *driverPluginServer) InspectTask(ctx context.Context, req *proto.Inspect
 	return resp, nil
 }
 
-func (b *driverPluginServer) TaskStats(ctx context.Context, req *proto.TaskStatsRequest) (*proto.TaskStatsResponse, error) {
-	stats, err := b.impl.TaskStats(req.TaskId)
+func (b *driverPluginServer) TaskStats(req *proto.TaskStatsRequest, srv proto.Driver_TaskStatsServer) error {
+	interval, err := ptypes.Duration(req.CollectionInterval)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to parse collection interval: %v", err)
 	}
 
-	pb, err := TaskStatsToProto(stats)
+	ch, err := b.impl.TaskStats(srv.Context(), req.TaskId, interval)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode task stats: %v", err)
+		if rec, ok := err.(structs.Recoverable); ok {
+			st := status.New(codes.FailedPrecondition, rec.Error())
+			st, err := st.WithDetails(&sproto.RecoverableError{Recoverable: rec.IsRecoverable()})
+			if err != nil {
+				// If this error, it will always error
+				panic(err)
+			}
+			return st.Err()
+		}
+		return err
 	}
 
-	resp := &proto.TaskStatsResponse{
-		Stats: pb,
+	for stats := range ch {
+		pb, err := TaskStatsToProto(stats)
+		if err != nil {
+			return fmt.Errorf("failed to encode task stats: %v", err)
+		}
+
+		if err = srv.Send(&proto.TaskStatsResponse{Stats: pb}); err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+
 	}
 
-	return resp, nil
+	return nil
 }
 
 func (b *driverPluginServer) ExecTask(ctx context.Context, req *proto.ExecTaskRequest) (*proto.ExecTaskResponse, error) {
@@ -257,6 +275,60 @@ func (b *driverPluginServer) ExecTask(ctx context.Context, req *proto.ExecTaskRe
 	}
 
 	return resp, nil
+}
+
+func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStreamingServer) error {
+	msg, err := server.Recv()
+	if err != nil {
+		return fmt.Errorf("failed to receive initial message: %v", err)
+	}
+
+	if msg.Setup == nil {
+		return fmt.Errorf("first message should always be setup")
+	}
+
+	if impl, ok := b.impl.(ExecTaskStreamingRawDriver); ok {
+		return impl.ExecTaskStreamingRaw(server.Context(),
+			msg.Setup.TaskId, msg.Setup.Command, msg.Setup.Tty,
+			server)
+	}
+
+	d, ok := b.impl.(ExecTaskStreamingDriver)
+	if !ok {
+		return fmt.Errorf("driver does not support exec")
+	}
+
+	execOpts, errCh := StreamToExecOptions(server.Context(),
+		msg.Setup.Command, msg.Setup.Tty,
+		server)
+
+	result, err := d.ExecTaskStreaming(server.Context(),
+		msg.Setup.TaskId, execOpts)
+
+	execOpts.Stdout.Close()
+	execOpts.Stderr.Close()
+
+	if err != nil {
+		return err
+	}
+
+	// wait for copy to be done
+	select {
+	case err = <-errCh:
+	case <-server.Context().Done():
+		err = fmt.Errorf("exec timed out: %v", server.Context().Err())
+	}
+
+	if err != nil {
+		return err
+	}
+
+	server.Send(&ExecTaskStreamingResponseMsg{
+		Exited: true,
+		Result: exitResultToProto(result),
+	})
+
+	return err
 }
 
 func (b *driverPluginServer) SignalTask(ctx context.Context, req *proto.SignalTaskRequest) (*proto.SignalTaskResponse, error) {

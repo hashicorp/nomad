@@ -29,7 +29,7 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `prefix` `(string: "")` - Specifies a string to filter jobs on based on
-  an index prefix. This is specified as a querystring parameter.
+  an index prefix. This is specified as a query string parameter.
 
 ### Sample Request
 
@@ -189,9 +189,9 @@ The table below shows this endpoint's support for
                 "Attempts": 10,
                 "Delay": 30000000000,
                 "DelayFunction": "exponential",
-                "Interval": 0,
+                "Interval": 36000000000000,
                 "MaxDelay": 3600000000000,
-                "Unlimited": true
+                "Unlimited": false
             },
             "EphemeralDisk": {
                 "SizeMB": 300
@@ -213,7 +213,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    --data @my-job.nomad \
+    --data @my-job.json \
     https://localhost:4646/v1/jobs
 ```
 
@@ -599,6 +599,13 @@ $ curl \
           "Delay": 25000000000,
           "Mode": "delay"
         },
+        "Spreads": [
+           {
+           "Attribute": "${node.datacenter}",
+           "SpreadTarget": null,
+           "Weight": 100
+           }
+        ],
         "Tasks": [
           {
             "Name": "redis",
@@ -642,6 +649,7 @@ $ curl \
             "Templates": null,
             "Constraints": null,
             "Affinities":null,
+            "Spreads":null,
             "Resources": {
               "CPU": 500,
               "MemoryMB": 256,
@@ -695,6 +703,7 @@ $ curl \
     "Payload": null,
     "Meta": null,
     "VaultToken": "",
+    "Spreads": null,
     "Status": "pending",
     "StatusDescription": "",
     "Stable": false,
@@ -1285,6 +1294,9 @@ The table below shows this endpoint's support for
 - `EnforcePriorVersion` `(integer: nil)` - Optional value specifying the current
   job's version. This is checked and acts as a check-and-set value before
   reverting to the specified job.
+
+- `VaultToken` `(string: "")` - Optional value specifying the [vault token](/docs/commands/job/revert.html)
+  used for Vault [policy authentication checking](/docs/configuration/vault.html#allow_unauthenticated).
 
 ### Sample Payload
 

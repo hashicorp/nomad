@@ -1,5 +1,3 @@
-import { registerHelper } from '@ember/test';
-
 const invariant = (truthy, error) => {
   if (!truthy) throw new Error(error);
 };
@@ -18,9 +16,16 @@ export function getCodeMirrorInstance(container) {
   };
 }
 
-export default function registerCodeMirrorHelpers() {
-  registerHelper('getCodeMirrorInstance', function(app, selector) {
-    const helper = getCodeMirrorInstance(app.__container__);
-    return helper(selector);
+export default function setupCodeMirror(hooks) {
+  hooks.beforeEach(function() {
+    this.getCodeMirrorInstance = getCodeMirrorInstance(this.owner);
+
+    // Expose to window for access from page objects
+    window.getCodeMirrorInstance = this.getCodeMirrorInstance;
+  });
+
+  hooks.afterEach(function() {
+    delete window.getCodeMirrorInstance;
+    delete this.getCodeMirrorInstance;
   });
 }

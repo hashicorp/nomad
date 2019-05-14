@@ -2,6 +2,7 @@ package docker
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 	"github.com/docker/cli/cli/config/configfile"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/volume/mounts"
 	docker "github.com/fsouza/go-dockerclient"
 )
 
@@ -82,7 +84,8 @@ func firstValidAuth(repo string, backends []authBackend) (*docker.AuthConfigurat
 // authFromTaskConfig generates an authBackend for any auth given in the task-configuration
 func authFromTaskConfig(driverConfig *TaskConfig) authBackend {
 	return func(string) (*docker.AuthConfiguration, error) {
-		if len(driverConfig.Auth.Email) == 0 {
+		// If all auth fields are empty, return
+		if len(driverConfig.Auth.Username) == 0 && len(driverConfig.Auth.Password) == 0 && len(driverConfig.Auth.Email) == 0 && len(driverConfig.Auth.ServerAddr) == 0 {
 			return nil, nil
 		}
 		return &docker.AuthConfiguration{
@@ -217,4 +220,53 @@ func expandPath(base, dir string) string {
 func isParentPath(parent, path string) bool {
 	rel, err := filepath.Rel(parent, path)
 	return err == nil && !strings.HasPrefix(rel, "..")
+}
+
+func parseVolumeSpec(volBind, os string) (hostPath string, containerPath string, mode string, err error) {
+	if os == "windows" {
+		return parseVolumeSpecWindows(volBind)
+	}
+	return parseVolumeSpecLinux(volBind)
+}
+
+func parseVolumeSpecWindows(volBind string) (hostPath string, containerPath string, mode string, err error) {
+	parser := mounts.NewParser("windows")
+	m, err := parser.ParseMountRaw(volBind, "")
+	if err != nil {
+		return "", "", "", err
+	}
+
+	src := m.Source
+	if src == "" && strings.Contains(volBind, m.Name) {
+		src = m.Name
+	}
+
+	if src == "" {
+		return "", "", "", errors.New("missing host path")
+	}
+
+	if m.Destination == "" {
+		return "", "", "", errors.New("container path is empty")
+	}
+
+	return src, m.Destination, m.Mode, nil
+}
+
+func parseVolumeSpecLinux(volBind string) (hostPath string, containerPath string, mode string, err error) {
+	// using internal parser to preserve old parsing behavior.  Docker
+	// parser has additional validators (e.g. mode validity) and accepts invalid output (per Nomad),
+	// e.g. single path entry to be treated as a container path entry with an auto-generated host-path.
+	//
+	// Reconsider updating to use Docker parser when ready to make incompatible changes.
+	parts := strings.Split(volBind, ":")
+	if len(parts) < 2 {
+		return "", "", "", fmt.Errorf("not <src>:<destination> format")
+	}
+
+	m := ""
+	if len(parts) > 2 {
+		m = parts[2]
+	}
+
+	return parts[0], parts[1], m, nil
 }

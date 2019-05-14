@@ -15,32 +15,32 @@ export default Component.extend(WithVisibilityDetection, {
   onClick() {},
 
   click(event) {
-    lazyClick([this.get('onClick'), event]);
+    lazyClick([this.onClick, event]);
   },
 
   didReceiveAttrs() {
     // Reload the node in order to get detail information
-    const node = this.get('node');
+    const node = this.node;
     if (node) {
       node.reload().then(() => {
-        this.get('watch').perform(node, 100);
+        this.watch.perform(node, 100);
       });
     }
   },
 
   visibilityHandler() {
     if (document.hidden) {
-      this.get('watch').cancelAll();
+      this.watch.cancelAll();
     } else {
-      const node = this.get('node');
+      const node = this.node;
       if (node) {
-        this.get('watch').perform(node, 100);
+        this.watch.perform(node, 100);
       }
     }
   },
 
   willDestroy() {
-    this.get('watch').cancelAll();
+    this.watch.cancelAll();
     this._super(...arguments);
   },
 

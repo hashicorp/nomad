@@ -11,12 +11,12 @@ export default Component.extend({
   startExpanded: false,
 
   decoratedSource: computed('source.[]', function() {
-    const stateCache = this.get('stateCache');
-    const key = this.get('key');
+    const stateCache = this.stateCache;
+    const key = this.key;
     const deepKey = `item.${key}`;
-    const startExpanded = this.get('startExpanded');
+    const startExpanded = this.startExpanded;
 
-    const decoratedSource = this.get('source').map(item => {
+    const decoratedSource = this.source.map(item => {
       const cacheItem = stateCache.findBy(deepKey, get(item, key));
       return {
         item,

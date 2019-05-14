@@ -57,8 +57,9 @@ func formatEvents(events []*api.TaskEvent) string {
 // events exist.
 //
 // The job name is used to load the job file from "input/${job}.nomad", and
-// events are only inspected for tasks named the same as the job.
-func (tc *TaskEventsTest) waitUntilEvents(f *framework.F, jobName string, numEvents int) *api.TaskState {
+// events are only inspected for tasks named the same as the job. That task's
+// state is returned as well as the last allocation received.
+func (tc *TaskEventsTest) waitUntilEvents(f *framework.F, jobName string, numEvents int) (*api.Allocation, *api.TaskState) {
 	t := f.T()
 	nomadClient := tc.Nomad()
 	uuid := uuid.Generate()
@@ -66,27 +67,29 @@ func (tc *TaskEventsTest) waitUntilEvents(f *framework.F, jobName string, numEve
 	tc.jobIds = append(tc.jobIds, uniqJobId)
 
 	jobFile := fmt.Sprintf("taskevents/input/%s.nomad", jobName)
-	allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, jobFile, uniqJobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, jobFile, uniqJobId)
 
 	require.Len(t, allocs, 1)
-	alloc := allocs[0]
+	allocID := allocs[0].ID
 	qo := &api.QueryOptions{
 		WaitTime: time.Second,
 	}
 
 	// Capture state outside of wait to ease assertions once expected
 	// number of events have been received.
+	var alloc *api.Allocation
 	var taskState *api.TaskState
 
 	testutil.WaitForResultRetries(10, func() (bool, error) {
-		a, meta, err := nomadClient.Allocations().Info(alloc.ID, qo)
+		a, meta, err := nomadClient.Allocations().Info(allocID, qo)
 		if err != nil {
 			return false, err
 		}
 
 		qo.WaitIndex = meta.LastIndex
 
-		// Capture task state
+		// Capture alloc and task state
+		alloc = a
 		taskState = a.TaskStates[jobName]
 		if taskState == nil {
 			return false, fmt.Errorf("task state not found for %s", jobName)
@@ -104,12 +107,12 @@ func (tc *TaskEventsTest) waitUntilEvents(f *framework.F, jobName string, numEve
 		t.Fatalf("task events error: %v", err)
 	})
 
-	return taskState
+	return alloc, taskState
 }
 
 func (tc *TaskEventsTest) TestTaskEvents_SimpleBatch(f *framework.F) {
 	t := f.T()
-	taskState := tc.waitUntilEvents(f, "simple_batch", 4)
+	_, taskState := tc.waitUntilEvents(f, "simple_batch", 4)
 	events := taskState.Events
 
 	// Assert task did not fail
@@ -127,7 +130,7 @@ func (tc *TaskEventsTest) TestTaskEvents_SimpleBatch(f *framework.F) {
 
 func (tc *TaskEventsTest) TestTaskEvents_FailedBatch(f *framework.F) {
 	t := f.T()
-	taskState := tc.waitUntilEvents(f, "failed_batch", 4)
+	_, taskState := tc.waitUntilEvents(f, "failed_batch", 4)
 	events := taskState.Events
 
 	// Assert task did fail
@@ -148,7 +151,7 @@ func (tc *TaskEventsTest) TestTaskEvents_FailedBatch(f *framework.F) {
 // non-leader task when its leader task completes.
 func (tc *TaskEventsTest) TestTaskEvents_CompletedLeader(f *framework.F) {
 	t := f.T()
-	taskState := tc.waitUntilEvents(f, "completed_leader", 7)
+	_, taskState := tc.waitUntilEvents(f, "completed_leader", 7)
 	events := taskState.Events
 
 	// Assert task did not fail
@@ -161,6 +164,32 @@ func (tc *TaskEventsTest) TestTaskEvents_CompletedLeader(f *framework.F) {
 	require.Equal(t, api.TaskSetup, events[1].Type)
 	require.Equal(t, api.TaskStarted, events[2].Type)
 	require.Equal(t, api.TaskLeaderDead, events[3].Type)
+	require.Equal(t, api.TaskKilling, events[4].Type)
+	require.Equal(t, api.TaskTerminated, events[5].Type)
+	require.Equal(t, api.TaskKilled, events[6].Type)
+}
+
+// TestTaskEvents_FailedSibling asserts the proper events are emitted for a
+// task when another task in its task group fails.
+func (tc *TaskEventsTest) TestTaskEvents_FailedSibling(f *framework.F) {
+	t := f.T()
+	alloc, taskState := tc.waitUntilEvents(f, "failed_sibling", 7)
+	events := taskState.Events
+
+	// Just because a sibling failed doesn't mean this task fails. It
+	// should exit cleanly. (same as in v0.8.6)
+	require.Falsef(t, taskState.Failed, "task unexpectedly failed after %d events\n%s",
+		len(events), formatEvents(events),
+	)
+
+	// The alloc should be faied
+	require.Equal(t, "failed", alloc.ClientStatus)
+
+	// Assert the expected type of events were emitted in a specific order
+	require.Equal(t, api.TaskReceived, events[0].Type)
+	require.Equal(t, api.TaskSetup, events[1].Type)
+	require.Equal(t, api.TaskStarted, events[2].Type)
+	require.Equal(t, api.TaskSiblingFailed, events[3].Type)
 	require.Equal(t, api.TaskKilling, events[4].Type)
 	require.Equal(t, api.TaskTerminated, events[5].Type)
 	require.Equal(t, api.TaskKilled, events[6].Type)

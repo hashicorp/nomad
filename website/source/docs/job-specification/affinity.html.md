@@ -28,9 +28,39 @@ be expressed on [attributes][interpolation] or [client metadata][client-meta].
 Additionally affinities may be specified at the [job][job], [group][group], or
 [task][task] levels for ultimate flexibility.
 
-Placing the same affinity at both the job level and at the group level is redundant
-since affinities are applied hierarchically. The job affinities will affect
-all groups (and tasks) in the job.
+```hcl
+job "docs" {
+  # Prefer nodes in the us-west1 datacenter
+  affinity {
+    attribute = "${node.datacenter}"
+    value     = "us-west1"
+    weight    = 100
+  }
+
+  group "example" {
+    # Prefer the "r1" rack
+    affinity {
+      attribute  = "${meta.rack}"
+      value     = "r1"
+      weight    = 50
+    }
+
+    task "server" {
+      # Prefer nodes where "my_custom_value" is greater than 5
+      affinity {
+        attribute = "${meta.my_custom_value}"
+        operator  = ">"
+        value     = "3"
+        weight    = 50
+      }
+    }
+  }
+}
+```
+
+Affinities apply to task groups but may be specified within job and task stanzas as well.
+Job affinities apply to all groups within the job. Task affinities apply to the whole task group
+that the task is a part of.
 
 Nomad will use affinities when computing scores for placement. Nodes that match affinities will
 have their scores boosted. Affinity scores are combined with other scoring factors such as bin packing.
@@ -68,7 +98,7 @@ restricted only to nodes that meet the constraint's criteria.
   or any [Nomad interpolated
   values](/docs/runtime/interpolation.html#interpreted_node_vars).
 
-- `weight` `(integer:0)` - Specifies a weight for the affinity. The weight is used
+- `weight` `(integer: 50)` - Specifies a weight for the affinity. The weight is used
   during scoring and must be an integer between -100 to 100. Negative weights act as
   anti affinities, causing nodes that match them to be scored lower. Weights can be used
   when there is more than one affinity to express relative preference across them.
@@ -154,7 +184,7 @@ This example adds a preference for running on nodes which have a kernel version
 higher than "3.19".
 
 ```hcl
-affinity{
+affinity {
   attribute = "${attr.kernel.version}"
   operator  = "version"
   value     = "> 3.19"

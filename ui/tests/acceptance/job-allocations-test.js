@@ -1,5 +1,7 @@
-import { test } from 'qunit';
-import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
+import { currentURL } from '@ember/test-helpers';
+import { module, test } from 'qunit';
+import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Allocations from 'nomad-ui/tests/pages/jobs/job/allocations';
 
 let job;
@@ -11,25 +13,27 @@ const makeSearchAllocations = server => {
     .map((_, index) => {
       server.create('allocation', {
         id: index < 5 ? `ffffff-dddddd-${index}` : `111111-222222-${index}`,
+        shallow: true,
       });
     });
 };
 
-moduleForAcceptance('Acceptance | job allocations', {
-  beforeEach() {
+module('Acceptance | job allocations', function(hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(function() {
     server.create('node');
 
     job = server.create('job', { noFailedPlacements: true, createAllocations: false });
-  },
-});
+  });
 
-test('lists all allocations for the job', function(assert) {
-  server.createList('allocation', Allocations.pageSize - 1);
-  allocations = server.schema.allocations.where({ jobId: job.id }).models;
+  test('lists all allocations for the job', async function(assert) {
+    server.createList('allocation', Allocations.pageSize - 1, { shallow: true });
+    allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
-  Allocations.visit({ id: job.id });
+    await Allocations.visit({ id: job.id });
 
-  andThen(() => {
     assert.equal(
       Allocations.allocations.length,
       Allocations.pageSize - 1,
@@ -43,62 +47,49 @@ test('lists all allocations for the job', function(assert) {
       assert.equal(allocation.shortId, shortId, `Allocation ${index} is ${shortId}`);
     });
   });
-});
 
-test('allocations table is sortable', function(assert) {
-  server.createList('allocation', Allocations.pageSize - 1);
-  allocations = server.schema.allocations.where({ jobId: job.id }).models;
+  test('allocations table is sortable', async function(assert) {
+    server.createList('allocation', Allocations.pageSize - 1);
+    allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
-  Allocations.visit({ id: job.id });
+    await Allocations.visit({ id: job.id });
+    await Allocations.sortBy('taskGroupName');
 
-  andThen(() => {
-    Allocations.sortBy('taskGroupName');
-
-    andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}/allocations?sort=taskGroupName`,
+      'the URL persists the sort parameter'
+    );
+    const sortedAllocations = allocations.sortBy('taskGroup').reverse();
+    Allocations.allocations.forEach((allocation, index) => {
+      const shortId = sortedAllocations[index].id.split('-')[0];
       assert.equal(
-        currentURL(),
-        `/jobs/${job.id}/allocations?sort=taskGroupName`,
-        'the URL persists the sort parameter'
+        allocation.shortId,
+        shortId,
+        `Allocation ${index} is ${shortId} with task group ${sortedAllocations[index].taskGroup}`
       );
-      const sortedAllocations = allocations.sortBy('taskGroup').reverse();
-      Allocations.allocations.forEach((allocation, index) => {
-        const shortId = sortedAllocations[index].id.split('-')[0];
-        assert.equal(
-          allocation.shortId,
-          shortId,
-          `Allocation ${index} is ${shortId} with task group ${sortedAllocations[index].taskGroup}`
-        );
-      });
     });
   });
-});
 
-test('allocations table is searchable', function(assert) {
-  makeSearchAllocations(server);
+  test('allocations table is searchable', async function(assert) {
+    makeSearchAllocations(server);
 
-  allocations = server.schema.allocations.where({ jobId: job.id }).models;
-  Allocations.visit({ id: job.id });
+    allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
-  andThen(() => {
-    Allocations.search('ffffff');
-  });
+    await Allocations.visit({ id: job.id });
+    await Allocations.search('ffffff');
 
-  andThen(() => {
     assert.equal(Allocations.allocations.length, 5, 'List is filtered by search term');
   });
-});
 
-test('when a search yields no results, the search box remains', function(assert) {
-  makeSearchAllocations(server);
+  test('when a search yields no results, the search box remains', async function(assert) {
+    makeSearchAllocations(server);
 
-  allocations = server.schema.allocations.where({ jobId: job.id }).models;
-  Allocations.visit({ id: job.id });
+    allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
-  andThen(() => {
-    Allocations.search('^nothing will ever match this long regex$');
-  });
+    await Allocations.visit({ id: job.id });
+    await Allocations.search('^nothing will ever match this long regex$');
 
-  andThen(() => {
     assert.equal(
       Allocations.emptyState.headline,
       'No Matches',
@@ -107,12 +98,10 @@ test('when a search yields no results, the search box remains', function(assert)
 
     assert.ok(Allocations.hasSearchBox, 'Search box is still shown');
   });
-});
 
-test('when the job for the allocations is not found, an error message is shown, but the URL persists', function(assert) {
-  Allocations.visit({ id: 'not-a-real-job' });
+  test('when the job for the allocations is not found, an error message is shown, but the URL persists', async function(assert) {
+    await Allocations.visit({ id: 'not-a-real-job' });
 
-  andThen(() => {
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,
       '/v1/job/not-a-real-job',

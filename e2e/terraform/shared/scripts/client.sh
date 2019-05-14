@@ -25,10 +25,11 @@ sed -i "s/RETRY_JOIN/$RETRY_JOIN/g" $CONFIGDIR/consul_client.json
 sudo cp $CONFIGDIR/consul_client.json $CONSULCONFIGDIR/consul.json
 sudo cp $CONFIGDIR/consul_$CLOUD.service /etc/systemd/system/consul.service
 
-sudo systemctl start consul.service
+sudo systemctl enable consul.service
+sudo systemctl start  consul.service
 sleep 10
 
-2export NOMAD_ADDR=http://$IP_ADDRESS:4646
+export NOMAD_ADDR=http://$IP_ADDRESS:4646
 
 # Add hostname to /etc/hosts
 echo "127.0.0.1 $(hostname)" | sudo tee --append /etc/hosts
@@ -53,5 +54,3 @@ echo "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre"  | sudo tee --appe
 
 # Update PATH
 echo "export PATH=$PATH:/usr/local/bin/spark/bin:/usr/local/$HADOOP_VERSION/bin" | sudo tee --append /home/$HOME_DIR/.bashrc
-
-

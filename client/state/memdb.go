@@ -3,6 +3,7 @@ package state
 import (
 	"sync"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
@@ -28,15 +29,19 @@ type MemDB struct {
 	// drivermanager -> plugin-state
 	driverManagerPs *driverstate.PluginState
 
+	logger hclog.Logger
+
 	mu sync.RWMutex
 }
 
-func NewMemDB() *MemDB {
+func NewMemDB(logger hclog.Logger) *MemDB {
+	logger = logger.Named("memdb")
 	return &MemDB{
 		allocs:         make(map[string]*structs.Allocation),
 		deployStatus:   make(map[string]*structs.AllocDeploymentStatus),
 		localTaskState: make(map[string]map[string]*state.LocalState),
 		taskState:      make(map[string]map[string]*structs.TaskState),
+		logger:         logger,
 	}
 }
 

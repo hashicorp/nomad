@@ -90,8 +90,8 @@ spark-submit \
   --conf spark.nomad.cluster.monitorUntil=complete \
   --conf spark.eventLog.enabled=true \
   --conf spark.eventLog.dir=hdfs://hdfs.service.consul/spark-events \
-  --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz \
-  https://s3.amazonaws.com/nomad-spark/spark-examples_2.11-2.1.0-SNAPSHOT.jar 100
+  --conf spark.nomad.sparkDistribution=https://nomad-spark.s3.amazonaws.com/spark-2.1.0-bin-nomad.tgz \
+  https://nomad-spark.s3.amazonaws.com/spark-examples_2.11-2.1.0-SNAPSHOT.jar 100
 ```
 
 ### Word count (Java)
@@ -105,8 +105,8 @@ spark-submit \
   --conf spark.nomad.cluster.monitorUntil=complete \
   --conf spark.eventLog.enabled=true \
   --conf spark.eventLog.dir=hdfs://hdfs.service.consul/spark-events \
-  --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz \
-  https://s3.amazonaws.com/nomad-spark/spark-examples_2.11-2.1.0-SNAPSHOT.jar \
+  --conf spark.nomad.sparkDistribution=https://nomad-spark.s3.amazonaws.com/spark-2.1.0-bin-nomad.tgz \
+  https://nomad-spark.s3.amazonaws.com/spark-examples_2.11-2.1.0-SNAPSHOT.jar \
   hdfs://hdfs.service.consul/foo/history.log
 ```
 
@@ -121,8 +121,8 @@ spark-submit \
   --conf spark.nomad.cluster.monitorUntil=complete \
   --conf spark.eventLog.enabled=true \
   --conf spark.eventLog.dir=hdfs://hdfs.service.consul/spark-events \
-  --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz \
-  https://s3.amazonaws.com/nomad-spark/spark-examples_2.11-2.1.0-SNAPSHOT.jar \
+  --conf spark.nomad.sparkDistribution=https://nomad-spark.s3.amazonaws.com/spark-2.1.0-bin-nomad.tgz \
+  https://nomad-spark.s3.amazonaws.com/spark-examples_2.11-2.1.0-SNAPSHOT.jar \
   /etc/sudoers hdfs://hdfs.service.consul/foo
 ```
 
@@ -134,7 +134,7 @@ Start the shell:
 spark-shell \
   --master nomad \
   --conf spark.executor.instances=4 \
-  --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz
+  --conf spark.nomad.sparkDistribution=https://nomad-spark.s3.amazonaws.com/spark-2.1.0-bin-nomad.tgz
 ```
 
 Run a few commands:
@@ -155,7 +155,7 @@ Start the shell:
 spark-sql \
   --master nomad \
   --conf spark.executor.instances=4 \
-  --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz jars/spark-sql_2.11-2.1.0-SNAPSHOT.jar
+  --conf spark.nomad.sparkDistribution=https://nomad-spark.s3.amazonaws.com/spark-2.1.0-bin-nomad.tgz jars/spark-sql_2.11-2.1.0-SNAPSHOT.jar
 ```
 
 Run a few commands:
@@ -178,7 +178,7 @@ Start the shell:
 pyspark \
   --master nomad \
   --conf spark.executor.instances=4 \
-  --conf spark.nomad.sparkDistribution=https://s3.amazonaws.com/nomad-spark/spark-2.1.0-bin-nomad.tgz
+  --conf spark.nomad.sparkDistribution=https://nomad-spark.s3.amazonaws.com/spark-2.1.0-bin-nomad.tgz
 ```
 
 Run a few commands:

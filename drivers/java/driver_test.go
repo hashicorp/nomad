@@ -13,14 +13,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/hashicorp/hcl2/hcl"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +34,7 @@ func javaCompatible(t *testing.T) {
 
 func TestJavaDriver_Fingerprint(t *testing.T) {
 	javaCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -58,7 +56,7 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 
 func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 	javaCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -66,11 +64,12 @@ func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 	d := NewDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
-	task := basicTask(t, "demo-app", map[string]interface{}{
-		"jar_path":    "demoapp.jar",
-		"args":        []string{"1"},
-		"jvm_options": []string{"-Xmx64m", "-Xms32m"},
-	})
+	tc := &TaskConfig{
+		JarPath: "demoapp.jar",
+		Args:    []string{"1"},
+		JvmOpts: []string{"-Xmx64m", "-Xms32m"},
+	}
+	task := basicTask(t, "demo-app", tc)
 
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
@@ -97,7 +96,7 @@ func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 
 func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 	javaCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -105,11 +104,12 @@ func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 	d := NewDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
-	task := basicTask(t, "demo-app", map[string]interface{}{
-		"jar_path":    "demoapp.jar",
-		"args":        []string{"600"},
-		"jvm_options": []string{"-Xmx64m", "-Xms32m"},
-	})
+	tc := &TaskConfig{
+		JarPath: "demoapp.jar",
+		Args:    []string{"600"},
+		JvmOpts: []string{"-Xmx64m", "-Xms32m"},
+	}
+	task := basicTask(t, "demo-app", tc)
 
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
@@ -157,7 +157,7 @@ func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 
 func TestJavaDriver_Class_Start_Wait(t *testing.T) {
 	javaCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -165,10 +165,11 @@ func TestJavaDriver_Class_Start_Wait(t *testing.T) {
 	d := NewDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
-	task := basicTask(t, "demo-app", map[string]interface{}{
-		"class": "Hello",
-		"args":  []string{"1"},
-	})
+	tc := &TaskConfig{
+		Class: "Hello",
+		Args:  []string{"1"},
+	}
+	task := basicTask(t, "demo-app", tc)
 
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
@@ -242,7 +243,36 @@ func TestJavaCmdArgs(t *testing.T) {
 	}
 }
 
-func basicTask(t *testing.T, name string, taskConfig map[string]interface{}) *drivers.TaskConfig {
+func TestJavaDriver_ExecTaskStreaming(t *testing.T) {
+	javaCompatible(t)
+	if !testutil.IsCI() {
+		t.Parallel()
+	}
+
+	require := require.New(t)
+	d := NewDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	tc := &TaskConfig{
+		Class: "Hello",
+		Args:  []string{"900"},
+	}
+	task := basicTask(t, "demo-app", tc)
+
+	cleanup := harness.MkAllocDir(task, true)
+	defer cleanup()
+
+	copyFile("./test-resources/Hello.class", filepath.Join(task.TaskDir().Dir, "Hello.class"), t)
+
+	_, _, err := harness.StartTask(task)
+	require.NoError(err)
+	defer d.DestroyTask(task.ID, true)
+
+	dtestutil.ExecTaskStreamingConformanceTests(t, harness, task.ID)
+
+}
+func basicTask(t *testing.T, name string, taskConfig *TaskConfig) *drivers.TaskConfig {
 	t.Helper()
 
 	task := &drivers.TaskConfig{
@@ -264,23 +294,8 @@ func basicTask(t *testing.T, name string, taskConfig map[string]interface{}) *dr
 		},
 	}
 
-	encodeDriverHelper(t, task, taskConfig)
+	require.NoError(t, task.EncodeConcreteDriverConfig(&taskConfig))
 	return task
-}
-
-func encodeDriverHelper(t *testing.T, task *drivers.TaskConfig, taskConfig map[string]interface{}) {
-	t.Helper()
-
-	evalCtx := &hcl.EvalContext{
-		Functions: hclutils.GetStdlibFuncs(),
-	}
-	spec, diag := hclspec.Convert(taskConfigSpec)
-	require.False(t, diag.HasErrors())
-	taskConfigCtyVal, diag := hclutils.ParseHclInterface(taskConfig, spec, evalCtx)
-	require.Empty(t, diag.Errs())
-	err := task.EncodeDriverConfig(taskConfigCtyVal)
-	require.Nil(t, err)
-
 }
 
 // copyFile moves an existing file to the destination
@@ -305,4 +320,28 @@ func copyFile(src, dst string, t *testing.T) {
 	if err := out.Sync(); err != nil {
 		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
 	}
+}
+
+func TestConfig_ParseAllHCL(t *testing.T) {
+	cfgStr := `
+config {
+  class = "java.main"
+  class_path = "/tmp/cp"
+  jar_path = "/tmp/jar.jar"
+  jvm_options = ["-Xmx600"]
+  args = ["arg1", "arg2"]
+}`
+
+	expected := &TaskConfig{
+		Class:     "java.main",
+		ClassPath: "/tmp/cp",
+		JarPath:   "/tmp/jar.jar",
+		JvmOpts:   []string{"-Xmx600"},
+		Args:      []string{"arg1", "arg2"},
+	}
+
+	var tc *TaskConfig
+	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
+
+	require.EqualValues(t, expected, tc)
 }

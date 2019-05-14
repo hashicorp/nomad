@@ -11,9 +11,7 @@ import (
 	"testing"
 	"time"
 
-	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -29,15 +27,19 @@ func init() {
 	executorFactories["LibcontainerExecutor"] = libcontainerFactory
 }
 
-func libcontainerFactory(l hclog.Logger) Executor {
-	return NewExecutorWithIsolation(l)
+var libcontainerFactory = executorFactory{
+	new: NewExecutorWithIsolation,
+	configureExecCmd: func(t *testing.T, cmd *ExecCommand) {
+		cmd.ResourceLimits = true
+		setupRootfs(t, cmd.TaskDir)
+	},
 }
 
 // testExecutorContextWithChroot returns an ExecutorContext and AllocDir with
 // chroot. Use testExecutorContext if you don't need a chroot.
 //
 // The caller is responsible for calling AllocDir.Destroy() to cleanup.
-func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
+func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 	chrootEnv := map[string]string{
 		"/etc/ld.so.cache":  "/etc/ld.so.cache",
 		"/etc/ld.so.conf":   "/etc/ld.so.conf",
@@ -60,7 +62,7 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
-	if err := allocDir.NewTaskDir(task.Name).Build(false, chrootEnv, cstructs.FSIsolationChroot); err != nil {
+	if err := allocDir.NewTaskDir(task.Name).Build(true, chrootEnv); err != nil {
 		allocDir.Destroy()
 		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}
@@ -72,9 +74,13 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 			NomadResources: alloc.AllocatedResources.Tasks[task.Name],
 		},
 	}
-	configureTLogging(cmd)
 
-	return cmd, allocDir
+	testCmd := &testExecCmd{
+		command:  cmd,
+		allocDir: allocDir,
+	}
+	configureTLogging(t, testCmd)
+	return testCmd
 }
 
 func TestExecutor_IsolationAndConstraints(t *testing.T) {
@@ -82,14 +88,15 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	require := require.New(t)
 	testutil.ExecCompatible(t)
 
-	execCmd, allocDir := testExecutorCommandWithChroot(t)
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 	execCmd.Cmd = "/bin/ls"
 	execCmd.Args = []string{"-F", "/", "/etc/"}
 	defer allocDir.Destroy()
 
 	execCmd.ResourceLimits = true
 
-	executor := libcontainerFactory(testlog.HCLogger(t))
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
@@ -144,8 +151,7 @@ ld.so.cache
 ld.so.conf
 ld.so.conf.d/`
 	tu.WaitForResult(func() (bool, error) {
-		outWriter, _ := execCmd.GetWriters()
-		output := outWriter.(*bufferCloser).String()
+		output := testExecCmd.stdout.String()
 		act := strings.TrimSpace(string(output))
 		if act != expected {
 			return false, fmt.Errorf("Command output incorrectly: want %v; got %v", expected, act)
@@ -159,10 +165,11 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	testutil.ExecCompatible(t)
 	require := require.New(t)
 
-	execCmd, allocDir := testExecutorCommandWithChroot(t)
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 	defer allocDir.Destroy()
 
-	executor := libcontainerFactory(testlog.HCLogger(t))
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("", 0)
 
 	// Need to run a command which will produce continuous output but not
@@ -191,11 +198,10 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 		require.Fail("timeout waiting for exec to shutdown")
 	}
 
-	outWriter, _ := execCmd.GetWriters()
-	output := outWriter.(*bufferCloser).String()
+	output := testExecCmd.stdout.String()
 	require.NotZero(len(output))
 	time.Sleep(2 * time.Second)
-	output1 := outWriter.(*bufferCloser).String()
+	output1 := testExecCmd.stdout.String()
 	require.Equal(len(output), len(output1))
 }
 

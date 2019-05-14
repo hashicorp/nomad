@@ -413,12 +413,13 @@ func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLen
 
 	allocs := make([]string, len(stubs)+1)
 	if verbose {
-		allocs[0] = "ID|Eval ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
+		allocs[0] = "ID|Eval ID|Node ID|Node Name|Task Group|Version|Desired|Status|Created|Modified"
 		for i, alloc := range stubs {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s|%s",
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%d|%s|%s|%s|%s",
 				limit(alloc.ID, uuidLength),
 				limit(alloc.EvalID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
+				alloc.NodeName,
 				alloc.TaskGroup,
 				alloc.JobVersion,
 				alloc.DesiredStatus,
@@ -575,6 +576,7 @@ func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, job *api.
 	}
 	sort.Strings(taskGroups)
 	var evalDetails []string
+	first := true
 	for _, taskGroup := range taskGroups {
 		evalID := followUpEvalIds[taskGroup]
 		evaluation, _, err := client.Evaluations().Info(evalID, nil)
@@ -585,13 +587,18 @@ func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, job *api.
 		}
 		evalTime := prettyTimeDiff(evaluation.WaitUntil, time.Now())
 		if c.verbose {
-			delayedEvalInfos = append(delayedEvalInfos, "Task Group|Reschedule Policy|Eval ID|Eval Time")
+			if first {
+				delayedEvalInfos = append(delayedEvalInfos, "Task Group|Reschedule Policy|Eval ID|Eval Time")
+			}
 			rp := job.LookupTaskGroup(taskGroup).ReschedulePolicy
 			evalDetails = append(evalDetails, fmt.Sprintf("%s|%s|%s|%s", taskGroup, rp.String(), limit(evalID, uuidLength), evalTime))
 		} else {
-			delayedEvalInfos = append(delayedEvalInfos, "Task Group|Eval ID|Eval Time")
+			if first {
+				delayedEvalInfos = append(delayedEvalInfos, "Task Group|Eval ID|Eval Time")
+			}
 			evalDetails = append(evalDetails, fmt.Sprintf("%s|%s|%s", taskGroup, limit(evalID, uuidLength), evalTime))
 		}
+		first = false
 	}
 	if len(evalDetails) == 0 {
 		return nil

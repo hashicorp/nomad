@@ -1,142 +1,114 @@
-import { test } from 'qunit';
-import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
+import { currentURL } from '@ember/test-helpers';
+import { module, test } from 'qunit';
+import { setupApplicationTest } from 'ember-qunit';
+import { selectChoose } from 'ember-power-select/test-support';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import PageLayout from 'nomad-ui/tests/pages/layout';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 
-moduleForAcceptance('Acceptance | regions (only one)', {
-  beforeEach() {
+module('Acceptance | regions (only one)', function(hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(function() {
     server.create('agent');
     server.create('node');
-    server.createList('job', 5);
-  },
-});
-
-test('when there is only one region, the region switcher is not shown in the nav bar', function(assert) {
-  server.create('region', { id: 'global' });
-
-  andThen(() => {
-    JobsList.visit();
+    server.createList('job', 2, { createAllocations: false, noDeployments: true });
   });
 
-  andThen(() => {
+  test('when there is only one region, the region switcher is not shown in the nav bar', async function(assert) {
+    server.create('region', { id: 'global' });
+
+    await JobsList.visit();
+
     assert.notOk(PageLayout.navbar.regionSwitcher.isPresent, 'No region switcher');
   });
-});
 
-test('when the only region is not named "global", the region switcher still is not shown', function(assert) {
-  server.create('region', { id: 'some-region' });
+  test('when the only region is not named "global", the region switcher still is not shown', async function(assert) {
+    server.create('region', { id: 'some-region' });
 
-  andThen(() => {
-    JobsList.visit();
-  });
+    await JobsList.visit();
 
-  andThen(() => {
     assert.notOk(PageLayout.navbar.regionSwitcher.isPresent, 'No region switcher');
   });
-});
 
-test('pages do not include the region query param', function(assert) {
-  let jobId;
+  test('pages do not include the region query param', async function(assert) {
+    server.create('region', { id: 'global' });
 
-  server.create('region', { id: 'global' });
-
-  andThen(() => {
-    JobsList.visit();
-  });
-  andThen(() => {
+    await JobsList.visit();
     assert.equal(currentURL(), '/jobs', 'No region query param');
-  });
-  andThen(() => {
-    jobId = JobsList.jobs.objectAt(0).id;
-    JobsList.jobs.objectAt(0).clickRow();
-  });
-  andThen(() => {
+
+    const jobId = JobsList.jobs.objectAt(0).id;
+    await JobsList.jobs.objectAt(0).clickRow();
     assert.equal(currentURL(), `/jobs/${jobId}`, 'No region query param');
-  });
-  andThen(() => {
-    ClientsList.visit();
-  });
-  andThen(() => {
+
+    await ClientsList.visit();
     assert.equal(currentURL(), '/clients', 'No region query param');
   });
-});
 
-test('api requests do not include the region query param', function(assert) {
-  server.create('region', { id: 'global' });
+  test('api requests do not include the region query param', async function(assert) {
+    server.create('region', { id: 'global' });
 
-  andThen(() => {
-    JobsList.visit();
-  });
-  andThen(() => {
-    JobsList.jobs.objectAt(0).clickRow();
-  });
-  andThen(() => {
-    PageLayout.gutter.visitClients();
-  });
-  andThen(() => {
-    PageLayout.gutter.visitServers();
-  });
-  andThen(() => {
+    await JobsList.visit();
+    await JobsList.jobs.objectAt(0).clickRow();
+    await PageLayout.gutter.visitClients();
+    await PageLayout.gutter.visitServers();
     server.pretender.handledRequests.forEach(req => {
       assert.notOk(req.url.includes('region='), req.url);
     });
   });
 });
 
-moduleForAcceptance('Acceptance | regions (many)', {
-  beforeEach() {
+module('Acceptance | regions (many)', function(hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(function() {
     server.create('agent');
     server.create('node');
-    server.createList('job', 5);
+    server.createList('job', 2, { createAllocations: false, noDeployments: true });
+    server.create('allocation');
     server.create('region', { id: 'global' });
     server.create('region', { id: 'region-2' });
-  },
-});
+  });
 
-test('the region switcher is rendered in the nav bar', function(assert) {
-  JobsList.visit();
+  test('the region switcher is rendered in the nav bar', async function(assert) {
+    await JobsList.visit();
 
-  andThen(() => {
     assert.ok(PageLayout.navbar.regionSwitcher.isPresent, 'Region switcher is shown');
   });
-});
 
-test('when on the default region, pages do not include the region query param', function(assert) {
-  JobsList.visit();
+  test('when on the default region, pages do not include the region query param', async function(assert) {
+    await JobsList.visit();
 
-  andThen(() => {
     assert.equal(currentURL(), '/jobs', 'No region query param');
     assert.equal(window.localStorage.nomadActiveRegion, 'global', 'Region in localStorage');
   });
-});
 
-test('switching regions sets localStorage and the region query param', function(assert) {
-  const newRegion = server.db.regions[1].id;
+  test('switching regions sets localStorage and the region query param', async function(assert) {
+    const newRegion = server.db.regions[1].id;
 
-  JobsList.visit();
+    await JobsList.visit();
 
-  selectChoose('[data-test-region-switcher]', newRegion);
+    await selectChoose('[data-test-region-switcher]', newRegion);
 
-  andThen(() => {
     assert.ok(
       currentURL().includes(`region=${newRegion}`),
       'New region is the region query param value'
     );
     assert.equal(window.localStorage.nomadActiveRegion, newRegion, 'New region in localStorage');
   });
-});
 
-test('switching regions to the default region, unsets the region query param', function(assert) {
-  const startingRegion = server.db.regions[1].id;
-  const defaultRegion = server.db.regions[0].id;
+  test('switching regions to the default region, unsets the region query param', async function(assert) {
+    const startingRegion = server.db.regions[1].id;
+    const defaultRegion = server.db.regions[0].id;
 
-  JobsList.visit({ region: startingRegion });
+    await JobsList.visit({ region: startingRegion });
 
-  selectChoose('[data-test-region-switcher]', defaultRegion);
+    await selectChoose('[data-test-region-switcher]', defaultRegion);
 
-  andThen(() => {
     assert.notOk(currentURL().includes('region='), 'No region query param for the default region');
     assert.equal(
       window.localStorage.nomadActiveRegion,
@@ -144,26 +116,22 @@ test('switching regions to the default region, unsets the region query param', f
       'New region in localStorage'
     );
   });
-});
 
-test('switching regions on deep pages redirects to the application root', function(assert) {
-  const newRegion = server.db.regions[1].id;
+  test('switching regions on deep pages redirects to the application root', async function(assert) {
+    const newRegion = server.db.regions[1].id;
 
-  Allocation.visit({ id: server.db.allocations[0].id });
+    await Allocation.visit({ id: server.db.allocations[0].id });
 
-  selectChoose('[data-test-region-switcher]', newRegion);
+    await selectChoose('[data-test-region-switcher]', newRegion);
 
-  andThen(() => {
     assert.ok(currentURL().includes('/jobs?'), 'Back at the jobs page');
   });
-});
 
-test('navigating directly to a page with the region query param sets the application to that region', function(assert) {
-  const allocation = server.db.allocations[0];
-  const region = server.db.regions[1].id;
-  Allocation.visit({ id: allocation.id, region });
+  test('navigating directly to a page with the region query param sets the application to that region', async function(assert) {
+    const allocation = server.db.allocations[0];
+    const region = server.db.regions[1].id;
+    await Allocation.visit({ id: allocation.id, region });
 
-  andThen(() => {
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}?region=${region}`,
@@ -175,23 +143,15 @@ test('navigating directly to a page with the region query param sets the applica
       'Region is also set in localStorage from a detail page'
     );
   });
-});
 
-test('when the region is not the default region, all api requests include the region query param', function(assert) {
-  const region = server.db.regions[1].id;
+  test('when the region is not the default region, all api requests include the region query param', async function(assert) {
+    const region = server.db.regions[1].id;
 
-  JobsList.visit({ region });
+    await JobsList.visit({ region });
 
-  andThen(() => {
-    JobsList.jobs.objectAt(0).clickRow();
-  });
-  andThen(() => {
-    PageLayout.gutter.visitClients();
-  });
-  andThen(() => {
-    PageLayout.gutter.visitServers();
-  });
-  andThen(() => {
+    await JobsList.jobs.objectAt(0).clickRow();
+    await PageLayout.gutter.visitClients();
+    await PageLayout.gutter.visitServers();
     const [regionsRequest, defaultRegionRequest, ...appRequests] = server.pretender.handledRequests;
 
     assert.notOk(

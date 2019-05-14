@@ -657,6 +657,9 @@ func in(l, v interface{}) (bool, error) {
 
 // Indent prefixes each line of a string with the specified number of spaces
 func indent(spaces int, s string) (string, error) {
+	if spaces < 0 {
+		return "", fmt.Errorf("indent value must be a positive integer")
+	}
 	var output, prefix []byte
 	var sp bool
 	var size int
@@ -669,7 +672,7 @@ func indent(spaces int, s string) (string, error) {
 		}
 		output = append(output, c)
 		sp = c == '\n'
-		size += 1
+		size++
 	}
 	return string(output[:size]), nil
 }

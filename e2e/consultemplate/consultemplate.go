@@ -96,7 +96,7 @@ func (tc *ConsulTemplateTest) TestUpdatesRestartTasks(f *framework.F) {
 			}
 			first := allocs[0]
 			return first.TaskStates["test"].Restarts
-		}, 5*time.Second, time.Second).Should(Equal(count), "Incorrect restart count")
+		}, 10*time.Second, time.Second).Should(Equal(count), "Incorrect restart count")
 	}
 
 	// Wrap in retry to wait until placement
@@ -132,10 +132,7 @@ func (tc *ConsulTemplateTest) TestUpdatesRestartTasks(f *framework.F) {
 	require.Nil(err)
 
 	// Wrap in retry to wait until restart
-	// TODO(dani): FIXME: This restart counter should only be 1. This is
-	//                    likely an accounting bug in restart tracking from
-	//                    template hooks.
-	waitForRestartCount(2)
+	waitForRestartCount(1)
 }
 
 func (tc *ConsulTemplateTest) AfterEach(f *framework.F) {

@@ -9,8 +9,31 @@
             <a href="/docs/internals/architecture.html">Architecture</a>
           </li>
 
+          <li<%= sidebar_current("docs-internals-plugins") %>>
+            <a href="/docs/internals/plugins/index.html">Plugins</a>
+                <ul class="nav">
+                    <li <%= sidebar_current("docs-internals-plugins-base") %>>
+                        <a href="/docs/internals/plugins/base.html">Base</a>
+                    </li>
+                    <li <%= sidebar_current("docs-internals-plugins-task-driver") %>>
+                        <a href="/docs/internals/plugins/task-drivers.html">Task Drivers</a>
+                    </li>
+                    <li <%= sidebar_current("docs-internals-plugins-device") %>>
+                        <a href="/docs/internals/plugins/devices.html">Devices</a>
+                    </li>
+                </ul>
+          </li>
+
           <li<%= sidebar_current("docs-internals-scheduling") %>>
-            <a href="/docs/internals/scheduling.html">Scheduling</a>
+           <a href="/docs/internals/scheduling/index.html">Scheduling</a>
+                  <ul class="nav">
+                    <li <%= sidebar_current("docs-internals-scheduling-internals") %>>
+                      <a href="/docs/internals/scheduling/scheduling.html">Internals</a>
+                    </li>
+                    <li <%= sidebar_current("docs-configuration-autopilot") %>>
+                      <a href="/docs/internals/scheduling/preemption.html">Preemption</a>
+                    </li>
+                  </ul>
           </li>
 
           <li<%= sidebar_current("docs-internals-consensus") %>>
@@ -92,6 +115,9 @@
               <li<%= sidebar_current("docs-commands-acl-token-info") %>>
                 <a href="/docs/commands/acl/token-info.html">token info</a>
               </li>
+              <li<%= sidebar_current("docs-commands-acl-token-list") %>>
+                <a href="/docs/commands/acl/token-list.html">token list</a>
+              </li>
               <li<%= sidebar_current("docs-commands-acl-token-self") %>>
                 <a href="/docs/commands/acl/token-self.html">token self</a>
               </li>
@@ -115,8 +141,17 @@
               <li<%= sidebar_current("docs-commands-alloc-logs") %>>
                 <a href="/docs/commands/alloc/logs.html">logs</a>
               </li>
+              <li<%= sidebar_current("docs-commands-alloc-restart") %>>
+                <a href="/docs/commands/alloc/restart.html">restart</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-alloc-signal") %>>
+                <a href="/docs/commands/alloc/signal.html">signal</a>
+              </li>
               <li<%= sidebar_current("docs-commands-alloc-status") %>>
                 <a href="/docs/commands/alloc/status.html">status</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-alloc-stop") %>>
+                <a href="/docs/commands/alloc/stop.html">stop</a>
               </li>
             </ul>
           </li>
@@ -169,6 +204,9 @@
               </li>
               <li<%= sidebar_current("docs-commands-job-plan") %>>
                 <a href="/docs/commands/job/plan.html">plan</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-job-periodic-force") %>>
+                <a href="/docs/commands/job/periodic-force.html">periodic force</a>
               </li>
               <li<%= sidebar_current("docs-commands-job-promote") %>>
                 <a href="/docs/commands/job/promote.html">promote</a>
@@ -333,6 +371,9 @@
           <li<%= sidebar_current("docs-job-specification-constraint")%>>
             <a href="/docs/job-specification/constraint.html">constraint</a>
           </li>
+          <li<%= sidebar_current("docs-job-specification-device")%>>
+            <a href="/docs/job-specification/device.html">device</a>
+          </li>
           <li<%= sidebar_current("docs-job-specification-dispatch-payload")%>>
             <a href="/docs/job-specification/dispatch_payload.html">dispatch_payload</a>
           </li>
@@ -378,6 +419,9 @@
           <li<%= sidebar_current("docs-job-specification-service")%>>
             <a href="/docs/job-specification/service.html">service</a>
           </li>
+          <li<%= sidebar_current("docs-job-specification-spread")%>>
+            <a href="/docs/job-specification/spread.html">spread</a>
+          </li>
           <li<%= sidebar_current("docs-job-specification-task")%>>
             <a href="/docs/job-specification/task.html">task</a>
           </li>
@@ -408,10 +452,6 @@
             <a href="/docs/drivers/java.html">Java</a>
           </li>
 
-          <li<%= sidebar_current("docs-drivers-lxc") %>>
-            <a href="/docs/drivers/lxc.html">LXC</a>
-          </li>
-
           <li<%= sidebar_current("docs-drivers-qemu") %>>
             <a href="/docs/drivers/qemu.html">Qemu</a>
           </li>
@@ -425,8 +465,30 @@
             <a href="/docs/drivers/rkt.html">Rkt</a>
           </li>
 
-          <li<%= sidebar_current("docs-drivers-custom") %>>
-            <a href="/docs/drivers/custom.html">Custom</a>
+          <li<%= sidebar_current("docs-drivers-community") %>>
+            <a href="/docs/drivers/external/index.html"">Community</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-drivers-community-lxc") %>>
+                <a href="/docs/drivers/external/lxc.html">LXC</a>
+              </li>
+              <li<%= sidebar_current("docs-drivers-community-singularity") %>>
+              <a href="/docs/drivers/external/singularity.html">Singularity</a>
+            </li>
+            </ul>
+          </li>
+
+        </ul>
+      </li>
+
+      <li<%= sidebar_current("docs-devices") %>>
+        <a href="/docs/devices/index.html">Device Plugins</a>
+        <ul class="nav">
+          <li<%= sidebar_current("docs-devices-nvidia") %>>
+            <a href="/docs/devices/nvidia.html">Nvidia</a>
+          </li>
+
+          <li<%= sidebar_current("docs-devices-community") %>>
+            <a href="/docs/devices/community.html">Community</a>
           </li>
         </ul>
       </li>
@@ -438,7 +500,7 @@
       <li<%= sidebar_current("docs-runtime-environment") %>>
         <a href="/docs/runtime/environment.html">Runtime Environment</a>
       </li>
-      
+
       <li<%= sidebar_current("docs-telemetry") %>>
         <a href="/docs/telemetry/index.html">Telemetry</a>
       </li>

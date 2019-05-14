@@ -17,7 +17,7 @@ EOT
 pkg update
 
 pkg install -y \
-       editors/vim-lite \
+       editors/vim-tiny \
        devel/git \
        devel/gmake \
        lang/go \

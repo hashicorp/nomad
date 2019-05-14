@@ -8,7 +8,11 @@
     <span class="pair is-faded">
       <span class="term">Version</span>
       <span class="has-emphasis" data-test-deployment-version>#{{deployment.version.number}}</span>
-      <span data-test-deployment-submit-time>| {{moment-from-now deployment.version.submitTime}}</span>
+      <span data-test-deployment-submit-time>|
+        <span class="tooltip" aria-label="{{format-ts deployment.version.submitTime}}">
+          {{moment-from-now deployment.version.submitTime}}
+        </span>
+      </span>
     </span>
     <button data-test-deployment-toggle-details class="button is-light is-compact pull-right" {{action (toggle "isOpen" this)}}>details</button>
  </span>

@@ -168,7 +168,7 @@ documentation for all possible fields and more complete documentation.
 
      A regression occurred in Vault 0.6.4 when validating token creation using a
      token role with `disallowed_policies` such that it is not usable with
-     Nomad. This will be remedied in 0.6.5 and does not effect earlier versions
+     Nomad. This was remedied in 0.6.5 and does not effect earlier versions
      of Vault.
 
 * `explicit_max_ttl` - Specifies the max TTL of a token. **Must be set to `0`** to

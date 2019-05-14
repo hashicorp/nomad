@@ -1,13 +1,18 @@
 package executor
 
 import (
+	"fmt"
 	"syscall"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type grpcExecutorServer struct {
@@ -87,20 +92,43 @@ func (s *grpcExecutorServer) Version(context.Context, *proto.VersionRequest) (*p
 	}, nil
 }
 
-func (s *grpcExecutorServer) Stats(context.Context, *proto.StatsRequest) (*proto.StatsResponse, error) {
-	stats, err := s.impl.Stats()
-	if err != nil {
-		return nil, err
+func (s *grpcExecutorServer) Stats(req *proto.StatsRequest, stream proto.Executor_StatsServer) error {
+	interval := time.Duration(req.Interval)
+	if interval == 0 {
+		interval = time.Second
 	}
 
-	pbStats, err := drivers.TaskStatsToProto(stats)
+	outCh, err := s.impl.Stats(stream.Context(), interval)
 	if err != nil {
-		return nil, err
+		if rec, ok := err.(structs.Recoverable); ok {
+			st := status.New(codes.FailedPrecondition, rec.Error())
+			st, err := st.WithDetails(&sproto.RecoverableError{Recoverable: rec.IsRecoverable()})
+			if err != nil {
+				// If this error, it will always error
+				panic(err)
+			}
+			return st.Err()
+		}
+		return err
 	}
 
-	return &proto.StatsResponse{
-		Stats: pbStats,
-	}, nil
+	for resp := range outCh {
+		pbStats, err := drivers.TaskStatsToProto(resp)
+		if err != nil {
+			return err
+		}
+
+		presp := &proto.StatsResponse{
+			Stats: pbStats,
+		}
+
+		// Send the stats
+		if err := stream.Send(presp); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *grpcExecutorServer) Signal(ctx context.Context, req *proto.SignalRequest) (*proto.SignalResponse, error) {
@@ -126,4 +154,19 @@ func (s *grpcExecutorServer) Exec(ctx context.Context, req *proto.ExecRequest) (
 		Output:   out,
 		ExitCode: int32(exit),
 	}, nil
+}
+
+func (s *grpcExecutorServer) ExecStreaming(server proto.Executor_ExecStreamingServer) error {
+	msg, err := server.Recv()
+	if err != nil {
+		return fmt.Errorf("failed to receive initial message: %v", err)
+	}
+
+	if msg.Setup == nil {
+		return fmt.Errorf("first message should always be setup")
+	}
+
+	return s.impl.ExecStreaming(server.Context(),
+		msg.Setup.Command, msg.Setup.Tty,
+		server)
 }

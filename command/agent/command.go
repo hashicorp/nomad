@@ -15,17 +15,20 @@ import (
 	"syscall"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/circonus"
 	"github.com/armon/go-metrics/datadog"
 	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/consul/lib"
-	checkpoint "github.com/hashicorp/go-checkpoint"
-	discover "github.com/hashicorp/go-discover"
+	"github.com/hashicorp/go-checkpoint"
+	"github.com/hashicorp/go-discover"
+	"github.com/hashicorp/go-hclog"
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
+	"github.com/hashicorp/nomad/helper"
 	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
+	"github.com/hashicorp/nomad/helper/logging"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
@@ -108,6 +111,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.PluginDir, "plugin-dir", "", "")
 	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
+	flags.BoolVar(&cmdConfig.LogJson, "log-json", false, "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
 
 	// Consul options
@@ -159,6 +163,7 @@ func (c *Command) readConfig() *Config {
 	}), "vault-allow-unauthenticated", "")
 	flags.StringVar(&cmdConfig.Vault.Token, "vault-token", "", "")
 	flags.StringVar(&cmdConfig.Vault.Addr, "vault-address", "", "")
+	flags.StringVar(&cmdConfig.Vault.Namespace, "vault-namespace", "", "")
 	flags.StringVar(&cmdConfig.Vault.Role, "vault-create-from-role", "", "")
 	flags.StringVar(&cmdConfig.Vault.TLSCaFile, "vault-ca-file", "", "")
 	flags.StringVar(&cmdConfig.Vault.TLSCaPath, "vault-ca-path", "", "")
@@ -193,7 +198,6 @@ func (c *Command) readConfig() *Config {
 				c.Ui.Error(fmt.Sprintf("Error parsing Client.Meta value: %v", kv))
 				return nil
 			}
-
 			cmdConfig.Client.Meta[parts[0]] = parts[1]
 		}
 	}
@@ -252,9 +256,33 @@ func (c *Command) readConfig() *Config {
 
 	// Check to see if we should read the Vault token from the environment
 	if config.Vault.Token == "" {
-		if token, ok := os.LookupEnv("VAULT_TOKEN"); ok {
-			config.Vault.Token = token
-		}
+		config.Vault.Token = os.Getenv("VAULT_TOKEN")
+	}
+
+	// Check to see if we should read the Vault namespace from the environment
+	if config.Vault.Namespace == "" {
+		config.Vault.Namespace = os.Getenv("VAULT_NAMESPACE")
+	}
+
+	// Default the plugin directory to be under that of the data directory if it
+	// isn't explicitly specified.
+	if config.PluginDir == "" && config.DataDir != "" {
+		config.PluginDir = filepath.Join(config.DataDir, "plugins")
+	}
+
+	if !c.isValidConfig(config) {
+		return nil
+	}
+
+	return config
+}
+
+func (c *Command) isValidConfig(config *Config) bool {
+
+	// Check that the server is running in at least one mode.
+	if !(config.Server.Enabled || config.Client.Enabled) {
+		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
+		return false
 	}
 
 	// Set up the TLS configuration properly if we have one.
@@ -266,32 +294,15 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
-	// Default the plugin directory to be under that of the data directory if it
-	// isn't explicitly specified.
-	if config.PluginDir == "" && config.DataDir != "" {
-		config.PluginDir = filepath.Join(config.DataDir, "plugins")
-	}
-
-	if dev {
-		// Skip validation for dev mode
-		return config
-	}
-
 	if config.Server.EncryptKey != "" {
 		if _, err := config.Server.EncryptBytes(); err != nil {
 			c.Ui.Error(fmt.Sprintf("Invalid encryption key: %s", err))
-			return nil
+			return false
 		}
 		keyfile := filepath.Join(config.DataDir, serfKeyring)
 		if _, err := os.Stat(keyfile); err == nil {
 			c.Ui.Warn("WARNING: keyring exists but -encrypt given, using keyring")
 		}
-	}
-
-	// Check that the server is running in at least one mode.
-	if !(config.Server.Enabled || config.Client.Enabled) {
-		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
-		return nil
 	}
 
 	// Verify the paths are absolute.
@@ -308,14 +319,28 @@ func (c *Command) readConfig() *Config {
 
 		if !filepath.IsAbs(dir) {
 			c.Ui.Error(fmt.Sprintf("%s must be given as an absolute path: got %v", k, dir))
-			return nil
+			return false
 		}
+	}
+
+	if config.Client.Enabled {
+		for k := range config.Client.Meta {
+			if !helper.IsValidInterpVariable(k) {
+				c.Ui.Error(fmt.Sprintf("Invalid Client.Meta key: %v", k))
+				return false
+			}
+		}
+	}
+
+	if config.DevMode {
+		// Skip the rest of the validation for dev mode
+		return true
 	}
 
 	// Ensure that we have the directories we need to run.
 	if config.Server.Enabled && config.DataDir == "" {
 		c.Ui.Error("Must specify data directory")
-		return nil
+		return false
 	}
 
 	// The config is valid if the top-level data-dir is set or if both
@@ -323,20 +348,20 @@ func (c *Command) readConfig() *Config {
 	if config.Client.Enabled && config.DataDir == "" {
 		if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
 			c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
-			return nil
+			return false
 		}
 	}
 
 	// Check the bootstrap flags
 	if config.Server.BootstrapExpect > 0 && !config.Server.Enabled {
 		c.Ui.Error("Bootstrap requires server mode to be enabled")
-		return nil
+		return false
 	}
 	if config.Server.BootstrapExpect == 1 {
 		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
 	}
 
-	return config
+	return true
 }
 
 // setupLoggers is used to setup the logGate, logWriter, and our logOutput
@@ -383,9 +408,9 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter,
 }
 
 // setupAgent is used to start the agent and various interfaces
-func (c *Command) setupAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) error {
+func (c *Command) setupAgent(config *Config, logger hclog.Logger, logOutput io.Writer, inmem *metrics.InmemSink) error {
 	c.Ui.Output("Starting Nomad agent...")
-	agent, err := NewAgent(config, logOutput, inmem)
+	agent, err := NewAgent(config, logger, logOutput, inmem)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error starting agent: %s", err))
 		return err
@@ -476,6 +501,7 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		"-plugin-dir":                    complete.PredictDirs("*"),
 		"-dc":                            complete.PredictAnything,
 		"-log-level":                     complete.PredictAnything,
+		"-json-logs":                     complete.PredictNothing,
 		"-node":                          complete.PredictAnything,
 		"-consul-auth":                   complete.PredictAnything,
 		"-consul-auto-advertise":         complete.PredictNothing,
@@ -535,6 +561,19 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
+	// Create logger
+	logger := hclog.New(&hclog.LoggerOptions{
+		Name:       "agent",
+		Level:      hclog.LevelFromString(config.LogLevel),
+		Output:     logOutput,
+		JSONFormat: config.LogJson,
+	})
+
+	// Swap out UI implementation if json logging is enabled
+	if config.LogJson {
+		c.Ui = &logging.HcLogUI{Log: logger}
+	}
+
 	// Log config files
 	if len(config.Files) > 0 {
 		c.Ui.Output(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
@@ -550,7 +589,7 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Create the agent
-	if err := c.setupAgent(config, logOutput, inmem); err != nil {
+	if err := c.setupAgent(config, logger, logOutput, inmem); err != nil {
 		logGate.Flush()
 		return 1
 	}
@@ -1108,6 +1147,9 @@ General Options (clients and servers):
     Specify the verbosity level of Nomad's logs. Valid values include
     DEBUG, INFO, and WARN, in decreasing order of verbosity. The
     default is INFO.
+
+  -log-json
+    Output logs in a JSON format. The default is false.
 
   -node=<name>
     The name of the local agent. This name is used to identify the node

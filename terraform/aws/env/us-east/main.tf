@@ -1,6 +1,9 @@
 variable "name" {
   description = "Used to name various infrastructure components"
-  default     = "hashistack"
+}
+
+variable "whitelist_ip" {
+  description = "IP to whitelist for the security groups (set 0.0.0.0/0 for world)"
 }
 
 variable "region" {
@@ -10,12 +13,24 @@ variable "region" {
 
 variable "ami" {}
 
-variable "instance_type" {
-  description = "The AWS instance type to use for both clients and servers."
+variable "server_instance_type" {
+  description = "The AWS instance type to use for servers."
   default     = "t2.medium"
 }
 
-variable "key_name" {}
+variable "client_instance_type" {
+  description = "The AWS instance type to use for clients."
+  default     = "t2.medium"
+}
+
+variable "root_block_device_size" {
+  description = "The volume size of the root block device."
+  default     = 16
+}
+
+variable "key_name" {
+  description = "Name of the SSH key used to provision EC2 instances."
+}
 
 variable "server_count" {
   description = "The number of servers to provision."
@@ -26,6 +41,7 @@ variable "client_count" {
   description = "The number of clients to provision."
   default     = "4"
 }
+
 
 variable "retry_join" {
   description = "Used by Consul to automatically form a cluster."
@@ -50,15 +66,18 @@ provider "aws" {
 module "hashistack" {
   source = "../../modules/hashistack"
 
-  name          = "${var.name}"
-  region        = "${var.region}"
-  ami           = "${var.ami}"
-  instance_type = "${var.instance_type}"
-  key_name      = "${var.key_name}"
-  server_count  = "${var.server_count}"
-  client_count  = "${var.client_count}"
-  retry_join    = "${var.retry_join}"
-  nomad_binary  = "${var.nomad_binary}"
+  name                   = "${var.name}"
+  region                 = "${var.region}"
+  ami                    = "${var.ami}"
+  server_instance_type   = "${var.server_instance_type}"
+  client_instance_type   = "${var.client_instance_type}"
+  key_name               = "${var.key_name}"
+  server_count           = "${var.server_count}"
+  client_count           = "${var.client_count}"
+  retry_join             = "${var.retry_join}"
+  nomad_binary           = "${var.nomad_binary}"
+  root_block_device_size = "${var.root_block_device_size}"
+  whitelist_ip           = "${var.whitelist_ip}"
 }
 
 output "IP_Addresses" {
@@ -83,8 +102,12 @@ executing:
 
 Simply wait a few seconds and rerun the command if this occurs.
 
-The Nomad UI can be accessed at http://PUBLIC_IP:4646/ui.
-The Consul UI can be accessed at http://PUBLIC_IP:8500/ui.
+The Nomad UI can be accessed at http://${module.hashistack.server_lb_ip}:4646/ui.
+The Consul UI can be accessed at http://${module.hashistack.server_lb_ip}:8500/ui.
+
+Set the following for access from the Nomad CLI:
+
+  export NOMAD_ADDR=http://${module.hashistack.server_lb_ip}:4646
 
 CONFIGURATION
 }

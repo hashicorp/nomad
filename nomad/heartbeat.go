@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
+	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/nomad/nomad/structs"
 )

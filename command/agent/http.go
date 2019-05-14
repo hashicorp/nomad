@@ -15,6 +15,7 @@ import (
 
 	"github.com/NYTimes/gziphandler"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
+	"github.com/gorilla/websocket"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -54,6 +55,8 @@ type HTTPServer struct {
 	listenerCh chan struct{}
 	logger     log.Logger
 	Addr       string
+
+	wsUpgrader *websocket.Upgrader
 }
 
 // NewHTTPServer starts new HTTP server over the agent
@@ -85,6 +88,11 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	// Create the mux
 	mux := http.NewServeMux()
 
+	wsUpgrader := &websocket.Upgrader{
+		ReadBufferSize:  2048,
+		WriteBufferSize: 2048,
+	}
+
 	// Create the server
 	srv := &HTTPServer{
 		agent:      agent,
@@ -93,6 +101,7 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 		listenerCh: make(chan struct{}),
 		logger:     agent.httpLogger,
 		Addr:       ln.Addr().String(),
+		wsUpgrader: wsUpgrader,
 	}
 	srv.registerHandlers(config.EnableDebug)
 

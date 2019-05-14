@@ -28,6 +28,9 @@
   },
   {
     "type": "shell",
-    "script": "../shared/scripts/setup.sh"
+    "script": "../shared/scripts/setup.sh",
+    "environment_vars": [
+      "INSTALL_NVIDIA_DOCKER=true"
+    ]
   }]
 }

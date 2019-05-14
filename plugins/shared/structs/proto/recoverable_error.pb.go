@@ -31,7 +31,7 @@ func (m *RecoverableError) Reset()         { *m = RecoverableError{} }
 func (m *RecoverableError) String() string { return proto.CompactTextString(m) }
 func (*RecoverableError) ProtoMessage()    {}
 func (*RecoverableError) Descriptor() ([]byte, []int) {
-	return fileDescriptor_recoverable_error_8c5d7f86073ca00c, []int{0}
+	return fileDescriptor_recoverable_error_f746254fd69675b0, []int{0}
 }
 func (m *RecoverableError) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RecoverableError.Unmarshal(m, b)
@@ -63,10 +63,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("plugins/shared/structs/proto/recoverable_error.proto", fileDescriptor_recoverable_error_8c5d7f86073ca00c)
+	proto.RegisterFile("plugins/shared/structs/proto/recoverable_error.proto", fileDescriptor_recoverable_error_f746254fd69675b0)
 }
 
-var fileDescriptor_recoverable_error_8c5d7f86073ca00c = []byte{
+var fileDescriptor_recoverable_error_f746254fd69675b0 = []byte{
 	// 138 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x32, 0x29, 0xc8, 0x29, 0x4d,
 	0xcf, 0xcc, 0x2b, 0xd6, 0x2f, 0xce, 0x48, 0x2c, 0x4a, 0x4d, 0xd1, 0x2f, 0x2e, 0x29, 0x2a, 0x4d,

@@ -7,9 +7,9 @@ import (
 
 	"github.com/LK4D4/joincontext"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/hashicorp/nomad/helper/pluginutils/grpcutils"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device/proto"
-	"github.com/hashicorp/nomad/plugins/shared/grpcutils"
 )
 
 // devicePluginClient implements the client side of a remote device plugin, using
@@ -27,7 +27,7 @@ type devicePluginClient struct {
 // Fingerprint is used to retrieve the set of devices and their health from the
 // device plugin. An error may be immediately returned if the fingerprint call
 // could not be made or as part of the streaming response. If the context is
-// cancelled, the error will be propogated.
+// cancelled, the error will be propagated.
 func (d *devicePluginClient) Fingerprint(ctx context.Context) (<-chan *FingerprintResponse, error) {
 	// Join the passed context and the shutdown context
 	joinedCtx, _ := joincontext.Join(ctx, d.doneCtx)
@@ -97,7 +97,7 @@ func (d *devicePluginClient) Reserve(deviceIDs []string) (*ContainerReservation,
 // Stats is used to retrieve device statistics from the device plugin. An error
 // may be immediately returned if the stats call could not be made or as part of
 // the streaming response. If the context is cancelled, the error will be
-// propogated.
+// propagated.
 func (d *devicePluginClient) Stats(ctx context.Context, interval time.Duration) (<-chan *StatsResponse, error) {
 	// Join the passed context and the shutdown context
 	joinedCtx, _ := joincontext.Join(ctx, d.doneCtx)

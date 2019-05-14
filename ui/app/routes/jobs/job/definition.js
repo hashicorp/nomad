@@ -13,7 +13,7 @@ export default Route.extend({
 
   resetController(controller, isExiting) {
     if (isExiting) {
-      const job = controller.get('job');
+      const job = controller.job;
       job.rollbackAttributes();
       job.resetId();
       controller.set('isEditing', false);

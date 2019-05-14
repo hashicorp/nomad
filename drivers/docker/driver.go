@@ -16,14 +16,15 @@ import (
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/client/structs"
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared"
+	"github.com/hashicorp/nomad/plugins/shared/structs"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 var (
@@ -40,10 +41,6 @@ var (
 	// running operations such as waiting on containers and collect stats
 	waitClient *docker.Client
 
-	// The statistics the Docker driver exposes
-	DockerMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage"}
-	DockerMeasuredCpuStats = []string{"Throttled Periods", "Throttled Time", "Percent"}
-
 	// recoverableErrTimeouts returns a recoverable error if the error was due
 	// to timeouts
 	recoverableErrTimeouts = func(err error) error {
@@ -54,6 +51,13 @@ var (
 		}
 		return nstructs.NewRecoverableError(err, r)
 	}
+
+	// taskHandleVersion is the version of task handle which this driver sets
+	// and understands how to decode driver state
+	taskHandleVersion = 1
+
+	// Nvidia-container-runtime environment variable names
+	nvidiaVisibleDevices = "NVIDIA_VISIBLE_DEVICES"
 )
 
 type Driver struct {
@@ -85,6 +89,19 @@ type Driver struct {
 
 	// logger will log to the Nomad agent
 	logger hclog.Logger
+
+	// gpuRuntime indicates nvidia-docker runtime availability
+	gpuRuntime bool
+
+	// A tri-state boolean to know if the fingerprinting has happened and
+	// whether it has been successful
+	fingerprintSuccess *bool
+	fingerprintLock    sync.RWMutex
+
+	// A boolean to know if the docker driver has ever been correctly detected
+	// for use during fingerprinting.
+	detected     bool
+	detectedLock sync.RWMutex
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
@@ -101,9 +118,55 @@ func NewDockerDriver(logger hclog.Logger) drivers.DriverPlugin {
 	}
 }
 
+func (d *Driver) reattachToDockerLogger(reattachConfig *structs.ReattachConfig) (docklog.DockerLogger, *plugin.Client, error) {
+	reattach, err := pstructs.ReattachConfigToGoPlugin(reattachConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	dlogger, dloggerPluginClient, err := docklog.ReattachDockerLogger(reattach)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to reattach to docker logger process: %v", err)
+	}
+
+	return dlogger, dloggerPluginClient, nil
+}
+
+func (d *Driver) setupNewDockerLogger(container *docker.Container, cfg *drivers.TaskConfig, startTime time.Time) (docklog.DockerLogger, *plugin.Client, error) {
+	dlogger, pluginClient, err := docklog.LaunchDockerLogger(d.logger)
+	if err != nil {
+		if pluginClient != nil {
+			pluginClient.Kill()
+		}
+		return nil, nil, fmt.Errorf("failed to launch docker logger plugin: %v", err)
+	}
+
+	if err := dlogger.Start(&docklog.StartOpts{
+		Endpoint:    d.config.Endpoint,
+		ContainerID: container.ID,
+		TTY:         container.Config.Tty,
+		Stdout:      cfg.StdoutPath,
+		Stderr:      cfg.StderrPath,
+		TLSCert:     d.config.TLS.Cert,
+		TLSKey:      d.config.TLS.Key,
+		TLSCA:       d.config.TLS.CA,
+		StartTime:   startTime.Unix(),
+	}); err != nil {
+		pluginClient.Kill()
+		return nil, nil, fmt.Errorf("failed to launch docker logger process %s: %v", container.ID, err)
+	}
+
+	return dlogger, pluginClient, nil
+}
+
 func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	if _, ok := d.tasks.Get(handle.Config.ID); ok {
 		return nil
+	}
+
+	// COMPAT(0.10): pre 0.9 upgrade path check
+	if handle.Version == 0 {
+		return d.recoverPre09Task(handle)
 	}
 
 	var handleState taskHandleState
@@ -121,21 +184,9 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to inspect container for id %q: %v", handleState.ContainerID, err)
 	}
 
-	reattach, err := shared.ReattachConfigToGoPlugin(handleState.ReattachConfig)
-	if err != nil {
-		return err
-	}
-
-	dlogger, dloggerPluginClient, err := docklog.ReattachDockerLogger(reattach)
-	if err != nil {
-		return fmt.Errorf("failed to reattach to docker logger process")
-	}
-
 	h := &taskHandle{
 		client:                client,
 		waitClient:            waitClient,
-		dlogger:               dlogger,
-		dloggerPluginClient:   dloggerPluginClient,
 		logger:                d.logger.With("container_id", container.ID),
 		task:                  handle.Config,
 		containerID:           container.ID,
@@ -146,14 +197,33 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		net:                   handleState.DriverNetwork,
 	}
 
+	h.dlogger, h.dloggerPluginClient, err = d.reattachToDockerLogger(handleState.ReattachConfig)
+	if err != nil {
+		d.logger.Warn("failed to reattach to docker logger process", "error", err)
+
+		h.dlogger, h.dloggerPluginClient, err = d.setupNewDockerLogger(container, handle.Config, time.Now())
+		if err != nil {
+			if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
+				d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+			}
+			return fmt.Errorf("failed to setup replacement docker logger: %v", err)
+		}
+
+		if err := handle.SetDriverState(h.buildState()); err != nil {
+			if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
+				d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+			}
+			return fmt.Errorf("failed to store driver state: %v", err)
+		}
+	}
+
 	d.tasks.Set(handle.Config.ID, h)
-	go h.collectStats()
 	go h.run()
 
 	return nil
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *structs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
 	}
@@ -164,7 +234,16 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *struc
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-	handle := drivers.NewTaskHandle(pluginName)
+	if driverConfig.Image == "" {
+		return nil, nil, fmt.Errorf("image name required for docker driver")
+	}
+
+	// Remove any http
+	if strings.HasPrefix(driverConfig.Image, "https://") {
+		driverConfig.Image = strings.Replace(driverConfig.Image, "https://", "", 1)
+	}
+
+	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
 
 	// Initialize docker API clients
@@ -231,36 +310,17 @@ CREATE:
 			container.ID, "container_state", container.State.String())
 	}
 
-	dlogger, pluginClient, err := docklog.LaunchDockerLogger(d.logger)
+	dlogger, pluginClient, err := d.setupNewDockerLogger(container, cfg, time.Unix(0, 0))
 	if err != nil {
-		if pluginClient != nil {
-			pluginClient.Kill()
-		}
 		d.logger.Error("an error occurred after container startup, terminating container", "container_id", container.ID)
 		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
-		return nil, nil, fmt.Errorf("failed to launch docker logger plugin: %v", err)
-	}
-
-	if err := dlogger.Start(&docklog.StartOpts{
-		Endpoint:    d.config.Endpoint,
-		ContainerID: container.ID,
-		Stdout:      cfg.StdoutPath,
-		Stderr:      cfg.StderrPath,
-		TLSCert:     d.config.TLS.Cert,
-		TLSKey:      d.config.TLS.Key,
-		TLSCA:       d.config.TLS.CA,
-	}); err != nil {
-		pluginClient.Kill()
-
-		d.logger.Error("an error occurred after container startup, terminating container", "container_id", container.ID)
-		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
-		return nil, nil, fmt.Errorf("failed to launch docker logger process %s: %v", container.ID, err)
+		return nil, nil, err
 	}
 
 	// Detect container address
 	ip, autoUse := d.detectIP(container, &driverConfig)
 
-	net := &structs.DriverNetwork{
+	net := &drivers.DriverNetwork{
 		PortMap:       driverConfig.PortMap,
 		IP:            ip,
 		AutoAdvertise: autoUse,
@@ -291,7 +351,6 @@ CREATE:
 	}
 
 	d.tasks.Set(cfg.ID, h)
-	go h.collectStats()
 	go h.run()
 
 	return handle, net, nil
@@ -545,30 +604,42 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
-	localBindVolume := driverConfig.VolumeDriver == "" || driverConfig.VolumeDriver == "local"
+	taskLocalBindVolume := driverConfig.VolumeDriver == ""
 
-	if !d.config.Volumes.Enabled && !localBindVolume {
+	if !d.config.Volumes.Enabled && !taskLocalBindVolume {
 		return nil, fmt.Errorf("volumes are not enabled; cannot use volume driver %q", driverConfig.VolumeDriver)
 	}
 
 	for _, userbind := range driverConfig.Volumes {
-		parts := strings.Split(userbind, ":")
-		if len(parts) < 2 {
-			return nil, fmt.Errorf("invalid docker volume: %q", userbind)
+		// This assumes host OS = docker container OS.
+		// Not true, when we support Linux containers on Windows
+		src, dst, mode, err := parseVolumeSpec(userbind, runtime.GOOS)
+		if err != nil {
+			return nil, fmt.Errorf("invalid docker volume %q: %v", userbind, err)
 		}
 
-		// Paths inside task dir are always allowed, Relative paths are always allowed as they mount within a container
-		// When a VolumeDriver is set, we assume we receive a binding in the format volume-name:container-dest
-		// Otherwise, we assume we receive a relative path binding in the format relative/to/task:/also/in/container
-		if localBindVolume {
-			parts[0] = expandPath(task.TaskDir().Dir, parts[0])
-
-			if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, parts[0]) {
-				return nil, fmt.Errorf("volumes are not enabled; cannot mount host paths: %+q", userbind)
-			}
+		// Paths inside task dir are always allowed when using the default driver,
+		// Relative paths are always allowed as they mount within a container
+		// When a VolumeDriver is set, we assume we receive a binding in the format
+		// volume-name:container-dest
+		// Otherwise, we assume we receive a relative path binding in the format
+		// relative/to/task:/also/in/container
+		if taskLocalBindVolume {
+			src = expandPath(task.TaskDir().Dir, src)
+		} else {
+			// Resolve dotted path segments
+			src = filepath.Clean(src)
 		}
 
-		binds = append(binds, strings.Join(parts, ":"))
+		if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, src) {
+			return nil, fmt.Errorf("volumes are not enabled; cannot mount host paths: %+q", userbind)
+		}
+
+		bind := src + ":" + dst
+		if mode != "" {
+			bind += ":" + mode
+		}
+		binds = append(binds, bind)
 	}
 
 	if selinuxLabel := d.config.Volumes.SelinuxLabel; selinuxLabel != "" {
@@ -628,6 +699,13 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		PidsLimit: driverConfig.PidsLimit,
 	}
 
+	if _, ok := task.DeviceEnv[nvidiaVisibleDevices]; ok {
+		if !d.gpuRuntime {
+			return c, fmt.Errorf("requested docker-runtime %q was not found", d.config.GPURuntimeName)
+		}
+		hostConfig.Runtime = d.config.GPURuntimeName
+	}
+
 	// Calculate CPU Quota
 	// cfs_quota_us is the time per core, so we must
 	// multiply the time by the number of cores available
@@ -652,8 +730,13 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.MemorySwap = task.Resources.LinuxResources.MemoryLimitBytes // MemorySwap is memory + swap.
 	}
 
+	loggingDriver := driverConfig.Logging.Type
+	if loggingDriver == "" {
+		loggingDriver = driverConfig.Logging.Driver
+	}
+
 	hostConfig.LogConfig = docker.LogConfig{
-		Type:   driverConfig.Logging.Type,
+		Type:   loggingDriver,
 		Config: driverConfig.Logging.Config,
 	}
 
@@ -866,7 +949,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	config.Env = task.EnvList()
 
-	containerName := strings.Replace(task.ID, "/", "_", -1)
+	containerName := fmt.Sprintf("%s-%s", strings.Replace(task.Name, "/", "_", -1), task.AllocID)
 	logger.Debug("setting container name", "container_name", containerName)
 
 	var networkingConfig *docker.NetworkingConfig
@@ -1000,6 +1083,14 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 		signal = "SIGINT"
 	}
 
+	// Windows Docker daemon does not support SIGINT, SIGTERM is the semantic equivalent that
+	// allows for graceful shutdown before being followed up by a SIGKILL.
+	// Supported signals:
+	//   https://github.com/moby/moby/blob/0111ee70874a4947d93f64b672f66a2a35071ee2/pkg/signal/signal_windows.go#L17-L26
+	if runtime.GOOS == "windows" && signal == "SIGINT" {
+		signal = "SIGTERM"
+	}
+
 	sig, err := signals.Parse(signal)
 	if err != nil {
 		return fmt.Errorf("failed to parse signal: %v", err)
@@ -1022,15 +1113,8 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 		return fmt.Errorf("must call StopTask for the given task before Destroy or set force to true")
 	}
 
-	defer h.dloggerPluginClient.Kill()
-
 	if err := h.client.StopContainer(h.containerID, 0); err != nil {
 		h.logger.Warn("failed to stop container during destroy", "error", err)
-	}
-
-	if err := h.dlogger.Stop(); err != nil {
-		h.logger.Error("failed to stop docker logger process during destroy",
-			"error", err, "logger_pid", h.dloggerPluginClient.ReattachConfig().Pid)
 	}
 
 	if err := d.cleanupImage(h); err != nil {
@@ -1088,13 +1172,13 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	return status, nil
 }
 
-func (d *Driver) TaskStats(taskID string) (*structs.TaskResourceUsage, error) {
+func (d *Driver) TaskStats(ctx context.Context, taskID string, interval time.Duration) (<-chan *drivers.TaskResourceUsage, error) {
 	h, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	return h.Stats()
+	return h.Stats(ctx, interval)
 }
 
 func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
@@ -1129,6 +1213,95 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 	defer cancel()
 
 	return h.Exec(ctx, cmd[0], cmd[1:])
+}
+
+var _ drivers.ExecTaskStreamingDriver = (*Driver)(nil)
+
+func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *drivers.ExecOptions) (*drivers.ExitResult, error) {
+	defer opts.Stdout.Close()
+	defer opts.Stderr.Close()
+
+	done := make(chan interface{})
+	defer close(done)
+
+	h, ok := d.tasks.Get(taskID)
+	if !ok {
+		return nil, drivers.ErrTaskNotFound
+	}
+
+	if len(opts.Command) == 0 {
+		return nil, fmt.Errorf("command is required but was empty")
+	}
+
+	createExecOpts := docker.CreateExecOptions{
+		AttachStdin:  true,
+		AttachStdout: true,
+		AttachStderr: true,
+		Tty:          opts.Tty,
+		Cmd:          opts.Command,
+		Container:    h.containerID,
+		Context:      ctx,
+	}
+	exec, err := h.client.CreateExec(createExecOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create exec object: %v", err)
+	}
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-done:
+				return
+			case s, ok := <-opts.ResizeCh:
+				if !ok {
+					return
+				}
+				client.ResizeExecTTY(exec.ID, s.Height, s.Width)
+			}
+		}
+	}()
+
+	startOpts := docker.StartExecOptions{
+		Detach: false,
+
+		// When running in TTY, we must use a raw terminal.
+		// If not, we set RawTerminal to false to allow docker client
+		// to interpret special stdout/stderr messages
+		Tty:         opts.Tty,
+		RawTerminal: opts.Tty,
+
+		InputStream:  opts.Stdin,
+		OutputStream: opts.Stdout,
+		ErrorStream:  opts.Stderr,
+		Context:      ctx,
+	}
+	if err := client.StartExec(exec.ID, startOpts); err != nil {
+		return nil, fmt.Errorf("failed to start exec: %v", err)
+	}
+
+	// StartExec returns after process completes, but InspectExec seems to have a delay
+	// get in getting status code
+
+	const execTerminatingTimeout = 3 * time.Second
+	start := time.Now()
+	var res *docker.ExecInspect
+	for res == nil || res.Running || time.Since(start) > execTerminatingTimeout {
+		res, err = client.InspectExec(exec.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to inspect exec result: %v", err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if res == nil || res.Running {
+		return nil, fmt.Errorf("failed to retrieve exec result")
+	}
+
+	return &drivers.ExitResult{
+		ExitCode: res.ExitCode,
+	}, nil
 }
 
 // dockerClients creates two *docker.Client, one for long running operations and

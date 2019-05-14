@@ -107,12 +107,12 @@ export default Component.extend({
   ],
 
   filteredShortList: computed('searchTerm', 'shortList.[]', function() {
-    const term = this.get('searchTerm').toLowerCase();
-    return this.get('shortList').filter(product => product.name.toLowerCase().includes(term));
+    const term = this.searchTerm.toLowerCase();
+    return this.shortList.filter(product => product.name.toLowerCase().includes(term));
   }),
 
   sortedShortList: computed('shortList.[]', 'sortProperty', 'sortDescending', function() {
-    const sorted = this.get('shortList').sortBy(this.get('sortProperty'));
-    return this.get('sortDescending') ? sorted.reverse() : sorted;
+    const sorted = this.shortList.sortBy(this.sortProperty);
+    return this.sortDescending ? sorted.reverse() : sorted;
   }),
 });

@@ -16,7 +16,7 @@ export default Component.extend({
   onSubmit() {},
   context: computed({
     get() {
-      return this.get('_context');
+      return this._context;
     },
     set(key, value) {
       const allowedValues = ['new', 'edit'];
@@ -39,14 +39,14 @@ export default Component.extend({
   showEditorMessage: localStorageProperty('nomadMessageJobEditor', true),
 
   stage: computed('planOutput', function() {
-    return this.get('planOutput') ? 'plan' : 'editor';
+    return this.planOutput ? 'plan' : 'editor';
   }),
 
   plan: task(function*() {
     this.reset();
 
     try {
-      yield this.get('job').parse();
+      yield this.job.parse();
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not parse input';
       this.set('parseError', error);
@@ -55,7 +55,7 @@ export default Component.extend({
     }
 
     try {
-      const plan = yield this.get('job').plan();
+      const plan = yield this.job.plan();
       this.set('planOutput', plan);
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not plan job';
@@ -66,10 +66,10 @@ export default Component.extend({
 
   submit: task(function*() {
     try {
-      if (this.get('context') === 'new') {
-        yield this.get('job').run();
+      if (this.context === 'new') {
+        yield this.job.run();
       } else {
-        yield this.get('job').update();
+        yield this.job.update();
       }
 
       const id = this.get('job.plainId');
@@ -78,7 +78,7 @@ export default Component.extend({
       this.reset();
 
       // Treat the job as ephemeral and only provide ID parts.
-      this.get('onSubmit')(id, namespace);
+      this.onSubmit(id, namespace);
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not submit job';
       this.set('runError', error);

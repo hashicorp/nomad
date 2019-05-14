@@ -78,7 +78,7 @@ export default Watchable.extend({
 
   plan(job) {
     const jobId = job.get('id');
-    const store = this.get('store');
+    const store = this.store;
     const url = addToPath(this.urlForFindRecord(jobId, 'job'), '/plan');
 
     return this.ajax(url, 'POST', {

@@ -120,9 +120,11 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	}
 	// get an alloc id
 	allocId1 := ""
+	nodeName := ""
 	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
 		if len(allocs) > 0 {
 			allocId1 = allocs[0].ID
+			nodeName = allocs[0].NodeName
 		}
 	}
 	if allocId1 == "" {
@@ -140,6 +142,9 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	if !strings.Contains(out, "Modified") {
 		t.Fatalf("expected to have 'Modified' but saw: %s", out)
 	}
+
+	nodeNameRegexpStr := fmt.Sprintf(`\nNode Name\s+= %s\n`, regexp.QuoteMeta(nodeName))
+	require.Regexp(t, regexp.MustCompile(nodeNameRegexpStr), out)
 
 	ui.OutputWriter.Reset()
 

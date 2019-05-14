@@ -1,11 +1,14 @@
 variable "name" {}
 variable "region" {}
 variable "ami" {}
-variable "instance_type" {}
+variable "server_instance_type" {}
+variable "client_instance_type" {}
 variable "key_name" {}
 variable "server_count" {}
 variable "client_count" {}
 variable "nomad_binary" {}
+variable "root_block_device_size" {}
+variable "whitelist_ip" {}
 
 variable "retry_join" {
   type = "map"
@@ -21,6 +24,35 @@ data "aws_vpc" "default" {
   default = true
 }
 
+resource "aws_security_group" "server_lb" {
+  name   = "${var.name}-server-lb"
+  vpc_id = "${data.aws_vpc.default.id}"
+
+  # Nomad
+  ingress {
+    from_port   = 4646
+    to_port     = 4646
+    protocol    = "tcp"
+    cidr_blocks = ["${var.whitelist_ip}"]
+  }
+
+  # Consul
+  ingress {
+    from_port   = 8500
+    to_port     = 8500
+    protocol    = "tcp"
+    cidr_blocks = ["${var.whitelist_ip}"]
+  }
+
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 resource "aws_security_group" "primary" {
   name   = "${var.name}"
   vpc_id = "${data.aws_vpc.default.id}"
@@ -29,7 +61,7 @@ resource "aws_security_group" "primary" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["${var.whitelist_ip}"]
   }
 
   # Nomad
@@ -37,7 +69,8 @@ resource "aws_security_group" "primary" {
     from_port   = 4646
     to_port     = 4646
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["${var.whitelist_ip}"]
+    security_groups = ["${aws_security_group.server_lb.id}"]
   }
 
   # Fabio 
@@ -45,7 +78,7 @@ resource "aws_security_group" "primary" {
     from_port   = 9998
     to_port     = 9999
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["${var.whitelist_ip}"]
   }
 
   # Consul
@@ -53,7 +86,8 @@ resource "aws_security_group" "primary" {
     from_port   = 8500
     to_port     = 8500
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["${var.whitelist_ip}"]
+    security_groups = ["${aws_security_group.server_lb.id}"]
   }
 
   # HDFS NameNode UI
@@ -61,7 +95,7 @@ resource "aws_security_group" "primary" {
     from_port   = 50070
     to_port     = 50070
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["${var.whitelist_ip}"]
   }
 
   # HDFS DataNode UI
@@ -69,7 +103,7 @@ resource "aws_security_group" "primary" {
     from_port   = 50075
     to_port     = 50075
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["${var.whitelist_ip}"]
   }
 
   # Spark history server UI
@@ -77,8 +111,17 @@ resource "aws_security_group" "primary" {
     from_port   = 18080
     to_port     = 18080
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["${var.whitelist_ip}"]
   }
+
+  # Jupyter
+  ingress {
+    from_port   = 8888
+    to_port     = 8888
+    protocol    = "tcp"
+    cidr_blocks = ["${var.whitelist_ip}"]
+  }
+
 
   ingress {
     from_port = 0
@@ -118,7 +161,7 @@ data "template_file" "user_data_client" {
 
 resource "aws_instance" "server" {
   ami                    = "${var.ami}"
-  instance_type          = "${var.instance_type}"
+  instance_type          = "${var.server_instance_type}"
   key_name               = "${var.key_name}"
   vpc_security_group_ids = ["${aws_security_group.primary.id}"]
   count                  = "${var.server_count}"
@@ -129,13 +172,19 @@ resource "aws_instance" "server" {
     map(lookup(var.retry_join, "tag_key"), lookup(var.retry_join, "tag_value"))
   )}"
 
+  root_block_device {
+    volume_type           = "gp2"
+    volume_size           = "${var.root_block_device_size}"
+    delete_on_termination = "true"
+  }
+
   user_data            = "${data.template_file.user_data_server.rendered}"
   iam_instance_profile = "${aws_iam_instance_profile.instance_profile.name}"
 }
 
 resource "aws_instance" "client" {
   ami                    = "${var.ami}"
-  instance_type          = "${var.instance_type}"
+  instance_type          = "${var.client_instance_type}"
   key_name               = "${var.key_name}"
   vpc_security_group_ids = ["${aws_security_group.primary.id}"]
   count                  = "${var.client_count}"
@@ -146,6 +195,12 @@ resource "aws_instance" "client" {
     map("Name", "${var.name}-client-${count.index}"),
     map(lookup(var.retry_join, "tag_key"), lookup(var.retry_join, "tag_value"))
   )}"
+
+  root_block_device {
+    volume_type           = "gp2"
+    volume_size           = "${var.root_block_device_size}"
+    delete_on_termination = "true"
+  }
 
   ebs_block_device = {
     device_name           = "/dev/xvdd"
@@ -200,10 +255,34 @@ data "aws_iam_policy_document" "auto_discover_cluster" {
   }
 }
 
+resource "aws_elb" "server_lb" {
+  name               = "${var.name}-server-lb"
+  availability_zones = ["${distinct(aws_instance.server.*.availability_zone)}"]
+  internal           = false
+  instances = ["${aws_instance.server.*.id}"]
+  listener {
+    instance_port     = 4646
+    instance_protocol = "http"
+    lb_port           = 4646
+    lb_protocol       = "http"
+  }
+  listener {
+    instance_port     = 8500
+    instance_protocol = "http"
+    lb_port           = 8500
+    lb_protocol       = "http"
+  }
+  security_groups = ["${aws_security_group.server_lb.id}"]
+}
+
 output "server_public_ips" {
   value = ["${aws_instance.server.*.public_ip}"]
 }
 
 output "client_public_ips" {
   value = ["${aws_instance.client.*.public_ip}"]
+}
+
+output "server_lb_ip" {
+  value = "${aws_elb.server_lb.dns_name}"
 }

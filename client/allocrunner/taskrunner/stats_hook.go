@@ -8,6 +8,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 )
 
@@ -22,8 +23,8 @@ type statsHook struct {
 	updater  StatsUpdater
 	interval time.Duration
 
-	// stopCh is closed by Exited or Canceled
-	stopCh chan struct{}
+	// cancel is called by Exited
+	cancel context.CancelFunc
 
 	mu sync.Mutex
 
@@ -48,13 +49,19 @@ func (h *statsHook) Poststart(ctx context.Context, req *interfaces.TaskPoststart
 	defer h.mu.Unlock()
 
 	// This shouldn't happen, but better safe than risk leaking a goroutine
-	if h.stopCh != nil {
+	if h.cancel != nil {
 		h.logger.Debug("poststart called twice without exiting between")
-		close(h.stopCh)
+		h.cancel()
 	}
 
-	h.stopCh = make(chan struct{})
-	go h.collectResourceUsageStats(req.DriverStats, h.stopCh)
+	// Using a new context here because the existing context is for the scope of
+	// the Poststart request. If that context was used, stats collection would
+	// stop when the task was killed. It makes for more readable code and better
+	// follows the taskrunner hook model to create a new context that can be
+	// canceled on the Exited hook.
+	ctx, cancel := context.WithCancel(context.Background())
+	h.cancel = cancel
+	go h.collectResourceUsageStats(ctx, req.DriverStats)
 
 	return nil
 }
@@ -63,40 +70,47 @@ func (h *statsHook) Exited(context.Context, *interfaces.TaskExitedRequest, *inte
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.stopCh == nil {
+	if h.cancel == nil {
 		// No stats running
 		return nil
 	}
 
-	// Close chan to stop stats collection
-	close(h.stopCh)
+	// Call cancel to stop stats collection
+	h.cancel()
 
-	// Clear chan so we don't double close for any reason
-	h.stopCh = nil
+	// Clear cancel func so we don't double call for any reason
+	h.cancel = nil
 
 	return nil
 }
 
 // collectResourceUsageStats starts collecting resource usage stats of a Task.
 // Collection ends when the passed channel is closed
-func (h *statsHook) collectResourceUsageStats(handle interfaces.DriverStats, stopCh <-chan struct{}) {
-	// start collecting the stats right away and then start collecting every
-	// collection interval
-	next := time.NewTimer(0)
-	defer next.Stop()
-	for {
-		select {
-		case <-next.C:
-			// Reset the timer
-			next.Reset(h.interval)
+func (h *statsHook) collectResourceUsageStats(ctx context.Context, handle interfaces.DriverStats) {
 
-			// Collect stats from driver
-			ru, err := handle.Stats()
-			if err != nil {
-				// Check if the driver doesn't implement stats
-				if err.Error() == cstructs.DriverStatsNotImplemented.Error() {
-					h.logger.Debug("driver does not support stats")
-					return
+	ch, err := handle.Stats(ctx, h.interval)
+	if err != nil {
+		// Check if the driver doesn't implement stats
+		if err.Error() == cstructs.DriverStatsNotImplemented.Error() {
+			h.logger.Debug("driver does not support stats")
+			return
+		}
+		h.logger.Error("failed to start stats collection for task", "error", err)
+	}
+
+	var backoff time.Duration
+	var retry int
+	limit := time.Second * 5
+	for {
+		time.Sleep(backoff)
+		select {
+		case ru, ok := <-ch:
+			// Channel is closed
+			if !ok {
+				var re *structs.RecoverableError
+				ch, err = handle.Stats(ctx, h.interval)
+				if err == nil {
+					goto RETRY
 				}
 
 				// We do not log when the plugin is shutdown since this is
@@ -105,14 +119,31 @@ func (h *statsHook) collectResourceUsageStats(handle interfaces.DriverStats, sto
 				// on the stop channel is the correct behavior
 				if err != bstructs.ErrPluginShutdown {
 					h.logger.Debug("error fetching stats of task", "error", err)
+					goto RETRY
 				}
+				// check if the error is terminal otherwise it's likely a
+				// transport error and we should retry
+				re, ok = err.(*structs.RecoverableError)
+				if ok && re.IsUnrecoverable() {
+					return
+				}
+				h.logger.Warn("stats collection for task failed", "error", err)
+			RETRY:
+				// Calculate the new backoff
+				backoff = (1 << (2 * uint64(retry))) * time.Second
+				if backoff > limit {
+					backoff = limit
+				}
+				// Increment retry counter
+				retry++
 
 				continue
 			}
 
 			// Update stats on TaskRunner and emit them
 			h.updater.UpdateStats(ru)
-		case <-stopCh:
+
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -122,14 +153,9 @@ func (h *statsHook) Shutdown() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.stopCh == nil {
+	if h.cancel == nil {
 		return
 	}
 
-	select {
-	case <-h.stopCh:
-		// Already closed
-	default:
-		close(h.stopCh)
-	}
+	h.cancel()
 }

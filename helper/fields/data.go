@@ -3,7 +3,7 @@ package fields
 import (
 	"fmt"
 
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/mapstructure"
 )
 

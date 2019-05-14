@@ -19,39 +19,39 @@ export default Controller.extend({
   error: null,
 
   errorStr: computed('error', function() {
-    return this.get('error').toString();
+    return this.error.toString();
   }),
 
   errorCodes: computed('error', function() {
-    return codesForError(this.get('error'));
+    return codesForError(this.error);
   }),
 
   is403: computed('errorCodes.[]', function() {
-    return this.get('errorCodes').includes('403');
+    return this.errorCodes.includes('403');
   }),
 
   is404: computed('errorCodes.[]', function() {
-    return this.get('errorCodes').includes('404');
+    return this.errorCodes.includes('404');
   }),
 
   is500: computed('errorCodes.[]', function() {
-    return this.get('errorCodes').includes('500');
+    return this.errorCodes.includes('500');
   }),
 
   isNoLeader: computed('error', function() {
-    const error = this.get('error');
+    const error = this.error;
     return error instanceof NoLeaderError;
   }),
 
   throwError: observer('error', function() {
     if (this.get('config.isDev')) {
       run.next(() => {
-        throw this.get('error');
+        throw this.error;
       });
     } else if (!Ember.testing) {
       run.next(() => {
         // eslint-disable-next-line
-        console.warn('UNRECOVERABLE ERROR:', this.get('error'));
+        console.warn('UNRECOVERABLE ERROR:', this.error);
       });
     }
   }),

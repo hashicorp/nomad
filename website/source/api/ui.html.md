@@ -23,19 +23,19 @@ This page lists all known jobs in a paginated, searchable, and sortable table.
 ### Parameters
 
 - `namespace` `(string: "")` - Specifies the namespace all jobs should be a member
-  of. This is specified as a querystring parameter. Namespaces are an enterprise feature.
+  of. This is specified as a query string parameter. Namespaces are an enterprise feature.
 
 - `sort` `(string: "")` - Specifies the property the list of jobs should be sorted by.
-  This is specified as a querystring parameter.
+  This is specified as a query string parameter.
 
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
-  or ascending. This is specified as a querystring parameter.
+  or ascending. This is specified as a query string parameter.
 
 - `search` `(string: "")` - Specifies a regular expression uses to filter the list of
-  visible jobs. This is specified as a querystring parameter.
+  visible jobs. This is specified as a query string parameter.
 
 - `page` `(int: 0)` - Specifies the page in the jobs list that should be visible. This
-  is specified as a querystring parameter.
+  is specified as a query string parameter.
 
 
 ## Job Detail
@@ -74,13 +74,13 @@ based on the type of job.
 ### Parameters
 
 - `sort` `(string: "")` - Specifies the property the list of task groups should be
-  sorted by. This is specified as a querystring parameter.
+  sorted by. This is specified as a query string parameter.
 
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
-  or ascending. This is specified as a querystring parameter.
+  or ascending. This is specified as a query string parameter.
 
 - `page` `(int: 0)` - Specifies the page in the task groups list that should be visible. This
-  is specified as a querystring parameter.
+  is specified as a query string parameter.
 
 
 ### Job Definition
@@ -133,16 +133,16 @@ allocations.
 ### Parameters
 
 - `sort` `(string: "")` - Specifies the property the list of allocations should be sorted by.
-  This is specified as a querystring parameter.
+  This is specified as a query string parameter.
 
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
-  or ascending. This is specified as a querystring parameter.
+  or ascending. This is specified as a query string parameter.
 
 - `search` `(string: "")` - Specifies a regular expression uses to filter the list of
-  visible allocations. This is specified as a querystring parameter.
+  visible allocations. This is specified as a query string parameter.
 
 - `page` `(int: 0)` - Specifies the page in the allocations list that should be visible. This
-  is specified as a querystring parameter.
+  is specified as a query string parameter.
 
 
 ## Allocation Detail
@@ -160,10 +160,10 @@ description of the event.
 ### Parameters
 
 - `sort` `(string: "")` - Specifies the property the list of tasks should be sorted by.
-  This is specified as a querystring parameter.
+  This is specified as a query string parameter.
 
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
-  or ascending. This is specified as a querystring parameter.
+  or ascending. This is specified as a query string parameter.
 
 
 ## Task Detail
@@ -199,16 +199,16 @@ table.
 ### Parameters
 
 - `sort` `(string: "")` - Specifies the property the list of client nodes should be sorted by.
-  This is specified as a querystring parameter.
+  This is specified as a query string parameter.
 
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
-  or ascending. This is specified as a querystring parameter.
+  or ascending. This is specified as a query string parameter.
 
 - `search` `(string: "")` - Specifies a regular expression uses to filter the list of
-  visible client nodes. This is specified as a querystring parameter.
+  visible client nodes. This is specified as a query string parameter.
 
 - `page` `(int: 0)` - Specifies the page in the client nodes list that should be visible. This
-  is specified as a querystring parameter.
+  is specified as a query string parameter.
 
 
 ## Node Detail
@@ -223,16 +223,16 @@ address, port, datacenter, allocations, and attributes.
 ### Parameters
 
 - `sort` `(string: "")` - Specifies the property the list of allocations should be sorted by.
-  This is specified as a querystring parameter.
+  This is specified as a query string parameter.
 
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
-  or ascending. This is specified as a querystring parameter.
+  or ascending. This is specified as a query string parameter.
 
 - `search` `(string: "")` - Specifies a regular expression uses to filter the list of
-  visible allocations. This is specified as a querystring parameter.
+  visible allocations. This is specified as a query string parameter.
 
 - `page` `(int: 0)` - Specifies the page in the allocations list that should be visible. This
-  is specified as a querystring parameter.
+  is specified as a query string parameter.
 
 
 ## Servers List
@@ -248,13 +248,13 @@ the leader.
 ### Parameters
 
 - `sort` `(string: "")` - Specifies the property the list of server agents should be sorted by.
-  This is specified as a querystring parameter.
+  This is specified as a query string parameter.
 
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
-  or ascending. This is specified as a querystring parameter.
+  or ascending. This is specified as a query string parameter.
 
 - `page` `(int: 0)` - Specifies the page in the server agents list that should be visible. This
-  is specified as a querystring parameter.
+  is specified as a query string parameter.
 
 
 ## Server Detail

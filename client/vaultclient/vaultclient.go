@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -163,6 +163,12 @@ func NewVaultClient(config *config.VaultConfig, logger hclog.Logger, tokenDerive
 		"User-Agent": []string{"hashicorp/nomad"},
 	})
 
+	// SetHeaders above will replace all headers, make this call second
+	if config.Namespace != "" {
+		logger.Debug("configuring Vault namespace", "namespace", config.Namespace)
+		client.SetNamespace(config.Namespace)
+	}
+
 	c.client = client
 
 	return c, nil
@@ -188,27 +194,35 @@ func (c *vaultClient) isTracked(id string) bool {
 	return ok
 }
 
+// isRunning returns true if the client is running.
+func (c *vaultClient) isRunning() bool {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	return c.running
+}
+
 // Starts the renewal loop of vault client
 func (c *vaultClient) Start() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	if !c.config.IsEnabled() || c.running {
 		return
 	}
 
-	c.lock.Lock()
 	c.running = true
-	c.lock.Unlock()
 
 	go c.run()
 }
 
 // Stops the renewal loop of vault client
 func (c *vaultClient) Stop() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	if !c.config.IsEnabled() || !c.running {
 		return
 	}
-
-	c.lock.Lock()
-	defer c.lock.Unlock()
 
 	c.running = false
 	close(c.stopCh)
@@ -229,7 +243,7 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 	if !c.config.IsEnabled() {
 		return nil, fmt.Errorf("vault client not enabled")
 	}
-	if !c.running {
+	if !c.isRunning() {
 		return nil, fmt.Errorf("vault client is not running")
 	}
 
@@ -415,21 +429,9 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 		}
 	}
 
-	duration := leaseDuration / 2
-	switch {
-	case leaseDuration < 30:
-		// Don't bother about introducing randomness if the
-		// leaseDuration is too small.
-	default:
-		// Give a breathing space of 20 seconds
-		min := 10
-		max := leaseDuration - min
-		rand.Seed(time.Now().Unix())
-		duration = min + rand.Intn(max-min)
-	}
-
 	// Determine the next renewal time
-	next := time.Now().Add(time.Duration(duration) * time.Second)
+	renewalDuration := renewalTime(rand.Intn, leaseDuration)
+	next := time.Now().Add(renewalDuration)
 
 	fatal := false
 	if renewalErr != nil &&
@@ -439,7 +441,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 			strings.Contains(renewalErr.Error(), "permission denied")) {
 		fatal = true
 	} else if renewalErr != nil {
-		c.logger.Debug("renewal error details", "req.increment", req.increment, "lease_duration", leaseDuration, "duration", duration)
+		c.logger.Debug("renewal error details", "req.increment", req.increment, "lease_duration", leaseDuration, "renewal_duration", renewalDuration)
 		c.logger.Error("error during renewal of lease or token failed due to a non-fatal error; retrying",
 			"error", renewalErr, "period", next)
 	}
@@ -511,7 +513,7 @@ func (c *vaultClient) run() {
 	}
 
 	var renewalCh <-chan time.Time
-	for c.config.IsEnabled() && c.running {
+	for c.config.IsEnabled() && c.isRunning() {
 		// Fetches the candidate for next renewal
 		renewalReq, renewalTime := c.nextRenewal()
 		if renewalTime.IsZero() {
@@ -721,4 +723,32 @@ func (h *vaultDataHeapImp) Pop() interface{} {
 	entry.index = -1 // for safety
 	*h = old[0 : n-1]
 	return entry
+}
+
+// randIntn is the function in math/rand needed by renewalTime. A type is used
+// to ease deterministic testing.
+type randIntn func(int) int
+
+// renewalTime returns when a token should be renewed given its leaseDuration
+// and a randomizer to provide jitter.
+//
+// Leases < 1m will be not jitter.
+func renewalTime(dice randIntn, leaseDuration int) time.Duration {
+	// Start trying to renew at half the lease duration to allow ample time
+	// for latency and retries.
+	renew := leaseDuration / 2
+
+	// Don't bother about introducing randomness if the
+	// leaseDuration is too small.
+	const cutoff = 30
+	if renew < cutoff {
+		return time.Duration(renew) * time.Second
+	}
+
+	// jitter is the amount +/- to vary the renewal time
+	const jitter = 10
+	min := renew - jitter
+	renew = min + dice(jitter*2)
+
+	return time.Duration(renew) * time.Second
 }

@@ -8,7 +8,7 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/stats"
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	ps "github.com/mitchellh/go-ps"
 	"github.com/shirou/gopsutil/process"
 )
@@ -131,8 +131,8 @@ func scanPids(parentPid int, allPids []ps.Process) (map[int]*nomadPid, error) {
 }
 
 // pidStats returns the resource usage stats per pid
-func (c *pidCollector) pidStats() (map[string]*cstructs.ResourceUsage, error) {
-	stats := make(map[string]*cstructs.ResourceUsage)
+func (c *pidCollector) pidStats() (map[string]*drivers.ResourceUsage, error) {
+	stats := make(map[string]*drivers.ResourceUsage)
 	c.pidLock.RLock()
 	pids := make(map[int]*nomadPid, len(c.pids))
 	for k, v := range c.pids {
@@ -145,14 +145,14 @@ func (c *pidCollector) pidStats() (map[string]*cstructs.ResourceUsage, error) {
 			c.logger.Trace("unable to create new process", "pid", pid, "error", err)
 			continue
 		}
-		ms := &cstructs.MemoryStats{}
+		ms := &drivers.MemoryStats{}
 		if memInfo, err := p.MemoryInfo(); err == nil {
 			ms.RSS = memInfo.RSS
 			ms.Swap = memInfo.Swap
 			ms.Measured = ExecutorBasicMeasuredMemStats
 		}
 
-		cs := &cstructs.CpuStats{}
+		cs := &drivers.CpuStats{}
 		if cpuStats, err := p.Times(); err == nil {
 			cs.SystemMode = np.cpuStatsSys.Percent(cpuStats.System * float64(time.Second))
 			cs.UserMode = np.cpuStatsUser.Percent(cpuStats.User * float64(time.Second))
@@ -161,7 +161,7 @@ func (c *pidCollector) pidStats() (map[string]*cstructs.ResourceUsage, error) {
 			// calculate cpu usage percent
 			cs.Percent = np.cpuStatsTotal.Percent(cpuStats.Total() * float64(time.Second))
 		}
-		stats[strconv.Itoa(pid)] = &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs}
+		stats[strconv.Itoa(pid)] = &drivers.ResourceUsage{MemoryStats: ms, CpuStats: cs}
 	}
 
 	return stats, nil
@@ -169,7 +169,7 @@ func (c *pidCollector) pidStats() (map[string]*cstructs.ResourceUsage, error) {
 
 // aggregatedResourceUsage aggregates the resource usage of all the pids and
 // returns a TaskResourceUsage data point
-func aggregatedResourceUsage(systemCpuStats *stats.CpuStats, pidStats map[string]*cstructs.ResourceUsage) *cstructs.TaskResourceUsage {
+func aggregatedResourceUsage(systemCpuStats *stats.CpuStats, pidStats map[string]*drivers.ResourceUsage) *drivers.TaskResourceUsage {
 	ts := time.Now().UTC().UnixNano()
 	var (
 		systemModeCPU, userModeCPU, percent float64
@@ -185,7 +185,7 @@ func aggregatedResourceUsage(systemCpuStats *stats.CpuStats, pidStats map[string
 		totalSwap += pidStat.MemoryStats.Swap
 	}
 
-	totalCPU := &cstructs.CpuStats{
+	totalCPU := &drivers.CpuStats{
 		SystemMode: systemModeCPU,
 		UserMode:   userModeCPU,
 		Percent:    percent,
@@ -193,17 +193,17 @@ func aggregatedResourceUsage(systemCpuStats *stats.CpuStats, pidStats map[string
 		TotalTicks: systemCpuStats.TicksConsumed(percent),
 	}
 
-	totalMemory := &cstructs.MemoryStats{
+	totalMemory := &drivers.MemoryStats{
 		RSS:      totalRSS,
 		Swap:     totalSwap,
 		Measured: ExecutorBasicMeasuredMemStats,
 	}
 
-	resourceUsage := cstructs.ResourceUsage{
+	resourceUsage := drivers.ResourceUsage{
 		MemoryStats: totalMemory,
 		CpuStats:    totalCPU,
 	}
-	return &cstructs.TaskResourceUsage{
+	return &drivers.TaskResourceUsage{
 		ResourceUsage: &resourceUsage,
 		Timestamp:     ts,
 		Pids:          pidStats,

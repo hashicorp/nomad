@@ -18,19 +18,25 @@ func javaVersionInfo() (version, runtime, vm string, err error) {
 	cmd.Stderr = &out
 	err = cmd.Run()
 	if err != nil {
+		err = fmt.Errorf("failed to check java version: %v", err)
 		return
 	}
 
-	version, runtime, vm, err = parseJavaVersionOutput(out.String())
+	version, runtime, vm = parseJavaVersionOutput(out.String())
 	return
 }
 
-func parseJavaVersionOutput(infoString string) (version, runtime, vm string, err error) {
+func parseJavaVersionOutput(infoString string) (version, runtime, vm string) {
 	infoString = strings.TrimSpace(infoString)
 
 	lines := strings.Split(infoString, "\n")
-	if len(lines) != 3 {
-		return "", "", "", fmt.Errorf("unexpected java version info output, expected 3 lines but got: %v", infoString)
+	if strings.Contains(lines[0], "Picked up _JAVA_OPTIONS") {
+		lines = lines[1:]
+	}
+
+	if len(lines) < 3 {
+		// unexpected output format, don't attempt to parse output for version
+		return "", "", ""
 	}
 
 	versionString := strings.TrimSpace(lines[0])
@@ -40,5 +46,5 @@ func parseJavaVersionOutput(infoString string) (version, runtime, vm string, err
 		versionString = match[1]
 	}
 
-	return versionString, strings.TrimSpace(lines[1]), strings.TrimSpace(lines[2]), nil
+	return versionString, strings.TrimSpace(lines[1]), strings.TrimSpace(lines[2])
 }

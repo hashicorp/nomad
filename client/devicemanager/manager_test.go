@@ -11,12 +11,12 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -119,11 +119,12 @@ func baseTestConfig(t *testing.T) (
 	mc := &loader.MockCatalog{}
 
 	// Create the config
+	logger := testlog.HCLogger(t)
 	config = &Config{
-		Logger:        testlog.HCLogger(t),
+		Logger:        logger,
 		PluginConfig:  &base.AgentConfig{},
 		StatsInterval: 100 * time.Millisecond,
-		State:         state.NewMemDB(),
+		State:         state.NewMemDB(logger),
 		Updater:       updateFn,
 		Loader:        mc,
 	}

@@ -9,14 +9,14 @@ export default Mixin.create({
 
   setupDocumentVisibility: function() {
     if (!Ember.testing) {
-      this.set('_visibilityHandler', this.get('visibilityHandler').bind(this));
-      document.addEventListener('visibilitychange', this.get('_visibilityHandler'));
+      this.set('_visibilityHandler', this.visibilityHandler.bind(this));
+      document.addEventListener('visibilitychange', this._visibilityHandler);
     }
   }.on('init'),
 
   removeDocumentVisibility: function() {
     if (!Ember.testing) {
-      document.removeEventListener('visibilitychange', this.get('_visibilityHandler'));
+      document.removeEventListener('visibilitychange', this._visibilityHandler);
     }
   }.on('willDestroy'),
 });

@@ -2,9 +2,12 @@ package drivers
 
 import (
 	"context"
+	"crypto/md5"
 	"fmt"
+	"io"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -12,13 +15,23 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/msgpack"
 )
 
-const DriverHealthy = "Healthy"
+const (
+	// DriverHealthy is the default health description that should be used
+	// if the driver is nominal
+	DriverHealthy = "Healthy"
+
+	// Pre09TaskHandleVersion is the version used to identify that the task
+	// handle is from a driver that existed before driver plugins (v0.9). The
+	// driver should take appropriate action to handle the old driver state.
+	Pre09TaskHandleVersion = 0
+)
 
 // DriverPlugin is the interface with drivers will implement. It is also
 // implemented by a plugin client which proxies the calls to go-plugin. See
@@ -32,16 +45,38 @@ type DriverPlugin interface {
 	Fingerprint(context.Context) (<-chan *Fingerprint, error)
 
 	RecoverTask(*TaskHandle) error
-	StartTask(*TaskConfig) (*TaskHandle, *cstructs.DriverNetwork, error)
+	StartTask(*TaskConfig) (*TaskHandle, *DriverNetwork, error)
 	WaitTask(ctx context.Context, taskID string) (<-chan *ExitResult, error)
 	StopTask(taskID string, timeout time.Duration, signal string) error
 	DestroyTask(taskID string, force bool) error
 	InspectTask(taskID string) (*TaskStatus, error)
-	TaskStats(taskID string) (*cstructs.TaskResourceUsage, error)
+	TaskStats(ctx context.Context, taskID string, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error)
 	TaskEvents(context.Context) (<-chan *TaskEvent, error)
 
 	SignalTask(taskID string, signal string) error
 	ExecTask(taskID string, cmd []string, timeout time.Duration) (*ExecTaskResult, error)
+}
+
+// ExecTaskStreamingDriver marks that a driver supports streaming exec task.  This represents a user friendly
+// interface to implement, as an alternative to the ExecTaskStreamingRawDriver, the low level interface.
+type ExecTaskStreamingDriver interface {
+	ExecTaskStreaming(ctx context.Context, taskID string, execOptions *ExecOptions) (*ExitResult, error)
+}
+
+type ExecOptions struct {
+	// Command is command to run
+	Command []string
+
+	// Tty indicates whether pseudo-terminal is to be allocated
+	Tty bool
+
+	// streams
+	Stdin  io.ReadCloser
+	Stdout io.WriteCloser
+	Stderr io.WriteCloser
+
+	// terminal size channel
+	ResizeCh <-chan TerminalSize
 }
 
 // InternalDriverPlugin is an interface that exposes functions that are only
@@ -87,12 +122,20 @@ type Fingerprint struct {
 	Err error
 }
 
+// FSIsolation is an enumeration to describe what kind of filesystem isolation
+// a driver supports.
 type FSIsolation string
 
 var (
-	FSIsolationNone   = FSIsolation("none")
+	// FSIsolationNone means no isolation. The host filesystem is used.
+	FSIsolationNone = FSIsolation("none")
+
+	// FSIsolationChroot means the driver will use a chroot on the host
+	// filesystem.
 	FSIsolationChroot = FSIsolation("chroot")
-	FSIsolationImage  = FSIsolation("image")
+
+	// FSIsolationImage means the driver uses an image.
+	FSIsolationImage = FSIsolation("image")
 )
 
 type Capabilities struct {
@@ -104,7 +147,12 @@ type Capabilities struct {
 	Exec bool
 
 	//FSIsolation indicates what kind of filesystem isolation the driver supports.
-	FSIsolation cstructs.FSIsolation
+	FSIsolation FSIsolation
+}
+
+type TerminalSize struct {
+	Height int
+	Width  int
 }
 
 type TaskConfig struct {
@@ -312,7 +360,7 @@ type TaskStatus struct {
 	CompletedAt      time.Time
 	ExitResult       *ExitResult
 	DriverAttributes map[string]string
-	NetworkOverride  *cstructs.DriverNetwork
+	NetworkOverride  *DriverNetwork
 }
 
 type TaskEvent struct {
@@ -332,3 +380,94 @@ type ExecTaskResult struct {
 	Stderr     []byte
 	ExitResult *ExitResult
 }
+
+// DriverNetwork is the network created by driver's (eg Docker's bridge
+// network) during Prestart.
+type DriverNetwork struct {
+	// PortMap can be set by drivers to replace ports in environment
+	// variables with driver-specific mappings.
+	PortMap map[string]int
+
+	// IP is the IP address for the task created by the driver.
+	IP string
+
+	// AutoAdvertise indicates whether the driver thinks services that
+	// choose to auto-advertise-addresses should use this IP instead of the
+	// host's. eg If a Docker network plugin is used
+	AutoAdvertise bool
+}
+
+// Advertise returns true if the driver suggests using the IP set. May be
+// called on a nil Network in which case it returns false.
+func (d *DriverNetwork) Advertise() bool {
+	return d != nil && d.AutoAdvertise
+}
+
+// Copy a DriverNetwork struct. If it is nil, nil is returned.
+func (d *DriverNetwork) Copy() *DriverNetwork {
+	if d == nil {
+		return nil
+	}
+	pm := make(map[string]int, len(d.PortMap))
+	for k, v := range d.PortMap {
+		pm[k] = v
+	}
+	return &DriverNetwork{
+		PortMap:       pm,
+		IP:            d.IP,
+		AutoAdvertise: d.AutoAdvertise,
+	}
+}
+
+// Hash the contents of a DriverNetwork struct to detect changes. If it is nil,
+// an empty slice is returned.
+func (d *DriverNetwork) Hash() []byte {
+	if d == nil {
+		return []byte{}
+	}
+	h := md5.New()
+	io.WriteString(h, d.IP)
+	io.WriteString(h, strconv.FormatBool(d.AutoAdvertise))
+	for k, v := range d.PortMap {
+		io.WriteString(h, k)
+		io.WriteString(h, strconv.Itoa(v))
+	}
+	return h.Sum(nil)
+}
+
+//// helper types for operating on raw exec operation
+// we alias proto instances as much as possible to avoid conversion overhead
+
+// ExecTaskStreamingRawDriver represents a low-level interface for executing a streaming exec
+// call, and is intended to be used when driver instance is to delegate exec handling to another
+// backend, e.g. to a executor or a driver behind a grpc/rpc protocol
+//
+// Nomad client would prefer this interface method over `ExecTaskStreaming` if driver implements it.
+type ExecTaskStreamingRawDriver interface {
+	ExecTaskStreamingRaw(
+		ctx context.Context,
+		taskID string,
+		command []string,
+		tty bool,
+		stream ExecTaskStream) error
+}
+
+// ExecTaskStream represents a stream of exec streaming messages,
+// and is a handle to get stdin and tty size and send back
+// stdout/stderr and exit operations.
+//
+// The methods are not concurrent safe; callers must ensure that methods are called
+// from at most one goroutine.
+type ExecTaskStream interface {
+	// Send relays response message back to API.
+	//
+	// The call is synchronous and no references to message is held: once
+	// method call completes, the message reference can be reused or freed.
+	Send(*ExecTaskStreamingResponseMsg) error
+
+	// Receive exec streaming messages from API.  Returns `io.EOF` on completion of stream.
+	Recv() (*ExecTaskStreamingRequestMsg, error)
+}
+
+type ExecTaskStreamingRequestMsg = proto.ExecTaskStreamingRequest
+type ExecTaskStreamingResponseMsg = proto.ExecTaskStreamingResponse

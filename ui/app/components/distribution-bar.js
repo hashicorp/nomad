@@ -2,7 +2,8 @@ import Component from '@ember/component';
 import { computed, observer, set } from '@ember/object';
 import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
-import { guidFor, copy } from '@ember/object/internals';
+import { guidFor } from '@ember/object/internals';
+import { copy } from 'ember-copy';
 import d3 from 'd3-selection';
 import 'd3-transition';
 import WindowResizable from '../mixins/window-resizable';
@@ -23,7 +24,7 @@ export default Component.extend(WindowResizable, {
   maskId: null,
 
   _data: computed('data', function() {
-    const data = copy(this.get('data'), true);
+    const data = copy(this.data, true);
     const sum = data.mapBy('value').reduce(sumAggregate, 0);
 
     return data.map(({ label, value, className, layers }, index) => ({
@@ -73,7 +74,7 @@ export default Component.extend(WindowResizable, {
   // prettier-ignore
   /* eslint-disable */
   renderChart() {
-    const { chart, _data, isNarrow } = this.getProperties('chart', '_data', 'isNarrow');
+    const { chart, _data, isNarrow } = this;
     const width = this.$('svg').width();
     const filteredData = _data.filter(d => d.value > 0);
     filteredData.forEach((d, index) => {
@@ -89,7 +90,7 @@ export default Component.extend(WindowResizable, {
       .append('g')
       .on('mouseenter', d => {
         run(() => {
-          const slices = this.get('slices');
+          const slices = this.slices;
           const slice = slices.filter(datum => datum.label === d.label);
           slices.classed('active', false).classed('inactive', true);
           slice.classed('active', true).classed('inactive', false);
@@ -109,7 +110,7 @@ export default Component.extend(WindowResizable, {
     slices = slices.merge(slicesEnter);
     slices.attr('class', d => {
       const className = d.className || `slice-${_data.indexOf(d)}`
-      const activeDatum = this.get('activeDatum');
+      const activeDatum = this.activeDatum;
       const isActive = activeDatum && activeDatum.label === d.label;
       const isInactive = activeDatum && activeDatum.label !== d.label;
       return [ className, isActive && 'active', isInactive && 'inactive' ].compact().join(' ');
@@ -148,7 +149,7 @@ export default Component.extend(WindowResizable, {
         .attr('width', setWidth)
         .attr('x', setOffset)
         .attr('y', () => isNarrow ? '50%' : 0)
-        .attr('clip-path', `url(#${this.get('maskId')})`)
+        .attr('clip-path', `url(#${this.maskId})`)
         .attr('height', () => isNarrow ? '6px' : '100%')
         .attr('transform', () => isNarrow ? 'translate(0, -3)' : '')
       .merge(layers)
@@ -159,7 +160,7 @@ export default Component.extend(WindowResizable, {
         .attr('x', setOffset)
 
       if (isNarrow) {
-        d3.select(this.get('element')).select('.mask')
+        d3.select(this.element).select('.mask')
           .attr('height', '6px')
           .attr('y', '50%');
       }

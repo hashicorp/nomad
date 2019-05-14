@@ -7,11 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,43 +42,6 @@ func TestJobs_Register(t *testing.T) {
 	if len(resp) != 1 || resp[0].ID != *job.ID {
 		t.Fatalf("bad: %#v", resp[0])
 	}
-}
-
-func TestJobs_Parse(t *testing.T) {
-	t.Parallel()
-	c, s := makeClient(t, nil, nil)
-	defer s.Stop()
-
-	jobs := c.Jobs()
-
-	checkJob := func(job *Job, expectedRegion string) {
-		if job == nil {
-			t.Fatal("job should not be nil")
-		}
-
-		region := job.Region
-
-		if region == nil {
-			if expectedRegion != "" {
-				t.Fatalf("expected job region to be '%s' but was unset", expectedRegion)
-			}
-		} else {
-			if expectedRegion != *region {
-				t.Fatalf("expected job region '%s', but got '%s'", expectedRegion, *region)
-			}
-		}
-	}
-	job, err := jobs.ParseHCL(mock.HCL(), true)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	checkJob(job, "global")
-
-	job, err = jobs.ParseHCL(mock.HCL(), false)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	checkJob(job, "")
 }
 
 func TestJobs_Validate(t *testing.T) {
@@ -131,50 +91,50 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
-				ID:                helper.StringToPtr(""),
-				Name:              helper.StringToPtr(""),
-				Region:            helper.StringToPtr("global"),
-				Namespace:         helper.StringToPtr(DefaultNamespace),
-				Type:              helper.StringToPtr("service"),
-				ParentID:          helper.StringToPtr(""),
-				Priority:          helper.IntToPtr(50),
-				AllAtOnce:         helper.BoolToPtr(false),
-				VaultToken:        helper.StringToPtr(""),
-				Status:            helper.StringToPtr(""),
-				StatusDescription: helper.StringToPtr(""),
-				Stop:              helper.BoolToPtr(false),
-				Stable:            helper.BoolToPtr(false),
-				Version:           helper.Uint64ToPtr(0),
-				CreateIndex:       helper.Uint64ToPtr(0),
-				ModifyIndex:       helper.Uint64ToPtr(0),
-				JobModifyIndex:    helper.Uint64ToPtr(0),
+				ID:                stringToPtr(""),
+				Name:              stringToPtr(""),
+				Region:            stringToPtr("global"),
+				Namespace:         stringToPtr(DefaultNamespace),
+				Type:              stringToPtr("service"),
+				ParentID:          stringToPtr(""),
+				Priority:          intToPtr(50),
+				AllAtOnce:         boolToPtr(false),
+				VaultToken:        stringToPtr(""),
+				Status:            stringToPtr(""),
+				StatusDescription: stringToPtr(""),
+				Stop:              boolToPtr(false),
+				Stable:            boolToPtr(false),
+				Version:           uint64ToPtr(0),
+				CreateIndex:       uint64ToPtr(0),
+				ModifyIndex:       uint64ToPtr(0),
+				JobModifyIndex:    uint64ToPtr(0),
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  helper.StringToPtr(""),
-						Count: helper.IntToPtr(1),
+						Name:  stringToPtr(""),
+						Count: intToPtr(1),
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  helper.BoolToPtr(false),
-							Migrate: helper.BoolToPtr(false),
-							SizeMB:  helper.IntToPtr(300),
+							Sticky:  boolToPtr(false),
+							Migrate: boolToPtr(false),
+							SizeMB:  intToPtr(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:    helper.TimeToPtr(15 * time.Second),
-							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(30 * time.Minute),
-							Mode:     helper.StringToPtr("fail"),
+							Delay:    timeToPtr(15 * time.Second),
+							Attempts: intToPtr(2),
+							Interval: timeToPtr(30 * time.Minute),
+							Mode:     stringToPtr("fail"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts:      helper.IntToPtr(0),
-							Interval:      helper.TimeToPtr(0),
-							DelayFunction: helper.StringToPtr("exponential"),
-							Delay:         helper.TimeToPtr(30 * time.Second),
-							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
-							Unlimited:     helper.BoolToPtr(true),
+							Attempts:      intToPtr(0),
+							Interval:      timeToPtr(0),
+							DelayFunction: stringToPtr("exponential"),
+							Delay:         timeToPtr(30 * time.Second),
+							MaxDelay:      timeToPtr(1 * time.Hour),
+							Unlimited:     boolToPtr(true),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
-								KillTimeout: helper.TimeToPtr(5 * time.Second),
+								KillTimeout: timeToPtr(5 * time.Second),
 								LogConfig:   DefaultLogConfig(),
 								Resources:   DefaultResources(),
 							},
@@ -186,13 +146,13 @@ func TestJobs_Canonicalize(t *testing.T) {
 		{
 			name: "partial",
 			input: &Job{
-				Name:      helper.StringToPtr("foo"),
-				Namespace: helper.StringToPtr("bar"),
-				ID:        helper.StringToPtr("bar"),
-				ParentID:  helper.StringToPtr("lol"),
+				Name:      stringToPtr("foo"),
+				Namespace: stringToPtr("bar"),
+				ID:        stringToPtr("bar"),
+				ParentID:  stringToPtr("lol"),
 				TaskGroups: []*TaskGroup{
 					{
-						Name: helper.StringToPtr("bar"),
+						Name: stringToPtr("bar"),
 						Tasks: []*Task{
 							{
 								Name: "task1",
@@ -202,45 +162,45 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
-				Namespace:         helper.StringToPtr("bar"),
-				ID:                helper.StringToPtr("bar"),
-				Name:              helper.StringToPtr("foo"),
-				Region:            helper.StringToPtr("global"),
-				Type:              helper.StringToPtr("service"),
-				ParentID:          helper.StringToPtr("lol"),
-				Priority:          helper.IntToPtr(50),
-				AllAtOnce:         helper.BoolToPtr(false),
-				VaultToken:        helper.StringToPtr(""),
-				Stop:              helper.BoolToPtr(false),
-				Stable:            helper.BoolToPtr(false),
-				Version:           helper.Uint64ToPtr(0),
-				Status:            helper.StringToPtr(""),
-				StatusDescription: helper.StringToPtr(""),
-				CreateIndex:       helper.Uint64ToPtr(0),
-				ModifyIndex:       helper.Uint64ToPtr(0),
-				JobModifyIndex:    helper.Uint64ToPtr(0),
+				Namespace:         stringToPtr("bar"),
+				ID:                stringToPtr("bar"),
+				Name:              stringToPtr("foo"),
+				Region:            stringToPtr("global"),
+				Type:              stringToPtr("service"),
+				ParentID:          stringToPtr("lol"),
+				Priority:          intToPtr(50),
+				AllAtOnce:         boolToPtr(false),
+				VaultToken:        stringToPtr(""),
+				Stop:              boolToPtr(false),
+				Stable:            boolToPtr(false),
+				Version:           uint64ToPtr(0),
+				Status:            stringToPtr(""),
+				StatusDescription: stringToPtr(""),
+				CreateIndex:       uint64ToPtr(0),
+				ModifyIndex:       uint64ToPtr(0),
+				JobModifyIndex:    uint64ToPtr(0),
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  helper.StringToPtr("bar"),
-						Count: helper.IntToPtr(1),
+						Name:  stringToPtr("bar"),
+						Count: intToPtr(1),
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  helper.BoolToPtr(false),
-							Migrate: helper.BoolToPtr(false),
-							SizeMB:  helper.IntToPtr(300),
+							Sticky:  boolToPtr(false),
+							Migrate: boolToPtr(false),
+							SizeMB:  intToPtr(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:    helper.TimeToPtr(15 * time.Second),
-							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(30 * time.Minute),
-							Mode:     helper.StringToPtr("fail"),
+							Delay:    timeToPtr(15 * time.Second),
+							Attempts: intToPtr(2),
+							Interval: timeToPtr(30 * time.Minute),
+							Mode:     stringToPtr("fail"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts:      helper.IntToPtr(0),
-							Interval:      helper.TimeToPtr(0),
-							DelayFunction: helper.StringToPtr("exponential"),
-							Delay:         helper.TimeToPtr(30 * time.Second),
-							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
-							Unlimited:     helper.BoolToPtr(true),
+							Attempts:      intToPtr(0),
+							Interval:      timeToPtr(0),
+							DelayFunction: stringToPtr("exponential"),
+							Delay:         timeToPtr(30 * time.Second),
+							MaxDelay:      timeToPtr(1 * time.Hour),
+							Unlimited:     boolToPtr(true),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -248,7 +208,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Name:        "task1",
 								LogConfig:   DefaultLogConfig(),
 								Resources:   DefaultResources(),
-								KillTimeout: helper.TimeToPtr(5 * time.Second),
+								KillTimeout: timeToPtr(5 * time.Second),
 							},
 						},
 					},
@@ -258,25 +218,25 @@ func TestJobs_Canonicalize(t *testing.T) {
 		{
 			name: "example_template",
 			input: &Job{
-				ID:          helper.StringToPtr("example_template"),
-				Name:        helper.StringToPtr("example_template"),
+				ID:          stringToPtr("example_template"),
+				Name:        stringToPtr("example_template"),
 				Datacenters: []string{"dc1"},
-				Type:        helper.StringToPtr("service"),
+				Type:        stringToPtr("service"),
 				Update: &UpdateStrategy{
-					MaxParallel: helper.IntToPtr(1),
+					MaxParallel: intToPtr(1),
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  helper.StringToPtr("cache"),
-						Count: helper.IntToPtr(1),
+						Name:  stringToPtr("cache"),
+						Count: intToPtr(1),
 						RestartPolicy: &RestartPolicy{
-							Interval: helper.TimeToPtr(5 * time.Minute),
-							Attempts: helper.IntToPtr(10),
-							Delay:    helper.TimeToPtr(25 * time.Second),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: timeToPtr(5 * time.Minute),
+							Attempts: intToPtr(10),
+							Delay:    timeToPtr(25 * time.Second),
+							Mode:     stringToPtr("delay"),
 						},
 						EphemeralDisk: &EphemeralDisk{
-							SizeMB: helper.IntToPtr(300),
+							SizeMB: intToPtr(300),
 						},
 						Tasks: []*Task{
 							{
@@ -289,11 +249,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 									}},
 								},
 								Resources: &Resources{
-									CPU:      helper.IntToPtr(500),
-									MemoryMB: helper.IntToPtr(256),
+									CPU:      intToPtr(500),
+									MemoryMB: intToPtr(256),
 									Networks: []*NetworkResource{
 										{
-											MBits: helper.IntToPtr(10),
+											MBits: intToPtr(10),
 											DynamicPorts: []Port{
 												{
 													Label: "db",
@@ -320,14 +280,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 								},
 								Templates: []*Template{
 									{
-										EmbeddedTmpl: helper.StringToPtr("---"),
-										DestPath:     helper.StringToPtr("local/file.yml"),
+										EmbeddedTmpl: stringToPtr("---"),
+										DestPath:     stringToPtr("local/file.yml"),
 									},
 									{
-										EmbeddedTmpl: helper.StringToPtr("FOO=bar\n"),
-										DestPath:     helper.StringToPtr("local/file.env"),
-										Envvars:      helper.BoolToPtr(true),
-										VaultGrace:   helper.TimeToPtr(3 * time.Second),
+										EmbeddedTmpl: stringToPtr("FOO=bar\n"),
+										DestPath:     stringToPtr("local/file.env"),
+										Envvars:      boolToPtr(true),
+										VaultGrace:   timeToPtr(3 * time.Second),
 									},
 								},
 							},
@@ -336,67 +296,67 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
-				Namespace:         helper.StringToPtr(DefaultNamespace),
-				ID:                helper.StringToPtr("example_template"),
-				Name:              helper.StringToPtr("example_template"),
-				ParentID:          helper.StringToPtr(""),
-				Priority:          helper.IntToPtr(50),
-				Region:            helper.StringToPtr("global"),
-				Type:              helper.StringToPtr("service"),
-				AllAtOnce:         helper.BoolToPtr(false),
-				VaultToken:        helper.StringToPtr(""),
-				Stop:              helper.BoolToPtr(false),
-				Stable:            helper.BoolToPtr(false),
-				Version:           helper.Uint64ToPtr(0),
-				Status:            helper.StringToPtr(""),
-				StatusDescription: helper.StringToPtr(""),
-				CreateIndex:       helper.Uint64ToPtr(0),
-				ModifyIndex:       helper.Uint64ToPtr(0),
-				JobModifyIndex:    helper.Uint64ToPtr(0),
+				Namespace:         stringToPtr(DefaultNamespace),
+				ID:                stringToPtr("example_template"),
+				Name:              stringToPtr("example_template"),
+				ParentID:          stringToPtr(""),
+				Priority:          intToPtr(50),
+				Region:            stringToPtr("global"),
+				Type:              stringToPtr("service"),
+				AllAtOnce:         boolToPtr(false),
+				VaultToken:        stringToPtr(""),
+				Stop:              boolToPtr(false),
+				Stable:            boolToPtr(false),
+				Version:           uint64ToPtr(0),
+				Status:            stringToPtr(""),
+				StatusDescription: stringToPtr(""),
+				CreateIndex:       uint64ToPtr(0),
+				ModifyIndex:       uint64ToPtr(0),
+				JobModifyIndex:    uint64ToPtr(0),
 				Datacenters:       []string{"dc1"},
 				Update: &UpdateStrategy{
-					Stagger:          helper.TimeToPtr(30 * time.Second),
-					MaxParallel:      helper.IntToPtr(1),
-					HealthCheck:      helper.StringToPtr("checks"),
-					MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
-					HealthyDeadline:  helper.TimeToPtr(5 * time.Minute),
-					ProgressDeadline: helper.TimeToPtr(10 * time.Minute),
-					AutoRevert:       helper.BoolToPtr(false),
-					Canary:           helper.IntToPtr(0),
+					Stagger:          timeToPtr(30 * time.Second),
+					MaxParallel:      intToPtr(1),
+					HealthCheck:      stringToPtr("checks"),
+					MinHealthyTime:   timeToPtr(10 * time.Second),
+					HealthyDeadline:  timeToPtr(5 * time.Minute),
+					ProgressDeadline: timeToPtr(10 * time.Minute),
+					AutoRevert:       boolToPtr(false),
+					Canary:           intToPtr(0),
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  helper.StringToPtr("cache"),
-						Count: helper.IntToPtr(1),
+						Name:  stringToPtr("cache"),
+						Count: intToPtr(1),
 						RestartPolicy: &RestartPolicy{
-							Interval: helper.TimeToPtr(5 * time.Minute),
-							Attempts: helper.IntToPtr(10),
-							Delay:    helper.TimeToPtr(25 * time.Second),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: timeToPtr(5 * time.Minute),
+							Attempts: intToPtr(10),
+							Delay:    timeToPtr(25 * time.Second),
+							Mode:     stringToPtr("delay"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts:      helper.IntToPtr(0),
-							Interval:      helper.TimeToPtr(0),
-							DelayFunction: helper.StringToPtr("exponential"),
-							Delay:         helper.TimeToPtr(30 * time.Second),
-							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
-							Unlimited:     helper.BoolToPtr(true),
+							Attempts:      intToPtr(0),
+							Interval:      timeToPtr(0),
+							DelayFunction: stringToPtr("exponential"),
+							Delay:         timeToPtr(30 * time.Second),
+							MaxDelay:      timeToPtr(1 * time.Hour),
+							Unlimited:     boolToPtr(true),
 						},
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  helper.BoolToPtr(false),
-							Migrate: helper.BoolToPtr(false),
-							SizeMB:  helper.IntToPtr(300),
+							Sticky:  boolToPtr(false),
+							Migrate: boolToPtr(false),
+							SizeMB:  intToPtr(300),
 						},
 
 						Update: &UpdateStrategy{
-							Stagger:          helper.TimeToPtr(30 * time.Second),
-							MaxParallel:      helper.IntToPtr(1),
-							HealthCheck:      helper.StringToPtr("checks"),
-							MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
-							HealthyDeadline:  helper.TimeToPtr(5 * time.Minute),
-							ProgressDeadline: helper.TimeToPtr(10 * time.Minute),
-							AutoRevert:       helper.BoolToPtr(false),
-							Canary:           helper.IntToPtr(0),
+							Stagger:          timeToPtr(30 * time.Second),
+							MaxParallel:      intToPtr(1),
+							HealthCheck:      stringToPtr("checks"),
+							MinHealthyTime:   timeToPtr(10 * time.Second),
+							HealthyDeadline:  timeToPtr(5 * time.Minute),
+							ProgressDeadline: timeToPtr(10 * time.Minute),
+							AutoRevert:       boolToPtr(false),
+							Canary:           intToPtr(0),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -410,11 +370,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 									}},
 								},
 								Resources: &Resources{
-									CPU:      helper.IntToPtr(500),
-									MemoryMB: helper.IntToPtr(256),
+									CPU:      intToPtr(500),
+									MemoryMB: intToPtr(256),
 									Networks: []*NetworkResource{
 										{
-											MBits: helper.IntToPtr(10),
+											MBits: intToPtr(10),
 											DynamicPorts: []Port{
 												{
 													Label: "db",
@@ -440,34 +400,34 @@ func TestJobs_Canonicalize(t *testing.T) {
 										},
 									},
 								},
-								KillTimeout: helper.TimeToPtr(5 * time.Second),
+								KillTimeout: timeToPtr(5 * time.Second),
 								LogConfig:   DefaultLogConfig(),
 								Templates: []*Template{
 									{
-										SourcePath:   helper.StringToPtr(""),
-										DestPath:     helper.StringToPtr("local/file.yml"),
-										EmbeddedTmpl: helper.StringToPtr("---"),
-										ChangeMode:   helper.StringToPtr("restart"),
-										ChangeSignal: helper.StringToPtr(""),
-										Splay:        helper.TimeToPtr(5 * time.Second),
-										Perms:        helper.StringToPtr("0644"),
-										LeftDelim:    helper.StringToPtr("{{"),
-										RightDelim:   helper.StringToPtr("}}"),
-										Envvars:      helper.BoolToPtr(false),
-										VaultGrace:   helper.TimeToPtr(15 * time.Second),
+										SourcePath:   stringToPtr(""),
+										DestPath:     stringToPtr("local/file.yml"),
+										EmbeddedTmpl: stringToPtr("---"),
+										ChangeMode:   stringToPtr("restart"),
+										ChangeSignal: stringToPtr(""),
+										Splay:        timeToPtr(5 * time.Second),
+										Perms:        stringToPtr("0644"),
+										LeftDelim:    stringToPtr("{{"),
+										RightDelim:   stringToPtr("}}"),
+										Envvars:      boolToPtr(false),
+										VaultGrace:   timeToPtr(15 * time.Second),
 									},
 									{
-										SourcePath:   helper.StringToPtr(""),
-										DestPath:     helper.StringToPtr("local/file.env"),
-										EmbeddedTmpl: helper.StringToPtr("FOO=bar\n"),
-										ChangeMode:   helper.StringToPtr("restart"),
-										ChangeSignal: helper.StringToPtr(""),
-										Splay:        helper.TimeToPtr(5 * time.Second),
-										Perms:        helper.StringToPtr("0644"),
-										LeftDelim:    helper.StringToPtr("{{"),
-										RightDelim:   helper.StringToPtr("}}"),
-										Envvars:      helper.BoolToPtr(true),
-										VaultGrace:   helper.TimeToPtr(3 * time.Second),
+										SourcePath:   stringToPtr(""),
+										DestPath:     stringToPtr("local/file.env"),
+										EmbeddedTmpl: stringToPtr("FOO=bar\n"),
+										ChangeMode:   stringToPtr("restart"),
+										ChangeSignal: stringToPtr(""),
+										Splay:        timeToPtr(5 * time.Second),
+										Perms:        stringToPtr("0644"),
+										LeftDelim:    stringToPtr("{{"),
+										RightDelim:   stringToPtr("}}"),
+										Envvars:      boolToPtr(true),
+										VaultGrace:   timeToPtr(3 * time.Second),
 									},
 								},
 							},
@@ -480,33 +440,33 @@ func TestJobs_Canonicalize(t *testing.T) {
 		{
 			name: "periodic",
 			input: &Job{
-				ID:       helper.StringToPtr("bar"),
+				ID:       stringToPtr("bar"),
 				Periodic: &PeriodicConfig{},
 			},
 			expected: &Job{
-				Namespace:         helper.StringToPtr(DefaultNamespace),
-				ID:                helper.StringToPtr("bar"),
-				ParentID:          helper.StringToPtr(""),
-				Name:              helper.StringToPtr("bar"),
-				Region:            helper.StringToPtr("global"),
-				Type:              helper.StringToPtr("service"),
-				Priority:          helper.IntToPtr(50),
-				AllAtOnce:         helper.BoolToPtr(false),
-				VaultToken:        helper.StringToPtr(""),
-				Stop:              helper.BoolToPtr(false),
-				Stable:            helper.BoolToPtr(false),
-				Version:           helper.Uint64ToPtr(0),
-				Status:            helper.StringToPtr(""),
-				StatusDescription: helper.StringToPtr(""),
-				CreateIndex:       helper.Uint64ToPtr(0),
-				ModifyIndex:       helper.Uint64ToPtr(0),
-				JobModifyIndex:    helper.Uint64ToPtr(0),
+				Namespace:         stringToPtr(DefaultNamespace),
+				ID:                stringToPtr("bar"),
+				ParentID:          stringToPtr(""),
+				Name:              stringToPtr("bar"),
+				Region:            stringToPtr("global"),
+				Type:              stringToPtr("service"),
+				Priority:          intToPtr(50),
+				AllAtOnce:         boolToPtr(false),
+				VaultToken:        stringToPtr(""),
+				Stop:              boolToPtr(false),
+				Stable:            boolToPtr(false),
+				Version:           uint64ToPtr(0),
+				Status:            stringToPtr(""),
+				StatusDescription: stringToPtr(""),
+				CreateIndex:       uint64ToPtr(0),
+				ModifyIndex:       uint64ToPtr(0),
+				JobModifyIndex:    uint64ToPtr(0),
 				Periodic: &PeriodicConfig{
-					Enabled:         helper.BoolToPtr(true),
-					Spec:            helper.StringToPtr(""),
-					SpecType:        helper.StringToPtr(PeriodicSpecCron),
-					ProhibitOverlap: helper.BoolToPtr(false),
-					TimeZone:        helper.StringToPtr("UTC"),
+					Enabled:         boolToPtr(true),
+					Spec:            stringToPtr(""),
+					SpecType:        stringToPtr(PeriodicSpecCron),
+					ProhibitOverlap: boolToPtr(false),
+					TimeZone:        stringToPtr("UTC"),
 				},
 			},
 		},
@@ -514,29 +474,29 @@ func TestJobs_Canonicalize(t *testing.T) {
 		{
 			name: "update_merge",
 			input: &Job{
-				Name:     helper.StringToPtr("foo"),
-				ID:       helper.StringToPtr("bar"),
-				ParentID: helper.StringToPtr("lol"),
+				Name:     stringToPtr("foo"),
+				ID:       stringToPtr("bar"),
+				ParentID: stringToPtr("lol"),
 				Update: &UpdateStrategy{
-					Stagger:          helper.TimeToPtr(1 * time.Second),
-					MaxParallel:      helper.IntToPtr(1),
-					HealthCheck:      helper.StringToPtr("checks"),
-					MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
-					HealthyDeadline:  helper.TimeToPtr(6 * time.Minute),
-					ProgressDeadline: helper.TimeToPtr(7 * time.Minute),
-					AutoRevert:       helper.BoolToPtr(false),
-					Canary:           helper.IntToPtr(0),
+					Stagger:          timeToPtr(1 * time.Second),
+					MaxParallel:      intToPtr(1),
+					HealthCheck:      stringToPtr("checks"),
+					MinHealthyTime:   timeToPtr(10 * time.Second),
+					HealthyDeadline:  timeToPtr(6 * time.Minute),
+					ProgressDeadline: timeToPtr(7 * time.Minute),
+					AutoRevert:       boolToPtr(false),
+					Canary:           intToPtr(0),
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name: helper.StringToPtr("bar"),
+						Name: stringToPtr("bar"),
 						Update: &UpdateStrategy{
-							Stagger:        helper.TimeToPtr(2 * time.Second),
-							MaxParallel:    helper.IntToPtr(2),
-							HealthCheck:    helper.StringToPtr("manual"),
-							MinHealthyTime: helper.TimeToPtr(1 * time.Second),
-							AutoRevert:     helper.BoolToPtr(true),
-							Canary:         helper.IntToPtr(1),
+							Stagger:        timeToPtr(2 * time.Second),
+							MaxParallel:    intToPtr(2),
+							HealthCheck:    stringToPtr("manual"),
+							MinHealthyTime: timeToPtr(1 * time.Second),
+							AutoRevert:     boolToPtr(true),
+							Canary:         intToPtr(1),
 						},
 						Tasks: []*Task{
 							{
@@ -545,7 +505,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 					},
 					{
-						Name: helper.StringToPtr("baz"),
+						Name: stringToPtr("baz"),
 						Tasks: []*Task{
 							{
 								Name: "task1",
@@ -555,65 +515,65 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
-				Namespace:         helper.StringToPtr(DefaultNamespace),
-				ID:                helper.StringToPtr("bar"),
-				Name:              helper.StringToPtr("foo"),
-				Region:            helper.StringToPtr("global"),
-				Type:              helper.StringToPtr("service"),
-				ParentID:          helper.StringToPtr("lol"),
-				Priority:          helper.IntToPtr(50),
-				AllAtOnce:         helper.BoolToPtr(false),
-				VaultToken:        helper.StringToPtr(""),
-				Stop:              helper.BoolToPtr(false),
-				Stable:            helper.BoolToPtr(false),
-				Version:           helper.Uint64ToPtr(0),
-				Status:            helper.StringToPtr(""),
-				StatusDescription: helper.StringToPtr(""),
-				CreateIndex:       helper.Uint64ToPtr(0),
-				ModifyIndex:       helper.Uint64ToPtr(0),
-				JobModifyIndex:    helper.Uint64ToPtr(0),
+				Namespace:         stringToPtr(DefaultNamespace),
+				ID:                stringToPtr("bar"),
+				Name:              stringToPtr("foo"),
+				Region:            stringToPtr("global"),
+				Type:              stringToPtr("service"),
+				ParentID:          stringToPtr("lol"),
+				Priority:          intToPtr(50),
+				AllAtOnce:         boolToPtr(false),
+				VaultToken:        stringToPtr(""),
+				Stop:              boolToPtr(false),
+				Stable:            boolToPtr(false),
+				Version:           uint64ToPtr(0),
+				Status:            stringToPtr(""),
+				StatusDescription: stringToPtr(""),
+				CreateIndex:       uint64ToPtr(0),
+				ModifyIndex:       uint64ToPtr(0),
+				JobModifyIndex:    uint64ToPtr(0),
 				Update: &UpdateStrategy{
-					Stagger:          helper.TimeToPtr(1 * time.Second),
-					MaxParallel:      helper.IntToPtr(1),
-					HealthCheck:      helper.StringToPtr("checks"),
-					MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
-					HealthyDeadline:  helper.TimeToPtr(6 * time.Minute),
-					ProgressDeadline: helper.TimeToPtr(7 * time.Minute),
-					AutoRevert:       helper.BoolToPtr(false),
-					Canary:           helper.IntToPtr(0),
+					Stagger:          timeToPtr(1 * time.Second),
+					MaxParallel:      intToPtr(1),
+					HealthCheck:      stringToPtr("checks"),
+					MinHealthyTime:   timeToPtr(10 * time.Second),
+					HealthyDeadline:  timeToPtr(6 * time.Minute),
+					ProgressDeadline: timeToPtr(7 * time.Minute),
+					AutoRevert:       boolToPtr(false),
+					Canary:           intToPtr(0),
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  helper.StringToPtr("bar"),
-						Count: helper.IntToPtr(1),
+						Name:  stringToPtr("bar"),
+						Count: intToPtr(1),
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  helper.BoolToPtr(false),
-							Migrate: helper.BoolToPtr(false),
-							SizeMB:  helper.IntToPtr(300),
+							Sticky:  boolToPtr(false),
+							Migrate: boolToPtr(false),
+							SizeMB:  intToPtr(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:    helper.TimeToPtr(15 * time.Second),
-							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(30 * time.Minute),
-							Mode:     helper.StringToPtr("fail"),
+							Delay:    timeToPtr(15 * time.Second),
+							Attempts: intToPtr(2),
+							Interval: timeToPtr(30 * time.Minute),
+							Mode:     stringToPtr("fail"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts:      helper.IntToPtr(0),
-							Interval:      helper.TimeToPtr(0),
-							DelayFunction: helper.StringToPtr("exponential"),
-							Delay:         helper.TimeToPtr(30 * time.Second),
-							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
-							Unlimited:     helper.BoolToPtr(true),
+							Attempts:      intToPtr(0),
+							Interval:      timeToPtr(0),
+							DelayFunction: stringToPtr("exponential"),
+							Delay:         timeToPtr(30 * time.Second),
+							MaxDelay:      timeToPtr(1 * time.Hour),
+							Unlimited:     boolToPtr(true),
 						},
 						Update: &UpdateStrategy{
-							Stagger:          helper.TimeToPtr(2 * time.Second),
-							MaxParallel:      helper.IntToPtr(2),
-							HealthCheck:      helper.StringToPtr("manual"),
-							MinHealthyTime:   helper.TimeToPtr(1 * time.Second),
-							HealthyDeadline:  helper.TimeToPtr(6 * time.Minute),
-							ProgressDeadline: helper.TimeToPtr(7 * time.Minute),
-							AutoRevert:       helper.BoolToPtr(true),
-							Canary:           helper.IntToPtr(1),
+							Stagger:          timeToPtr(2 * time.Second),
+							MaxParallel:      intToPtr(2),
+							HealthCheck:      stringToPtr("manual"),
+							MinHealthyTime:   timeToPtr(1 * time.Second),
+							HealthyDeadline:  timeToPtr(6 * time.Minute),
+							ProgressDeadline: timeToPtr(7 * time.Minute),
+							AutoRevert:       boolToPtr(true),
+							Canary:           intToPtr(1),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -621,41 +581,41 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Name:        "task1",
 								LogConfig:   DefaultLogConfig(),
 								Resources:   DefaultResources(),
-								KillTimeout: helper.TimeToPtr(5 * time.Second),
+								KillTimeout: timeToPtr(5 * time.Second),
 							},
 						},
 					},
 					{
-						Name:  helper.StringToPtr("baz"),
-						Count: helper.IntToPtr(1),
+						Name:  stringToPtr("baz"),
+						Count: intToPtr(1),
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  helper.BoolToPtr(false),
-							Migrate: helper.BoolToPtr(false),
-							SizeMB:  helper.IntToPtr(300),
+							Sticky:  boolToPtr(false),
+							Migrate: boolToPtr(false),
+							SizeMB:  intToPtr(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:    helper.TimeToPtr(15 * time.Second),
-							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(30 * time.Minute),
-							Mode:     helper.StringToPtr("fail"),
+							Delay:    timeToPtr(15 * time.Second),
+							Attempts: intToPtr(2),
+							Interval: timeToPtr(30 * time.Minute),
+							Mode:     stringToPtr("fail"),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts:      helper.IntToPtr(0),
-							Interval:      helper.TimeToPtr(0),
-							DelayFunction: helper.StringToPtr("exponential"),
-							Delay:         helper.TimeToPtr(30 * time.Second),
-							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
-							Unlimited:     helper.BoolToPtr(true),
+							Attempts:      intToPtr(0),
+							Interval:      timeToPtr(0),
+							DelayFunction: stringToPtr("exponential"),
+							Delay:         timeToPtr(30 * time.Second),
+							MaxDelay:      timeToPtr(1 * time.Hour),
+							Unlimited:     boolToPtr(true),
 						},
 						Update: &UpdateStrategy{
-							Stagger:          helper.TimeToPtr(1 * time.Second),
-							MaxParallel:      helper.IntToPtr(1),
-							HealthCheck:      helper.StringToPtr("checks"),
-							MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
-							HealthyDeadline:  helper.TimeToPtr(6 * time.Minute),
-							ProgressDeadline: helper.TimeToPtr(7 * time.Minute),
-							AutoRevert:       helper.BoolToPtr(false),
-							Canary:           helper.IntToPtr(0),
+							Stagger:          timeToPtr(1 * time.Second),
+							MaxParallel:      intToPtr(1),
+							HealthCheck:      stringToPtr("checks"),
+							MinHealthyTime:   timeToPtr(10 * time.Second),
+							HealthyDeadline:  timeToPtr(6 * time.Minute),
+							ProgressDeadline: timeToPtr(7 * time.Minute),
+							AutoRevert:       boolToPtr(false),
+							Canary:           intToPtr(0),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -663,7 +623,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Name:        "task1",
 								LogConfig:   DefaultLogConfig(),
 								Resources:   DefaultResources(),
-								KillTimeout: helper.TimeToPtr(5 * time.Second),
+								KillTimeout: timeToPtr(5 * time.Second),
 							},
 						},
 					},
@@ -756,13 +716,13 @@ func TestJobs_Revert(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Fail revert at incorrect enforce
-	_, _, err = jobs.Revert(*job.ID, 0, helper.Uint64ToPtr(10), nil)
+	_, _, err = jobs.Revert(*job.ID, 0, uint64ToPtr(10), nil, "")
 	if err == nil || !strings.Contains(err.Error(), "enforcing version") {
 		t.Fatalf("expected enforcement error: %v", err)
 	}
 
 	// Works at correct index
-	revertResp, wm, err := jobs.Revert(*job.ID, 0, helper.Uint64ToPtr(1), nil)
+	revertResp, wm, err := jobs.Revert(*job.ID, 0, uint64ToPtr(1), nil, "")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -1248,11 +1208,11 @@ func TestJobs_NewBatchJob(t *testing.T) {
 	t.Parallel()
 	job := NewBatchJob("job1", "myjob", "region1", 5)
 	expect := &Job{
-		Region:   helper.StringToPtr("region1"),
-		ID:       helper.StringToPtr("job1"),
-		Name:     helper.StringToPtr("myjob"),
-		Type:     helper.StringToPtr(JobTypeBatch),
-		Priority: helper.IntToPtr(5),
+		Region:   stringToPtr("region1"),
+		ID:       stringToPtr("job1"),
+		Name:     stringToPtr("myjob"),
+		Type:     stringToPtr(JobTypeBatch),
+		Priority: intToPtr(5),
 	}
 	if !reflect.DeepEqual(job, expect) {
 		t.Fatalf("expect: %#v, got: %#v", expect, job)
@@ -1263,11 +1223,11 @@ func TestJobs_NewServiceJob(t *testing.T) {
 	t.Parallel()
 	job := NewServiceJob("job1", "myjob", "region1", 5)
 	expect := &Job{
-		Region:   helper.StringToPtr("region1"),
-		ID:       helper.StringToPtr("job1"),
-		Name:     helper.StringToPtr("myjob"),
-		Type:     helper.StringToPtr(JobTypeService),
-		Priority: helper.IntToPtr(5),
+		Region:   stringToPtr("region1"),
+		ID:       stringToPtr("job1"),
+		Name:     stringToPtr("myjob"),
+		Type:     stringToPtr(JobTypeService),
+		Priority: intToPtr(5),
 	}
 	if !reflect.DeepEqual(job, expect) {
 		t.Fatalf("expect: %#v, got: %#v", expect, job)
@@ -1353,13 +1313,13 @@ func TestJobs_AddAffinity(t *testing.T) {
 			LTarget: "kernel.version",
 			RTarget: "4.6",
 			Operand: "=",
-			Weight:  100,
+			Weight:  int8ToPtr(100),
 		},
 		{
 			LTarget: "${node.datacenter}",
 			RTarget: "dc2",
 			Operand: "=",
-			Weight:  50,
+			Weight:  int8ToPtr(50),
 		},
 	}
 	if !reflect.DeepEqual(job.Affinities, expect) {
@@ -1413,7 +1373,7 @@ func TestJobs_AddSpread(t *testing.T) {
 	expect := []*Spread{
 		{
 			Attribute: "${meta.rack}",
-			Weight:    100,
+			Weight:    int8ToPtr(100),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "r1",
@@ -1423,7 +1383,7 @@ func TestJobs_AddSpread(t *testing.T) {
 		},
 		{
 			Attribute: "${node.datacenter}",
-			Weight:    100,
+			Weight:    int8ToPtr(100),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "dc1",
@@ -1435,43 +1395,4 @@ func TestJobs_AddSpread(t *testing.T) {
 	if !reflect.DeepEqual(job.Spreads, expect) {
 		t.Fatalf("expect: %#v, got: %#v", expect, job.Spreads)
 	}
-}
-
-func TestJobs_Summary_WithACL(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
-
-	c, s, root := makeACLClient(t, nil, nil)
-	defer s.Stop()
-	jobs := c.Jobs()
-
-	invalidToken := mock.ACLToken()
-
-	// Registering with an invalid  token should fail
-	c.SetSecretID(invalidToken.SecretID)
-	job := testJob()
-	_, _, err := jobs.Register(job, nil)
-	assert.NotNil(err)
-
-	// Register with token should succeed
-	c.SetSecretID(root.SecretID)
-	resp2, wm, err := jobs.Register(job, nil)
-	assert.Nil(err)
-	assert.NotNil(resp2)
-	assert.NotEqual("", resp2.EvalID)
-	assertWriteMeta(t, wm)
-
-	// Query the job summary with an invalid token should fail
-	c.SetSecretID(invalidToken.SecretID)
-	result, _, err := jobs.Summary(*job.ID, nil)
-	assert.NotNil(err)
-
-	// Query the job summary with a valid token should succeed
-	c.SetSecretID(root.SecretID)
-	result, qm, err := jobs.Summary(*job.ID, nil)
-	assert.Nil(err)
-	assertQueryMeta(t, qm)
-
-	// Check that the result is what we expect
-	assert.Equal(*job.ID, result.JobID)
 }

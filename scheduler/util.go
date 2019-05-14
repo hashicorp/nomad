@@ -507,8 +507,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendUpdate(update.Alloc, structs.AllocDesiredStatusStop,
-			allocInPlace, "")
+		ctx.Plan().AppendStoppedAlloc(update.Alloc, allocInPlace, "")
 
 		// Attempt to match the task group
 		option := stack.Select(update.TaskGroup, nil) // This select only looks at one node so we don't pass selectOptions
@@ -573,7 +572,7 @@ func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc stri
 	n := len(allocs)
 	for i := 0; i < n && i < *limit; i++ {
 		a := allocs[i]
-		ctx.Plan().AppendUpdate(a.Alloc, structs.AllocDesiredStatusStop, desc, "")
+		ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "")
 		diff.place = append(diff.place, a)
 	}
 	if n <= *limit {
@@ -734,7 +733,7 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 		if alloc.DesiredStatus == structs.AllocDesiredStatusStop &&
 			(alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusPending) {
-			plan.AppendUpdate(alloc, structs.AllocDesiredStatusStop, allocLost, structs.AllocClientStatusLost)
+			plan.AppendStoppedAlloc(alloc, allocLost, structs.AllocClientStatusLost)
 		}
 	}
 }
@@ -784,7 +783,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendUpdate(existing, structs.AllocDesiredStatusStop, allocInPlace, "")
+		ctx.Plan().AppendStoppedAlloc(existing, allocInPlace, "")
 
 		// Attempt to match the task group
 		option := stack.Select(newTG, nil) // This select only looks at one node so we don't pass selectOptions
@@ -829,7 +828,12 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 				DiskMB: int64(newTG.EphemeralDisk.SizeMB),
 			},
 		}
-		newAlloc.Metrics = ctx.Metrics()
+		// Use metrics from existing alloc for in place upgrade
+		// This is because if the inplace upgrade succeeded, any scoring metadata from
+		// when it first went through the scheduler should still be preserved. Using scoring
+		// metadata from the context would incorrectly replace it with metadata only from a single node that the
+		// allocation is already on.
+		newAlloc.Metrics = existing.Metrics.Copy()
 		return false, false, newAlloc
 	}
 }

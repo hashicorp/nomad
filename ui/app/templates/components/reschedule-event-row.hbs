@@ -2,7 +2,7 @@
   {{#if label}}
     <strong data-test-reschedule-label>{{label}}</strong>
   {{/if}}
-  {{moment-format time "MMMM D, YYYY HH:mm:ss"}}
+  {{format-ts time}}
 </li>
 <li class="timeline-object" data-test-allocation={{allocation.id}}>
   <div class="boxed-section">

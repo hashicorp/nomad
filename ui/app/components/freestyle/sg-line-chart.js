@@ -11,7 +11,7 @@ export default Component.extend({
       setInterval(() => {
         this.incrementProperty('timerTicks');
 
-        const ref = this.get('lineChartLive');
+        const ref = this.lineChartLive;
         ref.addObject({ ts: Date.now(), val: Math.random() * 30 + 20 });
         if (ref.length > 60) {
           ref.splice(0, ref.length - 60);
@@ -21,7 +21,7 @@ export default Component.extend({
   }.on('init'),
 
   willDestroy() {
-    clearInterval(this.get('timer'));
+    clearInterval(this.timer);
   },
 
   lineChartData: computed(() => {

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"sync"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	hargs "github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -85,6 +85,9 @@ const (
 
 	// VaultToken is the environment variable for passing the Vault token
 	VaultToken = "VAULT_TOKEN"
+
+	// VaultNamespace is the environment variable for passing the Vault namespace, if applicable
+	VaultNamespace = "VAULT_NAMESPACE"
 )
 
 // The node values that can be interpreted.
@@ -123,6 +126,15 @@ func NewTaskEnv(env, deviceEnv, node map[string]string) *TaskEnv {
 		NodeAttrs: node,
 		deviceEnv: deviceEnv,
 		EnvMap:    env,
+	}
+}
+
+// NewEmptyTaskEnv creates a new empty task environment.
+func NewEmptyTaskEnv() *TaskEnv {
+	return &TaskEnv{
+		NodeAttrs: make(map[string]string),
+		deviceEnv: make(map[string]string),
+		EnvMap:    make(map[string]string),
 	}
 }
 
@@ -296,6 +308,7 @@ type Builder struct {
 	allocName        string
 	groupName        string
 	vaultToken       string
+	vaultNamespace   string
 	injectVaultToken bool
 	jobName          string
 
@@ -304,7 +317,7 @@ type Builder struct {
 
 	// driverNetwork is the network defined by the driver (or nil if none
 	// was defined).
-	driverNetwork *cstructs.DriverNetwork
+	driverNetwork *drivers.DriverNetwork
 
 	// network resources from the task; must be lazily turned into env vars
 	// because portMaps and advertiseIP can change after builder creation
@@ -412,6 +425,11 @@ func (b *Builder) Build() *TaskEnv {
 	// Build the Vault Token
 	if b.injectVaultToken && b.vaultToken != "" {
 		envMap[VaultToken] = b.vaultToken
+	}
+
+	// Build the Vault Namespace
+	if b.injectVaultToken && b.vaultNamespace != "" {
+		envMap[VaultNamespace] = b.vaultNamespace
 	}
 
 	// Copy task meta
@@ -526,15 +544,9 @@ func (b *Builder) setTask(task *structs.Task) *Builder {
 	if task.Resources == nil {
 		b.memLimit = 0
 		b.cpuLimit = 0
-		b.networks = []*structs.NetworkResource{}
 	} else {
 		b.memLimit = int64(task.Resources.MemoryMB)
 		b.cpuLimit = int64(task.Resources.CPU)
-		// Copy networks to prevent sharing
-		b.networks = make([]*structs.NetworkResource, len(task.Resources.Networks))
-		for i, n := range task.Resources.Networks {
-			b.networks[i] = n.Copy()
-		}
 	}
 	return b
 }
@@ -604,6 +616,15 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 			}
 		}
 	} else if alloc.TaskResources != nil {
+		if tr, ok := alloc.TaskResources[b.taskName]; ok {
+			// Copy networks to prevent sharing
+			b.networks = make([]*structs.NetworkResource, len(tr.Networks))
+			for i, n := range tr.Networks {
+				b.networks[i] = n.Copy()
+			}
+
+		}
+
 		for taskName, resources := range alloc.TaskResources {
 			// Add ports from other tasks
 			if taskName == b.taskName {
@@ -665,7 +686,7 @@ func (b *Builder) SetSecretsDir(dir string) *Builder {
 }
 
 // SetDriverNetwork defined by the driver.
-func (b *Builder) SetDriverNetwork(n *cstructs.DriverNetwork) *Builder {
+func (b *Builder) SetDriverNetwork(n *drivers.DriverNetwork) *Builder {
 	ncopy := n.Copy()
 	b.mu.Lock()
 	b.driverNetwork = ncopy
@@ -682,7 +703,7 @@ func (b *Builder) SetDriverNetwork(n *cstructs.DriverNetwork) *Builder {
 //
 //	Task:   NOMAD_TASK_{IP,PORT,ADDR}_<task>_<label> # Always host values
 //
-func buildNetworkEnv(envMap map[string]string, nets structs.Networks, driverNet *cstructs.DriverNetwork) {
+func buildNetworkEnv(envMap map[string]string, nets structs.Networks, driverNet *drivers.DriverNetwork) {
 	for _, n := range nets {
 		for _, p := range n.ReservedPorts {
 			buildPortEnv(envMap, p, n.IP, driverNet)
@@ -693,7 +714,7 @@ func buildNetworkEnv(envMap map[string]string, nets structs.Networks, driverNet 
 	}
 }
 
-func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet *cstructs.DriverNetwork) {
+func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet *drivers.DriverNetwork) {
 	// Host IP, port, and address
 	portStr := strconv.Itoa(p.Value)
 	envMap[IpPrefix+p.Label] = ip
@@ -744,9 +765,10 @@ func (b *Builder) SetTemplateEnv(m map[string]string) *Builder {
 	return b
 }
 
-func (b *Builder) SetVaultToken(token string, inject bool) *Builder {
+func (b *Builder) SetVaultToken(token, namespace string, inject bool) *Builder {
 	b.mu.Lock()
 	b.vaultToken = token
+	b.vaultNamespace = namespace
 	b.injectVaultToken = inject
 	b.mu.Unlock()
 	return b

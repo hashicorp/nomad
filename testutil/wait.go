@@ -6,13 +6,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/go-testing-interface"
-)
-
-const (
-	// TravisRunEnv is an environment variable that is set if being run by
-	// Travis.
-	TravisRunEnv = "CI"
+	testing "github.com/mitchellh/go-testing-interface"
+	"github.com/stretchr/testify/require"
 )
 
 type testFn func() (bool, error)
@@ -56,7 +51,7 @@ func AssertUntil(until time.Duration, test testFn, error errorFn) {
 // TestMultiplier returns a multiplier for retries and waits given environment
 // the tests are being run under.
 func TestMultiplier() int64 {
-	if IsTravis() {
+	if IsCI() {
 		return 4
 	}
 
@@ -68,8 +63,18 @@ func Timeout(original time.Duration) time.Duration {
 	return original * time.Duration(TestMultiplier())
 }
 
+func IsCI() bool {
+	_, ok := os.LookupEnv("CI")
+	return ok
+}
+
 func IsTravis() bool {
-	_, ok := os.LookupEnv(TravisRunEnv)
+	_, ok := os.LookupEnv("TRAVIS")
+	return ok
+}
+
+func IsAppVeyor() bool {
+	_, ok := os.LookupEnv("APPVEYOR")
 	return ok
 }
 
@@ -87,12 +92,13 @@ func WaitForLeader(t testing.T, rpc rpcFn) {
 	})
 }
 
-// WaitForRunning runs a job and blocks until all allocs are out of pending.
-func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocListStub {
+func RegisterJobWithToken(t testing.T, rpc rpcFn, job *structs.Job, token string) {
 	WaitForResult(func() (bool, error) {
 		args := &structs.JobRegisterRequest{}
 		args.Job = job
 		args.WriteRequest.Region = "global"
+		args.AuthToken = token
+		args.Namespace = structs.DefaultNamespace
 		var jobResp structs.JobRegisterResponse
 		err := rpc("Job.Register", args, &jobResp)
 		return err == nil, fmt.Errorf("Job.Register error: %v", err)
@@ -101,6 +107,14 @@ func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocLi
 	})
 
 	t.Logf("Job %q registered", job.ID)
+}
+
+func RegisterJob(t testing.T, rpc rpcFn, job *structs.Job) {
+	RegisterJobWithToken(t, rpc, job, "")
+}
+
+func WaitForRunningWithToken(t testing.T, rpc rpcFn, job *structs.Job, token string) []*structs.AllocListStub {
+	RegisterJobWithToken(t, rpc, job, token)
 
 	var resp structs.JobAllocationsResponse
 
@@ -108,6 +122,8 @@ func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocLi
 		args := &structs.JobSpecificRequest{}
 		args.JobID = job.ID
 		args.QueryOptions.Region = "global"
+		args.AuthToken = token
+		args.Namespace = structs.DefaultNamespace
 		err := rpc("Job.Allocations", args, &resp)
 		if err != nil {
 			return false, fmt.Errorf("Job.Allocations error: %v", err)
@@ -118,7 +134,7 @@ func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocLi
 		}
 
 		for _, alloc := range resp.Allocations {
-			if alloc.ClientStatus != structs.AllocClientStatusRunning {
+			if alloc.ClientStatus == structs.AllocClientStatusPending {
 				return false, fmt.Errorf("alloc not running: id=%v tg=%v status=%v",
 					alloc.ID, alloc.TaskGroup, alloc.ClientStatus)
 			}
@@ -126,8 +142,13 @@ func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocLi
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("job not running: %v", err)
+		require.NoError(t, err)
 	})
 
 	return resp.Allocations
+}
+
+// WaitForRunning runs a job and blocks until all allocs are out of pending.
+func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocListStub {
+	return WaitForRunningWithToken(t, rpc, job, "")
 }

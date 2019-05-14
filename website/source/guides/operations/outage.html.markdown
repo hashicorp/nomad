@@ -196,17 +196,17 @@ Nomad server in the cluster, like this:
 [
   {
     "id": "adf4238a-882b-9ddc-4a9d-5b6758e4159e",
-    "address": "10.1.0.1:8300",
+    "address": "10.1.0.1:4647",
     "non_voter": false
   },
   {
     "id": "8b6dda82-3103-11e7-93ae-92361f002671",
-    "address": "10.1.0.2:8300",
+    "address": "10.1.0.2:4647",
     "non_voter": false
   },
   {
     "id": "97e17742-3103-11e7-93ae-92361f002671",
-    "address": "10.1.0.3:8300",
+    "address": "10.1.0.3:4647",
     "non_voter": false
   }
 ]
@@ -216,8 +216,8 @@ Nomad server in the cluster, like this:
   of the server. This can be found in the logs when the server starts up,
   and it can also be found inside the `node-id` file in the server's data directory.
 
-- `address` `(string: <required>)` - Specifies the IP and port of the server. The port is the
-  server's RPC port used for cluster communications.
+- `address` `(string: <required>)` - Specifies the IP and port of the server in `ip:port` format. The port is the
+  server's RPC port used for cluster communications, typically 4647.
 
 - `non_voter` `(bool: <false>)` - This controls whether the server is a non-voter, which is used
   in some advanced [Autopilot](/guides/operations/autopilot.html) configurations. If omitted, it will

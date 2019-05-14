@@ -8,6 +8,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/state"
@@ -63,29 +64,25 @@ type allocRunner struct {
 	// vaultClient is the used to manage Vault tokens
 	vaultClient vaultclient.VaultClient
 
-	// waitCh is closed when the Run() loop has exited
+	// waitCh is closed when the Run loop has exited
 	waitCh chan struct{}
 
-	// destroyed is true when the Run() loop has exited, postrun hooks have
+	// destroyed is true when the Run loop has exited, postrun hooks have
 	// run, and alloc runner has been destroyed. Must acquire destroyedLock
 	// to access.
 	destroyed bool
 
-	// destroyCh is closed when the Run() loop has exited, postrun hooks have
+	// destroyCh is closed when the Run loop has exited, postrun hooks have
 	// run, and alloc runner has been destroyed.
 	destroyCh chan struct{}
 
-	// shutdown is true when the Run() loop has exited, and shutdown hooks have
+	// shutdown is true when the Run loop has exited, and shutdown hooks have
 	// run. Must acquire destroyedLock to access.
 	shutdown bool
 
-	// shutdownCh is closed when the Run() loop has exited, and shutdown hooks
+	// shutdownCh is closed when the Run loop has exited, and shutdown hooks
 	// have run.
 	shutdownCh chan struct{}
-
-	// runnersLaunched is true if TaskRunners were Run. Must acquire
-	// destroyedLock to access.
-	runnersLaunched bool
 
 	// destroyLaunched is true if Destroy has been called. Must acquire
 	// destroyedLock to access.
@@ -95,8 +92,8 @@ type allocRunner struct {
 	// destroyedLock to access.
 	shutdownLaunched bool
 
-	// destroyedLock guards destroyed, runnersLaunched, destroyLaunched,
-	// shutdownLaunched, and serializes Shutdown/Destroy calls.
+	// destroyedLock guards destroyed, destroyLaunched, shutdownLaunched,
+	// and serializes Shutdown/Destroy calls.
 	destroyedLock sync.Mutex
 
 	// Alloc captures the allocation being run.
@@ -237,21 +234,6 @@ func (ar *allocRunner) Run() {
 	// Start the alloc update handler
 	go ar.handleAllocUpdates()
 
-	// If an alloc should not be run, ensure any restored task handles are
-	// destroyed and exit to wait for the AR to be GC'd by the client.
-	if !ar.shouldRun() {
-		ar.logger.Debug("not running terminal alloc")
-
-		// Ensure all tasks are cleaned up
-		ar.killTasks()
-		return
-	}
-
-	// Mark task runners as being run for Shutdown
-	ar.destroyedLock.Lock()
-	ar.runnersLaunched = true
-	ar.destroyedLock.Unlock()
-
 	// If task update chan has been closed, that means we've been shutdown.
 	select {
 	case <-ar.taskStateUpdateHandlerCh:
@@ -259,10 +241,12 @@ func (ar *allocRunner) Run() {
 	default:
 	}
 
-	// Run the prestart hooks
-	if err := ar.prerun(); err != nil {
-		ar.logger.Error("prerun failed", "error", err)
-		goto POST
+	// Run the prestart hooks if non-terminal
+	if ar.shouldRun() {
+		if err := ar.prerun(); err != nil {
+			ar.logger.Error("prerun failed", "error", err)
+			goto POST
+		}
 	}
 
 	// Run the runners (blocks until they exit)
@@ -270,7 +254,6 @@ func (ar *allocRunner) Run() {
 
 POST:
 	// Run the postrun hooks
-	// XXX Equivalent to TR.Poststop hook
 	if err := ar.postrun(); err != nil {
 		ar.logger.Error("postrun failed", "error", err)
 	}
@@ -568,10 +551,11 @@ func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *st
 	if a.ClientTerminalStatus() {
 		alloc := ar.Alloc()
 
-		// If we are part of a deployment and the task has failed, mark the
+		// If we are part of a deployment and the alloc has failed, mark the
 		// alloc as unhealthy. This guards against the watcher not be started.
+		// If the health status is already set then terminal allocations should not
 		if a.ClientStatus == structs.AllocClientStatusFailed &&
-			alloc.DeploymentID != "" && !a.DeploymentStatus.IsUnhealthy() {
+			alloc.DeploymentID != "" && !a.DeploymentStatus.HasHealth() {
 			a.DeploymentStatus = &structs.AllocDeploymentStatus{
 				Healthy: helper.BoolToPtr(false),
 			}
@@ -626,6 +610,15 @@ func getClientStatus(taskStates map[string]*structs.TaskState) (status, descript
 	}
 
 	return "", ""
+}
+
+// SetClientStatus is a helper for forcing a specific client
+// status on the alloc runner. This is used during restore errors
+// when the task state can't be restored.
+func (ar *allocRunner) SetClientStatus(clientStatus string) {
+	ar.stateLock.Lock()
+	defer ar.stateLock.Unlock()
+	ar.state.ClientStatus = clientStatus
 }
 
 // AllocState returns a copy of allocation state including a snapshot of task
@@ -864,17 +857,15 @@ func (ar *allocRunner) Shutdown() {
 		ar.logger.Trace("shutting down")
 
 		// Shutdown tasks gracefully if they were run
-		if ar.runnersLaunched {
-			wg := sync.WaitGroup{}
-			for _, tr := range ar.tasks {
-				wg.Add(1)
-				go func(tr *taskrunner.TaskRunner) {
-					tr.Shutdown()
-					wg.Done()
-				}(tr)
-			}
-			wg.Wait()
+		wg := sync.WaitGroup{}
+		for _, tr := range ar.tasks {
+			wg.Add(1)
+			go func(tr *taskrunner.TaskRunner) {
+				tr.Shutdown()
+				wg.Done()
+			}(tr)
 		}
+		wg.Wait()
 
 		// Wait for Run to exit
 		<-ar.waitCh
@@ -946,4 +937,74 @@ func (ar *allocRunner) GetTaskEventHandler(taskName string) drivermanager.EventH
 		}
 	}
 	return nil
+}
+
+// RestartTask signalls the task runner for the  provided task to restart.
+func (ar *allocRunner) RestartTask(taskName string, taskEvent *structs.TaskEvent) error {
+	tr, ok := ar.tasks[taskName]
+	if !ok {
+		return fmt.Errorf("Could not find task runner for task: %s", taskName)
+	}
+
+	return tr.Restart(context.TODO(), taskEvent, false)
+}
+
+// RestartAll signalls all task runners in the allocation to restart and passes
+// a copy of the task event to each restart event.
+// Returns any errors in a concatenated form.
+func (ar *allocRunner) RestartAll(taskEvent *structs.TaskEvent) error {
+	var err *multierror.Error
+
+	for tn := range ar.tasks {
+		rerr := ar.RestartTask(tn, taskEvent.Copy())
+		if rerr != nil {
+			err = multierror.Append(err, rerr)
+		}
+	}
+
+	return err.ErrorOrNil()
+}
+
+// Signal sends a signal request to task runners inside an allocation. If the
+// taskName is empty, then it is sent to all tasks.
+func (ar *allocRunner) Signal(taskName, signal string) error {
+	event := structs.NewTaskEvent(structs.TaskSignaling).SetSignalText(signal)
+
+	if taskName != "" {
+		tr, ok := ar.tasks[taskName]
+		if !ok {
+			return fmt.Errorf("Task not found")
+		}
+
+		return tr.Signal(event, signal)
+	}
+
+	var err *multierror.Error
+
+	for tn, tr := range ar.tasks {
+		rerr := tr.Signal(event.Copy(), signal)
+		if rerr != nil {
+			err = multierror.Append(err, fmt.Errorf("Failed to signal task: %s, err: %v", tn, rerr))
+		}
+	}
+
+	return err.ErrorOrNil()
+}
+
+func (ar *allocRunner) GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler {
+	tr, ok := ar.tasks[taskName]
+	if !ok {
+		return nil
+	}
+
+	return tr.TaskExecHandler()
+}
+
+func (ar *allocRunner) GetTaskDriverCapabilities(taskName string) (*drivers.Capabilities, error) {
+	tr, ok := ar.tasks[taskName]
+	if !ok {
+		return nil, fmt.Errorf("task not found")
+	}
+
+	return tr.DriverCapabilities()
 }

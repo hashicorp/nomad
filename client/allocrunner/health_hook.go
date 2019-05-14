@@ -104,6 +104,7 @@ func (h *allocHealthWatcherHook) Name() string {
 func (h *allocHealthWatcherHook) init() error {
 	// No need to watch health as it's already set
 	if h.healthSetter.HasHealth() {
+		h.logger.Trace("not watching; already has health set")
 		return nil
 	}
 
@@ -125,11 +126,11 @@ func (h *allocHealthWatcherHook) init() error {
 	// strategy.
 	deadline, useChecks, minHealthyTime := getHealthParams(time.Now(), tg, h.isDeploy)
 
-	// Create a context that is canceled when the tracker should shutdown
-	// or the deadline is reached.
+	// Create a context that is canceled when the tracker should shutdown.
 	ctx := context.Background()
-	ctx, h.cancelFn = context.WithDeadline(ctx, deadline)
+	ctx, h.cancelFn = context.WithCancel(ctx)
 
+	h.logger.Trace("watching", "deadline", deadline, "checks", useChecks, "min_healthy_time", minHealthyTime)
 	// Create a new tracker, start it, and watch for health results.
 	tracker := allochealth.NewTracker(ctx, h.logger, h.alloc,
 		h.listener, h.consul, minHealthyTime, useChecks)
@@ -137,11 +138,11 @@ func (h *allocHealthWatcherHook) init() error {
 
 	// Create a new done chan and start watching for health updates
 	h.watchDone = make(chan struct{})
-	go h.watchHealth(ctx, tracker, h.watchDone)
+	go h.watchHealth(ctx, deadline, tracker, h.watchDone)
 	return nil
 }
 
-func (h *allocHealthWatcherHook) Prerun(context.Context) error {
+func (h *allocHealthWatcherHook) Prerun() error {
 	h.hookLock.Lock()
 	defer h.hookLock.Unlock()
 
@@ -196,28 +197,41 @@ func (h *allocHealthWatcherHook) Shutdown() {
 	h.Postrun()
 }
 
-// watchHealth watches alloc health until it is set, the alloc is stopped, or
-// the context is canceled. watchHealth will be canceled and restarted on
-// Updates so calls are serialized with a lock.
-func (h *allocHealthWatcherHook) watchHealth(ctx context.Context, tracker *allochealth.Tracker, done chan<- struct{}) {
+// watchHealth watches alloc health until it is set, the alloc is stopped, the
+// deadline is reached, or the context is canceled. watchHealth will be
+// canceled and restarted on Updates so calls are serialized with a lock.
+func (h *allocHealthWatcherHook) watchHealth(ctx context.Context, deadline time.Time, tracker *allochealth.Tracker, done chan<- struct{}) {
 	defer close(done)
+
+	// Default to unhealthy for the deadline reached case
+	healthy := false
 
 	select {
 	case <-ctx.Done():
+		// Graceful shutdown
 		return
 
 	case <-tracker.AllocStoppedCh():
+		// Allocation has stopped so no need to set health
 		return
 
-	case healthy := <-tracker.HealthyCh():
-		// If this is an unhealthy deployment emit events for tasks
-		var taskEvents map[string]*structs.TaskEvent
-		if !healthy && h.isDeploy {
-			taskEvents = tracker.TaskEvents()
-		}
+	case <-time.After(deadline.Sub(time.Now())):
+		// Time is up! Fallthrough to set unhealthy.
+		h.logger.Trace("deadline reached; setting unhealthy", "deadline", deadline)
 
-		h.healthSetter.SetHealth(healthy, h.isDeploy, taskEvents)
+	case healthy = <-tracker.HealthyCh():
+		// Health received. Fallthrough to set it.
 	}
+
+	h.logger.Trace("health set", "healthy", healthy)
+
+	// If this is an unhealthy deployment emit events for tasks
+	var taskEvents map[string]*structs.TaskEvent
+	if !healthy && h.isDeploy {
+		taskEvents = tracker.TaskEvents()
+	}
+
+	h.healthSetter.SetHealth(healthy, h.isDeploy, taskEvents)
 }
 
 // getHealthParams returns the health watcher parameters which vary based on

@@ -5,8 +5,9 @@ import (
 	"strconv"
 	"strings"
 
+	testing "github.com/mitchellh/go-testing-interface"
+
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/assert"
 )
 

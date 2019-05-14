@@ -25,7 +25,7 @@ export default Component.extend({
       this.set('state', 'prompt');
     },
     confirm() {
-      RSVP.resolve(this.get('onConfirm')()).then(() => {
+      RSVP.resolve(this.onConfirm()).then(() => {
         this.send('setToIdle');
       });
     },

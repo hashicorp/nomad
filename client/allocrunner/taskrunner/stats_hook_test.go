@@ -40,7 +40,7 @@ type mockDriverStats struct {
 	err error
 }
 
-func (m *mockDriverStats) Stats() (*cstructs.TaskResourceUsage, error) {
+func (m *mockDriverStats) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -59,7 +59,15 @@ func (m *mockDriverStats) Stats() (*cstructs.TaskResourceUsage, error) {
 		Pids:      map[string]*cstructs.ResourceUsage{},
 	}
 	ru.Pids["task"] = ru.ResourceUsage
-	return ru, nil
+	ch := make(chan *cstructs.TaskResourceUsage)
+	go func() {
+		defer close(ch)
+		select {
+		case <-ctx.Done():
+		case ch <- ru:
+		}
+	}()
+	return ch, nil
 }
 
 // TestTaskRunner_StatsHook_PoststartExited asserts the stats hook starts and

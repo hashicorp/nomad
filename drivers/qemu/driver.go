@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -14,16 +13,14 @@ import (
 	"time"
 
 	"github.com/coreos/go-semver/semver"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
@@ -45,6 +42,10 @@ const (
 
 	// Maximum socket path length prior to qemu 2.10.1
 	qemuLegacyMaxMonitorPathLen = 108
+
+	// taskHandleVersion is the version of task handle which this driver sets
+	// and understands how to decode driver state
+	taskHandleVersion = 1
 )
 
 var (
@@ -90,7 +91,7 @@ var (
 		"accelerator":       hclspec.NewAttr("accelerator", "string", false),
 		"graceful_shutdown": hclspec.NewAttr("graceful_shutdown", "bool", false),
 		"args":              hclspec.NewAttr("args", "list(string)", false),
-		"port_map":          hclspec.NewBlockAttrs("port_map", "number", false),
+		"port_map":          hclspec.NewAttr("port_map", "list(map(number))", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -98,7 +99,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: false,
 		Exec:        false,
-		FSIsolation: cstructs.FSIsolationImage,
+		FSIsolation: drivers.FSIsolationImage,
 	}
 
 	_ drivers.DriverPlugin = (*Driver)(nil)
@@ -106,18 +107,18 @@ var (
 
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
-	ImagePath        string         `codec:"image_path"`
-	Accelerator      string         `codec:"accelerator"`
-	Args             []string       `codec:"args"`     // extra arguments to qemu executable
-	PortMap          map[string]int `codec:"port_map"` // A map of host port and the port name defined in the image manifest file
-	GracefulShutdown bool           `codec:"graceful_shutdown"`
+	ImagePath        string             `codec:"image_path"`
+	Accelerator      string             `codec:"accelerator"`
+	Args             []string           `codec:"args"`     // extra arguments to qemu executable
+	PortMap          hclutils.MapStrInt `codec:"port_map"` // A map of host port and the port name defined in the image manifest file
+	GracefulShutdown bool               `codec:"graceful_shutdown"`
 }
 
 // TaskState is the state which is encoded in the handle returned in StartTask.
 // This information is needed to rebuild the taskConfig state and handler
 // during recovery.
 type TaskState struct {
-	ReattachConfig *shared.ReattachConfig
+	ReattachConfig *pstructs.ReattachConfig
 	TaskConfig     *drivers.TaskConfig
 	Pid            int
 	StartedAt      time.Time
@@ -243,6 +244,11 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("error: handle cannot be nil")
 	}
 
+	// COMPAT(0.10): pre 0.9 upgrade path check
+	if handle.Version == 0 {
+		return d.recoverPre09Task(handle)
+	}
+
 	// If already attached to handle there's nothing to recover.
 	if _, ok := d.tasks.Get(handle.Config.ID); ok {
 		d.logger.Trace("nothing to recover; task already exists",
@@ -258,17 +264,14 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to decode taskConfig state from handle: %v", err)
 	}
 
-	plugRC, err := shared.ReattachConfigToGoPlugin(taskState.ReattachConfig)
+	plugRC, err := pstructs.ReattachConfigToGoPlugin(taskState.ReattachConfig)
 	if err != nil {
 		d.logger.Error("failed to build ReattachConfig from taskConfig state", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to build ReattachConfig from taskConfig state: %v", err)
 	}
 
-	pluginConfig := &plugin.ClientConfig{
-		Reattach: plugRC,
-	}
-
-	execImpl, pluginClient, err := executor.CreateExecutorWithConfig(pluginConfig, os.Stderr)
+	execImpl, pluginClient, err := executor.ReattachToExecutor(plugRC,
+		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID))
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to reattach to executor: %v", err)
@@ -290,7 +293,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("taskConfig with ID '%s' already started", cfg.ID)
 	}
@@ -301,7 +304,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-	handle := drivers.NewTaskHandle(pluginName)
+	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
 
 	// Get the image source
@@ -418,7 +421,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		LogLevel: "debug",
 	}
 
-	execImpl, pluginClient, err := executor.CreateExecutor(os.Stderr, hclog.Debug, d.nomadConfig, executorConfig)
+	execImpl, pluginClient, err := executor.CreateExecutor(
+		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID),
+		d.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -451,7 +456,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	qemuDriverState := TaskState{
-		ReattachConfig: shared.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
+		ReattachConfig: pstructs.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
 		Pid:            ps.Pid,
 		TaskConfig:     cfg,
 		StartedAt:      h.startedAt,
@@ -467,9 +472,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	d.tasks.Set(cfg.ID, h)
 	go h.run()
 
-	var driverNetwork *cstructs.DriverNetwork
+	var driverNetwork *drivers.DriverNetwork
 	if len(driverConfig.PortMap) == 1 {
-		driverNetwork = &cstructs.DriverNetwork{
+		driverNetwork = &drivers.DriverNetwork{
 			PortMap: driverConfig.PortMap,
 		}
 	}
@@ -547,13 +552,13 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	return handle.TaskStatus(), nil
 }
 
-func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
+func (d *Driver) TaskStats(ctx context.Context, taskID string, interval time.Duration) (<-chan *drivers.TaskResourceUsage, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	return handle.exec.Stats()
+	return handle.exec.Stats(ctx, interval)
 }
 
 func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {

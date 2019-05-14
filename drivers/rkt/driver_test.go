@@ -1,5 +1,3 @@
-// +build linux
-
 package rkt
 
 import (
@@ -13,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/hcl2/hcl"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -22,8 +20,6 @@ import (
 	basePlug "github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
-	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
@@ -81,7 +77,7 @@ func TestRktDriver_SetConfig(t *testing.T) {
 // Also verifies sending sigterm correctly stops the driver instance
 func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -109,16 +105,15 @@ func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"trust_prefix":       "coreos.com/etcd",
-		"image":              "coreos.com/etcd:v2.0.4",
-		"command":            "/etcd",
-		"dns_servers":        []string{"8.8.8.8", "8.8.4.4"},
-		"dns_search_domains": []string{"example.com", "example.org", "example.net"},
-		"net":                []string{"host"},
+	tc := &TaskConfig{
+		TrustPrefix:      "coreos.com/etcd",
+		ImageName:        "coreos.com/etcd:v2.0.4",
+		Command:          "/etcd",
+		DNSServers:       []string{"8.8.8.8", "8.8.4.4"},
+		DNSSearchDomains: []string{"example.com", "example.org", "example.net"},
+		Net:              []string{"host"},
 	}
-
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
@@ -165,7 +160,7 @@ func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 // Verifies waiting on task to exit cleanly
 func TestRktDriver_Start_Wait_Stop(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -193,16 +188,15 @@ func TestRktDriver_Start_Wait_Stop(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"trust_prefix": "coreos.com/etcd",
-		"image":        "coreos.com/etcd:v2.0.4",
-		"command":      "/etcd",
-		"args":         []string{"--version"},
-		"net":          []string{"none"},
-		"debug":        true,
+	tc := &TaskConfig{
+		TrustPrefix: "coreos.com/etcd",
+		ImageName:   "coreos.com/etcd:v2.0.4",
+		Command:     "/etcd",
+		Args:        []string{"--version"},
+		Net:         []string{"none"},
+		Debug:       true,
 	}
-
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
@@ -224,7 +218,7 @@ func TestRktDriver_Start_Wait_Stop(t *testing.T) {
 // Verifies that skipping trust_prefix works
 func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -252,15 +246,14 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"image":   "coreos.com/etcd:v2.0.4",
-		"command": "/etcd",
-		"args":    []string{"--version"},
-		"net":     []string{"none"},
-		"debug":   true,
+	tc := &TaskConfig{
+		ImageName: "coreos.com/etcd:v2.0.4",
+		Command:   "/etcd",
+		Args:      []string{"--version"},
+		Net:       []string{"none"},
+		Debug:     true,
 	}
-
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	cleanup := harness.MkAllocDir(task, true)
@@ -283,7 +276,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 // Verifies that an invalid trust prefix returns expected error
 func TestRktDriver_InvalidTrustPrefix(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -311,16 +304,15 @@ func TestRktDriver_InvalidTrustPrefix(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"trust_prefix": "example.com/invalid",
-		"image":        "coreos.com/etcd:v2.0.4",
-		"command":      "/etcd",
-		"args":         []string{"--version"},
-		"net":          []string{"none"},
-		"debug":        true,
+	tc := &TaskConfig{
+		TrustPrefix: "example.com/invalid",
+		ImageName:   "coreos.com/etcd:v2.0.4",
+		Command:     "/etcd",
+		Args:        []string{"--version"},
+		Net:         []string{"none"},
+		Debug:       true,
 	}
-
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	cleanup := harness.MkAllocDir(task, true)
@@ -338,7 +330,7 @@ func TestRktDriver_InvalidTrustPrefix(t *testing.T) {
 // to remove the task and then reattaches to it
 func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -366,12 +358,11 @@ func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"image":   "coreos.com/etcd:v2.0.4",
-		"command": "/etcd",
+	tc := &TaskConfig{
+		ImageName: "coreos.com/etcd:v2.0.4",
+		Command:   "/etcd",
 	}
-
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
@@ -412,30 +403,28 @@ func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	ch, err = harness.WaitTask(context.Background(), task.ID)
 	require.NoError(err)
 
-	wg.Add(1)
-	waitDone = false
-	go func() {
-		defer wg.Done()
-		result := <-ch
+	require.NoError(d.StopTask(task.ID, 0, "SIGKILL"))
+
+	select {
+	case result := <-ch:
 		require.NoError(result.Err)
 		require.NotZero(result.ExitCode)
-		require.Equal(9, result.Signal)
-		waitDone = true
-	}()
 
-	time.Sleep(300 * time.Millisecond)
-	require.NoError(d.StopTask(task.ID, 0, "SIGKILL"))
-	wg.Wait()
+		// when killing a task, signal might not propagate
+		// when executor proc.Wait() call gets "wait: no child processes" error
+		//require.Equal(9, result.Signal)
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+		require.Fail("WaitTask timeout")
+	}
+
 	require.NoError(d.DestroyTask(task.ID, false))
-	require.True(waitDone)
-
 }
 
 // Verifies mounting a volume from the host machine and writing
 // some data to it from inside the container
 func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -477,18 +466,18 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 	defer os.RemoveAll(tmpvol)
 	hostpath := filepath.Join(tmpvol, file)
 
-	taskConfig := map[string]interface{}{
-		"image":   "docker://redis:3.2-alpine",
-		"command": "/bin/sh",
-		"args": []string{
+	tc := &TaskConfig{
+		ImageName: "docker://redis:3.2-alpine",
+		Command:   "/bin/sh",
+		Args: []string{
 			"-c",
 			fmt.Sprintf("echo -n %s > /foo/%s", string(exp), file),
 		},
-		"net":     []string{"none"},
-		"volumes": []string{fmt.Sprintf("%s:/foo", tmpvol)},
+		Net:     []string{"none"},
+		Volumes: []string{fmt.Sprintf("%s:/foo", tmpvol)},
 	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
-	encodeDriverHelper(require, task, taskConfig)
 	testtask.SetTaskConfigEnv(task)
 
 	cleanup := harness.MkAllocDir(task, true)
@@ -520,7 +509,7 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 // some data to it from inside the container
 func TestRktDriver_Start_Wait_TaskMounts(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -566,17 +555,16 @@ func TestRktDriver_Start_Wait_TaskMounts(t *testing.T) {
 	file := "output.txt"
 	hostpath := filepath.Join(tmpvol, file)
 
-	taskConfig := map[string]interface{}{
-		"image":   "docker://redis:3.2-alpine",
-		"command": "/bin/sh",
-		"args": []string{
+	tc := &TaskConfig{
+		ImageName: "docker://redis:3.2-alpine",
+		Command:   "/bin/sh",
+		Args: []string{
 			"-c",
 			fmt.Sprintf("echo -n %s > /foo/%s", string(exp), file),
 		},
-		"net": []string{"none"},
+		Net: []string{"none"},
 	}
-
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	cleanup := harness.MkAllocDir(task, true)
@@ -638,15 +626,14 @@ func TestRktDriver_PortMapping(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"image": "docker://redis:3.2-alpine",
-		"port_map": map[string]string{
+	tc := &TaskConfig{
+		ImageName: "docker://redis:3.2-alpine",
+		PortMap: map[string]string{
 			"main": "6379-tcp",
 		},
-		"debug": "true",
+		Debug: true,
 	}
-
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
@@ -661,7 +648,7 @@ func TestRktDriver_PortMapping(t *testing.T) {
 // It verifies that running ps inside the container shows the expected user and group
 func TestRktDriver_UserGroup(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -690,15 +677,15 @@ func TestRktDriver_UserGroup(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"image":   "docker://redis:3.2-alpine",
-		"group":   "nogroup",
-		"command": "sleep",
-		"args":    []string{"9000"},
-		"net":     []string{"none"},
+	tc := &TaskConfig{
+		ImageName: "docker://redis:3.2-alpine",
+		Group:     "nogroup",
+		Command:   "sleep",
+		Args:      []string{"9000"},
+		Net:       []string{"none"},
 	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
-	encodeDriverHelper(require, task, taskConfig)
 	testtask.SetTaskConfigEnv(task)
 
 	cleanup := harness.MkAllocDir(task, true)
@@ -728,7 +715,7 @@ func TestRktDriver_UserGroup(t *testing.T) {
 //  Verifies executing both correct and incorrect commands inside the container
 func TestRktDriver_Exec(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -756,13 +743,12 @@ func TestRktDriver_Exec(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"trust_prefix": "coreos.com/etcd",
-		"image":        "coreos.com/etcd:v2.0.4",
-		"net":          []string{"none"},
+	tc := &TaskConfig{
+		TrustPrefix: "coreos.com/etcd",
+		ImageName:   "coreos.com/etcd:v2.0.4",
+		Net:         []string{"none"},
 	}
-
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	cleanup := harness.MkAllocDir(task, true)
@@ -810,7 +796,7 @@ func TestRktDriver_Exec(t *testing.T) {
 // TODO(preetha) figure out why stats are zero
 func TestRktDriver_Stats(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -838,14 +824,13 @@ func TestRktDriver_Stats(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"trust_prefix": "coreos.com/etcd",
-		"image":        "coreos.com/etcd:v2.0.4",
-		"command":      "/etcd",
-		"net":          []string{"none"},
+	tc := &TaskConfig{
+		TrustPrefix: "coreos.com/etcd",
+		ImageName:   "coreos.com/etcd:v2.0.4",
+		Command:     "/etcd",
+		Net:         []string{"none"},
 	}
-
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	cleanup := harness.MkAllocDir(task, true)
@@ -861,28 +846,134 @@ func TestRktDriver_Stats(t *testing.T) {
 	// Wait until task started
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
-	resourceUsage, err := d.TaskStats(task.ID)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	statsCh, err := d.TaskStats(ctx, task.ID, time.Second*10)
 	require.Nil(err)
 
-	//TODO(preetha) why are these zero
-	fmt.Printf("pid map %v\n", resourceUsage.Pids)
-	fmt.Printf("CPU:%+v Memory:%+v", resourceUsage.ResourceUsage.CpuStats, resourceUsage.ResourceUsage.MemoryStats)
+	select {
+	case ru := <-statsCh:
+		//TODO(preetha) why are these zero
+		fmt.Printf("pid map %v\n", ru.Pids)
+		fmt.Printf("CPU:%+v Memory:%+v", ru.ResourceUsage.CpuStats, ru.ResourceUsage.MemoryStats)
+	case <-time.After(time.Second):
+		require.Fail("timeout receiving stats from channel")
+	}
 
 	require.NoError(harness.DestroyTask(task.ID, true))
 
 }
 
-func encodeDriverHelper(require *require.Assertions, task *drivers.TaskConfig, taskConfig map[string]interface{}) {
-	evalCtx := &hcl.EvalContext{
-		Functions: hclutils.GetStdlibFuncs(),
+func TestConfig_ParseAllHCL(t *testing.T) {
+	cfgStr := `
+config {
+  image = "docker://redis:3.2"
+  command = "/bin/bash"
+  args = ["-c", "echo hi"]
+  trust_prefix = "coreos.com/etcd"
+  dns_servers = ["8.8.8.8"]
+  dns_search_domains = ["example.com"]
+  net = ["network1"]
+  port_map {
+    http = "80-tcp"
+    https = "443-tcp"
+  }
+  volumes = [
+    "/host-path:/container-path",
+  ]
+  insecure_options = ["image", "tls", "ondisk"]
+  no_overlay = true
+  debug = true
+  group = "mygroup"
+}`
+
+	expected := &TaskConfig{
+		ImageName:        "docker://redis:3.2",
+		Command:          "/bin/bash",
+		Args:             []string{"-c", "echo hi"},
+		TrustPrefix:      "coreos.com/etcd",
+		DNSServers:       []string{"8.8.8.8"},
+		DNSSearchDomains: []string{"example.com"},
+		Net:              []string{"network1"},
+		PortMap: map[string]string{
+			"http":  "80-tcp",
+			"https": "443-tcp",
+		},
+		Volumes: []string{
+			"/host-path:/container-path",
+		},
+		InsecureOptions: []string{"image", "tls", "ondisk"},
+		NoOverlay:       true,
+		Debug:           true,
+		Group:           "mygroup",
 	}
-	spec, diag := hclspec.Convert(taskConfigSpec)
-	require.False(diag.HasErrors())
-	taskConfigCtyVal, diag := hclutils.ParseHclInterface(taskConfig, spec, evalCtx)
-	if diag.HasErrors() {
-		fmt.Println("conversion error", diag.Error())
+
+	var tc *TaskConfig
+	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
+
+	require.EqualValues(t, expected, tc)
+}
+
+func TestRkt_ExecTaskStreaming(t *testing.T) {
+	ctestutil.RktCompatible(t)
+	if !testutil.IsCI() {
+		t.Parallel()
 	}
-	require.False(diag.HasErrors())
-	err := task.EncodeDriverConfig(taskConfigCtyVal)
-	require.Nil(err)
+
+	require := require.New(t)
+	d := NewRktDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+
+	task := &drivers.TaskConfig{
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		Name:    "etcd",
+		Resources: &drivers.Resources{
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
+			},
+			LinuxResources: &drivers.LinuxResources{
+				MemoryLimitBytes: 134217728,
+				CPUShares:        100,
+			},
+		},
+	}
+
+	tc := &TaskConfig{
+		ImageName: "docker://busybox:1.29.3",
+		Command:   "/bin/sleep",
+		Args:      []string{"1000"},
+		Net:       []string{"none"},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	testtask.SetTaskConfigEnv(task)
+
+	cleanup := harness.MkAllocDir(task, true)
+	defer cleanup()
+
+	_, _, err := harness.StartTask(task)
+	require.NoError(err)
+	defer d.DestroyTask(task.ID, true)
+
+	// wait for container to be up and executable
+	testutil.WaitForResult(func() (bool, error) {
+		res, err := d.ExecTask(task.ID, []string{"/bin/sh", "-c", "echo hi"}, time.Second)
+		if err != nil {
+			return false, fmt.Errorf("failed to exec: %#v", err)
+		}
+		if !res.ExitResult.Successful() {
+			return false, fmt.Errorf("ps failed: %#v %#v", res.ExitResult, res)
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+
+	dtestutil.ExecTaskStreamingConformanceTests(t, harness, task.ID)
+
 }

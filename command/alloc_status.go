@@ -233,6 +233,7 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 		fmt.Sprintf("Eval ID|%s", limit(alloc.EvalID, uuidLength)),
 		fmt.Sprintf("Name|%s", alloc.Name),
 		fmt.Sprintf("Node ID|%s", limit(alloc.NodeID, uuidLength)),
+		fmt.Sprintf("Node Name|%s", alloc.NodeName),
 		fmt.Sprintf("Job ID|%s", alloc.JobID),
 		fmt.Sprintf("Job Version|%d", getVersion(alloc.Job)),
 		fmt.Sprintf("Client Status|%s", alloc.ClientStatus),
@@ -557,6 +558,8 @@ func (c *AllocStatusCommand) outputVerboseResourceUsage(task string, resourceUsa
 				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.Cache))
 			case "Swap":
 				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.Swap))
+			case "Usage":
+				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.Usage))
 			case "Max Usage":
 				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.MaxUsage))
 			case "Kernel Usage":

@@ -236,6 +236,11 @@ func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRe
 		return structs.ErrPermissionDenied
 	}
 
+	// All servers should be at or above 0.8.0 to apply this operatation
+	if !ServersMeetMinimumVersion(op.srv.Members(), minAutopilotVersion, false) {
+		return fmt.Errorf("All servers should be running version %v to update autopilot config", minAutopilotVersion)
+	}
+
 	// Apply the update
 	resp, _, err := op.srv.raftApply(structs.AutopilotRequestType, args)
 	if err != nil {
@@ -299,6 +304,10 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 		return structs.ErrPermissionDenied
 	}
 
+	// All servers should be at or above 0.9.0 to apply this operatation
+	if !ServersMeetMinimumVersion(op.srv.Members(), minSchedulerConfigVersion, false) {
+		return fmt.Errorf("All servers should be running version %v to update scheduler config", minSchedulerConfigVersion)
+	}
 	// Apply the update
 	resp, index, err := op.srv.raftApply(structs.SchedulerConfigRequestType, args)
 	if err != nil {

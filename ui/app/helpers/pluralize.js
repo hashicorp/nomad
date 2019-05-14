@@ -1,7 +1,8 @@
 import Helper from '@ember/component/helper';
+import { pluralize } from 'ember-inflector';
 
-export function pluralize([term, count]) {
-  return count === 1 ? term : term.pluralize();
+export function pluralizeHelper([term, count]) {
+  return count === 1 ? term : pluralize(term);
 }
 
-export default Helper.helper(pluralize);
+export default Helper.helper(pluralizeHelper);

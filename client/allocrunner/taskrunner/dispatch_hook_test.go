@@ -9,7 +9,6 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -34,7 +33,7 @@ func TestTaskRunner_DispatchHook_NoPayload(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskDir := allocDir.NewTaskDir(task.Name)
-	require.NoError(taskDir.Build(false, nil, cstructs.FSIsolationNone))
+	require.NoError(taskDir.Build(false, nil))
 
 	h := newDispatchHook(alloc, logger)
 
@@ -79,7 +78,7 @@ func TestTaskRunner_DispatchHook_Ok(t *testing.T) {
 		File: "out",
 	}
 	taskDir := allocDir.NewTaskDir(task.Name)
-	require.NoError(taskDir.Build(false, nil, cstructs.FSIsolationNone))
+	require.NoError(taskDir.Build(false, nil))
 
 	h := newDispatchHook(alloc, logger)
 
@@ -123,7 +122,7 @@ func TestTaskRunner_DispatchHook_Error(t *testing.T) {
 		File: "out",
 	}
 	taskDir := allocDir.NewTaskDir(task.Name)
-	require.NoError(taskDir.Build(false, nil, cstructs.FSIsolationNone))
+	require.NoError(taskDir.Build(false, nil))
 
 	h := newDispatchHook(alloc, logger)
 

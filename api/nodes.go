@@ -6,9 +6,18 @@ import (
 	"sort"
 	"strconv"
 	"time"
+)
 
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+const (
+	NodeStatusInit  = "initializing"
+	NodeStatusReady = "ready"
+	NodeStatusDown  = "down"
+
+	// NodeSchedulingEligible and Ineligible marks the node as eligible or not,
+	// respectively, for receiving allocations. This is orthoginal to the node
+	// status being ready.
+	NodeSchedulingEligible   = "eligible"
+	NodeSchedulingIneligible = "ineligible"
 )
 
 // Nodes is used to query node-related API endpoints
@@ -124,12 +133,12 @@ func (n *Nodes) MonitorDrain(ctx context.Context, nodeID string, index uint64, i
 	allocCh := make(chan *MonitorMessage, 8)
 
 	// Multiplex node and alloc chans onto outCh. This goroutine closes
-	// outCh when other chans have been closed or context canceled.
+	// outCh when other chans have been closed.
 	multiplexCtx, cancel := context.WithCancel(ctx)
 	go n.monitorDrainMultiplex(multiplexCtx, cancel, outCh, nodeCh, allocCh)
 
 	// Monitor node for updates
-	go n.monitorDrainNode(multiplexCtx, cancel, nodeID, index, nodeCh)
+	go n.monitorDrainNode(multiplexCtx, nodeID, index, nodeCh)
 
 	// Monitor allocs on node for updates
 	go n.monitorDrainAllocs(multiplexCtx, nodeID, ignoreSys, allocCh)
@@ -160,12 +169,14 @@ func (n *Nodes) monitorDrainMultiplex(ctx context.Context, cancel func(),
 			if !nodeOk {
 				// nil chan to prevent further recvs
 				nodeCh = nil
+				continue
 			}
 
 		case msg, allocOk = <-allocCh:
 			if !allocOk {
 				// nil chan to prevent further recvs
 				allocCh = nil
+				continue
 			}
 
 		case <-ctx.Done():
@@ -179,14 +190,6 @@ func (n *Nodes) monitorDrainMultiplex(ctx context.Context, cancel func(),
 		select {
 		case outCh <- msg:
 		case <-ctx.Done():
-
-			// If we are exiting but we have a message, attempt to send it
-			// so we don't lose a message but do not block.
-			select {
-			case outCh <- msg:
-			default:
-			}
-
 			return
 		}
 
@@ -199,12 +202,12 @@ func (n *Nodes) monitorDrainMultiplex(ctx context.Context, cancel func(),
 
 // monitorDrainNode emits node updates on nodeCh and closes the channel when
 // the node has finished draining.
-func (n *Nodes) monitorDrainNode(ctx context.Context, cancel func(),
-	nodeID string, index uint64, nodeCh chan<- *MonitorMessage) {
+func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string,
+	index uint64, nodeCh chan<- *MonitorMessage) {
+
 	defer close(nodeCh)
 
 	var lastStrategy *DrainStrategy
-	var strategyChanged bool
 	q := QueryOptions{
 		AllowStale: true,
 		WaitIndex:  index,
@@ -222,12 +225,7 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, cancel func(),
 
 		if node.DrainStrategy == nil {
 			var msg *MonitorMessage
-			if strategyChanged {
-				msg = Messagef(MonitorMsgLevelInfo, "Node %q has marked all allocations for migration", nodeID)
-			} else {
-				msg = Messagef(MonitorMsgLevelInfo, "No drain strategy set for node %s", nodeID)
-				defer cancel()
-			}
+			msg = Messagef(MonitorMsgLevelInfo, "Drain complete for node %s", nodeID)
 			select {
 			case nodeCh <- msg:
 			case <-ctx.Done():
@@ -235,7 +233,7 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, cancel func(),
 			return
 		}
 
-		if node.Status == structs.NodeStatusDown {
+		if node.Status == NodeStatusDown {
 			msg := Messagef(MonitorMsgLevelWarn, "Node %q down", nodeID)
 			select {
 			case nodeCh <- msg:
@@ -254,7 +252,6 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, cancel func(),
 		}
 
 		lastStrategy = node.DrainStrategy
-		strategyChanged = true
 
 		// Drain still ongoing, update index and block for updates
 		q.WaitIndex = meta.LastIndex
@@ -307,7 +304,7 @@ func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys
 				// Alloc was marked for migration
 				msg = "marked for migration"
 
-			case migrating && (orig.DesiredStatus != a.DesiredStatus) && a.DesiredStatus == structs.AllocDesiredStatusStop:
+			case migrating && (orig.DesiredStatus != a.DesiredStatus) && a.DesiredStatus == AllocDesiredStatusStop:
 				// Alloc has already been marked for migration and is now being stopped
 				msg = "draining"
 			}
@@ -326,12 +323,12 @@ func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys
 			}
 
 			// Track how many allocs are still running
-			if ignoreSys && a.Job.Type != nil && *a.Job.Type == structs.JobTypeSystem {
+			if ignoreSys && a.Job.Type != nil && *a.Job.Type == JobTypeSystem {
 				continue
 			}
 
 			switch a.ClientStatus {
-			case structs.AllocClientStatusPending, structs.AllocClientStatusRunning:
+			case AllocClientStatusPending, AllocClientStatusRunning:
 				runningAllocs++
 			}
 		}
@@ -365,9 +362,9 @@ type NodeEligibilityUpdateResponse struct {
 
 // ToggleEligibility is used to update the scheduling eligibility of the node
 func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, q *WriteOptions) (*NodeEligibilityUpdateResponse, error) {
-	e := structs.NodeSchedulingEligible
+	e := NodeSchedulingEligible
 	if !eligible {
-		e = structs.NodeSchedulingIneligible
+		e = NodeSchedulingIneligible
 	}
 
 	req := &NodeUpdateEligibilityRequest{
@@ -674,9 +671,9 @@ func (v *StatValue) String() string {
 	case v.StringVal != nil:
 		return *v.StringVal
 	case v.FloatNumeratorVal != nil:
-		str := helper.FormatFloat(*v.FloatNumeratorVal, 3)
+		str := formatFloat(*v.FloatNumeratorVal, 3)
 		if v.FloatDenominatorVal != nil {
-			str += " / " + helper.FormatFloat(*v.FloatDenominatorVal, 3)
+			str += " / " + formatFloat(*v.FloatDenominatorVal, 3)
 		}
 
 		if v.Unit != "" {

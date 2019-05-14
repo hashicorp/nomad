@@ -5,17 +5,17 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 )
 
-// planner is used to mange the submitted allocation plans that are waiting
+// planner is used to manage the submitted allocation plans that are waiting
 // to be accessed by the leader
 type planner struct {
 	*Server
@@ -149,52 +149,82 @@ func (p *planner) planApply() {
 
 // applyPlan is used to apply the plan result and to return the alloc index
 func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
-	// Determine the minimum number of updates, could be more if there
-	// are multiple updates per node
-	minUpdates := len(result.NodeUpdate)
-	minUpdates += len(result.NodeAllocation)
-
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job:   plan.Job,
-			Alloc: make([]*structs.Allocation, 0, minUpdates),
+			Job: plan.Job,
 		},
 		Deployment:        result.Deployment,
 		DeploymentUpdates: result.DeploymentUpdates,
 		EvalID:            plan.EvalID,
-		NodePreemptions:   make([]*structs.Allocation, 0, len(result.NodePreemptions)),
-	}
-	for _, updateList := range result.NodeUpdate {
-		req.Alloc = append(req.Alloc, updateList...)
-	}
-	for _, allocList := range result.NodeAllocation {
-		req.Alloc = append(req.Alloc, allocList...)
 	}
 
-	for _, preemptions := range result.NodePreemptions {
-		req.NodePreemptions = append(req.NodePreemptions, preemptions...)
-	}
-
-	// Set the time the alloc was applied for the first time. This can be used
-	// to approximate the scheduling time.
-	now := time.Now().UTC().UnixNano()
-	for _, alloc := range req.Alloc {
-		if alloc.CreateTime == 0 {
-			alloc.CreateTime = now
-		}
-		alloc.ModifyTime = now
-	}
-
-	// Set modify time for preempted allocs if any
-	// Also gather jobids to create follow up evals
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
-	for _, alloc := range req.NodePreemptions {
-		alloc.ModifyTime = now
-		id := structs.NamespacedID{Namespace: alloc.Namespace, ID: alloc.JobID}
-		_, ok := preemptedJobIDs[id]
-		if !ok {
-			preemptedJobIDs[id] = struct{}{}
+	now := time.Now().UTC().UnixNano()
+
+	if ServersMeetMinimumVersion(p.Members(), MinVersionPlanNormalization, true) {
+		// Initialize the allocs request using the new optimized log entry format.
+		// Determine the minimum number of updates, could be more if there
+		// are multiple updates per node
+		req.AllocsStopped = make([]*structs.AllocationDiff, 0, len(result.NodeUpdate))
+		req.AllocsUpdated = make([]*structs.Allocation, 0, len(result.NodeAllocation))
+		req.AllocsPreempted = make([]*structs.AllocationDiff, 0, len(result.NodePreemptions))
+
+		for _, updateList := range result.NodeUpdate {
+			for _, stoppedAlloc := range updateList {
+				req.AllocsStopped = append(req.AllocsStopped, normalizeStoppedAlloc(stoppedAlloc, now))
+			}
+		}
+
+		for _, allocList := range result.NodeAllocation {
+			req.AllocsUpdated = append(req.AllocsUpdated, allocList...)
+		}
+
+		// Set the time the alloc was applied for the first time. This can be used
+		// to approximate the scheduling time.
+		updateAllocTimestamps(req.AllocsUpdated, now)
+
+		for _, preemptions := range result.NodePreemptions {
+			for _, preemptedAlloc := range preemptions {
+				req.AllocsPreempted = append(req.AllocsPreempted, normalizePreemptedAlloc(preemptedAlloc, now))
+
+				// Gather jobids to create follow up evals
+				appendNamespacedJobID(preemptedJobIDs, preemptedAlloc)
+			}
+		}
+	} else {
+		// COMPAT 0.11: This branch is deprecated and will only be used to support
+		// application of older log entries. Expected to be removed in a future version.
+
+		// Determine the minimum number of updates, could be more if there
+		// are multiple updates per node
+		minUpdates := len(result.NodeUpdate)
+		minUpdates += len(result.NodeAllocation)
+
+		// Initialize using the older log entry format for Alloc and NodePreemptions
+		req.Alloc = make([]*structs.Allocation, 0, minUpdates)
+		req.NodePreemptions = make([]*structs.Allocation, 0, len(result.NodePreemptions))
+
+		for _, updateList := range result.NodeUpdate {
+			req.Alloc = append(req.Alloc, updateList...)
+		}
+		for _, allocList := range result.NodeAllocation {
+			req.Alloc = append(req.Alloc, allocList...)
+		}
+
+		for _, preemptions := range result.NodePreemptions {
+			req.NodePreemptions = append(req.NodePreemptions, preemptions...)
+		}
+
+		// Set the time the alloc was applied for the first time. This can be used
+		// to approximate the scheduling time.
+		updateAllocTimestamps(req.Alloc, now)
+
+		// Set modify time for preempted allocs if any
+		// Also gather jobids to create follow up evals
+		for _, alloc := range req.NodePreemptions {
+			alloc.ModifyTime = now
+			appendNamespacedJobID(preemptedJobIDs, alloc)
 		}
 	}
 
@@ -232,6 +262,50 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	return future, nil
 }
 
+// normalizePreemptedAlloc removes redundant fields from a preempted allocation and
+// returns AllocationDiff. Since a preempted allocation is always an existing allocation,
+// the struct returned by this method contains only the differential, which can be
+// applied to an existing allocation, to yield the updated struct
+func normalizePreemptedAlloc(preemptedAlloc *structs.Allocation, now int64) *structs.AllocationDiff {
+	return &structs.AllocationDiff{
+		ID:                    preemptedAlloc.ID,
+		PreemptedByAllocation: preemptedAlloc.PreemptedByAllocation,
+		ModifyTime:            now,
+	}
+}
+
+// normalizeStoppedAlloc removes redundant fields from a stopped allocation and
+// returns AllocationDiff. Since a stopped allocation is always an existing allocation,
+// the struct returned by this method contains only the differential, which can be
+// applied to an existing allocation, to yield the updated struct
+func normalizeStoppedAlloc(stoppedAlloc *structs.Allocation, now int64) *structs.AllocationDiff {
+	return &structs.AllocationDiff{
+		ID:                 stoppedAlloc.ID,
+		DesiredDescription: stoppedAlloc.DesiredDescription,
+		ClientStatus:       stoppedAlloc.ClientStatus,
+		ModifyTime:         now,
+	}
+}
+
+// appendNamespacedJobID appends the namespaced Job ID for the alloc to the jobIDs set
+func appendNamespacedJobID(jobIDs map[structs.NamespacedID]struct{}, alloc *structs.Allocation) {
+	id := structs.NamespacedID{Namespace: alloc.Namespace, ID: alloc.JobID}
+	if _, ok := jobIDs[id]; !ok {
+		jobIDs[id] = struct{}{}
+	}
+}
+
+// updateAllocTimestamps sets the CreateTime and ModifyTime for the allocations
+// to the timestamp provided
+func updateAllocTimestamps(allocations []*structs.Allocation, timestamp int64) {
+	for _, alloc := range allocations {
+		if alloc.CreateTime == 0 {
+			alloc.CreateTime = timestamp
+		}
+		alloc.ModifyTime = timestamp
+	}
+}
+
 // asyncPlanWait is used to apply and respond to a plan async
 func (p *planner) asyncPlanWait(waitCh chan struct{}, future raft.ApplyFuture,
 	result *structs.PlanResult, pending *pendingPlan) {
@@ -263,6 +337,17 @@ func (p *planner) asyncPlanWait(waitCh chan struct{}, future raft.ApplyFuture,
 // which may be partial or if there was an error
 func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.Plan, logger log.Logger) (*structs.PlanResult, error) {
 	defer metrics.MeasureSince([]string{"nomad", "plan", "evaluate"}, time.Now())
+
+	// Denormalize without the job
+	err := snap.DenormalizeAllocationsMap(plan.NodeUpdate, nil)
+	if err != nil {
+		return nil, err
+	}
+	// Denormalize without the job
+	err = snap.DenormalizeAllocationsMap(plan.NodePreemptions, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	// Check if the plan exceeds quota
 	overQuota, err := evaluatePlanQuota(snap, plan)
@@ -521,15 +606,11 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 
 	// Remove any preempted allocs
 	if preempted := plan.NodePreemptions[nodeID]; len(preempted) > 0 {
-		for _, allocs := range preempted {
-			remove = append(remove, allocs)
-		}
+		remove = append(remove, preempted...)
 	}
 
 	if updated := plan.NodeAllocation[nodeID]; len(updated) > 0 {
-		for _, alloc := range updated {
-			remove = append(remove, alloc)
-		}
+		remove = append(remove, updated...)
 	}
 	proposed := structs.RemoveAllocs(existingAlloc, remove)
 	proposed = append(proposed, plan.NodeAllocation[nodeID]...)

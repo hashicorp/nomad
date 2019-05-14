@@ -7,12 +7,12 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
-	"github.com/hashicorp/nomad/plugins/shared/singleton"
 )
 
 const (
@@ -371,7 +371,7 @@ func (i *instanceManager) handleFingerprint(fp *drivers.Fingerprint) {
 
 	// if this is the first fingerprint, mark that we have received it
 	if !i.hasFingerprinted {
-		i.logger.Trace("initial driver fingerprint", "fingerprint", fp)
+		i.logger.Debug("initial driver fingerprint", "health", fp.Health, "description", fp.HealthDescription)
 		close(i.firstFingerprintCh)
 		i.hasFingerprinted = true
 	}

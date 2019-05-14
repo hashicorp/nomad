@@ -3,7 +3,6 @@ package docker
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -13,11 +12,9 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
-	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"golang.org/x/net/context"
 )
 
@@ -30,12 +27,10 @@ type taskHandle struct {
 	task                  *drivers.TaskConfig
 	containerID           string
 	containerImage        string
-	resourceUsageLock     sync.RWMutex
-	resourceUsage         *cstructs.TaskResourceUsage
 	doneCh                chan bool
 	waitCh                chan struct{}
 	removeContainerOnExit bool
-	net                   *cstructs.DriverNetwork
+	net                   *drivers.DriverNetwork
 
 	exitResult     *drivers.ExitResult
 	exitResultLock sync.Mutex
@@ -49,15 +44,15 @@ func (h *taskHandle) ExitResult() *drivers.ExitResult {
 
 type taskHandleState struct {
 	// ReattachConfig for the docker logger plugin
-	ReattachConfig *shared.ReattachConfig
+	ReattachConfig *pstructs.ReattachConfig
 
 	ContainerID   string
-	DriverNetwork *cstructs.DriverNetwork
+	DriverNetwork *drivers.DriverNetwork
 }
 
 func (h *taskHandle) buildState() *taskHandleState {
 	return &taskHandleState{
-		ReattachConfig: shared.ReattachConfigFromGoPlugin(h.dloggerPluginClient.ReattachConfig()),
+		ReattachConfig: pstructs.ReattachConfigFromGoPlugin(h.dloggerPluginClient.ReattachConfig()),
 		ContainerID:    h.containerID,
 		DriverNetwork:  h.net,
 	}
@@ -82,8 +77,8 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	}
 
 	execResult := &drivers.ExecTaskResult{ExitResult: &drivers.ExitResult{}}
-	stdout, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
-	stderr, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
+	stdout, _ := circbuf.NewBuffer(int64(drivers.CheckBufSize))
+	stderr, _ := circbuf.NewBuffer(int64(drivers.CheckBufSize))
 	startOpts := docker.StartExecOptions{
 		Detach:       false,
 		Tty:          false,
@@ -130,8 +125,21 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 	// Only send signal if killTimeout is set, otherwise stop container
 	if killTimeout > 0 {
 		if err := h.Signal(signal); err != nil {
-			return err
+			// Container has already been removed.
+			if strings.Contains(err.Error(), NoSuchContainerError) {
+				h.logger.Debug("attempted to signal nonexistent container")
+				return nil
+			}
+			// Container has already been stopped.
+			if strings.Contains(err.Error(), ContainerNotRunningError) {
+				h.logger.Debug("attempted to signal a not-running container")
+				return nil
+			}
+
+			h.logger.Error("failed to signal container while killing", "error", err)
+			return fmt.Errorf("Failed to signal container %q while killing: %v", h.containerID, err)
 		}
+
 		select {
 		case <-h.waitCh:
 			return nil
@@ -157,21 +165,22 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 		h.logger.Error("failed to stop container", "error", err)
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}
+
 	h.logger.Info("stopped container")
 	return nil
 }
 
-func (h *taskHandle) Stats() (*cstructs.TaskResourceUsage, error) {
-	h.resourceUsageLock.RLock()
-	defer h.resourceUsageLock.RUnlock()
-	var err error
-	if h.resourceUsage == nil {
-		err = fmt.Errorf("stats collection hasn't started yet")
+func (h *taskHandle) shutdownLogger() {
+	if err := h.dlogger.Stop(); err != nil {
+		h.logger.Error("failed to stop docker logger process during StopTask",
+			"error", err, "logger_pid", h.dloggerPluginClient.ReattachConfig().Pid)
 	}
-	return h.resourceUsage, err
+	h.dloggerPluginClient.Kill()
 }
 
 func (h *taskHandle) run() {
+	defer h.shutdownLogger()
+
 	exitCode, werr := h.waitClient.WaitContainer(h.containerID)
 	if werr != nil {
 		h.logger.Error("failed to wait for container; already terminated")
@@ -190,9 +199,8 @@ func (h *taskHandle) run() {
 		werr = fmt.Errorf("OOM Killed")
 	}
 
+	// Shutdown stats collection
 	close(h.doneCh)
-
-	// Shutdown the syslog collector
 
 	// Stop the container just incase the docker daemon's wait returned
 	// incorrectly
@@ -223,72 +231,4 @@ func (h *taskHandle) run() {
 	}
 	h.exitResultLock.Unlock()
 	close(h.waitCh)
-}
-
-// collectStats starts collecting resource usage stats of a docker container
-func (h *taskHandle) collectStats() {
-
-	statsCh := make(chan *docker.Stats)
-	statsOpts := docker.StatsOptions{ID: h.containerID, Done: h.doneCh, Stats: statsCh, Stream: true}
-	go func() {
-		//TODO handle Stats error
-		if err := h.waitClient.Stats(statsOpts); err != nil {
-			h.logger.Debug("error collecting stats from container", "error", err)
-		}
-	}()
-	numCores := runtime.NumCPU()
-	for {
-		select {
-		case s := <-statsCh:
-			if s != nil {
-				ms := &cstructs.MemoryStats{
-					RSS:      s.MemoryStats.Stats.Rss,
-					Cache:    s.MemoryStats.Stats.Cache,
-					Swap:     s.MemoryStats.Stats.Swap,
-					MaxUsage: s.MemoryStats.MaxUsage,
-					Measured: DockerMeasuredMemStats,
-				}
-
-				cs := &cstructs.CpuStats{
-					ThrottledPeriods: s.CPUStats.ThrottlingData.ThrottledPeriods,
-					ThrottledTime:    s.CPUStats.ThrottlingData.ThrottledTime,
-					Measured:         DockerMeasuredCpuStats,
-				}
-
-				// Calculate percentage
-				cs.Percent = calculatePercent(
-					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage,
-					s.CPUStats.SystemCPUUsage, s.PreCPUStats.SystemCPUUsage, numCores)
-				cs.SystemMode = calculatePercent(
-					s.CPUStats.CPUUsage.UsageInKernelmode, s.PreCPUStats.CPUUsage.UsageInKernelmode,
-					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, numCores)
-				cs.UserMode = calculatePercent(
-					s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
-					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, numCores)
-				cs.TotalTicks = (cs.Percent / 100) * stats.TotalTicksAvailable() / float64(numCores)
-
-				h.resourceUsageLock.Lock()
-				h.resourceUsage = &cstructs.TaskResourceUsage{
-					ResourceUsage: &cstructs.ResourceUsage{
-						MemoryStats: ms,
-						CpuStats:    cs,
-					},
-					Timestamp: s.Read.UTC().UnixNano(),
-				}
-				h.resourceUsageLock.Unlock()
-			}
-		case <-h.doneCh:
-			return
-		}
-	}
-}
-
-func calculatePercent(newSample, oldSample, newTotal, oldTotal uint64, cores int) float64 {
-	numerator := newSample - oldSample
-	denom := newTotal - oldTotal
-	if numerator <= 0 || denom <= 0 {
-		return 0.0
-	}
-
-	return (float64(numerator) / float64(denom)) * float64(cores) * 100.0
 }

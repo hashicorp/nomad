@@ -8,9 +8,9 @@ description: |-
 
 # Variable Interpolation
 
-Nomad supports interpreting two classes of variables, node attributes and
+Nomad supports interpreting two classes of variables: node attributes and
 runtime environment variables. Node attributes are interpretable in constraints,
-task environment variables and certain driver fields. Runtime environment
+task environment variables, and certain driver fields. Runtime environment
 variables are not interpretable in constraints because they are only defined
 once the scheduler has placed them on a particular node.
 
@@ -216,7 +216,7 @@ env {
 ```
 
 The environment variable `invalid...name` cannot be interpolated using the
-standard `"${invalid...name}"` syntax. The dots wil be interpreted as object
+standard `"${invalid...name}"` syntax. The dots will be interpreted as object
 notation so multiple consecutive dots are invalid.
 
 To continue supporting all user environment variables Nomad 0.9 added a new

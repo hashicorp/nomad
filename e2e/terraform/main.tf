@@ -49,7 +49,7 @@ locals {
 
 # Generates keys to use for provisioning and access
 module "keys" {
-  name   = "nomad-e2e-${local.random_name}"
+  name   = "${local.random_name}"
   path   = "${path.root}/keys"
   source = "mitchellh/dynamic-keys/aws"
 }
@@ -87,6 +87,11 @@ Then you can run e2e tests with:
 
 ```
 go test -v ./e2e
+```
+
+ssh into nodes with:
+```
+ssh -i keys/${local.random_name}.pem ubuntu@${aws_instance.client.0.public_ip}
 ```
 EOM
 }

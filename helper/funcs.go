@@ -4,8 +4,6 @@ import (
 	"crypto/sha512"
 	"fmt"
 	"regexp"
-	"strconv"
-	"strings"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -15,6 +13,11 @@ import (
 // validUUID is used to check if a given string looks like a UUID
 var validUUID = regexp.MustCompile(`(?i)^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$`)
 
+// validInterpVarKey matches valid dotted variable names for interpolation. The
+// string must begin with one or more non-dot characters which may be followed
+// by sequences containing a dot followed by a one or more non-dot characters.
+var validInterpVarKey = regexp.MustCompile(`^[^.]+(\.[^.]+)*$`)
+
 // IsUUID returns true if the given string is a valid UUID.
 func IsUUID(str string) bool {
 	const uuidLen = 36
@@ -23,6 +26,14 @@ func IsUUID(str string) bool {
 	}
 
 	return validUUID.MatchString(str)
+}
+
+// IsValidInterpVariable returns true if a valid dotted variable names for
+// interpolation. The string must begin with one or more non-dot characters
+// which may be followed by sequences containing a dot followed by a one or more
+// non-dot characters.
+func IsValidInterpVariable(str string) bool {
+	return validInterpVarKey.MatchString(str)
 }
 
 // HashUUID takes an input UUID and returns a hashed version of the UUID to
@@ -51,6 +62,11 @@ func BoolToPtr(b bool) *bool {
 
 // IntToPtr returns the pointer to an int
 func IntToPtr(i int) *int {
+	return &i
+}
+
+// Int8ToPtr returns the pointer to an int8
+func Int8ToPtr(i int8) *int8 {
 	return &i
 }
 
@@ -345,27 +361,4 @@ func CheckHCLKeys(node ast.Node, valid []string) error {
 	}
 
 	return result
-}
-
-// FormatFloat converts the floating-point number f to a string,
-// after rounding it to the passed unit.
-//
-// Uses 'f' format (-ddd.dddddd, no exponent), and uses at most
-// maxPrec digits after the decimal point.
-func FormatFloat(f float64, maxPrec int) string {
-	v := strconv.FormatFloat(f, 'f', -1, 64)
-
-	idx := strings.LastIndex(v, ".")
-	if idx == -1 {
-		return v
-	}
-
-	sublen := idx + maxPrec + 1
-	if sublen > len(v) {
-		sublen = len(v)
-	}
-
-	return v[:sublen]
-
-	return v
 }

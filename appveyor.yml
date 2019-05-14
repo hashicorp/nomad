@@ -1,27 +1,49 @@
 version: "build-{branch}-{build}"
 image: Visual Studio 2017
+
 clone_folder: c:\gopath\src\github.com\hashicorp\nomad
 
 environment:
   GOPATH: c:\gopath
   GOBIN: c:\gopath\bin
-
-  matrix:
-    - RUN_UI_TESTS: 1
-      SKIP_NOMAD_TESTS: 1
-    - {}
+  GOMAXPROCS: 1
 
 install:
+  # do basic docker smoke test, and pull image in preparation for tests
+  - cmd: docker info
+  - cmd: docker run --rm dantoml/busybox-windows:08012019 echo hi there
+
   - cmd: set PATH=%GOBIN%;c:\go\bin;%PATH%
   - cmd: echo %Path%
   - cmd: go version
   - cmd: go env
   - ps: mkdir C:\gopath\bin
-  - ps: appveyor DownloadFile "https://releases.hashicorp.com/vault/0.7.0/vault_0.7.0_windows_amd64.zip" -FileName "C:\\gopath\\bin\\vault.zip"
+  - ps: appveyor DownloadFile "https://releases.hashicorp.com/vault/0.10.2/vault_0.10.2_windows_amd64.zip" -FileName "C:\\gopath\\bin\\vault.zip"
   - ps: Expand-Archive C:\gopath\bin\vault.zip -DestinationPath C:\gopath\bin
-  - ps: appveyor DownloadFile "https://releases.hashicorp.com/consul/0.7.0/consul_0.7.0_windows_amd64.zip" -FileName "C:\\gopath\\bin\\consul.zip"
-  - ps: Expand-Archive C:\gopath\bin\consul.zip -DestinationPath C:\gopath\bin
-  #- cmd: go install
+    #  - ps: appveyor DownloadFile "https://releases.hashicorp.com/consul/1.0.0/consul_1.0.0_windows_amd64.zip" -FileName "C:\\gopath\\bin\\consul.zip"
+    #  - ps: Expand-Archive C:\gopath\bin\consul.zip -DestinationPath C:\gopath\bin
+  - ps: choco install make
+  - ps: |
+      go get -u github.com/kardianos/govendor
+      go get -u github.com/ugorji/go/codec/codecgen
+      go get -u github.com/hashicorp/go-bindata/go-bindata
+      go get -u github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs
+      go get -u github.com/a8m/tree/cmd/tree
+      go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
+      go get -u github.com/golang/protobuf/protoc-gen-go
+      go get -u gotest.tools/gotestsum
 build_script:
-  #- cmd: go test ./...
-  - cmd: go install
+  - cmd: |
+      set PATH=%GOPATH%/bin;%PATH%
+      go build -o %GOPATH%\bin\nomad.exe
+test_script:
+  # only test docker driver tests for now
+  - cmd:
+      gotestsum --junitfile results.xml
+           github.com/hashicorp/nomad/drivers/docker
+           github.com/hashicorp/nomad/client/lib/fifo
+# on_finish:
+#   - ps: |
+#       Push-AppveyorArtifact (Resolve-Path .\results.xml)
+#       $wc = New-Object 'System.Net.WebClient'
+#       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\results.xml))

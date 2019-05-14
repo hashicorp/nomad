@@ -12,7 +12,7 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hpcloud/tail/watch"
@@ -306,6 +306,11 @@ func (d *AllocDir) UnmountAll() error {
 				mErr.Errors = append(mErr.Errors,
 					fmt.Errorf("failed to remove the secret dir %q: %v", dir.SecretsDir, err))
 			}
+		}
+
+		// Unmount dev/ and proc/ have been mounted.
+		if err := dir.unmountSpecialDirs(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
 

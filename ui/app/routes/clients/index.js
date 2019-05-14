@@ -5,7 +5,7 @@ import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
 export default Route.extend(WithWatchers, {
   startWatchers(controller) {
-    controller.set('watcher', this.get('watch').perform());
+    controller.set('watcher', this.watch.perform());
   },
 
   watch: watchAll('node'),

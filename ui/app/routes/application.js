@@ -35,8 +35,8 @@ export default Route.extend({
           (queryParam && queryParam !== currentRegion) ||
           (!queryParam && currentRegion !== defaultRegion)
         ) {
-          this.get('system').reset();
-          this.get('store').unloadAll();
+          this.system.reset();
+          this.store.unloadAll();
         }
 
         this.set('system.activeRegion', queryParam || defaultRegion);

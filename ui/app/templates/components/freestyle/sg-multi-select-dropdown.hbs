@@ -1,0 +1,58 @@
+{{#freestyle-usage "multi-select-dropdown" title="Multi-select dropdown"}}
+  {{multi-select-dropdown
+    label="Example Dropdown"
+    options=options1
+    selection=selection1
+    onSelect=(action (mut selection1))}}
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  A wrapper around basic-dropdown for creating a list of checkboxes and tracking the state thereof.
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "multi-select-right-aligned" title="Multi-select dropdown right-aligned"}}
+  <div style="display:flex; justify-content:flex-end">
+    {{multi-select-dropdown
+      label="Example right-aligned Dropdown"
+      options=options1
+      selection=selection1
+      onSelect=(action (mut selection1))}}
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-usage "multi-select-dropdown-may" title="Multi-select dropdown with many options"}}
+  {{multi-select-dropdown
+    label="Lots of options in here"
+    options=optionsMany
+    selection=selectionMany
+    onSelect=(action (mut selectionMany))}}
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  A strength of the multi-select-dropdown is its simple presentation. It is quick to select options and it is quick to remove options.
+  However, this strength becomes a weakness when there are too many options. Since the selection isn't pinned in any way, removing a selection
+  can become an adventure of scrolling up and down. Also since the selection isn't pinned, this component can't support search, since search would
+  entirely mask the selection.
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "multi-select-dropdown-bar" title="Multi-select dropdown bar"}}
+  <div class="button-bar">
+    {{multi-select-dropdown
+      label="Datacenter"
+      options=optionsDatacenter
+      selection=selectionDatacenter
+      onSelect=(action (mut selectionDatacenter))}}
+    {{multi-select-dropdown
+      label="Type"
+      options=optionsType
+      selection=selectionType
+      onSelect=(action (mut selectionType))}}
+    {{multi-select-dropdown
+      label="Status"
+      options=optionsStatus
+      selection=selectionStatus
+      onSelect=(action (mut selectionStatus))}}
+  </div>
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  Since this is a core component for faceted search, it makes sense to construct an arrangement of multi-select dropdowns.
+  Do this by wrapping all the options in a <code>.button-bar</code> container.
+{{/freestyle-annotation}}

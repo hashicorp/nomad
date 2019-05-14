@@ -9,11 +9,11 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 // ErrDriverNotFound is returned during Dispense when the requested driver
@@ -28,6 +28,13 @@ type Manager interface {
 	// handling reattaching to an existing driver if available
 	Dispense(driver string) (drivers.DriverPlugin, error)
 }
+
+// TaskExecHandler is function to be called for executing commands in a task
+type TaskExecHandler func(
+	ctx context.Context,
+	command []string,
+	tty bool,
+	stream drivers.ExecTaskStream) error
 
 // EventHandler is a callback to be called for a task.
 // The handler should not block execution.
@@ -117,7 +124,7 @@ type manager struct {
 	instancesMu sync.RWMutex
 
 	// reattachConfigs stores the plugin reattach configs
-	reattachConfigs    map[loader.PluginID]*shared.ReattachConfig
+	reattachConfigs    map[loader.PluginID]*pstructs.ReattachConfig
 	reattachConfigLock sync.Mutex
 
 	// allows/block lists
@@ -141,17 +148,17 @@ func New(c *Config) *manager {
 		updater:             c.Updater,
 		eventHandlerFactory: c.EventHandlerFactory,
 		instances:           make(map[string]*instanceManager),
-		reattachConfigs:     make(map[loader.PluginID]*shared.ReattachConfig),
+		reattachConfigs:     make(map[loader.PluginID]*pstructs.ReattachConfig),
 		allowedDrivers:      c.AllowedDrivers,
 		blockedDrivers:      c.BlockedDrivers,
 		readyCh:             make(chan struct{}),
 	}
 }
 
-// PluginType returns the type of plugin this mananger mananges
+// PluginType returns the type of plugin this manager mananges
 func (*manager) PluginType() string { return base.PluginTypeDriver }
 
-// Run starts the mananger, initializes driver plugins and blocks until Shutdown
+// Run starts the manager, initializes driver plugins and blocks until Shutdown
 // is called.
 func (m *manager) Run() {
 	// Load any previous plugin reattach configuration
@@ -243,8 +250,17 @@ func (m *manager) waitForFirstFingerprint(ctx context.Context, cancel context.Ca
 	}
 
 	var mu sync.Mutex
-	var availDrivers []string
+	driversByStatus := map[drivers.HealthState][]string{}
+
 	var wg sync.WaitGroup
+
+	recordDriver := func(name string, lastHeath drivers.HealthState) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		updated := append(driversByStatus[lastHeath], name)
+		driversByStatus[lastHeath] = updated
+	}
 
 	// loop through instances and wait for each to finish initial fingerprint
 	m.instancesMu.RLock()
@@ -253,16 +269,13 @@ func (m *manager) waitForFirstFingerprint(ctx context.Context, cancel context.Ca
 		go func(name string, instance *instanceManager) {
 			defer wg.Done()
 			instance.WaitForFirstFingerprint(ctx)
-			if instance.getLastHealth() != drivers.HealthStateUndetected {
-				mu.Lock()
-				availDrivers = append(availDrivers, name)
-				mu.Unlock()
-			}
+			recordDriver(name, instance.getLastHealth())
 		}(n, i)
 	}
 	m.instancesMu.RUnlock()
 	wg.Wait()
-	m.logger.Debug("detected drivers", "drivers", availDrivers)
+
+	m.logger.Debug("detected drivers", "drivers", driversByStatus)
 }
 
 func (m *manager) loadReattachConfigs() error {
@@ -296,8 +309,8 @@ func (m *manager) loadReattachConfigs() error {
 
 // shutdownBlockedDriver is used to forcefully shutdown a running driver plugin
 // when it has been blocked due to allow/block lists
-func (m *manager) shutdownBlockedDriver(name string, reattach *shared.ReattachConfig) {
-	c, err := shared.ReattachConfigToGoPlugin(reattach)
+func (m *manager) shutdownBlockedDriver(name string, reattach *pstructs.ReattachConfig) {
+	c, err := pstructs.ReattachConfigToGoPlugin(reattach)
 	if err != nil {
 		m.logger.Warn("failed to reattach and kill blocked driver plugin",
 			"driver", name, "error", err)
@@ -322,12 +335,15 @@ func (m *manager) storePluginReattachConfig(id loader.PluginID, c *plugin.Reatta
 	m.reattachConfigLock.Lock()
 	defer m.reattachConfigLock.Unlock()
 
-	// Store the new reattach config
-	m.reattachConfigs[id] = shared.ReattachConfigFromGoPlugin(c)
-
+	if c == nil {
+		delete(m.reattachConfigs, id)
+	} else {
+		// Store the new reattach config
+		m.reattachConfigs[id] = pstructs.ReattachConfigFromGoPlugin(c)
+	}
 	// Persist the state
 	s := &state.PluginState{
-		ReattachConfigs: make(map[string]*shared.ReattachConfig, len(m.reattachConfigs)),
+		ReattachConfigs: make(map[string]*pstructs.ReattachConfig, len(m.reattachConfigs)),
 	}
 
 	for id, c := range m.reattachConfigs {
@@ -345,7 +361,7 @@ func (m *manager) fetchPluginReattachConfig(id loader.PluginID) (*plugin.Reattac
 	defer m.reattachConfigLock.Unlock()
 
 	if cfg, ok := m.reattachConfigs[id]; ok {
-		c, err := shared.ReattachConfigToGoPlugin(cfg)
+		c, err := pstructs.ReattachConfigToGoPlugin(cfg)
 		if err != nil {
 			m.logger.Warn("failed to read plugin reattach config", "config", cfg, "error", err)
 			delete(m.reattachConfigs, id)

@@ -41,13 +41,13 @@ export default Mixin.create({
   // preferable to generalize this rather than risking it being
   // forgotten on a single page.
   resetPagination() {
-    if (this.get('currentPage') != null) {
+    if (this.currentPage != null) {
       this.set('currentPage', 1);
     }
   },
 
   fuse: computed('listToSearch.[]', 'fuzzySearchProps.[]', function() {
-    return new Fuse(this.get('listToSearch'), {
+    return new Fuse(this.listToSearch, {
       shouldSort: true,
       threshold: 0.4,
       location: 0,
@@ -56,7 +56,7 @@ export default Mixin.create({
       matchAllTokens: true,
       maxPatternLength: 32,
       minMatchCharLength: 1,
-      keys: this.get('fuzzySearchProps') || [],
+      keys: this.fuzzySearchProps || [],
       getFn(item, key) {
         return get(item, key);
       },
@@ -73,31 +73,31 @@ export default Mixin.create({
     'fuzzySearchProps.[]',
     'regexSearchProps.[]',
     function() {
-      const searchTerm = this.get('searchTerm').trim();
+      const searchTerm = this.searchTerm.trim();
 
       if (!searchTerm || !searchTerm.length) {
-        return this.get('listToSearch');
+        return this.listToSearch;
       }
 
       const results = [];
 
-      if (this.get('exactMatchEnabled')) {
+      if (this.exactMatchEnabled) {
         results.push(
           ...exactMatchSearch(
             searchTerm,
-            this.get('listToSearch'),
-            this.get('exactMatchSearchProps')
+            this.listToSearch,
+            this.exactMatchSearchProps
           )
         );
       }
 
-      if (this.get('fuzzySearchEnabled')) {
-        results.push(...this.get('fuse').search(searchTerm));
+      if (this.fuzzySearchEnabled) {
+        results.push(...this.fuse.search(searchTerm));
       }
 
-      if (this.get('regexEnabled')) {
+      if (this.regexEnabled) {
         results.push(
-          ...regexSearch(searchTerm, this.get('listToSearch'), this.get('regexSearchProps'))
+          ...regexSearch(searchTerm, this.listToSearch, this.regexSearchProps)
         );
       }
 

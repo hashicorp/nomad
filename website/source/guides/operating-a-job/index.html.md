@@ -6,7 +6,14 @@ description: |-
   Learn how to deploy and manage a Nomad Job.
 ---
 
-# Job Lifecycle
+# Deploying & Managing Applications
+
+Developers deploy and manage their applications in Nomad via jobs.
+
+This section provides some best practices and guidance for operating jobs under
+Nomad. Please navigate the appropriate sub-sections for more information. 
+
+## Deploying
 
 The general flow for operating a job in Nomad is:
 
@@ -14,6 +21,8 @@ The general flow for operating a job in Nomad is:
 1. Plan and review the changes with a Nomad server
 1. Submit the job file to a Nomad server
 1. (Optional) Review job status and logs
+
+## Updating
 
 When updating a job, there are a number of built-in update strategies which may
 be defined in the job file. The general flow for updating an existing job in
@@ -27,6 +36,3 @@ Nomad is:
 Because the job file defines the update strategy (blue-green, rolling updates,
 etc.), the workflow remains the same regardless of whether this is an initial
 deployment or a long-running job.
-
-This section provides some best practices and guidance for operating jobs under
-Nomad. Please navigate the appropriate sub-sections for more information.

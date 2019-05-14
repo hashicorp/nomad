@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"testing"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -112,11 +111,11 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 
 	// Build 2 task dirs
 	td1 := d.NewTaskDir(t1.Name)
-	if err := td1.Build(false, nil, cstructs.FSIsolationChroot); err != nil {
+	if err := td1.Build(true, nil); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t1.Name, err)
 	}
 	td2 := d.NewTaskDir(t2.Name)
-	if err := td2.Build(false, nil, cstructs.FSIsolationChroot); err != nil {
+	if err := td2.Build(true, nil); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t2.Name, err)
 	}
 
@@ -157,11 +156,11 @@ func TestAllocDir_Snapshot(t *testing.T) {
 
 	// Build 2 task dirs
 	td1 := d.NewTaskDir(t1.Name)
-	if err := td1.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td1.Build(false, nil); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t1.Name, err)
 	}
 	td2 := d.NewTaskDir(t2.Name)
-	if err := td2.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td2.Build(false, nil); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t2.Name, err)
 	}
 
@@ -249,7 +248,7 @@ func TestAllocDir_Move(t *testing.T) {
 	defer d2.Destroy()
 
 	td1 := d1.NewTaskDir(t1.Name)
-	if err := td1.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td1.Build(false, nil); err != nil {
 		t.Fatalf("TaskDir.Build() faild: %v", err)
 	}
 
@@ -345,7 +344,7 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 	defer d.Destroy()
 
 	td := d.NewTaskDir(t1.Name)
-	if err := td.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td.Build(false, nil); err != nil {
 		t.Fatalf("TaskDir.Build() failed: %v", err)
 	}
 

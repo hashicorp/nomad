@@ -22,14 +22,14 @@ export default Service.extend({
 
       // Routes can reset the breadcrumb trail to start anew even
       // if the route is deeply nested.
-      if (route.get('resetBreadcrumbs')) {
+      if (route.resetBreadcrumbs) {
         crumbs = [];
       }
 
       // Breadcrumbs are either an array of static crumbs
       // or a function that returns breadcrumbs given the current
       // model for the route's controller.
-      let breadcrumbs = route.get('breadcrumbs') || [];
+      let breadcrumbs = route.breadcrumbs || [];
       if (typeof breadcrumbs === 'function') {
         breadcrumbs = breadcrumbs(route.get('controller.model')) || [];
       }

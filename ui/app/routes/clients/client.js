@@ -31,8 +31,8 @@ export default Route.extend(WithWatchers, {
 
   startWatchers(controller, model) {
     if (model) {
-      controller.set('watchModel', this.get('watch').perform(model));
-      controller.set('watchAllocations', this.get('watchAllocations').perform(model));
+      controller.set('watchModel', this.watch.perform(model));
+      controller.set('watchAllocations', this.watchAllocations.perform(model));
     }
   },
 

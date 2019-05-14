@@ -8,11 +8,12 @@ import (
 
 	"github.com/LK4D4/joincontext"
 	"github.com/golang/protobuf/ptypes"
+	hclog "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/pluginutils/grpcutils"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
-	"github.com/hashicorp/nomad/plugins/shared/grpcutils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
@@ -25,6 +26,7 @@ type driverPluginClient struct {
 	*base.BasePluginClient
 
 	client proto.DriverClient
+	logger hclog.Logger
 
 	// doneCtx is closed when the plugin exits
 	doneCtx context.Context
@@ -56,13 +58,13 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 
 		switch resp.Capabilities.FsIsolation {
 		case proto.DriverCapabilities_NONE:
-			caps.FSIsolation = cstructs.FSIsolationNone
+			caps.FSIsolation = FSIsolationNone
 		case proto.DriverCapabilities_CHROOT:
-			caps.FSIsolation = cstructs.FSIsolationChroot
+			caps.FSIsolation = FSIsolationChroot
 		case proto.DriverCapabilities_IMAGE:
-			caps.FSIsolation = cstructs.FSIsolationImage
+			caps.FSIsolation = FSIsolationImage
 		default:
-			caps.FSIsolation = cstructs.FSIsolationNone
+			caps.FSIsolation = FSIsolationNone
 		}
 	}
 
@@ -128,7 +130,7 @@ func (d *driverPluginClient) RecoverTask(h *TaskHandle) error {
 // StartTask starts execution of a task with the given TaskConfig. A TaskHandle
 // is returned to the caller that can be used to recover state of the task,
 // should the driver crash or exit prematurely.
-func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, *DriverNetwork, error) {
 	req := &proto.StartTaskRequest{
 		Task: taskConfigToProto(c),
 	}
@@ -144,9 +146,9 @@ func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, *cstructs.Dr
 		return nil, nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
-	var net *cstructs.DriverNetwork
+	var net *DriverNetwork
 	if resp.NetworkOverride != nil {
-		net = &cstructs.DriverNetwork{
+		net = &DriverNetwork{
 			PortMap:       map[string]int{},
 			IP:            resp.NetworkOverride.Addr,
 			AutoAdvertise: resp.NetworkOverride.AutoAdvertise,
@@ -239,7 +241,7 @@ func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 		status.DriverAttributes = resp.Driver.Attributes
 	}
 	if resp.NetworkOverride != nil {
-		status.NetworkOverride = &cstructs.DriverNetwork{
+		status.NetworkOverride = &DriverNetwork{
 			PortMap:       map[string]int{},
 			IP:            resp.NetworkOverride.Addr,
 			AutoAdvertise: resp.NetworkOverride.AutoAdvertise,
@@ -253,20 +255,58 @@ func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 }
 
 // TaskStats returns resource usage statistics for the task
-func (d *driverPluginClient) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
-	req := &proto.TaskStatsRequest{TaskId: taskID}
-
-	resp, err := d.client.TaskStats(d.doneCtx, req)
-	if err != nil {
-		return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
+func (d *driverPluginClient) TaskStats(ctx context.Context, taskID string, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
+	req := &proto.TaskStatsRequest{
+		TaskId:             taskID,
+		CollectionInterval: ptypes.DurationProto(interval),
 	}
-
-	stats, err := TaskStatsFromProto(resp.Stats)
+	ctx, _ = joincontext.Join(ctx, d.doneCtx)
+	stream, err := d.client.TaskStats(ctx, req)
 	if err != nil {
+		st := status.Convert(err)
+		if len(st.Details()) > 0 {
+			if rec, ok := st.Details()[0].(*sproto.RecoverableError); ok {
+				return nil, structs.NewRecoverableError(err, rec.Recoverable)
+			}
+		}
 		return nil, err
 	}
 
-	return stats, nil
+	ch := make(chan *cstructs.TaskResourceUsage, 1)
+	go d.handleStats(ctx, ch, stream)
+
+	return ch, nil
+}
+
+func (d *driverPluginClient) handleStats(ctx context.Context, ch chan<- *cstructs.TaskResourceUsage, stream proto.Driver_TaskStatsClient) {
+	defer close(ch)
+	for {
+		resp, err := stream.Recv()
+		if ctx.Err() != nil {
+			// Context canceled; exit gracefully
+			return
+		}
+
+		if err != nil {
+			if err != io.EOF {
+				d.logger.Error("error receiving stream from TaskStats driver RPC, closing stream", "error", err)
+			}
+
+			// End of stream
+			return
+		}
+
+		stats, err := TaskStatsFromProto(resp.Stats)
+		if err != nil {
+			d.logger.Error("failed to decode stats from RPC", "error", err, "stats", resp.Stats)
+			continue
+		}
+
+		select {
+		case ch <- stats:
+		case <-ctx.Done():
+		}
+	}
 }
 
 // TaskEvents returns a channel that will receive events from the driver about all
@@ -352,5 +392,70 @@ func (d *driverPluginClient) ExecTask(taskID string, cmd []string, timeout time.
 	}
 
 	return result, nil
+}
 
+var _ ExecTaskStreamingRawDriver = (*driverPluginClient)(nil)
+
+func (d *driverPluginClient) ExecTaskStreamingRaw(ctx context.Context,
+	taskID string,
+	command []string,
+	tty bool,
+	execStream ExecTaskStream) error {
+
+	stream, err := d.client.ExecTaskStreaming(ctx)
+	if err != nil {
+		return grpcutils.HandleGrpcErr(err, d.doneCtx)
+	}
+
+	err = stream.Send(&proto.ExecTaskStreamingRequest{
+		Setup: &proto.ExecTaskStreamingRequest_Setup{
+			TaskId:  taskID,
+			Command: command,
+			Tty:     tty,
+		},
+	})
+	if err != nil {
+		return grpcutils.HandleGrpcErr(err, d.doneCtx)
+	}
+
+	errCh := make(chan error, 1)
+
+	go func() {
+		for {
+			m, err := execStream.Recv()
+			if err == io.EOF {
+				return
+			} else if err != nil {
+				errCh <- err
+				return
+			}
+
+			if err := stream.Send(m); err != nil {
+				errCh <- err
+				return
+			}
+
+		}
+	}()
+
+	for {
+		select {
+		case err := <-errCh:
+			return err
+		default:
+		}
+
+		m, err := stream.Recv()
+		if err == io.EOF {
+			// Once we get to the end of stream successfully, we can ignore errCh:
+			// e.g. input write failures after process terminates shouldn't cause method to fail
+			return nil
+		} else if err != nil {
+			return err
+		}
+
+		if err := execStream.Send(m); err != nil {
+			return err
+		}
+	}
 }

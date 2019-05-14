@@ -1,5 +1,5 @@
 import { click, find } from 'ember-native-dom-helpers';
-import wait from 'ember-test-helpers/wait';
+import { settled } from '@ember/test-helpers';
 
 export function jobURL(job, path = '') {
   const id = job.get('plainId');
@@ -13,17 +13,17 @@ export function jobURL(job, path = '') {
 
 export function stopJob() {
   click('[data-test-stop] [data-test-idle-button]');
-  return wait().then(() => {
+  return settled().then(() => {
     click('[data-test-stop] [data-test-confirm-button]');
-    return wait();
+    return settled();
   });
 }
 
 export function startJob() {
   click('[data-test-start] [data-test-idle-button]');
-  return wait().then(() => {
+  return settled().then(() => {
     click('[data-test-start] [data-test-confirm-button]');
-    return wait();
+    return settled();
   });
 }
 
@@ -53,7 +53,7 @@ export function expectError(assert, title) {
 
     click('[data-test-job-error-close]');
     assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
-    return wait();
+    return settled();
   };
 }
 
@@ -67,5 +67,5 @@ export function expectDeleteRequest(assert, server, job) {
     'DELETE URL was made correctly'
   );
 
-  return wait();
+  return settled();
 }

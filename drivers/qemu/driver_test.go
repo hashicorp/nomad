@@ -2,7 +2,6 @@ package qemu
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -10,15 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/hcl2/hcl"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
-	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -30,7 +27,7 @@ import (
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -58,17 +55,17 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"image_path":        "linux-0.2.img",
-		"accelerator":       "tcg",
-		"graceful_shutdown": false,
-		"port_map": []map[string]int{{
+	tc := &TaskConfig{
+		ImagePath:        "linux-0.2.img",
+		Accelerator:      "tcg",
+		GracefulShutdown: false,
+		PortMap: map[string]int{
 			"main": 22,
 			"web":  8080,
-		}},
-		"args": []string{"-nodefconfig", "-nodefaults"},
+		},
+		Args: []string{"-nodefconfig", "-nodefaults"},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
@@ -92,7 +89,7 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 // Verifies monitor socket path for old qemu
 func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -147,7 +144,7 @@ func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 // Verifies monitor socket path for new qemu version
 func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -200,19 +197,6 @@ func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 	require.Nil(err)
 }
 
-//encodeDriverhelper sets up the task config spec and encodes qemu specific driver configuration
-func encodeDriverHelper(require *require.Assertions, task *drivers.TaskConfig, taskConfig map[string]interface{}) {
-	evalCtx := &hcl.EvalContext{
-		Functions: hclutils.GetStdlibFuncs(),
-	}
-	spec, diag := hclspec.Convert(taskConfigSpec)
-	require.False(diag.HasErrors(), diag.Error())
-	taskConfigCtyVal, diag := hclutils.ParseHclInterface(taskConfig, spec, evalCtx)
-	require.False(diag.HasErrors(), diag.Error())
-	err := task.EncodeDriverConfig(taskConfigCtyVal)
-	require.Nil(err)
-}
-
 // copyFile moves an existing file to the destination
 func copyFile(src, dst string, t *testing.T) {
 	in, err := os.Open(src)
@@ -240,7 +224,7 @@ func copyFile(src, dst string, t *testing.T) {
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_User(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -269,17 +253,17 @@ func TestQemuDriver_User(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"image_path":        "linux-0.2.img",
-		"accelerator":       "tcg",
-		"graceful_shutdown": false,
-		"port_map": map[string]int{
+	tc := &TaskConfig{
+		ImagePath:        "linux-0.2.img",
+		Accelerator:      "tcg",
+		GracefulShutdown: false,
+		PortMap: map[string]int{
 			"main": 22,
 			"web":  8080,
 		},
-		"args": []string{"-nodefconfig", "-nodefaults"},
+		Args: []string{"-nodefconfig", "-nodefaults"},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
@@ -297,7 +281,7 @@ func TestQemuDriver_User(t *testing.T) {
 // TODO(preetha) this test needs random sleeps to pass
 func TestQemuDriver_Stats(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -325,17 +309,17 @@ func TestQemuDriver_Stats(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"image_path":        "linux-0.2.img",
-		"accelerator":       "tcg",
-		"graceful_shutdown": false,
-		"port_map": []map[string]int{{
+	tc := &TaskConfig{
+		ImagePath:        "linux-0.2.img",
+		Accelerator:      "tcg",
+		GracefulShutdown: false,
+		PortMap: map[string]int{
 			"main": 22,
 			"web":  8080,
-		}},
-		"args": []string{"-nodefconfig", "-nodefaults"},
+		},
+		Args: []string{"-nodefconfig", "-nodefaults"},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
@@ -355,16 +339,19 @@ func TestQemuDriver_Stats(t *testing.T) {
 	// Wait until task started
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 	time.Sleep(30 * time.Second)
-	stats, err := harness.TaskStats(task.ID)
+	statsCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	statsCh, err := harness.TaskStats(statsCtx, task.ID, time.Second*10)
 	require.NoError(err)
 
-	// Ask for stats again
-	stats, err = harness.TaskStats(task.ID)
-	require.NoError(err)
-
-	fmt.Printf("CPU:%+v Memory:%+v\n", stats.ResourceUsage.CpuStats, stats.ResourceUsage.MemoryStats)
-	require.NotZero(stats.ResourceUsage.MemoryStats.RSS)
-	require.NoError(harness.DestroyTask(task.ID, true))
+	select {
+	case stats := <-statsCh:
+		t.Logf("CPU:%+v Memory:%+v\n", stats.ResourceUsage.CpuStats, stats.ResourceUsage.MemoryStats)
+		require.NotZero(stats.ResourceUsage.MemoryStats.RSS)
+		require.NoError(harness.DestroyTask(task.ID, true))
+	case <-time.After(time.Second * 1):
+		require.Fail("timeout receiving from stats")
+	}
 
 }
 
@@ -372,7 +359,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	require := require.New(t)
 
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -388,4 +375,34 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		require.Fail("timeout receiving fingerprint")
 	}
+}
+
+func TestConfig_ParseAllHCL(t *testing.T) {
+	cfgStr := `
+config {
+  image_path = "/tmp/image_path"
+  accelerator = "kvm"
+  args = ["arg1", "arg2"]
+  port_map {
+    http = 80
+    https = 443
+  }
+  graceful_shutdown = true
+}`
+
+	expected := &TaskConfig{
+		ImagePath:   "/tmp/image_path",
+		Accelerator: "kvm",
+		Args:        []string{"arg1", "arg2"},
+		PortMap: map[string]int{
+			"http":  80,
+			"https": 443,
+		},
+		GracefulShutdown: true,
+	}
+
+	var tc *TaskConfig
+	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
+
+	require.EqualValues(t, expected, tc)
 }

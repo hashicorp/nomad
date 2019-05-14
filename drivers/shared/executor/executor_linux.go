@@ -5,6 +5,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -19,7 +20,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -29,6 +29,7 @@ import (
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	ldevices "github.com/opencontainers/runc/libcontainer/devices"
+	lutils "github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
 )
@@ -38,8 +39,10 @@ const (
 )
 
 var (
-	// The statistics the executor exposes when using cgroups
-	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
+	// ExecutorCgroupMeasuredMemStats is the list of memory stats captured by the executor
+	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
+
+	// ExecutorCgroupMeasuredCpuStats is the list of CPU stats captures by the executor
 	ExecutorCgroupMeasuredCpuStats = []string{"System Mode", "User Mode", "Throttled Periods", "Throttled Time", "Percent"}
 
 	// allCaps is all linux capabilities which is used to configure libcontainer
@@ -85,7 +88,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 		logger.Error("unable to initialize stats", "error", err)
 	}
 	return &LibcontainerExecutor{
-		id:             strings.Replace(uuid.Generate(), "-", "_", 0),
+		id:             strings.Replace(uuid.Generate(), "-", "_", -1),
 		logger:         logger,
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
@@ -96,12 +99,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 
 // Launch creates a new container in libcontainer and starts a new process with it
 func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
-	l.logger.Info("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
-	// Find the nomad executable to launch the executor process with
-	bin, err := discover.NomadExecutable()
-	if err != nil {
-		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
-	}
+	l.logger.Debug("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
 	if command.Resources == nil {
 		command.Resources = &drivers.Resources{
@@ -124,7 +122,10 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	factory, err := libcontainer.New(
 		path.Join(command.TaskDir, "../alloc/container"),
 		libcontainer.Cgroupfs,
-		libcontainer.InitArgs(bin, "libcontainer-shim"),
+		// note that os.Args[0] refers to the executor shim typically
+		// and first args arguments is ignored now due
+		// until https://github.com/opencontainers/runc/pull/1888 is merged
+		libcontainer.InitArgs(os.Args[0], "libcontainer-shim"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create factory: %v", err)
@@ -159,7 +160,13 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine relative path base=%q target=%q: %v", command.TaskDir, path, err)
 	}
-	path = rel
+
+	// Turn relative-to-chroot path into absolute path to avoid
+	// libcontainer trying to resolve the binary using $PATH.
+	// Do *not* use filepath.Join as it will translate ".."s returned by
+	// filepath.Rel. Prepending "/" will cause the path to be rooted in the
+	// chroot which is the desired behavior.
+	path = "/" + rel
 
 	combined := append([]string{path}, command.Args...)
 	stdout, err := command.Stdout()
@@ -337,10 +344,21 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 		case <-time.After(grace):
 			// Force kill all container processes after grace period,
 			// hence `true` argument.
-			return l.container.Signal(os.Kill, true)
+			if err := l.container.Signal(os.Kill, true); err != nil {
+				return err
+			}
 		}
 	} else {
-		return l.container.Signal(os.Kill, true)
+		if err := l.container.Signal(os.Kill, true); err != nil {
+			return err
+		}
+	}
+
+	select {
+	case <-l.userProcExited:
+		return nil
+	case <-time.After(time.Second * 15):
+		return fmt.Errorf("process failed to exit after 15 seconds")
 	}
 }
 
@@ -355,60 +373,87 @@ func (l *LibcontainerExecutor) Version() (*ExecutorVersion, error) {
 }
 
 // Stats returns the resource statistics for processes managed by the executor
-func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
-	lstats, err := l.container.Stats()
-	if err != nil {
-		return nil, err
+func (l *LibcontainerExecutor) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
+	ch := make(chan *cstructs.TaskResourceUsage)
+	go l.handleStats(ch, ctx, interval)
+	return ch, nil
+
+}
+
+func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx context.Context, interval time.Duration) {
+	defer close(ch)
+	timer := time.NewTimer(0)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-timer.C:
+			timer.Reset(interval)
+		}
+
+		lstats, err := l.container.Stats()
+		if err != nil {
+			l.logger.Warn("error collecting stats", "error", err)
+			return
+		}
+
+		pidStats, err := l.pidCollector.pidStats()
+		if err != nil {
+			l.logger.Warn("error collecting stats", "error", err)
+			return
+		}
+
+		ts := time.Now()
+		stats := lstats.CgroupStats
+
+		// Memory Related Stats
+		swap := stats.MemoryStats.SwapUsage
+		maxUsage := stats.MemoryStats.Usage.MaxUsage
+		rss := stats.MemoryStats.Stats["rss"]
+		cache := stats.MemoryStats.Stats["cache"]
+		ms := &cstructs.MemoryStats{
+			RSS:            rss,
+			Cache:          cache,
+			Swap:           swap.Usage,
+			Usage:          stats.MemoryStats.Usage.Usage,
+			MaxUsage:       maxUsage,
+			KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
+			KernelMaxUsage: stats.MemoryStats.KernelUsage.MaxUsage,
+			Measured:       ExecutorCgroupMeasuredMemStats,
+		}
+
+		// CPU Related Stats
+		totalProcessCPUUsage := float64(stats.CpuStats.CpuUsage.TotalUsage)
+		userModeTime := float64(stats.CpuStats.CpuUsage.UsageInUsermode)
+		kernelModeTime := float64(stats.CpuStats.CpuUsage.UsageInKernelmode)
+
+		totalPercent := l.totalCpuStats.Percent(totalProcessCPUUsage)
+		cs := &cstructs.CpuStats{
+			SystemMode:       l.systemCpuStats.Percent(kernelModeTime),
+			UserMode:         l.userCpuStats.Percent(userModeTime),
+			Percent:          totalPercent,
+			ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,
+			ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
+			TotalTicks:       l.systemCpuStats.TicksConsumed(totalPercent),
+			Measured:         ExecutorCgroupMeasuredCpuStats,
+		}
+		taskResUsage := cstructs.TaskResourceUsage{
+			ResourceUsage: &cstructs.ResourceUsage{
+				MemoryStats: ms,
+				CpuStats:    cs,
+			},
+			Timestamp: ts.UTC().UnixNano(),
+			Pids:      pidStats,
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- &taskResUsage:
+		}
+
 	}
-
-	pidStats, err := l.pidCollector.pidStats()
-	if err != nil {
-		return nil, err
-	}
-
-	ts := time.Now()
-	stats := lstats.CgroupStats
-
-	// Memory Related Stats
-	swap := stats.MemoryStats.SwapUsage
-	maxUsage := stats.MemoryStats.Usage.MaxUsage
-	rss := stats.MemoryStats.Stats["rss"]
-	cache := stats.MemoryStats.Stats["cache"]
-	ms := &cstructs.MemoryStats{
-		RSS:            rss,
-		Cache:          cache,
-		Swap:           swap.Usage,
-		MaxUsage:       maxUsage,
-		KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
-		KernelMaxUsage: stats.MemoryStats.KernelUsage.MaxUsage,
-		Measured:       ExecutorCgroupMeasuredMemStats,
-	}
-
-	// CPU Related Stats
-	totalProcessCPUUsage := float64(stats.CpuStats.CpuUsage.TotalUsage)
-	userModeTime := float64(stats.CpuStats.CpuUsage.UsageInUsermode)
-	kernelModeTime := float64(stats.CpuStats.CpuUsage.UsageInKernelmode)
-
-	totalPercent := l.totalCpuStats.Percent(totalProcessCPUUsage)
-	cs := &cstructs.CpuStats{
-		SystemMode:       l.systemCpuStats.Percent(kernelModeTime),
-		UserMode:         l.userCpuStats.Percent(userModeTime),
-		Percent:          totalPercent,
-		ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,
-		ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
-		TotalTicks:       l.systemCpuStats.TicksConsumed(totalPercent),
-		Measured:         ExecutorCgroupMeasuredCpuStats,
-	}
-	taskResUsage := cstructs.TaskResourceUsage{
-		ResourceUsage: &cstructs.ResourceUsage{
-			MemoryStats: ms,
-			CpuStats:    cs,
-		},
-		Timestamp: ts.UTC().UnixNano(),
-		Pids:      pidStats,
-	}
-
-	return &taskResUsage, nil
 }
 
 // Signal sends a signal to the process managed by the executor
@@ -420,7 +465,7 @@ func (l *LibcontainerExecutor) Signal(s os.Signal) error {
 func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error) {
 	combined := append([]string{cmd}, args...)
 	// Capture output
-	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
+	buf, _ := circbuf.NewBuffer(int64(drivers.CheckBufSize))
 
 	process := &libcontainer.Process{
 		Args:   combined,
@@ -458,6 +503,53 @@ func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []strin
 		process.Signal(os.Kill)
 		return nil, 0, context.DeadlineExceeded
 	}
+
+}
+
+func (l *LibcontainerExecutor) newTerminalSocket() (pty func() (*os.File, error), tty *os.File, err error) {
+	parent, child, err := lutils.NewSockPair("socket")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create terminal: %v", err)
+	}
+
+	return func() (*os.File, error) { return lutils.RecvFd(parent) }, child, err
+
+}
+
+func (l *LibcontainerExecutor) ExecStreaming(ctx context.Context, cmd []string, tty bool,
+	stream drivers.ExecTaskStream) error {
+
+	// the task process will be started by the container
+	process := &libcontainer.Process{
+		Args: cmd,
+		Env:  l.userProc.Env,
+		User: l.userProc.User,
+		Init: false,
+		Cwd:  "/",
+	}
+
+	execHelper := &execHelper{
+		logger: l.logger,
+
+		newTerminal: l.newTerminalSocket,
+		setTTY: func(tty *os.File) error {
+			process.ConsoleSocket = tty
+			return nil
+		},
+		setIO: func(stdin io.Reader, stdout, stderr io.Writer) error {
+			process.Stdin = stdin
+			process.Stdout = stdout
+			process.Stderr = stderr
+			return nil
+		},
+
+		processStart: func() error { return l.container.Run(process) },
+		processWait: func() (*os.ProcessState, error) {
+			return process.Wait()
+		},
+	}
+
+	return execHelper.run(ctx, tty, stream)
 
 }
 
@@ -620,7 +712,7 @@ func configureBasicCgroups(cfg *lconfigs.Config) error {
 
 	freezer := cgroupFs.FreezerGroup{}
 	subsystem := freezer.Name()
-	path, err := cgroups.FindCgroupMountpoint(subsystem)
+	path, err := cgroups.FindCgroupMountpoint("", subsystem)
 	if err != nil {
 		return fmt.Errorf("failed to find %s cgroup mountpoint: %v", subsystem, err)
 	}
@@ -664,7 +756,7 @@ func JoinRootCgroup(subsystems []string) error {
 	mErrs := new(multierror.Error)
 	paths := map[string]string{}
 	for _, s := range subsystems {
-		mnt, _, err := cgroups.FindCgroupMountpointAndRoot(s)
+		mnt, _, err := cgroups.FindCgroupMountpointAndRoot("", s)
 		if err != nil {
 			multierror.Append(mErrs, fmt.Errorf("error getting cgroup path for subsystem: %s", s))
 			continue

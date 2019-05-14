@@ -43,6 +43,7 @@ type HealthService struct {
 	NodeAddress         string
 	NodeTaggedAddresses map[string]string
 	NodeMeta            map[string]string
+	ServiceMeta         map[string]string
 	Address             string
 	ID                  string
 	Name                string
@@ -162,6 +163,7 @@ func (d *HealthServiceQuery) Fetch(clients *ClientSet, opts *QueryOptions) (inte
 			NodeAddress:         entry.Node.Address,
 			NodeTaggedAddresses: entry.Node.TaggedAddresses,
 			NodeMeta:            entry.Node.Meta,
+			ServiceMeta:         entry.Service.Meta,
 			Address:             address,
 			ID:                  entry.Service.ID,
 			Name:                entry.Service.Service,

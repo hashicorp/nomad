@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-version"
+
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -184,20 +186,20 @@ func TestVaultCompatibility(t *testing.T) {
 	for version, vaultBin := range vaultBinaries {
 		vbin := vaultBin
 		t.Run(version, func(t *testing.T) {
-			testVaultCompatibility(t, vbin)
+			testVaultCompatibility(t, vbin, version)
 		})
 	}
 }
 
 // testVaultCompatibility tests compatibility with the given vault binary
-func testVaultCompatibility(t *testing.T, vault string) {
+func testVaultCompatibility(t *testing.T, vault string, version string) {
 	require := require.New(t)
 
 	// Create a Vault server
 	v := testutil.NewTestVaultFromPath(t, vault)
 	defer v.Stop()
 
-	token := setupVault(t, v.Client)
+	token := setupVault(t, v.Client, version)
 
 	// Create a Nomad agent using the created vault
 	nomad := agent.NewTestAgent(t, t.Name(), func(c *agent.Config) {
@@ -251,11 +253,32 @@ func testVaultCompatibility(t *testing.T, vault string) {
 
 // setupVault takes the Vault client and creates the required policies and
 // roles. It returns the token that should be used by Nomad
-func setupVault(t *testing.T, client *vapi.Client) string {
+func setupVault(t *testing.T, client *vapi.Client, vaultVersion string) string {
 	// Write the policy
 	sys := client.Sys()
-	if err := sys.PutPolicy("nomad-server", policy); err != nil {
-		t.Fatalf("failed to create policy: %v", err)
+
+	// pre-0.9.0 vault servers do not work with our new vault client for the policy endpoint
+	// perform this using a raw HTTP request
+	newApi, _ := version.NewVersion("0.9.0")
+	testVersion, err := version.NewVersion(vaultVersion)
+	if err != nil {
+		t.Fatalf("failed to parse test version from '%v': %v", t.Name(), err)
+	}
+	if testVersion.LessThan(newApi) {
+		body := map[string]string{
+			"rules": policy,
+		}
+		request := client.NewRequest("PUT", fmt.Sprintf("/v1/sys/policy/%s", "nomad-server"))
+		if err := request.SetJSONBody(body); err != nil {
+			t.Fatalf("failed to set JSON body on legacy policy creation: %v", err)
+		}
+		if _, err := client.RawRequest(request); err != nil {
+			t.Fatalf("failed to create legacy policy: %v", err)
+		}
+	} else {
+		if err := sys.PutPolicy("nomad-server", policy); err != nil {
+			t.Fatalf("failed to create policy: %v", err)
+		}
 	}
 
 	// Build the role

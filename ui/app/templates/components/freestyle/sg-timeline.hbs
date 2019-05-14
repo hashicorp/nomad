@@ -1,7 +1,7 @@
 {{#freestyle-usage 'timeline' title="Simple Timeline"}}
   <ol class="timeline">
     <li class="timeline-note">
-      {{moment-format yesterday "MMMM D, YYYY"}}
+      {{format-date yesterday}}
     </li>
     <li class="timeline-object">
       <div class="boxed-section">
@@ -18,7 +18,7 @@
       </div>
     </li>
     <li class="timeline-note">
-      {{moment-format today "MMMM D, YYYY"}}
+      {{format-date today}}
     </li>
     <li class="timeline-object">
       <div class="boxed-section">
@@ -38,7 +38,7 @@
 {{#freestyle-usage 'timeline-intricate' title="Detailed Timeline"}}
   <ol class="timeline">
     <li class="timeline-note">
-      {{moment-format today "MMMM D, YYYY"}}
+      {{format-date today}}
     </li>
     <li class="timeline-object">
       <div class="boxed-section">
@@ -50,7 +50,7 @@
           </span>
           <span class="bumper-left pair is-faded">
             <span class="term">Submitted</span>
-            <span>{{moment-from-now (now)}}</span>
+            <span class="tooltip" aria-label="{{format-month-ts (now)}}">{{moment-from-now (now)}}</span>
           </span>
         </div>
       </div>
@@ -65,13 +65,13 @@
           </span>
           <span class="bumper-left pair is-faded">
             <span class="term">Submitted</span>
-            <span>{{moment-format yesterday}}</span>
+            <span>{{format-month-ts yesterday}}</span>
           </span>
         </div>
       </div>
     </li>
     <li class="timeline-note">
-      {{moment-format yesterday "MMMM D, YYYY"}}
+      {{format-date yesterday}}
     </li>
     <li class="timeline-object">
       <div class="boxed-section">
@@ -83,7 +83,7 @@
           </span>
           <span class="bumper-left pair is-faded">
             <span class="term">Submitted</span>
-            <span>{{moment-format yesterday}}</span>
+            <span>{{format-month-ts yesterday}}</span>
           </span>
         </div>
       </div>
@@ -94,7 +94,7 @@
 {{#freestyle-usage 'timeline-toggles' title='Toggling Timeline Objects'}}
   <ol class="timeline">
     <li class="timeline-note">
-      {{moment-format today "MMMM D, YYYY"}}
+      {{format-date today}}
     </li>
     <li class="timeline-object">
       <div class="boxed-section">
@@ -118,7 +118,7 @@
       </div>
     </li>
     <li class="timeline-note">
-      {{moment-format yesterday "MMMM D, YYYY"}}
+      {{format-date yesterday}}
     </li>
     <li class="timeline-object">
       <div class="boxed-section">
@@ -147,7 +147,7 @@
 {{#freestyle-usage 'timeline-emphasis' title='Emphasizing a Timeline Object'}}
   <ol class="timeline">
     <li class="timeline-note">
-      {{moment-format today "MMMM D, YYYY"}}
+      {{format-date today}}
     </li>
     <li class="timeline-object">
       <div class="boxed-section">
@@ -158,7 +158,7 @@
           </span>
           <span class="bumper-left pair is-faded">
             <span class="term">Submitted</span>
-            <span>{{moment-from-now (now)}}</span>
+            <span class="tooltip" aria-label="{{format-ts (now)}}">{{moment-from-now (now)}}</span>
           </span>
         </div>
       </div>
@@ -175,13 +175,13 @@
           </span>
           <span class="bumper-left pair is-faded">
             <span class="term">Submitted</span>
-            <span>{{moment-format yesterday}}</span>
+            <span>{{format-ts yesterday}}</span>
           </span>
         </div>
       </div>
     </li>
     <li class="timeline-note">
-      {{moment-format yesterday "MMMM D, YYYY"}}
+      {{format-date yesterday}}
     </li>
     <li class="timeline-object">
       <div class="boxed-section">
@@ -192,7 +192,7 @@
           </span>
           <span class="bumper-left pair is-faded">
             <span class="term">Submitted</span>
-            <span>{{moment-format yesterday}}</span>
+            <span>{{format-ts yesterday}}</span>
           </span>
         </div>
       </div>

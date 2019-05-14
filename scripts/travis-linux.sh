@@ -10,8 +10,7 @@ sudo service docker restart
 # true errors would fail in the apt-get install phase
 apt-get update || true
 
-apt-get install -y liblxc1 lxc-dev lxc lxc-templates shellcheck
-apt-get install -y qemu
+apt-get install -y qemu shellcheck
 bash ./scripts/travis-rkt.sh
 bash ./scripts/travis-consul.sh
 bash ./scripts/travis-vault.sh

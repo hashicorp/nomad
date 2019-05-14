@@ -32,7 +32,7 @@ export default Model.extend({
   parameterizedDetails: attr(),
 
   hasChildren: computed('periodic', 'parameterized', 'dispatched', function() {
-    return this.get('periodic') || (this.get('parameterized') && !this.get('dispatched'));
+    return this.periodic || (this.parameterized && !this.dispatched);
   }),
 
   parent: belongsTo('job', { inverse: 'children' }),
@@ -40,19 +40,19 @@ export default Model.extend({
 
   // The parent job name is prepended to child launch job names
   trimmedName: computed('name', 'parent', function() {
-    return this.get('parent.content') ? this.get('name').replace(/.+?\//, '') : this.get('name');
+    return this.get('parent.content') ? this.name.replace(/.+?\//, '') : this.name;
   }),
 
   // A composite of type and other job attributes to determine
   // a better type descriptor for human interpretation rather
   // than for scheduling.
   displayType: computed('type', 'periodic', 'parameterized', function() {
-    if (this.get('periodic')) {
+    if (this.periodic) {
       return 'periodic';
-    } else if (this.get('parameterized')) {
+    } else if (this.parameterized) {
       return 'parameterized';
     }
-    return this.get('type');
+    return this.type;
   }),
 
   // A composite of type and other job attributes to determine
@@ -64,20 +64,20 @@ export default Model.extend({
     'parent.periodic',
     'parent.parameterized',
     function() {
-      const type = this.get('type');
+      const type = this.type;
 
       if (this.get('parent.periodic')) {
         return 'periodic-child';
       } else if (this.get('parent.parameterized')) {
         return 'parameterized-child';
-      } else if (this.get('periodic')) {
+      } else if (this.periodic) {
         return 'periodic';
-      } else if (this.get('parameterized')) {
+      } else if (this.parameterized) {
         return 'parameterized';
       } else if (JOB_TYPES.includes(type)) {
         // Guard against the API introducing a new type before the UI
         // is prepared to handle it.
-        return this.get('type');
+        return this.type;
       }
 
       // A fail-safe in the event the API introduces a new type.
@@ -122,7 +122,7 @@ export default Model.extend({
   namespace: belongsTo('namespace'),
 
   drivers: computed('taskGroups.@each.drivers', function() {
-    return this.get('taskGroups')
+    return this.taskGroups
       .mapBy('drivers')
       .reduce((all, drivers) => {
         all.push(...drivers);
@@ -134,7 +134,7 @@ export default Model.extend({
   // Getting all unhealthy drivers for a job can be incredibly expensive if the job
   // has many allocations. This can lead to making an API request for many nodes.
   unhealthyDrivers: computed('allocations.@each.unhealthyDrivers.[]', function() {
-    return this.get('allocations')
+    return this.allocations
       .mapBy('unhealthyDrivers')
       .reduce((all, drivers) => {
         all.push(...drivers);
@@ -144,7 +144,7 @@ export default Model.extend({
   }),
 
   hasBlockedEvaluation: computed('evaluations.@each.isBlocked', function() {
-    return this.get('evaluations')
+    return this.evaluations
       .toArray()
       .some(evaluation => evaluation.get('isBlocked'));
   }),
@@ -152,7 +152,7 @@ export default Model.extend({
   hasPlacementFailures: and('latestFailureEvaluation', 'hasBlockedEvaluation'),
 
   latestEvaluation: computed('evaluations.@each.modifyIndex', 'evaluations.isPending', function() {
-    const evaluations = this.get('evaluations');
+    const evaluations = this.evaluations;
     if (!evaluations || evaluations.get('isPending')) {
       return null;
     }
@@ -163,7 +163,7 @@ export default Model.extend({
     'evaluations.@each.modifyIndex',
     'evaluations.isPending',
     function() {
-      const evaluations = this.get('evaluations');
+      const evaluations = this.evaluations;
       if (!evaluations || evaluations.get('isPending')) {
         return null;
       }
@@ -180,7 +180,7 @@ export default Model.extend({
   latestDeployment: belongsTo('deployment', { inverse: 'jobForLatest' }),
 
   runningDeployment: computed('latestDeployment', 'latestDeployment.isRunning', function() {
-    const latest = this.get('latestDeployment');
+    const latest = this.latestDeployment;
     if (latest.get('isRunning')) return latest;
   }),
 
@@ -197,22 +197,22 @@ export default Model.extend({
   },
 
   plan() {
-    assert('A job must be parsed before planned', this.get('_newDefinitionJSON'));
+    assert('A job must be parsed before planned', this._newDefinitionJSON);
     return this.store.adapterFor('job').plan(this);
   },
 
   run() {
-    assert('A job must be parsed before ran', this.get('_newDefinitionJSON'));
+    assert('A job must be parsed before ran', this._newDefinitionJSON);
     return this.store.adapterFor('job').run(this);
   },
 
   update() {
-    assert('A job must be parsed before updated', this.get('_newDefinitionJSON'));
+    assert('A job must be parsed before updated', this._newDefinitionJSON);
     return this.store.adapterFor('job').update(this);
   },
 
   parse() {
-    const definition = this.get('_newDefinition');
+    const definition = this._newDefinition;
     let promise;
 
     try {
@@ -221,7 +221,7 @@ export default Model.extend({
       this.set('_newDefinitionJSON', json);
 
       // You can't set the ID of a record that already exists
-      if (this.get('isNew')) {
+      if (this.isNew) {
         this.setIdByPayload(json);
       }
 
@@ -231,7 +231,7 @@ export default Model.extend({
       // in anyway, the parse endpoint will throw an error.
       promise = this.store
         .adapterFor('job')
-        .parse(this.get('_newDefinition'))
+        .parse(this._newDefinition)
         .then(response => {
           this.set('_newDefinitionJSON', response);
           this.setIdByPayload(response);
@@ -255,7 +255,7 @@ export default Model.extend({
   },
 
   resetId() {
-    this.set('id', JSON.stringify([this.get('plainId'), this.get('namespace.name') || 'default']));
+    this.set('id', JSON.stringify([this.plainId, this.get('namespace.name') || 'default']));
   },
 
   statusClass: computed('status', function() {
@@ -265,13 +265,13 @@ export default Model.extend({
       dead: 'is-light',
     };
 
-    return classMap[this.get('status')] || 'is-dark';
+    return classMap[this.status] || 'is-dark';
   }),
 
   payload: attr('string'),
   decodedPayload: computed('payload', function() {
     // Lazily decode the base64 encoded payload
-    return window.atob(this.get('payload') || '');
+    return window.atob(this.payload || '');
   }),
 
   // An arbitrary HCL or JSON string that is used by the serializer to plan

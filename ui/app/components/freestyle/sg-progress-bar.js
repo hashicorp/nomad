@@ -14,7 +14,7 @@ export default Component.extend({
   }.on('init'),
 
   willDestroy() {
-    clearInterval(this.get('timer'));
+    clearInterval(this.timer);
   },
 
   denominator: computed('timerTicks', function() {
@@ -26,7 +26,7 @@ export default Component.extend({
   }),
 
   numerator: computed('denominator', 'percentage', function() {
-    return Math.round(this.get('denominator') * this.get('percentage') * 100) / 100;
+    return Math.round(this.denominator * this.percentage * 100) / 100;
   }),
 
   liveDetails: computed('denominator', 'numerator', 'percentage', function() {

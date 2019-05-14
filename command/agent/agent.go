@@ -21,12 +21,13 @@ import (
 	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/raft"
 )
 
@@ -86,7 +87,7 @@ type Agent struct {
 }
 
 // NewAgent is used to create a new agent with the given configuration
-func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
+func NewAgent(config *Config, logger log.Logger, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
 	a := &Agent{
 		config:     config,
 		logOutput:  logOutput,
@@ -95,12 +96,7 @@ func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*A
 	}
 
 	// Create the loggers
-	a.logger = log.New(&log.LoggerOptions{
-		Name:       "agent",
-		Level:      log.LevelFromString(config.LogLevel),
-		Output:     logOutput,
-		JSONFormat: false, // TODO(alex,hclog) Add a config option
-	})
+	a.logger = logger
 	a.httpLogger = a.logger.ResetNamed("http")
 
 	// Global logger should match internal logger as much as possible
@@ -729,6 +725,9 @@ func (a *Agent) setupClient() error {
 		if err := a.reservePortsForClient(conf); err != nil {
 			return err
 		}
+	}
+	if conf.StateDBFactory == nil {
+		conf.StateDBFactory = state.GetStateDBFactory(conf.DevMode)
 	}
 
 	client, err := client.NewClient(conf, a.consulCatalog, a.consulService)

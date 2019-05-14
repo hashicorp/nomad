@@ -43,7 +43,7 @@ cat <<-EOF
   [Unit]
   Description=consul agent
   Requires=network-online.target
-	After=network-online.target
+  After=network-online.target
 
   [Service]
   Restart=on-failure

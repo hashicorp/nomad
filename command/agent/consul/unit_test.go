@@ -10,11 +10,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
@@ -129,97 +128,38 @@ func setupFake(t *testing.T) *testFakeCtx {
 
 func TestConsul_ChangeTags(t *testing.T) {
 	ctx := setupFake(t)
+	require := require.New(t)
 
-	if err := ctx.ServiceClient.RegisterTask(ctx.Task); err != nil {
-		t.Fatalf("unexpected error registering task: %v", err)
-	}
+	require.NoError(ctx.ServiceClient.RegisterTask(ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Equal(1, len(ctx.FakeConsul.services), "Expected 1 service to be registered with Consul")
 
-	if err := ctx.syncOnce(); err != nil {
-		t.Fatalf("unexpected error syncing task: %v", err)
-	}
-
-	if n := len(ctx.FakeConsul.services); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services)
-	}
-
-	// Query the allocs registrations and then again when we update. The IDs
-	// should change
+	// Validate the alloc registration
 	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Task.AllocID)
-	if err != nil {
-		t.Fatalf("Looking up alloc registration failed: %v", err)
-	}
-	if reg1 == nil {
-		t.Fatalf("Nil alloc registrations: %v", err)
-	}
-	if num := reg1.NumServices(); num != 1 {
-		t.Fatalf("Wrong number of services: got %d; want 1", num)
-	}
-	if num := reg1.NumChecks(); num != 0 {
-		t.Fatalf("Wrong number of checks: got %d; want 0", num)
+	require.NoError(err)
+	require.NotNil(reg1, "Unexpected nil alloc registration")
+	require.Equal(1, reg1.NumServices())
+	require.Equal(0, reg1.NumChecks())
+
+	for _, v := range ctx.FakeConsul.services {
+		require.Equal(v.Name, ctx.Task.Services[0].Name)
+		require.Equal(v.Tags, ctx.Task.Services[0].Tags)
 	}
 
-	origKey := ""
-	for k, v := range ctx.FakeConsul.services {
-		origKey = k
-		if v.Name != ctx.Task.Services[0].Name {
-			t.Errorf("expected Name=%q != %q", ctx.Task.Services[0].Name, v.Name)
-		}
-		if !reflect.DeepEqual(v.Tags, ctx.Task.Services[0].Tags) {
-			t.Errorf("expected Tags=%v != %v", ctx.Task.Services[0].Tags, v.Tags)
-		}
-	}
-
+	// Update the task definition
 	origTask := ctx.Task.Copy()
 	ctx.Task.Services[0].Tags[0] = "newtag"
-	if err := ctx.ServiceClient.UpdateTask(origTask, ctx.Task); err != nil {
-		t.Fatalf("unexpected error registering task: %v", err)
-	}
-	if err := ctx.syncOnce(); err != nil {
-		t.Fatalf("unexpected error syncing task: %v", err)
-	}
 
-	if n := len(ctx.FakeConsul.services); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services)
-	}
+	// Register and sync the update
+	require.NoError(ctx.ServiceClient.UpdateTask(origTask, ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Equal(1, len(ctx.FakeConsul.services), "Expected 1 service to be registered with Consul")
 
-	for k, v := range ctx.FakeConsul.services {
-		if k == origKey {
-			t.Errorf("expected key to change but found %q", k)
-		}
-		if v.Name != ctx.Task.Services[0].Name {
-			t.Errorf("expected Name=%q != %q", ctx.Task.Services[0].Name, v.Name)
-		}
-		if !reflect.DeepEqual(v.Tags, ctx.Task.Services[0].Tags) {
-			t.Errorf("expected Tags=%v != %v", ctx.Task.Services[0].Tags, v.Tags)
-		}
-	}
-
-	// Check again and ensure the IDs changed
-	reg2, err := ctx.ServiceClient.AllocRegistrations(ctx.Task.AllocID)
-	if err != nil {
-		t.Fatalf("Looking up alloc registration failed: %v", err)
-	}
-	if reg2 == nil {
-		t.Fatalf("Nil alloc registrations: %v", err)
-	}
-	if num := reg2.NumServices(); num != 1 {
-		t.Fatalf("Wrong number of services: got %d; want 1", num)
-	}
-	if num := reg2.NumChecks(); num != 0 {
-		t.Fatalf("Wrong number of checks: got %d; want 0", num)
-	}
-
-	for task, treg := range reg1.Tasks {
-		otherTaskReg, ok := reg2.Tasks[task]
-		if !ok {
-			t.Fatalf("Task %q not in second reg", task)
-		}
-
-		for sID := range treg.Services {
-			if _, ok := otherTaskReg.Services[sID]; ok {
-				t.Fatalf("service ID didn't change")
-			}
-		}
+	// Validate the metadata changed
+	for _, v := range ctx.FakeConsul.services {
+		require.Equal(v.Name, ctx.Task.Services[0].Name)
+		require.Equal(v.Tags, ctx.Task.Services[0].Tags)
+		require.Equal("newtag", v.Tags[0])
 	}
 }
 
@@ -228,6 +168,8 @@ func TestConsul_ChangeTags(t *testing.T) {
 // slightly different code path than changing tags.
 func TestConsul_ChangePorts(t *testing.T) {
 	ctx := setupFake(t)
+	require := require.New(t)
+
 	ctx.Task.Services[0].Checks = []*structs.ServiceCheck{
 		{
 			Name:      "c1",
@@ -253,35 +195,17 @@ func TestConsul_ChangePorts(t *testing.T) {
 		},
 	}
 
-	if err := ctx.ServiceClient.RegisterTask(ctx.Task); err != nil {
-		t.Fatalf("unexpected error registering task: %v", err)
+	require.NoError(ctx.ServiceClient.RegisterTask(ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Equal(1, len(ctx.FakeConsul.services), "Expected 1 service to be registered with Consul")
+
+	for _, v := range ctx.FakeConsul.services {
+		require.Equal(ctx.Task.Services[0].Name, v.Name)
+		require.Equal(ctx.Task.Services[0].Tags, v.Tags)
+		require.Equal(xPort, v.Port)
 	}
 
-	if err := ctx.syncOnce(); err != nil {
-		t.Fatalf("unexpected error syncing task: %v", err)
-	}
-
-	if n := len(ctx.FakeConsul.services); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services)
-	}
-
-	origServiceKey := ""
-	for k, v := range ctx.FakeConsul.services {
-		origServiceKey = k
-		if v.Name != ctx.Task.Services[0].Name {
-			t.Errorf("expected Name=%q != %q", ctx.Task.Services[0].Name, v.Name)
-		}
-		if !reflect.DeepEqual(v.Tags, ctx.Task.Services[0].Tags) {
-			t.Errorf("expected Tags=%v != %v", ctx.Task.Services[0].Tags, v.Tags)
-		}
-		if v.Port != xPort {
-			t.Errorf("expected Port x=%v but found: %v", xPort, v.Port)
-		}
-	}
-
-	if n := len(ctx.FakeConsul.checks); n != 3 {
-		t.Fatalf("expected 3 checks but found %d:\n%#v", n, ctx.FakeConsul.checks)
-	}
+	require.Equal(3, len(ctx.FakeConsul.checks))
 
 	origTCPKey := ""
 	origScriptKey := ""
@@ -290,28 +214,27 @@ func TestConsul_ChangePorts(t *testing.T) {
 		switch v.Name {
 		case "c1":
 			origTCPKey = k
-			if expected := fmt.Sprintf(":%d", xPort); v.TCP != expected {
-				t.Errorf("expected Port x=%v but found: %v", expected, v.TCP)
-			}
+			require.Equal(fmt.Sprintf(":%d", xPort), v.TCP)
 		case "c2":
 			origScriptKey = k
 			select {
 			case <-ctx.MockExec.execs:
-				if n := len(ctx.MockExec.execs); n > 0 {
-					t.Errorf("expected 1 exec but found: %d", n+1)
-				}
+				// Here we validate there is nothing left on the channel
+				require.Equal(0, len(ctx.MockExec.execs))
 			case <-time.After(3 * time.Second):
-				t.Errorf("script not called in time")
+				t.Fatalf("script not called in time")
 			}
 		case "c3":
 			origHTTPKey = k
-			if expected := fmt.Sprintf("http://:%d/", yPort); v.HTTP != expected {
-				t.Errorf("expected Port y=%v but found: %v", expected, v.HTTP)
-			}
+			require.Equal(fmt.Sprintf("http://:%d/", yPort), v.HTTP)
 		default:
 			t.Fatalf("unexpected check: %q", v.Name)
 		}
 	}
+
+	require.NotEmpty(origTCPKey)
+	require.NotEmpty(origScriptKey)
+	require.NotEmpty(origHTTPKey)
 
 	// Now update the PortLabel on the Service and Check c3
 	origTask := ctx.Task.Copy()
@@ -340,64 +263,31 @@ func TestConsul_ChangePorts(t *testing.T) {
 			// Removed PortLabel; should default to service's (y)
 		},
 	}
-	if err := ctx.ServiceClient.UpdateTask(origTask, ctx.Task); err != nil {
-		t.Fatalf("unexpected error registering task: %v", err)
-	}
-	if err := ctx.syncOnce(); err != nil {
-		t.Fatalf("unexpected error syncing task: %v", err)
+
+	require.NoError(ctx.ServiceClient.UpdateTask(origTask, ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Equal(1, len(ctx.FakeConsul.services), "Expected 1 service to be registered with Consul")
+
+	for _, v := range ctx.FakeConsul.services {
+		require.Equal(ctx.Task.Services[0].Name, v.Name)
+		require.Equal(ctx.Task.Services[0].Tags, v.Tags)
+		require.Equal(yPort, v.Port)
 	}
 
-	if n := len(ctx.FakeConsul.services); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services)
-	}
-
-	for k, v := range ctx.FakeConsul.services {
-		if k == origServiceKey {
-			t.Errorf("expected key change; still: %q", k)
-		}
-		if v.Name != ctx.Task.Services[0].Name {
-			t.Errorf("expected Name=%q != %q", ctx.Task.Services[0].Name, v.Name)
-		}
-		if !reflect.DeepEqual(v.Tags, ctx.Task.Services[0].Tags) {
-			t.Errorf("expected Tags=%v != %v", ctx.Task.Services[0].Tags, v.Tags)
-		}
-		if v.Port != yPort {
-			t.Errorf("expected Port y=%v but found: %v", yPort, v.Port)
-		}
-	}
-
-	if n := len(ctx.FakeConsul.checks); n != 3 {
-		t.Fatalf("expected 3 check but found %d:\n%#v", n, ctx.FakeConsul.checks)
-	}
+	require.Equal(3, len(ctx.FakeConsul.checks))
 
 	for k, v := range ctx.FakeConsul.checks {
 		switch v.Name {
 		case "c1":
-			if k == origTCPKey {
-				t.Errorf("expected key change for %s from %q", v.Name, origTCPKey)
-			}
-			if expected := fmt.Sprintf(":%d", xPort); v.TCP != expected {
-				t.Errorf("expected Port x=%v but found: %v", expected, v.TCP)
-			}
+			// C1 is not changed
+			require.Equal(origTCPKey, k)
+			require.Equal(fmt.Sprintf(":%d", xPort), v.TCP)
 		case "c2":
-			if k == origScriptKey {
-				t.Errorf("expected key change for %s from %q", v.Name, origScriptKey)
-			}
-			select {
-			case <-ctx.MockExec.execs:
-				if n := len(ctx.MockExec.execs); n > 0 {
-					t.Errorf("expected 1 exec but found: %d", n+1)
-				}
-			case <-time.After(3 * time.Second):
-				t.Errorf("script not called in time")
-			}
+			// C2 is not changed and should not have been re-registered
+			require.Equal(origScriptKey, k)
 		case "c3":
-			if k == origHTTPKey {
-				t.Errorf("expected %s key to change from %q", v.Name, k)
-			}
-			if expected := fmt.Sprintf("http://:%d/", yPort); v.HTTP != expected {
-				t.Errorf("expected Port y=%v but found: %v", expected, v.HTTP)
-			}
+			require.NotEqual(origHTTPKey, k)
+			require.Equal(fmt.Sprintf("http://:%d/", yPort), v.HTTP)
 		default:
 			t.Errorf("Unknown check: %q", k)
 		}
@@ -887,9 +777,10 @@ func TestConsul_ShutdownSlow(t *testing.T) {
 		t.Errorf("unexpected error shutting down client: %v", err)
 	}
 
-	// Shutdown time should have taken: 1s <= shutdown <= 3s
+	// Shutdown time should have taken: ~1s <= shutdown <= 3s
+	// actual timing might be less than 1s, to account for shutdown invocation overhead
 	shutdownTime := time.Now().Sub(preShutdown)
-	if shutdownTime < time.Second || shutdownTime > ctx.ServiceClient.shutdownWait {
+	if shutdownTime < 900*time.Millisecond || shutdownTime > ctx.ServiceClient.shutdownWait {
 		t.Errorf("expected shutdown to take >1s and <%s but took: %s", ctx.ServiceClient.shutdownWait, shutdownTime)
 	}
 
@@ -1113,7 +1004,7 @@ func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
 		},
 	}
 
-	ctx.Task.DriverNetwork = &cstructs.DriverNetwork{
+	ctx.Task.DriverNetwork = &drivers.DriverNetwork{
 		PortMap: map[string]int{
 			"x": 8888,
 			"y": 9999,
@@ -1217,7 +1108,7 @@ func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
 		},
 	}
 
-	ctx.Task.DriverNetwork = &cstructs.DriverNetwork{
+	ctx.Task.DriverNetwork = &drivers.DriverNetwork{
 		PortMap: map[string]int{
 			"x": 8888,
 			"y": 9999,
@@ -1281,7 +1172,7 @@ func TestConsul_DriverNetwork_Change(t *testing.T) {
 		},
 	}
 
-	ctx.Task.DriverNetwork = &cstructs.DriverNetwork{
+	ctx.Task.DriverNetwork = &drivers.DriverNetwork{
 		PortMap: map[string]int{
 			"x": 8888,
 			"y": 9999,
@@ -1558,7 +1449,7 @@ func TestGetAddress(t *testing.T) {
 		Mode      string
 		PortLabel string
 		Host      map[string]int // will be converted to structs.Networks
-		Driver    *cstructs.DriverNetwork
+		Driver    *drivers.DriverNetwork
 
 		// Results
 		ExpectedIP   string
@@ -1571,7 +1462,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeAuto,
 			PortLabel: "db",
 			Host:      map[string]int{"db": 12435},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1583,7 +1474,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeHost,
 			PortLabel: "db",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1595,7 +1486,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeDriver,
 			PortLabel: "db",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1607,7 +1498,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeAuto,
 			PortLabel: "db",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap:       map[string]int{"db": 6379},
 				IP:            "10.1.2.3",
 				AutoAdvertise: true,
@@ -1620,7 +1511,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeDriver,
 			PortLabel: "7890",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1642,7 +1533,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeDriver,
 			PortLabel: "bad-port-label",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1652,7 +1543,7 @@ func TestGetAddress(t *testing.T) {
 			Name:      "DriverZeroPort",
 			Mode:      structs.AddressModeDriver,
 			PortLabel: "0",
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				IP: "10.1.2.3",
 			},
 			ExpectedErr: "invalid port",
@@ -1682,7 +1573,7 @@ func TestGetAddress(t *testing.T) {
 		{
 			Name: "NoPort_DriverMode",
 			Mode: structs.AddressModeDriver,
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				IP: "10.1.2.3",
 			},
 			ExpectedIP: "10.1.2.3",

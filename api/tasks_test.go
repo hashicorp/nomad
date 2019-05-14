@@ -1,12 +1,11 @@
 package api
 
 import (
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,8 +14,8 @@ func TestTaskGroup_NewTaskGroup(t *testing.T) {
 	t.Parallel()
 	grp := NewTaskGroup("grp1", 2)
 	expect := &TaskGroup{
-		Name:  helper.StringToPtr("grp1"),
-		Count: helper.IntToPtr(2),
+		Name:  stringToPtr("grp1"),
+		Count: intToPtr(2),
 	}
 	if !reflect.DeepEqual(grp, expect) {
 		t.Fatalf("expect: %#v, got: %#v", expect, grp)
@@ -79,13 +78,13 @@ func TestTaskGroup_AddAffinity(t *testing.T) {
 			LTarget: "kernel.version",
 			RTarget: "4.6",
 			Operand: "=",
-			Weight:  100,
+			Weight:  int8ToPtr(100),
 		},
 		{
 			LTarget: "${node.affinity}",
 			RTarget: "dc2",
 			Operand: "=",
-			Weight:  50,
+			Weight:  int8ToPtr(50),
 		},
 	}
 	if !reflect.DeepEqual(grp.Affinities, expect) {
@@ -143,7 +142,7 @@ func TestTaskGroup_AddSpread(t *testing.T) {
 	expect := []*Spread{
 		{
 			Attribute: "${meta.rack}",
-			Weight:    100,
+			Weight:    int8ToPtr(100),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "r1",
@@ -153,7 +152,7 @@ func TestTaskGroup_AddSpread(t *testing.T) {
 		},
 		{
 			Attribute: "${node.datacenter}",
-			Weight:    100,
+			Weight:    int8ToPtr(100),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "dc1",
@@ -263,13 +262,13 @@ func TestTask_Require(t *testing.T) {
 
 	// Create some require resources
 	resources := &Resources{
-		CPU:      helper.IntToPtr(1250),
-		MemoryMB: helper.IntToPtr(128),
-		DiskMB:   helper.IntToPtr(2048),
+		CPU:      intToPtr(1250),
+		MemoryMB: intToPtr(128),
+		DiskMB:   intToPtr(2048),
 		Networks: []*NetworkResource{
 			{
 				CIDR:          "0.0.0.0/0",
-				MBits:         helper.IntToPtr(100),
+				MBits:         intToPtr(100),
 				ReservedPorts: []Port{{"", 80}, {"", 443}},
 			},
 		},
@@ -340,13 +339,13 @@ func TestTask_AddAffinity(t *testing.T) {
 			LTarget: "kernel.version",
 			RTarget: "4.6",
 			Operand: "=",
-			Weight:  100,
+			Weight:  int8ToPtr(100),
 		},
 		{
 			LTarget: "${node.datacenter}",
 			RTarget: "dc2",
 			Operand: "=",
-			Weight:  50,
+			Weight:  int8ToPtr(50),
 		},
 	}
 	if !reflect.DeepEqual(task.Affinities, expect) {
@@ -357,14 +356,14 @@ func TestTask_AddAffinity(t *testing.T) {
 func TestTask_Artifact(t *testing.T) {
 	t.Parallel()
 	a := TaskArtifact{
-		GetterSource: helper.StringToPtr("http://localhost/foo.txt"),
-		GetterMode:   helper.StringToPtr("file"),
+		GetterSource: stringToPtr("http://localhost/foo.txt"),
+		GetterMode:   stringToPtr("file"),
 	}
 	a.Canonicalize()
 	if *a.GetterMode != "file" {
 		t.Errorf("expected file but found %q", *a.GetterMode)
 	}
-	if *a.RelativeDest != "local/foo.txt" {
+	if filepath.ToSlash(*a.RelativeDest) != "local/foo.txt" {
 		t.Errorf("expected local/foo.txt but found %q", *a.RelativeDest)
 	}
 }
@@ -372,185 +371,24 @@ func TestTask_Artifact(t *testing.T) {
 // Ensures no regression on https://github.com/hashicorp/nomad/issues/3132
 func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 	job := &Job{
-		ID: helper.StringToPtr("test"),
+		ID: stringToPtr("test"),
 		Update: &UpdateStrategy{
-			AutoRevert:       helper.BoolToPtr(false),
-			Canary:           helper.IntToPtr(0),
-			HealthCheck:      helper.StringToPtr(""),
-			HealthyDeadline:  helper.TimeToPtr(0),
-			ProgressDeadline: helper.TimeToPtr(0),
-			MaxParallel:      helper.IntToPtr(0),
-			MinHealthyTime:   helper.TimeToPtr(0),
-			Stagger:          helper.TimeToPtr(0),
+			AutoRevert:       boolToPtr(false),
+			Canary:           intToPtr(0),
+			HealthCheck:      stringToPtr(""),
+			HealthyDeadline:  timeToPtr(0),
+			ProgressDeadline: timeToPtr(0),
+			MaxParallel:      intToPtr(0),
+			MinHealthyTime:   timeToPtr(0),
+			Stagger:          timeToPtr(0),
 		},
 	}
 	job.Canonicalize()
 	tg := &TaskGroup{
-		Name: helper.StringToPtr("foo"),
+		Name: stringToPtr("foo"),
 	}
 	tg.Canonicalize(job)
 	assert.Nil(t, tg.Update)
-}
-
-// Verifies that reschedule policy is merged correctly
-func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
-	type testCase struct {
-		desc                 string
-		jobReschedulePolicy  *ReschedulePolicy
-		taskReschedulePolicy *ReschedulePolicy
-		expected             *ReschedulePolicy
-	}
-
-	testCases := []testCase{
-		{
-			desc:                 "Default",
-			jobReschedulePolicy:  nil,
-			taskReschedulePolicy: nil,
-			expected: &ReschedulePolicy{
-				Attempts:      helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
-				Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
-				Delay:         helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
-				DelayFunction: helper.StringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
-				MaxDelay:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
-				Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
-			},
-		},
-		{
-			desc: "Empty job reschedule policy",
-			jobReschedulePolicy: &ReschedulePolicy{
-				Attempts:      helper.IntToPtr(0),
-				Interval:      helper.TimeToPtr(0),
-				Delay:         helper.TimeToPtr(0),
-				MaxDelay:      helper.TimeToPtr(0),
-				DelayFunction: helper.StringToPtr(""),
-				Unlimited:     helper.BoolToPtr(false),
-			},
-			taskReschedulePolicy: nil,
-			expected: &ReschedulePolicy{
-				Attempts:      helper.IntToPtr(0),
-				Interval:      helper.TimeToPtr(0),
-				Delay:         helper.TimeToPtr(0),
-				MaxDelay:      helper.TimeToPtr(0),
-				DelayFunction: helper.StringToPtr(""),
-				Unlimited:     helper.BoolToPtr(false),
-			},
-		},
-		{
-			desc: "Inherit from job",
-			jobReschedulePolicy: &ReschedulePolicy{
-				Attempts:      helper.IntToPtr(1),
-				Interval:      helper.TimeToPtr(20 * time.Second),
-				Delay:         helper.TimeToPtr(20 * time.Second),
-				MaxDelay:      helper.TimeToPtr(10 * time.Minute),
-				DelayFunction: helper.StringToPtr("constant"),
-				Unlimited:     helper.BoolToPtr(false),
-			},
-			taskReschedulePolicy: nil,
-			expected: &ReschedulePolicy{
-				Attempts:      helper.IntToPtr(1),
-				Interval:      helper.TimeToPtr(20 * time.Second),
-				Delay:         helper.TimeToPtr(20 * time.Second),
-				MaxDelay:      helper.TimeToPtr(10 * time.Minute),
-				DelayFunction: helper.StringToPtr("constant"),
-				Unlimited:     helper.BoolToPtr(false),
-			},
-		},
-		{
-			desc:                "Set in task",
-			jobReschedulePolicy: nil,
-			taskReschedulePolicy: &ReschedulePolicy{
-				Attempts:      helper.IntToPtr(5),
-				Interval:      helper.TimeToPtr(2 * time.Minute),
-				Delay:         helper.TimeToPtr(20 * time.Second),
-				MaxDelay:      helper.TimeToPtr(10 * time.Minute),
-				DelayFunction: helper.StringToPtr("constant"),
-				Unlimited:     helper.BoolToPtr(false),
-			},
-			expected: &ReschedulePolicy{
-				Attempts:      helper.IntToPtr(5),
-				Interval:      helper.TimeToPtr(2 * time.Minute),
-				Delay:         helper.TimeToPtr(20 * time.Second),
-				MaxDelay:      helper.TimeToPtr(10 * time.Minute),
-				DelayFunction: helper.StringToPtr("constant"),
-				Unlimited:     helper.BoolToPtr(false),
-			},
-		},
-		{
-			desc: "Merge from job",
-			jobReschedulePolicy: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(1),
-				Delay:    helper.TimeToPtr(20 * time.Second),
-				MaxDelay: helper.TimeToPtr(10 * time.Minute),
-			},
-			taskReschedulePolicy: &ReschedulePolicy{
-				Interval:      helper.TimeToPtr(5 * time.Minute),
-				DelayFunction: helper.StringToPtr("constant"),
-				Unlimited:     helper.BoolToPtr(false),
-			},
-			expected: &ReschedulePolicy{
-				Attempts:      helper.IntToPtr(1),
-				Interval:      helper.TimeToPtr(5 * time.Minute),
-				Delay:         helper.TimeToPtr(20 * time.Second),
-				MaxDelay:      helper.TimeToPtr(10 * time.Minute),
-				DelayFunction: helper.StringToPtr("constant"),
-				Unlimited:     helper.BoolToPtr(false),
-			},
-		},
-		{
-			desc: "Override from group",
-			jobReschedulePolicy: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(1),
-				MaxDelay: helper.TimeToPtr(10 * time.Second),
-			},
-			taskReschedulePolicy: &ReschedulePolicy{
-				Attempts:      helper.IntToPtr(5),
-				Delay:         helper.TimeToPtr(20 * time.Second),
-				MaxDelay:      helper.TimeToPtr(20 * time.Minute),
-				DelayFunction: helper.StringToPtr("constant"),
-				Unlimited:     helper.BoolToPtr(false),
-			},
-			expected: &ReschedulePolicy{
-				Attempts:      helper.IntToPtr(5),
-				Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
-				Delay:         helper.TimeToPtr(20 * time.Second),
-				MaxDelay:      helper.TimeToPtr(20 * time.Minute),
-				DelayFunction: helper.StringToPtr("constant"),
-				Unlimited:     helper.BoolToPtr(false),
-			},
-		},
-		{
-			desc: "Attempts from job, default interval",
-			jobReschedulePolicy: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(1),
-			},
-			taskReschedulePolicy: nil,
-			expected: &ReschedulePolicy{
-				Attempts:      helper.IntToPtr(1),
-				Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
-				Delay:         helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
-				DelayFunction: helper.StringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
-				MaxDelay:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
-				Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			job := &Job{
-				ID:         helper.StringToPtr("test"),
-				Reschedule: tc.jobReschedulePolicy,
-				Type:       helper.StringToPtr(JobTypeBatch),
-			}
-			job.Canonicalize()
-			tg := &TaskGroup{
-				Name:             helper.StringToPtr("foo"),
-				ReschedulePolicy: tc.taskReschedulePolicy,
-			}
-			tg.Canonicalize(job)
-			assert.Equal(t, tc.expected, tg.ReschedulePolicy)
-		})
-	}
 }
 
 // Verifies that migrate strategy is merged correctly
@@ -577,44 +415,44 @@ func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
 			jobMigrate:  nil,
 			taskMigrate: nil,
 			expected: &MigrateStrategy{
-				MaxParallel:     helper.IntToPtr(1),
-				HealthCheck:     helper.StringToPtr("checks"),
-				MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-				HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
+				MaxParallel:     intToPtr(1),
+				HealthCheck:     stringToPtr("checks"),
+				MinHealthyTime:  timeToPtr(10 * time.Second),
+				HealthyDeadline: timeToPtr(5 * time.Minute),
 			},
 		},
 		{
 			desc:    "Empty job migrate strategy",
 			jobType: "service",
 			jobMigrate: &MigrateStrategy{
-				MaxParallel:     helper.IntToPtr(0),
-				HealthCheck:     helper.StringToPtr(""),
-				MinHealthyTime:  helper.TimeToPtr(0),
-				HealthyDeadline: helper.TimeToPtr(0),
+				MaxParallel:     intToPtr(0),
+				HealthCheck:     stringToPtr(""),
+				MinHealthyTime:  timeToPtr(0),
+				HealthyDeadline: timeToPtr(0),
 			},
 			taskMigrate: nil,
 			expected: &MigrateStrategy{
-				MaxParallel:     helper.IntToPtr(0),
-				HealthCheck:     helper.StringToPtr(""),
-				MinHealthyTime:  helper.TimeToPtr(0),
-				HealthyDeadline: helper.TimeToPtr(0),
+				MaxParallel:     intToPtr(0),
+				HealthCheck:     stringToPtr(""),
+				MinHealthyTime:  timeToPtr(0),
+				HealthyDeadline: timeToPtr(0),
 			},
 		},
 		{
 			desc:    "Inherit from job",
 			jobType: "service",
 			jobMigrate: &MigrateStrategy{
-				MaxParallel:     helper.IntToPtr(3),
-				HealthCheck:     helper.StringToPtr("checks"),
-				MinHealthyTime:  helper.TimeToPtr(2),
-				HealthyDeadline: helper.TimeToPtr(2),
+				MaxParallel:     intToPtr(3),
+				HealthCheck:     stringToPtr("checks"),
+				MinHealthyTime:  timeToPtr(2),
+				HealthyDeadline: timeToPtr(2),
 			},
 			taskMigrate: nil,
 			expected: &MigrateStrategy{
-				MaxParallel:     helper.IntToPtr(3),
-				HealthCheck:     helper.StringToPtr("checks"),
-				MinHealthyTime:  helper.TimeToPtr(2),
-				HealthyDeadline: helper.TimeToPtr(2),
+				MaxParallel:     intToPtr(3),
+				HealthCheck:     stringToPtr("checks"),
+				MinHealthyTime:  timeToPtr(2),
+				HealthyDeadline: timeToPtr(2),
 			},
 		},
 		{
@@ -622,67 +460,67 @@ func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
 			jobType:    "service",
 			jobMigrate: nil,
 			taskMigrate: &MigrateStrategy{
-				MaxParallel:     helper.IntToPtr(3),
-				HealthCheck:     helper.StringToPtr("checks"),
-				MinHealthyTime:  helper.TimeToPtr(2),
-				HealthyDeadline: helper.TimeToPtr(2),
+				MaxParallel:     intToPtr(3),
+				HealthCheck:     stringToPtr("checks"),
+				MinHealthyTime:  timeToPtr(2),
+				HealthyDeadline: timeToPtr(2),
 			},
 			expected: &MigrateStrategy{
-				MaxParallel:     helper.IntToPtr(3),
-				HealthCheck:     helper.StringToPtr("checks"),
-				MinHealthyTime:  helper.TimeToPtr(2),
-				HealthyDeadline: helper.TimeToPtr(2),
+				MaxParallel:     intToPtr(3),
+				HealthCheck:     stringToPtr("checks"),
+				MinHealthyTime:  timeToPtr(2),
+				HealthyDeadline: timeToPtr(2),
 			},
 		},
 		{
 			desc:    "Merge from job",
 			jobType: "service",
 			jobMigrate: &MigrateStrategy{
-				MaxParallel: helper.IntToPtr(11),
+				MaxParallel: intToPtr(11),
 			},
 			taskMigrate: &MigrateStrategy{
-				HealthCheck:     helper.StringToPtr("checks"),
-				MinHealthyTime:  helper.TimeToPtr(2),
-				HealthyDeadline: helper.TimeToPtr(2),
+				HealthCheck:     stringToPtr("checks"),
+				MinHealthyTime:  timeToPtr(2),
+				HealthyDeadline: timeToPtr(2),
 			},
 			expected: &MigrateStrategy{
-				MaxParallel:     helper.IntToPtr(11),
-				HealthCheck:     helper.StringToPtr("checks"),
-				MinHealthyTime:  helper.TimeToPtr(2),
-				HealthyDeadline: helper.TimeToPtr(2),
+				MaxParallel:     intToPtr(11),
+				HealthCheck:     stringToPtr("checks"),
+				MinHealthyTime:  timeToPtr(2),
+				HealthyDeadline: timeToPtr(2),
 			},
 		},
 		{
 			desc:    "Override from group",
 			jobType: "service",
 			jobMigrate: &MigrateStrategy{
-				MaxParallel: helper.IntToPtr(11),
+				MaxParallel: intToPtr(11),
 			},
 			taskMigrate: &MigrateStrategy{
-				MaxParallel:     helper.IntToPtr(5),
-				HealthCheck:     helper.StringToPtr("checks"),
-				MinHealthyTime:  helper.TimeToPtr(2),
-				HealthyDeadline: helper.TimeToPtr(2),
+				MaxParallel:     intToPtr(5),
+				HealthCheck:     stringToPtr("checks"),
+				MinHealthyTime:  timeToPtr(2),
+				HealthyDeadline: timeToPtr(2),
 			},
 			expected: &MigrateStrategy{
-				MaxParallel:     helper.IntToPtr(5),
-				HealthCheck:     helper.StringToPtr("checks"),
-				MinHealthyTime:  helper.TimeToPtr(2),
-				HealthyDeadline: helper.TimeToPtr(2),
+				MaxParallel:     intToPtr(5),
+				HealthCheck:     stringToPtr("checks"),
+				MinHealthyTime:  timeToPtr(2),
+				HealthyDeadline: timeToPtr(2),
 			},
 		},
 		{
 			desc:    "Parallel from job, defaulting",
 			jobType: "service",
 			jobMigrate: &MigrateStrategy{
-				MaxParallel: helper.IntToPtr(5),
+				MaxParallel: intToPtr(5),
 			},
 			taskMigrate: nil,
 			expected: &MigrateStrategy{
-				MaxParallel:     helper.IntToPtr(5),
-				HealthCheck:     helper.StringToPtr("checks"),
-				MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-				HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
+				MaxParallel:     intToPtr(5),
+				HealthCheck:     stringToPtr("checks"),
+				MinHealthyTime:  timeToPtr(10 * time.Second),
+				HealthyDeadline: timeToPtr(5 * time.Minute),
 			},
 		},
 	}
@@ -690,13 +528,13 @@ func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			job := &Job{
-				ID:      helper.StringToPtr("test"),
+				ID:      stringToPtr("test"),
 				Migrate: tc.jobMigrate,
-				Type:    helper.StringToPtr(tc.jobType),
+				Type:    stringToPtr(tc.jobType),
 			}
 			job.Canonicalize()
 			tg := &TaskGroup{
-				Name:    helper.StringToPtr("foo"),
+				Name:    stringToPtr("foo"),
 				Migrate: tc.taskMigrate,
 			}
 			tg.Canonicalize(job)
@@ -708,13 +546,13 @@ func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
 // TestService_CheckRestart asserts Service.CheckRestart settings are properly
 // inherited by Checks.
 func TestService_CheckRestart(t *testing.T) {
-	job := &Job{Name: helper.StringToPtr("job")}
-	tg := &TaskGroup{Name: helper.StringToPtr("group")}
+	job := &Job{Name: stringToPtr("job")}
+	tg := &TaskGroup{Name: stringToPtr("group")}
 	task := &Task{Name: "task"}
 	service := &Service{
 		CheckRestart: &CheckRestart{
 			Limit:          11,
-			Grace:          helper.TimeToPtr(11 * time.Second),
+			Grace:          timeToPtr(11 * time.Second),
 			IgnoreWarnings: true,
 		},
 		Checks: []ServiceCheck{
@@ -722,7 +560,7 @@ func TestService_CheckRestart(t *testing.T) {
 				Name: "all-set",
 				CheckRestart: &CheckRestart{
 					Limit:          22,
-					Grace:          helper.TimeToPtr(22 * time.Second),
+					Grace:          timeToPtr(22 * time.Second),
 					IgnoreWarnings: true,
 				},
 			},
@@ -730,7 +568,7 @@ func TestService_CheckRestart(t *testing.T) {
 				Name: "some-set",
 				CheckRestart: &CheckRestart{
 					Limit: 33,
-					Grace: helper.TimeToPtr(33 * time.Second),
+					Grace: timeToPtr(33 * time.Second),
 				},
 			},
 			{
@@ -751,4 +589,58 @@ func TestService_CheckRestart(t *testing.T) {
 	assert.Equal(t, service.Checks[2].CheckRestart.Limit, 11)
 	assert.Equal(t, *service.Checks[2].CheckRestart.Grace, 11*time.Second)
 	assert.True(t, service.Checks[2].CheckRestart.IgnoreWarnings)
+}
+
+// TestSpread_Canonicalize asserts that the spread stanza is canonicalized correctly
+func TestSpread_Canonicalize(t *testing.T) {
+	job := &Job{
+		ID:   stringToPtr("test"),
+		Type: stringToPtr("batch"),
+	}
+	job.Canonicalize()
+	tg := &TaskGroup{
+		Name: stringToPtr("foo"),
+	}
+	type testCase struct {
+		desc           string
+		spread         *Spread
+		expectedWeight int8
+	}
+	cases := []testCase{
+		{
+			"Nil spread",
+			&Spread{
+				Attribute: "test",
+				Weight:    nil,
+			},
+			50,
+		},
+		{
+			"Zero spread",
+			&Spread{
+				Attribute: "test",
+				Weight:    int8ToPtr(0),
+			},
+			0,
+		},
+		{
+			"Non Zero spread",
+			&Spread{
+				Attribute: "test",
+				Weight:    int8ToPtr(100),
+			},
+			100,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			require := require.New(t)
+			tg.Spreads = []*Spread{tc.spread}
+			tg.Canonicalize(job)
+			for _, spr := range tg.Spreads {
+				require.Equal(tc.expectedWeight, *spr.Weight)
+			}
+		})
+	}
 }

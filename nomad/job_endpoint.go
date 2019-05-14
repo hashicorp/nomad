@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
+	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
 
-	"github.com/armon/go-metrics"
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -263,7 +263,7 @@ func setImplicitConstraints(j *structs.Job) {
 
 		found := false
 		for _, c := range tg.Constraints {
-			if c.Equal(vaultConstraint) {
+			if c.Equals(vaultConstraint) {
 				found = true
 				break
 			}
@@ -288,7 +288,7 @@ func setImplicitConstraints(j *structs.Job) {
 
 		found := false
 		for _, c := range tg.Constraints {
-			if c.Equal(sigConstraint) {
+			if c.Equals(sigConstraint) {
 				found = true
 				break
 			}
@@ -441,8 +441,11 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	}
 
 	// Build the register request
+	revJob := jobV.Copy()
+	// Use Vault Token from revert request to perform registration of reverted job.
+	revJob.VaultToken = args.VaultToken
 	reg := &structs.JobRegisterRequest{
-		Job:          jobV.Copy(),
+		Job:          revJob,
 		WriteRequest: args.WriteRequest,
 	}
 

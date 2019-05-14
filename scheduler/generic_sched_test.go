@@ -615,14 +615,14 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) 
 func TestServiceSched_Spread(t *testing.T) {
 	assert := assert.New(t)
 
-	start := uint32(100)
-	step := uint32(10)
+	start := uint8(100)
+	step := uint8(10)
 
 	for i := 0; i < 10; i++ {
 		name := fmt.Sprintf("%d%% in dc1", start)
 		t.Run(name, func(t *testing.T) {
 			h := NewHarness(t)
-			remaining := uint32(100 - start)
+			remaining := uint8(100 - start)
 			// Create a job that uses spread over data center
 			job := mock.Job()
 			job.Datacenters = []string{"dc1", "dc2"}
@@ -4029,6 +4029,18 @@ func TestBatchSched_ScaleDown_SameName(t *testing.T) {
 	job.TaskGroups[0].Count = 1
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
+	scoreMetric := &structs.AllocMetric{
+		NodesEvaluated: 10,
+		NodesFiltered:  3,
+		ScoreMetaData: []*structs.NodeScoreMeta{
+			{
+				NodeID: node.ID,
+				Scores: map[string]float64{
+					"bin-packing": 0.5435,
+				},
+			},
+		},
+	}
 	// Create a few running alloc
 	var allocs []*structs.Allocation
 	for i := 0; i < 5; i++ {
@@ -4038,9 +4050,15 @@ func TestBatchSched_ScaleDown_SameName(t *testing.T) {
 		alloc.NodeID = node.ID
 		alloc.Name = "my-job.web[0]"
 		alloc.ClientStatus = structs.AllocClientStatusRunning
+		alloc.Metrics = scoreMetric
 		allocs = append(allocs, alloc)
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Update the job's modify index to force an inplace upgrade
+	updatedJob := job.Copy()
+	updatedJob.JobModifyIndex = job.JobModifyIndex + 1
+	noErr(t, h.State.UpsertJob(h.NextIndex(), updatedJob))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -4067,11 +4085,16 @@ func TestBatchSched_ScaleDown_SameName(t *testing.T) {
 
 	plan := h.Plans[0]
 
+	require := require.New(t)
 	// Ensure the plan evicted 4 of the 5
-	if len(plan.NodeUpdate[node.ID]) != 4 {
-		t.Fatalf("bad: %#v", plan)
-	}
+	require.Equal(4, len(plan.NodeUpdate[node.ID]))
 
+	// Ensure that the scheduler did not overwrite the original score metrics for the i
+	for _, inPlaceAllocs := range plan.NodeAllocation {
+		for _, alloc := range inPlaceAllocs {
+			require.Equal(scoreMetric, alloc.Metrics)
+		}
+	}
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 

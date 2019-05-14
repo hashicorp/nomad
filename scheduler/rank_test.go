@@ -584,10 +584,10 @@ func TestBinPackIterator_Devices(t *testing.T) {
 									Count: 1,
 									Affinities: []*structs.Affinity{
 										{
-											LTarget: "${driver.attr.graphics_clock}",
+											LTarget: "${device.attr.graphics_clock}",
 											Operand: ">",
 											RTarget: "1.4 GHz",
-											Weight:  0.9,
+											Weight:  90,
 										},
 									},
 								},
@@ -990,7 +990,7 @@ func TestNodeAffinityIterator(t *testing.T) {
 			Operand: "=",
 			LTarget: "${node.datacenter}",
 			RTarget: "dc1",
-			Weight:  200,
+			Weight:  100,
 		},
 		{
 			Operand: "=",
@@ -1026,18 +1026,18 @@ func TestNodeAffinityIterator(t *testing.T) {
 
 	out := collectRanked(scoreNorm)
 	expectedScores := make(map[string]float64)
-	// Total weight = 400
-	// Node 0 matches two affinities(dc and kernel version), total weight =250
-	expectedScores[nodes[0].Node.ID] = 0.625
+	// Total weight = 300
+	// Node 0 matches two affinities(dc and kernel version), total weight = 150
+	expectedScores[nodes[0].Node.ID] = 0.5
 
 	// Node 1 matches an anti affinity, weight = -100
-	expectedScores[nodes[1].Node.ID] = -0.25
+	expectedScores[nodes[1].Node.ID] = -(1.0 / 3.0)
 
 	// Node 2 matches one affinity(node class) with weight 50
-	expectedScores[nodes[2].Node.ID] = -0.125
+	expectedScores[nodes[2].Node.ID] = -(1.0 / 6.0)
 
-	// Node 3 matches one affinity (dc) with weight = 200
-	expectedScores[nodes[3].Node.ID] = 0.5
+	// Node 3 matches one affinity (dc) with weight = 100
+	expectedScores[nodes[3].Node.ID] = 1.0 / 3.0
 
 	require := require.New(t)
 	for _, n := range out {

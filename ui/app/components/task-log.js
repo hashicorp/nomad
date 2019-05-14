@@ -26,7 +26,7 @@ export default Component.extend(WindowResizable, {
   serverTimeout: 5000,
 
   didReceiveAttrs() {
-    if (this.get('allocation') && this.get('task')) {
+    if (this.allocation && this.task) {
       this.send('toggleStream');
     }
   },
@@ -53,29 +53,29 @@ export default Component.extend(WindowResizable, {
     const allocation = this.get('allocation.id');
 
     const url = `/v1/client/fs/logs/${allocation}`;
-    return this.get('useServer') ? url : `//${address}${url}`;
+    return this.useServer ? url : `//${address}${url}`;
   }),
 
   logParams: computed('task', 'mode', function() {
     return {
-      task: this.get('task'),
-      type: this.get('mode'),
+      task: this.task,
+      type: this.mode,
     };
   }),
 
   logger: logger('logUrl', 'logParams', function logFetch() {
     // If the log request can't settle in one second, the client
     // must be unavailable and the server should be used instead
-    const timing = this.get('useServer') ? this.get('serverTimeout') : this.get('clientTimeout');
+    const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
     return url =>
-      RSVP.race([this.get('token').authorizedRequest(url), timeout(timing)]).then(
+      RSVP.race([this.token.authorizedRequest(url), timeout(timing)]).then(
         response => response,
         error => {
-          if (this.get('useServer')) {
+          if (this.useServer) {
             this.set('noConnection', true);
           } else {
             this.send('failoverToServer');
-            this.get('stream').perform();
+            this.stream.perform();
           }
           throw error;
         }
@@ -98,32 +98,32 @@ export default Component.extend(WindowResizable, {
   }),
 
   stream: task(function*() {
-    this.get('logger').on('tick', () => {
+    this.logger.on('tick', () => {
       run.scheduleOnce('afterRender', () => {
         const cliWindow = this.$('.cli-window');
         cliWindow.scrollTop(cliWindow[0].scrollHeight);
       });
     });
 
-    yield this.get('logger').startStreaming();
-    this.get('logger').off('tick');
+    yield this.logger.startStreaming();
+    this.logger.off('tick');
   }),
 
   willDestroy() {
-    this.get('logger').stop();
+    this.logger.stop();
   },
 
   actions: {
     setMode(mode) {
-      this.get('logger').stop();
+      this.logger.stop();
       this.set('mode', mode);
-      this.get('stream').perform();
+      this.stream.perform();
     },
     toggleStream() {
       if (this.get('logger.isStreaming')) {
-        this.get('logger').stop();
+        this.logger.stop();
       } else {
-        this.get('stream').perform();
+        this.stream.perform();
       }
     },
     failoverToServer() {

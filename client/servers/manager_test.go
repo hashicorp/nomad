@@ -66,6 +66,19 @@ func TestServers_SetServers(t *testing.T) {
 	require.True(m.SetServers([]*servers.Server{s1}))
 	require.Equal(1, m.NumServers())
 	require.Len(m.GetServers(), 1)
+
+	// Test that the list of servers does not get shuffled
+	// as a side effect when incoming list is equal
+	require.True(m.SetServers([]*servers.Server{s1, s2}))
+	before := m.GetServers()
+	require.False(m.SetServers([]*servers.Server{s1, s2}))
+	after := m.GetServers()
+	require.Equal(before, after)
+
+	// Send a shuffled list, verify original order doesn't change
+	require.False(m.SetServers([]*servers.Server{s2, s1}))
+	afterShuffledInput := m.GetServers()
+	require.Equal(after, afterShuffledInput)
 }
 
 func TestServers_FindServer(t *testing.T) {

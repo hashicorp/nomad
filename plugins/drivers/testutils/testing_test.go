@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -21,7 +20,7 @@ var _ drivers.DriverPlugin = (*MockDriver)(nil)
 func TestDriverHarness(t *testing.T) {
 	handle := &drivers.TaskHandle{Config: &drivers.TaskConfig{Name: "mock"}}
 	d := &MockDriver{
-		StartTaskF: func(task *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+		StartTaskF: func(task *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 			return handle, nil, nil
 		},
 	}
@@ -138,8 +137,8 @@ func TestBaseDriver_StartTask(t *testing.T) {
 	state := &testDriverState{Pid: 1, Log: "log"}
 	var handle *drivers.TaskHandle
 	impl := &MockDriver{
-		StartTaskF: func(c *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
-			handle = drivers.NewTaskHandle("test")
+		StartTaskF: func(c *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
+			handle = drivers.NewTaskHandle(1)
 			handle.Config = c
 			handle.State = drivers.TaskStateRunning
 			handle.SetDriverState(state)

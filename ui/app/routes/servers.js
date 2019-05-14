@@ -21,8 +21,8 @@ export default Route.extend(WithForbiddenState, {
 
   model() {
     return RSVP.hash({
-      nodes: this.get('store').findAll('node'),
-      agents: this.get('store').findAll('agent'),
+      nodes: this.store.findAll('node'),
+      agents: this.store.findAll('agent'),
     }).catch(notifyForbidden(this));
   },
 });

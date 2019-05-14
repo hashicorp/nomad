@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -107,6 +108,16 @@ func TestJob_Validate(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	if !strings.Contains(mErr.Errors[2].Error(), "Task group web validation failed") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// test for empty datacenters
+	j = &Job{
+		Datacenters: []string{""},
+	}
+	err = j.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Error(), "datacenter must be non-empty string") {
 		t.Fatalf("err: %s", err)
 	}
 }
@@ -614,6 +625,52 @@ func TestJob_RequiredSignals(t *testing.T) {
 			t.Fatalf("case %d: got %#v; want %#v", i+1, got, c.Expected)
 		}
 	}
+}
+
+// test new Equal comparisons for components of Jobs
+func TestJob_PartEqual(t *testing.T) {
+	ns := &Networks{}
+	require.True(t, ns.Equals(&Networks{}))
+
+	ns = &Networks{
+		&NetworkResource{Device: "eth0"},
+	}
+	require.True(t, ns.Equals(&Networks{
+		&NetworkResource{Device: "eth0"},
+	}))
+
+	ns = &Networks{
+		&NetworkResource{Device: "eth0"},
+		&NetworkResource{Device: "eth1"},
+		&NetworkResource{Device: "eth2"},
+	}
+	require.True(t, ns.Equals(&Networks{
+		&NetworkResource{Device: "eth2"},
+		&NetworkResource{Device: "eth0"},
+		&NetworkResource{Device: "eth1"},
+	}))
+
+	cs := &Constraints{
+		&Constraint{"left0", "right0", "=", ""},
+		&Constraint{"left1", "right1", "=", ""},
+		&Constraint{"left2", "right2", "=", ""},
+	}
+	require.True(t, cs.Equals(&Constraints{
+		&Constraint{"left0", "right0", "=", ""},
+		&Constraint{"left2", "right2", "=", ""},
+		&Constraint{"left1", "right1", "=", ""},
+	}))
+
+	as := &Affinities{
+		&Affinity{"left0", "right0", "=", 0, ""},
+		&Affinity{"left1", "right1", "=", 0, ""},
+		&Affinity{"left2", "right2", "=", 0, ""},
+	}
+	require.True(t, as.Equals(&Affinities{
+		&Affinity{"left0", "right0", "=", 0, ""},
+		&Affinity{"left2", "right2", "=", 0, ""},
+		&Affinity{"left1", "right1", "=", 0, ""},
+	}))
 }
 
 func TestTaskGroup_Validate(t *testing.T) {
@@ -1642,7 +1699,7 @@ func TestAffinity_Validate(t *testing.T) {
 				Operand: "=",
 				LTarget: "${meta.node_class}",
 				RTarget: "c4",
-				Weight:  500,
+				Weight:  110,
 			},
 			err: fmt.Errorf("Affinity weight must be within the range [-100,100]"),
 		},
@@ -1659,7 +1716,7 @@ func TestAffinity_Validate(t *testing.T) {
 				Operand: "version",
 				LTarget: "${meta.os}",
 				RTarget: ">>2.0",
-				Weight:  500,
+				Weight:  110,
 			},
 			err: fmt.Errorf("Version affinity is invalid"),
 		},
@@ -2607,6 +2664,93 @@ func TestTaskArtifact_Validate_Dest(t *testing.T) {
 	}
 }
 
+// TestTaskArtifact_Hash asserts an artifact's hash changes when any of the
+// fields change.
+func TestTaskArtifact_Hash(t *testing.T) {
+	t.Parallel()
+
+	cases := []TaskArtifact{
+		{},
+		{
+			GetterSource: "a",
+		},
+		{
+			GetterSource: "b",
+		},
+		{
+			GetterSource:  "b",
+			GetterOptions: map[string]string{"c": "c"},
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "d",
+			},
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode: "f",
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode: "g",
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode:   "g",
+			RelativeDest: "h",
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode:   "g",
+			RelativeDest: "i",
+		},
+	}
+
+	// Map of hash to source
+	hashes := make(map[string]TaskArtifact, len(cases))
+	for _, tc := range cases {
+		h := tc.Hash()
+
+		// Hash should be deterministic
+		require.Equal(t, h, tc.Hash())
+
+		// Hash should be unique
+		if orig, ok := hashes[h]; ok {
+			require.Failf(t, "hashes match", "artifact 1: %s\n\n artifact 2: %s\n",
+				pretty.Sprint(tc), pretty.Sprint(orig),
+			)
+		}
+		hashes[h] = tc
+	}
+
+	require.Len(t, hashes, len(cases))
+}
+
 func TestAllocation_ShouldMigrate(t *testing.T) {
 	alloc := Allocation{
 		PreviousAllocation: "123",
@@ -2752,6 +2896,100 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 			continue
 		}
 	}
+}
+
+func TestPlan_NormalizeAllocations(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		NodeUpdate:      make(map[string][]*Allocation),
+		NodePreemptions: make(map[string][]*Allocation),
+	}
+	stoppedAlloc := MockAlloc()
+	desiredDesc := "Desired desc"
+	plan.AppendStoppedAlloc(stoppedAlloc, desiredDesc, AllocClientStatusLost)
+	preemptedAlloc := MockAlloc()
+	preemptingAllocID := uuid.Generate()
+	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
+
+	plan.NormalizeAllocations()
+
+	actualStoppedAlloc := plan.NodeUpdate[stoppedAlloc.NodeID][0]
+	expectedStoppedAlloc := &Allocation{
+		ID:                 stoppedAlloc.ID,
+		DesiredDescription: desiredDesc,
+		ClientStatus:       AllocClientStatusLost,
+	}
+	assert.Equal(t, expectedStoppedAlloc, actualStoppedAlloc)
+	actualPreemptedAlloc := plan.NodePreemptions[preemptedAlloc.NodeID][0]
+	expectedPreemptedAlloc := &Allocation{
+		ID:                    preemptedAlloc.ID,
+		PreemptedByAllocation: preemptingAllocID,
+	}
+	assert.Equal(t, expectedPreemptedAlloc, actualPreemptedAlloc)
+}
+
+func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		NodeUpdate: make(map[string][]*Allocation),
+	}
+	alloc := MockAlloc()
+	desiredDesc := "Desired desc"
+
+	plan.AppendStoppedAlloc(alloc, desiredDesc, AllocClientStatusLost)
+
+	appendedAlloc := plan.NodeUpdate[alloc.NodeID][0]
+	expectedAlloc := new(Allocation)
+	*expectedAlloc = *alloc
+	expectedAlloc.DesiredDescription = desiredDesc
+	expectedAlloc.DesiredStatus = AllocDesiredStatusStop
+	expectedAlloc.ClientStatus = AllocClientStatusLost
+	expectedAlloc.Job = nil
+	assert.Equal(t, expectedAlloc, appendedAlloc)
+	assert.Equal(t, alloc.Job, plan.Job)
+}
+
+func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		NodePreemptions: make(map[string][]*Allocation),
+	}
+	alloc := MockAlloc()
+	preemptingAllocID := uuid.Generate()
+
+	plan.AppendPreemptedAlloc(alloc, preemptingAllocID)
+
+	appendedAlloc := plan.NodePreemptions[alloc.NodeID][0]
+	expectedAlloc := &Allocation{
+		ID:                    alloc.ID,
+		PreemptedByAllocation: preemptingAllocID,
+		JobID:                 alloc.JobID,
+		Namespace:             alloc.Namespace,
+		DesiredStatus:         AllocDesiredStatusEvict,
+		DesiredDescription:    fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID),
+		AllocatedResources:    alloc.AllocatedResources,
+		TaskResources:         alloc.TaskResources,
+		SharedResources:       alloc.SharedResources,
+	}
+	assert.Equal(t, expectedAlloc, appendedAlloc)
+}
+
+func TestAllocation_MsgPackTags(t *testing.T) {
+	t.Parallel()
+	planType := reflect.TypeOf(Allocation{})
+
+	msgPackTags, _ := planType.FieldByName("_struct")
+
+	assert.Equal(t, msgPackTags.Tag, reflect.StructTag(`codec:",omitempty"`))
+}
+
+func TestEvaluation_MsgPackTags(t *testing.T) {
+	t.Parallel()
+	planType := reflect.TypeOf(Evaluation{})
+
+	msgPackTags, _ := planType.FieldByName("_struct")
+
+	assert.Equal(t, msgPackTags.Tag, reflect.StructTag(`codec:",omitempty"`))
 }
 
 func TestAllocation_Terminated(t *testing.T) {
@@ -4078,7 +4316,7 @@ func TestSpread_Validate(t *testing.T) {
 		{
 			spread: &Spread{
 				Attribute: "${node.datacenter}",
-				Weight:    200,
+				Weight:    110,
 			},
 			err:  fmt.Errorf("Spread stanza must have a positive weight from 0 to 100"),
 			name: "Invalid weight",

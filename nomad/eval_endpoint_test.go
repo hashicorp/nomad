@@ -8,7 +8,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEvalEndpoint_GetEval(t *testing.T) {
@@ -239,7 +240,9 @@ func TestEvalEndpoint_Dequeue(t *testing.T) {
 	}
 }
 
-func TestEvalEndpoint_Dequeue_WaitIndex(t *testing.T) {
+// TestEvalEndpoint_Dequeue_WaitIndex_Snapshot asserts that an eval's wait
+// index will be equal to the highest eval modify index in the state store.
+func TestEvalEndpoint_Dequeue_WaitIndex_Snapshot(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -283,6 +286,48 @@ func TestEvalEndpoint_Dequeue_WaitIndex(t *testing.T) {
 	if resp.WaitIndex != 1001 {
 		t.Fatalf("bad wait index; got %d; want %d", resp.WaitIndex, 1001)
 	}
+}
+
+// TestEvalEndpoint_Dequeue_WaitIndex_Eval asserts that an eval's wait index
+// will be its own modify index if its modify index is greater than all of the
+// indexes in the state store. This can happen if Dequeue receives an eval that
+// has not yet been applied from the Raft log to the local node's state store.
+func TestEvalEndpoint_Dequeue_WaitIndex_Eval(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request but only upsert 1 into the state store
+	eval1 := mock.Eval()
+	eval2 := mock.Eval()
+	eval2.JobID = eval1.JobID
+	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
+	eval2.ModifyIndex = 1001
+	s1.evalBroker.Enqueue(eval2)
+
+	// Dequeue the eval
+	get := &structs.EvalDequeueRequest{
+		Schedulers:       defaultSched,
+		SchedulerVersion: scheduler.SchedulerVersion,
+		WriteRequest:     structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.EvalDequeueResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Eval.Dequeue", get, &resp))
+	require.Equal(t, eval2, resp.Eval)
+
+	// Ensure outstanding
+	token, ok := s1.evalBroker.Outstanding(eval2.ID)
+	require.True(t, ok)
+	require.Equal(t, resp.Token, token)
+
+	// WaitIndex should be equal to the max ModifyIndex - even when that
+	// modify index is of the dequeued eval which has yet to be applied to
+	// the state store.
+	require.Equal(t, eval2.ModifyIndex, resp.WaitIndex)
 }
 
 func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {

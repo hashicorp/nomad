@@ -37,7 +37,7 @@ export default Mixin.create({
   handleResponse(frame) {
     if (frame.error) {
       this.incrementProperty('frameMisses');
-      if (this.get('frameMisses') >= this.get('maxFrameMisses')) {
+      if (this.frameMisses >= this.maxFrameMisses) {
         // Missing enough data consecutively is effectively a pause
         this.pause();
         this.set('frameMisses', 0);
@@ -57,13 +57,13 @@ export default Mixin.create({
   // same tracker is used needs to coordinate.
   poll: task(function*() {
     // Interrupt any pause attempt
-    this.get('signalPause').cancelAll();
+    this.signalPause.cancelAll();
 
     try {
-      const url = this.get('url');
+      const url = this.url;
       assert('Url must be defined', url);
 
-      yield this.get('fetch')(url)
+      yield this.fetch(url)
         .then(jsonWithDefault({ error: true }))
         .then(frame => this.handleResponse(frame));
     } catch (error) {

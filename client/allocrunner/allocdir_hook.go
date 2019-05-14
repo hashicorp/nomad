@@ -1,8 +1,6 @@
 package allocrunner
 
 import (
-	"context"
-
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 )
@@ -26,7 +24,7 @@ func (h *allocDirHook) Name() string {
 	return "alloc_dir"
 }
 
-func (h *allocDirHook) Prerun(context.Context) error {
+func (h *allocDirHook) Prerun() error {
 	return h.allocDir.Build()
 }
 

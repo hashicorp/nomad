@@ -8,14 +8,18 @@ import (
 // It is returned to the client after starting the task and used
 // for recovery of tasks during a driver restart.
 type TaskHandle struct {
-	Driver      string
+	// Version is set by the driver an allows it to handle upgrading from
+	// an older DriverState struct. Prior to 0.9 the only state stored for
+	// driver was the reattach config for the executor. To allow upgrading to
+	// 0.9, Version 0 is handled as if it is the json encoded reattach config.
+	Version     int
 	Config      *TaskConfig
 	State       TaskState
 	DriverState []byte
 }
 
-func NewTaskHandle(driver string) *TaskHandle {
-	return &TaskHandle{Driver: driver}
+func NewTaskHandle(version int) *TaskHandle {
+	return &TaskHandle{Version: version}
 }
 
 func (h *TaskHandle) SetDriverState(v interface{}) error {
@@ -34,7 +38,7 @@ func (h *TaskHandle) Copy() *TaskHandle {
 	}
 
 	handle := new(TaskHandle)
-	handle.Driver = h.Driver
+	handle.Version = h.Version
 	handle.Config = h.Config.Copy()
 	handle.State = h.State
 	handle.DriverState = make([]byte, len(h.DriverState))

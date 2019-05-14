@@ -261,6 +261,184 @@ func TestHTTP_AllocQuery_Payload(t *testing.T) {
 	})
 }
 
+func TestHTTP_AllocRestart(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Validates that all methods of forwarding the request are processed correctly
+	httpTest(t, nil, func(s *TestAgent) {
+		// Local node, local resp
+		{
+			// Make the HTTP request
+			buf := encodeReq(map[string]string{})
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/restart", uuid.Generate()), buf)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
+		}
+
+		// Local node, server resp
+		{
+			srv := s.server
+			s.server = nil
+
+			buf := encodeReq(map[string]string{})
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/restart", uuid.Generate()), buf)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
+
+			s.server = srv
+		}
+
+		// no client, server resp
+		{
+			c := s.client
+			s.client = nil
+
+			testutil.WaitForResult(func() (bool, error) {
+				n, err := s.server.State().NodeByID(nil, c.NodeID())
+				if err != nil {
+					return false, err
+				}
+				return n != nil, nil
+			}, func(err error) {
+				t.Fatalf("should have client: %v", err)
+			})
+
+			buf := encodeReq(map[string]string{})
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/restart", uuid.Generate()), buf)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
+
+			s.client = c
+		}
+	})
+}
+
+func TestHTTP_AllocRestart_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// If there's no token, we expect the request to fail.
+		{
+			buf := encodeReq(map[string]string{})
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/restart", uuid.Generate()), buf)
+			require.NoError(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect it to fail
+		{
+			buf := encodeReq(map[string]string{})
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/restart", uuid.Generate()), buf)
+			require.NoError(err)
+
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		// Still returns an error because the alloc does not exist
+		{
+			buf := encodeReq(map[string]string{})
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/restart", uuid.Generate()), buf)
+			require.NoError(err)
+
+			respW := httptest.NewRecorder()
+			policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityAllocLifecycle})
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", policy)
+			setToken(req, token)
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
+		}
+
+		// Try request with a management token
+		// Still returns an error because the alloc does not exist
+		{
+			buf := encodeReq(map[string]string{})
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/restart", uuid.Generate()), buf)
+			require.NoError(err)
+
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
+		}
+	})
+}
+
+func TestHTTP_AllocStop(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Directly manipulate the state
+		state := s.Agent.server.State()
+		alloc := mock.Alloc()
+		require := require.New(t)
+		require.NoError(state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
+
+		require.NoError(state.UpsertAllocs(1000, []*structs.Allocation{alloc}))
+
+		// Test that the happy path works
+		{
+			// Make the HTTP request
+			req, err := http.NewRequest("POST", "/v1/allocation/"+alloc.ID+"/stop", nil)
+			require.NoError(err)
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			obj, err := s.Server.AllocSpecificRequest(respW, req)
+			require.NoError(err)
+
+			a := obj.(*structs.AllocStopResponse)
+			require.NotEmpty(a.EvalID, "missing eval")
+			require.NotEmpty(a.Index, "missing index")
+		}
+
+		// Test that we 404 when the allocid is invalid
+		{
+			// Make the HTTP request
+			req, err := http.NewRequest("POST", "/v1/allocation/"+alloc.ID+"/stop", nil)
+			require.NoError(err)
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			obj, err := s.Server.AllocSpecificRequest(respW, req)
+			require.NoError(err)
+
+			a := obj.(*structs.AllocStopResponse)
+			require.NotEmpty(a.EvalID, "missing eval")
+			require.NotEmpty(a.Index, "missing index")
+		}
+	})
+}
+
 func TestHTTP_AllocStats(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

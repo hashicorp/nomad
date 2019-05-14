@@ -1,7 +1,6 @@
 package state
 
 import (
-	"github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -13,7 +12,7 @@ type LocalState struct {
 
 	// DriverNetwork is the network information returned by the task
 	// driver's Start method
-	DriverNetwork *structs.DriverNetwork
+	DriverNetwork *drivers.DriverNetwork
 
 	// TaskHandle is the handle used to reattach to the task during recovery
 	TaskHandle *drivers.TaskHandle
@@ -42,8 +41,12 @@ func (s *LocalState) Canonicalize() {
 	}
 }
 
-// Copy should be called with the lock held
+// Copy LocalState. Returns nil if nil.
 func (s *LocalState) Copy() *LocalState {
+	if s == nil {
+		return nil
+	}
+
 	// Create a copy
 	c := &LocalState{
 		Hooks:         make(map[string]*HookState, len(s.Hooks)),
@@ -51,7 +54,7 @@ func (s *LocalState) Copy() *LocalState {
 		TaskHandle:    s.TaskHandle.Copy(),
 	}
 
-	// Copy the hooks
+	// Copy the hook state
 	for h, state := range s.Hooks {
 		c.Hooks[h] = state.Copy()
 	}
@@ -72,11 +75,16 @@ type HookState struct {
 	Env map[string]string
 }
 
+// Copy HookState. Returns nil if its nil.
 func (h *HookState) Copy() *HookState {
+	if h == nil {
+		return nil
+	}
+
 	c := new(HookState)
 	*c = *h
-	c.Data = helper.CopyMapStringString(c.Data)
-	c.Env = helper.CopyMapStringString(c.Env)
+	c.Data = helper.CopyMapStringString(h.Data)
+	c.Env = helper.CopyMapStringString(h.Env)
 	return c
 }
 

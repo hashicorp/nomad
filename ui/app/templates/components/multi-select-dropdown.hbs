@@ -1,0 +1,36 @@
+{{#basic-dropdown
+  horizontalPosition="left"
+  onOpen=(action (queue
+    (action (mut isOpen) true)
+    (action capture)
+  ))
+  onClose=(action (mut isOpen) false)
+  as |dd|}}
+  {{#dd.trigger data-test-dropdown-trigger class="dropdown-trigger" onKeyDown=(action "openOnArrowDown")}}
+    <span class="dropdown-trigger-label">
+      {{label}}
+      {{#if selection.length}}
+        <span data-test-dropdown-count class="tag is-light">{{selection.length}}</span>
+      {{/if}}
+    </span>
+    <span class="dropdown-trigger-icon ember-power-select-status-icon"></span>
+  {{/dd.trigger}}
+  {{#dd.content class="dropdown-options"}}
+    <ul role="listbox" data-test-dropdown-options>
+      {{#each options key="key" as |option|}}
+        <li data-test-dropdown-option={{option.key}} class="dropdown-option" tabindex="1" onkeydown={{action "traverseList" option}}>
+          <label>
+            <input
+              type="checkbox"
+              tabindex="-1"
+              checked={{contains option.key selection}}
+              onchange={{action "toggle" option}} />
+            {{option.label}}
+          </label>
+        </li>
+      {{else}}
+        <em data-test-dropdown-empty class="dropdown-empty">No options</em>
+      {{/each}}
+    </ul>
+  {{/dd.content}}
+{{/basic-dropdown}}

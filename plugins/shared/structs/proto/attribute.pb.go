@@ -38,7 +38,7 @@ func (m *Attribute) Reset()         { *m = Attribute{} }
 func (m *Attribute) String() string { return proto.CompactTextString(m) }
 func (*Attribute) ProtoMessage()    {}
 func (*Attribute) Descriptor() ([]byte, []int) {
-	return fileDescriptor_attribute_47573829d12e3945, []int{0}
+	return fileDescriptor_attribute_aa187fb710a98f5a, []int{0}
 }
 func (m *Attribute) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Attribute.Unmarshal(m, b)
@@ -230,10 +230,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("plugins/shared/structs/proto/attribute.proto", fileDescriptor_attribute_47573829d12e3945)
+	proto.RegisterFile("plugins/shared/structs/proto/attribute.proto", fileDescriptor_attribute_aa187fb710a98f5a)
 }
 
-var fileDescriptor_attribute_47573829d12e3945 = []byte{
+var fileDescriptor_attribute_aa187fb710a98f5a = []byte{
 	// 218 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x34, 0x8f, 0xb1, 0x4e, 0xc3, 0x30,
 	0x10, 0x40, 0x63, 0xda, 0x34, 0xc9, 0x8d, 0x99, 0x8a, 0x10, 0x22, 0x62, 0x40, 0x19, 0x90, 0x33,

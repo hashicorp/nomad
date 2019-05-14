@@ -44,7 +44,7 @@ func testDB(t *testing.T, f func(*testing.T, StateDB)) {
 	boltdb, cleanup := setupBoltStateDB(t)
 	defer cleanup()
 
-	memdb := NewMemDB()
+	memdb := NewMemDB(testlog.HCLogger(t))
 
 	impls := []StateDB{boltdb, memdb}
 

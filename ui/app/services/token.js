@@ -29,7 +29,7 @@ export default Service.extend({
   // param since the region cannot be known at this point.
   authorizedRawRequest(url, options = { credentials: 'include' }) {
     const headers = {};
-    const token = this.get('secret');
+    const token = this.secret;
 
     if (token) {
       headers['X-Nomad-Token'] = token;

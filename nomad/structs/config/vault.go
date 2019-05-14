@@ -23,33 +23,37 @@ const (
 type VaultConfig struct {
 
 	// Enabled enables or disables Vault support.
-	Enabled *bool `mapstructure:"enabled"`
+	Enabled *bool `hcl:"enabled"`
 
 	// Token is the Vault token given to Nomad such that it can
 	// derive child tokens. Nomad will renew this token at half its lease
 	// lifetime.
-	Token string `mapstructure:"token"`
+	Token string `hcl:"token"`
 
 	// Role sets the role in which to create tokens from. The Token given to
 	// Nomad does not have to be created from this role but must have "update"
 	// capability on "auth/token/create/<create_from_role>". If this value is
 	// unset and the token is created from a role, the value is defaulted to the
 	// role the token is from.
-	Role string `mapstructure:"create_from_role"`
+	Role string `hcl:"create_from_role"`
+
+	// Namespace sets the Vault namespace used for all calls against the
+	// Vault API. If this is unset, then Nomad does not use Vault namespaces.
+	Namespace string `mapstructure:"namespace"`
 
 	// AllowUnauthenticated allows users to submit jobs requiring Vault tokens
 	// without providing a Vault token proving they have access to these
 	// policies.
-	AllowUnauthenticated *bool `mapstructure:"allow_unauthenticated"`
+	AllowUnauthenticated *bool `hcl:"allow_unauthenticated"`
 
 	// TaskTokenTTL is the TTL of the tokens created by Nomad Servers and used
 	// by the client.  There should be a minimum time value such that the client
 	// does not have to renew with Vault at a very high frequency
-	TaskTokenTTL string `mapstructure:"task_token_ttl"`
+	TaskTokenTTL string `hcl:"task_token_ttl"`
 
 	// Addr is the address of the local Vault agent. This should be a complete
 	// URL such as "http://vault.example.com"
-	Addr string `mapstructure:"address"`
+	Addr string `hcl:"address"`
 
 	// ConnectionRetryIntv is the interval to wait before re-attempting to
 	// connect to Vault.
@@ -57,23 +61,23 @@ type VaultConfig struct {
 
 	// TLSCaFile is the path to a PEM-encoded CA cert file to use to verify the
 	// Vault server SSL certificate.
-	TLSCaFile string `mapstructure:"ca_file"`
+	TLSCaFile string `hcl:"ca_file"`
 
 	// TLSCaFile is the path to a directory of PEM-encoded CA cert files to
 	// verify the Vault server SSL certificate.
-	TLSCaPath string `mapstructure:"ca_path"`
+	TLSCaPath string `hcl:"ca_path"`
 
 	// TLSCertFile is the path to the certificate for Vault communication
-	TLSCertFile string `mapstructure:"cert_file"`
+	TLSCertFile string `hcl:"cert_file"`
 
 	// TLSKeyFile is the path to the private key for Vault communication
-	TLSKeyFile string `mapstructure:"key_file"`
+	TLSKeyFile string `hcl:"key_file"`
 
 	// TLSSkipVerify enables or disables SSL verification
-	TLSSkipVerify *bool `mapstructure:"tls_skip_verify"`
+	TLSSkipVerify *bool `hcl:"tls_skip_verify"`
 
 	// TLSServerName, if set, is used to set the SNI host when connecting via TLS.
-	TLSServerName string `mapstructure:"tls_server_name"`
+	TLSServerName string `hcl:"tls_server_name"`
 }
 
 // DefaultVaultConfig() returns the canonical defaults for the Nomad
@@ -105,6 +109,9 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 
 	if b.Token != "" {
 		result.Token = b.Token
+	}
+	if b.Namespace != "" {
+		result.Namespace = b.Namespace
 	}
 	if b.Role != "" {
 		result.Role = b.Role

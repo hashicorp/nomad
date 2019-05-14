@@ -217,9 +217,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	cmd := &NodeDrainCommand{Meta: Meta{Ui: ui}}
 	args := []string{"-address=" + url, "-self", "-enable", "-deadline", "1s", "-ignore-system"}
 	t.Logf("Running: %v", args)
-	if code := cmd.Run(args); code != 0 {
-		t.Fatalf("expected exit 0, got: %d\n%s", code, outBuf.String())
-	}
+	require.Zero(cmd.Run(args))
 
 	out := outBuf.String()
 	t.Logf("Output:\n%s", out)
@@ -228,7 +226,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	// monitor goroutines may start only after some or all the allocs have been
 	// migrated.
 	if !testutil.IsTravis() {
-		require.Contains(out, "marked all allocations for migration")
+		require.Contains(out, "Drain complete for node")
 		for _, a := range allocs {
 			if *a.Job.Type == "system" {
 				if strings.Contains(out, a.ID) {
@@ -250,9 +248,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	outBuf.Reset()
 	args = []string{"-address=" + url, "-self", "-monitor", "-ignore-system"}
 	t.Logf("Running: %v", args)
-	if code := cmd.Run(args); code != 0 {
-		t.Fatalf("expected exit 0, got: %d\n%s", code, outBuf.String())
-	}
+	require.Zero(cmd.Run(args))
 
 	out = outBuf.String()
 	t.Logf("Output:\n%s", out)
@@ -298,7 +294,6 @@ func TestNodeDrainCommand_Monitor_NoDrainStrategy(t *testing.T) {
 	out := outBuf.String()
 	t.Logf("Output:\n%s", out)
 
-	require.Contains(out, "Monitoring node")
 	require.Contains(out, "No drain strategy set")
 }
 

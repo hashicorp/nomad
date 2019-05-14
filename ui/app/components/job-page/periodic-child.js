@@ -3,7 +3,7 @@ import { computed } from '@ember/object';
 
 export default AbstractJobPage.extend({
   breadcrumbs: computed('job.{name,id}', 'job.parent.{name,id}', function() {
-    const job = this.get('job');
+    const job = this.job;
     const parent = this.get('job.parent');
 
     return [

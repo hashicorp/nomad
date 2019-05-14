@@ -8,6 +8,8 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
+import facet from 'nomad-ui/tests/pages/components/facet';
+
 export default create({
   visit: visitable('/clients'),
 
@@ -39,5 +41,12 @@ export default create({
     title: text('[data-test-error-title]'),
     message: text('[data-test-error-message]'),
     seekHelp: clickable('[data-test-error-message] a'),
+  },
+
+  facets: {
+    class: facet('[data-test-class-facet]'),
+    status: facet('[data-test-status-facet]'),
+    datacenter: facet('[data-test-datacenter-facet]'),
+    flags: facet('[data-test-flags-facet]'),
   },
 });

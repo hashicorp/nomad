@@ -9,7 +9,7 @@ export default Component.extend({
 
   // Plan for a future with metadata (e.g., isSelected)
   decoratedSource: computed('source.[]', function() {
-    return this.get('source').map(row => ({
+    return this.source.map(row => ({
       model: row,
     }));
   }),

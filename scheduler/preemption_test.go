@@ -1249,6 +1249,7 @@ func TestPreemption(t *testing.T) {
 			node.ReservedResources = tc.nodeReservedCapacity
 
 			state, ctx := testContext(t)
+
 			nodes := []*RankedNode{
 				{
 					Node: node,
@@ -1267,6 +1268,9 @@ func TestPreemption(t *testing.T) {
 			}
 			static := NewStaticRankIterator(ctx, nodes)
 			binPackIter := NewBinPackIterator(ctx, static, true, tc.jobPriority)
+			job := mock.Job()
+			job.Priority = tc.jobPriority
+			binPackIter.SetJob(job)
 
 			taskGroup := &structs.TaskGroup{
 				EphemeralDisk: &structs.EphemeralDisk{},
@@ -1308,7 +1312,6 @@ func createAllocWithDevice(id string, job *structs.Job, resource *structs.Resour
 		TaskResources: map[string]*structs.Resources{
 			"web": resource,
 		},
-		Resources:     resource,
 		Namespace:     structs.DefaultNamespace,
 		EvalID:        uuid.Generate(),
 		DesiredStatus: structs.AllocDesiredStatusRun,

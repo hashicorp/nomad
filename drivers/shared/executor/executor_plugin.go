@@ -4,7 +4,7 @@ import (
 	"context"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
 	"google.golang.org/grpc"
 )
@@ -29,5 +29,6 @@ func (p *ExecutorPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBrok
 	return &grpcExecutorClient{
 		client:  proto.NewExecutorClient(c),
 		doneCtx: ctx,
+		logger:  p.logger,
 	}, nil
 }

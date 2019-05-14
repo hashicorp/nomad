@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/nomad/helper/pluginutils/grpcutils"
 	"github.com/hashicorp/nomad/plugins/base/proto"
-	"github.com/hashicorp/nomad/plugins/shared/grpcutils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 

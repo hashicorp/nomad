@@ -11,12 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -559,26 +558,26 @@ func parseConstraints(result *[]*api.Constraint, list *ast.ObjectList) error {
 
 		// If "version" is provided, set the operand
 		// to "version" and the value to the "RTarget"
-		if constraint, ok := m[structs.ConstraintVersion]; ok {
-			m["Operand"] = structs.ConstraintVersion
+		if constraint, ok := m[api.ConstraintVersion]; ok {
+			m["Operand"] = api.ConstraintVersion
 			m["RTarget"] = constraint
 		}
 
 		// If "regexp" is provided, set the operand
 		// to "regexp" and the value to the "RTarget"
-		if constraint, ok := m[structs.ConstraintRegex]; ok {
-			m["Operand"] = structs.ConstraintRegex
+		if constraint, ok := m[api.ConstraintRegex]; ok {
+			m["Operand"] = api.ConstraintRegex
 			m["RTarget"] = constraint
 		}
 
 		// If "set_contains" is provided, set the operand
 		// to "set_contains" and the value to the "RTarget"
-		if constraint, ok := m[structs.ConstraintSetContains]; ok {
-			m["Operand"] = structs.ConstraintSetContains
+		if constraint, ok := m[api.ConstraintSetContains]; ok {
+			m["Operand"] = api.ConstraintSetContains
 			m["RTarget"] = constraint
 		}
 
-		if value, ok := m[structs.ConstraintDistinctHosts]; ok {
+		if value, ok := m[api.ConstraintDistinctHosts]; ok {
 			enabled, err := parseBool(value)
 			if err != nil {
 				return fmt.Errorf("distinct_hosts should be set to true or false; %v", err)
@@ -589,11 +588,11 @@ func parseConstraints(result *[]*api.Constraint, list *ast.ObjectList) error {
 				continue
 			}
 
-			m["Operand"] = structs.ConstraintDistinctHosts
+			m["Operand"] = api.ConstraintDistinctHosts
 		}
 
-		if property, ok := m[structs.ConstraintDistinctProperty]; ok {
-			m["Operand"] = structs.ConstraintDistinctProperty
+		if property, ok := m[api.ConstraintDistinctProperty]; ok {
+			m["Operand"] = api.ConstraintDistinctProperty
 			m["LTarget"] = property
 		}
 
@@ -641,35 +640,35 @@ func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
 
 		// If "version" is provided, set the operand
 		// to "version" and the value to the "RTarget"
-		if affinity, ok := m[structs.ConstraintVersion]; ok {
-			m["Operand"] = structs.ConstraintVersion
+		if affinity, ok := m[api.ConstraintVersion]; ok {
+			m["Operand"] = api.ConstraintVersion
 			m["RTarget"] = affinity
 		}
 
 		// If "regexp" is provided, set the operand
 		// to "regexp" and the value to the "RTarget"
-		if affinity, ok := m[structs.ConstraintRegex]; ok {
-			m["Operand"] = structs.ConstraintRegex
+		if affinity, ok := m[api.ConstraintRegex]; ok {
+			m["Operand"] = api.ConstraintRegex
 			m["RTarget"] = affinity
 		}
 
 		// If "set_contains_any" is provided, set the operand
 		// to "set_contains_any" and the value to the "RTarget"
-		if affinity, ok := m[structs.ConstraintSetContainsAny]; ok {
-			m["Operand"] = structs.ConstraintSetContainsAny
+		if affinity, ok := m[api.ConstraintSetContainsAny]; ok {
+			m["Operand"] = api.ConstraintSetContainsAny
 			m["RTarget"] = affinity
 		}
 
 		// If "set_contains_all" is provided, set the operand
 		// to "set_contains_all" and the value to the "RTarget"
-		if affinity, ok := m[structs.ConstraintSetContainsAll]; ok {
-			m["Operand"] = structs.ConstraintSetContainsAll
+		if affinity, ok := m[api.ConstraintSetContainsAll]; ok {
+			m["Operand"] = api.ConstraintSetContainsAll
 			m["RTarget"] = affinity
 		}
 
 		// set_contains is a synonym of set_contains_all
-		if affinity, ok := m[structs.ConstraintSetContains]; ok {
-			m["Operand"] = structs.ConstraintSetContains
+		if affinity, ok := m[api.ConstraintSetContains]; ok {
+			m["Operand"] = api.ConstraintSetContains
 			m["RTarget"] = affinity
 		}
 
@@ -1691,7 +1690,7 @@ func parsePeriodic(result **api.PeriodicConfig, list *ast.ObjectList) error {
 
 	// If "cron" is provided, set the type to "cron" and store the spec.
 	if cron, ok := m["cron"]; ok {
-		m["SpecType"] = structs.PeriodicSpecCron
+		m["SpecType"] = api.PeriodicSpecCron
 		m["Spec"] = cron
 	}
 

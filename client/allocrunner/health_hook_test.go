@@ -1,7 +1,6 @@
 package allocrunner
 
 import (
-	"context"
 	"sync"
 	"testing"
 	"time"
@@ -107,7 +106,7 @@ func TestHealthHook_PrerunPostrun(t *testing.T) {
 	require.True(ok)
 
 	// Prerun
-	require.NoError(prerunh.Prerun(context.Background()))
+	require.NoError(prerunh.Prerun())
 
 	// Assert isDeploy is false (other tests peek at isDeploy to determine
 	// if an Update applied)
@@ -137,7 +136,7 @@ func TestHealthHook_PrerunUpdatePostrun(t *testing.T) {
 	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
 
 	// Prerun
-	require.NoError(h.Prerun(context.Background()))
+	require.NoError(h.Prerun())
 
 	// Update multiple times in a goroutine to mimic Client behavior
 	// (Updates are concurrent with alloc runner but are applied serially).
@@ -191,7 +190,7 @@ func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
 	}
 
 	// Prerun should be a noop
-	require.NoError(h.Prerun(context.Background()))
+	require.NoError(h.Prerun())
 
 	// Assert that the Update took affect by isDeploy being true
 	h.hookLock.Lock()
@@ -283,7 +282,7 @@ func TestHealthHook_SetHealth(t *testing.T) {
 	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
 
 	// Prerun
-	require.NoError(h.Prerun(context.Background()))
+	require.NoError(h.Prerun())
 
 	// Wait for health to be set (healthy)
 	select {

@@ -6,6 +6,7 @@
 /*.hcl
 .DS_Store
 Thumbs.db
+.idea
 
 # Folders
 _obj
@@ -85,6 +86,11 @@ rkt-*
 /ui/npm-debug.log*
 /ui/testem.log
 .ignore
+
+# ember-try
+/ui/.node_modules.ember-try/
+/ui/bower.json.ember-try
+/ui/package.json.ember-try
 
 # generated routes file
 command/agent/bindata_assetfs.go

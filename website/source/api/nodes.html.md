@@ -29,7 +29,7 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `prefix` `(string: "")`- Specifies a string to filter nodes on based on an
-  index prefix. This is specified as a querystring parameter.
+  index prefix. This is specified as a query string parameter.
 
 ### Sample Request
 
@@ -930,7 +930,7 @@ $ curl \
 
   - `Message` - The specific message for the event, detailing what occurred.
 
-  - `Subsystem` - The subsystem where the node event took place. Subsysystems
+  - `Subsystem` - The subsystem where the node event took place. Subsystems
     include:
 
     - `Drain` - The Nomad server draining subsystem.

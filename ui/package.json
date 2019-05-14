@@ -2,30 +2,34 @@
   "name": "nomad-ui",
   "version": "0.0.0",
   "description": "The web ui for Nomad, by HashiCorp.",
+  "repository": "",
   "directories": {
     "doc": "doc",
     "test": "tests"
   },
-  "repository": "",
   "scripts": {
     "build": "./node_modules/ember-cli/bin/ember build -prod",
+    "precommit": "lint-staged",
+    "lint:hbs": "ember-template-lint .",
+    "lint:js": "eslint .",
     "start": "./node_modules/ember-cli/bin/ember server",
-    "test": "./node_modules/ember-cli/bin/ember test",
-    "precommit": "lint-staged"
+    "test": "./node_modules/ember-cli/bin/ember test"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
   },
   "lint-staged": {
-    "{app,tests,config,lib,mirage}/**/*.js": [
-      "prettier --write",
-      "git add"
-    ],
-    "app/styles/**/*.*": [
-      "prettier --write",
-      "git add"
-    ]
+    "'{app,tests,config,lib,mirage}/**/*.js'": ["prettier --write", "git add"],
+    "'app/styles/**/*.*'": ["prettier --write", "git add"]
   },
   "devDependencies": {
-    "babel-plugin-transform-object-rest-spread": "^6.26.0",
-    "broccoli-asset-rev": "^2.4.5",
+    "anser": "^1.4.8",
+    "@babel/plugin-proposal-object-rest-spread": "^7.4.3",
+    "@ember/jquery": "^0.6.0",
+    "@ember/optional-features": "^0.7.0",
+    "broccoli-asset-rev": "^3.0.0",
     "bulma": "0.6.1",
     "core-js": "^2.4.1",
     "d3-array": "^1.2.0",
@@ -36,63 +40,65 @@
     "d3-shape": "^1.2.0",
     "d3-time-format": "^2.1.0",
     "d3-transition": "^1.1.0",
-    "ember-ajax": "^3.0.0",
-    "ember-auto-import": "^1.0.1",
-    "ember-cli": "~2.18.2",
-    "ember-cli-babel": "^6.0.0",
-    "ember-cli-dependency-checker": "^2.1.0",
-    "ember-cli-eslint": "^4.2.3",
-    "ember-cli-funnel": "^0.6.0",
-    "ember-cli-htmlbars": "^2.0.3",
-    "ember-cli-htmlbars-inline-precompile": "^1.0.2",
-    "ember-cli-inject-live-reload": "^1.4.1",
+    "ember-ajax": "^5.0.0",
+    "ember-auto-import": "^1.2.21",
+    "ember-cli": "~3.4.4",
+    "ember-cli-babel": "^7.1.2",
+    "ember-cli-dependency-checker": "^3.0.0",
+    "ember-cli-deprecation-workflow": "^1.0.1",
+    "ember-cli-eslint": "^5.1.0",
+    "ember-cli-funnel": "^0.6.1",
+    "ember-cli-htmlbars": "^3.0.0",
+    "ember-cli-htmlbars-inline-precompile": "^1.0.3",
+    "ember-cli-inject-live-reload": "^2.0.1",
     "ember-cli-mirage": "^0.4.3",
     "ember-cli-moment-shim": "^3.5.0",
-    "ember-cli-page-object": "^1.14.1",
-    "ember-cli-qunit": "^4.2.1",
-    "ember-cli-sass": "^7.1.2",
-    "ember-cli-shims": "^1.2.0",
-    "ember-cli-sri": "^2.1.0",
+    "ember-cli-page-object": "^1.15.1",
+    "ember-cli-qunit": "^4.3.2",
+    "ember-cli-sass": "^10.0.0",
+    "ember-cli-sri": "^2.1.1",
     "ember-cli-string-helpers": "^1.5.0",
-    "ember-cli-uglify": "^2.0.0",
+    "ember-cli-template-lint": "^1.0.0-beta.1",
+    "ember-cli-uglify": "^2.1.0",
     "ember-composable-helpers": "^2.0.3",
-    "ember-concurrency": "^0.8.12",
-    "ember-data": "~2.18.2",
-    "ember-data-model-fragments": "^2.14.0",
+    "ember-concurrency": "^0.9.0",
+    "ember-copy": "^1.0.0",
+    "ember-data": "~3.4.0",
+    "ember-data-model-fragments": "3.3.0",
     "ember-export-application-global": "^2.0.0",
-    "ember-fetch": "^3.4.3",
-    "ember-freestyle": "~0.6.2",
-    "ember-inline-svg": "^0.1.11",
-    "ember-load-initializers": "^1.0.0",
-    "ember-moment": "^7.5.0",
+    "ember-fetch": "^6.5.0",
+    "ember-freestyle": "~0.10.0",
+    "ember-inflector": "^3.0.0",
+    "ember-inline-svg": "^0.2.1",
+    "ember-load-initializers": "^1.1.0",
+    "ember-maybe-import-regenerator": "^0.1.6",
+    "ember-moment": "^7.8.1",
     "ember-native-dom-helpers": "^0.5.4",
-    "ember-power-select": "^1.10.4",
-    "ember-resolver": "^4.5.0",
-    "ember-sinon": "^1.0.1",
-    "ember-source": "~2.18.2",
-    "ember-test-selectors": "^0.3.8",
+    "ember-power-select": "^2.2.3",
+    "ember-resolver": "^5.0.1",
+    "ember-responsive": "^3.0.0",
+    "ember-sinon": "^2.2.0",
+    "ember-source": "~3.4.0",
+    "ember-test-selectors": "^2.1.0",
     "ember-truth-helpers": "^2.0.0",
-    "ember-welcome-page": "^3.0.0",
-    "eslint": "^4.13.1",
+    "eslint": "^5.16.0",
     "flat": "^4.0.0",
-    "fuse.js": "~3.2.0",
-    "husky": "^0.14.3",
+    "fuse.js": "^3.4.4",
+    "husky": "^1.3.1",
     "ivy-codemirror": "^2.1.0",
-    "lint-staged": "^6.0.0",
-    "loader.js": "^4.2.3",
+    "lint-staged": "^8.1.5",
+    "loader.js": "^4.7.0",
     "lodash.intersection": "^4.4.0",
     "prettier": "^1.4.4",
-    "query-string": "^5.0.0"
+    "query-string": "^5.0.0",
+    "sass": "^1.17.3"
   },
   "engines": {
-    "node": ">= 4"
+    "node": "6.* || 8.* || >= 10.*"
   },
   "private": true,
   "ember-addon": {
-    "paths": [
-      "lib/bulma",
-      "lib/calendar"
-    ]
+    "paths": ["lib/bulma"]
   },
   "dependencies": {
     "lru_map": "^0.3.3"

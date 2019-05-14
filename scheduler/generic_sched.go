@@ -5,7 +5,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -127,6 +127,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerJobDeregister,
 		structs.EvalTriggerNodeDrain, structs.EvalTriggerNodeUpdate,
+		structs.EvalTriggerAllocStop,
 		structs.EvalTriggerRollingUpdate, structs.EvalTriggerQueuedAllocs,
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc,
@@ -365,7 +366,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Handle the stop
 	for _, stop := range results.stop {
-		s.plan.AppendUpdate(stop.alloc, structs.AllocDesiredStatusStop, stop.statusDescription, stop.clientStatus)
+		s.plan.AppendStoppedAlloc(stop.alloc, stop.statusDescription, stop.clientStatus)
 	}
 
 	// Handle the in-place updates
@@ -463,12 +464,12 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			stopPrevAlloc, stopPrevAllocDesc := missing.StopPreviousAlloc()
 			prevAllocation := missing.PreviousAllocation()
 			if stopPrevAlloc {
-				s.plan.AppendUpdate(prevAllocation, structs.AllocDesiredStatusStop, stopPrevAllocDesc, "")
+				s.plan.AppendStoppedAlloc(prevAllocation, stopPrevAllocDesc, "")
 			}
 
 			// Compute penalty nodes for rescheduled allocs
 			selectOptions := getSelectOptions(prevAllocation, preferredNode)
-			option := s.stack.Select(tg, selectOptions)
+			option := s.selectNextOption(tg, selectOptions)
 
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = byDC
@@ -495,12 +496,12 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					TaskGroup:          tg.Name,
 					Metrics:            s.ctx.Metrics(),
 					NodeID:             option.Node.ID,
+					NodeName:           option.Node.Name,
 					DeploymentID:       deploymentID,
 					TaskResources:      resources.OldTaskResources(),
 					AllocatedResources: resources,
 					DesiredStatus:      structs.AllocDesiredStatusRun,
 					ClientStatus:       structs.AllocClientStatusPending,
-
 					SharedResources: &structs.Resources{
 						DiskMB: tg.EphemeralDisk.SizeMB,
 					},
@@ -517,7 +518,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 				// If we are placing a canary and we found a match, add the canary
 				// to the deployment state object and mark it as a canary.
-				if missing.Canary() {
+				if missing.Canary() && s.deployment != nil {
 					if state, ok := s.deployment.TaskGroups[tg.Name]; ok {
 						state.PlacedCanaries = append(state.PlacedCanaries, alloc.ID)
 					}
@@ -526,6 +527,8 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 						Canary: true,
 					}
 				}
+
+				s.handlePreemptions(option, alloc, missing)
 
 				// Track the placement
 				s.plan.AppendAlloc(alloc)

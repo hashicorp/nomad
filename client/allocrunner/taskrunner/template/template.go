@@ -205,7 +205,7 @@ func (tm *TaskTemplateManager) run() {
 	}
 
 	// Read environment variables from env templates before we unblock
-	envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir)
+	envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir, tm.config.EnvBuilder.Build())
 	if err != nil {
 		tm.config.Lifecycle.Kill(context.Background(),
 			structs.NewTaskEvent(structs.TaskKilling).
@@ -393,7 +393,7 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 				}
 
 				// Read environment variables from templates
-				envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir)
+				envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir, tm.config.EnvBuilder.Build())
 				if err != nil {
 					tm.config.Lifecycle.Kill(context.Background(),
 						structs.NewTaskEvent(structs.TaskKilling).
@@ -441,7 +441,7 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 
 				if restart {
 					tm.config.Lifecycle.Restart(context.Background(),
-						structs.NewTaskEvent(structs.TaskRestarting).
+						structs.NewTaskEvent(structs.TaskRestartSignal).
 							SetDisplayMessage("Template with change_mode restart re-rendered"), false)
 				} else if len(signals) != 0 {
 					var mErr multierror.Error
@@ -645,6 +645,9 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		conf.Vault.Address = &cc.VaultConfig.Addr
 		conf.Vault.Token = &config.VaultToken
 		conf.Vault.Grace = helper.TimeToPtr(vaultGrace)
+		if config.ClientConfig.VaultConfig.Namespace != "" {
+			conf.Vault.Namespace = &config.ClientConfig.VaultConfig.Namespace
+		}
 
 		if strings.HasPrefix(cc.VaultConfig.Addr, "https") || cc.VaultConfig.TLSCertFile != "" {
 			skipVerify := cc.VaultConfig.TLSSkipVerify != nil && *cc.VaultConfig.TLSSkipVerify
@@ -676,13 +679,15 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 }
 
 // loadTemplateEnv loads task environment variables from all templates.
-func loadTemplateEnv(tmpls []*structs.Template, taskDir string) (map[string]string, error) {
+func loadTemplateEnv(tmpls []*structs.Template, taskDir string, taskEnv *taskenv.TaskEnv) (map[string]string, error) {
 	all := make(map[string]string, 50)
 	for _, t := range tmpls {
 		if !t.Envvars {
 			continue
 		}
-		f, err := os.Open(filepath.Join(taskDir, t.DestPath))
+
+		dest := filepath.Join(taskDir, taskEnv.ReplaceEnv(t.DestPath))
+		f, err := os.Open(dest)
 		if err != nil {
 			return nil, fmt.Errorf("error opening env template: %v", err)
 		}
@@ -691,7 +696,7 @@ func loadTemplateEnv(tmpls []*structs.Template, taskDir string) (map[string]stri
 		// Parse environment fil
 		vars, err := envparse.Parse(f)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing env template %q: %v", t.DestPath, err)
+			return nil, fmt.Errorf("error parsing env template %q: %v", dest, err)
 		}
 		for k, v := range vars {
 			all[k] = v

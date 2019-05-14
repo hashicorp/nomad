@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-version"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -953,17 +953,17 @@ func resolveDeviceTarget(target string, d *structs.NodeDeviceResource) (*psstruc
 
 	// Handle the interpolations
 	switch {
-	case "${driver.model}" == target:
+	case "${device.model}" == target:
 		return psstructs.NewStringAttribute(d.Name), true
 
-	case "${driver.vendor}" == target:
+	case "${device.vendor}" == target:
 		return psstructs.NewStringAttribute(d.Vendor), true
 
-	case "${driver.type}" == target:
+	case "${device.type}" == target:
 		return psstructs.NewStringAttribute(d.Type), true
 
-	case strings.HasPrefix(target, "${driver.attr."):
-		attr := strings.TrimPrefix(target, "${driver.attr.")
+	case strings.HasPrefix(target, "${device.attr."):
+		attr := strings.TrimPrefix(target, "${device.attr.")
 		attr = strings.TrimSuffix(attr, "}")
 		val, ok := d.Attributes[attr]
 		return val, ok

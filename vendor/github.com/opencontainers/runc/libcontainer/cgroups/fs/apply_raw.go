@@ -65,7 +65,7 @@ type subsystem interface {
 type Manager struct {
 	mu       sync.Mutex
 	Cgroups  *configs.Cgroup
-	Rootless bool
+	Rootless bool // ignore permission-related errors
 	Paths    map[string]string
 }
 
@@ -174,7 +174,7 @@ func (m *Manager) Apply(pid int) (err error) {
 		m.Paths[sys.Name()] = p
 
 		if err := sys.Apply(d); err != nil {
-			// In the case of rootless, where an explicit cgroup path hasn't
+			// In the case of rootless (including euid=0 in userns), where an explicit cgroup path hasn't
 			// been set, we don't bail on error in case of permission problems.
 			// Cases where limits have been set (and we couldn't create our own
 			// cgroup) are handled by Set.
@@ -236,6 +236,12 @@ func (m *Manager) Set(container *configs.Config) error {
 	for _, sys := range subsystems {
 		path := paths[sys.Name()]
 		if err := sys.Set(path, container.Cgroups); err != nil {
+			if m.Rootless && sys.Name() == "devices" {
+				continue
+			}
+			// When m.Rootless is true, errors from the device subsystem are ignored because it is really not expected to work.
+			// However, errors from other subsystems are not ignored.
+			// see @test "runc create (rootless + limits + no cgrouppath + no permission) fails with informative error"
 			if path == "" {
 				// We never created a path for this cgroup, so we cannot set
 				// limits for it (though we have already tried at this point).
@@ -311,7 +317,7 @@ func getCgroupData(c *configs.Cgroup, pid int) (*cgroupData, error) {
 }
 
 func (raw *cgroupData) path(subsystem string) (string, error) {
-	mnt, err := cgroups.FindCgroupMountpoint(subsystem)
+	mnt, err := cgroups.FindCgroupMountpoint(raw.root, subsystem)
 	// If we didn't mount the subsystem, there is no point we make the path.
 	if err != nil {
 		return "", err

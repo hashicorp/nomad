@@ -513,7 +513,7 @@ directly since Nomad isn't managing any port assignments.
 ### IPv6 Docker containers
 
 The [Docker](/docs/drivers/docker.html#advertise_ipv6_address) driver supports the
-`advertise_ipv6_address` parameter in it's configuration.
+`advertise_ipv6_address` parameter in its configuration.
 
 Services will automatically advertise the IPv6 address when `advertise_ipv6_address` 
 is used.
@@ -622,7 +622,7 @@ system of a task for that driver.</small>
 
 [check_restart_stanza]: /docs/job-specification/check_restart.html "check_restart stanza"
 [consul_grpc]: https://www.consul.io/api/agent/check.html#grpc
-[service-discovery]: /guides/operations/consul-integration/index.html#service-discovery/index.html "Nomad Service Discovery"
+[service-discovery]: /guides/integrations/consul-integration/index.html#service-discovery/index.html "Nomad Service Discovery"
 [interpolation]: /docs/runtime/interpolation.html "Nomad Runtime Interpolation"
 [network]: /docs/job-specification/network.html "Nomad network Job Specification"
 [qemu]: /docs/drivers/qemu.html "Nomad qemu Driver"

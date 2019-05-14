@@ -1,9 +1,6 @@
 package interfaces
 
 import (
-	"context"
-
-	"github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -12,21 +9,34 @@ type RunnerHook interface {
 	Name() string
 }
 
+// RunnerPrerunHooks are executed before calling TaskRunner.Run for
+// non-terminal allocations. Terminal allocations do *not* call prerun.
 type RunnerPrerunHook interface {
 	RunnerHook
-	Prerun(context.Context) error
+	Prerun() error
 }
 
+// RunnerPostrunHooks are executed after calling TaskRunner.Run, even for
+// terminal allocations. Therefore Postrun hooks must be safe to call without
+// first calling Prerun hooks.
 type RunnerPostrunHook interface {
 	RunnerHook
 	Postrun() error
 }
 
+// RunnerDestroyHooks are executed after AllocRunner.Run has exited and must
+// make a best effort cleanup allocation resources. Destroy hooks must be safe
+// to call without first calling Prerun.
 type RunnerDestroyHook interface {
 	RunnerHook
 	Destroy() error
 }
 
+// RunnerUpdateHooks are executed when an allocation update is received from
+// the server. Update is called concurrently with AllocRunner execution and
+// therefore must be safe for concurrent access with other hook methods. Calls
+// to Update are serialized so allocaiton updates will always be processed in
+// order.
 type RunnerUpdateHook interface {
 	RunnerHook
 	Update(*RunnerUpdateRequest) error
@@ -34,13 +44,6 @@ type RunnerUpdateHook interface {
 
 type RunnerUpdateRequest struct {
 	Alloc *structs.Allocation
-}
-
-// XXX Not sure yet
-type RunnerHookFactory func(target HookTarget) (RunnerHook, error)
-type HookTarget interface {
-	// State retrieves a copy of the target alloc runners state.
-	State() *state.State
 }
 
 // ShutdownHook may be implemented by AllocRunner or TaskRunner hooks and will

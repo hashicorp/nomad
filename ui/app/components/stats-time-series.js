@@ -24,7 +24,7 @@ export default LineChart.extend({
   title: 'Stats Time Series Chart',
 
   description: computed('data.[]', 'xProp', 'yProp', function() {
-    const { xProp, yProp, data } = this.getProperties('data', 'xProp', 'yProp');
+    const { xProp, yProp, data } = this;
     const yRange = d3Array.extent(data, d => d[yProp]);
     const xRange = d3Array.extent(data, d => d[xProp]);
     const yFormatter = this.yFormat();
@@ -35,9 +35,9 @@ export default LineChart.extend({
   }),
 
   xScale: computed('data.[]', 'xProp', 'timeseries', 'yAxisOffset', function() {
-    const xProp = this.get('xProp');
-    const scale = this.get('timeseries') ? d3Scale.scaleTime() : d3Scale.scaleLinear();
-    const data = this.get('data');
+    const xProp = this.xProp;
+    const scale = this.timeseries ? d3Scale.scaleTime() : d3Scale.scaleLinear();
+    const data = this.data;
 
     const [low, high] = d3Array.extent(data, d => d[xProp]);
     const minLow = moment(high)
@@ -45,14 +45,14 @@ export default LineChart.extend({
       .toDate();
 
     const extent = data.length ? [Math.min(low, minLow), high] : [minLow, new Date()];
-    scale.rangeRound([10, this.get('yAxisOffset')]).domain(extent);
+    scale.rangeRound([10, this.yAxisOffset]).domain(extent);
 
     return scale;
   }),
 
   yScale: computed('data.[]', 'yProp', 'xAxisOffset', function() {
-    const yProp = this.get('yProp');
-    const yValues = (this.get('data') || []).mapBy(yProp);
+    const yProp = this.yProp;
+    const yValues = (this.data || []).mapBy(yProp);
 
     let [low, high] = [0, 1];
     if (yValues.compact().length) {
@@ -61,7 +61,7 @@ export default LineChart.extend({
 
     return d3Scale
       .scaleLinear()
-      .rangeRound([this.get('xAxisOffset'), 10])
+      .rangeRound([this.xAxisOffset, 10])
       .domain([Math.min(0, low), Math.max(1, high)]);
   }),
 });

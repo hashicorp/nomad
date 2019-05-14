@@ -18,4 +18,4 @@ config {
 The valid configuration options are:
 
 * `ignored_gpu_ids` (`list(string)`: `[]`): list of GPU UUIDs strings that should not be exposed to nomad
-* `fingerprint_period` (`string`: `"5s"`): The interval to repeat fingerprint process to identify possible changes.
+* `fingerprint_period` (`string`: `"1m"`): interval to repeat the fingerprint process to identify possible changes.

@@ -49,6 +49,16 @@ Nomad UI tests can be run independently of Nomad golang tests.
 * `ember test` (single run, headless browser)
 * `ember test --server` (watches for changes, runs in a full browser)
 
+
+
+### Linting
+
+Linting should happen automatically in your editor and when committing changes, but it can also be invoked manually.
+
+* `npm run lint:hbs`
+* `npm run lint:js`
+* `npm run lint:js -- --fix`
+
 ### Building
 
 Typically `make release` or `make dev-ui` will be the desired build workflow, but in the event that build artifacts need to be inspected, `ember build` will output compiled files in `ui/dist`.

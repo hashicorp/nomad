@@ -30,7 +30,7 @@ job "docs" {
     task "server" {
       artifact {
         source      = "https://example.com/file.tar.gz"
-        destination = "/tmp/directory"
+        destination = "local/some-directory"
         options {
           checksum = "md5:df6a4178aec9fbdc1d6d7e3634d1bc33"
         }
@@ -80,18 +80,6 @@ artifact {
 }
 ```
 
-### Download with Custom Destination
-
-This example downloads the artifact from the provided URL and places it at
-`/tmp/example/file.txt`, as specified by the optional `destination` parameter.
-
-```hcl
-artifact {
-  source      = "https://example.com/file.txt"
-  destination = "/tmp/example"
-}
-```
-
 ### Download using git
 
 This example downloads the artifact from the provided GitHub URL and places it at
@@ -104,7 +92,7 @@ artifact {
 }
 ```
 
-To download from private repo, sshkey need to be set. The key must be
+To download from private repo, sshkey needs to be set. The key must be
 base64-encoded string. Run `base64 -w0 <file>`
 
 ```hcl
@@ -167,7 +155,7 @@ This example uses path-based notation on a publicly-accessible bucket:
 
 ```hcl
 artifact {
-  source = "https://s3-us-west-2.amazonaws.com/my-bucket-example/my_app.tar.gz"
+  source = "https://my-bucket-example.s3-us-west-2.amazonaws.com/my_app.tar.gz"
 }
 ```
 
@@ -188,7 +176,7 @@ To force the S3-specific syntax, use the `s3::` prefix:
 
 ```hcl
 artifact {
-  source = "s3::https://s3-eu-west-1.amazonaws.com/my-bucket-example/my_app.tar.gz"
+  source = "s3::https://my-bucket-example.s3-eu-west-1.amazonaws.com/my_app.tar.gz"
 }
 ```
 

@@ -107,6 +107,9 @@ type Preemptor struct {
 	// jobPriority is the priority of the job being preempted
 	jobPriority int
 
+	// jobID is the ID of the job being preempted
+	jobID *structs.NamespacedID
+
 	// nodeRemainingResources tracks available resources on the node after
 	// accounting for running allocations
 	nodeRemainingResources *structs.ComparableResources
@@ -118,10 +121,11 @@ type Preemptor struct {
 	ctx Context
 }
 
-func NewPreemptor(jobPriority int, ctx Context) *Preemptor {
+func NewPreemptor(jobPriority int, ctx Context, jobID *structs.NamespacedID) *Preemptor {
 	return &Preemptor{
 		currentPreemptions: make(map[structs.NamespacedID]map[string]int),
 		jobPriority:        jobPriority,
+		jobID:              jobID,
 		allocDetails:       make(map[string]*allocInfo),
 		ctx:                ctx,
 	}
@@ -140,14 +144,22 @@ func (p *Preemptor) SetNode(node *structs.Node) {
 
 // SetCandidates initializes the candidate set from which preemptions are chosen
 func (p *Preemptor) SetCandidates(allocs []*structs.Allocation) {
-	p.currentAllocs = allocs
+	// Reset candidate set
+	p.currentAllocs = []*structs.Allocation{}
 	for _, alloc := range allocs {
+		// Ignore any allocations of the job being placed
+		// This filters out any previous allocs of the job, and any new allocs in the plan
+		if alloc.JobID == p.jobID.ID && alloc.Namespace == p.jobID.Namespace {
+			continue
+		}
+
 		maxParallel := 0
 		tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 		if tg != nil && tg.Migrate != nil {
 			maxParallel = tg.Migrate.MaxParallel
 		}
 		p.allocDetails[alloc.ID] = &allocInfo{maxParallel: maxParallel, resources: alloc.ComparableResources()}
+		p.currentAllocs = append(p.currentAllocs, alloc)
 	}
 }
 
@@ -160,7 +172,7 @@ func (p *Preemptor) SetPreemptions(allocs []*structs.Allocation) {
 
 	// Initialize counts
 	for _, alloc := range allocs {
-		id := structs.NamespacedID{alloc.JobID, alloc.Namespace}
+		id := structs.NewNamespacedID(alloc.JobID, alloc.Namespace)
 		countMap, ok := p.currentPreemptions[id]
 		if !ok {
 			countMap = make(map[string]int)
@@ -173,7 +185,7 @@ func (p *Preemptor) SetPreemptions(allocs []*structs.Allocation) {
 // getNumPreemptions counts the number of other allocations being preempted that match the job and task group of
 // the alloc under consideration. This is used as a scoring factor to minimize too many allocs of the same job being preempted at once
 func (p *Preemptor) getNumPreemptions(alloc *structs.Allocation) int {
-	c, ok := p.currentPreemptions[structs.NamespacedID{alloc.JobID, alloc.Namespace}][alloc.TaskGroup]
+	c, ok := p.currentPreemptions[structs.NewNamespacedID(alloc.JobID, alloc.Namespace)][alloc.TaskGroup]
 	if !ok {
 		return 0
 	}

@@ -4,8 +4,6 @@ import (
 	"reflect"
 	"sort"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestSliceStringIsSubset(t *testing.T) {
@@ -87,37 +85,5 @@ func BenchmarkCleanEnvVar(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		CleanEnvVar(in, replacement)
-	}
-}
-
-func TestFormatRoundedFloat(t *testing.T) {
-	cases := []struct {
-		input    float64
-		expected string
-	}{
-		{
-			1323,
-			"1323",
-		},
-		{
-			10.321,
-			"10.321",
-		},
-		{
-			100000.31324324,
-			"100000.313",
-		},
-		{
-			100000.3,
-			"100000.3",
-		},
-		{
-			0.7654321,
-			"0.765",
-		},
-	}
-
-	for _, c := range cases {
-		require.Equal(t, c.expected, FormatFloat(c.input, 3))
 	}
 }

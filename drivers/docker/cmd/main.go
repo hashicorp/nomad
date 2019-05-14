@@ -22,12 +22,19 @@ func main() {
 		// Detect if we are being launched as a docker logging plugin
 		switch os.Args[1] {
 		case docklog.PluginName:
+			logger := log.New(&log.LoggerOptions{
+				Level:      log.Trace,
+				JSONFormat: true,
+				Name:       docklog.PluginName,
+			})
+
 			plugin.Serve(&plugin.ServeConfig{
 				HandshakeConfig: base.Handshake,
 				Plugins: map[string]plugin.Plugin{
-					docklog.PluginName: docklog.NewPlugin(docklog.NewDockerLogger(log.Default().Named(docklog.PluginName))),
+					docklog.PluginName: docklog.NewPlugin(docklog.NewDockerLogger(logger)),
 				},
 				GRPCServer: plugin.DefaultGRPCServer,
+				Logger:     logger,
 			})
 
 			return

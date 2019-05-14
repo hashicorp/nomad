@@ -4,7 +4,7 @@ const DISK_RESERVATIONS = [200, 500, 1000, 2000, 5000, 10000, 100000];
 
 export default Factory.extend({
   name: id => `${faker.hacker.noun().dasherize()}-g-${id}`,
-  count: () => faker.random.number({ min: 1, max: 4 }),
+  count: () => faker.random.number({ min: 1, max: 2 }),
 
   ephemeralDisk: () => ({
     Sticky: faker.random.boolean(),
@@ -20,14 +20,22 @@ export default Factory.extend({
   // and reschedule, creating reschedule events.
   withRescheduling: false,
 
+  // When true, only creates allocations
+  shallow: false,
+
   afterCreate(group, server) {
-    const tasks = server.createList('task', group.count, {
-      taskGroup: group,
-    });
+    let taskIds = [];
+
+    if (!group.shallow) {
+      const tasks = server.createList('task', group.count, {
+        taskGroup: group,
+      });
+      taskIds = tasks.mapBy('id');
+    }
 
     group.update({
-      taskIds: tasks.mapBy('id'),
-      task_ids: tasks.mapBy('id'),
+      taskIds: taskIds,
+      task_ids: taskIds,
     });
 
     if (group.createAllocations) {

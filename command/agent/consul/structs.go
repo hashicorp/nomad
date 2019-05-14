@@ -2,8 +2,8 @@ package consul
 
 import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type TaskServices struct {
@@ -29,10 +29,10 @@ type TaskServices struct {
 	DriverExec interfaces.ScriptExecutor
 
 	// DriverNetwork is the network specified by the driver and may be nil.
-	DriverNetwork *cstructs.DriverNetwork
+	DriverNetwork *drivers.DriverNetwork
 }
 
-func NewTaskServices(alloc *structs.Allocation, task *structs.Task, restarter TaskRestarter, exec interfaces.ScriptExecutor, net *cstructs.DriverNetwork) *TaskServices {
+func NewTaskServices(alloc *structs.Allocation, task *structs.Task, restarter TaskRestarter, exec interfaces.ScriptExecutor, net *drivers.DriverNetwork) *TaskServices {
 	ts := TaskServices{
 		AllocID:       alloc.ID,
 		Name:          task.Name,

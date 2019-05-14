@@ -5,11 +5,11 @@
 package docker
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
-
-	"golang.org/x/net/context"
+	"time"
 )
 
 var (
@@ -22,17 +22,19 @@ var (
 
 // Volume represents a volume.
 //
-// See https://goo.gl/FZA4BK for more details.
+// See https://goo.gl/3wgTsd for more details.
 type Volume struct {
 	Name       string            `json:"Name" yaml:"Name" toml:"Name"`
 	Driver     string            `json:"Driver,omitempty" yaml:"Driver,omitempty" toml:"Driver,omitempty"`
 	Mountpoint string            `json:"Mountpoint,omitempty" yaml:"Mountpoint,omitempty" toml:"Mountpoint,omitempty"`
 	Labels     map[string]string `json:"Labels,omitempty" yaml:"Labels,omitempty" toml:"Labels,omitempty"`
+	Options    map[string]string `json:"Options,omitempty" yaml:"Options,omitempty" toml:"Options,omitempty"`
+	CreatedAt  time.Time         `json:"CreatedAt,omitempty" yaml:"CreatedAt,omitempty" toml:"CreatedAt,omitempty"`
 }
 
 // ListVolumesOptions specify parameters to the ListVolumes function.
 //
-// See https://goo.gl/FZA4BK for more details.
+// See https://goo.gl/3wgTsd for more details.
 type ListVolumesOptions struct {
 	Filters map[string][]string
 	Context context.Context
@@ -40,7 +42,7 @@ type ListVolumesOptions struct {
 
 // ListVolumes returns a list of available volumes in the server.
 //
-// See https://goo.gl/FZA4BK for more details.
+// See https://goo.gl/3wgTsd for more details.
 func (c *Client) ListVolumes(opts ListVolumesOptions) ([]Volume, error) {
 	resp, err := c.do("GET", "/volumes?"+queryString(opts), doOptions{
 		context: opts.Context,
@@ -70,7 +72,7 @@ func (c *Client) ListVolumes(opts ListVolumesOptions) ([]Volume, error) {
 
 // CreateVolumeOptions specify parameters to the CreateVolume function.
 //
-// See https://goo.gl/pBUbZ9 for more details.
+// See https://goo.gl/qEhmEC for more details.
 type CreateVolumeOptions struct {
 	Name       string
 	Driver     string
@@ -81,7 +83,7 @@ type CreateVolumeOptions struct {
 
 // CreateVolume creates a volume on the server.
 //
-// See https://goo.gl/pBUbZ9 for more details.
+// See https://goo.gl/qEhmEC for more details.
 func (c *Client) CreateVolume(opts CreateVolumeOptions) (*Volume, error) {
 	resp, err := c.do("POST", "/volumes/create", doOptions{
 		data:    opts,
@@ -100,7 +102,7 @@ func (c *Client) CreateVolume(opts CreateVolumeOptions) (*Volume, error) {
 
 // InspectVolume returns a volume by its name.
 //
-// See https://goo.gl/0g9A6i for more details.
+// See https://goo.gl/GMjsMc for more details.
 func (c *Client) InspectVolume(name string) (*Volume, error) {
 	resp, err := c.do("GET", "/volumes/"+name, doOptions{})
 	if err != nil {
@@ -119,9 +121,28 @@ func (c *Client) InspectVolume(name string) (*Volume, error) {
 
 // RemoveVolume removes a volume by its name.
 //
-// See https://goo.gl/79GNQz for more details.
+// Deprecated: Use RemoveVolumeWithOptions instead.
 func (c *Client) RemoveVolume(name string) error {
-	resp, err := c.do("DELETE", "/volumes/"+name, doOptions{})
+	return c.RemoveVolumeWithOptions(RemoveVolumeOptions{Name: name})
+}
+
+// RemoveVolumeOptions specify parameters to the RemoveVolumeWithOptions
+// function.
+//
+// See https://goo.gl/nvd6qj for more details.
+type RemoveVolumeOptions struct {
+	Context context.Context
+	Name    string `qs:"-"`
+	Force   bool
+}
+
+// RemoveVolumeWithOptions removes a volume by its name and takes extra
+// parameters.
+//
+// See https://goo.gl/nvd6qj for more details.
+func (c *Client) RemoveVolumeWithOptions(opts RemoveVolumeOptions) error {
+	path := "/volumes/" + opts.Name
+	resp, err := c.do("DELETE", path+"?"+queryString(opts), doOptions{context: opts.Context})
 	if err != nil {
 		if e, ok := err.(*Error); ok {
 			if e.Status == http.StatusNotFound {
@@ -139,7 +160,7 @@ func (c *Client) RemoveVolume(name string) error {
 
 // PruneVolumesOptions specify parameters to the PruneVolumes function.
 //
-// See https://goo.gl/pFN1Hj for more details.
+// See https://goo.gl/f9XDem for more details.
 type PruneVolumesOptions struct {
 	Filters map[string][]string
 	Context context.Context
@@ -147,7 +168,7 @@ type PruneVolumesOptions struct {
 
 // PruneVolumesResults specify results from the PruneVolumes function.
 //
-// See https://goo.gl/pFN1Hj for more details.
+// See https://goo.gl/f9XDem for more details.
 type PruneVolumesResults struct {
 	VolumesDeleted []string
 	SpaceReclaimed int64
@@ -155,7 +176,7 @@ type PruneVolumesResults struct {
 
 // PruneVolumes deletes volumes which are unused.
 //
-// See https://goo.gl/pFN1Hj for more details.
+// See https://goo.gl/f9XDem for more details.
 func (c *Client) PruneVolumes(opts PruneVolumesOptions) (*PruneVolumesResults, error) {
 	path := "/volumes/prune?" + queryString(opts)
 	resp, err := c.do("POST", path, doOptions{context: opts.Context})

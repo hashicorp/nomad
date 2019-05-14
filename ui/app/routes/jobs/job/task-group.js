@@ -55,9 +55,9 @@ export default Route.extend(WithWatchers, {
     if (model) {
       const job = model.get('job');
       controller.set('watchers', {
-        job: this.get('watchJob').perform(job),
-        summary: this.get('watchSummary').perform(job.get('summary')),
-        allocations: this.get('watchAllocations').perform(job),
+        job: this.watchJob.perform(job),
+        summary: this.watchSummary.perform(job.get('summary')),
+        allocations: this.watchAllocations.perform(job),
       });
     }
   },

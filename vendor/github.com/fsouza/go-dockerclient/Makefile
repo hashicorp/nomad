@@ -2,27 +2,22 @@
 	all \
 	lint \
 	vet \
-	fmt \
 	fmtcheck \
 	pretest \
 	test \
-	integration \
-	clean
+	integration
 
 all: test
 
 lint:
-	@ go get -v github.com/golang/lint/golint
+	@ go get -v golang.org/x/lint/golint
 	[ -z "$$(golint . | grep -v 'type name will be used as docker.DockerInfo' | grep -v 'context.Context should be the first' | tee /dev/stderr)" ]
 
 vet:
-	go vet $$(go list ./... | grep -v vendor)
-
-fmt:
-	gofmt -s -w $$(go list ./... | grep -v vendor)
+	go vet ./...
 
 fmtcheck:
-	[ -z "$$(gofmt -s -d $$(go list ./... | grep -v vendor) | tee /dev/stderr)" ]
+	if [ -z "$${SKIP_FMT_CHECK}" ]; then [ -z "$$(gofmt -s -d *.go ./testing | tee /dev/stderr)" ]; fi
 
 testdeps:
 	go get -u github.com/golang/dep/cmd/dep
@@ -31,12 +26,9 @@ testdeps:
 pretest: testdeps lint vet fmtcheck
 
 gotest:
-	go test -race $$(go list ./... | grep -v vendor)
+	go test -race ./...
 
 test: pretest gotest
 
 integration:
 	go test -tags docker_integration -run TestIntegration -v
-
-clean:
-	go clean ./...

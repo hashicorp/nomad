@@ -17,6 +17,27 @@ matrix:
     - os: linux
       dist: xenial
       sudo: required
+      env: GOTEST_PKGS="./api"
+    - os: linux
+      dist: xenial
+      sudo: required
+      env: GOTEST_PKGS="./client"
+    - os: linux
+      dist: xenial
+      sudo: required
+      env: GOTEST_PKGS="./drivers/docker"
+    - os: linux
+      dist: xenial
+      sudo: required
+      env: GOTEST_PKGS="./drivers/exec"
+    - os: linux
+      dist: xenial
+      sudo: required
+      env: GOTEST_PKGS="./nomad"
+    - os: linux
+      dist: xenial
+      sudo: required
+      env: GOTEST_PKGS_EXCLUDE="./api|./client|./drivers/docker|./drivers/exec|./nomad"
     - os: linux
       dist: xenial
       sudo: required
@@ -49,13 +70,15 @@ matrix:
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]] && [[ -z "$SKIP_NOMAD_TESTS" ]]; then sudo -E bash ./scripts/travis-mac-priv.sh ; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ -z "$SKIP_NOMAD_TESTS" ]]; then sudo -E bash ./scripts/travis-linux.sh ; fi
-  - if [[ "$RUN_UI_TESTS" ]]; then curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.0.1 ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ "$RUN_STATIC_CHECKS" ]]; then sudo -E bash ./scripts/vagrant-linux-priv-protoc.sh; fi
+  - if [[ "$RUN_UI_TESTS" ]]; then curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.15.2 ; fi
   - if [[ "$RUN_UI_TESTS" ]]; then export PATH="$HOME/.yarn/bin:$PATH" ; fi
+  - echo "Travis Node Version" && node -v
 
 install:
-  - if [[ -z "$SKIP_NOMAD_TESTS" ]]; then make deps ; fi
+  - if [[ -z "$SKIP_NOMAD_TESTS" ]] || [[ "$RUN_STATIC_CHECKS" ]]; then make deps; fi
   - if [[ "$RUN_STATIC_CHECKS" ]]; then make lint-deps ; fi
-  - if [[ "$RUN_UI_TESTS" ]]; then . $HOME/.nvm/nvm.sh && cd ui && nvm use && cd .. ; fi
+  - if [[ "$RUN_UI_TESTS" ]]; then . $HOME/.nvm/nvm.sh && cd ui && nvm install && nvm use && cd .. ; fi
 
 script:
   - sudo -E "PATH=$PATH" GOTESTSUM_JUNITFILE=/tmp/results.xml make travis

@@ -9,11 +9,11 @@ export default DistributionBar.extend({
   'data-test-children-status-bar': true,
 
   data: computed('job.{pendingChildren,runningChildren,deadChildren}', function() {
-    if (!this.get('job')) {
+    if (!this.job) {
       return [];
     }
 
-    const children = this.get('job').getProperties(
+    const children = this.job.getProperties(
       'pendingChildren',
       'runningChildren',
       'deadChildren'

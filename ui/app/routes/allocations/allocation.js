@@ -9,7 +9,7 @@ import { jobCrumbs } from 'nomad-ui/utils/breadcrumb-utils';
 export default Route.extend(WithWatchers, {
   startWatchers(controller, model) {
     if (model) {
-      controller.set('watcher', this.get('watch').perform(model));
+      controller.set('watcher', this.watch.perform(model));
     }
   },
 

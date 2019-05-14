@@ -1087,9 +1087,46 @@ func TestTaskTemplateManager_Env_Missing(t *testing.T) {
 		},
 	}
 
-	if vars, err := loadTemplateEnv(templates, d); err == nil {
+	if vars, err := loadTemplateEnv(templates, d, taskenv.NewEmptyTaskEnv()); err == nil {
 		t.Fatalf("expected an error but instead got env vars: %#v", vars)
 	}
+}
+
+// TestTaskTemplateManager_Env_InterpolatedDest asserts the core env
+// template processing function handles interpolated destinations
+func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	d, err := ioutil.TempDir("", "ct_env_interpolated")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	defer os.RemoveAll(d)
+
+	// Fake writing the file so we don't have to run the whole template manager
+	err = ioutil.WriteFile(filepath.Join(d, "exists.env"), []byte("FOO=bar\n"), 0644)
+	if err != nil {
+		t.Fatalf("error writing template file: %v", err)
+	}
+
+	templates := []*structs.Template{
+		{
+			EmbeddedTmpl: "FOO=bar\n",
+			DestPath:     "${NOMAD_META_path}.env",
+			Envvars:      true,
+		},
+	}
+
+	// Build the env
+	taskEnv := taskenv.NewTaskEnv(
+		map[string]string{"NOMAD_META_path": "exists"},
+		map[string]string{}, map[string]string{})
+
+	vars, err := loadTemplateEnv(templates, d, taskEnv)
+	require.NoError(err)
+	require.Contains(vars, "FOO")
+	require.Equal(vars["FOO"], "bar")
 }
 
 // TestTaskTemplateManager_Env_Multi asserts the core env
@@ -1125,9 +1162,9 @@ func TestTaskTemplateManager_Env_Multi(t *testing.T) {
 		},
 	}
 
-	vars, err := loadTemplateEnv(templates, d)
+	vars, err := loadTemplateEnv(templates, d, taskenv.NewEmptyTaskEnv())
 	if err != nil {
-		t.Fatalf("expected an error but instead got env vars: %#v", vars)
+		t.Fatalf("expected no error: %v", err)
 	}
 	if vars["FOO"] != "bar" {
 		t.Errorf("expected FOO=bar but found %q", vars["FOO"])
@@ -1287,6 +1324,38 @@ func TestTaskTemplateManager_Config_VaultGrace(t *testing.T) {
 	assert.Nil(err, "Building Runner Config")
 	assert.NotNil(ctconf.Vault.Grace, "Vault Grace Pointer")
 	assert.Equal(10*time.Second, *ctconf.Vault.Grace, "Vault Grace Value")
+}
+
+// TestTaskTemplateManager_Config_VaultNamespace asserts the Vault namespace setting is
+// propagated to consul-template's configuration.
+func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	testNS := "test-namespace"
+	c := config.DefaultConfig()
+	c.Node = mock.Node()
+	c.VaultConfig = &sconfig.VaultConfig{
+		Enabled:       helper.BoolToPtr(true),
+		Addr:          "https://localhost/",
+		TLSServerName: "notlocalhost",
+		Namespace:     testNS,
+	}
+
+	alloc := mock.Alloc()
+	config := &TaskTemplateManagerConfig{
+		ClientConfig: c,
+		VaultToken:   "token",
+		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
+	}
+
+	ctmplMapping, err := parseTemplateConfigs(config)
+	assert.Nil(err, "Parsing Templates")
+
+	ctconf, err := newRunnerConfig(config, ctmplMapping)
+	assert.Nil(err, "Building Runner Config")
+	assert.NotNil(ctconf.Vault.Grace, "Vault Grace Pointer")
+	assert.Equal(testNS, *ctconf.Vault.Namespace, "Vault Namespace Value")
 }
 
 func TestTaskTemplateManager_BlockedEvents(t *testing.T) {

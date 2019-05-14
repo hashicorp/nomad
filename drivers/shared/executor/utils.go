@@ -3,7 +3,6 @@ package executor
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os/exec"
 
 	"github.com/golang/protobuf/ptypes"
@@ -26,7 +25,7 @@ const (
 
 // CreateExecutor launches an executor plugin and returns an instance of the
 // Executor interface
-func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDriverConfig,
+func CreateExecutor(logger hclog.Logger, driverConfig *base.ClientDriverConfig,
 	executorConfig *ExecutorConfig) (Executor, *plugin.Client, error) {
 
 	c, err := json.Marshal(executorConfig)
@@ -38,12 +37,18 @@ func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDri
 		return nil, nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 
-	config := &plugin.ClientConfig{
-		Cmd: exec.Command(bin, "executor", string(c)),
+	p := &ExecutorPlugin{
+		logger:      logger,
+		fsIsolation: executorConfig.FSIsolation,
 	}
-	config.HandshakeConfig = base.Handshake
-	config.Plugins = GetPluginMap(w, level, executorConfig.FSIsolation)
-	config.AllowedProtocols = []plugin.Protocol{plugin.ProtocolGRPC}
+
+	config := &plugin.ClientConfig{
+		HandshakeConfig:  base.Handshake,
+		Plugins:          map[string]plugin.Plugin{"executor": p},
+		Cmd:              exec.Command(bin, "executor", string(c)),
+		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
+		Logger:           logger.Named("executor"),
+	}
 
 	if driverConfig != nil {
 		config.MaxPort = driverConfig.ClientMaxPort
@@ -59,31 +64,36 @@ func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDri
 		isolateCommand(config.Cmd)
 	}
 
-	executorClient := plugin.NewClient(config)
-	rpcClient, err := executorClient.Client()
-	if err != nil {
-		return nil, nil, fmt.Errorf("error creating rpc client for executor plugin: %v", err)
-	}
-
-	raw, err := rpcClient.Dispense("executor")
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
-	}
-	executorPlugin := raw.(Executor)
-	return executorPlugin, executorClient, nil
+	return newExecutorClient(config, logger)
 }
 
-// CreateExecutorWithConfig launches a plugin with a given plugin config
-func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (Executor, *plugin.Client, error) {
-	config.HandshakeConfig = base.Handshake
+// ReattachToExecutor launches a plugin with a given plugin config
+func ReattachToExecutor(reattachConfig *plugin.ReattachConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
+	config := &plugin.ClientConfig{
+		HandshakeConfig:  base.Handshake,
+		Reattach:         reattachConfig,
+		Plugins:          GetPluginMap(logger, false),
+		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
+		Logger:           logger.Named("executor"),
+	}
 
-	// Setting this to DEBUG since the log level at the executor server process
-	// is already set, and this effects only the executor client.
-	// TODO: Use versioned plugin map to support backwards compatibility with
-	// existing pre-0.9 executors
-	config.Plugins = GetPluginMap(w, hclog.Debug, false)
-	config.AllowedProtocols = []plugin.Protocol{plugin.ProtocolGRPC}
+	return newExecutorClient(config, logger)
+}
 
+// ReattachToPre09Executor creates a plugin client that reattaches to an existing
+// pre 0.9 Nomad executor
+func ReattachToPre09Executor(reattachConfig *plugin.ReattachConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
+	config := &plugin.ClientConfig{
+		HandshakeConfig:  base.Handshake,
+		Reattach:         reattachConfig,
+		Plugins:          GetPre09PluginMap(logger, false),
+		AllowedProtocols: []plugin.Protocol{plugin.ProtocolNetRPC},
+		Logger:           logger.Named("executor"),
+	}
+	return newExecutorClient(config, logger)
+}
+
+func newExecutorClient(config *plugin.ClientConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
 	if err != nil {

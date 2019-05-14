@@ -67,7 +67,9 @@ func (f *NetworkFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 	intf, err := f.findInterface(cfg.NetworkInterface)
 	switch {
 	case err != nil:
-		return fmt.Errorf("Error while detecting network interface during fingerprinting: %v", err)
+		return fmt.Errorf("Error while detecting network interface %s during fingerprinting: %v",
+			cfg.NetworkInterface,
+			err)
 	case intf == nil:
 		// No interface could be found
 		return nil

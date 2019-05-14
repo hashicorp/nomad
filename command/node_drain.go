@@ -242,7 +242,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	}
 
 	// Prefix lookup matched a single node
-	node, _, err := client.Nodes().Info(nodes[0].ID, nil)
+	node, meta, err := client.Nodes().Info(nodes[0].ID, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))
 		return 1
@@ -250,8 +250,12 @@ func (c *NodeDrainCommand) Run(args []string) int {
 
 	// If monitoring the drain start the montior and return when done
 	if monitor {
+		if node.DrainStrategy == nil {
+			c.Ui.Warn("No drain strategy set")
+			return 0
+		}
 		c.Ui.Info(fmt.Sprintf("%s: Monitoring node %q: Ctrl-C to detach monitoring", formatTime(time.Now()), node.ID))
-		c.monitorDrain(client, context.Background(), node, 0, ignoreSystem)
+		c.monitorDrain(client, context.Background(), node, meta.LastIndex, ignoreSystem)
 		return 0
 	}
 
@@ -291,7 +295,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	}
 
 	// Toggle node draining
-	meta, err := client.Nodes().UpdateDrain(node.ID, spec, !keepIneligible, nil)
+	updateMeta, err := client.Nodes().UpdateDrain(node.ID, spec, !keepIneligible, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error updating drain specification: %s", err))
 		return 1
@@ -309,7 +313,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		now := time.Now()
 		c.Ui.Info(fmt.Sprintf("%s: Ctrl-C to stop monitoring: will not cancel the node drain", formatTime(now)))
 		c.Ui.Output(fmt.Sprintf("%s: Node %q drain strategy set", formatTime(now), node.ID))
-		c.monitorDrain(client, context.Background(), node, meta.LastIndex, ignoreSystem)
+		c.monitorDrain(client, context.Background(), node, updateMeta.LastIndex, ignoreSystem)
 	}
 	return 0
 }
