@@ -44,10 +44,11 @@ Exec Specific Options:
     Use a random allocation from the specified job ID.
 
   -i
-    Pass stdin to the container, defaults to true
+    Pass stdin to the container, defaults to true.  Pass -i=false to disable.
 
   -t
-    Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty session
+    Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty session.
+    Pass -t=false to disable explicitly.
   `
 	return strings.TrimSpace(helpText)
 }
@@ -215,6 +216,9 @@ func isStdinTty() bool {
 	return isTerminal
 }
 
+// setRawTerminal sets the stream terminal in raw mode, so process captures
+// Ctrl+C and other commands to forward to remote process.
+// It returns a cleanup function that restores terminal to original mode.
 func setRawTerminal(stream interface{}) (cleanup func(), err error) {
 	fd, isTerminal := term.GetFdInfo(stream)
 	if !isTerminal {
