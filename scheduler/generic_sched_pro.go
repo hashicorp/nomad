@@ -7,8 +7,19 @@ import "github.com/hashicorp/nomad/nomad/structs"
 // selectNextOption calls the stack to get a node for placement
 func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions *SelectOptions) *RankedNode {
 	option := s.stack.Select(tg, selectOptions)
+	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
+
+	// Check if preemption is enabled, defaults to true
+	enablePreemption := true
+	if schedConfig != nil {
+		if s.job.Type == structs.JobTypeBatch {
+			enablePreemption = schedConfig.PreemptionConfig.BatchSchedulerEnabled
+		} else {
+			enablePreemption = schedConfig.PreemptionConfig.SystemSchedulerEnabled
+		}
+	}
 	// Run stack again with preemption enabled
-	if option == nil {
+	if option == nil && enablePreemption {
 		selectOptions.Preempt = true
 		option = s.stack.Select(tg, selectOptions)
 	}
