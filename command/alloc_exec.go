@@ -296,7 +296,7 @@ func setRawTerminalOutput(stream interface{}) (cleanup func(), err error) {
 	return func() { term.RestoreTerminal(fd, state) }, nil
 }
 
-// watchTerminalSize watches terminal size changes to propogate to remote tty.
+// watchTerminalSize watches terminal size changes to propagate to remote tty.
 func watchTerminalSize(out io.Writer, resize chan<- api.TerminalSize) (func(), error) {
 	fd, isTerminal := term.GetFdInfo(out)
 	if !isTerminal {
