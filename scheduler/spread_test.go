@@ -566,4 +566,5 @@ func Test_evenSpreadScoreBoost(t *testing.T) {
 	}
 	boost := evenSpreadScoreBoost(pset, opt)
 	require.False(t, math.IsInf(boost, 1))
+	require.Equal(t, 1.0, boost)
 }

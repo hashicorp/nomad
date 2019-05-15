@@ -215,7 +215,8 @@ func evenSpreadScoreBoost(pset *propertySet, option *structs.Node) float64 {
 		// Maximum possible penalty when the distribution is even
 		return -1.0
 	} else if minCount == 0 {
-		// Maximum possible boost
+		// Current attribute count is equal to min and both are zero. This means no allocations
+		// were placed for this attribute value yet. Should get the maximum possible boost.
 		return 1.0
 	}
 
