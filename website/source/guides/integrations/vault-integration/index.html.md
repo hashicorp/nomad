@@ -261,18 +261,12 @@ Nomad Server's configuration file located at `/etc/nomad.d/nomad.hcl`. Provide
 the token you generated in the previous step in the `vault` stanza of your Nomad
 server configuration. The token can also be provided as an environment variable
 called `VAULT_TOKEN`. Be sure to specify the `nomad-cluster-role` in the
-<<<<<<< HEAD:website/source/guides/operations/vault-integration/index.html.md
-[create_from_role][create-from-role] option. After following these steps and
-enabling Vault, the `vault` stanza in your Nomad server configuration will be
-similar to what is shown below:
-=======
-[create_from_role][create-from-role] option. If using
-[Vault Namespaces](https://www.vaultproject.io/docs/enterprise/namespaces/index.html),
+[create_from_role][create-from-role] option. If using [Vault
+Namespaces](https://www.vaultproject.io/docs/enterprise/namespaces/index.html),
 modify both the client and server configuration to include the namespace;
 alternatively, it can be provided in the environment variable `VAULT_NAMESPACE`.
 After following these steps and enabling Vault, the `vault` stanza in your Nomad
 server configuration will be similar to what is shown below:
->>>>>>> ac76fc2fd... Merge pull request #5667 from hashicorp/yishan/revised-nomadproject-structure:website/source/guides/integrations/vault-integration/index.html.md
 
 ```hcl
 vault {
