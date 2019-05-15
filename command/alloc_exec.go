@@ -211,6 +211,52 @@ func (l *AllocExecCommand) Run(args []string) int {
 	return code
 }
 
+// execImpl invokes the Alloc Exec api call, it also prepares and restores terminal states as necessary.
+func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, tty bool,
+	command []string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
+
+	sizeCh := make(chan api.TerminalSize, 1)
+
+	// When tty, ensures we capture all user input and monitor terminal resizes.
+	if tty {
+		if stdin == nil {
+			return -1, fmt.Errorf("stdin is null")
+		}
+
+		inCleanup, err := setRawTerminal(stdin)
+		if err != nil {
+			return -1, err
+		}
+		defer inCleanup()
+
+		outCleanup, err := setRawTerminalOutput(stdout)
+		if err != nil {
+			return -1, err
+		}
+		defer outCleanup()
+
+		sizeCleanup, err := watchTerminalSize(stdout, sizeCh)
+		if err != nil {
+			return -1, err
+		}
+		defer sizeCleanup()
+	}
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		for range signalCh {
+			cancelFn()
+		}
+	}()
+
+	return client.Allocations().Exec(ctx,
+		alloc, task, tty, command, stdin, stdout, stderr, sizeCh, nil)
+}
+
 func isStdinTty() bool {
 	_, isTerminal := term.GetFdInfo(os.Stdin)
 	return isTerminal
@@ -233,6 +279,24 @@ func setRawTerminal(stream interface{}) (cleanup func(), err error) {
 	return func() { term.RestoreTerminal(fd, state) }, nil
 }
 
+// setRawTerminalOutput sets the output stream in Windows to raw mode,
+// so it disables LF -> CRLF translation.
+// It's basically a no-op on unix.
+func setRawTerminalOutput(stream interface{}) (cleanup func(), err error) {
+	fd, isTerminal := term.GetFdInfo(stream)
+	if !isTerminal {
+		return nil, errors.New("not a terminal")
+	}
+
+	state, err := term.SetRawTerminalOutput(fd)
+	if err != nil {
+		return nil, err
+	}
+
+	return func() { term.RestoreTerminal(fd, state) }, nil
+}
+
+// watchTerminalSize watches terminal size changes to propogate to remote tty.
 func watchTerminalSize(out io.Writer, resize chan<- api.TerminalSize) (func(), error) {
 	fd, isTerminal := term.GetFdInfo(out)
 	if !isTerminal {
@@ -272,48 +336,4 @@ func watchTerminalSize(out io.Writer, resize chan<- api.TerminalSize) (func(), e
 	}()
 
 	return cancel, nil
-}
-
-func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, tty bool,
-	command []string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
-
-	sizeCh := make(chan api.TerminalSize, 1)
-
-	if tty {
-		if stdin == nil {
-			return -1, fmt.Errorf("stdin is null")
-		}
-
-		inCleanup, err := setRawTerminal(stdin)
-		if err != nil {
-			return -1, err
-		}
-		defer inCleanup()
-
-		outCleanup, err := setRawTerminal(stdout)
-		if err != nil {
-			return -1, err
-		}
-		defer outCleanup()
-
-		sizeCleanup, err := watchTerminalSize(stdout, sizeCh)
-		if err != nil {
-			return -1, err
-		}
-		defer sizeCleanup()
-	}
-
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
-
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		for range signalCh {
-			cancelFn()
-		}
-	}()
-
-	return client.Allocations().Exec(ctx,
-		alloc, task, tty, command, stdin, stdout, stderr, sizeCh, nil)
 }
