@@ -647,6 +647,64 @@ func TestEvalBroker_Enqueue_Disable(t *testing.T) {
 	}
 }
 
+func TestEvalBroker_Enqueue_Disable_Delay(t *testing.T) {
+	t.Parallel()
+	b := testBroker(t, 0)
+	baseEval := mock.Eval()
+	b.SetEnabled(true)
+
+	{
+		// Enqueue
+		b.Enqueue(baseEval.Copy())
+
+		delayedEval := baseEval.Copy()
+		delayedEval.Wait = 30
+		b.Enqueue(delayedEval)
+
+		waitEval := baseEval.Copy()
+		waitEval.WaitUntil = time.Now().Add(30 * time.Second)
+		b.Enqueue(waitEval)
+	}
+
+	// Flush via SetEnabled
+	b.SetEnabled(false)
+
+	{
+		// Check the stats
+		stats := b.Stats()
+		require.Equal(t, 0, stats.TotalReady, "Expected ready to be flushed")
+		require.Equal(t, 0, stats.TotalWaiting, "Expected waiting to be flushed")
+		require.Equal(t, 0, stats.TotalBlocked, "Expected blocked to be flushed")
+		require.Equal(t, 0, stats.TotalUnacked, "Expected unacked to be flushed")
+		_, ok := stats.ByScheduler[baseEval.Type]
+		require.False(t, ok, "Expected scheduler to have no stats")
+	}
+
+	{
+		// Enqueue again now we're disabled
+		b.Enqueue(baseEval.Copy())
+
+		delayedEval := baseEval.Copy()
+		delayedEval.Wait = 30 * time.Second
+		b.Enqueue(delayedEval)
+
+		waitEval := baseEval.Copy()
+		waitEval.WaitUntil = time.Now().Add(30 * time.Second)
+		b.Enqueue(waitEval)
+	}
+
+	{
+		// Check the stats again
+		stats := b.Stats()
+		require.Equal(t, 0, stats.TotalReady, "Expected ready to be flushed")
+		require.Equal(t, 0, stats.TotalWaiting, "Expected waiting to be flushed")
+		require.Equal(t, 0, stats.TotalBlocked, "Expected blocked to be flushed")
+		require.Equal(t, 0, stats.TotalUnacked, "Expected unacked to be flushed")
+		_, ok := stats.ByScheduler[baseEval.Type]
+		require.False(t, ok, "Expected scheduler to have no stats")
+	}
+}
+
 func TestEvalBroker_Dequeue_Timeout(t *testing.T) {
 	t.Parallel()
 	b := testBroker(t, 0)
