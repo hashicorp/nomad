@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	// These values were chosen such that a net priority of 2048 would get a preemption score of 0.5
 	// rate is the decay parameter of the logistic function used in scoring preemption options
 	rate = 0.0048
 
@@ -74,7 +75,9 @@ func netPriority(allocs []*structs.Allocation) float64 {
 
 // preemptionScore is calculated using a logistic function
 // see https://www.desmos.com/calculator/alaeiuaiey for a visual representation of the curve.
-// Lower values of netPriority get a score closer to 1 and the inflection point is around 1500
+// Lower values of netPriority get a score closer to 1 and the inflection point is around 2048
+// The score is modelled to be between 0 and 1 because its combined with other
+// scoring factors like bin packing
 func preemptionScore(netPriority float64) float64 {
 	// This function manifests as an s curve that asympotically moves towards zero for large values of netPriority
 	return 1.0 / (1 + math.Exp(rate*(netPriority-origin)))
