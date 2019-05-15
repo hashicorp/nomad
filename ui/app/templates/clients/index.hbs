@@ -3,14 +3,14 @@
     {{partial "partials/forbidden-message"}}
   {{else}}
     <div class="toolbar">
-      {{#if nodes.length}}
-        <div class="toolbar-item">
+      <div class="toolbar-item">
+        {{#if nodes.length}}
           {{search-box
             searchTerm=(mut searchTerm)
             onChange=(action resetPagination)
             placeholder="Search clients..."}}
-        </div>
-      {{/if}}
+        {{/if}}
+      </div>
       <div class="toolbar-item is-right-aligned is-mobile-full-width">
         <div class="button-bar">
           {{multi-select-dropdown
