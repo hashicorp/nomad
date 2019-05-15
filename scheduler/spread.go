@@ -194,7 +194,7 @@ func evenSpreadScoreBoost(pset *propertySet, option *structs.Node) float64 {
 	for _, value := range combinedUseMap {
 		if minCount == 0 || value < minCount {
 			minCount = value
-
+		}
 		if maxCount == 0 || value > maxCount {
 			maxCount = value
 		}
