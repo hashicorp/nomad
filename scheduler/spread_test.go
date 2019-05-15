@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"math"
 	"testing"
 
 	"fmt"
@@ -311,6 +312,7 @@ func TestSpreadIterator_EvenSpread(t *testing.T) {
 	}
 	for _, rn := range out {
 		require.Equal(t, fmt.Sprintf("%.3f", expectedScores[rn.Node.Datacenter]), fmt.Sprintf("%.3f", rn.FinalScore))
+
 	}
 
 	// Update the plan to add allocs to nodes in dc1
@@ -542,4 +544,26 @@ func TestSpreadIterator_MaxPenalty(t *testing.T) {
 		require.Equal(t, -1.0, rn.FinalScore)
 	}
 
+}
+
+func Test_evenSpreadScoreBoost(t *testing.T) {
+	pset := &propertySet{
+		existingValues: map[string]uint64{},
+		proposedValues: map[string]uint64{
+			"dc2": 1,
+			"dc1": 1,
+			"dc3": 1,
+		},
+		clearedValues: map[string]uint64{
+			"dc2": 1,
+			"dc3": 1,
+		},
+		targetAttribute: "${node.datacenter}",
+	}
+
+	opt := &structs.Node{
+		Datacenter: "dc2",
+	}
+	boost := evenSpreadScoreBoost(pset, opt)
+	require.False(t, math.IsInf(boost, 1))
 }

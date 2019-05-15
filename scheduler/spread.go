@@ -194,7 +194,7 @@ func evenSpreadScoreBoost(pset *propertySet, option *structs.Node) float64 {
 	for _, value := range combinedUseMap {
 		if minCount == 0 || value < minCount {
 			minCount = value
-		}
+
 		if maxCount == 0 || value > maxCount {
 			maxCount = value
 		}
@@ -214,7 +214,11 @@ func evenSpreadScoreBoost(pset *propertySet, option *structs.Node) float64 {
 	} else if minCount == maxCount {
 		// Maximum possible penalty when the distribution is even
 		return -1.0
+	} else if minCount == 0 {
+		// Maximum possible boost
+		return 1.0
 	}
+
 	// Penalty based on delta from max value
 	delta := int(maxCount - minCount)
 	deltaBoost = float64(delta) / float64(minCount)
