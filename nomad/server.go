@@ -1027,6 +1027,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		// Client endpoints
 		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats")}
 		s.staticEndpoints.ClientAllocations = &ClientAllocations{srv: s, logger: s.logger.Named("client_allocs")}
+		s.staticEndpoints.ClientAllocations.register()
 
 		// Streaming endpoints
 		s.staticEndpoints.FileSystem = &FileSystem{srv: s, logger: s.logger.Named("client_fs")}

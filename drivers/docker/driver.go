@@ -1215,6 +1215,95 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 	return h.Exec(ctx, cmd[0], cmd[1:])
 }
 
+var _ drivers.ExecTaskStreamingDriver = (*Driver)(nil)
+
+func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *drivers.ExecOptions) (*drivers.ExitResult, error) {
+	defer opts.Stdout.Close()
+	defer opts.Stderr.Close()
+
+	done := make(chan interface{})
+	defer close(done)
+
+	h, ok := d.tasks.Get(taskID)
+	if !ok {
+		return nil, drivers.ErrTaskNotFound
+	}
+
+	if len(opts.Command) == 0 {
+		return nil, fmt.Errorf("command is required but was empty")
+	}
+
+	createExecOpts := docker.CreateExecOptions{
+		AttachStdin:  true,
+		AttachStdout: true,
+		AttachStderr: true,
+		Tty:          opts.Tty,
+		Cmd:          opts.Command,
+		Container:    h.containerID,
+		Context:      ctx,
+	}
+	exec, err := h.client.CreateExec(createExecOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create exec object: %v", err)
+	}
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-done:
+				return
+			case s, ok := <-opts.ResizeCh:
+				if !ok {
+					return
+				}
+				client.ResizeExecTTY(exec.ID, s.Height, s.Width)
+			}
+		}
+	}()
+
+	startOpts := docker.StartExecOptions{
+		Detach: false,
+
+		// When running in TTY, we must use a raw terminal.
+		// If not, we set RawTerminal to false to allow docker client
+		// to interpret special stdout/stderr messages
+		Tty:         opts.Tty,
+		RawTerminal: opts.Tty,
+
+		InputStream:  opts.Stdin,
+		OutputStream: opts.Stdout,
+		ErrorStream:  opts.Stderr,
+		Context:      ctx,
+	}
+	if err := client.StartExec(exec.ID, startOpts); err != nil {
+		return nil, fmt.Errorf("failed to start exec: %v", err)
+	}
+
+	// StartExec returns after process completes, but InspectExec seems to have a delay
+	// get in getting status code
+
+	const execTerminatingTimeout = 3 * time.Second
+	start := time.Now()
+	var res *docker.ExecInspect
+	for res == nil || res.Running || time.Since(start) > execTerminatingTimeout {
+		res, err = client.InspectExec(exec.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to inspect exec result: %v", err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if res == nil || res.Running {
+		return nil, fmt.Errorf("failed to retrieve exec result")
+	}
+
+	return &drivers.ExitResult{
+		ExitCode: res.ExitCode,
+	}, nil
+}
+
 // dockerClients creates two *docker.Client, one for long running operations and
 // the other for shorter operations. In test / dev mode we can use ENV vars to
 // connect to the docker daemon. In production mode we will read docker.endpoint

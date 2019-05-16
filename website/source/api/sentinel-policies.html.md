@@ -9,7 +9,7 @@ description: |-
 # Sentinel Policies HTTP API
 
 The `/sentinel/policies` and `/sentinel/policy/` endpoints are used to manage Sentinel policies.
-For more details about Sentinel policies, please see the [Sentinel Policy Guide](/guides/security/sentinel-policy.html).
+For more details about Sentinel policies, please see the [Sentinel Policy Guide](/guides/governance-and-policy/sentinel/sentinel-policy.html).
 
 Sentinel endpoints are only available when ACLs are enabled. For more details about ACLs, please see the [ACL Guide](/guides/security/acl.html).
 

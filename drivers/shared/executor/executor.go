@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/kr/pty"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
@@ -77,6 +78,9 @@ type Executor interface {
 	// Exec executes the given command and args inside the executor context
 	// and returns the output and exit code.
 	Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error)
+
+	ExecStreaming(ctx context.Context, cmd []string, tty bool,
+		stream drivers.ExecTaskStream) error
 }
 
 // ExecCommand holds the user command, args, and other isolation related
@@ -354,6 +358,53 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 		return buf.Bytes(), exitCode, nil
 	}
 	return buf.Bytes(), 0, nil
+}
+
+func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string, tty bool,
+	stream drivers.ExecTaskStream) error {
+
+	if len(command) == 0 {
+		return fmt.Errorf("command is required")
+	}
+
+	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
+
+	cmd.Dir = "/"
+	cmd.Env = e.childCmd.Env
+
+	execHelper := &execHelper{
+		logger: e.logger,
+
+		newTerminal: func() (func() (*os.File, error), *os.File, error) {
+			pty, tty, err := pty.Open()
+			if err != nil {
+				return nil, nil, err
+			}
+
+			return func() (*os.File, error) { return pty, nil }, tty, err
+		},
+		setTTY: func(tty *os.File) error {
+			cmd.SysProcAttr = sessionCmdAttr(tty)
+
+			cmd.Stdin = tty
+			cmd.Stdout = tty
+			cmd.Stderr = tty
+			return nil
+		},
+		setIO: func(stdin io.Reader, stdout, stderr io.Writer) error {
+			cmd.Stdin = stdin
+			cmd.Stdout = stdout
+			cmd.Stderr = stderr
+			return nil
+		},
+		processStart: cmd.Start,
+		processWait: func() (*os.ProcessState, error) {
+			err := cmd.Wait()
+			return cmd.ProcessState, err
+		},
+	}
+
+	return execHelper.run(ctx, tty, stream)
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors

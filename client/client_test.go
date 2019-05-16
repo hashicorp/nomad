@@ -5,11 +5,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"testing"
 	"time"
 
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -26,7 +27,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	cstate "github.com/hashicorp/nomad/client/state"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/stretchr/testify/require"
@@ -893,7 +894,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Enusre that the chained allocation is being tracked as blocked
+	// Ensure that the chained allocation is being tracked as blocked
 	testutil.WaitForResult(func() (bool, error) {
 		ar := c1.getAllocRunners()[alloc2.ID]
 		if ar == nil {
@@ -1318,6 +1319,44 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	assert.Equal(t, 100, client.config.Node.NodeResources.Networks[0].MBits)
 }
 
+// Support multiple IP addresses (ipv4 vs. 6, e.g.) on the configured network interface
+func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
+	t.Parallel()
+
+	var dev string
+	switch runtime.GOOS {
+	case "linux":
+		dev = "lo"
+	case "darwin":
+		dev = "lo0"
+	}
+
+	// Client without network configured updates to match fingerprint
+	client, cleanup := TestClient(t, func(c *config.Config) {
+		c.NetworkInterface = dev
+		c.Node.NodeResources.Networks[0].Device = dev
+		c.Node.Resources.Networks = c.Node.NodeResources.Networks
+	})
+	defer cleanup()
+
+	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
+		NodeResources: &structs.NodeResources{
+			Cpu: structs.NodeCpuResources{CpuShares: 123},
+			Networks: []*structs.NetworkResource{
+				{Device: dev, IP: "127.0.0.1"},
+				{Device: dev, IP: "::1"},
+			},
+		},
+	})
+
+	two := structs.Networks{
+		{Device: dev, IP: "127.0.0.1"},
+		{Device: dev, IP: "::1"},
+	}
+
+	require.Equal(t, two, client.config.Node.NodeResources.Networks)
+}
+
 func TestClient_computeAllocatedDeviceStats(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	c := &Client{logger: logger}
@@ -1412,6 +1451,116 @@ func TestClient_computeAllocatedDeviceStats(t *testing.T) {
 	}
 
 	assert.EqualValues(t, expected, result)
+}
+
+func TestClient_getAllocatedResources(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	client, cleanup := TestClient(t, nil)
+	defer cleanup()
+
+	allocStops := mock.BatchAlloc()
+	allocStops.Job.TaskGroups[0].Count = 1
+	allocStops.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	allocStops.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for":   "1ms",
+		"exit_code": "0",
+	}
+	allocStops.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	allocStops.AllocatedResources.Shared.DiskMB = 64
+	allocStops.AllocatedResources.Tasks["web"].Cpu = structs.AllocatedCpuResources{CpuShares: 64}
+	allocStops.AllocatedResources.Tasks["web"].Memory = structs.AllocatedMemoryResources{MemoryMB: 64}
+	require.Nil(client.addAlloc(allocStops, ""))
+
+	allocFails := mock.BatchAlloc()
+	allocFails.Job.TaskGroups[0].Count = 1
+	allocFails.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	allocFails.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for":   "1ms",
+		"exit_code": "1",
+	}
+	allocFails.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	allocFails.AllocatedResources.Shared.DiskMB = 128
+	allocFails.AllocatedResources.Tasks["web"].Cpu = structs.AllocatedCpuResources{CpuShares: 128}
+	allocFails.AllocatedResources.Tasks["web"].Memory = structs.AllocatedMemoryResources{MemoryMB: 128}
+	require.Nil(client.addAlloc(allocFails, ""))
+
+	allocRuns := mock.Alloc()
+	allocRuns.Job.TaskGroups[0].Count = 1
+	allocRuns.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	allocRuns.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "3s",
+	}
+	allocRuns.AllocatedResources.Shared.DiskMB = 256
+	allocRuns.AllocatedResources.Tasks["web"].Cpu = structs.AllocatedCpuResources{CpuShares: 256}
+	allocRuns.AllocatedResources.Tasks["web"].Memory = structs.AllocatedMemoryResources{MemoryMB: 256}
+	require.Nil(client.addAlloc(allocRuns, ""))
+
+	allocPends := mock.Alloc()
+	allocPends.Job.TaskGroups[0].Count = 1
+	allocPends.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	allocPends.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for":         "5s",
+		"start_block_for": "10s",
+	}
+	allocPends.AllocatedResources.Shared.DiskMB = 512
+	allocPends.AllocatedResources.Tasks["web"].Cpu = structs.AllocatedCpuResources{CpuShares: 512}
+	allocPends.AllocatedResources.Tasks["web"].Memory = structs.AllocatedMemoryResources{MemoryMB: 512}
+	require.Nil(client.addAlloc(allocPends, ""))
+
+	// wait for allocStops to stop running and for allocRuns to be pending/running
+	testutil.WaitForResult(func() (bool, error) {
+		as, err := client.GetAllocState(allocPends.ID)
+		if err != nil {
+			return false, err
+		} else if as.ClientStatus != structs.AllocClientStatusPending {
+			return false, fmt.Errorf("allocPends not yet pending: %#v", as)
+		}
+
+		as, err = client.GetAllocState(allocRuns.ID)
+		if as.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("allocRuns not yet running: %#v", as)
+		} else if err != nil {
+			return false, err
+		}
+
+		as, err = client.GetAllocState(allocStops.ID)
+		if err != nil {
+			return false, err
+		} else if as.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("allocStops not yet complete: %#v", as)
+		}
+
+		as, err = client.GetAllocState(allocFails.ID)
+		if err != nil {
+			return false, err
+		} else if as.ClientStatus != structs.AllocClientStatusFailed {
+			return false, fmt.Errorf("allocFails not yet failed: %#v", as)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+
+	result := client.getAllocatedResources(client.config.Node)
+
+	expected := structs.ComparableResources{
+		Flattened: structs.AllocatedTaskResources{
+			Cpu: structs.AllocatedCpuResources{
+				CpuShares: 768,
+			},
+			Memory: structs.AllocatedMemoryResources{
+				MemoryMB: 768,
+			},
+			Networks: nil,
+		},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: 768,
+		},
+	}
+
+	assert.EqualValues(t, expected, *result)
 }
 
 func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {

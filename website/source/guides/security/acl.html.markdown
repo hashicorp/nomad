@@ -406,7 +406,7 @@ authentication backends, it could provide a workflow where a user or orchestrati
 using an pre-existing identity service (LDAP, Okta, Amazon IAM, etc.) in order to obtain a short-lived
 Nomad token.
 
-~> HashiCorp Vault is a standalone product with it's own set of deployment and
+~> HashiCorp Vault is a standalone product with its own set of deployment and
    configuration best practices. Please review [Vault's
    documentation](https://www.vaultproject.io/docs/index.html) before deploying it
    in production.

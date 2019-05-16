@@ -3,15 +3,15 @@
     {{partial "partials/forbidden-message"}}
   {{else}}
     <div class="toolbar">
-      {{#if visibleJobs.length}}
-        <div class="toolbar-item">
+      <div class="toolbar-item">
+        {{#if visibleJobs.length}}
           {{search-box
             data-test-jobs-search
             searchTerm=(mut searchTerm)
             onChange=(action resetPagination)
             placeholder="Search jobs..."}}
-        </div>
-      {{/if}}
+        {{/if}}
+      </div>
       {{#if (media "isMobile")}}
         <div class="toolbar-item is-right-aligned">
           {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}

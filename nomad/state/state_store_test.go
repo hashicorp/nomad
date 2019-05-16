@@ -396,6 +396,8 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 	require.NoError(err)
 	require.Equal(preempted.DesiredStatus, structs.AllocDesiredStatusEvict)
 	require.Equal(preempted.DesiredDescription, fmt.Sprintf("Preempted by alloc ID %v", alloc.ID))
+	require.Equal(preempted.Job.ID, preemptedAlloc.Job.ID)
+	require.Equal(preempted.Job, preemptedAlloc.Job)
 
 	// Verify eval for preempted job
 	preemptedJobEval, err := state.EvalByID(ws, eval2.ID)
@@ -494,7 +496,7 @@ func TestStateStore_UpsertDeployment(t *testing.T) {
 
 	// Create a watchset so we can test that upsert fires the watch
 	ws := memdb.NewWatchSet()
-	_, err := state.DeploymentsByJobID(ws, deployment.Namespace, deployment.ID)
+	_, err := state.DeploymentsByJobID(ws, deployment.Namespace, deployment.ID, true)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -528,6 +530,43 @@ func TestStateStore_UpsertDeployment(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+}
+
+// Tests that deployments of older create index and same job id are not returned
+func TestStateStore_OldDeployment(t *testing.T) {
+	state := testStateStore(t)
+	job := mock.Job()
+	job.ID = "job1"
+	state.UpsertJob(1000, job)
+
+	deploy1 := mock.Deployment()
+	deploy1.JobID = job.ID
+	deploy1.JobCreateIndex = job.CreateIndex
+
+	deploy2 := mock.Deployment()
+	deploy2.JobID = job.ID
+	deploy2.JobCreateIndex = 11
+
+	require := require.New(t)
+
+	// Insert both deployments
+	err := state.UpsertDeployment(1001, deploy1)
+	require.Nil(err)
+
+	err = state.UpsertDeployment(1002, deploy2)
+	require.Nil(err)
+
+	ws := memdb.NewWatchSet()
+	// Should return both deployments
+	deploys, err := state.DeploymentsByJobID(ws, deploy1.Namespace, job.ID, true)
+	require.Nil(err)
+	require.Len(deploys, 2)
+
+	// Should only return deploy1
+	deploys, err = state.DeploymentsByJobID(ws, deploy1.Namespace, job.ID, false)
+	require.Nil(err)
+	require.Len(deploys, 1)
+	require.Equal(deploy1.ID, deploys[0].ID)
 }
 
 func TestStateStore_DeleteDeployment(t *testing.T) {

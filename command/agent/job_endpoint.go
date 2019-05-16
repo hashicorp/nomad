@@ -219,8 +219,8 @@ func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,
 	allAllocs, _ := strconv.ParseBool(req.URL.Query().Get("all"))
 
 	args := structs.JobSpecificRequest{
-		JobID:     jobName,
-		AllAllocs: allAllocs,
+		JobID: jobName,
+		All:   allAllocs,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -270,8 +270,10 @@ func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request,
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
+	all, _ := strconv.ParseBool(req.URL.Query().Get("all"))
 	args := structs.JobSpecificRequest{
 		JobID: jobName,
+		All:   all,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil

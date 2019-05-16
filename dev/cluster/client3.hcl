@@ -7,6 +7,9 @@ data_dir = "/tmp/client3"
 # Give the agent a unique name. Defaults to hostname
 name = "client3"
 
+# Enable debugging
+enable_debug = true
+
 # Enable the client
 client {
   enabled = true

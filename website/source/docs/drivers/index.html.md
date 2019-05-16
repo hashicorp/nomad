@@ -26,11 +26,9 @@ task driver documents the configuration available in a [job
 specification](/docs/job-specification/index.html), the environments it can be
 used in, and the resource isolation mechanisms available.
 
-Nomad strives to mask the details of running a task from users and instead
-provides a clean abstraction. It is possible for the same task to be executed
-with different isolation levels depending on the client running the task. The
-goal is to use the strictest isolation available and gracefully degrade
-protections where necessary.
+For details on authoring a task driver plugin, please refer to the [plugin
+authoring guide][plugin_guide].
 
 [plugin]: /docs/configuration/plugin.html
 [docker_plugin]: /docs/drivers/docker.html#client-requirements
+[plugin_guide]: /docs/internals/plugins/index.html

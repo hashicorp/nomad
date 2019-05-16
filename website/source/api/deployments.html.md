@@ -29,7 +29,7 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `prefix` `(string: "")`- Specifies a string to filter deployments based on
-  an index prefix. This is specified as a querystring parameter.
+  an index prefix. This is specified as a query string parameter.
 
 ### Sample Request
 

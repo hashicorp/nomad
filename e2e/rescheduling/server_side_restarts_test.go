@@ -53,7 +53,7 @@ var _ = Describe("Server Side Restart Tests", func() {
 		// deploymentStatus is a helper function that returns deployment status of all deployments
 		// sorted by time
 		deploymentStatus = func() []string {
-			deploys, _, err := jobs.Deployments(*job.ID, nil)
+			deploys, _, err := jobs.Deployments(*job.ID, false, nil)
 			Expect(err).ShouldNot(HaveOccurred())
 			var ret []string
 			sort.Slice(deploys, func(i, j int) bool {

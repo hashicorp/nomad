@@ -14,11 +14,11 @@ import (
 	"sync"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
-	hclog "github.com/hashicorp/go-hclog"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -44,6 +44,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shirou/gopsutil/host"
 )
@@ -133,6 +134,9 @@ type AllocRunner interface {
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
 	RestartAll(taskEvent *structs.TaskEvent) error
+
+	GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler
+	GetTaskDriverCapabilities(taskName string) (*drivers.Capabilities, error)
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
@@ -255,6 +259,11 @@ type Client struct {
 	// fpInitialized chan is closed when the first batch of fingerprints are
 	// applied to the node and the server is updated
 	fpInitialized chan struct{}
+
+	// serversContactedCh is closed when GetClientAllocs and runAllocs have
+	// successfully run once.
+	serversContactedCh   chan struct{}
+	serversContactedOnce sync.Once
 }
 
 var (
@@ -305,6 +314,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
 		fpInitialized:        make(chan struct{}),
 		invalidAllocs:        make(map[string]struct{}),
+		serversContactedCh:   make(chan struct{}),
+		serversContactedOnce: sync.Once{},
 	}
 
 	c.batchNodeUpdates = newBatchNodeUpdates(
@@ -314,6 +325,9 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Initialize the server manager
 	c.servers = servers.New(c.logger, c.shutdownCh, c)
+
+	// Start server manager rebalancing go routine
+	go c.servers.Start()
 
 	// Initialize the client
 	if err := c.init(); err != nil {
@@ -432,6 +446,9 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		logger.Warn("batch fingerprint operation timed out; proceeding to register with fingerprinted plugins so far")
 	}
 
+	// Register and then start heartbeating to the servers.
+	c.shutdownGroup.Go(c.registerAndHeartbeat)
+
 	// Restore the state
 	if err := c.restoreState(); err != nil {
 		logger.Error("failed to restore state", "error", err)
@@ -445,9 +462,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 			"https://github.com/hashicorp/nomad/issues")
 		return nil, fmt.Errorf("failed to restore state")
 	}
-
-	// Register and then start heartbeating to the servers.
-	c.shutdownGroup.Go(c.registerAndHeartbeat)
 
 	// Begin periodic snapshotting of state.
 	c.shutdownGroup.Go(c.periodicSnapshot)
@@ -1291,15 +1305,21 @@ func updateNetworks(ns structs.Networks, up structs.Networks, c *config.Config) 
 	if c.NetworkInterface == "" {
 		ns = up
 	} else {
-		// if a network is configured, use only that network
-		// use the fingerprinted data
+		// If a network device is configured, filter up to contain details for only
+		// that device
+		upd := []*structs.NetworkResource{}
 		for _, n := range up {
 			if c.NetworkInterface == n.Device {
-				ns = []*structs.NetworkResource{n}
+				upd = append(upd, n)
 			}
 		}
-		// if not matched, ns has the old data
+		// If updates, use them. Otherwise, ns contains the configured interfaces
+		if len(upd) > 0 {
+			ns = upd
+		}
 	}
+
+	// ns is set, apply the config NetworkSpeed to all
 	if c.NetworkSpeed != 0 {
 		for _, n := range ns {
 			n.MBits = c.NetworkSpeed
@@ -1345,7 +1365,6 @@ func (c *Client) registerAndHeartbeat() {
 		case <-c.shutdownCh:
 			return
 		}
-
 		if err := c.updateNodeStatus(); err != nil {
 			// The servers have changed such that this node has not been
 			// registered before
@@ -2018,6 +2037,12 @@ func (c *Client) runAllocs(update *allocUpdates) {
 		}
 	}
 
+	// Mark servers as having been contacted so blocked tasks that failed
+	// to restore can now restart.
+	c.serversContactedOnce.Do(func() {
+		close(c.serversContactedCh)
+	})
+
 	// Trigger the GC once more now that new allocs are started that could
 	// have caused thresholds to be exceeded
 	c.garbageCollector.Trigger()
@@ -2341,13 +2366,6 @@ func (c *Client) consulDiscovery() {
 
 func (c *Client) consulDiscoveryImpl() error {
 	consulLogger := c.logger.Named("consul")
-
-	// Acquire heartbeat lock to prevent heartbeat from running
-	// concurrently with discovery. Concurrent execution is safe, however
-	// discovery is usually triggered when heartbeating has failed so
-	// there's no point in allowing it.
-	c.heartbeatLock.Lock()
-	defer c.heartbeatLock.Unlock()
 
 	dcs, err := c.consulCatalog.Datacenters()
 	if err != nil {
@@ -2709,11 +2727,11 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 	}
 
 	// Sum the allocated resources
-	allocs := c.allAllocs()
 	var allocated structs.ComparableResources
 	allocatedDeviceMbits := make(map[string]int)
-	for _, alloc := range allocs {
-		if alloc.TerminalStatus() {
+	for _, ar := range c.getAllocRunners() {
+		alloc := ar.Alloc()
+		if alloc.ServerTerminalStatus() || ar.AllocState().ClientTerminalStatus() {
 			continue
 		}
 
@@ -2758,17 +2776,6 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 	}
 
 	return &allocated
-}
-
-// allAllocs returns all the allocations managed by the client
-func (c *Client) allAllocs() map[string]*structs.Allocation {
-	ars := c.getAllocRunners()
-	allocs := make(map[string]*structs.Allocation, len(ars))
-	for _, ar := range ars {
-		a := ar.Alloc()
-		allocs[a.ID] = a
-	}
-	return allocs
 }
 
 // GetTaskEventHandler returns an event handler for the given allocID and task name

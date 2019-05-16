@@ -16,7 +16,7 @@ driver source][lxcdriver].
 
 Authoring a task driver (shortened to driver in this documentation) in Nomad
 consists of implementing the [DriverPlugin][driverplugin] interface and adding
-a main package to launch the plugin. A driver plugin is long lived and it's
+a main package to launch the plugin. A driver plugin is long lived and its
 lifetime is not bound to the Nomad client. This means that the Nomad client can
 be restarted without the restarting the driver. Nomad will ensure that one
 instance of the driver is running, meaning if the driver crashes or otherwise
