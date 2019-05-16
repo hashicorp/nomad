@@ -314,6 +314,12 @@ type MountConfig struct {
 	Readonly bool
 }
 
+func (m *MountConfig) IsEqual(o *MountConfig) bool {
+	return m.TaskPath == o.TaskPath &&
+		m.HostPath == o.HostPath &&
+		m.Readonly == o.Readonly
+}
+
 func (m *MountConfig) Copy() *MountConfig {
 	if m == nil {
 		return nil

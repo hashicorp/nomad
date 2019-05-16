@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	log "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -29,34 +30,80 @@ func (*volumeHook) Name() string {
 	return "volumes"
 }
 
-func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	volumes := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup).HostVolumes
+func validateVolumes(requested map[string]*structs.HostVolumeRequest, client map[string]*structs.ClientHostVolumeConfig) error {
+	var result error
 
-	mounts := h.runner.hookResources.getMounts()
-
-	for _, m := range req.Task.VolumeMounts {
-		volumeRequest, ok := volumes[m.Volume]
+	for _, volumeRequest := range requested {
+		_, ok := client[volumeRequest.Config.Source]
 		if !ok {
-			return fmt.Errorf("Could not find volume declaration named: %s", m.Volume)
+			result = multierror.Append(result, fmt.Errorf("%s", volumeRequest.Config.Source))
+		}
+	}
+
+	return result
+}
+
+func (h *volumeHook) hostVolumeMountConfigurations(vmounts []*structs.VolumeMount, volumes map[string]*structs.HostVolumeRequest, client map[string]*structs.ClientHostVolumeConfig) ([]*drivers.MountConfig, error) {
+	var mounts []*drivers.MountConfig
+	for _, m := range vmounts {
+		req, ok := volumes[m.Volume]
+		if !ok {
+			// Should never happen unless we misvalidated on job submission
+			return nil, fmt.Errorf("No group volume declaration found named: %s", m.Volume)
 		}
 
-		// Look up the local Host Volume based on the Source parameter
-		hostVolume, ok := h.runner.clientConfig.Node.HostVolumes[volumeRequest.Config.Source]
+		hostVolume, ok := client[req.Config.Source]
 		if !ok {
-			h.logger.Error("Failed to find host volume", "existing", h.runner.clientConfig.Node.HostVolumes, "requested", volumeRequest)
-			return fmt.Errorf("Could not find host volume named: %s", m.Volume)
+			// Should never happen, but unless the client volumes were mutated during
+			// the execution of this hook.
+			return nil, fmt.Errorf("No host volume named: %s", req.Config.Source)
 		}
 
 		mcfg := &drivers.MountConfig{
 			HostPath: hostVolume.Source,
 			TaskPath: m.Destination,
-			Readonly: hostVolume.ReadOnly || volumeRequest.Volume.ReadOnly || m.ReadOnly,
+			Readonly: hostVolume.ReadOnly || req.Volume.ReadOnly || m.ReadOnly,
 		}
 		mounts = append(mounts, mcfg)
 	}
 
-	h.runner.hookResources.setMounts(mounts)
+	return mounts, nil
+}
 
-	resp.Done = true
+func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	volumes := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup).HostVolumes
+	mounts := h.runner.hookResources.getMounts()
+
+	hostVolumes := h.runner.clientConfig.Node.HostVolumes
+
+	// Always validate volumes to ensure that we do not allow volumes to be used
+	// if a host is restarted and loses the host volume configuration.
+	if err := validateVolumes(volumes, hostVolumes); err != nil {
+		h.logger.Error("Requested Volume does not exist", "existing", hostVolumes, "requested", volumes)
+		return fmt.Errorf("missing requested volumes: %v", err)
+	}
+
+	requestedMounts, err := h.hostVolumeMountConfigurations(req.Task.VolumeMounts, volumes, hostVolumes)
+	if err != nil {
+		h.logger.Error("Failed to generate volume mounts", "error", err)
+		return err
+	}
+
+	// Because this hook is also ran on restores, we only add mounts that do not
+	// already exist. Although this loop is somewhat expensive, there are only
+	// a small number of mounts that exist within most individual tasks. We may
+	// want to revisit this using a `hookdata` param to be "mount only once"
+REQUESTED:
+	for _, m := range requestedMounts {
+		for _, em := range mounts {
+			if em.IsEqual(m) {
+				continue REQUESTED
+			}
+		}
+
+		mounts = append(mounts, m)
+	}
+
+	h.runner.hookResources.setMounts(mounts)
 	return nil
 }
