@@ -15,7 +15,7 @@ func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions
 		if s.job.Type == structs.JobTypeBatch {
 			enablePreemption = schedConfig.PreemptionConfig.BatchSchedulerEnabled
 		} else {
-			enablePreemption = schedConfig.PreemptionConfig.SystemSchedulerEnabled
+			enablePreemption = schedConfig.PreemptionConfig.ServiceSchedulerEnabled
 		}
 	}
 	// Run stack again with preemption enabled
