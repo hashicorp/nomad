@@ -49,6 +49,7 @@ BUG FIXES:
  * client: Job validation now checks that the datacenter field does not contain empty strings [[GH-5665](https://github.com/hashicorp/nomad/pull/5665)]
  * metrics: Fixed stale metrics [[GH-5540](https://github.com/hashicorp/nomad/issues/5540)]
  * vault: Fix renewal time to be 1/2 lease duration with jitter [[GH-5479](https://github.com/hashicorp/nomad/issues/5479)]
+ * core: Fix a case where non-leader servers would have an ever growing number of waiting evaluations [[GH-5699](https://github.com/hashicorp/nomad/pull/5699)
 
 ## 0.9.1 (April 29, 2019)
 
