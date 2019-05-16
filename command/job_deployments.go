@@ -35,6 +35,10 @@ Deployments Options:
 
   -verbose
     Display full information.
+
+  -all-allocs
+    Display all deployments matching the job ID, including those 
+    from an older instance of the job.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -50,6 +54,7 @@ func (c *JobDeploymentsCommand) AutocompleteFlags() complete.Flags {
 			"-t":       complete.PredictAnything,
 			"-latest":  complete.PredictNothing,
 			"-verbose": complete.PredictNothing,
+			"-all":     complete.PredictNothing,
 		})
 }
 
