@@ -565,7 +565,6 @@ func TestStateStore_OldDeployment(t *testing.T) {
 	require.Nil(err)
 	require.Len(deploys, 1)
 	require.Equal(deploy1.ID, deploys[0].ID)
-
 }
 
 func TestStateStore_DeleteDeployment(t *testing.T) {
