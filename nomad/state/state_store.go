@@ -4144,7 +4144,7 @@ func (s *StateSnapshot) DenormalizeAllocationSlice(allocs []*structs.Allocation,
 
 // DenormalizeAllocationDiffSlice queries the Allocation for each AllocationDiff and merges
 // the updated attributes with the existing Allocation, and attaches the Job provided
-func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.AllocationDiff, job *structs.Job) ([]*structs.Allocation, error) {
+func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.AllocationDiff, planJob *structs.Job) ([]*structs.Allocation, error) {
 	// Output index for denormalized Allocations
 	j := 0
 
@@ -4160,15 +4160,16 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 
 		// Merge the updates to the Allocation
 		allocCopy := alloc.CopySkipJob()
-		allocCopy.Job = job
 
 		if allocDiff.PreemptedByAllocation != "" {
-			// If alloc is a preemption
+			// If alloc is a preemption set the job from the alloc read from the state store
+			allocCopy.Job = alloc.Job.Copy()
 			allocCopy.PreemptedByAllocation = allocDiff.PreemptedByAllocation
 			allocCopy.DesiredDescription = getPreemptedAllocDesiredDescription(allocDiff.PreemptedByAllocation)
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusEvict
 		} else {
 			// If alloc is a stopped alloc
+			allocCopy.Job = planJob
 			allocCopy.DesiredDescription = allocDiff.DesiredDescription
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusStop
 			if allocDiff.ClientStatus != "" {
