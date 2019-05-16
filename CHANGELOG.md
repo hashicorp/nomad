@@ -11,6 +11,10 @@ __BACKWARDS INCOMPATIBILITIES:__
    will not restart exited tasks. Exited tasks will be restarted only after the
    client has reestablished communication with servers. System jobs will always
    be restarted. [[GH-5669](https://github.com/hashicorp/nomad/pull/5669)]
+ * api: The [job deployments](https://www.nomadproject.io/api/jobs.html#list-job-deployments) endpoin
+   now filters out deployments associated with older instances of the job. This can happen if jobs are
+   purged and recreated with the same id. To get all deployments irrespective of creation time, add
+   `all=true`. The `nomad job deployment`CLI also defaults to doing this filtering.
 
 FEATURES:
 
@@ -24,6 +28,7 @@ IMPROVEMENTS:
  * core: Add node name to output of `nomad node status` command in verbose mode [[GH-5224](https://github.com/hashicorp/nomad/pull/5224)]
  * core: Add `-verbose` flag to `nomad status` wrapper command [[GH-5516](https://github.com/hashicorp/nomad/pull/5516)]
  * core: Reduce the size of the raft transaction for plans by only sending fields updated by the plan applier [[GH-5602](https://github.com/hashicorp/nomad/pull/5602)]
+ * core: Add ability to filter job deployments by most recent version of job [[GH-5702](https://github.com/hashicorp/nomad/issues/5702)]
  * client: Reduce unnecessary lost nodes on server failure [[GH-5654](https://github.com/hashicorp/nomad/issues/5654)]
  * api: Add preemption related fields to API results that return an allocation list. [[GH-5580](https://github.com/hashicorp/nomad/pull/5580)]
  * api: Add additional config options to scheduler configuration endpoint to disable preemption [[GH-5628](https://github.com/hashicorp/nomad/issues/5628)]
