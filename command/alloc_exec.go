@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/term"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/hashicorp/nomad/helper/escapingio"
 	"github.com/posener/complete"
 )
 
@@ -49,6 +50,12 @@ Exec Specific Options:
   -t
     Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty session.
     Pass -t=false to disable explicitly.
+
+  -e <escape_char>
+    Sets the escape character for sessions with a pty (default: '~').  The escape
+    character is only recognized at the beginning of a line.  The escape character
+    followed by a dot ('.') closes the connection.  Setting the character to
+    'none' disables any escapes and makes the session fully transparent.
   `
 	return strings.TrimSpace(helpText)
 }
@@ -64,6 +71,7 @@ func (c *AllocExecCommand) AutocompleteFlags() complete.Flags {
 			"-job":   complete.PredictAnything,
 			"-i":     complete.PredictNothing,
 			"-t":     complete.PredictNothing,
+			"-e":     complete.PredictSet("none", "~"),
 		})
 }
 
@@ -87,11 +95,13 @@ func (l *AllocExecCommand) Name() string { return "alloc exec" }
 func (l *AllocExecCommand) Run(args []string) int {
 	var job, stdinOpt, ttyOpt bool
 	var task string
+	var escapeChar string
 
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 	flags.BoolVar(&job, "job", false, "")
 	flags.StringVar(&task, "task", "", "")
+	flags.StringVar(&escapeChar, "e", "~", "")
 
 	flags.BoolVar(&stdinOpt, "i", true, "")
 
@@ -105,7 +115,14 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 	if ttyOpt && !stdinOpt {
 		l.Ui.Error("-i must be enabled if running with tty")
-		return -1
+		return 1
+	}
+
+	if escapeChar == "none" {
+		escapeChar = ""
+	} else if len(escapeChar) > 1 {
+		l.Ui.Error("-e requires 'none' or a single character")
+		return 1
 	}
 
 	if numArgs := len(args); numArgs < 1 {
@@ -202,7 +219,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 		stdin = bytes.NewReader(nil)
 	}
 
-	code, err := l.execImpl(client, alloc, task, ttyOpt, command, stdin, l.Stdout, l.Stderr)
+	code, err := l.execImpl(client, alloc, task, ttyOpt, command, escapeChar, stdin, l.Stdout, l.Stderr)
 	if err != nil {
 		l.Ui.Error(fmt.Sprintf("failed to exec into task: %v", err))
 		return 1
@@ -213,9 +230,12 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 // execImpl invokes the Alloc Exec api call, it also prepares and restores terminal states as necessary.
 func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, tty bool,
-	command []string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
+	command []string, escapeChar string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
 
 	sizeCh := make(chan api.TerminalSize, 1)
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
 
 	// When tty, ensures we capture all user input and monitor terminal resizes.
 	if tty {
@@ -240,10 +260,21 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 			return -1, err
 		}
 		defer sizeCleanup()
-	}
 
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+		if escapeChar != "" {
+			stdin = escapingio.NewReader(stdin, escapeChar[0], func(c byte) bool {
+				switch c {
+				case '.':
+					stderr.Write([]byte("\nConnection closed\n"))
+					cancelFn()
+					return true
+				default:
+					return false
+				}
+			})
+
+		}
+	}
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
