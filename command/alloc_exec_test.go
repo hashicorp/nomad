@@ -60,7 +60,7 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 			"A command is required",
 		},
 		{
-			"log escaped char",
+			"long escaped char",
 			[]string{"-address=" + url, "-e", "long_escape", "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
 			"a single character",
 		},

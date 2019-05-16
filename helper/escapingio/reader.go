@@ -20,7 +20,7 @@ type Handler func(c byte) bool
 //     If handler returns true, `~.` will be skipped; otherwise, it's propagated.
 //  * `~` and it's the last character in stream, it's propagated
 //
-// Appearances of `~` when not followed by a new line is propagated unmodified.
+// Appearances of `~` when not preceded by a new line are propagated unmodified.
 func NewReader(r io.Reader, c byte, h Handler) io.Reader {
 	return &reader{
 		impl:       r,
@@ -88,7 +88,7 @@ START:
 
 		// escape character hasn't been emitted yet
 		if buf[0] == r.escapeChar {
-			// earlier ~ was sallowed already, so leave this as is
+			// earlier ~ was swallowed already, so leave this as is
 		} else if handled := r.handler(buf[0]); handled {
 			// need to drop a single letter
 			copy(buf, buf[1:n])
