@@ -240,4 +240,5 @@ commands:
               unset GOTEST_PKGS
             fi
 
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
             sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
