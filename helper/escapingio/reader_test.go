@@ -86,17 +86,13 @@ func TestEscapingReader_Static(t *testing.T) {
 }
 
 func TestEscapingReader_Generated_EquivalentToNaive(t *testing.T) {
-	called := 0
 	f := func(v readingInput) bool {
-		called++
 		return checkEquivalenceToNaive(t, string(v))
 	}
 
 	require.NoError(t, quick.Check(f, &quick.Config{
 		MaxCountScale: 200,
 	}))
-
-	fmt.Println("CALLED ", called)
 }
 
 // testHandler returns a handler that stores all basic ascii letters in result
@@ -151,17 +147,13 @@ func checkEquivalenceToNaive(t *testing.T, input string) bool {
 }
 
 func TestEscapingReader_Generated_EquivalentToReadOnce(t *testing.T) {
-	called := 0
 	f := func(v readingInput) bool {
-		called++
 		return checkEquivalenceToNaive(t, string(v))
 	}
 
 	require.NoError(t, quick.Check(f, &quick.Config{
 		MaxCountScale: 200,
 	}))
-
-	fmt.Println("CALLED ", called)
 }
 
 // checkEquivalenceToReadOnce returns true if parsing input in a single
