@@ -66,8 +66,11 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Apply scores based on spread stanza
 	s.spread = NewSpreadIterator(ctx, s.nodeAffinity)
 
+	// Add the preemption options scoring iterator
+	preemptionScorer := NewPreemptionScoringIterator(ctx, s.spread)
+
 	// Normalizes scores by averaging them across various scorers
-	s.scoreNorm = NewScoreNormalizationIterator(ctx, s.spread)
+	s.scoreNorm = NewScoreNormalizationIterator(ctx, preemptionScorer)
 
 	// Apply a limit function. This is to avoid scanning *every* possible node.
 	s.limit = NewLimitIterator(ctx, s.scoreNorm, 2, skipScoreThreshold, maxSkip)
