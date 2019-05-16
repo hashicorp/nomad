@@ -508,8 +508,8 @@ type EvalOptions struct {
 
 // JobSpecificRequest is used when we just need to specify a target job
 type JobSpecificRequest struct {
-	JobID     string
-	AllAllocs bool
+	JobID string
+	All   bool
 	QueryOptions
 }
 
@@ -1282,7 +1282,6 @@ type EmitNodeEventsRequest struct {
 // EmitNodeEventsResponse is a response to the client about the status of
 // the node event source update.
 type EmitNodeEventsResponse struct {
-	Index uint64
 	WriteMeta
 }
 
@@ -3382,6 +3381,12 @@ func (j *Job) Validate() error {
 	}
 	if len(j.Datacenters) == 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job datacenters"))
+	} else {
+		for _, v := range j.Datacenters {
+			if v == "" {
+				mErr.Errors = append(mErr.Errors, errors.New("Job datacenter must be non-empty string"))
+			}
+		}
 	}
 	if len(j.TaskGroups) == 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job task groups"))
@@ -5966,6 +5971,10 @@ const (
 
 	// TaskHookFailed indicates that one of the hooks for a task failed.
 	TaskHookFailed = "Task hook failed"
+
+	// TaskRestoreFailed indicates Nomad was unable to reattach to a
+	// restored task.
+	TaskRestoreFailed = "Failed Restoring Task"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data

@@ -128,21 +128,15 @@ func validateTaskExistsInAllocation(taskName string, alloc *api.Allocation) erro
 		return fmt.Errorf("Could not find allocation task group: %s", alloc.TaskGroup)
 	}
 
-	taskExists := false
 	foundTaskNames := make([]string, len(tg.Tasks))
 	for i, task := range tg.Tasks {
 		foundTaskNames[i] = task.Name
 		if task.Name == taskName {
-			taskExists = true
-			break
+			return nil
 		}
 	}
 
-	if !taskExists {
-		return fmt.Errorf("Could not find task named: %s, found:\n%s", taskName, formatList(foundTaskNames))
-	}
-
-	return nil
+	return fmt.Errorf("Could not find task named: %s, found:\n%s", taskName, formatList(foundTaskNames))
 }
 
 func (a *AllocRestartCommand) Synopsis() string {

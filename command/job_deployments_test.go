@@ -69,6 +69,7 @@ func TestJobDeploymentsCommand_Run(t *testing.T) {
 	// Inject a deployment
 	d := mock.Deployment()
 	d.JobID = job.ID
+	d.JobCreateIndex = job.CreateIndex
 	assert.Nil(state.UpsertDeployment(200, d))
 
 	// Should now display the deployment
@@ -112,6 +113,7 @@ func TestJobDeploymentsCommand_Run_Latest(t *testing.T) {
 	// Inject a deployment
 	d := mock.Deployment()
 	d.JobID = job.ID
+	d.JobCreateIndex = job.CreateIndex
 	assert.Nil(state.UpsertDeployment(200, d))
 
 	// Should now display the deployment

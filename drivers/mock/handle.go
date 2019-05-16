@@ -2,13 +2,11 @@ package mock
 
 import (
 	"context"
-	"io"
 	"sync"
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/fifo"
-	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
@@ -16,19 +14,13 @@ import (
 type taskHandle struct {
 	logger hclog.Logger
 
-	runFor          time.Duration
 	pluginExitAfter time.Duration
 	killAfter       time.Duration
-	waitCh          chan struct{}
-	exitCode        int
-	exitSignal      int
-	exitErr         error
-	signalErr       error
-	stdoutString    string
-	stdoutRepeat    int
-	stdoutRepeatDur time.Duration
+	waitCh          chan interface{}
 
-	taskConfig *drivers.TaskConfig
+	taskConfig  *drivers.TaskConfig
+	command     Command
+	execCommand *Command
 
 	// stateLock guards the procState field
 	stateLock sync.RWMutex
@@ -81,14 +73,6 @@ func (h *taskHandle) run() {
 	h.procState = drivers.TaskStateRunning
 	h.stateLock.Unlock()
 
-	errCh := make(chan error, 1)
-
-	// Setup logging output
-	go h.handleLogging(errCh)
-
-	timer := time.NewTimer(h.runFor)
-	defer timer.Stop()
-
 	var pluginExitTimer <-chan time.Time
 	if h.pluginExitAfter != 0 {
 		timer := time.NewTimer(h.pluginExitAfter)
@@ -96,70 +80,19 @@ func (h *taskHandle) run() {
 		pluginExitTimer = timer.C
 	}
 
-	select {
-	case <-timer.C:
-		h.logger.Debug("run_for time elapsed; exiting", "run_for", h.runFor)
-	case <-h.killCh:
-		h.logger.Debug("killed; exiting")
-	case <-pluginExitTimer:
-		h.logger.Debug("exiting plugin")
-		h.exitResult = &drivers.ExitResult{
-			Err: bstructs.ErrPluginShutdown,
-		}
-
-		return
-	case err := <-errCh:
-		h.logger.Error("error running mock task; exiting", "error", err)
-		h.exitResult = &drivers.ExitResult{
-			Err: err,
-		}
-		return
-	}
-
-	h.exitResult = &drivers.ExitResult{
-		ExitCode: h.exitCode,
-		Signal:   h.exitSignal,
-		Err:      h.exitErr,
-	}
-	return
-}
-
-func (h *taskHandle) handleLogging(errCh chan<- error) {
 	stdout, err := fifo.OpenWriter(h.taskConfig.StdoutPath)
 	if err != nil {
 		h.logger.Error("failed to write to stdout", "error", err)
-		errCh <- err
+		h.exitResult = &drivers.ExitResult{Err: err}
 		return
 	}
 	stderr, err := fifo.OpenWriter(h.taskConfig.StderrPath)
 	if err != nil {
 		h.logger.Error("failed to write to stderr", "error", err)
-		errCh <- err
-		return
-	}
-	defer stderr.Close()
-
-	if h.stdoutString == "" {
+		h.exitResult = &drivers.ExitResult{Err: err}
 		return
 	}
 
-	if _, err := io.WriteString(stdout, h.stdoutString); err != nil {
-		h.logger.Error("failed to write to stdout", "error", err)
-		errCh <- err
-		return
-	}
-
-	for i := 0; i < h.stdoutRepeat; i++ {
-		select {
-		case <-h.waitCh:
-			h.logger.Warn("exiting before done writing output", "i", i, "total", h.stdoutRepeat)
-			return
-		case <-time.After(h.stdoutRepeatDur):
-			if _, err := io.WriteString(stdout, h.stdoutString); err != nil {
-				h.logger.Error("failed to write to stdout", "error", err)
-				errCh <- err
-				return
-			}
-		}
-	}
+	h.exitResult = runCommand(h.command, stdout, stderr, h.killCh, pluginExitTimer, h.logger)
+	return
 }

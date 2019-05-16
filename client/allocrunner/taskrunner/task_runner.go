@@ -193,6 +193,15 @@ type TaskRunner struct {
 	// maxEvents is the capacity of the TaskEvents on the TaskState.
 	// Defaults to defaultMaxEvents but overrideable for testing.
 	maxEvents int
+
+	// serversContactedCh is passed to TaskRunners so they can detect when
+	// GetClientAllocs has been called in case of a failed restore.
+	serversContactedCh <-chan struct{}
+
+	// waitOnServers defaults to false but will be set true if a restore
+	// fails and the Run method should wait until serversContactedCh is
+	// closed.
+	waitOnServers bool
 }
 
 type Config struct {
@@ -222,6 +231,10 @@ type Config struct {
 	// DriverManager is used to dispense driver plugins and register event
 	// handlers
 	DriverManager drivermanager.Manager
+
+	// ServersContactedCh is closed when the first GetClientAllocs call to
+	// servers succeeds and allocs are synced.
+	ServersContactedCh chan struct{}
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -270,6 +283,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		devicemanager:       config.DeviceManager,
 		driverManager:       config.DriverManager,
 		maxEvents:           defaultMaxEvents,
+		serversContactedCh:  config.ServersContactedCh,
 	}
 
 	// Create the logger based on the allocation ID
@@ -380,6 +394,19 @@ func (tr *TaskRunner) Run() {
 	// triggered update - whether due to alloc updates or a new vault token
 	// - should be handled serially.
 	go tr.handleUpdates()
+
+	// If restore failed wait until servers are contacted before running.
+	// #1795
+	if tr.waitOnServers {
+		tr.logger.Info("task failed to restore; waiting to contact server before restarting")
+		select {
+		case <-tr.killCtx.Done():
+		case <-tr.shutdownCtx.Done():
+			return
+		case <-tr.serversContactedCh:
+			tr.logger.Trace("server contacted; unblocking waiting task")
+		}
+	}
 
 MAIN:
 	for !tr.Alloc().TerminalStatus() {
@@ -858,8 +885,28 @@ func (tr *TaskRunner) Restore() error {
 	if taskHandle := tr.localState.TaskHandle; taskHandle != nil {
 		//TODO if RecoverTask returned the DriverNetwork we wouldn't
 		//     have to persist it at all!
-		tr.restoreHandle(taskHandle, tr.localState.DriverNetwork)
+		restored := tr.restoreHandle(taskHandle, tr.localState.DriverNetwork)
+
+		// If the handle could not be restored, the alloc is
+		// non-terminal, and the task isn't a system job: wait until
+		// servers have been contacted before running. #1795
+		if restored {
+			return nil
+		}
+
+		alloc := tr.Alloc()
+		if alloc.TerminalStatus() || alloc.Job.Type == structs.JobTypeSystem {
+			return nil
+		}
+
+		tr.logger.Trace("failed to reattach to task; will not run until server is contacted")
+		tr.waitOnServers = true
+
+		ev := structs.NewTaskEvent(structs.TaskRestoreFailed).
+			SetDisplayMessage("failed to restore task; will not run until server is contacted")
+		tr.UpdateState(structs.TaskStatePending, ev)
 	}
+
 	return nil
 }
 
@@ -1132,6 +1179,13 @@ func (tr *TaskRunner) UpdateStats(ru *cstructs.TaskResourceUsage) {
 
 //TODO Remove Backwardscompat or use tr.Alloc()?
 func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
+	alloc := tr.Alloc()
+	var allocatedMem float32
+	if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
+		// Convert to bytes to match other memory metrics
+		allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
+	}
+
 	if !tr.clientConfig.DisableTaggedMetrics {
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
 			float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
@@ -1147,16 +1201,23 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 			float32(ru.ResourceUsage.MemoryStats.KernelUsage), tr.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_max_usage"},
 			float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), tr.baseLabels)
+		if allocatedMem > 0 {
+			metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "allocated"},
+				allocatedMem, tr.baseLabels)
+		}
 	}
 
 	if tr.clientConfig.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "usage"}, float32(ru.ResourceUsage.MemoryStats.Usage))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "max_usage"}, float32(ru.ResourceUsage.MemoryStats.MaxUsage))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelUsage))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "usage"}, float32(ru.ResourceUsage.MemoryStats.Usage))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "max_usage"}, float32(ru.ResourceUsage.MemoryStats.MaxUsage))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelUsage))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))
+		if allocatedMem > 0 {
+			metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "allocated"}, allocatedMem)
+		}
 	}
 }
 
@@ -1219,4 +1280,12 @@ func appendTaskEvent(state *structs.TaskState, event *structs.TaskEvent, capacit
 	}
 
 	state.Events = append(state.Events, event)
+}
+
+func (tr *TaskRunner) TaskExecHandler() drivermanager.TaskExecHandler {
+	return tr.getDriverHandle().ExecStreaming
+}
+
+func (tr *TaskRunner) DriverCapabilities() (*drivers.Capabilities, error) {
+	return tr.driver.Capabilities()
 }

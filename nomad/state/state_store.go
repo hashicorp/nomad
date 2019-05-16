@@ -487,12 +487,22 @@ func (s *StateStore) deploymentByIDImpl(ws memdb.WatchSet, deploymentID string, 
 	return nil, nil
 }
 
-func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID string) ([]*structs.Deployment, error) {
+func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Deployment, error) {
 	txn := s.db.Txn(false)
 
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
 		namespace = structs.DefaultNamespace
+	}
+
+	var job *structs.Job
+	// Read job from state store
+	_, existing, err := txn.FirstWatch("jobs", "id", namespace, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("job lookup failed: %v", err)
+	}
+	if existing != nil {
+		job = existing.(*structs.Job)
 	}
 
 	// Get an iterator over the deployments
@@ -509,8 +519,14 @@ func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID stri
 		if raw == nil {
 			break
 		}
-
 		d := raw.(*structs.Deployment)
+
+		// If the allocation belongs to a job with the same ID but a different
+		// create index and we are not getting all the allocations whose Jobs
+		// matches the same Job ID then we skip it
+		if !all && job != nil && d.JobCreateIndex != job.CreateIndex {
+			continue
+		}
 		out = append(out, d)
 	}
 
@@ -4150,7 +4166,7 @@ func (s *StateSnapshot) DenormalizeAllocationSlice(allocs []*structs.Allocation,
 
 // DenormalizeAllocationDiffSlice queries the Allocation for each AllocationDiff and merges
 // the updated attributes with the existing Allocation, and attaches the Job provided
-func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.AllocationDiff, job *structs.Job) ([]*structs.Allocation, error) {
+func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.AllocationDiff, planJob *structs.Job) ([]*structs.Allocation, error) {
 	// Output index for denormalized Allocations
 	j := 0
 
@@ -4166,15 +4182,16 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 
 		// Merge the updates to the Allocation
 		allocCopy := alloc.CopySkipJob()
-		allocCopy.Job = job
 
 		if allocDiff.PreemptedByAllocation != "" {
-			// If alloc is a preemption
+			// If alloc is a preemption set the job from the alloc read from the state store
+			allocCopy.Job = alloc.Job.Copy()
 			allocCopy.PreemptedByAllocation = allocDiff.PreemptedByAllocation
 			allocCopy.DesiredDescription = getPreemptedAllocDesiredDescription(allocDiff.PreemptedByAllocation)
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusEvict
 		} else {
 			// If alloc is a stopped alloc
+			allocCopy.Job = planJob
 			allocCopy.DesiredDescription = allocDiff.DesiredDescription
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusStop
 			if allocDiff.ClientStatus != "" {

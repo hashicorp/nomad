@@ -25,8 +25,14 @@ module('Acceptance | client detail', function(hooks) {
     // Related models
     server.create('agent');
     server.create('job', { createAllocations: false });
-    server.createList('allocation', 3, { nodeId: node.id, clientStatus: 'running' });
-    server.create('allocation', 'preempted', { nodeId: node.id, clientStatus: 'running' });
+    server.createList('allocation', 3);
+    server.create('allocation', 'preempted');
+
+    // Force all allocations into the running state so now allocation rows are missing
+    // CPU/Mem runtime metrics
+    server.schema.allocations.all().models.forEach(allocation => {
+      allocation.update({ clientStatus: 'running' });
+    });
   });
 
   test('/clients/:id should have a breadcrumb trail linking back to clients', async function(assert) {

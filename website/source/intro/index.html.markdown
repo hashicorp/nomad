@@ -8,91 +8,40 @@ description: |-
 
 # Introduction to Nomad
 
-Welcome to the intro guide to Nomad! This guide is the best
-place to start with Nomad. We cover what Nomad is, what
-problems it can solve, how it compares to existing software,
-and contains a quick start for using Nomad.
-
-If you are already familiar with the basics of Nomad, the [Guides](/guides/index.html) 
-and the [reference documentation](/docs/index.html) will provide a more comprehensive 
-resource.
+Welcome to the intro guide to Nomad! This guide is the best place to start with Nomad. We cover what Nomad is, what problems it can solve, how it compares to existing software, and how you can get started using it. If you are familiar with the basics of Nomad, the [documentation](https://www.nomadproject.io/docs/index.html) and [guides](https://www.nomadproject.io/guides/index.html) provides a more detailed reference of available features.
 
 ## What is Nomad?
 
-Nomad is a flexible container orchestration tool that enables an organization to 
-easily deploy and manage any containerized or legacy application using a single, 
-unified workflow. Nomad can run a diverse workload of Docker, non-containerized, 
-microservice, and batch applications, and generally offers the following benefits 
-to developers and operators:
+Nomad is a flexible workload orchestrator that enables an organization to easily deploy and manage any containerized or legacy application using a single, unified workflow. Nomad can run a diverse workload of Docker, non-containerized, microservice, and batch applications.
 
-* **API-driven Automation**: Workload placement, scaling, and upgrades can be 
-  automated, simplifying operations and eliminating the need for homegrown tooling.
-* **Self-service Deployments**: Developers are empowered to service application 
-  lifecycles directly, allowing operators to focus on higher value tasks.
-* **Workload Reliability**: Application, node, and driver failures are handled 
-  automatically, reducing the need for manual operator intervention
-* **Increased Efficiency and Reduced Cost**: Higher application densities allow 
-  operators to reduce fleet sizes and save money.
+Nomad enables developers to use declarative infrastructure-as-code for deploying applications.  Nomad uses bin packing to efficiently schedule jobs and optimize for resource utilization.  Nomad is supported on macOS, Windows, and Linux.
 
-Nomad is trusted by enterprises from a range of sectors including financial, 
-retail, software, and others to run production workloads at scale across private 
-infrastructure and the public cloud.
+Nomad is widely adopted and used in production by PagerDuty, Target, Citadel, Trivago, SAP, Pandora, Roblox, eBay, Deluxe Entertainment, and more.   
 
-## How it Works
+## Key Features
 
-At its core, Nomad is a tool for managing a cluster of machines and running applications
-on them. Nomad abstracts away machines and the location of applications,
-and instead enables users to declare what they want to run while Nomad handles
-where and how to run them. 
+* **Deploy Containers and Legacy Applications**: Nomad’s flexibility as an orchestrator enables an organization to run containers, legacy, and batch applications together on the same infrastructure.  Nomad brings core orchestration benefits to legacy applications without needing to containerize via pluggable [task drivers](https://www.nomadproject.io/docs/drivers/index.html).
 
-The key features of Nomad are:
+* **Simple & Reliable**:  Nomad runs as a single 75MB binary and is entirely self contained - combining resource management and scheduling into a single system.  Nomad does not require any external services for storage or coordination.  Nomad automatically handles application, node, and driver failures.  Nomad is distributed and resilient, using leader election and state replication to provide high availability in the event of failures.   
 
-* **Docker Support**: Nomad supports Docker as a first-class workload type.
-  Jobs submitted to Nomad can use the `docker` driver to easily deploy containerized
-  applications to a cluster. Nomad enforces the user-specified constraints,
-  ensuring the application only runs in the correct region, datacenter, and host
-  environment. Jobs can specify the number of instances needed and
-  Nomad will handle placement and recover from failures automatically.
+* **Device Plugins & GPU Support**: Nomad offers built-in support for GPU workloads such as machine learning (ML) and artificial intelligence (AI).  Nomad uses [device plugins](https://www.nomadproject.io/docs/devices/index.html) to automatically detect and utilize resources from hardware devices such as GPU, FPGAs, and TPUs.
 
-* **Operationally Simple**: Nomad ships as a single binary, both for clients and servers,
-  and requires no external services for coordination or storage. Nomad combines features
-  of both resource managers and schedulers into a single system. Nomad builds on the strength
-  of [Serf](https://www.serf.io) and [Consul](https://www.consul.io), distributed management
-  tools by [HashiCorp](https://www.hashicorp.com).
+* **Federation for Multi-Region**: Nomad has native support for multi-region federation. This built-in capability allows multiple clusters to be linked together, which in turn enables developers to deploy jobs to any cluster in any region. Federation also enables automatic replication of ACL policies, namespaces, resource quotas and Sentinel policies across all clusters.
 
-* **Multi-Datacenter and Multi-Region Aware**: Nomad models infrastructure as
-  groups of datacenters which form a larger region. Scheduling operates at the region
-  level allowing for cross-datacenter scheduling. Multiple regions federate together
-  allowing jobs to be registered globally.
+* **Proven Scalability**: Nomad is optimistically concurrent, which increases throughput and reduces latency for workloads.  Nomad has been proven to scale to clusters of 10K+ nodes in real-world production environments.
 
-* **Flexible Workloads**: Nomad has extensible support for task drivers, allowing it to run
-  containerized, virtualized, and standalone applications. Users can easily start Docker
-  containers, VMs, or application runtimes like Java. Nomad supports Linux, Windows, BSD and OSX,
-  providing the flexibility to run any workload.
-
-* **Built for Scale**: Nomad was designed from the ground up to support global scale
-  infrastructure. Nomad is distributed and highly available, using both
-  leader election and state replication to provide availability in the face
-  of failures. Nomad is optimistically concurrent, enabling all servers to participate
-  in scheduling decisions which increases the total throughput and reduces latency
-  to support demanding workloads. Nomad has been proven to scale to cluster sizes that 
-  exceed 10k nodes in real-world production environments.
+* **HashiCorp Ecosystem**: Nomad integrates seamlessly with Terraform, Consul, Vault for provisioning, service discovery, and secrets management.
 
 ## How Nomad Compares to Other Tools
 
-Nomad differentiates from related tools by virtue of its **simplicity**, **flexibility**, 
-**scalability**, and **high performance**. Nomad's synergy and integration points with 
-HashiCorp Terraform, Consul, and Vault make it uniquely suited for easy integration into 
-an organization's existing workflows, minimizing the time-to-market for critical initiatives. 
-See the [Nomad vs. Other Software](/intro/vs/index.html) page for additional details and 
+Nomad differentiates from related tools by virtue of its **simplicity**, **flexibility**,
+**scalability**, and **high performance**. Nomad's synergy and integration points with
+HashiCorp Terraform, Consul, and Vault make it uniquely suited for easy integration into
+an organization's existing workflows, minimizing the time-to-market for critical initiatives.
+
+See the [Nomad vs. Other Software](/intro/vs/index.html) page for additional details and
 comparisons.
 
 ## Next Steps
 
-See the page on [Nomad use cases](/intro/use-cases.html) to see the
-multiple ways Nomad can be used. Then see
-[how Nomad compares to other software](/intro/vs/index.html)
-to see how it fits into your existing infrastructure. Finally, continue onwards with
-the [getting started guide](/intro/getting-started/install.html) to use
-Nomad to run a job and see how it works in practice.
-
+See the [Use Cases](/intro/use-cases.html) and [Who Uses Nomad](/intro/who-uses-nomad.html) page to understand the many ways Nomad is used in production today across many industries to solve critical, real-world business objectives.

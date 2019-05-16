@@ -243,6 +243,35 @@ func TestJavaCmdArgs(t *testing.T) {
 	}
 }
 
+func TestJavaDriver_ExecTaskStreaming(t *testing.T) {
+	javaCompatible(t)
+	if !testutil.IsCI() {
+		t.Parallel()
+	}
+
+	require := require.New(t)
+	d := NewDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	tc := &TaskConfig{
+		Class: "Hello",
+		Args:  []string{"900"},
+	}
+	task := basicTask(t, "demo-app", tc)
+
+	cleanup := harness.MkAllocDir(task, true)
+	defer cleanup()
+
+	copyFile("./test-resources/Hello.class", filepath.Join(task.TaskDir().Dir, "Hello.class"), t)
+
+	_, _, err := harness.StartTask(task)
+	require.NoError(err)
+	defer d.DestroyTask(task.ID, true)
+
+	dtestutil.ExecTaskStreamingConformanceTests(t, harness, task.ID)
+
+}
 func basicTask(t *testing.T, name string, taskConfig *TaskConfig) *drivers.TaskConfig {
 	t.Helper()
 
