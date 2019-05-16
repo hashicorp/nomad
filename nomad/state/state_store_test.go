@@ -396,6 +396,8 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 	require.NoError(err)
 	require.Equal(preempted.DesiredStatus, structs.AllocDesiredStatusEvict)
 	require.Equal(preempted.DesiredDescription, fmt.Sprintf("Preempted by alloc ID %v", alloc.ID))
+	require.Equal(preempted.Job.ID, preemptedAlloc.Job.ID)
+	require.Equal(preempted.Job, preemptedAlloc.Job)
 
 	// Verify eval for preempted job
 	preemptedJobEval, err := state.EvalByID(ws, eval2.ID)
