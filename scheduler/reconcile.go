@@ -218,7 +218,11 @@ func (a *allocReconciler) Compute() *reconcileResults {
 	// Set the description of a created deployment
 	if d := a.result.deployment; d != nil {
 		if d.RequiresPromotion() {
-			d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+			if d.HasAutoPromote() {
+				d.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
+			} else {
+				d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+			}
 		}
 	}
 

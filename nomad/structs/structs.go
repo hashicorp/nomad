@@ -7003,6 +7003,7 @@ const (
 	// deployment can be in.
 	DeploymentStatusDescriptionRunning               = "Deployment is running"
 	DeploymentStatusDescriptionRunningNeedsPromotion = "Deployment is running but requires promotion"
+	DeploymentStatusDescriptionRunningAutoPromotion  = "Deployment is running pending automatic promotion"
 	DeploymentStatusDescriptionPaused                = "Deployment is paused"
 	DeploymentStatusDescriptionSuccessful            = "Deployment completed successfully"
 	DeploymentStatusDescriptionStoppedJob            = "Cancelled because job is stopped"
@@ -7147,6 +7148,19 @@ func (d *Deployment) RequiresPromotion() bool {
 	}
 	for _, group := range d.TaskGroups {
 		if group.DesiredCanaries > 0 && !group.Promoted {
+			return true
+		}
+	}
+	return false
+}
+
+// HasAutoPromote determines if any taskgroup is marked auto_promote
+func (d *Deployment) HasAutoPromote() bool {
+	if d == nil || len(d.TaskGroups) == 0 || d.Status != DeploymentStatusRunning {
+		return false
+	}
+	for _, group := range d.TaskGroups {
+		if group.AutoPromote {
 			return true
 		}
 	}
