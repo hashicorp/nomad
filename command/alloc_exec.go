@@ -265,6 +265,11 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 			stdin = escapingio.NewReader(stdin, escapeChar[0], func(c byte) bool {
 				switch c {
 				case '.':
+					// need to restore tty state so error reporting here
+					// gets emitted at beginning of line
+					outCleanup()
+					inCleanup()
+
 					stderr.Write([]byte("\nConnection closed\n"))
 					cancelFn()
 					return true
@@ -272,7 +277,6 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 					return false
 				}
 			})
-
 		}
 	}
 
