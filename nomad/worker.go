@@ -231,6 +231,12 @@ func (w *Worker) snapshotAfter(waitIndex uint64, timeout time.Duration) (*state.
 	snap, err := w.srv.fsm.State().SnapshotAfter(ctx, waitIndex)
 	cancel()
 	metrics.MeasureSince([]string{"nomad", "worker", "wait_for_index"}, start)
+
+	// Wrap error to ensure callers don't disregard timeouts.
+	if err == context.DeadlineExceeded {
+		err = fmt.Errorf("timed out after %s waiting for index=%d", timeout, waitIndex)
+	}
+
 	return snap, err
 }
 
