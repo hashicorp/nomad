@@ -15,12 +15,15 @@ The `alloc exec` command runs a command in a running allocation.
 
 ```
 nomad alloc exec [options] <allocation> <command> [<args>...]
-```
+    ```
 
 
-This command runs the passed command inside the environment of the given allocation and task.
+The nomad exec command can be use to run commands inside a running task/allocation.
 
-This command streams the exec of the given task in the allocation. If the
+Use cases are for inspecting container state, debugging a failed application
+without needing ssh access into the node that's running the allocation.
+
+This command streams the execution of command in the given task in the allocation.  If the
 allocation is only running a single task, the task name can be omitted.
 Optionally, the `-job` option may be used in which case a random allocation from
 the given job will be chosen.
@@ -31,27 +34,38 @@ the given job will be chosen.
 
 ## Exec Options
 
-* `task`: Sets the task to exec command in.  Defaults to first task
+* `task`: Sets the task to exec command in.  Defaults to first task.
 
 * `-job`: Use a random allocation from the specified job ID.
 
-* `-i`: Pass stdin to the container, defaults to true.  Pass `-i=false` to disable explicitly.
+* `-i`: Pass stdin to the container, defaults to true.
+Pass `-i=false` to disable explicitly.
 
-* `-t`: Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty session.  Pass `-t=false` to disable explicitly.
+* `-t`: Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty session.
+Pass `-t=false` to disable explicitly.
+
+* `-e` <escape_char>: Sets the escape character for sessions with a pty
+(default: '~'). The escape character is only recognized at the beginning of a
+line. The escape character followed by a dot ('.') closes the connection.
+Setting the character to 'none' disables any escapes and makes the session fully
+transparent.
 
 
 ## Examples
 
 ```
+$ # interactive debugging
 $ nomad alloc exec eb17e557 /bin/sh
-/ # echo hi
-hi
+/ # ps -ef
+...
 
-$ nomad alloc exec eb17e557 echo hi
-hi
+$ # run commands without starting an interactive session
+$ nomad alloc exec eb17e557 cat /etc/resolv.conf
+...
 
-$ nomad alloc exec -job example echo hi
-hi
+$ # run commands on an arbitrary alloc of a job
+$ nomad alloc exec -job example printenv NOMAD_CPU_LIMIT
+...
 ```
 
 ## Using Job ID instead of Allocation ID
@@ -64,5 +78,6 @@ nomad alloc exec -job <job-id> <command> [<args>...]
 ```
 
 
-This can be useful for debugging a job that has multiple allocations, and it's
-not really required to use a specific allocation ID.
+Choosing a specific allocation is useful for debugging issues with a specific
+instance of a service. For other operations using the `-job` flag may be more
+convenient than looking up an allocation ID to use.
