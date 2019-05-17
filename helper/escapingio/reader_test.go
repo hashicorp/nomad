@@ -2,6 +2,7 @@ package escapingio
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -12,8 +13,10 @@ import (
 	"testing"
 	"testing/iotest"
 	"testing/quick"
+	"time"
 	"unicode"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -80,7 +83,162 @@ func TestEscapingReader_Static(t *testing.T) {
 			require.Equal(t, c.expected, found.String())
 			require.Equal(t, c.escaped, h.escaped())
 		})
+
+		t.Run("without reading: "+c.input, func(t *testing.T) {
+			input := strings.NewReader(c.input)
+
+			h := &testHandler{}
+
+			filter := NewReader(input, '~', h.handler)
+
+			// don't read to mimic a stalled reader
+			_ = filter
+
+			assertEventually(t, func() (bool, error) {
+				escaped := h.escaped()
+				if c.escaped == escaped {
+					return true, nil
+				}
+
+				return false, fmt.Errorf("expected %v but found %v", c.escaped, escaped)
+			})
+		})
 	}
+}
+
+// TestEscapingReader_EmitsPartialReads should emit partial results
+// if next character is not read
+func TestEscapingReader_FlushesPartialReads(t *testing.T) {
+	pr, pw := io.Pipe()
+
+	h := &testHandler{}
+	filter := NewReader(pr, '~', h.handler)
+
+	var lock sync.Mutex
+	var read bytes.Buffer
+
+	// helper for asserting reads
+	requireRead := func(expected *bytes.Buffer) {
+		readSoFar := ""
+
+		start := time.Now()
+		for time.Since(start) < 2*time.Second {
+			lock.Lock()
+			readSoFar = read.String()
+			lock.Unlock()
+
+			if readSoFar == expected.String() {
+				break
+			}
+
+			time.Sleep(50 * time.Millisecond)
+		}
+
+		require.Equal(t, expected.String(), readSoFar, "timed out without output")
+	}
+
+	var rerr error
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// goroutine for reading partial data
+	go func() {
+		defer wg.Done()
+
+		buf := make([]byte, 1024)
+		for {
+			n, err := filter.Read(buf)
+			lock.Lock()
+			read.Write(buf[:n])
+			lock.Unlock()
+
+			if err != nil {
+				rerr = err
+				break
+			}
+		}
+	}()
+
+	expected := &bytes.Buffer{}
+
+	// test basic start and no new lines
+	pw.Write([]byte("first data"))
+	expected.WriteString("first data")
+	requireRead(expected)
+	require.Equal(t, "", h.escaped())
+
+	// test ~. appearing in middle of line but stop at new line
+	pw.Write([]byte("~.inmiddleappears\n"))
+	expected.WriteString("~.inmiddleappears\n")
+	requireRead(expected)
+	require.Equal(t, "", h.escaped())
+
+	// from here on we test \n~ at boundary
+
+	// ~~ after new line; and stop at \n~
+	pw.Write([]byte("~~second line\n~"))
+	expected.WriteString("~second line\n")
+	requireRead(expected)
+	require.Equal(t, "", h.escaped())
+
+	// . to be skipped; stop at \n~ again
+	pw.Write([]byte(".third line\n~"))
+	expected.WriteString("third line\n")
+	requireRead(expected)
+	require.Equal(t, ".", h.escaped())
+
+	// q to be emitted; stop at \n
+	pw.Write([]byte("qfourth line\n"))
+	expected.WriteString("~qfourth line\n")
+	requireRead(expected)
+	require.Equal(t, ".q", h.escaped())
+
+	// ~. to be skipped; stop at \n~
+	pw.Write([]byte("~.fifth line\n~"))
+	expected.WriteString("fifth line\n")
+	requireRead(expected)
+	require.Equal(t, ".q.", h.escaped())
+
+	// ~ alone after \n~ - should be emitted
+	pw.Write([]byte("~"))
+	expected.WriteString("~")
+	requireRead(expected)
+	require.Equal(t, ".q.", h.escaped())
+
+	// rest of line ending with \n~
+	pw.Write([]byte("rest of line\n~"))
+	expected.WriteString("rest of line\n")
+	requireRead(expected)
+	require.Equal(t, ".q.", h.escaped())
+
+	// m alone after \n~ - should be emitted with ~
+	pw.Write([]byte("m"))
+	expected.WriteString("~m")
+	requireRead(expected)
+	require.Equal(t, ".q.m", h.escaped())
+
+	// rest of line and end with \n
+	pw.Write([]byte("onemore line\n"))
+	expected.WriteString("onemore line\n")
+	requireRead(expected)
+	require.Equal(t, ".q.m", h.escaped())
+
+	// ~q to be emitted stop at \n~; last charcater
+	pw.Write([]byte("~qlast line\n~"))
+	expected.WriteString("~qlast line\n")
+	requireRead(expected)
+	require.Equal(t, ".q.mq", h.escaped())
+
+	// last ~ gets emitted and we preserve error
+	eerr := errors.New("my custom error")
+	pw.CloseWithError(eerr)
+	expected.WriteString("~")
+	requireRead(expected)
+	require.Equal(t, ".q.mq", h.escaped())
+
+	wg.Wait()
+	require.Error(t, rerr)
+	require.Equal(t, eerr, rerr)
 }
 
 func TestEscapingReader_Generated_EquivalentToNaive(t *testing.T) {
@@ -314,4 +472,22 @@ func (r *arbtiraryReader) Read(buf []byte) (int, error) {
 	}
 
 	return r.buf.Read(buf[:l])
+}
+
+func assertEventually(t *testing.T, testFn func() (bool, error)) {
+	start := time.Now()
+	var err error
+	var b bool
+	for {
+		if time.Since(start) > 2*time.Second {
+			assert.Fail(t, "timed out", "error: %v", err)
+		}
+
+		b, err = testFn()
+		if b {
+			return
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
 }

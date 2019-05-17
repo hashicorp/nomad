@@ -1,6 +1,7 @@
 package escapingio
 
 import (
+	"bufio"
 	"io"
 )
 
@@ -22,12 +23,16 @@ type Handler func(c byte) bool
 //
 // Appearances of `~` when not preceded by a new line are propagated unmodified.
 func NewReader(r io.Reader, c byte, h Handler) io.Reader {
-	return &reader{
+	pr, pw := io.Pipe()
+	reader := &reader{
 		impl:       r,
 		escapeChar: c,
-		state:      sLookEscapeChar,
 		handler:    h,
+		pr:         pr,
+		pw:         pw,
 	}
+	go reader.pipe()
+	return reader
 }
 
 // lookState represents the state of reader for what character of `\n~.` sequence
@@ -52,112 +57,115 @@ type reader struct {
 	escapeChar uint8
 	handler    Handler
 
-	state lookState
-
-	// unread is a buffered character for next read if not-nil
-	unread *byte
+	// buffers
+	pw *io.PipeWriter
+	pr *io.PipeReader
 }
 
 func (r *reader) Read(buf []byte) (int, error) {
-START:
-	var n int
-	var err error
-
-	if r.unread != nil {
-		// try to return the unread character immediately
-		// without trying to block for another read
-		buf[0] = *r.unread
-		n = 1
-		r.unread = nil
-	} else {
-		n, err = r.impl.Read(buf)
-	}
-
-	// when we get to the end, check if we have any unprocessed \n~
-	if n == 0 && err != nil {
-		if r.state == sLookChar && err != nil {
-			buf[0] = r.escapeChar
-			n = 1
-		}
-		return n, err
-	}
-
-	// inspect the state at beginning of read
-	if r.state == sLookChar {
-		r.state = sLookNewLine
-
-		// escape character hasn't been emitted yet
-		if buf[0] == r.escapeChar {
-			// earlier ~ was swallowed already, so leave this as is
-		} else if handled := r.handler(buf[0]); handled {
-			// need to drop a single letter
-			copy(buf, buf[1:n])
-			n--
-		} else {
-			// we need to re-introduce ~ with rest of body
-			// but be mindful if reintroducing ~ causes buffer to overflow
-			if n == len(buf) {
-				// in which case, save it for next read
-				c := buf[n-1]
-				r.unread = &c
-				copy(buf[1:], buf[:n])
-				buf[0] = r.escapeChar
-			} else {
-				copy(buf[1:], buf[:n])
-				buf[0] = r.escapeChar
-				n++
-			}
-		}
-	}
-
-	n = r.processBuffer(buf, n)
-	if n == 0 && err == nil {
-		goto START
-	}
-
-	return n, err
+	return r.pr.Read(buf)
 }
 
-// handles escaped character inside body of read buf.
-func (r *reader) processBuffer(buf []byte, read int) int {
-	b := 0
+func (r *reader) pipe() {
+	rb := make([]byte, 4096)
+	bw := bufio.NewWriter(r.pw)
 
-	for b < read {
+	state := sLookEscapeChar
 
-		c := buf[b]
-		if r.state == sLookEscapeChar && r.escapeChar == c {
-			r.state = sLookEscapeChar
+	for {
+		n, err := r.impl.Read(rb)
 
-			// are we at the end of read; wait for next read
-			if b == read-1 {
-				read--
-				r.state = sLookChar
-				return read
+		if n > 0 {
+			state = r.processBuf(bw, rb, n, state)
+			bw.Flush()
+			if state == sLookChar {
+				// terminated with ~ - let's read one more character
+				n, err = r.impl.Read(rb[:1])
+				if n == 1 {
+					state = sLookNewLine
+					if rb[0] == r.escapeChar {
+						// only emit escape character once
+						bw.WriteByte(rb[0])
+						bw.Flush()
+					} else if r.handler(rb[0]) {
+						// skip if handled
+					} else {
+						bw.WriteByte(r.escapeChar)
+						bw.WriteByte(rb[0])
+						bw.Flush()
+					}
+				}
 			}
-
-			// otherwise peek at next
-			nc := buf[b+1]
-			if nc == r.escapeChar {
-				// repeated ~, only emit one - skip one character
-				copy(buf[b:], buf[b+1:read])
-				read--
-				b++
-				continue
-			} else if handled := r.handler(nc); handled {
-				// need to drop both ~ and letter
-				copy(buf[b:], buf[b+2:read])
-				read -= 2
-				continue
-			} else {
-				// need to pass output unmodified with ~ and letter
-			}
-		} else if c == '\n' || c == '\r' {
-			r.state = sLookEscapeChar
-		} else {
-			r.state = sLookNewLine
 		}
-		b++
+
+		if err != nil {
+			// write ~ if it's the last thing
+			if state == sLookChar {
+				bw.WriteByte(r.escapeChar)
+			}
+			bw.Flush()
+			r.pw.CloseWithError(err)
+			break
+		}
+	}
+}
+
+// processBuf process buffer and emits all output to writer
+// if the last part of buffer is a new line followed by sequnce, it writes
+// all output until the new line and returns sLookChar
+func (r *reader) processBuf(bw io.Writer, buf []byte, n int, s lookState) lookState {
+	i := 0
+
+	wi := 0
+
+START:
+	if s == sLookEscapeChar && buf[i] == r.escapeChar {
+		if i+1 >= n {
+			// buf terminates with ~ - write all before
+			bw.Write(buf[wi:i])
+			return sLookChar
+		}
+
+		nc := buf[i+1]
+		if nc == r.escapeChar {
+			// skip one escape char
+			bw.Write(buf[wi:i])
+			i++
+			wi = i
+		} else if r.handler(nc) {
+			// skip both characters
+			bw.Write(buf[wi:i])
+			i = i + 2
+			wi = i
+		} else {
+			i = i + 2
+			// need to write everything keep going
+		}
 	}
 
-	return read
+	// search until we get \n~, or buf terminates
+	for {
+		if i >= n {
+			// got to end without new line, write and return
+			bw.Write(buf[wi:n])
+			return sLookNewLine
+		}
+
+		if buf[i] == '\n' || buf[i] == '\r' {
+			// buf terminated at new line
+			if i+1 >= n {
+				bw.Write(buf[wi:n])
+				return sLookEscapeChar
+			}
+
+			// peek to see escape character go back to START if so
+			if buf[i+1] == r.escapeChar {
+				s = sLookEscapeChar
+				i++
+				goto START
+			}
+		}
+
+		i++
+	}
 }
