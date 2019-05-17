@@ -1,10 +1,10 @@
-import EmberObject from '@ember/object';
 import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
 import { settled } from '@ember/test-helpers';
 import { setupTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import XHRToken from 'nomad-ui/utils/classes/xhr-token';
 
 module('Unit | Adapter | Job', function(hooks) {
   setupTest(hooks);
@@ -253,12 +253,14 @@ module('Unit | Adapter | Job', function(hooks) {
     await this.initializeUI();
 
     const { pretender } = this.server;
+    const token = new XHRToken();
+
     pretender.get('/v1/jobs', () => [200, {}, '[]'], true);
 
     this.subject()
       .findAll(null, { modelName: 'job' }, null, {
         reload: true,
-        adapterOptions: { watch: true },
+        adapterOptions: { watch: true, cancellationToken: token },
       })
       .catch(() => {});
 
@@ -267,7 +269,7 @@ module('Unit | Adapter | Job', function(hooks) {
 
     // Schedule the cancelation before waiting
     run.next(() => {
-      this.subject().cancelFindAll('job');
+      token.abort();
     });
 
     await settled();
@@ -279,12 +281,13 @@ module('Unit | Adapter | Job', function(hooks) {
 
     const { pretender } = this.server;
     const jobId = JSON.stringify(['job-1', 'default']);
+    const token = new XHRToken();
 
     pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId, {
       reload: true,
-      adapterOptions: { watch: true },
+      adapterOptions: { watch: true, cancellationToken: token },
     });
 
     const { request: xhr } = pretender.requestReferences[0];
@@ -292,7 +295,7 @@ module('Unit | Adapter | Job', function(hooks) {
 
     // Schedule the cancelation before waiting
     run.next(() => {
-      this.subject().cancelFindRecord('job', jobId);
+      token.abort();
     });
 
     await settled();
@@ -304,17 +307,18 @@ module('Unit | Adapter | Job', function(hooks) {
 
     const { pretender } = this.server;
     const plainId = 'job-1';
+    const token = new XHRToken();
     const mockModel = makeMockModel(plainId);
     pretender.get('/v1/job/:id/summary', () => [200, {}, '{}'], true);
 
-    this.subject().reloadRelationship(mockModel, 'summary', true);
+    this.subject().reloadRelationship(mockModel, 'summary', true, token);
 
     const { request: xhr } = pretender.requestReferences[0];
     assert.equal(xhr.status, 0, 'Request is still pending');
 
     // Schedule the cancelation before waiting
     run.next(() => {
-      this.subject().cancelReloadRelationship(mockModel, 'summary');
+      token.abort();
     });
 
     await settled();
@@ -326,20 +330,23 @@ module('Unit | Adapter | Job', function(hooks) {
 
     const { pretender } = this.server;
     const jobId = JSON.stringify(['job-1', 'default']);
+    const token1 = new XHRToken();
+    const token2 = new XHRToken();
 
     pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId, {
       reload: true,
-      adapterOptions: { watch: true },
+      adapterOptions: { watch: true, cancellationToken: token1 },
     });
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId, {
       reload: true,
-      adapterOptions: { watch: true },
+      adapterOptions: { watch: true, cancellationToken: token2 },
     });
 
     const { request: xhr } = pretender.requestReferences[0];
+    const { request: xhr2 } = pretender.requestReferences[1];
     assert.equal(xhr.status, 0, 'Request is still pending');
     assert.equal(pretender.requestReferences.length, 2, 'Two findRecord requests were made');
     assert.equal(
@@ -348,44 +355,15 @@ module('Unit | Adapter | Job', function(hooks) {
       'The two requests have the same URL'
     );
 
-    // Schedule the cancelation before waiting
+    // Schedule the cancelation and resolution before waiting
     run.next(() => {
-      this.subject().cancelFindRecord('job', jobId);
+      token1.abort();
+      pretender.resolve(xhr2);
     });
 
     await settled();
-    assert.ok(xhr.aborted, 'Request was aborted');
-  });
-
-  test('canceling a find record request will never cancel a request with the same url but different method', async function(assert) {
-    await this.initializeUI();
-
-    const { pretender } = this.server;
-    const jobId = JSON.stringify(['job-1', 'default']);
-
-    pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
-    pretender.delete('/v1/job/:id', () => [204, {}, ''], 200);
-
-    this.subject().findRecord(null, { modelName: 'job' }, jobId, {
-      reload: true,
-      adapterOptions: { watch: true },
-    });
-
-    this.subject().stop(EmberObject.create({ id: jobId }));
-
-    const { request: getXHR } = pretender.requestReferences[0];
-    const { request: deleteXHR } = pretender.requestReferences[1];
-    assert.equal(getXHR.status, 0, 'Get request is still pending');
-    assert.equal(deleteXHR.status, 0, 'Delete request is still pending');
-
-    // Schedule the cancelation before waiting
-    run.next(() => {
-      this.subject().cancelFindRecord('job', jobId);
-    });
-
-    await settled();
-    assert.ok(getXHR.aborted, 'Get request was aborted');
-    assert.notOk(deleteXHR.aborted, 'Delete request was aborted');
+    assert.ok(xhr.aborted, 'Request one was aborted');
+    assert.notOk(xhr2.aborted, 'Request two was not aborted');
   });
 
   test('when there is no region set, requests are made without the region query param', async function(assert) {
