@@ -3,18 +3,23 @@ layout: "guides"
 page_title: "Installing Nomad for QuickStart"
 sidebar_current: "guides-install-quickstart"
 description: |-
-  Learn how to install Nomad for sandbox.
+  Learn how to install Nomad locally or in a sandbox.
 ---
 #Quickstart
 
-This page lists multiple methods to installing Nomad in a sandbox environment.  
+This page lists multiple methods to installing Nomad locally or in a sandbox
+environment.  
 
-These installations are designed to get you started with Nomad easily and should be used only for experimentation purposes.  If you are looking to install Nomad in production, please refer to our [Production Installation](/guides/install/production/index.html) guide here.
+These installations are designed to get you started with Nomad easily and should
+be used only for experimentation purposes.  If you are looking to install Nomad
+in production, please refer to our [Production
+Installation](/guides/install/production/index.html) guide here.
 
 ##Local
 Install Nomad on your local machine.
 
-* [Vagrant](/intro/getting-started/install.html)
+* [Installing the Pre-compiled Binary][installing-binary]
+* [Installing Nomad with Vagrant][vagrant-environment]
 
 ##Cloud
 Install Nomad on the public cloud.
@@ -30,3 +35,6 @@ Experiment with Nomad in your browser via KataCoda's interactive learning platfo
 
 * [Introduction to Nomad](https://www.katacoda.com/hashicorp/scenarios/nomad-introduction)
 * [Nomad Playground](https://katacoda.com/hashicorp/scenarios/playground)
+
+[installing-binary]: /guides/install/index.html#precompiled-binaries
+[vagrant-environment]: /intro/getting-started/install.html#vagrant-setup-optional-

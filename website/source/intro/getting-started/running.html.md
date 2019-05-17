@@ -27,7 +27,7 @@ job configurations or prototype interactions. It should _**not**_ be used in
 production as it does not persist state.
 
 ```text
-vagrant@nomad:~$ sudo nomad agent -dev
+$ sudo nomad agent -dev
 
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
@@ -78,9 +78,6 @@ If you run [`nomad node status`](/docs/commands/node/status.html) in another
 terminal, you can see the registered nodes of the Nomad cluster:
 
 ```text
-$ vagrant ssh
-...
-
 $ nomad node status
 ID        DC   Name   Class   Drain  Eligibility  Status
 171a583b  dc1  nomad  <none>  false  eligible     ready
