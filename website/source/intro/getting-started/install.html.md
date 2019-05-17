@@ -85,7 +85,7 @@ re-create it.
 
 ## Next Steps
 
-Vagrant is running and Nomad is installed. Let's [start Nomad](/intro/getting-started/running.html)!
+Nomad is installed. Let's [start Nomad](/intro/getting-started/running.html)!
 
 [binary-instructions]: /guides/install/index.html#precompiled-binaries
 [destroy]: https://www.vagrantup.com/docs/cli/destroy.html
