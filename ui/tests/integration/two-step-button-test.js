@@ -14,6 +14,7 @@ module('Integration | Component | two step button', function(hooks) {
     confirmText: 'Confirm Action',
     confirmationMessage: 'Are you certain',
     awaitingConfirmation: false,
+    disabled: false,
     onConfirm: sinon.spy(),
     onCancel: sinon.spy(),
   });
@@ -25,6 +26,7 @@ module('Integration | Component | two step button', function(hooks) {
       confirmText=confirmText
       confirmationMessage=confirmationMessage
       awaitingConfirmation=awaitingConfirmation
+      disabled=disabled
       onConfirm=onConfirm
       onCancel=onCancel}}
   `;
@@ -134,5 +136,69 @@ module('Integration | Component | two step button', function(hooks) {
         'The confirm button is in a loading state'
       );
     });
+  });
+
+  test('when in the prompt state, clicking outside will reset state back to idle', async function(assert) {
+    const props = commonProperties();
+    this.setProperties(props);
+    await render(commonTemplate);
+
+    click('[data-test-idle-button]');
+    await settled();
+
+    assert.ok(find('[data-test-cancel-button]'), 'In the prompt state');
+
+    click(document.body);
+    await settled();
+
+    assert.ok(find('[data-test-idle-button]'), 'Back in the idle state');
+  });
+
+  test('when in the prompt state, clicking inside will not reset state back to idle', async function(assert) {
+    const props = commonProperties();
+    this.setProperties(props);
+    await render(commonTemplate);
+
+    click('[data-test-idle-button]');
+    await settled();
+
+    assert.ok(find('[data-test-cancel-button]'), 'In the prompt state');
+
+    click('[data-test-confirmation-message]');
+    await settled();
+
+    assert.notOk(find('[data-test-idle-button]'), 'Still in the prompt state');
+  });
+
+  test('when awaitingConfirmation is true, clicking outside does nothing', async function(assert) {
+    const props = commonProperties();
+    props.awaitingConfirmation = true;
+    this.setProperties(props);
+    await render(commonTemplate);
+
+    click('[data-test-idle-button]');
+    await settled();
+
+    assert.ok(find('[data-test-cancel-button]'), 'In the prompt state');
+
+    click(document.body);
+    await settled();
+
+    assert.notOk(find('[data-test-idle-button]'), 'Still in the prompt state');
+  });
+
+  test('when disabled is true, the idle button is disabled', async function(assert) {
+    const props = commonProperties();
+    props.disabled = true;
+    this.setProperties(props);
+    await render(commonTemplate);
+
+    assert.ok(
+      find('[data-test-idle-button]').hasAttribute('disabled'),
+      'The idle button is disabled'
+    );
+
+    click('[data-test-idle-button]');
+    assert.ok(find('[data-test-idle-button]'), 'Still in the idle state after clicking');
   });
 });

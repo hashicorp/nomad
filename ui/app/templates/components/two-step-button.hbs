@@ -1,5 +1,10 @@
 {{#if isIdle}}
-  <button data-test-idle-button type="button" class="button is-danger is-outlined is-important is-small" onclick={{action "promptForConfirmation"}}>
+  <button
+    data-test-idle-button
+    type="button"
+    class="button is-danger is-outlined is-important is-small"
+    disabled={{disabled}}
+    onclick={{action "promptForConfirmation"}}>
     {{idleText}}
   </button>
 {{else if isPendingConfirmation}}
