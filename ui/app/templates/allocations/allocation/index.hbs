@@ -1,8 +1,42 @@
 <section class="section">
-  <h1 data-test-title class="title">
+  {{#if error}}
+    <div class="notification is-danger">
+      <div class="columns">
+        <div class="column">
+          <h3 data-test-error-title class="title is-4">{{error.title}}</h3>
+          <p data-test-error-body>{{error.description}}</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button data-test-error-close class="button is-danger" onclick={{action onDismiss}}>Okay</button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+
+  <h1 data-test-title class="title with-headroom">
     Allocation {{model.name}}
     <span class="bumper-left tag {{model.statusClass}}">{{model.clientStatus}}</span>
     <span class="tag is-hollow is-small no-text-transform">{{model.id}}</span>
+    {{#if model.isRunning}}
+      {{two-step-button
+        data-test-stop
+        idleText="Stop"
+        cancelText="Cancel"
+        confirmText="Yes, Stop"
+        confirmationMessage="Are you sure? This will reschedule the allocation on a different client."
+        awaitingConfirmation=stopAllocation.isRunning
+        disabled=(or stopAllocation.isRunning restartAllocation.isRunning)
+        onConfirm=(perform stopAllocation)}}
+      {{two-step-button
+        data-test-restart
+        idleText="Restart"
+        cancelText="Cancel"
+        confirmText="Yes, Restart"
+        confirmationMessage="Are you sure? This will restart the allocation in-place."
+        awaitingConfirmation=restartAllocation.isRunning
+        disabled=(or stopAllocation.isRunning restartAllocation.isRunning)
+        onConfirm=(perform restartAllocation)}}
+    {{/if}}
   </h1>
 
   <div class="boxed-section is-small">
