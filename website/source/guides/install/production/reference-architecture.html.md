@@ -5,7 +5,7 @@ sidebar_current: "guides-install-production-reference-architecture"
 description: |-
   This document provides recommended practices and a reference
   architecture for HashiCorp Nomad production deployments.
-product_version: 0.8
+ea_version: 0.9
 ---
 
 # Nomad Reference Architecture

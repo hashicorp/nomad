@@ -32,7 +32,7 @@ To invoke a parameterized job, [`nomad job
 dispatch`][dispatch command] or the equivalent HTTP APIs are
 used. When dispatching against a parameterized job, an opaque payload and
 metadata may be injected into the job. These inputs to the parameterized job act
-like arguments to a function. The job consumes them to change it's behavior,
+like arguments to a function. The job consumes them to change its behavior,
 without exposing the implementation details to the caller.
 
 To that end, tasks within the job can add a

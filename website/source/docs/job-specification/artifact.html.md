@@ -92,7 +92,7 @@ artifact {
 }
 ```
 
-To download from private repo, sshkey need to be set. The key must be
+To download from private repo, sshkey needs to be set. The key must be
 base64-encoded string. Run `base64 -w0 <file>`
 
 ```hcl
@@ -155,7 +155,7 @@ This example uses path-based notation on a publicly-accessible bucket:
 
 ```hcl
 artifact {
-  source = "https://s3-us-west-2.amazonaws.com/my-bucket-example/my_app.tar.gz"
+  source = "https://my-bucket-example.s3-us-west-2.amazonaws.com/my_app.tar.gz"
 }
 ```
 
@@ -176,7 +176,7 @@ To force the S3-specific syntax, use the `s3::` prefix:
 
 ```hcl
 artifact {
-  source = "s3::https://s3-eu-west-1.amazonaws.com/my-bucket-example/my_app.tar.gz"
+  source = "s3::https://my-bucket-example.s3-eu-west-1.amazonaws.com/my_app.tar.gz"
 }
 ```
 

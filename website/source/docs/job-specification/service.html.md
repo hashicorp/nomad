@@ -513,7 +513,7 @@ directly since Nomad isn't managing any port assignments.
 ### IPv6 Docker containers
 
 The [Docker](/docs/drivers/docker.html#advertise_ipv6_address) driver supports the
-`advertise_ipv6_address` parameter in it's configuration.
+`advertise_ipv6_address` parameter in its configuration.
 
 Services will automatically advertise the IPv6 address when `advertise_ipv6_address` 
 is used.
