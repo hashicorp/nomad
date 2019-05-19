@@ -2679,7 +2679,10 @@ func (c *Client) emitClientMetrics() {
 
 	// Emit allocation metrics
 	blocked, migrating, pending, running, terminal := 0, 0, 0, 0, 0
-	for _, ar := range c.getAllocRunners() {
+	allocPendingTime := 0.0
+	allocRunners := c.getAllocRunners()
+	numRunners := len(allocRunners)
+	for _, ar := range allocRunners {
 		switch ar.AllocState().ClientStatus {
 		case structs.AllocClientStatusPending:
 			switch {
@@ -2695,6 +2698,7 @@ func (c *Client) emitClientMetrics() {
 		case structs.AllocClientStatusComplete, structs.AllocClientStatusFailed:
 			terminal++
 		}
+		allocPendingTime += ar.Alloc().Metrics.AllocationTime.Seconds() / float64(numRunners)
 	}
 
 	if !c.config.DisableTaggedMetrics {
@@ -2703,6 +2707,7 @@ func (c *Client) emitClientMetrics() {
 		metrics.SetGaugeWithLabels([]string{"client", "allocations", "pending"}, float32(pending), c.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocations", "running"}, float32(running), c.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocations", "terminal"}, float32(terminal), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocations", "pending_time"}, float32(allocPendingTime), c.baseLabels)
 	}
 
 	if c.config.BackwardsCompatibleMetrics {
