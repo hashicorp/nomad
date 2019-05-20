@@ -511,7 +511,10 @@ FAIL:
 			}
 
 			// If permitted, automatically promote this canary deployment
-			w.autoPromoteDeployment(updates.allocs)
+			err = w.autoPromoteDeployment(updates.allocs)
+			if err != nil {
+				w.logger.Error("failed to auto promote deployment", "error", err)
+			}
 
 			// Create an eval to push the deployment along
 			if res.createEval || len(res.allowReplacements) != 0 {
