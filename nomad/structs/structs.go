@@ -3880,6 +3880,9 @@ func (u *UpdateStrategy) Validate() error {
 	if u.Canary < 0 {
 		multierror.Append(&mErr, fmt.Errorf("Canary count can not be less than zero: %d < 0", u.Canary))
 	}
+	if u.Canary == 0 && u.AutoPromote {
+		multierror.Append(&mErr, fmt.Errorf("Auto Promote requires a Canary count greater than zero"))
+	}
 	if u.MinHealthyTime < 0 {
 		multierror.Append(&mErr, fmt.Errorf("Minimum healthy time may not be less than zero: %v", u.MinHealthyTime))
 	}
