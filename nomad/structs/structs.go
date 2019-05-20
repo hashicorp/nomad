@@ -7002,7 +7002,7 @@ const (
 	// DeploymentStatusDescriptions are the various descriptions of the states a
 	// deployment can be in.
 	DeploymentStatusDescriptionRunning               = "Deployment is running"
-	DeploymentStatusDescriptionRunningNeedsPromotion = "Deployment is running but requires promotion"
+	DeploymentStatusDescriptionRunningNeedsPromotion = "Deployment is running but requires manual promotion"
 	DeploymentStatusDescriptionRunningAutoPromotion  = "Deployment is running pending automatic promotion"
 	DeploymentStatusDescriptionPaused                = "Deployment is paused"
 	DeploymentStatusDescriptionSuccessful            = "Deployment completed successfully"
