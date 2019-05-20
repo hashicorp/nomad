@@ -121,7 +121,12 @@ func WaitForDeployment(t *testing.T, nomadClient *api.Client, deployID string, s
 		if deploy.Status == status && deploy.StatusDescription == statusDesc {
 			return true, nil
 		}
-		return false, fmt.Errorf("expected status %s \"%s\", but got: %s \"%s\"", deploy.Status, deploy.StatusDescription)
+		return false, fmt.Errorf("expected status %s \"%s\", but got: %s \"%s\"",
+			deploy.Status,
+			deploy.StatusDescription,
+			status,
+			statusDesc,
+		)
 
 	}, func(err error) {
 		t.Fatalf("failed to wait on alloc: %v", err)
