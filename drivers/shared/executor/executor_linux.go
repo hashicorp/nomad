@@ -45,25 +45,7 @@ var (
 
 	// ExecutorCgroupMeasuredCpuStats is the list of CPU stats captures by the executor
 	ExecutorCgroupMeasuredCpuStats = []string{"System Mode", "User Mode", "Throttled Periods", "Throttled Time", "Percent"}
-
-	// allCaps is all linux capabilities which is used to configure libcontainer
-	allCaps []string
 )
-
-// initialize the allCaps var with all capabilities available on the system
-func init() {
-	last := capability.CAP_LAST_CAP
-	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
-	if last == capability.Cap(63) {
-		last = capability.CAP_BLOCK_SUSPEND
-	}
-	for _, cap := range capability.List() {
-		if cap > last {
-			continue
-		}
-		allCaps = append(allCaps, fmt.Sprintf("CAP_%s", strings.ToUpper(cap.String())))
-	}
-}
 
 // LibcontainerExecutor implements an Executor with the runc/libcontainer api
 type LibcontainerExecutor struct {
@@ -569,15 +551,34 @@ func (l *LibcontainerExecutor) handleExecWait(ch chan *waitResult, process *libc
 
 func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) error {
 	// TODO: allow better control of these
+	// use capabilities list as prior to adopting libcontainer in 0.9
+	allCaps := supportedCaps()
 	cfg.Capabilities = &lconfigs.Capabilities{
 		Bounding:    allCaps,
-		Permitted:   allCaps,
-		Inheritable: allCaps,
-		Ambient:     allCaps,
-		Effective:   allCaps,
+		Permitted:   nil,
+		Inheritable: nil,
+		Ambient:     nil,
+		Effective:   nil,
 	}
 
 	return nil
+}
+
+// supportedCaps returns a list of all supported capabilities in kernel
+func supportedCaps() []string {
+	allCaps := []string{}
+	last := capability.CAP_LAST_CAP
+	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
+	if last == capability.Cap(63) {
+		last = capability.CAP_BLOCK_SUSPEND
+	}
+	for _, cap := range capability.List() {
+		if cap > last {
+			continue
+		}
+		allCaps = append(allCaps, fmt.Sprintf("CAP_%s", strings.ToUpper(cap.String())))
+	}
+	return allCaps
 }
 
 // configureIsolation prepares the isolation primitives of the container.
