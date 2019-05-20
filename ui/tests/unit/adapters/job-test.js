@@ -233,7 +233,7 @@ module('Unit | Adapter | Job', function(hooks) {
     const plainId = 'job-1';
     const mockModel = makeMockModel(plainId);
 
-    this.subject().reloadRelationship(mockModel, 'summary', true);
+    this.subject().reloadRelationship(mockModel, 'summary', { watch: true });
     assert.equal(
       pretender.handledRequests[0].url,
       '/v1/job/job-1/summary?index=1',
@@ -241,7 +241,7 @@ module('Unit | Adapter | Job', function(hooks) {
     );
 
     await settled();
-    this.subject().reloadRelationship(mockModel, 'summary', true);
+    this.subject().reloadRelationship(mockModel, 'summary', { watch: true });
     assert.equal(
       pretender.handledRequests[1].url,
       '/v1/job/job-1/summary?index=2',
@@ -260,7 +260,7 @@ module('Unit | Adapter | Job', function(hooks) {
     this.subject()
       .findAll(null, { modelName: 'job' }, null, {
         reload: true,
-        adapterOptions: { watch: true, cancellationToken: token },
+        adapterOptions: { watch: true, abortToken: token },
       })
       .catch(() => {});
 
@@ -287,7 +287,7 @@ module('Unit | Adapter | Job', function(hooks) {
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId, {
       reload: true,
-      adapterOptions: { watch: true, cancellationToken: token },
+      adapterOptions: { watch: true, abortToken: token },
     });
 
     const { request: xhr } = pretender.requestReferences[0];
@@ -311,7 +311,7 @@ module('Unit | Adapter | Job', function(hooks) {
     const mockModel = makeMockModel(plainId);
     pretender.get('/v1/job/:id/summary', () => [200, {}, '{}'], true);
 
-    this.subject().reloadRelationship(mockModel, 'summary', true, token);
+    this.subject().reloadRelationship(mockModel, 'summary', { watch: true, abortToken: token });
 
     const { request: xhr } = pretender.requestReferences[0];
     assert.equal(xhr.status, 0, 'Request is still pending');
@@ -337,12 +337,12 @@ module('Unit | Adapter | Job', function(hooks) {
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId, {
       reload: true,
-      adapterOptions: { watch: true, cancellationToken: token1 },
+      adapterOptions: { watch: true, abortToken: token1 },
     });
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId, {
       reload: true,
-      adapterOptions: { watch: true, cancellationToken: token2 },
+      adapterOptions: { watch: true, abortToken: token2 },
     });
 
     const { request: xhr } = pretender.requestReferences[0];

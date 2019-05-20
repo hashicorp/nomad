@@ -11,13 +11,13 @@ export default ApplicationAdapter.extend({
 
   ajaxOptions(url, type, options) {
     const ajaxOptions = this._super(...arguments);
-    const cancellationToken = (options || {}).cancellationToken;
-    if (cancellationToken) {
-      delete options.cancellationToken;
+    const abortToken = (options || {}).abortToken;
+    if (abortToken) {
+      delete options.abortToken;
 
       const previousBeforeSend = ajaxOptions.beforeSend;
       ajaxOptions.beforeSend = function(jqXHR) {
-        cancellationToken.capture(jqXHR);
+        abortToken.capture(jqXHR);
         if (previousBeforeSend) {
           previousBeforeSend(...arguments);
         }
@@ -35,9 +35,9 @@ export default ApplicationAdapter.extend({
       params.index = this.watchList.getIndexFor(url);
     }
 
-    const cancellationToken = get(snapshotRecordArray || {}, 'adapterOptions.cancellationToken');
+    const abortToken = get(snapshotRecordArray || {}, 'adapterOptions.abortToken');
     return this.ajax(url, 'GET', {
-      cancellationToken,
+      abortToken,
       data: params,
     });
   },
@@ -50,9 +50,9 @@ export default ApplicationAdapter.extend({
       params.index = this.watchList.getIndexFor(url);
     }
 
-    const cancellationToken = get(snapshot || {}, 'adapterOptions.cancellationToken');
+    const abortToken = get(snapshot || {}, 'adapterOptions.abortToken');
     return this.ajax(url, 'GET', {
-      cancellationToken,
+      abortToken,
       data: params,
     }).catch(error => {
       if (error instanceof AbortError) {
@@ -62,8 +62,8 @@ export default ApplicationAdapter.extend({
     });
   },
 
-  reloadRelationship(model, relationshipName, options = { watch: false, cancellationToken: null }) {
-    const { watch, cancellationToken } = options;
+  reloadRelationship(model, relationshipName, options = { watch: false, abortToken: null }) {
+    const { watch, abortToken } = options;
     const relationship = model.relationshipFor(relationshipName);
     if (relationship.kind !== 'belongsTo' && relationship.kind !== 'hasMany') {
       throw new Error(
@@ -87,7 +87,7 @@ export default ApplicationAdapter.extend({
       }
 
       return this.ajax(url, 'GET', {
-        cancellationToken,
+        abortToken,
         data: params,
       }).then(
         json => {
