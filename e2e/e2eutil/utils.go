@@ -78,11 +78,12 @@ func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile string, jobID
 }
 
 func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile string, jobID string) []*api.AllocationListStub {
-	// Parse job
 	require := require.New(t)
-	allocs := RegisterAllocs(t, nomadClient, jobFile, jobID)
 	g := NewGomegaWithT(t)
 	jobs := nomadClient.Jobs()
+
+	// Start allocations
+	RegisterAllocs(t, nomadClient, jobFile, jobID)
 
 	// Wrap in retry to wait until placement
 	g.Eventually(func() []*api.AllocationListStub {
