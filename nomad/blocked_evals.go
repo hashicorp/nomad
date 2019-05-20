@@ -450,10 +450,10 @@ func (b *BlockedEvals) UnblockQuota(quota string, index uint64) {
 // be enqueued into the eval broker.
 func (b *BlockedEvals) UnblockClassAndQuota(class, quota string, index uint64) {
 	b.l.Lock()
-	defer b.l.Unlock()
 
 	// Do nothing if not enabled
 	if !b.enabled {
+		b.l.Unlock()
 		return
 	}
 
@@ -465,7 +465,12 @@ func (b *BlockedEvals) UnblockClassAndQuota(class, quota string, index uint64) {
 	}
 	b.unblockIndexes[class] = index
 
-	b.capacityChangeCh <- &capacityUpdate{
+	// Capture chan inside the lock to prevent a race with it getting reset
+	// in Flush.
+	ch := b.capacityChangeCh
+	b.l.Unlock()
+
+	ch <- &capacityUpdate{
 		computedClass: class,
 		quotaChange:   quota,
 		index:         index,
