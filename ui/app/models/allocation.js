@@ -104,7 +104,7 @@ export default Model.extend({
     return this.store.adapterFor('allocation').stop(this);
   },
 
-  restart() {
-    return this.store.adapterFor('allocation').restart(this);
+  restart(taskName) {
+    return this.store.adapterFor('allocation').restart(this, taskName);
   },
 });
