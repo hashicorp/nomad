@@ -18,5 +18,5 @@ Running
 After completing the provisioning step above, you should see CLI output showing the IP addresses of Nomad client machines. To run the tests, set the NOMAD_ADDR variable to one of the client IPs.
 
 ```
-$ NOMAD_ADDR=<> $NOMAD_E2E=1 go test -v
+$ NOMAD_ADDR=<> NOMAD_E2E=1 go test -v
 ```
