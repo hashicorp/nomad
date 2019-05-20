@@ -239,6 +239,43 @@ func TestExecutor_EscapeContainer(t *testing.T) {
 	require.NoError(err)
 }
 
+func TestExecutor_Capabilities(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	testutil.ExecCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	defer allocDir.Destroy()
+
+	execCmd.ResourceLimits = true
+	execCmd.Cmd = "/bin/sh"
+	execCmd.Args = []string{"-c", "cat /proc/$$/cmdline"}
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
+
+	_, err := executor.Launch(execCmd)
+	require.NoError(err)
+
+	ch := make(chan interface{})
+	go func() {
+		executor.Wait(context.Background())
+		close(ch)
+	}()
+
+	select {
+	case <-ch:
+		// all good
+	case <-time.After(5 * time.Second):
+		require.Fail("timeout waiting for exec to shutdown")
+	}
+
+	output := testExecCmd.stdout.String()
+	require.Empty(output)
+
+}
+
 func TestExecutor_ClientCleanup(t *testing.T) {
 	t.Parallel()
 	testutil.ExecCompatible(t)
