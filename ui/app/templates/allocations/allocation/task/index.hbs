@@ -1,8 +1,33 @@
 {{partial "allocations/allocation/task/subnav"}}
 <section class="section">
+  {{#if error}}
+    <div class="notification is-danger">
+      <div class="columns">
+        <div class="column">
+          <h3 data-test-error-title class="title is-4">{{error.title}}</h3>
+          <p data-test-error-body>{{error.description}}</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button data-test-error-close class="button is-danger" onclick={{action onDismiss}}>Okay</button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+
   <h1 class="title" data-test-title>
     {{model.name}}
     <span class="bumper-left tag {{model.stateClass}}" data-test-state>{{model.state}}</span>
+    {{#if model.isRunning}}
+      {{two-step-button
+        data-test-restart
+        idleText="Restart"
+        cancelText="Cancel"
+        confirmText="Yes, Restart"
+        confirmationMessage="Are you sure? This will restart the task in-place."
+        awaitingConfirmation=restartTask.isRunning
+        disabled=restartTask.isRunning
+        onConfirm=(perform restartTask)}}
+    {{/if}}
   </h1>
 
   <div class="boxed-section is-small">
