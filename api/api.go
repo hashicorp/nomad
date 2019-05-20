@@ -320,18 +320,6 @@ func cloneWithTimeout(httpClient *http.Client, t time.Duration) (*http.Client, e
 }
 
 // ConfigureTLS applies a set of TLS configurations to the the HTTP client.
-//
-// Deprecated: This method is called internally.  Consider using ConfigureTLS instead.
-func (c *Config) ConfigureTLS() error {
-
-	// preserve backward behavior where ConfigureTLS pre0.9 always had a client
-	if c.HttpClient == nil {
-		c.HttpClient = defaultHttpClient()
-	}
-	return ConfigureTLS(c.HttpClient, c.TLSConfig)
-}
-
-// ConfigureTLS applies a set of TLS configurations to the the HTTP client.
 func ConfigureTLS(httpClient *http.Client, tlsConfig *TLSConfig) error {
 	if tlsConfig == nil {
 		return nil
