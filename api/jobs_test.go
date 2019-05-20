@@ -323,6 +323,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 					ProgressDeadline: timeToPtr(10 * time.Minute),
 					AutoRevert:       boolToPtr(false),
 					Canary:           intToPtr(0),
+					AutoPromote:      boolToPtr(false),
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -357,6 +358,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							ProgressDeadline: timeToPtr(10 * time.Minute),
 							AutoRevert:       boolToPtr(false),
 							Canary:           intToPtr(0),
+							AutoPromote:      boolToPtr(false),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -486,6 +488,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 					ProgressDeadline: timeToPtr(7 * time.Minute),
 					AutoRevert:       boolToPtr(false),
 					Canary:           intToPtr(0),
+					AutoPromote:      boolToPtr(false),
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -497,6 +500,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							MinHealthyTime: timeToPtr(1 * time.Second),
 							AutoRevert:     boolToPtr(true),
 							Canary:         intToPtr(1),
+							AutoPromote:    boolToPtr(true),
 						},
 						Tasks: []*Task{
 							{
@@ -541,6 +545,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 					ProgressDeadline: timeToPtr(7 * time.Minute),
 					AutoRevert:       boolToPtr(false),
 					Canary:           intToPtr(0),
+					AutoPromote:      boolToPtr(false),
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -574,6 +579,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							ProgressDeadline: timeToPtr(7 * time.Minute),
 							AutoRevert:       boolToPtr(true),
 							Canary:           intToPtr(1),
+							AutoPromote:      boolToPtr(true),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -616,6 +622,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							ProgressDeadline: timeToPtr(7 * time.Minute),
 							AutoRevert:       boolToPtr(false),
 							Canary:           intToPtr(0),
+							AutoPromote:      boolToPtr(false),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
