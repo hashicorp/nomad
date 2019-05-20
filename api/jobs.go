@@ -392,6 +392,7 @@ func DefaultUpdateStrategy() *UpdateStrategy {
 		ProgressDeadline: timeToPtr(10 * time.Minute),
 		AutoRevert:       boolToPtr(false),
 		Canary:           intToPtr(0),
+		AutoPromote:      boolToPtr(false),
 	}
 }
 
@@ -516,6 +517,10 @@ func (u *UpdateStrategy) Canonicalize() {
 
 	if u.Canary == nil {
 		u.Canary = d.Canary
+	}
+
+	if u.AutoPromote == nil {
+		u.AutoPromote = d.AutoPromote
 	}
 }
 
