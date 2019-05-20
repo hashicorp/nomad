@@ -11,7 +11,7 @@ __BACKWARDS INCOMPATIBILITIES:__
    will not restart exited tasks. Exited tasks will be restarted only after the
    client has reestablished communication with servers. System jobs will always
    be restarted. [[GH-5669](https://github.com/hashicorp/nomad/pull/5669)]
- * api: The [job deployments](https://www.nomadproject.io/api/jobs.html#list-job-deployments) endpoin
+ * api: The [job deployments](https://www.nomadproject.io/api/jobs.html#list-job-deployments) endpoint
    now filters out deployments associated with older instances of the job. This can happen if jobs are
    purged and recreated with the same id. To get all deployments irrespective of creation time, add
    `all=true`. The `nomad job deployment`CLI also defaults to doing this filtering.
