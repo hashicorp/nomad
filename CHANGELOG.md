@@ -14,7 +14,7 @@ __BACKWARDS INCOMPATIBILITIES:__
  * api: The [job deployments](https://www.nomadproject.io/api/jobs.html#list-job-deployments) endpoint
    now filters out deployments associated with older instances of the job. This can happen if jobs are
    purged and recreated with the same id. To get all deployments irrespective of creation time, add
-   `all=true`. The `nomad job deployment`CLI also defaults to doing this filtering.
+   `all=true`. The `nomad job deployment`CLI also defaults to doing this filtering. [[GH-5702](https://github.com/hashicorp/nomad/issues/5702)]
 
 FEATURES:
 
