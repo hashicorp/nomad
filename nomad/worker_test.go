@@ -1,14 +1,15 @@
 package nomad
 
 import (
+	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -286,26 +287,29 @@ func TestWorker_waitForIndex(t *testing.T) {
 	index := s1.raft.AppliedIndex()
 
 	// Cause an increment
+	errCh := make(chan error, 1)
 	go func() {
 		time.Sleep(10 * time.Millisecond)
 		n := mock.Node()
-		if err := s1.fsm.state.UpsertNode(index+1, n); err != nil {
-			t.Fatalf("failed to upsert node: %v", err)
-		}
+		errCh <- s1.fsm.state.UpsertNode(index+1, n)
 	}()
 
 	// Wait for a future index
 	w := &Worker{srv: s1, logger: s1.logger}
-	err := w.waitForIndex(index+1, time.Second)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	snap, err := w.snapshotAfter(index+1, time.Second)
+	require.NoError(t, err)
+	require.NotNil(t, snap)
+
+	// No error from upserting
+	require.NoError(t, <-errCh)
 
 	// Cause a timeout
-	err = w.waitForIndex(index+100, 10*time.Millisecond)
-	if err == nil || !strings.Contains(err.Error(), "timeout") {
-		t.Fatalf("err: %v", err)
-	}
+	waitIndex := index + 100
+	timeout := 10 * time.Millisecond
+	snap, err = w.snapshotAfter(index+100, timeout)
+	require.Nil(t, snap)
+	require.EqualError(t, err,
+		fmt.Sprintf("timed out after %s waiting for index=%d", timeout, waitIndex))
 }
 
 func TestWorker_invokeScheduler(t *testing.T) {
@@ -320,10 +324,11 @@ func TestWorker_invokeScheduler(t *testing.T) {
 	eval := mock.Eval()
 	eval.Type = "noop"
 
-	err := w.invokeScheduler(eval, uuid.Generate())
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	snap, err := s1.fsm.state.Snapshot()
+	require.NoError(t, err)
+
+	err = w.invokeScheduler(snap, eval, uuid.Generate())
+	require.NoError(t, err)
 }
 
 func TestWorker_SubmitPlan(t *testing.T) {

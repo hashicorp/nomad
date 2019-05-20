@@ -101,6 +101,61 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	return snap, nil
 }
 
+// SnapshotAfter is used to create a point in time snapshot where the index is
+// guaranteed to be greater than or equal to the index parameter.
+//
+// Some server operations (such as scheduling) exchange objects via RPC
+// concurrent with Raft log application, so they must ensure the state store
+// snapshot they are operating on is at or after the index the objects
+// retrieved via RPC were applied to the Raft log at.
+//
+// Callers should maintain their own timer metric as the time this method
+// blocks indicates Raft log application latency relative to scheduling.
+func (s *StateStore) SnapshotAfter(ctx context.Context, index uint64) (*StateSnapshot, error) {
+	// Ported from work.go:waitForIndex prior to 0.9
+
+	const backoffBase = 20 * time.Millisecond
+	const backoffLimit = 1 * time.Second
+	var retries uint
+	var retryTimer *time.Timer
+
+	// XXX: Potential optimization is to set up a watch on the state
+	// store's index table and only unblock via a trigger rather than
+	// polling.
+	for {
+		// Get the states current index
+		snapshotIndex, err := s.LatestIndex()
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine state store's index: %v", err)
+		}
+
+		// We only need the FSM state to be as recent as the given index
+		if snapshotIndex >= index {
+			return s.Snapshot()
+		}
+
+		// Exponential back off
+		retries++
+		if retryTimer == nil {
+			// First retry, start at baseline
+			retryTimer = time.NewTimer(backoffBase)
+		} else {
+			// Subsequent retry, reset timer
+			deadline := 1 << (2 * retries) * backoffBase
+			if deadline > backoffLimit {
+				deadline = backoffLimit
+			}
+			retryTimer.Reset(deadline)
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-retryTimer.C:
+		}
+	}
+}
+
 // Restore is used to optimize the efficiency of rebuilding
 // state by minimizing the number of transactions and checking
 // overhead.

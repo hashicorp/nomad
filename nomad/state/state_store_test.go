@@ -7118,6 +7118,100 @@ func TestStateSnapshot_DenormalizeAllocationDiffSlice_AllocDoesNotExist(t *testi
 	require.Nil(denormalizedAllocs)
 }
 
+// TestStateStore_SnapshotAfter_OK asserts StateStore.SnapshotAfter blocks
+// until the StateStore's latest index is >= the requested index.
+func TestStateStore_SnapshotAfter_OK(t *testing.T) {
+	t.Parallel()
+
+	s := testStateStore(t)
+	index, err := s.LatestIndex()
+	require.NoError(t, err)
+
+	node := mock.Node()
+	require.NoError(t, s.UpsertNode(index+1, node))
+
+	// Assert SnapshotAfter returns immediately if index < latest index
+	ctx, cancel := context.WithTimeout(context.Background(), 0)
+	snap, err := s.SnapshotAfter(ctx, index)
+	cancel()
+	require.NoError(t, err)
+
+	snapIndex, err := snap.LatestIndex()
+	require.NoError(t, err)
+	if snapIndex <= index {
+		require.Fail(t, "snapshot index should be greater than index")
+	}
+
+	// Assert SnapshotAfter returns immediately if index == latest index
+	ctx, cancel = context.WithTimeout(context.Background(), 0)
+	snap, err = s.SnapshotAfter(ctx, index+1)
+	cancel()
+	require.NoError(t, err)
+
+	snapIndex, err = snap.LatestIndex()
+	require.NoError(t, err)
+	require.Equal(t, snapIndex, index+1)
+
+	// Assert SnapshotAfter blocks if index > latest index
+	errCh := make(chan error, 1)
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	go func() {
+		defer close(errCh)
+		waitIndex := index + 2
+		snap, err := s.SnapshotAfter(ctx, waitIndex)
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		snapIndex, err := snap.LatestIndex()
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		if snapIndex < waitIndex {
+			errCh <- fmt.Errorf("snapshot index < wait index: %d < %d", snapIndex, waitIndex)
+			return
+		}
+	}()
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(500 * time.Millisecond):
+		// Let it block for a bit before unblocking by upserting
+	}
+
+	node.Name = "hal"
+	require.NoError(t, s.UpsertNode(index+2, node))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		require.Fail(t, "timed out waiting for SnapshotAfter to unblock")
+	}
+}
+
+// TestStateStore_SnapshotAfter_Timeout asserts StateStore.SnapshotAfter
+// returns an error if the desired index is not reached within the deadline.
+func TestStateStore_SnapshotAfter_Timeout(t *testing.T) {
+	t.Parallel()
+
+	s := testStateStore(t)
+	index, err := s.LatestIndex()
+	require.NoError(t, err)
+
+	// Assert SnapshotAfter blocks if index > latest index
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	snap, err := s.SnapshotAfter(ctx, index+1)
+	require.EqualError(t, err, context.DeadlineExceeded.Error())
+	require.Nil(t, snap)
+}
+
 // watchFired is a helper for unit tests that returns if the given watch set
 // fired (it doesn't care which watch actually fired). This uses a fixed
 // timeout since we already expect the event happened before calling this and

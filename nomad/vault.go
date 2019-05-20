@@ -131,7 +131,7 @@ type VaultClient interface {
 
 	// EmitStats emits that clients statistics at the given period until stopCh
 	// is called.
-	EmitStats(period time.Duration, stopCh chan struct{})
+	EmitStats(period time.Duration, stopCh <-chan struct{})
 }
 
 // VaultStats returns all the stats about Vault tokens created and managed by
@@ -1313,7 +1313,7 @@ func (v *vaultClient) stats() *VaultStats {
 }
 
 // EmitStats is used to export metrics about the blocked eval tracker while enabled
-func (v *vaultClient) EmitStats(period time.Duration, stopCh chan struct{}) {
+func (v *vaultClient) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 	for {
 		select {
 		case <-time.After(period):

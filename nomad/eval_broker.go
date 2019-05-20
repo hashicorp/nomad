@@ -822,7 +822,7 @@ func (b *EvalBroker) Stats() *BrokerStats {
 }
 
 // EmitStats is used to export metrics about the broker while enabled
-func (b *EvalBroker) EmitStats(period time.Duration, stopCh chan struct{}) {
+func (b *EvalBroker) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 	for {
 		select {
 		case <-time.After(period):
