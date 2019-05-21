@@ -857,7 +857,7 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	require.NoError(state.UpdateNodeStatus(801, node.ID, structs.NodeStatusReady, event))
+	require.NoError(state.UpdateNodeStatus(801, node.ID, structs.NodeStatusReady, 70, event))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -865,6 +865,7 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	require.NoError(err)
 	require.Equal(structs.NodeStatusReady, out.Status)
 	require.EqualValues(801, out.ModifyIndex)
+	require.EqualValues(70, out.StatusUpdatedAt)
 	require.Len(out.Events, 2)
 	require.Equal(event.Message, out.Events[1].Message)
 
@@ -912,7 +913,7 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 		n2.ID: event,
 	}
 
-	require.Nil(state.BatchUpdateNodeDrain(1002, update, events))
+	require.Nil(state.BatchUpdateNodeDrain(1002, 7, update, events))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -924,6 +925,7 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 		require.Equal(out.DrainStrategy, expectedDrain)
 		require.Len(out.Events, 2)
 		require.EqualValues(1002, out.ModifyIndex)
+		require.EqualValues(7, out.StatusUpdatedAt)
 	}
 
 	index, err := state.Index("nodes")
@@ -955,7 +957,7 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 		Subsystem: structs.NodeEventSubsystemDrain,
 		Timestamp: time.Now(),
 	}
-	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain, false, event))
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain, false, 7, event))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -966,6 +968,7 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 	require.Equal(out.DrainStrategy, expectedDrain)
 	require.Len(out.Events, 2)
 	require.EqualValues(1001, out.ModifyIndex)
+	require.EqualValues(7, out.StatusUpdatedAt)
 
 	index, err := state.Index("nodes")
 	require.Nil(err)
@@ -1084,7 +1087,7 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 		Subsystem: structs.NodeEventSubsystemDrain,
 		Timestamp: time.Now(),
 	}
-	require.Nil(state.UpdateNodeDrain(1001, node.ID, drain, false, event1))
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, drain, false, 7, event1))
 	require.True(watchFired(ws))
 
 	// Remove the drain
@@ -1093,7 +1096,7 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 		Subsystem: structs.NodeEventSubsystemDrain,
 		Timestamp: time.Now(),
 	}
-	require.Nil(state.UpdateNodeDrain(1002, node.ID, nil, true, event2))
+	require.Nil(state.UpdateNodeDrain(1002, node.ID, nil, true, 9, event2))
 
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
@@ -1103,6 +1106,7 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 	require.Equal(out.SchedulingEligibility, structs.NodeSchedulingEligible)
 	require.Len(out.Events, 3)
 	require.EqualValues(1002, out.ModifyIndex)
+	require.EqualValues(9, out.StatusUpdatedAt)
 
 	index, err := state.Index("nodes")
 	require.Nil(err)
@@ -1133,7 +1137,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 		Subsystem: structs.NodeEventSubsystemCluster,
 		Timestamp: time.Now(),
 	}
-	require.Nil(state.UpdateNodeEligibility(1001, node.ID, expectedEligibility, event))
+	require.Nil(state.UpdateNodeEligibility(1001, node.ID, expectedEligibility, 7, event))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -1143,6 +1147,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 	require.Len(out.Events, 2)
 	require.Equal(out.Events[1], event)
 	require.EqualValues(1001, out.ModifyIndex)
+	require.EqualValues(7, out.StatusUpdatedAt)
 
 	index, err := state.Index("nodes")
 	require.Nil(err)
@@ -1155,10 +1160,10 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 			Deadline: -1 * time.Second,
 		},
 	}
-	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain, false, nil))
+	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain, false, 7, nil))
 
 	// Try to set the node to eligible
-	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible, nil)
+	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible, 9, nil)
 	require.NotNil(err)
 	require.Contains(err.Error(), "while it is draining")
 }
