@@ -50,6 +50,7 @@ func TestFIFO(t *testing.T) {
 	go func() {
 		defer wait.Done()
 
+		var err error
 		reader, err = readerOpenFn()
 		assert.NoError(t, err)
 		if err != nil {
@@ -104,6 +105,7 @@ func TestWriteClose(t *testing.T) {
 	go func() {
 		defer wait.Done()
 
+		var err error
 		reader, err = readerOpenFn()
 		assert.NoError(t, err)
 		if err != nil {

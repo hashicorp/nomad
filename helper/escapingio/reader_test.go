@@ -426,14 +426,16 @@ func naiveEscapeCharacters(input string, escapeChar byte, h Handler) string {
 	}
 
 	return reg.ReplaceAllStringFunc(input, func(match string) string {
-		if len(match) != 3 {
-			panic(fmt.Errorf("match isn't 3 characters: %s", match))
+		// match can be more than three bytes because of unicode
+		if len(match) < 3 {
+			panic(fmt.Errorf("match is less than characters: %d %s", len(match), match))
 		}
 
 		c := match[2]
 
 		// ignore some unicode partial codes
-		ltr := ('a' <= c && c <= 'z') ||
+		ltr := len(match) > 3 ||
+			('a' <= c && c <= 'z') ||
 			('A' <= c && c <= 'Z') ||
 			('0' <= c && c <= '9') ||
 			(c == '~' || c == '.' || c == escapeChar)
