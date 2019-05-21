@@ -323,7 +323,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 					ProgressDeadline: timeToPtr(10 * time.Minute),
 					AutoRevert:       boolToPtr(false),
 					Canary:           intToPtr(0),
-					AutoPromote:      boolToPtr(false),
+					AutoPromote:      nil,
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -358,7 +358,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							ProgressDeadline: timeToPtr(10 * time.Minute),
 							AutoRevert:       boolToPtr(false),
 							Canary:           intToPtr(0),
-							AutoPromote:      boolToPtr(false),
+							AutoPromote:      nil,
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{

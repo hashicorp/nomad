@@ -2040,6 +2040,79 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	}
 }
 
+func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
+	apiJob := &api.Job{
+		Update: &api.UpdateStrategy{
+			Stagger:          helper.TimeToPtr(1 * time.Second),
+			MaxParallel:      helper.IntToPtr(5),
+			HealthCheck:      helper.StringToPtr(structs.UpdateStrategyHealthCheck_Manual),
+			MinHealthyTime:   helper.TimeToPtr(1 * time.Minute),
+			HealthyDeadline:  helper.TimeToPtr(3 * time.Minute),
+			ProgressDeadline: helper.TimeToPtr(3 * time.Minute),
+			AutoRevert:       helper.BoolToPtr(false),
+			AutoPromote:      nil,
+			Canary:           helper.IntToPtr(1),
+		},
+		TaskGroups: []*api.TaskGroup{
+			{
+				Update: &api.UpdateStrategy{
+					Canary:     helper.IntToPtr(2),
+					AutoRevert: helper.BoolToPtr(true),
+				},
+			}, {
+				Update: &api.UpdateStrategy{
+					Canary:      helper.IntToPtr(3),
+					AutoPromote: helper.BoolToPtr(true),
+				},
+			},
+		},
+	}
+
+	structsJob := ApiJobToStructJob(apiJob)
+
+	// Update has been moved from job down to the groups
+	jobUpdate := structs.UpdateStrategy{
+		Stagger:          1000000000,
+		MaxParallel:      5,
+		HealthCheck:      "",
+		MinHealthyTime:   0,
+		HealthyDeadline:  0,
+		ProgressDeadline: 0,
+		AutoRevert:       false,
+		AutoPromote:      false,
+		Canary:           0,
+	}
+
+	// But the groups inherit settings from the job update
+	group1 := structs.UpdateStrategy{
+		Stagger:          1000000000,
+		MaxParallel:      5,
+		HealthCheck:      "manual",
+		MinHealthyTime:   60000000000,
+		HealthyDeadline:  180000000000,
+		ProgressDeadline: 180000000000,
+		AutoRevert:       true,
+		AutoPromote:      false,
+		Canary:           2,
+	}
+
+	group2 := structs.UpdateStrategy{
+		Stagger:          1000000000,
+		MaxParallel:      5,
+		HealthCheck:      "manual",
+		MinHealthyTime:   60000000000,
+		HealthyDeadline:  180000000000,
+		ProgressDeadline: 180000000000,
+		AutoRevert:       false,
+		AutoPromote:      true,
+		Canary:           3,
+	}
+
+	require.Equal(t, jobUpdate, structsJob.Update)
+	require.Equal(t, group1, *structsJob.TaskGroups[0].Update)
+	require.Equal(t, group2, *structsJob.TaskGroups[1].Update)
+}
+
 // TestHTTP_JobValidate_SystemMigrate asserts that a system job with a migrate
 // stanza fails to validate but does not panic (see #5477).
 func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
