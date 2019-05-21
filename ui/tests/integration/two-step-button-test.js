@@ -4,6 +4,10 @@ import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import sinon from 'sinon';
+import { create } from 'ember-cli-page-object';
+import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
+
+const TwoStepButton = create(twoStepButton());
 
 module('Integration | Component | two step button', function(hooks) {
   setupRenderingTest(hooks);
@@ -14,6 +18,7 @@ module('Integration | Component | two step button', function(hooks) {
     confirmText: 'Confirm Action',
     confirmationMessage: 'Are you certain',
     awaitingConfirmation: false,
+    disabled: false,
     onConfirm: sinon.spy(),
     onCancel: sinon.spy(),
   });
@@ -25,6 +30,7 @@ module('Integration | Component | two step button', function(hooks) {
       confirmText=confirmText
       confirmationMessage=confirmationMessage
       awaitingConfirmation=awaitingConfirmation
+      disabled=disabled
       onConfirm=onConfirm
       onCancel=onCancel}}
   `;
@@ -35,11 +41,7 @@ module('Integration | Component | two step button', function(hooks) {
     await render(commonTemplate);
 
     assert.ok(find('[data-test-idle-button]'), 'Idle button is rendered');
-    assert.equal(
-      find('[data-test-idle-button]').textContent.trim(),
-      props.idleText,
-      'Button is labeled correctly'
-    );
+    assert.equal(TwoStepButton.idleText, props.idleText, 'Button is labeled correctly');
 
     assert.notOk(find('[data-test-cancel-button]'), 'No cancel button yet');
     assert.notOk(find('[data-test-confirm-button]'), 'No confirm button yet');
@@ -51,25 +53,17 @@ module('Integration | Component | two step button', function(hooks) {
     this.setProperties(props);
     await render(commonTemplate);
 
-    click('[data-test-idle-button]');
+    TwoStepButton.idle();
 
     return settled().then(() => {
       assert.ok(find('[data-test-cancel-button]'), 'Cancel button is rendered');
-      assert.equal(
-        find('[data-test-cancel-button]').textContent.trim(),
-        props.cancelText,
-        'Button is labeled correctly'
-      );
+      assert.equal(TwoStepButton.cancelText, props.cancelText, 'Button is labeled correctly');
 
       assert.ok(find('[data-test-confirm-button]'), 'Confirm button is rendered');
-      assert.equal(
-        find('[data-test-confirm-button]').textContent.trim(),
-        props.confirmText,
-        'Button is labeled correctly'
-      );
+      assert.equal(TwoStepButton.confirmText, props.confirmText, 'Button is labeled correctly');
 
       assert.equal(
-        find('[data-test-confirmation-message]').textContent.trim(),
+        TwoStepButton.confirmationMessage,
         props.confirmationMessage,
         'Confirmation message is shown'
       );
@@ -83,10 +77,10 @@ module('Integration | Component | two step button', function(hooks) {
     this.setProperties(props);
     await render(commonTemplate);
 
-    click('[data-test-idle-button]');
+    TwoStepButton.idle();
 
     return settled().then(() => {
-      click('[data-test-cancel-button]');
+      TwoStepButton.cancel();
 
       return settled().then(() => {
         assert.ok(props.onCancel.calledOnce, 'The onCancel hook fired');
@@ -100,10 +94,10 @@ module('Integration | Component | two step button', function(hooks) {
     this.setProperties(props);
     await render(commonTemplate);
 
-    click('[data-test-idle-button]');
+    TwoStepButton.idle();
 
     return settled().then(() => {
-      click('[data-test-confirm-button]');
+      TwoStepButton.confirm();
 
       return settled().then(() => {
         assert.ok(props.onConfirm.calledOnce, 'The onConfirm hook fired');
@@ -118,21 +112,73 @@ module('Integration | Component | two step button', function(hooks) {
     this.setProperties(props);
     await render(commonTemplate);
 
-    click('[data-test-idle-button]');
+    TwoStepButton.idle();
 
     return settled().then(() => {
-      assert.ok(
-        find('[data-test-cancel-button]').hasAttribute('disabled'),
-        'The cancel button is disabled'
-      );
-      assert.ok(
-        find('[data-test-confirm-button]').hasAttribute('disabled'),
-        'The confirm button is disabled'
-      );
-      assert.ok(
-        find('[data-test-confirm-button]').classList.contains('is-loading'),
-        'The confirm button is in a loading state'
-      );
+      assert.ok(TwoStepButton.cancelIsDisabled, 'The cancel button is disabled');
+      assert.ok(TwoStepButton.confirmIsDisabled, 'The confirm button is disabled');
+      assert.ok(TwoStepButton.isRunning, 'The confirm button is in a loading state');
     });
+  });
+
+  test('when in the prompt state, clicking outside will reset state back to idle', async function(assert) {
+    const props = commonProperties();
+    this.setProperties(props);
+    await render(commonTemplate);
+
+    TwoStepButton.idle();
+    await settled();
+
+    assert.ok(find('[data-test-cancel-button]'), 'In the prompt state');
+
+    click(document.body);
+    await settled();
+
+    assert.ok(find('[data-test-idle-button]'), 'Back in the idle state');
+  });
+
+  test('when in the prompt state, clicking inside will not reset state back to idle', async function(assert) {
+    const props = commonProperties();
+    this.setProperties(props);
+    await render(commonTemplate);
+
+    TwoStepButton.idle();
+    await settled();
+
+    assert.ok(find('[data-test-cancel-button]'), 'In the prompt state');
+
+    click('[data-test-confirmation-message]');
+    await settled();
+
+    assert.notOk(find('[data-test-idle-button]'), 'Still in the prompt state');
+  });
+
+  test('when awaitingConfirmation is true, clicking outside does nothing', async function(assert) {
+    const props = commonProperties();
+    props.awaitingConfirmation = true;
+    this.setProperties(props);
+    await render(commonTemplate);
+
+    TwoStepButton.idle();
+    await settled();
+
+    assert.ok(find('[data-test-cancel-button]'), 'In the prompt state');
+
+    click(document.body);
+    await settled();
+
+    assert.notOk(find('[data-test-idle-button]'), 'Still in the prompt state');
+  });
+
+  test('when disabled is true, the idle button is disabled', async function(assert) {
+    const props = commonProperties();
+    props.disabled = true;
+    this.setProperties(props);
+    await render(commonTemplate);
+
+    assert.ok(TwoStepButton.isDisabled, 'The idle button is disabled');
+
+    TwoStepButton.idle();
+    assert.ok(find('[data-test-idle-button]'), 'Still in the idle state after clicking');
   });
 });

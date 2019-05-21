@@ -1,5 +1,6 @@
 import { inject as service } from '@ember/service';
 import Watchable from './watchable';
+import addToPath from 'nomad-ui/utils/add-to-path';
 
 export default Watchable.extend({
   system: service(),
@@ -117,15 +118,4 @@ function associateNamespace(url, namespace) {
     url += `?namespace=${namespace}`;
   }
   return url;
-}
-
-function addToPath(url, extension = '') {
-  const [path, params] = url.split('?');
-  let newUrl = `${path}${extension}`;
-
-  if (params) {
-    newUrl += `?${params}`;
-  }
-
-  return newUrl;
 }

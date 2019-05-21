@@ -10,4 +10,10 @@ export default Route.extend({
 
     return this._super(...arguments);
   },
+
+  resetController(controller, isExiting) {
+    if (isExiting) {
+      controller.watchNext.cancelAll();
+    }
+  },
 });
