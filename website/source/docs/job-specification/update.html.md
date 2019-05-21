@@ -94,7 +94,9 @@ job "docs" {
   allocations as part of its deployment were marked healthy.
 
 - `auto_promote` `(bool: false)` - Specifies if the job should auto-promote to the
-  canary version when all canaries become healthy.
+  canary version when all canaries become healthy during a deployment. Defaults to
+  false which means canaries must be manually updated with the `nomad deployment promote`
+  command.
 
 - `canary` `(int: 0)` - Specifies that changes to the job that would result in
   destructive updates should create the specified number of canaries without
