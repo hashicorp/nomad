@@ -3481,11 +3481,21 @@ func (j *Job) Warnings() error {
 	var mErr multierror.Error
 
 	// Check the groups
+	ap := 0
 	for _, tg := range j.TaskGroups {
 		if err := tg.Warnings(j); err != nil {
 			outer := fmt.Errorf("Group %q has warnings: %v", tg.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
+		if tg.Update.AutoPromote {
+			ap += 1
+		}
+	}
+
+	// Check AutoPromote, should be all or none
+	if ap > 0 && ap < len(j.TaskGroups) {
+		err := fmt.Errorf("auto_promote must be true for all groups to enable automatic promotion")
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	return mErr.ErrorOrNil()
@@ -7157,17 +7167,17 @@ func (d *Deployment) RequiresPromotion() bool {
 	return false
 }
 
-// HasAutoPromote determines if any taskgroup is marked auto_promote
+// HasAutoPromote determines if all taskgroups are marked auto_promote
 func (d *Deployment) HasAutoPromote() bool {
 	if d == nil || len(d.TaskGroups) == 0 || d.Status != DeploymentStatusRunning {
 		return false
 	}
 	for _, group := range d.TaskGroups {
-		if group.AutoPromote {
-			return true
+		if !group.AutoPromote {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 func (d *Deployment) GoString() string {
