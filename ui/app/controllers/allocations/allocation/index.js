@@ -52,7 +52,7 @@ export default Controller.extend(Sortable, {
     } catch (err) {
       this.set('error', {
         title: 'Could Not Stop Allocation',
-        description: 'Your ACL token does not grant allocation lifecyle permissions.',
+        description: 'Your ACL token does not grant allocation lifecycle permissions.',
       });
     }
   }),
@@ -63,7 +63,7 @@ export default Controller.extend(Sortable, {
     } catch (err) {
       this.set('error', {
         title: 'Could Not Restart Allocation',
-        description: 'Your ACL token does not grant allocation lifecyle permissions.',
+        description: 'Your ACL token does not grant allocation lifecycle permissions.',
       });
     }
   }),

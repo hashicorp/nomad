@@ -35,10 +35,9 @@ export default Controller.extend({
     try {
       yield this.model.restart();
     } catch (err) {
-      console.log('OOPs', err);
       this.set('error', {
         title: 'Could Not Restart Task',
-        description: 'Your ACL token does not grant allocation lifecyle permissions.',
+        description: 'Your ACL token does not grant allocation lifecycle permissions.',
       });
     }
   }),

@@ -1,3 +1,4 @@
+import { run } from '@ember/runloop';
 import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
@@ -154,6 +155,63 @@ module('Acceptance | allocation detail', function(hooks) {
     assert.equal(currentURL(), '/allocations/not-a-real-allocation', 'The URL persists');
     assert.ok(Allocation.error.isShown, 'Error message is shown');
     assert.equal(Allocation.error.title, 'Not Found', 'Error message is for 404');
+  });
+
+  test('allocation can be stopped', async function(assert) {
+    await Allocation.stop.idle();
+    await Allocation.stop.confirm();
+
+    assert.equal(
+      server.pretender.handledRequests.findBy('method', 'POST').url,
+      `/v1/allocation/${allocation.id}/stop`,
+      'Stop request is made for the allocation'
+    );
+  });
+
+  test('allocation can be restarted', async function(assert) {
+    await Allocation.restart.idle();
+    await Allocation.restart.confirm();
+
+    assert.equal(
+      server.pretender.handledRequests.findBy('method', 'PUT').url,
+      `/v1/client/allocation/${allocation.id}/restart`,
+      'Restart request is made for the allocation'
+    );
+  });
+
+  test('while an allocation is being restarted, the stop button is disabled', async function(assert) {
+    server.pretender.post('/v1/allocation/:id/stop', () => [204, {}, ''], true);
+
+    await Allocation.stop.idle();
+
+    run.later(() => {
+      assert.ok(Allocation.stop.isRunning, 'Stop is loading');
+      assert.ok(Allocation.restart.isDisabled, 'Restart is disabled');
+      server.pretender.resolve(server.pretender.requestReferences[0].request);
+    }, 500);
+
+    await Allocation.stop.confirm();
+  });
+
+  test('if stopping or restarting fails, an error message is shown', async function(assert) {
+    server.pretender.post('/v1/allocation/:id/stop', () => [403, {}, '']);
+
+    await Allocation.stop.idle();
+    await Allocation.stop.confirm();
+
+    assert.ok(Allocation.inlineError.isShown, 'Inline error is shown');
+    assert.ok(
+      Allocation.inlineError.title.includes('Could Not Stop Allocation'),
+      'Title is descriptive'
+    );
+    assert.ok(
+      /ACL token.+?allocation lifecycle/.test(Allocation.inlineError.message),
+      'Message mentions ACLs and the appropriate permission'
+    );
+
+    await Allocation.inlineError.dismiss();
+
+    assert.notOk(Allocation.inlineError.isShown, 'Inline error is no longer shown');
   });
 });
 

@@ -174,6 +174,42 @@ module('Acceptance | task detail', function(hooks) {
     assert.ok(Task.error.isPresent, 'Error message is shown');
     assert.equal(Task.error.title, 'Not Found', 'Error message is for 404');
   });
+
+  test('task can be restarted', async function(assert) {
+    await Task.restart.idle();
+    await Task.restart.confirm();
+
+    const request = server.pretender.handledRequests.findBy('method', 'PUT');
+    assert.equal(
+      request.url,
+      `/v1/client/allocation/${allocation.id}/restart`,
+      'Restart request is made for the allocation'
+    );
+
+    assert.deepEqual(
+      JSON.parse(request.requestBody),
+      { TaskName: task.name },
+      'Restart request is made for the correct task'
+    );
+  });
+
+  test('when task restart fails, an error message is shown', async function(assert) {
+    server.pretender.put('/v1/client/allocation/:id/restart', () => [403, {}, '']);
+
+    await Task.restart.idle();
+    await Task.restart.confirm();
+
+    assert.ok(Task.inlineError.isShown, 'Inline error is shown');
+    assert.ok(Task.inlineError.title.includes('Could Not Restart Task'), 'Title is descriptive');
+    assert.ok(
+      /ACL token.+?allocation lifecycle/.test(Task.inlineError.message),
+      'Message mentions ACLs and the appropriate permission'
+    );
+
+    await Task.inlineError.dismiss();
+
+    assert.notOk(Task.inlineError.isShown, 'Inline error is no longer shown');
+  });
 });
 
 module('Acceptance | task detail (no addresses)', function(hooks) {
