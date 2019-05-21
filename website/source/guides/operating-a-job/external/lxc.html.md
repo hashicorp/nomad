@@ -71,7 +71,7 @@ ID        DC   Name             Class   Drain  Eligibility  Status
 You can now run the `nomad node status` command against the specific node ID to
 see which drivers are initialized on the client. In our case, the client node ID
 is `81c22a0c` (your client node ID will be different). You should see `lxc`
-appear in the `Driver Status` section as show below:
+appear in the `Driver Status` section as shown below:
 
 ```shell
 $ nomad node status 81c22a0c

@@ -9,11 +9,15 @@ import {
 } from 'ember-cli-page-object';
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
+import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
 
 export default create({
   visit: visitable('/allocations/:id'),
 
   title: text('[data-test-title]'),
+
+  stop: twoStepButton('[data-test-stop]'),
+  restart: twoStepButton('[data-test-restart]'),
 
   details: {
     scope: '[data-test-allocation-details]',
@@ -76,5 +80,12 @@ export default create({
     title: text('[data-test-error-title]'),
     message: text('[data-test-error-message]'),
     seekHelp: clickable('[data-test-error-message] a'),
+  },
+
+  inlineError: {
+    isShown: isPresent('[data-test-inline-error]'),
+    title: text('[data-test-inline-error-title]'),
+    message: text('[data-test-inline-error-body]'),
+    dismiss: clickable('[data-test-inline-error-close]'),
   },
 });

@@ -135,9 +135,9 @@ func (v *TestVaultClient) RevokeTokens(ctx context.Context, accessors []*structs
 	return nil
 }
 
-func (v *TestVaultClient) Stop()                                                {}
-func (v *TestVaultClient) SetActive(enabled bool)                               {}
-func (v *TestVaultClient) SetConfig(config *config.VaultConfig) error           { return nil }
-func (v *TestVaultClient) Running() bool                                        { return true }
-func (v *TestVaultClient) Stats() map[string]string                             { return map[string]string{} }
-func (v *TestVaultClient) EmitStats(period time.Duration, stopCh chan struct{}) {}
+func (v *TestVaultClient) Stop()                                                  {}
+func (v *TestVaultClient) SetActive(enabled bool)                                 {}
+func (v *TestVaultClient) SetConfig(config *config.VaultConfig) error             { return nil }
+func (v *TestVaultClient) Running() bool                                          { return true }
+func (v *TestVaultClient) Stats() map[string]string                               { return map[string]string{} }
+func (v *TestVaultClient) EmitStats(period time.Duration, stopCh <-chan struct{}) {}

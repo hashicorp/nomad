@@ -221,8 +221,11 @@ type Server struct {
 
 	left         bool
 	shutdown     bool
-	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
+
+	shutdownCtx    context.Context
+	shutdownCancel context.CancelFunc
+	shutdownCh     <-chan struct{}
 }
 
 // Holds the RPC endpoints
@@ -303,8 +306,10 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 		blockedEvals:  NewBlockedEvals(evalBroker, logger),
 		rpcTLS:        incomingTLS,
 		aclCache:      aclCache,
-		shutdownCh:    make(chan struct{}),
 	}
+
+	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
+	s.shutdownCh = s.shutdownCtx.Done()
 
 	// Create the RPC handler
 	s.rpcHandler = newRpcHandler(s)
@@ -530,7 +535,7 @@ func (s *Server) Shutdown() error {
 	}
 
 	s.shutdown = true
-	close(s.shutdownCh)
+	s.shutdownCancel()
 
 	if s.serf != nil {
 		s.serf.Shutdown()

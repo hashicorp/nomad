@@ -48,6 +48,7 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 		"/lib64":            "/lib64",
 		"/usr/lib":          "/usr/lib",
 		"/bin/ls":           "/bin/ls",
+		"/bin/cat":          "/bin/cat",
 		"/bin/echo":         "/bin/echo",
 		"/bin/bash":         "/bin/bash",
 		"/bin/sleep":        "/bin/sleep",
@@ -158,6 +159,84 @@ ld.so.conf.d/`
 		}
 		return true, nil
 	}, func(err error) { t.Error(err) })
+}
+
+func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Create a temp dir
+	tmpDir, err := ioutil.TempDir("", "")
+	require.Nil(err)
+	defer os.Remove(tmpDir)
+
+	// Create the command
+	cmd := &ExecCommand{Env: []string{"PATH=/bin"}, TaskDir: tmpDir}
+
+	// Make a foo subdir
+	os.MkdirAll(filepath.Join(tmpDir, "foo"), 0700)
+
+	// Write a file under foo
+	filePath := filepath.Join(tmpDir, "foo", "tmp.txt")
+	err = ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
+	require.NoError(err)
+
+	// Lookout with an absolute path to the binary
+	cmd.Cmd = "/foo/tmp.txt"
+	_, err = lookupTaskBin(cmd)
+	require.NoError(err)
+
+	// Write a file under local subdir
+	os.MkdirAll(filepath.Join(tmpDir, "local"), 0700)
+	filePath2 := filepath.Join(tmpDir, "local", "tmp.txt")
+	ioutil.WriteFile(filePath2, []byte{1, 2}, os.ModeAppend)
+
+	// Lookup with file name, should find the one we wrote above
+	cmd.Cmd = "tmp.txt"
+	_, err = lookupTaskBin(cmd)
+	require.NoError(err)
+
+	// Lookup a host absolute path
+	cmd.Cmd = "/bin/sh"
+	_, err = lookupTaskBin(cmd)
+	require.Error(err)
+}
+
+// Exec Launch looks for the binary only inside the chroot
+func TestExecutor_EscapeContainer(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	testutil.ExecCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "/bin/kill" // missing from the chroot container
+	defer allocDir.Destroy()
+
+	execCmd.ResourceLimits = true
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
+
+	_, err := executor.Launch(execCmd)
+	require.Error(err)
+	require.Regexp("^file /bin/kill not found under path", err)
+
+	// Bare files are looked up using the system path, inside the container
+	allocDir.Destroy()
+	testExecCmd = testExecutorCommandWithChroot(t)
+	execCmd, allocDir = testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "kill"
+	_, err = executor.Launch(execCmd)
+	require.Error(err)
+	require.Regexp("^file kill not found under path", err)
+
+	allocDir.Destroy()
+	testExecCmd = testExecutorCommandWithChroot(t)
+	execCmd, allocDir = testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "echo"
+	_, err = executor.Launch(execCmd)
+	require.NoError(err)
 }
 
 func TestExecutor_ClientCleanup(t *testing.T) {
