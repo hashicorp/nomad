@@ -464,9 +464,13 @@ func (b *BlockedEvals) UnblockClassAndQuota(class, quota string, index uint64) {
 		b.unblockIndexes[quota] = index
 	}
 	b.unblockIndexes[class] = index
+
+	// Capture chan inside the lock to prevent a race with it getting reset
+	// in Flush.
+	ch := b.capacityChangeCh
 	b.l.Unlock()
 
-	b.capacityChangeCh <- &capacityUpdate{
+	ch <- &capacityUpdate{
 		computedClass: class,
 		quotaChange:   quota,
 		index:         index,
