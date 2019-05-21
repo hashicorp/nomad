@@ -73,6 +73,7 @@ func (tc *DeploymentTest) AfterEach(f *framework.F) {
 	for _, id := range tc.jobIds {
 		jobs.Deregister(id, true, nil)
 	}
+	tc.jobIds = []string{}
 	// Garbage collect
 	nomadClient.System().GarbageCollect()
 }
