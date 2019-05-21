@@ -154,7 +154,7 @@ func sentinelResultToWarnErr(result *sentinel.EvalResult) (warn, err error) {
 
 // gcSentinelPolicies is a long running routine which garbage collects unused
 // policies that are cached.
-func (s *Server) gcSentinelPolicies(stopCh chan struct{}) {
+func (s *Server) gcSentinelPolicies(stopCh <-chan struct{}) {
 	ticker := time.NewTicker(s.config.SentinelGCInterval)
 	defer ticker.Stop()
 	for {
