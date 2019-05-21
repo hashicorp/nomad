@@ -230,13 +230,13 @@ module('Acceptance | jobs list', function(hooks) {
     async beforeEach() {
       [
         'pre-one',
-        'hashi-one',
-        'nmd-one',
+        'hashi_one',
+        'nmd.one',
         'one-alone',
-        'pre-two',
-        'hashi-two',
+        'pre_two',
+        'hashi.two',
         'hashi-three',
-        'nmd-two',
+        'nmd_two',
         'noprefix',
       ].forEach(name => {
         server.create('job', { name, createAllocations: false, childrenCount: 0 });

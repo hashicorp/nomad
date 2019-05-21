@@ -61,11 +61,7 @@ export default Controller.extend(Sortable, Searchable, {
 
   optionsDatacenter: computed('visibleJobs.[]', function() {
     const flatten = (acc, val) => acc.concat(val);
-    const allDatacenters = new Set(
-      this.visibleJobs
-        .mapBy('datacenters')
-        .reduce(flatten, [])
-    );
+    const allDatacenters = new Set(this.visibleJobs.mapBy('datacenters').reduce(flatten, []));
 
     // Remove any invalid datacenters from the query param/selection
     const availableDatacenters = Array.from(allDatacenters).compact();
@@ -88,7 +84,7 @@ export default Controller.extend(Sortable, Searchable, {
     const allNames = this.visibleJobs.mapBy('name');
     const nameHistogram = allNames.reduce((hist, name) => {
       if (hasPrefix.test(name)) {
-        const prefix = name.match(/(.+?)[-.]/)[1];
+        const prefix = name.match(/(.+?)[-._]/)[1];
         hist[prefix] = hist[prefix] ? hist[prefix] + 1 : 1;
       }
       return hist;
