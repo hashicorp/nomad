@@ -272,43 +272,26 @@ func (w *deploymentWatcher) autoPromoteDeployment(allocs []*structs.AllocListStu
 		return nil
 	}
 
-	// Find the promotable groups
-	groups := []string{}
-
-TASKGROUP:
-	for tk, tv := range d.TaskGroups {
+	// AutoPromote iff every task group is marked auto_promote and is healthy. The whole
+	// job version has been incremented, so we promote together. See also AutoRevert
+	for _, tv := range d.TaskGroups {
 		if !tv.AutoPromote || tv.DesiredCanaries != len(tv.PlacedCanaries) {
-			continue
+			return nil
 		}
 
 		// Find the health status of each canary
 		for _, c := range tv.PlacedCanaries {
 			for _, a := range allocs {
 				if c == a.ID && !a.DeploymentStatus.IsHealthy() {
-					continue TASKGROUP
+					return nil
 				}
 			}
 		}
-
-		groups = append(groups, tk)
-	}
-
-	if len(groups) == 0 {
-		return nil
-	}
-
-	// Create the request
-	req := structs.DeploymentPromoteRequest{DeploymentID: d.GetID()}
-	if len(groups) == len(d.TaskGroups) {
-		req.All = true
-	} else {
-		req.All = false
-		req.Groups = groups
 	}
 
 	// Send the request
 	_, err := w.upsertDeploymentPromotion(&structs.ApplyDeploymentPromoteRequest{
-		DeploymentPromoteRequest: req,
+		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{DeploymentID: d.GetID(), All: true},
 		Eval:                     w.getEval(),
 	})
 	return err
