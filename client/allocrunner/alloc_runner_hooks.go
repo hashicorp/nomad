@@ -45,7 +45,7 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 	a.ar.stateLock.Lock()
 	a.ar.state.SetDeploymentStatus(time.Now(), healthy)
 	a.ar.persistDeploymentStatus(a.ar.state.DeploymentStatus)
-	terminalDesiredState := a.ar.alloc.ServerTerminalStatus()
+	terminalDesiredState := a.ar.Alloc().ServerTerminalStatus()
 	a.ar.stateLock.Unlock()
 
 	// If deployment is unhealthy emit task events explaining why
