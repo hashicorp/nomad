@@ -130,6 +130,6 @@ func WaitForDeployment(t *testing.T, nomadClient *api.Client, deployID string, s
 		)
 
 	}, func(err error) {
-		t.Fatalf("failed to wait on alloc: %v", err)
+		t.Fatalf("failed to wait on deployment: %v", err)
 	})
 }

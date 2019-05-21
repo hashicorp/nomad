@@ -60,6 +60,8 @@ func (tc *DeploymentTest) TestDeploymentAutoPromote(f *framework.F) {
 
 	// Deployment is eventually running
 	e2eutil.WaitForDeployment(t, nomadClient, deploy.ID, run, structs.DeploymentStatusDescriptionRunning)
+
+	deploy, _, _ = nomadClient.Deployments().Info(deploy.ID, nil)
 	require.Equal(t, run, deploy.Status)
 	require.Equal(t, structs.DeploymentStatusDescriptionRunning, deploy.StatusDescription)
 }

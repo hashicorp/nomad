@@ -32,7 +32,7 @@ job "deployment_auto.nomad" {
       max_parallel = 2
       auto_promote = true
       canary = 2
-      min_healthy_time = "5s"
+      min_healthy_time = "2s"
     }
 
     task "two" {
