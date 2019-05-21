@@ -169,8 +169,6 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 		return structs.TaskNotRestarting, 0
 	}
 
-	r.count++
-
 	// Check if we have entered a new interval.
 	end := r.startTime.Add(r.policy.Interval)
 	now := time.Now()
@@ -178,6 +176,8 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 		r.count = 0
 		r.startTime = now
 	}
+
+	r.count++
 
 	// Handle restarts due to failures
 	if !r.failure {
