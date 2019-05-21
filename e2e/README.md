@@ -15,7 +15,7 @@ You'll need AWS credentials (`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`) to
 
 Running
 ===========
-After completing the provisioning step above, you should see CLI output showing the IP addresses of Nomad client machines. To run the tests, set the NOMAD_ADDR variable to one of the client IPs.
+After completing the provisioning step above, you should see CLI output showing the IP addresses of Nomad client machines. To run the tests, set the NOMAD_ADDR variable to `http://[client IP]:4646/`
 
 ```
 $ NOMAD_ADDR=<> NOMAD_E2E=1 go test -v
