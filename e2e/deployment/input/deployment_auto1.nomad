@@ -15,6 +15,7 @@ job "deployment_auto.nomad" {
 
       config {
 	command = "/bin/sleep"
+	# change args to update the job, the only changes
 	args = ["1000001"]
       }
 
@@ -40,7 +41,8 @@ job "deployment_auto.nomad" {
 
       config {
 	command = "/bin/sleep"
-	args = ["200001"]
+	# change args to update the job, the only changes
+	args = ["2000001"]
       }
 
       resources {
