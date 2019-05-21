@@ -49,7 +49,7 @@ func TestNodeDrainWatcher_AddDraining(t *testing.T) {
 	require.Nil(state.UpsertNode(101, n2))
 
 	testutil.WaitForResult(func() (bool, error) {
-		return len(m.Events) == 1, nil
+		return len(m.events()) == 1, nil
 	}, func(err error) {
 		t.Fatal("No node drain events")
 	})
@@ -78,7 +78,7 @@ func TestNodeDrainWatcher_Remove(t *testing.T) {
 	// Wait for it to be tracked
 	require.Nil(state.UpsertNode(100, n))
 	testutil.WaitForResult(func() (bool, error) {
-		return len(m.Events) == 1, nil
+		return len(m.events()) == 1, nil
 	}, func(err error) {
 		t.Fatal("No node drain events")
 	})
@@ -90,7 +90,7 @@ func TestNodeDrainWatcher_Remove(t *testing.T) {
 	// Change the node to be not draining and wait for it to be untracked
 	require.Nil(state.UpdateNodeDrain(101, n.ID, nil, false, nil))
 	testutil.WaitForResult(func() (bool, error) {
-		return len(m.Events) == 2, nil
+		return len(m.events()) == 2, nil
 	}, func(err error) {
 		t.Fatal("No new node drain events")
 	})
@@ -116,7 +116,7 @@ func TestNodeDrainWatcher_Remove_Nonexistent(t *testing.T) {
 	// Wait for it to be tracked
 	require.Nil(state.UpsertNode(100, n))
 	testutil.WaitForResult(func() (bool, error) {
-		return len(m.Events) == 1, nil
+		return len(m.events()) == 1, nil
 	}, func(err error) {
 		t.Fatal("No node drain events")
 	})
@@ -128,7 +128,7 @@ func TestNodeDrainWatcher_Remove_Nonexistent(t *testing.T) {
 	// Delete the node
 	require.Nil(state.DeleteNode(101, n.ID))
 	testutil.WaitForResult(func() (bool, error) {
-		return len(m.Events) == 2, nil
+		return len(m.events()) == 2, nil
 	}, func(err error) {
 		t.Fatal("No new node drain events")
 	})
@@ -154,7 +154,7 @@ func TestNodeDrainWatcher_Update(t *testing.T) {
 	// Wait for it to be tracked
 	require.Nil(state.UpsertNode(100, n))
 	testutil.WaitForResult(func() (bool, error) {
-		return len(m.Events) == 1, nil
+		return len(m.events()) == 1, nil
 	}, func(err error) {
 		t.Fatal("No node drain events")
 	})
@@ -170,7 +170,7 @@ func TestNodeDrainWatcher_Update(t *testing.T) {
 
 	// Wait for it to be updated
 	testutil.WaitForResult(func() (bool, error) {
-		return len(m.Events) == 2, nil
+		return len(m.events()) == 2, nil
 	}, func(err error) {
 		t.Fatal("No new node drain events")
 	})

@@ -43,3 +43,10 @@ func (m *MockNodeTracker) Update(node *structs.Node) {
 	m.Nodes[node.ID] = node
 	m.Events = append(m.Events, &MockNodeTrackerEvent{NodeUpdate: node})
 }
+
+func (m *MockNodeTracker) events() []*MockNodeTrackerEvent {
+	m.Lock()
+	defer m.Unlock()
+
+	return m.Events
+}
