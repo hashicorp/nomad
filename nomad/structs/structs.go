@@ -7012,6 +7012,8 @@ const (
 	DeploymentStatusSuccessful = "successful"
 	DeploymentStatusCancelled  = "cancelled"
 
+	// TODO Statuses and Descriptions do not match 1:1 and we sometimes use the Description as a status flag
+
 	// DeploymentStatusDescriptions are the various descriptions of the states a
 	// deployment can be in.
 	DeploymentStatusDescriptionRunning               = "Deployment is running"
