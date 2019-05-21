@@ -1,33 +1,19 @@
-// +build linux
-
 package allocrunner
 
 import (
 	"fmt"
 	"strings"
 
-	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/lib/nsutil"
+	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-// initialize linux specific alloc runner hooks
-func (ar *allocRunner) initPlatformRunnerHooks(hookLogger hclog.Logger) ([]interfaces.RunnerHook, error) {
-
-	// determine how the network must be created
-	ns := &allocNetworkIsolationSetter{ar: ar}
-	nm, err := ar.initNetworkManager()
-	if err != nil {
-		return nil, err
-	}
-
-	return []interfaces.RunnerHook{newNetworkHook(hookLogger, ns, ar.Alloc(), nm)}, nil
-}
-
-func (ar *allocRunner) initNetworkManager() (nm drivers.DriverNetworkManager, err error) {
+func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Manager) (nm drivers.DriverNetworkManager, err error) {
 	// The defaultNetworkManager is used if a driver doesn't need to create the network
 	nm = &defaultNetworkManager{}
-	tg := ar.Alloc().Job.LookupTaskGroup(ar.Alloc().TaskGroup)
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 
 	// default netmode to host, this can be overridden by the task or task group
 	tgNetMode := "host"
@@ -59,7 +45,7 @@ func (ar *allocRunner) initNetworkManager() (nm drivers.DriverNetworkManager, er
 			continue
 		}
 
-		driver, err := ar.driverManager.Dispense(task.Driver)
+		driver, err := driverManager.Dispense(task.Driver)
 		if err != nil {
 			return nil, fmt.Errorf("failed to dispense driver %s: %v", task.Driver, err)
 		}
@@ -96,6 +82,32 @@ func (ar *allocRunner) initNetworkManager() (nm drivers.DriverNetworkManager, er
 	}
 
 	return nm, nil
+}
+
+func newDefaultNetworkManager() drivers.DriverNetworkManager {
+	return &defaultNetworkManager{}
+}
+
+// defaultNetworkManager creates a network namespace for the alloc
+type defaultNetworkManager struct{}
+
+func (*defaultNetworkManager) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, error) {
+	netns, err := nsutil.NewNS(allocID)
+	if err != nil {
+		return nil, err
+	}
+
+	spec := &drivers.NetworkIsolationSpec{
+		Mode:   drivers.NetIsolationModeGroup,
+		Path:   netns.Path(),
+		Labels: make(map[string]string),
+	}
+
+	return spec, nil
+}
+
+func (*defaultNetworkManager) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSpec) error {
+	return nsutil.UnmountNS(spec.Path)
 }
 
 func netModeToIsolationMode(netMode string) drivers.NetIsolationMode {

@@ -1,9 +1,24 @@
-// +build linux
+// Copyright 2018 CNI authors
+// Copyright 2019 HashiCorp
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// The functions in this file are derived from:
+// https://github.com/containernetworking/plugins/blob/0950a3607bf5e8a57c6a655c7e573e6aab0dc650/pkg/testutils/netns_linux.go
 
-package allocrunner
+package nsutil
 
 import (
-	"crypto/rand"
 	"fmt"
 	"os"
 	"path"
@@ -12,122 +27,20 @@ import (
 	"sync"
 
 	"github.com/containernetworking/plugins/pkg/ns"
-	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
 	"golang.org/x/sys/unix"
 )
 
-const (
-	// NetNSRunDir is the path to the directory which network namespace file
-	// descriptors will be bind mounted
-	NetNSRunDir = "/var/run/netns"
-)
+// NetNSRunDir is the directory which new network namespaces will be bind mounted
+const NetNSRunDir = "/var/run/netns"
 
-func netNSName(id string) string {
-	return fmt.Sprintf("nomad-%s", id)
-}
-
-// networkHook is an alloc lifecycle hook that manages the network namespace
-// for an alloc
-type networkHook struct {
-	// setter is a callback to set the network isolation spec when after the
-	// network is created
-	setter networkIsolationSetter
-
-	// manager is used when creating the network namespace. This defaults to
-	// bind mounting a network namespace descritor under /var/run/netns but
-	// can be created by a driver if nessicary
-	manager drivers.DriverNetworkManager
-
-	// alloc should only be read from
-	alloc *structs.Allocation
-
-	// spec described the network namespace and is syncronized by specLock
-	spec     *drivers.NetworkIsolationSpec
-	specLock sync.Mutex
-	logger   hclog.Logger
-}
-
-func newNetworkHook(logger hclog.Logger, ns networkIsolationSetter, alloc *structs.Allocation, netManager drivers.DriverNetworkManager) *networkHook {
-	return &networkHook{
-		setter:  ns,
-		alloc:   alloc,
-		manager: netManager,
-		logger:  logger,
-	}
-}
-
-func (h *networkHook) Name() string {
-	return "network"
-}
-
-func (h *networkHook) Prerun() error {
-	h.specLock.Lock()
-	defer h.specLock.Unlock()
-
-	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
-	if len(tg.Networks) == 0 || tg.Networks[0].Mode == "host" || tg.Networks[0].Mode == "" {
-		return nil
-	}
-
-	spec, err := h.manager.CreateNetwork(h.alloc.ID)
-	if err != nil {
-		return fmt.Errorf("failed to create network for alloc: %v", err)
-	}
-
-	h.spec = spec
-	h.setter.SetNetworkIsolation(spec)
-
-	return nil
-}
-
-func (h *networkHook) Postrun() error {
-	h.specLock.Lock()
-	defer h.specLock.Unlock()
-	if h.spec == nil {
-		return nil
-	}
-
-	return h.manager.DestroyNetwork(h.alloc.ID, h.spec)
-}
-
-// defaultNetworkManager creates a network namespace for the alloc
-type defaultNetworkManager struct{}
-
-func (_ *defaultNetworkManager) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, error) {
-	netns, err := newNS(allocID)
-	if err != nil {
-		return nil, err
-	}
-
-	spec := &drivers.NetworkIsolationSpec{
-		Mode:   drivers.NetIsolationModeGroup,
-		Path:   netns.Path(),
-		Labels: make(map[string]string),
-	}
-
-	return spec, nil
-}
-
-func (_ *defaultNetworkManager) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSpec) error {
-	return unmountNS(spec.Path)
-}
-
-// Creates a new persistent (bind-mounted) network namespace and returns an object
-// representing that namespace, without switching to it.
-func newNS(id string) (ns.NetNS, error) {
-
-	b := make([]byte, 16)
-	_, err := rand.Reader.Read(b)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate random netns name: %v", err)
-	}
+// NewNS creates a new persistent (bind-mounted) network namespace and returns
+// an object representing that namespace, without switching to it.
+func NewNS(nsName string) (ns.NetNS, error) {
 
 	// Create the directory for mounting network namespaces
 	// This needs to be a shared mountpoint in case it is mounted in to
 	// other namespaces (containers)
-	err = os.MkdirAll(NetNSRunDir, 0755)
+	err := os.MkdirAll(NetNSRunDir, 0755)
 	if err != nil {
 		return nil, err
 	}
@@ -155,8 +68,6 @@ func newNS(id string) (ns.NetNS, error) {
 		}
 
 	}
-
-	nsName := netNSName(id)
 
 	// create an empty file at the mount point
 	nsPath := path.Join(NetNSRunDir, nsName)
@@ -219,7 +130,7 @@ func newNS(id string) (ns.NetNS, error) {
 }
 
 // UnmountNS unmounts the NS held by the netns object
-func unmountNS(nsPath string) error {
+func UnmountNS(nsPath string) error {
 	// Only unmount if it's been bind-mounted (don't touch namespaces in /proc...)
 	if strings.HasPrefix(nsPath, NetNSRunDir) {
 		if err := unix.Unmount(nsPath, 0); err != nil {

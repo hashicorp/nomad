@@ -62,7 +62,7 @@ func (m *mockDriverManager) Dispense(driver string) (drivers.DriverPlugin, error
 	return mockDrivers[driver], nil
 }
 
-func TestAR_initNetworkManager(t *testing.T) {
+func TestNewNetworkManager(t *testing.T) {
 	for _, tc := range []struct {
 		name        string
 		alloc       *structs.Allocation
@@ -167,12 +167,7 @@ func TestAR_initNetworkManager(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require := require.New(t)
-			ar := allocRunner{
-				driverManager: &mockDriverManager{},
-				alloc:         tc.alloc,
-			}
-
-			nm, err := ar.initNetworkManager()
+			nm, err := newNetworkManager(tc.alloc, &mockDriverManager{})
 			if tc.err {
 				require.Error(err)
 				require.Contains(err.Error(), tc.errContains)
