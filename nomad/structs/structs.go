@@ -3488,7 +3488,7 @@ func (j *Job) Warnings() error {
 			outer := fmt.Errorf("Group %q has warnings: %v", tg.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
-		if tg.Update.AutoPromote {
+		if tg.Update != nil && tg.Update.AutoPromote {
 			ap += 1
 		}
 	}
