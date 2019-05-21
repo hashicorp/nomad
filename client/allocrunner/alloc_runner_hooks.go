@@ -97,23 +97,27 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 func (ar *allocRunner) initRunnerHooks() error {
 	hookLogger := ar.logger.Named("runner_hook")
 
-	// initialize platform specific hooks
-	hooks, err := ar.initPlatformRunnerHooks(hookLogger)
-	if err != nil {
-		return err
-	}
-
 	// create health setting shim
 	hs := &allocHealthSetter{ar}
 
+	// create network isolation setting shim
+	ns := &allocNetworkIsolationSetter{ar: ar}
+
+	// build the network manager
+	nm, err := newNetworkManager(ar.Alloc(), ar.driverManager)
+	if err != nil {
+		return fmt.Errorf("failed to configure network manager: %v", err)
+	}
+
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
-	ar.runnerHooks = append([]interfaces.RunnerHook{
+	ar.runnerHooks = []interfaces.RunnerHook{
 		newAllocDirHook(hookLogger, ar.allocDir),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
-	}, hooks...)
+		newNetworkHook(hookLogger, ns, ar.Alloc(), nm),
+	}
 
 	return nil
 }
