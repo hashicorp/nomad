@@ -3231,7 +3231,8 @@ type Job struct {
 	// to run. Each task group is an atomic unit of scheduling and placement.
 	TaskGroups []*TaskGroup
 
-	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
+	// See agent.ApiJobToStructJob
+	// Update provides defaults for the TaskGroup Update stanzas
 	Update UpdateStrategy
 
 	// Periodic is used to define the interval the job is run at.
