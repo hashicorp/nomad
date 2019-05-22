@@ -221,7 +221,7 @@ func (w *Watcher) add(d *structs.Deployment) error {
 }
 
 // addLocked adds a deployment to the watch list and should only be called when
-// locked.
+// locked. Creating the deploymentWatcher starts a go routine to .watch() it
 func (w *Watcher) addLocked(d *structs.Deployment) (*deploymentWatcher, error) {
 	// Not enabled so no-op
 	if !w.enabled {

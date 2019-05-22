@@ -374,6 +374,7 @@ func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 		ID: stringToPtr("test"),
 		Update: &UpdateStrategy{
 			AutoRevert:       boolToPtr(false),
+			AutoPromote:      boolToPtr(false),
 			Canary:           intToPtr(0),
 			HealthCheck:      stringToPtr(""),
 			HealthyDeadline:  timeToPtr(0),

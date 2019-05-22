@@ -611,7 +611,9 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Affinities:  ApiAffinitiesToStructs(job.Affinities),
 	}
 
-	// COMPAT: Remove in 0.7.0. Update has been pushed into the task groups
+	// Update has been pushed into the task groups. stagger and max_parallel are
+	// preserved at the job level, but all other values are discarded. The job.Update
+	// api value is merged into TaskGroups already in api.Canonicalize
 	if job.Update != nil {
 		j.Update = structs.UpdateStrategy{}
 
@@ -718,8 +720,16 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 			MinHealthyTime:   *taskGroup.Update.MinHealthyTime,
 			HealthyDeadline:  *taskGroup.Update.HealthyDeadline,
 			ProgressDeadline: *taskGroup.Update.ProgressDeadline,
-			AutoRevert:       *taskGroup.Update.AutoRevert,
 			Canary:           *taskGroup.Update.Canary,
+		}
+
+		// boolPtr fields may be nil, others will have pointers to default values via Canonicalize
+		if taskGroup.Update.AutoRevert != nil {
+			tg.Update.AutoRevert = *taskGroup.Update.AutoRevert
+		}
+
+		if taskGroup.Update.AutoPromote != nil {
+			tg.Update.AutoPromote = *taskGroup.Update.AutoPromote
 		}
 	}
 

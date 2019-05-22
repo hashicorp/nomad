@@ -2942,7 +2942,7 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 	}
 
-	// For each promotable allocation remoce the canary field
+	// For each promotable allocation remove the canary field
 	for _, alloc := range promotable {
 		promoted := alloc.Copy()
 		promoted.DeploymentStatus.Canary = false

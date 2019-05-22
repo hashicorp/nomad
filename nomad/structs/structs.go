@@ -3231,7 +3231,8 @@ type Job struct {
 	// to run. Each task group is an atomic unit of scheduling and placement.
 	TaskGroups []*TaskGroup
 
-	// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
+	// See agent.ApiJobToStructJob
+	// Update provides defaults for the TaskGroup Update stanzas
 	Update UpdateStrategy
 
 	// Periodic is used to define the interval the job is run at.
@@ -3481,11 +3482,21 @@ func (j *Job) Warnings() error {
 	var mErr multierror.Error
 
 	// Check the groups
+	ap := 0
 	for _, tg := range j.TaskGroups {
 		if err := tg.Warnings(j); err != nil {
 			outer := fmt.Errorf("Group %q has warnings: %v", tg.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
+		if tg.Update != nil && tg.Update.AutoPromote {
+			ap += 1
+		}
+	}
+
+	// Check AutoPromote, should be all or none
+	if ap > 0 && ap < len(j.TaskGroups) {
+		err := fmt.Errorf("auto_promote must be true for all groups to enable automatic promotion")
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	return mErr.ErrorOrNil()
@@ -3804,6 +3815,7 @@ var (
 		HealthyDeadline:  5 * time.Minute,
 		ProgressDeadline: 10 * time.Minute,
 		AutoRevert:       false,
+		AutoPromote:      false,
 		Canary:           0,
 	}
 )
@@ -3842,6 +3854,10 @@ type UpdateStrategy struct {
 	// stable version.
 	AutoRevert bool
 
+	// AutoPromote declares that the deployment should be promoted when all canaries are
+	// healthy
+	AutoPromote bool
+
 	// Canary is the number of canaries to deploy when a change to the task
 	// group is detected.
 	Canary int
@@ -3874,6 +3890,9 @@ func (u *UpdateStrategy) Validate() error {
 	}
 	if u.Canary < 0 {
 		multierror.Append(&mErr, fmt.Errorf("Canary count can not be less than zero: %d < 0", u.Canary))
+	}
+	if u.Canary == 0 && u.AutoPromote {
+		multierror.Append(&mErr, fmt.Errorf("Auto Promote requires a Canary count greater than zero"))
 	}
 	if u.MinHealthyTime < 0 {
 		multierror.Append(&mErr, fmt.Errorf("Minimum healthy time may not be less than zero: %v", u.MinHealthyTime))
@@ -6994,10 +7013,13 @@ const (
 	DeploymentStatusSuccessful = "successful"
 	DeploymentStatusCancelled  = "cancelled"
 
+	// TODO Statuses and Descriptions do not match 1:1 and we sometimes use the Description as a status flag
+
 	// DeploymentStatusDescriptions are the various descriptions of the states a
 	// deployment can be in.
 	DeploymentStatusDescriptionRunning               = "Deployment is running"
-	DeploymentStatusDescriptionRunningNeedsPromotion = "Deployment is running but requires promotion"
+	DeploymentStatusDescriptionRunningNeedsPromotion = "Deployment is running but requires manual promotion"
+	DeploymentStatusDescriptionRunningAutoPromotion  = "Deployment is running pending automatic promotion"
 	DeploymentStatusDescriptionPaused                = "Deployment is paused"
 	DeploymentStatusDescriptionSuccessful            = "Deployment completed successfully"
 	DeploymentStatusDescriptionStoppedJob            = "Cancelled because job is stopped"
@@ -7148,6 +7170,19 @@ func (d *Deployment) RequiresPromotion() bool {
 	return false
 }
 
+// HasAutoPromote determines if all taskgroups are marked auto_promote
+func (d *Deployment) HasAutoPromote() bool {
+	if d == nil || len(d.TaskGroups) == 0 || d.Status != DeploymentStatusRunning {
+		return false
+	}
+	for _, group := range d.TaskGroups {
+		if !group.AutoPromote {
+			return false
+		}
+	}
+	return true
+}
+
 func (d *Deployment) GoString() string {
 	base := fmt.Sprintf("Deployment ID %q for job %q has status %q (%v):", d.ID, d.JobID, d.Status, d.StatusDescription)
 	for group, state := range d.TaskGroups {
@@ -7161,6 +7196,10 @@ type DeploymentState struct {
 	// AutoRevert marks whether the task group has indicated the job should be
 	// reverted on failure
 	AutoRevert bool
+
+	// AutoPromote marks promotion triggered automatically by healthy canaries
+	// copied from TaskGroup UpdateStrategy in scheduler.reconcile
+	AutoPromote bool
 
 	// ProgressDeadline is the deadline by which an allocation must transition
 	// to healthy before the deployment is considered failed.
@@ -7202,6 +7241,7 @@ func (d *DeploymentState) GoString() string {
 	base += fmt.Sprintf("\n\tHealthy: %d", d.HealthyAllocs)
 	base += fmt.Sprintf("\n\tUnhealthy: %d", d.UnhealthyAllocs)
 	base += fmt.Sprintf("\n\tAutoRevert: %v", d.AutoRevert)
+	base += fmt.Sprintf("\n\tAutoPromote: %v", d.AutoPromote)
 	return base
 }
 

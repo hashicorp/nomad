@@ -375,13 +375,15 @@ type UpdateStrategy struct {
 	MinHealthyTime   *time.Duration `mapstructure:"min_healthy_time"`
 	HealthyDeadline  *time.Duration `mapstructure:"healthy_deadline"`
 	ProgressDeadline *time.Duration `mapstructure:"progress_deadline"`
-	AutoRevert       *bool          `mapstructure:"auto_revert"`
 	Canary           *int           `mapstructure:"canary"`
+	AutoRevert       *bool          `mapstructure:"auto_revert"`
+	AutoPromote      *bool          `mapstructure:"auto_promote"`
 }
 
 // DefaultUpdateStrategy provides a baseline that can be used to upgrade
 // jobs with the old policy or for populating field defaults.
 func DefaultUpdateStrategy() *UpdateStrategy {
+	// boolPtr fields are omitted to avoid masking an unconfigured nil
 	return &UpdateStrategy{
 		Stagger:          timeToPtr(30 * time.Second),
 		MaxParallel:      intToPtr(1),
@@ -433,6 +435,10 @@ func (u *UpdateStrategy) Copy() *UpdateStrategy {
 		copy.Canary = intToPtr(*u.Canary)
 	}
 
+	if u.AutoPromote != nil {
+		copy.AutoPromote = boolToPtr(*u.AutoPromote)
+	}
+
 	return copy
 }
 
@@ -472,10 +478,16 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 	if o.Canary != nil {
 		u.Canary = intToPtr(*o.Canary)
 	}
+
+	if o.AutoPromote != nil {
+		u.AutoPromote = boolToPtr(*o.AutoPromote)
+	}
 }
 
 func (u *UpdateStrategy) Canonicalize() {
 	d := DefaultUpdateStrategy()
+
+	// boolPtr fields are omitted to avoid masking an unconfigured nil
 
 	if u.MaxParallel == nil {
 		u.MaxParallel = d.MaxParallel

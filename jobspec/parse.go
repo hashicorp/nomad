@@ -1594,7 +1594,6 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 
 	// Check for invalid keys
 	valid := []string{
-		// COMPAT: Remove in 0.7.0. Stagger is deprecated in 0.6.0.
 		"stagger",
 		"max_parallel",
 		"health_check",
@@ -1602,6 +1601,7 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 		"healthy_deadline",
 		"progress_deadline",
 		"auto_revert",
+		"auto_promote",
 		"canary",
 	}
 	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
