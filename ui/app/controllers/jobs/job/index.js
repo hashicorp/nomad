@@ -29,5 +29,12 @@ export default Controller.extend(WithNamespaceResetting, {
         queryParams: { jobNamespace: job.get('namespace.name') },
       });
     },
+
+    handleFindRecordError() {
+      this.set('findRecordError', {
+        title: 'This job no longer exists',
+        description: 'Sad, but true.',
+      });
+    },
   },
 });

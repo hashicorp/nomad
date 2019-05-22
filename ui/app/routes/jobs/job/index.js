@@ -9,7 +9,7 @@ export default Route.extend(WithWatchers, {
       return;
     }
     controller.set('watchers', {
-      model: this.watch.perform(model),
+      model: this.watch.perform(model, 2000, controller, 'handleFindRecordError'),
       summary: this.watchSummary.perform(model.get('summary')),
       allocations: this.watchAllocations.perform(model),
       evaluations: this.watchEvaluations.perform(model),

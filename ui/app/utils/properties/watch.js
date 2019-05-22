@@ -9,7 +9,7 @@ import config from 'nomad-ui/config/environment';
 const isEnabled = config.APP.blockingQueries !== false;
 
 export function watchRecord(modelName) {
-  return task(function*(id, throttle = 2000) {
+  return task(function*(id, throttle = 2000, controller, action) {
     const token = new XHRToken();
     if (typeof id === 'object') {
       id = get(id, 'id');
@@ -24,6 +24,9 @@ export function watchRecord(modelName) {
           wait(throttle),
         ]);
       } catch (e) {
+        if (controller && action) {
+          controller.send(action);
+        }
         yield e;
         break;
       } finally {
