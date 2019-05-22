@@ -1016,6 +1016,7 @@ func (c *Client) restoreState() error {
 			PrevAllocMigrator:   prevAllocMigrator,
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
+			ServersContactedCh:  c.serversContactedCh,
 		}
 		c.configLock.RUnlock()
 
