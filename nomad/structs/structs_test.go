@@ -144,6 +144,25 @@ func TestJob_Warnings(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:     "AutoPromote mixed TaskGroups",
+			Expected: []string{"auto_promote must be true for all groups"},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Update: &UpdateStrategy{
+							AutoPromote: true,
+						},
+					},
+					{
+						Update: &UpdateStrategy{
+							AutoPromote: false,
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {

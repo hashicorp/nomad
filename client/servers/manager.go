@@ -48,9 +48,6 @@ type Server struct {
 	Addr net.Addr
 	addr string
 	sync.Mutex
-
-	// DC is the datacenter of the server
-	DC string
 }
 
 func (s *Server) Copy() *Server {
@@ -60,7 +57,6 @@ func (s *Server) Copy() *Server {
 	return &Server{
 		Addr: s.Addr,
 		addr: s.addr,
-		DC:   s.DC,
 	}
 }
 
@@ -82,7 +78,7 @@ func (s *Server) Equal(o *Server) bool {
 		return false
 	}
 
-	return s.Addr.String() == o.Addr.String() && s.DC == o.DC
+	return s.Addr.String() == o.Addr.String()
 }
 
 type Servers []*Server
@@ -119,12 +115,7 @@ func (s Servers) shuffle() {
 
 func (s Servers) Sort() {
 	sort.Slice(s, func(i, j int) bool {
-		a, b := s[i], s[j]
-		if addr1, addr2 := a.Addr.String(), b.Addr.String(); addr1 == addr2 {
-			return a.DC < b.DC
-		} else {
-			return addr1 < addr2
-		}
+		return s[i].String() < s[j].String()
 	})
 }
 

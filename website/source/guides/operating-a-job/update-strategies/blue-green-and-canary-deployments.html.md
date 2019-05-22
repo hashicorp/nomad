@@ -45,6 +45,7 @@ job "docs" {
       min_healthy_time = "30s"
       healthy_deadline = "10m"
       auto_revert      = true
+      auto_promote     = false
     }
 
     task "api-server" {
@@ -305,6 +306,7 @@ job "docs" {
       min_healthy_time = "30s"
       healthy_deadline = "10m"
       auto_revert      = true
+      auto_promote     = false
     }
 
     task "api-server" {

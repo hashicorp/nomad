@@ -265,6 +265,38 @@ func (w *deploymentWatcher) PromoteDeployment(
 	return nil
 }
 
+// autoPromoteDeployment creates a synthetic promotion request, and upserts it for processing
+func (w *deploymentWatcher) autoPromoteDeployment(allocs []*structs.AllocListStub) error {
+	d := w.getDeployment()
+	if !d.HasPlacedCanaries() || !d.RequiresPromotion() {
+		return nil
+	}
+
+	// AutoPromote iff every task group is marked auto_promote and is healthy. The whole
+	// job version has been incremented, so we promote together. See also AutoRevert
+	for _, tv := range d.TaskGroups {
+		if !tv.AutoPromote || tv.DesiredCanaries != len(tv.PlacedCanaries) {
+			return nil
+		}
+
+		// Find the health status of each canary
+		for _, c := range tv.PlacedCanaries {
+			for _, a := range allocs {
+				if c == a.ID && !a.DeploymentStatus.IsHealthy() {
+					return nil
+				}
+			}
+		}
+	}
+
+	// Send the request
+	_, err := w.upsertDeploymentPromotion(&structs.ApplyDeploymentPromoteRequest{
+		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{DeploymentID: d.GetID(), All: true},
+		Eval:                     w.getEval(),
+	})
+	return err
+}
+
 func (w *deploymentWatcher) PauseDeployment(
 	req *structs.DeploymentPauseRequest,
 	resp *structs.DeploymentUpdateResponse) error {
@@ -381,6 +413,7 @@ FAIL:
 	for {
 		select {
 		case <-w.ctx.Done():
+			// This is the successful case, and we stop the loop
 			return
 		case <-deadlineTimer.C:
 			// We have hit the progress deadline so fail the deployment. We need
@@ -458,6 +491,12 @@ FAIL:
 			if res.failDeployment {
 				rollback = res.rollback
 				break FAIL
+			}
+
+			// If permitted, automatically promote this canary deployment
+			err = w.autoPromoteDeployment(updates.allocs)
+			if err != nil {
+				w.logger.Error("failed to auto promote deployment", "error", err)
 			}
 
 			// Create an eval to push the deployment along
@@ -779,8 +818,10 @@ type allocUpdates struct {
 	err    error
 }
 
-// getAllocsCh retrieves the allocations that are part of the deployment blocking
-// at the given index.
+// getAllocsCh creates a channel and starts a goroutine that
+// 1. parks a blocking query for allocations on the state
+// 2. reads those and drops them on the channel
+// This query runs once here, but watch calls it in a loop
 func (w *deploymentWatcher) getAllocsCh(index uint64) <-chan *allocUpdates {
 	out := make(chan *allocUpdates, 1)
 	go func() {

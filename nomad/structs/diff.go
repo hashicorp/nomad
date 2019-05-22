@@ -57,8 +57,7 @@ type JobDiff struct {
 // diffable. If contextual diff is enabled, objects within the job will contain
 // field information even if unchanged.
 func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
-	// COMPAT: Remove "Update" in 0.7.0. Update pushed down to task groups
-	// in 0.6.0
+	// See agent.ApiJobToStructJob Update is a default for TaskGroups
 	diff := &JobDiff{Type: DiffTypeNone}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 	filter := []string{"ID", "Status", "StatusDescription", "Version", "Stable", "CreateIndex",
