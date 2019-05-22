@@ -8,10 +8,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-func netNSName(id string) string {
-	return fmt.Sprintf("nomad-%s", id)
-}
-
 // networkHook is an alloc lifecycle hook that manages the network namespace
 // for an alloc
 type networkHook struct {
