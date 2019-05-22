@@ -404,7 +404,7 @@ func (tr *TaskRunner) Run() {
 		case <-tr.shutdownCtx.Done():
 			return
 		case <-tr.serversContactedCh:
-			tr.logger.Trace("server contacted; unblocking waiting task")
+			tr.logger.Info("server contacted; unblocking waiting task")
 		}
 	}
 
