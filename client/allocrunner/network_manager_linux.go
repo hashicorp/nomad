@@ -84,10 +84,6 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 	return nm, nil
 }
 
-func newDefaultNetworkManager() drivers.DriverNetworkManager {
-	return &defaultNetworkManager{}
-}
-
 // defaultNetworkManager creates a network namespace for the alloc
 type defaultNetworkManager struct{}
 

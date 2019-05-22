@@ -1321,7 +1321,7 @@ func (m *ExecTaskResponse) GetResult() *ExitResult {
 }
 
 type CreateNetworkRequest struct {
-	// AllodID of the allocation the network is associated with
+	// AllocID of the allocation the network is associated with
 	AllocId              string   `protobuf:"bytes,1,opt,name=alloc_id,json=allocId,proto3" json:"alloc_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -1398,7 +1398,7 @@ func (m *CreateNetworkResponse) GetIsolationSpec() *NetworkIsolationSpec {
 }
 
 type DestroyNetworkRequest struct {
-	// AllodID of the allocation the network is associated with
+	// AllocID of the allocation the network is associated with
 	AllocId              string                `protobuf:"bytes,1,opt,name=alloc_id,json=allocId,proto3" json:"alloc_id,omitempty"`
 	IsolationSpec        *NetworkIsolationSpec `protobuf:"bytes,2,opt,name=isolation_spec,json=isolationSpec,proto3" json:"isolation_spec,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
