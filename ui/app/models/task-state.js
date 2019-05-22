@@ -43,4 +43,8 @@ export default Fragment.extend({
 
     return classMap[this.state] || 'is-dark';
   }),
+
+  restart() {
+    return this.allocation.restart(this.name);
+  },
 });

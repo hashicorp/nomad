@@ -59,6 +59,11 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 			[]string{"-address=" + url, "26470238-5CF2-438F-8772-DC67CFB0705C"},
 			"A command is required",
 		},
+		{
+			"long escaped char",
+			[]string{"-address=" + url, "-e", "long_escape", "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
+			"a single character",
+		},
 	}
 
 	for _, c := range cases {

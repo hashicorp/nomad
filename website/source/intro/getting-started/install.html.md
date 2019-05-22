@@ -8,16 +8,21 @@ description: |-
 
 # Install Nomad
 
-To simplify the getting started experience, we will be working in a Vagrant
-environment. Create a new directory, and download [this
+To simplify the getting started experience, you can download the pre-compiled
+binary and run it directly (see the instructions [here][binary-instructions]) or
+you can optionally work in a Vagrant environment (detailed in the following
+section).
+
+## Vagrant Setup (Optional)
+
+Note: To use the Vagrant Setup first install Vagrant following these
+[instructions][install-instructions].
+
+Create a new directory, and download [this
 `Vagrantfile`](https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/Vagrantfile).
 
-## Vagrant Setup
-
-Note: To use the Vagrant Setup first install Vagrant following these instructions: https://www.vagrantup.com/docs/installation/
-
-Once you have created a new directory and downloaded the `Vagrantfile`
-you must create the virtual machine:
+Once you have created a new directory and downloaded the `Vagrantfile` you must
+create the virtual machine:
 
 ```shell
 $ vagrant up
@@ -80,6 +85,8 @@ re-create it.
 
 ## Next Steps
 
-Vagrant is running and Nomad is installed. Let's [start Nomad](/intro/getting-started/running.html)!
+Nomad is installed. Let's [start Nomad](/intro/getting-started/running.html)!
 
+[binary-instructions]: /guides/install/index.html#precompiled-binaries
 [destroy]: https://www.vagrantup.com/docs/cli/destroy.html
+[install-instructions]: https://www.vagrantup.com/docs/installation/

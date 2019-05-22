@@ -13,7 +13,6 @@
 		{"path":"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml","checksumSHA1":"P8FATSSgpe5A17FyPrGpsX95Xw8=","revision":"86f2a9fac6c5b597dc494420005144b8ef7ec9fb","revisionTime":"2018-08-29T22:20:09Z"},
 		{"path":"github.com/NYTimes/gziphandler","checksumSHA1":"jktW57+vJsziNVPeXMCoujTzdW4=","revision":"97ae7fbaf81620fe97840685304a78a306a39c64","revisionTime":"2017-09-16T00:36:49Z"},
 		{"path":"github.com/Nvveen/Gotty","checksumSHA1":"Aqy8/FoAIidY/DeQ5oTYSZ4YFVc=","revision":"cd527374f1e5bff4938207604a14f2e38a9cf512","revisionTime":"2012-06-04T00:48:16Z"},
-		{"path":"github.com/RackSec/srslog","checksumSHA1":"GkeYcZh0B14rtg15JAVDPVwjNoY=","revision":"259aed10dfa74ea2961eddd1d9847619f6e98837","revisionTime":"2016-01-20T22:33:50Z"},
 		{"path":"github.com/StackExchange/wmi","checksumSHA1":"qtjd74+bErubh+qyv3s+lWmn9wc=","revision":"ea383cf3ba6ec950874b8486cd72356d007c768f","revisionTime":"2017-04-10T19:29:09Z"},
 		{"path":"github.com/agext/levenshtein","checksumSHA1":"jQh1fnoKPKMURvKkpdRjN695nAQ=","revision":"5f10fee965225ac1eecdc234c09daf5cd9e7f7b6","revisionTime":"2017-02-17T06:30:20Z"},
 		{"path":"github.com/apparentlymart/go-textseg/textseg","checksumSHA1":"Ffhtm8iHH7l2ynVVOIGJE3eiuLA=","revision":"b836f5c4d331d1945a2fead7188db25432d73b69","revisionTime":"2017-05-31T20:39:52Z"},

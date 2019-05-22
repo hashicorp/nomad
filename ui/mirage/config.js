@@ -200,6 +200,10 @@ export default function() {
 
   this.get('/allocation/:id');
 
+  this.post('/allocation/:id/stop', function() {
+    return new Response(204, {}, '');
+  });
+
   this.get('/namespaces', function({ namespaces }) {
     const records = namespaces.all();
 
@@ -301,6 +305,10 @@ export default function() {
   };
 
   // Client requests are available on the server and the client
+  this.put('/client/allocation/:id/restart', function() {
+    return new Response(204, {}, '');
+  });
+
   this.get('/client/allocation/:id/stats', clientAllocationStatsHandler);
   this.get('/client/fs/logs/:allocation_id', clientAllocationLog);
 

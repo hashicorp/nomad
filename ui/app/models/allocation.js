@@ -99,4 +99,12 @@ export default Model.extend({
       );
     }
   ),
+
+  stop() {
+    return this.store.adapterFor('allocation').stop(this);
+  },
+
+  restart(taskName) {
+    return this.store.adapterFor('allocation').restart(this, taskName);
+  },
 });

@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -589,6 +590,9 @@ OUTER:
 	}
 
 	testutil.WaitForResult(func() (bool, error) {
+		pipeChecker.l.Lock()
+		defer pipeChecker.l.Unlock()
+
 		return pipeChecker.Closed, nil
 	}, func(err error) {
 		t.Fatal("Pipe not closed")
@@ -597,11 +601,14 @@ OUTER:
 
 type ReadWriteCloseChecker struct {
 	io.ReadWriteCloser
+	l      sync.Mutex
 	Closed bool
 }
 
 func (r *ReadWriteCloseChecker) Close() error {
+	r.l.Lock()
 	r.Closed = true
+	r.l.Unlock()
 	return r.ReadWriteCloser.Close()
 }
 

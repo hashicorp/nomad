@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
@@ -99,7 +100,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 
 // Launch creates a new container in libcontainer and starts a new process with it
 func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
-	l.logger.Debug("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
+	l.logger.Trace("preparing to launch command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
 	if command.Resources == nil {
 		command.Resources = &drivers.Resources{
@@ -144,7 +145,8 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	l.container = container
 
 	// Look up the binary path and make it executable
-	absPath, err := lookupBin(command.TaskDir, command.Cmd)
+	absPath, err := lookupTaskBin(command)
+
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +157,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 
 	path := absPath
 
-	// Determine the path to run as it may have to be relative to the chroot.
+	// Ensure that the path is contained in the chroot, and find it relative to the container
 	rel, err := filepath.Rel(command.TaskDir, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine relative path base=%q target=%q: %v", command.TaskDir, path, err)
@@ -177,6 +179,8 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	if err != nil {
 		return nil, err
 	}
+
+	l.logger.Debug("launching", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
 	// the task process will be started by the container
 	process := &libcontainer.Process{
@@ -815,4 +819,58 @@ func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
 	}
 
 	return r
+}
+
+// lookupTaskBin finds the file `bin` in taskDir/local, taskDir in that order, then performs
+// a PATH search inside taskDir. It returns an absolute path. See also executor.lookupBin
+func lookupTaskBin(command *ExecCommand) (string, error) {
+	taskDir := command.TaskDir
+	bin := command.Cmd
+
+	// Check in the local directory
+	localDir := filepath.Join(taskDir, allocdir.TaskLocal)
+	local := filepath.Join(localDir, bin)
+	if _, err := os.Stat(local); err == nil {
+		return local, nil
+	}
+
+	// Check at the root of the task's directory
+	root := filepath.Join(taskDir, bin)
+	if _, err := os.Stat(root); err == nil {
+		return root, nil
+	}
+
+	if strings.Contains(bin, "/") {
+		return "", fmt.Errorf("file %s not found under path %s", bin, taskDir)
+	}
+
+	// Find the PATH
+	path := "/usr/local/bin:/usr/bin:/bin"
+	for _, e := range command.Env {
+		if strings.HasPrefix("PATH=", e) {
+			path = e[5:]
+		}
+	}
+
+	return lookPathIn(path, taskDir, bin)
+}
+
+// lookPathIn looks for a file with PATH inside the directory root. Like exec.LookPath
+func lookPathIn(path string, root string, bin string) (string, error) {
+	// exec.LookPath(file string)
+	for _, dir := range filepath.SplitList(path) {
+		if dir == "" {
+			// match unix shell behavior, empty path element == .
+			dir = "."
+		}
+		path := filepath.Join(root, dir, bin)
+		f, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		if m := f.Mode(); !m.IsDir() {
+			return path, nil
+		}
+	}
+	return "", fmt.Errorf("file %s not found under path %s", bin, root)
 }

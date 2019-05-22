@@ -86,7 +86,7 @@ func TestDriverManager_Fingerprint_Periodic(t *testing.T) {
 
 	// we get a healthy mock_driver first
 	testutil.WaitForResult(func() (bool, error) {
-		node := testClient.configCopy.Node
+		node := testClient.Node()
 
 		d, ok := node.Drivers["mock_driver"]
 		if !ok {
@@ -104,7 +104,7 @@ func TestDriverManager_Fingerprint_Periodic(t *testing.T) {
 
 	// eventually, the mock_driver is marked as unhealthy
 	testutil.WaitForResult(func() (bool, error) {
-		node := testClient.configCopy.Node
+		node := testClient.Node()
 
 		d, ok := node.Drivers["mock_driver"]
 		if !ok {
@@ -147,7 +147,7 @@ func TestDriverManager_NodeAttributes_Run(t *testing.T) {
 
 	// we should have mock_driver as well as raw_exec in node attributes
 	testutil.WaitForResult(func() (bool, error) {
-		node := testClient.configCopy.Node
+		node := testClient.Node()
 
 		// check mock driver
 		if node.Attributes["driver.mock_driver"] == "" {
