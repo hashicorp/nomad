@@ -1661,7 +1661,7 @@ func (c *Client) updateNodeStatus() error {
 			c.logger.Warn("ignoring invalid server", "error", err, "server", s.RPCAdvertiseAddr)
 			continue
 		}
-		e := &servers.Server{DC: s.Datacenter, Addr: addr}
+		e := &servers.Server{Addr: addr}
 		nomadServers = append(nomadServers, e)
 	}
 	if len(nomadServers) == 0 {
