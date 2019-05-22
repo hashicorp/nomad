@@ -462,7 +462,8 @@ func (c *Client) getNodeClientImpl(nodeID string, timeout time.Duration, q *Quer
 
 	// set timeout - preserve old behavior where errors are ignored and use untimed one
 	httpClient, err := cloneWithTimeout(c.httpClient, timeout)
-	if err == nil {
+	// on error, fallback to using current http client
+	if err != nil {
 		httpClient = c.httpClient
 	}
 	conf.HttpClient = httpClient

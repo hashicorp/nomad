@@ -197,7 +197,8 @@ type Client struct {
 	// invalidAllocs is a map that tracks allocations that failed because
 	// the client couldn't initialize alloc or task runners for it. This can
 	// happen due to driver errors
-	invalidAllocs map[string]struct{}
+	invalidAllocs     map[string]struct{}
+	invalidAllocsLock sync.Mutex
 
 	// allocUpdates stores allocations that need to be synced to the server.
 	allocUpdates chan *structs.Allocation
@@ -1016,6 +1017,7 @@ func (c *Client) restoreState() error {
 			PrevAllocMigrator:   prevAllocMigrator,
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
+			ServersContactedCh:  c.serversContactedCh,
 		}
 		c.configLock.RUnlock()
 
@@ -1052,7 +1054,10 @@ func (c *Client) restoreState() error {
 }
 
 func (c *Client) handleInvalidAllocs(alloc *structs.Allocation, err error) {
+	c.invalidAllocsLock.Lock()
 	c.invalidAllocs[alloc.ID] = struct{}{}
+	c.invalidAllocsLock.Unlock()
+
 	// Mark alloc as failed so server can handle this
 	failed := makeFailedAlloc(alloc, err)
 	select {
@@ -1656,7 +1661,7 @@ func (c *Client) updateNodeStatus() error {
 			c.logger.Warn("ignoring invalid server", "error", err, "server", s.RPCAdvertiseAddr)
 			continue
 		}
-		e := &servers.Server{DC: s.Datacenter, Addr: addr}
+		e := &servers.Server{Addr: addr}
 		nomadServers = append(nomadServers, e)
 	}
 	if len(nomadServers) == 0 {
@@ -1858,7 +1863,9 @@ OUTER:
 			c.allocLock.RUnlock()
 
 			// Ignore alloc updates for allocs that are invalid because of initialization errors
+			c.invalidAllocsLock.Lock()
 			_, isInvalid := c.invalidAllocs[allocID]
+			c.invalidAllocsLock.Unlock()
 
 			if (!ok || modifyIndex > currentAR.Alloc().AllocModifyIndex) && !isInvalid {
 				// Only pull allocs that are required. Filtered
@@ -2103,6 +2110,7 @@ func (c *Client) removeAlloc(allocID string) {
 
 	ar, ok := c.allocs[allocID]
 	if !ok {
+		c.invalidAllocsLock.Lock()
 		if _, ok := c.invalidAllocs[allocID]; ok {
 			// Removing from invalid allocs map if present
 			delete(c.invalidAllocs, allocID)
@@ -2110,6 +2118,7 @@ func (c *Client) removeAlloc(allocID string) {
 			// Alloc is unknown, log a warning.
 			c.logger.Warn("cannot remove nonexistent alloc", "alloc_id", allocID, "error", "alloc not found")
 		}
+		c.invalidAllocsLock.Unlock()
 		return
 	}
 

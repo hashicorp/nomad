@@ -37,6 +37,7 @@ job "docs" {
     healthy_deadline  = "5m"
     progress_deadline = "10m"
     auto_revert       = true
+    auto_promote      = true
     canary            = 1
     stagger           = "30s"
   }
@@ -91,6 +92,11 @@ job "docs" {
 - `auto_revert` `(bool: false)` - Specifies if the job should auto-revert to the
   last stable job on deployment failure. A job is marked as stable if all the
   allocations as part of its deployment were marked healthy.
+
+- `auto_promote` `(bool: false)` - Specifies if the job should auto-promote to the
+  canary version when all canaries become healthy during a deployment. Defaults to
+  false which means canaries must be manually updated with the `nomad deployment promote`
+  command.
 
 - `canary` `(int: 0)` - Specifies that changes to the job that would result in
   destructive updates should create the specified number of canaries without

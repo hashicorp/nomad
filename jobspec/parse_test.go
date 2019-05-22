@@ -79,6 +79,7 @@ func TestParse(t *testing.T) {
 					HealthyDeadline:  helper.TimeToPtr(10 * time.Minute),
 					ProgressDeadline: helper.TimeToPtr(10 * time.Minute),
 					AutoRevert:       helper.BoolToPtr(true),
+					AutoPromote:      helper.BoolToPtr(true),
 					Canary:           helper.IntToPtr(1),
 				},
 
@@ -163,6 +164,7 @@ func TestParse(t *testing.T) {
 							HealthyDeadline:  helper.TimeToPtr(1 * time.Minute),
 							ProgressDeadline: helper.TimeToPtr(1 * time.Minute),
 							AutoRevert:       helper.BoolToPtr(false),
+							AutoPromote:      helper.BoolToPtr(false),
 							Canary:           helper.IntToPtr(2),
 						},
 						Migrate: &api.MigrateStrategy{

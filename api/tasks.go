@@ -504,6 +504,7 @@ func NewTaskGroup(name string, count int) *TaskGroup {
 	}
 }
 
+// Canonicalize sets defaults and merges settings that should be inherited from the job
 func (g *TaskGroup) Canonicalize(job *Job) {
 	if g.Name == nil {
 		g.Name = stringToPtr("")

@@ -85,5 +85,6 @@ nomad alloc logs -job <job-id> <task>
 ```
 
 
-This can be useful for debugging a job that has multiple allocations, and it's
-not really required to use a specific allocation ID.
+Choosing a specific allocation is useful for debugging issues with a specific
+instance of a service. For other operations using the `-job` flag may be more
+convenient than looking up an allocation ID to use.

@@ -2,6 +2,12 @@
 
 __BACKWARDS INCOMPATIBILITIES:__
 
+ * api: The `api` package removed `Config.SetTimeout` and `Config.ConfigureTLS` functions, intended
+   to be used internally only. [[GH-5275](https://github.com/hashicorp/nomad/pull/5275)]
+ * api: The [job deployments](https://www.nomadproject.io/api/jobs.html#list-job-deployments) endpoint
+   now filters out deployments associated with older instances of the job. This can happen if jobs are
+   purged and recreated with the same id. To get all deployments irrespective of creation time, add
+   `all=true`. The `nomad job deployment`CLI also defaults to doing this filtering. [[GH-5702](https://github.com/hashicorp/nomad/issues/5702)]
  * client: The format of service IDs in Consul has changed. If you rely upon
    Nomad's service IDs (*not* service names; those are stable), you will need
    to update your code.  [[GH-5536](https://github.com/hashicorp/nomad/pull/5536)]
@@ -11,31 +17,38 @@ __BACKWARDS INCOMPATIBILITIES:__
    will not restart exited tasks. Exited tasks will be restarted only after the
    client has reestablished communication with servers. System jobs will always
    be restarted. [[GH-5669](https://github.com/hashicorp/nomad/pull/5669)]
- * api: The [job deployments](https://www.nomadproject.io/api/jobs.html#list-job-deployments) endpoint
-   now filters out deployments associated with older instances of the job. This can happen if jobs are
-   purged and recreated with the same id. To get all deployments irrespective of creation time, add
-   `all=true`. The `nomad job deployment`CLI also defaults to doing this filtering. [[GH-5702](https://github.com/hashicorp/nomad/issues/5702)]
 
 FEATURES:
 
- * core: Add `nomad alloc restart` command to restart allocs and tasks [[GH-5502](https://github.com/hashicorp/nomad/pull/5502)]
  * core: Add `nomad alloc stop` command to reschedule allocs [[GH-5512](https://github.com/hashicorp/nomad/pull/5512)]
  * core: Add `nomad alloc signal` command to signal allocs and tasks [[GH-5515](https://github.com/hashicorp/nomad/pull/5515)]
+ * core: Add `nomad alloc restart` command to restart allocs and tasks [[GH-5502](https://github.com/hashicorp/nomad/pull/5502)]
+ * code: Add `nomad alloc exec` command for debugging and running commands in a alloc [[GH-5632](https://github.com/hashicorp/nomad/pull/5632)]
  * core/enterprise: Preemption capabilities for batch and service jobs
+ * ui: Preemption reporting everywhere where allocations are shown and as part of the plan step of job submit [[GH-5594](https://github.com/hashicorp/nomad/issues/5594)]
+ * ui: Ability to search clients list by class, status, datacenter, or eligibility flags [[GH-5318](https://github.com/hashicorp/nomad/issues/5318)]
+ * ui: Ability to search jobs list by type, status, datacenter, or prefix [[GH-5236](https://github.com/hashicorp/nomad/issues/5236)]
+ * ui: Ability to stop and restart allocations [[GH-5734](https://github.com/hashicorp/nomad/issues/5734)]
+ * ui: Ability to restart tasks [[GH-5734](https://github.com/hashicorp/nomad/issues/5734)]
  * vault: Add initial support for Vault namespaces [[GH-5520](https://github.com/hashicorp/nomad/pull/5520)]
 
 IMPROVEMENTS:
 
- * core: Add node name to output of `nomad node status` command in verbose mode [[GH-5224](https://github.com/hashicorp/nomad/pull/5224)]
  * core: Add `-verbose` flag to `nomad status` wrapper command [[GH-5516](https://github.com/hashicorp/nomad/pull/5516)]
- * core: Reduce the size of the raft transaction for plans by only sending fields updated by the plan applier [[GH-5602](https://github.com/hashicorp/nomad/pull/5602)]
  * core: Add ability to filter job deployments by most recent version of job [[GH-5702](https://github.com/hashicorp/nomad/issues/5702)]
- * client: Reduce unnecessary lost nodes on server failure [[GH-5654](https://github.com/hashicorp/nomad/issues/5654)]
+ * core: Add node name to output of `nomad node status` command in verbose mode [[GH-5224](https://github.com/hashicorp/nomad/pull/5224)]
+ * core: Reduce the size of the raft transaction for plans by only sending fields updated by the plan applier [[GH-5602](https://github.com/hashicorp/nomad/pull/5602)]
+ * core: Add job update `auto_promote` flag, which causes deployments to promote themselves when all canaries become healthy [[GH-5719](https://github.com/hashicorp/nomad/pull/5719)]
+ * api: Support configuring `http.Client` used by golang `api` package [[GH-5275](https://github.com/hashicorp/nomad/pull/5275)]
  * api: Add preemption related fields to API results that return an allocation list. [[GH-5580](https://github.com/hashicorp/nomad/pull/5580)]
  * api: Add additional config options to scheduler configuration endpoint to disable preemption [[GH-5628](https://github.com/hashicorp/nomad/issues/5628)]
- * client: Allow use of maintenance mode and externally registered checks against Nomad-registered consul services [[GH-4537](https://github.com/hashicorp/nomad/issues/4537)]
+ * client: Reduce unnecessary lost nodes on server failure [[GH-5654](https://github.com/hashicorp/nomad/issues/5654)]
  * client: Canary Promotion no longer causes services registered in Consul to become unhealthy [[GH-4566](https://github.com/hashicorp/nomad/issues/4566)]
+ * client: Allow use of maintenance mode and externally registered checks against Nomad-registered consul services [[GH-4537](https://github.com/hashicorp/nomad/issues/4537)]
  * telemetry: Add `client.allocs.memory.allocated` metric to expose allocated task memory in bytes. [[GH-5492](https://github.com/hashicorp/nomad/issues/5492)]
+ * ui: Colored log support [[GH-5620](https://github.com/hashicorp/nomad/issues/5620)]
+ * ui: Upgraded from Ember 2.18 to 3.4 [[GH-5544](https://github.com/hashicorp/nomad/issues/5544)]
+ * ui: Replace XHR cancellation by URL with XHR cancellation by token [[GH-5721](https://github.com/hashicorp/nomad/issues/5721)]
 
 BUG FIXES:
 
@@ -43,14 +56,14 @@ BUG FIXES:
  * core: Fixed disaster recovering with raft 3 protocol peers.json [[GH-5629](https://github.com/hashicorp/nomad/issues/5629)], [[GH-5651](https://github.com/hashicorp/nomad/issues/5651)]
  * core: Fixed an edge case that caused division by zero when computing spread score [[GH-5713](https://github.com/hashicorp/nomad/issues/5713)]
  * core: Change configuration parsing to use the HCL library's decode, improving JSON support [[GH-1290](https://github.com/hashicorp/nomad/issues/1290)]
+ * core: Fix a case where non-leader servers would have an ever growing number of waiting evaluations [[GH-5699](https://github.com/hashicorp/nomad/pull/5699)]
  * cli: Fix output and exit status for system jobs with constraints [[GH-2381](https://github.com/hashicorp/nomad/issues/2381)] and [[GH-5169](https://github.com/hashicorp/nomad/issues/5169)]
  * client: Fix network fingerprinting to honor manual configuration [[GH-2619](https://github.com/hashicorp/nomad/issues/2619)]
+ * client: Job validation now checks that the datacenter field does not contain empty strings [[GH-5665](https://github.com/hashicorp/nomad/pull/5665)]
  * client: Fix network port mapping  related environment variables when running with Nomad 0.8 servers [[GH-5587](https://github.com/hashicorp/nomad/issues/5587)]
  * client: Fix issue with terminal state deployments being modified when allocation subsequently fails [[GH-5645](https://github.com/hashicorp/nomad/issues/5645)]
- * client: Job validation now checks that the datacenter field does not contain empty strings [[GH-5665](https://github.com/hashicorp/nomad/pull/5665)]
  * metrics: Fixed stale metrics [[GH-5540](https://github.com/hashicorp/nomad/issues/5540)]
  * vault: Fix renewal time to be 1/2 lease duration with jitter [[GH-5479](https://github.com/hashicorp/nomad/issues/5479)]
- * core: Fix a case where non-leader servers would have an ever growing number of waiting evaluations [[GH-5699](https://github.com/hashicorp/nomad/pull/5699)]
 
 ## 0.9.1 (April 29, 2019)
 
@@ -121,10 +134,10 @@ FEATURES:
    Nomad Client codebase. The goal of the refactor has been to make the
    codebase more modular to increase developer velocity and testability.
  * **Mobile UI Views:** The side-bar navigation, breadcrumbs, and various other page
-   elements are now responsively resized and repositioned based on your browser size. 
+   elements are now responsively resized and repositioned based on your browser size.
  * **Job Authoring from the UI:** It is now possible to plan and submit new jobs, edit
    existing jobs, stop and start jobs, and promote canaries all from the UI.
- * **Improved Stat Tracking in UI:** The client detail, allocation detail, and task 
+ * **Improved Stat Tracking in UI:** The client detail, allocation detail, and task
    detail pages now have line charts that plot CPU and Memory usage changes over time.
  * **Structured Logging**: Nomad now uses structured logging with the ability to
    output logs in a JSON format.
