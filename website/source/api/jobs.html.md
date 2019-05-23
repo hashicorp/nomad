@@ -966,7 +966,7 @@ The table below shows this endpoint's support for
 - `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
-- `all` `(bool: false)` - Specifies whether the list of deployments should
+- `all` <sup>0.9.2</sup> `(bool: false)` - Specifies whether the list of deployments should
   include deployments from a previously registered job with the same ID. This is
   possible if the job is deregistered and reregistered.
 
@@ -1299,7 +1299,7 @@ The table below shows this endpoint's support for
   job's version. This is checked and acts as a check-and-set value before
   reverting to the specified job.
 
-- `VaultToken` `(string: "")` - Optional value specifying the [vault token](/docs/commands/job/revert.html)
+- `VaultToken`<sup>0.9.2</sup> `(string: "")` - Optional value specifying the [vault token](/docs/commands/job/revert.html)
   used for Vault [policy authentication checking](/docs/configuration/vault.html#allow_unauthenticated).
 
 ### Sample Payload
