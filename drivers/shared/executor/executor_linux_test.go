@@ -249,7 +249,7 @@ func TestExecutor_Capabilities(t *testing.T) {
 	defer allocDir.Destroy()
 
 	execCmd.ResourceLimits = true
-	execCmd.Cmd = "/bin/sh"
+	execCmd.Cmd = "/bin/bash"
 	execCmd.Args = []string{"-c", "cat /proc/$$/cmdline"}
 
 	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
