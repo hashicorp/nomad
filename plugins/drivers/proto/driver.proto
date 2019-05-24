@@ -290,7 +290,7 @@ message ExecTaskResponse {
 
 message CreateNetworkRequest {
 
-    // AllodID of the allocation the network is associated with
+    // AllocID of the allocation the network is associated with
     string alloc_id = 1;
 }
 
@@ -301,7 +301,7 @@ message CreateNetworkResponse {
 
 message DestroyNetworkRequest {
 
-    // AllodID of the allocation the network is associated with
+    // AllocID of the allocation the network is associated with
     string alloc_id = 1;
 
     NetworkIsolationSpec isolation_spec = 2;
