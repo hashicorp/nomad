@@ -36,7 +36,7 @@ export default Route.extend(WithWatchers, {
     }
   },
 
-  watch: watchRecord('node'),
+  watch: watchRecord('node', { report404: true }),
   watchAllocations: watchRelationship('allocations'),
 
   watchers: collect('watch', 'watchAllocations'),
