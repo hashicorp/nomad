@@ -1,5 +1,6 @@
 import Ember from 'ember';
-import { get } from '@ember/object';
+import { get, getWithDefault } from '@ember/object';
+import { getOwner } from '@ember/application';
 import RSVP from 'rsvp';
 import { task } from 'ember-concurrency';
 import wait from 'nomad-ui/utils/wait';
@@ -8,7 +9,7 @@ import config from 'nomad-ui/config/environment';
 
 const isEnabled = config.APP.blockingQueries !== false;
 
-export function watchRecord(modelName) {
+export function watchRecord(modelName, { report404 } = {}) {
   return task(function*(id, throttle = 2000) {
     const token = new XHRToken();
     if (typeof id === 'object') {
@@ -24,6 +25,16 @@ export function watchRecord(modelName) {
           wait(throttle),
         ]);
       } catch (e) {
+        if (
+          report404 &&
+          getWithDefault(e, 'errors', [])
+            .mapBy('status')
+            .includes('404')
+        ) {
+          const flashMessages = getOwner(this).lookup('service:flash-messages');
+          flashMessages.warning(`This ${modelName} no longer exists`, { sticky: true });
+        }
+
         yield e;
         break;
       } finally {
