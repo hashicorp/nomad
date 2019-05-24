@@ -1,0 +1,71 @@
+.global-flash {
+  bottom: 0;
+  left: 12px;
+  margin: 10px;
+  max-width: 300px;
+  position: fixed;
+  width: 95%;
+  z-index: 300;
+
+  .message {
+    box-shadow: 0 12px 5px -7px rgba($black, 0.08), 0 11px 10px -3px rgba($black, 0.1);
+  }
+
+  .message {
+    border: 1px solid;
+    margin-bottom: 12px;
+    padding: 12px 16px 16px 12px;
+    position: relative;
+
+    .close-button {
+      background: transparent;
+      border: 0;
+      color: $grey;
+      cursor: pointer;
+      position: absolute;
+      right: 12px;
+      top: 16px;
+    }
+
+    .message-title {
+      font-size: 16px;
+      font-weight: bold;
+      line-height: 1.25;
+    }
+
+    .close-button + .message-title {
+      padding-right: 16px;
+    }
+
+    .message-body {
+      border: 0;
+      margin-top: 4px;
+    }
+
+    p {
+      font-size: $size-7;
+      border: 0;
+      padding: 0;
+    }
+
+    .message-actions {
+      margin-top: 8px;
+
+      a,
+      a:not(.button):not(.file-delete-button):not(.tag) {
+        color: $blue;
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      > * + * {
+        margin-left: 8px;
+      }
+    }
+
+    &.is-highlight {
+      background: #fffdf6;
+      border: 1px solid #fdeeba;
+    }
+  }
+}

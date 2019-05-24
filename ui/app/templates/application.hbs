@@ -1,4 +1,27 @@
 {{partial "svg-patterns"}}
+<div class='global-flash'>
+  {{#each flashMessages.queue as |flash|}}
+    {{#flash-message flash=flash}}
+      <div class="message is-highlight">
+        <div class="columns is-mobile is-variable is-1">
+          <div class="column is-narrow message-icon">
+            {{x-icon "warning" class="is-warning"}}
+          </div>
+          <div class="column">
+            <div class="message-title">
+              Warning
+            </div>
+            {{#if flash.message}}
+              <p class="message-body" data-test-flash-message-body="true">
+                {{flash.message}}
+              </p>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+    {{/flash-message}}
+  {{/each}}
+</div>
 {{#unless error}}
   {{outlet}}
 {{else}}
