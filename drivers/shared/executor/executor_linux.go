@@ -553,12 +553,20 @@ func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) error {
 	// TODO: allow better control of these
 	// use capabilities list as prior to adopting libcontainer in 0.9
 	allCaps := supportedCaps()
-	cfg.Capabilities = &lconfigs.Capabilities{
-		Bounding:    allCaps,
-		Permitted:   nil,
-		Inheritable: nil,
-		Ambient:     nil,
-		Effective:   nil,
+
+	// match capabilities used in Nomad 0.8
+	if command.User == "root" {
+		cfg.Capabilities = &lconfigs.Capabilities{
+			Bounding:    allCaps,
+			Permitted:   allCaps,
+			Effective:   allCaps,
+			Ambient:     nil,
+			Inheritable: nil,
+		}
+	} else {
+		cfg.Capabilities = &lconfigs.Capabilities{
+			Bounding: allCaps,
+		}
 	}
 
 	return nil
