@@ -46,7 +46,7 @@ export default Route.extend(WithWatchers, {
       .catch(notifyError(this));
   },
 
-  watch: watchRecord('allocation'),
+  watch: watchRecord('allocation', { report404: true }),
 
   watchers: collect('watch'),
 });

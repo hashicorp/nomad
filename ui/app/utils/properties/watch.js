@@ -25,14 +25,15 @@ export function watchRecord(modelName, { report404 } = {}) {
           wait(throttle),
         ]);
       } catch (e) {
-        if (
-          report404 &&
-          getWithDefault(e, 'errors', [])
+        if (report404) {
+          const statusIs404 = getWithDefault(e, 'errors', [])
             .mapBy('status')
-            .includes('404')
-        ) {
-          const flashMessages = getOwner(this).lookup('service:flash-messages');
-          flashMessages.warning(`This ${modelName} no longer exists`, { sticky: true });
+            .includes('404');
+          const errorIsEmptyResponse = e.message.includes('response did not have any data');
+          if (statusIs404 || errorIsEmptyResponse) {
+            const flashMessages = getOwner(this).lookup('service:flash-messages');
+            flashMessages.warning(`This ${modelName} no longer exists`, { sticky: true });
+          }
         }
 
         yield e;
