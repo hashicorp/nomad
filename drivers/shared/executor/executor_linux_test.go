@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -151,7 +152,8 @@ usr/
 /etc/:
 ld.so.cache
 ld.so.conf
-ld.so.conf.d/`
+ld.so.conf.d/
+passwd`
 	tu.WaitForResult(func() (bool, error) {
 		output := testExecCmd.stdout.String()
 		act := strings.TrimSpace(string(output))
@@ -251,20 +253,20 @@ func TestExecutor_Capabilities(t *testing.T) {
 		{
 			user: "nobody",
 			caps: `
-CapInh:	0000000000000000
-CapPrm:	0000000000000000
-CapEff:	0000000000000000
-CapBnd:	0000003fffffffff
-CapAmb:	0000000000000000`,
+CapInh: 0000000000000000
+CapPrm: 0000000000000000
+CapEff: 0000000000000000
+CapBnd: 0000003fffffffff
+CapAmb: 0000000000000000`,
 		},
 		{
 			user: "root",
 			caps: `
-CapInh:	0000000000000000
-CapPrm:	0000003fffffffff
-CapEff:	0000003fffffffff
-CapBnd:	0000003fffffffff
-CapAmb:	0000000000000000`,
+CapInh: 0000000000000000
+CapPrm: 0000003fffffffff
+CapEff: 0000003fffffffff
+CapBnd: 0000003fffffffff
+CapAmb: 0000000000000000`,
 		},
 	}
 
@@ -300,12 +302,18 @@ CapAmb:	0000000000000000`,
 				require.Fail("timeout waiting for exec to shutdown")
 			}
 
-			expected := strings.TrimSpace(c.caps)
+			canonical := func(s string) string {
+				s = strings.TrimSpace(s)
+				s = regexp.MustCompile("[ \t]+").ReplaceAllString(s, " ")
+				s = regexp.MustCompile("[\n\r]+").ReplaceAllString(s, "\n")
+				return s
+			}
+
+			expected := canonical(c.caps)
 			tu.WaitForResult(func() (bool, error) {
-				output := testExecCmd.stdout.String()
-				act := strings.TrimSpace(string(output))
-				if strings.Contains(output, expected) {
-					return false, fmt.Errorf("capabilities didn't match: want\n%v\n; got:\n%v\n", expected, act)
+				output := canonical(testExecCmd.stdout.String())
+				if !strings.Contains(output, expected) {
+					return false, fmt.Errorf("capabilities didn't match: want\n%v\n; got:\n%v\n", expected, output)
 				}
 				return true, nil
 			}, func(err error) { require.NoError(err) })
