@@ -1,4 +1,4 @@
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, waitFor } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { selectChoose } from 'ember-power-select/test-support';
@@ -121,6 +121,8 @@ module('Acceptance | job deletion warning', function(hooks) {
     assert.equal(PageLayout.flashMessages.length, 0);
 
     await this.server.db.jobs.remove();
+    await this.server.db.jobSummaries.remove();
+    await waitFor('.flash-message', { timeout: 1100 });
 
     assert.equal(PageLayout.flashMessages.length, 1);
     assert.equal(PageLayout.flashMessages[0].body, 'This job no longer exists');
