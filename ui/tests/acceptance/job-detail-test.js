@@ -122,7 +122,7 @@ module('Acceptance | job deletion warning', function(hooks) {
 
     await this.server.db.jobs.remove();
     await this.server.db.jobSummaries.remove();
-    await waitFor('.flash-message', { timeout: 1100 });
+    await waitFor('.flash-message', { timeout: 3000 });
 
     assert.equal(PageLayout.flashMessages.length, 1);
     assert.equal(PageLayout.flashMessages[0].body, 'This job no longer exists');
