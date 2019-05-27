@@ -15,7 +15,10 @@ export function watchRecord(modelName, { report404 } = {}) {
     if (typeof id === 'object') {
       id = get(id, 'id');
     }
-    while (isEnabled && !Ember.testing) {
+
+    const watchListService = getOwner(this).lookup('service:watch-list');
+
+    while (isEnabled && (!Ember.testing || watchListService.get('watchInTesting'))) {
       try {
         yield RSVP.all([
           this.store.findRecord(modelName, id, {

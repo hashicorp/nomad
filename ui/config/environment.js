@@ -26,6 +26,7 @@ module.exports = function(environment) {
       mirageWithNamespaces: false,
       mirageWithTokens: true,
       mirageWithRegions: true,
+      watchThrottle: 2000,
     },
   };
 
@@ -52,6 +53,8 @@ module.exports = function(environment) {
 
     ENV.APP.rootElement = '#ember-testing';
     ENV.APP.autoboot = false;
+
+    ENV.APP.watchThrottle = 0;
 
     ENV.browserify = {
       tests: true,

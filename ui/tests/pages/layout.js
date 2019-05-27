@@ -28,4 +28,8 @@ export default create({
     visitClients: clickable('[data-test-gutter-link="clients"]'),
     visitServers: clickable('[data-test-gutter-link="servers"]'),
   },
+
+  flashMessages: collection('.flash-message', {
+    body: text('.message-body'),
+  }),
 });

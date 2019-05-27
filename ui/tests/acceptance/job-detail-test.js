@@ -6,6 +6,7 @@ import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import moduleForJob from 'nomad-ui/tests/helpers/module-for-job';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
+import PageLayout from 'nomad-ui/tests/pages/layout';
 
 moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
   server.create('job', { type: 'batch', shallow: true })
@@ -98,5 +99,30 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     JobsList.jobs.forEach((jobRow, index) => {
       assert.equal(jobRow.name, jobs[index].name, `Job ${index} is right`);
     });
+  });
+});
+
+module('Acceptance | job deletion warning', function(hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  let job;
+
+  hooks.beforeEach(function() {
+    server.create('node');
+    job = server.create('job');
+
+    this.owner.lookup('service:watch-list').set('watchInTesting', true);
+  });
+
+  test('when the job endpoint 404s, a flash message appears', async function(assert) {
+    await JobDetail.visit({ id: job.id });
+
+    assert.equal(PageLayout.flashMessages.length, 0);
+
+    await this.server.db.jobs.remove();
+
+    assert.equal(PageLayout.flashMessages.length, 1);
+    assert.equal(PageLayout.flashMessages[0].body, 'This job no longer exists');
   });
 });
