@@ -1,10 +1,11 @@
 import { run } from '@ember/runloop';
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, waitFor } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
+import PageLayout from 'nomad-ui/tests/pages/layout';
 import moment from 'moment';
 
 let job;
@@ -212,6 +213,38 @@ module('Acceptance | allocation detail', function(hooks) {
     await Allocation.inlineError.dismiss();
 
     assert.notOk(Allocation.inlineError.isShown, 'Inline error is no longer shown');
+  });
+});
+
+// This is a separate module only because of the watchInTesting adjustment, hopefully that can change
+module('Acceptance | allocation detail after stopping', function(hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(async function() {
+    server.create('agent');
+
+    node = server.create('node');
+    job = server.create('job', { groupsCount: 1, createAllocations: false });
+    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
+
+    this.owner.lookup('service:watch-list').set('watchInTesting', true);
+    await Allocation.visit({ id: allocation.id });
+  });
+
+  test('when the allocation endpoint 404s, a flash message appears', async function(assert) {
+    assert.equal(PageLayout.flashMessages.length, 0);
+
+    await this.server.db.allocations.remove();
+    await waitFor('.flash-message', { timeout: 3000 });
+
+    assert.equal(PageLayout.flashMessages.length, 1);
+
+    PageLayout.flashMessages[0].as(message => {
+      assert.ok(message.icon.isWarning);
+      assert.equal(message.title, 'Warning');
+      assert.equal(message.body, 'This allocation no longer exists');
+    });
   });
 });
 
