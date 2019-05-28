@@ -1,4 +1,4 @@
-import { create, clickable, collection, isPresent, text } from 'ember-cli-page-object';
+import { create, clickable, collection, isPresent, hasClass, text } from 'ember-cli-page-object';
 
 export default create({
   navbar: {
@@ -32,6 +32,10 @@ export default create({
   flashMessages: collection('[data-test-flash-message]', {
     title: text('[data-test-flash-message-title]'),
     body: text('[data-test-flash-message-body]'),
+    icon: {
+      scope: '.message-icon .icon',
+      isWarning: hasClass('is-warning'),
+    },
 
     close: {
       scope: '[data-test-flash-message-close]',
