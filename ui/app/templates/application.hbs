@@ -1,7 +1,7 @@
 {{partial "svg-patterns"}}
 <div class='global-flash'>
   {{#each flashMessages.queue as |flash|}}
-    {{#flash-message flash=flash}}
+    {{#flash-message flash=flash data-test-flash-message=true}}
       <div class="message is-highlight">
         <div class="columns is-mobile is-variable is-1">
           <div class="column is-narrow message-icon">
@@ -11,11 +11,11 @@
             <button type="button" class="close-button">
               {{x-icon "cancel"}}
             </button>
-            <div class="message-title">
+            <div class="message-title" data-test-flash-message-title>
               {{titleize flash.type}}
             </div>
             {{#if flash.message}}
-              <p class="message-body" data-test-flash-message-body="true">
+              <p class="message-body" data-test-flash-message-body>
                 {{flash.message}}
               </p>
             {{/if}}

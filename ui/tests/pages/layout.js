@@ -29,8 +29,8 @@ export default create({
     visitServers: clickable('[data-test-gutter-link="servers"]'),
   },
 
-  flashMessages: collection('.flash-message', {
-    title: text('.message-title'),
-    body: text('.message-body'),
+  flashMessages: collection('[data-test-flash-message]', {
+    title: text('[data-test-flash-message-title]'),
+    body: text('[data-test-flash-message-body]'),
   }),
 });
