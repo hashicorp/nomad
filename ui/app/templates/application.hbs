@@ -12,7 +12,7 @@
               {{x-icon "cancel"}}
             </button>
             <div class="message-title">
-              Warning
+              {{titleize flash.type}}
             </div>
             {{#if flash.message}}
               <p class="message-body" data-test-flash-message-body="true">

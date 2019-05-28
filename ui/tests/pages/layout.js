@@ -30,6 +30,7 @@ export default create({
   },
 
   flashMessages: collection('.flash-message', {
+    title: text('.message-title'),
     body: text('.message-body'),
   }),
 });

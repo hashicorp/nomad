@@ -125,6 +125,7 @@ module('Acceptance | job deletion warning', function(hooks) {
     await waitFor('.flash-message', { timeout: 3000 });
 
     assert.equal(PageLayout.flashMessages.length, 1);
+    assert.equal(PageLayout.flashMessages[0].title, 'Warning');
     assert.equal(PageLayout.flashMessages[0].body, 'This job no longer exists');
   });
 });
