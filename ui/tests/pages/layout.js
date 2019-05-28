@@ -32,5 +32,9 @@ export default create({
   flashMessages: collection('[data-test-flash-message]', {
     title: text('[data-test-flash-message-title]'),
     body: text('[data-test-flash-message-body]'),
+
+    close: {
+      scope: '[data-test-flash-message-close]',
+    },
   }),
 });

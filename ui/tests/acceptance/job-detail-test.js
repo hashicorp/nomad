@@ -127,5 +127,8 @@ module('Acceptance | job deletion warning', function(hooks) {
     assert.equal(PageLayout.flashMessages.length, 1);
     assert.equal(PageLayout.flashMessages[0].title, 'Warning');
     assert.equal(PageLayout.flashMessages[0].body, 'This job no longer exists');
+
+    await PageLayout.flashMessages[0].close.click();
+    assert.equal(PageLayout.flashMessages.length, 0);
   });
 });
