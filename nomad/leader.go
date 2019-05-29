@@ -648,6 +648,21 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
 	for name, tgSummary := range summary.Summary {
 		if !s.config.DisableTaggedMetrics {
+			var parent_id string
+			var periodic_id string
+
+			if strings.Contains(summary.JobID, "/dispatch-") {
+				jobInfo := strings.Split(summary.JobID, "/dispatch-")
+				parent_id = jobInfo[0]
+				periodic_id = jobInfo[1]
+			}
+
+			if strings.Contains(summary.JobID, "/periodic-") {
+				jobInfo := strings.Split(summary.JobID, "/periodic-")
+				parent_id = jobInfo[0]
+				periodic_id = jobInfo[1]
+			}
+
 			labels := []metrics.Label{
 				{
 					Name:  "job",
@@ -657,28 +672,14 @@ func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
 					Name:  "task_group",
 					Value: name,
 				},
-			}
-
-			if strings.Contains(summary.JobID, "/dispatch-") {
-				jobInfo := strings.Split(summary.JobID, "/dispatch-")
-				labels = append(labels, metrics.Label{
+				{
 					Name:  "parent_id",
-					Value: jobInfo[0],
-				}, metrics.Label{
-					Name:  "dispatch_id",
-					Value: jobInfo[1],
-				})
-			}
-
-			if strings.Contains(summary.JobID, "/periodic-") {
-				jobInfo := strings.Split(summary.JobID, "/periodic-")
-				labels = append(labels, metrics.Label{
-					Name:  "parent_id",
-					Value: jobInfo[0],
-				}, metrics.Label{
+					Value: parent_id,
+				},
+				{
 					Name:  "periodic_id",
-					Value: jobInfo[1],
-				})
+					Value: periodic_id,
+				},
 			}
 
 			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
