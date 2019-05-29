@@ -1386,11 +1386,15 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 
 	waitCh, err := d.WaitTask(context.Background(), task.ID)
 	require.NoError(t, err)
+
 	select {
 	case res := <-waitCh:
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
+
+		err = d.DestroyTask(task.ID, false)
+		require.NoError(t, err)
 
 		time.Sleep(3 * time.Second)
 
@@ -1403,6 +1407,134 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
+}
+
+func TestDockerDriver_EnableImageGC(t *testing.T) {
+	testutil.DockerCompatible(t)
+
+	task, cfg, _ := dockerTask(t)
+	cfg.Command = "echo"
+	cfg.Args = []string{"hello"}
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client := newTestDockerClient(t)
+	driver := dockerDriverHarness(t, map[string]interface{}{
+		"gc": map[string]interface{}{
+			"container":   true,
+			"image":       true,
+			"image_delay": "2s",
+		},
+	})
+	cleanup := driver.MkAllocDir(task, true)
+	defer cleanup()
+
+	// remove the image before the test
+	client.RemoveImage(cfg.Image)
+
+	copyImage(t, task.TaskDir(), "busybox.tar")
+	_, _, err := driver.StartTask(task)
+	require.NoError(t, err)
+
+	dockerDriver, ok := driver.Impl().(*Driver)
+	require.True(t, ok)
+	_, ok = dockerDriver.tasks.Get(task.ID)
+	require.True(t, ok)
+
+	waitCh, err := dockerDriver.WaitTask(context.Background(), task.ID)
+	require.NoError(t, err)
+	select {
+	case res := <-waitCh:
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
+		}
+
+	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// we haven't called DestroyTask, image should be present
+	_, err = client.InspectImage(cfg.Image)
+	require.NoError(t, err)
+
+	err = dockerDriver.DestroyTask(task.ID, false)
+	require.NoError(t, err)
+
+	// image_delay is 3s, so image should still be around for a bit
+	_, err = client.InspectImage(cfg.Image)
+	require.NoError(t, err)
+
+	// Ensure image was removed
+	tu.WaitForResult(func() (bool, error) {
+		if _, err := client.InspectImage(cfg.Image); err == nil {
+			return false, fmt.Errorf("image exists but should have been removed. Does another %v container exist?", cfg.Image)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+}
+
+func TestDockerDriver_DisableImageGC(t *testing.T) {
+	testutil.DockerCompatible(t)
+
+	task, cfg, _ := dockerTask(t)
+	cfg.Command = "echo"
+	cfg.Args = []string{"hello"}
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client := newTestDockerClient(t)
+	driver := dockerDriverHarness(t, map[string]interface{}{
+		"gc": map[string]interface{}{
+			"container":   true,
+			"image":       false,
+			"image_delay": "1s",
+		},
+	})
+	cleanup := driver.MkAllocDir(task, true)
+	defer cleanup()
+
+	// remove the image before the test
+	client.RemoveImage(cfg.Image)
+
+	copyImage(t, task.TaskDir(), "busybox.tar")
+	_, _, err := driver.StartTask(task)
+	require.NoError(t, err)
+
+	dockerDriver, ok := driver.Impl().(*Driver)
+	require.True(t, ok)
+	handle, ok := dockerDriver.tasks.Get(task.ID)
+	require.True(t, ok)
+
+	waitCh, err := dockerDriver.WaitTask(context.Background(), task.ID)
+	require.NoError(t, err)
+	select {
+	case res := <-waitCh:
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
+		}
+
+	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// we haven't called DestroyTask, image should be present
+	_, err = client.InspectImage(handle.containerImage)
+	require.NoError(t, err)
+
+	err = dockerDriver.DestroyTask(task.ID, false)
+	require.NoError(t, err)
+
+	// image_delay is 1s, wait a little longer
+	time.Sleep(3 * time.Second)
+
+	// image should not have been removed or scheduled to be removed
+	_, err = client.InspectImage(cfg.Image)
+	require.NoError(t, err)
+	dockerDriver.coordinator.imageLock.Lock()
+	_, ok = dockerDriver.coordinator.deleteFuture[handle.containerImage]
+	require.False(t, ok, "image should not be registered for deletion")
+	dockerDriver.coordinator.imageLock.Unlock()
 }
 
 func TestDockerDriver_Stats(t *testing.T) {

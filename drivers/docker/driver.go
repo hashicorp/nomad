@@ -1109,12 +1109,22 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to inspect container state: %v", err)
 	}
-	if c.State.Running && !force {
-		return fmt.Errorf("must call StopTask for the given task before Destroy or set force to true")
+
+	if c.State.Running {
+		if !force {
+			return fmt.Errorf("must call StopTask for the given task before Destroy or set force to true")
+		}
+		if err := h.client.StopContainer(h.containerID, 0); err != nil {
+			h.logger.Warn("failed to stop container during destroy", "error", err)
+		}
 	}
 
-	if err := h.client.StopContainer(h.containerID, 0); err != nil {
-		h.logger.Warn("failed to stop container during destroy", "error", err)
+	if h.removeContainerOnExit {
+		if err := h.client.RemoveContainer(docker.RemoveContainerOptions{ID: h.containerID, RemoveVolumes: true, Force: true}); err != nil {
+			h.logger.Error("error removing container", "error", err)
+		}
+	} else {
+		h.logger.Debug("not removing container due to config")
 	}
 
 	if err := d.cleanupImage(h); err != nil {
