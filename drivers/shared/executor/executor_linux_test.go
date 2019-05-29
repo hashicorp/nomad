@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -44,6 +45,7 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 		"/etc/ld.so.cache":  "/etc/ld.so.cache",
 		"/etc/ld.so.conf":   "/etc/ld.so.conf",
 		"/etc/ld.so.conf.d": "/etc/ld.so.conf.d",
+		"/etc/passwd":       "/etc/passwd",
 		"/lib":              "/lib",
 		"/lib64":            "/lib64",
 		"/usr/lib":          "/usr/lib",
@@ -150,7 +152,8 @@ usr/
 /etc/:
 ld.so.cache
 ld.so.conf
-ld.so.conf.d/`
+ld.so.conf.d/
+passwd`
 	tu.WaitForResult(func() (bool, error) {
 		output := testExecCmd.stdout.String()
 		act := strings.TrimSpace(string(output))
@@ -237,6 +240,86 @@ func TestExecutor_EscapeContainer(t *testing.T) {
 	execCmd.Cmd = "echo"
 	_, err = executor.Launch(execCmd)
 	require.NoError(err)
+}
+
+func TestExecutor_Capabilities(t *testing.T) {
+	t.Parallel()
+	testutil.ExecCompatible(t)
+
+	cases := []struct {
+		user string
+		caps string
+	}{
+		{
+			user: "nobody",
+			caps: `
+CapInh: 0000000000000000
+CapPrm: 0000000000000000
+CapEff: 0000000000000000
+CapBnd: 0000003fffffffff
+CapAmb: 0000000000000000`,
+		},
+		{
+			user: "root",
+			caps: `
+CapInh: 0000000000000000
+CapPrm: 0000003fffffffff
+CapEff: 0000003fffffffff
+CapBnd: 0000003fffffffff
+CapAmb: 0000000000000000`,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.user, func(t *testing.T) {
+			require := require.New(t)
+
+			testExecCmd := testExecutorCommandWithChroot(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+			defer allocDir.Destroy()
+
+			execCmd.User = c.user
+			execCmd.ResourceLimits = true
+			execCmd.Cmd = "/bin/bash"
+			execCmd.Args = []string{"-c", "cat /proc/$$/status"}
+
+			executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+			defer executor.Shutdown("SIGKILL", 0)
+
+			_, err := executor.Launch(execCmd)
+			require.NoError(err)
+
+			ch := make(chan interface{})
+			go func() {
+				executor.Wait(context.Background())
+				close(ch)
+			}()
+
+			select {
+			case <-ch:
+				// all good
+			case <-time.After(5 * time.Second):
+				require.Fail("timeout waiting for exec to shutdown")
+			}
+
+			canonical := func(s string) string {
+				s = strings.TrimSpace(s)
+				s = regexp.MustCompile("[ \t]+").ReplaceAllString(s, " ")
+				s = regexp.MustCompile("[\n\r]+").ReplaceAllString(s, "\n")
+				return s
+			}
+
+			expected := canonical(c.caps)
+			tu.WaitForResult(func() (bool, error) {
+				output := canonical(testExecCmd.stdout.String())
+				if !strings.Contains(output, expected) {
+					return false, fmt.Errorf("capabilities didn't match: want\n%v\n; got:\n%v\n", expected, output)
+				}
+				return true, nil
+			}, func(err error) { require.NoError(err) })
+		})
+	}
+
 }
 
 func TestExecutor_ClientCleanup(t *testing.T) {
