@@ -372,6 +372,7 @@ type Service struct {
 	AddressMode  string   `mapstructure:"address_mode"`
 	Checks       []ServiceCheck
 	CheckRestart *CheckRestart `mapstructure:"check_restart"`
+	EnableTagOverride bool
 }
 
 func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {

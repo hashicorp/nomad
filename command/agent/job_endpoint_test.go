@@ -1394,6 +1394,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									},
 								},
 							},
+							{
+								Id:                "id_serviceB",
+								Name:              "serviceB",
+								EnableTagOverride: true,
+							},
 						},
 						Resources: &api.Resources{
 							CPU:      helper.IntToPtr(100),
@@ -1692,6 +1697,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										},
 									},
 								},
+							},
+							{
+								Name:              "serviceB",
+								EnableTagOverride: true,
+								AddressMode:       "auto",
 							},
 						},
 						Resources: &structs.Resources{
