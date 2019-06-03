@@ -822,7 +822,7 @@ func TestStateStore_DeleteNode_Node(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	err = state.DeleteNode(1001, node.ID)
+	err = state.DeleteNode(1001, []string{node.ID})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

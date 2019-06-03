@@ -677,28 +677,27 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 	return nil
 }
 
-// DeleteNode is used to deregister a node
-func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
+// DeleteNode deregisters a batch of nodes
+func (s *StateStore) DeleteNode(index uint64, nodes []string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+	for _, nodeID := range nodes {
+		existing, err := txn.First("nodes", "id", nodeID)
+		if err != nil {
+			return fmt.Errorf("node lookup failed: %v", err)
+		}
+		if existing == nil {
+			return fmt.Errorf("node not found")
+		}
 
-	// Lookup the node
-	existing, err := txn.First("nodes", "id", nodeID)
-	if err != nil {
-		return fmt.Errorf("node lookup failed: %v", err)
+		// Delete the node
+		if err := txn.Delete("nodes", existing); err != nil {
+			return fmt.Errorf("node delete failed: %v", err)
+		}
+		if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
 	}
-	if existing == nil {
-		return fmt.Errorf("node not found")
-	}
-
-	// Delete the node
-	if err := txn.Delete("nodes", existing); err != nil {
-		return fmt.Errorf("node delete failed: %v", err)
-	}
-	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
-	}
-
 	txn.Commit()
 	return nil
 }
