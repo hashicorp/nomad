@@ -23,7 +23,7 @@ export default Component.extend(WithVisibilityDetection, {
     const node = this.node;
     if (node) {
       node.reload().then(() => {
-        this.watch.perform(node, 100);
+        this.watch.perform(node, { throttle: 100 });
       });
     }
   },
@@ -34,7 +34,7 @@ export default Component.extend(WithVisibilityDetection, {
     } else {
       const node = this.node;
       if (node) {
-        this.watch.perform(node, 100);
+        this.watch.perform(node, { throttle: 100 });
       }
     }
   },
