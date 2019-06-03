@@ -144,6 +144,10 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 		return helper.Int64ToPtr(500), err
 	}
 
+	if a.c.GetConfig().DisableRemoteExec {
+		return nil, structs.ErrPermissionDenied
+	}
+
 	aclObj, token, err := a.c.resolveTokenAndACL(req.QueryOptions.AuthToken)
 	{
 		// log access

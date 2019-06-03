@@ -78,6 +78,7 @@ var basicConfig = &Config{
 		GCInodeUsageThreshold: 91,
 		GCMaxAllocs:           50,
 		NoHostUUID:            helper.BoolToPtr(false),
+		DisableRemoteExec:     true,
 	},
 	Server: &ServerConfig{
 		Enabled:                true,
