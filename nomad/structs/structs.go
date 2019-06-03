@@ -316,9 +316,9 @@ type NodeRegisterRequest struct {
 }
 
 // NodeDeregisterRequest is used for Node.Deregister endpoint
-// to deregister a node as being a schedulable entity.
+// to deregister a batch of nodes from being schedulable entities.
 type NodeDeregisterRequest struct {
-	NodeID string
+	NodeIDs []string
 	WriteRequest
 }
 
