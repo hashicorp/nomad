@@ -196,6 +196,34 @@ func shuffleStrings(list []string) {
 	}
 }
 
+// partitionAll splits a slice of strings into a slice of slices of strings, each with a max
+// size of `size`. All entries from the original slice are preserved. The last slice may be
+// smaller than `size`. The input slice is unmodified
+func partitionAll(size int, xs []string) [][]string {
+	out := make([][]string, 0)
+	if size < 1 {
+		return append(out, xs)
+	}
+
+	got, part, i, j := 0, 0, 0, 0
+	for got < len(xs) {
+		i = size * part
+		j = minInt(size*(part+1), len(xs))
+		out = append(out, xs[i:j])
+		part = part + 1
+		got = j
+	}
+
+	return out
+}
+
+func minInt(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
+}
+
 // maxUint64 returns the maximum value
 func maxUint64(inputs ...uint64) uint64 {
 	l := len(inputs)
