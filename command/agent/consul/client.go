@@ -695,6 +695,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		Meta: map[string]string{
 			"external-source": "nomad",
 		},
+		EnableTagOverride: service.EnableTagOverride,
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 

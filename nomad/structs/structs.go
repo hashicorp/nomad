@@ -5113,9 +5113,10 @@ type Service struct {
 	// this service.
 	AddressMode string
 
-	Tags       []string        // List of tags for the service
-	CanaryTags []string        // List of tags for the service when it is a canary
-	Checks     []*ServiceCheck // List of checks associated with the service
+	Tags              []string        // List of tags for the service
+	CanaryTags        []string        // List of tags for the service when it is a canary
+	Checks            []*ServiceCheck // List of checks associated with the service
+	EnableTagOverride bool            // Allow external agents to change the tags for a service
 }
 
 func (s *Service) Copy() *Service {

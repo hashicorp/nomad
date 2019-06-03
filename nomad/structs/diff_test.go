@@ -3951,6 +3951,12 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeAdded,
+								Name: "EnableTagOverride",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "Name",
 								Old:  "",
 								New:  "bam",
@@ -3967,6 +3973,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeDeleted,
 						Name: "Service",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "EnableTagOverride",
+								Old:  "false",
+								New:  "",
+							},
 							{
 								Type: DiffTypeDeleted,
 								Name: "Name",
@@ -4015,6 +4027,12 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeAdded,
 								Name: "AddressMode",
 								New:  "driver",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "EnableTagOverride",
+								Old:  "false",
+								New:  "false",
 							},
 							{
 								Type: DiffTypeNone,
@@ -4112,6 +4130,12 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "AddressMode",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "EnableTagOverride",
+								Old:  "false",
+								New:  "false",
 							},
 							{
 								Type: DiffTypeNone,
@@ -4446,6 +4470,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "AddressMode",
 								Old:  "",
 								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "EnableTagOverride",
+								Old:  "false",
+								New:  "false",
 							},
 							{
 								Type: DiffTypeNone,

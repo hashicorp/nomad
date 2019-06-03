@@ -364,14 +364,15 @@ type ServiceCheck struct {
 
 // The Service model represents a Consul service definition
 type Service struct {
-	Id           string
-	Name         string
-	Tags         []string
-	CanaryTags   []string `mapstructure:"canary_tags"`
-	PortLabel    string   `mapstructure:"port"`
-	AddressMode  string   `mapstructure:"address_mode"`
-	Checks       []ServiceCheck
-	CheckRestart *CheckRestart `mapstructure:"check_restart"`
+	Id                string
+	Name              string
+	Tags              []string
+	CanaryTags        []string `mapstructure:"canary_tags"`
+	PortLabel         string   `mapstructure:"port"`
+	AddressMode       string   `mapstructure:"address_mode"`
+	Checks            []ServiceCheck
+	CheckRestart      *CheckRestart `mapstructure:"check_restart"`
+	EnableTagOverride bool
 }
 
 func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {

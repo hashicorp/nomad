@@ -763,11 +763,12 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 		structsTask.Services = make([]*structs.Service, l)
 		for i, service := range apiTask.Services {
 			structsTask.Services[i] = &structs.Service{
-				Name:        service.Name,
-				PortLabel:   service.PortLabel,
-				Tags:        service.Tags,
-				CanaryTags:  service.CanaryTags,
-				AddressMode: service.AddressMode,
+				Name:              service.Name,
+				PortLabel:         service.PortLabel,
+				Tags:              service.Tags,
+				CanaryTags:        service.CanaryTags,
+				AddressMode:       service.AddressMode,
+				EnableTagOverride: service.EnableTagOverride,
 			}
 
 			if l := len(service.Checks); l != 0 {

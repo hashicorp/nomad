@@ -1296,6 +1296,36 @@ func TestConsul_CanaryTags_NoTags(t *testing.T) {
 	require.Len(ctx.FakeConsul.services, 0)
 }
 
+// TestConsul_EnableTagOverrideEnabled asserts EnableTagOverride is set when EnableTagOverride=true
+func TestConsul_EnableTagOverrideEnabled(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctx := setupFake(t)
+
+	ctx.Task.Services[0].EnableTagOverride = true
+
+	require.NoError(ctx.ServiceClient.RegisterTask(ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 1)
+	for _, service := range ctx.FakeConsul.services {
+		require.Equal(true, service.EnableTagOverride)
+	}
+}
+
+// TestConsul_EnableTagOverrideIsDisabledByDefault asserts EnableTagOverride is disabled by default
+func TestConsul_EnableTagOverrideIsDisabledByDefault(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctx := setupFake(t)
+
+	require.NoError(ctx.ServiceClient.RegisterTask(ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 1)
+	for _, service := range ctx.FakeConsul.services {
+		require.Equal(false, service.EnableTagOverride)
+	}
+}
+
 // TestConsul_PeriodicSync asserts that Nomad periodically reconciles with
 // Consul.
 func TestConsul_PeriodicSync(t *testing.T) {
