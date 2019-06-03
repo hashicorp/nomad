@@ -1,9 +1,12 @@
 import Mixin from '@ember/object/mixin';
 import { computed } from '@ember/object';
 import { assert } from '@ember/debug';
+import { inject as service } from '@ember/service';
 import WithVisibilityDetection from './with-route-visibility-detection';
 
 export default Mixin.create(WithVisibilityDetection, {
+  flashMessages: service(),
+
   watchers: computed(() => []),
 
   cancelAllWatchers() {
