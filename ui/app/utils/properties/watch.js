@@ -9,7 +9,7 @@ import config from 'nomad-ui/config/environment';
 
 const isEnabled = config.APP.blockingQueries !== false;
 
-export function watchRecord(modelName, { report404 } = {}) {
+export function watchRecord(modelName, { ignore404 } = {}) {
   return task(function*(id, throttle = 2000) {
     const token = new XHRToken();
     if (typeof id === 'object') {
@@ -28,7 +28,7 @@ export function watchRecord(modelName, { report404 } = {}) {
           wait(throttle),
         ]);
       } catch (e) {
-        if (report404) {
+        if (!ignore404) {
           const statusIs404 = getWithDefault(e, 'errors', [])
             .mapBy('status')
             .includes('404');

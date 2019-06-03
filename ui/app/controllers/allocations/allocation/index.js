@@ -33,7 +33,7 @@ export default Controller.extend(Sortable, {
     this.set('error', null);
   },
 
-  watchNext: watchRecord('allocation'),
+  watchNext: watchRecord('allocation', { ignore404: true }),
 
   observeWatchNext: observer('model.nextAllocation.clientStatus', function() {
     const nextAllocation = this.model.nextAllocation;

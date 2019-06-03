@@ -62,8 +62,8 @@ export default Route.extend(WithWatchers, {
     }
   },
 
-  watchJob: watchRecord('job'),
-  watchSummary: watchRecord('job-summary'),
+  watchJob: watchRecord('job', { ignore404: true }),
+  watchSummary: watchRecord('job-summary', { ignore404: true }),
   watchAllocations: watchRelationship('allocations'),
 
   watchers: collect('watchJob', 'watchSummary', 'watchAllocations'),

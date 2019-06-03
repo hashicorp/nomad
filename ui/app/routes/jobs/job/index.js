@@ -19,9 +19,9 @@ export default Route.extend(WithWatchers, {
     });
   },
 
-  watch: watchRecord('job', { report404: true }),
+  watch: watchRecord('job'),
   watchAll: watchAll('job'),
-  watchSummary: watchRecord('job-summary'),
+  watchSummary: watchRecord('job-summary', { ignore404: true }),
   watchAllocations: watchRelationship('allocations'),
   watchEvaluations: watchRelationship('evaluations'),
   watchLatestDeployment: watchRelationship('latestDeployment'),
