@@ -1570,6 +1570,71 @@ func TestDockerDriver_DisableImageGC(t *testing.T) {
 	dockerDriver.coordinator.imageLock.Unlock()
 }
 
+func TestDockerDriver_MissingContainer_Cleanup(t *testing.T) {
+	testutil.DockerCompatible(t)
+
+	task, cfg, _ := dockerTask(t)
+	cfg.Command = "echo"
+	cfg.Args = []string{"hello"}
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client := newTestDockerClient(t)
+	driver := dockerDriverHarness(t, map[string]interface{}{
+		"gc": map[string]interface{}{
+			"container":   true,
+			"image":       true,
+			"image_delay": "0s",
+		},
+	})
+	cleanup := driver.MkAllocDir(task, true)
+	defer cleanup()
+
+	cleanSlate(client, cfg.Image)
+
+	copyImage(t, task.TaskDir(), "busybox.tar")
+	_, _, err := driver.StartTask(task)
+	require.NoError(t, err)
+
+	dockerDriver, ok := driver.Impl().(*Driver)
+	require.True(t, ok)
+	h, ok := dockerDriver.tasks.Get(task.ID)
+	require.True(t, ok)
+
+	waitCh, err := dockerDriver.WaitTask(context.Background(), task.ID)
+	require.NoError(t, err)
+	select {
+	case res := <-waitCh:
+		if !res.Successful() {
+			t.Fatalf("err: %v", res)
+		}
+
+	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// remove the container out-of-band
+	require.NoError(t, client.RemoveContainer(docker.RemoveContainerOptions{
+		ID: h.containerID,
+	}))
+
+	require.NoError(t, dockerDriver.DestroyTask(task.ID, false))
+
+	// Ensure image was removed
+	tu.WaitForResult(func() (bool, error) {
+		if _, err := client.InspectImage(cfg.Image); err == nil {
+			return false, fmt.Errorf("image exists but should have been removed. Does another %v container exist?", cfg.Image)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// Ensure that task handle was removed
+	_, ok = dockerDriver.tasks.Get(task.ID)
+	require.False(t, ok)
+}
+
 func TestDockerDriver_Stats(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
