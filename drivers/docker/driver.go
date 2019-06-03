@@ -1109,7 +1109,7 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 	if err != nil {
 		switch err.(type) {
 		case *docker.NoSuchContainer:
-			h.logger.Error("failed to inspect container state, will proceed with DestroyTask",
+			h.logger.Info("container was removed out of band, will proceed with DestroyTask",
 				"error", err)
 		default:
 			return fmt.Errorf("failed to inspect container state: %v", err)
