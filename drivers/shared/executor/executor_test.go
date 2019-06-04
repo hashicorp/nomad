@@ -473,7 +473,7 @@ func setupRootfsBinary(t *testing.T, rootfs, path string) {
 	t.Helper()
 
 	dst := filepath.Join(rootfs, path)
-	err := os.MkdirAll(filepath.Dir(dst), 666)
+	err := os.MkdirAll(filepath.Dir(dst), 0755)
 	require.NoError(t, err)
 
 	src := filepath.Join(

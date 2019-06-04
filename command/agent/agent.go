@@ -460,6 +460,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 	conf.ClientMaxPort = uint(agentConfig.Client.ClientMaxPort)
 	conf.ClientMinPort = uint(agentConfig.Client.ClientMinPort)
+	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
 
 	// Setup the node
 	conf.Node = new(structs.Node)

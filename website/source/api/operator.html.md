@@ -381,9 +381,9 @@ $ curl \
   - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
          - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
          this defaults to true.
-         - `BatchSchedulerEnabled` `(bool: true)` (Enterprise Only) - Specifies whether preemption for batch jobs is enabled. Note that
+         - `BatchSchedulerEnabled` <sup>0.9.2</sup> `(bool: true)` (Enterprise Only) - Specifies whether preemption for batch jobs is enabled. Note that
          this defaults to true.
-         - `ServiceSchedulerEnabled` `(bool: true)` (Enterprise Only) - Specifies whether preemption for service jobs is enabled. Note that
+         - `ServiceSchedulerEnabled` <sup>0.9.2</sup> `(bool: true)` (Enterprise Only) - Specifies whether preemption for service jobs is enabled. Note that
          this defaults to true.
   - `CreateIndex` - The Raft index at which the config was created.
   - `ModifyIndex` - The Raft index at which the config was modified.
@@ -425,7 +425,7 @@ The table below shows this endpoint's support for
 - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
  - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
          if this is set to true, then system jobs can preempt any other jobs.
- - `BatchSchedulerEnabled` `(bool: true)` (Enterprise Only) - Specifies whether preemption for batch jobs is enabled. Note that
+ - `BatchSchedulerEnabled` <sup>0.9.2</sup> `(bool: true)` (Enterprise Only) - Specifies whether preemption for batch jobs is enabled. Note that
          if this is set to true, then batch jobs can preempt any other jobs.
- - `ServiceSchedulerEnabled` `(bool: true)` (Enterprise Only) - Specifies whether preemption for service jobs is enabled. Note that
+ - `ServiceSchedulerEnabled` <sup>0.9.2</sup> `(bool: true)` (Enterprise Only) - Specifies whether preemption for service jobs is enabled. Note that
          if this is set to true, then service jobs can preempt any other jobs.
