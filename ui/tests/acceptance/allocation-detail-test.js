@@ -1,5 +1,5 @@
 import { run } from '@ember/runloop';
-import { currentURL, waitFor } from '@ember/test-helpers';
+import { currentURL, settled } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -240,7 +240,7 @@ module('Acceptance | allocation detail after stopping', function(hooks) {
     controller.watcher = route.watch.perform(controller.model, { throttle: 0, runInTests: true });
 
     await this.server.db.allocations.remove();
-    await waitFor('.flash-message', { timeout: 3000 });
+    await settled();
 
     assert.equal(PageLayout.flashMessages.length, 1);
 

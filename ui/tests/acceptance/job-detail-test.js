@@ -1,4 +1,4 @@
-import { currentURL, waitFor } from '@ember/test-helpers';
+import { currentURL, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { selectChoose } from 'ember-power-select/test-support';
@@ -129,7 +129,7 @@ module('Acceptance | job deletion warning', function(hooks) {
 
     await this.server.db.jobs.remove();
     await this.server.db.jobSummaries.remove();
-    await waitFor('.flash-message', { timeout: 3000 });
+    await settled();
 
     assert.equal(PageLayout.flashMessages.length, 1);
 
