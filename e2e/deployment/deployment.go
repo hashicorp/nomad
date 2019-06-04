@@ -1,9 +1,9 @@
 package deployment
 
 import (
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
@@ -34,29 +34,31 @@ func (tc *DeploymentTest) BeforeAll(f *framework.F) {
 func (tc *DeploymentTest) TestDeploymentAutoPromote(f *framework.F) {
 	t := f.T()
 	nomadClient := tc.Nomad()
+	run := structs.DeploymentStatusRunning
 	uuid := uuid.Generate()
+	// unique each run, cluster could have previous jobs
 	jobId := "deployment" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, jobId)
 	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "deployment/input/deployment_auto0.nomad", jobId)
+	deploy := e2eutil.DeploymentsForJob(nomadClient, jobId)[0]
 
 	// Upgrade
 	e2eutil.RegisterAllocs(t, nomadClient, "deployment/input/deployment_auto1.nomad", jobId)
-	var deploy *api.Deployment
-	ds, _, err := nomadClient.Deployments().List(nil)
-	require.NoError(t, err)
 
-	// Find the deployment
-	for _, d := range ds {
-		if d.JobID == jobId {
-			deploy = d
-			break
+	// Find the deployment we don't already have
+	testutil.WaitForResult(func() (bool, error) {
+		ds := e2eutil.DeploymentsForJob(nomadClient, jobId)
+		for _, d := range ds {
+			if d.ID != deploy.ID {
+				deploy = d
+				return true, nil
+			}
 		}
-	}
+		return false, nil
+	}, func(e error) {})
 
 	// Deployment is auto pending the upgrade of "two" which has a longer time to health
-	run := structs.DeploymentStatusRunning
-	require.Equal(t, run, deploy.Status)
-	require.Equal(t, structs.DeploymentStatusDescriptionRunningAutoPromotion, deploy.StatusDescription)
+	e2eutil.WaitForDeployment(t, nomadClient, deploy.ID, run, structs.DeploymentStatusDescriptionRunningAutoPromotion)
 
 	// Deployment is eventually running
 	e2eutil.WaitForDeployment(t, nomadClient, deploy.ID, run, structs.DeploymentStatusDescriptionRunning)

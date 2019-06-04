@@ -111,6 +111,22 @@ func WaitForAllocRunning(t *testing.T, nomadClient *api.Client, allocID string) 
 	})
 }
 
+func DeploymentsForJob(nomadClient *api.Client, jobID string) []*api.Deployment {
+	ds, _, err := nomadClient.Deployments().List(nil)
+	if err != nil {
+		return nil
+	}
+
+	out := []*api.Deployment{}
+	for _, d := range ds {
+		if d.JobID == jobID {
+			out = append(out, d)
+		}
+	}
+
+	return out
+}
+
 func WaitForDeployment(t *testing.T, nomadClient *api.Client, deployID string, status string, statusDesc string) {
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
 		time.Sleep(time.Millisecond * 100)
@@ -123,10 +139,10 @@ func WaitForDeployment(t *testing.T, nomadClient *api.Client, deployID string, s
 			return true, nil
 		}
 		return false, fmt.Errorf("expected status %s \"%s\", but got: %s \"%s\"",
-			deploy.Status,
-			deploy.StatusDescription,
 			status,
 			statusDesc,
+			deploy.Status,
+			deploy.StatusDescription,
 		)
 
 	}, func(err error) {
