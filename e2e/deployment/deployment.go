@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -40,23 +42,25 @@ func (tc *DeploymentTest) TestDeploymentAutoPromote(f *framework.F) {
 	jobId := "deployment" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, jobId)
 	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "deployment/input/deployment_auto0.nomad", jobId)
-	deploy := e2eutil.DeploymentsForJob(nomadClient, jobId)[0]
+	ds := e2eutil.DeploymentsForJob(t, nomadClient, jobId)
+	require.Equal(t, 1, len(ds))
+	deploy := ds[0]
 
 	// Upgrade
 	e2eutil.RegisterAllocs(t, nomadClient, "deployment/input/deployment_auto1.nomad", jobId)
 
 	// Find the deployment we don't already have
 	testutil.WaitForResult(func() (bool, error) {
-		ds := e2eutil.DeploymentsForJob(nomadClient, jobId)
+		ds = e2eutil.DeploymentsForJob(t, nomadClient, jobId)
 		for _, d := range ds {
 			if d.ID != deploy.ID {
 				deploy = d
 				return true, nil
 			}
 		}
-		return false, nil
+		return false, fmt.Errorf("missing update deployment for job %s", jobId)
 	}, func(e error) {
-		t.Error("missing update deployment")
+		require.NoError(t, e)
 	})
 
 	// Deployment is auto pending the upgrade of "two" which has a longer time to health

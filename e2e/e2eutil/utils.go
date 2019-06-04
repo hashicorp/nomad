@@ -111,11 +111,9 @@ func WaitForAllocRunning(t *testing.T, nomadClient *api.Client, allocID string) 
 	})
 }
 
-func DeploymentsForJob(nomadClient *api.Client, jobID string) []*api.Deployment {
+func DeploymentsForJob(t *testing.T, nomadClient *api.Client, jobID string) []*api.Deployment {
 	ds, _, err := nomadClient.Deployments().List(nil)
-	if err != nil {
-		return nil
-	}
+	require.NoError(t, err)
 
 	out := []*api.Deployment{}
 	for _, d := range ds {
