@@ -31,7 +31,13 @@ export function watchRecord(modelName, { ignore404 } = {}) {
             .includes('404');
           const errorIsEmptyResponse = e.message.includes('response did not have any data');
           if (statusIs404 || errorIsEmptyResponse) {
-            this.flashMessages.warning(`This ${modelName} no longer exists`, { sticky: true });
+            const message = this.flashMessages
+              .warning(`This ${modelName} no longer exists`, { sticky: true })
+              .getFlashObject();
+
+            if (this.displayedFlashMessages) {
+              this.displayedFlashMessages.push(message);
+            }
           }
         }
 

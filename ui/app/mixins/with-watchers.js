@@ -9,11 +9,21 @@ export default Mixin.create(WithVisibilityDetection, {
 
   watchers: computed(() => []),
 
+  init() {
+    this._super(...arguments);
+    this.displayedFlashMessages = [];
+  },
+
   cancelAllWatchers() {
     this.watchers.forEach(watcher => {
       assert('Watchers must be Ember Concurrency Tasks.', !!watcher.cancelAll);
       watcher.cancelAll();
     });
+  },
+
+  removeFlashMessages() {
+    this.displayedFlashMessages.forEach(message => this.flashMessages.queue.removeObject(message));
+    this.displayedFlashMessages = [];
   },
 
   startWatchers() {
@@ -38,6 +48,7 @@ export default Mixin.create(WithVisibilityDetection, {
       // Don't cancel watchers if transitioning into a sub-route
       if (!transition.intent.name || !transition.intent.name.startsWith(this.routeName)) {
         this.cancelAllWatchers();
+        this.removeFlashMessages();
       }
 
       // Bubble the action up to the application route

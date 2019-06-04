@@ -232,6 +232,9 @@ module('Acceptance | allocation detail', function(hooks) {
       assert.equal(message.title, 'Warning');
       assert.equal(message.body, 'This allocation no longer exists');
     });
+
+    await PageLayout.gutter.visitJobs();
+    assert.equal(PageLayout.flashMessages.length, 0);
   });
 });
 
