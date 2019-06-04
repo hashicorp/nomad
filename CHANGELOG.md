@@ -1,5 +1,13 @@
 ## 0.9.2 (Unreleased)
 
+SECURITY:
+
+* driver/exec: Fix privilege escalation issue introduced in Nomad 0.9.0.  In
+  Nomad 0.9.0 and 0.9.1, exec tasks by default run as `nobody` but with
+  elevated capabilities, allowing tasks to perform privileged linux operations
+  and potentially escalate permissions. (CVE-2019-12618)
+  [[GH-5728](https://github.com/hashicorp/nomad/pull/5728)]
+
 __BACKWARDS INCOMPATIBILITIES:__
 
  * api: The `api` package removed `Config.SetTimeout` and `Config.ConfigureTLS` functions, intended
