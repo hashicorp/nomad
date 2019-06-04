@@ -212,15 +212,6 @@ func (h *taskHandle) run() {
 		}
 	}
 
-	// Remove the container
-	if h.removeContainerOnExit == true {
-		if err := h.client.RemoveContainer(docker.RemoveContainerOptions{ID: h.containerID, RemoveVolumes: true, Force: true}); err != nil {
-			h.logger.Error("error removing container", "error", err)
-		}
-	} else {
-		h.logger.Debug("not removing container due to config")
-	}
-
 	// Set the result
 	h.exitResultLock.Lock()
 	h.exitResult = &drivers.ExitResult{
