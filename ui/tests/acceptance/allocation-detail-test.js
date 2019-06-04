@@ -235,6 +235,10 @@ module('Acceptance | allocation detail after stopping', function(hooks) {
   test('when the allocation endpoint 404s, a flash message appears', async function(assert) {
     assert.equal(PageLayout.flashMessages.length, 0);
 
+    const controller = this.owner.lookup('controller:allocations/allocation');
+    const route = this.owner.lookup('route:allocations/allocation');
+    controller.watcher = route.watch.perform(controller.model, { throttle: 0, runInTests: true });
+
     await this.server.db.allocations.remove();
     await waitFor('.flash-message', { timeout: 3000 });
 

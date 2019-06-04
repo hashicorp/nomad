@@ -1,6 +1,5 @@
 import Ember from 'ember';
 import { get, getWithDefault } from '@ember/object';
-import { getOwner } from '@ember/application';
 import RSVP from 'rsvp';
 import { task } from 'ember-concurrency';
 import wait from 'nomad-ui/utils/wait';
@@ -10,15 +9,13 @@ import config from 'nomad-ui/config/environment';
 const isEnabled = config.APP.blockingQueries !== false;
 
 export function watchRecord(modelName, { ignore404 } = {}) {
-  return task(function*(id, { throttle = 2000 } = {}) {
+  return task(function*(id, { throttle = 2000, runInTests = false } = {}) {
     const token = new XHRToken();
     if (typeof id === 'object') {
       id = get(id, 'id');
     }
 
-    const watchListService = getOwner(this).lookup('service:watch-list');
-
-    while (isEnabled && (!Ember.testing || watchListService.get('watchInTesting'))) {
+    while (isEnabled && (!Ember.testing || runInTests)) {
       try {
         yield RSVP.all([
           this.store.findRecord(modelName, id, {

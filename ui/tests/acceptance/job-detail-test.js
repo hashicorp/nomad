@@ -120,6 +120,13 @@ module('Acceptance | job deletion warning', function(hooks) {
 
     assert.equal(PageLayout.flashMessages.length, 0);
 
+    const controller = this.owner.lookup('controller:jobs/job/index');
+    const route = this.owner.lookup('route:jobs/job/index');
+    controller.watchers.model = route.watch.perform(controller.model, {
+      throttle: 0,
+      runInTests: true,
+    });
+
     await this.server.db.jobs.remove();
     await this.server.db.jobSummaries.remove();
     await waitFor('.flash-message', { timeout: 3000 });
