@@ -55,7 +55,9 @@ func (tc *DeploymentTest) TestDeploymentAutoPromote(f *framework.F) {
 			}
 		}
 		return false, nil
-	}, func(e error) {})
+	}, func(e error) {
+		t.Error("missing update deployment")
+	})
 
 	// Deployment is auto pending the upgrade of "two" which has a longer time to health
 	e2eutil.WaitForDeployment(t, nomadClient, deploy.ID, run, structs.DeploymentStatusDescriptionRunningAutoPromotion)
