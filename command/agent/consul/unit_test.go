@@ -177,7 +177,6 @@ func TestConsul_ChangeEnableTagOverride(t *testing.T) {
 	require.NotNil(reg1, "Unexpected nil alloc registration")
 	require.Equal(1, reg1.NumServices())
 
-
 	for _, v := range ctx.FakeConsul.services {
 		require.Equal(false, v.EnableTagOverride)
 	}
