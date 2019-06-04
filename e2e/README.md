@@ -7,7 +7,8 @@ The `terraform` folder has provisioning code to spin up a Nomad cluster on AWS. 
 
 Local Development
 =================
-The workflow when developing end to end tests locally is to run the provisioning step described below once, and then run the tests as described below. 
+The workflow when developing end to end tests locally is to run the provisioning step described below once, and then run the tests as described below.
+When making local changes, use `./bin/update $(which nomad) /usr/local/bin/nomad` and `./bin/run sudo systemctl restart nomad` to destructively modify the provisioned cluster.
 
 Provisioning
 ============
