@@ -239,6 +239,9 @@ type ClientConfig struct {
 	// random UUID.
 	NoHostUUID *bool `hcl:"no_host_uuid"`
 
+	// DisableRemoteExec disables remote exec targeting tasks on this client
+	DisableRemoteExec bool `hcl:"disable_remote_exec"`
+
 	// ServerJoin contains information that is used to attempt to join servers
 	ServerJoin *ServerJoin `hcl:"server_join"`
 
@@ -686,6 +689,7 @@ func DefaultConfig() *Config {
 			GCInodeUsageThreshold: 70,
 			GCMaxAllocs:           50,
 			NoHostUUID:            helper.BoolToPtr(true),
+			DisableRemoteExec:     false,
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
@@ -1243,6 +1247,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	// NoHostUUID defaults to true, merge if false
 	if b.NoHostUUID != nil {
 		result.NoHostUUID = b.NoHostUUID
+	}
+
+	if b.DisableRemoteExec {
+		result.DisableRemoteExec = b.DisableRemoteExec
 	}
 
 	// Add the servers
