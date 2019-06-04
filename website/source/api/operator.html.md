@@ -364,8 +364,8 @@ $ curl \
     "ModifyIndex": 5,
     "PreemptionConfig": {
       "SystemSchedulerEnabled": true,
-      "BatchSchedulerEnabled": true,
-      "ServiceSchedulerEnabled": true,
+      "BatchSchedulerEnabled": false,
+      "ServiceSchedulerEnabled": false
     }
   }
 }
@@ -381,10 +381,10 @@ $ curl \
   - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
          - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
          this defaults to true.
-         - `BatchSchedulerEnabled` <sup>0.9.2</sup> `(bool: true)` (Enterprise Only) - Specifies whether preemption for batch jobs is enabled. Note that
-         this defaults to true.
-         - `ServiceSchedulerEnabled` <sup>0.9.2</sup> `(bool: true)` (Enterprise Only) - Specifies whether preemption for service jobs is enabled. Note that
-         this defaults to true.
+         - `BatchSchedulerEnabled` <sup>0.9.2</sup> `(bool: false)` (Enterprise Only) - Specifies whether preemption for batch jobs is enabled. Note that
+         this defaults to false and must be explicitly enabled.
+         - `ServiceSchedulerEnabled` <sup>0.9.2</sup> `(bool: false)` (Enterprise Only) - Specifies whether preemption for service jobs is enabled. Note that
+         this defaults to false and must be explicitly enabled.
   - `CreateIndex` - The Raft index at which the config was created.
   - `ModifyIndex` - The Raft index at which the config was modified.
 
@@ -415,9 +415,9 @@ The table below shows this endpoint's support for
 ```json
 {
   "PreemptionConfig": {
-    "SystemSchedulerEnabled": false,
+    "SystemSchedulerEnabled": true,
     "BatchSchedulerEnabled": false,
-    "ServiceSchedulerEnabled": true,
+    "ServiceSchedulerEnabled": true
   }
 }
 ```
@@ -425,7 +425,7 @@ The table below shows this endpoint's support for
 - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
  - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
          if this is set to true, then system jobs can preempt any other jobs.
- - `BatchSchedulerEnabled` <sup>0.9.2</sup> `(bool: true)` (Enterprise Only) - Specifies whether preemption for batch jobs is enabled. Note that
+ - `BatchSchedulerEnabled` <sup>0.9.2</sup> `(bool: false)` (Enterprise Only) - Specifies whether preemption for batch jobs is enabled. Note that
          if this is set to true, then batch jobs can preempt any other jobs.
- - `ServiceSchedulerEnabled` <sup>0.9.2</sup> `(bool: true)` (Enterprise Only) - Specifies whether preemption for service jobs is enabled. Note that
+ - `ServiceSchedulerEnabled` <sup>0.9.2</sup> `(bool: false)` (Enterprise Only) - Specifies whether preemption for service jobs is enabled. Note that
          if this is set to true, then service jobs can preempt any other jobs.
