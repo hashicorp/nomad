@@ -179,6 +179,7 @@ $ curl \
       "ChrootEnv": {},
       "ClientMaxPort": 14512,
       "ClientMinPort": 14000,
+      "DisableRemoteExec": false,
       "Enabled": true,
       "GCDiskUsageThreshold": 99,
       "GCInodeUsageThreshold": 99,

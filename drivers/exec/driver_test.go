@@ -475,6 +475,7 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 	task := &drivers.TaskConfig{
 		ID:         uuid.Generate(),
 		Name:       "test",
+		User:       "root", // need permission to read mounts paths
 		Resources:  testResources,
 		StdoutPath: filepath.Join(tmpDir, "task-stdout"),
 		StderrPath: filepath.Join(tmpDir, "task-stderr"),

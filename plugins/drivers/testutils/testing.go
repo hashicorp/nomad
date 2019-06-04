@@ -75,7 +75,7 @@ func (h *DriverHarness) Kill() {
 	h.server.Stop()
 }
 
-// MkAllocDir creates a tempory directory and allocdir structure.
+// MkAllocDir creates a temporary directory and allocdir structure.
 // If enableLogs is set to true a logmon instance will be started to write logs
 // to the LogDir of the task
 // A cleanup func is returned and should be defered so as to not leak dirs

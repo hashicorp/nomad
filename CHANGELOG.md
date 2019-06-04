@@ -1,5 +1,13 @@
 ## 0.9.2 (Unreleased)
 
+SECURITY:
+
+* driver/exec: Fix privilege escalation issue introduced in Nomad 0.9.0.  In
+  Nomad 0.9.0 and 0.9.1, exec tasks by default run as `nobody` but with
+  elevated capabilities, allowing tasks to perform privileged linux operations
+  and potentially escalate permissions. (CVE-2019-12618)
+  [[GH-5728](https://github.com/hashicorp/nomad/pull/5728)]
+
 __BACKWARDS INCOMPATIBILITIES:__
 
  * api: The `api` package removed `Config.SetTimeout` and `Config.ConfigureTLS` functions, intended
@@ -42,9 +50,11 @@ IMPROVEMENTS:
  * api: Support configuring `http.Client` used by golang `api` package [[GH-5275](https://github.com/hashicorp/nomad/pull/5275)]
  * api: Add preemption related fields to API results that return an allocation list. [[GH-5580](https://github.com/hashicorp/nomad/pull/5580)]
  * api: Add additional config options to scheduler configuration endpoint to disable preemption [[GH-5628](https://github.com/hashicorp/nomad/issues/5628)]
+ * cli: Add acl token list command [[GH-5557](https://github.com/hashicorp/nomad/issues/5557)]
  * client: Reduce unnecessary lost nodes on server failure [[GH-5654](https://github.com/hashicorp/nomad/issues/5654)]
  * client: Canary Promotion no longer causes services registered in Consul to become unhealthy [[GH-4566](https://github.com/hashicorp/nomad/issues/4566)]
  * client: Allow use of maintenance mode and externally registered checks against Nomad-registered consul services [[GH-4537](https://github.com/hashicorp/nomad/issues/4537)]
+ * driver/exec: Fixed an issue causing large memory consumption for light processes [[GH-5437](https://github.com/hashicorp/nomad/pull/5437)]
  * telemetry: Add `client.allocs.memory.allocated` metric to expose allocated task memory in bytes. [[GH-5492](https://github.com/hashicorp/nomad/issues/5492)]
  * ui: Colored log support [[GH-5620](https://github.com/hashicorp/nomad/issues/5620)]
  * ui: Upgraded from Ember 2.18 to 3.4 [[GH-5544](https://github.com/hashicorp/nomad/issues/5544)]
@@ -62,6 +72,7 @@ BUG FIXES:
  * client: Job validation now checks that the datacenter field does not contain empty strings [[GH-5665](https://github.com/hashicorp/nomad/pull/5665)]
  * client: Fix network port mapping  related environment variables when running with Nomad 0.8 servers [[GH-5587](https://github.com/hashicorp/nomad/issues/5587)]
  * client: Fix issue with terminal state deployments being modified when allocation subsequently fails [[GH-5645](https://github.com/hashicorp/nomad/issues/5645)]
+ * driver/docker: Fix regression around image GC [[GH-5768](https://github.com/hashicorp/nomad/issues/5768)]
  * metrics: Fixed stale metrics [[GH-5540](https://github.com/hashicorp/nomad/issues/5540)]
  * vault: Fix renewal time to be 1/2 lease duration with jitter [[GH-5479](https://github.com/hashicorp/nomad/issues/5479)]
 
