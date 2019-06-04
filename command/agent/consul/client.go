@@ -94,6 +94,7 @@ func agentServiceUpdateRequired(reg *api.AgentServiceRegistration, svc *api.Agen
 		reg.Port == svc.Port &&
 		reg.Address == svc.Address &&
 		reg.Name == svc.Service &&
+		reg.EnableTagOverride == svc.EnableTagOverride &&
 		reflect.DeepEqual(reg.Tags, svc.Tags))
 }
 
@@ -597,6 +598,7 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 			Meta: map[string]string{
 				"external-source": "nomad",
 			},
+			EnableTagOverride: service.EnableTagOverride,
 		}
 		ops.regServices = append(ops.regServices, serviceReg)
 
@@ -1111,9 +1113,9 @@ func makeAgentServiceID(role string, service *structs.Service) string {
 // Consul. All structs.Service fields are included in the ID's hash except
 // Checks. This allows updates to merely compare IDs.
 //
-//	Example Service ID: _nomad-task-b4e61df9-b095-d64e-f241-23860da1375f-redis-http
+//	Example Service ID: _nomad-task-b4e61df9-b095-d64e-f241-23860da1375f-redis-http-false
 func makeTaskServiceID(allocID, taskName string, service *structs.Service, canary bool) string {
-	return fmt.Sprintf("%s%s-%s-%s", nomadTaskPrefix, allocID, taskName, service.Name)
+	return fmt.Sprintf("%s%s-%s-%s-%t", nomadTaskPrefix, allocID, taskName, service.Name, service.EnableTagOverride)
 }
 
 // makeCheckID creates a unique ID for a check.

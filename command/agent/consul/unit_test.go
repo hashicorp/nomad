@@ -163,6 +163,40 @@ func TestConsul_ChangeTags(t *testing.T) {
 	}
 }
 
+func TestConsul_ChangeEnableTagOverride(t *testing.T) {
+	ctx := setupFake(t)
+	require := require.New(t)
+
+	require.NoError(ctx.ServiceClient.RegisterTask(ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Equal(1, len(ctx.FakeConsul.services), "Expected 1 service to be registered with Consul")
+
+	// Validate the alloc registration
+	reg1, err := ctx.ServiceClient.AllocRegistrations(ctx.Task.AllocID)
+	require.NoError(err)
+	require.NotNil(reg1, "Unexpected nil alloc registration")
+	require.Equal(1, reg1.NumServices())
+
+
+	for _, v := range ctx.FakeConsul.services {
+		require.Equal(false, v.EnableTagOverride)
+	}
+
+	// Update the task definition
+	origTask := ctx.Task.Copy()
+	ctx.Task.Services[0].EnableTagOverride = true
+
+	// Register and sync the update
+	require.NoError(ctx.ServiceClient.UpdateTask(origTask, ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Equal(1, len(ctx.FakeConsul.services), "Expected 1 service to be registered with Consul")
+
+	// Validate the metadata changed
+	for _, v := range ctx.FakeConsul.services {
+		require.Equal(true, v.EnableTagOverride)
+	}
+}
+
 // TestConsul_ChangePorts asserts that changing the ports on a service updates
 // it in Consul. Pre-0.7.1 ports were not part of the service ID and this was a
 // slightly different code path than changing tags.
