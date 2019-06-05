@@ -223,7 +223,7 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 
 	// Deregister
 	dereg := &structs.NodeDeregisterRequest{
-		NodeID:       node.ID,
+		NodeIDs:      []string{node.ID},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.GenericResponse
@@ -270,7 +270,7 @@ func TestClientEndpoint_Deregister_ACL(t *testing.T) {
 
 	// Deregister without any token and expect it to fail
 	dereg := &structs.NodeDeregisterRequest{
-		NodeID:       node.ID,
+		NodeIDs:      []string{node.ID},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp structs.GenericResponse
@@ -296,7 +296,7 @@ func TestClientEndpoint_Deregister_ACL(t *testing.T) {
 
 	// Deregister with an invalid token.
 	dereg1 := &structs.NodeDeregisterRequest{
-		NodeID:       node1.ID,
+		NodeIDs:      []string{node1.ID},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	dereg1.AuthToken = invalidToken.SecretID
@@ -345,7 +345,7 @@ func TestClientEndpoint_Deregister_Vault(t *testing.T) {
 
 	// Deregister
 	dereg := &structs.NodeDeregisterRequest{
-		NodeID:       node.ID,
+		NodeIDs:      []string{node.ID},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.GenericResponse
@@ -1447,7 +1447,7 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 
 	// Node delete triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.DeleteNode(400, node2.ID); err != nil {
+		if err := state.DeleteNode(400, []string{node2.ID}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -2714,7 +2714,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 
 	// Node delete triggers watches.
 	time.AfterFunc(100*time.Millisecond, func() {
-		errCh <- state.DeleteNode(50, node.ID)
+		errCh <- state.DeleteNode(50, []string{node.ID})
 	})
 
 	req.MinQueryIndex = 45

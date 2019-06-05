@@ -261,22 +261,45 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	}
 
 	// Verify the arguments
-	if args.NodeID == "" {
-		return fmt.Errorf("missing node ID for client deregistration")
+	if len(args.NodeIDs) == 0 {
+		return fmt.Errorf("missing node IDs for client deregistration")
 	}
-	// Look for the node
+
+	// Open state handles
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
 
 	ws := memdb.NewWatchSet()
-	node, err := snap.NodeByID(ws, args.NodeID)
-	if err != nil {
-		return err
-	}
-	if node == nil {
-		return fmt.Errorf("node not found")
+
+	for _, nodeID := range args.NodeIDs {
+		// Look for the node
+		node, err := snap.NodeByID(ws, nodeID)
+		if err != nil {
+			return err
+		}
+		if node == nil {
+			return fmt.Errorf("node not found")
+		}
+
+		// Clear the heartbeat timer if any
+		n.srv.clearHeartbeatTimer(nodeID)
+
+		// Determine if there are any Vault accessors on the node
+		accessors, err := snap.VaultAccessorsByNode(ws, nodeID)
+		if err != nil {
+			n.logger.Error("looking up accessors for node failed", "node_id", nodeID, "error", err)
+			return err
+		}
+
+		if l := len(accessors); l != 0 {
+			n.logger.Debug("revoking accessors on node due to deregister", "num_accessors", l, "node_id", nodeID)
+			if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
+				n.logger.Error("revoking accessors for node failed", "node_id", nodeID, "error", err)
+				return err
+			}
+		}
 	}
 
 	// Commit this update via Raft
@@ -286,36 +309,27 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 		return err
 	}
 
-	// Clear the heartbeat timer if any
-	n.srv.clearHeartbeatTimer(args.NodeID)
+	// Create the evaluations for these nodes
+	for _, nodeID := range args.NodeIDs {
 
-	// Create the evaluations for this node
-	evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
-	if err != nil {
-		n.logger.Error("eval creation failed", "error", err)
-		return err
-	}
+		// QUESTION createNodeEvals opens it's own state and watch handles, does
+		// that break atomicity?
 
-	// Determine if there are any Vault accessors on the node
-	accessors, err := snap.VaultAccessorsByNode(ws, args.NodeID)
-	if err != nil {
-		n.logger.Error("looking up accessors for node failed", "node_id", args.NodeID, "error", err)
-		return err
-	}
-
-	if l := len(accessors); l != 0 {
-		n.logger.Debug("revoking accessors on node due to deregister", "num_accessors", l, "node_id", args.NodeID)
-		if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
-			n.logger.Error("revoking accessors for node failed", "node_id", args.NodeID, "error", err)
+		evalIDs, evalIndex, err := n.createNodeEvals(nodeID, index)
+		if err != nil {
+			n.logger.Error("eval creation failed", "error", err)
 			return err
 		}
+		reply.EvalIDs = append(reply.EvalIDs, evalIDs...)
+		reply.EvalCreateIndex = evalIndex
 	}
 
 	// Setup the reply
-	reply.EvalIDs = evalIDs
-	reply.EvalCreateIndex = evalIndex
+	// reply.EvalIDs = evalIDs
+	// reply.EvalCreateIndex = evalIndex
 	reply.NodeModifyIndex = index
 	reply.Index = index
+
 	return nil
 }
 
