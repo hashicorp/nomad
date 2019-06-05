@@ -484,9 +484,9 @@ OUTER:
 	c.logger.Debug("node GC found eligible nodes", "nodes", len(gcNode))
 
 	// Call to the leader to issue the reap
-	for _, nodeID := range gcNode {
+	for _, ids := range partitionAll(maxIdsPerReap, gcNode) {
 		req := structs.NodeDeregisterRequest{
-			NodeID: nodeID,
+			NodeIDs: ids,
 			WriteRequest: structs.WriteRequest{
 				Region:    c.srv.config.Region,
 				AuthToken: eval.LeaderACL,
@@ -494,7 +494,7 @@ OUTER:
 		}
 		var resp structs.NodeUpdateResponse
 		if err := c.srv.RPC("Node.Deregister", &req, &resp); err != nil {
-			c.logger.Error("node reap failed", "node_id", nodeID, "error", err)
+			c.logger.Error("node reap failed", "node_ids", ids, "error", err)
 			return err
 		}
 	}
