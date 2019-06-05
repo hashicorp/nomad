@@ -167,8 +167,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 	}
 
-	// Enforce Sentinel policies
-	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job)
+	// Enforce Sentinel policies. Pass a copy of the job to prevent
+	// sentinel from altering it.
+	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job.Copy())
 	if err != nil {
 		return err
 	}
