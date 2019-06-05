@@ -98,6 +98,13 @@ func agentServiceUpdateRequired(reg *api.AgentServiceRegistration, svc *api.Agen
 		reflect.DeepEqual(reg.Tags, svc.Tags))
 }
 
+// Replace with Consul tags
+func replaceServiceTagsWithConsulTags(reg *api.AgentServiceRegistration, svc *api.AgentService) {
+	if svc != nil {
+		copy(reg.Tags, svc.Tags)
+	}
+}
+
 // operations are submitted to the main loop via commit() for synchronizing
 // with Consul.
 type operations struct {
@@ -486,6 +493,11 @@ func (c *ServiceClient) sync() error {
 		existingSvc, ok := consulServices[id]
 
 		if ok {
+			if locals.EnableTagOverride {
+				// if EnableTagOverride is set, then we want to keep the tags updated by external services
+				replaceServiceTagsWithConsulTags(locals, existingSvc)
+			}
+
 			// There is an existing registration of this service in Consul, so here
 			// we validate to see if the service has been invalidated to see if it
 			// should be updated.
