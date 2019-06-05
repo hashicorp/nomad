@@ -1,6 +1,10 @@
 package nomad
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import (
+	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 // drainerShim implements the drainer.RaftApplier interface required by the
 // NodeDrainer.
@@ -13,6 +17,7 @@ func (d drainerShim) NodesDrainComplete(nodes []string, event *structs.NodeEvent
 		Updates:      make(map[string]*structs.DrainUpdate, len(nodes)),
 		NodeEvents:   make(map[string]*structs.NodeEvent, len(nodes)),
 		WriteRequest: structs.WriteRequest{Region: d.s.config.Region},
+		UpdatedAt:    time.Now().Unix(),
 	}
 
 	update := &structs.DrainUpdate{}
