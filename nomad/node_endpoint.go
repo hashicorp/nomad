@@ -277,16 +277,16 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 		// Look for the node
 		node, err := snap.NodeByID(ws, nodeID)
 		if err != nil {
-			return err
+			return fmt.Errorf("node lookup failed: %s: %v", nodeID, err)
 		}
 		if node == nil {
-			return fmt.Errorf("node not found")
+			return fmt.Errorf("node not found: %s", nodeID)
 		}
 
 		// Clear the heartbeat timer if any
 		n.srv.clearHeartbeatTimer(nodeID)
 
-		// Determine if there are any Vault accessors on the node
+		// If there are any Vault accessors on the node, revoke them
 		accessors, err := snap.VaultAccessorsByNode(ws, nodeID)
 		if err != nil {
 			n.logger.Error("looking up accessors for node failed", "node_id", nodeID, "error", err)
@@ -311,22 +311,22 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 
 	// Create the evaluations for these nodes
 	for _, nodeID := range args.NodeIDs {
-
 		// QUESTION createNodeEvals opens it's own state and watch handles, does
 		// that break atomicity?
-
 		evalIDs, evalIndex, err := n.createNodeEvals(nodeID, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
 			return err
 		}
+
 		reply.EvalIDs = append(reply.EvalIDs, evalIDs...)
-		reply.EvalCreateIndex = evalIndex
+		// Set the reply evalIndex only the first time
+		if reply.EvalCreateIndex == 0 {
+			reply.EvalCreateIndex = evalIndex
+		}
 	}
 
 	// Setup the reply
-	// reply.EvalIDs = evalIDs
-	// reply.EvalCreateIndex = evalIndex
 	reply.NodeModifyIndex = index
 	reply.Index = index
 
