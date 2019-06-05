@@ -225,7 +225,7 @@ func TestFSM_DeregisterNode(t *testing.T) {
 	}
 
 	req2 := structs.NodeDeregisterRequest{
-		NodeID: node.ID,
+		NodeIDs: []string{node.ID},
 	}
 	buf, err = structs.Encode(structs.NodeDeregisterRequestType, req2)
 	if err != nil {
