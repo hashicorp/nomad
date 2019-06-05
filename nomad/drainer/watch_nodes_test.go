@@ -126,7 +126,7 @@ func TestNodeDrainWatcher_Remove_Nonexistent(t *testing.T) {
 	require.Equal(n, tracked[n.ID])
 
 	// Delete the node
-	require.Nil(state.DeleteNode(101, n.ID))
+	require.Nil(state.DeleteNode(101, []string{n.ID}))
 	testutil.WaitForResult(func() (bool, error) {
 		return len(m.events()) == 2, nil
 	}, func(err error) {
