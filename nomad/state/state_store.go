@@ -679,8 +679,13 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 
 // DeleteNode deregisters a batch of nodes
 func (s *StateStore) DeleteNode(index uint64, nodes []string) error {
+	if len(nodes) == 0 {
+		return nil
+	}
+
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+
 	for _, nodeID := range nodes {
 		existing, err := txn.First("nodes", "id", nodeID)
 		if err != nil {
@@ -694,10 +699,12 @@ func (s *StateStore) DeleteNode(index uint64, nodes []string) error {
 		if err := txn.Delete("nodes", existing); err != nil {
 			return fmt.Errorf("node delete failed: %s: %v", nodeID, err)
 		}
-		if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
-			return fmt.Errorf("index update failed: %s: %v", nodeID, err)
-		}
 	}
+
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	txn.Commit()
 	return nil
 }

@@ -809,49 +809,45 @@ func TestStateStore_UpsertNode_Node(t *testing.T) {
 
 func TestStateStore_DeleteNode_Node(t *testing.T) {
 	state := testStateStore(t)
-	node := mock.Node()
 
-	err := state.UpsertNode(1000, node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	// Create and insert two nodes, which we'll delete
+	node0 := mock.Node()
+	node1 := mock.Node()
+	err := state.UpsertNode(1000, node0)
+	require.NoError(t, err)
+	err = state.UpsertNode(1001, node1)
+	require.NoError(t, err)
 
 	// Create a watchset so we can test that delete fires the watch
 	ws := memdb.NewWatchSet()
-	if _, err := state.NodeByID(ws, node.ID); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
 
-	err = state.DeleteNode(1001, []string{node.ID})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	// Check that both nodes are not nil
+	out, err := state.NodeByID(ws, node0.ID)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	out, err = state.NodeByID(ws, node1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, out)
 
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	// Delete both nodes in a batch, fires the watch
+	err = state.DeleteNode(1002, []string{node0.ID, node1.ID})
+	require.NoError(t, err)
+	require.True(t, watchFired(ws))
 
+	// Check that both nodes are nil
 	ws = memdb.NewWatchSet()
-	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	out, err = state.NodeByID(ws, node0.ID)
+	require.NoError(t, err)
+	require.Nil(t, out)
+	out, err = state.NodeByID(ws, node1.ID)
+	require.NoError(t, err)
+	require.Nil(t, out)
 
-	if out != nil {
-		t.Fatalf("bad: %#v %#v", node, out)
-	}
-
+	// Ensure that the index is still at 1002, from DeleteNode
 	index, err := state.Index("nodes")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 1001 {
-		t.Fatalf("bad: %d", index)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.NoError(t, err)
+	require.Equal(t, uint64(1002), index)
+	require.False(t, watchFired(ws))
 }
 
 func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
