@@ -1,4 +1,4 @@
-## 0.9.2 (Unreleased)
+## 0.9.2 (June 5, 2019)
 
 SECURITY:
 
