@@ -684,18 +684,18 @@ func (s *StateStore) DeleteNode(index uint64, nodes []string) error {
 	for _, nodeID := range nodes {
 		existing, err := txn.First("nodes", "id", nodeID)
 		if err != nil {
-			return fmt.Errorf("node lookup failed: %v", err)
+			return fmt.Errorf("node lookup failed: %s: %v", nodeID, err)
 		}
 		if existing == nil {
-			return fmt.Errorf("node not found")
+			return fmt.Errorf("node not found: %s", nodeID)
 		}
 
 		// Delete the node
 		if err := txn.Delete("nodes", existing); err != nil {
-			return fmt.Errorf("node delete failed: %v", err)
+			return fmt.Errorf("node delete failed: %s: %v", nodeID, err)
 		}
 		if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
-			return fmt.Errorf("index update failed: %v", err)
+			return fmt.Errorf("index update failed: %s: %v", nodeID, err)
 		}
 	}
 	txn.Commit()
