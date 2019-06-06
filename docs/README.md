@@ -15,14 +15,14 @@ The code for Nomad's major components is organized as:
 * `command/` contains Nomad's CLI code.
 * `nomad/` contains Nomad's server agent code.
 
-The high level control flow for many Nomad commands are:
+The high level control flow for many Nomad actions (via the CLI or UI) are:
 
 ```
-# Read commands:
-CLI command -> HTTP API -> RPC -> StateStore
+# Read actions:
+Client -> HTTP API -> RPC -> StateStore
 
-# Commands that change state:
-CLI command -> HTTP API -> RPC -> Raft -> FSM -> StateStore
+# Actions that change state:
+Client -> HTTP API -> RPC -> Raft -> FSM -> StateStore
 ```
 
 ## Checklists
