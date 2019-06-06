@@ -1,6 +1,6 @@
 # example netlify.toml
 [build]
-  command = "ember build -prod && mkdir -p ../ui-dist/ui && mv dist/* ../ui-dist/ui/"
+  command = "ember build && mkdir -p ../ui-dist/ui && mv dist/* ../ui-dist/ui/"
   base = "ui"
   publish = "ui-dist"
 
