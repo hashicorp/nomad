@@ -3,6 +3,8 @@ import {
   collection,
   clickable,
   fillable,
+  hasClass,
+  isHidden,
   isPresent,
   text,
   visitable,
@@ -18,7 +20,15 @@ export default create({
   nodes: collection('[data-test-client-node-row]', {
     id: text('[data-test-client-id]'),
     name: text('[data-test-client-name]'),
-    status: text('[data-test-client-status]'),
+
+    status: {
+      scope: '[data-test-client-status]',
+
+      isInfo: hasClass('is-info', '.status-text'),
+      isWarning: hasClass('is-warning', '.status-text'),
+      isUnformatted: isHidden('.status-text'),
+    },
+
     address: text('[data-test-client-address]'),
     datacenter: text('[data-test-client-datacenter]'),
     allocations: text('[data-test-client-allocations]'),

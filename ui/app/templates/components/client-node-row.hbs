@@ -7,7 +7,15 @@
 </td>
 <td data-test-client-id>{{#link-to "clients.client" node.id class="is-primary"}}{{node.shortId}}{{/link-to}}</td>
 <td data-test-client-name class="is-200px is-truncatable" title="{{node.name}}">{{node.name}}</td>
-<td data-test-client-status>{{node.statusDrainEligibility}}</td>
+<td data-test-client-status>
+  {{#if node.isDraining}}
+    <span class="status-text is-info">draining</span>
+  {{else if (not node.isEligible)}}
+    <span class="status-text is-warning">ineligible</span>
+  {{else}}
+    {{node.status}}
+  {{/if}}
+</td>
 <td data-test-client-address>{{node.httpAddr}}</td>
 <td data-test-client-datacenter>{{node.datacenter}}</td>
 <td data-test-client-allocations>

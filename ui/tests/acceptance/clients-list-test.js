@@ -44,7 +44,7 @@ module('Acceptance | clients list', function(hooks) {
 
     assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
     assert.equal(nodeRow.name, node.name, 'Name');
-    assert.equal(nodeRow.status, 'draining', 'Combined status, draining, and eligbility');
+    assert.equal(nodeRow.status.text, 'draining', 'Combined status, draining, and eligbility');
     assert.equal(nodeRow.address, node.httpAddr);
     assert.equal(nodeRow.datacenter, node.datacenter, 'Datacenter');
     assert.equal(nodeRow.allocations, allocations.length, '# Allocations');
@@ -86,11 +86,17 @@ module('Acceptance | clients list', function(hooks) {
 
     await ClientsList.visit();
 
-    assert.equal(ClientsList.nodes[0].status, 'ready');
-    assert.equal(ClientsList.nodes[1].status, 'initializing');
-    assert.equal(ClientsList.nodes[2].status, 'down');
-    assert.equal(ClientsList.nodes[3].status, 'ineligible');
-    assert.equal(ClientsList.nodes[4].status, 'draining');
+    assert.equal(ClientsList.nodes[0].status.text, 'ready');
+    assert.ok(ClientsList.nodes[0].status.isUnformatted, 'expected no status class');
+
+    assert.equal(ClientsList.nodes[1].status.text, 'initializing');
+    assert.equal(ClientsList.nodes[2].status.text, 'down');
+
+    assert.equal(ClientsList.nodes[3].status.text, 'ineligible');
+    assert.ok(ClientsList.nodes[3].status.isWarning, 'expected warning class');
+
+    assert.equal(ClientsList.nodes[4].status.text, 'draining');
+    assert.ok(ClientsList.nodes[4].status.isInfo, 'expected info class');
   });
 
   test('each client should link to the client detail page', async function(assert) {
