@@ -18,8 +18,8 @@ CLI (command/) -> API Client (api/) -> HTTP API (command/agent) -> RPC (nomad/)
 7.  [ ] Update help text
 7.  [ ] Implement and test new HTTP endpoint in `command/agent/<command>_endpoint.go`
 8.  [ ] Implement and test new RPC endpoint in `nomad/<command>_endpoint.go`
-9.  [ ] Implement and test new Client RPC endpoint in `client/<command>_endpoint.go`
-  * For client endpoints only (e.g. Filesystem)
+9.  [ ] Implement and test new Client RPC endpoint in
+    `client/<command>_endpoint.go` (For client endpoints like Filesystem only)
 10. [ ] Implement and test new `api/` package Request and Response structs
 11. [ ] Implement and test new `api/` package helper methods
 12. [ ] Implement and test new `nomad/structs/` package Request and Response structs
