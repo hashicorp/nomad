@@ -482,6 +482,28 @@ OUTER:
 		return nil
 	}
 	c.logger.Debug("node GC found eligible nodes", "nodes", len(gcNode))
+	return c.nodeReap(gcNode)
+}
+
+func (c *CoreScheduler) nodeReap(nodeIDs []string) error {
+	// For pre 0.9.3 clusters, send single deregistration messages
+	if !ServersMeetMinimumVersion(c.srv.Members(), "0.9.3", true) {
+		for _, id := range nodeIDs {
+			req := structs.NodeDeregisterRequest{
+				NodeID: id,
+				WriteRequest: structs.WriteRequest{
+					Region:    c.srv.config.Region,
+					AuthToken: eval.LeaderACL,
+				},
+			}
+			var resp structs.NodeUpdateResponse
+			if err := c.srv.RPC("Node.Deregister", &req, &resp); err != nil {
+				c.logger.Error("node reap failed", "node_id", id, "error", err)
+				return err
+			}
+		}
+		return nil
+	}
 
 	// Call to the leader to issue the reap
 	for _, ids := range partitionAll(maxIdsPerReap, gcNode) {
