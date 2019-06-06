@@ -1,12 +1,12 @@
 # example netlify.toml
 [build]
-  command = "ember build -prod"
+  command = "ember build -prod && mkdir -p ../ui-dist/ui && mv dist/* ../ui-dist/ui/"
   base = "ui"
   publish = "ui/dist"
 
   [[redirects]]
    from = "/*"
-   to = "/index.html"
+   to = "/ui/index.html"
    status = 200
   
   ## (optional) Settings for Netlify Dev
