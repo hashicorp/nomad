@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"time"
@@ -99,7 +100,16 @@ func (p *planner) planApply() {
 		// Snapshot the state so that we have a consistent view of the world
 		// if no snapshot is available
 		if waitCh == nil || snap == nil {
-			snap, err = p.fsm.State().Snapshot()
+			const timeout = 5 * time.Second
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			snap, err = p.fsm.State().SnapshotAfter(ctx, pending.plan.SnapshotIndex)
+			cancel()
+			if err == context.DeadlineExceeded {
+				p.logger.Error("timed out synchronizing to planner's index",
+					"timeout", timeout, "plan_index", pending.plan.SnapshotIndex)
+				err = fmt.Errorf("timed out after %s waiting for index=%d",
+					timeout, pending.plan.SnapshotIndex)
+			}
 			if err != nil {
 				p.logger.Error("failed to snapshot state", "error", err)
 				pending.respond(nil, err)

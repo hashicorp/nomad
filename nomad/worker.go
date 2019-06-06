@@ -284,6 +284,10 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.
 	// Add the evaluation token to the plan
 	plan.EvalToken = w.evalToken
 
+	// Add SnapshotIndex to ensure leader's StateStore processes the Plan
+	// at or after the index it was created.
+	plan.SnapshotIndex = w.snapshotIndex
+
 	// Normalize stopped and preempted allocs before RPC
 	normalizePlan := ServersMeetMinimumVersion(w.srv.Members(), MinVersionPlanNormalization, true)
 	if normalizePlan {
@@ -319,7 +323,7 @@ SUBMIT:
 	}
 
 	// Check if a state update is required. This could be required if we
-	// planning based on stale data, which is causing issues. For example, a
+	// planned based on stale data, which is causing issues. For example, a
 	// node failure since the time we've started planning or conflicting task
 	// allocations.
 	var state scheduler.State
