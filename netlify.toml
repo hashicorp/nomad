@@ -6,11 +6,11 @@
 
 [[redirects]]
   from = "/"
-  to = "/ui/index.html"
+  to = "/ui/"
 
 [[redirects]]
   from = "/*"
-  to = "/ui/jobs"
+  to = "/ui/index.html"
   status = 200
   
   ## (optional) Settings for Netlify Dev
