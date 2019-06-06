@@ -296,7 +296,15 @@ func (n *nomadFSM) applyDeregisterNode(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteNode(index, req.NodeIDs); err != nil {
+	// Messages pre 0.9.3 use a single NodeID
+	var ids []string
+	if len(req.NodeIDs) == 0 {
+		ids = []string{req.NodeID}
+	} else {
+		ids = req.NodeIDs
+	}
+
+	if err := n.state.DeleteNode(index, ids); err != nil {
 		n.logger.Error("DeleteNode failed", "error", err)
 		return err
 	}
