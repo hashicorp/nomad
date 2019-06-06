@@ -140,7 +140,10 @@ Who Uses Nomad
 Contributing to Nomad
 --------------------
 
-If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.10.2+ is *required*).
+If you wish to contribute to Nomad, you will need [Go](https://www.golang.org)
+installed on your machine (version 1.10.2+ is *required*).
+
+See the [`docs`](docs/) directory for more developer documentation.
 
 **Developing with Vagrant**
 There is an included Vagrantfile that can help bootstrap the process. The
