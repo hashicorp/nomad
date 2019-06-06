@@ -4,12 +4,10 @@
   base = "ui"
   publish = "ui/dist"
 
-  ## Uncomment to use this redirect for Single Page Applications like create-react-app. 
-  ## Not needed for static site generators.
-  #[[redirects]]
-  #  from = "/*"
-  #  to = "/index.html"
-  #  status = 200
+  [[redirects]]
+   from = "/*"
+   to = "/index.html"
+   status = 200
   
   ## (optional) Settings for Netlify Dev
   ## https://github.com/netlify/netlify-dev-plugin#project-detection
