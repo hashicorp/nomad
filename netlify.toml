@@ -5,6 +5,10 @@
   publish = "ui-dist"
 
   [[redirects]]
+   from = "/"
+   to = "/ui/index.html"
+
+  [[redirects]]
    from = "/*"
    to = "/ui/index.html"
    status = 200
