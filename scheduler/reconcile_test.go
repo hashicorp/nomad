@@ -1320,12 +1320,13 @@ func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 		place:             0,
 		inplace:           0,
 		attributeUpdates:  1,
-		stop:              0,
+		stop:              1,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:         0,
 				InPlaceUpdate: 0,
 				Ignore:        4,
+				Stop:          1,
 			},
 		},
 	})
@@ -1402,12 +1403,13 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 		place:             0,
 		inplace:           0,
 		attributeUpdates:  7,
-		stop:              0,
+		stop:              7,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:         0,
 				InPlaceUpdate: 0,
 				Ignore:        10,
+				Stop:          7,
 			},
 		},
 	})
@@ -1489,11 +1491,12 @@ func TestReconciler_RescheduleNow_Batch(t *testing.T) {
 		createDeployment:  nil,
 		deploymentUpdates: nil,
 		place:             1,
+		stop:              1,
 		inplace:           0,
-		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:  1,
+				Stop:   1,
 				Ignore: 3,
 			},
 		},
@@ -1565,12 +1568,13 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 		place:             1,
 		inplace:           0,
 		attributeUpdates:  1,
-		stop:              0,
+		stop:              1,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:         1,
 				InPlaceUpdate: 0,
 				Ignore:        4,
+				Stop:          1,
 			},
 		},
 	})
@@ -1763,11 +1767,12 @@ func TestReconciler_RescheduleNow_Service(t *testing.T) {
 		deploymentUpdates: nil,
 		place:             2,
 		inplace:           0,
-		stop:              0,
+		stop:              1,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:  2,
 				Ignore: 3,
+				Stop:   1,
 			},
 		},
 	})
@@ -1841,10 +1846,11 @@ func TestReconciler_RescheduleNow_WithinAllowedTimeWindow(t *testing.T) {
 		deploymentUpdates: nil,
 		place:             1,
 		inplace:           0,
-		stop:              0,
+		stop:              1,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:  1,
+				Stop:   1,
 				Ignore: 4,
 			},
 		},
@@ -1920,11 +1926,12 @@ func TestReconciler_RescheduleNow_EvalIDMatch(t *testing.T) {
 		createDeployment:  nil,
 		deploymentUpdates: nil,
 		place:             1,
+		stop:              1,
 		inplace:           0,
-		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:  1,
+				Stop:   1,
 				Ignore: 4,
 			},
 		},
@@ -2027,11 +2034,12 @@ func TestReconciler_RescheduleNow_Service_WithCanaries(t *testing.T) {
 		createDeployment:  nil,
 		deploymentUpdates: nil,
 		place:             2,
+		stop:              2,
 		inplace:           0,
-		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:  2,
+				Stop:   2,
 				Ignore: 5,
 			},
 		},
@@ -2150,11 +2158,12 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 		createDeployment:  nil,
 		deploymentUpdates: nil,
 		place:             2,
+		stop:              2,
 		inplace:           0,
-		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:  2,
+				Stop:   2,
 				Ignore: 9,
 			},
 		},
@@ -2276,11 +2285,12 @@ func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 		createDeployment:  nil,
 		deploymentUpdates: nil,
 		place:             1,
+		stop:              1,
 		inplace:           0,
-		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:  1,
+				Stop:   1,
 				Ignore: 10,
 			},
 		},
@@ -4440,11 +4450,13 @@ func TestReconciler_DeploymentWithFailedAllocs_DontReschedule(t *testing.T) {
 	// Assert that no rescheduled placements were created
 	assertResults(t, r, &resultExpectation{
 		place:             5,
+		stop:              5,
 		createDeployment:  nil,
 		deploymentUpdates: nil,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:  5,
+				Stop:   5,
 				Ignore: 5,
 			},
 		},
@@ -4585,11 +4597,13 @@ func TestReconciler_SuccessfulDeploymentWithFailedAllocs_Reschedule(t *testing.T
 	// Assert that rescheduled placements were created
 	assertResults(t, r, &resultExpectation{
 		place:             10,
+		stop:              10,
 		createDeployment:  nil,
 		deploymentUpdates: nil,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:  10,
+				Stop:   10,
 				Ignore: 0,
 			},
 		},
@@ -4653,11 +4667,12 @@ func TestReconciler_ForceReschedule_Service(t *testing.T) {
 		createDeployment:  nil,
 		deploymentUpdates: nil,
 		place:             1,
+		stop:              1,
 		inplace:           0,
-		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:  1,
+				Stop:   1,
 				Ignore: 4,
 			},
 		},
