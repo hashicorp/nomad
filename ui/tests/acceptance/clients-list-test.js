@@ -34,8 +34,8 @@ module('Acceptance | clients list', function(hooks) {
   });
 
   test('each client record should show high-level info of the client', async function(assert) {
-    minimumSetup();
-    const node = server.db.nodes[0];
+    const node = server.create('node', 'draining');
+    server.createList('agent', 1);
 
     await ClientsList.visit();
 
@@ -44,12 +44,53 @@ module('Acceptance | clients list', function(hooks) {
 
     assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
     assert.equal(nodeRow.name, node.name, 'Name');
-    assert.equal(nodeRow.status, node.status, 'Status');
-    assert.equal(nodeRow.drain, node.drain + '', 'Draining');
-    assert.equal(nodeRow.eligibility, node.schedulingEligibility, 'Eligibility');
+    assert.equal(nodeRow.status, 'draining', 'Combined status, draining, and eligbility');
     assert.equal(nodeRow.address, node.httpAddr);
     assert.equal(nodeRow.datacenter, node.datacenter, 'Datacenter');
     assert.equal(nodeRow.allocations, allocations.length, '# Allocations');
+  });
+
+  test('client status, draining, and eligibility are collapsed into one column', async function(assert) {
+    server.createList('agent', 1);
+
+    server.create('node', {
+      modifyIndex: 4,
+      status: 'ready',
+      schedulingEligibility: 'eligible',
+      drain: false,
+    });
+    server.create('node', {
+      modifyIndex: 3,
+      status: 'initializing',
+      schedulingEligibility: 'eligible',
+      drain: false,
+    });
+    server.create('node', {
+      modifyIndex: 2,
+      status: 'down',
+      schedulingEligibility: 'eligible',
+      drain: false,
+    });
+    server.create('node', {
+      modifyIndex: 1,
+      status: 'ready',
+      schedulingEligibility: 'ineligible',
+      drain: false,
+    });
+    server.create('node', {
+      modifyIndex: 0,
+      status: 'ready',
+      schedulingEligibility: 'ineligible',
+      drain: true,
+    });
+
+    await ClientsList.visit();
+
+    assert.equal(ClientsList.nodes[0].status, 'ready');
+    assert.equal(ClientsList.nodes[1].status, 'initializing');
+    assert.equal(ClientsList.nodes[2].status, 'down');
+    assert.equal(ClientsList.nodes[3].status, 'ineligible');
+    assert.equal(ClientsList.nodes[4].status, 'draining');
   });
 
   test('each client should link to the client detail page', async function(assert) {

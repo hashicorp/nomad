@@ -19,8 +19,6 @@ export default create({
     id: text('[data-test-client-id]'),
     name: text('[data-test-client-name]'),
     status: text('[data-test-client-status]'),
-    drain: text('[data-test-client-drain]'),
-    eligibility: text('[data-test-client-eligibility]'),
     address: text('[data-test-client-address]'),
     datacenter: text('[data-test-client-datacenter]'),
     allocations: text('[data-test-client-allocations]'),
