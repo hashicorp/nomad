@@ -2,7 +2,8 @@
 [build]
   command = "ember build -prod"
   functions = "functions"
-  publish = "."
+  base = "ui"
+  publish = "dist"
 
   ## Uncomment to use this redirect for Single Page Applications like create-react-app. 
   ## Not needed for static site generators.
