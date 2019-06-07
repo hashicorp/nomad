@@ -261,8 +261,14 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	}
 
 	// Verify the arguments
+	var nodeIDs []string
 	if len(args.NodeIDs) == 0 {
-		return fmt.Errorf("missing node IDs for client deregistration")
+		if args.NodeID == "" {
+			return fmt.Errorf("missing node IDs for client deregistration")
+		}
+		nodeIDs = append(nodeIDs, args.NodeID)
+	} else if args.NodeID != "" {
+		return fmt.Errorf("use only NodeIDs, the NodeID field is deprecated")
 	}
 
 	// Open state handles
@@ -273,8 +279,8 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 
 	ws := memdb.NewWatchSet()
 
-	for _, nodeID := range args.NodeIDs {
-		// Look for the node
+	// Assert that the state contains the nodes
+	for _, nodeID := range nodeIDs {
 		node, err := snap.NodeByID(ws, nodeID)
 		if err != nil {
 			return fmt.Errorf("node lookup failed: %s: %v", nodeID, err)
@@ -282,8 +288,17 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 		if node == nil {
 			return fmt.Errorf("node not found: %s", nodeID)
 		}
+	}
 
-		// Clear the heartbeat timer if any
+	// Commit this update to Raft, before we clear the heartbeatTimer so that failure
+	// leaves the node running
+	_, index, err := n.srv.raftApply(structs.NodeDeregisterRequestType, args)
+	if err != nil {
+		n.logger.Error("deregister failed", "error", err)
+		return err
+	}
+
+	for _, nodeID := range nodeIDs {
 		n.srv.clearHeartbeatTimer(nodeID)
 
 		// If there are any Vault accessors on the node, revoke them
@@ -300,19 +315,8 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 				return err
 			}
 		}
-	}
 
-	// Commit this update via Raft
-	_, index, err := n.srv.raftApply(structs.NodeDeregisterRequestType, args)
-	if err != nil {
-		n.logger.Error("deregister failed", "error", err)
-		return err
-	}
-
-	// Create the evaluations for these nodes
-	for _, nodeID := range args.NodeIDs {
-		// QUESTION createNodeEvals opens it's own state and watch handles, does
-		// that break atomicity?
+		// Create the evaluations for these nodes
 		evalIDs, evalIndex, err := n.createNodeEvals(nodeID, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)

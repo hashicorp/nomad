@@ -246,6 +246,47 @@ func TestClientEndpoint_Deregister(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_DeregisterDeprecatedField(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.GenericResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+
+	// Deregister fails, because the DeregisterRequest should use only the batch field
+	dereg := &structs.NodeDeregisterRequest{
+		NodeID:       "foo",
+		NodeIDs:      []string{node.ID},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	require.Error(t, msgpackrpc.CallWithCodec(codec, "Node.Deregister", dereg, &resp))
+
+	// Deregister succeeds using the pre-0.9.3 single node request
+	dereg = &structs.NodeDeregisterRequest{
+		NodeID:       node.ID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.Deregister", dereg, &resp))
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.NoError(t, err)
+	require.Nil(t, out)
+}
+
 func TestClientEndpoint_Deregister_ACL(t *testing.T) {
 	t.Parallel()
 	s1, root := TestACLServer(t, nil)
