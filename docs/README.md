@@ -14,6 +14,8 @@ The code for Nomad's major components is organized as:
 * `client/` contains Nomad's client agent code.
 * `command/` contains Nomad's CLI code.
 * `nomad/` contains Nomad's server agent code.
+* `ui/` contains Nomad's UI code.
+* `website/` contains Nomad's website and documentation.
 
 The high level control flow for many Nomad actions (via the CLI or UI) are:
 
