@@ -1,3 +1,6 @@
+echo "Listing ui/"
+ls ui
+
 mkdir -p ui-dist/ui
 mv ui/dist/* ui-dist/ui
 
