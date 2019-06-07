@@ -1,8 +1,8 @@
 # example netlify.toml
 [build]
-  command = "ember build && mkdir -p ../ui-dist/ui && mv dist/* ../ui-dist/ui/"
+  command = "ember build && mkdir -p ui-dist/ui && mv dist/* ui-dist/ui/"
   base = "ui"
-  publish = "ui-dist"
+  publish = "ui/ui-dist"
 
 [[redirects]]
   from = "/"
