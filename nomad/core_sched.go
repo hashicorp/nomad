@@ -7,6 +7,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -482,12 +483,13 @@ OUTER:
 		return nil
 	}
 	c.logger.Debug("node GC found eligible nodes", "nodes", len(gcNode))
-	return c.nodeReap(gcNode)
+	return c.nodeReap(eval, gcNode)
 }
 
-func (c *CoreScheduler) nodeReap(nodeIDs []string) error {
+func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) error {
 	// For pre 0.9.3 clusters, send single deregistration messages
-	if !ServersMeetMinimumVersion(c.srv.Members(), "0.9.3", true) {
+	version, _ := version.NewVersion("0.9.3")
+	if !ServersMeetMinimumVersion(c.srv.Members(), version, true) {
 		for _, id := range nodeIDs {
 			req := structs.NodeDeregisterRequest{
 				NodeID: id,
@@ -506,7 +508,7 @@ func (c *CoreScheduler) nodeReap(nodeIDs []string) error {
 	}
 
 	// Call to the leader to issue the reap
-	for _, ids := range partitionAll(maxIdsPerReap, gcNode) {
+	for _, ids := range partitionAll(maxIdsPerReap, nodeIDs) {
 		req := structs.NodeDeregisterRequest{
 			NodeIDs: ids,
 			WriteRequest: structs.WriteRequest{
