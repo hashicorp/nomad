@@ -9,6 +9,7 @@ ls ui
 
 mkdir -p ui-dist/ui
 mv ui/dist/* ui-dist/ui
+mv .netlify/_redirects ui-dist/
 
 netlify deploy --dir=ui-dist > netlify.log
 cat netlify.log
