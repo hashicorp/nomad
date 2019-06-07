@@ -4,11 +4,6 @@ import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 
-function minimumSetup() {
-  server.createList('node', 1);
-  server.createList('agent', 1);
-}
-
 module('Acceptance | clients list', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
@@ -100,7 +95,9 @@ module('Acceptance | clients list', function(hooks) {
   });
 
   test('each client should link to the client detail page', async function(assert) {
-    minimumSetup();
+    server.createList('node', 1);
+    server.createList('agent', 1);
+
     const node = server.db.nodes[0];
 
     await ClientsList.visit();
