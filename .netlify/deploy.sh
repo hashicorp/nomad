@@ -1,3 +1,5 @@
+npm install -g netlify-cli ember-cli
+
 cd ui
 ember build -prod
 cd ..
@@ -7,8 +9,6 @@ ls ui
 
 mkdir -p ui-dist/ui
 mv ui/dist/* ui-dist/ui
-
-npm install -g netlify-cli
 
 netlify deploy --dir=ui-dist > netlify.log
 cat netlify.log
