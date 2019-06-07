@@ -141,7 +141,7 @@ Contributing to Nomad
 --------------------
 
 If you wish to contribute to Nomad, you will need [Go](https://www.golang.org)
-installed on your machine (version 1.10.2+ is *required*).
+installed on your machine (version 1.11+ is *required*).
 
 See the [`docs`](docs/) directory for more developer documentation.
 
