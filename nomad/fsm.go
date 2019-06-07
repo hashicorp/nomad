@@ -300,6 +300,8 @@ func (n *nomadFSM) applyDeregisterNode(buf []byte, index uint64) interface{} {
 	var nodeIDs []string
 	if len(req.NodeIDs) == 0 {
 		nodeIDs = append(nodeIDs, req.NodeID)
+	} else if req.NodeID != "" {
+		return fmt.Errorf("invalid request: set NodeIDs instead of NodeID")
 	} else {
 		nodeIDs = req.NodeIDs
 	}
@@ -308,6 +310,7 @@ func (n *nomadFSM) applyDeregisterNode(buf []byte, index uint64) interface{} {
 		n.logger.Error("DeleteNode failed", "error", err)
 		return err
 	}
+
 	return nil
 }
 
