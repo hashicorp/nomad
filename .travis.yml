@@ -86,4 +86,4 @@ script:
 
 after_script:
   - cat /tmp/results.xml
-  - if [[ "$RUN_UI_TESTS" ]] && [[ "$TRAVIS_PULL_REQUEST" == 'false']]; then .netlify/deploy.sh ; fi
+  - if [[ "$RUN_UI_TESTS" ]] && [[ "$TRAVIS_PULL_REQUEST" == 'false' ]]; then .netlify/deploy.sh ; fi
