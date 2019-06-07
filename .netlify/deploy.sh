@@ -21,7 +21,7 @@ echo "Netlify deployment URL: ${NETLIFY_DEPLOYMENT_URL}"
 echo "for curl"
 echo "{\"state\": \"success\", \"target_url\": \"$NETLIFY_DEPLOYMENT_URL\", \"description\": \"Visit a deployment for this PR\", \"context\": \"deployments\"}"
 
-curl -X POST \
+curl -X -v -v -v POST \
     --data "{\"state\": \"success\", \"target_url\": \"$NETLIFY_DEPLOYMENT_URL\", \"description\": \"Visit a deployment for this PR\", \"context\": \"deployments\"}" \
     -H "Authorization: token $GITHUB_STATUS_TOKEN" \
     -H "Content-Type: application/json" \
