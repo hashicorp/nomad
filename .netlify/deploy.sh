@@ -24,4 +24,5 @@ echo "{\"state\": \"success\", \"target_url\": \"$NETLIFY_DEPLOYMENT_URL\", \"de
 curl -X POST \
     --data "{\"state\": \"success\", \"target_url\": \"$NETLIFY_DEPLOYMENT_URL\", \"description\": \"Visit a deployment for this PR\", \"context\": \"deployments\"}" \
     -H "Authorization: token $GITHUB_STATUS_TOKEN" \
+    -H "Content-Type: application/json" \
     https://api.github.com/repos/hashicorp/nomad/statuses/$TRAVIS_COMMIT
