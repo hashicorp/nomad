@@ -13,7 +13,7 @@ mv ui/dist/* ui-dist/ui
 netlify deploy --dir=ui-dist > netlify.log
 cat netlify.log
 
-NETLIFY_DEPLOYMENT_URL=$(cat netlify.log | awk '{ print $NF }')
+NETLIFY_DEPLOYMENT_URL=$(cat netlify.log | grep 'Live Draft' | awk '{ print $NF }')
 
 echo "Netlify deployment URL: ${NETLIFY_DEPLOYMENT_URL}"
 
