@@ -297,14 +297,14 @@ func (n *nomadFSM) applyDeregisterNode(buf []byte, index uint64) interface{} {
 	}
 
 	// Messages pre 0.9.3 use a single NodeID
-	var ids []string
+	var nodeIDs []string
 	if len(req.NodeIDs) == 0 {
-		ids = []string{req.NodeID}
+		nodeIDs = append(nodeIDs, req.NodeID)
 	} else {
-		ids = req.NodeIDs
+		nodeIDs = req.NodeIDs
 	}
 
-	if err := n.state.DeleteNode(index, ids); err != nil {
+	if err := n.state.DeleteNode(index, nodeIDs); err != nil {
 		n.logger.Error("DeleteNode failed", "error", err)
 		return err
 	}
