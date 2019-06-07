@@ -1,3 +1,7 @@
+cd ui
+ember build -prod
+cd ..
+
 echo "Listing ui/"
 ls ui
 
