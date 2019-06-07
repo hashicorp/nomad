@@ -18,6 +18,9 @@ NETLIFY_DEPLOYMENT_URL=$(cat netlify.log | grep 'Live Draft' | awk '{ print $NF 
 
 echo "Netlify deployment URL: ${NETLIFY_DEPLOYMENT_URL}"
 
+echo "for curl"
+echo "{\"state\": \"success\", \"target_url\": \"$NETLIFY_DEPLOYMENT_URL\", \"description\": \"Visit a deployment for this PR\", \"context\": \"deployments\"}"
+
 curl -X POST \
     --data "{\"state\": \"success\", \"target_url\": \"$NETLIFY_DEPLOYMENT_URL\", \"description\": \"Visit a deployment for this PR\", \"context\": \"deployments\"}" \
     -H "Authorization: token $GITHUB_STATUS_TOKEN" \
