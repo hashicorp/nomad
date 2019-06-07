@@ -86,6 +86,31 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+
+      // TODO questionable name?
+      &.is-hover-overflowable {
+        position: relative;
+
+        .show-on-hover {
+          display: none;
+          position: absolute;
+          top: 0;
+          left: 0;
+          // FIXME this should be the same as the cell but it was coming out to 10.5px 🤔
+          padding: 17px 1.5em;
+        }
+
+        &:hover {
+          color: transparent;
+          overflow: visible;
+
+          .show-on-hover {
+            color: black;
+            display: block;
+            background-color: rgba(255, 255, 255, 0.9);
+          }
+        }
+      }
     }
 
     &.is-narrow {
