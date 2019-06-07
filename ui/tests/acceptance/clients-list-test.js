@@ -81,8 +81,11 @@ module('Acceptance | clients list', function(hooks) {
 
     await ClientsList.visit();
 
-    assert.equal(ClientsList.nodes[0].status.text, 'ready');
-    assert.ok(ClientsList.nodes[0].status.isUnformatted, 'expected no status class');
+    ClientsList.nodes[0].status.as(readyClient => {
+      assert.equal(readyClient.text, 'ready');
+      assert.ok(readyClient.isUnformatted, 'expected no status class');
+      assert.equal(readyClient.title, 'status: ready\ndraining: false\neligible: true');
+    });
 
     assert.equal(ClientsList.nodes[1].status.text, 'initializing');
     assert.equal(ClientsList.nodes[2].status.text, 'down');

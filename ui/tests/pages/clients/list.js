@@ -1,4 +1,5 @@
 import {
+  attribute,
   create,
   collection,
   clickable,
@@ -23,6 +24,8 @@ export default create({
 
     status: {
       scope: '[data-test-client-status]',
+
+      title: attribute('title'),
 
       isInfo: hasClass('is-info', '.status-text'),
       isWarning: hasClass('is-warning', '.status-text'),

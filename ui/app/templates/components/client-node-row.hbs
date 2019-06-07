@@ -7,7 +7,7 @@
 </td>
 <td data-test-client-id>{{#link-to "clients.client" node.id class="is-primary"}}{{node.shortId}}{{/link-to}}</td>
 <td data-test-client-name class="is-200px is-truncatable" title="{{node.name}}">{{node.name}}</td>
-<td data-test-client-status>
+<td data-test-client-status title={{statusTitle}}>
   {{#if node.isDraining}}
     <span class="status-text is-info">draining</span>
   {{else if (not node.isEligible)}}
