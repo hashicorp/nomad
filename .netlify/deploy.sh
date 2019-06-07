@@ -1,7 +1,7 @@
 npm install -g netlify-cli
 
 cd ui
-./node_modules/bin/ember build -prod
+./node_modules/.bin/ember build -prod
 cd ..
 
 echo "Listing ui/"
