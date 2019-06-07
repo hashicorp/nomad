@@ -85,3 +85,4 @@ script:
 
 after_script:
   - cat /tmp/results.xml
+  - if [[ "$RUN_UI_TESTS" ]]; then .netlify/deploy.sh ; fi
