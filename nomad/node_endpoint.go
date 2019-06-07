@@ -269,6 +269,8 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 		nodeIDs = append(nodeIDs, args.NodeID)
 	} else if args.NodeID != "" {
 		return fmt.Errorf("use only NodeIDs, the NodeID field is deprecated")
+	} else {
+		nodeIDs = args.NodeIDs
 	}
 
 	// Open state handles
