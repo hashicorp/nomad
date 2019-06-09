@@ -28,5 +28,5 @@ func (f *fifo) Write(b []byte) (int, error)
 
 // Close the fifo. Next reads/writes will error. This method can also be used
 // before open(2) has returned and fifo was never opened.
-func (f *fifo) Close() error
+func (f *fifo) Close() error 
 ```

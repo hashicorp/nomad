@@ -25,7 +25,7 @@ If you want to use the subpackages, you can install them the same way.
 The complete package documentation and some simple examples are available at
 [godoc.org](http://godoc.org/github.com/godbus/dbus). Also, the
 [_examples](https://github.com/godbus/dbus/tree/master/_examples) directory
-gives a short overview over the basic usage.
+gives a short overview over the basic usage. 
 
 #### Projects using godbus
 - [notify](https://github.com/esiqveland/notify) provides desktop notifications over dbus into a library.

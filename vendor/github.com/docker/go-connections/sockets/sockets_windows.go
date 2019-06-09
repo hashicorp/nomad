@@ -1,6 +1,7 @@
 package sockets
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"time"
@@ -15,7 +16,12 @@ func configureUnixTransport(tr *http.Transport, proto, addr string) error {
 func configureNpipeTransport(tr *http.Transport, proto, addr string) error {
 	// No need for compression in local communications.
 	tr.DisableCompression = true
-	tr.Dial = func(_, _ string) (net.Conn, error) {
+	tr.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+		// DialPipeContext() has been added to winio:
+		// https://github.com/Microsoft/go-winio/commit/5fdbdcc2ae1c7e1073157fa7cb34a15eab472e1d
+		// However, a new version of winio with this commit has not been released yet.
+		// Continue to use DialPipe() until DialPipeContext() becomes available.
+		//return winio.DialPipeContext(ctx, addr)
 		return DialPipe(addr, defaultTimeout)
 	}
 	return nil

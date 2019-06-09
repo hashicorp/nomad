@@ -1,0 +1,63 @@
+substitutions:
+  _CLUSTER_NAME: trillian-opensource-ci
+  _MASTER_ZONE: us-central1-a
+steps:
+- id: build_ctfe
+  name: gcr.io/cloud-builders/docker
+  args:
+  - build
+  - --file=trillian/examples/deployment/docker/ctfe/Dockerfile
+  - --tag=gcr.io/${PROJECT_ID}/ctfe:${COMMIT_SHA}
+  - .
+  waitFor: ["-"]
+- id: push_ctfe
+  name: gcr.io/cloud-builders/docker
+  args:
+  - push
+  - gcr.io/${PROJECT_ID}/ctfe:${COMMIT_SHA}
+  waitFor:
+  - build_ctfe
+- id: tag_latest_ctfe
+  name: gcr.io/cloud-builders/gcloud
+  args:
+  - container
+  - images
+  - add-tag
+  - gcr.io/${PROJECT_ID}/ctfe:${COMMIT_SHA}
+  - gcr.io/${PROJECT_ID}/ctfe:latest
+  waitFor:
+  - push_ctfe
+- id: build_envsubst
+  name: gcr.io/cloud-builders/docker
+  args:
+  - build
+  - trillian/examples/deployment/docker/envsubst
+  - -t
+  - envsubst
+  waitFor: ["-"]
+- id: envsubst_kubernetes_configs
+  name: envsubst
+  args:
+  - trillian/examples/deployment/kubernetes/ctfe-deployment.yaml
+  - trillian/examples/deployment/kubernetes/ctfe-service.yaml
+  - trillian/examples/deployment/kubernetes/ctfe-ingress.yaml
+  env:
+  - PROJECT_ID=${PROJECT_ID}
+  - IMAGE_TAG=${COMMIT_SHA}
+  waitFor:
+  - build_envsubst
+- id: update_kubernetes_configs
+  name: gcr.io/cloud-builders/kubectl
+  args:
+  - apply
+  - -f=trillian/examples/deployment/kubernetes/ctfe-deployment.yaml
+  - -f=trillian/examples/deployment/kubernetes/ctfe-service.yaml
+  - -f=trillian/examples/deployment/kubernetes/ctfe-ingress.yaml
+  env:
+  - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
+  - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
+  waitFor:
+  - envsubst_kubernetes_configs
+  - push_ctfe
+images:
+- gcr.io/${PROJECT_ID}/ctfe:${COMMIT_SHA}

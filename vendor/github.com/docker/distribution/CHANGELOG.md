@@ -39,7 +39,7 @@
 - Changes the client Tags `All()` method to follow links
 - Allow registry clients to connect via HTTP2
 - Better handling of OAuth errors in client
-
+  
 #### Spec
 - Manifest: clarify relationship between urls and foreign layers
 - Authorization: add support for repository classes
@@ -104,3 +104,5 @@ The registry is go 1.7 compliant, and passes newer, more restrictive `lint` and 
 
 #### Docker Image
 - Use Alpine Linux as base image
+
+
