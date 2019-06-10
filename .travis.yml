@@ -81,6 +81,8 @@ install:
   - if [[ "$RUN_UI_TESTS" ]]; then . $HOME/.nvm/nvm.sh && cd ui && nvm install && nvm use && cd .. ; fi
 
 script:
+  - mv $GOPATH/src/github.com/greut/nomad $GOPATH/src/github.com/hashicorp/nomad
+  - ln -s $GOPATH/src/github.com/hashicorp/nomad $GOPATH/src/github.com/greut/nomad
   - sudo -E "PATH=$PATH" GOTESTSUM_JUNITFILE=/tmp/results.xml make travis
 
 after_script:
