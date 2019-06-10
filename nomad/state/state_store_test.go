@@ -7132,7 +7132,7 @@ func TestStateSnapshot_DenormalizeAllocationDiffSlice_AllocDoesNotExist(t *testi
 	snap, err := state.Snapshot()
 	require.NoError(err)
 
-	denormalizedAllocs, err := snap.DenormalizeAllocationDiffSlice(allocDiffs, alloc.Job)
+	denormalizedAllocs, err := snap.DenormalizeAllocationDiffSlice(allocDiffs)
 
 	require.EqualError(err, fmt.Sprintf("alloc %v doesn't exist", alloc.ID))
 	require.Nil(denormalizedAllocs)
