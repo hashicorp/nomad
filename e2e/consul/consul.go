@@ -3,6 +3,7 @@ package consul
 import (
 	"time"
 
+	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
@@ -21,6 +22,7 @@ func init() {
 		Component:   "Consul",
 		CanRunLocal: true,
 		Consul:      true,
+		Vault:       true,
 		Cases: []framework.TestCase{
 			new(ConsulE2ETest),
 		},
@@ -212,6 +214,39 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 		{"canarytest", expectedTags},
 	}))
 
+}
+
+// TestConsulFailedAlloc asserts that after an alloc fails the service and
+// checks are cleaned.
+//
+// See https://github.com/hashicorp/nomad/issues/5770
+func (tc *ConsulE2ETest) TestConsulFailedAlloc(f *framework.F) {
+	nomadClient := tc.Nomad()
+	uuid := uuid.Generate()
+	jobId := "consul_failed_alloc" + uuid[0:8]
+	tc.jobIds = append(tc.jobIds, jobId)
+	g := NewGomegaWithT(f.T())
+
+	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "consul/input/failed_alloc.nomad", jobId)
+	consulClient := tc.Consul()
+
+	// Service should initially be registered
+	svcs, err := consulClient.Agent().Services()
+	f.NoError(err)
+	f.Contains(svcs, "failed-alloc-service")
+
+	// Wait for job to fail
+	g.Eventually(func() string {
+		alloc, _, err := nomadClient.Allocations().Info(allocs[0].ID, nil)
+		f.NoError(err)
+		return alloc.ClientStatus
+	}, 10*time.Second, 100*time.Millisecond).Should(Equal("failed"))
+
+	g.Eventually(func() *consulapi.AgentService {
+		svcs, err := consulClient.Agent().Services()
+		f.NoError(err)
+		return svcs["failed-alloc-service"]
+	}, 10*time.Second, 100*time.Millisecond).Should(BeNil())
 }
 
 func (tc *ConsulE2ETest) AfterEach(f *framework.F) {
