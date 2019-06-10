@@ -564,6 +564,84 @@ func TestPreemption(t *testing.T) {
 			},
 		},
 		{
+			desc: "preempt allocs with network devices",
+			currentAllocations: []*structs.Allocation{
+				createAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      2800,
+					MemoryMB: 2256,
+					DiskMB:   4 * 1024,
+				}),
+				createAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.200",
+							MBits:  800,
+						},
+					},
+				}),
+			},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1100,
+				MemoryMB: 1000,
+				DiskMB:   25 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  840,
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[1]: {},
+			},
+		},
+		{
+			desc: "ignore allocs with close enough priority for network devices",
+			currentAllocations: []*structs.Allocation{
+				createAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      2800,
+					MemoryMB: 2256,
+					DiskMB:   4 * 1024,
+				}),
+				createAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.200",
+							MBits:  800,
+						},
+					},
+				}),
+			},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          lowPrioJob.Priority + 5,
+			resourceAsk: &structs.Resources{
+				CPU:      1100,
+				MemoryMB: 1000,
+				DiskMB:   25 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  840,
+					},
+				},
+			},
+			preemptedAllocIDs: nil,
+		},
+		{
 			desc: "Preemption needed for all resources except network",
 			currentAllocations: []*structs.Allocation{
 				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
@@ -1292,7 +1370,7 @@ func TestPreemption(t *testing.T) {
 				require.Equal(len(tc.preemptedAllocIDs), len(preemptedAllocs))
 				for _, alloc := range preemptedAllocs {
 					_, ok := tc.preemptedAllocIDs[alloc.ID]
-					require.True(ok)
+					require.Truef(ok, "alloc %s was preempted unexpectedly", alloc.ID)
 				}
 			}
 		})
