@@ -162,15 +162,27 @@ module('Acceptance | clients list', function(hooks) {
   testFacet('Status', {
     facet: ClientsList.facets.status,
     paramName: 'status',
-    expectedOptions: ['Initializing', 'Ready', 'Down'],
+    expectedOptions: ['Initializing', 'Ready', 'Down', 'Ineligible', 'Draining'],
     async beforeEach() {
       server.create('agent');
+
       server.createList('node', 2, { status: 'initializing' });
       server.createList('node', 2, { status: 'ready' });
       server.createList('node', 2, { status: 'down' });
+
+      server.createList('node', 2, { schedulingEligibility: 'eligible', drain: false });
+      server.createList('node', 2, { schedulingEligibility: 'ineligible', drain: false });
+      server.createList('node', 2, { schedulingEligibility: 'ineligible', drain: true });
+
       await ClientsList.visit();
     },
-    filter: (node, selection) => selection.includes(node.status),
+    filter: (node, selection) => {
+      if (selection.includes('draining') && !node.drain) return false;
+      if (selection.includes('ineligible') && node.schedulingEligibility === 'eligible')
+        return false;
+
+      return selection.includes(node.status);
+    },
   });
 
   testFacet('Datacenters', {
@@ -189,24 +201,24 @@ module('Acceptance | clients list', function(hooks) {
     filter: (node, selection) => selection.includes(node.datacenter),
   });
 
-  testFacet('Flags', {
-    facet: ClientsList.facets.flags,
-    paramName: 'flags',
-    expectedOptions: ['Ineligible', 'Draining'],
-    async beforeEach() {
-      server.create('agent');
-      server.createList('node', 2, { schedulingEligibility: 'eligible', drain: false });
-      server.createList('node', 2, { schedulingEligibility: 'ineligible', drain: false });
-      server.createList('node', 2, { schedulingEligibility: 'ineligible', drain: true });
-      await ClientsList.visit();
-    },
-    filter: (node, selection) => {
-      if (selection.includes('draining') && !node.drain) return false;
-      if (selection.includes('ineligible') && node.schedulingEligibility === 'eligible')
-        return false;
-      return true;
-    },
-  });
+  // testFacet('Flags', {
+  //   facet: ClientsList.facets.flags,
+  //   paramName: 'flags',
+  //   expectedOptions: ['Ineligible', 'Draining'],
+  //   async beforeEach() {
+  //     server.create('agent');
+  //     server.createList('node', 2, { schedulingEligibility: 'eligible', drain: false });
+  //     server.createList('node', 2, { schedulingEligibility: 'ineligible', drain: false });
+  //     server.createList('node', 2, { schedulingEligibility: 'ineligible', drain: true });
+  //     await ClientsList.visit();
+  //   },
+  //   filter: (node, selection) => {
+  //     if (selection.includes('draining') && !node.drain) return false;
+  //     if (selection.includes('ineligible') && node.schedulingEligibility === 'eligible')
+  //       return false;
+  //     return true;
+  //   },
+  // });
 
   test('when the facet selections result in no matches, the empty state states why', async function(assert) {
     server.create('agent');

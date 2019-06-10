@@ -21,7 +21,6 @@ export default Controller.extend(Sortable, Searchable, {
     qpClass: 'class',
     qpStatus: 'status',
     qpDatacenter: 'dc',
-    qpFlags: 'flags',
   },
 
   currentPage: 1,
@@ -35,12 +34,10 @@ export default Controller.extend(Sortable, Searchable, {
   qpClass: '',
   qpStatus: '',
   qpDatacenter: '',
-  qpFlags: '',
 
   selectionClass: selection('qpClass'),
   selectionStatus: selection('qpStatus'),
   selectionDatacenter: selection('qpDatacenter'),
-  selectionFlags: selection('qpFlags'),
 
   optionsClass: computed('nodes.[]', function() {
     const classes = Array.from(new Set(this.nodes.mapBy('nodeClass'))).compact();
@@ -57,6 +54,8 @@ export default Controller.extend(Sortable, Searchable, {
     { key: 'initializing', label: 'Initializing' },
     { key: 'ready', label: 'Ready' },
     { key: 'down', label: 'Down' },
+    { key: 'ineligible', label: 'Ineligible' },
+    { key: 'draining', label: 'Draining' },
   ]),
 
   optionsDatacenter: computed('nodes.[]', function() {
@@ -64,40 +63,34 @@ export default Controller.extend(Sortable, Searchable, {
 
     // Remove any invalid datacenters from the query param/selection
     scheduleOnce('actions', () => {
-      this.set(
-        'qpDatacenter',
-        serialize(intersection(datacenters, this.selectionDatacenter))
-      );
+      this.set('qpDatacenter', serialize(intersection(datacenters, this.selectionDatacenter)));
     });
 
     return datacenters.sort().map(dc => ({ key: dc, label: dc }));
   }),
-
-  optionsFlags: computed(() => [
-    { key: 'ineligible', label: 'Ineligible' },
-    { key: 'draining', label: 'Draining' },
-  ]),
 
   filteredNodes: computed(
     'nodes.[]',
     'selectionClass',
     'selectionStatus',
     'selectionDatacenter',
-    'selectionFlags',
     function() {
       const {
         selectionClass: classes,
         selectionStatus: statuses,
         selectionDatacenter: datacenters,
-        selectionFlags: flags,
       } = this;
 
-      const onlyIneligible = flags.includes('ineligible');
-      const onlyDraining = flags.includes('draining');
+      const onlyIneligible = statuses.includes('ineligible');
+      const onlyDraining = statuses.includes('draining');
+
+      // “flags” were formerly a separate filter, now combined with statuses
+      const statusesWithoutFlags = statuses.without('ineligible').without('draining');
 
       return this.nodes.filter(node => {
         if (classes.length && !classes.includes(node.get('nodeClass'))) return false;
-        if (statuses.length && !statuses.includes(node.get('status'))) return false;
+        if (statusesWithoutFlags.length && !statusesWithoutFlags.includes(node.get('status')))
+          return false;
         if (datacenters.length && !datacenters.includes(node.get('datacenter'))) return false;
 
         if (onlyIneligible && node.get('isEligible')) return false;
