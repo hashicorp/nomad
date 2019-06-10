@@ -535,7 +535,7 @@ func (d *decoder) decodeString(name string, node ast.Node, result reflect.Value)
 	switch n := node.(type) {
 	case *ast.LiteralType:
 		switch n.Token.Type {
-		case token.NUMBER:
+		case token.NUMBER, token.FLOAT, token.BOOL:
 			result.Set(reflect.ValueOf(n.Token.Text).Convert(result.Type()))
 			return nil
 		case token.STRING, token.HEREDOC:
