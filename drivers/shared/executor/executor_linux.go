@@ -28,6 +28,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
+	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	ldevices "github.com/opencontainers/runc/libcontainer/devices"
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
@@ -101,10 +102,15 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		return nil, err
 	}
 
+	cgroupManager := libcontainer.Cgroupfs
+	if systemd.UseSystemd() {
+		cgroupManager = libcontainer.SystemdCgroups
+	}
+
 	// create a new factory which will store the container state in the allocDir
 	factory, err := libcontainer.New(
 		path.Join(command.TaskDir, "../alloc/container"),
-		libcontainer.Cgroupfs,
+		cgroupManager,
 		// note that os.Args[0] refers to the executor shim typically
 		// and first args arguments is ignored now due
 		// until https://github.com/opencontainers/runc/pull/1888 is merged
