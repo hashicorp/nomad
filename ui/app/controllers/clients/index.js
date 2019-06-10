@@ -85,12 +85,11 @@ export default Controller.extend(Sortable, Searchable, {
       const onlyDraining = statuses.includes('draining');
 
       // “flags” were formerly a separate filter, now combined with statuses
-      const statusesWithoutFlags = statuses.without('ineligible').without('draining');
+      const trueStatuses = statuses.without('ineligible').without('draining');
 
       return this.nodes.filter(node => {
         if (classes.length && !classes.includes(node.get('nodeClass'))) return false;
-        if (statusesWithoutFlags.length && !statusesWithoutFlags.includes(node.get('status')))
-          return false;
+        if (trueStatuses.length && !trueStatuses.includes(node.get('status'))) return false;
         if (datacenters.length && !datacenters.includes(node.get('datacenter'))) return false;
 
         if (onlyIneligible && node.get('isEligible')) return false;
