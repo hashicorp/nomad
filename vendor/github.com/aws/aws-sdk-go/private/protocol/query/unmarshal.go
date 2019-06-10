@@ -1,6 +1,6 @@
 package query
 
-//go:generate go run ../../../models/protocol_tests/generate.go ../../../models/protocol_tests/output/query.json unmarshal_test.go
+//go:generate go run -tags codegen ../../../models/protocol_tests/generate.go ../../../models/protocol_tests/output/query.json unmarshal_test.go
 
 import (
 	"encoding/xml"
@@ -10,6 +10,12 @@ import (
 	"github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil"
 )
 
+// UnmarshalHandler is a named request handler for unmarshaling query protocol requests
+var UnmarshalHandler = request.NamedHandler{Name: "awssdk.query.Unmarshal", Fn: Unmarshal}
+
+// UnmarshalMetaHandler is a named request handler for unmarshaling query protocol request metadata
+var UnmarshalMetaHandler = request.NamedHandler{Name: "awssdk.query.UnmarshalMeta", Fn: UnmarshalMeta}
+
 // Unmarshal unmarshals a response for an AWS Query service.
 func Unmarshal(r *request.Request) {
 	defer r.HTTPResponse.Body.Close()
@@ -17,7 +23,11 @@ func Unmarshal(r *request.Request) {
 		decoder := xml.NewDecoder(r.HTTPResponse.Body)
 		err := xmlutil.UnmarshalXML(r.Data, decoder, r.Operation.Name+"Result")
 		if err != nil {
-			r.Error = awserr.New("SerializationError", "failed decoding Query response", err)
+			r.Error = awserr.NewRequestFailure(
+				awserr.New(request.ErrCodeSerialization, "failed decoding Query response", err),
+				r.HTTPResponse.StatusCode,
+				r.RequestID,
+			)
 			return
 		}
 	}
@@ -25,5 +35,5 @@ func Unmarshal(r *request.Request) {
 
 // UnmarshalMeta unmarshals header response values for an AWS Query service.
 func UnmarshalMeta(r *request.Request) {
-	// TODO implement unmarshaling of request IDs
+	r.RequestID = r.HTTPResponse.Header.Get("X-Amzn-Requestid")
 }

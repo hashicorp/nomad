@@ -182,33 +182,6 @@ func mountCmd(cmd configs.Command) error {
 	return nil
 }
 
-func prepareBindMount(m *configs.Mount, rootfs string) error {
-	stat, err := os.Stat(m.Source)
-	if err != nil {
-		// error out if the source of a bind mount does not exist as we will be
-		// unable to bind anything to it.
-		return err
-	}
-	// ensure that the destination of the bind mount is resolved of symlinks at mount time because
-	// any previous mounts can invalidate the next mount's destination.
-	// this can happen when a user specifies mounts within other mounts to cause breakouts or other
-	// evil stuff to try to escape the container's rootfs.
-	var dest string
-	if dest, err = securejoin.SecureJoin(rootfs, m.Destination); err != nil {
-		return err
-	}
-	if err := checkMountDestination(rootfs, dest); err != nil {
-		return err
-	}
-	// update the mount with the correct dest after symlinks are resolved.
-	m.Destination = dest
-	if err := createIfNotExists(dest, stat.IsDir()); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func mountToRootfs(m *configs.Mount, rootfs, mountLabel string, enableCgroupns bool) error {
 	var (
 		dest = m.Destination
@@ -284,7 +257,25 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string, enableCgroupns b
 		}
 		return nil
 	case "bind":
-		if err := prepareBindMount(m, rootfs); err != nil {
+		stat, err := os.Stat(m.Source)
+		if err != nil {
+			// error out if the source of a bind mount does not exist as we will be
+			// unable to bind anything to it.
+			return err
+		}
+		// ensure that the destination of the bind mount is resolved of symlinks at mount time because
+		// any previous mounts can invalidate the next mount's destination.
+		// this can happen when a user specifies mounts within other mounts to cause breakouts or other
+		// evil stuff to try to escape the container's rootfs.
+		if dest, err = securejoin.SecureJoin(rootfs, m.Destination); err != nil {
+			return err
+		}
+		if err := checkMountDestination(rootfs, dest); err != nil {
+			return err
+		}
+		// update the mount with the correct dest after symlinks are resolved.
+		m.Destination = dest
+		if err := createIfNotExists(dest, stat.IsDir()); err != nil {
 			return err
 		}
 		if err := mountPropagate(m, rootfs, mountLabel); err != nil {
@@ -757,41 +748,6 @@ func pivotRoot(rootfs string) error {
 }
 
 func msMoveRoot(rootfs string) error {
-	mountinfos, err := mount.GetMounts()
-	if err != nil {
-		return err
-	}
-
-	absRootfs, err := filepath.Abs(rootfs)
-	if err != nil {
-		return err
-	}
-
-	for _, info := range mountinfos {
-		p, err := filepath.Abs(info.Mountpoint)
-		if err != nil {
-			return err
-		}
-		// Umount every syfs and proc file systems, except those under the container rootfs
-		if (info.Fstype != "proc" && info.Fstype != "sysfs") || filepath.HasPrefix(p, absRootfs) {
-			continue
-		}
-		// Be sure umount events are not propagated to the host.
-		if err := unix.Mount("", p, "", unix.MS_SLAVE|unix.MS_REC, ""); err != nil {
-			return err
-		}
-		if err := unix.Unmount(p, unix.MNT_DETACH); err != nil {
-			if err != unix.EINVAL && err != unix.EPERM {
-				return err
-			} else {
-				// If we have not privileges for umounting (e.g. rootless), then
-				// cover the path.
-				if err := unix.Mount("tmpfs", p, "tmpfs", 0, ""); err != nil {
-					return err
-				}
-			}
-		}
-	}
 	if err := unix.Mount(rootfs, "/", "", unix.MS_MOVE, ""); err != nil {
 		return err
 	}
