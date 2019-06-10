@@ -96,8 +96,7 @@
           position: absolute;
           top: 0;
           left: 0;
-          // FIXME this should be the same as the cell but it was coming out to 10.5px 🤔
-          padding: 17px 1.5em;
+          padding: calc(1.25em - 1px) 1.5em;
         }
 
         &:hover {
