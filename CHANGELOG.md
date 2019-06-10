@@ -1,5 +1,8 @@
 ## 0.9.3 (Unreleased)
 
+BUG FIXES:
+
+* core: Fixed a panic that may occur when preempting jobs for network resources [[GH-5794](https://github.com/hashicorp/nomad/issues/5794)]
 
 ## 0.9.2 (June 5, 2019)
 
