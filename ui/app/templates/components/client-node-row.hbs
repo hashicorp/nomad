@@ -8,7 +8,7 @@
 <td data-test-client-id>{{#link-to "clients.client" node.id class="is-primary"}}{{node.shortId}}{{/link-to}}</td>
 <td class="is-200px is-truncatable is-hover-overflowable" title="{{node.name}}">
   <span data-test-client-name>{{node.name}}</span>
-  <div class="show-on-hover" aria-hidden>{{node.name}}</div>
+  <div class="hover-overflow" aria-hidden>{{node.name}}</div>
 </td>
 <td data-test-client-status title={{statusTitle}}>
   {{#if node.isDraining}}

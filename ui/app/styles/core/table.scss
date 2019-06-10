@@ -91,7 +91,7 @@
       &.is-hover-overflowable {
         position: relative;
 
-        .show-on-hover {
+        .hover-overflow {
           display: none;
           position: absolute;
           top: 0;
@@ -103,7 +103,7 @@
           color: transparent;
           overflow: visible;
 
-          .show-on-hover {
+          .hover-overflow {
             color: $text;
             display: block;
             background-color: rgba(255, 255, 255, 0.9);
