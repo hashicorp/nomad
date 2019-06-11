@@ -14,6 +14,15 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
+// ParseConfigDefault returns the configuration base
+func ParseConfigDefault() *Config {
+	return &Config{
+		Consul:    config.DefaultConsulConfig(),
+		Autopilot: config.DefaultAutopilotConfig(),
+		Vault:     config.DefaultVaultConfig(),
+	}
+}
+
 func ParseConfigFile(path string) (*Config, error) {
 	// slurp
 	var buf bytes.Buffer
@@ -36,10 +45,10 @@ func ParseConfigFile(path string) (*Config, error) {
 		Client:    &ClientConfig{ServerJoin: &ServerJoin{}},
 		ACL:       &ACLConfig{},
 		Server:    &ServerConfig{ServerJoin: &ServerJoin{}},
-		Consul:    config.DefaultConsulConfig(),
-		Autopilot: config.DefaultAutopilotConfig(),
+		Consul:    &config.ConsulConfig{},
+		Autopilot: &config.AutopilotConfig{},
 		Telemetry: &Telemetry{},
-		Vault:     config.DefaultVaultConfig(),
+		Vault:     &config.VaultConfig{},
 	}
 
 	err = hcl.Decode(c, buf.String())

@@ -1090,8 +1090,14 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 	if b.TokenTTL != 0 {
 		result.TokenTTL = b.TokenTTL
 	}
+	if b.TokenTTLHCL != "" {
+		result.TokenTTLHCL = b.TokenTTLHCL
+	}
 	if b.PolicyTTL != 0 {
 		result.PolicyTTL = b.PolicyTTL
+	}
+	if b.PolicyTTLHCL != "" {
+		result.PolicyTTLHCL = b.PolicyTTLHCL
 	}
 	if b.ReplicationToken != "" {
 		result.ReplicationToken = b.ReplicationToken
@@ -1139,8 +1145,14 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.HeartbeatGrace != 0 {
 		result.HeartbeatGrace = b.HeartbeatGrace
 	}
+	if b.HeartbeatGraceHCL != "" {
+		result.HeartbeatGraceHCL = b.HeartbeatGraceHCL
+	}
 	if b.MinHeartbeatTTL != 0 {
 		result.MinHeartbeatTTL = b.MinHeartbeatTTL
+	}
+	if b.MinHeartbeatTTLHCL != "" {
+		result.MinHeartbeatTTLHCL = b.MinHeartbeatTTLHCL
 	}
 	if b.MaxHeartbeatsPerSecond != 0.0 {
 		result.MaxHeartbeatsPerSecond = b.MaxHeartbeatsPerSecond
@@ -1150,6 +1162,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.RetryInterval != 0 {
 		result.RetryInterval = b.RetryInterval
+	}
+	if b.RetryIntervalHCL != "" {
+		result.RetryIntervalHCL = b.RetryIntervalHCL
 	}
 	if b.RejoinAfterLeave {
 		result.RejoinAfterLeave = true
@@ -1231,6 +1246,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.GCInterval != 0 {
 		result.GCInterval = b.GCInterval
+	}
+	if b.GCIntervalHCL != "" {
+		result.GCIntervalHCL = b.GCIntervalHCL
 	}
 	if b.GCParallelDestroys != 0 {
 		result.GCParallelDestroys = b.GCParallelDestroys
@@ -1461,8 +1479,14 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 
+	defaults := ParseConfigDefault()
+
 	if fi.IsDir() {
-		return LoadConfigDir(path)
+		config, err := LoadConfigDir(path)
+		if err != nil {
+			return nil, err
+		}
+		return defaults.Merge(config), nil
 	}
 
 	cleaned := filepath.Clean(path)
@@ -1470,7 +1494,7 @@ func LoadConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Error loading %s: %s", cleaned, err)
 	}
-
+	config = defaults.Merge(config)
 	config.Files = append(config.Files, cleaned)
 	return config, nil
 }

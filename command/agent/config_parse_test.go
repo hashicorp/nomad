@@ -289,7 +289,7 @@ var pluginConfig = &Config{
 	Consul:                    nil,
 	Vault:                     nil,
 	TLSConfig:                 nil,
-	HTTPAPIResponseHeaders:    nil,
+	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
 	Plugins: []*config.PluginConfig{
 		{
@@ -355,7 +355,7 @@ var nonoptConfig = &Config{
 	Consul:                    nil,
 	Vault:                     nil,
 	TLSConfig:                 nil,
-	HTTPAPIResponseHeaders:    nil,
+	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
 }
 
@@ -410,6 +410,9 @@ func TestConfig_Parse(t *testing.T) {
 			if (err != nil) != tc.Err {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
 			}
+
+			// Merge defaults like LoadConfig does
+			actual = ParseConfigDefault().Merge(actual)
 
 			//panic(fmt.Sprintf("first: %+v \n second: %+v", actual.TLSConfig, tc.Result.TLSConfig))
 			require.EqualValues(tc.Result, removeHelperAttributes(actual))
@@ -548,26 +551,11 @@ var sample0 = &Config{
 		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 		ServerAutoJoin: helper.BoolToPtr(false),
 		ClientAutoJoin: helper.BoolToPtr(false),
-		// Defaults
-		ServerServiceName:   "nomad",
-		ServerHTTPCheckName: "Nomad Server HTTP Check",
-		ServerSerfCheckName: "Nomad Server Serf Check",
-		ServerRPCCheckName:  "Nomad Server RPC Check",
-		ClientServiceName:   "nomad-client",
-		ClientHTTPCheckName: "Nomad Client HTTP Check",
-		AutoAdvertise:       helper.BoolToPtr(true),
-		ChecksUseAdvertise:  helper.BoolToPtr(false),
-		Timeout:             5 * time.Second,
-		EnableSSL:           helper.BoolToPtr(false),
-		VerifySSL:           helper.BoolToPtr(true),
 	},
 	Vault: &config.VaultConfig{
 		Enabled: helper.BoolToPtr(true),
 		Role:    "nomad-cluster",
 		Addr:    "http://host.example.com:8200",
-		// Defaults
-		AllowUnauthenticated: helper.BoolToPtr(true),
-		ConnectionRetryIntv:  30 * time.Second,
 	},
 	TLSConfig: &config.TLSConfig{
 		EnableHTTP:           true,
@@ -579,15 +567,43 @@ var sample0 = &Config{
 	},
 	Autopilot: &config.AutopilotConfig{
 		CleanupDeadServers: helper.BoolToPtr(true),
-		// Defaults
-		ServerStabilizationTime: 10 * time.Second,
-		LastContactThreshold:    200 * time.Millisecond,
-		MaxTrailingLogs:         250,
 	},
 }
 
 func TestConfig_ParseSample0(t *testing.T) {
 	c, err := ParseConfigFile("./testdata/sample0.json")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.EqualValues(t, sample0, c)
+}
+
+func TestConfig_ParseDir(t *testing.T) {
+	c, err := LoadConfig("./testdata/sample1")
+	require.NoError(t, err)
+
+	// Defaults
+	sample1 := ParseConfigDefault().Merge(sample0)
+
+	// Merge makes empty maps & slices rather than nil, so set those for the expected
+	// value
+	require.Nil(t, sample1.Client.Options)
+	sample1.Client.Options = map[string]string{}
+	require.Nil(t, sample1.Client.Meta)
+	sample1.Client.Meta = map[string]string{}
+	require.Nil(t, sample1.Client.ChrootEnv)
+	sample1.Client.ChrootEnv = map[string]string{}
+	require.Nil(t, sample1.Server.StartJoin)
+	sample1.Server.StartJoin = []string{}
+
+	// This value added to the config file
+	sample1.Consul.EnableSSL = helper.BoolToPtr(true)
+
+	// LoadDir listed the config files
+	require.Nil(t, sample1.Files)
+	sample1.Files = []string{
+		"testdata/sample1/sample0.json",
+		"testdata/sample1/sample1.json",
+		"testdata/sample1/sample2.hcl",
+	}
+
+	require.EqualValues(t, sample1, c)
 }
