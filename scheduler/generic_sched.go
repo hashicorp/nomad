@@ -483,10 +483,8 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			// Set fields based on if we found an allocation option
 			if option != nil {
 				resources := &structs.AllocatedResources{
-					Tasks: option.TaskResources,
-					Shared: structs.AllocatedSharedResources{
-						DiskMB: int64(tg.EphemeralDisk.SizeMB),
-					},
+					Tasks:  option.TaskResources,
+					Shared: *option.GroupResources,
 				}
 
 				// Create an allocation for this
@@ -506,7 +504,8 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					DesiredStatus:      structs.AllocDesiredStatusRun,
 					ClientStatus:       structs.AllocClientStatusPending,
 					SharedResources: &structs.Resources{
-						DiskMB: tg.EphemeralDisk.SizeMB,
+						DiskMB:   tg.EphemeralDisk.SizeMB,
+						Networks: tg.Networks,
 					},
 				}
 
