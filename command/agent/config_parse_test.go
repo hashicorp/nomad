@@ -572,6 +572,38 @@ var sample0 = &Config{
 
 func TestConfig_ParseSample0(t *testing.T) {
 	c, err := ParseConfigFile("./testdata/sample0.json")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.EqualValues(t, sample0, c)
+}
+
+func TestConfig_ParseDir(t *testing.T) {
+	c, err := LoadConfig("./testdata/sample1")
+	require.NoError(t, err)
+
+	// Defaults
+	sample1 := ParseConfigDefault().Merge(sample0)
+
+	// Merge makes empty maps & slices rather than nil, so set those for the expected
+	// value
+	require.Nil(t, sample1.Client.Options)
+	sample1.Client.Options = map[string]string{}
+	require.Nil(t, sample1.Client.Meta)
+	sample1.Client.Meta = map[string]string{}
+	require.Nil(t, sample1.Client.ChrootEnv)
+	sample1.Client.ChrootEnv = map[string]string{}
+	require.Nil(t, sample1.Server.StartJoin)
+	sample1.Server.StartJoin = []string{}
+
+	// This value added to the config file
+	sample1.Consul.EnableSSL = helper.BoolToPtr(true)
+
+	// LoadDir listed the config files
+	require.Nil(t, sample1.Files)
+	sample1.Files = []string{
+		"testdata/sample1/sample0.json",
+		"testdata/sample1/sample1.json",
+		"testdata/sample1/sample2.hcl",
+	}
+
+	require.EqualValues(t, sample1, c)
 }
