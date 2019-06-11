@@ -118,3 +118,38 @@ func netModeToIsolationMode(netMode string) drivers.NetIsolationMode {
 		return drivers.NetIsolationModeHost
 	}
 }
+
+func getPortMapping(alloc *structs.Allocation) []*nsutil.PortMapping {
+	ports := []*nsutil.PortMapping{}
+	for _, network := range alloc.AllocatedResources.Shared.Networks {
+		for _, port := range append(network.DynamicPorts, network.ReservedPorts...) {
+			for _, proto := range []string{"tcp", "udp"} {
+				ports = append(ports, &nsutil.PortMapping{
+					Host:      port.Value,
+					Container: port.To,
+					Proto:     proto,
+				})
+			}
+		}
+	}
+	return ports
+}
+
+func ConfigureNetworking(alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
+
+	// TODO: CNI support
+	if err := nsutil.SetupBridgeNetworking(alloc.ID, spec.Path, getPortMapping(alloc)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CleanupNetworking(alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
+	if err := nsutil.TeardownBridgeNetworking(alloc.ID, spec.Path, getPortMapping(alloc)); err != nil {
+		return err
+	}
+
+	return nil
+
+}
