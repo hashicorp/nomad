@@ -434,8 +434,8 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 		if line == "" {
 			continue
 		}
-		// Skip systemd and rdma cgroups; rdma was added in most recent kernels and libcontainer/docker
-		// don't isolate them by default.
+		// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
+		// don't isolate it by default.
 		if strings.Contains(line, ":rdma:") {
 			continue
 		}
