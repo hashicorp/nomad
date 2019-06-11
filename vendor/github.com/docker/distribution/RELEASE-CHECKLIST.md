@@ -25,7 +25,7 @@ check comment and correct commit hash.
 
 50. Push the signed tag
 
-60. Create a new [release](https://github.com/docker/distribution/releases).  In the case of a release candidate, tick the `pre-release` checkbox.
+60. Create a new [release](https://github.com/docker/distribution/releases).  In the case of a release candidate, tick the `pre-release` checkbox. 
 
 70. Update the registry binary in [distribution library image repo](https://github.com/docker/distribution-library-image) by running the update script and  opening a pull request.
 
@@ -41,3 +41,4 @@ e.g. to release `2.3.1`
    `2.3 -> 2.3.1`
 
 90. Build a new distribution/registry image on [Docker hub](https://hub.docker.com/u/distribution/dashboard) by adding a new automated build with the new tag and re-building the images.
+

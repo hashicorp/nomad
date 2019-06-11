@@ -467,13 +467,13 @@ func (amw *authenticationMiddleware) Middleware(next http.Handler) http.Handler 
         token := r.Header.Get("X-Session-Token")
 
         if user, found := amw.tokenUsers[token]; found {
-		// We found the token in our map
-		log.Printf("Authenticated user %s\n", user)
-		// Pass down the request to the next middleware (or final handler)
-		next.ServeHTTP(w, r)
+        	// We found the token in our map
+        	log.Printf("Authenticated user %s\n", user)
+        	// Pass down the request to the next middleware (or final handler)
+        	next.ServeHTTP(w, r)
         } else {
-		// Write an error and stop the handler chain
-		http.Error(w, "Forbidden", http.StatusForbidden)
+        	// Write an error and stop the handler chain
+        	http.Error(w, "Forbidden", http.StatusForbidden)
         }
     })
 }
@@ -601,7 +601,7 @@ func TestMetricsHandler(t *testing.T) {
         }
 
         rr := httptest.NewRecorder()
-
+	
 	// Need to create a router that we can pass the request through so that the vars will be added to the context
 	router := mux.NewRouter()
         router.HandleFunc("/metrics/{type}", MetricsHandler)
