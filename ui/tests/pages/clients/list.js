@@ -22,8 +22,8 @@ export default create({
     id: text('[data-test-client-id]'),
     name: text('[data-test-client-name]'),
 
-    status: {
-      scope: '[data-test-client-status]',
+    state: {
+      scope: '[data-test-client-state]',
 
       title: attribute('title'),
 
@@ -56,7 +56,7 @@ export default create({
 
   facets: {
     class: facet('[data-test-class-facet]'),
-    states: facet('[data-test-state-facet]'),
+    state: facet('[data-test-state-facet]'),
     datacenter: facet('[data-test-datacenter-facet]'),
   },
 });

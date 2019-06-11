@@ -39,7 +39,7 @@ module('Acceptance | clients list', function(hooks) {
 
     assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
     assert.equal(nodeRow.name, node.name, 'Name');
-    assert.equal(nodeRow.status.text, 'draining', 'Combined status, draining, and eligbility');
+    assert.equal(nodeRow.state.text, 'draining', 'Combined status, draining, and eligbility');
     assert.equal(nodeRow.address, node.httpAddr);
     assert.equal(nodeRow.datacenter, node.datacenter, 'Datacenter');
     assert.equal(nodeRow.allocations, allocations.length, '# Allocations');
@@ -81,20 +81,20 @@ module('Acceptance | clients list', function(hooks) {
 
     await ClientsList.visit();
 
-    ClientsList.nodes[0].status.as(readyClient => {
+    ClientsList.nodes[0].state.as(readyClient => {
       assert.equal(readyClient.text, 'ready');
       assert.ok(readyClient.isUnformatted, 'expected no status class');
       assert.equal(readyClient.title, 'status: ready\ndraining: false\neligible: true');
     });
 
-    assert.equal(ClientsList.nodes[1].status.text, 'initializing');
-    assert.equal(ClientsList.nodes[2].status.text, 'down');
+    assert.equal(ClientsList.nodes[1].state.text, 'initializing');
+    assert.equal(ClientsList.nodes[2].state.text, 'down');
 
-    assert.equal(ClientsList.nodes[3].status.text, 'ineligible');
-    assert.ok(ClientsList.nodes[3].status.isWarning, 'expected warning class');
+    assert.equal(ClientsList.nodes[3].state.text, 'ineligible');
+    assert.ok(ClientsList.nodes[3].state.isWarning, 'expected warning class');
 
-    assert.equal(ClientsList.nodes[4].status.text, 'draining');
-    assert.ok(ClientsList.nodes[4].status.isInfo, 'expected info class');
+    assert.equal(ClientsList.nodes[4].state.text, 'draining');
+    assert.ok(ClientsList.nodes[4].state.isInfo, 'expected info class');
   });
 
   test('each client should link to the client detail page', async function(assert) {
@@ -159,9 +159,9 @@ module('Acceptance | clients list', function(hooks) {
     filter: (node, selection) => selection.includes(node.nodeClass),
   });
 
-  testFacet('Status', {
-    facet: ClientsList.facets.status,
-    paramName: 'status',
+  testFacet('State', {
+    facet: ClientsList.facets.state,
+    paramName: 'state',
     expectedOptions: ['Initializing', 'Ready', 'Down', 'Ineligible', 'Draining'],
     async beforeEach() {
       server.create('agent');
@@ -207,8 +207,8 @@ module('Acceptance | clients list', function(hooks) {
 
     await ClientsList.visit();
 
-    await ClientsList.facets.status.toggle();
-    await ClientsList.facets.status.options.objectAt(0).toggle();
+    await ClientsList.facets.state.toggle();
+    await ClientsList.facets.state.options.objectAt(0).toggle();
     assert.ok(ClientsList.isEmpty, 'There is an empty message');
     assert.equal(ClientsList.empty.headline, 'No Matches', 'The message is appropriate');
   });
