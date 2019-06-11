@@ -72,11 +72,9 @@ module('Acceptance | clients list', function(hooks) {
       schedulingEligibility: 'ineligible',
       drain: false,
     });
-    server.create('node', {
+    server.create('node', 'draining', {
       modifyIndex: 0,
       status: 'ready',
-      schedulingEligibility: 'ineligible',
-      drain: true,
     });
 
     await ClientsList.visit();
