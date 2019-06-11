@@ -88,8 +88,6 @@
       white-space: nowrap;
 
       &.is-revealable {
-        position: relative;
-
         .revealed {
           display: none;
           position: absolute;
@@ -100,6 +98,8 @@
         }
 
         &:hover {
+          position: relative;
+
           color: transparent;
           overflow: visible;
 
