@@ -107,8 +107,21 @@
             color: $text;
             display: block;
             background-color: $white;
+            z-index: $z-zero;
 
             $shadow-width: 8px;
+
+            &::before {
+              content: ' ';
+
+              position: absolute;
+              top: 0;
+              bottom: 0;
+              left: 0;
+              background: white;
+              z-index: $z-below;
+              width: 300px;
+            }
 
             &::after {
               content: ' ';
@@ -119,6 +132,7 @@
               right: -$shadow-width;
 
               display: inline-block;
+              z-index: $z-below-below;
 
               background: linear-gradient(
                 to right,
