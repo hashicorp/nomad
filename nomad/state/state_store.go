@@ -236,18 +236,18 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 		return err
 	}
 
-	allocsStopped, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsStopped, results.Job)
+	allocsStopped, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsStopped)
 	if err != nil {
 		return err
 	}
 
-	allocsPreempted, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsPreempted, results.Job)
+	allocsPreempted, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsPreempted)
 	if err != nil {
 		return err
 	}
 
 	// COMPAT 0.11: Remove this denormalization when NodePreemptions is removed
-	results.NodePreemptions, err = snapshot.DenormalizeAllocationSlice(results.NodePreemptions, results.Job)
+	results.NodePreemptions, err = snapshot.DenormalizeAllocationSlice(results.NodePreemptions)
 	if err != nil {
 		return err
 	}
@@ -738,7 +738,7 @@ func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 }
 
 // UpdateNodeStatus is used to update the status of a node
-func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string, event *structs.NodeEvent) error {
+func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string, updatedAt int64, event *structs.NodeEvent) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -754,6 +754,7 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string, event
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
 	copyNode := existingNode.Copy()
+	copyNode.StatusUpdatedAt = updatedAt
 
 	// Add the event if given
 	if event != nil {
@@ -777,11 +778,11 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string, event
 }
 
 // BatchUpdateNodeDrain is used to update the drain of a node set of nodes
-func (s *StateStore) BatchUpdateNodeDrain(index uint64, updates map[string]*structs.DrainUpdate, events map[string]*structs.NodeEvent) error {
+func (s *StateStore) BatchUpdateNodeDrain(index uint64, updatedAt int64, updates map[string]*structs.DrainUpdate, events map[string]*structs.NodeEvent) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 	for node, update := range updates {
-		if err := s.updateNodeDrainImpl(txn, index, node, update.DrainStrategy, update.MarkEligible, events[node]); err != nil {
+		if err := s.updateNodeDrainImpl(txn, index, node, update.DrainStrategy, update.MarkEligible, updatedAt, events[node]); err != nil {
 			return err
 		}
 	}
@@ -791,11 +792,11 @@ func (s *StateStore) BatchUpdateNodeDrain(index uint64, updates map[string]*stru
 
 // UpdateNodeDrain is used to update the drain of a node
 func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
-	drain *structs.DrainStrategy, markEligible bool, event *structs.NodeEvent) error {
+	drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
 
 	txn := s.db.Txn(true)
 	defer txn.Abort()
-	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, event); err != nil {
+	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, updatedAt, event); err != nil {
 		return err
 	}
 	txn.Commit()
@@ -803,7 +804,7 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
 }
 
 func (s *StateStore) updateNodeDrainImpl(txn *memdb.Txn, index uint64, nodeID string,
-	drain *structs.DrainStrategy, markEligible bool, event *structs.NodeEvent) error {
+	drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
 
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
@@ -817,6 +818,7 @@ func (s *StateStore) updateNodeDrainImpl(txn *memdb.Txn, index uint64, nodeID st
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
 	copyNode := existingNode.Copy()
+	copyNode.StatusUpdatedAt = updatedAt
 
 	// Add the event if given
 	if event != nil {
@@ -846,7 +848,7 @@ func (s *StateStore) updateNodeDrainImpl(txn *memdb.Txn, index uint64, nodeID st
 }
 
 // UpdateNodeEligibility is used to update the scheduling eligibility of a node
-func (s *StateStore) UpdateNodeEligibility(index uint64, nodeID string, eligibility string, event *structs.NodeEvent) error {
+func (s *StateStore) UpdateNodeEligibility(index uint64, nodeID string, eligibility string, updatedAt int64, event *structs.NodeEvent) error {
 
 	txn := s.db.Txn(true)
 	defer txn.Abort()
@@ -863,6 +865,7 @@ func (s *StateStore) UpdateNodeEligibility(index uint64, nodeID string, eligibil
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
 	copyNode := existingNode.Copy()
+	copyNode.StatusUpdatedAt = updatedAt
 
 	// Add the event if given
 	if event != nil {
@@ -4195,9 +4198,9 @@ type StateSnapshot struct {
 // DenormalizeAllocationsMap takes in a map of nodes to allocations, and queries the
 // Allocation for each of the Allocation diffs and merges the updated attributes with
 // the existing Allocation, and attaches the Job provided
-func (s *StateSnapshot) DenormalizeAllocationsMap(nodeAllocations map[string][]*structs.Allocation, job *structs.Job) error {
+func (s *StateSnapshot) DenormalizeAllocationsMap(nodeAllocations map[string][]*structs.Allocation) error {
 	for nodeID, allocs := range nodeAllocations {
-		denormalizedAllocs, err := s.DenormalizeAllocationSlice(allocs, job)
+		denormalizedAllocs, err := s.DenormalizeAllocationSlice(allocs)
 		if err != nil {
 			return err
 		}
@@ -4210,18 +4213,18 @@ func (s *StateSnapshot) DenormalizeAllocationsMap(nodeAllocations map[string][]*
 // DenormalizeAllocationSlice queries the Allocation for each allocation diff
 // represented as an Allocation and merges the updated attributes with the existing
 // Allocation, and attaches the Job provided.
-func (s *StateSnapshot) DenormalizeAllocationSlice(allocs []*structs.Allocation, job *structs.Job) ([]*structs.Allocation, error) {
+func (s *StateSnapshot) DenormalizeAllocationSlice(allocs []*structs.Allocation) ([]*structs.Allocation, error) {
 	allocDiffs := make([]*structs.AllocationDiff, len(allocs))
 	for i, alloc := range allocs {
 		allocDiffs[i] = alloc.AllocationDiff()
 	}
 
-	return s.DenormalizeAllocationDiffSlice(allocDiffs, job)
+	return s.DenormalizeAllocationDiffSlice(allocDiffs)
 }
 
 // DenormalizeAllocationDiffSlice queries the Allocation for each AllocationDiff and merges
 // the updated attributes with the existing Allocation, and attaches the Job provided
-func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.AllocationDiff, planJob *structs.Job) ([]*structs.Allocation, error) {
+func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.AllocationDiff) ([]*structs.Allocation, error) {
 	// Output index for denormalized Allocations
 	j := 0
 
@@ -4236,17 +4239,15 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 		}
 
 		// Merge the updates to the Allocation
-		allocCopy := alloc.CopySkipJob()
+		allocCopy := alloc.Copy()
 
 		if allocDiff.PreemptedByAllocation != "" {
 			// If alloc is a preemption set the job from the alloc read from the state store
-			allocCopy.Job = alloc.Job.Copy()
 			allocCopy.PreemptedByAllocation = allocDiff.PreemptedByAllocation
 			allocCopy.DesiredDescription = getPreemptedAllocDesiredDescription(allocDiff.PreemptedByAllocation)
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusEvict
 		} else {
 			// If alloc is a stopped alloc
-			allocCopy.Job = planJob
 			allocCopy.DesiredDescription = allocDiff.DesiredDescription
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusStop
 			if allocDiff.ClientStatus != "" {

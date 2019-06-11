@@ -93,7 +93,7 @@ job "docs" {
   last stable job on deployment failure. A job is marked as stable if all the
   allocations as part of its deployment were marked healthy.
 
-- `auto_promote` <sup>0.9.2</sup> `(bool: false)` - Specifies if the job should auto-promote to the
+- `auto_promote` `(bool: false)` - Specifies if the job should auto-promote to the
   canary version when all canaries become healthy during a deployment. Defaults to
   false which means canaries must be manually updated with the `nomad deployment promote`
   command.

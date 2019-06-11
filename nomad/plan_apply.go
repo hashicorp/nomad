@@ -339,12 +339,12 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 	defer metrics.MeasureSince([]string{"nomad", "plan", "evaluate"}, time.Now())
 
 	// Denormalize without the job
-	err := snap.DenormalizeAllocationsMap(plan.NodeUpdate, nil)
+	err := snap.DenormalizeAllocationsMap(plan.NodeUpdate)
 	if err != nil {
 		return nil, err
 	}
 	// Denormalize without the job
-	err = snap.DenormalizeAllocationsMap(plan.NodePreemptions, nil)
+	err = snap.DenormalizeAllocationsMap(plan.NodePreemptions)
 	if err != nil {
 		return nil, err
 	}

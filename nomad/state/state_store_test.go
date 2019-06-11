@@ -144,6 +144,7 @@ func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing
 // This test checks that:
 // 1) The job is denormalized
 // 2) Allocations are denormalized and updated with the diff
+// That stopped allocs Job is unmodified
 func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -168,6 +169,12 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	require.NoError(state.UpsertAllocs(900, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
 	require.NoError(state.UpsertJob(999, job))
 
+	// modify job and ensure that stopped and preempted alloc point to original Job
+	mJob := job.Copy()
+	mJob.TaskGroups[0].Name = "other"
+
+	require.NoError(state.UpsertJob(1001, mJob))
+
 	eval := mock.Eval()
 	eval.JobID = job.ID
 
@@ -179,7 +186,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 		AllocUpdateRequest: structs.AllocUpdateRequest{
 			AllocsUpdated: []*structs.Allocation{alloc},
 			AllocsStopped: []*structs.AllocationDiff{stoppedAllocDiff},
-			Job:           job,
+			Job:           mJob,
 		},
 		EvalID:          eval.ID,
 		AllocsPreempted: []*structs.AllocationDiff{preemptedAllocDiff},
@@ -194,6 +201,11 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	require.NoError(err)
 	assert.Equal(alloc, out)
 
+	outJob, err := state.JobByID(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.Equal(mJob.TaskGroups, outJob.TaskGroups)
+	require.NotEmpty(job.TaskGroups, outJob.TaskGroups)
+
 	updatedStoppedAlloc, err := state.AllocByID(ws, stoppedAlloc.ID)
 	require.NoError(err)
 	assert.Equal(stoppedAllocDiff.DesiredDescription, updatedStoppedAlloc.DesiredDescription)
@@ -201,6 +213,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	assert.Equal(stoppedAllocDiff.ClientStatus, updatedStoppedAlloc.ClientStatus)
 	assert.Equal(planModifyIndex, updatedStoppedAlloc.AllocModifyIndex)
 	assert.Equal(planModifyIndex, updatedStoppedAlloc.AllocModifyIndex)
+	assert.Equal(job.TaskGroups, updatedStoppedAlloc.Job.TaskGroups)
 
 	updatedPreemptedAlloc, err := state.AllocByID(ws, preemptedAlloc.ID)
 	require.NoError(err)
@@ -208,6 +221,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	assert.Equal(preemptedAllocDiff.PreemptedByAllocation, updatedPreemptedAlloc.PreemptedByAllocation)
 	assert.Equal(planModifyIndex, updatedPreemptedAlloc.AllocModifyIndex)
 	assert.Equal(planModifyIndex, updatedPreemptedAlloc.AllocModifyIndex)
+	assert.Equal(job.TaskGroups, updatedPreemptedAlloc.Job.TaskGroups)
 
 	index, err := state.Index("allocs")
 	require.NoError(err)
@@ -219,6 +233,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(evalOut)
 	assert.EqualValues(planModifyIndex, evalOut.ModifyIndex)
+
 }
 
 // This test checks that the deployment is created and allocations count towards
@@ -857,7 +872,7 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	require.NoError(state.UpdateNodeStatus(801, node.ID, structs.NodeStatusReady, event))
+	require.NoError(state.UpdateNodeStatus(801, node.ID, structs.NodeStatusReady, 70, event))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -865,6 +880,7 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	require.NoError(err)
 	require.Equal(structs.NodeStatusReady, out.Status)
 	require.EqualValues(801, out.ModifyIndex)
+	require.EqualValues(70, out.StatusUpdatedAt)
 	require.Len(out.Events, 2)
 	require.Equal(event.Message, out.Events[1].Message)
 
@@ -912,7 +928,7 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 		n2.ID: event,
 	}
 
-	require.Nil(state.BatchUpdateNodeDrain(1002, update, events))
+	require.Nil(state.BatchUpdateNodeDrain(1002, 7, update, events))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -924,6 +940,7 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 		require.Equal(out.DrainStrategy, expectedDrain)
 		require.Len(out.Events, 2)
 		require.EqualValues(1002, out.ModifyIndex)
+		require.EqualValues(7, out.StatusUpdatedAt)
 	}
 
 	index, err := state.Index("nodes")
@@ -955,7 +972,7 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 		Subsystem: structs.NodeEventSubsystemDrain,
 		Timestamp: time.Now(),
 	}
-	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain, false, event))
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain, false, 7, event))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -966,6 +983,7 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 	require.Equal(out.DrainStrategy, expectedDrain)
 	require.Len(out.Events, 2)
 	require.EqualValues(1001, out.ModifyIndex)
+	require.EqualValues(7, out.StatusUpdatedAt)
 
 	index, err := state.Index("nodes")
 	require.Nil(err)
@@ -1084,7 +1102,7 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 		Subsystem: structs.NodeEventSubsystemDrain,
 		Timestamp: time.Now(),
 	}
-	require.Nil(state.UpdateNodeDrain(1001, node.ID, drain, false, event1))
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, drain, false, 7, event1))
 	require.True(watchFired(ws))
 
 	// Remove the drain
@@ -1093,7 +1111,7 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 		Subsystem: structs.NodeEventSubsystemDrain,
 		Timestamp: time.Now(),
 	}
-	require.Nil(state.UpdateNodeDrain(1002, node.ID, nil, true, event2))
+	require.Nil(state.UpdateNodeDrain(1002, node.ID, nil, true, 9, event2))
 
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
@@ -1103,6 +1121,7 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 	require.Equal(out.SchedulingEligibility, structs.NodeSchedulingEligible)
 	require.Len(out.Events, 3)
 	require.EqualValues(1002, out.ModifyIndex)
+	require.EqualValues(9, out.StatusUpdatedAt)
 
 	index, err := state.Index("nodes")
 	require.Nil(err)
@@ -1133,7 +1152,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 		Subsystem: structs.NodeEventSubsystemCluster,
 		Timestamp: time.Now(),
 	}
-	require.Nil(state.UpdateNodeEligibility(1001, node.ID, expectedEligibility, event))
+	require.Nil(state.UpdateNodeEligibility(1001, node.ID, expectedEligibility, 7, event))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -1143,6 +1162,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 	require.Len(out.Events, 2)
 	require.Equal(out.Events[1], event)
 	require.EqualValues(1001, out.ModifyIndex)
+	require.EqualValues(7, out.StatusUpdatedAt)
 
 	index, err := state.Index("nodes")
 	require.Nil(err)
@@ -1155,10 +1175,10 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 			Deadline: -1 * time.Second,
 		},
 	}
-	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain, false, nil))
+	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain, false, 7, nil))
 
 	// Try to set the node to eligible
-	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible, nil)
+	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible, 9, nil)
 	require.NotNil(err)
 	require.Contains(err.Error(), "while it is draining")
 }
@@ -7112,7 +7132,7 @@ func TestStateSnapshot_DenormalizeAllocationDiffSlice_AllocDoesNotExist(t *testi
 	snap, err := state.Snapshot()
 	require.NoError(err)
 
-	denormalizedAllocs, err := snap.DenormalizeAllocationDiffSlice(allocDiffs, alloc.Job)
+	denormalizedAllocs, err := snap.DenormalizeAllocationDiffSlice(allocDiffs)
 
 	require.EqualError(err, fmt.Sprintf("alloc %v doesn't exist", alloc.ID))
 	require.Nil(denormalizedAllocs)
