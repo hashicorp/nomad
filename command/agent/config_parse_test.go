@@ -289,7 +289,7 @@ var pluginConfig = &Config{
 	Consul:                    nil,
 	Vault:                     nil,
 	TLSConfig:                 nil,
-	HTTPAPIResponseHeaders:    nil,
+	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
 	Plugins: []*config.PluginConfig{
 		{
@@ -355,7 +355,7 @@ var nonoptConfig = &Config{
 	Consul:                    nil,
 	Vault:                     nil,
 	TLSConfig:                 nil,
-	HTTPAPIResponseHeaders:    nil,
+	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
 }
 
@@ -410,6 +410,9 @@ func TestConfig_Parse(t *testing.T) {
 			if (err != nil) != tc.Err {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
 			}
+
+			// Merge defaults like LoadConfig does
+			actual = ParseConfigDefault().Merge(actual)
 
 			//panic(fmt.Sprintf("first: %+v \n second: %+v", actual.TLSConfig, tc.Result.TLSConfig))
 			require.EqualValues(tc.Result, removeHelperAttributes(actual))
@@ -548,26 +551,11 @@ var sample0 = &Config{
 		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 		ServerAutoJoin: helper.BoolToPtr(false),
 		ClientAutoJoin: helper.BoolToPtr(false),
-		// Defaults
-		ServerServiceName:   "nomad",
-		ServerHTTPCheckName: "Nomad Server HTTP Check",
-		ServerSerfCheckName: "Nomad Server Serf Check",
-		ServerRPCCheckName:  "Nomad Server RPC Check",
-		ClientServiceName:   "nomad-client",
-		ClientHTTPCheckName: "Nomad Client HTTP Check",
-		AutoAdvertise:       helper.BoolToPtr(true),
-		ChecksUseAdvertise:  helper.BoolToPtr(false),
-		Timeout:             5 * time.Second,
-		EnableSSL:           helper.BoolToPtr(false),
-		VerifySSL:           helper.BoolToPtr(true),
 	},
 	Vault: &config.VaultConfig{
 		Enabled: helper.BoolToPtr(true),
 		Role:    "nomad-cluster",
 		Addr:    "http://host.example.com:8200",
-		// Defaults
-		AllowUnauthenticated: helper.BoolToPtr(true),
-		ConnectionRetryIntv:  30 * time.Second,
 	},
 	TLSConfig: &config.TLSConfig{
 		EnableHTTP:           true,
@@ -579,10 +567,6 @@ var sample0 = &Config{
 	},
 	Autopilot: &config.AutopilotConfig{
 		CleanupDeadServers: helper.BoolToPtr(true),
-		// Defaults
-		ServerStabilizationTime: 10 * time.Second,
-		LastContactThreshold:    200 * time.Millisecond,
-		MaxTrailingLogs:         250,
 	},
 }
 
