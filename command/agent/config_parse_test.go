@@ -478,12 +478,10 @@ func TestConfig_ParsePanic(t *testing.T) {
 // structure should not be unexpected
 func TestConfig_ParseSliceExtra(t *testing.T) {
 	c, err := ParseConfigFile("./testdata/config-slices.json")
-	if err != nil {
-		t.Fatalf("parse error: %s\n", err)
-	}
+	require.NoError(t, err)
 
 	opt := map[string]string{"o0": "foo", "o1": "bar"}
-	meta := map[string]string{"m0": "foo", "m1": "bar"}
+	meta := map[string]string{"m0": "foo", "m1": "bar", "m2": "true", "m3": "1.2"}
 	env := map[string]string{"e0": "baz"}
 	srv := []string{"foo", "bar"}
 
@@ -497,9 +495,7 @@ func TestConfig_ParseSliceExtra(t *testing.T) {
 
 	// the alt format is also accepted by hcl as valid config data
 	c, err = ParseConfigFile("./testdata/config-slices-alt.json")
-	if err != nil {
-		t.Fatalf("parse error: %s\n", err)
-	}
+	require.NoError(t, err)
 
 	require.EqualValues(t, opt, c.Client.Options)
 	require.EqualValues(t, meta, c.Client.Meta)
@@ -511,9 +507,7 @@ func TestConfig_ParseSliceExtra(t *testing.T) {
 
 	// small files keep more extra keys than large ones
 	_, err = ParseConfigFile("./testdata/obj-len-one-server.json")
-	if err != nil {
-		t.Fatalf("parse error: %s\n", err)
-	}
+	require.NoError(t, err)
 }
 
 var sample0 = &Config{
