@@ -50,6 +50,11 @@ func (h *networkHook) Name() string {
 }
 
 func (h *networkHook) Prerun() error {
+	if h.manager == nil {
+		h.logger.Trace("shared network namespaces are not supported on this platform, skipping network hook")
+		return nil
+	}
+
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
 	if len(tg.Networks) == 0 || tg.Networks[0].Mode == "host" || tg.Networks[0].Mode == "" {
 		return nil

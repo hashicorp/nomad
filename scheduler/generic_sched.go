@@ -483,10 +483,8 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			// Set fields based on if we found an allocation option
 			if option != nil {
 				resources := &structs.AllocatedResources{
-					Tasks: option.TaskResources,
-					Shared: structs.AllocatedSharedResources{
-						DiskMB: int64(tg.EphemeralDisk.SizeMB),
-					},
+					Tasks:  option.TaskResources,
+					Shared: *option.AllocResources,
 				}
 				if option.AllocResources != nil {
 					resources.Shared.Networks = option.AllocResources.Networks
