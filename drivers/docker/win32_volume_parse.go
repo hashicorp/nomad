@@ -2,10 +2,11 @@ package docker
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // This code is taken from github.com/docker/volume/mounts/windows_parser.go
