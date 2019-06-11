@@ -144,9 +144,9 @@
 
     // Only use px modifiers when text needs to be truncated.
     // In this and only this scenario are percentages not effective.
-    &.is-200px {
-      width: 200px;
-      max-width: 200px;
+    &.is-300px {
+      width: 300px;
+      max-width: 300px;
     }
 
     @for $i from 1 through 11 {
