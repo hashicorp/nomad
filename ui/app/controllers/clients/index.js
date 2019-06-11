@@ -84,7 +84,7 @@ export default Controller.extend(Sortable, Searchable, {
       const onlyIneligible = states.includes('ineligible');
       const onlyDraining = states.includes('draining');
 
-      // “flags” were formerly a separate filter, now combined with statuses
+      // states is a composite of node status and other node states
       const statuses = states.without('ineligible').without('draining');
 
       return this.nodes.filter(node => {
