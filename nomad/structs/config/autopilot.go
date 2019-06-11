@@ -61,8 +61,14 @@ func (a *AutopilotConfig) Merge(b *AutopilotConfig) *AutopilotConfig {
 	if b.ServerStabilizationTime != 0 {
 		result.ServerStabilizationTime = b.ServerStabilizationTime
 	}
+	if b.ServerStabilizationTimeHCL != "" {
+		result.ServerStabilizationTimeHCL = b.ServerStabilizationTimeHCL
+	}
 	if b.LastContactThreshold != 0 {
 		result.LastContactThreshold = b.LastContactThreshold
+	}
+	if b.LastContactThresholdHCL != "" {
+		result.LastContactThresholdHCL = b.LastContactThresholdHCL
 	}
 	if b.MaxTrailingLogs != 0 {
 		result.MaxTrailingLogs = b.MaxTrailingLogs

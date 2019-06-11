@@ -145,6 +145,9 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.Timeout != 0 {
 		result.Timeout = b.Timeout
 	}
+	if b.TimeoutHCL != "" {
+		result.TimeoutHCL = b.TimeoutHCL
+	}
 	if b.Token != "" {
 		result.Token = b.Token
 	}
