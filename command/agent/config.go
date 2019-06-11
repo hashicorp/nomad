@@ -1461,8 +1461,14 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 
+	defaults := ParseConfigDefault()
+
 	if fi.IsDir() {
-		return LoadConfigDir(path)
+		config, err := LoadConfigDir(path)
+		if err != nil {
+			return nil, err
+		}
+		return defaults.Merge(config), nil
 	}
 
 	cleaned := filepath.Clean(path)
@@ -1470,7 +1476,7 @@ func LoadConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Error loading %s: %s", cleaned, err)
 	}
-
+	config = defaults.Merge(config)
 	config.Files = append(config.Files, cleaned)
 	return config, nil
 }
