@@ -347,6 +347,7 @@ type NodeUpdateStatusRequest struct {
 	NodeID    string
 	Status    string
 	NodeEvent *NodeEvent
+	UpdatedAt int64
 	WriteRequest
 }
 
@@ -367,6 +368,9 @@ type NodeUpdateDrainRequest struct {
 	// NodeEvent is the event added to the node
 	NodeEvent *NodeEvent
 
+	// UpdatedAt represents server time of receiving request
+	UpdatedAt int64
+
 	WriteRequest
 }
 
@@ -378,6 +382,9 @@ type BatchNodeUpdateDrainRequest struct {
 
 	// NodeEvents is a mapping of the node to the event to add to the node
 	NodeEvents map[string]*NodeEvent
+
+	// UpdatedAt represents server time of receiving request
+	UpdatedAt int64
 
 	WriteRequest
 }
@@ -398,6 +405,9 @@ type NodeUpdateEligibilityRequest struct {
 
 	// NodeEvent is the event added to the node
 	NodeEvent *NodeEvent
+
+	// UpdatedAt represents server time of receiving request
+	UpdatedAt int64
 
 	WriteRequest
 }

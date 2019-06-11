@@ -297,13 +297,19 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 			continue
 		}
 
+		allocResources := p.allocDetails[alloc.ID].resources
+		networks := allocResources.Flattened.Networks
+		if len(networks) == 0 {
+			continue
+		}
+
+		// We only check first network - TODO: why?!?!
+		net := networks[0]
+
 		// Filter out alloc that's ineligible due to priority
 		if p.jobPriority-alloc.Job.Priority < 10 {
 			// Populate any reserved ports used by
 			// this allocation that cannot be preempted
-			allocResources := p.allocDetails[alloc.ID].resources
-			networks := allocResources.Flattened.Networks
-			net := networks[0]
 			for _, port := range net.ReservedPorts {
 				portMap, ok := filteredReservedPorts[net.Device]
 				if !ok {
@@ -314,16 +320,12 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 			}
 			continue
 		}
-		allocResources := p.allocDetails[alloc.ID].resources
-		networks := allocResources.Flattened.Networks
 
 		// Only include if the alloc has a network device
-		if len(networks) > 0 {
-			device := networks[0].Device
-			allocsForDevice := deviceToAllocs[device]
-			allocsForDevice = append(allocsForDevice, alloc)
-			deviceToAllocs[device] = allocsForDevice
-		}
+		device := networks[0].Device
+		allocsForDevice := deviceToAllocs[device]
+		allocsForDevice = append(allocsForDevice, alloc)
+		deviceToAllocs[device] = allocsForDevice
 	}
 
 	// If no existing allocations use network resources, return early

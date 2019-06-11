@@ -568,7 +568,7 @@ $ curl \
 
         Depending on the type the event will have applicable annotations.
 
-## Stop Allocation <sup>0.9.2</sup>
+## Stop Allocation
 
 This endpoint stops and reschedules a specific allocation.
 
@@ -606,7 +606,7 @@ $ curl -X POST \
 }
 ```
 
-## Signal Allocation <sup>0.9.2</sup>
+## Signal Allocation
 
 This endpoint sends a signal to an allocation or task.
 

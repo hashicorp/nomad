@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,8 +35,9 @@ type MockTaskHooks struct {
 	Restarts  int
 	RestartCh chan struct{}
 
-	Signals  []string
-	SignalCh chan struct{}
+	Signals    []string
+	SignalCh   chan struct{}
+	signalLock sync.Mutex
 
 	// SignalError is returned when Signal is called on the mock hook
 	SignalError error
@@ -68,7 +70,9 @@ func (m *MockTaskHooks) Restart(ctx context.Context, event *structs.TaskEvent, f
 }
 
 func (m *MockTaskHooks) Signal(event *structs.TaskEvent, s string) error {
+	m.signalLock.Lock()
 	m.Signals = append(m.Signals, s)
+	m.signalLock.Unlock()
 	select {
 	case m.SignalCh <- struct{}{}:
 	default:
@@ -837,7 +841,10 @@ OUTER:
 		case <-harness.mockHooks.RestartCh:
 			t.Fatalf("Restart with signal policy: %+v", harness.mockHooks)
 		case <-harness.mockHooks.SignalCh:
-			if len(harness.mockHooks.Signals) != 2 {
+			harness.mockHooks.signalLock.Lock()
+			s := harness.mockHooks.Signals
+			harness.mockHooks.signalLock.Unlock()
+			if len(s) != 2 {
 				continue
 			}
 			break OUTER

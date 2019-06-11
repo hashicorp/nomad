@@ -1,3 +1,14 @@
+## 0.9.3 (Unreleased)
+
+BUG FIXES:
+
+* core: Fixed a panic that occurs if a job is updated with new task groups [[GH-5805](https://github.com/hashicorp/nomad/issues/5805)]
+* core: Update node's `StatusUpdatedAt` when node drain or eligibility changes [[GH-5746](https://github.com/hashicorp/nomad/issues/5746)]
+* core: Fixed a panic that may occur when preempting jobs for network resources [[GH-5794](https://github.com/hashicorp/nomad/issues/5794)]
+* core: Fixed a config parsing issue when client metadata contains a boolean value [[GH-5802](https://github.com/hashicorp/nomad/issues/5802)]
+* client: Fixed an issue where task restart attempts is not honored properly [[GH-5737](https://github.com/hashicorp/nomad/issues/5737)]
+* client: Fixed a panic that occurs when a 0.9.2 client is running with 0.8 nomad servers [[GH-5810](https://github.com/hashicorp/nomad/issues/5810)]
+
 ## 0.9.2 (June 5, 2019)
 
 SECURITY:
