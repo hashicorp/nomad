@@ -152,10 +152,10 @@
                 z-index: $z-below-below;
 
                 background: linear-gradient(
-                  to right,
+                  90deg,
                   $grey-blue 0%,
-                  rgba($grey-blue, 184) 20%,
-                  rgba(0, 0, 0, 0) 100%
+                  rgba($grey-blue, 0.72) 10%,
+                  rgba($white, 0) 100%
                 );
               }
             }
