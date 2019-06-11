@@ -1,11 +1,11 @@
 package docker
 
 import (
-    "fmt"
-    "regexp"
-    "os"
-    "strings"
-    "github.com/pkg/errors"
+	"fmt"
+	"github.com/pkg/errors"
+	"os"
+	"regexp"
+	"strings"
 )
 
 // This code is taken from github.com/docker/volume/mounts/windows_parser.go
@@ -70,7 +70,6 @@ const (
 	//    -  Colon is not in the capture group
 	rxMode = `(:(?P<mode>(?i)ro|rw))?`
 )
-
 
 func errInvalidSpec(spec string) error {
 	return errors.Errorf("invalid volume specification: '%s'", spec)
@@ -149,4 +148,3 @@ func windowsSplitRawSpec(raw, destRegex string) ([]string, error) {
 	}
 	return split, nil
 }
-
