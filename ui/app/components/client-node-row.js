@@ -13,7 +13,7 @@ export default Component.extend(WithVisibilityDetection, {
 
   node: null,
 
-  statusTitle: computed('node.status', 'node.isDraining', 'node.isEligible', function() {
+  stateTitle: computed('node.status', 'node.isDraining', 'node.isEligible', function() {
     const node = this.node;
     return `status: ${node.status}\ndraining: ${node.isDraining}\neligible: ${node.isEligible}`;
   }),

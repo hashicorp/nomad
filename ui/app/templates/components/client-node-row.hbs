@@ -10,7 +10,7 @@
   <span data-test-client-name>{{node.name}}</span>
   <div class="revealed" aria-hidden>{{node.name}}</div>
 </td>
-<td data-test-client-status title={{statusTitle}}>
+<td data-test-client-state title={{stateTitle}}>
   {{#if node.isDraining}}
     <span class="status-text is-info">draining</span>
   {{else if (not node.isEligible)}}

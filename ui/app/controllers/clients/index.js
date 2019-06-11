@@ -19,7 +19,7 @@ export default Controller.extend(Sortable, Searchable, {
     sortProperty: 'sort',
     sortDescending: 'desc',
     qpClass: 'class',
-    qpStatus: 'status',
+    qpState: 'state',
     qpDatacenter: 'dc',
   },
 
@@ -32,11 +32,11 @@ export default Controller.extend(Sortable, Searchable, {
   searchProps: computed(() => ['id', 'name', 'datacenter']),
 
   qpClass: '',
-  qpStatus: '',
+  qpState: '',
   qpDatacenter: '',
 
   selectionClass: selection('qpClass'),
-  selectionStatus: selection('qpStatus'),
+  selectionState: selection('qpState'),
   selectionDatacenter: selection('qpDatacenter'),
 
   optionsClass: computed('nodes.[]', function() {
@@ -50,7 +50,7 @@ export default Controller.extend(Sortable, Searchable, {
     return classes.sort().map(dc => ({ key: dc, label: dc }));
   }),
 
-  optionsStatus: computed(() => [
+  optionsState: computed(() => [
     { key: 'initializing', label: 'Initializing' },
     { key: 'ready', label: 'Ready' },
     { key: 'down', label: 'Down' },
@@ -72,24 +72,24 @@ export default Controller.extend(Sortable, Searchable, {
   filteredNodes: computed(
     'nodes.[]',
     'selectionClass',
-    'selectionStatus',
+    'selectionState',
     'selectionDatacenter',
     function() {
       const {
         selectionClass: classes,
-        selectionStatus: statuses,
+        selectionState: states,
         selectionDatacenter: datacenters,
       } = this;
 
-      const onlyIneligible = statuses.includes('ineligible');
-      const onlyDraining = statuses.includes('draining');
+      const onlyIneligible = states.includes('ineligible');
+      const onlyDraining = states.includes('draining');
 
       // “flags” were formerly a separate filter, now combined with statuses
-      const trueStatuses = statuses.without('ineligible').without('draining');
+      const statuses = states.without('ineligible').without('draining');
 
       return this.nodes.filter(node => {
         if (classes.length && !classes.includes(node.get('nodeClass'))) return false;
-        if (trueStatuses.length && !trueStatuses.includes(node.get('status'))) return false;
+        if (statuses.length && !statuses.includes(node.get('status'))) return false;
         if (datacenters.length && !datacenters.includes(node.get('datacenter'))) return false;
 
         if (onlyIneligible && node.get('isEligible')) return false;

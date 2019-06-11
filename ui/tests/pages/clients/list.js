@@ -56,7 +56,7 @@ export default create({
 
   facets: {
     class: facet('[data-test-class-facet]'),
-    status: facet('[data-test-status-facet]'),
+    states: facet('[data-test-state-facet]'),
     datacenter: facet('[data-test-datacenter-facet]'),
   },
 });
