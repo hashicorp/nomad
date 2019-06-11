@@ -164,6 +164,59 @@ passwd`
 	}, func(err error) { t.Error(err) })
 }
 
+// TestExecutor_CgroupPaths asserts that process starts with independent cgroups
+// hierarchy created for this process
+func TestExecutor_CgroupPaths(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	testutil.ExecCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "/bin/bash"
+	execCmd.Args = []string{"-c", "sleep 0.2; cat /proc/self/cgroup"}
+	defer allocDir.Destroy()
+
+	execCmd.ResourceLimits = true
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
+
+	ps, err := executor.Launch(execCmd)
+	require.NoError(err)
+	require.NotZero(ps.Pid)
+
+	state, err := executor.Wait(context.Background())
+	require.NoError(err)
+	require.Zero(state.ExitCode)
+
+	tu.WaitForResult(func() (bool, error) {
+		output := strings.TrimSpace(testExecCmd.stdout.String())
+		// sanity check that we got some cgroups
+		if !strings.Contains(output, ":devices:") {
+			return false, fmt.Errorf("was expected cgroup files but found:\n%v", output)
+		}
+		lines := strings.Split(output, "\n")
+		for _, line := range lines {
+			// Every cgroup entry should be /nomad/$ALLOC_ID
+			if line == "" {
+				continue
+			}
+
+			// Skip systemd and rdma cgroups; rdma was added in most recent kernels and libcontainer/docker
+			// don't isolate them by default.
+			if strings.Contains(line, ":rdma:") {
+				continue
+			}
+
+			if !strings.Contains(line, ":/nomad/") {
+				return false, fmt.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
+			}
+		}
+		return true, nil
+	}, func(err error) { t.Error(err) })
+}
+
 func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

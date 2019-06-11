@@ -684,7 +684,7 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 	}
 
 	id := uuid.Generate()
-	cfg.Cgroups.Path = filepath.Join(defaultCgroupParent, id)
+	cfg.Cgroups.Path = filepath.Join("/", defaultCgroupParent, id)
 
 	if command.Resources == nil || command.Resources.NomadResources == nil {
 		return nil
