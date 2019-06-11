@@ -44,7 +44,7 @@ func (h *networkHook) Name() string {
 
 func (h *networkHook) Prerun() error {
 	if h.manager == nil {
-		h.logger.Debug("shared network namespaces are not supported on this platform, skipping network hook")
+		h.logger.Trace("shared network namespaces are not supported on this platform, skipping network hook")
 		return nil
 	}
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
@@ -62,6 +62,9 @@ func (h *networkHook) Prerun() error {
 		h.setter.SetNetworkIsolation(spec)
 	}
 
+	if err := ConfigureNetworking(h.alloc, spec); err != nil {
+		return fmt.Errorf("failed to configure networking for alloc: %v", err)
+	}
 	return nil
 }
 
@@ -70,5 +73,8 @@ func (h *networkHook) Postrun() error {
 		return nil
 	}
 
+	if err := CleanupNetworking(h.alloc, h.spec); err != nil {
+		h.logger.Error("failed to cleanup network for allocation, resources may have leaked", "alloc", h.alloc.ID, "error", err)
+	}
 	return h.manager.DestroyNetwork(h.alloc.ID, h.spec)
 }

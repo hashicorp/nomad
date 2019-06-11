@@ -835,10 +835,8 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		newAlloc.Job = nil       // Use the Job in the Plan
 		newAlloc.Resources = nil // Computed in Plan Apply
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
-			Tasks: option.TaskResources,
-			Shared: structs.AllocatedSharedResources{
-				DiskMB: int64(newTG.EphemeralDisk.SizeMB),
-			},
+			Tasks:  option.TaskResources,
+			Shared: *option.GroupResources,
 		}
 		// Use metrics from existing alloc for in place upgrade
 		// This is because if the inplace upgrade succeeded, any scoring metadata from
