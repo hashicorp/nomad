@@ -19,7 +19,10 @@
     {{node.status}}
   {{/if}}
 </td>
-<td data-test-client-address>{{node.httpAddr}}</td>
+<td class="is-300px is-truncatable is-revealable">
+  <span data-test-client-address>{{node.httpAddr}}</span>
+  <div class="revealed" aria-hidden>{{node.httpAddr}}</div>
+</td>
 <td data-test-client-datacenter>{{node.datacenter}}</td>
 <td data-test-client-allocations>
   {{#if node.allocations.isPending}}
