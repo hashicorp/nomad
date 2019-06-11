@@ -571,11 +571,11 @@ func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *st
 		// Make sure we have marked the finished at for every task. This is used
 		// to calculate the reschedule time for failed allocations.
 		now := time.Now()
-		for _, task := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks {
-			ts, ok := a.TaskStates[task.Name]
+		for taskName := range ar.tasks {
+			ts, ok := a.TaskStates[taskName]
 			if !ok {
 				ts = &structs.TaskState{}
-				a.TaskStates[task.Name] = ts
+				a.TaskStates[taskName] = ts
 			}
 			if ts.FinishedAt.IsZero() {
 				ts.FinishedAt = now

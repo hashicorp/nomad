@@ -144,6 +144,7 @@ func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing
 // This test checks that:
 // 1) The job is denormalized
 // 2) Allocations are denormalized and updated with the diff
+// That stopped allocs Job is unmodified
 func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -168,6 +169,12 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	require.NoError(state.UpsertAllocs(900, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
 	require.NoError(state.UpsertJob(999, job))
 
+	// modify job and ensure that stopped and preempted alloc point to original Job
+	mJob := job.Copy()
+	mJob.TaskGroups[0].Name = "other"
+
+	require.NoError(state.UpsertJob(1001, mJob))
+
 	eval := mock.Eval()
 	eval.JobID = job.ID
 
@@ -179,7 +186,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 		AllocUpdateRequest: structs.AllocUpdateRequest{
 			AllocsUpdated: []*structs.Allocation{alloc},
 			AllocsStopped: []*structs.AllocationDiff{stoppedAllocDiff},
-			Job:           job,
+			Job:           mJob,
 		},
 		EvalID:          eval.ID,
 		AllocsPreempted: []*structs.AllocationDiff{preemptedAllocDiff},
@@ -194,6 +201,11 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	require.NoError(err)
 	assert.Equal(alloc, out)
 
+	outJob, err := state.JobByID(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.Equal(mJob.TaskGroups, outJob.TaskGroups)
+	require.NotEmpty(job.TaskGroups, outJob.TaskGroups)
+
 	updatedStoppedAlloc, err := state.AllocByID(ws, stoppedAlloc.ID)
 	require.NoError(err)
 	assert.Equal(stoppedAllocDiff.DesiredDescription, updatedStoppedAlloc.DesiredDescription)
@@ -201,6 +213,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	assert.Equal(stoppedAllocDiff.ClientStatus, updatedStoppedAlloc.ClientStatus)
 	assert.Equal(planModifyIndex, updatedStoppedAlloc.AllocModifyIndex)
 	assert.Equal(planModifyIndex, updatedStoppedAlloc.AllocModifyIndex)
+	assert.Equal(job.TaskGroups, updatedStoppedAlloc.Job.TaskGroups)
 
 	updatedPreemptedAlloc, err := state.AllocByID(ws, preemptedAlloc.ID)
 	require.NoError(err)
@@ -208,6 +221,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	assert.Equal(preemptedAllocDiff.PreemptedByAllocation, updatedPreemptedAlloc.PreemptedByAllocation)
 	assert.Equal(planModifyIndex, updatedPreemptedAlloc.AllocModifyIndex)
 	assert.Equal(planModifyIndex, updatedPreemptedAlloc.AllocModifyIndex)
+	assert.Equal(job.TaskGroups, updatedPreemptedAlloc.Job.TaskGroups)
 
 	index, err := state.Index("allocs")
 	require.NoError(err)
@@ -219,6 +233,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(evalOut)
 	assert.EqualValues(planModifyIndex, evalOut.ModifyIndex)
+
 }
 
 // This test checks that the deployment is created and allocations count towards
@@ -7117,7 +7132,7 @@ func TestStateSnapshot_DenormalizeAllocationDiffSlice_AllocDoesNotExist(t *testi
 	snap, err := state.Snapshot()
 	require.NoError(err)
 
-	denormalizedAllocs, err := snap.DenormalizeAllocationDiffSlice(allocDiffs, alloc.Job)
+	denormalizedAllocs, err := snap.DenormalizeAllocationDiffSlice(allocDiffs)
 
 	require.EqualError(err, fmt.Sprintf("alloc %v doesn't exist", alloc.ID))
 	require.Nil(denormalizedAllocs)
