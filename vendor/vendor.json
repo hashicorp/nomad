@@ -913,16 +913,7 @@
 		{"path":"gopkg.in/inf.v0","checksumSHA1":"6f8MEU31llHM1sLM/GGH4/Qxu0A=","revision":"3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4","revisionTime":"2015-09-11T12:57:57Z"},
 		{"path":"gopkg.in/tomb.v1","checksumSHA1":"TO8baX+t1Qs7EmOYth80MkbKzFo=","revision":"dd632973f1e7218eb1089048e0798ec9ae7dceb8","revisionTime":"2014-10-24T13:56:13Z"},
 		{"path":"gopkg.in/tomb.v2","checksumSHA1":"WiyCOMvfzRdymImAJ3ME6aoYUdM=","revision":"14b3d72120e8d10ea6e6b7f87f7175734b1faab8","revisionTime":"2014-06-26T14:46:23Z"},
-		{"path":"gopkg.in/yaml.v2","checksumSHA1":"12GqsW8PiRPnezDDy0v4brZrndM=","revision":"a5b47d31c556af34a302ce5d659e6fea44d90de0","revisionTime":"2016-09-28T15:37:09Z"},
-		{"path":"gotest.tools/assert","checksumSHA1":"qUL9kTes5XPDsGXwxD+VuVPW5D4=","revision":"d1a6560d983a17c84a34edeb67898f2dc00bb646","revisionTime":"2019-03-15T08:01:53Z"},
-		{"path":"gotest.tools/assert/cmp","checksumSHA1":"EkxVaY9G1PDrWIN78mwF4AD9Phk=","revision":"d1a6560d983a17c84a34edeb67898f2dc00bb646","revisionTime":"2019-03-15T08:01:53Z"},
-		{"path":"gotest.tools/icmd","checksumSHA1":"ItPztw8KBCFDvEJxzcibWw0t0Wk=","revision":"d1a6560d983a17c84a34edeb67898f2dc00bb646","revisionTime":"2019-03-15T08:01:53Z"},
-		{"path":"gotest.tools/internal/difflib","checksumSHA1":"0wgqyqp+kQAm1UrWU+PC+kqEoWA=","revision":"d1a6560d983a17c84a34edeb67898f2dc00bb646","revisionTime":"2019-03-15T08:01:53Z"},
-		{"path":"gotest.tools/internal/format","checksumSHA1":"Td610YkOjO8apkDD2AM7EupzYk8=","revision":"d1a6560d983a17c84a34edeb67898f2dc00bb646","revisionTime":"2019-03-15T08:01:53Z"},
-		{"path":"gotest.tools/internal/source","checksumSHA1":"RYgTqTURyI5wvmDMgtDormdNIF0=","revision":"d1a6560d983a17c84a34edeb67898f2dc00bb646","revisionTime":"2019-03-15T08:01:53Z"},
-		{"path":"gotest.tools/poll","checksumSHA1":"Im6jA7Aw95pLJq189nZu+psV7LE=","revision":"d1a6560d983a17c84a34edeb67898f2dc00bb646","revisionTime":"2019-03-15T08:01:53Z"},
-		{"path":"gotest.tools/skip","checksumSHA1":"G2K+nGE/P6L9aH+1Rp5NZaRb90M=","revision":"d1a6560d983a17c84a34edeb67898f2dc00bb646","revisionTime":"2019-03-15T08:01:53Z"},
-		{"path":"gotest.tools/x/subtest","checksumSHA1":"n+ogWrWCPt2eLL91DBoW6sc4yTk=","revision":"d1a6560d983a17c84a34edeb67898f2dc00bb646","revisionTime":"2019-03-15T08:01:53Z"}
+		{"path":"gopkg.in/yaml.v2","checksumSHA1":"12GqsW8PiRPnezDDy0v4brZrndM=","revision":"a5b47d31c556af34a302ce5d659e6fea44d90de0","revisionTime":"2016-09-28T15:37:09Z"}
 	],
 	"rootPath": "github.com/hashicorp/nomad"
 }
