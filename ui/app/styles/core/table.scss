@@ -87,10 +87,10 @@
       text-overflow: ellipsis;
       white-space: nowrap;
 
-      &.is-hover-overflowable {
+      &.is-revealable {
         position: relative;
 
-        .hover-overflow {
+        .revealed {
           display: none;
           position: absolute;
           top: 0;
@@ -102,7 +102,7 @@
           color: transparent;
           overflow: visible;
 
-          .hover-overflow {
+          .revealed {
             color: $text;
             display: block;
             background-color: $white;
