@@ -396,6 +396,13 @@ func (tr *TaskRunner) updateHooks() {
 	// Prepare state needed by Update hooks
 	alloc := tr.Alloc()
 
+	// Prevent update hooks from running in a terminal state. This prevents updates
+	// from running during the shutdown of a task due to e.g vault token renewal.
+	if alloc.TerminalStatus() {
+		tr.logger.Info("Skipping update hooks because allocation is terminal")
+		return
+	}
+
 	// Execute Update hooks
 	for _, hook := range tr.runnerHooks {
 		upd, ok := hook.(interfaces.TaskUpdateHook)
