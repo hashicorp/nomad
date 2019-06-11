@@ -1,6 +1,5 @@
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
-import { computed } from '@ember/object';
 import { lazyClick } from '../helpers/lazy-click';
 import { watchRelationship } from 'nomad-ui/utils/properties/watch';
 import WithVisibilityDetection from 'nomad-ui/mixins/with-component-visibility-detection';
@@ -12,11 +11,6 @@ export default Component.extend(WithVisibilityDetection, {
   classNames: ['client-node-row', 'is-interactive'],
 
   node: null,
-
-  stateTitle: computed('node.status', 'node.isDraining', 'node.isEligible', function() {
-    const node = this.node;
-    return `status: ${node.status}\ndraining: ${node.isDraining}\neligible: ${node.isEligible}`;
-  }),
 
   onClick() {},
 

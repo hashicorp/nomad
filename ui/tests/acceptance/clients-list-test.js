@@ -84,7 +84,7 @@ module('Acceptance | clients list', function(hooks) {
     ClientsList.nodes[0].state.as(readyClient => {
       assert.equal(readyClient.text, 'ready');
       assert.ok(readyClient.isUnformatted, 'expected no status class');
-      assert.equal(readyClient.title, 'status: ready\ndraining: false\neligible: true');
+      assert.equal(readyClient.tooltip, 'ready / not draining / eligible');
     });
 
     assert.equal(ClientsList.nodes[1].state.text, 'initializing');

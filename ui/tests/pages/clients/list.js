@@ -25,7 +25,7 @@ export default create({
     state: {
       scope: '[data-test-client-state]',
 
-      title: attribute('title'),
+      tooltip: attribute('aria-label', '.tooltip'),
 
       isInfo: hasClass('is-info', '.status-text'),
       isWarning: hasClass('is-warning', '.status-text'),
