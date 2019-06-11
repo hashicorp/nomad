@@ -1181,9 +1181,15 @@ func (tr *TaskRunner) UpdateStats(ru *cstructs.TaskResourceUsage) {
 func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	alloc := tr.Alloc()
 	var allocatedMem float32
-	if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
-		// Convert to bytes to match other memory metrics
-		allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
+	if alloc.AllocatedResources != nil {
+		if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
+			// Convert to bytes to match other memory metrics
+			allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
+		}
+	} else if taskRes := alloc.TaskResources[tr.taskName]; taskRes != nil {
+		// COMPAT(0.11) Remove in 0.11 when TaskResources is removed
+		allocatedMem = float32(taskRes.MemoryMB) * 1024 * 1024
+
 	}
 
 	if !tr.clientConfig.DisableTaggedMetrics {
