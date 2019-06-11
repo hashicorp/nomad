@@ -106,7 +106,27 @@
             color: $text;
             display: block;
             background-color: $white;
-            border-right: 1px solid $grey-blue;
+
+            $shadow-width: 8px;
+
+            &::after {
+              content: ' ';
+
+              position: absolute;
+              top: 0;
+              bottom: 0;
+              right: -$shadow-width;
+
+              display: inline-block;
+
+              background: linear-gradient(
+                to right,
+                $grey-blue 0%,
+                rgba($grey-blue, 184) 20%,
+                rgba(0, 0, 0, 0) 100%
+              );
+              width: $shadow-width;
+            }
           }
         }
       }
