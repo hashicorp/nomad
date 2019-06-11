@@ -6,6 +6,7 @@ BUG FIXES:
 * core: Update node's `StatusUpdatedAt` when node drain or eligibility changes [[GH-5746](https://github.com/hashicorp/nomad/issues/5746)]
 * core: Fixed a panic that may occur when preempting jobs for network resources [[GH-5794](https://github.com/hashicorp/nomad/issues/5794)]
 * core: Fixed a config parsing issue when client metadata contains a boolean value [[GH-5802](https://github.com/hashicorp/nomad/issues/5802)]
+* core: Fixed a config parsing issue where consul, vault, and autopilot stanzas break when using a config directory [[GH-5817](https://github.com/hashicorp/nomad/issues/5817)]
 * client: Fixed an issue where task restart attempts is not honored properly [[GH-5737](https://github.com/hashicorp/nomad/issues/5737)]
 * client: Fixed a panic that occurs when a 0.9.2 client is running with 0.8 nomad servers [[GH-5810](https://github.com/hashicorp/nomad/issues/5810)]
 
