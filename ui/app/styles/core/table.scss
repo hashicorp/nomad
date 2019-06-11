@@ -118,9 +118,10 @@
               top: 0;
               bottom: 0;
               left: 0;
+              width: 300px;
+
               background: white;
               z-index: $z-below;
-              width: 300px;
             }
 
             &::after {
@@ -130,6 +131,7 @@
               top: 0;
               bottom: 0;
               right: -$shadow-width;
+              width: $shadow-width;
 
               display: inline-block;
               z-index: $z-below-below;
@@ -140,7 +142,6 @@
                 rgba($grey-blue, 184) 20%,
                 rgba(0, 0, 0, 0) 100%
               );
-              width: $shadow-width;
             }
           }
         }
