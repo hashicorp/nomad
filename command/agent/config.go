@@ -1471,8 +1471,9 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	return &result
 }
 
-// LoadConfig loads the configuration at the given path, regardless if
-// its a file or directory.
+// LoadConfig loads the configuration at the given path, regardless if its a file or
+// directory. Called for each -config to build up the runtime config value. Do not apply any
+// default values, defaults should be added once in DefaultConfig
 func LoadConfig(path string) (*Config, error) {
 	fi, err := os.Stat(path)
 	if err != nil {
