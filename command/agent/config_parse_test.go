@@ -646,8 +646,8 @@ func TestConfig_ParseDir(t *testing.T) {
 	c, err := LoadConfig("./testdata/sample1")
 	require.NoError(t, err)
 
-	// LoadConfig Merges with defaults, which makes empty maps & slices rather than nil,
-	// so set those for the expected value
+	// LoadConfig Merges all the config files in testdata/sample1, which makes empty
+	// maps & slices rather than nil, so set those
 	require.Nil(t, sample1.Client.Options)
 	sample1.Client.Options = map[string]string{}
 	require.Nil(t, sample1.Client.Meta)
@@ -659,7 +659,7 @@ func TestConfig_ParseDir(t *testing.T) {
 	require.Nil(t, sample1.HTTPAPIResponseHeaders)
 	sample1.HTTPAPIResponseHeaders = map[string]string{}
 
-	// LoadDir listed the config files
+	// LoadDir lists the config files
 	require.Nil(t, sample1.Files)
 	sample1.Files = []string{
 		"testdata/sample1/sample0.json",
