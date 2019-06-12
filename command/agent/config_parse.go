@@ -14,15 +14,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
-// ParseConfigDefault returns the configuration base
-func ParseConfigDefault() *Config {
-	return &Config{
-		Consul:    config.DefaultConsulConfig(),
-		Autopilot: config.DefaultAutopilotConfig(),
-		Vault:     config.DefaultVaultConfig(),
-	}
-}
-
 func ParseConfigFile(path string) (*Config, error) {
 	// slurp
 	var buf bytes.Buffer
