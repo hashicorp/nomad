@@ -411,8 +411,16 @@ func TestConfig_Parse(t *testing.T) {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
 			}
 
-			// Merge defaults like LoadConfig does
-			actual = ParseConfigDefault().Merge(actual)
+			// ParseConfig used to re-merge defaults for these three objects,
+			// despite them already being merged in LoadConfig. The test structs
+			// expect these defaults to be set, but not the DefaultConfig
+			// defaults, which include additional settings
+			oldDefault := &Config{
+				Consul:    config.DefaultConsulConfig(),
+				Vault:     config.DefaultVaultConfig(),
+				Autopilot: config.DefaultAutopilotConfig(),
+			}
+			actual = oldDefault.Merge(actual)
 
 			//panic(fmt.Sprintf("first: %+v \n second: %+v", actual.TLSConfig, tc.Result.TLSConfig))
 			require.EqualValues(tc.Result, removeHelperAttributes(actual))
@@ -576,15 +584,70 @@ func TestConfig_ParseSample0(t *testing.T) {
 	require.EqualValues(t, sample0, c)
 }
 
+var sample1 = &Config{
+	Region:     "global",
+	Datacenter: "dc1",
+	DataDir:    "/opt/data/nomad/data",
+	LogLevel:   "INFO",
+	BindAddr:   "0.0.0.0",
+	AdvertiseAddrs: &AdvertiseAddrs{
+		HTTP: "host.example.com",
+		RPC:  "host.example.com",
+		Serf: "host.example.com",
+	},
+	Client: &ClientConfig{ServerJoin: &ServerJoin{}},
+	Server: &ServerConfig{
+		Enabled:         true,
+		BootstrapExpect: 3,
+		RetryJoin:       []string{"10.0.0.101", "10.0.0.102", "10.0.0.103"},
+		EncryptKey:      "sHck3WL6cxuhuY7Mso9BHA==",
+		ServerJoin:      &ServerJoin{},
+	},
+	ACL: &ACLConfig{
+		Enabled: true,
+	},
+	Telemetry: &Telemetry{
+		PrometheusMetrics:        true,
+		DisableHostname:          true,
+		CollectionInterval:       "60s",
+		collectionInterval:       60 * time.Second,
+		PublishAllocationMetrics: true,
+		PublishNodeMetrics:       true,
+	},
+	LeaveOnInt:     true,
+	LeaveOnTerm:    true,
+	EnableSyslog:   true,
+	SyslogFacility: "LOCAL0",
+	Consul: &config.ConsulConfig{
+		EnableSSL:      helper.BoolToPtr(true),
+		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+		ServerAutoJoin: helper.BoolToPtr(false),
+		ClientAutoJoin: helper.BoolToPtr(false),
+	},
+	Vault: &config.VaultConfig{
+		Enabled: helper.BoolToPtr(true),
+		Role:    "nomad-cluster",
+		Addr:    "http://host.example.com:8200",
+	},
+	TLSConfig: &config.TLSConfig{
+		EnableHTTP:           true,
+		EnableRPC:            true,
+		VerifyServerHostname: true,
+		CAFile:               "/opt/data/nomad/certs/nomad-ca.pem",
+		CertFile:             "/opt/data/nomad/certs/server.pem",
+		KeyFile:              "/opt/data/nomad/certs/server-key.pem",
+	},
+	Autopilot: &config.AutopilotConfig{
+		CleanupDeadServers: helper.BoolToPtr(true),
+	},
+}
+
 func TestConfig_ParseDir(t *testing.T) {
 	c, err := LoadConfig("./testdata/sample1")
 	require.NoError(t, err)
 
-	// Defaults
-	sample1 := ParseConfigDefault().Merge(sample0)
-
-	// Merge makes empty maps & slices rather than nil, so set those for the expected
-	// value
+	// LoadConfig Merges all the config files in testdata/sample1, which makes empty
+	// maps & slices rather than nil, so set those
 	require.Nil(t, sample1.Client.Options)
 	sample1.Client.Options = map[string]string{}
 	require.Nil(t, sample1.Client.Meta)
@@ -593,11 +656,10 @@ func TestConfig_ParseDir(t *testing.T) {
 	sample1.Client.ChrootEnv = map[string]string{}
 	require.Nil(t, sample1.Server.StartJoin)
 	sample1.Server.StartJoin = []string{}
+	require.Nil(t, sample1.HTTPAPIResponseHeaders)
+	sample1.HTTPAPIResponseHeaders = map[string]string{}
 
-	// This value added to the config file
-	sample1.Consul.EnableSSL = helper.BoolToPtr(true)
-
-	// LoadDir listed the config files
+	// LoadDir lists the config files
 	require.Nil(t, sample1.Files)
 	sample1.Files = []string{
 		"testdata/sample1/sample0.json",
