@@ -648,24 +648,25 @@ func TestConfig_ParseDir(t *testing.T) {
 
 	// LoadConfig Merges all the config files in testdata/sample1, which makes empty
 	// maps & slices rather than nil, so set those
-	require.Nil(t, sample1.Client.Options)
-	sample1.Client.Options = map[string]string{}
-	require.Nil(t, sample1.Client.Meta)
-	sample1.Client.Meta = map[string]string{}
-	require.Nil(t, sample1.Client.ChrootEnv)
-	sample1.Client.ChrootEnv = map[string]string{}
-	require.Nil(t, sample1.Server.StartJoin)
-	sample1.Server.StartJoin = []string{}
-	require.Nil(t, sample1.HTTPAPIResponseHeaders)
-	sample1.HTTPAPIResponseHeaders = map[string]string{}
+	require.Empty(t, c.Client.Options)
+	c.Client.Options = nil
+	require.Empty(t, c.Client.Meta)
+	c.Client.Meta = nil
+	require.Empty(t, c.Client.ChrootEnv)
+	c.Client.ChrootEnv = nil
+	require.Empty(t, c.Server.StartJoin)
+	c.Server.StartJoin = nil
+	require.Empty(t, c.HTTPAPIResponseHeaders)
+	c.HTTPAPIResponseHeaders = nil
 
 	// LoadDir lists the config files
-	require.Nil(t, sample1.Files)
-	sample1.Files = []string{
+	expectedFiles := []string{
 		"testdata/sample1/sample0.json",
 		"testdata/sample1/sample1.json",
 		"testdata/sample1/sample2.hcl",
 	}
+	require.Equal(t, expectedFiles, c.Files)
+	c.Files = nil
 
 	require.EqualValues(t, sample1, c)
 }
