@@ -612,7 +612,7 @@ This endpoint sends a signal to an allocation or task.
 
 | Method | Path                       | Produces                   |
 | ------ | -------------------------- | -------------------------- |
-| `POST` / `PUT`  | `/v1/allocation/:alloc_id/signal` | `application/json`         |
+| `POST` / `PUT`  | `/v1/client/allocation/:alloc_id/signal` | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -656,7 +656,7 @@ This endpoint restarts an allocation or task in-place.
 
 | Method | Path                       | Produces                   |
 | ------ | -------------------------- | -------------------------- |
-| `POST` / `PUT`  | `/v1/allocation/:alloc_id/restart` | `application/json`         |
+| `POST` / `PUT`  | `/v1/client/allocation/:alloc_id/restart` | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
