@@ -2008,8 +2008,8 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	require.Equal(t, "remove", consulOps[5].Op)
 
 	// Removing canary and non-canary entries on stop
-	require.Equal(t, "remove", consulOps[1].Op)
-	require.Equal(t, "remove", consulOps[2].Op)
+	require.Equal(t, "remove", consulOps[6].Op)
+	require.Equal(t, "remove", consulOps[7].Op)
 }
 
 // testWaitForTaskToStart waits for the task to be running or fails the test
