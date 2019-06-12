@@ -54,6 +54,7 @@ type MessageType uint8
 const (
 	NodeRegisterRequestType MessageType = iota
 	NodeDeregisterRequestType
+	NodeDeregisterBatchRequestType // QUESTION does iota make it important to append this list?
 	NodeUpdateStatusRequestType
 	NodeUpdateDrainRequestType
 	JobRegisterRequestType
@@ -317,8 +318,15 @@ type NodeRegisterRequest struct {
 
 // NodeDeregisterRequest is used for Node.Deregister endpoint
 // to deregister a batch of nodes from being schedulable entities.
+// Deprecated in 0.9.3
 type NodeDeregisterRequest struct {
-	NodeID  string // Deprecated in 0.9.3
+	NodeID string
+	WriteRequest
+}
+
+// NodeDeregisterBatchRequest is used for Node.DeregisterBatch endpoint
+// to deregister a batch of nodes from being schedulable entities.
+type NodeDeregisterBatchRequest struct {
 	NodeIDs []string
 	WriteRequest
 }
