@@ -107,6 +107,11 @@ unchanged.
 Since HCL2 uses dotted object notation for interpolation users should
 transition away from variable names with multiple consecutive dots.
 
+### Downgrading clients
+Due to the large refactor of the Nomad client in 0.9, downgrading to a
+previous version of the client after upgrading it to Nomad 0.9 is not supported.
+To downgrade safely, users should erase the Nomad client's data directory.
+
 ## Nomad 0.8.0
 
 ### Raft Protocol Version Compatibility

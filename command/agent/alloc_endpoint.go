@@ -202,7 +202,7 @@ func (s *HTTPServer) allocRestart(allocID string, resp http.ResponseWriter, req 
 		TaskName string
 	}
 	err := json.NewDecoder(req.Body).Decode(&reqBody)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return nil, err
 	}
 	if reqBody.TaskName != "" {

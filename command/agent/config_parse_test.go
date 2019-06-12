@@ -1,7 +1,9 @@
 package agent
 
 import (
+	"fmt"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
@@ -648,24 +650,90 @@ func TestConfig_ParseDir(t *testing.T) {
 
 	// LoadConfig Merges all the config files in testdata/sample1, which makes empty
 	// maps & slices rather than nil, so set those
-	require.Nil(t, sample1.Client.Options)
-	sample1.Client.Options = map[string]string{}
-	require.Nil(t, sample1.Client.Meta)
-	sample1.Client.Meta = map[string]string{}
-	require.Nil(t, sample1.Client.ChrootEnv)
-	sample1.Client.ChrootEnv = map[string]string{}
-	require.Nil(t, sample1.Server.StartJoin)
-	sample1.Server.StartJoin = []string{}
-	require.Nil(t, sample1.HTTPAPIResponseHeaders)
-	sample1.HTTPAPIResponseHeaders = map[string]string{}
+	require.Empty(t, c.Client.Options)
+	c.Client.Options = nil
+	require.Empty(t, c.Client.Meta)
+	c.Client.Meta = nil
+	require.Empty(t, c.Client.ChrootEnv)
+	c.Client.ChrootEnv = nil
+	require.Empty(t, c.Server.StartJoin)
+	c.Server.StartJoin = nil
+	require.Empty(t, c.HTTPAPIResponseHeaders)
+	c.HTTPAPIResponseHeaders = nil
 
 	// LoadDir lists the config files
-	require.Nil(t, sample1.Files)
-	sample1.Files = []string{
+	expectedFiles := []string{
+		"testdata/sample1/sample0.json",
+		"testdata/sample1/sample1.json",
+		"testdata/sample1/sample2.hcl",
+	}
+	require.Equal(t, expectedFiles, c.Files)
+	c.Files = nil
+
+	require.EqualValues(t, sample1, c)
+}
+
+// TestConfig_ParseDir_Matches_IndividualParsing asserts
+// that parsing a directory config is the equivalent of
+// parsing individual files in any order
+func TestConfig_ParseDir_Matches_IndividualParsing(t *testing.T) {
+	dirConfig, err := LoadConfig("./testdata/sample1")
+	require.NoError(t, err)
+
+	dirConfig = DefaultConfig().Merge(dirConfig)
+
+	files := []string{
 		"testdata/sample1/sample0.json",
 		"testdata/sample1/sample1.json",
 		"testdata/sample1/sample2.hcl",
 	}
 
-	require.EqualValues(t, sample1, c)
+	for _, perm := range permutations(files) {
+		t.Run(fmt.Sprintf("permutation %v", perm), func(t *testing.T) {
+			config := DefaultConfig()
+
+			for _, f := range perm {
+				fc, err := LoadConfig(f)
+				require.NoError(t, err)
+
+				config = config.Merge(fc)
+			}
+
+			// sort files to get stable view
+			sort.Strings(config.Files)
+			sort.Strings(dirConfig.Files)
+
+			require.EqualValues(t, dirConfig, config)
+		})
+	}
+
+}
+
+// https://stackoverflow.com/a/30226442
+func permutations(arr []string) [][]string {
+	var helper func([]string, int)
+	res := [][]string{}
+
+	helper = func(arr []string, n int) {
+		if n == 1 {
+			tmp := make([]string, len(arr))
+			copy(tmp, arr)
+			res = append(res, tmp)
+		} else {
+			for i := 0; i < n; i++ {
+				helper(arr, n-1)
+				if n%2 == 1 {
+					tmp := arr[i]
+					arr[i] = arr[n-1]
+					arr[n-1] = tmp
+				} else {
+					tmp := arr[0]
+					arr[0] = arr[n-1]
+					arr[n-1] = tmp
+				}
+			}
+		}
+	}
+	helper(arr, len(arr))
+	return res
 }
