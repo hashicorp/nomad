@@ -10,6 +10,7 @@ BUG FIXES:
 * api: Allow sumitting alloc restart requests with an empty body [[GH-5823](https://github.com/hashicorp/nomad/pull/5823)]
 * client: Fixed an issue where task restart attempts is not honored properly [[GH-5737](https://github.com/hashicorp/nomad/issues/5737)]
 * client: Fixed a panic that occurs when a 0.9.2 client is running with 0.8 nomad servers [[GH-5812](https://github.com/hashicorp/nomad/issues/5812)]
+* client: Fixed an issue with cleaning up consul service registration entries when tasks fail to start. [[GH-5821](https://github.com/hashicorp/nomad/pull/5821)]
 
 ## 0.9.2 (June 5, 2019)
 
