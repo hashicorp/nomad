@@ -17,6 +17,13 @@ communication with Servers. As such, care should be taken to properly
 upgrade Nomad to ensure minimal service disruption. Unsafe upgrades can
 cause a service outage.
 
+~> **Downgrade Warning!** We currently do not support safely downgrading
+Nomad servers. This is due to the fact that the data directory
+contains transaction logs which may not safely apply after a downgrade. To downgrade
+a Nomad server, its data directory must be wiped out. In general, Client downgrades are
+safe to do, however we recommend checking the [upgrade specific](/guides/upgrade/upgrade-specific.html)
+page which will highlight versions where a client downgrade is not supported.
+
 ## Upgrade Process
 
 For upgrades we strive to ensure backwards compatibility. For most upgrades, the
