@@ -3,6 +3,8 @@ import { computed } from '@ember/object';
 import PromiseArray from 'nomad-ui/utils/classes/promise-array';
 
 export default Component.extend({
+  classNames: ['boxed-section'],
+
   sortProperty: 'modifyIndex',
   sortDescending: true,
   sortedAllocations: computed('job.allocations.@each.modifyIndex', function() {
