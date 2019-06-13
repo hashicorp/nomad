@@ -26,4 +26,15 @@ test:
 	@echo "==> Running website tests..."
 	./scripts/test.sh ${VERSION}
 
+ui-screenshots:
+	@echo "==> Collecting UI screenshots..."
+	# Build the screenshots image if it doesn't exist yet
+	@if [[ "$$(docker images -q nomad-ui-screenshots 2> /dev/null)" == "" ]]; then \
+		docker build --tag="nomad-ui-screenshots" ./scripts/screenshots; \
+	fi
+	@docker run \
+		--rm \
+		--volume "$(shell pwd)/scripts/screenshots/screenshots:/screenshots" \
+		nomad-ui-screenshots
+
 .PHONY: build website
