@@ -245,10 +245,18 @@ func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply 
 	return nil
 }
 
-// Deregister is used to remove a client from the cluster. If a client should
-// just be made unavailable for scheduling, a status update is preferred.
+// Deregister is the deprecated single deregistration endpoint
 func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.NodeUpdateResponse) error {
-	if done, err := n.srv.forward("Node.Deregister", args, args, reply); done {
+	return n.DeregisterBatch(&structs.NodeDeregisterBatchRequest{
+		NodeIDs:      []string{args.NodeID},
+		WriteRequest: args.WriteRequest,
+	}, reply)
+}
+
+// DeregisterBatch is used to remove client nodes from the cluster. If a client should just
+// be made unavailable for scheduling, a status update is preferred.
+func (n *Node) DeregisterBatch(args *structs.NodeDeregisterBatchRequest, reply *structs.NodeUpdateResponse) error {
+	if done, err := n.srv.forward("Node.DeregisterBatch", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "deregister"}, time.Now())
@@ -261,16 +269,8 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	}
 
 	// Verify the arguments
-	var nodeIDs []string
 	if len(args.NodeIDs) == 0 {
-		if args.NodeID == "" {
-			return fmt.Errorf("missing node IDs for client deregistration")
-		}
-		nodeIDs = append(nodeIDs, args.NodeID)
-	} else if args.NodeID != "" {
-		return fmt.Errorf("use only NodeIDs, the NodeID field is deprecated")
-	} else {
-		nodeIDs = args.NodeIDs
+		return fmt.Errorf("missing node IDs for client deregistration")
 	}
 
 	// Open state handles
@@ -282,7 +282,7 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	ws := memdb.NewWatchSet()
 
 	// Assert that the state contains the nodes
-	for _, nodeID := range nodeIDs {
+	for _, nodeID := range args.NodeIDs {
 		node, err := snap.NodeByID(ws, nodeID)
 		if err != nil {
 			return fmt.Errorf("node lookup failed: %s: %v", nodeID, err)
@@ -294,13 +294,13 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 
 	// Commit this update to Raft, before we clear the heartbeatTimer so that failure
 	// leaves the node running
-	_, index, err := n.srv.raftApply(structs.NodeDeregisterRequestType, args)
+	_, index, err := n.srv.raftApply(structs.NodeDeregisterBatchRequestType, args)
 	if err != nil {
 		n.logger.Error("deregister failed", "error", err)
 		return err
 	}
 
-	for _, nodeID := range nodeIDs {
+	for _, nodeID := range args.NodeIDs {
 		n.srv.clearHeartbeatTimer(nodeID)
 
 		// If there are any Vault accessors on the node, revoke them
