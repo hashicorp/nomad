@@ -191,6 +191,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyUpsertNode(buf[1:], log.Index)
 	case structs.NodeDeregisterRequestType:
 		return n.applyDeregisterNode(buf[1:], log.Index)
+	case structs.NodeDeregisterBatchRequestType:
+		return n.applyDeregisterNodeBatch(buf[1:], log.Index)
 	case structs.NodeUpdateStatusRequestType:
 		return n.applyStatusUpdate(buf[1:], log.Index)
 	case structs.NodeUpdateDrainRequestType:
@@ -296,17 +298,22 @@ func (n *nomadFSM) applyDeregisterNode(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	// Messages pre 0.9.3 use a single NodeID
-	var nodeIDs []string
-	if len(req.NodeIDs) == 0 {
-		nodeIDs = append(nodeIDs, req.NodeID)
-	} else if req.NodeID != "" {
-		return fmt.Errorf("invalid request: set NodeIDs instead of NodeID")
-	} else {
-		nodeIDs = req.NodeIDs
+	if err := n.state.DeleteNode(index, []string{req.NodeID}); err != nil {
+		n.logger.Error("DeleteNode failed", "error", err)
+		return err
 	}
 
-	if err := n.state.DeleteNode(index, nodeIDs); err != nil {
+	return nil
+}
+
+func (n *nomadFSM) applyDeregisterNodeBatch(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister_node"}, time.Now())
+	var req structs.NodeDeregisterBatchRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteNode(index, req.NodeIDs); err != nil {
 		n.logger.Error("DeleteNode failed", "error", err)
 		return err
 	}
