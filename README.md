@@ -142,6 +142,8 @@ Contributing to Nomad
 
 If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.11.11+ is *required*).
 
+See the [`contributing`](contributing/) directory for more developer documentation.
+
 **Developing with Vagrant**
 There is an included Vagrantfile that can help bootstrap the process. The
 created virtual machine is based off of Ubuntu 16, and installs several of the
