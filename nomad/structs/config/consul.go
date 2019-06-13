@@ -43,6 +43,10 @@ type ConsulConfig struct {
 	// to register the client HTTP health check with Consul
 	ClientHTTPCheckName string `hcl:"client_http_check_name"`
 
+	// Tags are optional service tags that get registered with the service
+	// in Consul
+	Tags []string `hcl:"tags"`
+
 	// AutoAdvertise determines if this Nomad Agent will advertise its
 	// services via Consul.  When true, Nomad Agent will register
 	// services with Consul.
@@ -136,6 +140,7 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.ClientHTTPCheckName != "" {
 		result.ClientHTTPCheckName = b.ClientHTTPCheckName
 	}
+	result.Tags = append(result.Tags, b.Tags...)
 	if b.AutoAdvertise != nil {
 		result.AutoAdvertise = helper.BoolToPtr(*b.AutoAdvertise)
 	}
@@ -233,7 +238,6 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 		}
 		config.Transport.TLSClientConfig = tlsConfig
 	}
-
 	return config, nil
 }
 
