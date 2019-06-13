@@ -487,9 +487,9 @@ OUTER:
 }
 
 func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) error {
-	// For pre 0.9.3 clusters, send single deregistration messages
-	version, _ := version.NewVersion("0.9.3")
-	if !ServersMeetMinimumVersion(c.srv.Members(), version, true) {
+	// For old clusters, send single deregistration messages
+	minVersionBatchNodeDeregister := version.Must(version.NewVersion("0.9.4"))
+	if !ServersMeetMinimumVersion(c.srv.Members(), minVersionBatchNodeDeregister, true) {
 		for _, id := range nodeIDs {
 			req := structs.NodeDeregisterRequest{
 				NodeID: id,
@@ -509,7 +509,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 
 	// Call to the leader to issue the reap
 	for _, ids := range partitionAll(maxIdsPerReap, nodeIDs) {
-		req := structs.NodeDeregisterRequest{
+		req := structs.NodeDeregisterBatchRequest{
 			NodeIDs: ids,
 			WriteRequest: structs.WriteRequest{
 				Region:    c.srv.config.Region,
@@ -517,7 +517,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 			},
 		}
 		var resp structs.NodeUpdateResponse
-		if err := c.srv.RPC("Node.Deregister", &req, &resp); err != nil {
+		if err := c.srv.RPC("Node.DeregisterBatch", &req, &resp); err != nil {
 			c.logger.Error("node reap failed", "node_ids", ids, "error", err)
 			return err
 		}
