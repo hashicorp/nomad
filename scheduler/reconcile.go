@@ -356,7 +356,6 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// Create batched follow up evaluations for allocations that are
 	// reschedulable later and mark the allocations for in place updating
 	a.handleDelayedReschedules(rescheduleLater, all, tg.Name)
-	desiredChanges.Stop += uint64(len(rescheduleLater))
 
 	// Create a structure for choosing names. Seed with the taken names which is
 	// the union of untainted and migrating nodes (includes canaries)
@@ -861,11 +860,6 @@ func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRes
 	evals = append(evals, eval)
 
 	for _, allocReschedInfo := range rescheduleLater {
-		a.result.stop = append(a.result.stop, allocStopResult{
-			alloc:             allocReschedInfo.alloc,
-			statusDescription: allocRescheduled,
-		})
-
 		if allocReschedInfo.rescheduleTime.Sub(nextReschedTime) < batchedFailedAllocWindowSize {
 			allocIDToFollowupEvalID[allocReschedInfo.allocID] = eval.ID
 		} else {
