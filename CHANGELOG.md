@@ -1,3 +1,8 @@
+## 0.9.4 (Unreleased)
+
+FEATURES:
+* api: backfill region from job hcl in jobUpdate and jobPlan endpoints [[GH-5664](https://github.com/hashicorp/nomad/pull/5664)]
+
 ## 0.9.3 (June 12, 2019)
 
 BUG FIXES:
