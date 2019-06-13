@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -140,13 +141,20 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
+	// Http region takes precedence over hcl region
+	if args.WriteRequest.Region != "" {
+		args.Job.Region = helper.StringToPtr(args.WriteRequest.Region)
+	}
+
+	// If no region given, region is canonicalized to 'global'
 	sJob := ApiJobToStructJob(args.Job)
+
 	planReq := structs.JobPlanRequest{
 		Job:            sJob,
 		Diff:           args.Diff,
 		PolicyOverride: args.PolicyOverride,
 		WriteRequest: structs.WriteRequest{
-			Region: args.WriteRequest.Region,
+			Region: sJob.Region,
 		},
 	}
 	s.parseWriteRequest(req, &planReq.WriteRequest)
@@ -376,6 +384,12 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match name")
 	}
 
+	// Http region takes precedence over hcl region
+	if args.WriteRequest.Region != "" {
+		args.Job.Region = helper.StringToPtr(args.WriteRequest.Region)
+	}
+
+	// If no region given, region is canonicalized to 'global'
 	sJob := ApiJobToStructJob(args.Job)
 
 	regReq := structs.JobRegisterRequest{
@@ -384,7 +398,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		JobModifyIndex: args.JobModifyIndex,
 		PolicyOverride: args.PolicyOverride,
 		WriteRequest: structs.WriteRequest{
-			Region:    args.WriteRequest.Region,
+			Region:    sJob.Region,
 			AuthToken: args.WriteRequest.SecretID,
 		},
 	}

@@ -45,7 +45,7 @@ for more information.
 For Grafana, follow Grafana's [Getting
 Started](http://docs.grafana.org/guides/getting_started/) guide to set up a
 running Grafana instance. Then, import the sample [Nomad
-Dashboard](https://github.com/hashicorp/nomad/tree/master/integrations/grafana/sample_dashboard.json)
+Dashboard](https://github.com/hashicorp/nomad/blob/master/integrations/grafana_dashboards/sample_grafana_dashboard.json)
 for an example Grafana dashboard. This dashboard requires a Prometheus data
 source to be configured, see the
 [README.md](https://github.com/hashicorp/nomad/tree/master/integrations/grafana/README.md)

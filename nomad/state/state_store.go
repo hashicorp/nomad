@@ -230,18 +230,18 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 		return err
 	}
 
-	allocsStopped, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsStopped, results.Job)
+	allocsStopped, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsStopped)
 	if err != nil {
 		return err
 	}
 
-	allocsPreempted, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsPreempted, results.Job)
+	allocsPreempted, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsPreempted)
 	if err != nil {
 		return err
 	}
 
 	// COMPAT 0.11: Remove this denormalization when NodePreemptions is removed
-	results.NodePreemptions, err = snapshot.DenormalizeAllocationSlice(results.NodePreemptions, results.Job)
+	results.NodePreemptions, err = snapshot.DenormalizeAllocationSlice(results.NodePreemptions)
 	if err != nil {
 		return err
 	}
@@ -4192,9 +4192,9 @@ type StateSnapshot struct {
 // DenormalizeAllocationsMap takes in a map of nodes to allocations, and queries the
 // Allocation for each of the Allocation diffs and merges the updated attributes with
 // the existing Allocation, and attaches the Job provided
-func (s *StateSnapshot) DenormalizeAllocationsMap(nodeAllocations map[string][]*structs.Allocation, job *structs.Job) error {
+func (s *StateSnapshot) DenormalizeAllocationsMap(nodeAllocations map[string][]*structs.Allocation) error {
 	for nodeID, allocs := range nodeAllocations {
-		denormalizedAllocs, err := s.DenormalizeAllocationSlice(allocs, job)
+		denormalizedAllocs, err := s.DenormalizeAllocationSlice(allocs)
 		if err != nil {
 			return err
 		}
@@ -4207,18 +4207,20 @@ func (s *StateSnapshot) DenormalizeAllocationsMap(nodeAllocations map[string][]*
 // DenormalizeAllocationSlice queries the Allocation for each allocation diff
 // represented as an Allocation and merges the updated attributes with the existing
 // Allocation, and attaches the Job provided.
-func (s *StateSnapshot) DenormalizeAllocationSlice(allocs []*structs.Allocation, job *structs.Job) ([]*structs.Allocation, error) {
+func (s *StateSnapshot) DenormalizeAllocationSlice(allocs []*structs.Allocation) ([]*structs.Allocation, error) {
 	allocDiffs := make([]*structs.AllocationDiff, len(allocs))
 	for i, alloc := range allocs {
 		allocDiffs[i] = alloc.AllocationDiff()
 	}
 
-	return s.DenormalizeAllocationDiffSlice(allocDiffs, job)
+	return s.DenormalizeAllocationDiffSlice(allocDiffs)
 }
 
 // DenormalizeAllocationDiffSlice queries the Allocation for each AllocationDiff and merges
-// the updated attributes with the existing Allocation, and attaches the Job provided
-func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.AllocationDiff, planJob *structs.Job) ([]*structs.Allocation, error) {
+// the updated attributes with the existing Allocation, and attaches the Job provided.
+//
+// This should only be called on terminal alloc, particularly stopped or preempted allocs
+func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.AllocationDiff) ([]*structs.Allocation, error) {
 	// Output index for denormalized Allocations
 	j := 0
 
@@ -4232,18 +4234,16 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 			return nil, fmt.Errorf("alloc %v doesn't exist", allocDiff.ID)
 		}
 
-		// Merge the updates to the Allocation
-		allocCopy := alloc.CopySkipJob()
+		// Merge the updates to the Allocation.  Don't update alloc.Job for terminal allocs
+		// so alloc refers to the latest Job view before destruction and to ease handler implementations
+		allocCopy := alloc.Copy()
 
 		if allocDiff.PreemptedByAllocation != "" {
-			// If alloc is a preemption set the job from the alloc read from the state store
-			allocCopy.Job = alloc.Job.Copy()
 			allocCopy.PreemptedByAllocation = allocDiff.PreemptedByAllocation
 			allocCopy.DesiredDescription = getPreemptedAllocDesiredDescription(allocDiff.PreemptedByAllocation)
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusEvict
 		} else {
 			// If alloc is a stopped alloc
-			allocCopy.Job = planJob
 			allocCopy.DesiredDescription = allocDiff.DesiredDescription
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusStop
 			if allocDiff.ClientStatus != "" {

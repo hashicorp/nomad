@@ -16,6 +16,11 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
+var _ interfaces.TaskPoststartHook = &serviceHook{}
+var _ interfaces.TaskPreKillHook = &serviceHook{}
+var _ interfaces.TaskExitedHook = &serviceHook{}
+var _ interfaces.TaskStopHook = &serviceHook{}
+
 type serviceHookConfig struct {
 	alloc  *structs.Allocation
 	task   *structs.Task
@@ -177,6 +182,13 @@ func (h *serviceHook) deregister() {
 	taskServices.Canary = !taskServices.Canary
 	h.consul.RemoveTask(taskServices)
 
+}
+
+func (h *serviceHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.deregister()
+	return nil
 }
 
 func (h *serviceHook) getTaskServices() *agentconsul.TaskServices {

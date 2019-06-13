@@ -1213,9 +1213,9 @@ func TestJobs_JobSummary(t *testing.T) {
 
 func TestJobs_NewBatchJob(t *testing.T) {
 	t.Parallel()
-	job := NewBatchJob("job1", "myjob", "region1", 5)
+	job := NewBatchJob("job1", "myjob", "global", 5)
 	expect := &Job{
-		Region:   stringToPtr("region1"),
+		Region:   stringToPtr("global"),
 		ID:       stringToPtr("job1"),
 		Name:     stringToPtr("myjob"),
 		Type:     stringToPtr(JobTypeBatch),
@@ -1228,9 +1228,9 @@ func TestJobs_NewBatchJob(t *testing.T) {
 
 func TestJobs_NewServiceJob(t *testing.T) {
 	t.Parallel()
-	job := NewServiceJob("job1", "myjob", "region1", 5)
+	job := NewServiceJob("job1", "myjob", "global", 5)
 	expect := &Job{
-		Region:   stringToPtr("region1"),
+		Region:   stringToPtr("global"),
 		ID:       stringToPtr("job1"),
 		Name:     stringToPtr("myjob"),
 		Type:     stringToPtr(JobTypeService),
