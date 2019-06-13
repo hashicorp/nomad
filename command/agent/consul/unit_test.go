@@ -205,7 +205,7 @@ func TestConsul_ChangePorts(t *testing.T) {
 		require.Equal(xPort, v.Port)
 	}
 
-	require.Equal(3, len(ctx.FakeConsul.checks))
+	require.Len(ctx.FakeConsul.checks, 3)
 
 	origTCPKey := ""
 	origScriptKey := ""
@@ -279,12 +279,12 @@ func TestConsul_ChangePorts(t *testing.T) {
 	for k, v := range ctx.FakeConsul.checks {
 		switch v.Name {
 		case "c1":
-			// C1 is not changed
-			require.Equal(origTCPKey, k)
+			// C1 is changed because the service was re-registered
+			require.NotEqual(origTCPKey, k)
 			require.Equal(fmt.Sprintf(":%d", xPort), v.TCP)
 		case "c2":
-			// C2 is not changed and should not have been re-registered
-			require.Equal(origScriptKey, k)
+			// C2 is changed because the service was re-registered
+			require.NotEqual(origScriptKey, k)
 		case "c3":
 			require.NotEqual(origHTTPKey, k)
 			require.Equal(fmt.Sprintf("http://:%d/", yPort), v.HTTP)
@@ -1613,5 +1613,66 @@ func TestGetAddress(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestConsul_ServiceName_Duplicates(t *testing.T) {
+	t.Parallel()
+	ctx := setupFake(t)
+	require := require.New(t)
+
+	ctx.Task.Services = []*structs.Service{
+		{
+			Name:      "best-service",
+			PortLabel: "x",
+			Tags: []string{
+				"foo",
+			},
+			Checks: []*structs.ServiceCheck{
+				{
+					Name:     "check-a",
+					Type:     "tcp",
+					Interval: time.Second,
+					Timeout:  time.Second,
+				},
+			},
+		},
+		{
+			Name:      "best-service",
+			PortLabel: "y",
+			Tags: []string{
+				"bar",
+			},
+			Checks: []*structs.ServiceCheck{
+				{
+					Name:     "checky-mccheckface",
+					Type:     "tcp",
+					Interval: time.Second,
+					Timeout:  time.Second,
+				},
+			},
+		},
+		{
+			Name:      "worst-service",
+			PortLabel: "y",
+		},
+	}
+
+	require.NoError(ctx.ServiceClient.RegisterTask(ctx.Task))
+
+	require.NoError(ctx.syncOnce())
+
+	require.Len(ctx.FakeConsul.services, 3)
+
+	for _, v := range ctx.FakeConsul.services {
+		if v.Name == ctx.Task.Services[0].Name && v.Port == xPort {
+			require.ElementsMatch(v.Tags, ctx.Task.Services[0].Tags)
+			require.Len(v.Checks, 1)
+		} else if v.Name == ctx.Task.Services[1].Name && v.Port == yPort {
+			require.ElementsMatch(v.Tags, ctx.Task.Services[1].Tags)
+			require.Len(v.Checks, 1)
+		} else if v.Name == ctx.Task.Services[2].Name {
+			require.Len(v.Checks, 0)
+		}
 	}
 }

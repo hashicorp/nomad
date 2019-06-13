@@ -1107,12 +1107,11 @@ func makeAgentServiceID(role string, service *structs.Service) string {
 }
 
 // makeTaskServiceID creates a unique ID for identifying a task service in
-// Consul. All structs.Service fields are included in the ID's hash except
-// Checks. This allows updates to merely compare IDs.
+// Consul.
 //
-//	Example Service ID: _nomad-task-b4e61df9-b095-d64e-f241-23860da1375f-redis-http
+//	Example Service ID: _nomad-task-b4e61df9-b095-d64e-f241-23860da1375f-redis-http-http
 func makeTaskServiceID(allocID, taskName string, service *structs.Service, canary bool) string {
-	return fmt.Sprintf("%s%s-%s-%s", nomadTaskPrefix, allocID, taskName, service.Name)
+	return fmt.Sprintf("%s%s-%s-%s-%s", nomadTaskPrefix, allocID, taskName, service.Name, service.PortLabel)
 }
 
 // makeCheckID creates a unique ID for a check.
