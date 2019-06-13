@@ -37,4 +37,8 @@ ui-screenshots:
 		--volume "$(shell pwd)/scripts/screenshots/screenshots:/screenshots" \
 		nomad-ui-screenshots
 
+ui-screenshots-local:
+	@echo "==> Collecting UI screenshots (local)..."
+	@cd scripts/screenshots/src && SCREENSHOTS_DIR="../screenshots" node index.js
+
 .PHONY: build website
