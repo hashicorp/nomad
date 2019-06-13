@@ -11,7 +11,7 @@ const allScenarios = {
   massiveCluster,
   allJobTypes,
   allNodeTypes,
-  allTheThings,
+  everyFeature,
   emptyCluster,
 };
 
@@ -85,7 +85,7 @@ function allNodeTypes(server) {
   server.createList('job', 3);
 }
 
-function allTheThings(server) {
+function everyFeature(server) {
   server.createList('agent', 3);
 
   server.create('node', 'forceIPv4');
