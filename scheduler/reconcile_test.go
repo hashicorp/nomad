@@ -4683,3 +4683,167 @@ func TestReconciler_ForceReschedule_Service(t *testing.T) {
 	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
 	assertPlacementsAreRescheduled(t, 1, r.place)
 }
+
+// Tests behavior of service failure with rescheduling policy preventing rescheduling:
+// new allocs should be placed to satisfy the job count, and current allocations are
+// left unmodified
+func TestReconciler_RescheduleNot_Service(t *testing.T) {
+	require := require.New(t)
+
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	// Set up reschedule policy and update stanza
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      0,
+		Interval:      24 * time.Hour,
+		Delay:         5 * time.Second,
+		DelayFunction: "",
+		MaxDelay:      1 * time.Hour,
+		Unlimited:     false,
+	}
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Create 5 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+
+	// Mark two as failed
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+
+	// Mark one of them as already rescheduled once
+	allocs[0].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: uuid.Generate(),
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	allocs[1].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-10 * time.Second)}}
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+
+	// Mark one as desired state stop
+	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Verify that no follow up evals were created
+	evals := r.desiredFollowupEvals[tgName]
+	require.Nil(evals)
+
+	// no rescheduling, ignore all 4 allocs
+	// but place one to substitute allocs[4] that was stopped explicitly
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  1,
+				Ignore: 4,
+				Stop:   0,
+			},
+		},
+	})
+
+	// none of the placement should have preallocs or rescheduled
+	assertPlaceResultsHavePreviousAllocs(t, 0, r.place)
+	assertPlacementsAreRescheduled(t, 0, r.place)
+}
+
+// Tests behavior of batch failure with rescheduling policy preventing rescheduling:
+// current allocations are left unmodified and no follow up
+func TestReconciler_RescheduleNot_Batch(t *testing.T) {
+	require := require.New(t)
+	// Set desired 4
+	job := mock.Job()
+	job.TaskGroups[0].Count = 4
+	now := time.Now()
+	// Set up reschedule policy
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      0,
+		Interval:      24 * time.Hour,
+		Delay:         5 * time.Second,
+		DelayFunction: "constant",
+	}
+	tgName := job.TaskGroups[0].Name
+	// Create 6 existing allocations - 2 running, 1 complete and 3 failed
+	var allocs []*structs.Allocation
+	for i := 0; i < 6; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+	// Mark 3 as failed with restart tracking info
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+	allocs[0].NextAllocation = allocs[1].ID
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[0].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	allocs[1].NextAllocation = allocs[2].ID
+	allocs[2].ClientStatus = structs.AllocClientStatusFailed
+	allocs[2].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-5 * time.Second)}}
+	allocs[2].FollowupEvalID = uuid.Generate()
+	allocs[2].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-2 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[0].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[1].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	// Mark one as complete
+	allocs[5].ClientStatus = structs.AllocClientStatusComplete
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, "")
+	reconciler.now = now
+	r := reconciler.Compute()
+
+	// Verify that no follow up evals were created
+	evals := r.desiredFollowupEvals[tgName]
+	require.Nil(evals)
+
+	// No reschedule attempts were made and all allocs are untouched
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		stop:              0,
+		inplace:           0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  0,
+				Stop:   0,
+				Ignore: 4,
+			},
+		},
+	})
+
+}
