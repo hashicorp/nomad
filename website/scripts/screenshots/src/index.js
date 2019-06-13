@@ -13,6 +13,8 @@ const {
 const HOST = process.env.EMBER_HOST || "http://localhost:4200";
 console.log(`Using host ${HOST}...`);
 
+const ANSI_YELLOW = "\x1b[33m%s\x1b[0m";
+
 (async () => {
   const startTime = Date.now();
   console.log("Preparing puppeteer...");
@@ -31,6 +33,10 @@ console.log(`Using host ${HOST}...`);
   // Make sure the page is 4K is high-dpi scaling
   page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 2 });
   console.log("Loading Nomad UI...");
+  console.log(
+    ANSI_YELLOW,
+    "\n!! Make sure to use the everyFeature Mirage scenario !!\n"
+  );
 
   try {
     await page.goto(`${HOST}/ui/`);
