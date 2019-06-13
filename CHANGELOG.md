@@ -3,6 +3,10 @@
 IMPROVEMENTS:
 * api: use region from job hcl when not provided as query parameter in job registration and plan endpoints [[GH-5664](https://github.com/hashicorp/nomad/pull/5664)]
 
+BUG FIXES:
+
+* ui: Clicking sort arrow can now change sort direction [[GH-5833](https://github.com/hashicorp/nomad/pull/5833)]
+
 ## 0.9.3 (June 12, 2019)
 
 BUG FIXES:
