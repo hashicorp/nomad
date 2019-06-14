@@ -36,7 +36,6 @@ export default function(server) {
 
 function smallCluster(server) {
   server.createList('agent', 3);
-
   server.createList('node', 5);
   server.createList('job', 5);
 }
