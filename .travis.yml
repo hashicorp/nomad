@@ -38,7 +38,7 @@ matrix:
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./nomad"
-      if: NOT branch =~ /^.-ui\b/
+      if: (type = push AND NOT branch =~ /^.-ui\b/) OR (type = pull_request AND NOT head_branch =~ /^.ui\b/)
     - os: linux
       dist: xenial
       sudo: required
