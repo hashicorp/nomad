@@ -12,6 +12,7 @@ addons:
 git:
   depth: 300
 
+# This skips non-UI jobs for UI-only branches with names like f-ui/whatever or b-ui/something.
 _skip_for_ui_branches: &skip_for_ui_branches
   if: (type = push AND NOT branch =~ /^.-ui\b/) OR (type = pull_request AND NOT head_branch =~ /^.-ui\b/)
 
