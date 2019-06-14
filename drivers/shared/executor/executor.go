@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
@@ -122,6 +123,8 @@ type ExecCommand struct {
 
 	// Devices are the the device nodes to be created in isolation environment
 	Devices []*drivers.DeviceConfig
+
+	NetworkIsolation *drivers.NetworkIsolationSpec
 }
 
 // SetWriters sets the writer for the process stdout and stderr. This should
@@ -303,8 +306,24 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	e.childCmd.Env = e.commandCfg.Env
 
 	// Start the process
-	if err := e.childCmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
+	if command.NetworkIsolation != nil && command.NetworkIsolation.Path != "" {
+		netns, err := ns.GetNS(command.NetworkIsolation.Path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get ns %s: %v", command.NetworkIsolation.Path, err)
+		}
+
+		// Start the container in the network namespace
+		err = netns.Do(func(ns.NetNS) error {
+			return e.childCmd.Start()
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
+		}
+	} else {
+		if err := e.childCmd.Start(); err != nil {
+			return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
+		}
+
 	}
 
 	go e.pidCollector.collectPids(e.processExited, getAllPids)

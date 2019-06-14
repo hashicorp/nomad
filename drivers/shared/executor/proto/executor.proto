@@ -29,6 +29,7 @@ message LaunchRequest {
     bool basic_process_cgroup = 10;
     repeated hashicorp.nomad.plugins.drivers.proto.Mount mounts = 11;
     repeated hashicorp.nomad.plugins.drivers.proto.Device devices = 12;
+    hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec network_isolation = 13;
 }
 
 message LaunchResponse {

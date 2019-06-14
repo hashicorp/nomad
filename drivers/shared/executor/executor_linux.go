@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
@@ -195,9 +196,23 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	l.systemCpuStats = stats.NewCpuStats()
 
 	// Starts the task
-	if err := container.Run(process); err != nil {
-		container.Destroy()
-		return nil, err
+	if command.NetworkIsolation != nil && command.NetworkIsolation.Path != "" {
+		netns, err := ns.GetNS(command.NetworkIsolation.Path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get ns %s: %v", command.NetworkIsolation.Path, err)
+		}
+
+		// Start the container in the network namespace
+		err = netns.Do(func(ns.NetNS) error { return container.Run(process) })
+		if err != nil {
+			container.Destroy()
+			return nil, err
+		}
+	} else {
+		if err := container.Run(process); err != nil {
+			container.Destroy()
+			return nil, err
+		}
 	}
 
 	pid, err := process.Pid()
