@@ -5,7 +5,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
 
-* ui: Clicking sort arrow can now change sort direction [[GH-5833](https://github.com/hashicorp/nomad/pull/5833)]
+* ui: Fixed ability to click sort arrow to change sort direction [[GH-5833](https://github.com/hashicorp/nomad/pull/5833)]
 
 ## 0.9.3 (June 12, 2019)
 
