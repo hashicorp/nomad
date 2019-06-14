@@ -136,6 +136,17 @@ driver) but will be removed in a future release.
   generated, but setting this to `false` will use the system's UUID. Before
   Nomad 0.6 the default was to use the system UUID.
 
+- `cni_path` `(string: "/opt/cni/bin")` - Sets the search path that is used for
+  CNI plugin discovery. Multiple paths can be searched using colon delimited
+  paths
+
+- `bridge_network name` `(string: "nomad")` - Sets the name of the bridge to be
+  created by nomad for allocations running with bridge networking mode on the
+  client.
+
+- `bridge_network_subnet` `(string: "172.26.66.0/23")` - Specifies the subnet
+  which the client will use to allocate IP addresses from.
+
 ### `chroot_env` Parameters
 
 Drivers based on [isolated fork/exec](/docs/drivers/exec.html) implement file
