@@ -65,7 +65,7 @@ func TestNetworkHook_Prerun_Postrun(t *testing.T) {
 	require := require.New(t)
 
 	logger := testlog.HCLogger(t)
-	hook := newNetworkHook(logger, setter, alloc, nm)
+	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{})
 	require.NoError(hook.Prerun())
 	require.True(setter.called)
 	require.False(destroyCalled)
@@ -76,7 +76,7 @@ func TestNetworkHook_Prerun_Postrun(t *testing.T) {
 	setter.called = false
 	destroyCalled = false
 	alloc.Job.TaskGroups[0].Networks[0].Mode = "host"
-	hook = newNetworkHook(logger, setter, alloc, nm)
+	hook = newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{})
 	require.NoError(hook.Prerun())
 	require.False(setter.called)
 	require.False(destroyCalled)

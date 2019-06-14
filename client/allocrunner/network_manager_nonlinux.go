@@ -3,6 +3,7 @@
 package allocrunner
 
 import (
+	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -11,4 +12,8 @@ import (
 // TODO: Support windows shared networking
 func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Manager) (nm drivers.DriverNetworkManager, err error) {
 	return nil, nil
+}
+
+func newNetworkConfigurator(alloc *structs.Allocation, config *clientconfig.Config) NetworkConfigurator {
+	return &hostNetworkConfigurator{}
 }
