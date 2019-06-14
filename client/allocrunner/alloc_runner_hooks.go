@@ -6,6 +6,7 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -94,7 +95,7 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 }
 
 // initRunnerHooks intializes the runners hooks.
-func (ar *allocRunner) initRunnerHooks() error {
+func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	hookLogger := ar.logger.Named("runner_hook")
 
 	// create health setting shim
@@ -109,6 +110,9 @@ func (ar *allocRunner) initRunnerHooks() error {
 		return fmt.Errorf("failed to configure network manager: %v", err)
 	}
 
+	// create network configurator
+	nc := newNetworkConfigurator(ar.Alloc(), config)
+
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
 	ar.runnerHooks = []interfaces.RunnerHook{
@@ -116,7 +120,7 @@ func (ar *allocRunner) initRunnerHooks() error {
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
-		newNetworkHook(hookLogger, ns, ar.Alloc(), nm),
+		newNetworkHook(hookLogger, ns, ar.Alloc(), nm, nc),
 	}
 
 	return nil
