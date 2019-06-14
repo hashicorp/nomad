@@ -30,6 +30,9 @@ sudo cp $CONFIGDIR/consul_$CLOUD.service /etc/systemd/system/consul.service
 sudo systemctl start consul.service
 sleep 10
 
+# AWS CLI
+sudo apt-get install awscli -y
+
 # Nomad
 
 ## Replace existing Nomad binary if remote file exists

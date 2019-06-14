@@ -42,6 +42,9 @@ sudo cp $CONFIGDIR/vault.service /etc/systemd/system/vault.service
 
 sudo systemctl start vault.service
 
+# AWS CLI
+sudo apt-get install awscli -y
+
 # Nomad
 
 ## Replace existing Nomad binary if remote file exists
