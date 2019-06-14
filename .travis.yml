@@ -12,48 +12,51 @@ addons:
 git:
   depth: 300
 
+_skip_for_ui_branches: &skip_for_ui_branches
+  if: (type = push AND NOT branch =~ /^.-ui\b/) OR (type = pull_request AND NOT head_branch =~ /^.-ui\b/)
+
 matrix:
   include:
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./api"
-      &skip-for-ui-branches if: (type = push AND NOT branch =~ /^.-ui\b/) OR (type = pull_request AND NOT head_branch =~ /^.-ui\b/)
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./client"
-      <<: *skip-for-ui-branches
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./drivers/docker"
-      <<: *skip-for-ui-branches
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./drivers/exec"
-      <<: *skip-for-ui-branches
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./nomad"
-      <<: *skip-for-ui-branches
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS_EXCLUDE="./api|./client|./drivers/docker|./drivers/exec|./nomad"
-      <<: *skip-for-ui-branches
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: ENABLE_RACE=1
-      <<: *skip-for-ui-branches
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: false
       env: RUN_WEBSITE_TESTS=1 SKIP_NOMAD_TESTS=1
-      <<: *skip-for-ui-branches
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: false
@@ -62,15 +65,15 @@ matrix:
       dist: xenial
       sudo: false
       env: RUN_STATIC_CHECKS=1 SKIP_NOMAD_TESTS=1
-      <<: *skip-for-ui-branches
+      <<: *skip_for_ui_branches
     - os: osx
       osx_image: xcode9.1
-      <<: *skip-for-ui-branches
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: RUN_E2E_TESTS=1 SKIP_NOMAD_TESTS=1
-      <<: *skip-for-ui-branches
+      <<: *skip_for_ui_branches
   allow_failures:
     # Allow osx to fail as its flaky
     - os: osx
