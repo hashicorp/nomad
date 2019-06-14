@@ -261,7 +261,7 @@ func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID str
 		if !eligibleNow {
 			untainted[alloc.ID] = alloc
 			if eligibleLater {
-				rescheduleLater = append(rescheduleLater, &delayedRescheduleInfo{alloc.ID, rescheduleTime})
+				rescheduleLater = append(rescheduleLater, &delayedRescheduleInfo{alloc.ID, alloc, rescheduleTime})
 			}
 		} else {
 			rescheduleNow[alloc.ID] = alloc

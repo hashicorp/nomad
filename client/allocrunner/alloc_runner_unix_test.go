@@ -116,8 +116,9 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 	// Assert consul was cleaned up:
 	//   2 removals (canary+noncanary) during prekill
 	//   2 removals (canary+noncanary) during exited
+	//   2 removals (canary+noncanary) during stop
 	consulOps := conf2.Consul.(*consul.MockConsulServiceClient).GetOps()
-	require.Len(t, consulOps, 4)
+	require.Len(t, consulOps, 6)
 	for _, op := range consulOps {
 		require.Equal(t, "remove", op.Op)
 	}

@@ -39,6 +39,9 @@ const (
 	// node is tainted.
 	allocNodeTainted = "alloc not needed as node is tainted"
 
+	// allocRescheduled is the status used when an allocation failed and was rescheduled
+	allocRescheduled = "alloc was rescheduled because it failed"
+
 	// blockedEvalMaxPlanDesc is the description used for blocked evals that are
 	// a result of hitting the max number of plan attempts
 	blockedEvalMaxPlanDesc = "created due to placement conflicts"

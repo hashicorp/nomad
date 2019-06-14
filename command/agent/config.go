@@ -1090,8 +1090,14 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 	if b.TokenTTL != 0 {
 		result.TokenTTL = b.TokenTTL
 	}
+	if b.TokenTTLHCL != "" {
+		result.TokenTTLHCL = b.TokenTTLHCL
+	}
 	if b.PolicyTTL != 0 {
 		result.PolicyTTL = b.PolicyTTL
+	}
+	if b.PolicyTTLHCL != "" {
+		result.PolicyTTLHCL = b.PolicyTTLHCL
 	}
 	if b.ReplicationToken != "" {
 		result.ReplicationToken = b.ReplicationToken
@@ -1139,8 +1145,14 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.HeartbeatGrace != 0 {
 		result.HeartbeatGrace = b.HeartbeatGrace
 	}
+	if b.HeartbeatGraceHCL != "" {
+		result.HeartbeatGraceHCL = b.HeartbeatGraceHCL
+	}
 	if b.MinHeartbeatTTL != 0 {
 		result.MinHeartbeatTTL = b.MinHeartbeatTTL
+	}
+	if b.MinHeartbeatTTLHCL != "" {
+		result.MinHeartbeatTTLHCL = b.MinHeartbeatTTLHCL
 	}
 	if b.MaxHeartbeatsPerSecond != 0.0 {
 		result.MaxHeartbeatsPerSecond = b.MaxHeartbeatsPerSecond
@@ -1150,6 +1162,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.RetryInterval != 0 {
 		result.RetryInterval = b.RetryInterval
+	}
+	if b.RetryIntervalHCL != "" {
+		result.RetryIntervalHCL = b.RetryIntervalHCL
 	}
 	if b.RejoinAfterLeave {
 		result.RejoinAfterLeave = true
@@ -1231,6 +1246,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.GCInterval != 0 {
 		result.GCInterval = b.GCInterval
+	}
+	if b.GCIntervalHCL != "" {
+		result.GCIntervalHCL = b.GCIntervalHCL
 	}
 	if b.GCParallelDestroys != 0 {
 		result.GCParallelDestroys = b.GCParallelDestroys
@@ -1453,8 +1471,9 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	return &result
 }
 
-// LoadConfig loads the configuration at the given path, regardless if
-// its a file or directory.
+// LoadConfig loads the configuration at the given path, regardless if its a file or
+// directory. Called for each -config to build up the runtime config value. Do not apply any
+// default values, defaults should be added once in DefaultConfig
 func LoadConfig(path string) (*Config, error) {
 	fi, err := os.Stat(path)
 	if err != nil {

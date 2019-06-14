@@ -2441,6 +2441,8 @@ func TestServiceSched_NodeDown(t *testing.T) {
 	allocs[9].DesiredStatus = structs.AllocDesiredStatusRun
 	allocs[9].ClientStatus = structs.AllocClientStatusComplete
 
+	toBeRescheduled := map[string]bool{allocs[8].ID: true}
+
 	// Mark some allocs as running
 	for i := 0; i < 4; i++ {
 		out := allocs[i]
@@ -2483,7 +2485,7 @@ func TestServiceSched_NodeDown(t *testing.T) {
 	plan := h.Plans[0]
 
 	// Test the scheduler marked all non-terminal allocations as lost
-	require.Len(t, plan.NodeUpdate[node.ID], len(toBeMigrated)+len(toBeLost))
+	require.Len(t, plan.NodeUpdate[node.ID], len(toBeMigrated)+len(toBeLost)+len(toBeRescheduled))
 
 	for _, out := range plan.NodeUpdate[node.ID] {
 		t.Run("alloc "+out.ID, func(t *testing.T) {
@@ -2494,6 +2496,8 @@ func TestServiceSched_NodeDown(t *testing.T) {
 				require.NotEqual(t, structs.AllocClientStatusLost, out.ClientStatus)
 			} else if toBeLost[out.ID] {
 				require.Equal(t, structs.AllocClientStatusLost, out.ClientStatus)
+			} else if toBeRescheduled[out.ID] {
+				require.Equal(t, structs.AllocClientStatusFailed, out.ClientStatus)
 			} else {
 				require.Fail(t, "unexpected alloc update")
 			}

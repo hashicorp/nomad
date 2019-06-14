@@ -4217,7 +4217,9 @@ func (s *StateSnapshot) DenormalizeAllocationSlice(allocs []*structs.Allocation)
 }
 
 // DenormalizeAllocationDiffSlice queries the Allocation for each AllocationDiff and merges
-// the updated attributes with the existing Allocation, and attaches the Job provided
+// the updated attributes with the existing Allocation, and attaches the Job provided.
+//
+// This should only be called on terminal alloc, particularly stopped or preempted allocs
 func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.AllocationDiff) ([]*structs.Allocation, error) {
 	// Output index for denormalized Allocations
 	j := 0
@@ -4232,11 +4234,11 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 			return nil, fmt.Errorf("alloc %v doesn't exist", allocDiff.ID)
 		}
 
-		// Merge the updates to the Allocation
+		// Merge the updates to the Allocation.  Don't update alloc.Job for terminal allocs
+		// so alloc refers to the latest Job view before destruction and to ease handler implementations
 		allocCopy := alloc.Copy()
 
 		if allocDiff.PreemptedByAllocation != "" {
-			// If alloc is a preemption set the job from the alloc read from the state store
 			allocCopy.PreemptedByAllocation = allocDiff.PreemptedByAllocation
 			allocCopy.DesiredDescription = getPreemptedAllocDesiredDescription(allocDiff.PreemptedByAllocation)
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusEvict
