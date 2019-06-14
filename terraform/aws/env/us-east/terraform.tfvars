@@ -15,6 +15,13 @@ name = "nomad"
 #  - Typically this is left commented unless necessary. 
 #nomad_binary = "https://releases.hashicorp.com/nomad/0.9.0/nomad_0.9.0_linux_amd64.zip"
 
+# If you are using a binary from a restricted S3 bucket, you will need to use
+# the s3 protocol (see example on next line)
+# nomad_binary = "s3://<your-bucket-name>/your-nomad-binary.zip"
+# NOTE: the instances in environment can read from S3 buckets, but you will need
+# to make sure your bucket has the appropriate policy that allows you to read
+# from it
+
 # `region` ("us-east-1") - sets the AWS region to build your cluster in.
 #region = "us-east-1"
 
