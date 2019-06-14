@@ -307,23 +307,17 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 
 	// Start the process
 	if command.NetworkIsolation != nil && command.NetworkIsolation.Path != "" {
-		// Lock to the thread we're changing the network namespace of
-		runtime.LockOSThread()
 		netns, err := ns.GetNS(command.NetworkIsolation.Path)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get ns %s: %v", command.NetworkIsolation.Path, err)
 		}
 
 		// Start the container in the network namespace
 		err = netns.Do(func(ns.NetNS) error {
-
-			if err := e.childCmd.Start(); err != nil {
-				return fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
-			}
-			return nil
+			return e.childCmd.Start()
 		})
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 		}
 	} else {
 		if err := e.childCmd.Start(); err != nil {
