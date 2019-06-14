@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -186,22 +185,15 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 
 	// Starts the task
 	if command.NetworkIsolation != nil && command.NetworkIsolation.Path != "" {
-		// Lock to the thread we're changing the network namespace of
-		runtime.LockOSThread()
 		netns, err := ns.GetNS(command.NetworkIsolation.Path)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get ns %s: %v", command.NetworkIsolation.Path, err)
 		}
 
 		// Start the container in the network namespace
-		err = netns.Do(func(ns.NetNS) error {
-			if err := container.Run(process); err != nil {
-				container.Destroy()
-				return err
-			}
-			return nil
-		})
+		err = netns.Do(func(ns.NetNS) error { return container.Run(process) })
 		if err != nil {
+			container.Destroy()
 			return nil, err
 		}
 	} else {
