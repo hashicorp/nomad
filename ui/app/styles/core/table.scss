@@ -82,6 +82,12 @@
       width: 25%;
     }
 
+    &.is-truncatable {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     &.is-narrow {
       padding: 1.25em 0 1.25em 0.5em;
 
@@ -93,75 +99,9 @@
 
     // Only use px modifiers when text needs to be truncated.
     // In this and only this scenario are percentages not effective.
-    &.is-300px {
-      width: 300px;
-      max-width: 300px;
-
-      &.is-truncatable {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-
-        &.is-revealable {
-          .revealed {
-            display: none;
-            position: absolute;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            padding: 1.25em 1.5em;
-          }
-
-          &:hover {
-            position: relative;
-
-            color: transparent;
-            overflow: visible;
-
-            .revealed {
-              color: $text;
-              display: block;
-              background-color: $white;
-              z-index: $z-zero;
-
-              $shadow-width: 8px;
-
-              &::before {
-                content: ' ';
-
-                position: absolute;
-                top: 0;
-                bottom: 0;
-                left: 0;
-                width: 300px;
-
-                background: white;
-                z-index: $z-below;
-              }
-
-              &::after {
-                content: ' ';
-
-                position: absolute;
-                top: 0;
-                bottom: 0;
-                right: -$shadow-width;
-                width: $shadow-width;
-
-                display: inline-block;
-                z-index: $z-below-below;
-
-                background: linear-gradient(
-                  90deg,
-                  $grey-blue 0%,
-                  rgba($grey-blue, 0.72) 10%,
-                  rgba($white, 0) 100%
-                );
-              }
-            }
-          }
-        }
-      }
+    &.is-200px {
+      width: 200px;
+      max-width: 200px;
     }
 
     @for $i from 1 through 11 {
@@ -227,6 +167,7 @@
           bottom: 0.75em;
           position: absolute;
           display: block;
+          pointer-events: none;
         }
 
         &.asc::after {
