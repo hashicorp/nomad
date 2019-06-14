@@ -37,39 +37,7 @@ export default function(server) {
 function smallCluster(server) {
   server.createList('agent', 3);
 
-  // server.createList('node', 5);
-  // FIXME data to exercise all permutations; remove before merging PR
-  server.create('node', {
-    modifyIndex: 4,
-    status: 'ready',
-    schedulingEligibility: 'eligible',
-    drain: false,
-  });
-  server.create('node', {
-    modifyIndex: 3,
-    status: 'initializing',
-    schedulingEligibility: 'eligible',
-    drain: false,
-  });
-  server.create('node', {
-    modifyIndex: 2,
-    status: 'down',
-    schedulingEligibility: 'eligible',
-    drain: false,
-  });
-  server.create('node', {
-    modifyIndex: 1,
-    status: 'ready',
-    schedulingEligibility: 'ineligible',
-    drain: false,
-  });
-  server.create('node', {
-    modifyIndex: 0,
-    status: 'ready',
-    schedulingEligibility: 'ineligible',
-    drain: true,
-  });
-
+  server.createList('node', 5);
   server.createList('job', 5);
 }
 
