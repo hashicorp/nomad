@@ -1,9 +1,11 @@
 package allocrunner
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/lib/nsutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -119,37 +121,12 @@ func netModeToIsolationMode(netMode string) drivers.NetIsolationMode {
 	}
 }
 
-func getPortMapping(alloc *structs.Allocation) []*nsutil.PortMapping {
-	ports := []*nsutil.PortMapping{}
-	for _, network := range alloc.AllocatedResources.Shared.Networks {
-		for _, port := range append(network.DynamicPorts, network.ReservedPorts...) {
-			for _, proto := range []string{"tcp", "udp"} {
-				ports = append(ports, &nsutil.PortMapping{
-					Host:      port.Value,
-					Container: port.To,
-					Proto:     proto,
-				})
-			}
-		}
+func newNetworkConfigurator(alloc *structs.Allocation, config *clientconfig.Config) NetworkConfigurator {
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	switch strings.ToLower(tg.Networks[0].Mode) {
+	case "bridge":
+		return newBridgeNetworkConfigurator(context.Background(), config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath)
+	default:
+		return &hostNetworkConfigurator{}
 	}
-	return ports
-}
-
-func ConfigureNetworking(alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
-
-	// TODO: CNI support
-	if err := nsutil.SetupBridgeNetworking(alloc.ID, spec.Path, getPortMapping(alloc)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func CleanupNetworking(alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
-	if err := nsutil.TeardownBridgeNetworking(alloc.ID, spec.Path, getPortMapping(alloc)); err != nil {
-		return err
-	}
-
-	return nil
-
 }
