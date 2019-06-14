@@ -18,42 +18,42 @@ matrix:
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./api"
-      if: NOT branch =~ /^.-ui/
+      if: NOT branch =~ /^.-ui\b/
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./client"
-      if: NOT branch =~ /^.-ui/
+      if: NOT branch =~ /^.-ui\b/
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./drivers/docker"
-      if: NOT branch =~ /^.-ui/
+      if: NOT branch =~ /^.-ui\b/
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./drivers/exec"
-      if: NOT branch =~ /^.-ui/
+      if: NOT branch =~ /^.-ui\b/
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./nomad"
-      if: NOT branch =~ /^.-ui/
+      if: NOT branch =~ /^.-ui\b/
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS_EXCLUDE="./api|./client|./drivers/docker|./drivers/exec|./nomad"
-      if: NOT branch =~ /^.-ui/
+      if: NOT branch =~ /^.-ui\b/
     - os: linux
       dist: xenial
       sudo: required
       env: ENABLE_RACE=1
-      if: NOT branch =~ /^.-ui/
+      if: NOT branch =~ /^.-ui\b/
     - os: linux
       dist: xenial
       sudo: false
       env: RUN_WEBSITE_TESTS=1 SKIP_NOMAD_TESTS=1
-      if: NOT branch =~ /^.-ui/
+      if: NOT branch =~ /^.-ui\b/
     - os: linux
       dist: xenial
       sudo: false
@@ -62,15 +62,15 @@ matrix:
       dist: xenial
       sudo: false
       env: RUN_STATIC_CHECKS=1 SKIP_NOMAD_TESTS=1
-      if: NOT branch =~ /^.-ui/
+      if: NOT branch =~ /^.-ui\b/
     - os: osx
       osx_image: xcode9.1
-      if: NOT branch =~ /^.-ui/
+      if: NOT branch =~ /^.-ui\b/
     - os: linux
       dist: xenial
       sudo: required
       env: RUN_E2E_TESTS=1 SKIP_NOMAD_TESTS=1
-      if: NOT branch =~ /^.-ui/
+      if: NOT branch =~ /^.-ui\b/
   allow_failures:
     # Allow osx to fail as its flaky
     - os: osx
