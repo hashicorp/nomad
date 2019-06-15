@@ -860,9 +860,14 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	hostConfig.ReadonlyRootfs = driverConfig.ReadonlyRootfs
 
+	// set the docker network mode
 	hostConfig.NetworkMode = driverConfig.NetworkMode
+
+	// if the driver config does not specify a network mode then try to use the
+	// shared alloc network
 	if hostConfig.NetworkMode == "" {
 		if task.NetworkIsolation.Path != "" {
+			// find the previously created parent container to join networks with
 			netMode := fmt.Sprintf("container:%s", task.NetworkIsolation.Labels[dockerNetSpecLabelKey])
 			logger.Debug("configuring network mode for task group", "network_mode", netMode)
 			hostConfig.NetworkMode = netMode

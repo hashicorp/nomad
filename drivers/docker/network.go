@@ -7,7 +7,12 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
+// infraContainerImage is the image used for the parent namespace container
 const infraContainerImage = "gcr.io/google_containers/pause-amd64:3.0"
+
+// dockerNetSpecLabelKey is used when creating a parent container for
+// shared networking. It is a label whos value identifies the container ID of
+// the parent container so tasks can configure their network mode accordingly
 const dockerNetSpecLabelKey = "docker_sandbox_container_id"
 
 func (d *Driver) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, error) {
@@ -73,11 +78,13 @@ func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSp
 func (d *Driver) createSandboxContainerConfig(allocID string) (*docker.CreateContainerOptions, error) {
 
 	return &docker.CreateContainerOptions{
-		Name: fmt.Sprintf("nomad_%s", allocID),
+		Name: fmt.Sprintf("nomad_init_%s", allocID),
 		Config: &docker.Config{
 			Image: infraContainerImage,
 		},
 		HostConfig: &docker.HostConfig{
+			// set the network mode to none which creates a network namespace with
+			// only a loopback interface
 			NetworkMode: "none",
 		},
 	}, nil
