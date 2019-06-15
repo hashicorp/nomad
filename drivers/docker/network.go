@@ -75,6 +75,8 @@ func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSp
 	})
 }
 
+// createSandboxContainerConfig creates a docker container configuration which
+// starts a container with an empty network namespace
 func (d *Driver) createSandboxContainerConfig(allocID string) (*docker.CreateContainerOptions, error) {
 
 	return &docker.CreateContainerOptions{
