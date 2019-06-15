@@ -31,21 +31,22 @@ sudo systemctl start consul.service
 sleep 10
 
 # AWS CLI
-sudo apt-get install awscli -y
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python-pip
+sudo pip install awscli
 
 # Nomad
 
 ## Replace existing Nomad binary if remote file exists
 if [[ `wget -S --spider $NOMAD_BINARY  2>&1 | grep 'HTTP/1.1 200 OK'` ]]; then
-	curl -L $NOMAD_BINARY > nomad.zip
-	sudo unzip -o nomad.zip -d /usr/local/bin
-	sudo chmod 0755 /usr/local/bin/nomad
-	sudo chown root:root /usr/local/bin/nomad
-elif [[ "aws s3 cp $NOMAD_BINARY nomad.zip --dryrun" ]]; then
-	aws s3 cp $NOMAD_BINARY nomad.zip
-	sudo unzip -o nomad.zip -d /usr/local/bin
-	sudo chmod 0755 /usr/local/bin/nomad
-	sudo chown root:root /usr/local/bin/nomad
+        curl -L $NOMAD_BINARY > nomad.zip
+        sudo unzip -o nomad.zip -d /usr/local/bin
+        sudo chmod 0755 /usr/local/bin/nomad
+        sudo chown root:root /usr/local/bin/nomad
+elif [[ "$(which aws) s3 cp $NOMAD_BINARY nomad.zip --dryrun" ]]; then
+        $(which aws) s3 cp $NOMAD_BINARY nomad.zip
+        sudo unzip -o nomad.zip -d /usr/local/bin
+        sudo chmod 0755 /usr/local/bin/nomad
+        sudo chown root:root /usr/local/bin/nomad
 fi
 
 sudo cp $CONFIGDIR/nomad_client.hcl $NOMADCONFIGDIR/nomad.hcl
