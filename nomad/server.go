@@ -1454,13 +1454,13 @@ func (s *Server) Stats() map[string]map[string]string {
 	return stats
 }
 
-// EmitRaftStats is used to export metrics about the blocked eval tracker while enabled
+// EmitRaftStats is used to export metrics about raft indexes and state store snapshot index
 func (s *Server) EmitRaftStats(period time.Duration, stopCh <-chan struct{}) {
 	for {
 		select {
 		case <-time.After(period):
-			commitIndex := s.raft.LastIndex()
-			metrics.SetGauge([]string{"raft", "commitIndex"}, float32(commitIndex))
+			lastIndex := s.raft.LastIndex()
+			metrics.SetGauge([]string{"raft", "lastIndex"}, float32(lastIndex))
 			appliedIndex := s.raft.AppliedIndex()
 			metrics.SetGauge([]string{"raft", "appliedIndex"}, float32(appliedIndex))
 			stateStoreSnapshotIndex, err := s.State().LatestIndex()
