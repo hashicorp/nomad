@@ -2021,3 +2021,51 @@ func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
 		require.NoError(t, err)
 	})
 }
+
+// TestTaskRunner_BaseLabels tests that the base labels for the task metrics
+// are set appropriately.
+func TestTaskRunner_BaseLabels(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	alloc := mock.BatchAlloc()
+	alloc.Namespace = "not-default"
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "raw_exec"
+	task.Config = map[string]interface{}{
+		"command": "whoami",
+	}
+
+	config, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+
+	tr, err := NewTaskRunner(config)
+	require.NoError(err)
+	defer cleanup()
+
+	var foundJob, foundGroup, foundTask, foundAlloc, foundNamespace bool
+	for _, e := range tr.baseLabels {
+		switch e.Name {
+		case "job":
+			require.Equal(e.Value, alloc.Job.Name)
+			foundJob = true
+		case  "task_group":
+			require.Equal(e.Value, alloc.TaskGroup)
+			foundGroup = true
+		case  "task":
+			require.Equal(e.Value, task.Name)
+			foundTask = true
+		case  "alloc_id":
+			require.Equal(e.Value, alloc.ID)
+			foundAlloc = true
+		case "namespace":
+			require.Equal(e.Value, alloc.Namespace)
+			foundNamespace = true
+		}
+	}
+	require.True(foundJob)
+	require.True(foundGroup)
+	require.True(foundAlloc)
+	require.True(foundTask)
+	require.True(foundNamespace)
+}
+
