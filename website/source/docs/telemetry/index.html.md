@@ -110,6 +110,18 @@ when retrieving metrics using the above described signals.
     <td>Counter</td>
   </tr>
   <tr>
+    <td>`nomad.raft.lastIndex`</td>
+    <td>Index of the last log</td>
+    <td>Sequence number</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.raft.appliedIndex`</td>
+    <td>Index of the last applied log</td>
+    <td>Sequence number</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
     <td>`nomad.raft.replication.appendEntries`</td>
     <td>Raft transaction commit time</td>
     <td>ms / Raft Log Append</td>
@@ -166,6 +178,12 @@ when retrieving metrics using the above described signals.
     </td>
     <td>ms / Plan Evaluation</td>
     <td>Timer</td>
+  </tr>
+  <tr>
+   <td>`nomad.state.snapshotIndex`</td>
+   <td>Latest index in the server's in memory state store</td>
+   <td>Sequence number</td>
+   <td>Gauge</td>
   </tr>
   <tr>
     <td>`nomad.worker.invoke_scheduler.<type>`</td>
