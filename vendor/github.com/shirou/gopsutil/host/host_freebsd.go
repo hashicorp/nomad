@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"runtime"
 	"strings"
 	"sync/atomic"
@@ -168,25 +167,17 @@ func PlatformInformation() (string, string, string, error) {
 }
 
 func PlatformInformationWithContext(ctx context.Context) (string, string, string, error) {
-	platform := ""
-	family := ""
-	version := ""
-	uname, err := exec.LookPath("uname")
+	platform, err := unix.Sysctl("kern.ostype")
 	if err != nil {
 		return "", "", "", err
 	}
 
-	out, err := invoke.Command(uname, "-s")
-	if err == nil {
-		platform = strings.ToLower(strings.TrimSpace(string(out)))
+	version, err := unix.Sysctl("kern.osrelease")
+	if err != nil {
+		return "", "", "", err
 	}
 
-	out, err = invoke.Command(uname, "-r")
-	if err == nil {
-		version = strings.ToLower(strings.TrimSpace(string(out)))
-	}
-
-	return platform, family, version, nil
+	return strings.ToLower(platform), "", strings.ToLower(version), nil
 }
 
 func Virtualization() (string, string, error) {

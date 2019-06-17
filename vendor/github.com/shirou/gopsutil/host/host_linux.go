@@ -73,7 +73,10 @@ func InfoWithContext(ctx context.Context) (*InfoStat, error) {
 	}
 
 	sysProductUUID := common.HostSys("class/dmi/id/product_uuid")
+	machineID := common.HostEtc("machine-id")
 	switch {
+	// In order to read this file, needs to be supported by kernel/arch and run as root
+	// so having fallback is important
 	case common.PathExists(sysProductUUID):
 		lines, err := common.ReadLines(sysProductUUID)
 		if err == nil && len(lines) > 0 && lines[0] != "" {
@@ -81,6 +84,16 @@ func InfoWithContext(ctx context.Context) (*InfoStat, error) {
 			break
 		}
 		fallthrough
+	// Fallback on GNU Linux systems with systemd, readable by everyone
+	case common.PathExists(machineID):
+		lines, err := common.ReadLines(machineID)
+		if err == nil && len(lines) > 0 && len(lines[0]) == 32 {
+			st := lines[0]
+			ret.HostID = fmt.Sprintf("%s-%s-%s-%s-%s", st[0:8], st[8:12], st[12:16], st[16:20], st[20:32])
+			break
+		}
+		fallthrough
+	// Not stable between reboot, but better than nothing
 	default:
 		values, err := common.DoSysctrl("kernel.random.boot_id")
 		if err == nil && len(values) == 1 && values[0] != "" {
@@ -109,9 +122,13 @@ func BootTimeWithContext(ctx context.Context) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	statFile := "stat"
 	if system == "lxc" && role == "guest" {
 		// if lxc, /proc/uptime is used.
+		statFile = "uptime"
+	} else if system == "docker" && role == "guest" {
+		// also docker, guest
 		statFile = "uptime"
 	}
 
@@ -120,20 +137,35 @@ func BootTimeWithContext(ctx context.Context) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	for _, line := range lines {
-		if strings.HasPrefix(line, "btime") {
-			f := strings.Fields(line)
-			if len(f) != 2 {
-				return 0, fmt.Errorf("wrong btime format")
+
+	if statFile == "stat" {
+		for _, line := range lines {
+			if strings.HasPrefix(line, "btime") {
+				f := strings.Fields(line)
+				if len(f) != 2 {
+					return 0, fmt.Errorf("wrong btime format")
+				}
+				b, err := strconv.ParseInt(f[1], 10, 64)
+				if err != nil {
+					return 0, err
+				}
+				t = uint64(b)
+				atomic.StoreUint64(&cachedBootTime, t)
+				return t, nil
 			}
-			b, err := strconv.ParseInt(f[1], 10, 64)
-			if err != nil {
-				return 0, err
-			}
-			t = uint64(b)
-			atomic.StoreUint64(&cachedBootTime, t)
-			return t, nil
 		}
+	} else if statFile == "uptime" {
+		if len(lines) != 1 {
+			return 0, fmt.Errorf("wrong uptime format")
+		}
+		f := strings.Fields(lines[0])
+		b, err := strconv.ParseFloat(f[0], 64)
+		if err != nil {
+			return 0, err
+		}
+		t = uint64(time.Now().Unix()) - uint64(b)
+		atomic.StoreUint64(&cachedBootTime, t)
+		return t, nil
 	}
 
 	return 0, fmt.Errorf("could not find btime")
@@ -300,6 +332,12 @@ func PlatformInformationWithContext(ctx context.Context) (platform string, famil
 		if err == nil {
 			version = getRedhatishVersion(contents)
 		}
+	} else if common.PathExists(common.HostEtc("slackware-version")) {
+		platform = "slackware"
+		contents, err := common.ReadLines(common.HostEtc("slackware-version"))
+		if err == nil {
+			version = getSlackwareVersion(contents)
+		}
 	} else if common.PathExists(common.HostEtc("debian_version")) {
 		if lsb.ID == "Ubuntu" {
 			platform = "ubuntu"
@@ -420,6 +458,12 @@ func KernelVersionWithContext(ctx context.Context) (version string, err error) {
 	}
 
 	return version, nil
+}
+
+func getSlackwareVersion(contents []string) string {
+	c := strings.ToLower(strings.Join(contents, ""))
+	c = strings.Replace(c, "slackware ", "", 1)
+	return c
 }
 
 func getRedhatishVersion(contents []string) string {
