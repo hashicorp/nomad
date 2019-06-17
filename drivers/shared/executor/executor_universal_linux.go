@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -153,4 +154,21 @@ func DestroyCgroup(groups *lconfigs.Cgroup, executorPid int) error {
 		multierror.Append(mErrs, fmt.Errorf("failed to delete the cgroup directories: %v", err))
 	}
 	return mErrs.ErrorOrNil()
+}
+
+func (e *UniversalExecutor) start(command *ExecCommand) error {
+	if command.NetworkIsolation != nil && command.NetworkIsolation.Path != "" {
+		// Get a handle to the target network namespace
+		netns, err := ns.GetNS(command.NetworkIsolation.Path)
+		if err != nil {
+			return err
+		}
+
+		// Start the container in the network namespace
+		return netns.Do(func(ns.NetNS) error {
+			return e.childCmd.Start()
+		})
+	}
+
+	return e.childCmd.Start()
 }
