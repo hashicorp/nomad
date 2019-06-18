@@ -21,7 +21,7 @@ type RankedNode struct {
 	FinalScore     float64
 	Scores         []float64
 	TaskResources  map[string]*structs.AllocatedTaskResources
-	GroupResources *structs.AllocatedSharedResources
+	AllocResources *structs.AllocatedSharedResources
 
 	// Allocs is used to cache the proposed allocations on the
 	// node. This can be shared between iterators that require it.
@@ -271,7 +271,7 @@ OUTER:
 
 			// Update the network ask to the offer
 			total.Shared.Networks = []*structs.NetworkResource{offer}
-			option.GroupResources = &structs.AllocatedSharedResources{
+			option.AllocResources = &structs.AllocatedSharedResources{
 				Networks: []*structs.NetworkResource{offer},
 				DiskMB:   int64(iter.taskGroup.EphemeralDisk.SizeMB),
 			}

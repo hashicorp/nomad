@@ -123,6 +123,12 @@ func netModeToIsolationMode(netMode string) drivers.NetIsolationMode {
 
 func newNetworkConfigurator(alloc *structs.Allocation, config *clientconfig.Config) NetworkConfigurator {
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+
+	// Check if network stanza is given
+	if len(tg.Networks) == 0 {
+		return &hostNetworkConfigurator{}
+	}
+
 	switch strings.ToLower(tg.Networks[0].Mode) {
 	case "bridge":
 		return newBridgeNetworkConfigurator(context.Background(), config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath)
