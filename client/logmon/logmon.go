@@ -71,7 +71,9 @@ func (l *logmonImpl) Start(cfg *LogConfig) error {
 	// stdout and stderr have been closed, this happens during task restarts
 	// restart the TaskLogger
 	if !l.tl.IsRunning() {
-		l.tl.Close()
+		if err := l.tl.Close(); err != nil {
+			return err
+		}
 		return l.start(cfg)
 	}
 
@@ -119,12 +121,13 @@ func (tl *TaskLogger) IsRunning() bool {
 	return false
 }
 
-func (tl *TaskLogger) Close() {
+func (tl *TaskLogger) Close() error {
 	var wg sync.WaitGroup
+	var err error
 	if tl.lro != nil {
 		wg.Add(1)
 		go func() {
-			tl.lro.Close()
+			err = tl.lro.Close()
 			wg.Done()
 		}()
 	}
@@ -136,6 +139,8 @@ func (tl *TaskLogger) Close() {
 		}()
 	}
 	wg.Wait()
+
+	return err
 }
 
 func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
@@ -199,9 +204,15 @@ func (l *logRotatorWrapper) isRunning() bool {
 // processOutWriter to attach to the stdout or stderr of a process.
 func newLogRotatorWrapper(path string, logger hclog.Logger, rotator *logging.FileRotator) (*logRotatorWrapper, error) {
 	logger.Info("opening fifo", "path", path)
-	fifoOpenFn, err := fifo.CreateAndRead(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create fifo for extracting logs: %v", err)
+
+	var reader io.ReadCloser
+	var openErr, createErr error
+	reader, openErr = fifo.OpenReader(path)
+	if openErr != nil {
+		reader, createErr = fifo.CreateAndRead(path)
+	}
+	if openErr != nil && createErr != nil {
+		return nil, fmt.Errorf("failed to create fifo for extracting logs:\n- %v\n- %v", createErr, openErr)
 	}
 
 	wrap := &logRotatorWrapper{
@@ -211,26 +222,20 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator *logging.Fil
 		openCompleted:     make(chan struct{}),
 		logger:            logger,
 	}
-	wrap.start(fifoOpenFn)
+
+	wrap.processOutReader = reader
+	close(wrap.openCompleted)
+
+	wrap.start(reader)
 	return wrap, nil
 }
 
 // start starts a goroutine that copies from the pipe into the rotator. This is
 // called by the constructor and not the user of the wrapper.
-func (l *logRotatorWrapper) start(readerOpenFn func() (io.ReadCloser, error)) {
+func (l *logRotatorWrapper) start(reader io.ReadCloser) {
 	go func() {
 		defer close(l.hasFinishedCopied)
-
-		reader, err := readerOpenFn()
-		if err != nil {
-			close(l.openCompleted)
-			l.logger.Warn("failed to open log fifo", "error", err)
-			return
-		}
-		l.processOutReader = reader
-		close(l.openCompleted)
-
-		_, err = io.Copy(l.rotatorWriter, reader)
+		_, err := io.Copy(l.rotatorWriter, reader)
 		if err != nil {
 			l.logger.Warn("failed to read from log fifo", "error", err)
 			// Close reader to propagate io error across pipe.
@@ -248,7 +253,7 @@ func (l *logRotatorWrapper) start(readerOpenFn func() (io.ReadCloser, error)) {
 
 // Close closes the rotator and the process writer to ensure that the Wait
 // command exits.
-func (l *logRotatorWrapper) Close() {
+func (l *logRotatorWrapper) Close() error {
 	// Wait up to the close tolerance before we force close
 	select {
 	case <-l.hasFinishedCopied:
@@ -283,6 +288,11 @@ func (l *logRotatorWrapper) Close() {
 		l.logger.Warn("timed out waiting for read-side of process output pipe to close")
 	}
 
+	if err := fifo.Remove(l.fifoPath); err != nil {
+		l.logger.Error("failed to remove fifo", "path", l.fifoPath, "error", err)
+		return err
+	}
+
 	l.rotatorWriter.Close()
-	return
+	return nil
 }

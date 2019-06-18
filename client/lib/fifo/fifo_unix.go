@@ -15,17 +15,17 @@ import (
 //
 // It returns a reader open function that may block until a writer opens
 // so it's advised to run it in a goroutine different from reader goroutine
-func CreateAndRead(path string) (func() (io.ReadCloser, error), error) {
+func CreateAndRead(path string) (io.ReadCloser, error) {
 	// create first
 	if err := mkfifo(path, 0600); err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("error creating fifo %v: %v", path, err)
 	}
 
-	openFn := func() (io.ReadCloser, error) {
-		return os.OpenFile(path, unix.O_RDONLY, os.ModeNamedPipe)
-	}
+	return os.OpenFile(path, unix.O_RDONLY, os.ModeNamedPipe)
+}
 
-	return openFn, nil
+func OpenReader(path string) (io.ReadCloser, error) {
+	return os.OpenFile(path, unix.O_RDONLY, os.ModeNamedPipe)
 }
 
 // OpenWriter opens a fifo file for writer, assuming it already exists, returns io.WriteCloser
