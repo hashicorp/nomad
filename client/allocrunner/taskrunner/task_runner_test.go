@@ -2037,10 +2037,10 @@ func TestTaskRunner_BaseLabels(t *testing.T) {
 	}
 
 	config, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
 
 	tr, err := NewTaskRunner(config)
 	require.NoError(err)
-	defer cleanup()
 
 	labels := map[string]string{}
 	for _, e := range tr.baseLabels {
