@@ -407,7 +407,6 @@ type ConsulProxy struct {
 }
 
 type ConsulUpstream struct {
-	//FIXME Pointers?
 	DestinationName string `mapstructure:"destination_name"`
 	LocalBindPort   int    `mapstructure:"local_bind_port"`
 }

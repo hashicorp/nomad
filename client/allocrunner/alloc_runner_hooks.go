@@ -121,6 +121,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
 		newNetworkHook(hookLogger, ns, ar.Alloc(), nm, nc),
+		newConnectHook(hookLogger, ar.Alloc()),
 	}
 
 	return nil
