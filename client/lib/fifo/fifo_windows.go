@@ -78,13 +78,20 @@ func CreateAndRead(path string) (func() (io.ReadCloser, error), error) {
 		return nil, err
 	}
 
-	openFn := func() (io.ReadCloser, error) {
+	return func() (io.ReadCloser, error) {
 		return &winFIFO{
 			listener: l,
 		}, nil
+	}, nil
+}
+
+func OpenReader(path string) (io.ReadCloser, error) {
+	conn, err := winio.DialPipe(path, nil)
+	if err != nil {
+		return nil, err
 	}
 
-	return openFn, nil
+	return &winFIFO{conn: conn}, nil
 }
 
 // OpenWriter opens a fifo that already exists and returns an io.WriteCloser for it

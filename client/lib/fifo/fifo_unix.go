@@ -21,11 +21,13 @@ func CreateAndRead(path string) (func() (io.ReadCloser, error), error) {
 		return nil, fmt.Errorf("error creating fifo %v: %v", path, err)
 	}
 
-	openFn := func() (io.ReadCloser, error) {
+	return func() (io.ReadCloser, error) {
 		return os.OpenFile(path, unix.O_RDONLY, os.ModeNamedPipe)
-	}
+	}, nil
+}
 
-	return openFn, nil
+func OpenReader(path string) (io.ReadCloser, error) {
+	return os.OpenFile(path, unix.O_RDONLY, os.ModeNamedPipe)
 }
 
 // OpenWriter opens a fifo file for writer, assuming it already exists, returns io.WriteCloser
