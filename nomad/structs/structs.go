@@ -5606,6 +5606,10 @@ type Task struct {
 	// KillSignal is the kill signal to use for the task. This is an optional
 	// specification and defaults to SIGINT
 	KillSignal string
+
+	//TODO(schmichael) - lowest order task runs first
+	// negative numbers are reserved for internal use
+	Order int
 }
 
 func (t *Task) Copy() *Task {

@@ -9,6 +9,13 @@ type RunnerHook interface {
 	Name() string
 }
 
+// RunnerInitHook are executed during NewAllocRunner and may inject tasks.
+//TODO(schmichael)
+type RunnerInitHook interface {
+	RunnerHook
+	Init() error
+}
+
 // RunnerPrerunHooks are executed before calling TaskRunner.Run for
 // non-terminal allocations. Terminal allocations do *not* call prerun.
 type RunnerPrerunHook interface {
