@@ -187,7 +187,7 @@ var (
 	NetIsolationModeTask = NetIsolationMode("task")
 
 	// NetIsolationModeNone indicates that there is no network to isolate and is
-	// inteded to be used for tasks that the client manages remotely
+	// intended to be used for tasks that the client manages remotely
 	NetIsolationModeNone = NetIsolationMode("none")
 )
 
