@@ -47,8 +47,11 @@ func injectConnectTask(alloc *structs.Allocation, service *structs.Service) {
 			"command": "consul-envoy",
 			"args":    []string{"-sidecar-for", service.Name},
 		},
-		//TODO(schmichael) resources?
 		Order: -1,
+	}
+	alloc.AllocatedResources.Tasks["consul-connect"] = &structs.AllocatedTaskResources{
+		Cpu:    structs.AllocatedCpuResources{100},
+		Memory: structs.AllocatedMemoryResources{100},
 	}
 
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
