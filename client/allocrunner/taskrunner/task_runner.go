@@ -362,13 +362,10 @@ func (tr *TaskRunner) initLabels() {
 			Name:  "task",
 			Value: tr.taskName,
 		},
-	}
-
-	if tr.alloc.Namespace != "" {
-		tr.baseLabels = append(tr.baseLabels, metrics.Label{
-			Name: "namespace",
+		{
+			Name:  "namespace",
 			Value: tr.alloc.Namespace,
-		})
+		},
 	}
 
 	if tr.alloc.Job.ParentID != "" {

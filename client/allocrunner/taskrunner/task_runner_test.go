@@ -2042,30 +2042,13 @@ func TestTaskRunner_BaseLabels(t *testing.T) {
 	require.NoError(err)
 	defer cleanup()
 
-	var foundJob, foundGroup, foundTask, foundAlloc, foundNamespace bool
+	labels := map[string]string{}
 	for _, e := range tr.baseLabels {
-		switch e.Name {
-		case "job":
-			require.Equal(e.Value, alloc.Job.Name)
-			foundJob = true
-		case  "task_group":
-			require.Equal(e.Value, alloc.TaskGroup)
-			foundGroup = true
-		case  "task":
-			require.Equal(e.Value, task.Name)
-			foundTask = true
-		case  "alloc_id":
-			require.Equal(e.Value, alloc.ID)
-			foundAlloc = true
-		case "namespace":
-			require.Equal(e.Value, alloc.Namespace)
-			foundNamespace = true
-		}
+		labels[e.Name] = e.Value
 	}
-	require.True(foundJob)
-	require.True(foundGroup)
-	require.True(foundAlloc)
-	require.True(foundTask)
-	require.True(foundNamespace)
+	require.Equal(alloc.Job.Name, labels["job"])
+	require.Equal(alloc.TaskGroup, labels["task_group"])
+	require.Equal(task.Name, labels["task"])
+	require.Equal(alloc.ID, labels["alloc_id"])
+	require.Equal(alloc.Namespace, labels["namespace"])
 }
-
