@@ -111,13 +111,13 @@ when retrieving metrics using the above described signals.
   </tr>
   <tr>
     <td>`nomad.raft.lastIndex`</td>
-    <td>Index of the last log</td>
+    <td>Index of the <a href="https://godoc.org/github.com/hashicorp/raft#Raft.LastIndex">last log in stable storage</a></td>
     <td>Sequence number</td>
     <td>Gauge</td>
   </tr>
   <tr>
     <td>`nomad.raft.appliedIndex`</td>
-    <td>Index of the last applied log</td>
+    <td>Index of the <a href="https://godoc.org/github.com/hashicorp/raft#Raft.AppliedIndex">last applied log</a></td>
     <td>Sequence number</td>
     <td>Gauge</td>
   </tr>
