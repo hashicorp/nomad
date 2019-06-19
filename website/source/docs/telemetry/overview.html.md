@@ -32,7 +32,7 @@ There are three ways to obtain metrics from Nomad:
 Nomad 0.7 added support for [tagged metrics][tagged-metrics], improving the
 integrations with [DataDog][datadog-telem] and [Prometheus][prometheus-telem].
 Metrics can also be forwarded to [Statsite][statsite-telem],
-[StatsD][statsd-telem] and [Circonus][circonus-telem].
+[StatsD][statsd-telem], and [Circonus][circonus-telem].
 
 ## Alerting
 
