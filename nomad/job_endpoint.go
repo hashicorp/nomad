@@ -64,6 +64,7 @@ func NewJobEndpoints(s *Server) *Job {
 		srv:    s,
 		logger: s.logger.Named("job"),
 		mutators: []jobMutator{
+			jobConnectHook{}, // add Connect task before canonicalizing
 			jobCanonicalizer{},
 			jobImpliedConstraints{},
 		},
