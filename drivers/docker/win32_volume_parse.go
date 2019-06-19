@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// This code is taken from github.com/docker/volume/mounts/windows_parser.go
+// This code is taken from https://github.com/moby/moby/blob/384c782721c7d0865b7d40ce7ca402022c690058/volume/mounts/windows_parser.go
 // See https://github.com/moby/moby/blob/master/LICENSE for the license, Apache License 2.0 at this time.
 
 const (
