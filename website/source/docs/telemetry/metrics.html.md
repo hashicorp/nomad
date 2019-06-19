@@ -15,7 +15,7 @@ second interval and are retained for one minute.
 This data can be accessed via an HTTP endpoint or via sending a signal to the
 Nomad process.
 
-Via HTTP, as of Nomad version 0.7, this data is available at `/metrics`. See
+As of Nomad version 0.7, this data is available via HTTP at `/metrics`. See
 [Metrics](/api/metrics.html) for more information.
 
 
