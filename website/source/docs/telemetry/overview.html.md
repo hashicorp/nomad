@@ -45,7 +45,7 @@ patterns:
 * Export metrics from Nomad to Prometheus using the [StatsD
   exporter][statsd-exporter], define [alerting rules][alerting-rules] in
   Prometheus, and use [Alertmanager][alertmanager] for summarization and
-  routing/notifications (to PagerDuty, Slack etc..). A similar workflow is
+  routing/notifications (to PagerDuty, Slack, etc.). A similar workflow is
   supported for [Datadog][datadog-alerting].
 
 * Periodically submit test jobs into Nomad to determine if your application
