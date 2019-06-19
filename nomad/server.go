@@ -412,7 +412,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 	go s.heartbeatStats()
 
 	// Emit raft and state store metrics
-	go s.EmitRaftStats(time.Second, s.shutdownCh)
+	go s.EmitRaftStats(10*time.Second, s.shutdownCh)
 
 	// Start enterprise background workers
 	s.startEnterpriseBackground()
