@@ -76,7 +76,7 @@ often bump their servers up to the next instance class with improved networking
 and CPU to stabilize leader elections. The `nomad.raft.leader.lastContact` metric
 is a general indicator of Raft latency which can be used to observe how Raft
 timing is performing and guide the decision to upgrade to more powerful servers.
-nomad.raft.leader.lastContact should not get too close to the leader lease
+`nomad.raft.leader.lastContact` should not get too close to the leader lease
 timeout of 500ms.
 
 ## Federated Deployments (Serf)
