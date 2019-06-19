@@ -20,23 +20,17 @@
             selection=selectionClass
             onSelect=(action setFacetQueryParam "qpClass")}}
           {{multi-select-dropdown
-            data-test-status-facet
-            label="Status"
-            options=optionsStatus
-            selection=selectionStatus
-            onSelect=(action setFacetQueryParam "qpStatus")}}
+            data-test-state-facet
+            label="State"
+            options=optionsState
+            selection=selectionState
+            onSelect=(action setFacetQueryParam "qpState")}}
           {{multi-select-dropdown
             data-test-datacenter-facet
             label="Datacenter"
             options=optionsDatacenter
             selection=selectionDatacenter
             onSelect=(action setFacetQueryParam "qpDatacenter")}}
-          {{multi-select-dropdown
-            data-test-flags-facet
-            label="Flags"
-            options=optionsFlags
-            selection=selectionFlags
-            onSelect=(action setFacetQueryParam "qpFlags")}}
         </div>
       </div>
     </div>
@@ -53,9 +47,7 @@
           <th class="is-narrow"></th>
           {{#t.sort-by prop="id"}}ID{{/t.sort-by}}
           {{#t.sort-by class="is-200px is-truncatable" prop="name"}}Name{{/t.sort-by}}
-          {{#t.sort-by prop="status"}}Status{{/t.sort-by}}
-          {{#t.sort-by prop="isDraining"}}Drain{{/t.sort-by}}
-          {{#t.sort-by prop="schedulingEligibility"}}Eligibility{{/t.sort-by}}
+          {{#t.sort-by prop="status"}}State{{/t.sort-by}}
           <th>Address</th>
           {{#t.sort-by prop="datacenter"}}Datacenter{{/t.sort-by}}
           <th># Allocs</th>
