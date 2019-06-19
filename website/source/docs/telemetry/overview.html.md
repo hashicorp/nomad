@@ -93,7 +93,8 @@ placement):
 
 * **nomad.broker.total_blocked** - The number of blocked evaluations.
 * **nomad.worker.invoke_scheduler.\<type\>** - The time to run the scheduler of
-  the given type. nomad.plan.evaluate - The time to evaluate a scheduler Plan.
+  the given type.
+* **nomad.plan.evaluate** - The time to evaluate a scheduler Plan.
 * **nomad.plan.submit** - The time to submit a scheduler Plan.
 *  **nomad.plan.queue_depth** - The number of scheduler Plans waiting to be
    evaluated.
