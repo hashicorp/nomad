@@ -2,7 +2,6 @@ package docker
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,7 +11,6 @@ import (
 	"github.com/docker/cli/cli/config/configfile"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/volume/mounts"
 	docker "github.com/fsouza/go-dockerclient"
 )
 
@@ -230,26 +228,23 @@ func parseVolumeSpec(volBind, os string) (hostPath string, containerPath string,
 }
 
 func parseVolumeSpecWindows(volBind string) (hostPath string, containerPath string, mode string, err error) {
-	parser := mounts.NewParser("windows")
-	m, err := parser.ParseMountRaw(volBind, "")
+	parts, err := windowsSplitRawSpec(volBind, rxDestination)
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", fmt.Errorf("not <src>:<destination> format")
 	}
 
-	src := m.Source
-	if src == "" && strings.Contains(volBind, m.Name) {
-		src = m.Name
+	if len(parts) < 2 {
+		return "", "", "", fmt.Errorf("not <src>:<destination> format")
 	}
 
-	if src == "" {
-		return "", "", "", errors.New("missing host path")
+	hostPath = parts[0]
+	containerPath = parts[1]
+
+	if len(parts) > 2 {
+		mode = parts[2]
 	}
 
-	if m.Destination == "" {
-		return "", "", "", errors.New("container path is empty")
-	}
-
-	return src, m.Destination, m.Mode, nil
+	return
 }
 
 func parseVolumeSpecLinux(volBind string) (hostPath string, containerPath string, mode string, err error) {

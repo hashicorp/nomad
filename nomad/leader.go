@@ -657,6 +657,10 @@ func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
 					Name:  "task_group",
 					Value: name,
 				},
+				{
+					Name:  "namespace",
+					Value: summary.Namespace,
+				},
 			}
 
 			if strings.Contains(summary.JobID, "/dispatch-") {
