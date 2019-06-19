@@ -89,7 +89,7 @@ that membership is unstable.
 ## Scheduling
 
 The following metrics allow an operator to observe changes in throughput at the
-various points in the scheduling process (evaluation, scheduling/planning and
+various points in the scheduling process (evaluation, scheduling/planning, and
 placement):
 
 * **nomad.broker.total_blocked** - The number of blocked evaluations.
