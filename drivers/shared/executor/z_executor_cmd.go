@@ -11,6 +11,11 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 )
 
+// Install a plugin cli handler to ease working with tests
+// and external plugins.
+// This init() must be initialized last in package required by the child plugin
+// process. It's recommended to avoid any other `init()` or inline any necessary calls
+// here. See eeaa95d commit message for more details.
 func init() {
 	if len(os.Args) > 1 && os.Args[1] == "executor" {
 		if len(os.Args) != 3 {
