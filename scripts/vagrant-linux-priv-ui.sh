@@ -9,8 +9,8 @@ export NVM_DIR="/home/vagrant/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"  # This loads nvm
 
 # Install Node, Ember CLI, and Phantom for UI development
-nvm install 6.11.0
-nvm alias default 6.11.0
+nvm install 6.11.5
+nvm alias default 6.11.5
 npm install -g ember-cli phantomjs-prebuilt
 
 # Install Yarn for front-end dependency management
