@@ -83,7 +83,7 @@ timeout of 500ms.
 
 Nomad uses the membership and failure detection capabilities of the Serf library
 to maintain a single, global gossip pool for all servers in a federated
-deployment. An uptick in member.flap and/or msg.suspect is a reliable indicator
+deployment. An uptick in `member.flap` and/or `msg.suspect` is a reliable indicator
 that membership is unstable.
 
 ## Scheduling
