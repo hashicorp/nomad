@@ -55,6 +55,13 @@ func TestParseVolumeSpec_Windows(t *testing.T) {
 			`e:\containerpath`,
 			"",
 		},
+		{
+			"relative path1",
+			`configuration:c:\inetpub\wwwroot\configuration\local`,
+			`configuration`,
+			`c:\inetpub\wwwroot\configuration\Local`,
+			"",
+		},
 	}
 
 	for _, c := range validCases {
