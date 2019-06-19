@@ -170,6 +170,7 @@ checkscripts: ## Lint shell scripts
 
 generate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 generate: ## Update generated code
+	@find . -name '*.generated.go' | grep -v vendor/ | xargs -r rm -f || true
 	@go generate $(LOCAL_PACKAGES)
 
 vendorfmt:
