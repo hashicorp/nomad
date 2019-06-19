@@ -34,7 +34,7 @@ func newConnectTask(service *structs.Service) *structs.Task {
 		Name:   "consul-connect",
 		Driver: "docker",
 		Config: map[string]interface{}{
-			"image":   "nomad-consul-envoy",
+			"image":   "nomad-consul-envoy:0.10.0",
 			"command": "consul-envoy",
 			"args":    []string{"-sidecar-for", service.Name},
 		},
