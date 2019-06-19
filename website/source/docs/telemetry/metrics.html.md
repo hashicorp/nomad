@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "Metrics"
-sidebar_current: "docs-telemetry"
+sidebar_current: "docs-telemetry-metrics"
 description: |-
   Learn about the different metrics available in Nomad.
 ---

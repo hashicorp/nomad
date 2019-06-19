@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "Overview"
-sidebar_current: "docs-telemetry"
+sidebar_current: "docs-telemetry-overview"
 description: |-
   Overview of runtime metrics available in Nomad along with monitoring and
   alerting.
