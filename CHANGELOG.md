@@ -8,6 +8,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
 
+* core: Improved job spec parsing error messages for variable interpolation failures [[GH-5844](https://github.com/hashicorp/nomad/issues/5844)]
 * client: Fixed regression that prevented registering multiple services with the same name but different ports in Consul correctly [[GH-5829](https://github.com/hashicorp/nomad/issues/5829)]
 * drivers: Fixed an issue preventing external driver plugins from launching executor process [[GH-5726](https://github.com/hashicorp/nomad/issues/5726)]
 * drivers/docker: Fixed a bug mounting relative paths on Windows [[GH-5811](https://github.com/hashicorp/nomad/issues/5811)]
