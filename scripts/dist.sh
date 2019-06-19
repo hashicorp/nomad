@@ -27,7 +27,7 @@ verify_gpg_key() {
 }
 
 verify_s3_access() {
-    if ! aws s3 ls s3://hc-releases/ >dev/null 2>/dev/null
+    if ! aws s3 ls s3://hc-releases/ >/dev/null 2>/dev/null
     then
         echo "AWS credentials is not configured" >&2
         exit 1

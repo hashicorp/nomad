@@ -108,6 +108,9 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 - `ssl` `(bool: false)` - Specifies if the transport scheme should use HTTPS to
   communicate with the Consul agent.
 
+- `tags` `(array<string>: [])` - Specifies optional Consul tags to be
+  registered with the Nomad server and agent services.
+
 - `token` `(string: "")` - Specifies the token used to provide a per-request ACL
   token. This option overrides the Consul Agent's default token. If the token is 
   not set here or on the Consul agent, it will default to Consul's anonymous policy, 

@@ -465,6 +465,99 @@ func TestHTTP_JobUpdate(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobUpdateRegion(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name           string
+		ConfigRegion   string
+		APIRegion      string
+		ExpectedRegion string
+	}{
+		{
+			Name:           "api region takes precedence",
+			ConfigRegion:   "not-global",
+			APIRegion:      "north-america",
+			ExpectedRegion: "north-america",
+		},
+		{
+			Name:           "config region is set",
+			ConfigRegion:   "north-america",
+			APIRegion:      "",
+			ExpectedRegion: "north-america",
+		},
+		{
+			Name:           "api region is set",
+			ConfigRegion:   "",
+			APIRegion:      "north-america",
+			ExpectedRegion: "north-america",
+		},
+		{
+			Name:           "falls back to default if no region is provided",
+			ConfigRegion:   "",
+			APIRegion:      "",
+			ExpectedRegion: "global",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			httpTest(t, func(c *Config) { c.Region = tc.ExpectedRegion }, func(s *TestAgent) {
+				// Create the job
+				job := MockRegionalJob()
+
+				if tc.ConfigRegion == "" {
+					job.Region = nil
+				} else {
+					job.Region = &tc.ConfigRegion
+				}
+
+				args := api.JobRegisterRequest{
+					Job: job,
+					WriteRequest: api.WriteRequest{
+						Namespace: api.DefaultNamespace,
+						Region:    tc.APIRegion,
+					},
+				}
+
+				buf := encodeReq(args)
+
+				// Make the HTTP request
+				url := "/v1/job/" + *job.ID
+
+				req, err := http.NewRequest("PUT", url, buf)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Make the request
+				obj, err := s.Server.JobSpecificRequest(respW, req)
+				require.NoError(t, err)
+
+				// Check the response
+				dereg := obj.(structs.JobRegisterResponse)
+				require.NotEmpty(t, dereg.EvalID)
+
+				// Check for the index
+				require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
+
+				// Check the job is registered
+				getReq := structs.JobSpecificRequest{
+					JobID: *job.ID,
+					QueryOptions: structs.QueryOptions{
+						Region:    tc.ExpectedRegion,
+						Namespace: structs.DefaultNamespace,
+					},
+				}
+				var getResp structs.SingleJobResponse
+				err = s.Agent.RPC("Job.GetJob", &getReq, &getResp)
+				require.NoError(t, err)
+				require.NotNil(t, getResp.Job, "job does not exist")
+				require.Equal(t, tc.ExpectedRegion, getResp.Job.Region)
+			})
+		})
+	}
+}
+
 func TestHTTP_JobDelete(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -1023,6 +1116,81 @@ func TestHTTP_JobPlan(t *testing.T) {
 			t.Fatalf("bad: %v", plan)
 		}
 	})
+}
+
+func TestHTTP_JobPlanRegion(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name           string
+		ConfigRegion   string
+		APIRegion      string
+		ExpectedRegion string
+	}{
+		{
+			Name:           "api region takes precedence",
+			ConfigRegion:   "not-global",
+			APIRegion:      "north-america",
+			ExpectedRegion: "north-america",
+		},
+		{
+			Name:           "config region is set",
+			ConfigRegion:   "north-america",
+			APIRegion:      "",
+			ExpectedRegion: "north-america",
+		},
+		{
+			Name:           "api region is set",
+			ConfigRegion:   "",
+			APIRegion:      "north-america",
+			ExpectedRegion: "north-america",
+		},
+		{
+			Name:           "falls back to default if no region is provided",
+			ConfigRegion:   "",
+			APIRegion:      "",
+			ExpectedRegion: "global",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			httpTest(t, func(c *Config) { c.Region = tc.ExpectedRegion }, func(s *TestAgent) {
+				// Create the job
+				job := MockRegionalJob()
+
+				if tc.ConfigRegion == "" {
+					job.Region = nil
+				} else {
+					job.Region = &tc.ConfigRegion
+				}
+
+				args := api.JobPlanRequest{
+					Job:  job,
+					Diff: true,
+					WriteRequest: api.WriteRequest{
+						Region:    tc.APIRegion,
+						Namespace: api.DefaultNamespace,
+					},
+				}
+				buf := encodeReq(args)
+
+				// Make the HTTP request
+				req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID+"/plan", buf)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Make the request
+				obj, err := s.Server.JobSpecificRequest(respW, req)
+				require.NoError(t, err)
+
+				// Check the response
+				plan := obj.(structs.JobPlanResponse)
+				require.NotNil(t, plan.Annotations)
+				require.NotNil(t, plan.Diff)
+			})
+		})
+	}
 }
 
 func TestHTTP_JobDispatch(t *testing.T) {

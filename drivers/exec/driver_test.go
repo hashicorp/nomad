@@ -434,9 +434,9 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 		if line == "" {
 			continue
 		}
-		// Skip systemd and rdma cgroups; rdma was added in most recent kernels and libcontainer/docker
-		// don't isolate them by default.
-		if strings.HasPrefix(line, "1:name=systemd") || strings.Contains(line, ":rdma:") {
+		// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
+		// don't isolate it by default.
+		if strings.Contains(line, ":rdma:") {
 			continue
 		}
 		if !strings.Contains(line, ":/nomad/") {
@@ -475,6 +475,7 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 	task := &drivers.TaskConfig{
 		ID:         uuid.Generate(),
 		Name:       "test",
+		User:       "root", // need permission to read mounts paths
 		Resources:  testResources,
 		StdoutPath: filepath.Join(tmpDir, "task-stdout"),
 		StderrPath: filepath.Join(tmpDir, "task-stderr"),

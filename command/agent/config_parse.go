@@ -36,10 +36,10 @@ func ParseConfigFile(path string) (*Config, error) {
 		Client:    &ClientConfig{ServerJoin: &ServerJoin{}},
 		ACL:       &ACLConfig{},
 		Server:    &ServerConfig{ServerJoin: &ServerJoin{}},
-		Consul:    config.DefaultConsulConfig(),
-		Autopilot: config.DefaultAutopilotConfig(),
+		Consul:    &config.ConsulConfig{},
+		Autopilot: &config.AutopilotConfig{},
 		Telemetry: &Telemetry{},
-		Vault:     config.DefaultVaultConfig(),
+		Vault:     &config.VaultConfig{},
 	}
 
 	err = hcl.Decode(c, buf.String())

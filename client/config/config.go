@@ -198,6 +198,9 @@ type Config struct {
 	// key/value/tag format, or simply a key/value format
 	DisableTaggedMetrics bool
 
+	// DisableRemoteExec disables remote exec targeting tasks on this client
+	DisableRemoteExec bool
+
 	// BackwardsCompatibleMetrics determines whether to show methods of
 	// displaying metrics for older versions, or to only show the new format
 	BackwardsCompatibleMetrics bool
@@ -249,6 +252,7 @@ func DefaultConfig() *Config {
 		GCMaxAllocs:                50,
 		NoHostUUID:                 true,
 		DisableTaggedMetrics:       false,
+		DisableRemoteExec:          false,
 		BackwardsCompatibleMetrics: false,
 		RPCHoldTimeout:             5 * time.Second,
 	}

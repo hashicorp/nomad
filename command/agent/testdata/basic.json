@@ -60,6 +60,7 @@
       "network_interface": "eth0",
       "network_speed": 100,
       "no_host_uuid": false,
+      "disable_remote_exec": true,
       "node_class": "linux-medium-64bit",
       "options": [
         {

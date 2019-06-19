@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -44,6 +45,7 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 		"/etc/ld.so.cache":  "/etc/ld.so.cache",
 		"/etc/ld.so.conf":   "/etc/ld.so.conf",
 		"/etc/ld.so.conf.d": "/etc/ld.so.conf.d",
+		"/etc/passwd":       "/etc/passwd",
 		"/lib":              "/lib",
 		"/lib64":            "/lib64",
 		"/usr/lib":          "/usr/lib",
@@ -150,12 +152,66 @@ usr/
 /etc/:
 ld.so.cache
 ld.so.conf
-ld.so.conf.d/`
+ld.so.conf.d/
+passwd`
 	tu.WaitForResult(func() (bool, error) {
 		output := testExecCmd.stdout.String()
 		act := strings.TrimSpace(string(output))
 		if act != expected {
 			return false, fmt.Errorf("Command output incorrectly: want %v; got %v", expected, act)
+		}
+		return true, nil
+	}, func(err error) { t.Error(err) })
+}
+
+// TestExecutor_CgroupPaths asserts that process starts with independent cgroups
+// hierarchy created for this process
+func TestExecutor_CgroupPaths(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	testutil.ExecCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "/bin/bash"
+	execCmd.Args = []string{"-c", "sleep 0.2; cat /proc/self/cgroup"}
+	defer allocDir.Destroy()
+
+	execCmd.ResourceLimits = true
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
+
+	ps, err := executor.Launch(execCmd)
+	require.NoError(err)
+	require.NotZero(ps.Pid)
+
+	state, err := executor.Wait(context.Background())
+	require.NoError(err)
+	require.Zero(state.ExitCode)
+
+	tu.WaitForResult(func() (bool, error) {
+		output := strings.TrimSpace(testExecCmd.stdout.String())
+		// sanity check that we got some cgroups
+		if !strings.Contains(output, ":devices:") {
+			return false, fmt.Errorf("was expected cgroup files but found:\n%v", output)
+		}
+		lines := strings.Split(output, "\n")
+		for _, line := range lines {
+			// Every cgroup entry should be /nomad/$ALLOC_ID
+			if line == "" {
+				continue
+			}
+
+			// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
+			// don't isolate it by default.
+			if strings.Contains(line, ":rdma:") {
+				continue
+			}
+
+			if !strings.Contains(line, ":/nomad/") {
+				return false, fmt.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
+			}
 		}
 		return true, nil
 	}, func(err error) { t.Error(err) })
@@ -237,6 +293,86 @@ func TestExecutor_EscapeContainer(t *testing.T) {
 	execCmd.Cmd = "echo"
 	_, err = executor.Launch(execCmd)
 	require.NoError(err)
+}
+
+func TestExecutor_Capabilities(t *testing.T) {
+	t.Parallel()
+	testutil.ExecCompatible(t)
+
+	cases := []struct {
+		user string
+		caps string
+	}{
+		{
+			user: "nobody",
+			caps: `
+CapInh: 0000000000000000
+CapPrm: 0000000000000000
+CapEff: 0000000000000000
+CapBnd: 0000003fffffffff
+CapAmb: 0000000000000000`,
+		},
+		{
+			user: "root",
+			caps: `
+CapInh: 0000000000000000
+CapPrm: 0000003fffffffff
+CapEff: 0000003fffffffff
+CapBnd: 0000003fffffffff
+CapAmb: 0000000000000000`,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.user, func(t *testing.T) {
+			require := require.New(t)
+
+			testExecCmd := testExecutorCommandWithChroot(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+			defer allocDir.Destroy()
+
+			execCmd.User = c.user
+			execCmd.ResourceLimits = true
+			execCmd.Cmd = "/bin/bash"
+			execCmd.Args = []string{"-c", "cat /proc/$$/status"}
+
+			executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+			defer executor.Shutdown("SIGKILL", 0)
+
+			_, err := executor.Launch(execCmd)
+			require.NoError(err)
+
+			ch := make(chan interface{})
+			go func() {
+				executor.Wait(context.Background())
+				close(ch)
+			}()
+
+			select {
+			case <-ch:
+				// all good
+			case <-time.After(5 * time.Second):
+				require.Fail("timeout waiting for exec to shutdown")
+			}
+
+			canonical := func(s string) string {
+				s = strings.TrimSpace(s)
+				s = regexp.MustCompile("[ \t]+").ReplaceAllString(s, " ")
+				s = regexp.MustCompile("[\n\r]+").ReplaceAllString(s, "\n")
+				return s
+			}
+
+			expected := canonical(c.caps)
+			tu.WaitForResult(func() (bool, error) {
+				output := canonical(testExecCmd.stdout.String())
+				if !strings.Contains(output, expected) {
+					return false, fmt.Errorf("capabilities didn't match: want\n%v\n; got:\n%v\n", expected, output)
+				}
+				return true, nil
+			}, func(err error) { require.NoError(err) })
+		})
+	}
+
 }
 
 func TestExecutor_ClientCleanup(t *testing.T) {

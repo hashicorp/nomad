@@ -1991,7 +1991,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 
 	consul := conf.Consul.(*consulapi.MockConsulServiceClient)
 	consulOps := consul.GetOps()
-	require.Len(t, consulOps, 6)
+	require.Len(t, consulOps, 8)
 
 	// Initial add
 	require.Equal(t, "add", consulOps[0].Op)
@@ -2006,6 +2006,10 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	// Removing canary and non-canary entries on retry
 	require.Equal(t, "remove", consulOps[4].Op)
 	require.Equal(t, "remove", consulOps[5].Op)
+
+	// Removing canary and non-canary entries on stop
+	require.Equal(t, "remove", consulOps[6].Op)
+	require.Equal(t, "remove", consulOps[7].Op)
 }
 
 // testWaitForTaskToStart waits for the task to be running or fails the test
@@ -2016,4 +2020,35 @@ func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
 	}, func(err error) {
 		require.NoError(t, err)
 	})
+}
+
+// TestTaskRunner_BaseLabels tests that the base labels for the task metrics
+// are set appropriately.
+func TestTaskRunner_BaseLabels(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	alloc := mock.BatchAlloc()
+	alloc.Namespace = "not-default"
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "raw_exec"
+	task.Config = map[string]interface{}{
+		"command": "whoami",
+	}
+
+	config, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(config)
+	require.NoError(err)
+
+	labels := map[string]string{}
+	for _, e := range tr.baseLabels {
+		labels[e.Name] = e.Value
+	}
+	require.Equal(alloc.Job.Name, labels["job"])
+	require.Equal(alloc.TaskGroup, labels["task_group"])
+	require.Equal(task.Name, labels["task"])
+	require.Equal(alloc.ID, labels["alloc_id"])
+	require.Equal(alloc.Namespace, labels["namespace"])
 }

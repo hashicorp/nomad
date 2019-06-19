@@ -1,7 +1,9 @@
 package agent
 
 import (
+	"fmt"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
@@ -78,6 +80,7 @@ var basicConfig = &Config{
 		GCInodeUsageThreshold: 91,
 		GCMaxAllocs:           50,
 		NoHostUUID:            helper.BoolToPtr(false),
+		DisableRemoteExec:     true,
 	},
 	Server: &ServerConfig{
 		Enabled:                true,
@@ -288,7 +291,7 @@ var pluginConfig = &Config{
 	Consul:                    nil,
 	Vault:                     nil,
 	TLSConfig:                 nil,
-	HTTPAPIResponseHeaders:    nil,
+	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
 	Plugins: []*config.PluginConfig{
 		{
@@ -354,7 +357,7 @@ var nonoptConfig = &Config{
 	Consul:                    nil,
 	Vault:                     nil,
 	TLSConfig:                 nil,
-	HTTPAPIResponseHeaders:    nil,
+	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
 }
 
@@ -409,6 +412,17 @@ func TestConfig_Parse(t *testing.T) {
 			if (err != nil) != tc.Err {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
 			}
+
+			// ParseConfig used to re-merge defaults for these three objects,
+			// despite them already being merged in LoadConfig. The test structs
+			// expect these defaults to be set, but not the DefaultConfig
+			// defaults, which include additional settings
+			oldDefault := &Config{
+				Consul:    config.DefaultConsulConfig(),
+				Vault:     config.DefaultVaultConfig(),
+				Autopilot: config.DefaultAutopilotConfig(),
+			}
+			actual = oldDefault.Merge(actual)
 
 			//panic(fmt.Sprintf("first: %+v \n second: %+v", actual.TLSConfig, tc.Result.TLSConfig))
 			require.EqualValues(tc.Result, removeHelperAttributes(actual))
@@ -477,12 +491,10 @@ func TestConfig_ParsePanic(t *testing.T) {
 // structure should not be unexpected
 func TestConfig_ParseSliceExtra(t *testing.T) {
 	c, err := ParseConfigFile("./testdata/config-slices.json")
-	if err != nil {
-		t.Fatalf("parse error: %s\n", err)
-	}
+	require.NoError(t, err)
 
 	opt := map[string]string{"o0": "foo", "o1": "bar"}
-	meta := map[string]string{"m0": "foo", "m1": "bar"}
+	meta := map[string]string{"m0": "foo", "m1": "bar", "m2": "true", "m3": "1.2"}
 	env := map[string]string{"e0": "baz"}
 	srv := []string{"foo", "bar"}
 
@@ -496,9 +508,7 @@ func TestConfig_ParseSliceExtra(t *testing.T) {
 
 	// the alt format is also accepted by hcl as valid config data
 	c, err = ParseConfigFile("./testdata/config-slices-alt.json")
-	if err != nil {
-		t.Fatalf("parse error: %s\n", err)
-	}
+	require.NoError(t, err)
 
 	require.EqualValues(t, opt, c.Client.Options)
 	require.EqualValues(t, meta, c.Client.Meta)
@@ -510,9 +520,7 @@ func TestConfig_ParseSliceExtra(t *testing.T) {
 
 	// small files keep more extra keys than large ones
 	_, err = ParseConfigFile("./testdata/obj-len-one-server.json")
-	if err != nil {
-		t.Fatalf("parse error: %s\n", err)
-	}
+	require.NoError(t, err)
 }
 
 var sample0 = &Config{
@@ -553,26 +561,11 @@ var sample0 = &Config{
 		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 		ServerAutoJoin: helper.BoolToPtr(false),
 		ClientAutoJoin: helper.BoolToPtr(false),
-		// Defaults
-		ServerServiceName:   "nomad",
-		ServerHTTPCheckName: "Nomad Server HTTP Check",
-		ServerSerfCheckName: "Nomad Server Serf Check",
-		ServerRPCCheckName:  "Nomad Server RPC Check",
-		ClientServiceName:   "nomad-client",
-		ClientHTTPCheckName: "Nomad Client HTTP Check",
-		AutoAdvertise:       helper.BoolToPtr(true),
-		ChecksUseAdvertise:  helper.BoolToPtr(false),
-		Timeout:             5 * time.Second,
-		EnableSSL:           helper.BoolToPtr(false),
-		VerifySSL:           helper.BoolToPtr(true),
 	},
 	Vault: &config.VaultConfig{
 		Enabled: helper.BoolToPtr(true),
 		Role:    "nomad-cluster",
 		Addr:    "http://host.example.com:8200",
-		// Defaults
-		AllowUnauthenticated: helper.BoolToPtr(true),
-		ConnectionRetryIntv:  30 * time.Second,
 	},
 	TLSConfig: &config.TLSConfig{
 		EnableHTTP:           true,
@@ -584,15 +577,163 @@ var sample0 = &Config{
 	},
 	Autopilot: &config.AutopilotConfig{
 		CleanupDeadServers: helper.BoolToPtr(true),
-		// Defaults
-		ServerStabilizationTime: 10 * time.Second,
-		LastContactThreshold:    200 * time.Millisecond,
-		MaxTrailingLogs:         250,
 	},
 }
 
 func TestConfig_ParseSample0(t *testing.T) {
 	c, err := ParseConfigFile("./testdata/sample0.json")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.EqualValues(t, sample0, c)
+}
+
+var sample1 = &Config{
+	Region:     "global",
+	Datacenter: "dc1",
+	DataDir:    "/opt/data/nomad/data",
+	LogLevel:   "INFO",
+	BindAddr:   "0.0.0.0",
+	AdvertiseAddrs: &AdvertiseAddrs{
+		HTTP: "host.example.com",
+		RPC:  "host.example.com",
+		Serf: "host.example.com",
+	},
+	Client: &ClientConfig{ServerJoin: &ServerJoin{}},
+	Server: &ServerConfig{
+		Enabled:         true,
+		BootstrapExpect: 3,
+		RetryJoin:       []string{"10.0.0.101", "10.0.0.102", "10.0.0.103"},
+		EncryptKey:      "sHck3WL6cxuhuY7Mso9BHA==",
+		ServerJoin:      &ServerJoin{},
+	},
+	ACL: &ACLConfig{
+		Enabled: true,
+	},
+	Telemetry: &Telemetry{
+		PrometheusMetrics:        true,
+		DisableHostname:          true,
+		CollectionInterval:       "60s",
+		collectionInterval:       60 * time.Second,
+		PublishAllocationMetrics: true,
+		PublishNodeMetrics:       true,
+	},
+	LeaveOnInt:     true,
+	LeaveOnTerm:    true,
+	EnableSyslog:   true,
+	SyslogFacility: "LOCAL0",
+	Consul: &config.ConsulConfig{
+		EnableSSL:      helper.BoolToPtr(true),
+		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+		ServerAutoJoin: helper.BoolToPtr(false),
+		ClientAutoJoin: helper.BoolToPtr(false),
+	},
+	Vault: &config.VaultConfig{
+		Enabled: helper.BoolToPtr(true),
+		Role:    "nomad-cluster",
+		Addr:    "http://host.example.com:8200",
+	},
+	TLSConfig: &config.TLSConfig{
+		EnableHTTP:           true,
+		EnableRPC:            true,
+		VerifyServerHostname: true,
+		CAFile:               "/opt/data/nomad/certs/nomad-ca.pem",
+		CertFile:             "/opt/data/nomad/certs/server.pem",
+		KeyFile:              "/opt/data/nomad/certs/server-key.pem",
+	},
+	Autopilot: &config.AutopilotConfig{
+		CleanupDeadServers: helper.BoolToPtr(true),
+	},
+}
+
+func TestConfig_ParseDir(t *testing.T) {
+	c, err := LoadConfig("./testdata/sample1")
+	require.NoError(t, err)
+
+	// LoadConfig Merges all the config files in testdata/sample1, which makes empty
+	// maps & slices rather than nil, so set those
+	require.Empty(t, c.Client.Options)
+	c.Client.Options = nil
+	require.Empty(t, c.Client.Meta)
+	c.Client.Meta = nil
+	require.Empty(t, c.Client.ChrootEnv)
+	c.Client.ChrootEnv = nil
+	require.Empty(t, c.Server.StartJoin)
+	c.Server.StartJoin = nil
+	require.Empty(t, c.HTTPAPIResponseHeaders)
+	c.HTTPAPIResponseHeaders = nil
+
+	// LoadDir lists the config files
+	expectedFiles := []string{
+		"testdata/sample1/sample0.json",
+		"testdata/sample1/sample1.json",
+		"testdata/sample1/sample2.hcl",
+	}
+	require.Equal(t, expectedFiles, c.Files)
+	c.Files = nil
+
+	require.EqualValues(t, sample1, c)
+}
+
+// TestConfig_ParseDir_Matches_IndividualParsing asserts
+// that parsing a directory config is the equivalent of
+// parsing individual files in any order
+func TestConfig_ParseDir_Matches_IndividualParsing(t *testing.T) {
+	dirConfig, err := LoadConfig("./testdata/sample1")
+	require.NoError(t, err)
+
+	dirConfig = DefaultConfig().Merge(dirConfig)
+
+	files := []string{
+		"testdata/sample1/sample0.json",
+		"testdata/sample1/sample1.json",
+		"testdata/sample1/sample2.hcl",
+	}
+
+	for _, perm := range permutations(files) {
+		t.Run(fmt.Sprintf("permutation %v", perm), func(t *testing.T) {
+			config := DefaultConfig()
+
+			for _, f := range perm {
+				fc, err := LoadConfig(f)
+				require.NoError(t, err)
+
+				config = config.Merge(fc)
+			}
+
+			// sort files to get stable view
+			sort.Strings(config.Files)
+			sort.Strings(dirConfig.Files)
+
+			require.EqualValues(t, dirConfig, config)
+		})
+	}
+
+}
+
+// https://stackoverflow.com/a/30226442
+func permutations(arr []string) [][]string {
+	var helper func([]string, int)
+	res := [][]string{}
+
+	helper = func(arr []string, n int) {
+		if n == 1 {
+			tmp := make([]string, len(arr))
+			copy(tmp, arr)
+			res = append(res, tmp)
+		} else {
+			for i := 0; i < n; i++ {
+				helper(arr, n-1)
+				if n%2 == 1 {
+					tmp := arr[i]
+					arr[i] = arr[n-1]
+					arr[n-1] = tmp
+				} else {
+					tmp := arr[0]
+					arr[0] = arr[n-1]
+					arr[n-1] = tmp
+				}
+			}
+		}
+	}
+	helper(arr, len(arr))
+	return res
 }

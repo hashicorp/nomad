@@ -460,6 +460,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 	conf.ClientMaxPort = uint(agentConfig.Client.ClientMaxPort)
 	conf.ClientMinPort = uint(agentConfig.Client.ClientMinPort)
+	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
 
 	// Setup the node
 	conf.Node = new(structs.Node)
@@ -576,7 +577,7 @@ func (a *Agent) setupServer() error {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
-			Tags:      []string{consul.ServiceTagHTTP},
+			Tags:      append([]string{consul.ServiceTagHTTP}, a.config.Consul.Tags...),
 		}
 		const isServer = true
 		if check := a.agentHTTPCheck(isServer); check != nil {
@@ -585,7 +586,7 @@ func (a *Agent) setupServer() error {
 		rpcServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.RPC,
-			Tags:      []string{consul.ServiceTagRPC},
+			Tags:      append([]string{consul.ServiceTagRPC}, a.config.Consul.Tags...),
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:      a.config.Consul.ServerRPCCheckName,
@@ -599,7 +600,7 @@ func (a *Agent) setupServer() error {
 		serfServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.Serf,
-			Tags:      []string{consul.ServiceTagSerf},
+			Tags:      append([]string{consul.ServiceTagSerf}, a.config.Consul.Tags...),
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:      a.config.Consul.ServerSerfCheckName,
@@ -741,7 +742,7 @@ func (a *Agent) setupClient() error {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ClientServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
-			Tags:      []string{consul.ServiceTagHTTP},
+			Tags:      append([]string{consul.ServiceTagHTTP}, a.config.Consul.Tags...),
 		}
 		const isServer = false
 		if check := a.agentHTTPCheck(isServer); check != nil {

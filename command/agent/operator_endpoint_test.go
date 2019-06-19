@@ -271,9 +271,11 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 		require.Equal(200, resp.Code)
 		out, ok := obj.(structs.SchedulerConfigurationResponse)
 		require.True(ok)
+
+		// Only system jobs can preempt other jobs by default.
 		require.True(out.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
-		require.True(out.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
-		require.True(out.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
+		require.False(out.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
+		require.False(out.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
 	})
 }
 

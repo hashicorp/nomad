@@ -2441,6 +2441,8 @@ func TestServiceSched_NodeDown(t *testing.T) {
 	allocs[9].DesiredStatus = structs.AllocDesiredStatusRun
 	allocs[9].ClientStatus = structs.AllocClientStatusComplete
 
+	toBeRescheduled := map[string]bool{allocs[8].ID: true}
+
 	// Mark some allocs as running
 	for i := 0; i < 4; i++ {
 		out := allocs[i]
@@ -2448,9 +2450,16 @@ func TestServiceSched_NodeDown(t *testing.T) {
 	}
 
 	// Mark appropriate allocs for migration
-	for i := 0; i < 7; i++ {
+	toBeMigrated := map[string]bool{}
+	for i := 0; i < 3; i++ {
 		out := allocs[i]
 		out.DesiredTransition.Migrate = helper.BoolToPtr(true)
+		toBeMigrated[out.ID] = true
+	}
+
+	toBeLost := map[string]bool{}
+	for i := len(toBeMigrated); i < 7; i++ {
+		toBeLost[allocs[i].ID] = true
 	}
 
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -2469,25 +2478,30 @@ func TestServiceSched_NodeDown(t *testing.T) {
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Ensure a single plan
-	if len(h.Plans) != 1 {
-		t.Fatalf("bad: %#v", h.Plans)
-	}
+	require.Len(t, h.Plans, 1)
 	plan := h.Plans[0]
 
 	// Test the scheduler marked all non-terminal allocations as lost
-	if len(plan.NodeUpdate[node.ID]) != 7 {
-		t.Fatalf("bad: %#v", plan)
-	}
+	require.Len(t, plan.NodeUpdate[node.ID], len(toBeMigrated)+len(toBeLost)+len(toBeRescheduled))
 
 	for _, out := range plan.NodeUpdate[node.ID] {
-		if out.ClientStatus != structs.AllocClientStatusLost && out.DesiredStatus != structs.AllocDesiredStatusStop {
-			t.Fatalf("bad alloc: %#v", out)
-		}
+		t.Run("alloc "+out.ID, func(t *testing.T) {
+			require.Equal(t, structs.AllocDesiredStatusStop, out.DesiredStatus)
+
+			if toBeMigrated[out.ID] {
+				// there is no indicator on job itself that marks it as migrated
+				require.NotEqual(t, structs.AllocClientStatusLost, out.ClientStatus)
+			} else if toBeLost[out.ID] {
+				require.Equal(t, structs.AllocClientStatusLost, out.ClientStatus)
+			} else if toBeRescheduled[out.ID] {
+				require.Equal(t, structs.AllocClientStatusFailed, out.ClientStatus)
+			} else {
+				require.Fail(t, "unexpected alloc update")
+			}
+		})
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)

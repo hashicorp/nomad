@@ -88,11 +88,12 @@ func TestConfig_Merge(t *testing.T) {
 			Options: map[string]string{
 				"foo": "bar",
 			},
-			NetworkSpeed:   100,
-			CpuCompute:     100,
-			MemoryMB:       100,
-			MaxKillTimeout: "20s",
-			ClientMaxPort:  19996,
+			NetworkSpeed:      100,
+			CpuCompute:        100,
+			MemoryMB:          100,
+			MaxKillTimeout:    "20s",
+			ClientMaxPort:     19996,
+			DisableRemoteExec: false,
 			Reserved: &Resources{
 				CPU:           10,
 				MemoryMB:      10,
@@ -188,7 +189,7 @@ func TestConfig_Merge(t *testing.T) {
 	}
 
 	c3 := &Config{
-		Region:                    "region2",
+		Region:                    "global",
 		Datacenter:                "dc2",
 		NodeName:                  "node2",
 		DataDir:                   "/tmp/dir2",
@@ -244,13 +245,14 @@ func TestConfig_Merge(t *testing.T) {
 				"foo": "bar",
 				"baz": "zip",
 			},
-			ChrootEnv:      map[string]string{},
-			ClientMaxPort:  20000,
-			ClientMinPort:  22000,
-			NetworkSpeed:   105,
-			CpuCompute:     105,
-			MemoryMB:       105,
-			MaxKillTimeout: "50s",
+			ChrootEnv:         map[string]string{},
+			ClientMaxPort:     20000,
+			ClientMinPort:     22000,
+			NetworkSpeed:      105,
+			CpuCompute:        105,
+			MemoryMB:          105,
+			MaxKillTimeout:    "50s",
+			DisableRemoteExec: false,
 			Reserved: &Resources{
 				CPU:           15,
 				MemoryMB:      15,

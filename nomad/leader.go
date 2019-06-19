@@ -48,8 +48,8 @@ var minSchedulerConfigVersion = version.Must(version.NewVersion("0.9.0"))
 var defaultSchedulerConfig = &structs.SchedulerConfiguration{
 	PreemptionConfig: structs.PreemptionConfig{
 		SystemSchedulerEnabled:  true,
-		BatchSchedulerEnabled:   true,
-		ServiceSchedulerEnabled: true,
+		BatchSchedulerEnabled:   false,
+		ServiceSchedulerEnabled: false,
 	},
 }
 
@@ -656,6 +656,10 @@ func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
 				{
 					Name:  "task_group",
 					Value: name,
+				},
+				{
+					Name:  "namespace",
+					Value: summary.Namespace,
 				},
 			}
 

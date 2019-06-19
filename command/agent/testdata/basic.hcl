@@ -68,6 +68,7 @@ client {
 	gc_inode_usage_threshold = 91
 	gc_max_allocs = 50
 	no_host_uuid = false
+	disable_remote_exec = true
 }
 server {
 	enabled = true

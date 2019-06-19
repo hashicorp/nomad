@@ -369,7 +369,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	// to track SecretIDs.
 
 	// Update the timestamp of when the node status was updated
-	node.StatusUpdatedAt = time.Now().Unix()
+	args.UpdatedAt = time.Now().Unix()
 
 	// Commit this update via Raft
 	var index uint64
@@ -484,6 +484,9 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		return fmt.Errorf("node not found")
 	}
 
+	// Update the timestamp of when the node status was updated
+	args.UpdatedAt = time.Now().Unix()
+
 	// COMPAT: Remove in 0.9. Attempt to upgrade the request if it is of the old
 	// format.
 	if args.Drain && args.DrainStrategy == nil {
@@ -588,6 +591,9 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 	default:
 		return fmt.Errorf("invalid scheduling eligibility %q", args.Eligibility)
 	}
+
+	// Update the timestamp of when the node status was updated
+	args.UpdatedAt = time.Now().Unix()
 
 	// Construct the node event
 	args.NodeEvent = structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster)

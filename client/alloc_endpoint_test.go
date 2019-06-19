@@ -619,6 +619,62 @@ func TestAlloc_ExecStreaming_NoAllocation(t *testing.T) {
 	}
 }
 
+func TestAlloc_ExecStreaming_DisableRemoteExec(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server and client
+	s := nomad.TestServer(t, nil)
+	defer s.Shutdown()
+	testutil.WaitForLeader(t, s.RPC)
+
+	c, cleanup := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+		c.DisableRemoteExec = true
+	})
+	defer cleanup()
+
+	// Make the request
+	req := &cstructs.AllocExecRequest{
+		AllocID:      uuid.Generate(),
+		Task:         "testtask",
+		Tty:          true,
+		Cmd:          []string{"placeholder command"},
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
+	}
+
+	// Get the handler
+	handler, err := c.StreamingRpcHandler("Allocations.Exec")
+	require.Nil(err)
+
+	// Create a pipe
+	p1, p2 := net.Pipe()
+	defer p1.Close()
+	defer p2.Close()
+
+	errCh := make(chan error)
+	frames := make(chan *drivers.ExecTaskStreamingResponseMsg)
+
+	// Start the handler
+	go handler(p2)
+	go decodeFrames(t, p1, frames, errCh)
+
+	// Send the request
+	encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
+	require.Nil(encoder.Encode(req))
+
+	timeout := time.After(3 * time.Second)
+
+	select {
+	case <-timeout:
+		require.FailNow("timed out")
+	case err := <-errCh:
+		require.True(nstructs.IsErrPermissionDenied(err), "expected permission denied error but found: %v", err)
+	case f := <-frames:
+		require.Fail("received unexpected frame", "frame: %#v", f)
+	}
+}
+
 func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

@@ -1,0 +1,18 @@
+# Netlify is installed under the hc-nomad bot account on GitHub.
+
+[build]
+  # The generated site needs to live at /ui/, so this moves it there after building.
+  command = "ember build && mkdir -p ui-dist/ui && mv dist/* ui-dist/ui/"
+  base = "ui"
+  publish = "ui/ui-dist"
+
+# This ensures that following the link from the PR checks list redirects to the subdirectory.
+[[redirects]]
+  from = "/"
+  to = "/ui/"
+
+# This catches other unknown URLs and lets Ember handle them.
+[[redirects]]
+  from = "/*"
+  to = "/ui/index.html"
+  status = 200

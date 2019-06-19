@@ -6,7 +6,7 @@ description: >
   Runs a command in a container.
 ---
 
-# Command: alloc exec <sup>0.9.2</sup>
+# Command: alloc exec
 **Alias: `nomad exec`**
 
 The `alloc exec` command runs a command in a running allocation.
@@ -117,3 +117,9 @@ nomad alloc exec -job <job-id> <command> [<args>...]
 Choosing a specific allocation is useful for debugging issues with a specific
 instance of a service. For other operations using the `-job` flag may be more
 convenient than looking up an allocation ID to use.
+
+## Disabling remote execution
+
+`alloc exec` is enabled by default to aid with debugging.  Operators can disable the feature by setting [`disable_remote_exec` client config option][disable_remote_exec_flag] on all clients, or a subset of clients that run sensitive workloads.
+
+[disable_remote_exec_flag]: /docs/configuration/client.html#disable_remote_exec

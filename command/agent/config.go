@@ -239,6 +239,9 @@ type ClientConfig struct {
 	// random UUID.
 	NoHostUUID *bool `hcl:"no_host_uuid"`
 
+	// DisableRemoteExec disables remote exec targeting tasks on this client
+	DisableRemoteExec bool `hcl:"disable_remote_exec"`
+
 	// ServerJoin contains information that is used to attempt to join servers
 	ServerJoin *ServerJoin `hcl:"server_join"`
 
@@ -686,6 +689,7 @@ func DefaultConfig() *Config {
 			GCInodeUsageThreshold: 70,
 			GCMaxAllocs:           50,
 			NoHostUUID:            helper.BoolToPtr(true),
+			DisableRemoteExec:     false,
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
@@ -1086,8 +1090,14 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 	if b.TokenTTL != 0 {
 		result.TokenTTL = b.TokenTTL
 	}
+	if b.TokenTTLHCL != "" {
+		result.TokenTTLHCL = b.TokenTTLHCL
+	}
 	if b.PolicyTTL != 0 {
 		result.PolicyTTL = b.PolicyTTL
+	}
+	if b.PolicyTTLHCL != "" {
+		result.PolicyTTLHCL = b.PolicyTTLHCL
 	}
 	if b.ReplicationToken != "" {
 		result.ReplicationToken = b.ReplicationToken
@@ -1135,8 +1145,14 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.HeartbeatGrace != 0 {
 		result.HeartbeatGrace = b.HeartbeatGrace
 	}
+	if b.HeartbeatGraceHCL != "" {
+		result.HeartbeatGraceHCL = b.HeartbeatGraceHCL
+	}
 	if b.MinHeartbeatTTL != 0 {
 		result.MinHeartbeatTTL = b.MinHeartbeatTTL
+	}
+	if b.MinHeartbeatTTLHCL != "" {
+		result.MinHeartbeatTTLHCL = b.MinHeartbeatTTLHCL
 	}
 	if b.MaxHeartbeatsPerSecond != 0.0 {
 		result.MaxHeartbeatsPerSecond = b.MaxHeartbeatsPerSecond
@@ -1146,6 +1162,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.RetryInterval != 0 {
 		result.RetryInterval = b.RetryInterval
+	}
+	if b.RetryIntervalHCL != "" {
+		result.RetryIntervalHCL = b.RetryIntervalHCL
 	}
 	if b.RejoinAfterLeave {
 		result.RejoinAfterLeave = true
@@ -1228,6 +1247,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.GCInterval != 0 {
 		result.GCInterval = b.GCInterval
 	}
+	if b.GCIntervalHCL != "" {
+		result.GCIntervalHCL = b.GCIntervalHCL
+	}
 	if b.GCParallelDestroys != 0 {
 		result.GCParallelDestroys = b.GCParallelDestroys
 	}
@@ -1243,6 +1265,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	// NoHostUUID defaults to true, merge if false
 	if b.NoHostUUID != nil {
 		result.NoHostUUID = b.NoHostUUID
+	}
+
+	if b.DisableRemoteExec {
+		result.DisableRemoteExec = b.DisableRemoteExec
 	}
 
 	// Add the servers
@@ -1445,8 +1471,9 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	return &result
 }
 
-// LoadConfig loads the configuration at the given path, regardless if
-// its a file or directory.
+// LoadConfig loads the configuration at the given path, regardless if its a file or
+// directory. Called for each -config to build up the runtime config value. Do not apply any
+// default values, defaults should be added once in DefaultConfig
 func LoadConfig(path string) (*Config, error) {
 	fi, err := os.Stat(path)
 	if err != nil {
