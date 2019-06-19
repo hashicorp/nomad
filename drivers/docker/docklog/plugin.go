@@ -2,12 +2,12 @@ package docklog
 
 import (
 	"context"
+	"os"
 	"os/exec"
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/drivers/docker/docklog/proto"
-	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/plugins/base"
 	"google.golang.org/grpc"
 )
@@ -17,7 +17,7 @@ const PluginName = "docker_logger"
 // LaunchDockerLogger launches an instance of DockerLogger
 func LaunchDockerLogger(logger hclog.Logger) (DockerLogger, *plugin.Client, error) {
 	logger = logger.Named(PluginName)
-	bin, err := discover.NomadExecutable()
+	bin, err := os.Executable()
 	if err != nil {
 		return nil, nil, err
 	}
