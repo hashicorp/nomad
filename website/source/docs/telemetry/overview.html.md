@@ -17,8 +17,9 @@ allocations/tasks, both of which have to be [explicitly
 enabled][telemetry-stanza]. There are also runtime metrics that are common to
 all servers and clients.
 
-Metrics are aggregated on a ten second interval and are retained for one minute.
-[Gauges, counters and timers][metric-types] are supported.
+By default, the Nomad agent collects telemetry data at a [1 second
+interval][collection-interval]. Note that Nomad supports [Gauges, counters and
+timers][metric-types].
 
 There are three ways to obtain metrics from Nomad:
 
@@ -148,6 +149,7 @@ in particular.
 [alertmanager]: https://prometheus.io/docs/alerting/alertmanager/
 [allocation-metrics]: /docs/telemetry/metrics.html#allocation-metrics
 [circonus-telem]: /docs/configuration/telemetry.html#circonus
+[collection-interval]: /docs/configuration/telemetry.html#collection_interval
 [datadog-alerting]: https://www.datadoghq.com/blog/monitoring-101-alerting/
 [datadog-telem]: /docs/configuration/telemetry.html#datadog
 [prometheus-telem]: /docs/configuration/telemetry.html#prometheus

@@ -800,6 +800,6 @@ Job metrics are emitted by the Nomad leader server.
 As of version 0.7, Nomad will start emitting metrics in a tagged format. Each
 metrics can support more than one tag, meaning that it is possible to do a
 match over metrics for datapoints such as a particular datacenter, and return
-all metrics with this tag.
+all metrics with this tag. Nomad supports labels for namespaces as well.
 
 [tagged-metrics]: /docs/telemetry/metrics.html#tagged-metrics
