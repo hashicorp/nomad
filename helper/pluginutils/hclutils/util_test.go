@@ -458,3 +458,50 @@ func TestParseNullFields(t *testing.T) {
 		})
 	}
 }
+
+func TestParseUnknown(t *testing.T) {
+	spec := hclspec.NewObject(map[string]*hclspec.Spec{
+		"string_field":   hclspec.NewAttr("string_field", "string", false),
+		"map_field":      hclspec.NewAttr("map_field", "map(string)", false),
+		"list_field":     hclspec.NewAttr("list_field", "map(string)", false),
+		"map_list_field": hclspec.NewAttr("map_list_field", "list(map(string))", false),
+	})
+	cSpec, diags := hclspecutils.Convert(spec)
+	require.False(t, diags.HasErrors())
+
+	cases := []struct {
+		name string
+		hcl  string
+	}{
+		{
+			"string field",
+			`config {  string_field = "${MYENV}" }`,
+		},
+		{
+			"map_field",
+			`config { map_field { key = "${MYENV}" }}`,
+		},
+		{
+			"list_field",
+			`config { list_field = ["${MYENV}"]}`,
+		},
+		{
+			"map_list_field",
+			`config { map_list_field { key = "${MYENV}"}}`,
+		},
+	}
+
+	vars := map[string]cty.Value{}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			inter := hclutils.HclConfigToInterface(t, c.hcl)
+
+			ctyValue, diag := hclutils.ParseHclInterface(inter, cSpec, vars)
+			t.Logf("parsed: %# v", pretty.Formatter(ctyValue))
+
+			require.True(t, diag.HasErrors())
+			require.Contains(t, diag.Errs()[0].Error(), "no variable named")
+		})
+	}
+}
