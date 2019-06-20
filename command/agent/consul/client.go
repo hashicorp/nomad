@@ -803,7 +803,9 @@ func (c *ServiceClient) RegisterAlloc(alloc *structs.Allocation) error {
 		ts.Canary = alloc.DeploymentStatus.Canary
 	}
 
-	c.logger.Info("-------------->TaskService", "name", ts.Name, "n", len(ts.Services), "net", ts.Networks, "canary", ts.Canary)
+	for i, net := range ts.Networks {
+		c.logger.Info("-------------->TaskService", "i", i, "name", ts.Name, "n", len(ts.Services), "net", net, "canary", ts.Canary)
+	}
 
 	return c.RegisterTask(ts)
 }
