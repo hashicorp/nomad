@@ -23,7 +23,7 @@ module.exports = function(environment) {
     APP: {
       blockingQueries: true,
       mirageScenario: 'smallCluster',
-      mirageWithNamespaces: false,
+      mirageWithNamespaces: true,
       mirageWithTokens: true,
       mirageWithRegions: true,
     },
