@@ -80,6 +80,9 @@ func (jobCanonicalizer) Name() string {
 
 func (jobCanonicalizer) Mutate(job *structs.Job) (_ *structs.Job, warnings []error, err error) {
 	err = job.Canonicalize()
+	if err == nil {
+		return job, nil, nil
+	}
 	if me, ok := err.(*multierror.Error); ok {
 		return job, me.Errors, nil
 	}
