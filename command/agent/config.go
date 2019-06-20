@@ -260,6 +260,12 @@ type ClientConfig struct {
 	// creating allocations with bridge networking mode. This range is local to
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
+
+	// AutoFetchCNIPlugins
+	AutoFetchCNIPlugins bool `hcl:"auto_fetch_cni_plugins`
+
+	// AutoFetchCNIPluginsURL
+	AutoFetchCNIPluginsURL string `hcl:"auto_fetch_cni_plugins_url`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -674,6 +680,7 @@ func DevConfig() *Config {
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
+	conf.Client.AutoFetchCNIPlugins = true
 
 	return conf
 }

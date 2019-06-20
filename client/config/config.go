@@ -234,6 +234,18 @@ type Config struct {
 	// for allocations in bridge networking mode. Subnet must be in CIDR
 	// notation
 	BridgeNetworkAllocSubnet string
+
+	// AutoFetchCNI is a toggle to enable auto downloading of the CNI standard
+	// plugins managed by the CNI team. This defaults to false
+	AutoFetchCNI bool
+
+	// AutoFetchCNIURL is the go-getter URL to use when auto downloading CNI
+	// plugins
+	AutoFetchCNIURL string
+
+	// AutoFetchCNIDir is the destination dir to use when auto doanloading CNI plugins.
+	// This directory will be appended to the CNIPath so it is searched last
+	AutoFetchCNIDir string
 }
 
 func (c *Config) Copy() *Config {
@@ -268,6 +280,7 @@ func DefaultConfig() *Config {
 		DisableRemoteExec:          false,
 		BackwardsCompatibleMetrics: false,
 		RPCHoldTimeout:             5 * time.Second,
+		AutoFetchCNI:               false,
 	}
 }
 
