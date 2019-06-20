@@ -111,8 +111,6 @@ module('Acceptance | job deletion warning', function(hooks) {
   hooks.beforeEach(function() {
     server.create('node');
     job = server.create('job');
-
-    this.owner.lookup('service:watch-list').set('watchInTesting', true);
   });
 
   test('when the job endpoint 404s, a flash message appears', async function(assert) {
