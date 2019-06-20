@@ -103,7 +103,8 @@ func (tr *TaskRunner) initHooks() {
 		}))
 	}
 
-	tr.runnerHooks = append(tr.runnerHooks, newConnectHook(hookLogger, tr.Alloc(), tr.consulClient))
+	consulAddr := tr.clientConfig.ConsulConfig.Addr
+	tr.runnerHooks = append(tr.runnerHooks, newConnectHook(hookLogger, tr.Alloc(), consulAddr))
 }
 
 func (tr *TaskRunner) emitHookError(err error, hookName string) {

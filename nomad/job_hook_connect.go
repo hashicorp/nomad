@@ -31,7 +31,7 @@ func groupConnectHook(g *structs.TaskGroup) {
 //TODO restart/reschedule stanza
 func newConnectTask(service *structs.Service) *structs.Task {
 	return &structs.Task{
-		Name:   "_envoy",
+		Name:   "nomad_envoy", // used in container name so must start with '[A-Za-z0-9]'
 		Driver: "docker",
 		Config: map[string]interface{}{
 			"image":   "nomad-consul-envoy:0.10.0",
