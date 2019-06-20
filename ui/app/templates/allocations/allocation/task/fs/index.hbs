@@ -1,0 +1,14 @@
+{{partial "allocations/allocation/task/subnav"}}
+<section class="section full-width-section">
+  <h1 class="title">Index fs route</h1>
+  {{#if model.isRunning}}
+    Task is running, show file explorer.
+  {{else}}
+    <div data-test-not-running class="empty-message">
+      <h3 data-test-not-running-headline class="empty-message-headline">Task is not Running</h3>
+      <p data-test-not-running-body class="empty-message-body">
+        Cannot access files of a task that is not running.
+      </p>
+    </div>
+  {{/if}}
+</section>
