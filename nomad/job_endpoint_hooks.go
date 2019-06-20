@@ -175,11 +175,13 @@ func (jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 
 	// Get any warnings
 	jobWarnings := job.Warnings()
-	if multi, ok := jobWarnings.(*multierror.Error); ok {
-		// Unpack multiple warnings
-		warnings = append(warnings, multi.Errors...)
-	} else {
-		warnings = append(warnings, jobWarnings)
+	if jobWarnings != nil {
+		if multi, ok := jobWarnings.(*multierror.Error); ok {
+			// Unpack multiple warnings
+			warnings = append(warnings, multi.Errors...)
+		} else {
+			warnings = append(warnings, jobWarnings)
+		}
 	}
 
 	// TODO: Validate the driver configurations. These had to be removed in 0.9
