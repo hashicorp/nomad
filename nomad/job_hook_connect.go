@@ -31,12 +31,12 @@ func groupConnectHook(g *structs.TaskGroup) {
 //TODO restart/reschedule stanza
 func newConnectTask(service *structs.Service) *structs.Task {
 	return &structs.Task{
-		Name:   "consul-connect",
+		Name:   "_envoy",
 		Driver: "docker",
 		Config: map[string]interface{}{
 			"image":   "nomad-consul-envoy:0.10.0",
-			"command": "consul-envoy",
-			"args":    []string{"-sidecar-for", service.Name},
+			"command": "envoy",
+			"args":    []string{"-c", "local/bootstrap.json"},
 		},
 		Order: -1,
 		LogConfig: &structs.LogConfig{

@@ -7,6 +7,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/nomad/structs"
 	testing "github.com/mitchellh/go-testing-interface"
 )
 
@@ -48,6 +49,11 @@ func NewMockConsulServiceClient(t testing.T, logger log.Logger) *MockConsulServi
 		logger: logger,
 	}
 	return &m
+}
+
+//TODO(schmichael) implement
+func (m *MockConsulServiceClient) RegisterAlloc(alloc *structs.Allocation) error {
+	panic("not implemented")
 }
 
 func (m *MockConsulServiceClient) UpdateTask(old, newSvcs *consul.TaskServices) error {
