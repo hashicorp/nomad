@@ -71,9 +71,7 @@ func (l *logmonImpl) Start(cfg *LogConfig) error {
 	// stdout and stderr have been closed, this happens during task restarts
 	// restart the TaskLogger
 	if !l.tl.IsRunning() {
-		if err := l.tl.Close(); err != nil {
-			return err
-		}
+		l.tl.Close()
 		return l.start(cfg)
 	}
 
@@ -121,13 +119,12 @@ func (tl *TaskLogger) IsRunning() bool {
 	return false
 }
 
-func (tl *TaskLogger) Close() error {
+func (tl *TaskLogger) Close() {
 	var wg sync.WaitGroup
-	var err error
 	if tl.lro != nil {
 		wg.Add(1)
 		go func() {
-			err = tl.lro.Close()
+			tl.lro.Close()
 			wg.Done()
 		}()
 	}
@@ -139,8 +136,6 @@ func (tl *TaskLogger) Close() error {
 		}()
 	}
 	wg.Wait()
-
-	return err
 }
 
 func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
@@ -253,7 +248,7 @@ func (l *logRotatorWrapper) start(reader io.ReadCloser) {
 
 // Close closes the rotator and the process writer to ensure that the Wait
 // command exits.
-func (l *logRotatorWrapper) Close() error {
+func (l *logRotatorWrapper) Close() {
 	// Wait up to the close tolerance before we force close
 	select {
 	case <-l.hasFinishedCopied:
@@ -288,11 +283,5 @@ func (l *logRotatorWrapper) Close() error {
 		l.logger.Warn("timed out waiting for read-side of process output pipe to close")
 	}
 
-	if err := fifo.Remove(l.fifoPath); err != nil {
-		l.logger.Error("failed to remove fifo", "path", l.fifoPath, "error", err)
-		return err
-	}
-
 	l.rotatorWriter.Close()
-	return nil
 }
