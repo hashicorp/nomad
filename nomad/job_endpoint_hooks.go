@@ -58,9 +58,9 @@ func (j *Job) admissionValidators(origJob *structs.Job) (warnings []error, err e
 
 	var w []error
 	errs := new(multierror.Error)
-	for _, mutator := range j.validators {
-		w, err = mutator.Validate(job)
-		j.logger.Trace("job validate results", "validator", mutator.Name(), "warnings", w, "error", err)
+	for _, validator := range j.validators {
+		w, err = validator.Validate(job)
+		j.logger.Trace("job validate results", "validator", validator.Name(), "warnings", w, "error", err)
 		if err != nil {
 			multierror.Append(errs, err)
 		}
@@ -78,8 +78,8 @@ func (jobCanonicalizer) Name() string {
 	return "canonicalize"
 }
 
-func (jobCanonicalizer) Mutate(job *structs.Job) (_ *structs.Job, warnings []error, err error) {
-	err = job.Canonicalize()
+func (jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+	err := job.Canonicalize()
 	if err == nil {
 		return job, nil, nil
 	}
