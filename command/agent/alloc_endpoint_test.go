@@ -424,17 +424,16 @@ func TestHTTP_AllocStop(t *testing.T) {
 		// Test that we 404 when the allocid is invalid
 		{
 			// Make the HTTP request
-			req, err := http.NewRequest("POST", "/v1/allocation/"+alloc.ID+"/stop", nil)
+			req, err := http.NewRequest("POST", "/v1/allocation/"+uuid.Generate()+"/stop", nil)
 			require.NoError(err)
 			respW := httptest.NewRecorder()
 
 			// Make the request
-			obj, err := s.Server.AllocSpecificRequest(respW, req)
-			require.NoError(err)
-
-			a := obj.(*structs.AllocStopResponse)
-			require.NotEmpty(a.EvalID, "missing eval")
-			require.NotEmpty(a.Index, "missing index")
+			_, err = s.Server.AllocSpecificRequest(respW, req)
+			require.NotNil(err)
+			if !strings.Contains(err.Error(), allocNotFoundErr) {
+				t.Fatalf("err: %v", err)
+			}
 		}
 	})
 }
