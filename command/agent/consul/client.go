@@ -656,7 +656,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 	*ServiceRegistration, error) {
 
 	// Get the services ID
-	id := makeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
+	id := MakeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
 	sreg := &ServiceRegistration{
 		serviceID: id,
 		checkIDs:  make(map[string]struct{}, len(service.Checks)),
@@ -695,6 +695,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		Meta: map[string]string{
 			"external-source": "nomad",
 		},
+		Connect: newConnect(service.Connect),
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 
@@ -844,7 +845,7 @@ func (c *ServiceClient) RegisterTask(task *TaskServices) error {
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
 	for _, service := range task.Services {
-		serviceID := makeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
+		serviceID := MakeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := makeCheckID(serviceID, check)
@@ -867,11 +868,11 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 
 	existingIDs := make(map[string]*structs.Service, len(old.Services))
 	for _, s := range old.Services {
-		existingIDs[makeTaskServiceID(old.AllocID, old.Name, s, old.Canary)] = s
+		existingIDs[MakeTaskServiceID(old.AllocID, old.Name, s, old.Canary)] = s
 	}
 	newIDs := make(map[string]*structs.Service, len(newTask.Services))
 	for _, s := range newTask.Services {
-		newIDs[makeTaskServiceID(newTask.AllocID, newTask.Name, s, newTask.Canary)] = s
+		newIDs[MakeTaskServiceID(newTask.AllocID, newTask.Name, s, newTask.Canary)] = s
 	}
 
 	// Loop over existing Service IDs to see if they have been removed
@@ -968,7 +969,7 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
 	for _, service := range newIDs {
-		serviceID := makeTaskServiceID(newTask.AllocID, newTask.Name, service, newTask.Canary)
+		serviceID := MakeTaskServiceID(newTask.AllocID, newTask.Name, service, newTask.Canary)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := makeCheckID(serviceID, check)
@@ -986,7 +987,7 @@ func (c *ServiceClient) RemoveTask(task *TaskServices) {
 	ops := operations{}
 
 	for _, service := range task.Services {
-		id := makeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
+		id := MakeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
 		ops.deregServices = append(ops.deregServices, id)
 
 		for _, check := range service.Checks {
@@ -1147,11 +1148,11 @@ func makeAgentServiceID(role string, service *structs.Service) string {
 	return fmt.Sprintf("%s-%s-%s", nomadServicePrefix, role, service.Hash(role, "", false))
 }
 
-// makeTaskServiceID creates a unique ID for identifying a task service in
+// MakeTaskServiceID creates a unique ID for identifying a task service in
 // Consul.
 //
 //	Example Service ID: _nomad-task-b4e61df9-b095-d64e-f241-23860da1375f-redis-http-http
-func makeTaskServiceID(allocID, taskName string, service *structs.Service, canary bool) string {
+func MakeTaskServiceID(allocID, taskName string, service *structs.Service, canary bool) string {
 	return fmt.Sprintf("%s%s-%s-%s-%s", nomadTaskPrefix, allocID, taskName, service.Name, service.PortLabel)
 }
 
@@ -1316,4 +1317,40 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		// Shouldn't happen due to validation, but enforce invariants
 		return "", 0, fmt.Errorf("invalid address mode %q", addrMode)
 	}
+}
+
+//TODO(schmichael) rename - converts nomad connect structs to consul connect structs
+func newConnect(nc *structs.ConsulConnect) *api.AgentServiceConnect {
+	if nc == nil {
+		return nil
+	}
+
+	//TODO(schmichael) support Native: true
+	cc := &api.AgentServiceConnect{}
+
+	if nc.SidecarService == nil {
+		return cc
+	}
+
+	cc.SidecarService = &api.AgentServiceRegistration{}
+
+	if nc.SidecarService.Proxy == nil {
+		return cc
+	}
+
+	cc.SidecarService.Proxy = &api.AgentServiceConnectProxyConfig{}
+
+	numUpstreams := len(nc.SidecarService.Proxy.Upstreams)
+	if numUpstreams == 0 {
+		return cc
+	}
+
+	upstreams := make([]api.Upstream, numUpstreams)
+	for i, nu := range nc.SidecarService.Proxy.Upstreams {
+		upstreams[i].DestinationName = nu.DestinationName
+		upstreams[i].LocalBindPort = nu.LocalBindPort
+	}
+	cc.SidecarService.Proxy.Upstreams = upstreams
+
+	return cc
 }
