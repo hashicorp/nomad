@@ -32,32 +32,6 @@ type TaskServices struct {
 	DriverNetwork *drivers.DriverNetwork
 }
 
-func NewTaskServices(alloc *structs.Allocation, task *structs.Task, restarter TaskRestarter, exec interfaces.ScriptExecutor, net *drivers.DriverNetwork) *TaskServices {
-	ts := TaskServices{
-		AllocID:       alloc.ID,
-		Name:          task.Name,
-		Restarter:     restarter,
-		Services:      task.Services,
-		DriverExec:    exec,
-		DriverNetwork: net,
-	}
-
-	if alloc.AllocatedResources != nil {
-		if tr, ok := alloc.AllocatedResources.Tasks[task.Name]; ok {
-			ts.Networks = tr.Networks
-		}
-	} else if task.Resources != nil {
-		// COMPAT(0.11): Remove in 0.11
-		ts.Networks = task.Resources.Networks
-	}
-
-	if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Canary {
-		ts.Canary = true
-	}
-
-	return &ts
-}
-
 // Copy method for easing tests
 func (t *TaskServices) Copy() *TaskServices {
 	newTS := new(TaskServices)
@@ -68,5 +42,6 @@ func (t *TaskServices) Copy() *TaskServices {
 	for i := range t.Services {
 		newTS.Services[i] = t.Services[i].Copy()
 	}
+	newTS.DriverNetwork = t.DriverNetwork.Copy()
 	return newTS
 }
