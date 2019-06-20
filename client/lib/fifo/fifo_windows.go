@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	winio "github.com/Microsoft/go-winio"
+	winio "github.com/endocrimes/go-winio"
 )
 
 // PipeBufferSize is the size of the input and output buffers for the windows
@@ -84,12 +84,12 @@ func CreateAndRead(path string) (io.ReadCloser, error) {
 }
 
 func OpenReader(path string) (io.ReadCloser, error) {
-	conn, err := winio.DialPipe(path, nil)
+	l, err := winio.ListenOnlyPipe(path, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return &winFIFO{conn: conn}, nil
+	return &winFIFO{listener: l}, nil
 }
 
 // OpenWriter opens a fifo that already exists and returns an io.WriteCloser for it

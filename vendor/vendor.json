@@ -126,6 +126,8 @@
 		{"path":"github.com/docker/libnetwork/ipamutils","checksumSHA1":"vcP3kQNGWKHenrvQxfu4FZkB468=","origin":"github.com/docker/docker/vendor/github.com/docker/libnetwork/ipamutils","revision":"320063a2ad06a1d8ada61c94c29dbe44e2d87473","revisionTime":"2018-08-16T08:14:46Z"},
 		{"path":"github.com/dustin/go-humanize","checksumSHA1":"xteP9Px90oMrg/HZuqvZkpXCR+s=","revision":"8929fe90cee4b2cb9deb468b51fb34eba64d1bf0"},
 		{"path":"github.com/elazarl/go-bindata-assetfs","checksumSHA1":"7DxViusFRJ7UPH0jZqYatwDrOkY=","revision":"30f82fa23fd844bd5bb1e5f216db87fd77b5eb43","revisionTime":"2017-02-27T21:27:28Z"},
+		{"path":"github.com/endocrimes/go-winio","checksumSHA1":"h87782xG8VX68UcbrQucJbc9yks=","revision":"6357aa3285688667d73ebd629b74d5f29feade5f","revisionTime":"2019-06-20T17:03:19Z"},
+		{"path":"github.com/endocrimes/go-winio/pkg/guid","checksumSHA1":"vPrziAo1e4MJ5xC+Dha1n9dAB0A=","revision":"6357aa3285688667d73ebd629b74d5f29feade5f","revisionTime":"2019-06-20T17:03:19Z"},
 		{"path":"github.com/fatih/color","checksumSHA1":"VsE3zx2d8kpwj97TWhYddzAwBrY=","revision":"507f6050b8568533fb3f5504de8e5205fa62a114","revisionTime":"2018-02-13T13:34:03Z"},
 		{"path":"github.com/fatih/structs","checksumSHA1":"QBkOnLnM6zZ158NJSVLqoE4V6fI=","revision":"14f46232cd7bc732dc67313a9e4d3d210e082587","revisionTime":"2016-07-19T20:45:16Z"},
 		{"path":"github.com/fsouza/go-dockerclient","checksumSHA1":"fvbo1J+cFWDrPDs0Yudwv+POIb4=","revision":"01c3e9bd8551d675a60382c0303ef51f5849ea99","revisionTime":"2018-11-29T02:57:25Z"},
