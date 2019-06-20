@@ -2147,12 +2147,22 @@ func (ns Networks) Port(label string) (string, int) {
 	for _, n := range ns {
 		for _, p := range n.ReservedPorts {
 			if p.Label == label {
-				return n.IP, p.Value
+				//TODO(schmichael) this doesn't seem right
+				if p.Value == 0 {
+					return n.IP, p.To
+				} else {
+					return n.IP, p.Value
+				}
 			}
 		}
 		for _, p := range n.DynamicPorts {
 			if p.Label == label {
-				return n.IP, p.Value
+				//TODO(schmichael) this doesn't seem right
+				if p.Value == 0 {
+					return n.IP, p.To
+				} else {
+					return n.IP, p.Value
+				}
 			}
 		}
 	}
