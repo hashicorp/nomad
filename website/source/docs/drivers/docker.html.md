@@ -728,7 +728,7 @@ plugin "docker" {
       `docker.volumes.enabled` set to false, the labels will still be applied to
       the standard binds in the container.
 
-* `infra_image` - This is the docker image to use when creating the parent
+* `infra_image` - This is the Docker image to use when creating the parent
   container necessary when sharing network namespaces between tasks. Defaults
   to "gcr.io/google_containers/pause-amd64:3.0".
 
