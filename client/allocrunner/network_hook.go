@@ -36,13 +36,14 @@ type networkHook struct {
 func newNetworkHook(logger hclog.Logger, ns networkIsolationSetter,
 	alloc *structs.Allocation, netManager drivers.DriverNetworkManager,
 	netConfigurator NetworkConfigurator) *networkHook {
-	return &networkHook{
+	h := &networkHook{
 		setter:              ns,
 		alloc:               alloc,
 		manager:             netManager,
 		networkConfigurator: netConfigurator,
-		logger:              logger,
 	}
+	h.logger = logger.Named(h.Name())
+	return h
 }
 
 func (h *networkHook) Name() string {
