@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/containernetworking/cni/libcni"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -73,6 +74,8 @@ func (b *bridgeNetworkConfigurator) Setup(alloc *structs.Allocation, spec *drive
 	if err != nil {
 		return err
 	}
+
+	spew.Dump(netconf)
 
 	result, err := b.cniConfig.AddNetworkList(b.ctx, netconf, b.runtimeConf(alloc, spec))
 	if result != nil {
