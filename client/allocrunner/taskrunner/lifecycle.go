@@ -69,6 +69,7 @@ func (tr *TaskRunner) Signal(event *structs.TaskEvent, s string) error {
 // dead.
 func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error {
 	tr.logger.Trace("Kill requested", "event_type", event.Type, "event_reason", event.KillReason)
+	defer tr.logger.Trace("Kill exiting", "event_type", event.Type, "event_reason", event.KillReason)
 
 	// Cancel the task runner to break out of restart delay or the main run
 	// loop.

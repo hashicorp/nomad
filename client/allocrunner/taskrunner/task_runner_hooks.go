@@ -102,6 +102,8 @@ func (tr *TaskRunner) initHooks() {
 			logger:    hookLogger,
 		}))
 	}
+
+	tr.runnerHooks = append(tr.runnerHooks, newConnectHook(hookLogger, tr.Alloc(), tr.consulClient))
 }
 
 func (tr *TaskRunner) emitHookError(err error, hookName string) {

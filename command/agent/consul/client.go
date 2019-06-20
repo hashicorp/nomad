@@ -769,6 +769,45 @@ func (c *ServiceClient) checkRegs(ops *operations, serviceID string, service *st
 	return checkIDs, nil
 }
 
+//TODO(schmichael) remove
+type noopRestarter struct{}
+
+func (noopRestarter) Restart(context.Context, *structs.TaskEvent, bool) error { return nil }
+
+//TODO(schmichael) remove
+type noopExec struct{}
+
+func (noopExec) Exec(time.Duration, string, []string) ([]byte, int, error) { return nil, 0, nil }
+
+// RegisterAlloc with Consul. Adds all group-level service entries and checks
+// to Consul.
+//
+// TODO(schmichael) checks are ignored; script checks probably can't be supported
+func (c *ServiceClient) RegisterAlloc(alloc *structs.Allocation) error {
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		return fmt.Errorf("task group %q not in allocation", alloc.TaskGroup)
+	}
+
+	//TODO(schmichael) rename TaskServices and refactor this into a New method
+	ts := &TaskServices{
+		AllocID:    alloc.ID,
+		Name:       alloc.TaskGroup,
+		Restarter:  noopRestarter{},
+		Services:   tg.Services,
+		DriverExec: noopExec{},
+		Networks:   tg.Networks,
+	}
+
+	if alloc.DeploymentStatus != nil {
+		ts.Canary = alloc.DeploymentStatus.Canary
+	}
+
+	c.logger.Info("-------------->TaskService", "name", ts.Name, "n", len(ts.Services), "net", ts.Networks, "canary", ts.Canary)
+
+	return c.RegisterTask(ts)
+}
+
 // RegisterTask with Consul. Adds all service entries and checks to Consul. If
 // exec is nil and a script check exists an error is returned.
 //
