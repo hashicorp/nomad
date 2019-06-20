@@ -31,10 +31,8 @@ func TestFIFO(t *testing.T) {
 		path = filepath.Join(dir, "fifo")
 	}
 
-	readerOpenFn, err := CreateAndRead(path)
+	reader, err := CreateAndRead(path)
 	require.NoError(err)
-
-	var reader io.ReadCloser
 
 	toWrite := [][]byte{
 		[]byte("abc\n"),
@@ -50,8 +48,6 @@ func TestFIFO(t *testing.T) {
 	go func() {
 		defer wait.Done()
 
-		var err error
-		reader, err = readerOpenFn()
 		assert.NoError(t, err)
 		if err != nil {
 			return
@@ -95,9 +91,8 @@ func TestWriteClose(t *testing.T) {
 		path = filepath.Join(dir, "fifo")
 	}
 
-	readerOpenFn, err := CreateAndRead(path)
+	reader, err := CreateAndRead(path)
 	require.NoError(err)
-	var reader io.ReadCloser
 
 	var readBuf bytes.Buffer
 	var wait sync.WaitGroup
@@ -105,8 +100,6 @@ func TestWriteClose(t *testing.T) {
 	go func() {
 		defer wait.Done()
 
-		var err error
-		reader, err = readerOpenFn()
 		assert.NoError(t, err)
 		if err != nil {
 			return
