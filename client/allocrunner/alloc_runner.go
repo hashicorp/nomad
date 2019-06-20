@@ -141,6 +141,19 @@ type allocRunner struct {
 	// servers have been contacted for the first time in case of a failed
 	// restore.
 	serversContactedCh chan struct{}
+
+	//TODO(schmichael) this is madness but might work
+	// if ar.prerun returned an error the task runners would never start
+	// and calls to killTask would deadlock (probably deadlocking the GC
+	// too)
+	//
+	// this synchronizes killing with prerun and allows killing to
+	// shortcircuit if prerun failed
+	//
+	// it may not be sufficient as there may be more locations than
+	// killTasks that expect task runners to always eventually run
+	prerunDone   chan struct{}
+	prerunFailed bool
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -173,6 +186,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		devicemanager:            config.DeviceManager,
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
+		prerunDone:               make(chan struct{}),
 	}
 
 	// Create the logger based on the allocation ID
@@ -252,9 +266,16 @@ func (ar *allocRunner) Run() {
 	if ar.shouldRun() {
 		if err := ar.prerun(); err != nil {
 			ar.logger.Error("prerun failed", "error", err)
+
+			//TODO(schmichael) this works but is madness
+			ar.prerunFailed = true
+			close(ar.prerunDone)
+
 			goto POST
 		}
 	}
+	//TODO(schmichael) this works but is madness
+	close(ar.prerunDone)
 
 	// Run the runners (blocks until they exit)
 	ar.runTasks()
@@ -482,6 +503,21 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 // logged except taskrunner.ErrTaskNotRunning which is ignored. Task states
 // after Kill has been called are returned.
 func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
+	//TODO(schmichael) this works but is madness
+	<-ar.prerunDone
+	if ar.prerunFailed {
+		states := make(map[string]*structs.TaskState, len(ar.tasks))
+		finished := time.Now()
+		for name := range ar.tasks {
+			states[name] = &structs.TaskState{
+				State:      structs.TaskStateDead,
+				Failed:     true,
+				FinishedAt: finished,
+			}
+		}
+		return states
+	}
+
 	var mu sync.Mutex
 	states := make(map[string]*structs.TaskState, len(ar.tasks))
 
