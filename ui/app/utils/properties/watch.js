@@ -5,12 +5,11 @@ import { task } from 'ember-concurrency';
 import wait from 'nomad-ui/utils/wait';
 import XHRToken from 'nomad-ui/utils/classes/xhr-token';
 import config from 'nomad-ui/config/environment';
-import codesForError from 'nomad-ui/utils/codes-for-error';
 
 const isEnabled = config.APP.blockingQueries !== false;
 
 export function watchRecord(modelName, { ignore404 } = {}) {
-  return task(function*(id, { throttle = 2000, runInTests = false } = {}) {
+  let watchRecordTask = task(function*(id, { throttle = 2000, runInTests = false } = {}) {
     const token = new XHRToken();
     if (typeof id === 'object') {
       id = get(id, 'id');
@@ -27,27 +26,20 @@ export function watchRecord(modelName, { ignore404 } = {}) {
         ]);
       } catch (e) {
         if (!ignore404) {
-          const statusIs404 = codesForError(e).includes('404');
-          const errorIsEmptyResponse = e.message.includes('response did not have any data');
-
-          if (statusIs404 || errorIsEmptyResponse) {
-            const message = this.flashMessages
-              .warning(`This ${modelName} no longer exists`, { sticky: true })
-              .getFlashObject();
-
-            if (this.displayedFlashMessages) {
-              this.displayedFlashMessages.push(message);
-            }
-          }
         }
 
-        yield e;
-        break;
+        throw { error: e, modelName };
       } finally {
         token.abort();
       }
     }
   }).drop();
+
+  if (ignore404) {
+    return watchRecordTask;
+  } else {
+    return watchRecordTask.evented();
+  }
 }
 
 export function watchRelationship(relationshipName) {

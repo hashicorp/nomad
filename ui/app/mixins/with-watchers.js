@@ -3,6 +3,8 @@ import { computed } from '@ember/object';
 import { assert } from '@ember/debug';
 import { inject as service } from '@ember/service';
 import WithVisibilityDetection from './with-route-visibility-detection';
+import { on } from '@ember/object/evented';
+import codesForError from 'nomad-ui/utils/codes-for-error';
 
 export default Mixin.create(WithVisibilityDetection, {
   flashMessages: service(),
@@ -42,6 +44,21 @@ export default Mixin.create(WithVisibilityDetection, {
       this.startWatchers(this.controller, this.controller.get('model'));
     }
   },
+
+  watchRecordErrored: on('watch:errored', function(taskInstance, { error, modelName }) {
+    const statusIs404 = codesForError(error).includes('404');
+    const errorIsEmptyResponse = error.message.includes('response did not have any data');
+
+    if (statusIs404 || errorIsEmptyResponse) {
+      const message = this.flashMessages
+        .warning(`This ${modelName} no longer exists`, { sticky: true })
+        .getFlashObject();
+
+      if (this.displayedFlashMessages) {
+        this.displayedFlashMessages.push(message);
+      }
+    }
+  }),
 
   actions: {
     willTransition(transition) {
