@@ -2,18 +2,27 @@
 <section class="section full-width-section">
   <h1 class="title">Path fs route <code>{{path}}</code></h1>
 
-  <ul>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+      </tr>
+    </thead>
     {{#each directories as |entry|}}
-      <li data-test-entry>
-        <span data-test-directory-icon>{{inline-svg 'folder-outline' class='icon'}}</span>
-        <span data-test-name>{{entry.Name}}</span>
-      </li>
+      <tr data-test-entry>
+        <td>
+          <span data-test-directory-icon>{{inline-svg 'folder-outline' class='icon'}}</span>
+          <span data-test-name>{{entry.Name}}</span>
+        </td>
+      </tr>
     {{/each}}
     {{#each files as |entry|}}
-      <li data-test-entry>
-        <span data-test-file-icon>{{inline-svg 'file-outline' class='icon'}}</span>
-        <span data-test-name>{{entry.Name}}</span>
-      </li>
+      <tr data-test-entry>
+        <td>
+          <span data-test-file-icon>{{inline-svg 'file-outline' class='icon'}}</span>
+          <span data-test-name>{{entry.Name}}</span>
+        </td>
+      </tr>
     {{/each}}
-  </ul>
+  </table>
 </section>
