@@ -6,6 +6,7 @@
     <thead>
       <tr>
         <th>Name</th>
+        <th>Size</th>
       </tr>
     </thead>
     {{#each directories as |entry|}}
@@ -14,6 +15,7 @@
           <span data-test-directory-icon>{{inline-svg 'folder-outline' class='icon'}}</span>
           <span data-test-name>{{entry.Name}}</span>
         </td>
+        <td data-test-size>{{format-bytes entry.Size}}</td>
       </tr>
     {{/each}}
     {{#each files as |entry|}}
@@ -22,6 +24,7 @@
           <span data-test-file-icon>{{inline-svg 'file-outline' class='icon'}}</span>
           <span data-test-name>{{entry.Name}}</span>
         </td>
+        <td data-test-size>{{format-bytes entry.Size}}</td>
       </tr>
     {{/each}}
   </table>

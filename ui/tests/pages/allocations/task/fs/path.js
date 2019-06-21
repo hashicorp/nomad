@@ -9,5 +9,7 @@ export default create({
     name: text('[data-test-name]'),
     isFile: isPresent('[data-test-file-icon]'),
     isDirectory: isPresent('[data-test-directory-icon]'),
+
+    size: text('[data-test-size]'),
   }),
 });
