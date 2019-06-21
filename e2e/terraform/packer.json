@@ -2,9 +2,9 @@
   "builders": [{
     "type": "amazon-ebs",
     "region": "us-east-1",
-    "source_ami": "ami-80861296",
+    "source_ami": "ami-0cc96feef8c6bbff3",
     "instance_type": "t2.medium",
-    "ssh_username": "ubuntu",
+    "ssh_username": "ec2-user",
     "ami_name": "nomad-e2e-{{timestamp}}",
     "ami_groups": ["all"]
   }],

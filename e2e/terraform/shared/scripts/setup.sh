@@ -27,15 +27,7 @@ NOMADDIR=/opt/nomad
 
 HADOOP_VERSION=2.7.6
 
-# Dependencies
-sudo apt-get install -y software-properties-common
-sudo apt-get update
-sudo apt-get install -y unzip tree redis-tools jq curl tmux awscli
 
-# Numpy (for Spark)
-sudo apt-get install -y python-setuptools
-sudo easy_install pip
-sudo pip install numpy
 
 # Disable the firewall
 
@@ -78,12 +70,11 @@ sudo mkdir -p $NOMADDIR
 sudo chmod 755 $NOMADDIR
 
 # Docker
-distro=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
-sudo apt-get install -y apt-transport-https ca-certificates gnupg2
-curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/${distro} $(lsb_release -cs) stable"
-sudo apt-get update
-sudo apt-get install -y docker-ce
+sudo yum update -y
+sudo yum -y install amazon-linux-extras
+sudo amazon-linux-extras install docker
+sudo service docker start
+sudo usermod -a -G docker ec2-user
 
 # rkt
 VERSION=1.29.0
@@ -119,11 +110,6 @@ EOT'
 install_rkt
 configure_rkt_networking
 
-# Java
-sudo add-apt-repository -y ppa:openjdk-r/ppa
-sudo apt-get update
-sudo apt-get install -y openjdk-8-jdk
-JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
 
 # Spark
 sudo wget -P /ops/examples/spark https://nomad-spark.s3.amazonaws.com/spark-2.2.0-bin-nomad-0.7.0.tgz

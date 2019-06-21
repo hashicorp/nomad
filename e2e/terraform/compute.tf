@@ -47,7 +47,7 @@ resource "aws_instance" "server" {
     destination = "/tmp/server.hcl"
 
     connection {
-      user        = "ubuntu"
+      user        = "ec2-user"
       private_key = "${module.keys.private_key_pem}"
     }
   }
@@ -65,7 +65,7 @@ resource "aws_instance" "server" {
     ]
 
     connection {
-      user        = "ubuntu"
+      user        = "ec2-user"
       private_key = "${module.keys.private_key_pem}"
     }
   }
@@ -100,7 +100,7 @@ resource "aws_instance" "client" {
     destination = "/tmp/client.hcl"
 
     connection {
-      user        = "ubuntu"
+      user        = "ec2-user"
       private_key = "${module.keys.private_key_pem}"
     }
   }
@@ -118,7 +118,7 @@ resource "aws_instance" "client" {
     ]
 
     connection {
-      user        = "ubuntu"
+      user        = "ec2-user"
       private_key = "${module.keys.private_key_pem}"
     }
   }

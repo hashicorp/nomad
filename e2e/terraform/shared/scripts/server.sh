@@ -9,7 +9,7 @@ VAULTCONFIGDIR=/etc/vault.d
 NOMADCONFIGDIR=/etc/nomad.d
 HADOOP_VERSION=hadoop-2.7.6
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
-HOME_DIR=ubuntu
+HOME_DIR=ec2-user
 
 # Wait for network
 sleep 15

@@ -91,7 +91,7 @@ go test -v ./e2e
 
 ssh into nodes with:
 ```
-ssh -i keys/${local.random_name}.pem ubuntu@${aws_instance.client.0.public_ip}
+ssh -i keys/${local.random_name}.pem ec2-user@${aws_instance.client.0.public_ip}
 ```
 EOM
 }
