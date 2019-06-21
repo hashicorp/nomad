@@ -42,18 +42,23 @@ module('Acceptance | task fs path', function(hooks) {
 
   test('visiting /allocations/:allocation_id/:task_name/fs/somewhere', async function(assert) {
     this.server.get('/client/fs/ls/:allocation_id', () => {
-      return [{ Name: 'jorts' }, { Name: 'jants' }, { Name: 'directory', IsDir: true }];
+      return [
+        { Name: 'jorts', IsDir: false },
+        { Name: 'jants', IsDir: false },
+        { Name: 'directory', IsDir: true },
+      ];
     });
 
     await Path.visit({ id: allocation.id, name: task.name, path: 'somewhere' });
 
     assert.equal(Path.entries.length, 3);
-    assert.equal(Path.entries[0].name, 'jorts');
-    assert.ok(Path.entries[0].isFile);
 
-    assert.equal(Path.entries[1].name, 'jants');
+    assert.equal(Path.entries[0].name, 'directory', 'directories should come first');
+    assert.ok(Path.entries[0].isDirectory);
 
-    assert.equal(Path.entries[2].name, 'directory');
-    assert.ok(Path.entries[2].isDirectory);
+    assert.equal(Path.entries[1].name, 'jorts');
+    assert.ok(Path.entries[1].isFile);
+
+    assert.equal(Path.entries[2].name, 'jants');
   });
 });
