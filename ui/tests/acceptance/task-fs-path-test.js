@@ -43,9 +43,9 @@ module('Acceptance | task fs path', function(hooks) {
   test('visiting /allocations/:allocation_id/:task_name/fs/somewhere', async function(assert) {
     this.server.get('/client/fs/ls/:allocation_id', () => {
       return [
-        { Name: 'jorts', IsDir: false, Size: 1919 },
+        { Name: 'jorts', IsDir: false, Size: 1919, FileMode: '-rw-r--r--' },
         { Name: 'jants', IsDir: false },
-        { Name: 'directory', IsDir: true, Size: 3682561 },
+        { Name: 'directory', IsDir: true, Size: 3682561, FileMode: 'drwxr-xr-x' },
       ];
     });
 
@@ -56,10 +56,12 @@ module('Acceptance | task fs path', function(hooks) {
     assert.equal(Path.entries[0].name, 'directory', 'directories should come first');
     assert.ok(Path.entries[0].isDirectory);
     assert.equal(Path.entries[0].size, '3 MiB');
+    assert.equal(Path.entries[0].fileMode, 'drwxr-xr-x');
 
     assert.equal(Path.entries[1].name, 'jorts');
     assert.ok(Path.entries[1].isFile);
     assert.equal(Path.entries[1].size, '1 KiB');
+    assert.equal(Path.entries[1].fileMode, '-rw-r--r--');
 
     assert.equal(Path.entries[2].name, 'jants');
   });

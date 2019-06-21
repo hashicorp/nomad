@@ -7,6 +7,7 @@
       <tr>
         <th>Name</th>
         <th>Size</th>
+        <th>Mode</th>
       </tr>
     </thead>
     <tbody>
@@ -17,6 +18,7 @@
             <span data-test-name>{{entry.Name}}</span>
           </td>
           <td data-test-size>{{format-bytes entry.Size}}</td>
+          <td data-test-file-mode>{{entry.FileMode}}</td>
         </tr>
       {{/each}}
       {{#each files as |entry|}}
@@ -26,6 +28,7 @@
             <span data-test-name>{{entry.Name}}</span>
           </td>
           <td data-test-size>{{format-bytes entry.Size}}</td>
+          <td data-test-file-mode>{{entry.FileMode}}</td>
         </tr>
       {{/each}}
     </tbody>
