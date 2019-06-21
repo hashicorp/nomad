@@ -75,6 +75,7 @@
     "ember-moment": "^7.8.1",
     "ember-native-dom-helpers": "^0.5.4",
     "ember-power-select": "^2.2.3",
+    "ember-qunit-nice-errors": "^1.2.0",
     "ember-resolver": "^5.0.1",
     "ember-responsive": "^3.0.0",
     "ember-sinon": "^2.2.0",
