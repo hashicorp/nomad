@@ -513,10 +513,16 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		select {
 		case <-e.processExited:
 		case <-time.After(grace):
-			proc.Kill()
+			err := proc.Kill()
+			if err != nil {
+				merr.Errors = append(merr.Errors, err)
+			}
 		}
 	} else {
-		proc.Kill()
+		err := proc.Kill()
+		if err != nil {
+			merr.Errors = append(merr.Errors, err)
+		}
 	}
 
 	// Wait for process to exit
