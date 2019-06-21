@@ -4,7 +4,15 @@
 
   <ul>
     {{#each ls as |entry|}}
-      <li data-test-entry>{{entry.Name}}</li>
+      <li data-test-entry>
+        {{#if entry.IsDir}}
+          <span data-test-directory-icon>dir</span>
+        {{else}}
+          <span data-test-file-icon>file</span>
+        {{/if}}
+
+        <span data-test-name>{{entry.Name}}</span>
+      </li>
     {{/each}}
   </ul>
 </section>

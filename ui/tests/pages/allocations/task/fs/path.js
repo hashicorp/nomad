@@ -1,9 +1,13 @@
-import { collection, create, text, visitable } from 'ember-cli-page-object';
+import { collection, create, isPresent, text, visitable } from 'ember-cli-page-object';
 
 export default create({
   visit: visitable('/allocations/:id/:name/fs/:path'),
 
   tempTitle: text('h1.title'),
 
-  entries: collection('[data-test-entry]'),
+  entries: collection('[data-test-entry]', {
+    name: text('[data-test-name]'),
+    isFile: isPresent('[data-test-file-icon]'),
+    isDirectory: isPresent('[data-test-directory-icon]'),
+  }),
 });
