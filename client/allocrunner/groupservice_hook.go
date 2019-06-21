@@ -27,7 +27,6 @@ func (groupServiceHook) Name() string {
 	return "group_services"
 }
 
-// pre-run hook "group_services" failed: unable to get address for service "redis-cache": invalid port "db": port label not found
 func (h *groupServiceHook) Prerun() error {
 	return h.consulClient.RegisterAlloc(h.alloc)
 }
