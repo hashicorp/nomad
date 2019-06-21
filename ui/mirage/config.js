@@ -312,6 +312,15 @@ export default function() {
   this.get('/client/allocation/:id/stats', clientAllocationStatsHandler);
   this.get('/client/fs/logs/:allocation_id', clientAllocationLog);
 
+  // FIXME replace with more ORMy mocks? Nesting? Confine to tests only? 🧐
+  this.get('/client/fs/ls/:allocation_id', () => {
+    return [
+      { Name: 'jorts', IsDir: false, Size: 1919, FileMode: '-rw-r--r--' },
+      { Name: 'jants', IsDir: false },
+      { Name: 'directory', IsDir: true, Size: 3682561, FileMode: 'drwxr-xr-x' },
+    ];
+  });
+
   this.get('/client/stats', function({ clientStats }, { queryParams }) {
     const seed = Math.random();
     if (seed > 0.8) {
