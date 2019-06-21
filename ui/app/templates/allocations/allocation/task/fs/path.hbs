@@ -6,9 +6,9 @@
     {{#each ls as |entry|}}
       <li data-test-entry>
         {{#if entry.IsDir}}
-          <span data-test-directory-icon>dir</span>
+          <span data-test-directory-icon>{{inline-svg 'folder-outline' class='icon'}}</span>
         {{else}}
-          <span data-test-file-icon>file</span>
+          <span data-test-file-icon>{{inline-svg 'file-outline' class='icon'}}</span>
         {{/if}}
 
         <span data-test-name>{{entry.Name}}</span>
