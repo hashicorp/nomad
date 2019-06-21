@@ -13,6 +13,7 @@ const allScenarios = {
   allNodeTypes,
   everyFeature,
   emptyCluster,
+  allocationFileExplorer, // FIXME for stable preview links only
 };
 
 const scenario = getConfigValue('mirageScenario', 'emptyCluster');
@@ -113,6 +114,31 @@ function everyFeature(server) {
 function emptyCluster(server) {
   server.create('agent');
   server.create('node');
+}
+
+function allocationFileExplorer(server) {
+  server.create('node');
+
+  const job = server.create('job', {
+    id: 'a-job',
+    type: 'service',
+    activeDeployment: true,
+    namespaceId: 'default',
+    createAllocations: false,
+  });
+
+  const taskGroup = server.create('task-group', {
+    name: 'task-group',
+    createAllocations: false,
+    shallow: true,
+    jobId: job.id,
+  });
+  server.create('task', { name: 'task', taskGroup: taskGroup });
+  server.create('allocation', 'rescheduled', {
+    id: '12345',
+    jobId: job.id,
+    taskGroup: taskGroup.name,
+  });
 }
 
 // Behaviors
