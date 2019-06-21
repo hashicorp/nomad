@@ -3,6 +3,7 @@ package logmon
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -200,14 +201,19 @@ func (l *logRotatorWrapper) isRunning() bool {
 func newLogRotatorWrapper(path string, logger hclog.Logger, rotator *logging.FileRotator) (*logRotatorWrapper, error) {
 	logger.Info("opening fifo", "path", path)
 
-	var reader io.ReadCloser
-	var openErr, createErr error
-	reader, openErr = fifo.OpenReader(path)
-	if openErr != nil {
-		reader, createErr = fifo.CreateAndRead(path)
+	var openFn func() (io.ReadCloser, error)
+	var err error
+
+	if _, ferr := os.Stat(path); os.IsNotExist(ferr) {
+		openFn, err = fifo.CreateAndRead(path)
+	} else {
+		openFn = func() (io.ReadCloser, error) {
+			return fifo.OpenReader(path)
+		}
 	}
-	if openErr != nil && createErr != nil {
-		return nil, fmt.Errorf("failed to create fifo for extracting logs:\n- %v\n- %v", createErr, openErr)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create fifo for extracting logs: %v", err)
 	}
 
 	wrap := &logRotatorWrapper{
@@ -218,19 +224,25 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator *logging.Fil
 		logger:            logger,
 	}
 
-	wrap.processOutReader = reader
-	close(wrap.openCompleted)
-
-	wrap.start(reader)
+	wrap.start(openFn)
 	return wrap, nil
 }
 
 // start starts a goroutine that copies from the pipe into the rotator. This is
 // called by the constructor and not the user of the wrapper.
-func (l *logRotatorWrapper) start(reader io.ReadCloser) {
+func (l *logRotatorWrapper) start(openFn func() (io.ReadCloser, error)) {
 	go func() {
 		defer close(l.hasFinishedCopied)
-		_, err := io.Copy(l.rotatorWriter, reader)
+
+		reader, err := openFn()
+		close(l.openCompleted)
+		if err != nil {
+			l.logger.Warn("failed to open fifo", "error", err)
+			return
+		}
+		l.processOutReader = reader
+
+		_, err = io.Copy(l.rotatorWriter, reader)
 		if err != nil {
 			l.logger.Warn("failed to read from log fifo", "error", err)
 			// Close reader to propagate io error across pipe.

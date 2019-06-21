@@ -69,7 +69,7 @@ func (f *winFIFO) Close() error {
 
 // CreateAndRead creates a fifo at the given path and returns an io.ReadCloser open for it.
 // The fifo must not already exist
-func CreateAndRead(path string) (io.ReadCloser, error) {
+func CreateAndRead(path string) (func() (io.ReadCloser, error), error) {
 	l, err := winio.ListenPipe(path, &winio.PipeConfig{
 		InputBufferSize:  PipeBufferSize,
 		OutputBufferSize: PipeBufferSize,
@@ -78,8 +78,10 @@ func CreateAndRead(path string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	return &winFIFO{
-		listener: l,
+	return func() (io.ReadCloser, error) {
+		return &winFIFO{
+			listener: l,
+		}, nil
 	}, nil
 }
 

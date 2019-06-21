@@ -20,6 +20,7 @@ import (
 func TestFIFO(t *testing.T) {
 	require := require.New(t)
 	var path string
+	var reader io.ReadCloser
 
 	if runtime.GOOS == "windows" {
 		path = "//./pipe/fifo"
@@ -31,9 +32,8 @@ func TestFIFO(t *testing.T) {
 		path = filepath.Join(dir, "fifo")
 	}
 
-	reader, err := CreateAndRead(path)
+	openFn, err := CreateAndRead(path)
 	require.NoError(err)
-
 	toWrite := [][]byte{
 		[]byte("abc\n"),
 		[]byte(""),
@@ -52,6 +52,9 @@ func TestFIFO(t *testing.T) {
 		if err != nil {
 			return
 		}
+
+		reader, err = openFn()
+		require.NoError(err)
 
 		_, err = io.Copy(&readBuf, reader)
 		assert.NoError(t, err)
@@ -80,6 +83,7 @@ func TestFIFO(t *testing.T) {
 func TestWriteClose(t *testing.T) {
 	require := require.New(t)
 	var path string
+	var reader io.ReadCloser
 
 	if runtime.GOOS == "windows" {
 		path = "//./pipe/" + uuid.Generate()[:4]
@@ -91,7 +95,7 @@ func TestWriteClose(t *testing.T) {
 		path = filepath.Join(dir, "fifo")
 	}
 
-	reader, err := CreateAndRead(path)
+	openFn, err := CreateAndRead(path)
 	require.NoError(err)
 
 	var readBuf bytes.Buffer
@@ -104,6 +108,9 @@ func TestWriteClose(t *testing.T) {
 		if err != nil {
 			return
 		}
+
+		reader, err = openFn()
+		require.NoError(err)
 
 		_, err = io.Copy(&readBuf, reader)
 		assert.NoError(t, err)

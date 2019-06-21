@@ -15,13 +15,15 @@ import (
 //
 // It returns a reader open function that may block until a writer opens
 // so it's advised to run it in a goroutine different from reader goroutine
-func CreateAndRead(path string) (io.ReadCloser, error) {
+func CreateAndRead(path string) (func() (io.ReadCloser, error), error) {
 	// create first
 	if err := mkfifo(path, 0600); err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("error creating fifo %v: %v", path, err)
 	}
 
-	return os.OpenFile(path, unix.O_RDONLY, os.ModeNamedPipe)
+	return func() (io.ReadCloser, error) {
+		return os.OpenFile(path, unix.O_RDONLY, os.ModeNamedPipe)
+	}, nil
 }
 
 func OpenReader(path string) (io.ReadCloser, error) {
