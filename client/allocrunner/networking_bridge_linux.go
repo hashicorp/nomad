@@ -102,6 +102,10 @@ func getPortMapping(alloc *structs.Allocation) []*portMapping {
 	for _, network := range alloc.AllocatedResources.Shared.Networks {
 		for _, port := range append(network.DynamicPorts, network.ReservedPorts...) {
 			for _, proto := range []string{"tcp", "udp"} {
+				//TODO(schmichael) if we're not forwarding to something skip it
+				if port.To == 0 {
+					continue
+				}
 				ports = append(ports, &portMapping{
 					Host:      port.Value,
 					Container: port.To,

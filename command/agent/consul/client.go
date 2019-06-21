@@ -466,6 +466,11 @@ func (c *ServiceClient) sync() error {
 			continue
 		}
 
+		//TODO(schmichael) don't always skip sidecars
+		if strings.Contains(id, "-sidecar-proxy") {
+			continue
+		}
+
 		// Unknown Nomad managed service; kill
 		if err := c.client.ServiceDeregister(id); err != nil {
 			if isOldNomadService(id) {
@@ -695,7 +700,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		Meta: map[string]string{
 			"external-source": "nomad",
 		},
-		Connect: newConnect(service.Connect),
+		Connect: newConnect(service.Connect, task.Networks),
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 
@@ -1320,7 +1325,7 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 }
 
 //TODO(schmichael) rename - converts nomad connect structs to consul connect structs
-func newConnect(nc *structs.ConsulConnect) *api.AgentServiceConnect {
+func newConnect(nc *structs.ConsulConnect, networks structs.Networks) *api.AgentServiceConnect {
 	if nc == nil {
 		return nil
 	}
@@ -1332,7 +1337,15 @@ func newConnect(nc *structs.ConsulConnect) *api.AgentServiceConnect {
 		return cc
 	}
 
-	cc.SidecarService = &api.AgentServiceRegistration{}
+	//TODO(schmichael) this is a temporary hack
+	// port may be 0 if its not needed and that's ok
+	_, port := networks.Port("nomad_envoy")
+
+	//TODO(schmichael) ***START HERE*** need to register the Port.Value with Consul and register the sidecar listener port as Port.To here
+
+	cc.SidecarService = &api.AgentServiceRegistration{
+		Port: port,
+	}
 
 	if nc.SidecarService.Proxy == nil {
 		return cc
