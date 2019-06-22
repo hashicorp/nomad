@@ -313,7 +313,6 @@
 		{"path":"github.com/opencontainers/runc/libcontainer/cgroups/systemd","checksumSHA1":"d7B9MiKb1k1Egh5qkNokIfcZ+OY=","revision":"6cc515888830787a93d82138821f0309ad970640","revisionTime":"2019-06-11T12:12:36Z"},
 		{"path":"github.com/opencontainers/runc/libcontainer/configs","checksumSHA1":"v9sgw4eYRNSsJUSG33OoFIwLqRI=","revision":"6cc515888830787a93d82138821f0309ad970640","revisionTime":"2019-06-11T12:12:36Z"},
 		{"path":"github.com/opencontainers/runc/libcontainer/configs/validate","checksumSHA1":"hUveFGK1HhGenf0OVoYZWccoW9I=","revision":"6cc515888830787a93d82138821f0309ad970640","revisionTime":"2019-06-11T12:12:36Z"},
-		{"path":"github.com/opencontainers/runc/libcontainer/criurpc","checksumSHA1":"n7G7Egz/tOPacXuq+nkvnFai3eU=","revision":"369b920277d27630441336775cd728bc0f19e496","revisionTime":"2018-09-07T18:53:11Z"},
 		{"path":"github.com/opencontainers/runc/libcontainer/devices","checksumSHA1":"2CwtFvz9kB0RSjFlcCkmq4taJ9U=","revision":"6cc515888830787a93d82138821f0309ad970640","revisionTime":"2019-06-11T12:12:36Z"},
 		{"path":"github.com/opencontainers/runc/libcontainer/intelrdt","checksumSHA1":"sAbowQ7hjveSH5ADUD9IYXnEAJM=","revision":"6cc515888830787a93d82138821f0309ad970640","revisionTime":"2019-06-11T12:12:36Z"},
 		{"path":"github.com/opencontainers/runc/libcontainer/keys","checksumSHA1":"mKxBw0il2IWjWYgksX+17ufDw34=","revision":"6cc515888830787a93d82138821f0309ad970640","revisionTime":"2019-06-11T12:12:36Z"},
