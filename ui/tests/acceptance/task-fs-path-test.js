@@ -40,10 +40,13 @@ module('Acceptance | task fs path', function(hooks) {
     }, Promise.resolve());
   });
 
-  test('visiting /allocations/:allocation_id/:task_name/fs/somewhere', async function(assert) {
-    await Path.visit({ id: allocation.id, name: task.name, path: 'somewhere' });
+  test('visiting /allocations/:allocation_id/:task_name/fs/%2F', async function(assert) {
+    await Path.visit({ id: allocation.id, name: task.name, path: '/' });
 
     assert.equal(Path.entries.length, 3);
+
+    assert.equal(Path.breadcrumbs.length, 1);
+    assert.equal(Path.breadcrumbs[0].text, task.name);
 
     assert.equal(Path.entries[0].name, 'directory', 'directories should come first');
     assert.ok(Path.entries[0].isDirectory);
@@ -60,5 +63,8 @@ module('Acceptance | task fs path', function(hooks) {
     await Path.entries[0].visit();
 
     assert.equal(Path.entries.length, 1);
+
+    assert.equal(Path.breadcrumbs.length, 2);
+    assert.equal(Path.breadcrumbs[1].text, 'directory');
   });
 });

@@ -2,6 +2,14 @@
 <section class="section full-width-section">
   <h1 class="title">Path fs route <code>{{path}}</code></h1>
 
+  <nav class='breadcrumb' data-test-fs-breadcrumbs>
+    <ul>
+      {{#each pathComponents as |pathComponent|}}
+        <li>{{pathComponent}}</li>
+      {{/each}}
+    </ul>
+  </nav>
+
   <table class='fs-explorer'>
     <thead>
       <tr>

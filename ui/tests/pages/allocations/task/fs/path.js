@@ -5,6 +5,8 @@ export default create({
 
   tempTitle: text('h1.title'),
 
+  breadcrumbs: collection('[data-test-fs-breadcrumbs] li'),
+
   entries: collection('[data-test-entry]', {
     name: text('[data-test-name]'),
     isFile: isPresent('[data-test-file-icon]'),
