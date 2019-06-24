@@ -13,6 +13,8 @@ export default create({
 
   tempTitle: text('h1.title'),
 
+  breadcrumbsText: text('[data-test-fs-breadcrumbs]'),
+
   breadcrumbs: collection('[data-test-fs-breadcrumbs] li', {
     visit: clickable('a'),
     isActive: hasClass('is-active'),

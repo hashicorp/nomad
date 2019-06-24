@@ -45,6 +45,8 @@ module('Acceptance | task fs path', function(hooks) {
 
     assert.equal(Path.entries.length, 3);
 
+    assert.equal(Path.breadcrumbsText, task.name);
+
     assert.equal(Path.breadcrumbs.length, 1);
     assert.ok(Path.breadcrumbs[0].isActive);
     assert.equal(Path.breadcrumbs[0].text, task.name);
@@ -66,6 +68,7 @@ module('Acceptance | task fs path', function(hooks) {
     assert.equal(Path.entries.length, 1);
 
     assert.equal(Path.breadcrumbs.length, 2);
+    assert.equal(Path.breadcrumbsText, `${task.name} directory`);
 
     assert.notOk(Path.breadcrumbs[0].isActive);
 
@@ -77,6 +80,7 @@ module('Acceptance | task fs path', function(hooks) {
     assert.equal(Path.entries.length, 1);
 
     assert.equal(Path.breadcrumbs.length, 3);
+    assert.equal(Path.breadcrumbsText, `${task.name} directory another`);
     assert.equal(Path.breadcrumbs[2].text, 'another');
 
     await Path.breadcrumbs[1].visit();
