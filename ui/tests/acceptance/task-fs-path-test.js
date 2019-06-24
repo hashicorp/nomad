@@ -4,7 +4,6 @@ import { module, skip } from 'qunit';
 import { setupApplicationTest, test } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Path from 'nomad-ui/tests/pages/allocations/task/fs/path';
-import moment from 'moment';
 
 let allocation;
 let task;
@@ -42,39 +41,6 @@ module('Acceptance | task fs path', function(hooks) {
   });
 
   test('visiting /allocations/:allocation_id/:task_name/fs/somewhere', async function(assert) {
-    this.server.get('/client/fs/ls/:allocation_id', (schema, { queryParams }) => {
-      if (queryParams.path.endsWith('directory')) {
-        return [
-          {
-            Name: 'something',
-            IsDir: false,
-          },
-        ];
-      } else {
-        return [
-          {
-            Name: 'jorts',
-            IsDir: false,
-            Size: 1919,
-            FileMode: '-rw-r--r--',
-            ModTime: moment()
-              .subtract(2, 'day')
-              .format(),
-          },
-          { Name: 'jants', IsDir: false },
-          {
-            Name: 'directory',
-            IsDir: true,
-            Size: 3682561,
-            FileMode: 'drwxr-xr-x',
-            ModTime: moment()
-              .subtract(1, 'year')
-              .format(),
-          },
-        ];
-      }
-    });
-
     await Path.visit({ id: allocation.id, name: task.name, path: 'somewhere' });
 
     assert.equal(Path.entries.length, 3);

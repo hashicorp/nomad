@@ -5,6 +5,7 @@ import { logFrames, logEncode } from './data/logs';
 import { generateDiff } from './factories/job-version';
 import { generateTaskGroupFailures } from './factories/evaluation';
 import { copy } from 'ember-copy';
+import moment from 'moment';
 
 export function findLeader(schema) {
   const agent = schema.agents.first();
@@ -312,13 +313,38 @@ export default function() {
   this.get('/client/allocation/:id/stats', clientAllocationStatsHandler);
   this.get('/client/fs/logs/:allocation_id', clientAllocationLog);
 
-  // FIXME replace with more ORMy mocks? Nesting? Confine to tests only? 🧐
-  this.get('/client/fs/ls/:allocation_id', () => {
-    return [
-      { Name: 'jorts', IsDir: false, Size: 1919, FileMode: '-rw-r--r--' },
-      { Name: 'jants', IsDir: false },
-      { Name: 'directory', IsDir: true, Size: 3682561, FileMode: 'drwxr-xr-x' },
-    ];
+  // FIXME replace with more ORMy mocks? Confine to tests only? 🧐
+  this.get('/client/fs/ls/:allocation_id', (schema, { queryParams }) => {
+    if (queryParams.path.endsWith('directory')) {
+      return [
+        {
+          Name: 'something',
+          IsDir: false,
+        },
+      ];
+    } else {
+      return [
+        {
+          Name: 'jorts',
+          IsDir: false,
+          Size: 1919,
+          FileMode: '-rw-r--r--',
+          ModTime: moment()
+            .subtract(2, 'day')
+            .format(),
+        },
+        { Name: 'jants', IsDir: false },
+        {
+          Name: 'directory',
+          IsDir: true,
+          Size: 3682561,
+          FileMode: 'drwxr-xr-x',
+          ModTime: moment()
+            .subtract(1, 'year')
+            .format(),
+        },
+      ];
+    }
   });
 
   this.get('/client/stats', function({ clientStats }, { queryParams }) {
