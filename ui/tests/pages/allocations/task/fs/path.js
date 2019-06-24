@@ -12,5 +12,6 @@ export default create({
 
     size: text('[data-test-size]'),
     fileMode: text('[data-test-file-mode]'),
+    lastModified: text('[data-test-last-modified]'),
   }),
 });

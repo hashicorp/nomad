@@ -4,6 +4,7 @@ import { module, skip } from 'qunit';
 import { setupApplicationTest, test } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Path from 'nomad-ui/tests/pages/allocations/task/fs/path';
+import moment from 'moment';
 
 let allocation;
 let task;
@@ -43,9 +44,25 @@ module('Acceptance | task fs path', function(hooks) {
   test('visiting /allocations/:allocation_id/:task_name/fs/somewhere', async function(assert) {
     this.server.get('/client/fs/ls/:allocation_id', () => {
       return [
-        { Name: 'jorts', IsDir: false, Size: 1919, FileMode: '-rw-r--r--' },
+        {
+          Name: 'jorts',
+          IsDir: false,
+          Size: 1919,
+          FileMode: '-rw-r--r--',
+          ModTime: moment()
+            .subtract(2, 'day')
+            .format(),
+        },
         { Name: 'jants', IsDir: false },
-        { Name: 'directory', IsDir: true, Size: 3682561, FileMode: 'drwxr-xr-x' },
+        {
+          Name: 'directory',
+          IsDir: true,
+          Size: 3682561,
+          FileMode: 'drwxr-xr-x',
+          ModTime: moment()
+            .subtract(1, 'year')
+            .format(),
+        },
       ];
     });
 
@@ -57,11 +74,13 @@ module('Acceptance | task fs path', function(hooks) {
     assert.ok(Path.entries[0].isDirectory);
     assert.equal(Path.entries[0].size, '3 MiB');
     assert.equal(Path.entries[0].fileMode, 'drwxr-xr-x');
+    assert.equal(Path.entries[0].lastModified, 'a year ago');
 
     assert.equal(Path.entries[1].name, 'jorts');
     assert.ok(Path.entries[1].isFile);
     assert.equal(Path.entries[1].size, '1 KiB');
     assert.equal(Path.entries[1].fileMode, '-rw-r--r--');
+    assert.equal(Path.entries[1].lastModified, '2 days ago');
 
     assert.equal(Path.entries[2].name, 'jants');
   });
