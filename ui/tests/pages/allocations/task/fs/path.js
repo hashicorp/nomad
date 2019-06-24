@@ -5,7 +5,9 @@ export default create({
 
   tempTitle: text('h1.title'),
 
-  breadcrumbs: collection('[data-test-fs-breadcrumbs] li'),
+  breadcrumbs: collection('[data-test-fs-breadcrumbs] li', {
+    visit: clickable('a'),
+  }),
 
   entries: collection('[data-test-entry]', {
     name: text('[data-test-name]'),

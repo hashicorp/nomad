@@ -66,5 +66,15 @@ module('Acceptance | task fs path', function(hooks) {
 
     assert.equal(Path.breadcrumbs.length, 2);
     assert.equal(Path.breadcrumbs[1].text, 'directory');
+
+    await Path.entries[0].visit();
+
+    assert.equal(Path.entries.length, 1);
+
+    assert.equal(Path.breadcrumbs.length, 3);
+    assert.equal(Path.breadcrumbs[2].text, 'another');
+
+    await Path.breadcrumbs[1].visit();
+    assert.equal(Path.breadcrumbs.length, 2);
   });
 });

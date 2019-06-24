@@ -318,6 +318,13 @@ export default function() {
     if (queryParams.path.endsWith('directory')) {
       return [
         {
+          Name: 'another',
+          IsDir: true,
+        },
+      ];
+    } else if (queryParams.path.endsWith('another')) {
+      return [
+        {
           Name: 'something',
           IsDir: false,
         },
