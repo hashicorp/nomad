@@ -1,6 +1,6 @@
 import { currentURL } from '@ember/test-helpers';
 import { Promise } from 'rsvp';
-import { module, skip } from 'qunit';
+import { module } from 'qunit';
 import { setupApplicationTest, test } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Path from 'nomad-ui/tests/pages/allocations/task/fs/path';
@@ -21,7 +21,7 @@ module('Acceptance | task fs path', function(hooks) {
     task = server.schema.taskStates.where({ allocationId: allocation.id }).models[0];
   });
 
-  skip('visiting /allocations/:allocation_id/:task_name/fs/:path', async function(assert) {
+  test('visiting /allocations/:allocation_id/:task_name/fs/:path', async function(assert) {
     const paths = ['some-file.log', 'a/deep/path/to/a/file.log', '/', 'Unicode™®'];
 
     const testPath = async filePath => {
