@@ -58,12 +58,12 @@ module('Acceptance | task fs path', function(hooks) {
     assert.equal(Path.entries[0].size, '', 'directory sizes are hidden');
     assert.equal(Path.entries[0].lastModified, 'a year ago');
 
-    assert.equal(Path.entries[1].name, 'jorts.txt');
+    assert.equal(Path.entries[1].name, '🤩.txt');
     assert.ok(Path.entries[1].isFile);
     assert.equal(Path.entries[1].size, '1 KiB');
     assert.equal(Path.entries[1].lastModified, '2 days ago');
 
-    assert.equal(Path.entries[2].name, 'jants.txt');
+    assert.equal(Path.entries[2].name, '🙌🏿.txt');
 
     await Path.entries[0].visit();
 

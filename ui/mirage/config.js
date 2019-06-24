@@ -332,7 +332,7 @@ export default function() {
     } else {
       return [
         {
-          Name: 'jorts.txt',
+          Name: '🤩.txt',
           IsDir: false,
           Size: 1919,
           FileMode: '-rw-r--r--',
@@ -340,7 +340,7 @@ export default function() {
             .subtract(2, 'day')
             .format(),
         },
-        { Name: 'jants.txt', IsDir: false },
+        { Name: '🙌🏿.txt', IsDir: false },
         {
           Name: 'directory',
           IsDir: true,
