@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/internal/windows"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/kr/pty"
 
@@ -517,9 +518,19 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 			if err != nil {
 				merr.Errors = append(merr.Errors, err)
 			}
+
+			err = windows.TerminateProcess(proc.Pid)
+			if err != nil {
+				merr.Errors = append(merr.Errors, err)
+			}
 		}
 	} else {
 		err := proc.Kill()
+		if err != nil {
+			merr.Errors = append(merr.Errors, err)
+		}
+
+		err = windows.TerminateProcess(proc.Pid)
 		if err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
