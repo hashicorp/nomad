@@ -2,7 +2,7 @@
 <section class="section full-width-section">
   <h1 class="title">Path fs route <code>{{path}}</code></h1>
 
-  <table>
+  <table class='fs-explorer'>
     <thead>
       <tr>
         <th>Name</th>
@@ -17,7 +17,7 @@
           <td>
             {{#link-to "allocations.allocation.task.fs.path" model.allocation model (concat "%2F" entry.Name) activeClass="is-active"}}
               <span data-test-directory-icon>{{inline-svg 'folder-outline' class='icon'}}</span>
-              <span data-test-name>{{entry.Name}}</span>
+              <span class='name' data-test-name>{{entry.Name}}</span>
             {{/link-to}}
           </td>
           <td data-test-size></td>

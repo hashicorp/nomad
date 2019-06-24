@@ -1,0 +1,12 @@
+.fs-explorer {
+  a {
+    text-decoration: none;
+    color: inherit;
+
+    &:hover {
+      .name {
+        text-decoration: underline;
+      }
+    }
+  }
+}
