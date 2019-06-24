@@ -118,7 +118,7 @@ func (w *Worker) run() {
 		}
 
 		// Wait for the raft log to catchup to the evaluation
-		snap, err := w.snapshotAfter(waitIndex, raftSyncLimit)
+		snap, err := w.snapshotMinIndex(waitIndex, raftSyncLimit)
 		if err != nil {
 			w.logger.Error("error waiting for Raft index", "error", err, "index", waitIndex)
 			w.sendAck(eval.ID, token, false)
@@ -224,11 +224,11 @@ func (w *Worker) sendAck(evalID, token string, ack bool) {
 	}
 }
 
-// snapshotAfter times calls to StateStore.SnapshotAfter which may block.
-func (w *Worker) snapshotAfter(waitIndex uint64, timeout time.Duration) (*state.StateSnapshot, error) {
+// snapshotMinIndex times calls to StateStore.SnapshotAfter which may block.
+func (w *Worker) snapshotMinIndex(waitIndex uint64, timeout time.Duration) (*state.StateSnapshot, error) {
 	start := time.Now()
 	ctx, cancel := context.WithTimeout(w.srv.shutdownCtx, timeout)
-	snap, err := w.srv.fsm.State().SnapshotAfter(ctx, waitIndex)
+	snap, err := w.srv.fsm.State().SnapshotMinIndex(ctx, waitIndex)
 	cancel()
 	metrics.MeasureSince([]string{"nomad", "worker", "wait_for_index"}, start)
 
@@ -332,7 +332,7 @@ SUBMIT:
 		w.logger.Debug("refreshing state", "refresh_index", result.RefreshIndex, "eval_id", plan.EvalID)
 
 		var err error
-		state, err = w.snapshotAfter(result.RefreshIndex, raftSyncLimit)
+		state, err = w.snapshotMinIndex(result.RefreshIndex, raftSyncLimit)
 		if err != nil {
 			return nil, nil, err
 		}

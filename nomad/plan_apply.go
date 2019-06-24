@@ -184,7 +184,7 @@ func (p *planner) snapshotMinIndex(prevPlanResultIndex, planSnapshotIndex uint64
 
 	const timeout = 5 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	snap, err := p.fsm.State().SnapshotAfter(ctx, minIndex)
+	snap, err := p.fsm.State().SnapshotMinIndex(ctx, minIndex)
 	cancel()
 	if err == context.DeadlineExceeded {
 		return nil, fmt.Errorf("timed out after %s waiting for index=%d (previous plan result index=%d; plan snapshot index=%d)",
