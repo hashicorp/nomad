@@ -59,8 +59,11 @@ server {
 client {
   enabled       = true
   network_speed = 10
-  options {
-    "driver.raw_exec.enable" = "1"
+}
+
+plugin "raw_exec" {
+  config {
+    enabled = true
   }
 }
 
