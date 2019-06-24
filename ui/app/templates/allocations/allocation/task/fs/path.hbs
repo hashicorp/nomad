@@ -7,7 +7,6 @@
       <tr>
         <th>Name</th>
         <th>Size</th>
-        <th>Mode</th>
         <th>Last Modified</th>
       </tr>
     </thead>
@@ -21,7 +20,6 @@
             {{/link-to}}
           </td>
           <td data-test-size></td>
-          <td data-test-file-mode>{{entry.FileMode}}</td>
           <td data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
         </tr>
       {{/each}}
@@ -32,7 +30,6 @@
             <span data-test-name>{{entry.Name}}</span>
           </td>
           <td data-test-size>{{format-bytes entry.Size}}</td>
-          <td data-test-file-mode>{{entry.FileMode}}</td>
           <td data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
         </tr>
       {{/each}}

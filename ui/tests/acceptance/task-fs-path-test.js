@@ -48,13 +48,11 @@ module('Acceptance | task fs path', function(hooks) {
     assert.equal(Path.entries[0].name, 'directory', 'directories should come first');
     assert.ok(Path.entries[0].isDirectory);
     assert.equal(Path.entries[0].size, '', 'directory size are hidden');
-    assert.equal(Path.entries[0].fileMode, 'drwxr-xr-x');
     assert.equal(Path.entries[0].lastModified, 'a year ago');
 
     assert.equal(Path.entries[1].name, 'jorts');
     assert.ok(Path.entries[1].isFile);
     assert.equal(Path.entries[1].size, '1 KiB');
-    assert.equal(Path.entries[1].fileMode, '-rw-r--r--');
     assert.equal(Path.entries[1].lastModified, '2 days ago');
 
     assert.equal(Path.entries[2].name, 'jants');
