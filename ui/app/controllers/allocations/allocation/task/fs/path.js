@@ -11,10 +11,11 @@ export default Controller.extend({
       .split('/')
       .reject(s => s === '')
       .reduce(
-        (componentsAndPath, component) => {
+        (componentsAndPath, component, componentIndex, components) => {
           componentsAndPath.components.push({
             name: component,
             path: componentsAndPath.path,
+            isLast: componentIndex === components.length - 1,
           });
 
           componentsAndPath.path = `${componentsAndPath.path}/${component}`;

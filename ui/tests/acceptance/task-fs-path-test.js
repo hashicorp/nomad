@@ -46,6 +46,7 @@ module('Acceptance | task fs path', function(hooks) {
     assert.equal(Path.entries.length, 3);
 
     assert.equal(Path.breadcrumbs.length, 1);
+    assert.ok(Path.breadcrumbs[0].isActive);
     assert.equal(Path.breadcrumbs[0].text, task.name);
 
     assert.equal(Path.entries[0].name, 'directory', 'directories should come first');
@@ -65,7 +66,11 @@ module('Acceptance | task fs path', function(hooks) {
     assert.equal(Path.entries.length, 1);
 
     assert.equal(Path.breadcrumbs.length, 2);
+
+    assert.notOk(Path.breadcrumbs[0].isActive);
+
     assert.equal(Path.breadcrumbs[1].text, 'directory');
+    assert.ok(Path.breadcrumbs[1].isActive);
 
     await Path.entries[0].visit();
 

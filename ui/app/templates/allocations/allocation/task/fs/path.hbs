@@ -5,7 +5,7 @@
   <nav class='breadcrumb fs' data-test-fs-breadcrumbs>
     <ul>
       {{#each pathComponents as |pathComponent|}}
-        <li>
+        <li class={{if pathComponent.isLast 'is-active'}}>
           {{#link-to "allocations.allocation.task.fs.path" model.allocation model pathComponent.path activeClass="is-active"}}
             {{pathComponent.name}}
           {{/link-to}}

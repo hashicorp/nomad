@@ -1,4 +1,12 @@
-import { clickable, collection, create, isPresent, text, visitable } from 'ember-cli-page-object';
+import {
+  clickable,
+  collection,
+  create,
+  hasClass,
+  isPresent,
+  text,
+  visitable,
+} from 'ember-cli-page-object';
 
 export default create({
   visit: visitable('/allocations/:id/:name/fs/:path'),
@@ -7,6 +15,7 @@ export default create({
 
   breadcrumbs: collection('[data-test-fs-breadcrumbs] li', {
     visit: clickable('a'),
+    isActive: hasClass('is-active'),
   }),
 
   entries: collection('[data-test-entry]', {
