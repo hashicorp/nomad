@@ -11,18 +11,32 @@ export default Route.extend({
 
     const allocation = this.modelFor('allocations.allocation');
 
-    return RSVP.hash({
-      path: decodedPath,
-      pathWithTaskName,
-      task,
-      ls: fetch(`/v1/client/fs/ls/${allocation.id}?path=${pathWithTaskName}`).then(response =>
-        response.json()
-      ),
-    });
+    return fetch(`/v1/client/fs/stat/${allocation.id}?path=${pathWithTaskName}`)
+      .then(response => response.json())
+      .then(statJson => {
+        if (statJson.IsDir) {
+          return RSVP.hash({
+            path: decodedPath,
+            pathWithTaskName,
+            task,
+            ls: fetch(`/v1/client/fs/ls/${allocation.id}?path=${pathWithTaskName}`).then(response =>
+              response.json()
+            ),
+            isFile: false,
+          });
+        } else {
+          return {
+            path: decodedPath,
+            pathWithTaskName,
+            task,
+            isFile: true,
+          };
+        }
+      });
   },
 
-  setupController(controller, { path, pathWithTaskName, task, ls }) {
+  setupController(controller, { path, pathWithTaskName, task, ls, isFile }) {
     this._super(...arguments);
-    controller.setProperties({ path, pathWithTaskName, model: task, ls });
+    controller.setProperties({ path, pathWithTaskName, model: task, ls, isFile });
   },
 });

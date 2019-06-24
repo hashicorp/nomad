@@ -14,37 +14,43 @@
     </ul>
   </nav>
 
-  <table class='fs-explorer'>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Size</th>
-        <th>Last Modified</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{#each directories as |entry|}}
-        <tr data-test-entry>
-          <td>
-            {{#link-to "allocations.allocation.task.fs.path" model.allocation model (concat path "/" entry.Name) activeClass="is-active"}}
-              <span data-test-directory-icon>{{inline-svg 'folder-outline' class='icon'}}</span>
-              <span class='name' data-test-name>{{entry.Name}}</span>
-            {{/link-to}}
-          </td>
-          <td data-test-size></td>
-          <td data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
+  {{#if isFile}}
+    <div data-test-file-viewer>placeholder file viewer</div>
+  {{else}}
+    <table class='fs-explorer'>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Size</th>
+          <th>Last Modified</th>
         </tr>
-      {{/each}}
-      {{#each files as |entry|}}
-        <tr data-test-entry>
-          <td>
-            <span class='icon' data-test-file-icon></span>
-            <span data-test-name>{{entry.Name}}</span>
-          </td>
-          <td data-test-size>{{format-bytes entry.Size}}</td>
-          <td data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
-        </tr>
-      {{/each}}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {{#each directories as |entry|}}
+          <tr data-test-entry>
+            <td>
+              {{#link-to "allocations.allocation.task.fs.path" model.allocation model (concat path "/" entry.Name) activeClass="is-active"}}
+                <span data-test-directory-icon>{{inline-svg 'folder-outline' class='icon'}}</span>
+                <span class='name' data-test-name>{{entry.Name}}</span>
+              {{/link-to}}
+            </td>
+            <td data-test-size></td>
+            <td data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
+          </tr>
+        {{/each}}
+        {{#each files as |entry|}}
+          <tr data-test-entry>
+            <td>
+              {{#link-to "allocations.allocation.task.fs.path" model.allocation model (concat path "/" entry.Name) activeClass="is-active"}}
+                <span class='icon' data-test-file-icon></span>
+                <span data-test-name>{{entry.Name}}</span>
+              {{/link-to}}
+            </td>
+            <td data-test-size>{{format-bytes entry.Size}}</td>
+            <td data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{/if}}
 </section>

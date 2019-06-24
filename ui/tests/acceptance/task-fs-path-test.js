@@ -43,6 +43,8 @@ module('Acceptance | task fs path', function(hooks) {
   test('exploring allocation filesystem', async function(assert) {
     await Path.visit({ id: allocation.id, name: task.name, path: '/' });
 
+    assert.ok(Path.fileViewer.isHidden);
+
     assert.equal(Path.entries.length, 3);
 
     assert.equal(Path.breadcrumbsText, task.name);
@@ -86,5 +88,18 @@ module('Acceptance | task fs path', function(hooks) {
     await Path.breadcrumbs[1].visit();
     assert.equal(Path.breadcrumbsText, `${task.name} directory`);
     assert.equal(Path.breadcrumbs.length, 2);
+  });
+
+  test('viewing a file', async function(assert) {
+    this.server.get('/client/fs/stat/:allocation_id', (schema, { queryParams }) => {
+      return {
+        IsDir: !queryParams.path.endsWith('jorts'),
+      };
+    });
+
+    await Path.visit({ id: allocation.id, name: task.name, path: '/' });
+    await Path.entries[1].visit();
+
+    assert.ok(Path.fileViewer.isPresent);
   });
 });

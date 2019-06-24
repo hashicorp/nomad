@@ -354,6 +354,12 @@ export default function() {
     }
   });
 
+  this.get('/client/fs/stat/:allocation_id', () => {
+    return {
+      IsDir: true,
+    };
+  });
+
   this.get('/client/stats', function({ clientStats }, { queryParams }) {
     const seed = Math.random();
     if (seed > 0.8) {

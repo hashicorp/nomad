@@ -13,6 +13,10 @@ export default create({
 
   tempTitle: text('h1.title'),
 
+  fileViewer: {
+    scope: '[data-test-file-viewer]',
+  },
+
   breadcrumbsText: text('[data-test-fs-breadcrumbs]'),
 
   breadcrumbs: collection('[data-test-fs-breadcrumbs] li', {
