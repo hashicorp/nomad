@@ -40,7 +40,7 @@ module('Acceptance | task fs path', function(hooks) {
     }, Promise.resolve());
   });
 
-  test('exploring allocation filesystem', async function(assert) {
+  test('navigating allocation filesystem', async function(assert) {
     await Path.visit({ id: allocation.id, name: task.name, path: '/' });
 
     assert.ok(Path.fileViewer.isHidden);
