@@ -94,6 +94,8 @@ module('Acceptance | task fs path', function(hooks) {
     await Path.visit({ id: allocation.id, name: task.name, path: '/' });
     await Path.entries[1].visit();
 
+    assert.equal(Path.breadcrumbsText, `${task.name} 🤩.txt`);
+
     assert.ok(Path.fileViewer.isPresent);
   });
 });
