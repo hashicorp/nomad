@@ -84,6 +84,7 @@ module('Acceptance | task fs path', function(hooks) {
     assert.equal(Path.breadcrumbs[2].text, 'another');
 
     await Path.breadcrumbs[1].visit();
+    assert.equal(Path.breadcrumbsText, `${task.name} directory`);
     assert.equal(Path.breadcrumbs.length, 2);
   });
 });

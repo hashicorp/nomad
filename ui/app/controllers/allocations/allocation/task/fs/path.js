@@ -12,13 +12,15 @@ export default Controller.extend({
       .reject(s => s === '')
       .reduce(
         (componentsAndPath, component, componentIndex, components) => {
+          if (componentIndex) {
+            componentsAndPath.path = `${componentsAndPath.path}/${component}`;
+          }
+
           componentsAndPath.components.push({
             name: component,
             path: componentsAndPath.path,
             isLast: componentIndex === components.length - 1,
           });
-
-          componentsAndPath.path = `${componentsAndPath.path}/${component}`;
 
           return componentsAndPath;
         },
