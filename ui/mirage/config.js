@@ -325,7 +325,7 @@ export default function() {
     } else if (queryParams.path.endsWith('another')) {
       return [
         {
-          Name: 'something',
+          Name: 'something.txt',
           IsDir: false,
         },
       ];
