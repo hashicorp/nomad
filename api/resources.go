@@ -99,6 +99,7 @@ type NetworkResource struct {
 	MBits         *int
 	ReservedPorts []Port
 	DynamicPorts  []Port
+	Services      []*Service
 }
 
 func (n *NetworkResource) Canonicalize() {

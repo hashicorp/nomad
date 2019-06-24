@@ -315,6 +315,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"migrate",
 			"spread",
 			"network",
+			"service",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -335,6 +336,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		delete(m, "migrate")
 		delete(m, "spread")
 		delete(m, "network")
+		delete(m, "service")
 
 		// Build the group with the basic decode
 		var g api.TaskGroup
@@ -445,6 +447,12 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 				if task.Vault == nil {
 					task.Vault = tgVault
 				}
+			}
+		}
+
+		if o := listVal.Filter("service"); len(o.Items) > 0 {
+			if err := parseGroupServices(*result.Name, *g.Name, &g, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
 			}
 		}
 
@@ -1202,6 +1210,83 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 	return nil
 }
 
+//TODO(schmichael) combine with non-group services
+func parseGroupServices(jobName string, taskGroupName string, g *api.TaskGroup, serviceObjs *ast.ObjectList) error {
+	g.Services = make([]*api.Service, len(serviceObjs.Items))
+	for idx, o := range serviceObjs.Items {
+		// Check for invalid keys
+		valid := []string{
+			"name",
+			"tags",
+			"canary_tags",
+			"port",
+			"check",
+			"address_mode",
+			"check_restart",
+			"connect",
+		}
+		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
+		}
+
+		var service api.Service
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o.Val); err != nil {
+			return err
+		}
+
+		delete(m, "check")
+		delete(m, "check_restart")
+		delete(m, "connect")
+
+		if err := mapstructure.WeakDecode(m, &service); err != nil {
+			return err
+		}
+
+		// Filter checks
+		var checkList *ast.ObjectList
+		if ot, ok := o.Val.(*ast.ObjectType); ok {
+			checkList = ot.List
+		} else {
+			return fmt.Errorf("service '%s': should be an object", service.Name)
+		}
+
+		if co := checkList.Filter("check"); len(co.Items) > 0 {
+			if err := parseChecks(&service, co); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
+			}
+		}
+
+		// Filter check_restart
+		if cro := checkList.Filter("check_restart"); len(cro.Items) > 0 {
+			if len(cro.Items) > 1 {
+				return fmt.Errorf("check_restart '%s': cannot have more than 1 check_restart", service.Name)
+			}
+			if cr, err := parseCheckRestart(cro.Items[0]); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
+			} else {
+				service.CheckRestart = cr
+			}
+		}
+
+		// Filter connect
+		if co := checkList.Filter("connect"); len(co.Items) > 0 {
+			if len(co.Items) > 1 {
+				return fmt.Errorf("connect '%s': cannot have more than 1 connect", service.Name)
+			}
+			if c, err := parseConnect(co.Items[0]); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
+			} else {
+				service.Connect = c
+			}
+		}
+
+		g.Services[idx] = &service
+	}
+
+	return nil
+}
+
 func parseServices(jobName string, taskGroupName string, task *api.Task, serviceObjs *ast.ObjectList) error {
 	task.Services = make([]*api.Service, len(serviceObjs.Items))
 	for idx, o := range serviceObjs.Items {
@@ -1396,6 +1481,162 @@ func parseCheckRestart(cro *ast.ObjectItem) (*api.CheckRestart, error) {
 	}
 
 	return &checkRestart, nil
+}
+
+func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
+	valid := []string{
+		"sidecar_service",
+	}
+
+	if err := helper.CheckHCLKeys(co.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "connect ->")
+	}
+
+	var connect api.ConsulConnect
+
+	var connectList *ast.ObjectList
+	if ot, ok := co.Val.(*ast.ObjectType); ok {
+		connectList = ot.List
+	} else {
+		return nil, fmt.Errorf("connect should be an object")
+	}
+
+	// Parse the sidecar_service
+	o := connectList.Filter("sidecar_service")
+	if len(o.Items) == 0 {
+		return nil, nil
+	}
+	if len(o.Items) > 1 {
+		return nil, fmt.Errorf("only one 'sidecar_service' block allowed per task")
+	}
+
+	r, err := parseSidecarService(o.Items[0])
+	if err != nil {
+		return nil, fmt.Errorf("sidecar_service, %v", err)
+	}
+	connect.SidecarService = r
+
+	return &connect, nil
+}
+
+func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
+	valid := []string{
+		"port",
+		"proxy",
+	}
+
+	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "sidecar_service ->")
+	}
+
+	var sidecar api.ConsulSidecarService
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	delete(m, "proxy")
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &sidecar,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(m); err != nil {
+		return nil, fmt.Errorf("foo: %v", err)
+	}
+
+	var proxyList *ast.ObjectList
+	if ot, ok := o.Val.(*ast.ObjectType); ok {
+		proxyList = ot.List
+	} else {
+		return nil, fmt.Errorf("sidecar_service: should be an object")
+	}
+
+	// Parse the proxy
+	po := proxyList.Filter("proxy")
+	if len(po.Items) == 0 {
+		return &sidecar, nil
+	}
+	if len(po.Items) > 1 {
+		return nil, fmt.Errorf("only one 'proxy' block allowed per task")
+	}
+
+	r, err := parseProxy(po.Items[0])
+	if err != nil {
+		return nil, fmt.Errorf("proxy, %v", err)
+	}
+	sidecar.Proxy = r
+
+	return &sidecar, nil
+}
+
+func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
+	valid := []string{
+		"upstreams",
+	}
+
+	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "proxy ->")
+	}
+
+	var proxy api.ConsulProxy
+
+	var listVal *ast.ObjectList
+	if ot, ok := o.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("proxy: should be an object")
+	}
+
+	// Parse the proxy
+	uo := listVal.Filter("upstreams")
+	proxy.Upstreams = make([]*api.ConsulUpstream, len(uo.Items))
+	for i := range uo.Items {
+		u, err := parseUpstream(uo.Items[i])
+		if err != nil {
+			return nil, err
+		}
+
+		proxy.Upstreams[i] = u
+	}
+
+	return &proxy, nil
+}
+
+func parseUpstream(uo *ast.ObjectItem) (*api.ConsulUpstream, error) {
+	valid := []string{
+		"destination_name",
+		"local_bind_port",
+	}
+
+	if err := helper.CheckHCLKeys(uo.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "upstream ->")
+	}
+
+	var upstream api.ConsulUpstream
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, uo.Val); err != nil {
+		return nil, err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &upstream,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+
+	return &upstream, nil
 }
 
 func parseResources(result *api.Resources, list *ast.ObjectList) error {

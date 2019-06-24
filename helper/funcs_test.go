@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -18,6 +19,75 @@ func TestSliceStringIsSubset(t *testing.T) {
 	sub, offending = SliceStringIsSubset(l, s)
 	if sub || len(offending) == 0 || offending[0] != "d" {
 		t.Fatalf("bad %v %v", sub, offending)
+	}
+}
+
+func TestCompareSliceSetString(t *testing.T) {
+	cases := []struct {
+		A      []string
+		B      []string
+		Result bool
+	}{
+		{
+			A:      []string{},
+			B:      []string{},
+			Result: true,
+		},
+		{
+			A:      []string{},
+			B:      []string{"a"},
+			Result: false,
+		},
+		{
+			A:      []string{"a"},
+			B:      []string{"a"},
+			Result: true,
+		},
+		{
+			A:      []string{"a"},
+			B:      []string{"b"},
+			Result: false,
+		},
+		{
+			A:      []string{"a", "b"},
+			B:      []string{"b"},
+			Result: false,
+		},
+		{
+			A:      []string{"a", "b"},
+			B:      []string{"a"},
+			Result: false,
+		},
+		{
+			A:      []string{"a", "b"},
+			B:      []string{"a", "b"},
+			Result: true,
+		},
+		{
+			A:      []string{"a", "b"},
+			B:      []string{"b", "a"},
+			Result: true,
+		},
+	}
+
+	for i, tc := range cases {
+		tc := tc
+		t.Run(fmt.Sprintf("case-%da", i), func(t *testing.T) {
+			if res := CompareSliceSetString(tc.A, tc.B); res != tc.Result {
+				t.Fatalf("expected %t but CompareSliceSetString(%v, %v) -> %t",
+					tc.Result, tc.A, tc.B, res,
+				)
+			}
+		})
+
+		// Function is commutative so compare B and A
+		t.Run(fmt.Sprintf("case-%db", i), func(t *testing.T) {
+			if res := CompareSliceSetString(tc.B, tc.A); res != tc.Result {
+				t.Fatalf("expected %t but CompareSliceSetString(%v, %v) -> %t",
+					tc.Result, tc.B, tc.A, res,
+				)
+			}
+		})
 	}
 }
 
