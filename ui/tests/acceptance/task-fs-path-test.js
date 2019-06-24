@@ -40,7 +40,7 @@ module('Acceptance | task fs path', function(hooks) {
     }, Promise.resolve());
   });
 
-  test('visiting /allocations/:allocation_id/:task_name/fs/%2F', async function(assert) {
+  test('exploring allocation filesystem', async function(assert) {
     await Path.visit({ id: allocation.id, name: task.name, path: '/' });
 
     assert.equal(Path.entries.length, 3);
