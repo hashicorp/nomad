@@ -1,4 +1,4 @@
-import { collection, create, isPresent, text, visitable } from 'ember-cli-page-object';
+import { clickable, collection, create, isPresent, text, visitable } from 'ember-cli-page-object';
 
 export default create({
   visit: visitable('/allocations/:id/:name/fs/:path'),
@@ -13,5 +13,7 @@ export default create({
     size: text('[data-test-size]'),
     fileMode: text('[data-test-file-mode]'),
     lastModified: text('[data-test-last-modified]'),
+
+    visit: clickable('a'),
   }),
 });

@@ -12,8 +12,8 @@ export default Route.extend({
     return RSVP.hash({
       path: decodedPath,
       task,
-      ls: fetch(`/v1/client/fs/ls/${allocation.id}?path=${task.name}`).then(response =>
-        response.json()
+      ls: fetch(`/v1/client/fs/ls/${allocation.id}?path=${task.name}%2F${decodedPath}`).then(
+        response => response.json()
       ),
     });
   },
