@@ -332,7 +332,7 @@ export default function() {
     } else {
       return [
         {
-          Name: 'jorts',
+          Name: 'jorts.txt',
           IsDir: false,
           Size: 1919,
           FileMode: '-rw-r--r--',
@@ -340,7 +340,7 @@ export default function() {
             .subtract(2, 'day')
             .format(),
         },
-        { Name: 'jants', IsDir: false },
+        { Name: 'jants.txt', IsDir: false },
         {
           Name: 'directory',
           IsDir: true,
@@ -354,9 +354,9 @@ export default function() {
     }
   });
 
-  this.get('/client/fs/stat/:allocation_id', () => {
+  this.get('/client/fs/stat/:allocation_id', (schema, { queryParams }) => {
     return {
-      IsDir: true,
+      IsDir: !queryParams.path.endsWith('.txt'),
     };
   });
 
