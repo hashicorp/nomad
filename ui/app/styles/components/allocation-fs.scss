@@ -1,24 +1,37 @@
 .fs-explorer.table {
   width: 100%;
 
-  a {
-    text-decoration: none;
-    color: inherit;
+  tbody {
+    a {
+      text-decoration: none;
+      color: inherit;
 
-    &:hover {
-      .name {
-        text-decoration: underline;
+      &:hover {
+        .name {
+          text-decoration: underline;
+        }
       }
     }
   }
 }
 
 .breadcrumb.fs {
+  margin: 0;
+
   a {
-    color: inherit;
+    padding-top: 0;
+    padding-bottom: 0;
+    color: $blue;
+    opacity: 1;
+    font-weight: $weight-bold;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
   }
 
   .is-active a {
-    color: inherit;
+    color: $black;
   }
 }
