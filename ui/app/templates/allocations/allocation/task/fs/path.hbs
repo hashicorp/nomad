@@ -33,7 +33,7 @@
               {{/link-to}}
             </td>
             <td class='is-right-aligned' data-test-size></td>
-            <td class='is-right-aligned' data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
+            <td class='is-right-aligned' title={{entry.ModTime}} data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
           </tr>
         {{/each}}
         {{#each files as |entry|}}
@@ -45,7 +45,7 @@
               {{/link-to}}
             </td>
             <td class='is-right-aligned' data-test-size>{{format-bytes entry.Size}}</td>
-            <td class='is-right-aligned' data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
+            <td class='is-right-aligned' title={{entry.ModTime}} data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
           </tr>
         {{/each}}
       </tbody>
