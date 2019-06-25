@@ -32,7 +32,6 @@ module('Acceptance | task fs path', function(hooks) {
         'No redirect'
       );
       assert.equal(Path.breadcrumbsText, `${task.name} ${filePath.replace(/\//g, ' ')}`.trim());
-      assert.ok(Path.tempTitle.includes(filePath), `Temp title includes path, ${filePath}`);
     };
 
     await paths.reduce(async (prev, filePath) => {

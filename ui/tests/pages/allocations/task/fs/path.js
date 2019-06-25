@@ -11,8 +11,6 @@ import {
 export default create({
   visit: visitable('/allocations/:id/:name/fs/:path'),
 
-  tempTitle: text('h1.title'),
-
   fileViewer: {
     scope: '[data-test-file-viewer]',
   },
