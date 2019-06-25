@@ -837,9 +837,11 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks: option.TaskResources,
 			Shared: structs.AllocatedSharedResources{
-				DiskMB: int64(newTG.EphemeralDisk.SizeMB),
+				DiskMB:   int64(newTG.EphemeralDisk.SizeMB),
+				Networks: newTG.Networks,
 			},
 		}
+
 		// Use metrics from existing alloc for in place upgrade
 		// This is because if the inplace upgrade succeeded, any scoring metadata from
 		// when it first went through the scheduler should still be preserved. Using scoring

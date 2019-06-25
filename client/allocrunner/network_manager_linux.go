@@ -1,9 +1,11 @@
 package allocrunner
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/lib/nsutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -116,5 +118,21 @@ func netModeToIsolationMode(netMode string) drivers.NetIsolationMode {
 		return drivers.NetIsolationModeTask
 	default:
 		return drivers.NetIsolationModeHost
+	}
+}
+
+func newNetworkConfigurator(alloc *structs.Allocation, config *clientconfig.Config) NetworkConfigurator {
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+
+	// Check if network stanza is given
+	if len(tg.Networks) == 0 {
+		return &hostNetworkConfigurator{}
+	}
+
+	switch strings.ToLower(tg.Networks[0].Mode) {
+	case "bridge":
+		return newBridgeNetworkConfigurator(context.Background(), config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath)
+	default:
+		return &hostNetworkConfigurator{}
 	}
 }

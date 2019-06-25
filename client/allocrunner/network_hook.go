@@ -26,15 +26,22 @@ type networkHook struct {
 	// spec described the network namespace and is syncronized by specLock
 	spec *drivers.NetworkIsolationSpec
 
+	// networkConfigurator configures the network interfaces, routes, etc once
+	// the alloc network has been created
+	networkConfigurator NetworkConfigurator
+
 	logger hclog.Logger
 }
 
-func newNetworkHook(logger hclog.Logger, ns networkIsolationSetter, alloc *structs.Allocation, netManager drivers.DriverNetworkManager) *networkHook {
+func newNetworkHook(logger hclog.Logger, ns networkIsolationSetter,
+	alloc *structs.Allocation, netManager drivers.DriverNetworkManager,
+	netConfigurator NetworkConfigurator) *networkHook {
 	return &networkHook{
-		setter:  ns,
-		alloc:   alloc,
-		manager: netManager,
-		logger:  logger,
+		setter:              ns,
+		alloc:               alloc,
+		manager:             netManager,
+		networkConfigurator: netConfigurator,
+		logger:              logger,
 	}
 }
 
@@ -43,12 +50,13 @@ func (h *networkHook) Name() string {
 }
 
 func (h *networkHook) Prerun() error {
-	if h.manager == nil {
-		h.logger.Debug("shared network namespaces are not supported on this platform, skipping network hook")
-		return nil
-	}
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
 	if len(tg.Networks) == 0 || tg.Networks[0].Mode == "host" || tg.Networks[0].Mode == "" {
+		return nil
+	}
+
+	if h.manager == nil || h.networkConfigurator == nil {
+		h.logger.Trace("shared network namespaces are not supported on this platform, skipping network hook")
 		return nil
 	}
 
@@ -62,6 +70,9 @@ func (h *networkHook) Prerun() error {
 		h.setter.SetNetworkIsolation(spec)
 	}
 
+	if err := h.networkConfigurator.Setup(h.alloc, spec); err != nil {
+		return fmt.Errorf("failed to configure networking for alloc: %v", err)
+	}
 	return nil
 }
 
@@ -70,5 +81,8 @@ func (h *networkHook) Postrun() error {
 		return nil
 	}
 
+	if err := h.networkConfigurator.Teardown(h.alloc, h.spec); err != nil {
+		h.logger.Error("failed to cleanup network for allocation, resources may have leaked", "alloc", h.alloc.ID, "error", err)
+	}
 	return h.manager.DestroyNetwork(h.alloc.ID, h.spec)
 }

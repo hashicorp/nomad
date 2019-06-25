@@ -488,6 +488,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 						DiskMB: int64(tg.EphemeralDisk.SizeMB),
 					},
 				}
+				if option.AllocResources != nil {
+					resources.Shared.Networks = option.AllocResources.Networks
+				}
 
 				// Create an allocation for this
 				alloc := &structs.Allocation{
@@ -506,7 +509,8 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					DesiredStatus:      structs.AllocDesiredStatusRun,
 					ClientStatus:       structs.AllocClientStatusPending,
 					SharedResources: &structs.Resources{
-						DiskMB: tg.EphemeralDisk.SizeMB,
+						DiskMB:   tg.EphemeralDisk.SizeMB,
+						Networks: tg.Networks,
 					},
 				}
 
