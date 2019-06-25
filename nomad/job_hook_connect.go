@@ -40,25 +40,30 @@ func groupConnectHook(g *structs.TaskGroup) error {
 
 			port := structs.Port{
 				Label: "nomad_envoy",
+				To:    -1, //FIXME(schmichael) hack to make a dynamic port match a To port
 			}
+			g.Networks[0].DynamicPorts = append(g.Networks[0].DynamicPorts, port)
+			return nil
 
-			//TODO(schmichael) ugly hack to get a free port inside the network
-			used := map[int]struct{}{}
-			for _, p := range g.Networks[0].DynamicPorts {
-				used[p.To] = struct{}{}
-			}
-			for _, p := range g.Networks[0].ReservedPorts {
-				used[p.To] = struct{}{}
-			}
-			for toPort := 12001; toPort < 65536; toPort++ {
-				if _, ok := used[toPort]; ok {
-					continue
+			/*
+				//TODO(schmichael) ugly hack to get a free port inside the network
+				used := map[int]struct{}{}
+				for _, p := range g.Networks[0].DynamicPorts {
+					used[p.To] = struct{}{}
 				}
-				port.To = toPort
-				g.Networks[0].DynamicPorts = append(g.Networks[0].DynamicPorts, port)
-				return nil
-			}
-			return fmt.Errorf("no unused To ports")
+				for _, p := range g.Networks[0].ReservedPorts {
+					used[p.To] = struct{}{}
+				}
+				for toPort := 12001; toPort < 65536; toPort++ {
+					if _, ok := used[toPort]; ok {
+						continue
+					}
+					port.To = toPort
+					g.Networks[0].DynamicPorts = append(g.Networks[0].DynamicPorts, port)
+					return nil
+				}
+				return fmt.Errorf("no unused To ports")
+			*/
 		}
 	}
 	return nil

@@ -14,6 +14,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/kr/pretty"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/helper"
@@ -689,6 +690,11 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		copy(tags, service.Tags)
 	}
 
+	connect, err := newConnect(service.Connect, task.Networks)
+	if err != nil {
+		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
+	}
+
 	// Build the Consul Service registration request
 	serviceReg := &api.AgentServiceRegistration{
 		ID:      id,
@@ -700,7 +706,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		Meta: map[string]string{
 			"external-source": "nomad",
 		},
-		Connect: newConnect(service.Connect, task.Networks),
+		Connect: connect,
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 
@@ -802,16 +808,16 @@ func (c *ServiceClient) RegisterAlloc(alloc *structs.Allocation) error {
 		Restarter:  noopRestarter{},
 		Services:   tg.Services,
 		DriverExec: noopExec{},
-		Networks:   tg.Networks,
+		//TODO(schmichael) must use this view of networks as it has to
+		//                 dynamic port `value -> to` hack
+		Networks: alloc.AllocatedResources.Shared.Networks,
 	}
 
 	if alloc.DeploymentStatus != nil {
 		ts.Canary = alloc.DeploymentStatus.Canary
 	}
 
-	for i, net := range ts.Networks {
-		c.logger.Info("-------------->TaskService", "i", i, "name", ts.Name, "n", len(ts.Services), "net", net, "canary", ts.Canary)
-	}
+	pretty.Print("---RegisterAlloc--> ", ts, "\n")
 
 	return c.RegisterTask(ts)
 }
@@ -1325,37 +1331,44 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 }
 
 //TODO(schmichael) rename - converts nomad connect structs to consul connect structs
-func newConnect(nc *structs.ConsulConnect, networks structs.Networks) *api.AgentServiceConnect {
+func newConnect(nc *structs.ConsulConnect, networks structs.Networks) (*api.AgentServiceConnect, error) {
 	if nc == nil {
-		return nil
+		return nil, nil
 	}
 
 	//TODO(schmichael) support Native: true
 	cc := &api.AgentServiceConnect{}
 
 	if nc.SidecarService == nil {
-		return cc
+		return cc, nil
 	}
 
 	//TODO(schmichael) this is a temporary hack
 	// port may be 0 if its not needed and that's ok
-	_, port := networks.Port("nomad_envoy")
-
-	//TODO(schmichael) ***START HERE*** need to register the Port.Value with Consul and register the sidecar listener port as Port.To here
+	port, err := getConnectPort(networks)
+	if err != nil {
+		return nil, err
+	}
 
 	cc.SidecarService = &api.AgentServiceRegistration{
-		Port: port,
+		//TODO(schmichael) must advertise host ip while getting envoy
+		//to bind to the bridge ip (or 0.0.0.0)
+		Address: "0.0.0.0",
+		Port:    port.Value,
 	}
 
 	if nc.SidecarService.Proxy == nil {
-		return cc
+		return cc, nil
 	}
 
-	cc.SidecarService.Proxy = &api.AgentServiceConnectProxyConfig{}
+	cc.SidecarService.Proxy = &api.AgentServiceConnectProxyConfig{
+		LocalServiceAddress: nc.SidecarService.Proxy.LocalServiceAddress,
+		LocalServicePort:    nc.SidecarService.Proxy.LocalServicePort,
+	}
 
 	numUpstreams := len(nc.SidecarService.Proxy.Upstreams)
 	if numUpstreams == 0 {
-		return cc
+		return cc, nil
 	}
 
 	upstreams := make([]api.Upstream, numUpstreams)
@@ -1365,5 +1378,25 @@ func newConnect(nc *structs.ConsulConnect, networks structs.Networks) *api.Agent
 	}
 	cc.SidecarService.Proxy.Upstreams = upstreams
 
-	return cc
+	return cc, nil
+}
+
+func getConnectPort(networks structs.Networks) (structs.Port, error) {
+	const label = "nomad_envoy"
+
+	if n := len(networks); n != 1 {
+		return structs.Port{}, fmt.Errorf("Consul Connect only supported with exactly 1 network (found %d)", n)
+	}
+	net := networks[0]
+	for _, p := range net.ReservedPorts {
+		if p.Label == label {
+			return p, nil
+		}
+	}
+	for _, p := range net.DynamicPorts {
+		if p.Label == label {
+			return p, nil
+		}
+	}
+	return structs.Port{}, fmt.Errorf("missing %q port", label)
 }
