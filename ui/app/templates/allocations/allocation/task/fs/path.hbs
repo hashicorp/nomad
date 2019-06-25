@@ -51,7 +51,7 @@
         <tr data-test-entry>
           <td>
             {{#link-to "allocations.allocation.task.fs.path" model.allocation model (concat path "/" entry.Name) activeClass="is-active"}}
-              <span class='icon' data-test-file-icon></span>
+              <span data-test-file-icon>{{inline-svg 'file-outline' class='icon'}}</span>
               <span class='name' data-test-name>{{entry.Name}}</span>
             {{/link-to}}
           </td>
