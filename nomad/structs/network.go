@@ -303,6 +303,12 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 	BUILD_OFFER:
 		for i, port := range dynPorts {
 			offer.DynamicPorts[i].Value = port
+
+			//FIXME(schmichael) Hack to forward dynamic ports to netns
+			// Should check against other To= entries
+			if offer.DynamicPorts[i].To == -1 {
+				offer.DynamicPorts[i].To = port
+			}
 		}
 
 		// Stop, we have an offer!
