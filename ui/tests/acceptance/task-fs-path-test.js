@@ -45,7 +45,7 @@ module('Acceptance | task fs path', function(hooks) {
 
     assert.ok(Path.fileViewer.isHidden);
 
-    assert.equal(Path.entries.length, 3);
+    assert.equal(Path.directoryEntries.length, 3);
 
     assert.equal(Path.breadcrumbsText, task.name);
 
@@ -53,21 +53,21 @@ module('Acceptance | task fs path', function(hooks) {
     assert.ok(Path.breadcrumbs[0].isActive);
     assert.equal(Path.breadcrumbs[0].text, task.name);
 
-    assert.equal(Path.entries[0].name, 'directory', 'directories should come first');
-    assert.ok(Path.entries[0].isDirectory);
-    assert.equal(Path.entries[0].size, '', 'directory sizes are hidden');
-    assert.equal(Path.entries[0].lastModified, 'a year ago');
+    assert.equal(Path.directoryEntries[0].name, 'directory', 'directories should come first');
+    assert.ok(Path.directoryEntries[0].isDirectory);
+    assert.equal(Path.directoryEntries[0].size, '', 'directory sizes are hidden');
+    assert.equal(Path.directoryEntries[0].lastModified, 'a year ago');
 
-    assert.equal(Path.entries[1].name, '🤩.txt');
-    assert.ok(Path.entries[1].isFile);
-    assert.equal(Path.entries[1].size, '1 KiB');
-    assert.equal(Path.entries[1].lastModified, '2 days ago');
+    assert.equal(Path.directoryEntries[1].name, '🤩.txt');
+    assert.ok(Path.directoryEntries[1].isFile);
+    assert.equal(Path.directoryEntries[1].size, '1 KiB');
+    assert.equal(Path.directoryEntries[1].lastModified, '2 days ago');
 
-    assert.equal(Path.entries[2].name, '🙌🏿.txt');
+    assert.equal(Path.directoryEntries[2].name, '🙌🏿.txt');
 
-    await Path.entries[0].visit();
+    await Path.directoryEntries[0].visit();
 
-    assert.equal(Path.entries.length, 1);
+    assert.equal(Path.directoryEntries.length, 1);
 
     assert.equal(Path.breadcrumbs.length, 2);
     assert.equal(Path.breadcrumbsText, `${task.name} directory`);
@@ -77,9 +77,9 @@ module('Acceptance | task fs path', function(hooks) {
     assert.equal(Path.breadcrumbs[1].text, 'directory');
     assert.ok(Path.breadcrumbs[1].isActive);
 
-    await Path.entries[0].visit();
+    await Path.directoryEntries[0].visit();
 
-    assert.equal(Path.entries.length, 1);
+    assert.equal(Path.directoryEntries.length, 1);
 
     assert.equal(Path.breadcrumbs.length, 3);
     assert.equal(Path.breadcrumbsText, `${task.name} directory another`);
@@ -92,7 +92,7 @@ module('Acceptance | task fs path', function(hooks) {
 
   test('viewing a file', async function(assert) {
     await Path.visit({ id: allocation.id, name: task.name, path: '/' });
-    await Path.entries[1].visit();
+    await Path.directoryEntries[1].visit();
 
     assert.equal(Path.breadcrumbsText, `${task.name} 🤩.txt`);
 

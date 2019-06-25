@@ -24,7 +24,7 @@ export default create({
     isActive: hasClass('is-active'),
   }),
 
-  entries: collection('[data-test-entry]', {
+  directoryEntries: collection('[data-test-entry]', {
     name: text('[data-test-name]'),
     isFile: isPresent('[data-test-file-icon]'),
     isDirectory: isPresent('[data-test-directory-icon]'),
