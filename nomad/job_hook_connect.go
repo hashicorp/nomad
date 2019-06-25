@@ -77,9 +77,11 @@ func newConnectTask(service *structs.Service) *structs.Task {
 		Name:   "nomad_envoy", // used in container name so must start with '[A-Za-z0-9]'
 		Driver: "docker",
 		Config: map[string]interface{}{
-			"image":   "nomad-consul-envoy:0.10.0",
-			"command": "envoy",
-			"args":    []string{"-c", "local/bootstrap.json"},
+			"image": "envoyproxy/envoy:v1.10.0", //TODO(schmichael) TBD what image to use
+			"args": []string{
+				"-c", "local/bootstrap.json",
+				//"-l", "debug", //TODO(schmichael) add a way to enable
+			},
 		},
 		Order: -1,
 		LogConfig: &structs.LogConfig{
