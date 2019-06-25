@@ -350,7 +350,6 @@ func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	node, err = fsm.State().NodeByID(ws, req.Node.ID)
 	require.Nil(err)
-	require.True(node.Drain)
 	require.Equal(node.DrainStrategy, strategy)
 	require.Len(node.Events, 2)
 }
@@ -394,44 +393,8 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	node, err = fsm.State().NodeByID(ws, req.Node.ID)
 	require.Nil(err)
-	require.True(node.Drain)
 	require.Equal(node.DrainStrategy, strategy)
 	require.Len(node.Events, 2)
-}
-
-func TestFSM_UpdateNodeDrain_Pre08_Compatibility(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-	fsm := testFSM(t)
-
-	// Force a node into the state store without eligiblity
-	node := mock.Node()
-	node.SchedulingEligibility = ""
-	require.Nil(fsm.State().UpsertNode(1, node))
-
-	// Do an old style drain
-	req := structs.NodeUpdateDrainRequest{
-		NodeID: node.ID,
-		Drain:  true,
-	}
-	buf, err := structs.Encode(structs.NodeUpdateDrainRequestType, req)
-	require.Nil(err)
-
-	resp := fsm.Apply(makeLog(buf))
-	require.Nil(resp)
-
-	// Verify we have upgraded to a force drain
-	ws := memdb.NewWatchSet()
-	node, err = fsm.State().NodeByID(ws, req.NodeID)
-	require.Nil(err)
-	require.True(node.Drain)
-
-	expected := &structs.DrainStrategy{
-		DrainSpec: structs.DrainSpec{
-			Deadline: -1 * time.Second,
-		},
-	}
-	require.Equal(expected, node.DrainStrategy)
 }
 
 func TestFSM_UpdateNodeEligibility(t *testing.T) {
@@ -2699,47 +2662,6 @@ func TestFSM_SnapshotRestore_SchedulerConfiguration(t *testing.T) {
 	require.EqualValues(1000, index)
 	require.Equal(schedConfig, out)
 
-}
-
-func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
-	t.Parallel()
-	// Add some state
-	fsm := testFSM(t)
-	state := fsm.State()
-
-	// make an allocation
-	alloc := mock.Alloc()
-	state.UpsertJob(1010, alloc.Job)
-	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
-
-	// Delete the summary
-	state.DeleteJobSummary(1040, alloc.Namespace, alloc.Job.ID)
-
-	// Delete the index
-	if err := state.RemoveIndex("job_summary"); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	fsm2 := testSnapshotRestore(t, fsm)
-	state2 := fsm2.State()
-	latestIndex, _ := state.LatestIndex()
-
-	ws := memdb.NewWatchSet()
-	out, _ := state2.JobSummaryByID(ws, alloc.Namespace, alloc.Job.ID)
-	expected := structs.JobSummary{
-		JobID:     alloc.Job.ID,
-		Namespace: alloc.Job.Namespace,
-		Summary: map[string]structs.TaskGroupSummary{
-			"web": {
-				Starting: 1,
-			},
-		},
-		CreateIndex: 1010,
-		ModifyIndex: latestIndex,
-	}
-	if !reflect.DeepEqual(&expected, out) {
-		t.Fatalf("expected: %#v, actual: %#v", &expected, out)
-	}
 }
 
 func TestFSM_ReconcileSummaries(t *testing.T) {
