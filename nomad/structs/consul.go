@@ -47,7 +47,9 @@ func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
 }
 
 type ConsulProxy struct {
-	Upstreams []*ConsulUpstream
+	LocalServiceAddress string //TODO(schmichael) expose via api?!
+	LocalServicePort    int    //TODO(schmichael) expose via api?!
+	Upstreams           []*ConsulUpstream
 }
 
 func (p *ConsulProxy) Copy() *ConsulProxy {
@@ -65,6 +67,14 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 func (p *ConsulProxy) Equals(o *ConsulProxy) bool {
 	if p == nil || o == nil {
 		return p == o
+	}
+
+	if p.LocalServiceAddress != o.LocalServiceAddress {
+		return false
+	}
+
+	if p.LocalServicePort != o.LocalServicePort {
+		return false
 	}
 
 	if len(p.Upstreams) != len(o.Upstreams) {
