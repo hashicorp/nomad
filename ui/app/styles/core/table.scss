@@ -111,6 +111,10 @@
       }
     }
 
+    &.is-right-aligned {
+      text-align: right;
+    }
+
     a {
       color: $blue;
       text-decoration: underline;

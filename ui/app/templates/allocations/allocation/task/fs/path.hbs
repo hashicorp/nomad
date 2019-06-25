@@ -15,12 +15,12 @@
   {{#if isFile}}
     <div data-test-file-viewer>placeholder file viewer</div>
   {{else}}
-    <table class='fs-explorer'>
+    <table class='fs-explorer table is-compact'>
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Size</th>
-          <th>Last Modified</th>
+          <th class='is-three-quarters'>Name</th>
+          <th class='is-right-aligned'>Size</th>
+          <th class='is-right-aligned'>Last Modified</th>
         </tr>
       </thead>
       <tbody>
@@ -32,8 +32,8 @@
                 <span class='name' data-test-name>{{entry.Name}}</span>
               {{/link-to}}
             </td>
-            <td data-test-size></td>
-            <td data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
+            <td class='is-right-aligned' data-test-size></td>
+            <td class='is-right-aligned' data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
           </tr>
         {{/each}}
         {{#each files as |entry|}}
@@ -44,8 +44,8 @@
                 <span data-test-name>{{entry.Name}}</span>
               {{/link-to}}
             </td>
-            <td data-test-size>{{format-bytes entry.Size}}</td>
-            <td data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
+            <td class='is-right-aligned' data-test-size>{{format-bytes entry.Size}}</td>
+            <td class='is-right-aligned' data-test-last-modified>{{moment-from-now entry.ModTime}}</td>
           </tr>
         {{/each}}
       </tbody>
