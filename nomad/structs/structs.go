@@ -1937,13 +1937,7 @@ func (r *Resources) Copy() *Resources {
 	*newR = *r
 
 	// Copy the network objects
-	if r.Networks != nil {
-		n := len(r.Networks)
-		newR.Networks = make([]*NetworkResource, n)
-		for i := 0; i < n; i++ {
-			newR.Networks[i] = r.Networks[i].Copy()
-		}
-	}
+	newR.Networks = r.Networks.Copy()
 
 	// Copy the devices
 	if r.Devices != nil {
@@ -2144,27 +2138,29 @@ func (n *NetworkResource) PortLabels() map[string]int {
 // Networks defined for a task on the Resources struct.
 type Networks []*NetworkResource
 
+func (ns Networks) Copy() Networks {
+	if len(ns) == 0 {
+		return nil
+	}
+
+	out := make([]*NetworkResource, len(ns))
+	for i := range ns {
+		out[i] = ns[i].Copy()
+	}
+	return out
+}
+
 // Port assignment and IP for the given label or empty values.
 func (ns Networks) Port(label string) (string, int) {
 	for _, n := range ns {
 		for _, p := range n.ReservedPorts {
 			if p.Label == label {
-				//TODO(schmichael) this doesn't seem right
-				if p.Value == 0 {
-					return n.IP, p.To
-				} else {
-					return n.IP, p.Value
-				}
+				return n.IP, p.Value
 			}
 		}
 		for _, p := range n.DynamicPorts {
 			if p.Label == label {
-				//TODO(schmichael) this doesn't seem right
-				if p.Value == 0 {
-					return n.IP, p.To
-				} else {
-					return n.IP, p.Value
-				}
+				return n.IP, p.Value
 			}
 		}
 	}
@@ -2306,13 +2302,7 @@ func (n *NodeResources) Copy() *NodeResources {
 	*newN = *n
 
 	// Copy the networks
-	if n.Networks != nil {
-		networks := len(n.Networks)
-		newN.Networks = make([]*NetworkResource, networks)
-		for i := 0; i < networks; i++ {
-			newN.Networks[i] = n.Networks[i].Copy()
-		}
-	}
+	newN.Networks = n.Networks.Copy()
 
 	// Copy the devices
 	if n.Devices != nil {
@@ -2839,18 +2829,19 @@ func (a *AllocatedResources) Copy() *AllocatedResources {
 	if a == nil {
 		return nil
 	}
-	newA := new(AllocatedResources)
-	*newA = *a
 
-	if a.Tasks != nil {
-		tr := make(map[string]*AllocatedTaskResources, len(newA.Tasks))
-		for task, resource := range newA.Tasks {
-			tr[task] = resource.Copy()
-		}
-		newA.Tasks = tr
+	out := AllocatedResources{
+		Shared: a.Shared.Copy(),
 	}
 
-	return newA
+	if a.Tasks != nil {
+		out.Tasks = make(map[string]*AllocatedTaskResources, len(out.Tasks))
+		for task, resource := range a.Tasks {
+			out.Tasks[task] = resource.Copy()
+		}
+	}
+
+	return &out
 }
 
 // Comparable returns a comparable version of the allocations allocated
@@ -2899,13 +2890,7 @@ func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
 	*newA = *a
 
 	// Copy the networks
-	if a.Networks != nil {
-		n := len(a.Networks)
-		newA.Networks = make([]*NetworkResource, n)
-		for i := 0; i < n; i++ {
-			newA.Networks[i] = a.Networks[i].Copy()
-		}
-	}
+	newA.Networks = a.Networks.Copy()
 
 	// Copy the devices
 	if newA.Devices != nil {
@@ -2989,6 +2974,13 @@ func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
 type AllocatedSharedResources struct {
 	Networks Networks
 	DiskMB   int64
+}
+
+func (a AllocatedSharedResources) Copy() AllocatedSharedResources {
+	return AllocatedSharedResources{
+		Networks: a.Networks.Copy(),
+		DiskMB:   a.DiskMB,
+	}
 }
 
 func (a *AllocatedSharedResources) Add(delta *AllocatedSharedResources) {
