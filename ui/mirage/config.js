@@ -340,7 +340,13 @@ export default function() {
             .subtract(2, 'day')
             .format(),
         },
-        { Name: '🙌🏿.txt', IsDir: false },
+        {
+          Name: '🙌🏿.txt',
+          IsDir: false,
+          ModTime: moment()
+            .subtract(2, 'minute')
+            .format(),
+        },
         {
           Name: 'directory',
           IsDir: true,
