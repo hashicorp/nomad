@@ -7,7 +7,7 @@ export default Route.extend({
     const decodedPath = decodeURIComponent(path);
     const task = this.modelFor('allocations.allocation.task');
 
-    const pathWithTaskName = `${task.name}${decodedPath}`;
+    const pathWithTaskName = `${task.name}${decodedPath.startsWith('/') ? '' : '/'}${decodedPath}`;
 
     const allocation = this.modelFor('allocations.allocation');
 
