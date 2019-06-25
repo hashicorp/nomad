@@ -458,7 +458,8 @@ type AllocatedTaskResources struct {
 }
 
 type AllocatedSharedResources struct {
-	DiskMB int64
+	DiskMB   int64
+	Networks []*NetworkResource
 }
 
 type AllocatedCpuResources struct {
