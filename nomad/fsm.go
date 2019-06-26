@@ -191,8 +191,6 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyUpsertNode(buf[1:], log.Index)
 	case structs.NodeDeregisterRequestType:
 		return n.applyDeregisterNode(buf[1:], log.Index)
-	case structs.NodeDeregisterBatchRequestType:
-		return n.applyDeregisterNodeBatch(buf[1:], log.Index)
 	case structs.NodeUpdateStatusRequestType:
 		return n.applyStatusUpdate(buf[1:], log.Index)
 	case structs.NodeUpdateDrainRequestType:
@@ -251,6 +249,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyBatchDrainUpdate(buf[1:], log.Index)
 	case structs.SchedulerConfigRequestType:
 		return n.applySchedulerConfigUpdate(buf[1:], log.Index)
+	case structs.NodeDeregisterBatchRequestType:
+		return n.applyDeregisterNodeBatch(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
