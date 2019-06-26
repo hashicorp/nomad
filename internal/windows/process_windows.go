@@ -8,7 +8,7 @@ import (
 )
 
 func TerminateProcess(pid int) error {
-	log.Error("Terminating Process", pid)
+	log.Printf("Terminating Process: %d", pid)
 	h, e := syscall.OpenProcess(syscall.PROCESS_TERMINATE, false, uint32(pid))
 	if e != nil {
 		return os.NewSyscallError("OpenProcess", e)
