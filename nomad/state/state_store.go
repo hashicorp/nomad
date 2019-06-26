@@ -261,6 +261,13 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 		s.upsertDeploymentUpdates(index, results.DeploymentUpdates, txn)
 	}
 
+	if results.EvalID != "" {
+		// Update the modify index of the eval id
+		if err := s.updateEvalModifyIndex(txn, index, results.EvalID); err != nil {
+			return err
+		}
+	}
+
 	numAllocs := 0
 	if len(results.Alloc) > 0 || len(results.NodePreemptions) > 0 {
 		// COMPAT 0.11: This branch will be removed, when Alloc is removed
