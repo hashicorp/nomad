@@ -455,6 +455,7 @@ func (e *UniversalExecutor) wait() {
 	} else {
 		e.logger.Warn("unexpected Cmd.Wait() error type", "error", err)
 	}
+	e.logger.Warn("wait can terminate now", "pid", pid, "exitCode", exitCode)
 
 	e.exitState = &ProcessState{Pid: pid, ExitCode: exitCode, Signal: signal, Time: time.Now()}
 }
