@@ -680,7 +680,7 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 // DeleteNode deregisters a batch of nodes
 func (s *StateStore) DeleteNode(index uint64, nodes []string) error {
 	if len(nodes) == 0 {
-		return nil
+		return fmt.Errorf("node ids missing")
 	}
 
 	txn := s.db.Txn(true)
