@@ -42,8 +42,9 @@ export default Component.extend(WindowResizable, {
   fillAvailableHeight() {
     // This math is arbitrary and far from bulletproof, but the UX
     // of having the log window fill available height is worth the hack.
+    const margins = 30 + 30; // Account for padding and margin on either side of the CLI
     const cliWindow = this.$('.cli-window');
-    cliWindow.height(window.innerHeight - cliWindow.offset().top - 25);
+    cliWindow.height(window.innerHeight - cliWindow.offset().top - margins);
   },
 
   mode: 'stdout',
