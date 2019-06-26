@@ -487,6 +487,14 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		return fmt.Errorf("executor failed to shutdown error: no process found")
 	}
 
+	select {
+	case _, alreadyTerminated := <-e.processExited:
+		if alreadyTerminated {
+			e.logger.Warn("Process exited chan already closed")
+			return nil
+		}
+	}
+
 	proc, err := os.FindProcess(e.childCmd.Process.Pid)
 	if err != nil {
 		err = fmt.Errorf("executor failed to find process: %v", err)

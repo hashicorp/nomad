@@ -814,6 +814,7 @@ func (tr *TaskRunner) killTask(handle *DriverHandle) error {
 			time.Sleep(backoff)
 		} else {
 			// Kill was successful
+			tr.logger.Warn("successfully killed task")
 			return nil
 		}
 	}
