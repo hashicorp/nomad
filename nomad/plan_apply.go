@@ -104,7 +104,8 @@ func (p *planner) planApply() {
 		select {
 		case idx := <-planIndexCh:
 			// Previous plan committed. Discard snapshot and ensure
-			// future snapshots include this plan.
+			// future snapshots include this plan. idx may be 0 if
+			// plan failed to apply, so use max(prev, idx)
 			prevPlanResultIndex = max(prevPlanResultIndex, idx)
 			planIndexCh = nil
 			snap = nil
@@ -112,7 +113,9 @@ func (p *planner) planApply() {
 		}
 
 		if snap != nil {
-			// If snapshot isn't new enough, discard it
+			// If snapshot doesn't contain the previous plan
+			// result's index and the current plan's snapshot it,
+			// discard it and get a new one below.
 			minIndex := max(prevPlanResultIndex, pending.plan.SnapshotIndex)
 			if idx, err := snap.LatestIndex(); err != nil || idx < minIndex {
 				snap = nil
@@ -120,7 +123,10 @@ func (p *planner) planApply() {
 		}
 
 		// Snapshot the state so that we have a consistent view of the world
-		// if no snapshot is available
+		// if no snapshot is available.
+		//  - planIndexCh will be nil if the previous plan result applied
+		//    during Dequeue
+		//  - snap will be nil if its index < max(prevIndex, curIndex)
 		if planIndexCh == nil || snap == nil {
 			snap, err = p.snapshotMinIndex(prevPlanResultIndex, pending.plan.SnapshotIndex)
 			if err != nil {
