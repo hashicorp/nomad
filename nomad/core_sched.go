@@ -509,7 +509,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 
 	// Call to the leader to issue the reap
 	for _, ids := range partitionAll(maxIdsPerReap, nodeIDs) {
-		req := structs.NodeDeregisterBatchRequest{
+		req := structs.NodeBatchDeregisterRequest{
 			NodeIDs: ids,
 			WriteRequest: structs.WriteRequest{
 				Region:    c.srv.config.Region,
@@ -517,7 +517,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 			},
 		}
 		var resp structs.NodeUpdateResponse
-		if err := c.srv.RPC("Node.DeregisterBatch", &req, &resp); err != nil {
+		if err := c.srv.RPC("Node.BatchDeregister", &req, &resp); err != nil {
 			c.logger.Error("node reap failed", "node_ids", ids, "error", err)
 			return err
 		}

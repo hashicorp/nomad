@@ -270,18 +270,18 @@ func TestClientEndpoint_Deregister_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyRead))
 
 	// Deregister without any token and expect it to fail
-	dereg := &structs.NodeDeregisterBatchRequest{
+	dereg := &structs.NodeBatchDeregisterRequest{
 		NodeIDs:      []string{node.ID},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.DeregisterBatch", dereg, &resp); err == nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.BatchDeregister", dereg, &resp); err == nil {
 		t.Fatalf("node de-register succeeded")
 	}
 
 	// Deregister with a valid token
 	dereg.AuthToken = validToken.SecretID
-	if err := msgpackrpc.CallWithCodec(codec, "Node.DeregisterBatch", dereg, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.BatchDeregister", dereg, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -296,18 +296,18 @@ func TestClientEndpoint_Deregister_ACL(t *testing.T) {
 	}
 
 	// Deregister with an invalid token.
-	dereg1 := &structs.NodeDeregisterBatchRequest{
+	dereg1 := &structs.NodeBatchDeregisterRequest{
 		NodeIDs:      []string{node1.ID},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	dereg1.AuthToken = invalidToken.SecretID
-	if err := msgpackrpc.CallWithCodec(codec, "Node.DeregisterBatch", dereg1, &resp); err == nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.BatchDeregister", dereg1, &resp); err == nil {
 		t.Fatalf("rpc should not have succeeded")
 	}
 
 	// Try with a root token
 	dereg1.AuthToken = root.SecretID
-	if err := msgpackrpc.CallWithCodec(codec, "Node.DeregisterBatch", dereg1, &resp); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.BatchDeregister", dereg1, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 }
@@ -345,12 +345,12 @@ func TestClientEndpoint_Deregister_Vault(t *testing.T) {
 	state.UpsertVaultAccessor(100, []*structs.VaultAccessor{va1, va2})
 
 	// Deregister
-	dereg := &structs.NodeDeregisterBatchRequest{
+	dereg := &structs.NodeBatchDeregisterRequest{
 		NodeIDs:      []string{node.ID},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.DeregisterBatch", dereg, &resp2); err != nil {
+	if err := msgpackrpc.CallWithCodec(codec, "Node.BatchDeregister", dereg, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if resp2.Index == 0 {

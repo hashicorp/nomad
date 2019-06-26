@@ -83,7 +83,7 @@ const (
 	NodeUpdateEligibilityRequestType
 	BatchNodeUpdateDrainRequestType
 	SchedulerConfigRequestType
-	NodeDeregisterBatchRequestType
+	NodeBatchDeregisterRequestType
 )
 
 const (
@@ -324,9 +324,9 @@ type NodeDeregisterRequest struct {
 	WriteRequest
 }
 
-// NodeDeregisterBatchRequest is used for Node.DeregisterBatch endpoint
+// NodeBatchDeregisterRequest is used for Node.BatchDeregister endpoint
 // to deregister a batch of nodes from being schedulable entities.
-type NodeDeregisterBatchRequest struct {
+type NodeBatchDeregisterRequest struct {
 	NodeIDs []string
 	WriteRequest
 }

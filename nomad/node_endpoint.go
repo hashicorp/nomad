@@ -247,7 +247,7 @@ func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply 
 
 // Deregister is the deprecated single deregistration endpoint
 func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.NodeUpdateResponse) error {
-	return n.DeregisterBatch(&structs.NodeDeregisterBatchRequest{
+	return n.DeregisterBatch(&structs.NodeBatchDeregisterRequest{
 		NodeIDs:      []string{args.NodeID},
 		WriteRequest: args.WriteRequest,
 	}, reply)
@@ -255,8 +255,8 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 
 // DeregisterBatch is used to remove client nodes from the cluster. If a client should just
 // be made unavailable for scheduling, a status update is preferred.
-func (n *Node) DeregisterBatch(args *structs.NodeDeregisterBatchRequest, reply *structs.NodeUpdateResponse) error {
-	if done, err := n.srv.forward("Node.DeregisterBatch", args, args, reply); done {
+func (n *Node) DeregisterBatch(args *structs.NodeBatchDeregisterRequest, reply *structs.NodeUpdateResponse) error {
+	if done, err := n.srv.forward("Node.BatchDeregister", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "deregister"}, time.Now())
@@ -294,7 +294,7 @@ func (n *Node) DeregisterBatch(args *structs.NodeDeregisterBatchRequest, reply *
 
 	// Commit this update to Raft, before we clear the heartbeatTimer so that failure
 	// leaves the node running
-	_, index, err := n.srv.raftApply(structs.NodeDeregisterBatchRequestType, args)
+	_, index, err := n.srv.raftApply(structs.NodeBatchDeregisterRequestType, args)
 	if err != nil {
 		n.logger.Error("deregister failed", "error", err)
 		return err
