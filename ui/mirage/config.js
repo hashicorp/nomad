@@ -322,6 +322,7 @@ export default function() {
         {
           Name: 'another',
           IsDir: true,
+          ModTime: moment().format(),
         },
       ];
     } else if (queryParams.path.endsWith('another')) {
@@ -329,6 +330,7 @@ export default function() {
         {
           Name: 'something.txt',
           IsDir: false,
+          ModTime: moment().format(),
         },
       ];
     } else {
@@ -361,6 +363,7 @@ export default function() {
         {
           Name: 'empty-directory',
           IsDir: true,
+          ModTime: moment().format(),
         },
       ];
     }
