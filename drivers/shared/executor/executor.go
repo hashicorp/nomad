@@ -428,6 +428,7 @@ func (e *UniversalExecutor) wait() {
 	defer e.commandCfg.Close()
 	pid := e.childCmd.Process.Pid
 	err := e.childCmd.Wait()
+	e.logger.Warn("Process exited", "pid", pid, "error", err)
 	if err == nil {
 		e.exitState = &ProcessState{Pid: pid, ExitCode: 0, Time: time.Now()}
 		return
