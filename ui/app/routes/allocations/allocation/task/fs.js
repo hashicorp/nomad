@@ -3,7 +3,7 @@ import fetch from 'nomad-ui/utils/fetch';
 import RSVP from 'rsvp';
 
 export default Route.extend({
-  model({ path }) {
+  model({ path = '/' }) {
     const decodedPath = decodeURIComponent(path);
     const task = this.modelFor('allocations.allocation.task');
 

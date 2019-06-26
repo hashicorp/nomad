@@ -2,7 +2,6 @@
   <ul>
     <li>{{#link-to "allocations.allocation.task.index" model.allocation model activeClass="is-active"}}Overview{{/link-to}}</li>
     <li>{{#link-to "allocations.allocation.task.logs" model.allocation model activeClass="is-active"}}Logs{{/link-to}}</li>
-    {{! FIXME remove hardcoded root path }}
-    <li>{{#link-to "allocations.allocation.task.fs.path" model.allocation model "%2F" activeClass="is-active"}}Files{{/link-to}}</li>
+    <li>{{#link-to "allocations.allocation.task.fs-root" model.allocation model activeClass="is-active"}}Files{{/link-to}}</li>
   </ul>
 </div>
