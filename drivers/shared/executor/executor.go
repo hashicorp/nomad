@@ -541,7 +541,7 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 	case <-e.processExited:
 	case <-time.After(time.Second * 15):
 		e.logger.Warn("process did not exit after 15 seconds")
-		merr.Errors = append(merr.Errors, fmt.Errorf("process did not exit after 15 seconds"))
+		merr.Errors = append(merr.Errors, fmt.Errorf("process %d did not exit after 15 seconds", e.childCmd.Process.Pid))
 	}
 
 	// Prefer killing the process via the resource container.
