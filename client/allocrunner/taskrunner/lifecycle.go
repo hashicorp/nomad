@@ -28,16 +28,16 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 	// Tell the restart tracker that a restart triggered the exit
 	tr.restartTracker.SetRestartTriggered(failure)
 
-	// Kill the task using an exponential backoff in-case of failures.
-	if err := tr.killTask(handle); err != nil {
-		// We couldn't successfully destroy the resource created.
-		tr.logger.Error("failed to kill task. Resources may have been leaked", "error", err)
-	}
-
 	// Drain the wait channel or wait for the request context to be canceled
 	waitCh, err := handle.WaitCh(ctx)
 	if err != nil {
 		return err
+	}
+
+	// Kill the task using an exponential backoff in-case of failures.
+	if err := tr.killTask(handle); err != nil {
+		// We couldn't successfully destroy the resource created.
+		tr.logger.Error("failed to kill task. Resources may have been leaked", "error", err)
 	}
 
 	select {
