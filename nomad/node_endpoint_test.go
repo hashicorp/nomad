@@ -891,6 +891,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
+
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
