@@ -1,8 +1,10 @@
 import Route from '@ember/routing/route';
-import fetch from 'nomad-ui/utils/fetch';
+import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
 
 export default Route.extend({
+  token: service(),
+
   model({ path = '/' }) {
     const decodedPath = decodeURIComponent(path);
     const task = this.modelFor('allocations.allocation.task');
@@ -11,7 +13,8 @@ export default Route.extend({
 
     const allocation = this.modelFor('allocations.allocation');
 
-    return fetch(`/v1/client/fs/stat/${allocation.id}?path=${pathWithTaskName}`)
+    return this.token
+      .authorizedRequest(`/v1/client/fs/stat/${allocation.id}?path=${pathWithTaskName}`)
       .then(response => response.json())
       .then(statJson => {
         if (statJson.IsDir) {
@@ -19,9 +22,9 @@ export default Route.extend({
             path: decodedPath,
             pathWithTaskName,
             task,
-            ls: fetch(`/v1/client/fs/ls/${allocation.id}?path=${pathWithTaskName}`).then(response =>
-              response.json()
-            ),
+            ls: this.token
+              .authorizedRequest(`/v1/client/fs/ls/${allocation.id}?path=${pathWithTaskName}`)
+              .then(response => response.json()),
             isFile: false,
           });
         } else {
