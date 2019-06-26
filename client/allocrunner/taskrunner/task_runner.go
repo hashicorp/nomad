@@ -68,6 +68,9 @@ type TaskRunner struct {
 	alloc     *structs.Allocation
 	allocLock sync.Mutex
 
+	// shouldRun is a function that true if the alloc isn't in a terminal status
+	shouldRun func() bool
+
 	clientConfig *config.Config
 
 	// stateUpdater is used to emit updated task state
@@ -212,6 +215,9 @@ type Config struct {
 	TaskDir      *allocdir.TaskDir
 	Logger       log.Logger
 
+	// ShouldRun is a function returns true if alloc is not in a terminal status
+	ShouldRun func() bool
+
 	// Vault is the client to use to derive and renew Vault tokens
 	Vault vaultclient.VaultClient
 
@@ -261,6 +267,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	tr := &TaskRunner{
 		alloc:               config.Alloc,
 		allocID:             config.Alloc.ID,
+		shouldRun:           config.ShouldRun,
 		clientConfig:        config.ClientConfig,
 		task:                config.Task,
 		taskDir:             config.TaskDir,
@@ -394,6 +401,10 @@ func (tr *TaskRunner) Run() {
 	defer close(tr.waitCh)
 	var result *drivers.ExitResult
 
+	if !tr.shouldRun() {
+		return
+	}
+
 	// Updates are handled asynchronously with the other hooks but each
 	// triggered update - whether due to alloc updates or a new vault token
 	// - should be handled serially.
@@ -413,7 +424,7 @@ func (tr *TaskRunner) Run() {
 	}
 
 MAIN:
-	for !tr.Alloc().TerminalStatus() {
+	for tr.shouldRun() {
 		select {
 		case <-tr.killCtx.Done():
 			break MAIN
@@ -899,7 +910,7 @@ func (tr *TaskRunner) Restore() error {
 		}
 
 		alloc := tr.Alloc()
-		if alloc.TerminalStatus() || alloc.Job.Type == structs.JobTypeSystem {
+		if !tr.shouldRun() || alloc.Job.Type == structs.JobTypeSystem {
 			return nil
 		}
 

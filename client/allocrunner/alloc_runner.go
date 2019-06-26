@@ -201,6 +201,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 		config := &taskrunner.Config{
 			Alloc:               ar.alloc,
 			ClientConfig:        ar.clientConfig,
+			ShouldRun:           ar.shouldRun,
 			Task:                task,
 			TaskDir:             ar.allocDir.NewTaskDir(task.Name),
 			Logger:              ar.logger,
