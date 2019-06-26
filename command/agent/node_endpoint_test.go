@@ -280,7 +280,6 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		state := s.Agent.server.State()
 		out, err := state.NodeByID(nil, node.ID)
 		require.Nil(err)
-		require.True(out.Drain)
 		require.NotNil(out.DrainStrategy)
 		require.Equal(10*time.Second, out.DrainStrategy.Deadline)
 
@@ -297,7 +296,6 @@ func TestHTTP_NodeDrain(t *testing.T) {
 
 		out, err = state.NodeByID(nil, node.ID)
 		require.Nil(err)
-		require.False(out.Drain)
 		require.Nil(out.DrainStrategy)
 	})
 }
