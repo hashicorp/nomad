@@ -8,6 +8,7 @@ import queryString from 'query-string';
 import { task } from 'ember-concurrency';
 import StreamLogger from 'nomad-ui/utils/classes/stream-logger';
 import PollLogger from 'nomad-ui/utils/classes/poll-logger';
+import { decode } from 'nomad-ui/utils/stream-frames';
 import Anser from 'anser';
 
 const MAX_OUTPUT_LENGTH = 50000;
@@ -73,7 +74,6 @@ const Log = EmberObject.extend(Evented, {
     const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
       assign(this.params, {
-        plain: true,
         origin: 'start',
         offset: 0,
       })
@@ -81,7 +81,8 @@ const Log = EmberObject.extend(Evented, {
     const url = `${this.url}?${queryParams}`;
 
     this.stop();
-    let text = yield logFetch(url).then(res => res.text(), fetchFailure(url));
+    const response = yield logFetch(url).then(res => res.text(), fetchFailure(url));
+    let text = decode(response).message;
 
     if (text && text.length > MAX_OUTPUT_LENGTH) {
       text = text.substr(0, MAX_OUTPUT_LENGTH);
@@ -95,7 +96,6 @@ const Log = EmberObject.extend(Evented, {
     const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
       assign(this.params, {
-        plain: true,
         origin: 'end',
         offset: MAX_OUTPUT_LENGTH,
       })
@@ -103,7 +103,8 @@ const Log = EmberObject.extend(Evented, {
     const url = `${this.url}?${queryParams}`;
 
     this.stop();
-    let text = yield logFetch(url).then(res => res.text(), fetchFailure(url));
+    const response = yield logFetch(url).then(res => res.text(), fetchFailure(url));
+    let text = decode(response).message;
 
     this.set('tail', text);
     this.set('logPointer', 'tail');

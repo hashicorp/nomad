@@ -76,7 +76,7 @@ module('Unit | Util | Log', function(hooks) {
 
   test('gotoHead builds the correct URL', async function(assert) {
     const mocks = makeMocks('');
-    const expectedUrl = `${mocks.url}?a=param&another=one&offset=0&origin=start&plain=true`;
+    const expectedUrl = `${mocks.url}?a=param&another=one&offset=0&origin=start`;
     const log = Log.create(mocks);
 
     run(() => {
@@ -89,10 +89,11 @@ module('Unit | Util | Log', function(hooks) {
     const longLog = Array(50001)
       .fill('a')
       .join('');
+    const encodedLongLog = `{"Offset":0,"Data":"${window.btoa(longLog)}"}`;
     const truncationMessage =
       '\n\n---------- TRUNCATED: Click "tail" to view the bottom of the log ----------';
 
-    const mocks = makeMocks(longLog);
+    const mocks = makeMocks(encodedLongLog);
     const log = Log.create(mocks);
 
     run(() => {
@@ -100,7 +101,13 @@ module('Unit | Util | Log', function(hooks) {
     });
 
     await settled();
-    assert.ok(log.get('output').toString().endsWith(truncationMessage), 'Truncation message is shown');
+    assert.ok(
+      log
+        .get('output')
+        .toString()
+        .endsWith(truncationMessage),
+      'Truncation message is shown'
+    );
     assert.equal(
       log.get('output').toString().length,
       50000 + truncationMessage.length,
@@ -110,7 +117,7 @@ module('Unit | Util | Log', function(hooks) {
 
   test('gotoTail builds the correct URL', async function(assert) {
     const mocks = makeMocks('');
-    const expectedUrl = `${mocks.url}?a=param&another=one&offset=50000&origin=end&plain=true`;
+    const expectedUrl = `${mocks.url}?a=param&another=one&offset=50000&origin=end`;
     const log = Log.create(mocks);
 
     run(() => {
