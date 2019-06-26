@@ -134,7 +134,9 @@ function allocationFileExplorer(server) {
     jobId: job.id,
   });
   server.create('task', { name: 'task', taskGroup: taskGroup });
-  server.create('allocation', 'rescheduled', {
+  server.create('allocation', {
+    clientStatus: 'running',
+    desiredStatus: 'run',
     id: '12345',
     jobId: job.id,
     taskGroup: taskGroup.name,
