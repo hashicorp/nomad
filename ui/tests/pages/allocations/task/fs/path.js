@@ -24,8 +24,10 @@ export default create({
 
   directoryEntries: collection('[data-test-entry]', {
     name: text('[data-test-name]'),
+
     isFile: isPresent('[data-test-file-icon]'),
     isDirectory: isPresent('[data-test-directory-icon]'),
+    isEmpty: isPresent('[data-test-empty-icon]'),
 
     size: text('[data-test-size]'),
     lastModified: text('[data-test-last-modified]'),

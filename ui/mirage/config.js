@@ -315,7 +315,9 @@ export default function() {
 
   // FIXME replace with more ORMy mocks? Confine to tests only? 🧐
   this.get('/client/fs/ls/:allocation_id', (schema, { queryParams }) => {
-    if (queryParams.path.endsWith('directory')) {
+    if (queryParams.path.endsWith('empty-directory')) {
+      return [];
+    } else if (queryParams.path.endsWith('directory')) {
       return [
         {
           Name: 'another',
@@ -355,6 +357,10 @@ export default function() {
           ModTime: moment()
             .subtract(1, 'year')
             .format(),
+        },
+        {
+          Name: 'empty-directory',
+          IsDir: true,
         },
       ];
     }
