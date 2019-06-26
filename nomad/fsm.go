@@ -307,7 +307,7 @@ func (n *nomadFSM) applyDeregisterNode(buf []byte, index uint64) interface{} {
 }
 
 func (n *nomadFSM) applyDeregisterNodeBatch(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister_node"}, time.Now())
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_deregister_node"}, time.Now())
 	var req structs.NodeDeregisterBatchRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
