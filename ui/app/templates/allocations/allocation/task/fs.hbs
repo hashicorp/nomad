@@ -20,42 +20,42 @@
           </td>
         </tr>
       </thead>
-    {{#if isFile}}
-      <tbody>
-        <tr>
-          <td>
-            <div data-test-file-viewer>placeholder file viewer</div>
-          </td>
-        </tr>
-      </tbody>
-    {{else}}
-      {{#if directoryEntries}}
-        <thead>
+      {{#if isFile}}
+        <tbody>
           <tr>
-            <th class="is-three-quarters">Name</th>
-            <th class="is-right-aligned">File Size</th>
-            <th class="is-right-aligned">Last Modified</th>
-          </tr>
-        </thead>
-        <tbody>
-          {{#each directories as |entry|}}
-            {{fs-directory-entry path=path task=model entry=entry}}
-          {{/each}}
-          {{#each files as |entry|}}
-            {{fs-directory-entry path=path task=model entry=entry}}
-          {{/each}}
-        </tbody>
-      {{else}}
-        <tbody>
-          <tr data-test-entry>
-            <td colspan="3">
-              <span data-test-empty-icon>{{inline-svg "alert-circle-outline" class="icon"}}</span>
-              <span class="name" data-test-name>Directory is empty</span>
+            <td>
+              <div data-test-file-viewer>placeholder file viewer</div>
             </td>
           </tr>
         </tbody>
+      {{else}}
+        {{#if directoryEntries}}
+          <thead>
+            <tr>
+              <th class="is-three-quarters">Name</th>
+              <th class="is-right-aligned">File Size</th>
+              <th class="is-right-aligned">Last Modified</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each directories as |entry|}}
+              {{fs-directory-entry path=path task=model entry=entry}}
+            {{/each}}
+            {{#each files as |entry|}}
+              {{fs-directory-entry path=path task=model entry=entry}}
+            {{/each}}
+          </tbody>
+        {{else}}
+          <tbody>
+            <tr data-test-entry>
+              <td colspan="3">
+                <span data-test-empty-icon>{{inline-svg "alert-circle-outline" class="icon"}}</span>
+                <span class="name" data-test-name>Directory is empty</span>
+              </td>
+            </tr>
+          </tbody>
+        {{/if}}
       {{/if}}
-    {{/if}}
     </table>
   {{else}}
     <div data-test-not-running class="empty-message">
