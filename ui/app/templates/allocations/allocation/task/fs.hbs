@@ -38,28 +38,10 @@
         </thead>
         <tbody>
           {{#each directories as |entry|}}
-            <tr data-test-entry>
-              <td>
-                {{#link-to "allocations.allocation.task.fs" model.allocation model (concat path "/" entry.Name) activeClass="is-active"}}
-                  <span data-test-directory-icon>{{inline-svg "folder-outline" class="icon"}}</span>
-                  <span class="name" data-test-name>{{entry.Name}}</span>
-                {{/link-to}}
-              </td>
-              <td class="is-right-aligned" data-test-size></td>
-              <td class="is-right-aligned" title={{entry.ModTime}} data-test-last-modified>{{moment-from entry.ModTime interval=1000}}</td>
-            </tr>
+            {{fs-directory-entry path=path task=model entry=entry}}
           {{/each}}
           {{#each files as |entry|}}
-            <tr data-test-entry>
-              <td>
-                {{#link-to "allocations.allocation.task.fs" model.allocation model (concat path "/" entry.Name) activeClass="is-active"}}
-                  <span data-test-file-icon>{{inline-svg "file-outline" class="icon"}}</span>
-                  <span class="name" data-test-name>{{entry.Name}}</span>
-                {{/link-to}}
-              </td>
-              <td class="is-right-aligned" data-test-size>{{format-bytes entry.Size}}</td>
-              <td class="is-right-aligned" title={{entry.ModTime}} data-test-last-modified>{{moment-from entry.ModTime interval=1000}}</td>
-            </tr>
+            {{fs-directory-entry path=path task=model entry=entry}}
           {{/each}}
         </tbody>
       {{else}}
