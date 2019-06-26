@@ -2682,7 +2682,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	if resp2.Index != 3 {
 		t.Fatalf("Bad index: %d %d", resp2.Index, 3)
 	}
-	if len(resp2.Nodes) != 1 || !resp2.Nodes[0].Drain {
+	if len(resp2.Nodes) != 1 {
 		t.Fatalf("bad: %#v", resp2.Nodes)
 	}
 
