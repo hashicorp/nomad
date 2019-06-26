@@ -935,7 +935,6 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 	for _, id := range []string{n1.ID, n2.ID} {
 		out, err := state.NodeByID(ws, id)
 		require.Nil(err)
-		require.True(out.Drain)
 		require.NotNil(out.DrainStrategy)
 		require.Equal(out.DrainStrategy, expectedDrain)
 		require.Len(out.Events, 2)
@@ -978,7 +977,6 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
-	require.True(out.Drain)
 	require.NotNil(out.DrainStrategy)
 	require.Equal(out.DrainStrategy, expectedDrain)
 	require.Len(out.Events, 2)
