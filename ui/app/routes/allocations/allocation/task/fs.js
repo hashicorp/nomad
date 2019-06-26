@@ -14,7 +14,7 @@ export default Route.extend({
           path: decodedPath,
           pathWithTaskName,
           task,
-          ls: task.ls(pathWithTaskName),
+          directoryEntries: task.ls(pathWithTaskName),
           isFile: false,
         });
       } else {
@@ -28,8 +28,8 @@ export default Route.extend({
     });
   },
 
-  setupController(controller, { path, pathWithTaskName, task, ls, isFile }) {
+  setupController(controller, { path, pathWithTaskName, task, directoryEntries, isFile }) {
     this._super(...arguments);
-    controller.setProperties({ path, pathWithTaskName, model: task, ls, isFile });
+    controller.setProperties({ path, pathWithTaskName, model: task, directoryEntries, isFile });
   },
 });

@@ -3,8 +3,8 @@ import { computed } from '@ember/object';
 import { filterBy } from '@ember/object/computed';
 
 export default Controller.extend({
-  directories: filterBy('ls', 'IsDir'),
-  files: filterBy('ls', 'IsDir', false),
+  directories: filterBy('directoryEntries', 'IsDir'),
+  files: filterBy('directoryEntries', 'IsDir', false),
 
   pathComponents: computed('pathWithTaskName', function() {
     return this.pathWithTaskName
