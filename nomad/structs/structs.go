@@ -54,7 +54,6 @@ type MessageType uint8
 const (
 	NodeRegisterRequestType MessageType = iota
 	NodeDeregisterRequestType
-	NodeDeregisterBatchRequestType // QUESTION does iota make it important to append this list?
 	NodeUpdateStatusRequestType
 	NodeUpdateDrainRequestType
 	JobRegisterRequestType
@@ -84,6 +83,7 @@ const (
 	NodeUpdateEligibilityRequestType
 	BatchNodeUpdateDrainRequestType
 	SchedulerConfigRequestType
+	NodeDeregisterBatchRequestType
 )
 
 const (
