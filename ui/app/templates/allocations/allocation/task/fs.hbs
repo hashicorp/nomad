@@ -1,14 +1,14 @@
 {{partial "allocations/allocation/task/subnav"}}
 <section class="section full-width-section">
   {{#if model.isRunning}}
-    <table class='fs-explorer table is-compact'>
+    <table class="fs-explorer table is-compact">
       <thead>
         <tr>
           <td colspan="3">
-            <nav class='breadcrumb fs' data-test-fs-breadcrumbs>
+            <nav class="breadcrumb fs" data-test-fs-breadcrumbs>
               <ul>
                 {{#each pathComponents as |pathComponent|}}
-                  <li class={{if pathComponent.isLast 'is-active'}}>
+                  <li class={{if pathComponent.isLast "is-active"}}>
                     {{#link-to "allocations.allocation.task.fs" model.allocation model pathComponent.path activeClass="is-active"}}
                       {{pathComponent.name}}
                     {{/link-to}}
@@ -31,9 +31,9 @@
       {{#if directoryEntries}}
         <thead>
           <tr>
-            <th class='is-three-quarters'>Name</th>
-            <th class='is-right-aligned'>File Size</th>
-            <th class='is-right-aligned'>Last Modified</th>
+            <th class="is-three-quarters">Name</th>
+            <th class="is-right-aligned">File Size</th>
+            <th class="is-right-aligned">Last Modified</th>
           </tr>
         </thead>
         <tbody>
@@ -41,24 +41,24 @@
             <tr data-test-entry>
               <td>
                 {{#link-to "allocations.allocation.task.fs" model.allocation model (concat path "/" entry.Name) activeClass="is-active"}}
-                  <span data-test-directory-icon>{{inline-svg 'folder-outline' class='icon'}}</span>
-                  <span class='name' data-test-name>{{entry.Name}}</span>
+                  <span data-test-directory-icon>{{inline-svg "folder-outline" class="icon"}}</span>
+                  <span class="name" data-test-name>{{entry.Name}}</span>
                 {{/link-to}}
               </td>
-              <td class='is-right-aligned' data-test-size></td>
-              <td class='is-right-aligned' title={{entry.ModTime}} data-test-last-modified>{{moment-from entry.ModTime interval=1000}}</td>
+              <td class="is-right-aligned" data-test-size></td>
+              <td class="is-right-aligned" title={{entry.ModTime}} data-test-last-modified>{{moment-from entry.ModTime interval=1000}}</td>
             </tr>
           {{/each}}
           {{#each files as |entry|}}
             <tr data-test-entry>
               <td>
                 {{#link-to "allocations.allocation.task.fs" model.allocation model (concat path "/" entry.Name) activeClass="is-active"}}
-                  <span data-test-file-icon>{{inline-svg 'file-outline' class='icon'}}</span>
-                  <span class='name' data-test-name>{{entry.Name}}</span>
+                  <span data-test-file-icon>{{inline-svg "file-outline" class="icon"}}</span>
+                  <span class="name" data-test-name>{{entry.Name}}</span>
                 {{/link-to}}
               </td>
-              <td class='is-right-aligned' data-test-size>{{format-bytes entry.Size}}</td>
-              <td class='is-right-aligned' title={{entry.ModTime}} data-test-last-modified>{{moment-from entry.ModTime interval=1000}}</td>
+              <td class="is-right-aligned" data-test-size>{{format-bytes entry.Size}}</td>
+              <td class="is-right-aligned" title={{entry.ModTime}} data-test-last-modified>{{moment-from entry.ModTime interval=1000}}</td>
             </tr>
           {{/each}}
         </tbody>
@@ -66,8 +66,8 @@
         <tbody>
           <tr data-test-entry>
             <td colspan="3">
-              <span data-test-empty-icon>{{inline-svg 'alert-circle-outline' class='icon'}}</span>
-              <span class='name' data-test-name>Directory is empty</span>
+              <span data-test-empty-icon>{{inline-svg "alert-circle-outline" class="icon"}}</span>
+              <span class="name" data-test-name>Directory is empty</span>
             </td>
           </tr>
         </tbody>
