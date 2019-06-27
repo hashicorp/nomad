@@ -12,7 +12,6 @@ export default Route.extend({
       if (statJson.IsDir) {
         return RSVP.hash({
           path: decodedPath,
-          pathWithTaskName,
           task,
           directoryEntries: task.ls(pathWithTaskName),
           isFile: false,
@@ -20,7 +19,6 @@ export default Route.extend({
       } else {
         return {
           path: decodedPath,
-          pathWithTaskName,
           task,
           isFile: true,
         };
@@ -28,8 +26,8 @@ export default Route.extend({
     });
   },
 
-  setupController(controller, { path, pathWithTaskName, task, directoryEntries, isFile }) {
+  setupController(controller, { path, task, directoryEntries, isFile }) {
     this._super(...arguments);
-    controller.setProperties({ path, pathWithTaskName, model: task, directoryEntries, isFile });
+    controller.setProperties({ path, model: task, directoryEntries, isFile });
   },
 });
