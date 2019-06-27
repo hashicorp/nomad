@@ -2,7 +2,10 @@ import { currentURL } from '@ember/test-helpers';
 import { Promise } from 'rsvp';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import Response from 'ember-cli-mirage/response';
+
 import FS from 'nomad-ui/tests/pages/allocations/task/fs';
 
 let allocation;
@@ -126,5 +129,37 @@ module('Acceptance | task fs', function(hooks) {
 
     assert.equal(FS.directoryEntries.length, 1);
     assert.ok(FS.directoryEntries[0].isEmpty);
+  });
+
+  test('viewing paths that produce stat API errors', async function(assert) {
+    this.server.get('/client/fs/stat/:allocation_id', () => {
+      return new Response(500, {}, 'no such file or directory');
+    });
+
+    await FS.visitPath({ id: allocation.id, name: task.name, path: '/what-is-this' });
+    assert.equal(FS.error.title, 'Not Found', '500 is interpreted as 404');
+
+    this.server.get('/client/fs/stat/:allocation_id', () => {
+      return new Response(999);
+    });
+
+    await FS.visitPath({ id: allocation.id, name: task.name, path: '/what-is-this' });
+    assert.equal(FS.error.title, 'Error', 'other statuses are passed through');
+  });
+
+  test('viewing paths that produce ls API errors', async function(assert) {
+    this.server.get('/client/fs/ls/:allocation_id', () => {
+      return new Response(500, {}, 'no such file or directory');
+    });
+
+    await FS.visitPath({ id: allocation.id, name: task.name, path: '/what-is-this' });
+    assert.equal(FS.error.title, 'Not Found', '500 is interpreted as 404');
+
+    this.server.get('/client/fs/ls/:allocation_id', () => {
+      return new Response(999);
+    });
+
+    await FS.visitPath({ id: allocation.id, name: task.name, path: '/what-is-this' });
+    assert.equal(FS.error.title, 'Error', 'other statuses are passed through');
   });
 });

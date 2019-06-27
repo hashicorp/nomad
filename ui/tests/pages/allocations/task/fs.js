@@ -43,4 +43,8 @@ export default create({
   emptyState: {
     headline: text('[data-test-not-running-headline]'),
   },
+
+  error: {
+    title: text('[data-test-error-title]'),
+  },
 });
