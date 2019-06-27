@@ -7,29 +7,31 @@ export default Controller.extend({
   files: filterBy('directoryEntries', 'IsDir', false),
 
   breadcrumbs: computed('path', 'model.name', function() {
-    return this.path
+    const breadcrumbs = this.path
       .split('/')
-      .reject(s => s === '')
-      .reduce(
-        (componentsAndPath, component, componentIndex, components) => {
-          if (componentIndex) {
-            componentsAndPath.path = `${componentsAndPath.path}/${component}`;
-          } else {
-            componentsAndPath.path = component;
-          }
+      .reject(pathSegment => pathSegment === '')
+      .reduce((breadcrumbs, pathSegment, index) => {
+        let breadcrumbPath;
 
-          componentsAndPath.components.push({
-            name: component,
-            path: componentsAndPath.path,
-            isLast: componentIndex === components.length - 1,
-          });
-
-          return componentsAndPath;
-        },
-        {
-          components: [],
-          path: '',
+        if (index > 0) {
+          const lastBreadcrumb = breadcrumbs[index - 1];
+          breadcrumbPath = `${lastBreadcrumb.path}/${pathSegment}`;
+        } else {
+          breadcrumbPath = pathSegment;
         }
-      ).components;
+
+        breadcrumbs.push({
+          name: pathSegment,
+          path: breadcrumbPath,
+        });
+
+        return breadcrumbs;
+      }, []);
+
+    if (breadcrumbs.length) {
+      breadcrumbs[breadcrumbs.length - 1].isLast = true;
+    }
+
+    return breadcrumbs;
   }),
 });
