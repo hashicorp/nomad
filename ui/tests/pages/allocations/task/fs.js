@@ -1,4 +1,5 @@
 import {
+  attribute,
   collection,
   clickable,
   create,
@@ -34,6 +35,7 @@ export default create({
     lastModified: text('[data-test-last-modified]'),
 
     visit: clickable('a'),
+    path: attribute('href', 'a'),
   }),
 
   hasEmptyState: isPresent('[data-test-not-running]'),

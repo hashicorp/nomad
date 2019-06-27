@@ -98,6 +98,7 @@ module('Acceptance | task fs', function(hooks) {
     await FS.directoryEntries[0].visit();
 
     assert.equal(FS.directoryEntries.length, 1);
+    assert.notOk(FS.directoryEntries[0].path.includes('//'));
 
     assert.equal(FS.breadcrumbs.length, 3);
     assert.equal(FS.breadcrumbsText, `${task.name} directory another`);
