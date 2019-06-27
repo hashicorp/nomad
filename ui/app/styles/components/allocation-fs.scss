@@ -41,7 +41,7 @@
   a {
     position: relative;
 
-    // This is copied from Bulma’s .button.is-loading::after
+    // This is adapted from Bulma’s .button.is-loading::after
     &.ember-transitioning-in::after {
       animation: spinAround 500ms infinite linear;
       border: 2px solid $grey-light;
