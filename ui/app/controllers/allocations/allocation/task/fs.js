@@ -1,6 +1,7 @@
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
 import { filterBy } from '@ember/object/computed';
+import { isEmpty } from '@ember/utils';
 
 export default Controller.extend({
   directories: filterBy('directoryEntries', 'IsDir'),
@@ -9,7 +10,7 @@ export default Controller.extend({
   breadcrumbs: computed('path', 'model.name', function() {
     const breadcrumbs = this.path
       .split('/')
-      .reject(pathSegment => pathSegment === '')
+      .reject(isEmpty)
       .reduce((breadcrumbs, pathSegment, index) => {
         let breadcrumbPath;
 
