@@ -19,17 +19,20 @@
         }
       }
 
+      // This is copied from Bulma’s .button.is-loading::after
       &.ember-transitioning-in::after {
+        animation: spinAround 500ms infinite linear;
+        border: 2px solid $grey-light;
+        border-radius: 290486px;
+        border-right-color: transparent;
+        border-top-color: transparent;
         content: '';
-        box-sizing: border-box;
+        display: block;
+        height: 1em;
+        width: 1em;
         position: absolute;
-        right: -25px;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        border: 2px solid $light;
-        border-top-color: $grey-light;
-        animation: spinner 0.6s linear infinite;
+        right: -1.5em;
+        top: calc(50% - (1em / 2));
       }
     }
   }
