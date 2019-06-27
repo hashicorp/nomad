@@ -6,14 +6,16 @@ export default Controller.extend({
   directories: filterBy('directoryEntries', 'IsDir'),
   files: filterBy('directoryEntries', 'IsDir', false),
 
-  pathComponents: computed('pathWithTaskName', function() {
-    return this.pathWithTaskName
+  pathComponents: computed('path', 'model.name', function() {
+    return this.path
       .split('/')
       .reject(s => s === '')
       .reduce(
         (componentsAndPath, component, componentIndex, components) => {
           if (componentIndex) {
             componentsAndPath.path = `${componentsAndPath.path}/${component}`;
+          } else {
+            componentsAndPath.path = component;
           }
 
           componentsAndPath.components.push({
@@ -26,7 +28,7 @@ export default Controller.extend({
         },
         {
           components: [],
-          path: '/',
+          path: '',
         }
       ).components;
   }),

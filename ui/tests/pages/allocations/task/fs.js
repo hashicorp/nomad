@@ -21,6 +21,7 @@ export default create({
 
   breadcrumbs: collection('[data-test-fs-breadcrumbs] li', {
     visit: clickable('a'),
+    path: attribute('href', 'a'),
     isActive: hasClass('is-active'),
   }),
 
