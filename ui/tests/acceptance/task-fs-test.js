@@ -22,6 +22,8 @@ module('Acceptance | task fs', function(hooks) {
 
     allocation = server.create('allocation', { jobId: job.id, clientStatus: 'running' });
     task = server.schema.taskStates.where({ allocationId: allocation.id }).models[0];
+    task.name = 'task-name';
+    task.save();
   });
 
   test('visiting /allocations/:allocation_id/:task_name/fs', async function(assert) {
@@ -72,7 +74,7 @@ module('Acceptance | task fs', function(hooks) {
 
     assert.equal(FS.breadcrumbs.length, 1);
     assert.ok(FS.breadcrumbs[0].isActive);
-    assert.equal(FS.breadcrumbs[0].text, task.name);
+    assert.equal(FS.breadcrumbs[0].text, 'task-name');
 
     assert.equal(FS.directoryEntries[0].name, 'directory', 'directories should come first');
     assert.ok(FS.directoryEntries[0].isDirectory);
@@ -91,7 +93,7 @@ module('Acceptance | task fs', function(hooks) {
     assert.equal(FS.directoryEntries.length, 1);
 
     assert.equal(FS.breadcrumbs.length, 2);
-    assert.equal(FS.breadcrumbsText, `${task.name} directory`);
+    assert.equal(FS.breadcrumbsText, 'task-name directory');
 
     assert.notOk(FS.breadcrumbs[0].isActive);
 
@@ -104,14 +106,14 @@ module('Acceptance | task fs', function(hooks) {
     assert.notOk(FS.directoryEntries[0].path.includes('//'));
 
     assert.equal(FS.breadcrumbs.length, 3);
-    assert.equal(FS.breadcrumbsText, `${task.name} directory another`);
+    assert.equal(FS.breadcrumbsText, 'task-name directory another');
     assert.equal(FS.breadcrumbs[2].text, 'another');
 
     assert.notOk(FS.breadcrumbs[0].path.includes('//'));
     assert.notOk(FS.breadcrumbs[1].path.includes('//'));
 
     await FS.breadcrumbs[1].visit();
-    assert.equal(FS.breadcrumbsText, `${task.name} directory`);
+    assert.equal(FS.breadcrumbsText, 'task-name directory');
     assert.equal(FS.breadcrumbs.length, 2);
   });
 
@@ -119,7 +121,7 @@ module('Acceptance | task fs', function(hooks) {
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/' });
     await FS.directoryEntries[2].visit();
 
-    assert.equal(FS.breadcrumbsText, `${task.name} 🤩.txt`);
+    assert.equal(FS.breadcrumbsText, 'task-name 🤩.txt');
 
     assert.ok(FS.fileViewer.isPresent);
   });
