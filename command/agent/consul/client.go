@@ -500,6 +500,7 @@ func (c *ServiceClient) sync() error {
 			}
 		}
 
+		pretty.Print(locals)
 		if err = c.client.ServiceRegister(locals); err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
@@ -1345,25 +1346,35 @@ func newConnect(nc *structs.ConsulConnect, networks structs.Networks) (*api.Agen
 
 	//TODO(schmichael) this is a temporary hack
 	// port may be 0 if its not needed and that's ok
-	port, err := getConnectPort(networks)
+	net, port, err := getConnectPort(networks)
 	if err != nil {
 		return nil, err
 	}
 
+	pretty.Print("NET---------->", net, "\n")
+
 	cc.SidecarService = &api.AgentServiceRegistration{
-		//TODO(schmichael) must advertise host ip while getting envoy
-		//to bind to the bridge ip (or 0.0.0.0)
-		Address: "0.0.0.0",
+		//TODO(schmichael) must advertise host ip
+		Address: net.IP,
 		Port:    port.Value,
 	}
 
-	if nc.SidecarService.Proxy == nil {
-		return cc, nil
-	}
+	//TODO(schmichael) what should users be able to override in this stanza?
+	//if nc.SidecarService.Proxy == nil {
+	//	return cc, nil
+	//}
 
 	cc.SidecarService.Proxy = &api.AgentServiceConnectProxyConfig{
-		LocalServiceAddress: nc.SidecarService.Proxy.LocalServiceAddress,
-		LocalServicePort:    nc.SidecarService.Proxy.LocalServicePort,
+		//LocalServiceAddress: nc.SidecarService.Proxy.LocalServiceAddress,
+		//LocalServicePort:    nc.SidecarService.Proxy.LocalServicePort,
+		Config: map[string]interface{}{
+			"bind_address": "0.0.0.0", //TODO(schmichael) have envoy bind to all addrs inside netns
+		},
+	}
+
+	//TODO(schmichael) what should users be able to override in this stanza?
+	if nc.SidecarService.Proxy == nil {
+		return cc, nil
 	}
 
 	numUpstreams := len(nc.SidecarService.Proxy.Upstreams)
@@ -1381,22 +1392,23 @@ func newConnect(nc *structs.ConsulConnect, networks structs.Networks) (*api.Agen
 	return cc, nil
 }
 
-func getConnectPort(networks structs.Networks) (structs.Port, error) {
+//TODO(schmichael) rename and/or refactor
+func getConnectPort(networks structs.Networks) (*structs.NetworkResource, structs.Port, error) {
 	const label = "nomad_envoy"
 
 	if n := len(networks); n != 1 {
-		return structs.Port{}, fmt.Errorf("Consul Connect only supported with exactly 1 network (found %d)", n)
+		return nil, structs.Port{}, fmt.Errorf("Consul Connect only supported with exactly 1 network (found %d)", n)
 	}
 	net := networks[0]
 	for _, p := range net.ReservedPorts {
 		if p.Label == label {
-			return p, nil
+			return net, p, nil
 		}
 	}
 	for _, p := range net.DynamicPorts {
 		if p.Label == label {
-			return p, nil
+			return net, p, nil
 		}
 	}
-	return structs.Port{}, fmt.Errorf("missing %q port", label)
+	return nil, structs.Port{}, fmt.Errorf("missing %q port", label)
 }
