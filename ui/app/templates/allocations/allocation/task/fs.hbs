@@ -8,15 +8,15 @@
           <td colspan="3">
             <nav class="breadcrumb fs" data-test-fs-breadcrumbs>
               <ul>
-                <li class={{if pathComponents "" "is-active"}}>
+                <li class={{if breadcrumbs "" "is-active"}}>
                   {{#link-to "allocations.allocation.task.fs-root" model.allocation model activeClass="is-active"}}
                     {{model.name}}
                   {{/link-to}}
                 </li>
-                {{#each pathComponents as |pathComponent|}}
-                  <li class={{if pathComponent.isLast "is-active"}}>
-                    {{#link-to "allocations.allocation.task.fs" model.allocation model pathComponent.path activeClass="is-active"}}
-                      {{pathComponent.name}}
+                {{#each breadcrumbs as |breadcrumb|}}
+                  <li class={{if breadcrumb.isLast "is-active"}}>
+                    {{#link-to "allocations.allocation.task.fs" model.allocation model breadcrumb.path activeClass="is-active"}}
+                      {{breadcrumb.name}}
                     {{/link-to}}
                   </li>
                 {{/each}}

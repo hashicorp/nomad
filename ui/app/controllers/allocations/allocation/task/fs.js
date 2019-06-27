@@ -6,7 +6,7 @@ export default Controller.extend({
   directories: filterBy('directoryEntries', 'IsDir'),
   files: filterBy('directoryEntries', 'IsDir', false),
 
-  pathComponents: computed('path', 'model.name', function() {
+  breadcrumbs: computed('path', 'model.name', function() {
     return this.path
       .split('/')
       .reject(s => s === '')
