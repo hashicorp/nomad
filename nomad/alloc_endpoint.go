@@ -231,6 +231,10 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 		return err
 	}
 
+	if alloc == nil {
+		return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
+	}
+
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      alloc.Namespace,
