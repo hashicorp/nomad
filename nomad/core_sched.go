@@ -487,7 +487,7 @@ OUTER:
 }
 
 func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) error {
-	// For old clusters, send single deregistration messages
+	// For old clusters, send single deregistration messages COMPAT(0.11)
 	minVersionBatchNodeDeregister := version.Must(version.NewVersion("0.9.4"))
 	if !ServersMeetMinimumVersion(c.srv.Members(), minVersionBatchNodeDeregister, true) {
 		for _, id := range nodeIDs {
