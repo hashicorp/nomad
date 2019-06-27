@@ -38,10 +38,7 @@
             </tr>
           </thead>
           <tbody>
-            {{#each directories as |entry|}}
-              {{fs-directory-entry path=path task=model entry=entry}}
-            {{/each}}
-            {{#each files as |entry|}}
+            {{#each (append directories files) as |entry|}}
               {{fs-directory-entry path=path task=model entry=entry}}
             {{/each}}
           </tbody>
