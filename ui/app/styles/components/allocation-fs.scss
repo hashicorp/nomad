@@ -11,28 +11,11 @@
     a {
       text-decoration: none;
       color: inherit;
-      position: relative;
 
       &:hover {
         .name {
           text-decoration: underline;
         }
-      }
-
-      // This is copied from Bulma’s .button.is-loading::after
-      &.ember-transitioning-in::after {
-        animation: spinAround 500ms infinite linear;
-        border: 2px solid $grey-light;
-        border-radius: 290486px;
-        border-right-color: transparent;
-        border-top-color: transparent;
-        content: '';
-        display: block;
-        height: 1em;
-        width: 1em;
-        position: absolute;
-        right: -1.5em;
-        top: calc(50% - (1em / 2));
       }
     }
   }
@@ -56,5 +39,38 @@
 
   .is-active a {
     color: $black;
+  }
+}
+
+.fs-explorer.table,
+.breadcrumb.fs {
+  a {
+    position: relative;
+
+    // This is copied from Bulma’s .button.is-loading::after
+    &.ember-transitioning-in::after {
+      animation: spinAround 500ms infinite linear;
+      border: 2px solid $grey-light;
+      border-radius: 290486px;
+      border-right-color: transparent;
+      border-top-color: transparent;
+      content: '';
+      display: block;
+      height: 1em;
+      width: 1em;
+      position: absolute;
+      right: -1.5em;
+      top: calc(50% - (1em / 2));
+    }
+  }
+}
+
+.breadcrumb.fs {
+  a.ember-transitioning-in {
+    margin-right: 1.5em;
+
+    &::after {
+      right: -1em;
+    }
   }
 }
