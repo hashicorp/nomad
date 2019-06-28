@@ -10,6 +10,6 @@
       <span class="name" data-test-name>{{entry.Name}}</span>
     {{/link-to}}
   </td>
-  <td class="is-right-aligned" data-test-size>{{#unless entry.IsDir}}{{format-bytes entry.Size}}{{/unless}}</td>
-  <td class="is-right-aligned" title={{entry.ModTime}} data-test-last-modified>{{moment-from entry.ModTime interval=1000}}</td>
+  <td class="has-text-right" data-test-size>{{#unless entry.IsDir}}{{format-bytes entry.Size}}{{/unless}}</td>
+  <td class="has-text-right" title={{entry.ModTime}} data-test-last-modified>{{moment-from entry.ModTime interval=1000}}</td>
 </tr>
