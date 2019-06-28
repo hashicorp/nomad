@@ -23,7 +23,6 @@ type winFIFO struct {
 
 func (f *winFIFO) Read(p []byte) (n int, err error) {
 	f.connLock.Lock()
-	defer f.connLock.Unlock()
 	if f.conn == nil {
 		c, err := f.listener.Accept()
 		if err != nil {
@@ -32,6 +31,7 @@ func (f *winFIFO) Read(p []byte) (n int, err error) {
 
 		f.conn = c
 	}
+	f.connLock.Unlock()
 
 	// If the connection is closed then we need to close the listener
 	// to emulate unix fifo behavior
@@ -44,7 +44,6 @@ func (f *winFIFO) Read(p []byte) (n int, err error) {
 
 func (f *winFIFO) Write(p []byte) (n int, err error) {
 	f.connLock.Lock()
-	defer f.connLock.Unlock()
 	if f.conn == nil {
 		c, err := f.listener.Accept()
 		if err != nil {
@@ -53,11 +52,13 @@ func (f *winFIFO) Write(p []byte) (n int, err error) {
 
 		f.conn = c
 	}
+	f.connLock.Unlock()
 
 	// If the connection is closed then we need to close the listener
 	// to emulate unix fifo behavior
 	n, err = f.conn.Write(p)
 	if err == io.EOF {
+		f.conn.Close()
 		f.listener.Close()
 	}
 	return n, err
@@ -65,6 +66,11 @@ func (f *winFIFO) Write(p []byte) (n int, err error) {
 }
 
 func (f *winFIFO) Close() error {
+	f.connLock.Lock()
+	if f.conn != nil {
+		f.conn.Close()
+	}
+	f.connLock.Unlock()
 	return f.listener.Close()
 }
 

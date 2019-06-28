@@ -17,10 +17,6 @@ import (
 
 func TestLogmon_Start_rotate(t *testing.T) {
 	require := require.New(t)
-
-	stdoutLog := "stdout"
-	stderrLog := "stderr"
-
 	var stdoutFifoPath, stderrFifoPath string
 
 	dir, err := ioutil.TempDir("", "nomadtest")
@@ -37,9 +33,9 @@ func TestLogmon_Start_rotate(t *testing.T) {
 
 	cfg := &LogConfig{
 		LogDir:        dir,
-		StdoutLogFile: stdoutLog,
+		StdoutLogFile: "stdout",
 		StdoutFifo:    stdoutFifoPath,
-		StderrLogFile: stderrLog,
+		StderrLogFile: "stderr",
 		StderrFifo:    stderrFifoPath,
 		MaxFiles:      2,
 		MaxFileSizeMB: 1,
@@ -78,17 +74,13 @@ func TestLogmon_Start_rotate(t *testing.T) {
 }
 
 // asserts that calling Start twice restarts the log rotator and that any logs
-// published while the listener was unavailable are recieved.
+// published while the listener was unavailable are received.
 func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("windows does not support pushing data to a pipe with no servers")
 	}
 
 	require := require.New(t)
-
-	stdoutLog := "stdout"
-	stderrLog := "stderr"
-
 	var stdoutFifoPath, stderrFifoPath string
 
 	dir, err := ioutil.TempDir("", "nomadtest")
@@ -105,9 +97,9 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 
 	cfg := &LogConfig{
 		LogDir:        dir,
-		StdoutLogFile: stdoutLog,
+		StdoutLogFile: "stdout",
 		StdoutFifo:    stdoutFifoPath,
-		StderrLogFile: stderrLog,
+		StderrLogFile: "stderr",
 		StderrFifo:    stderrFifoPath,
 		MaxFiles:      2,
 		MaxFileSizeMB: 1,
@@ -147,11 +139,6 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 	}, func(err error) {
 		require.NoError(err)
 	})
-
-	require.NoError(lm.Stop())
-
-	// Start logmon again and assert that it appended to the file
-	require.NoError(lm.Start(cfg))
 
 	stdout, err = fifo.OpenWriter(stdoutFifoPath)
 	require.NoError(err)
@@ -171,6 +158,14 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 		require.NoError(err)
 	})
 
+	// Start logmon again and assert that it appended to the file
+	require.NoError(lm.Start(cfg))
+
+	stdout, err = fifo.OpenWriter(stdoutFifoPath)
+	require.NoError(err)
+	stderr, err = fifo.OpenWriter(stderrFifoPath)
+	require.NoError(err)
+
 	_, err = stdout.Write([]byte("st\n"))
 	require.NoError(err)
 	testutil.WaitForResult(func() (bool, error) {
@@ -189,10 +184,6 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 // asserts that calling Start twice restarts the log rotator
 func TestLogmon_Start_restart(t *testing.T) {
 	require := require.New(t)
-
-	stdoutLog := "stdout"
-	stderrLog := "stderr"
-
 	var stdoutFifoPath, stderrFifoPath string
 
 	dir, err := ioutil.TempDir("", "nomadtest")
@@ -209,9 +200,9 @@ func TestLogmon_Start_restart(t *testing.T) {
 
 	cfg := &LogConfig{
 		LogDir:        dir,
-		StdoutLogFile: stdoutLog,
+		StdoutLogFile: "stdout",
 		StdoutFifo:    stdoutFifoPath,
-		StderrLogFile: stderrLog,
+		StderrLogFile: "stderr",
 		StderrFifo:    stderrFifoPath,
 		MaxFiles:      2,
 		MaxFileSizeMB: 1,
@@ -252,7 +243,7 @@ func TestLogmon_Start_restart(t *testing.T) {
 		require.NoError(err)
 	})
 
-	// Start logmon again and assert that it can recieve logs again
+	// Start logmon again and assert that it can receive logs again
 	require.NoError(lm.Start(cfg))
 
 	stdout, err = fifo.OpenWriter(stdoutFifoPath)
