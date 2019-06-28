@@ -23,7 +23,7 @@ async function handleFSResponse(response) {
   } else {
     const body = await response.text();
 
-    // FIXME is this the same across all platforms?
+    // TODO update this if/when endpoint returns 404 as expected
     const statusIs500 = response.status === 500;
     const bodyIncludes404Text = body.includes('no such file or directory');
 
