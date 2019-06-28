@@ -338,7 +338,6 @@ export default function() {
           Name: '🤩.txt',
           IsDir: false,
           Size: 1919,
-          FileMode: '-rw-r--r--',
           ModTime: moment()
             .subtract(2, 'day')
             .format(),
@@ -354,7 +353,6 @@ export default function() {
           Name: 'directory',
           IsDir: true,
           Size: 3682561,
-          FileMode: 'drwxr-xr-x',
           ModTime: moment()
             .subtract(1, 'year')
             .format(),
