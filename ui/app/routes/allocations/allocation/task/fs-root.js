@@ -1,5 +1,5 @@
-import PathRoute from './fs';
+import FSRoute from './fs';
 
-export default PathRoute.extend({
+export default FSRoute.extend({
   templateName: 'allocations/allocation/task/fs',
 });
