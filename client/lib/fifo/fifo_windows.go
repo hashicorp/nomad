@@ -1,6 +1,7 @@
 package fifo
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -75,7 +76,7 @@ func CreateAndRead(path string) (func() (io.ReadCloser, error), error) {
 		OutputBufferSize: PipeBufferSize,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create fifo: %v", err)
 	}
 
 	return func() (io.ReadCloser, error) {
@@ -88,7 +89,7 @@ func CreateAndRead(path string) (func() (io.ReadCloser, error), error) {
 func OpenReader(path string) (io.ReadCloser, error) {
 	l, err := winio.ListenOnlyPipe(path, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open fifo listener: %v", err)
 	}
 
 	return &winFIFO{listener: l}, nil

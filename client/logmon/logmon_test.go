@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/lib/fifo"
@@ -16,13 +17,23 @@ import (
 
 func TestLogmon_Start_rotate(t *testing.T) {
 	require := require.New(t)
+
+	stdoutLog := "stdout"
+	stderrLog := "stderr"
+
+	var stdoutFifoPath, stderrFifoPath string
+
 	dir, err := ioutil.TempDir("", "nomadtest")
 	require.NoError(err)
 	defer os.RemoveAll(dir)
-	stdoutLog := "stdout"
-	stdoutFifoPath := filepath.Join(dir, "stdout.fifo")
-	stderrLog := "stderr"
-	stderrFifoPath := filepath.Join(dir, "stderr.fifo")
+
+	if runtime.GOOS == "windows" {
+		stdoutFifoPath = "//./pipe/test-rotate.stdout"
+		stderrFifoPath = "//./pipe/test-rotate.stderr"
+	} else {
+		stdoutFifoPath = filepath.Join(dir, "stdout.fifo")
+		stderrFifoPath = filepath.Join(dir, "stderr.fifo")
+	}
 
 	cfg := &LogConfig{
 		LogDir:        dir,
@@ -69,13 +80,23 @@ func TestLogmon_Start_rotate(t *testing.T) {
 // asserts that calling Start twice restarts the log rotator
 func TestLogmon_Start_restart(t *testing.T) {
 	require := require.New(t)
+
+	stdoutLog := "stdout"
+	stderrLog := "stderr"
+
+	var stdoutFifoPath, stderrFifoPath string
+
 	dir, err := ioutil.TempDir("", "nomadtest")
 	require.NoError(err)
 	defer os.RemoveAll(dir)
-	stdoutLog := "stdout"
-	stdoutFifoPath := filepath.Join(dir, "stdout.fifo")
-	stderrLog := "stderr"
-	stderrFifoPath := filepath.Join(dir, "stderr.fifo")
+
+	if runtime.GOOS == "windows" {
+		stdoutFifoPath = "//./pipe/test-restart.stdout"
+		stderrFifoPath = "//./pipe/test-restart.stderr"
+	} else {
+		stdoutFifoPath = filepath.Join(dir, "stdout.fifo")
+		stderrFifoPath = filepath.Join(dir, "stderr.fifo")
+	}
 
 	cfg := &LogConfig{
 		LogDir:        dir,
@@ -122,6 +143,11 @@ func TestLogmon_Start_restart(t *testing.T) {
 		require.NoError(err)
 	})
 
+	require.NoError(lm.Stop())
+
+	// Start logmon again and assert that it appended to the file
+	require.NoError(lm.Start(cfg))
+
 	stdout, err = fifo.OpenWriter(stdoutFifoPath)
 	require.NoError(err)
 	stderr, err = fifo.OpenWriter(stderrFifoPath)
@@ -139,14 +165,6 @@ func TestLogmon_Start_restart(t *testing.T) {
 	}, func(err error) {
 		require.NoError(err)
 	})
-
-	// Start logmon again and assert that it appended to the file
-	require.NoError(lm.Start(cfg))
-
-	stdout, err = fifo.OpenWriter(stdoutFifoPath)
-	require.NoError(err)
-	stderr, err = fifo.OpenWriter(stderrFifoPath)
-	require.NoError(err)
 
 	_, err = stdout.Write([]byte("st\n"))
 	require.NoError(err)
