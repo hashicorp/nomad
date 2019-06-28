@@ -210,13 +210,13 @@ The `Job` object supports the following keys:
   the update blocks are merged with the task group's taking precedence. For more
   details on the update stanza, please see below.
 
--   `Periodic` - `Periodic` allows the job to be scheduled at fixed times, dates
-    or intervals. The periodic expression is always evaluated in the UTC
-    timezone to ensure consistent evaluation when Nomad Servers span multiple
-    time zones. The `Periodic` object is optional and supports the following attributes:
+- `Periodic` - `Periodic` allows the job to be scheduled at fixed times, dates
+  or intervals. The periodic expression is always evaluated in the UTC
+  timezone to ensure consistent evaluation when Nomad Servers span multiple
+  time zones. The `Periodic` object is optional and supports the following attributes:
 
     - `Enabled` - `Enabled` determines whether the periodic job will spawn child
-    jobs.
+      jobs.
 
     - `TimeZone` - Specifies the time zone to evaluate the next launch interval
       against. This is useful when wanting to account for day light savings in
@@ -228,9 +228,9 @@ The `Job` object supports the following keys:
       periodic expression. `cron` is the only supported `SpecType` currently.
 
     - `Spec` - A cron expression configuring the interval the job is launched
-    at. Supports predefined expressions such as "@daily" and "@weekly" See
-    [here](https://github.com/gorhill/cronexpr#implementation) for full
-    documentation of supported cron specs and the predefined expressions.
+      at. Supports predefined expressions such as "@daily" and "@weekly" See
+      [here](https://github.com/gorhill/cronexpr#implementation) for full
+      documentation of supported cron specs and the predefined expressions.
 
     - <a id="prohibit_overlap">`ProhibitOverlap`</a> - `ProhibitOverlap` can
       be set to true to enforce that the periodic job doesn't spawn a new
@@ -265,7 +265,7 @@ attributes:
   reference for more details.
 
 - `Affinities` - This is a list of `Affinity` objects. See the affinity
-    reference for more details.
+  reference for more details.
 
 - `Spreads` - This is a list of `Spread` objects. See the spread
   reference for more details.
@@ -326,7 +326,7 @@ The `Task` object supports the following keys:
   reference for more details.
 
 - `Affinities` - This is a list of `Affinity` objects. See the affinity
-    reference for more details.
+  reference for more details.
 
 - `Spreads` - This is a list of `Spread` objects. See the spread
   reference for more details.
@@ -341,10 +341,10 @@ The `Task` object supports the following keys:
   task. See the [driver documentation](/docs/drivers/index.html) for what
   is available. Examples include `docker`, `qemu`, `java`, and `exec`.
 
--   `Env` - A map of key-value representing environment variables that
-    will be passed along to the running process. Nomad variables are
-    interpreted when set in the environment variable values. See the table of
-    interpreted variables [here](/docs/runtime/interpolation.html).
+- `Env` - A map of key-value representing environment variables that
+  will be passed along to the running process. Nomad variables are
+  interpreted when set in the environment variable values. See the table of
+  interpreted variables [here](/docs/runtime/interpolation.html).
 
     For example the below environment map will be reinterpreted:
 
@@ -387,120 +387,120 @@ The `Task` object supports the following keys:
   [Click here](/guides/integrations/consul-integration/index.html#service-discovery) to learn more about
   services. Below is the fields in the `Service` object:
 
-     - `Name`: An explicit name for the Service. Nomad will replace `${JOB}`,
-       `${TASKGROUP}` and `${TASK}` by the name of the job, task group or task,
-       respectively. `${BASE}` expands to the equivalent of
-       `${JOB}-${TASKGROUP}-${TASK}`, and is the default name for a Service.
-       Each service defined for a given task must have a distinct name, so if
-       a task has multiple services only one of them can use the default name
-       and the others must be explicitly named. Names must adhere to
-       [RFC-1123 §2.1](https://tools.ietf.org/html/rfc1123#section-2) and are
-       limited to alphanumeric and hyphen characters (i.e. `[a-z0-9\-]`), and be
-       less than 64 characters in length.
+  - `Name`: An explicit name for the Service. Nomad will replace `${JOB}`,
+    `${TASKGROUP}` and `${TASK}` by the name of the job, task group or task,
+    respectively. `${BASE}` expands to the equivalent of
+    `${JOB}-${TASKGROUP}-${TASK}`, and is the default name for a Service.
+    Each service defined for a given task must have a distinct name, so if
+    a task has multiple services only one of them can use the default name
+    and the others must be explicitly named. Names must adhere to
+    [RFC-1123 §2.1](https://tools.ietf.org/html/rfc1123#section-2) and are
+    limited to alphanumeric and hyphen characters (i.e. `[a-z0-9\-]`), and be
+    less than 64 characters in length.
 
-     - `Tags`: A list of string tags associated with this Service. String
-       interpolation is supported in tags.
+  - `Tags`: A list of string tags associated with this Service. String
+    interpolation is supported in tags.
 
-     - `CanaryTags`: A list of string tags associated with this Service while it
-       is a canary. Once the canary is promoted, the registered tags will be
-       updated to the set defined in the `Tags` field. String interpolation is
-       supported in tags.
+  - `CanaryTags`: A list of string tags associated with this Service while it
+    is a canary. Once the canary is promoted, the registered tags will be
+    updated to the set defined in the `Tags` field. String interpolation is
+    supported in tags.
 
-     - `PortLabel`: `PortLabel` is an optional string and is used to associate
-       a port with the service.  If specified, the port label must match one
-       defined in the resources block.  This could be a label of either a
-       dynamic or a static port.
+  - `PortLabel`: `PortLabel` is an optional string and is used to associate
+    a port with the service.  If specified, the port label must match one
+    defined in the resources block.  This could be a label of either a
+    dynamic or a static port.
 
-     - `AddressMode`: Specifies what address (host or driver-specific) this
-       service should advertise.  This setting is supported in Docker since
-       Nomad 0.6 and rkt since Nomad 0.7. Valid options are:
+  - `AddressMode`: Specifies what address (host or driver-specific) this
+    service should advertise.  This setting is supported in Docker since
+    Nomad 0.6 and rkt since Nomad 0.7. Valid options are:
 
-       - `auto` - Allows the driver to determine whether the host or driver
-         address should be used. Defaults to `host` and only implemented by
-	 Docker. If you use a Docker network plugin such as weave, Docker will
-         automatically use its address.
+    - `auto` - Allows the driver to determine whether the host or driver
+      address should be used. Defaults to `host` and only implemented by
+      Docker. If you use a Docker network plugin such as weave, Docker will
+      automatically use its address.
 
-       - `driver` - Use the IP specified by the driver, and the port specified
-         in a port map. A numeric port may be specified since port maps aren't
-	 required by all network plugins. Useful for advertising SDN and
-         overlay network addresses. Task will fail if driver network cannot be
-         determined. Only implemented for Docker and rkt.
+    - `driver` - Use the IP specified by the driver, and the port specified
+      in a port map. A numeric port may be specified since port maps aren't
+      required by all network plugins. Useful for advertising SDN and
+      overlay network addresses. Task will fail if driver network cannot be
+      determined. Only implemented for Docker and rkt.
 
-       - `host` - Use the host IP and port.
+    - `host` - Use the host IP and port.
 
-     - `Checks`: `Checks` is an array of check objects. A check object defines a
-       health check associated with the service. Nomad supports the `script`,
-       `http` and `tcp` Consul Checks. Script checks are not supported for the
-       qemu driver since the Nomad client doesn't have access to the file system
-       of a task using the Qemu driver.
+  - `Checks`: `Checks` is an array of check objects. A check object defines a
+    health check associated with the service. Nomad supports the `script`,
+    `http` and `tcp` Consul Checks. Script checks are not supported for the
+    qemu driver since the Nomad client doesn't have access to the file system
+    of a task using the Qemu driver.
 
-         - `Type`:  This indicates the check types supported by Nomad. Valid
-           options are currently `script`, `http` and `tcp`.
+    - `Type`:  This indicates the check types supported by Nomad. Valid
+      options are currently `script`, `http` and `tcp`.
 
-         - `Name`: The name of the health check.
+    - `Name`: The name of the health check.
 
-	 - `AddressMode`: Same as `AddressMode` on `Service`.  Unlike services,
-	   checks do not have an `auto` address mode as there's no way for
-	   Nomad to know which is the best address to use for checks. Consul
-	   needs access to the address for any HTTP or TCP checks. Added in
-	   Nomad 0.7.1. Unlike `PortLabel`, this setting is *not* inherited
-           from the `Service`.
+    - `AddressMode`: Same as `AddressMode` on `Service`.  Unlike services,
+      checks do not have an `auto` address mode as there's no way for
+      Nomad to know which is the best address to use for checks. Consul
+      needs access to the address for any HTTP or TCP checks. Added in
+      Nomad 0.7.1. Unlike `PortLabel`, this setting is *not* inherited
+      from the `Service`.
 
-	 - `PortLabel`: Specifies the label of the port on which the check will
-	   be performed. Note this is the _label_ of the port and not the port
-	   number unless `AddressMode: "driver"`. The port label must match one
-	   defined in the Network stanza. If a port value was declared on the
-	   `Service`, this will inherit from that value if not supplied. If
-	   supplied, this value takes precedence over the `Service.PortLabel`
-	   value. This is useful for services which operate on multiple ports.
-	  `http` and `tcp` checks require a port while `script` checks do not.
-	  Checks will use the host IP and ports by default. In Nomad 0.7.1 or
-	  later numeric ports may be used if `AddressMode: "driver"` is set on
-          the check.
+    - `PortLabel`: Specifies the label of the port on which the check will
+      be performed. Note this is the _label_ of the port and not the port
+      number unless `AddressMode: "driver"`. The port label must match one
+      defined in the Network stanza. If a port value was declared on the
+      `Service`, this will inherit from that value if not supplied. If
+      supplied, this value takes precedence over the `Service.PortLabel`
+      value. This is useful for services which operate on multiple ports.
+      `http` and `tcp` checks require a port while `script` checks do not.
+      Checks will use the host IP and ports by default. In Nomad 0.7.1 or
+      later numeric ports may be used if `AddressMode: "driver"` is set on
+      the check.
 
-	 - `Header`: Headers for HTTP checks. Should be an object where the
-	   values are an array of values. Headers will be written once for each
-           value.
+    - `Header`: Headers for HTTP checks. Should be an object where the
+      values are an array of values. Headers will be written once for each
+      value.
 
-         - `Interval`: This indicates the frequency of the health checks that
-           Consul will perform.
+    - `Interval`: This indicates the frequency of the health checks that
+      Consul will perform.
 
-         - `Timeout`: This indicates how long Consul will wait for a health
-           check query to succeed.
+    - `Timeout`: This indicates how long Consul will wait for a health
+      check query to succeed.
 
-         - `Method`: The HTTP method to use for HTTP checks. Defaults to GET.
+    - `Method`: The HTTP method to use for HTTP checks. Defaults to GET.
 
-         - `Path`: The path of the HTTP endpoint which Consul will query to query
-           the health of a service if the type of the check is `http`. Nomad
-           will add the IP of the service and the port, users are only required
-           to add the relative URL of the health check endpoint. Absolute paths
-           are not allowed.
+    - `Path`: The path of the HTTP endpoint which Consul will query to query
+      the health of a service if the type of the check is `http`. Nomad
+      will add the IP of the service and the port, users are only required
+      to add the relative URL of the health check endpoint. Absolute paths
+      are not allowed.
 
-         - `Protocol`: This indicates the protocol for the HTTP checks. Valid
-           options are `http` and `https`. We default it to `http`.
+    - `Protocol`: This indicates the protocol for the HTTP checks. Valid
+      options are `http` and `https`. We default it to `http`.
 
-         - `Command`: This is the command that the Nomad client runs for doing
-           script based health check.
+    - `Command`: This is the command that the Nomad client runs for doing
+      script based health check.
 
-         - `Args`: Additional arguments to the `command` for script based health
-           checks.
+    - `Args`: Additional arguments to the `command` for script based health
+      checks.
 
-	 - `TLSSkipVerify`: If true, Consul will not attempt to verify the
-	   certificate when performing HTTPS checks. Requires Consul >= 0.7.2.
+    - `TLSSkipVerify`: If true, Consul will not attempt to verify the
+      certificate when performing HTTPS checks. Requires Consul >= 0.7.2.
 
-	   - `CheckRestart`: `CheckRestart` is an object which enables
-	     restarting of tasks based upon Consul health checks.
+    - `CheckRestart`: `CheckRestart` is an object which enables
+      restarting of tasks based upon Consul health checks.
 
-	     - `Limit`: The number of unhealthy checks allowed before the
-	       service is restarted. Defaults to `0` which disables
-               health-based restarts.
+      - `Limit`: The number of unhealthy checks allowed before the
+        service is restarted. Defaults to `0` which disables
+        health-based restarts.
 
-	     - `Grace`: The duration to wait after a task starts or restarts
-	       before counting unhealthy checks count against the limit.
-               Defaults to "1s".
+      - `Grace`: The duration to wait after a task starts or restarts
+        before counting unhealthy checks count against the limit.
+        Defaults to "1s".
 
-	     - `IgnoreWarnings`: Treat checks that are warning as passing.
-	       Defaults to false which means warnings are considered unhealthy.
+      - `IgnoreWarnings`: Treat checks that are warning as passing.
+        Defaults to false which means warnings are considered unhealthy.
 
 - `ShutdownDelay` - Specifies the duration to wait when killing a task between
   removing it from Consul and sending it a shutdown signal. Ideally services
