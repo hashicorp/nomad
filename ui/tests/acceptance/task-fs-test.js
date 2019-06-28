@@ -76,17 +76,19 @@ module('Acceptance | task fs', function(hooks) {
     assert.ok(FS.breadcrumbs[0].isActive);
     assert.equal(FS.breadcrumbs[0].text, 'task-name');
 
-    assert.equal(FS.directoryEntries[0].name, 'directory', 'directories should come first');
-    assert.ok(FS.directoryEntries[0].isDirectory);
-    assert.equal(FS.directoryEntries[0].size, '', 'directory sizes are hidden');
-    assert.equal(FS.directoryEntries[0].lastModified, 'a year ago');
+    FS.directoryEntries[0].as(directory => {
+      assert.equal(directory.name, 'directory', 'directories should come first');
+      assert.ok(directory.isDirectory);
+      assert.equal(directory.size, '', 'directory sizes are hidden');
+      assert.equal(directory.lastModified, 'a year ago');
+    });
 
-    assert.equal(FS.directoryEntries[2].name, '🤩.txt');
-    assert.ok(FS.directoryEntries[2].isFile);
-    assert.equal(FS.directoryEntries[2].size, '1 KiB');
-    assert.equal(FS.directoryEntries[2].lastModified, '2 days ago');
-
-    assert.equal(FS.directoryEntries[3].name, '🙌🏿.txt');
+    FS.directoryEntries[2].as(file => {
+      assert.equal(file.name, '🤩.txt');
+      assert.ok(file.isFile);
+      assert.equal(file.size, '1 KiB');
+      assert.equal(file.lastModified, '2 days ago');
+    });
 
     await FS.directoryEntries[0].visit();
 
