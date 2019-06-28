@@ -28,6 +28,6 @@ export default Route.extend({
 
   setupController(controller, { path, task, directoryEntries, isFile }) {
     this._super(...arguments);
-    controller.setProperties({ path, model: task, directoryEntries, isFile });
+    controller.setProperties({ path, task, directoryEntries, isFile });
   },
 });
