@@ -388,6 +388,28 @@ func (tr *TaskRunner) initLabels() {
 	}
 }
 
+// Mark a task as failed and not to run.  Aimed to be invoked when alloc runner
+// prestart hooks failed.
+// Should never be called with Run().
+func (tr *TaskRunner) MarkFailedDead(reason string) {
+	defer close(tr.waitCh)
+
+	tr.stateLock.Lock()
+	if err := tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, tr.localState); err != nil {
+		//TODO Nomad will be unable to restore this task; try to kill
+		//     it now and fail? In general we prefer to leave running
+		//     tasks running even if the agent encounters an error.
+		tr.logger.Warn("error persisting local failed task state; may be unable to restore after a Nomad restart",
+			"error", err)
+	}
+	tr.stateLock.Unlock()
+
+	event := structs.NewTaskEvent(structs.TaskSetupFailure).
+		SetDisplayMessage(reason).
+		SetFailsTask()
+	tr.UpdateState(structs.TaskStateDead, event)
+}
+
 // Run the TaskRunner. Starts the user's task or reattaches to a restored task.
 // Run closes WaitCh when it exits. Should be started in a goroutine.
 func (tr *TaskRunner) Run() {
