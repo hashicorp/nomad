@@ -186,6 +186,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		ignoreUnknown = true
 	}
 
+	n.logger.Warn("fsm applying", "index", log.Index)
+
 	switch msgType {
 	case structs.NodeRegisterRequestType:
 		return n.applyUpsertNode(buf[1:], log.Index)

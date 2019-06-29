@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -252,6 +253,11 @@ func (ar *allocRunner) Run() {
 	if ar.shouldRun() {
 		if err := ar.prerun(); err != nil {
 			ar.logger.Error("prerun failed", "error", err)
+
+			for _, tr := range ar.tasks {
+				tr.MarkFailedDead(fmt.Sprintf("failed to setup runner: %v", err))
+			}
+
 			goto POST
 		}
 	}
@@ -482,6 +488,8 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 // logged except taskrunner.ErrTaskNotRunning which is ignored. Task states
 // after Kill has been called are returned.
 func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
+	fmt.Println("KILLTASK CALLED")
+	debug.PrintStack()
 	var mu sync.Mutex
 	states := make(map[string]*structs.TaskState, len(ar.tasks))
 
@@ -777,6 +785,9 @@ func (ar *allocRunner) destroyImpl() {
 // exit (thus closing WaitCh).
 // When the destroy action is completed, it will close DestroyCh().
 func (ar *allocRunner) Destroy() {
+	fmt.Println("DESTROYING ")
+	debug.PrintStack()
+
 	ar.destroyedLock.Lock()
 	defer ar.destroyedLock.Unlock()
 

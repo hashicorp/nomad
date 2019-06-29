@@ -883,6 +883,8 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			sidx, _ := state.LatestIndex()
+			n.logger.Warn("querying store", "store_index", sidx)
 			// Look for the node
 			node, err := state.NodeByID(ws, args.NodeID)
 			if err != nil {

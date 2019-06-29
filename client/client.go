@@ -8,6 +8,7 @@ import (
 	"net/rpc"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -1767,6 +1768,8 @@ func (c *Client) allocSync() {
 // allocUpdates holds the results of receiving updated allocations from the
 // servers.
 type allocUpdates struct {
+	index uint64
+
 	// pulled is the set of allocations that were downloaded from the servers.
 	pulled map[string]*structs.Allocation
 
@@ -1944,6 +1947,7 @@ OUTER:
 			filtered:      filtered,
 			pulled:        pulledAllocs,
 			migrateTokens: resp.MigrateTokens,
+			index:         resp.Index,
 		}
 
 		select {
@@ -2009,7 +2013,9 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	// Diff the existing and updated allocations
 	diff := diffAllocs(existing, update)
 	c.logger.Debug("allocation updates", "added", len(diff.added), "removed", len(diff.removed),
-		"updated", len(diff.updated), "ignored", len(diff.ignore))
+		"updated", len(diff.updated), "ignored", len(diff.ignore),
+		"index", update.index,
+	)
 
 	errs := 0
 
@@ -2105,6 +2111,9 @@ func makeFailedAlloc(add *structs.Allocation, err error) *structs.Allocation {
 // removeAlloc is invoked when we should remove an allocation because it has
 // been removed by the server.
 func (c *Client) removeAlloc(allocID string) {
+	fmt.Println("REMOVE ALLOC IS CALLED, ", allocID)
+	debug.PrintStack()
+
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
 

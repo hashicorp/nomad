@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -338,6 +339,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	tr.initLabels()
 
 	// Initialize initial task received event
+	tr.logger.Info("iniital task received")
 	tr.appendEvent(structs.NewTaskEvent(structs.TaskReceived))
 
 	return tr, nil
@@ -386,6 +388,16 @@ func (tr *TaskRunner) initLabels() {
 			})
 		}
 	}
+}
+
+// Mark task
+func (tr *TaskRunner) MarkFailedDead(reason string) {
+	defer close(tr.waitCh)
+
+	event := structs.NewTaskEvent(structs.TaskSetupFailure).
+		SetDisplayMessage(reason).
+		SetFailsTask()
+	tr.UpdateState(structs.TaskStateDead, event)
 }
 
 // Run the TaskRunner. Starts the user's task or reattaches to a restored task.
@@ -1083,6 +1095,11 @@ func (tr *TaskRunner) AppendEvent(event *structs.TaskEvent) {
 
 // appendEvent to task's event slice. Caller must acquire stateLock.
 func (tr *TaskRunner) appendEvent(event *structs.TaskEvent) error {
+	tr.logger.Info("append event",
+		"event", event,
+		"initial_events", tr.state.Events,
+	)
+	debug.PrintStack()
 	// Ensure the event is populated with human readable strings
 	event.PopulateEventDisplayMessage()
 

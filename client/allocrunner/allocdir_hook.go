@@ -1,6 +1,8 @@
 package allocrunner
 
 import (
+	"fmt"
+
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 )
@@ -25,6 +27,7 @@ func (h *allocDirHook) Name() string {
 }
 
 func (h *allocDirHook) Prerun() error {
+	return fmt.Errorf("failed to build alloc dir")
 	return h.allocDir.Build()
 }
 
