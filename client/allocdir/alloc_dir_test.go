@@ -472,3 +472,18 @@ func TestPathFuncs(t *testing.T) {
 		t.Errorf("%q is not empty. empty=%v error=%v", dir, empty, err)
 	}
 }
+
+func TestAllocDir_DetectContentType(t *testing.T) {
+	require := require.New(t)
+	imgPath := "input/image.png"
+	fileInfo, err := os.Stat(imgPath)
+	require.Nil(err)
+	res := detectContentType(fileInfo, imgPath)
+	require.Equal("image/png", res)
+
+	jsonPath := "input/test.json"
+	fileInfo, err = os.Stat(jsonPath)
+	require.Nil(err)
+	res = detectContentType(fileInfo, jsonPath)
+	require.Equal("application/json", res)
+}

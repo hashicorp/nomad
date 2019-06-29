@@ -20,11 +20,12 @@ const (
 
 // AllocFileInfo holds information about a file inside the AllocDir
 type AllocFileInfo struct {
-	Name     string
-	IsDir    bool
-	Size     int64
-	FileMode string
-	ModTime  time.Time
+	Name        string
+	IsDir       bool
+	Size        int64
+	FileMode    string
+	ModTime     time.Time
+	ContentType string
 }
 
 // StreamFrame is used to frame data of a file when streaming
