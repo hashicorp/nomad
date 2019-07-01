@@ -410,7 +410,7 @@ func (d *AllocDir) Stat(path string) (*cstructs.AllocFileInfo, error) {
 // detectContentType tries to infer the file type by reading the first
 // 512 bytes of the file. Json file extensions are special cased.
 func detectContentType(fileInfo os.FileInfo, path string) string {
-	contentType := "unknown"
+	contentType := "application/octet-stream"
 	if !fileInfo.IsDir() {
 		f, err := os.Open(path)
 		// Best effort content type detection

@@ -475,15 +475,28 @@ func TestPathFuncs(t *testing.T) {
 
 func TestAllocDir_DetectContentType(t *testing.T) {
 	require := require.New(t)
-	imgPath := "input/image.png"
-	fileInfo, err := os.Stat(imgPath)
+	inputPath := "input/"
+	var testFiles []string
+	err := filepath.Walk(inputPath, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			testFiles = append(testFiles, path)
+		}
+		return err
+	})
 	require.Nil(err)
-	res := detectContentType(fileInfo, imgPath)
-	require.Equal("image/png", res)
 
-	jsonPath := "input/test.json"
-	fileInfo, err = os.Stat(jsonPath)
-	require.Nil(err)
-	res = detectContentType(fileInfo, jsonPath)
-	require.Equal("application/json", res)
+	expectedEncodings := map[string]string{
+		"input/happy.gif": "image/gif",
+		"input/image.png": "image/png",
+		"input/nomad.jpg": "image/jpeg",
+		"input/test.go":   "application/octet-stream",
+		"input/test.json": "application/json",
+		"input/test.txt":  "text/plain; charset=utf-8",
+	}
+	for _, file := range testFiles {
+		fileInfo, err := os.Stat(file)
+		require.Nil(err)
+		res := detectContentType(fileInfo, file)
+		require.Equal(expectedEncodings[file], res)
+	}
 }
