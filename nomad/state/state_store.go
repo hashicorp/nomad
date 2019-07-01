@@ -792,6 +792,7 @@ func (s *StateStore) updateNodeDrainImpl(txn *memdb.Txn, index uint64, nodeID st
 	}
 
 	// Update the drain in the copy
+	copyNode.Drain = drain != nil // COMPAT: Remove in Nomad 0.10
 	copyNode.DrainStrategy = drain
 	if drain != nil {
 		copyNode.SchedulingEligibility = structs.NodeSchedulingIneligible
