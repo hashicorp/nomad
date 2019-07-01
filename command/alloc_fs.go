@@ -213,7 +213,7 @@ func (f *AllocFSCommand) Run(args []string) int {
 	if stat {
 		// Display the file information
 		out := make([]string, 2)
-		out[0] = "Mode|Size|Modified Time|Name"
+		out[0] = "Mode|Size|Modified Time|Content Type|Name"
 		if file != nil {
 			fn := file.Name
 			if file.IsDir {
@@ -225,8 +225,8 @@ func (f *AllocFSCommand) Run(args []string) int {
 			} else {
 				size = humanize.IBytes(uint64(file.Size))
 			}
-			out[1] = fmt.Sprintf("%s|%s|%s|%s", file.FileMode, size,
-				formatTime(file.ModTime), fn)
+			out[1] = fmt.Sprintf("%s|%s|%s|%s|%s", file.FileMode, size,
+				formatTime(file.ModTime), file.ContentType, fn)
 		}
 		f.Ui.Output(formatList(out))
 		return 0
