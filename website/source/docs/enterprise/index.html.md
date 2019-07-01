@@ -14,7 +14,7 @@ Nomad Enterprise adds collaboration, operational, and governance capabilities to
 Please navigate the sub-sections for more information about each package and its features in detail.
 
 ## Nomad Enterprise Platform
-Nomad Enterprise Platform enables operators to easily upgrade Nomad as well as enhanced performance and availability through Advanced Autopilot features such as Automated Upgrades, Enhanced Read Scalability, and Redundancy Zones.
+Nomad Enterprise Platform enables operators to easily upgrade Nomad as well as enhances performance and availability through Advanced Autopilot features such as Automated Upgrades, Enhanced Read Scalability, and Redundancy Zones.
 
 ### Automated Upgrades
 Automated Upgrades allows operators to deploy a complete cluster of new servers and then simply wait for the upgrade to complete. As the new servers join the cluster, server logic checks the version of each Nomad server node. If the version is higher than the version on the current set of voters, it will avoid promoting the new servers to voters until the number of new servers matches the number of existing servers at the previous version. Once the numbers match, Nomad will begin to promote new servers and demote old ones.
@@ -27,7 +27,7 @@ This feature enables an operator to introduce non-voting server nodes to a Nomad
 See the [Autopilot - Read Scalability](https://www.nomadproject.io/guides/operations/autopilot.html#server-read-and-scheduling-scaling) documentation for a thorough overview.
 
 ### Redundancy Zones
-Redundancy Zones enables an operator to deploy a non-voting server as a hot standby server on a per availability zone basis. For example, in an environment with three availability zones one can run one voter and one non-voter in each availability zone, for a total of six servers. If an availability zone is completely lost, only one voter will be lost, so the cluster remains available. If a voter is lost in an availability zone, Nomad will promote the non-voter to voter automatically, putting the hot standby server into service quickly.
+Redundancy Zones enables an operator to deploy a non-voting server as a hot standby server on a per availability zone basis. For example, in an environment with three availability zones an operator can run one voter and one non-voter in each availability zone, for a total of six servers. If an availability zone is completely lost, only one voter will be lost, so the cluster remains available. If a voter is lost in an availability zone, Nomad will promote the non-voter to a voter automatically, putting the hot standby server into service quickly.
 
 See the [Autopilot - Redundancy Zones](https://www.nomadproject.io/guides/operations/autopilot.html#redundancy-zones) documentation for a thorough overview.
 
@@ -37,7 +37,7 @@ Governance & Policy features are part of an add-on module that enables an organi
 ### Namespaces
 Namespaces enable multiple teams to safely use a shared multi-region Nomad environment and reduce cluster fleet size. In Nomad Enterprise, a shared cluster can be partitioned into multiple namespaces which allow jobs and their associated objects to be isolated from each other and other users of the cluster.
 
-Namespaces enhance the usability of a shared cluster by isolating teams from the jobs of others, provide fine grain access control to jobs when coupled with ACLs, and can prevent bad actors from negatively impacting the whole cluster.
+Namespaces enhance the usability of a shared cluster by isolating teams from the jobs of others, by providing fine grain access control to jobs when coupled with ACLs, and by preventing bad actors from negatively impacting the whole cluster.
 
 See the [Namespaces Guide](https://www.nomadproject.io/docs/enterprise/namespaces/index.html) for a thorough overview.
 
