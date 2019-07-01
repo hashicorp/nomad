@@ -1,0 +1,8 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{"path":"github.com/packethost/packngo","checksumSHA1":"kItpnJu5G9MVC56waIyHLoQZt/s=","revision":"b9cb5096f54c96687565b2f24be642483fb3fcf3","revisionTime":"2018-07-11T07:47:35Z"}
+	],
+	"rootPath": "github.com/hashicorp/go-discover/provider/packet"
+}
