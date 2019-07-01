@@ -2,7 +2,9 @@ package agent
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -106,8 +108,30 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 
 	var drainRequest api.NodeUpdateDrainRequest
 
-	if err := decodeBody(req, &drainRequest); err != nil {
-		return nil, CodedError(400, err.Error())
+	// COMPAT: Remove in 0.10. Allow the old style enable query param.
+	// Get the enable parameter
+	enableRaw := req.URL.Query().Get("enable")
+	var enable bool
+	if enableRaw != "" {
+		var err error
+		enable, err = strconv.ParseBool(enableRaw)
+		if err != nil {
+			return nil, CodedError(400, "invalid enable value")
+		}
+
+		// Use the force drain to have it keep the same behavior as old clients.
+		if enable {
+			drainRequest.DrainSpec = &api.DrainSpec{
+				Deadline: -1 * time.Second,
+			}
+		} else {
+			// If drain is disabled on an old client, mark the node as eligible for backwards compatibility
+			drainRequest.MarkEligible = true
+		}
+	} else {
+		if err := decodeBody(req, &drainRequest); err != nil {
+			return nil, CodedError(400, err.Error())
+		}
 	}
 
 	args := structs.NodeUpdateDrainRequest{

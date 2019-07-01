@@ -891,10 +891,10 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
-
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
+	require.True(out.Drain)
 	require.Equal(strategy.Deadline, out.DrainStrategy.Deadline)
 	require.Len(out.Events, 2)
 	require.Equal(NodeDrainEventDrainSet, out.Events[1].Message)
@@ -2682,7 +2682,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	if resp2.Index != 3 {
 		t.Fatalf("Bad index: %d %d", resp2.Index, 3)
 	}
-	if len(resp2.Nodes) != 1 {
+	if len(resp2.Nodes) != 1 || !resp2.Nodes[0].Drain {
 		t.Fatalf("bad: %#v", resp2.Nodes)
 	}
 

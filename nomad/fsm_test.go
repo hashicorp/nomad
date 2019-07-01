@@ -350,6 +350,7 @@ func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	node, err = fsm.State().NodeByID(ws, req.Node.ID)
 	require.Nil(err)
+	require.True(node.Drain)
 	require.Equal(node.DrainStrategy, strategy)
 	require.Len(node.Events, 2)
 }
@@ -393,8 +394,44 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	node, err = fsm.State().NodeByID(ws, req.Node.ID)
 	require.Nil(err)
+	require.True(node.Drain)
 	require.Equal(node.DrainStrategy, strategy)
 	require.Len(node.Events, 2)
+}
+
+func TestFSM_UpdateNodeDrain_Pre08_Compatibility(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	fsm := testFSM(t)
+
+	// Force a node into the state store without eligiblity
+	node := mock.Node()
+	node.SchedulingEligibility = ""
+	require.Nil(fsm.State().UpsertNode(1, node))
+
+	// Do an old style drain
+	req := structs.NodeUpdateDrainRequest{
+		NodeID: node.ID,
+		Drain:  true,
+	}
+	buf, err := structs.Encode(structs.NodeUpdateDrainRequestType, req)
+	require.Nil(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Verify we have upgraded to a force drain
+	ws := memdb.NewWatchSet()
+	node, err = fsm.State().NodeByID(ws, req.NodeID)
+	require.Nil(err)
+	require.True(node.Drain)
+
+	expected := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: -1 * time.Second,
+		},
+	}
+	require.Equal(expected, node.DrainStrategy)
 }
 
 func TestFSM_UpdateNodeEligibility(t *testing.T) {
