@@ -21,6 +21,7 @@ const Log = EmberObject.extend(Evented, {
 
   url: '',
   params: computed(() => ({})),
+  plainText: false,
   logFetch() {
     assert('Log objects need a logFetch method, which should have an interface like window.fetch');
   },
@@ -82,7 +83,7 @@ const Log = EmberObject.extend(Evented, {
 
     this.stop();
     const response = yield logFetch(url).then(res => res.text(), fetchFailure(url));
-    let text = decode(response).message;
+    let text = this.plainText ? response : decode(response).message;
 
     if (text && text.length > MAX_OUTPUT_LENGTH) {
       text = text.substr(0, MAX_OUTPUT_LENGTH);
@@ -104,7 +105,7 @@ const Log = EmberObject.extend(Evented, {
 
     this.stop();
     const response = yield logFetch(url).then(res => res.text(), fetchFailure(url));
-    let text = decode(response).message;
+    let text = this.plainText ? response : decode(response).message;
 
     this.set('tail', text);
     this.set('logPointer', 'tail');
