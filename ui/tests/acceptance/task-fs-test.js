@@ -147,6 +147,24 @@ module('Acceptance | task fs', function(hooks) {
       'empty-directory',
       'directory',
     ]);
+
+    await FS.sortBy('ModTime');
+
+    assert.deepEqual(FS.directoryEntryNames(), [
+      '🤩.txt',
+      '🙌🏿.txt',
+      'empty-directory',
+      'directory',
+    ]);
+
+    await FS.sortBy('ModTime');
+
+    assert.deepEqual(FS.directoryEntryNames(), [
+      'directory',
+      'empty-directory',
+      '🙌🏿.txt',
+      '🤩.txt',
+    ]);
   });
 
   test('viewing a file', async function(assert) {

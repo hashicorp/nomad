@@ -35,7 +35,7 @@
             {{#t.head}}
               {{#t.sort-by prop="name" class="is-two-thirds"}}Name{{/t.sort-by}}
               <th class="has-text-right">File Size</th>
-              <th class="has-text-right">Last Modified</th>
+              {{#t.sort-by prop="ModTime" class="has-text-right"}}Last Modified{{/t.sort-by}}
             {{/t.head}}
             {{#t.body as |row|}}
               {{fs-directory-entry path=path task=task entry=row.model}}
