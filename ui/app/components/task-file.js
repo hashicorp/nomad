@@ -2,7 +2,7 @@ import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import RSVP from 'rsvp';
-import { logger } from 'nomad-ui/utils/classes/log';
+import Log from 'nomad-ui/utils/classes/log';
 import timeout from 'nomad-ui/utils/timeout';
 
 export default Component.extend({
@@ -48,7 +48,7 @@ export default Component.extend({
   }),
 
   isStreamable: computed('stat', function() {
-    return false;
+    return true;
     return this.stat.ContentType.startsWith('text/');
   }),
 
@@ -61,7 +61,7 @@ export default Component.extend({
   fetchMode: computed('isLarge', 'mode', function() {
     if (!this.isLarge) {
       return 'cat';
-    } else if (this.mode === 'head') {
+    } else if (this.mode === 'head' || this.mode === 'tail') {
       return 'readat';
     }
 
@@ -87,18 +87,22 @@ export default Component.extend({
       case 'head':
         return { path, offset: 0, limit: 50000 };
       case 'tail':
-      case 'stream':
+        return { path, offset: this.stat.Size - 50000, limit: 50000 };
+      case 'streaming':
         return { path, offset: 50000, origin: 'end' };
       default:
         return { path };
     }
   }),
 
-  logger: logger('fileUrl', 'fileParams', function logFetch() {
+  logger: computed('fileUrl', 'fileParams', 'mode', function() {
+    // The cat and readat APIs are in plainText while the stream API is always encoded.
+    const plainText = this.mode === 'head' || this.mode === 'tail';
+
     // If the file request can't settle in one second, the client
     // must be unavailable and the server should be used instead
     const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
-    return url =>
+    const logFetch = url =>
       RSVP.race([this.token.authorizedRequest(url), timeout(timing)]).then(
         response => response,
         error => {
@@ -111,10 +115,18 @@ export default Component.extend({
           throw error;
         }
       );
+
+    return Log.create({
+      logFetch,
+      plainText,
+      params: this.fileParams,
+      url: this.fileUrl,
+    });
   }),
 
   actions: {
     toggleStream() {
+      this.set('mode', 'streaming');
       this.toggleProperty('isStreaming');
     },
     gotoHead() {
