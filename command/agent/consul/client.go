@@ -220,8 +220,8 @@ type ServiceClient struct {
 	// shutdownCh is closed when the client should shutdown
 	shutdownCh chan struct{}
 
-	// shutdownWait is how long Shutdown() blocks waiting for the final
-	// sync() to finish. Defaults to defaultShutdownWait
+	// shutdownWait is how long Shutdown blocks waiting for the final sync
+	// to finish. Defaults to defaultShutdownWait
 	shutdownWait time.Duration
 
 	opCh chan *operations
@@ -467,8 +467,8 @@ func (c *ServiceClient) sync() error {
 			continue
 		}
 
-		//TODO(schmichael) don't always skip sidecars
-		if strings.Contains(id, "-sidecar-proxy") {
+		// Ignore if this is a sidecar for a Nomad managed service.
+		if isNomadSidecar(id, c.services) {
 			continue
 		}
 
@@ -500,7 +500,6 @@ func (c *ServiceClient) sync() error {
 			}
 		}
 
-		pretty.Print(locals)
 		if err = c.client.ServiceRegister(locals); err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
@@ -522,6 +521,11 @@ func (c *ServiceClient) sync() error {
 		// registered by client agents
 		if !isNomadService(check.ServiceID) || !c.isClientAgent || !isNomadCheck(check.CheckID) {
 			// Service not managed by Nomad, skip
+			continue
+		}
+
+		// Ignore if this is a check for a Nomad managed sidecar proxy.
+		if isNomadSidecar(check.ServiceID, c.services) {
 			continue
 		}
 
@@ -804,14 +808,14 @@ func (c *ServiceClient) RegisterAlloc(alloc *structs.Allocation) error {
 
 	//TODO(schmichael) rename TaskServices and refactor this into a New method
 	ts := &TaskServices{
-		AllocID:    alloc.ID,
-		Name:       alloc.TaskGroup,
-		Restarter:  noopRestarter{},
-		Services:   tg.Services,
-		DriverExec: noopExec{},
-		//TODO(schmichael) must use this view of networks as it has to
-		//                 dynamic port `value -> to` hack
+		AllocID:  alloc.ID,
+		Name:     alloc.TaskGroup,
+		Services: tg.Services,
 		Networks: alloc.AllocatedResources.Shared.Networks,
+
+		// unsupported for group services
+		Restarter:  noopRestarter{},
+		DriverExec: noopExec{},
 	}
 
 	if alloc.DeploymentStatus != nil {
@@ -1263,6 +1267,28 @@ func isOldNomadService(id string) bool {
 	return strings.HasPrefix(id, prefix)
 }
 
+// isNomadSidecar returns true if the ID matches a sidecar proxy for a Nomad
+// managed service.
+//
+// For example if you have a Connect enabled service with the ID:
+//
+//	_nomad-task-5229c7f8-376b-3ccc-edd9-981e238f7033-cache-redis-cache-db
+//
+// Consul will create a service for the sidecar proxy with the ID:
+//
+//	_nomad-task-5229c7f8-376b-3ccc-edd9-981e238f7033-cache-redis-cache-db-sidecar-proxy
+//
+func isNomadSidecar(id string, services map[string]*api.AgentServiceRegistration) bool {
+	const suffix = "-sidecar-proxy"
+	if !strings.HasSuffix(id, suffix) {
+		return false
+	}
+
+	// Make sure the Nomad managed service for this proxy still exists.
+	_, ok := services[id[:len(id)-len(suffix)]]
+	return ok
+}
+
 // getAddress returns the IP and port to use for a service or check. If no port
 // label is specified (an empty value), zero values are returned because no
 // address could be resolved.
@@ -1351,31 +1377,30 @@ func newConnect(nc *structs.ConsulConnect, networks structs.Networks) (*api.Agen
 		return nil, err
 	}
 
-	pretty.Print("NET---------->", net, "\n")
+	pretty.Print("NET---------->", net, "\nPORT------------->", port, "\n")
 
 	cc.SidecarService = &api.AgentServiceRegistration{
 		//TODO(schmichael) must advertise host ip
 		Address: net.IP,
 		Port:    port.Value,
-	}
 
-	//TODO(schmichael) what should users be able to override in this stanza?
-	//if nc.SidecarService.Proxy == nil {
-	//	return cc, nil
-	//}
-
-	cc.SidecarService.Proxy = &api.AgentServiceConnectProxyConfig{
-		//LocalServiceAddress: nc.SidecarService.Proxy.LocalServiceAddress,
-		//LocalServicePort:    nc.SidecarService.Proxy.LocalServicePort,
-		Config: map[string]interface{}{
-			"bind_address": "0.0.0.0", //TODO(schmichael) have envoy bind to all addrs inside netns
+		// Automatically configure the proxy to bind to all addresses
+		// within the netns.
+		Proxy: &api.AgentServiceConnectProxyConfig{
+			Config: map[string]interface{}{
+				"bind_address": "0.0.0.0",
+				"bind_port":    port.To,
+			},
 		},
 	}
 
-	//TODO(schmichael) what should users be able to override in this stanza?
+	// If no further proxy settings were explicitly configured, exit early
 	if nc.SidecarService.Proxy == nil {
 		return cc, nil
 	}
+
+	cc.SidecarService.Proxy.LocalServiceAddress = nc.SidecarService.Proxy.LocalServiceAddress
+	cc.SidecarService.Proxy.LocalServicePort = nc.SidecarService.Proxy.LocalServicePort
 
 	numUpstreams := len(nc.SidecarService.Proxy.Upstreams)
 	if numUpstreams == 0 {
