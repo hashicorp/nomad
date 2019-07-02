@@ -408,6 +408,11 @@ func (tr *TaskRunner) MarkFailedDead(reason string) {
 		SetDisplayMessage(reason).
 		SetFailsTask()
 	tr.UpdateState(structs.TaskStateDead, event)
+
+	// Run the stop hooks in case task was a restored task that failed prestart
+	if err := tr.stop(); err != nil {
+		tr.logger.Error("stop failed while marking task dead", "error", err)
+	}
 }
 
 // Run the TaskRunner. Starts the user's task or reattaches to a restored task.
