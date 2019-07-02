@@ -1135,11 +1135,6 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
-			// COMPAT: Handle upgrade to v0.7.0
-			if eval.Namespace == "" {
-				eval.Namespace = structs.DefaultNamespace
-			}
-
 			if err := restore.EvalRestore(eval); err != nil {
 				return err
 			}
@@ -1148,11 +1143,6 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			alloc := new(structs.Allocation)
 			if err := dec.Decode(alloc); err != nil {
 				return err
-			}
-
-			// COMPAT: Handle upgrade to v0.7.0
-			if alloc.Namespace == "" {
-				alloc.Namespace = structs.DefaultNamespace
 			}
 
 			if err := restore.AllocRestore(alloc); err != nil {
@@ -1174,11 +1164,6 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
-			// COMPAT: Handle upgrade to v0.7.0
-			if launch.Namespace == "" {
-				launch.Namespace = structs.DefaultNamespace
-			}
-
 			if err := restore.PeriodicLaunchRestore(launch); err != nil {
 				return err
 			}
@@ -1187,11 +1172,6 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			summary := new(structs.JobSummary)
 			if err := dec.Decode(summary); err != nil {
 				return err
-			}
-
-			// COMPAT: Handle upgrade to v0.7.0
-			if summary.Namespace == "" {
-				summary.Namespace = structs.DefaultNamespace
 			}
 
 			if err := restore.JobSummaryRestore(summary); err != nil {
@@ -1213,11 +1193,6 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
-			// COMPAT: Handle upgrade to v0.7.0
-			if version.Namespace == "" {
-				version.Namespace = structs.DefaultNamespace
-			}
-
 			if err := restore.JobVersionRestore(version); err != nil {
 				return err
 			}
@@ -1226,11 +1201,6 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			deployment := new(structs.Deployment)
 			if err := dec.Decode(deployment); err != nil {
 				return err
-			}
-
-			// COMPAT: Handle upgrade to v0.7.0
-			if deployment.Namespace == "" {
-				deployment.Namespace = structs.DefaultNamespace
 			}
 
 			if err := restore.DeploymentRestore(deployment); err != nil {
@@ -1279,30 +1249,6 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	}
 
 	restore.Commit()
-
-	// Create Job Summaries
-	// COMPAT 0.4 -> 0.4.1
-	// We can remove this in 0.5. This exists so that the server creates job
-	// summaries if they were not present previously. When users upgrade to 0.5
-	// from 0.4.1, the snapshot will contain job summaries so it will be safe to
-	// remove this block.
-	index, err := newState.Index("job_summary")
-	if err != nil {
-		return fmt.Errorf("couldn't fetch index of job summary table: %v", err)
-	}
-
-	// If the index is 0 that means there is no job summary in the snapshot so
-	// we will have to create them
-	if index == 0 {
-		// query the latest index
-		latestIndex, err := newState.LatestIndex()
-		if err != nil {
-			return fmt.Errorf("unable to query latest index: %v", index)
-		}
-		if err := newState.ReconcileJobSummaries(latestIndex); err != nil {
-			return fmt.Errorf("error reconciling summaries: %v", err)
-		}
-	}
 
 	// COMPAT Remove in 0.10
 	// Clean up active deployments that do not have a job
