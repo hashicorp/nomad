@@ -27,7 +27,9 @@ export default Controller.extend({
     function() {
       const sortProperty = this.sortProperty;
 
-      const sortedDirectories = this.directories.sortBy(sortProperty);
+      const directorySortProperty = sortProperty === 'Size' ? 'Name' : sortProperty;
+
+      const sortedDirectories = this.directories.sortBy(directorySortProperty);
       const sortedFiles = this.files.sortBy(sortProperty);
 
       const sortedDirectoryEntries = sortedDirectories.concat(sortedFiles);

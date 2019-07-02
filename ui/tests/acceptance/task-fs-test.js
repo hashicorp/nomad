@@ -223,6 +223,36 @@ module('Acceptance | task fs', function(hooks) {
       'mmm-small-mid-file',
       'zzz-med-new-file',
     ]);
+
+    await FS.sortBy('Size');
+
+    assert.deepEqual(
+      FS.directoryEntryNames(),
+      [
+        'aaa-big-old-file',
+        'zzz-med-new-file',
+        'mmm-small-mid-file',
+        'zzz-med-new-directory',
+        'mmm-small-mid-directory',
+        'aaa-big-old-directory',
+      ],
+      'expected files to be sorted by descending size and directories to be sorted by descending name'
+    );
+
+    await FS.sortBy('Size');
+
+    assert.deepEqual(
+      FS.directoryEntryNames(),
+      [
+        'aaa-big-old-directory',
+        'mmm-small-mid-directory',
+        'zzz-med-new-directory',
+        'mmm-small-mid-file',
+        'zzz-med-new-file',
+        'aaa-big-old-file',
+      ],
+      'expected directories to be sorted by name and files to be sorted by ascending size'
+    );
   });
 
   test('viewing a file', async function(assert) {
