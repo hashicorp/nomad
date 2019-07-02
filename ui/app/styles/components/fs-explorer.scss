@@ -37,6 +37,10 @@
   .breadcrumb {
     margin: 0;
 
+    li::before {
+      color: $grey-light;
+    }
+
     a {
       padding-top: 0;
       padding-bottom: 0;
