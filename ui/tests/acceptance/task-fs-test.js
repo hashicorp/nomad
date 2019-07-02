@@ -191,7 +191,7 @@ module('Acceptance | task fs', function(hooks) {
       'zzz-med-new-file',
     ]);
 
-    await FS.sortBy('name');
+    await FS.sortBy('Name');
 
     assert.deepEqual(FS.directoryEntryNames(), [
       'zzz-med-new-file',

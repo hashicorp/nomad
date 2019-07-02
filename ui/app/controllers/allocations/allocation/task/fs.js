@@ -9,7 +9,7 @@ export default Controller.extend({
     sortDescending: 'desc',
   },
 
-  sortProperty: 'name',
+  sortProperty: 'Name',
   sortDescending: false,
 
   path: null,
