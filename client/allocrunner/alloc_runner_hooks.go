@@ -122,6 +122,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
 		newNetworkHook(hookLogger, ns, ar.Alloc(), nm, nc),
 		newGroupServiceHook(hookLogger, ar.Alloc(), ar.consulClient),
+		newConsulSockHook(hookLogger, ar.allocDir, config.ConsulConfig),
 	}
 
 	return nil

@@ -23,12 +23,6 @@ const (
 	// idUnsupported is what the uid/gid will be set to on platforms (eg
 	// Windows) that don't support integer ownership identifiers.
 	idUnsupported = -1
-)
-
-var (
-	// SnapshotErrorTime is the sentinel time that will be used on the
-	// error file written by Snapshot when it encounters as error.
-	SnapshotErrorTime = time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
 
 	// The name of the directory that is shared across tasks in a task group.
 	SharedAllocName = "alloc"
@@ -44,9 +38,6 @@ var (
 	// task.
 	TmpDirName = "tmp"
 
-	// The set of directories that exist inside each shared alloc directory.
-	SharedAllocDirs = []string{LogDirName, TmpDirName, SharedDataDir}
-
 	// The name of the directory that exists inside each task directory
 	// regardless of driver.
 	TaskLocal = "local"
@@ -54,6 +45,19 @@ var (
 	// TaskSecrets is the name of the secret directory inside each task
 	// directory
 	TaskSecrets = "secrets"
+
+	// TaskGRPCSocket is the path relative to the task dir root for the
+	// unix socket connected to Consul's gRPC endpoint.
+	TaskGRPCSocket = "alloc/tmp/consul_grpc.sock"
+)
+
+var (
+	// SnapshotErrorTime is the sentinel time that will be used on the
+	// error file written by Snapshot when it encounters as error.
+	SnapshotErrorTime = time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
+
+	// The set of directories that exist inside each shared alloc directory.
+	SharedAllocDirs = []string{LogDirName, TmpDirName, SharedDataDir}
 
 	// TaskDirs is the set of directories created in each tasks directory.
 	TaskDirs = map[string]os.FileMode{TmpDirName: os.ModeSticky | 0777}
