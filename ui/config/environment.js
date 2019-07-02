@@ -22,7 +22,7 @@ module.exports = function(environment) {
 
     APP: {
       blockingQueries: true,
-      mirageScenario: 'smallCluster',
+      mirageScenario: 'allocationFileExplorer', // FIXME for stable preview links only
       mirageWithNamespaces: true,
       mirageWithTokens: true,
       mirageWithRegions: true,

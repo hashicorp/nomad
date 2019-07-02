@@ -5,6 +5,7 @@ import { logFrames, logEncode } from './data/logs';
 import { generateDiff } from './factories/job-version';
 import { generateTaskGroupFailures } from './factories/evaluation';
 import { copy } from 'ember-copy';
+import moment from 'moment';
 
 export function findLeader(schema) {
   const agent = schema.agents.first();
@@ -304,6 +305,65 @@ export default function() {
     return logEncode(logFrames, logFrames.length - 1);
   };
 
+  const clientAllocationFSLsHandler = function(schema, { queryParams }) {
+    if (queryParams.path.endsWith('empty-directory')) {
+      return [];
+    } else if (queryParams.path.endsWith('directory')) {
+      return [
+        {
+          Name: 'another',
+          IsDir: true,
+          ModTime: moment().format(),
+        },
+      ];
+    } else if (queryParams.path.endsWith('another')) {
+      return [
+        {
+          Name: 'something.txt',
+          IsDir: false,
+          ModTime: moment().format(),
+        },
+      ];
+    } else {
+      return [
+        {
+          Name: '🤩.txt',
+          IsDir: false,
+          Size: 1919,
+          ModTime: moment()
+            .subtract(2, 'day')
+            .format(),
+        },
+        {
+          Name: '🙌🏿.txt',
+          IsDir: false,
+          ModTime: moment()
+            .subtract(2, 'minute')
+            .format(),
+        },
+        {
+          Name: 'directory',
+          IsDir: true,
+          Size: 3682561,
+          ModTime: moment()
+            .subtract(1, 'year')
+            .format(),
+        },
+        {
+          Name: 'empty-directory',
+          IsDir: true,
+          ModTime: moment().format(),
+        },
+      ];
+    }
+  };
+
+  const clientAllocationFSStatHandler = function(schema, { queryParams }) {
+    return {
+      IsDir: !queryParams.path.endsWith('.txt'),
+    };
+  };
+
   // Client requests are available on the server and the client
   this.put('/client/allocation/:id/restart', function() {
     return new Response(204, {}, '');
@@ -311,6 +371,9 @@ export default function() {
 
   this.get('/client/allocation/:id/stats', clientAllocationStatsHandler);
   this.get('/client/fs/logs/:allocation_id', clientAllocationLog);
+
+  this.get('/client/fs/ls/:allocation_id', clientAllocationFSLsHandler);
+  this.get('/client/fs/stat/:allocation_id', clientAllocationFSStatHandler);
 
   this.get('/client/stats', function({ clientStats }, { queryParams }) {
     const seed = Math.random();
@@ -331,6 +394,9 @@ export default function() {
   HOSTS.forEach(host => {
     this.get(`http://${host}/v1/client/allocation/:id/stats`, clientAllocationStatsHandler);
     this.get(`http://${host}/v1/client/fs/logs/:allocation_id`, clientAllocationLog);
+
+    this.get(`http://${host}/v1/client/fs/ls/:allocation_id`, clientAllocationFSLsHandler);
+    this.get(`http://${host}/v1/client/stat/ls/:allocation_id`, clientAllocationFSStatHandler);
 
     this.get(`http://${host}/v1/client/stats`, function({ clientStats }) {
       return this.serialize(clientStats.find(host));
