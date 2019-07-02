@@ -13,6 +13,7 @@ export default Component.extend({
   allocation: null,
   task: null,
   file: null,
+  stat: null, // { Name, IsDir, Size, FileMode, ModTime, ContentType }
 
   // When true, request logs from the server agent
   useServer: false,
@@ -23,49 +24,78 @@ export default Component.extend({
   clientTimeout: 1000,
   serverTimeout: 5000,
 
-  didReceiveAttrs() {
-    if (this.allocation && this.task) {
-      // this.send('toggleStream');
+  mode: 'head',
+
+  fileComponent: computed('stat', function() {
+    // TODO: Switch to this.stat.ContentType
+    // TODO: Determine binary/unsupported non-text files to set to "cannot view" component
+    const matches = this.stat.Name.match(/^.+?\.(.+)$/);
+    const ext = matches ? matches[1] : '';
+
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+      case 'gif':
+      case 'png':
+        return 'image';
+      default:
+        return 'stream';
     }
-  },
+  }),
 
-  didInsertElement() {
-    this.fillAvailableHeight();
-  },
+  isLarge: computed('stat', function() {
+    return this.stat.Size > 50000;
+  }),
 
-  windowResizeHandler() {
-    run.once(this, this.fillAvailableHeight);
-  },
+  isStreamable: computed('stat', function() {
+    return false;
+    return this.stat.ContentType.startsWith('text/');
+  }),
 
-  fillAvailableHeight() {
-    // This math is arbitrary and far from bulletproof, but the UX
-    // of having the log window fill available height is worth the hack.
-    const margins = 30 + 30; // Account for padding and margin on either side of the CLI
-    const cliWindow = this.$('.cli-window');
-    cliWindow.height(window.innerHeight - cliWindow.offset().top - margins);
-  },
+  isStreaming: false,
 
-  fileUrl: computed('task.name', 'allocation.id', 'file', function() {
+  catUrl: computed('allocation.id', 'task.name', 'file', function() {
     return `/v1/client/fs/cat/${this.allocation.id}?path=${this.task.name}/${this.file}`;
   }),
 
-  logUrl: computed('allocation.id', 'allocation.node.httpAddr', 'useServer', function() {
-    const address = this.get('allocation.node.httpAddr');
-    const allocation = this.get('allocation.id');
+  fetchMode: computed('isLarge', 'mode', function() {
+    if (!this.isLarge) {
+      return 'cat';
+    } else if (this.mode === 'head') {
+      return 'readat';
+    }
 
-    const url = `/v1/client/fs/logs/${allocation}`;
-    return this.useServer ? url : `//${address}${url}`;
+    return 'stream';
   }),
 
-  logParams: computed('task', 'mode', function() {
-    return {
-      task: this.task,
-      type: this.mode,
-    };
+  fileUrl: computed(
+    'allocation.id',
+    'allocation.node.httpAddr',
+    'fetchMode',
+    'useServer',
+    function() {
+      const address = this.get('allocation.node.httpAddr');
+      const url = `/v1/client/fs/${this.fetchMode}/${this.allocation.id}`;
+      return this.useServer ? url : `//${address}${url}`;
+    }
+  ),
+
+  fileParams: computed('task.name', 'file', 'mode', function() {
+    const path = `${this.task.name}/${this.file}`;
+
+    switch (this.mode) {
+      case 'head':
+        return { path, offset: 0, limit: 50000 };
+      case 'tail':
+      case 'stream':
+        return { path, offset: 50000, origin: 'end' };
+      default:
+        return { path };
+    }
   }),
 
-  logger: logger('logUrl', 'logParams', function logFetch() {
-    // If the log request can't settle in one second, the client
+  logger: logger('fileUrl', 'fileParams', function logFetch() {
+    // If the file request can't settle in one second, the client
     // must be unavailable and the server should be used instead
     const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
     return url =>
@@ -83,49 +113,17 @@ export default Component.extend({
       );
   }),
 
-  head: task(function*() {
-    yield this.get('logger.gotoHead').perform();
-    run.scheduleOnce('afterRender', () => {
-      this.$('.cli-window').scrollTop(0);
-    });
-  }),
-
-  tail: task(function*() {
-    yield this.get('logger.gotoTail').perform();
-    run.scheduleOnce('afterRender', () => {
-      const cliWindow = this.$('.cli-window');
-      cliWindow.scrollTop(cliWindow[0].scrollHeight);
-    });
-  }),
-
-  stream: task(function*() {
-    this.logger.on('tick', () => {
-      run.scheduleOnce('afterRender', () => {
-        const cliWindow = this.$('.cli-window');
-        cliWindow.scrollTop(cliWindow[0].scrollHeight);
-      });
-    });
-
-    yield this.logger.startStreaming();
-    this.logger.off('tick');
-  }),
-
-  willDestroy() {
-    this.logger.stop();
-  },
-
   actions: {
-    setMode(mode) {
-      this.logger.stop();
-      this.set('mode', mode);
-      this.stream.perform();
-    },
     toggleStream() {
-      if (this.get('logger.isStreaming')) {
-        this.logger.stop();
-      } else {
-        this.stream.perform();
-      }
+      this.toggleProperty('isStreaming');
+    },
+    gotoHead() {
+      this.set('mode', 'head');
+      this.set('isStreaming', false);
+    },
+    gotoTail() {
+      this.set('mode', 'tail');
+      this.set('isStreaming', false);
     },
     failoverToServer() {
       this.set('useServer', true);

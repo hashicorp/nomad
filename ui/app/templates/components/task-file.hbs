@@ -6,19 +6,24 @@
 {{/if}}
 <div class="boxed-section-head">
   <span class="pull-right">
-    <a data-test-log-action="raw" class="button is-white" href="{{fileUrl}}" target="_blank" rel="noopener noreferrer">View Raw File</a>
-    {{#if isLarge}}
-      <button data-test-log-action="head" class="button is-white" onclick={{perform head}}>Head</button>
-      <button data-test-log-action="tail" class="button is-white" onclick={{perform tail}}>Tail</button>
+    <a data-test-log-action="raw" class="button is-white" href="{{catUrl}}" target="_blank" rel="noopener noreferrer">View Raw File</a>
+    {{#if (and isLarge isStreamable)}}
+      <button data-test-log-action="head" class="button is-white" onclick={{action "gotoHead"}}>Head</button>
+      <button data-test-log-action="tail" class="button is-white" onclick={{action "gotoTail"}}>Tail</button>
     {{/if}}
-    {{#if isStreaming}}
+    {{#if isStreamable}}
       <button data-test-log-action="toggle-stream" class="button is-white" onclick={{action "toggleStream"}}>
         {{x-icon (if logger.isStreaming "media-pause" "media-play") class="is-text"}}
       </button>
     {{/if}}
   </span>
 </div>
-<div data-test-log-box class="boxed-section-body is-dark is-full-bleed">
-  {{!-- switch file component here --}}
-  <pre data-test-log-cli class="cli-window"><code>{{logger.output}}</code></pre>
+<div data-test-file-box class="boxed-section-body {{if (eq fileComponent "stream") "is-dark is-full-bleed"}}">
+  {{#if (eq fileComponent "stream")}}
+    {{streaming-file logger=logger mode=mode isStreaming=isStreaming}}
+  {{else if (eq fileComponent "image")}}
+    {{image-file src=catUrl alt=stat.Name size=stat.Size}}
+  {{else}}
+    <h1>No component</h1>
+  {{/if}}
 </div>
