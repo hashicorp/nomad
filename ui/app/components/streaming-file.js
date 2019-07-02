@@ -1,8 +1,9 @@
 import Component from '@ember/component';
 import { run } from '@ember/runloop';
 import { task } from 'ember-concurrency';
+import WindowResizable from 'nomad-ui/mixins/window-resizable';
 
-export default Component.extend({
+export default Component.extend(WindowResizable, {
   tagName: 'pre',
   classNames: ['cli-window'],
   'data-test-log-cli': true,
