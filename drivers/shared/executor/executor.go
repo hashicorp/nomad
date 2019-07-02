@@ -412,8 +412,10 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 func (e *UniversalExecutor) Wait(ctx context.Context) (*ProcessState, error) {
 	select {
 	case <-ctx.Done():
+		e.logger.Trace("executor wait context done", "error", ctx.Err())
 		return nil, ctx.Err()
 	case <-e.processExited:
+		e.logger.Trace("executor subprocess exited")
 		return e.exitState, nil
 	}
 }
@@ -506,6 +508,7 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		}
 
 		if err := e.shutdownProcess(sig, proc); err != nil {
+			err = fmt.Errorf("shutting down process failed: %v", err)
 			e.logger.Warn("failed to shutdown", "error", err)
 			return err
 		}
@@ -546,6 +549,7 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		return err
 	}
 
+	e.logger.Trace("shutdown completed successfully")
 	return nil
 }
 
