@@ -11,5 +11,5 @@
     {{/link-to}}
   </td>
   <td class="has-text-right" data-test-size>{{#unless entry.IsDir}}{{format-bytes entry.Size}}{{/unless}}</td>
-  <td class="has-text-right" title={{entry.ModTime}} data-test-last-modified>{{moment-from entry.ModTime interval=1000}}</td>
+  <td class="has-text-right" title={{format-ts entry.ModTime}} data-test-last-modified>{{moment-from entry.ModTime interval=1000}}</td>
 </tr>
