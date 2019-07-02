@@ -1767,6 +1767,9 @@ func (c *Client) allocSync() {
 // allocUpdates holds the results of receiving updated allocations from the
 // servers.
 type allocUpdates struct {
+	// index is index of server store snapshot used for fetching alloc status
+	index uint64
+
 	// pulled is the set of allocations that were downloaded from the servers.
 	pulled map[string]*structs.Allocation
 
@@ -1944,6 +1947,7 @@ OUTER:
 			filtered:      filtered,
 			pulled:        pulledAllocs,
 			migrateTokens: resp.MigrateTokens,
+			index:         resp.Index,
 		}
 
 		select {

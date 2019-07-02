@@ -168,11 +168,6 @@ func TestEvalEligibility_JobStatus(t *testing.T) {
 	if status := e.JobStatus(cc); status != EvalComputedClassEligible {
 		t.Fatalf("JobStatus() returned %v; want %v", status, EvalComputedClassEligible)
 	}
-
-	// Check that if I pass an empty class it returns escaped
-	if status := e.JobStatus(""); status != EvalComputedClassEscaped {
-		t.Fatalf("JobStatus() returned %v; want %v", status, EvalComputedClassEscaped)
-	}
 }
 
 func TestEvalEligibility_TaskGroupStatus(t *testing.T) {
@@ -194,11 +189,6 @@ func TestEvalEligibility_TaskGroupStatus(t *testing.T) {
 	e.SetTaskGroupEligibility(true, tg, cc)
 	if status := e.TaskGroupStatus(tg, cc); status != EvalComputedClassEligible {
 		t.Fatalf("TaskGroupStatus() returned %v; want %v", status, EvalComputedClassEligible)
-	}
-
-	// Check that if I pass an empty class it returns escaped
-	if status := e.TaskGroupStatus(tg, ""); status != EvalComputedClassEscaped {
-		t.Fatalf("TaskGroupStatus() returned %v; want %v", status, EvalComputedClassEscaped)
 	}
 }
 

@@ -282,10 +282,7 @@ func (e *EvalEligibility) GetClasses() map[string]bool {
 
 // JobStatus returns the eligibility status of the job.
 func (e *EvalEligibility) JobStatus(class string) ComputedClassFeasibility {
-	// COMPAT: Computed node class was introduced in 0.3. Clients running < 0.3
-	// will not have a computed class. The safest value to return is the escaped
-	// case, since it disables any optimization.
-	if e.jobEscaped || class == "" {
+	if e.jobEscaped {
 		return EvalComputedClassEscaped
 	}
 
@@ -307,13 +304,6 @@ func (e *EvalEligibility) SetJobEligibility(eligible bool, class string) {
 
 // TaskGroupStatus returns the eligibility status of the task group.
 func (e *EvalEligibility) TaskGroupStatus(tg, class string) ComputedClassFeasibility {
-	// COMPAT: Computed node class was introduced in 0.3. Clients running < 0.3
-	// will not have a computed class. The safest value to return is the escaped
-	// case, since it disables any optimization.
-	if class == "" {
-		return EvalComputedClassEscaped
-	}
-
 	if escaped, ok := e.tgEscapedConstraints[tg]; ok {
 		if escaped {
 			return EvalComputedClassEscaped

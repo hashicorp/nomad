@@ -248,10 +248,18 @@ func (ar *allocRunner) Run() {
 	default:
 	}
 
+	// When handling (potentially restored) terminal alloc, ensure tasks and post-run hooks are run
+	// to perform any cleanup that's necessary, potentially not done prior to earlier termination
+
 	// Run the prestart hooks if non-terminal
 	if ar.shouldRun() {
 		if err := ar.prerun(); err != nil {
 			ar.logger.Error("prerun failed", "error", err)
+
+			for _, tr := range ar.tasks {
+				tr.MarkFailedDead(fmt.Sprintf("failed to setup runner: %v", err))
+			}
+
 			goto POST
 		}
 	}
