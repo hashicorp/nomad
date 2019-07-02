@@ -21,21 +21,29 @@ type winFIFO struct {
 	connLock sync.Mutex
 }
 
-func (f *winFIFO) Read(p []byte) (n int, err error) {
+func (f *winFIFO) ensureConn() (net.Conn, error) {
 	f.connLock.Lock()
+	defer f.connLock.Unlock()
 	if f.conn == nil {
 		c, err := f.listener.Accept()
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
-
 		f.conn = c
 	}
-	f.connLock.Unlock()
+
+	return f.conn, nil
+}
+
+func (f *winFIFO) Read(p []byte) (n int, err error) {
+	conn, err := f.ensureConn()
+	if err != nil {
+		return 0, err
+	}
 
 	// If the connection is closed then we need to close the listener
 	// to emulate unix fifo behavior
-	n, err = f.conn.Read(p)
+	n, err = conn.Read(p)
 	if err == io.EOF {
 		f.listener.Close()
 	}
@@ -43,22 +51,16 @@ func (f *winFIFO) Read(p []byte) (n int, err error) {
 }
 
 func (f *winFIFO) Write(p []byte) (n int, err error) {
-	f.connLock.Lock()
-	if f.conn == nil {
-		c, err := f.listener.Accept()
-		if err != nil {
-			return 0, err
-		}
-
-		f.conn = c
+	conn, err := f.ensureConn()
+	if err != nil {
+		return 0, err
 	}
-	f.connLock.Unlock()
 
 	// If the connection is closed then we need to close the listener
 	// to emulate unix fifo behavior
-	n, err = f.conn.Write(p)
+	n, err = conn.Write(p)
 	if err == io.EOF {
-		f.conn.Close()
+		conn.Close()
 		f.listener.Close()
 	}
 	return n, err
