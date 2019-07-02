@@ -394,6 +394,24 @@ func (tr *TaskRunner) Run() {
 	defer close(tr.waitCh)
 	var result *drivers.ExitResult
 
+	tr.stateLock.RLock()
+	dead := tr.state.State == structs.TaskStateDead
+	tr.stateLock.RUnlock()
+
+	// if restoring a dead task, ensure that task is cleared and all post hooks
+	// are called without additional state updates
+	if dead {
+		// do cleanup functions without emitting any additional events/work
+		// to handle cases where we restored a dead task where client terminated
+		// after task finished before completing post-run actions.
+		tr.clearDriverHandle()
+		tr.stateUpdater.TaskStateUpdated()
+		if err := tr.stop(); err != nil {
+			tr.logger.Error("stop failed on terminal task", "error", err)
+		}
+		return
+	}
+
 	// Updates are handled asynchronously with the other hooks but each
 	// triggered update - whether due to alloc updates or a new vault token
 	// - should be handled serially.
@@ -899,7 +917,7 @@ func (tr *TaskRunner) Restore() error {
 		}
 
 		alloc := tr.Alloc()
-		if alloc.TerminalStatus() || alloc.Job.Type == structs.JobTypeSystem {
+		if tr.state.State == structs.TaskStateDead || alloc.TerminalStatus() || alloc.Job.Type == structs.JobTypeSystem {
 			return nil
 		}
 
