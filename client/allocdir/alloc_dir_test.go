@@ -489,14 +489,15 @@ func TestAllocDir_DetectContentType(t *testing.T) {
 		"input/happy.gif": "image/gif",
 		"input/image.png": "image/png",
 		"input/nomad.jpg": "image/jpeg",
-		"input/test.go":   "application/octet-stream",
+		"input/test.bin":  "application/octet-stream",
 		"input/test.json": "application/json",
 		"input/test.txt":  "text/plain; charset=utf-8",
+		"input/test.go":   "text/plain; charset=utf-8",
 	}
 	for _, file := range testFiles {
 		fileInfo, err := os.Stat(file)
 		require.Nil(err)
 		res := detectContentType(fileInfo, file)
-		require.Equal(expectedEncodings[file], res)
+		require.Equal(expectedEncodings[file], res, "unexpected output for %v", file)
 	}
 }
