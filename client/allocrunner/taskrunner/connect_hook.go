@@ -5,17 +5,17 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"net"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/kr/pretty"
 )
 
 var _ interfaces.TaskPrestartHook = &connectHook{}
@@ -67,15 +67,12 @@ func (h *connectHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 		canary = h.alloc.DeploymentStatus.Canary
 	}
 
-	consulURL, err := url.Parse(h.consulHTTPAddr)
-	if err != nil {
-		return fmt.Errorf("error parsing consul addr %q: %v", h.consulHTTPAddr, err)
-	}
-	grpcAddr := net.JoinHostPort(consulURL.Hostname(), "8502") //TODO(schmichael)
+	//TODO(schmichael) Will this path work for all drivers?
+	grpcAddr := "unix://" + allocdir.TaskGRPCSocket
 
 	fn := filepath.Join(req.TaskDir.LocalDir, "bootstrap.json")
 	id := agentconsul.MakeTaskServiceID(h.alloc.ID, tg.Name, service, canary)
-	h.logger.Debug("bootstrapping envoy", "sidecar_for", service.Name, "boostrap_file", fn, "sidecar_for_id", id, "grpc_addr", grpcAddr, "consul_addr", h.consulHTTPAddr)
+	h.logger.Debug("bootstrapping envoy", "sidecar_for", service.Name, "boostrap_file", fn, "sidecar_for_id", id, "grpc_addr", grpcAddr)
 
 	tries := 3
 

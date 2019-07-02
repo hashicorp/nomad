@@ -59,6 +59,10 @@ type ConsulConfig struct {
 	// Addr is the address of the local Consul agent
 	Addr string `hcl:"address"`
 
+	// GRPCAddr is the address of the local Consul agent's gRPC endpoint.
+	// Defaults to the same IP as Addr with the port 8502.
+	GRPCAddr string `hcl:"grpc_address"`
+
 	// Timeout is used by Consul HTTP Client
 	Timeout    time.Duration
 	TimeoutHCL string `hcl:"timeout" json:"-"`
@@ -146,6 +150,9 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	}
 	if b.Addr != "" {
 		result.Addr = b.Addr
+	}
+	if b.GRPCAddr != "" {
+		result.GRPCAddr = b.GRPCAddr
 	}
 	if b.Timeout != 0 {
 		result.Timeout = b.Timeout
