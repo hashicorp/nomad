@@ -305,15 +305,7 @@ export default function() {
     return logEncode(logFrames, logFrames.length - 1);
   };
 
-  // Client requests are available on the server and the client
-  this.put('/client/allocation/:id/restart', function() {
-    return new Response(204, {}, '');
-  });
-
-  this.get('/client/allocation/:id/stats', clientAllocationStatsHandler);
-  this.get('/client/fs/logs/:allocation_id', clientAllocationLog);
-
-  this.get('/client/fs/ls/:allocation_id', (schema, { queryParams }) => {
+  const clientAllocationFSLsHandler = function(schema, { queryParams }) {
     if (queryParams.path.endsWith('empty-directory')) {
       return [];
     } else if (queryParams.path.endsWith('directory')) {
@@ -364,13 +356,24 @@ export default function() {
         },
       ];
     }
-  });
+  };
 
-  this.get('/client/fs/stat/:allocation_id', (schema, { queryParams }) => {
+  const clientAllocationFSStatHandler = function(schema, { queryParams }) {
     return {
       IsDir: !queryParams.path.endsWith('.txt'),
     };
+  };
+
+  // Client requests are available on the server and the client
+  this.put('/client/allocation/:id/restart', function() {
+    return new Response(204, {}, '');
   });
+
+  this.get('/client/allocation/:id/stats', clientAllocationStatsHandler);
+  this.get('/client/fs/logs/:allocation_id', clientAllocationLog);
+
+  this.get('/client/fs/ls/:allocation_id', clientAllocationFSLsHandler);
+  this.get('/client/fs/stat/:allocation_id', clientAllocationFSStatHandler);
 
   this.get('/client/stats', function({ clientStats }, { queryParams }) {
     const seed = Math.random();
@@ -391,6 +394,9 @@ export default function() {
   HOSTS.forEach(host => {
     this.get(`http://${host}/v1/client/allocation/:id/stats`, clientAllocationStatsHandler);
     this.get(`http://${host}/v1/client/fs/logs/:allocation_id`, clientAllocationLog);
+
+    this.get(`http://${host}/v1/client/fs/ls/:allocation_id`, clientAllocationFSLsHandler);
+    this.get(`http://${host}/v1/client/stat/ls/:allocation_id`, clientAllocationFSStatHandler);
 
     this.get(`http://${host}/v1/client/stats`, function({ clientStats }) {
       return this.serialize(clientStats.find(host));
