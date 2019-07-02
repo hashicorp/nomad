@@ -215,3 +215,79 @@ func TestAllocRunner_Restore_CompletedBatch(t *testing.T) {
 	events := ar2.AllocState().TaskStates[task.Name].Events
 	require.Equal(t, initialRunEvents, events)
 }
+
+// TestAllocRunner_PreStartFailuresLeadToFailed asserts that if an alloc
+// prestart hooks failed, then the alloc and subsequent tasks transition
+// to failed state
+func TestAllocRunner_PreStartFailuresLeadToFailed(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	alloc.Job.Type = structs.JobTypeBatch
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "2ms",
+	}
+	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+		Attempts: 0,
+	}
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc.Copy())
+	defer cleanup()
+
+	// Maintain state for subsequent run
+	conf.StateDB = state.NewMemDB(conf.Logger)
+
+	// Start and wait for task to be running
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+
+	ar.runnerHooks = append(ar.runnerHooks, &allocFailingPrestartHook{})
+
+	go ar.Run()
+	defer destroy(ar)
+
+	select {
+	case <-ar.WaitCh():
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "alloc.waitCh wasn't closed")
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		s := ar.AllocState()
+		if s.ClientStatus != structs.AllocClientStatusFailed {
+			return false, fmt.Errorf("expected complete, got %s", s.ClientStatus)
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// once job finishes, it shouldn't run again
+	require.False(t, ar.shouldRun())
+	initialRunEvents := ar.AllocState().TaskStates[task.Name].Events
+	require.Len(t, initialRunEvents, 2)
+
+	ls, ts, err := conf.StateDB.GetTaskRunnerState(alloc.ID, task.Name)
+	require.NoError(t, err)
+	require.NotNil(t, ls)
+	require.NotNil(t, ts)
+	require.Equal(t, structs.TaskStateDead, ts.State)
+	require.True(t, ts.Failed)
+
+	// TR waitCh must be closed too!
+	select {
+	case <-ar.tasks[task.Name].WaitCh():
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "tr.waitCh wasn't closed")
+	}
+}
+
+type allocFailingPrestartHook struct{}
+
+func (*allocFailingPrestartHook) Name() string { return "failing_prestart" }
+
+func (*allocFailingPrestartHook) Prerun() error {
+	return fmt.Errorf("failing prestart hooks")
+}
