@@ -1,6 +1,10 @@
 .fs-explorer {
   width: 100%;
 
+  .table.boxed-section-body.is-full-bleed {
+    border: 1px solid $grey-blue;
+  }
+
   tbody {
     a {
       text-decoration: none;
