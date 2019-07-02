@@ -177,6 +177,10 @@
         &.desc::after {
           content: '⬆';
         }
+
+        &.has-text-right a {
+          padding-right: 3em;
+        }
       }
 
       a {
