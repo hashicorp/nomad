@@ -1,12 +1,11 @@
-<a href={{src}} target="_blank" rel="noopenner noreferrer">
+<a href={{src}} target="_blank" rel="noopenner noreferrer" class="image-file-image">
   <img src={{src}} alt={{or alt fileName}} title={{fileName}} onload={{action updateImageMeta}} />
 </a>
-<figcaption>
-  <span>
-    {{fileName}}
+<figcaption class="image-file-caption">
+  <span class="image-file-caption-primary">
+    <strong>{{fileName}}</strong>
     {{#if (and width height)}}
       ({{width}}px &times; {{height}}{{#if size}}px, {{format-bytes size}}{{/if}})
     {{/if}}
   </span>
-  <span>{{src}}</span>
 </figcaption>
