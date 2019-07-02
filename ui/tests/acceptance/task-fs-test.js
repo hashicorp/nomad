@@ -1,4 +1,4 @@
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, visit } from '@ember/test-helpers';
 import { Promise } from 'rsvp';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -153,6 +153,8 @@ module('Acceptance | task fs', function(hooks) {
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/what-is-this' });
     assert.equal(FS.error.title, 'Not Found', '500 is interpreted as 404');
 
+    await visit('/');
+
     this.server.get('/client/fs/stat/:allocation_id', () => {
       return new Response(999);
     });
@@ -168,6 +170,8 @@ module('Acceptance | task fs', function(hooks) {
 
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/what-is-this' });
     assert.equal(FS.error.title, 'Not Found', '500 is interpreted as 404');
+
+    await visit('/');
 
     this.server.get('/client/fs/ls/:allocation_id', () => {
       return new Response(999);
