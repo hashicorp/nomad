@@ -28,42 +28,26 @@ func groupConnectHook(g *structs.TaskGroup) error {
 			task := newConnectTask(service)
 			g.Tasks = append(g.Tasks, task)
 
-			//TODO(schmichael) FIXME
+			//TODO(schmichael) move to validate stage
 			if n := len(g.Networks); n != 1 {
 				return fmt.Errorf("Consul Connect sidecars require exactly 1 network, found %d in group %q", n, g.Name)
 			}
 
 			if g.Networks[0].Mode != "bridge" {
-				//TODO(schmichael) FIXME test
+				//TODO(schmichael) move to validate stage
 				return fmt.Errorf("Consul Connect sidecar requires bridge network, found %q in group %q", g.Networks[0].Mode, g.Name)
 			}
 
 			port := structs.Port{
 				Label: "nomad_envoy",
-				To:    -1, //FIXME(schmichael) hack to make a dynamic port match a To port
+
+				// -1 is a sentinel value to instruct the
+				// scheduler to map the host's dynamic port to
+				// the same port in the netns.
+				To: -1,
 			}
 			g.Networks[0].DynamicPorts = append(g.Networks[0].DynamicPorts, port)
 			return nil
-
-			/*
-				//TODO(schmichael) ugly hack to get a free port inside the network
-				used := map[int]struct{}{}
-				for _, p := range g.Networks[0].DynamicPorts {
-					used[p.To] = struct{}{}
-				}
-				for _, p := range g.Networks[0].ReservedPorts {
-					used[p.To] = struct{}{}
-				}
-				for toPort := 12001; toPort < 65536; toPort++ {
-					if _, ok := used[toPort]; ok {
-						continue
-					}
-					port.To = toPort
-					g.Networks[0].DynamicPorts = append(g.Networks[0].DynamicPorts, port)
-					return nil
-				}
-				return fmt.Errorf("no unused To ports")
-			*/
 		}
 	}
 	return nil
@@ -80,7 +64,7 @@ func newConnectTask(service *structs.Service) *structs.Task {
 			"image": "envoyproxy/envoy:v1.10.0", //TODO(schmichael) TBD what image to use
 			"args": []string{
 				"-c", "local/bootstrap.json",
-				//"-l", "debug", //TODO(schmichael) add a way to enable
+				"-l", "debug", //TODO(schmichael) add a way to enable
 			},
 		},
 		Order: -1,
@@ -88,6 +72,7 @@ func newConnectTask(service *structs.Service) *structs.Task {
 			MaxFiles:      2,
 			MaxFileSizeMB: 2,
 		},
+		//TODO(schmichael) how to handle envoy resources
 		Resources: structs.DefaultResources(),
 	}
 

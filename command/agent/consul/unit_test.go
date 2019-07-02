@@ -1356,6 +1356,62 @@ func TestIsNomadService(t *testing.T) {
 	}
 }
 
+// TestIsNomadSidecar asserts the isNomadSidecar helper returns true for
+// service IDs that match a sidecar of a Nomad managed service.
+func TestIsNomadSidecar(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		id       string
+		services map[string]*api.AgentServiceRegistration
+		result   bool
+	}{
+		{
+			id:       "unknown-no-services",
+			services: nil,
+			result:   false,
+		},
+		{
+			id: "unknown-services",
+			services: map[string]*api.AgentServiceRegistration{
+				"foo": nil,
+			},
+			result: false,
+		},
+		{
+			id: "known-service",
+			services: map[string]*api.AgentServiceRegistration{
+				"known-service": nil,
+			},
+			result: false,
+		},
+		{
+			id: "foo-sidecar-proxy",
+			services: map[string]*api.AgentServiceRegistration{
+				"foo": nil,
+				"bar": nil,
+			},
+			result: true,
+		},
+		{
+			id: "foo-bar-sidecar-proxy",
+			services: map[string]*api.AgentServiceRegistration{
+				"foo-bar": nil,
+			},
+			result: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.id, func(t *testing.T) {
+			actual := isNomadSidecar(test.id, test.services)
+			if actual != test.result {
+				t.Errorf("%q should be %t but found %t", test.id, test.result, actual)
+			}
+		})
+	}
+}
+
 // TestCreateCheckReg_HTTP asserts Nomad ServiceCheck structs are properly
 // converted to Consul API AgentCheckRegistrations for HTTP checks.
 func TestCreateCheckReg_HTTP(t *testing.T) {
