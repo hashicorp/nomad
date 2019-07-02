@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { isEmpty } from '@ember/utils';
 
 export default Component.extend({
   tagName: '',
@@ -8,6 +9,10 @@ export default Component.extend({
     const pathWithNoLeadingSlash = this.get('path').replace(/^\//, '');
     const name = this.get('entry.Name');
 
-    return `${pathWithNoLeadingSlash}/${name}`;
+    if (isEmpty(pathWithNoLeadingSlash)) {
+      return name;
+    } else {
+      return `${pathWithNoLeadingSlash}/${name}`;
+    }
   }),
 });

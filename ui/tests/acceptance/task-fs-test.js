@@ -81,6 +81,7 @@ module('Acceptance | task fs', function(hooks) {
       assert.ok(directory.isDirectory);
       assert.equal(directory.size, '', 'directory sizes are hidden');
       assert.equal(directory.lastModified, 'a year ago');
+      assert.notOk(directory.path.includes('//'), 'paths shouldn’t have redundant separators');
     });
 
     FS.directoryEntries[2].as(file => {
