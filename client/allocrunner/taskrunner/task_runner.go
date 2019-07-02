@@ -401,9 +401,11 @@ func (tr *TaskRunner) Run() {
 	// if restoring a dead task, ensure that task is cleared and all post hooks
 	// are called without additional state updates
 	if dead {
-		// clear driver handle if it was successfully restored on
-		// already dead task
+		// do cleanup functions without emitting any additional events/work
+		// to handle cases where we restored a dead task where client terminated
+		// after task finished before completing post-run actions.
 		tr.clearDriverHandle()
+		tr.stateUpdater.TaskStateUpdated()
 		if err := tr.stop(); err != nil {
 			tr.logger.Error("stop failed on terminal task", "error", err)
 		}

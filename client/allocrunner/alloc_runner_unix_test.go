@@ -132,7 +132,7 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 	require.Equal(t, events[3].Type, structs.TaskTerminated)
 }
 
-// TestAllocRunner_Restore_Completed asserts that restoring a completed
+// TestAllocRunner_Restore_CompletedBatch asserts that restoring a completed
 // batch alloc doesn't run it again
 func TestAllocRunner_Restore_CompletedBatch(t *testing.T) {
 	t.Parallel()
