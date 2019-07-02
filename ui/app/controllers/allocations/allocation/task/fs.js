@@ -4,6 +4,11 @@ import { filterBy } from '@ember/object/computed';
 import { isEmpty } from '@ember/utils';
 
 export default Controller.extend({
+  path: null,
+  task: null,
+  directoryEntries: null,
+  isFile: null,
+
   directories: filterBy('directoryEntries', 'IsDir'),
   files: filterBy('directoryEntries', 'IsDir', false),
 
