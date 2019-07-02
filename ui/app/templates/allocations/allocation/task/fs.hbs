@@ -26,21 +26,20 @@
           <div data-test-file-viewer>placeholder file viewer</div>
         </div>
       {{else}}
-        {{! template-lint-disable table-groups }}
-        <table class="table boxed-section-body is-full-bleed is-compact">
+        {{#list-table
+          source=sortedDirectoryEntries
+          sortProperty=sortProperty
+          sortDescending=sortDescending
+          class="boxed-section-body is-full-bleed is-compact" as |t|}}
           {{#if directoryEntries}}
-            <thead>
-              <tr>
-                <th class="is-two-thirds">Name</th>
-                <th class="has-text-right">File Size</th>
-                <th class="has-text-right">Last Modified</th>
-              </tr>
-            </thead>
-            <tbody>
-              {{#each (append directories files) as |entry|}}
-                {{fs-directory-entry path=path task=task entry=entry}}
-              {{/each}}
-            </tbody>
+            {{#t.head}}
+              {{#t.sort-by prop="name" class="is-two-thirds"}}Name{{/t.sort-by}}
+              <th class="has-text-right">File Size</th>
+              <th class="has-text-right">Last Modified</th>
+            {{/t.head}}
+            {{#t.body as |row|}}
+              {{fs-directory-entry path=path task=task entry=row.model}}
+            {{/t.body}}
           {{else}}
             <tbody>
               <tr data-test-entry>
@@ -51,7 +50,7 @@
               </tr>
             </tbody>
           {{/if}}
-        </table>
+        {{/list-table}}
       {{/if}}
     </div>
   {{else}}

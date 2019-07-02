@@ -25,6 +25,18 @@ export default create({
     isActive: hasClass('is-active'),
   }),
 
+  sortOptions: collection('[data-test-sort-by]', {
+    id: attribute('data-test-sort-by'),
+    sort: clickable(),
+  }),
+
+  sortBy(id) {
+    return this.sortOptions
+      .toArray()
+      .findBy('id', id)
+      .sort();
+  },
+
   directoryEntries: collection('[data-test-entry]', {
     name: text('[data-test-name]'),
 
@@ -38,6 +50,10 @@ export default create({
     visit: clickable('a'),
     path: attribute('href', 'a'),
   }),
+
+  directoryEntryNames() {
+    return this.directoryEntries.toArray().mapBy('name');
+  },
 
   hasEmptyState: isPresent('[data-test-not-running]'),
   emptyState: {

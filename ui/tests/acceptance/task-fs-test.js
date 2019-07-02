@@ -129,6 +129,26 @@ module('Acceptance | task fs', function(hooks) {
     assert.equal(FS.breadcrumbs.length, 2);
   });
 
+  test('sorting allocation filesystem directory', async function(assert) {
+    await FS.visitPath({ id: allocation.id, name: task.name, path: '/' });
+
+    assert.deepEqual(FS.directoryEntryNames(), [
+      'directory',
+      'empty-directory',
+      '🤩.txt',
+      '🙌🏿.txt',
+    ]);
+
+    await FS.sortBy('name');
+
+    assert.deepEqual(FS.directoryEntryNames(), [
+      '🙌🏿.txt',
+      '🤩.txt',
+      'empty-directory',
+      'directory',
+    ]);
+  });
+
   test('viewing a file', async function(assert) {
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/' });
     await FS.directoryEntries[2].visit();
