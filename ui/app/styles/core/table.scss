@@ -33,6 +33,11 @@
     td {
       padding: 0.75em;
     }
+
+    // TODO does this fit better elsewhere? 😢
+    .is-selectable a {
+      padding: 0.75em;
+    }
   }
 
   &.is-darkened {
