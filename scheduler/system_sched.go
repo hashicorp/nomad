@@ -344,6 +344,10 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			},
 		}
 
+		if option.AllocResources != nil {
+			resources.Shared.Networks = option.AllocResources.Networks
+		}
+
 		// Create an allocation for this
 		alloc := &structs.Allocation{
 			ID:                 uuid.Generate(),
@@ -360,7 +364,8 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			DesiredStatus:      structs.AllocDesiredStatusRun,
 			ClientStatus:       structs.AllocClientStatusPending,
 			SharedResources: &structs.Resources{
-				DiskMB: missing.TaskGroup.EphemeralDisk.SizeMB,
+				DiskMB:   missing.TaskGroup.EphemeralDisk.SizeMB,
+				Networks: missing.TaskGroup.Networks,
 			},
 		}
 
