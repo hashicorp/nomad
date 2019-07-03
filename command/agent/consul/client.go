@@ -1399,8 +1399,12 @@ func newConnect(nc *structs.ConsulConnect, networks structs.Networks) (*api.Agen
 		return cc, nil
 	}
 
-	cc.SidecarService.Proxy.LocalServiceAddress = nc.SidecarService.Proxy.LocalServiceAddress
-	cc.SidecarService.Proxy.LocalServicePort = nc.SidecarService.Proxy.LocalServicePort
+	if nc.SidecarService.Proxy.LocalServiceAddress != "" {
+		cc.SidecarService.Proxy.LocalServiceAddress = nc.SidecarService.Proxy.LocalServiceAddress
+	}
+	if nc.SidecarService.Proxy.LocalServicePort != 0 {
+		cc.SidecarService.Proxy.LocalServicePort = nc.SidecarService.Proxy.LocalServicePort
+	}
 
 	numUpstreams := len(nc.SidecarService.Proxy.Upstreams)
 	if numUpstreams == 0 {
