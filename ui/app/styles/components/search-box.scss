@@ -68,8 +68,13 @@
     width: 100%;
   }
 
-  input {
+  input,
+  .input {
     width: 100%;
     padding: 0.4em 1.75em 0.4em 2.25em;
+
+    &.is-compact {
+      padding: 0.25em 0.75em 0.25em 2.25em;
+    }
   }
 }

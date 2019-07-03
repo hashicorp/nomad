@@ -388,11 +388,56 @@ func (tr *TaskRunner) initLabels() {
 	}
 }
 
+// Mark a task as failed and not to run.  Aimed to be invoked when alloc runner
+// prestart hooks failed.
+// Should never be called with Run().
+func (tr *TaskRunner) MarkFailedDead(reason string) {
+	defer close(tr.waitCh)
+
+	tr.stateLock.Lock()
+	if err := tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, tr.localState); err != nil {
+		//TODO Nomad will be unable to restore this task; try to kill
+		//     it now and fail? In general we prefer to leave running
+		//     tasks running even if the agent encounters an error.
+		tr.logger.Warn("error persisting local failed task state; may be unable to restore after a Nomad restart",
+			"error", err)
+	}
+	tr.stateLock.Unlock()
+
+	event := structs.NewTaskEvent(structs.TaskSetupFailure).
+		SetDisplayMessage(reason).
+		SetFailsTask()
+	tr.UpdateState(structs.TaskStateDead, event)
+
+	// Run the stop hooks in case task was a restored task that failed prestart
+	if err := tr.stop(); err != nil {
+		tr.logger.Error("stop failed while marking task dead", "error", err)
+	}
+}
+
 // Run the TaskRunner. Starts the user's task or reattaches to a restored task.
 // Run closes WaitCh when it exits. Should be started in a goroutine.
 func (tr *TaskRunner) Run() {
 	defer close(tr.waitCh)
 	var result *drivers.ExitResult
+
+	tr.stateLock.RLock()
+	dead := tr.state.State == structs.TaskStateDead
+	tr.stateLock.RUnlock()
+
+	// if restoring a dead task, ensure that task is cleared and all post hooks
+	// are called without additional state updates
+	if dead {
+		// do cleanup functions without emitting any additional events/work
+		// to handle cases where we restored a dead task where client terminated
+		// after task finished before completing post-run actions.
+		tr.clearDriverHandle()
+		tr.stateUpdater.TaskStateUpdated()
+		if err := tr.stop(); err != nil {
+			tr.logger.Error("stop failed on terminal task", "error", err)
+		}
+		return
+	}
 
 	// Updates are handled asynchronously with the other hooks but each
 	// triggered update - whether due to alloc updates or a new vault token
@@ -899,7 +944,7 @@ func (tr *TaskRunner) Restore() error {
 		}
 
 		alloc := tr.Alloc()
-		if alloc.TerminalStatus() || alloc.Job.Type == structs.JobTypeSystem {
+		if tr.state.State == structs.TaskStateDead || alloc.TerminalStatus() || alloc.Job.Type == structs.JobTypeSystem {
 			return nil
 		}
 
