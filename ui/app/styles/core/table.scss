@@ -153,18 +153,18 @@
           &:hover {
             background-color: darken($white-ter, 5%);
           }
+
+          &::after {
+            content: '⬇';
+            pointer-events: none;
+            color: transparent;
+          }
         }
       }
 
       &.is-active {
         a::after {
-          content: '';
-          pointer-events: none;
           color: $grey-light;
-        }
-
-        &.asc a::after {
-          content: '⬇';
         }
 
         &.desc a::after {
