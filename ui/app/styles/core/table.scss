@@ -35,14 +35,8 @@
     }
 
     // TODO does this fit better elsewhere? 😢
-    .is-selectable {
-      a {
-        padding: 0.75em;
-      }
-
-      &::after {
-        right: 10px;
-      }
+    .is-selectable a {
+      padding: 0.75em;
     }
   }
 
@@ -165,6 +159,10 @@
             background-color: darken($white-ter, 5%);
           }
         }
+
+        &.has-text-right {
+          border-left: 1px solid $grey-blue;
+        }
       }
 
       &.is-active {
@@ -189,7 +187,9 @@
           content: '⬆';
         }
 
-        &.has-text-right a {
+        &.has-text-right::after {
+          left: 10px;
+          right: inherit;
           padding-right: 2em;
         }
       }
