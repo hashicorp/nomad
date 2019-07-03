@@ -166,8 +166,8 @@ The `docker` driver supports the following configuration in the job spec.  Only
     }
     ```
 
-* `logging` - (Optional) A key-value map of Docker logging options. The default
-  value is `syslog`.
+* `logging` - (Optional) A key-value map of Docker logging options. 
+    Defaults to `json-file` with log rotation (`max-file=2` and `max-size=2m`).
 
     ```hcl
     config {
