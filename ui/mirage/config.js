@@ -338,7 +338,7 @@ export default function() {
           Name: '🙌🏿.txt',
           IsDir: false,
           ModTime: moment()
-            .subtract(2, 'year')
+            .subtract(2, 'minute')
             .format(),
         },
         {
