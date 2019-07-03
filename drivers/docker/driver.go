@@ -740,6 +740,15 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		Config: driverConfig.Logging.Config,
 	}
 
+	if hostConfig.LogConfig.Type == "" && hostConfig.LogConfig.Config == nil {
+		logger.Trace("no docker log driver provided, defaulting to json-file")
+		hostConfig.LogConfig.Type = "json-file"
+		hostConfig.LogConfig.Config = map[string]string{
+			"max-file": "2",
+			"max-size": "2m",
+		}
+	}
+
 	logger.Debug("configured resources", "memory", hostConfig.Memory,
 		"cpu_shares", hostConfig.CPUShares, "cpu_quota", hostConfig.CPUQuota,
 		"cpu_period", hostConfig.CPUPeriod)
