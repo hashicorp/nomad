@@ -41,7 +41,7 @@ type AllocFileInfo struct {
 	Size        int64
 	FileMode    string
 	ModTime     time.Time
-	ContentType string `json:"contenttype,omitempty"`
+	ContentType string `json:",omitempty"`
 }
 
 // FsListRequest is used to list an allocation's directory.
