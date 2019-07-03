@@ -349,6 +349,8 @@ func (w *Worker) UpdateEval(eval *structs.Evaluation) error {
 
 	// Store the snapshot index in the eval
 	eval.SnapshotIndex = w.snapshotIndex
+	eval.CreateTime = time.Now().UTC().UnixNano()
+	eval.ModifyTime = time.Now().UTC().UnixNano()
 
 	// Setup the request
 	req := structs.EvalUpdateRequest{
@@ -386,6 +388,8 @@ func (w *Worker) CreateEval(eval *structs.Evaluation) error {
 
 	// Store the snapshot index in the eval
 	eval.SnapshotIndex = w.snapshotIndex
+	eval.CreateTime = time.Now().UTC().UnixNano()
+	eval.ModifyTime = time.Now().UTC().UnixNano()
 
 	// Setup the request
 	req := structs.EvalUpdateRequest{
@@ -447,6 +451,8 @@ func (w *Worker) ReblockEval(eval *structs.Evaluation) error {
 
 	// Store the snapshot index in the eval
 	eval.SnapshotIndex = w.snapshotIndex
+	eval.CreateTime = time.Now().UTC().UnixNano()
+	eval.ModifyTime = time.Now().UTC().UnixNano()
 
 	// Setup the request
 	req := structs.EvalUpdateRequest{

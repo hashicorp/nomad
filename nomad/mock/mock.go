@@ -409,6 +409,8 @@ func Eval() *structs.Evaluation {
 		Type:      structs.JobTypeService,
 		JobID:     uuid.Generate(),
 		Status:    structs.EvalStatusPending,
+		CreateTime:     time.Now().UTC().UnixNano(),
+		ModifyTime:     time.Now().UTC().UnixNano(),
 	}
 	return eval
 }

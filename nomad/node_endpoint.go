@@ -1095,6 +1095,8 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 		}
 		_, exists := evalsByJobId[namespacedID]
 		if !exists {
+			eval.CreateTime = time.Now().UTC().UnixNano()
+			eval.ModifyTime = time.Now().UTC().UnixNano()
 			trimmedEvals = append(trimmedEvals, eval)
 			evalsByJobId[namespacedID] = struct{}{}
 		}
@@ -1261,6 +1263,8 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			NodeID:          nodeID,
 			NodeModifyIndex: nodeIndex,
 			Status:          structs.EvalStatusPending,
+			CreateTime:     time.Now().UTC().UnixNano(),
+			ModifyTime:     time.Now().UTC().UnixNano(),
 		}
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
@@ -1285,6 +1289,8 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			NodeID:          nodeID,
 			NodeModifyIndex: nodeIndex,
 			Status:          structs.EvalStatusPending,
+			CreateTime:     time.Now().UTC().UnixNano(),
+			ModifyTime:     time.Now().UTC().UnixNano(),
 		}
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)

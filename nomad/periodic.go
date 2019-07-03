@@ -72,6 +72,8 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 		JobID:          job.ID,
 		JobModifyIndex: index,
 		Status:         structs.EvalStatusPending,
+		CreateTime:     time.Now().UTC().UnixNano(),
+		ModifyTime:     time.Now().UTC().UnixNano(),
 	}
 	update := &structs.EvalUpdateRequest{
 		Evals: []*structs.Evaluation{eval},
@@ -85,6 +87,7 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 		return nil, err
 	}
 
+	// TODO: do the timestamps need to be at the same time that the raft index is updated?
 	// Update its indexes.
 	eval.CreateIndex = evalIndex
 	eval.ModifyIndex = evalIndex

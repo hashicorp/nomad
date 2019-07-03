@@ -217,6 +217,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		JobID:          args.Job.ID,
 		JobModifyIndex: reply.JobModifyIndex,
 		Status:         structs.EvalStatusPending,
+		CreateTime:     time.Now().UTC().UnixNano(),
+		ModifyTime:     time.Now().UTC().UnixNano(),
 	}
 	update := &structs.EvalUpdateRequest{
 		Evals:        []*structs.Evaluation{eval},
@@ -659,6 +661,8 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		JobID:          args.JobID,
 		JobModifyIndex: index,
 		Status:         structs.EvalStatusPending,
+		CreateTime:     time.Now().UTC().UnixNano(),
+		ModifyTime:     time.Now().UTC().UnixNano(),
 	}
 	update := &structs.EvalUpdateRequest{
 		Evals:        []*structs.Evaluation{eval},
@@ -1424,6 +1428,8 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 			JobID:          dispatchJob.ID,
 			JobModifyIndex: jobCreateIndex,
 			Status:         structs.EvalStatusPending,
+			CreateTime:     time.Now().UTC().UnixNano(),
+			ModifyTime:     time.Now().UTC().UnixNano(),
 		}
 		update := &structs.EvalUpdateRequest{
 			Evals:        []*structs.Evaluation{eval},
