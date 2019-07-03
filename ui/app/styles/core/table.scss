@@ -35,8 +35,14 @@
     }
 
     // TODO does this fit better elsewhere? 😢
-    .is-selectable a {
-      padding: 0.75em;
+    .is-selectable {
+      a {
+        padding: 0.75em;
+      }
+
+      &::after {
+        right: 10px;
+      }
     }
   }
 
@@ -184,7 +190,7 @@
         }
 
         &.has-text-right a {
-          padding-right: 3em;
+          padding-right: 2em;
         }
       }
 
