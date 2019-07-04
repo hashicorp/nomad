@@ -25,4 +25,8 @@ export default Route.extend({
       })
       .catch(notifyError(this));
   },
+
+  titleToken(model) {
+    return model.name;
+  },
 });
