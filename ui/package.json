@@ -94,6 +94,7 @@
     "lodash.intersection": "^4.4.0",
     "prettier": "^1.4.4",
     "query-string": "^5.0.0",
+    "qunit-dom": "^0.9.0",
     "sass": "^1.17.3"
   },
   "engines": {

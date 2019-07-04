@@ -9086,6 +9086,14 @@ quick-temp@^0.1.2, quick-temp@^0.1.3, quick-temp@^0.1.5, quick-temp@^0.1.8:
     rimraf "^2.5.4"
     underscore.string "~3.3.4"
 
+qunit-dom@^0.9.0:
+  version "0.9.0"
+  resolved "https://registry.yarnpkg.com/qunit-dom/-/qunit-dom-0.9.0.tgz#99d15fffbf06059e543bb93dae8fe0a3f42a27b9"
+  integrity sha512-MvVEoCcf8BHVPD3gXg5GBfNy3JMZ3U3yOha4MB1rFs698EpvxMprOfC+NMEGvOF9Epm6GrsA0BFOdCKHd8Orrw==
+  dependencies:
+    broccoli-funnel "^2.0.2"
+    broccoli-merge-trees "^3.0.1"
+
 qunit@~2.6.0:
   version "2.6.2"
   resolved "https://registry.yarnpkg.com/qunit/-/qunit-2.6.2.tgz#551210c5cf857258a4fe39a7fe15d9e14dfef22c"
