@@ -149,26 +149,28 @@
           padding: 0.75em 1.5em;
           width: 100%;
           text-decoration: none;
+          position: relative;
 
           &:hover {
             background-color: darken($white-ter, 5%);
           }
 
           &::after {
-            content: '⬇';
+            position: absolute;
+            transform: translateX(6px);
             pointer-events: none;
-            color: transparent;
+            color: $grey-light;
           }
         }
       }
 
       &.is-active {
-        a::after {
-          color: $grey-light;
-        }
-
         &.desc a::after {
           content: '⬆';
+        }
+
+        &.asc a::after {
+          content: '⬇';
         }
       }
 
