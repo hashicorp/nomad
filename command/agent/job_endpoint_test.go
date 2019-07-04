@@ -1965,7 +1965,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		VaultToken: "token",
 	}
 
-	structsJob, _ := ApiJobToStructJob(apiJob)
+	structsJob := ApiJobToStructJob(apiJob)
 
 	if diff := pretty.Diff(expected, structsJob); len(diff) > 0 {
 		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
@@ -2201,7 +2201,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		},
 	}
 
-	systemStructsJob, _ := ApiJobToStructJob(systemAPIJob)
+	systemStructsJob := ApiJobToStructJob(systemAPIJob)
 
 	if diff := pretty.Diff(expectedSystemJob, systemStructsJob); len(diff) > 0 {
 		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
