@@ -1,10 +1,10 @@
 <section class="section">
-  <h1 data-test-title class="title">
+  <h1 data-test-title class="title x-copy-button-hover-container">
     <span data-test-node-status="{{model.compositeStatus}}" class="node-status-light {{model.compositeStatus}}"></span>
     {{or model.name model.shortId}}
     <span class="tag is-hollow is-small no-text-transform">
       {{model.id}}
-      {{x-copy-button clipboardText=model.id}}
+      {{x-copy-button clipboardText=model.id class='x-copy-button'}}
     </span>
   </h1>
 

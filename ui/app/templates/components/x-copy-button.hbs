@@ -1,11 +1,11 @@
 {{! FIXME copy-button is taken by ember-cli-clipboard, but… 🤔 }}
 {{#if (eq state 'success')}}
-  {{x-icon 'copy-success'}}
+  <div class='button is-borderless'>{{x-icon 'copy-success'}}</div>
 {{else if (eq state 'error')}}
   {{x-icon 'alert-triangle'}}
 {{else}}
   {{#copy-button
-    class='button is-outlined is-small'
+    class='button is-borderless is-small'
     clipboardText=clipboardText
     success=(action (mut state) 'success')
     error=(action (mut state) 'error')

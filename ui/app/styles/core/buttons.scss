@@ -37,6 +37,11 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
     }
   }
 
+  &.is-borderless {
+    border: 0;
+    box-shadow: none;
+  }
+
   @each $name, $pair in $colors {
     $color: nth($pair, 1);
     $color-invert: nth($pair, 2);
@@ -125,6 +130,25 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
     &:first-child:last-child {
       margin-left: 0;
       margin-right: 0;
+    }
+  }
+}
+
+.x-copy-button-hover-container:hover {
+  .x-copy-button {
+    display: block;
+  }
+}
+
+.x-copy-button {
+  padding-left: 0.5rem;
+  display: none;
+
+  .button {
+    color: inherit;
+
+    svg {
+      fill: currentColor;
     }
   }
 }
