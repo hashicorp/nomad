@@ -1,6 +1,6 @@
 {{! FIXME copy-button is taken by ember-cli-clipboard, but… 🤔 }}
 {{#if (eq state 'success')}}
-  <div class='button is-borderless'>{{x-icon 'copy-success'}}</div>
+  <div class='button is-borderless is-small'>{{x-icon 'copy-success'}}</div>
 {{else if (eq state 'error')}}
   {{x-icon 'alert-triangle'}}
 {{else}}
