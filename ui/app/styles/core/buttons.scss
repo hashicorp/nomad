@@ -142,7 +142,10 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
 
 .x-copy-button {
   padding-left: 0.5rem;
-  display: none;
+
+  .hidden-until-hover {
+    display: none;
+  }
 
   .button {
     color: inherit;
