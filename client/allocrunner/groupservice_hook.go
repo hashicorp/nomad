@@ -30,3 +30,8 @@ func (groupServiceHook) Name() string {
 func (h *groupServiceHook) Prerun() error {
 	return h.consulClient.RegisterAlloc(h.alloc)
 }
+
+func (h *groupServiceHook) Postrun() error {
+	h.logger.Info("removing group service")
+	return h.consulClient.RemoveAlloc(h.alloc)
+}

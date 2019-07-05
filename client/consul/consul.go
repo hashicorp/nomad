@@ -9,6 +9,7 @@ import (
 // remove services and checks from Consul.
 type ConsulServiceAPI interface {
 	RegisterAlloc(*structs.Allocation) error
+	RemoveAlloc(*structs.Allocation) error
 	RegisterTask(*consul.TaskServices) error
 	RemoveTask(*consul.TaskServices)
 	UpdateTask(old, newTask *consul.TaskServices) error

@@ -796,20 +796,18 @@ type noopExec struct{}
 
 func (noopExec) Exec(time.Duration, string, []string) ([]byte, int, error) { return nil, 0, nil }
 
-// RegisterAlloc with Consul. Adds all group-level service entries and checks
-// to Consul.
+// makeAllocTaskServices creates a TaskServices struct for a group service.
 //
-// TODO(schmichael) checks are ignored; script checks probably can't be supported
-func (c *ServiceClient) RegisterAlloc(alloc *structs.Allocation) error {
+//TODO(schmichael) rename TaskServices and refactor this into a New method
+func makeAllocTaskServices(alloc *structs.Allocation) (*TaskServices, error) {
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
-		return fmt.Errorf("task group %q not in allocation", alloc.TaskGroup)
+		return nil, fmt.Errorf("task group %q not in allocation", alloc.TaskGroup)
 	}
 
-	//TODO(schmichael) rename TaskServices and refactor this into a New method
 	ts := &TaskServices{
 		AllocID:  alloc.ID,
-		Name:     alloc.TaskGroup,
+		Name:     "group-" + alloc.TaskGroup,
 		Services: tg.Services,
 		Networks: alloc.AllocatedResources.Shared.Networks,
 
@@ -822,9 +820,34 @@ func (c *ServiceClient) RegisterAlloc(alloc *structs.Allocation) error {
 		ts.Canary = alloc.DeploymentStatus.Canary
 	}
 
-	pretty.Print("---RegisterAlloc--> ", ts, "\n")
+	return ts, nil
+}
 
+// RegisterAlloc with Consul. Adds all group-level service entries and checks
+// to Consul.
+//
+// TODO(schmichael) checks are ignored; script checks probably can't be supported
+func (c *ServiceClient) RegisterAlloc(alloc *structs.Allocation) error {
+	ts, err := makeAllocTaskServices(alloc)
+	if err != nil {
+		return err
+	}
+
+	pretty.Print("---Register-->", ts, "\n")
 	return c.RegisterTask(ts)
+}
+
+// RemoveAlloc with Consul. Removes all group-level service entries and checks
+// from Consul.
+func (c *ServiceClient) RemoveAlloc(alloc *structs.Allocation) error {
+	ts, err := makeAllocTaskServices(alloc)
+	if err != nil {
+		return err
+	}
+	pretty.Print("---Remove-->", ts, "\n")
+	c.RemoveTask(ts)
+
+	return nil
 }
 
 // RegisterTask with Consul. Adds all service entries and checks to Consul. If
