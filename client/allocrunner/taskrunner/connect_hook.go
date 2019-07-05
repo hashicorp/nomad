@@ -71,7 +71,7 @@ func (h *connectHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	grpcAddr := "unix://" + allocdir.TaskGRPCSocket
 
 	fn := filepath.Join(req.TaskDir.LocalDir, "bootstrap.json")
-	id := agentconsul.MakeTaskServiceID(h.alloc.ID, tg.Name, service, canary)
+	id := agentconsul.MakeTaskServiceID(h.alloc.ID, "group-"+tg.Name, service, canary)
 	h.logger.Debug("bootstrapping envoy", "sidecar_for", service.Name, "boostrap_file", fn, "sidecar_for_id", id, "grpc_addr", grpcAddr)
 
 	tries := 3
@@ -88,6 +88,8 @@ RETRY:
 		"-bootstrap",
 		"-sidecar-for", id, // must use the id not the name!
 	)
+
+	pretty.Print("COMMAND++++++++++>\n", cmd, "\n")
 
 	// Redirect output to local/bootstrap.json
 	fd, err := os.Create(fn)

@@ -56,6 +56,11 @@ func (m *MockConsulServiceClient) RegisterAlloc(alloc *structs.Allocation) error
 	panic("not implemented")
 }
 
+//TODO(schmichael) implement
+func (m *MockConsulServiceClient) RemoveAlloc(alloc *structs.Allocation) error {
+	panic("not implemented")
+}
+
 func (m *MockConsulServiceClient) UpdateTask(old, newSvcs *consul.TaskServices) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
