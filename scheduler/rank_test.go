@@ -348,7 +348,7 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 		Networks: []*structs.NetworkResource{
 			{
 				Device: "eth0",
-				MBits:  500,
+				MBits:  250,
 			},
 		},
 	}
@@ -362,7 +362,7 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 	require := require.New(t)
 
 	// We expect a placement failure because we need 800 mbits of network
-	// and only 200 is free
+	// and only 300 is free
 	require.Len(out, 0)
 	require.Equal(1, ctx.metrics.DimensionExhausted["network: bandwidth exceeded"])
 }

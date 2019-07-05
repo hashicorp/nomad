@@ -2850,13 +2850,12 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 		c.Flattened.Add(r)
 	}
 	// Add network resources that are at the task group level
-	if len(a.Shared.Networks) > 0 {
-		for _, network := range a.Shared.Networks {
-			c.Flattened.Add(&AllocatedTaskResources{
-				Networks: []*NetworkResource{network},
-			})
-		}
+	for _, network := range a.Shared.Networks {
+		c.Flattened.Add(&AllocatedTaskResources{
+			Networks: []*NetworkResource{network},
+		})
 	}
+
 	return c
 }
 
