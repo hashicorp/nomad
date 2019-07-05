@@ -7,7 +7,7 @@
   {{#copy-button
     class='button is-borderless is-small'
     clipboardText=clipboardText
-    success=(action (mut state) 'success')
+    success=(action 'success')
     error=(action (mut state) 'error')
   }}
     {{x-icon 'copy-action'}}
