@@ -13,10 +13,13 @@
     </div>
   {{/if}}
 
-  <h1 data-test-title class="title with-headroom">
+  <h1 data-test-title class="title with-headroom x-copy-button-hover-container">
     Allocation {{model.name}}
     <span class="bumper-left tag {{model.statusClass}}">{{model.clientStatus}}</span>
-    <span class="tag is-hollow is-small no-text-transform">{{model.id}}</span>
+    <span class="tag is-hollow is-small no-text-transform">
+      {{model.id}}
+      {{x-copy-button clipboardText=model.id class='x-copy-button'}}
+    </span>
     {{#if model.isRunning}}
       {{two-step-button
         data-test-stop
