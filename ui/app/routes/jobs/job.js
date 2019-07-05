@@ -27,6 +27,6 @@ export default Route.extend({
   },
 
   titleToken(model) {
-    return model.name;
+    return `Job ${model.name}`;
   },
 });

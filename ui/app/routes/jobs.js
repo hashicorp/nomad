@@ -33,8 +33,6 @@ export default Route.extend(WithForbiddenState, {
     return this.store.findAll('job', { reload: true }).catch(notifyForbidden(this));
   },
 
-  titleToken: 'Jobs',
-
   actions: {
     refreshRoute() {
       this.refresh();
