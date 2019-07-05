@@ -64,11 +64,6 @@ export default Route.extend({
     return this._super(...arguments);
   },
 
-  title(tokens) {
-    tokens.unshift('Nomad');
-    return tokens.reverse().join(' - ');
-  },
-
   actions: {
     didTransition() {
       if (!this.get('config.isTest')) {

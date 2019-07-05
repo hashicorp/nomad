@@ -25,8 +25,4 @@ export default Route.extend({
       })
       .catch(notifyError(this));
   },
-
-  titleToken(model) {
-    return `Job ${model.name}`;
-  },
 });

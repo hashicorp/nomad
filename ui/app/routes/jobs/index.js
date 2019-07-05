@@ -8,8 +8,6 @@ export default Route.extend(WithWatchers, {
     controller.set('modelWatch', this.watch.perform());
   },
 
-  titleToken: 'Jobs',
-
   watch: watchAll('job'),
   watchers: collect('watch'),
 });
