@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/kr/pretty"
 )
 
 var _ interfaces.TaskPrestartHook = &connectHook{}
@@ -88,8 +87,6 @@ RETRY:
 		"-bootstrap",
 		"-sidecar-for", id, // must use the id not the name!
 	)
-
-	pretty.Print("COMMAND++++++++++>\n", cmd, "\n")
 
 	// Redirect output to local/bootstrap.json
 	fd, err := os.Create(fn)

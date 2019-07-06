@@ -14,7 +14,6 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
-	"github.com/kr/pretty"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/helper"
@@ -848,7 +847,6 @@ func (c *ServiceClient) RegisterAlloc(alloc *structs.Allocation) error {
 		return err
 	}
 
-	pretty.Print("---Register-->", ts, "\n")
 	return c.RegisterTask(ts)
 }
 
@@ -859,7 +857,7 @@ func (c *ServiceClient) RemoveAlloc(alloc *structs.Allocation) error {
 	if err != nil {
 		return err
 	}
-	pretty.Print("---Remove-->", ts, "\n")
+
 	c.RemoveTask(ts)
 
 	return nil
@@ -1414,8 +1412,6 @@ func newConnect(nc *structs.ConsulConnect, networks structs.Networks) (*api.Agen
 	if err != nil {
 		return nil, err
 	}
-
-	pretty.Print("NET---------->", net, "\nPORT------------->", port, "\n")
 
 	cc.SidecarService = &api.AgentServiceRegistration{
 		//TODO(schmichael) must advertise host ip
