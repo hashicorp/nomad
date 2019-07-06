@@ -728,3 +728,47 @@ func TestEnvironment_InterpolateEmptyOptionalMeta(t *testing.T) {
 	require.Equal("metaopt1val", env.ReplaceEnv("${NOMAD_META_metaopt1}"))
 	require.Empty(env.ReplaceEnv("${NOMAD_META_metaopt2}"))
 }
+
+// TestEnvironment_Upsteams asserts that group.service.upstreams entries are
+// added to the environment.
+func TestEnvironment_Upstreams(t *testing.T) {
+	t.Parallel()
+
+	// Add some upstreams to the mock alloc
+	a := mock.Alloc()
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	tg.Services = []*structs.Service{
+		// Services without Connect should be ignored
+		{
+			Name: "ignoreme",
+		},
+		// All upstreams from a service should be added
+		{
+			Name: "remote_service",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{
+					Proxy: &structs.ConsulProxy{
+						Upstreams: []*structs.ConsulUpstream{
+							{
+								DestinationName: "foo",
+								LocalBindPort:   1234,
+							},
+							{
+								DestinationName: "bar",
+								LocalBindPort:   5678,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	env := NewBuilder(mock.Node(), a, tg.Tasks[0], "global").Build().Map()
+	require.Equal(t, env["NOMAD_UPSTREAM_foo_ADDR"], "127.0.0.1:1234")
+	require.Equal(t, env["NOMAD_UPSTREAM_foo_IP"], "127.0.0.1")
+	require.Equal(t, env["NOMAD_UPSTREAM_foo_PORT"], "1234")
+	require.Equal(t, env["NOMAD_UPSTREAM_bar_ADDR"], "127.0.0.1:5678")
+	require.Equal(t, env["NOMAD_UPSTREAM_bar_IP"], "127.0.0.1")
+	require.Equal(t, env["NOMAD_UPSTREAM_bar_PORT"], "5678")
+}
