@@ -805,11 +805,26 @@ func makeAllocTaskServices(alloc *structs.Allocation) (*TaskServices, error) {
 		return nil, fmt.Errorf("task group %q not in allocation", alloc.TaskGroup)
 	}
 
+	if n := len(alloc.AllocatedResources.Shared.Networks); n == 0 {
+		return nil, fmt.Errorf("unable to register a group service without a group network")
+	}
+
+	//TODO(schmichael) only support one network for now
+	net := alloc.AllocatedResources.Shared.Networks[0]
+
 	ts := &TaskServices{
 		AllocID:  alloc.ID,
 		Name:     "group-" + alloc.TaskGroup,
 		Services: tg.Services,
 		Networks: alloc.AllocatedResources.Shared.Networks,
+
+		//TODO(schmichael) there's probably a better way than hacking driver network
+		DriverNetwork: &drivers.DriverNetwork{
+			AutoAdvertise: true,
+			IP:            net.IP,
+			// Copy PortLabels from group network
+			PortMap: net.PortLabels(),
+		},
 
 		// unsupported for group services
 		Restarter:  noopRestarter{},
