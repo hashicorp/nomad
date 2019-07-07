@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -104,11 +103,6 @@ RETRY:
 
 	// Close stdout/bootstrap.json
 	fd.Close()
-
-	//TODO(schmichael) Remove
-	contents, _ := ioutil.ReadFile(fn)
-	stderr := buf.String()
-	h.logger.Info("envoy bootstrap.json", "fn", fn, "json", string(contents), "stderr", stderr)
 
 	// Check for error from command
 	if err != nil {
