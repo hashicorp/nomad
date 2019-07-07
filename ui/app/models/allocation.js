@@ -25,7 +25,7 @@ export default Model.extend({
   name: attr('string'),
   taskGroupName: attr('string'),
   resources: fragment('resources'),
-  sharedResources: fragment('resources'),
+  allocatedResources: fragment('resources'),
   jobVersion: attr('number'),
 
   modifyIndex: attr('number'),
