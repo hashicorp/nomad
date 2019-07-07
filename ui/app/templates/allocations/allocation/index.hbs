@@ -115,6 +115,38 @@
     </div>
   </div>
 
+  {{#if ports.length}}
+    <div class="boxed-section" data-test-task-addresses>
+      <div class="boxed-section-head">
+        Addresses
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-table source=ports as |t|}}
+          {{#t.head}}
+            <th class="is-1">Dynamic?</th>
+            <th class="is-2">Name</th>
+            <th class="is-2">Mode</th>
+            <th>Address</th>
+            <th>To</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            <tr data-test-task-address>
+              <td data-test-task-address-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
+              <td data-test-task-address-name>{{row.model.name}}</td>
+              <td data-test-task-address-mode>{{row.model.mode}}</td>
+              <td data-test-task-address-address>
+                  {{network.ip}}:{{row.model.port}}
+              </td>
+              <td>
+                {{network.ip}}:{{row.model.to}}
+              </td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+      </div>
+    </div>
+  {{/if}}
+
   {{#if model.hasRescheduleEvents}}
     <div class="boxed-section" data-test-reschedule-events>
       <div class="boxed-section-head is-hollow">
