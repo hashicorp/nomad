@@ -190,6 +190,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 1
 	}
 	c.Ui.Output(output)
+	c.outputAllocPorts(alloc)
 
 	if short {
 		c.shortTaskStatus(alloc)
@@ -470,6 +471,26 @@ func buildDisplayMessage(event *api.TaskEvent) string {
 	}
 
 	return desc
+}
+
+// outputAllocPorts prints the ports at the group level if shared networking
+// is enabled
+func (c *AllocStatusCommand) outputAllocPorts(alloc *api.Allocation) {
+	resource := alloc.AllocatedResources.Shared
+	if len(resource.Networks) == 0 {
+		return
+	}
+
+	c.Ui.Output("\nAllocation Addresses:")
+	var addrs []string
+	for _, nw := range resource.Networks {
+		ports := append(nw.DynamicPorts, nw.ReservedPorts...)
+		for _, port := range ports {
+			addrs = append(addrs, fmt.Sprintf("%v: \t%v:%v", port.Label, nw.IP, port.Value))
+		}
+	}
+
+	c.Ui.Output(strings.Join(addrs, "\n"))
 }
 
 // outputTaskResources prints the task resources for the passed task and if
