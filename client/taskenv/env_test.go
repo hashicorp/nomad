@@ -765,10 +765,10 @@ func TestEnvironment_Upstreams(t *testing.T) {
 	}
 
 	env := NewBuilder(mock.Node(), a, tg.Tasks[0], "global").Build().Map()
-	require.Equal(t, env["NOMAD_UPSTREAM_foo_ADDR"], "127.0.0.1:1234")
-	require.Equal(t, env["NOMAD_UPSTREAM_foo_IP"], "127.0.0.1")
-	require.Equal(t, env["NOMAD_UPSTREAM_foo_PORT"], "1234")
-	require.Equal(t, env["NOMAD_UPSTREAM_bar_ADDR"], "127.0.0.1:5678")
-	require.Equal(t, env["NOMAD_UPSTREAM_bar_IP"], "127.0.0.1")
-	require.Equal(t, env["NOMAD_UPSTREAM_bar_PORT"], "5678")
+	require.Equal(t, env["NOMAD_UPSTREAM_ADDR_foo"], "127.0.0.1:1234")
+	require.Equal(t, env["NOMAD_UPSTREAM_IP_foo"], "127.0.0.1")
+	require.Equal(t, env["NOMAD_UPSTREAM_PORT_foo"], "1234")
+	require.Equal(t, env["NOMAD_UPSTREAM_ADDR_bar"], "127.0.0.1:5678")
+	require.Equal(t, env["NOMAD_UPSTREAM_IP_bar"], "127.0.0.1")
+	require.Equal(t, env["NOMAD_UPSTREAM_PORT_bar"], "5678")
 }

@@ -767,11 +767,10 @@ func buildUpstreamsEnv(envMap map[string]string, upstreams []*structs.ConsulUpst
 	//TODO(schmichael) is there a reason *not* to hardcode localhost?!
 	const ip = "127.0.0.1"
 	for _, u := range upstreams {
-		prefix := UpstreamPrefix + u.DestinationName + "_"
 		port := strconv.Itoa(u.LocalBindPort)
-		envMap[prefix+"ADDR"] = net.JoinHostPort(ip, port)
-		envMap[prefix+"IP"] = ip
-		envMap[prefix+"PORT"] = port
+		envMap[UpstreamPrefix+"ADDR_"+u.DestinationName] = net.JoinHostPort(ip, port)
+		envMap[UpstreamPrefix+"IP_"+u.DestinationName] = ip
+		envMap[UpstreamPrefix+"PORT_"+u.DestinationName] = port
 	}
 }
 
