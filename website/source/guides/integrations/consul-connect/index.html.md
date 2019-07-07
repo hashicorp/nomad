@@ -44,19 +44,17 @@ handles mTLS communication to the Redis container.
 
 ### Consul
 
-Connect requires Consul 1.6 (TODO Download link). Consul must advertise on a routable
-address. The following steps show how to start a Consul dev agent configured for Connect.
+Connect integration with Nomad requires Consul 1.6 (TODO Download link). The
+Consul agent can be ran in dev mode with the following command:
 
 ```sh
-$ go get -u github.com/hashicorp/go-sockaddr/cmd/sockaddr
-$ export DEFAULT_IP=$(sockaddr eval GetAllInterfaces | sort "default" | exclude "type" "IPv6" | limit 1 | attr "address")
-$ consul agent -dev -bind 0.0.0.0 -client 192.168.86.27 -advertise 192.168.86.27
+$ consul agent -dev 
 ```
 
 ### Nomad
 
-Nomad must also schedule onto a routable interface. The following steps show how to start
-a Nomad dev agent configured for Connect.
+Nomad must schedule onto a routable interface in order for the proxies to connect
+to each other. The following steps show how to start a Nomad dev agent configured for Connect.
 
 ```sh
 $ go get -u github.com/hashicorp/go-sockaddr/cmd/sockaddr
