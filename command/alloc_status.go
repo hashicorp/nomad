@@ -486,7 +486,12 @@ func (c *AllocStatusCommand) outputAllocPorts(alloc *api.Allocation) {
 	for _, nw := range resource.Networks {
 		ports := append(nw.DynamicPorts, nw.ReservedPorts...)
 		for _, port := range ports {
-			addrs = append(addrs, fmt.Sprintf("%v: \t%v:%v", port.Label, nw.IP, port.Value))
+			if port.To > 0 {
+				addrs = append(addrs, fmt.Sprintf("%v: \t%v:%v -> %v", port.Label, nw.IP, port.Value, port.To))
+			} else {
+				addrs = append(addrs, fmt.Sprintf("%v: \t%v:%v", port.Label, nw.IP, port.Value))
+
+			}
 		}
 	}
 
