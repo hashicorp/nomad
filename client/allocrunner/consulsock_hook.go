@@ -116,6 +116,11 @@ func proxyConn(ctx context.Context, logger hclog.Logger, destAddr string, conn n
 			"src_local", conn.LocalAddr(), "src_remote", conn.RemoteAddr())
 		return
 	}
+	if err != nil {
+		logger.Error("error connecting to grpc", "error", err, "dest", destAddr)
+		conn.Close()
+		return
+	}
 
 	// socket -> gRPC
 	go func() {
