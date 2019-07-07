@@ -29,7 +29,7 @@ export default Controller.extend(Sortable, {
     return null;
   }),
 
-  network: alias('model.sharedResources.networks.firstObject'),
+  network: alias('model.allocatedResources.networks.firstObject'),
   ports: computed('network.reservedPorts.[]', 'network.dynamicPorts.[]', function() {
     const mode = this.network.mode;
     return (this.get('network.reservedPorts') || [])
