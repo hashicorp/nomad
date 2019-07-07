@@ -4868,6 +4868,14 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, outer)
 	}
 
+	// Validate services
+	for _, s := range tg.Services {
+		if err := s.Validate(); err != nil {
+			outer := fmt.Errorf("Task group service validation failed: %v", err)
+			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+
 	// Validate the tasks
 	for _, task := range tg.Tasks {
 		if err := task.Validate(tg.EphemeralDisk, j.Type); err != nil {
@@ -5345,6 +5353,7 @@ type Service struct {
 	CanaryTags []string        // List of tags for the service when it is a canary
 	Checks     []*ServiceCheck // List of checks associated with the service
 	Connect    *ConsulConnect  // Consul Connect configuration
+	Kind       string          // Kind of service (eg gateway)
 }
 
 func (s *Service) Copy() *Service {
@@ -5363,6 +5372,8 @@ func (s *Service) Copy() *Service {
 		}
 		ns.Checks = checks
 	}
+
+	ns.Connect = s.Connect.Copy()
 
 	return ns
 }
@@ -5426,6 +5437,12 @@ func (s *Service) Validate() error {
 		}
 	}
 
+	if s.Connect != nil {
+		if err := s.Connect.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -5452,6 +5469,7 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	io.WriteString(h, s.Name)
 	io.WriteString(h, s.PortLabel)
 	io.WriteString(h, s.AddressMode)
+	io.WriteString(h, s.Kind)
 	for _, tag := range s.Tags {
 		io.WriteString(h, tag)
 	}
@@ -5514,6 +5532,10 @@ OUTER:
 	}
 
 	if !helper.CompareSliceSetString(s.Tags, o.Tags) {
+		return false
+	}
+
+	if s.Kind != o.Kind {
 		return false
 	}
 

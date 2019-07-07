@@ -1,11 +1,21 @@
 package structs
 
+import (
+	"fmt"
+)
+
 type ConsulConnect struct {
+	Native         bool
 	SidecarService *ConsulSidecarService
 }
 
 func (c *ConsulConnect) Copy() *ConsulConnect {
+	if c == nil {
+		return nil
+	}
+
 	return &ConsulConnect{
+		Native:         c.Native,
 		SidecarService: c.SidecarService.Copy(),
 	}
 }
@@ -15,11 +25,23 @@ func (c *ConsulConnect) Equals(o *ConsulConnect) bool {
 		return c == o
 	}
 
+	if c.Native != o.Native {
+		return false
+	}
+
 	return c.SidecarService.Equals(o.SidecarService)
 }
 
 func (c *ConsulConnect) HasSidecar() bool {
 	return c != nil && c.SidecarService != nil
+}
+
+func (c *ConsulConnect) Validate() error {
+	if c.Native && c.SidecarService != nil {
+		return fmt.Errorf("Consul Connect must be native or use a sidecar service; not both")
+	}
+
+	return nil
 }
 
 type ConsulSidecarService struct {
@@ -53,6 +75,10 @@ type ConsulProxy struct {
 }
 
 func (p *ConsulProxy) Copy() *ConsulProxy {
+	if p == nil {
+		return nil
+	}
+
 	upstreams := make([]*ConsulUpstream, len(p.Upstreams))
 
 	for i := range p.Upstreams {
@@ -104,6 +130,10 @@ type ConsulUpstream struct {
 }
 
 func (u *ConsulUpstream) Copy() *ConsulUpstream {
+	if u == nil {
+		return nil
+	}
+
 	return &ConsulUpstream{
 		DestinationName: u.DestinationName,
 		LocalBindPort:   u.LocalBindPort,

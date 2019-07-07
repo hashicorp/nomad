@@ -1224,6 +1224,7 @@ func parseGroupServices(jobName string, taskGroupName string, g *api.TaskGroup, 
 			"address_mode",
 			"check_restart",
 			"connect",
+			"kind",
 		}
 		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
@@ -1299,6 +1300,7 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 			"check",
 			"address_mode",
 			"check_restart",
+			"kind",
 		}
 		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
@@ -1485,6 +1487,7 @@ func parseCheckRestart(cro *ast.ObjectItem) (*api.CheckRestart, error) {
 
 func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 	valid := []string{
+		"native",
 		"sidecar_service",
 	}
 
@@ -1493,6 +1496,16 @@ func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 	}
 
 	var connect api.ConsulConnect
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, co.Val); err != nil {
+		return nil, err
+	}
+
+	delete(m, "sidecar_service")
+
+	if err := mapstructure.WeakDecode(m, &connect); err != nil {
+		return nil, err
+	}
 
 	var connectList *ast.ObjectList
 	if ot, ok := co.Val.(*ast.ObjectType); ok {
@@ -1504,7 +1517,7 @@ func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 	// Parse the sidecar_service
 	o := connectList.Filter("sidecar_service")
 	if len(o.Items) == 0 {
-		return nil, nil
+		return &connect, nil
 	}
 	if len(o.Items) > 1 {
 		return nil, fmt.Errorf("only one 'sidecar_service' block allowed per task")

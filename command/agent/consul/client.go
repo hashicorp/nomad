@@ -607,6 +607,7 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 			Meta: map[string]string{
 				"external-source": "nomad",
 			},
+			Kind: api.ServiceKind(service.Kind),
 		}
 		ops.regServices = append(ops.regServices, serviceReg)
 
@@ -1400,7 +1401,9 @@ func newConnect(nc *structs.ConsulConnect, networks structs.Networks) (*api.Agen
 	}
 
 	//TODO(schmichael) support Native: true
-	cc := &api.AgentServiceConnect{}
+	cc := &api.AgentServiceConnect{
+		Native: nc.Native,
+	}
 
 	if nc.SidecarService == nil {
 		return cc, nil

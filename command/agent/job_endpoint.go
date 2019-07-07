@@ -961,6 +961,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			Tags:        s.Tags,
 			CanaryTags:  s.CanaryTags,
 			AddressMode: s.AddressMode,
+			Kind:        s.Kind,
 		}
 
 		if l := len(s.Checks); l != 0 {
@@ -998,7 +999,9 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			continue
 		}
 
-		out[i].Connect = &structs.ConsulConnect{}
+		out[i].Connect = &structs.ConsulConnect{
+			Native: s.Connect.Native,
+		}
 
 		if s.Connect.SidecarService == nil {
 			continue

@@ -373,6 +373,7 @@ type Service struct {
 	Checks       []ServiceCheck
 	CheckRestart *CheckRestart `mapstructure:"check_restart"`
 	Connect      *ConsulConnect
+	Kind         string
 }
 
 func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
@@ -394,6 +395,7 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 }
 
 type ConsulConnect struct {
+	Native         bool
 	SidecarService *ConsulSidecarService `mapstructure:"sidecar_service"`
 }
 
