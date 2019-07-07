@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"sort"
 	"sync"
 	"time"
 
@@ -117,9 +116,6 @@ type allocRunner struct {
 	// tasks are the set of task runners
 	tasks map[string]*taskrunner.TaskRunner
 
-	// sortedTasks is a slice of task runners sorted in ascending order
-	sortedTasks []*taskrunner.TaskRunner
-
 	// deviceStatsReporter is used to lookup resource usage for alloc devices
 	deviceStatsReporter cinterfaces.DeviceStatsReporter
 
@@ -227,13 +223,8 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 		}
 
 		ar.tasks[task.Name] = tr
-		ar.sortedTasks = append(ar.sortedTasks, tr)
 	}
 
-	// Sort TaskRunners in ascending order
-	sort.SliceStable(ar.sortedTasks, func(i, j int) bool {
-		return ar.sortedTasks[i].Task().Order < ar.sortedTasks[j].Task().Order
-	})
 	return nil
 }
 
@@ -313,7 +304,7 @@ func (ar *allocRunner) shouldRun() bool {
 
 // runTasks is used to run the task runners and block until they exit.
 func (ar *allocRunner) runTasks() {
-	for _, task := range ar.sortedTasks {
+	for _, task := range ar.tasks {
 		go task.Run()
 	}
 

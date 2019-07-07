@@ -67,7 +67,6 @@ func newConnectTask(service *structs.Service) *structs.Task {
 				"-l", "debug", //TODO(schmichael) add a way to enable
 			},
 		},
-		Order: -1,
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      2,
 			MaxFileSizeMB: 2,
