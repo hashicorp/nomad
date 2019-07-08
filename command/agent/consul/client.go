@@ -598,6 +598,9 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 			return fmt.Errorf("error parsing port %q from service %q: %v", rawport, service.Name, err)
 		}
 		meta := service.Meta
+		if meta == nil {
+			meta = map[string]string{}
+		}
 		meta["esternal-source"] = "nomad"
 		serviceReg := &api.AgentServiceRegistration{
 			ID:      id,
