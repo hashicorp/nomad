@@ -367,6 +367,7 @@ type Service struct {
 	Id           string
 	Name         string
 	Tags         []string
+	Meta         map[string]string
 	CanaryTags   []string `mapstructure:"canary_tags"`
 	PortLabel    string   `mapstructure:"port"`
 	AddressMode  string   `mapstructure:"address_mode"`
@@ -406,6 +407,7 @@ type ConsulSidecarService struct {
 
 type ConsulProxy struct {
 	Upstreams []*ConsulUpstream
+	Config    map[string]interface{}
 }
 
 type ConsulUpstream struct {

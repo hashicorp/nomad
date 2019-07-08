@@ -915,6 +915,61 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"connect.hcl",
+			&api.Job{
+				ID:          helper.StringToPtr("foo"),
+				Name:        helper.StringToPtr("foo"),
+				Datacenters: []string{"dc1"},
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:  helper.StringToPtr("bar"),
+						Count: helper.IntToPtr(3),
+						Services: []*api.Service{
+							{
+								Name:      "foo",
+								PortLabel: "foo",
+								Meta: map[string]string{
+									"foo": "foo",
+								},
+								Connect: &api.ConsulConnect{
+									SidecarService: &api.ConsulSidecarService{
+										Proxy: &api.ConsulProxy{
+											Config: map[string]interface{}{
+												"foo":    "bar",
+												"number": 123,
+												"bool":   true,
+												"object": map[string]interface{}{
+													"bar": "baz",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						Tasks: []*api.Task{
+							{
+								Name:   "bar",
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": "bash",
+									"args":    []interface{}{"-c", "echo hi"},
+								},
+								Resources: &api.Resources{
+									Networks: []*api.NetworkResource{
+										{
+											MBits: helper.IntToPtr(10),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {

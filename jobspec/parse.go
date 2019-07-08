@@ -1225,6 +1225,7 @@ func parseGroupServices(jobName string, taskGroupName string, g *api.TaskGroup, 
 			"check_restart",
 			"connect",
 			"kind",
+			"meta",
 		}
 		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
@@ -1239,6 +1240,7 @@ func parseGroupServices(jobName string, taskGroupName string, g *api.TaskGroup, 
 		delete(m, "check")
 		delete(m, "check_restart")
 		delete(m, "connect")
+		delete(m, "meta")
 
 		if err := mapstructure.WeakDecode(m, &service); err != nil {
 			return err
@@ -1282,6 +1284,20 @@ func parseGroupServices(jobName string, taskGroupName string, g *api.TaskGroup, 
 			}
 		}
 
+		// Parse out meta fields. These are in HCL as a list so we need
+		// to iterate over them and merge them.
+		if metaO := serviceObjs.Filter("meta"); len(metaO.Items) > 0 {
+			for _, o := range metaO.Elem().Items {
+				var m map[string]interface{}
+				if err := hcl.DecodeObject(&m, o.Val); err != nil {
+					return err
+				}
+				if err := mapstructure.WeakDecode(m, &service.Meta); err != nil {
+					return err
+				}
+			}
+		}
+
 		g.Services[idx] = &service
 	}
 
@@ -1301,6 +1317,7 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 			"address_mode",
 			"check_restart",
 			"kind",
+			"meta",
 		}
 		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
@@ -1590,6 +1607,7 @@ func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
 func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 	valid := []string{
 		"upstreams",
+		"config",
 	}
 
 	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
@@ -1615,6 +1633,20 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 		}
 
 		proxy.Upstreams[i] = u
+	}
+
+	// If we have config, then parse that
+	if o := listVal.Filter("config"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return nil, err
+			}
+
+			if err := mapstructure.WeakDecode(m, &proxy.Config); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return &proxy, nil
