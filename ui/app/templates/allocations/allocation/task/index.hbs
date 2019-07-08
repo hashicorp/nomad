@@ -16,7 +16,10 @@
 
   <h1 class="title" data-test-title>
     {{model.name}}
-    <span class="bumper-left tag {{model.stateClass}}" data-test-state>{{model.state}}</span>
+    {{#if (eq model.name "nomad_envoy")}}
+      <span class="bumper-left badge is-secondary">{{x-icon "proxy"}} Proxy</span>
+    {{/if}}
+    <span class="{{unless (eq model.name "nomad_envoy") "bumper-left"}} tag {{model.stateClass}}" data-test-state>{{model.state}}</span>
     {{#if model.isRunning}}
       {{two-step-button
         data-test-restart

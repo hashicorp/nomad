@@ -5,8 +5,11 @@
     </span>
   {{/if}}
 </td>
-<td data-test-name>
+<td data-test-name class="nowrap">
   {{#link-to "allocations.allocation.task" task.allocation task class="is-primary"}}
+    {{#if (eq task.name "nomad_envoy")}}
+      {{x-icon "proxy"}}
+    {{/if}}
     {{task.name}}
   {{/link-to}}
 </td>
