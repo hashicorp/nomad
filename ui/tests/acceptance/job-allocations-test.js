@@ -46,6 +46,8 @@ module('Acceptance | job allocations', function(hooks) {
       const shortId = sortedAllocations[index].id.split('-')[0];
       assert.equal(allocation.shortId, shortId, `Allocation ${index} is ${shortId}`);
     });
+
+    assert.equal(document.title, `Job ${job.name} allocations - Nomad`);
   });
 
   test('allocations table is sortable', async function(assert) {
