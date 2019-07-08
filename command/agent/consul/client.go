@@ -703,7 +703,10 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
 
-	meta := service.Meta
+	meta := map[string]string{}
+	if service.Meta != nil {
+		meta = service.Meta
+	}
 	meta["esternal-source"] = "nomad"
 	// Build the Consul Service registration request
 	serviceReg := &api.AgentServiceRegistration{
@@ -1419,9 +1422,9 @@ func newConnect(nc *structs.ConsulConnect, networks structs.Networks) (*api.Agen
 		return nil, err
 	}
 
-	proxyConfig := nc.SidecarService.Proxy.Config
-	if proxyConfig == nil {
-		proxyConfig = map[string]interface{}{}
+	proxyConfig := map[string]interface{}{}
+	if nc.SidecarService.Proxy != nil && nc.SidecarService.Proxy.Config != nil {
+		proxyConfig = nc.SidecarService.Proxy.Config
 	}
 	proxyConfig["bind_address"] = "0.0.0.0"
 	proxyConfig["bind_port"] = port.To
