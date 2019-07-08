@@ -113,6 +113,15 @@ func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool) {
 		}
 
 		if alloc.AllocatedResources != nil {
+			// Add network resources that are at the task group level
+			if len(alloc.AllocatedResources.Shared.Networks) > 0 {
+				for _, network := range alloc.AllocatedResources.Shared.Networks {
+					if idx.AddReserved(network) {
+						collide = true
+					}
+				}
+			}
+
 			for _, task := range alloc.AllocatedResources.Tasks {
 				if len(task.Networks) == 0 {
 					continue

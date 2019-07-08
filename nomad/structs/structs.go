@@ -2849,6 +2849,13 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 	for _, r := range a.Tasks {
 		c.Flattened.Add(r)
 	}
+	// Add network resources that are at the task group level
+	for _, network := range a.Shared.Networks {
+		c.Flattened.Add(&AllocatedTaskResources{
+			Networks: []*NetworkResource{network},
+		})
+	}
+
 	return c
 }
 
@@ -8071,7 +8078,7 @@ func (a *Allocation) SetEventDisplayMessages() {
 }
 
 // COMPAT(0.11): Remove in 0.11
-// ComparableResources returns the resouces on the allocation
+// ComparableResources returns the resources on the allocation
 // handling upgrade paths. After 0.11 calls to this should be replaced with:
 // alloc.AllocatedResources.Comparable()
 func (a *Allocation) ComparableResources() *ComparableResources {
