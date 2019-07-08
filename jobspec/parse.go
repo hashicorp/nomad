@@ -1237,10 +1237,24 @@ func parseGroupServices(jobName string, taskGroupName string, g *api.TaskGroup, 
 			return err
 		}
 
+		switch mm := m["meta"].(type) {
+		case map[string]interface{}:
+			// Ok!
+		case []map[string]interface{}:
+			newMap := map[string]interface{}{}
+			for _, innerM := range mm {
+				for k, v := range innerM {
+					newMap[k] = v
+				}
+			}
+			m["meta"] = newMap
+		default:
+			return fmt.Errorf("meta must be an object")
+		}
+
 		delete(m, "check")
 		delete(m, "check_restart")
 		delete(m, "connect")
-		delete(m, "meta")
 
 		if err := mapstructure.WeakDecode(m, &service); err != nil {
 			return err
@@ -1281,20 +1295,6 @@ func parseGroupServices(jobName string, taskGroupName string, g *api.TaskGroup, 
 				return multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
 			} else {
 				service.Connect = c
-			}
-		}
-
-		// Parse out meta fields. These are in HCL as a list so we need
-		// to iterate over them and merge them.
-		if metaO := serviceObjs.Filter("meta"); len(metaO.Items) > 0 {
-			for _, o := range metaO.Elem().Items {
-				var m map[string]interface{}
-				if err := hcl.DecodeObject(&m, o.Val); err != nil {
-					return err
-				}
-				if err := mapstructure.WeakDecode(m, &service.Meta); err != nil {
-					return err
-				}
 			}
 		}
 
@@ -1636,20 +1636,61 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 	}
 
 	// If we have config, then parse that
-	if o := listVal.Filter("config"); len(o.Items) > 0 {
-		for _, o := range o.Elem().Items {
-			var m map[string]interface{}
-			if err := hcl.DecodeObject(&m, o.Val); err != nil {
-				return nil, err
-			}
-
-			if err := mapstructure.WeakDecode(m, &proxy.Config); err != nil {
-				return nil, err
-			}
+	if o := listVal.Filter("config"); len(o.Items) > 1 {
+		return nil, fmt.Errorf("only 1 meta object supported")
+	} else if len(o.Items) == 1 {
+		var mSlice []map[string]interface{}
+		if err := hcl.DecodeObject(&mSlice, o.Items[0].Val); err != nil {
+			return nil, err
 		}
+
+		if len(mSlice) > 1 {
+			return nil, fmt.Errorf("only 1 meta object supported")
+		}
+
+		m := mSlice[0]
+
+		if err := mapstructure.WeakDecode(m, &proxy.Config); err != nil {
+			return nil, err
+		}
+
+		proxy.Config = flattenMapSlice(proxy.Config)
 	}
 
 	return &proxy, nil
+}
+
+// flattenMapSlice flattens any occurences of []map[string]interface{} into
+// map[string]interface{}.
+func flattenMapSlice(m map[string]interface{}) map[string]interface{} {
+	newM := make(map[string]interface{}, len(m))
+
+	for k, v := range m {
+		var newV interface{}
+
+		switch mapV := v.(type) {
+		case []map[string]interface{}:
+			// Recurse into each map and flatten values
+			newMap := map[string]interface{}{}
+			for _, innerM := range mapV {
+				for innerK, innerV := range flattenMapSlice(innerM) {
+					newMap[innerK] = innerV
+				}
+			}
+			newV = newMap
+
+		case map[string]interface{}:
+			// Recursively flatten maps
+			newV = flattenMapSlice(mapV)
+
+		default:
+			newV = v
+		}
+
+		newM[k] = newV
+	}
+
+	return newM
 }
 
 func parseUpstream(uo *ast.ObjectItem) (*api.ConsulUpstream, error) {

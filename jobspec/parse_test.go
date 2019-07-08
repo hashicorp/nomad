@@ -930,11 +930,12 @@ func TestParse(t *testing.T) {
 								Name:      "foo",
 								PortLabel: "foo",
 								Meta: map[string]string{
-									"foo": "foo",
+									"foo": "bar",
 								},
 								Connect: &api.ConsulConnect{
 									SidecarService: &api.ConsulSidecarService{
 										Proxy: &api.ConsulProxy{
+											Upstreams: []*api.ConsulUpstream{},
 											Config: map[string]interface{}{
 												"foo":    "bar",
 												"number": 123,
@@ -991,6 +992,7 @@ func TestParse(t *testing.T) {
 			for _, d := range pretty.Diff(actual, tc.Result) {
 				t.Logf(d)
 			}
+
 			t.Fatalf("file: %s", tc.File)
 		}
 	}
