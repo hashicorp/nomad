@@ -5375,6 +5375,7 @@ func (s *Service) Copy() *Service {
 	}
 
 	ns.Connect = s.Connect.Copy()
+	ns.Meta = helper.CopyMapStringString(s.Meta)
 
 	return ns
 }
@@ -5477,6 +5478,12 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	for _, tag := range s.CanaryTags {
 		io.WriteString(h, tag)
 	}
+	if len(s.Meta) > 0 {
+		io.WriteString(h, strconv.Itoa(len(s.Meta)))
+		for k, v := range s.Meta {
+			io.WriteString(h, k+v)
+		}
+	}
 
 	// Vary ID on whether or not CanaryTags will be used
 	if canary {
@@ -5537,6 +5544,10 @@ OUTER:
 	}
 
 	if s.Kind != o.Kind {
+		return false
+	}
+
+	if !helper.CompareMapStringString(s.Meta, o.Meta) {
 		return false
 	}
 

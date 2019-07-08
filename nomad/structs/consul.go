@@ -2,6 +2,7 @@ package structs
 
 import (
 	"fmt"
+	"reflect"
 )
 
 type ConsulConnect struct {
@@ -86,9 +87,16 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 		upstreams[i] = p.Upstreams[i].Copy()
 	}
 
-	return &ConsulProxy{
+	newP := &ConsulProxy{
 		Upstreams: upstreams,
+		Config:    make(map[string]interface{}, len(p.Config)),
 	}
+
+	for k, v := range p.Config {
+		newP.Config[k] = v
+	}
+
+	return p
 }
 
 func (p *ConsulProxy) Equals(o *ConsulProxy) bool {
@@ -120,6 +128,13 @@ OUTER:
 
 		// No match
 		return false
+	}
+
+	// Avoid nil vs {} differences
+	if len(p.Config) != 0 && len(o.Config) != 0 {
+		if !reflect.DeepEqual(p.Config, o.Config) {
+			return false
+		}
 	}
 
 	return true
