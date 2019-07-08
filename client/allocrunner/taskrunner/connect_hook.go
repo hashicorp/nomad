@@ -94,7 +94,6 @@ RETRY:
 	}
 	cmd.Stdout = fd
 
-	//TODO(schmichael) handle stderr better
 	buf := bytes.NewBuffer(nil)
 	cmd.Stderr = buf
 
@@ -110,6 +109,7 @@ RETRY:
 			time.Sleep(3 * time.Second)
 			goto RETRY
 		}
+		h.logger.Error("error creating bootstrap.json for envoy", "error", err, "stderr", buf.String())
 		return fmt.Errorf("error creating bootstrap.json for envoy: %v", err)
 	}
 
