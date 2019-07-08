@@ -962,6 +962,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			CanaryTags:  s.CanaryTags,
 			AddressMode: s.AddressMode,
 			Kind:        s.Kind,
+			Meta:        s.Meta,
 		}
 
 		if l := len(s.Checks); l != 0 {
@@ -1015,7 +1016,9 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			continue
 		}
 
-		out[i].Connect.SidecarService.Proxy = &structs.ConsulProxy{}
+		out[i].Connect.SidecarService.Proxy = &structs.ConsulProxy{
+			Config: s.Connect.SidecarService.Proxy.Config,
+		}
 
 		upstreams := make([]*structs.ConsulUpstream, len(s.Connect.SidecarService.Proxy.Upstreams))
 		for i, p := range s.Connect.SidecarService.Proxy.Upstreams {

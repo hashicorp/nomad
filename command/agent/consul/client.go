@@ -597,6 +597,8 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 		if err != nil {
 			return fmt.Errorf("error parsing port %q from service %q: %v", rawport, service.Name, err)
 		}
+		meta := service.Meta
+		meta["esternal-source"] = "nomad"
 		serviceReg := &api.AgentServiceRegistration{
 			ID:      id,
 			Name:    service.Name,
@@ -604,9 +606,7 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 			Address: host,
 			Port:    port,
 			// This enables the consul UI to show that Nomad registered this service
-			Meta: map[string]string{
-				"external-source": "nomad",
-			},
+			Meta: meta,
 			Kind: api.ServiceKind(service.Kind),
 		}
 		ops.regServices = append(ops.regServices, serviceReg)
@@ -700,6 +700,8 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
 
+	meta := service.Meta
+	meta["esternal-source"] = "nomad"
 	// Build the Consul Service registration request
 	serviceReg := &api.AgentServiceRegistration{
 		ID:      id,
@@ -708,9 +710,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		Address: ip,
 		Port:    port,
 		// This enables the consul UI to show that Nomad registered this service
-		Meta: map[string]string{
-			"external-source": "nomad",
-		},
+		Meta:    meta,
 		Connect: connect,
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
@@ -1416,6 +1416,10 @@ func newConnect(nc *structs.ConsulConnect, networks structs.Networks) (*api.Agen
 		return nil, err
 	}
 
+	proxyConfig := nc.SidecarService.Proxy.Config
+	proxyConfig["bind_address"] = "0.0.0.0"
+	proxyConfig["bind_port"] = port.To
+
 	cc.SidecarService = &api.AgentServiceRegistration{
 		//TODO(schmichael) must advertise host ip
 		Address: net.IP,
@@ -1424,10 +1428,7 @@ func newConnect(nc *structs.ConsulConnect, networks structs.Networks) (*api.Agen
 		// Automatically configure the proxy to bind to all addresses
 		// within the netns.
 		Proxy: &api.AgentServiceConnectProxyConfig{
-			Config: map[string]interface{}{
-				"bind_address": "0.0.0.0",
-				"bind_port":    port.To,
-			},
+			Config: proxyConfig,
 		},
 	}
 

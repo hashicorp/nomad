@@ -72,6 +72,7 @@ type ConsulProxy struct {
 	LocalServiceAddress string //TODO(schmichael) expose via api?!
 	LocalServicePort    int    //TODO(schmichael) expose via api?!
 	Upstreams           []*ConsulUpstream
+	Config              map[string]interface{} // JSON proxy config
 }
 
 func (p *ConsulProxy) Copy() *ConsulProxy {

@@ -5349,11 +5349,12 @@ type Service struct {
 	// this service.
 	AddressMode string
 
-	Tags       []string        // List of tags for the service
-	CanaryTags []string        // List of tags for the service when it is a canary
-	Checks     []*ServiceCheck // List of checks associated with the service
-	Connect    *ConsulConnect  // Consul Connect configuration
-	Kind       string          // Kind of service (eg gateway)
+	Tags       []string          // List of tags for the service
+	CanaryTags []string          // List of tags for the service when it is a canary
+	Checks     []*ServiceCheck   // List of checks associated with the service
+	Connect    *ConsulConnect    // Consul Connect configuration
+	Kind       string            // Kind of service (eg gateway)
+	Meta       map[string]string // Meta to associate with service
 }
 
 func (s *Service) Copy() *Service {
