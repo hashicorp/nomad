@@ -7,6 +7,7 @@ IMPROVEMENTS:
  * driver/docker: Added logging defaults to use json-file log driver with log rotation [[GH-5846](https://github.com/hashicorp/nomad/pull/5846)]
  * metrics: Added namespace label as appropriate to metrics [[GH-5847](https://github.com/hashicorp/nomad/issues/5847)]
  * ui: Moved client status, draining, and eligibility fields into single state column [[GH-5789](https://github.com/hashicorp/nomad/pull/5789)]
+ * ui: Added buttons to copy client and allocation UUIDs [[GH-5926](https://github.com/hashicorp/nomad/pull/5926)]
 
 BUG FIXES:
 
