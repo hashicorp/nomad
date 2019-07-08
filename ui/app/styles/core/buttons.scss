@@ -133,20 +133,3 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
     }
   }
 }
-
-.copy-button {
-  padding-left: 0.5rem;
-  margin-bottom: 2px;
-
-  .button {
-    color: inherit;
-
-    &.is-static {
-      background-color: inherit;
-    }
-
-    svg {
-      fill: currentColor;
-    }
-  }
-}
