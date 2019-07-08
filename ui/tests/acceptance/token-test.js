@@ -32,6 +32,7 @@ module('Acceptance | tokens', function(hooks) {
 
     await Tokens.visit();
     assert.ok(window.localStorage.nomadTokenSecret == null, 'No token secret set');
+    assert.equal(document.title, 'Tokens - Nomad');
 
     await Tokens.secret(secretId).submit();
     assert.equal(window.localStorage.nomadTokenSecret, secretId, 'Token secret was set');
