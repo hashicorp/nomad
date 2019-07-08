@@ -4050,6 +4050,10 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
+								Name: "Kind",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "Name",
 								Old:  "foo",
 								New:  "foo",
@@ -4144,6 +4148,10 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "AddressMode",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Kind",
 							},
 							{
 								Type: DiffTypeNone,
@@ -4476,6 +4484,12 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "AddressMode",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Kind",
 								Old:  "",
 								New:  "",
 							},

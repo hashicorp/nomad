@@ -53,12 +53,30 @@ func NewMockConsulServiceClient(t testing.T, logger log.Logger) *MockConsulServi
 
 //TODO(schmichael) implement
 func (m *MockConsulServiceClient) RegisterAlloc(alloc *structs.Allocation) error {
-	panic("not implemented")
+	services := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Services
+	if len(services) == 0 {
+		return nil
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.logger.Trace("RegisterAlloc", "alloc_id", alloc.ID, "services", len(services))
+	m.ops = append(m.ops, NewMockConsulOp("RegisterAlloc", alloc.ID, "group-"+alloc.TaskGroup))
+	return nil
 }
 
 //TODO(schmichael) implement
 func (m *MockConsulServiceClient) RemoveAlloc(alloc *structs.Allocation) error {
-	panic("not implemented")
+	services := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Services
+	if len(services) == 0 {
+		return nil
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.logger.Trace("RemoveAlloc", "alloc_id", alloc.ID, "services", len(services))
+	m.ops = append(m.ops, NewMockConsulOp("RemoveAlloc", alloc.ID, "group-"+alloc.TaskGroup))
+	return nil
 }
 
 func (m *MockConsulServiceClient) UpdateTask(old, newSvcs *consul.TaskServices) error {
