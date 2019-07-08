@@ -12,12 +12,12 @@
     </span>
   </div>
 {{else}}
-  {{#copy-button
+  {{#addon-copy-button
     class='button is-borderless is-small'
     clipboardText=clipboardText
     success=(action 'success')
     error=(action (mut state) 'error')
   }}
     {{x-icon 'copy-action'}}
-  {{/copy-button}}
+  {{/addon-copy-button}}
 {{/if}}
