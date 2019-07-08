@@ -1238,6 +1238,7 @@ func parseGroupServices(jobName string, taskGroupName string, g *api.TaskGroup, 
 		}
 
 		switch mm := m["meta"].(type) {
+		case nil:
 		case map[string]interface{}:
 			// Ok!
 		case []map[string]interface{}:
