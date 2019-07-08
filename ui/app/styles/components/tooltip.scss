@@ -1,5 +1,6 @@
 .tooltip {
   position: relative;
+  pointer-events: all;
 }
 
 .tooltip::after {
