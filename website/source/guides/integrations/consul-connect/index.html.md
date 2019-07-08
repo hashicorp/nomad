@@ -34,11 +34,11 @@ in Connect continue to work even as the application scales up or down or gets re
 # Nomad Consul Connect Example
 
 The following section walks through an example to enable secure communication
-between a web application and a Redis container. The web application and
-the Redis container are managed by Nomad. Nomad additionally configures
-Envoy proxies to run along side these applications. The web application uses
-a localhost port for all Redis communication. The proxy is managed by Nomad, and
-handles mTLS communication to the Redis container.
+between a web application and a Redis container. The web application and the
+Redis container are managed by Nomad. Nomad additionally configures Envoy
+proxies to run along side these applications. The web application is configured
+to connect to Redis via localhost and Redis's default port (6379). The proxy is
+managed by Nomad, and handles mTLS communication to the Redis container.
 
 ## Prerequisites
 
@@ -53,13 +53,20 @@ $ consul agent -dev
 
 ### Nomad
 
-Nomad must schedule onto a routable interface in order for the proxies to connect
-to each other. The following steps show how to start a Nomad dev agent configured for Connect.
+Nomad must schedule onto a routable interface in order for the proxies to
+connect to each other. The following steps show how to start a Nomad dev agent
+configured for Connect.
 
 ```sh
 $ go get -u github.com/hashicorp/go-sockaddr/cmd/sockaddr
 $ export DEFAULT_IFACE=$(sockaddr eval 'GetAllInterfaces | sort "default" | unique "name" | attr "name"')
 $ sudo nomad agent -dev -network-interface $DEFAULT_IFACE
+```
+
+Alternatively if you know the network interface Nomad should use:
+
+```sh
+$ sudo nomad agent -dev -network-interface eth0
 ```
 
 ## Run Redis Container
