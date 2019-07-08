@@ -601,7 +601,7 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 		if meta == nil {
 			meta = map[string]string{}
 		}
-		meta["esternal-source"] = "nomad"
+		meta["external-source"] = "nomad"
 		serviceReg := &api.AgentServiceRegistration{
 			ID:      id,
 			Name:    service.Name,
@@ -707,7 +707,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 	if service.Meta != nil {
 		meta = service.Meta
 	}
-	meta["esternal-source"] = "nomad"
+	meta["external-source"] = "nomad"
 	// Build the Consul Service registration request
 	serviceReg := &api.AgentServiceRegistration{
 		ID:      id,
