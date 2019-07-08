@@ -805,12 +805,7 @@ func (noopExec) Exec(time.Duration, string, []string) ([]byte, int, error) { ret
 // makeAllocTaskServices creates a TaskServices struct for a group service.
 //
 //TODO(schmichael) rename TaskServices and refactor this into a New method
-func makeAllocTaskServices(alloc *structs.Allocation) (*TaskServices, error) {
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	if tg == nil {
-		return nil, fmt.Errorf("task group %q not in allocation", alloc.TaskGroup)
-	}
-
+func makeAllocTaskServices(alloc *structs.Allocation, tg *structs.TaskGroup) (*TaskServices, error) {
 	if n := len(alloc.AllocatedResources.Shared.Networks); n == 0 {
 		return nil, fmt.Errorf("unable to register a group service without a group network")
 	}
@@ -849,7 +844,17 @@ func makeAllocTaskServices(alloc *structs.Allocation) (*TaskServices, error) {
 //
 // TODO(schmichael) checks are ignored; script checks probably can't be supported
 func (c *ServiceClient) RegisterAlloc(alloc *structs.Allocation) error {
-	ts, err := makeAllocTaskServices(alloc)
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		return fmt.Errorf("task group %q not in allocation", alloc.TaskGroup)
+	}
+
+	if len(tg.Services) == 0 {
+		// noop
+		return nil
+	}
+
+	ts, err := makeAllocTaskServices(alloc, tg)
 	if err != nil {
 		return err
 	}
@@ -860,7 +865,16 @@ func (c *ServiceClient) RegisterAlloc(alloc *structs.Allocation) error {
 // RemoveAlloc with Consul. Removes all group-level service entries and checks
 // from Consul.
 func (c *ServiceClient) RemoveAlloc(alloc *structs.Allocation) error {
-	ts, err := makeAllocTaskServices(alloc)
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		return fmt.Errorf("task group %q not in allocation", alloc.TaskGroup)
+	}
+
+	if len(tg.Services) == 0 {
+		// noop
+		return nil
+	}
+	ts, err := makeAllocTaskServices(alloc, tg)
 	if err != nil {
 		return err
 	}
