@@ -4,6 +4,7 @@ import { run } from '@ember/runloop';
 export default Component.extend({
   classNames: ['copy-button'],
 
+  clipboardText: null,
   state: null,
 
   actions: {
