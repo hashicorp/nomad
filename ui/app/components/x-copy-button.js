@@ -4,6 +4,8 @@ import { run } from '@ember/runloop';
 export default Component.extend({
   classNames: ['x-copy-button'],
 
+  state: null,
+
   actions: {
     success() {
       this.set('state', 'success');
