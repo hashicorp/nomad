@@ -1420,6 +1420,9 @@ func newConnect(nc *structs.ConsulConnect, networks structs.Networks) (*api.Agen
 	}
 
 	proxyConfig := nc.SidecarService.Proxy.Config
+	if proxyConfig == nil {
+		proxyConfig = map[string]interface{}{}
+	}
 	proxyConfig["bind_address"] = "0.0.0.0"
 	proxyConfig["bind_port"] = port.To
 
