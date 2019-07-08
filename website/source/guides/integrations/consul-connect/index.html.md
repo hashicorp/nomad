@@ -44,8 +44,9 @@ managed by Nomad, and handles mTLS communication to the Redis container.
 
 ### Consul
 
-Connect integration with Nomad requires Consul 1.6 (TODO Download link). The
-Consul agent can be ran in dev mode with the following command:
+Connect integration with Nomad requires [Consul 1.6-beta1 or
+later.](https://releases.hashicorp.com/consul/1.6.0-beta1/) The
+Consul agent can be run in dev mode with the following command:
 
 ```sh
 $ consul agent -dev 
@@ -71,11 +72,12 @@ $ sudo nomad agent -dev -network-interface eth0
 
 ## Run Redis Container
 
-Run the following job specification using `nomad run`. This job
-uses the `network` stanza in its task group with `bridge` networking mode.
-This enables the container to share its network namespace with other tasks in the
-same task group. The `connect` stanza enables Consul Connect functionality for this
-container. Nomad will launch a proxy for this container that registers itself in Consul.
+Run the following job specification using `nomad run`. This job uses the
+`network` stanza in its task group with `bridge` networking mode.  This enables
+all tasks in the same group to share the same network, and other allocations,
+even on the same node, cannot. The `connect` stanza enables Consul Connect
+functionality for this container. Nomad will launch a proxy for this container
+that registers itself in Consul.
 
 ```hcl
 job "redis" {
@@ -84,15 +86,15 @@ job "redis" {
   group "cache" {
     network {
       mode = "bridge"
-      port "db" {
-        static = 6379
-      }
     }
 
     service {
       name = "redis-cache"
       tags = ["global", "cache"]
-      port = "db"
+
+      # This is the port within the network namespace that the task listens on.
+      # The Envoy proxy itself listens on a random port.
+      port = "6379"
 
       connect {
         sidecar_service { }
