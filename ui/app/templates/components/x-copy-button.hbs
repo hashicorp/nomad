@@ -6,7 +6,9 @@
     </span>
   </div>
 {{else if (eq state 'error')}}
-  {{x-icon 'alert-triangle'}}
+  <div class='button is-borderless is-small'>
+    {{x-icon 'alert-triangle'}}
+  </div>
 {{else}}
   {{#copy-button
     class='button is-borderless is-small'
