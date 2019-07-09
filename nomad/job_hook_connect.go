@@ -6,6 +6,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const envoyProxyName = "nomad_envoy"
+
 type jobConnectHook struct{}
 
 func (jobConnectHook) Name() string {
@@ -23,6 +25,14 @@ func (jobConnectHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []error
 }
 
 func groupConnectHook(g *structs.TaskGroup) error {
+	// First ensure there isn't already a nomad_envoy task
+	for _, t := range g.Tasks {
+		if t.Name == envoyProxyName {
+			// Already has one; return
+			return nil
+		}
+	}
+
 	for _, service := range g.Services {
 		if service.Connect.HasSidecar() {
 			task := newConnectTask(service)
@@ -39,7 +49,7 @@ func groupConnectHook(g *structs.TaskGroup) error {
 			}
 
 			port := structs.Port{
-				Label: "nomad_envoy",
+				Label: envoyProxyName,
 
 				// -1 is a sentinel value to instruct the
 				// scheduler to map the host's dynamic port to
@@ -58,13 +68,13 @@ func groupConnectHook(g *structs.TaskGroup) error {
 //TODO restart/reschedule stanza
 func newConnectTask(service *structs.Service) *structs.Task {
 	task := &structs.Task{
-		Name:   "nomad_envoy", // used in container name so must start with '[A-Za-z0-9]'
+		Name:   envoyProxyName, // used in container name so must start with '[A-Za-z0-9]'
 		Driver: "docker",
 		Config: map[string]interface{}{
 			"image": "envoyproxy/envoy:v1.10.0", //TODO(schmichael) TBD what image to use
 			"args": []string{
 				"-c", "local/bootstrap.json",
-				"-l", "debug", //TODO(schmichael) add a way to enable
+				"-l", "debug", //TODO(schmichael) make configurable
 			},
 		},
 		LogConfig: &structs.LogConfig{
