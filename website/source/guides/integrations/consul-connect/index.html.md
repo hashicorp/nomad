@@ -8,8 +8,12 @@ description: |-
 
 # Consul Connect
 
-~> **Note** This page describes a new feature available in a preview release of Nomad for Hashiconf EU 2019.
-The set of features described here are intended to ship with Nomad 0.10.
+~> **Note** This guide describes a new feature available in the [Nomad 0.10.0
+   Connect Technology Preview release][download] of Nomad for
+Hashiconf EU 2019. This is not intended for production use and has many known
+[limitations](#limitations).
+
+[download]: https://releases.hashicorp.com/nomad/0.10.0-connect1/
 
 [Consul Connect](https://www.consul.io/docs/connect/index.html) provides service-to-service connection
 authorization and encryption using mutual Transport Layer Security (TLS). Applications can use sidecar proxies in a service mesh
