@@ -475,7 +475,7 @@ func TestPathFuncs(t *testing.T) {
 
 func TestAllocDir_DetectContentType(t *testing.T) {
 	require := require.New(t)
-	inputPath := "input/"
+	inputPath := "testdata/"
 	var testFiles []string
 	err := filepath.Walk(inputPath, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
@@ -486,13 +486,13 @@ func TestAllocDir_DetectContentType(t *testing.T) {
 	require.Nil(err)
 
 	expectedEncodings := map[string]string{
-		"input/happy.gif": "image/gif",
-		"input/image.png": "image/png",
-		"input/nomad.jpg": "image/jpeg",
-		"input/test.bin":  "application/octet-stream",
-		"input/test.json": "application/json",
-		"input/test.txt":  "text/plain; charset=utf-8",
-		"input/test.go":   "text/plain; charset=utf-8",
+		"testdata/happy.gif": "image/gif",
+		"testdata/image.png": "image/png",
+		"testdata/nomad.jpg": "image/jpeg",
+		"testdata/test.bin":  "application/octet-stream",
+		"testdata/test.json": "application/json",
+		"testdata/test.txt":  "text/plain; charset=utf-8",
+		"testdata/test.go":   "text/plain; charset=utf-8",
 	}
 	for _, file := range testFiles {
 		fileInfo, err := os.Stat(file)
