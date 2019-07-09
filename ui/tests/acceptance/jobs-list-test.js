@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { Ability } from 'ember-can';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 
@@ -61,9 +62,24 @@ module('Acceptance | jobs list', function(hooks) {
 
   test('the new job button transitions to the new job page', async function(assert) {
     await JobsList.visit();
-    await JobsList.runJob();
+    await JobsList.runJobButton.click();
 
     assert.equal(currentURL(), '/jobs/run');
+  });
+
+  test('the job run button is disabled when the token lacks permission', async function(assert) {
+    const mockJobAbility = Ability.extend({
+      canRun: false,
+    });
+
+    this.owner.register('ability:job', mockJobAbility);
+
+    await JobsList.visit();
+
+    assert.ok(JobsList.runJobButton.isDisabled);
+
+    await JobsList.runJobButton.click();
+    assert.equal(currentURL(), '/jobs');
   });
 
   test('when there are no jobs, there is an empty message', async function(assert) {
