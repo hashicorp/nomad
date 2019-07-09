@@ -1661,7 +1661,7 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 	return &proxy, nil
 }
 
-// flattenMapSlice flattens any occurences of []map[string]interface{} into
+// flattenMapSlice flattens any occurrences of []map[string]interface{} into
 // map[string]interface{}.
 func flattenMapSlice(m map[string]interface{}) map[string]interface{} {
 	newM := make(map[string]interface{}, len(m))
