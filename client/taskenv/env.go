@@ -771,6 +771,12 @@ func buildUpstreamsEnv(envMap map[string]string, upstreams []*structs.ConsulUpst
 		envMap[UpstreamPrefix+"ADDR_"+u.DestinationName] = net.JoinHostPort(ip, port)
 		envMap[UpstreamPrefix+"IP_"+u.DestinationName] = ip
 		envMap[UpstreamPrefix+"PORT_"+u.DestinationName] = port
+
+		// Also add cleaned version
+		cleanName := helper.CleanEnvVar(u.DestinationName, '_')
+		envMap[UpstreamPrefix+"ADDR_"+cleanName] = net.JoinHostPort(ip, port)
+		envMap[UpstreamPrefix+"IP_"+cleanName] = ip
+		envMap[UpstreamPrefix+"PORT_"+cleanName] = port
 	}
 }
 

@@ -764,6 +764,12 @@ func TestEnvironment_Upstreams(t *testing.T) {
 		},
 	}
 
+	// Ensure the upstreams can be interpolated
+	tg.Tasks[0].Env = map[string]string{
+		"foo": "${NOMAD_UPSTREAM_ADDR_foo_bar}",
+		"bar": "${NOMAD_UPSTREAM_ADDR_foo-bar}",
+	}
+
 	env := NewBuilder(mock.Node(), a, tg.Tasks[0], "global").Build().Map()
 	require.Equal(t, env["NOMAD_UPSTREAM_ADDR_foo_bar"], "127.0.0.1:1234")
 	require.Equal(t, env["NOMAD_UPSTREAM_IP_foo_bar"], "127.0.0.1")
@@ -771,4 +777,6 @@ func TestEnvironment_Upstreams(t *testing.T) {
 	require.Equal(t, env["NOMAD_UPSTREAM_ADDR_bar"], "127.0.0.1:5678")
 	require.Equal(t, env["NOMAD_UPSTREAM_IP_bar"], "127.0.0.1")
 	require.Equal(t, env["NOMAD_UPSTREAM_PORT_bar"], "5678")
+	require.Equal(t, env["foo"], "127.0.0.1:1234")
+	require.Equal(t, env["bar"], "127.0.0.1:1234")
 }
