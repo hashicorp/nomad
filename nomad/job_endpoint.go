@@ -322,14 +322,14 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 		return structs.ErrPermissionDenied
 	}
 
-	job, warnings, err := j.admissionMutators(args.Job)
+	job, mutateWarnings, err := j.admissionMutators(args.Job)
 	if err != nil {
 		return err
 	}
 	args.Job = job
 
 	// Validate the job and capture any warnings
-	warnings, err = j.admissionValidators(args.Job)
+	validateWarnings, err := j.admissionValidators(args.Job)
 	if err != nil {
 		if merr, ok := err.(*multierror.Error); ok {
 			for _, err := range merr.Errors {
@@ -342,8 +342,10 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 		}
 	}
 
+	validateWarnings = append(validateWarnings, mutateWarnings...)
+
 	// Set the warning message
-	reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
+	reply.Warnings = structs.MergeMultierrorWarnings(validateWarnings...)
 	reply.DriverConfigValidated = true
 	return nil
 }
