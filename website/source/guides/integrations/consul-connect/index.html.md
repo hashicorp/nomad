@@ -70,107 +70,187 @@ Alternatively if you know the network interface Nomad should use:
 $ sudo nomad agent -dev -network-interface eth0
 ```
 
-## Run Redis Container
+## Run the Connect-enabled Services
 
-Run the following job specification using `nomad run`. This job uses the
-`network` stanza in its task group with `bridge` networking mode.  This enables
-all tasks in the same group to share the same network, and other allocations,
-even on the same node, cannot. The `connect` stanza enables Consul Connect
-functionality for this container. Nomad will launch a proxy for this container
-that registers itself in Consul.
+Once Nomad and Consul are running submit the following Connect-enabled services
+to Nomad by copying the HCL into a file named `connect.nomad` and running:
+`nomad run connect.nomad`
 
 ```hcl
-job "redis" {
-  datacenters = ["dc1"]
+ job "countdash" {
+   datacenters = ["dc1"]
+   group "api" {
+     network {
+       mode = "bridge"
+     }
 
-  group "cache" {
-    network {
-      mode = "bridge"
-    }
+     service {
+       name = "count-api"
+       port = "9001"
 
-    service {
-      name = "redis-cache"
-      tags = ["global", "cache"]
+       connect {
+         sidecar_service {}
+       }
+     }
 
-      # This is the port within the network namespace that the task listens on.
-      # The Envoy proxy itself listens on a random port.
-      port = "6379"
+     task "web" {
+       driver = "docker"
+       config {
+         image = "hashicorpnomad/counter-api:v1"
+       }
+     }
+   }
 
-      connect {
-        sidecar_service { }
-      }
-    }
+   group "dashboard" {
+     network {
+       mode ="bridge"
+       port "http" {
+         static = 9002
+         to     = 9002
+       }
+     }
 
-    task "redis" {
-      driver = "docker"
+     service {
+       name = "count-dashboard"
+       port = "9002"
 
-      config {
-        image = "redis:3.2"
-      }
+       connect {
+         sidecar_service {
+           proxy {
+             upstreams {
+               destination_name = "count-api"
+               local_bind_port = 8080
+             }
+           }
+         }
+       }
+     }
 
-      resources {
-        cpu    = 500
-        memory = 256
-      }
-    }
-  }
-}
+     task "dashboard" {
+       driver = "docker"
+       env {
+         COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"
+       }
+       config {
+         image = "hashicorpnomad/counter-dashboard:v1"
+       }
+     }
+   }
+ }
 ```
 
-## Run the web application
-#### TODO change the example container
+The job contains two task groups: an API service and a web frontend.
 
-Run the following job specification using `nomad run`. This container is a web application
-that uses Redis. It declares Redis as its upstream service through the `sidecar_service` stanza.
-It also specifies a local bind port. This is the port on which the proxy providing secure communication
-to Redis listens on.
+### API Service
+
+The API service is defined as a task group with a bridge network:
 
 ```hcl
-job "api" {
-  datacenters = ["dc1"]
+   group "api" {
+     network {
+       mode = "bridge"
+     }
 
-  group "api" {
-    network {
-      mode = "bridge"
-
-      port "http" {
-        to     = 8080
-        static = 8080
-      }
-    }
-
-    service {
-      name = "api"
-      port = "http"
-
-      connect {
-        sidecar_service {
-          proxy {
-            upstreams {
-              destination_name = "redis-cache"
-              local_bind_port = 6379
-            }
-          }
-        }
-      }
-    }
-
-    task "api" {
-      driver = "docker"
-
-      config {
-        image = "schmichael/rediweb:0.2"
-      }
-
-      resources {
-        cpu    = 200
-        memory = 100
-      }
-    }
-  }
-}
+     ...
+   }
 ```
 
-After running this job, visit the Nomad UI to see the Envoy proxies managed by Nomad
-both for the web application and its upstream Redis service. The Consul UI also shows
-the registered Connect proxies.
+Since the API service is only accessible via Consul Connect, it does not define
+any ports in its network. The service stanza enables Connect:
+
+```hcl
+   group "api" {
+     ...
+
+     service {
+       name = "count-api"
+       port = "9001"
+
+       connect {
+         sidecar_service {}
+       }
+     }
+
+     ...
+   }
+```
+
+The `port` in the service stanza is the port the API service listens on. The
+Envoy proxy will automatically route traffic to that port inside the network
+namespace.
+
+### Web Frontend
+
+The web frontend is defined as a task group with a bridge network and a static
+forwarded port:
+
+```hcl
+   group "dashboard" {
+     network {
+       mode ="bridge"
+       port "http" {
+         static = 9002
+         to     = 9002
+       }
+     }
+
+     ...
+   }
+```
+
+The `static = 9002` parameter requests the Nomad scheduler reserve port 9002 on
+a host network interface. The `to = 9002` parameter forwards that host port to
+port 9002 inside the network namespace.
+
+This allows you to connect to the web frontend in a browser by visiting
+`http://<host_ip>:9002`.
+
+The web frontend connects to the API service via Consul Connect:
+
+```hcl
+     service {
+       name = "count-dashboard"
+       port = "9002"
+
+       connect {
+         sidecar_service {
+           proxy {
+             upstreams {
+               destination_name = "count-api"
+               local_bind_port = 8080
+             }
+           }
+         }
+       }
+     }
+```
+
+The `upstreams` stanza defines the remote service to access (`count-api`) and
+what port to expose that service on inside the network namespace (`8080`).
+
+The web frontend is configured to communicate with the API service with an
+environment variable:
+
+```hcl
+       env {
+         COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"
+       }
+```
+
+The web frontend is configured via the `$COUNTING_SERVICE_URL`, so you must
+interpolate the upstream's address into that environment variable. Note that
+dashes (`-`) are converted to underscores (`_`) in environment variables so
+`count-api` becomes `count_api`.
+
+## Limitations
+
+Prior to Nomad 0.10.0's final release, the Consul Connect integration has
+several limitations that have yet to be addressed:
+
+ - Jobs with a `connect` stanza may not update properly. Workaround this by
+   stopping and starting Connect-enabled jobs.
+ - Only the Docker, exec, and raw exec drivers support network namespaces and
+   Connect.
+ - Not all Connect configuration options in Consul are available in Nomad.
+ - The Envoy proxy is not yet configurable and is hardcoded to use 100 MHz of
+   cpu and 300 MB of memory.
