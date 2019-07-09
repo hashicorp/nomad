@@ -42,6 +42,7 @@
     "d3-transition": "^1.1.0",
     "ember-ajax": "^5.0.0",
     "ember-auto-import": "^1.2.21",
+    "ember-can": "^1.1.1",
     "ember-cli": "~3.4.4",
     "ember-cli-babel": "^7.1.2",
     "ember-cli-dependency-checker": "^3.0.0",

@@ -2,6 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { Ability } from 'ember-can';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import JobRun from 'nomad-ui/tests/pages/jobs/run';
@@ -84,5 +85,16 @@ module('Acceptance | job run', function(hooks) {
       `/jobs/${newJobName}?namespace=${newNamespace}`,
       `Redirected to the job overview page for ${newJobName} and switched the namespace to ${newNamespace}`
     );
+  });
+
+  test('when the user doesn’t have permission to run a job, redirects to the job overview page', async function(assert) {
+    const mockJobAbility = Ability.extend({
+      canRun: false,
+    });
+
+    this.owner.register('ability:job', mockJobAbility);
+
+    await JobRun.visit();
+    assert.equal(currentURL(), '/jobs');
   });
 });
