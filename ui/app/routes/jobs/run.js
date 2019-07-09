@@ -13,7 +13,7 @@ export default Route.extend({
     },
   ],
 
-  beforeModel(transition) {
+  beforeModel() {
     if (this.can.cannot('run job')) {
       this.transitionTo('jobs');
     }
