@@ -2,13 +2,14 @@ import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import { Ability } from 'ember-can';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import JobRun from 'nomad-ui/tests/pages/jobs/run';
 
 const newJobName = 'new-job';
 const newJobTaskGroupName = 'redis';
+
+let managementToken, clientToken;
 
 const jsonJob = overrides => {
   return JSON.stringify(
@@ -46,6 +47,11 @@ module('Acceptance | job run', function(hooks) {
   hooks.beforeEach(function() {
     // Required for placing allocations (a result of creating jobs)
     server.create('node');
+
+    managementToken = server.create('token');
+    clientToken = server.create('token');
+
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
   });
 
   test('visiting /jobs/run', async function(assert) {
@@ -88,11 +94,7 @@ module('Acceptance | job run', function(hooks) {
   });
 
   test('when the user doesn’t have permission to run a job, redirects to the job overview page', async function(assert) {
-    const mockJobAbility = Ability.extend({
-      canRun: false,
-    });
-
-    this.owner.register('ability:job', mockJobAbility);
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
 
     await JobRun.visit();
     assert.equal(currentURL(), '/jobs');

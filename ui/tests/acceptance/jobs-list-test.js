@@ -1,9 +1,10 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import { Ability } from 'ember-can';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
+
+let managementToken, clientToken;
 
 module('Acceptance | jobs list', function(hooks) {
   setupApplicationTest(hooks);
@@ -12,6 +13,11 @@ module('Acceptance | jobs list', function(hooks) {
   hooks.beforeEach(function() {
     // Required for placing allocations (a result of creating jobs)
     server.create('node');
+
+    managementToken = server.create('token');
+    clientToken = server.create('token');
+
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
   });
 
   test('visiting /jobs', async function(assert) {
@@ -68,12 +74,7 @@ module('Acceptance | jobs list', function(hooks) {
   });
 
   test('the job run button is disabled when the token lacks permission', async function(assert) {
-    const mockJobAbility = Ability.extend({
-      canRun: false,
-    });
-
-    this.owner.register('ability:job', mockJobAbility);
-
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
     await JobsList.visit();
 
     assert.ok(JobsList.runJobButton.isDisabled);

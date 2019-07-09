@@ -1,6 +1,9 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
+import { getOwner } from '@ember/application';
 import { assign } from '@ember/polyfills';
+import { task } from 'ember-concurrency';
 import queryString from 'query-string';
 import fetch from 'nomad-ui/utils/fetch';
 
@@ -21,6 +24,17 @@ export default Service.extend({
       return value;
     },
   }),
+
+  fetchSelfToken: task(function*() {
+    const TokenAdapter = getOwner(this).lookup('adapter:token');
+    try {
+      return yield TokenAdapter.findSelf();
+    } catch (e) {
+      return null;
+    }
+  }),
+
+  selfToken: alias('fetchSelfToken.lastSuccessful.value'),
 
   // All non Ember Data requests should go through authorizedRequest.
   // However, the request that gets regions falls into that category.
