@@ -122,7 +122,7 @@ module('Acceptance | jobs list', function(hooks) {
   test('the anonymous policy is fetched to check whether to show the job run button', async function(assert) {
     window.localStorage.removeItem('nomadTokenSecret');
 
-    const policy = server.create('policy', {
+    server.create('policy', {
       id: 'anonymous',
       name: 'anonymous',
       rules: `
