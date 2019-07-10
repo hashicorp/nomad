@@ -38,7 +38,7 @@ export default Service.extend({
 
   fetchSelfTokenPolicies: task(function*() {
     try {
-      return this.selfToken.get('policies');
+      return yield this.selfToken.get('policies');
     } catch (e) {
       return null;
     }
