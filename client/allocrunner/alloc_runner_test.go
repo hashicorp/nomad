@@ -116,14 +116,14 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 				killingMsg = e.DisplayMessage
 			}
 		}
-		expectedKillingMsg := "Sent interrupt. Waiting 10ms before force killing"
-
-		if killingMsg != expectedKillingMsg {
-			return false, fmt.Errorf("Unexpected task event message - wanted %q. got %q", killingMsg, expectedKillingMsg)
-		}
 
 		if !found {
 			return false, fmt.Errorf("Did not find event %v", structs.TaskLeaderDead)
+		}
+
+		expectedKillingMsg := "Sent interrupt. Waiting 10ms before force killing"
+		if killingMsg != expectedKillingMsg {
+			return false, fmt.Errorf("Unexpected task event message - wanted %q. got %q", killingMsg, expectedKillingMsg)
 		}
 
 		// Task Two should be dead
