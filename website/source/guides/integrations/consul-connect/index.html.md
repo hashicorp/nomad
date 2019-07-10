@@ -74,6 +74,20 @@ Alternatively if you know the network interface Nomad should use:
 $ sudo nomad agent -dev -network-interface eth0
 ```
 
+### CNI Plugins
+
+Nomad uses CNI plugins to configure the network namespace used to secure the
+Consul Connect sidecar proxy. All Nomad client nodes using network namespaces
+must have CNI plugins installed.
+
+The following commands install CNI plugins:
+
+```sh
+$ curl -L -o cni-plugins.tgz https://github.com/containernetworking/plugins/releases/download/v0.8.1/cni-plugins-linux-amd64-v0.8.1.tgz
+$ sudo mkdir -p /opt/cni/bin
+$ sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
+```
+
 ## Run the Connect-enabled Services
 
 Once Nomad and Consul are running submit the following Connect-enabled services
