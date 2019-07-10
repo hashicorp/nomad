@@ -39,6 +39,20 @@ function smallCluster(server) {
   server.createList('agent', 3);
   server.createList('node', 5);
   server.createList('job', 5);
+
+  // FIXME for demonstration only
+  server.create('policy', {
+    id: 'anonymous',
+    name: 'anonymous',
+    rules: `
+    namespace "default" {
+        policy = "write"
+    }
+
+    node {
+        policy = "read"
+    }`,
+  });
 }
 
 function mediumCluster(server) {
