@@ -224,10 +224,10 @@ func TestFSM_DeregisterNode(t *testing.T) {
 		t.Fatalf("resp: %v", resp)
 	}
 
-	req2 := structs.NodeDeregisterRequest{
-		NodeID: node.ID,
+	req2 := structs.NodeBatchDeregisterRequest{
+		NodeIDs: []string{node.ID},
 	}
-	buf, err = structs.Encode(structs.NodeDeregisterRequestType, req2)
+	buf, err = structs.Encode(structs.NodeBatchDeregisterRequestType, req2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

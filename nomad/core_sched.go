@@ -7,6 +7,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -482,19 +483,42 @@ OUTER:
 		return nil
 	}
 	c.logger.Debug("node GC found eligible nodes", "nodes", len(gcNode))
+	return c.nodeReap(eval, gcNode)
+}
+
+func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) error {
+	// For old clusters, send single deregistration messages COMPAT(0.11)
+	minVersionBatchNodeDeregister := version.Must(version.NewVersion("0.9.4"))
+	if !ServersMeetMinimumVersion(c.srv.Members(), minVersionBatchNodeDeregister, true) {
+		for _, id := range nodeIDs {
+			req := structs.NodeDeregisterRequest{
+				NodeID: id,
+				WriteRequest: structs.WriteRequest{
+					Region:    c.srv.config.Region,
+					AuthToken: eval.LeaderACL,
+				},
+			}
+			var resp structs.NodeUpdateResponse
+			if err := c.srv.RPC("Node.Deregister", &req, &resp); err != nil {
+				c.logger.Error("node reap failed", "node_id", id, "error", err)
+				return err
+			}
+		}
+		return nil
+	}
 
 	// Call to the leader to issue the reap
-	for _, nodeID := range gcNode {
-		req := structs.NodeDeregisterRequest{
-			NodeID: nodeID,
+	for _, ids := range partitionAll(maxIdsPerReap, nodeIDs) {
+		req := structs.NodeBatchDeregisterRequest{
+			NodeIDs: ids,
 			WriteRequest: structs.WriteRequest{
 				Region:    c.srv.config.Region,
 				AuthToken: eval.LeaderACL,
 			},
 		}
 		var resp structs.NodeUpdateResponse
-		if err := c.srv.RPC("Node.Deregister", &req, &resp); err != nil {
-			c.logger.Error("node reap failed", "node_id", nodeID, "error", err)
+		if err := c.srv.RPC("Node.BatchDeregister", &req, &resp); err != nil {
+			c.logger.Error("node reap failed", "node_ids", ids, "error", err)
 			return err
 		}
 	}

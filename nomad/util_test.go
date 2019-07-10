@@ -8,6 +8,7 @@ import (
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/serf/serf"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsNomadServer(t *testing.T) {
@@ -228,6 +229,21 @@ func TestShuffleStrings(t *testing.T) {
 	if reflect.DeepEqual(inp, orig) {
 		t.Fatalf("shuffle failed")
 	}
+}
+
+func Test_partitionAll(t *testing.T) {
+	xs := []string{"a", "b", "c", "d", "e", "f"}
+	// evenly divisible
+	require.Equal(t, [][]string{{"a", "b"}, {"c", "d"}, {"e", "f"}}, partitionAll(2, xs))
+	require.Equal(t, [][]string{{"a", "b", "c"}, {"d", "e", "f"}}, partitionAll(3, xs))
+	// whole thing fits int the last part
+	require.Equal(t, [][]string{{"a", "b", "c", "d", "e", "f"}}, partitionAll(7, xs))
+	// odd remainder
+	require.Equal(t, [][]string{{"a", "b", "c", "d"}, {"e", "f"}}, partitionAll(4, xs))
+	// zero size
+	require.Equal(t, [][]string{{"a", "b", "c", "d", "e", "f"}}, partitionAll(0, xs))
+	// one size
+	require.Equal(t, [][]string{{"a"}, {"b"}, {"c"}, {"d"}, {"e"}, {"f"}}, partitionAll(1, xs))
 }
 
 func TestMaxUint64(t *testing.T) {
