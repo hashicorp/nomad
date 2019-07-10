@@ -78,7 +78,7 @@
     "ember-qunit-nice-errors": "^1.2.0",
     "ember-resolver": "^5.0.1",
     "ember-responsive": "^3.0.0",
-    "ember-sinon": "^2.2.0",
+    "ember-sinon": "^4.0.0",
     "ember-source": "~3.4.0",
     "ember-test-selectors": "^2.1.0",
     "ember-truth-helpers": "^2.0.0",
