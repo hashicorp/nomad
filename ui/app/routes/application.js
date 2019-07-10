@@ -23,10 +23,10 @@ export default Route.extend({
   },
 
   beforeModel(transition) {
-    let fetchSelfToken = RSVP.resolve(true);
+    let fetchSelfTokenAndPolicies = RSVP.resolve(true);
 
     if (this.get('token.secret')) {
-      fetchSelfToken = this.get('token.fetchSelfToken')
+      fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
         .perform()
         .catch();
     }
@@ -34,7 +34,7 @@ export default Route.extend({
     return RSVP.all([
       this.get('system.regions'),
       this.get('system.defaultRegion'),
-      fetchSelfToken,
+      fetchSelfTokenAndPolicies,
     ]).then(promises => {
       if (!this.get('system.shouldShowRegions')) return promises;
 

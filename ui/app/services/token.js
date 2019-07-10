@@ -36,6 +36,21 @@ export default Service.extend({
 
   selfToken: alias('fetchSelfToken.lastSuccessful.value'),
 
+  fetchSelfTokenPolicies: task(function*() {
+    try {
+      return this.selfToken.get('policies');
+    } catch (e) {
+      return null;
+    }
+  }),
+
+  selfTokenPolicies: alias('fetchSelfTokenPolicies.lastSuccessful.value'),
+
+  fetchSelfTokenAndPolicies: task(function*() {
+    yield this.fetchSelfToken.perform();
+    yield this.fetchSelfTokenPolicies.perform();
+  }),
+
   // All non Ember Data requests should go through authorizedRequest.
   // However, the request that gets regions falls into that category.
   // This authorizedRawRequest is necessary in order to fetch data

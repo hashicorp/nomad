@@ -83,6 +83,41 @@ module('Acceptance | jobs list', function(hooks) {
     assert.equal(currentURL(), '/jobs');
   });
 
+  test('the job run button state can change between namespaces', async function(assert) {
+    server.createList('namespace', 2);
+    const job1 = server.create('job', { namespaceId: server.db.namespaces[0].id });
+    const job2 = server.create('job', { namespaceId: server.db.namespaces[1].id });
+
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    const policy = server.create('policy', {
+      id: 'something',
+      name: 'something',
+      rules: `
+      namespace "${job1.namespaceId}" {
+          policy = "write"
+      }
+
+      namespace "${job2.namespaceId}" {
+        capabilities = ["list-jobs"]
+      }
+
+      node {
+          policy = "read"
+      }`,
+    });
+
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+
+    await JobsList.visit();
+    assert.notOk(JobsList.runJobButton.isDisabled);
+
+    const secondNamespace = server.db.namespaces[1];
+    await JobsList.visit({ namespace: secondNamespace.id });
+    assert.ok(JobsList.runJobButton.isDisabled);
+  });
+
   test('when there are no jobs, there is an empty message', async function(assert) {
     await JobsList.visit();
 
