@@ -8,6 +8,7 @@ import queryString from 'query-string';
 import fetch from 'nomad-ui/utils/fetch';
 
 export default Service.extend({
+  store: service(),
   system: service(),
 
   secret: computed({
@@ -38,7 +39,14 @@ export default Service.extend({
 
   fetchSelfTokenPolicies: task(function*() {
     try {
-      return yield this.selfToken.get('policies');
+      if (this.selfToken) {
+        return yield this.selfToken.get('policies');
+      } else {
+        return yield this.store
+          .findRecord('policy', 'anonymous')
+          .then(policy => [policy])
+          .catch(() => []);
+      }
     } catch (e) {
       return null;
     }

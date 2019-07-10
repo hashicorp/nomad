@@ -1,7 +1,7 @@
 import { Ability } from 'ember-can';
 import { inject as service } from '@ember/service';
 import { computed, getWithDefault } from '@ember/object';
-import { alias, equal, or } from '@ember/object/computed';
+import { equal, or } from '@ember/object/computed';
 
 export default Ability.extend({
   system: service(),
@@ -11,7 +11,9 @@ export default Ability.extend({
 
   selfTokenIsManagement: equal('token.selfToken.type', 'management'),
 
-  activeNamespace: alias('system.activeNamespace.name'),
+  activeNamespace: computed('system.activeNamespace.name', function() {
+    return this.get('system.activeNamespace.name') || 'default';
+  }),
 
   rulesForActiveNamespace: computed(
     'activeNamespace',

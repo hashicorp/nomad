@@ -23,13 +23,9 @@ export default Route.extend({
   },
 
   beforeModel(transition) {
-    let fetchSelfTokenAndPolicies = RSVP.resolve(true);
-
-    if (this.get('token.secret')) {
-      fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
-        .perform()
-        .catch();
-    }
+    const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
+      .perform()
+      .catch();
 
     return RSVP.all([
       this.get('system.regions'),

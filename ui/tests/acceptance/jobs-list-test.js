@@ -118,6 +118,27 @@ module('Acceptance | jobs list', function(hooks) {
     assert.ok(JobsList.runJobButton.isDisabled);
   });
 
+  // FIXME it appears to not be possible to fetch the anonymous policy anonymously?
+  test('the anonymous policy is fetched to check whether to show the job run button', async function(assert) {
+    window.localStorage.removeItem('nomadTokenSecret');
+
+    const policy = server.create('policy', {
+      id: 'anonymous',
+      name: 'anonymous',
+      rules: `
+      namespace "default" {
+          policy = "write"
+      }
+
+      node {
+          policy = "read"
+      }`,
+    });
+
+    await JobsList.visit();
+    assert.notOk(JobsList.runJobButton.isDisabled);
+  });
+
   test('when there are no jobs, there is an empty message', async function(assert) {
     await JobsList.visit();
 
