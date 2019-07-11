@@ -14,10 +14,11 @@ is not present in the open source version of Nomad.
 
 Prior to Nomad 0.9, job [priority][priority] in Nomad was used to process
 scheduling requests in priority order. Preemption, implemented in Nomad 0.9
-allows Nomad to evict running allocations to place jobs of a higher priority.
-Jobs whose allocations are blocked temporarily go into "pending" status until
-the cluster has additional capacity to run it. This allows operators to run high
-priority jobs even under resource contention across the cluster.
+allows Nomad to evict running allocations to place allocations of a higher
+priority. Allocations of a job that are blocked temporarily go into "pending"
+status until the cluster has additional capacity to run them. This allows
+operators to run high priority tasks even under resource contention across the
+cluster.
 
 While Nomad 0.9 introduced preemption for [system][system-job] jobs, Nomad 0.9.3
 [Enterprise][enterprise] additionally allows preemption for
@@ -31,20 +32,6 @@ While Nomad 0.9 introduced preemption for [system][system-job] jobs, Nomad 0.9.3
 ## Estimated Time to Complete
 
 20 minutes
-
-## Challenge
-
-Consider a high-priority service application that needs to be deployed
-immediately in your Nomad cluster but currently cannot be placed anywhere due to
-a lack of resources on your nodes. Stop any allocations with a lower priority
-and place them in a queue to be run later when resources become available.
-
-## Solution
-
-[Update][update-scheduler] the scheduler configuration to enable service job
-preemption in your Nomad cluster. Assign the job you currently need to deploy a
-[priority][priority] greater than any job you would like to evict (and send into
-a queue for later deployment). Deploy your job and ensure it is running.
 
 ## Prerequisites
 
