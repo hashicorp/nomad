@@ -69,7 +69,7 @@
     "ember-fetch": "^6.5.0",
     "ember-freestyle": "~0.10.0",
     "ember-inflector": "^3.0.0",
-    "ember-inline-svg": "^0.2.1",
+    "ember-inline-svg": "^0.3.0",
     "ember-load-initializers": "^1.1.0",
     "ember-maybe-import-regenerator": "^0.1.6",
     "ember-moment": "^7.8.1",
