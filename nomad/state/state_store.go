@@ -303,8 +303,6 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 
 	// Upsert followup evals for allocs that were preempted
 	for _, eval := range results.PreemptionEvals {
-		eval.CreateTime = time.Now().UTC().UnixNano()
-		eval.ModifyTime = time.Now().UTC().UnixNano()
 		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
 			return err
 		}
@@ -1726,8 +1724,6 @@ func (s *StateStore) UpsertEvalsTxn(index uint64, evals []*structs.Evaluation, t
 	// Do a nested upsert
 	jobs := make(map[structs.NamespacedID]string, len(evals))
 	for _, eval := range evals {
-		eval.CreateTime = time.Now().UTC().UnixNano()
-		eval.ModifyTime = time.Now().UTC().UnixNano()
 		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
 			return err
 		}
@@ -2317,8 +2313,6 @@ func (s *StateStore) UpdateAllocsDesiredTransitions(index uint64, allocs map[str
 	}
 
 	for _, eval := range evals {
-		eval.CreateTime = time.Now().UTC().UnixNano()
-		eval.ModifyTime = time.Now().UTC().UnixNano()
 		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
 			return err
 		}
@@ -2730,8 +2724,6 @@ func (s *StateStore) UpdateDeploymentStatus(index uint64, req *structs.Deploymen
 
 	// Upsert the optional eval
 	if req.Eval != nil {
-		req.Eval.CreateTime = time.Now().UTC().UnixNano()
-		req.Eval.ModifyTime = time.Now().UTC().UnixNano()
 		if err := s.nestedUpsertEval(txn, index, req.Eval); err != nil {
 			return err
 		}
@@ -2948,8 +2940,6 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 
 	// Upsert the optional eval
 	if req.Eval != nil {
-		req.Eval.CreateTime = time.Now().UTC().UnixNano()
-		req.Eval.ModifyTime = time.Now().UTC().UnixNano()
 		if err := s.nestedUpsertEval(txn, index, req.Eval); err != nil {
 			return err
 		}
@@ -3064,8 +3054,6 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 
 	// Upsert the optional eval
 	if req.Eval != nil {
-		req.Eval.CreateTime = time.Now().UTC().UnixNano()
-		req.Eval.ModifyTime = time.Now().UTC().UnixNano()
 		if err := s.nestedUpsertEval(txn, index, req.Eval); err != nil {
 			return err
 		}

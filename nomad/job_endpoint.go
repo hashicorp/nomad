@@ -582,6 +582,8 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 		JobID:          job.ID,
 		JobModifyIndex: job.ModifyIndex,
 		Status:         structs.EvalStatusPending,
+		CreateTime:     time.Now().UTC().UnixNano(),
+		ModifyTime:     time.Now().UTC().UnixNano(),
 	}
 
 	// Create a AllocUpdateDesiredTransitionRequest request with the eval and any forced rescheduled allocs
@@ -750,6 +752,8 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 			TriggeredBy: structs.EvalTriggerJobDeregister,
 			JobID:       jobNS.ID,
 			Status:      structs.EvalStatusPending,
+			CreateTime:  time.Now().UTC().UnixNano(),
+			ModifyTime:  time.Now().UTC().UnixNano(),
 		}
 		args.Evals = append(args.Evals, eval)
 	}
@@ -1209,6 +1213,9 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		JobModifyIndex: updatedIndex,
 		Status:         structs.EvalStatusPending,
 		AnnotatePlan:   true,
+		// Timestamps are added for consistency but this eval is never persisted
+		CreateTime:     time.Now().UTC().UnixNano(),
+		ModifyTime:     time.Now().UTC().UnixNano(),
 	}
 
 	snap.UpsertEvals(100, []*structs.Evaluation{eval})

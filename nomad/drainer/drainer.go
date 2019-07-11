@@ -411,6 +411,8 @@ func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs
 			TriggeredBy: structs.EvalTriggerNodeDrain,
 			JobID:       job,
 			Status:      structs.EvalStatusPending,
+			CreateTime:  time.Now().UTC().UnixNano(),
+			ModifyTime:  time.Now().UTC().UnixNano(),
 		})
 	}
 

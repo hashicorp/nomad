@@ -800,6 +800,8 @@ func (w *deploymentWatcher) getEval() *structs.Evaluation {
 		JobID:        w.j.ID,
 		DeploymentID: w.deploymentID,
 		Status:       structs.EvalStatusPending,
+		CreateTime:   time.Now().UTC().UnixNano(),
+		ModifyTime:   time.Now().UTC().UnixNano(),
 	}
 }
 

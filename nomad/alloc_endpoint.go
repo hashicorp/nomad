@@ -244,6 +244,8 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 		JobID:          alloc.Job.ID,
 		JobModifyIndex: alloc.Job.ModifyIndex,
 		Status:         structs.EvalStatusPending,
+		CreateTime:     time.Now().UTC().UnixNano(),
+		ModifyTime:     time.Now().UTC().UnixNano(),
 	}
 
 	transitionReq := &structs.AllocUpdateDesiredTransitionRequest{

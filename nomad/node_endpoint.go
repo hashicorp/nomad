@@ -1038,6 +1038,8 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 						Type:        job.Type,
 						Priority:    job.Priority,
 						Status:      structs.EvalStatusPending,
+						CreateTime:  time.Now().UTC().UnixNano(),
+						ModifyTime:  time.Now().UTC().UnixNano(),
 					}
 					evals = append(evals, eval)
 				}
@@ -1263,8 +1265,8 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			NodeID:          nodeID,
 			NodeModifyIndex: nodeIndex,
 			Status:          structs.EvalStatusPending,
-			CreateTime:     time.Now().UTC().UnixNano(),
-			ModifyTime:     time.Now().UTC().UnixNano(),
+			CreateTime:      time.Now().UTC().UnixNano(),
+			ModifyTime:      time.Now().UTC().UnixNano(),
 		}
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
@@ -1289,8 +1291,8 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			NodeID:          nodeID,
 			NodeModifyIndex: nodeIndex,
 			Status:          structs.EvalStatusPending,
-			CreateTime:     time.Now().UTC().UnixNano(),
-			ModifyTime:     time.Now().UTC().UnixNano(),
+			CreateTime:      time.Now().UTC().UnixNano(),
+			ModifyTime:      time.Now().UTC().UnixNano(),
 		}
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)

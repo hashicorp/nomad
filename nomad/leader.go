@@ -574,7 +574,6 @@ func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
 				newEval := dup.Copy()
 				newEval.Status = structs.EvalStatusCancelled
 				newEval.StatusDescription = fmt.Sprintf("existing blocked evaluation exists for job %q", newEval.JobID)
-				newEval.CreateTime = time.Now().UTC().UnixNano()
 				newEval.ModifyTime = time.Now().UTC().UnixNano()
 				cancel[i] = newEval
 			}
