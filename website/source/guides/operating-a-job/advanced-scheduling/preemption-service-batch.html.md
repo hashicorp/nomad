@@ -16,9 +16,9 @@ Prior to Nomad 0.9, job [priority][priority] in Nomad was used to process
 scheduling requests in priority order. Preemption, implemented in Nomad 0.9
 allows Nomad to evict running allocations to place allocations of a higher
 priority. Allocations of a job that are blocked temporarily go into "pending"
-status until the cluster has additional capacity to run them. This allows
-operators to run high priority tasks even under resource contention across the
-cluster.
+status until the cluster has additional capacity to run them. This is useful
+when operators need to run relatively higher priority tasks sooner even under
+resource contention across the cluster.
 
 While Nomad 0.9 introduced preemption for [system][system-job] jobs, Nomad 0.9.3
 [Enterprise][enterprise] additionally allows preemption for
