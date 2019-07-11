@@ -22,7 +22,10 @@ cluster.
 
 While Nomad 0.9 introduced preemption for [system][system-job] jobs, Nomad 0.9.3
 [Enterprise][enterprise] additionally allows preemption for
-[service][service-job] and [batch][batch-job] jobs.
+[service][service-job] and [batch][batch-job] jobs. This functionality can
+easily be enabled by sending a [payload][payload-preemption-config] with the
+appropriate options specified to the [scheduler
+configuration][update-scheduler] API endpoint.
 
 ## Reference Material
 
@@ -421,6 +424,7 @@ Enterprise [here][enterprise-preemption].
 [enterprise]: /docs/enterprise/index.html
 [enterprise-preemption]: /docs/enterprise/preemption/index.html
 [memory]: /docs/job-specification/resources.html#memory
+[payload-preemption-config]: /api/operator.html#sample-payload-1
 [plan]: /docs/commands/job/plan.html
 [preemption]: /docs/internals/scheduling/preemption.html
 [preemption-config]: /api/operator.html#preemptionconfig-1
