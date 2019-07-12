@@ -10,7 +10,7 @@ description: |-
 
 Name: `jail-task-driver`
 
-The `jail-task-driver` driver provides an interface for using FreeBSD jails for running application
+The Jail task driver provides an interface for using FreeBSD jails for running application
 containers. You can download the external jail-task-driver [here][jail-task-driver]. For more detailed instructions on how to set up and use this driver, please refer to the [guide][jail-task-guide].
 
 ## Task Configuration
@@ -31,7 +31,7 @@ task "http-echo-jail" {
     }
 ```
 
-The `jail-task-driver` driver supports most of [JAIL(8)][JAIL(8)] parameters, for a list of the currently supported parameters, please refer to the [Parameter Documentation][parameter-doc].
+The Jail task driver supports most of [JAIL(8)][JAIL(8)] parameters, for a list of the currently supported parameters, please refer to the [Parameter Documentation][parameter-doc].
 
 * `Path` - (Optional) The directory which is to be the root of the jail.
   Defaults to nomad's allocation directory.
