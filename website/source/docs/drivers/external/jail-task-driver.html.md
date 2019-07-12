@@ -25,10 +25,18 @@ task "http-echo-jail" {
 			Ip4_addr          = "em1|192.168.1.102"
 			Exec_start        = "/usr/local/bin/http-echo -listen :9999 -text hello"
 			Rctl =  {
-					Vmemoryuse = 1200000
+				Vmemoryuse = {
+					Action = "deny"
+					Amount = "1G"
+					Per = "process"
+				}
+				Openfiles = {
+					Action = "deny"
+					Amount = "500"
 				}
 			}
-    }
+		}
+	}
 ```
 
 The `jail-task-driver` driver supports most of [JAIL(8)][JAIL(8)] parameters, for a list of the currently supported parameters, please refer to the [Parameter Documentation][parameter-doc].
@@ -61,7 +69,7 @@ The `jail-task-driver` driver supports most of [JAIL(8)][JAIL(8)] parameters, fo
 ## Resource control
 
 Resource control on jails is enforced by [RCTL(8)][rctl-doc] all parameters for resource control
-are supported but the action will always be **deny**.  
+are supported.
 
 
 * `Rctl` - (Optional) Set resource limits on the jail, for a list of currently supported parameters, please refer to the [Parameter Documentation][parameter-doc].
