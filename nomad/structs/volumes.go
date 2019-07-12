@@ -105,9 +105,10 @@ func CopyMapVolumes(s map[string]*Volume) map[string]*Volume {
 
 // VolumeMount is ...
 type VolumeMount struct {
-	Volume      string
-	Destination string
-	ReadOnly    bool
+	Volume          string
+	Destination     string
+	ReadOnly        bool
+	PropagationMode string
 }
 
 func (v *VolumeMount) Copy() *VolumeMount {

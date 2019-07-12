@@ -490,9 +490,10 @@ type Volume struct {
 }
 
 type VolumeMount struct {
-	Volume      string
-	Destination string
-	ReadOnly    bool `mapstructure:"read_only"`
+	Volume          string
+	Destination     string
+	ReadOnly        bool   `mapstructure:"read_only"`
+	PropagationMode string `mapstructure:"propagation_mode"`
 }
 
 // TaskGroup is the unit of scheduling.

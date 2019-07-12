@@ -518,6 +518,7 @@ func parseVolumeMounts(out *[]*api.VolumeMount, list *ast.ObjectList) error {
 			"volume",
 			"read_only",
 			"destination",
+			"propagation_mode",
 		}
 		if err := helper.CheckHCLKeys(item.Val, valid); err != nil {
 			return err
