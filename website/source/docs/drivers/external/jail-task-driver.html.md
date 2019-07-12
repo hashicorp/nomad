@@ -66,9 +66,9 @@ The Jail task driver supports most of [JAIL(8)][JAIL(8)] parameters, for a list 
   Since raw sockets can be used to configure and interact with various network subsystems, extra caution 
   should be used where privileged access to jails is given out to untrusted parties.
 
-## Resource control
+## Resource Isolation
 
-Resource control on jails is enforced by [RCTL(8)][rctl-doc] all parameters for resource control
+Resource isolation on jails is enforced by [RCTL(8)][rctl-doc] all parameters for resource control
 are supported.
 
 
