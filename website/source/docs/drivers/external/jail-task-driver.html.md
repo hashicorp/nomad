@@ -3,7 +3,7 @@ layout: "docs"
 page_title: "Drivers: jail-task-driver"
 sidebar_current: "docs-drivers-community-jail-task-driver"
 description: |-
-  The LXC task driver is used to run application containers using LXC.
+  The Jail task driver is used to run application containers using FreeBSD jails.
 ---
 
 # Jail task Driver
