@@ -52,14 +52,87 @@ resource "aws_instance" "server" {
     }
   }
 
+  provisioner "file" {
+    content     = "${file("${path.root}/configs/${var.tls == false ? "notls.hcl" : "tls.hcl"}")}"
+    destination = "/tmp/tls.hcl"
+
+    connection {
+      user        = "ubuntu"
+      private_key = "${module.keys.private_key_pem}"
+    }
+  }
+  provisioner "local-exec" {
+    command = <<EOF
+openssl req -newkey rsa:2048 -nodes \
+	-subj "/CN=server.global.nomad" \
+	-keyout keys/agent-${self.public_ip}.key \
+	-out keys/agent-${self.public_ip}.csr
+
+cat <<'NEOY' > keys/agent-${self.public_ip}.conf
+subjectAltName=DNS:server.global.nomad,DNS:localhost,IP:127.0.0.1,IP:${self.private_ip},IP:${self.public_ip}
+extendedKeyUsage = serverAuth, clientAuth
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature, keyEncipherment
+NEOY
+
+openssl x509 -req -CAcreateserial \
+	-extfile ./keys/agent-${self.public_ip}.conf \
+	-days 365 \
+  -sha256 \
+	-CA keys/tls_ca.crt \
+	-CAkey keys/tls_ca.key \
+	-in keys/agent-${self.public_ip}.csr \
+	-out keys/agent-${self.public_ip}.crt
+
+EOF
+  }
+
+  provisioner "file" {
+    content = "${file("${path.root}/keys/agent-${self.public_ip}.key")}"
+    destination = "/tmp/agent.key"
+    connection {
+      user        = "ubuntu"
+      private_key = "${module.keys.private_key_pem}"
+    }
+  }
+
+  provisioner "file" {
+    content = "${file("${path.root}/keys/agent-${self.public_ip}.crt")}"
+    destination = "/tmp/agent.crt"
+    connection {
+      user        = "ubuntu"
+      private_key = "${module.keys.private_key_pem}"
+    }
+  }
+
+  provisioner "file" {
+    content = "${tls_self_signed_cert.ca.cert_pem}"
+    destination = "/tmp/ca.crt"
+    connection {
+      user        = "ubuntu"
+      private_key = "${module.keys.private_key_pem}"
+    }
+  }
+
   provisioner "remote-exec" {
     inline = [
+      # basic installation
       "aws s3 cp s3://nomad-team-test-binary/builds-oss/${var.nomad_sha}.tar.gz nomad.tar.gz",
       "sudo cp /ops/shared/config/nomad.service /etc/systemd/system/nomad.service",
       "sudo tar -zxvf nomad.tar.gz -C /usr/local/bin/",
-      "sudo cp /tmp/server.hcl /etc/nomad.d/nomad.hcl",
       "sudo chmod 0755 /usr/local/bin/nomad",
       "sudo chown root:root /usr/local/bin/nomad",
+
+      # prepare config
+      "sudo mkdir /etc/nomad.d/tls",
+      "sudo cp /tmp/ca.crt /etc/nomad.d/tls/",
+      "sudo cp /tmp/agent.crt /etc/nomad.d/tls/",
+      "sudo cp /tmp/agent.key /etc/nomad.d/tls/",
+
+      "sudo cp /tmp/server.hcl /etc/nomad.d/nomad.hcl",
+      "sudo cp /tmp/tls.hcl /etc/nomad.d/tls.hcl",
+
+      # run nomad
       "sudo systemctl enable nomad.service",
       "sudo systemctl start nomad.service"
     ]
@@ -105,15 +178,89 @@ resource "aws_instance" "client" {
     }
   }
 
+  provisioner "file" {
+    content     = "${file("${path.root}/configs/${var.tls == false ? "notls.hcl" : "tls.hcl"}")}"
+    destination = "/tmp/tls.hcl"
+
+    connection {
+      user        = "ubuntu"
+      private_key = "${module.keys.private_key_pem}"
+    }
+  }
+  provisioner "local-exec" {
+    command = <<EOF
+openssl req -newkey rsa:2048 -nodes \
+	-subj "/CN=client.global.nomad" \
+	-keyout keys/agent-${self.public_ip}.key \
+	-out keys/agent-${self.public_ip}.csr
+
+cat <<'NEOY' > keys/agent-${self.public_ip}.conf
+subjectAltName=DNS:server.global.nomad,DNS:localhost,IP:127.0.0.1,IP:${self.private_ip},IP:${self.public_ip}
+extendedKeyUsage = serverAuth, clientAuth
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature, keyEncipherment
+NEOY
+
+
+openssl x509 -req -CAcreateserial \
+	-extfile ./keys/agent-${self.public_ip}.conf \
+	-days 365 \
+  -sha256 \
+	-CA keys/tls_ca.crt \
+	-CAkey keys/tls_ca.key \
+	-in keys/agent-${self.public_ip}.csr \
+	-out keys/agent-${self.public_ip}.crt
+
+EOF
+  }
+
+  provisioner "file" {
+    content = "${file("${path.root}/keys/agent-${self.public_ip}.key")}"
+    destination = "/tmp/agent.key"
+    connection {
+      user        = "ubuntu"
+      private_key = "${module.keys.private_key_pem}"
+    }
+  }
+
+  provisioner "file" {
+    content = "${file("${path.root}/keys/agent-${self.public_ip}.crt")}"
+    destination = "/tmp/agent.crt"
+    connection {
+      user        = "ubuntu"
+      private_key = "${module.keys.private_key_pem}"
+    }
+  }
+
+  provisioner "file" {
+    content = "${tls_self_signed_cert.ca.cert_pem}"
+    destination = "/tmp/ca.crt"
+    connection {
+      user        = "ubuntu"
+      private_key = "${module.keys.private_key_pem}"
+    }
+  }
+
   provisioner "remote-exec" {
     inline = [
+      # basic installation
       "aws s3 cp s3://nomad-team-test-binary/builds-oss/${var.nomad_sha}.tar.gz nomad.tar.gz",
-      "sudo tar -zxvf nomad.tar.gz -C /usr/local/bin/",
       "sudo cp /ops/shared/config/nomad.service /etc/systemd/system/nomad.service",
-      "sudo cp /tmp/client.hcl /etc/nomad.d/nomad.hcl",
+      "sudo tar -zxvf nomad.tar.gz -C /usr/local/bin/",
       "sudo chmod 0755 /usr/local/bin/nomad",
       "sudo chown root:root /usr/local/bin/nomad",
-			"sudo systemctl enable nomad.service",
+
+      # prepare config
+      "sudo mkdir /etc/nomad.d/tls",
+      "sudo cp /tmp/ca.crt /etc/nomad.d/tls/",
+      "sudo cp /tmp/agent.crt /etc/nomad.d/tls/",
+      "sudo cp /tmp/agent.key /etc/nomad.d/tls/",
+
+      "sudo cp /tmp/client.hcl /etc/nomad.d/nomad.hcl",
+      "sudo cp /tmp/tls.hcl /etc/nomad.d/tls.hcl",
+
+      # run nomad
+      "sudo systemctl enable nomad.service",
       "sudo systemctl start nomad.service"
     ]
 

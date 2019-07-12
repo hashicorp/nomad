@@ -13,6 +13,11 @@ variable "indexed" {
   default     = true
 }
 
+variable "tls" {
+  description = "Should use TLS for communication"
+  default     = true
+}
+
 variable "instance_type" {
   description = "The AWS instance type to use for both clients and servers."
   default     = "t2.medium"
@@ -79,6 +84,18 @@ Your cluster has been provisioned! - To prepare your environment, run the
 following:
 
 ```
+# TLS Configuration
+export NOMAD_CACERT=${path.root}/keys/tls_ca.crt
+export NOMAD_CLIENT_CERT=${path.root}/keys/tls_api_client.crt
+export NOMAD_CLIENT_KEY=${path.root}/keys/tls_api_client.key
+export NOMAD_ADDR=https://${aws_instance.client.0.public_ip}:4646
+
+export NOMAD_ADDR=http://${aws_instance.client.0.public_ip}:4646
+export CONSUL_HTTP_ADDR=http://${aws_instance.client.0.public_ip}:8500
+export NOMAD_E2E=
+
+
+# PLAINTEXT CONFIGURATION
 export NOMAD_ADDR=http://${aws_instance.client.0.public_ip}:4646
 export CONSUL_HTTP_ADDR=http://${aws_instance.client.0.public_ip}:8500
 export NOMAD_E2E=1
@@ -92,7 +109,7 @@ go test -v ./e2e
 
 ssh into nodes with:
 ```
-ssh -i keys/${local.random_name}.pem ubuntu@${aws_instance.client.0.public_ip}
+ssh -i keys/${local.random_name}.pem ubuntu@${aws_instance.server.0.public_ip}
 ```
 EOM
 }
