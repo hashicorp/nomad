@@ -11,30 +11,41 @@ export function jobURL(job, path = '') {
   return expectedURL;
 }
 
-export function stopJob() {
-  click('[data-test-stop] [data-test-idle-button]');
-  return wait().then(() => {
-    click('[data-test-stop] [data-test-confirm-button]');
-    return wait();
-  });
+export async function stopJob() {
+  await click('[data-test-stop] [data-test-idle-button]');
+  await click('[data-test-stop] [data-test-confirm-button]');
 }
 
-export function expectStopError(assert) {
-  return () => {
-    assert.equal(
-      find('[data-test-job-error-title]').textContent,
-      'Could Not Stop Job',
-      'Appropriate error is shown'
-    );
-    assert.ok(
-      find('[data-test-job-error-body]').textContent.includes('ACL'),
-      'The error message mentions ACLs'
-    );
+export async function startJob() {
+  await click('[data-test-start] [data-test-idle-button]');
+  await click('[data-test-start] [data-test-confirm-button]');
+}
 
-    click('[data-test-job-error-close]');
-    assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
-    return wait();
-  };
+export function expectStartRequest(assert, server, job) {
+  const expectedURL = jobURL(job);
+  const request = server.pretender.handledRequests
+    .filterBy('method', 'POST')
+    .find(req => req.url === expectedURL);
+
+  const requestPayload = JSON.parse(request.requestBody).Job;
+
+  assert.ok(request, 'POST URL was made correctly');
+  assert.ok(requestPayload.Stop == null, 'The Stop signal is not sent in the POST request');
+}
+
+export async function expectError(assert, title) {
+  assert.equal(
+    find('[data-test-job-error-title]').textContent,
+    title,
+    'Appropriate error is shown'
+  );
+  assert.ok(
+    find('[data-test-job-error-body]').textContent.includes('ACL'),
+    'The error message mentions ACLs'
+  );
+
+  await click('[data-test-job-error-close]');
+  assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
 }
 
 export function expectDeleteRequest(assert, server, job) {
