@@ -55,7 +55,7 @@ module('Integration | Component | job-page/parts/body', function(hooks) {
     const store = this.owner.lookup('service:store');
     const job = await store.createRecord('job', {
       id: 'batch-job',
-      type: 'servibatchce',
+      type: 'batch',
     });
 
     this.set('job', job);
