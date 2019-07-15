@@ -52,9 +52,7 @@ module('Integration | Component | allocation row', function(hooks) {
     this.server.create('allocation', { clientStatus: 'running' });
     await this.store.findAll('allocation');
 
-    let allocation;
-
-    allocation = this.store.peekAll('allocation').get('firstObject');
+    const allocation = this.store.peekAll('allocation').get('firstObject');
 
     this.setProperties({
       allocation,
