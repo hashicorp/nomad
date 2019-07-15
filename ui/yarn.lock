@@ -4752,7 +4752,7 @@ ember-moment@^7.8.1:
     ember-getowner-polyfill "^2.2.0"
     ember-macro-helpers "^2.1.0"
 
-ember-native-dom-helpers@^0.5.3, ember-native-dom-helpers@^0.5.4:
+ember-native-dom-helpers@^0.5.3:
   version "0.5.10"
   resolved "https://registry.yarnpkg.com/ember-native-dom-helpers/-/ember-native-dom-helpers-0.5.10.tgz#9c7172e4ddfa5dd86830c46a936e2f8eca3e5896"
   integrity sha512-bPJX49vlgnBGwFn/3WJPPJjjyd7/atvzW5j01u1dbyFf3bXvHg9Rs1qaZJdk8js0qZ1FINadIEC9vWtgN3w7tg==
