@@ -149,11 +149,13 @@ func (h *serviceHook) PreKilling(ctx context.Context, req *interfaces.TaskPreKil
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	isFailure := req.IsFailure
+
 	// Deregister before killing task
-	h.deregister()
+	h.deregister(isFailure)
 
 	// If there's no shutdown delay, exit early
-	if h.delay == 0 {
+	if h.delay == 0 || isFailure {
 		return nil
 	}
 
@@ -168,26 +170,20 @@ func (h *serviceHook) PreKilling(ctx context.Context, req *interfaces.TaskPreKil
 func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *interfaces.TaskExitedResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.deregister()
+	h.deregister(false)
 	return nil
 }
 
 // deregister services from Consul.
-func (h *serviceHook) deregister() {
+func (h *serviceHook) deregister(isFailure bool) {
 	taskServices := h.getTaskServices()
-	h.consul.RemoveTask(taskServices)
-
-	// Canary flag may be getting flipped when the alloc is being
-	// destroyed, so remove both variations of the service
-	taskServices.Canary = !taskServices.Canary
-	h.consul.RemoveTask(taskServices)
-
+	h.consul.RemoveTask(taskServices, isFailure)
 }
 
 func (h *serviceHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.deregister()
+	h.deregister(false)
 	return nil
 }
 

@@ -636,7 +636,7 @@ func TestConsul_RegServices(t *testing.T) {
 	}
 
 	// Remove the new task
-	ctx.ServiceClient.RemoveTask(ctx.Task)
+	ctx.ServiceClient.RemoveTask(ctx.Task, false)
 	if err := ctx.syncOnce(); err != nil {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
@@ -1258,7 +1258,7 @@ func TestConsul_CanaryTags(t *testing.T) {
 		require.NotEqual(canaryTags, service.Tags)
 	}
 
-	ctx.ServiceClient.RemoveTask(ctx.Task)
+	ctx.ServiceClient.RemoveTask(ctx.Task, false)
 	require.NoError(ctx.syncOnce())
 	require.Len(ctx.FakeConsul.services, 0)
 }
@@ -1291,7 +1291,7 @@ func TestConsul_CanaryTags_NoTags(t *testing.T) {
 		require.Equal(tags, service.Tags)
 	}
 
-	ctx.ServiceClient.RemoveTask(ctx.Task)
+	ctx.ServiceClient.RemoveTask(ctx.Task, false)
 	require.NoError(ctx.syncOnce())
 	require.Len(ctx.FakeConsul.services, 0)
 }

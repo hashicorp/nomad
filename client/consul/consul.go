@@ -8,7 +8,7 @@ import (
 // remove services and checks from Consul.
 type ConsulServiceAPI interface {
 	RegisterTask(*consul.TaskServices) error
-	RemoveTask(*consul.TaskServices)
+	RemoveTask(*consul.TaskServices, bool)
 	UpdateTask(old, newTask *consul.TaskServices) error
 	AllocRegistrations(allocID string) (*consul.AllocRegistration, error)
 }

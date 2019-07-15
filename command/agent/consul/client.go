@@ -941,7 +941,7 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 // RemoveTask from Consul. Removes all service entries and checks.
 //
 // Actual communication with Consul is done asynchronously (see Run).
-func (c *ServiceClient) RemoveTask(task *TaskServices) {
+func (c *ServiceClient) RemoveTask(task *TaskServices, isFailure bool) {
 	ops := operations{}
 
 	for _, service := range task.Services {
@@ -952,7 +952,8 @@ func (c *ServiceClient) RemoveTask(task *TaskServices) {
 			cid := makeCheckID(id, check)
 			ops.deregChecks = append(ops.deregChecks, cid)
 
-			if check.TriggersRestarts() {
+			// Task restarts due to healthcheck failures will have their checks removed by the check watcher
+			if check.TriggersRestarts() && !isFailure {
 				c.checkWatcher.Unwatch(cid)
 			}
 		}

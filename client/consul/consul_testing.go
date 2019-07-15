@@ -70,7 +70,7 @@ func (m *MockConsulServiceClient) RegisterTask(task *consul.TaskServices) error 
 	return nil
 }
 
-func (m *MockConsulServiceClient) RemoveTask(task *consul.TaskServices) {
+func (m *MockConsulServiceClient) RemoveTask(task *consul.TaskServices, isFailure bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.logger.Trace("RemoveTask", "alloc_id", task.AllocID, "task", task.Name,

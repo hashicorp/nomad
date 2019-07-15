@@ -123,7 +123,10 @@ type TaskPoststartHook interface {
 	Poststart(context.Context, *TaskPoststartRequest, *TaskPoststartResponse) error
 }
 
-type TaskPreKillRequest struct{}
+type TaskPreKillRequest struct{
+	// True if the alloc is being killed due to a healthcheck failure
+	IsFailure bool
+}
 type TaskPreKillResponse struct{}
 
 type TaskPreKillHook interface {

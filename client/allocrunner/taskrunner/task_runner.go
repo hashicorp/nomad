@@ -799,7 +799,7 @@ func (tr *TaskRunner) initDriver() error {
 // runner killErr value.
 func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 	// Run the pre killing hooks
-	tr.preKill()
+	tr.preKill(false)
 
 	// Tell the restart tracker that the task has been killed so it doesn't
 	// attempt to restart it.
