@@ -1,6 +1,5 @@
 import Component from '@ember/component';
-import { run } from '@ember/runloop';
-import { task } from 'ember-concurrency';
+import { task, timeout } from 'ember-concurrency';
 
 export default Component.extend({
   classNames: ['copy-button'],
@@ -11,8 +10,7 @@ export default Component.extend({
   indicateSuccess: task(function*() {
     this.set('state', 'success');
 
-    yield run.later(() => {
-      this.set('state', null);
-    }, 2000);
-  }),
+    yield timeout(2000);
+    this.set('state', null);
+  }).restartable(),
 });
