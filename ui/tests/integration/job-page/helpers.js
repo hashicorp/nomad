@@ -1,5 +1,4 @@
 import { click, find } from '@ember/test-helpers';
-import wait from 'ember-test-helpers/wait';
 
 export function jobURL(job, path = '') {
   const id = job.get('plainId');
@@ -57,6 +56,4 @@ export function expectDeleteRequest(assert, server, job) {
       .find(req => req.url === expectedURL),
     'DELETE URL was made correctly'
   );
-
-  return wait();
 }

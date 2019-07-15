@@ -1,7 +1,7 @@
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render, settled } from '@ember/test-helpers';
+import { render } from '@ember/test-helpers';
 import { click, find } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
@@ -57,228 +57,166 @@ module('Integration | Component | job-page/service', function(hooks) {
       )
     );
 
-  test('Stopping a job sends a delete request for the job', function(assert) {
-    let job;
-
+  test('Stopping a job sends a delete request for the job', async function(assert) {
     const mirageJob = makeMirageJob(this.server);
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled()
-      .then(async () => {
-        job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-        this.setProperties(commonProperties(job));
-        await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
 
-        return settled();
-      })
-      .then(stopJob)
-      .then(() => expectDeleteRequest(assert, this.server, job));
+    await stopJob();
+    expectDeleteRequest(assert, this.server, job);
   });
 
-  test('Stopping a job without proper permissions shows an error message', function(assert) {
+  test('Stopping a job without proper permissions shows an error message', async function(assert) {
     this.server.pretender.delete('/v1/job/:id', () => [403, {}, null]);
 
     const mirageJob = makeMirageJob(this.server);
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled()
-      .then(async () => {
-        const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-        this.setProperties(commonProperties(job));
-        await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
 
-        return settled();
-      })
-      .then(stopJob)
-      .then(expectError(assert, 'Could Not Stop Job'));
+    await stopJob();
+    expectError(assert, 'Could Not Stop Job');
   });
 
-  test('Starting a job sends a post request for the job using the current definition', function(assert) {
-    let job;
-
+  test('Starting a job sends a post request for the job using the current definition', async function(assert) {
     const mirageJob = makeMirageJob(this.server, { status: 'dead' });
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled()
-      .then(async () => {
-        job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-        this.setProperties(commonProperties(job));
-        await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
 
-        return settled();
-      })
-      .then(startJob)
-      .then(() => expectStartRequest(assert, this.server, job));
+    await startJob();
+    expectStartRequest(assert, this.server, job);
   });
 
-  test('Starting a job without proper permissions shows an error message', function(assert) {
+  test('Starting a job without proper permissions shows an error message', async function(assert) {
     this.server.pretender.post('/v1/job/:id', () => [403, {}, null]);
 
     const mirageJob = makeMirageJob(this.server, { status: 'dead' });
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled()
-      .then(async () => {
-        const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-        this.setProperties(commonProperties(job));
-        await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
 
-        return settled();
-      })
-      .then(startJob)
-      .then(expectError(assert, 'Could Not Start Job'));
+    await startJob();
+    expectError(assert, 'Could Not Start Job');
   });
 
-  test('Recent allocations shows allocations in the job context', function(assert) {
-    let job;
-
+  test('Recent allocations shows allocations in the job context', async function(assert) {
     this.server.create('node');
     const mirageJob = makeMirageJob(this.server, { createAllocations: true });
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled()
-      .then(async () => {
-        job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-        this.setProperties(commonProperties(job));
-        await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
 
-        return settled();
-      })
-      .then(() => {
-        const allocation = this.server.db.allocations.sortBy('modifyIndex').reverse()[0];
-        const allocationRow = Job.allocations.objectAt(0);
+    const allocation = this.server.db.allocations.sortBy('modifyIndex').reverse()[0];
+    const allocationRow = Job.allocations.objectAt(0);
 
-        assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'ID');
-        assert.equal(allocationRow.taskGroup, allocation.taskGroup, 'Task Group name');
-      });
+    assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'ID');
+    assert.equal(allocationRow.taskGroup, allocation.taskGroup, 'Task Group name');
   });
 
-  test('Recent allocations caps out at five', function(assert) {
-    let job;
-
+  test('Recent allocations caps out at five', async function(assert) {
     this.server.create('node');
     const mirageJob = makeMirageJob(this.server);
     this.server.createList('allocation', 10);
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled().then(async () => {
-      job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-      this.setProperties(commonProperties(job));
-      await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
 
-      return settled().then(() => {
-        assert.equal(Job.allocations.length, 5, 'Capped at 5 allocations');
-        assert.ok(
-          Job.viewAllAllocations.includes(job.get('allocations.length') + ''),
-          `View link mentions ${job.get('allocations.length')} allocations`
-        );
-      });
-    });
+    assert.equal(Job.allocations.length, 5, 'Capped at 5 allocations');
+    assert.ok(
+      Job.viewAllAllocations.includes(job.get('allocations.length') + ''),
+      `View link mentions ${job.get('allocations.length')} allocations`
+    );
   });
 
-  test('Recent allocations shows an empty message when the job has no allocations', function(assert) {
-    let job;
-
+  test('Recent allocations shows an empty message when the job has no allocations', async function(assert) {
     this.server.create('node');
     const mirageJob = makeMirageJob(this.server);
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled()
-      .then(async () => {
-        job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-        this.setProperties(commonProperties(job));
-        await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
 
-        return settled();
-      })
-      .then(() => {
-        assert.ok(
-          Job.recentAllocationsEmptyState.headline.includes('No Allocations'),
-          'No allocations empty message'
-        );
-      });
+    assert.ok(
+      Job.recentAllocationsEmptyState.headline.includes('No Allocations'),
+      'No allocations empty message'
+    );
   });
 
-  test('Active deployment can be promoted', function(assert) {
-    let job;
-    let deployment;
-
+  test('Active deployment can be promoted', async function(assert) {
     this.server.create('node');
     const mirageJob = makeMirageJob(this.server, { activeDeployment: true });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled()
-      .then(async () => {
-        job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
-        deployment = job.get('latestDeployment');
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const deployment = await job.get('latestDeployment');
 
-        this.setProperties(commonProperties(job));
-        await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
 
-        return settled();
-      })
-      .then(() => {
-        click('[data-test-promote-canary]');
-        return settled();
-      })
-      .then(() => {
-        const requests = this.server.pretender.handledRequests;
-        assert.ok(
-          requests
-            .filterBy('method', 'POST')
-            .findBy('url', `/v1/deployment/promote/${deployment.get('id')}`),
-          'A promote POST request was made'
-        );
-      });
+    await click('[data-test-promote-canary]');
+
+    const requests = this.server.pretender.handledRequests;
+
+    assert.ok(
+      requests
+        .filterBy('method', 'POST')
+        .findBy('url', `/v1/deployment/promote/${deployment.get('id')}`),
+      'A promote POST request was made'
+    );
   });
 
-  test('When promoting the active deployment fails, an error is shown', function(assert) {
+  test('When promoting the active deployment fails, an error is shown', async function(assert) {
     this.server.pretender.post('/v1/deployment/promote/:id', () => [403, {}, null]);
 
-    let job;
-
     this.server.create('node');
     const mirageJob = makeMirageJob(this.server, { activeDeployment: true });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled()
-      .then(async () => {
-        job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-        this.setProperties(commonProperties(job));
-        await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
 
-        return settled();
-      })
-      .then(() => {
-        click('[data-test-promote-canary]');
-        return settled();
-      })
-      .then(() => {
-        assert.equal(
-          find('[data-test-job-error-title]').textContent,
-          'Could Not Promote Deployment',
-          'Appropriate error is shown'
-        );
-        assert.ok(
-          find('[data-test-job-error-body]').textContent.includes('ACL'),
-          'The error message mentions ACLs'
-        );
+    await click('[data-test-promote-canary]');
 
-        click('[data-test-job-error-close]');
-        assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
-        return settled();
-      });
+    assert.equal(
+      find('[data-test-job-error-title]').textContent,
+      'Could Not Promote Deployment',
+      'Appropriate error is shown'
+    );
+    assert.ok(
+      find('[data-test-job-error-body]').textContent.includes('ACL'),
+      'The error message mentions ACLs'
+    );
+
+    await click('[data-test-job-error-close]');
+
+    assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
   });
 });
