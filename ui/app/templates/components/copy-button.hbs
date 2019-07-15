@@ -14,7 +14,7 @@
   {{#addon-copy-button
     class='button is-borderless is-small'
     clipboardText=clipboardText
-    success=(action 'success')
+    success=(perform indicateSuccess)
     error=(action (mut state) 'error')
   }}
     {{x-icon 'copy-action'}}

@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { run } from '@ember/runloop';
+import { task } from 'ember-concurrency';
 
 export default Component.extend({
   classNames: ['copy-button'],
@@ -7,13 +8,11 @@ export default Component.extend({
   clipboardText: null,
   state: null,
 
-  actions: {
-    success() {
-      this.set('state', 'success');
+  indicateSuccess: task(function*() {
+    this.set('state', 'success');
 
-      run.later(() => {
-        this.set('state', null);
-      }, 2000);
-    },
-  },
+    yield run.later(() => {
+      this.set('state', null);
+    }, 2000);
+  }),
 });
