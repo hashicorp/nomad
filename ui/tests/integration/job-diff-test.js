@@ -1,7 +1,6 @@
-import { findAll, find } from '@ember/test-helpers';
+import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import cleanWhitespace from '../utils/clean-whitespace';
 
