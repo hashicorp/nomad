@@ -4,7 +4,7 @@ import { render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import generateResources from '../../mirage/data/generate-resources';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
-import { find } from 'ember-native-dom-helpers';
+import { find } from '@ember/test-helpers';
 import Response from 'ember-cli-mirage/response';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { Promise, resolve } from 'rsvp';

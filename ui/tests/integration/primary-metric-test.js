@@ -4,7 +4,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
-import { find } from 'ember-native-dom-helpers';
+import { find } from '@ember/test-helpers';
 import { task } from 'ember-concurrency';
 import sinon from 'sinon';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';

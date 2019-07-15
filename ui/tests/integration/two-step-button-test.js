@@ -1,4 +1,4 @@
-import { find, click } from 'ember-native-dom-helpers';
+import { find, click } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';

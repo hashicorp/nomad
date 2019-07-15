@@ -1,7 +1,7 @@
 import { assign } from '@ember/polyfills';
 import { run } from '@ember/runloop';
 import hbs from 'htmlbars-inline-precompile';
-import { findAll, find, click } from 'ember-native-dom-helpers';
+import { findAll, find, click } from '@ember/test-helpers';
 import sinon from 'sinon';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';

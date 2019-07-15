@@ -3,7 +3,7 @@ import RSVP from 'rsvp';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
-import { findAll } from 'ember-native-dom-helpers';
+import { findAll } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import PromiseObject from 'nomad-ui/utils/classes/promise-object';
 

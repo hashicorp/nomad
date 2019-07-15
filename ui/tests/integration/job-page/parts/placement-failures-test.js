@@ -1,6 +1,6 @@
 import { run } from '@ember/runloop';
 import hbs from 'htmlbars-inline-precompile';
-import { findAll, find } from 'ember-native-dom-helpers';
+import { findAll, find } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';

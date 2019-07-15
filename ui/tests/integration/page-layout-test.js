@@ -1,7 +1,7 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
-import { find, click } from 'ember-native-dom-helpers';
+import { find, click } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 
@@ -26,7 +26,10 @@ module('Integration | Component | page layout', function(hooks) {
     click('[data-test-header-gutter-toggle]');
 
     return settled().then(() => {
-      assert.ok(find('[data-test-gutter-menu]').classList.contains('is-open'), 'Gutter menu is open');
+      assert.ok(
+        find('[data-test-gutter-menu]').classList.contains('is-open'),
+        'Gutter menu is open'
+      );
     });
   });
 

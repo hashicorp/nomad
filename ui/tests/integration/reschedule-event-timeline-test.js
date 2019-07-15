@@ -1,7 +1,7 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
-import { find, findAll } from 'ember-native-dom-helpers';
+import { find, findAll } from '@ember/test-helpers';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import hbs from 'htmlbars-inline-precompile';
 import moment from 'moment';

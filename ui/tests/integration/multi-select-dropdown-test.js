@@ -1,4 +1,4 @@
-import { findAll, find, click, focus, keyEvent } from 'ember-native-dom-helpers';
+import { findAll, find, click, focus, keyEvent } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
@@ -64,7 +64,10 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
         return settled();
       })
       .then(() => {
-        assert.notOk(find('[data-test-dropdown-options]'), 'Options are hidden after clicking again');
+        assert.notOk(
+          find('[data-test-dropdown-options]'),
+          'Options are hidden after clicking again'
+        );
       });
   });
 
@@ -118,7 +121,10 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     this.setProperties(props);
     await render(commonTemplate);
 
-    assert.ok(find('[data-test-dropdown-trigger] [data-test-dropdown-count]'), 'The count is shown');
+    assert.ok(
+      find('[data-test-dropdown-trigger] [data-test-dropdown-count]'),
+      'The count is shown'
+    );
     assert.equal(
       find('[data-test-dropdown-trigger] [data-test-dropdown-count]').textContent,
       props.selection.length,
@@ -231,7 +237,11 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     });
 
     keyEvent(optionEls[lastIndex], 'keydown', ARROW_DOWN);
-    assert.equal(document.activeElement, optionEls[lastIndex], `Option ${lastIndex} still has focus`);
+    assert.equal(
+      document.activeElement,
+      optionEls[lastIndex],
+      `Option ${lastIndex} still has focus`
+    );
   });
 
   test('onSelect gets called when pressing SPACE when a list option is focused', async function(assert) {
