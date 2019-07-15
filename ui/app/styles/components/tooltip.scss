@@ -1,5 +1,6 @@
 .tooltip {
   position: relative;
+  pointer-events: all;
 }
 
 .tooltip::after {
@@ -45,12 +46,14 @@
   transition: top 0.1s ease-in-out;
 }
 
-.tooltip:hover::after {
+.tooltip:hover::after,
+.tooltip.always-active::after {
   opacity: 1;
   bottom: 120%;
 }
 
-.tooltip:hover::before {
+.tooltip:hover::before,
+.tooltip.always-active::before {
   opacity: 1;
   top: -20%;
 }

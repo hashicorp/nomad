@@ -11,7 +11,7 @@ module.exports = function(defaults) {
       blacklist: isProd ? ['ember-freestyle'] : [],
     },
     svg: {
-      paths: ['public/images/icons'],
+      paths: ['node_modules/@hashicorp/structure-icons/dist', 'public/images/icons'],
       optimize: {
         plugins: [{ removeViewBox: false }],
       },
