@@ -147,8 +147,8 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     this.set('job', this.store.peekAll('job').get('firstObject'));
 
     await render(hbs`
-    {{job-page/parts/summary job=job}}
-  `);
+      {{job-page/parts/summary job=job}}
+    `);
 
     await click('[data-test-accordion-toggle]');
 
