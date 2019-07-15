@@ -1,7 +1,6 @@
-import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render, settled } from '@ember/test-helpers';
+import { render } from '@ember/test-helpers';
 import { find, findAll } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
@@ -29,19 +28,14 @@ module('Integration | Component | job-page/parts/body', function(hooks) {
       {{/job-page/parts/body}}
     `);
 
-    await settled();
     assert.ok(find('[data-test-subnav="job"]'), 'Job subnav is rendered');
   });
 
   test('the subnav includes the deployments link when the job is a service', async function(assert) {
     const store = this.owner.lookup('service:store');
-    let job;
-
-    run(() => {
-      job = store.createRecord('job', {
-        id: 'service-job',
-        type: 'service',
-      });
+    const job = await store.createRecord('job', {
+      id: 'service-job',
+      type: 'service',
     });
 
     this.set('job', job);
@@ -52,7 +46,6 @@ module('Integration | Component | job-page/parts/body', function(hooks) {
       {{/job-page/parts/body}}
     `);
 
-    await settled();
     const subnavLabels = findAll('[data-test-tab]').map(anchor => anchor.textContent);
     assert.ok(subnavLabels.some(label => label === 'Definition'), 'Definition link');
     assert.ok(subnavLabels.some(label => label === 'Versions'), 'Versions link');
@@ -61,13 +54,9 @@ module('Integration | Component | job-page/parts/body', function(hooks) {
 
   test('the subnav does not include the deployments link when the job is not a service', async function(assert) {
     const store = this.owner.lookup('service:store');
-    let job;
-
-    run(() => {
-      job = store.createRecord('job', {
-        id: 'batch-job',
-        type: 'batch',
-      });
+    const job = await store.createRecord('job', {
+      id: 'batch-job',
+      type: 'servibatchce',
     });
 
     this.set('job', job);
@@ -78,7 +67,6 @@ module('Integration | Component | job-page/parts/body', function(hooks) {
       {{/job-page/parts/body}}
     `);
 
-    await settled();
     const subnavLabels = findAll('[data-test-tab]').map(anchor => anchor.textContent);
     assert.ok(subnavLabels.some(label => label === 'Definition'), 'Definition link');
     assert.ok(subnavLabels.some(label => label === 'Versions'), 'Versions link');
@@ -94,7 +82,6 @@ module('Integration | Component | job-page/parts/body', function(hooks) {
       {{/job-page/parts/body}}
     `);
 
-    await settled();
     assert.ok(
       find('[data-test-subnav="job"] + .section > .inner-content'),
       'Content is rendered immediately after the subnav'
