@@ -166,7 +166,7 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
     });
   });
 
-  test('gotoJob is called when a job row is clicked', function(assert) {
+  test('gotoJob is called when a job row is clicked', async function(assert) {
     let parent;
     const gotoJobSpy = sinon.spy();
 
@@ -178,33 +178,31 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
 
     this.store.findAll('job');
 
-    return settled().then(async () => {
-      run(() => {
-        parent = this.store.peekAll('job').findBy('plainId', 'parent');
-      });
+    await settled();
 
-      this.setProperties(
-        props(parent, {
-          gotoJob: gotoJobSpy,
-        })
-      );
+    parent = this.store.peekAll('job').findBy('plainId', 'parent');
 
-      await render(hbs`
-        {{job-page/parts/children
-          job=job
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          currentPage=currentPage
-          gotoJob=gotoJob}}
-      `);
+    this.setProperties(
+      props(parent, {
+        gotoJob: gotoJobSpy,
+      })
+    );
 
-      return settled().then(() => {
-        click('tr.job-row');
-        assert.ok(
-          gotoJobSpy.withArgs(parent.get('children.firstObject')).calledOnce,
-          'Clicking the job row calls the gotoJob action'
-        );
-      });
-    });
+    await render(hbs`
+      {{job-page/parts/children
+        job=job
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        currentPage=currentPage
+        gotoJob=gotoJob}}
+    `);
+
+    await settled();
+    await click('tr.job-row');
+
+    assert.ok(
+      gotoJobSpy.withArgs(parent.get('children.firstObject')).calledOnce,
+      'Clicking the job row calls the gotoJob action'
+    );
   });
 });
