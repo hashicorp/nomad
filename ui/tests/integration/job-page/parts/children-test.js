@@ -1,11 +1,9 @@
 import { assign } from '@ember/polyfills';
-import { run } from '@ember/runloop';
 import hbs from 'htmlbars-inline-precompile';
-import { findAll, find, click } from '@ember/test-helpers';
+import { findAll, find, click, render } from '@ember/test-helpers';
 import sinon from 'sinon';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render, settled } from '@ember/test-helpers';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 
 module('Integration | Component | job-page/parts/children', function(hooks) {
@@ -35,139 +33,112 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
       options
     );
 
-  test('lists each child', function(assert) {
-    let parent;
-
+  test('lists each child', async function(assert) {
     this.server.create('job', 'periodic', {
       id: 'parent',
       childrenCount: 3,
       createAllocations: false,
     });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled().then(async () => {
-      run(() => {
-        parent = this.store.peekAll('job').findBy('plainId', 'parent');
-      });
+    const parent = this.store.peekAll('job').findBy('plainId', 'parent');
 
-      this.setProperties(props(parent));
+    this.setProperties(props(parent));
 
-      await render(hbs`
-        {{job-page/parts/children
-          job=job
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          currentPage=currentPage
-          gotoJob=gotoJob}}
-      `);
+    await render(hbs`
+      {{job-page/parts/children
+        job=job
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        currentPage=currentPage
+        gotoJob=gotoJob}}
+    `);
 
-      return settled().then(() => {
-        assert.equal(
-          findAll('[data-test-job-name]').length,
-          parent.get('children.length'),
-          'A row for each child'
-        );
-      });
-    });
+    assert.equal(
+      findAll('[data-test-job-name]').length,
+      parent.get('children.length'),
+      'A row for each child'
+    );
   });
 
-  test('eventually paginates', function(assert) {
-    let parent;
-
+  test('eventually paginates', async function(assert) {
     this.server.create('job', 'periodic', {
       id: 'parent',
       childrenCount: 11,
       createAllocations: false,
     });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled().then(async () => {
-      run(() => {
-        parent = this.store.peekAll('job').findBy('plainId', 'parent');
-      });
+    const parent = this.store.peekAll('job').findBy('plainId', 'parent');
 
-      this.setProperties(props(parent));
+    this.setProperties(props(parent));
 
-      await render(hbs`
-        {{job-page/parts/children
-          job=job
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          currentPage=currentPage
-          gotoJob=gotoJob}}
-      `);
+    await render(hbs`
+      {{job-page/parts/children
+        job=job
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        currentPage=currentPage
+        gotoJob=gotoJob}}
+    `);
 
-      return settled().then(() => {
-        const childrenCount = parent.get('children.length');
-        assert.ok(childrenCount > 10, 'Parent has more children than one page size');
-        assert.equal(findAll('[data-test-job-name]').length, 10, 'Table length maxes out at 10');
-        assert.ok(find('.pagination-next'), 'Next button is rendered');
+    const childrenCount = parent.get('children.length');
+    assert.ok(childrenCount > 10, 'Parent has more children than one page size');
+    assert.equal(findAll('[data-test-job-name]').length, 10, 'Table length maxes out at 10');
+    assert.ok(find('.pagination-next'), 'Next button is rendered');
 
-        assert.ok(
-          new RegExp(`1.10.+?${childrenCount}`).test(find('.pagination-numbers').textContent.trim())
-        );
-      });
-    });
+    assert.ok(
+      new RegExp(`1.10.+?${childrenCount}`).test(find('.pagination-numbers').textContent.trim())
+    );
   });
 
-  test('is sorted based on the sortProperty and sortDescending properties', function(assert) {
-    let parent;
-
+  test('is sorted based on the sortProperty and sortDescending properties', async function(assert) {
     this.server.create('job', 'periodic', {
       id: 'parent',
       childrenCount: 3,
       createAllocations: false,
     });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled().then(async () => {
-      run(() => {
-        parent = this.store.peekAll('job').findBy('plainId', 'parent');
-      });
+    const parent = this.store.peekAll('job').findBy('plainId', 'parent');
 
-      this.setProperties(props(parent));
+    this.setProperties(props(parent));
 
-      await render(hbs`
-        {{job-page/parts/children
-          job=job
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          currentPage=currentPage
-          gotoJob=gotoJob}}
-      `);
+    await render(hbs`
+      {{job-page/parts/children
+        job=job
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        currentPage=currentPage
+        gotoJob=gotoJob}}
+    `);
 
-      return settled().then(() => {
-        const sortedChildren = parent.get('children').sortBy('name');
-        const childRows = findAll('[data-test-job-name]');
+    const sortedChildren = parent.get('children').sortBy('name');
+    const childRows = findAll('[data-test-job-name]');
 
-        sortedChildren.reverse().forEach((child, index) => {
-          assert.equal(
-            childRows[index].textContent.trim(),
-            child.get('name'),
-            `Child ${index} is ${child.get('name')}`
-          );
-        });
+    sortedChildren.reverse().forEach((child, index) => {
+      assert.equal(
+        childRows[index].textContent.trim(),
+        child.get('name'),
+        `Child ${index} is ${child.get('name')}`
+      );
+    });
 
-        this.set('sortDescending', false);
+    await this.set('sortDescending', false);
 
-        sortedChildren.forEach((child, index) => {
-          assert.equal(
-            childRows[index].textContent.trim(),
-            child.get('name'),
-            `Child ${index} is ${child.get('name')}`
-          );
-        });
-
-        return settled();
-      });
+    sortedChildren.forEach((child, index) => {
+      assert.equal(
+        childRows[index].textContent.trim(),
+        child.get('name'),
+        `Child ${index} is ${child.get('name')}`
+      );
     });
   });
 
   test('gotoJob is called when a job row is clicked', async function(assert) {
-    let parent;
     const gotoJobSpy = sinon.spy();
 
     this.server.create('job', 'periodic', {
@@ -176,11 +147,9 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
       createAllocations: false,
     });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    await settled();
-
-    parent = this.store.peekAll('job').findBy('plainId', 'parent');
+    const parent = this.store.peekAll('job').findBy('plainId', 'parent');
 
     this.setProperties(
       props(parent, {
@@ -197,7 +166,6 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
         gotoJob=gotoJob}}
     `);
 
-    await settled();
     await click('tr.job-row');
 
     assert.ok(
