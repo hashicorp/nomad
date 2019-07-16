@@ -98,16 +98,19 @@ export default Component.extend(WindowResizable, {
   }),
 
   stream: task(function*() {
-    this.logger.on('tick', () => {
-      run.scheduleOnce('afterRender', () => {
-        const cliWindow = this.$('.cli-window');
-        cliWindow.scrollTop(cliWindow[0].scrollHeight);
-      });
-    });
+    this.logger.on('tick', this, 'streamTick');
 
     yield this.logger.startStreaming();
-    this.logger.off('tick');
+
+    this.logger.off('tick', this, 'streamTick');
   }),
+
+  streamTick() {
+    run.scheduleOnce('afterRender', () => {
+      const cliWindow = this.$('.cli-window');
+      cliWindow.scrollTop(cliWindow[0].scrollHeight);
+    });
+  },
 
   willDestroy() {
     this.logger.stop();
