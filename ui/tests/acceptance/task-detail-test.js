@@ -31,7 +31,7 @@ module('Acceptance | task detail', function(hooks) {
       'Task started at'
     );
 
-    assert.equal(document.title, `Task group ${task.name} - Nomad`);
+    assert.equal(document.title, `Task ${task.name} - Nomad`);
   });
 
   test('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {
