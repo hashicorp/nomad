@@ -1,0 +1,22 @@
+{{#if (eq state 'success')}}
+  <div class='button is-borderless is-small is-static'>
+    <span class="tooltip text-center always-active" role="tooltip" aria-label="Copied!">
+      {{x-icon 'copy-success'}}
+    </span>
+  </div>
+{{else if (eq state 'error')}}
+  <div class='button is-borderless is-small is-static'>
+    <span class="tooltip text-center" role="tooltip" aria-label="Error copying">
+      {{x-icon 'alert-triangle'}}
+    </span>
+  </div>
+{{else}}
+  {{#addon-copy-button
+    class='button is-borderless is-small'
+    clipboardText=clipboardText
+    success=(perform indicateSuccess)
+    error=(action (mut state) 'error')
+  }}
+    {{x-icon 'copy-action'}}
+  {{/addon-copy-button}}
+{{/if}}
