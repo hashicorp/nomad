@@ -1,8 +1,6 @@
 import { assign } from '@ember/polyfills';
-import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { create } from 'ember-cli-page-object';
 import sinon from 'sinon';
@@ -95,8 +93,7 @@ module('Integration | Component | job-editor', function(hooks) {
 
   const renderNewJob = async (component, job) => {
     component.setProperties({ job, onSubmit: sinon.spy(), context: 'new' });
-    component.render(commonTemplate);
-    await settled();
+    await component.render(commonTemplate);
   };
 
   const renderEditJob = async (component, job) => {
@@ -106,33 +103,22 @@ module('Integration | Component | job-editor', function(hooks) {
 
   const planJob = async spec => {
     await Editor.editor.fillIn(spec);
-    await settled();
     await Editor.plan();
-    await settled();
   };
 
   test('the default state is an editor with an explanation popup', async function(assert) {
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderNewJob(this, job);
     assert.ok(Editor.editorHelp.isPresent, 'Editor explanation popup is present');
     assert.ok(Editor.editor.isPresent, 'Editor is present');
   });
 
   test('the explanation popup can be dismissed', async function(assert) {
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderNewJob(this, job);
     await Editor.editorHelp.dismiss();
-    await settled();
     assert.notOk(Editor.editorHelp.isPresent, 'Editor explanation popup is gone');
     assert.equal(
       window.localStorage.nomadMessageJobEditor,
@@ -144,24 +130,16 @@ module('Integration | Component | job-editor', function(hooks) {
   test('the explanation popup is not shown once the dismissal state is set in localStorage', async function(assert) {
     window.localStorage.nomadMessageJobEditor = 'false';
 
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderNewJob(this, job);
     assert.notOk(Editor.editorHelp.isPresent, 'Editor explanation popup is gone');
   });
 
   test('submitting a json job skips the parse endpoint', async function(assert) {
     const spec = jsonJob();
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderNewJob(this, job);
     await planJob(spec);
     const requests = this.server.pretender.handledRequests.mapBy('url');
@@ -171,12 +149,8 @@ module('Integration | Component | job-editor', function(hooks) {
 
   test('submitting an hcl job requires the parse endpoint', async function(assert) {
     const spec = hclJob();
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderNewJob(this, job);
     await planJob(spec);
     const requests = this.server.pretender.handledRequests.mapBy('url');
@@ -190,12 +164,8 @@ module('Integration | Component | job-editor', function(hooks) {
 
   test('when a job is successfully parsed and planned, the plan is shown to the user', async function(assert) {
     const spec = hclJob();
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderNewJob(this, job);
     await planJob(spec);
     assert.ok(Editor.planOutput, 'The plan is outputted');
@@ -205,16 +175,11 @@ module('Integration | Component | job-editor', function(hooks) {
 
   test('from the plan screen, the cancel button goes back to the editor with the job still in tact', async function(assert) {
     const spec = hclJob();
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderNewJob(this, job);
     await planJob(spec);
     await Editor.cancel();
-    await settled();
     assert.ok(Editor.editor.isPresent, 'The editor is shown again');
     assert.equal(Editor.editor.contents, spec, 'The spec that was planned is still in the editor');
   });
@@ -222,15 +187,10 @@ module('Integration | Component | job-editor', function(hooks) {
   test('when parse fails, the parse error message is shown', async function(assert) {
     const spec = hclJob();
     const errorMessage = 'Parse Failed!! :o';
-
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
     this.server.pretender.post('/v1/jobs/parse', () => [400, {}, errorMessage]);
 
-    await settled();
     await renderNewJob(this, job);
     await planJob(spec);
     assert.notOk(Editor.planError.isPresent, 'Plan error is not shown');
@@ -247,15 +207,10 @@ module('Integration | Component | job-editor', function(hooks) {
   test('when plan fails, the plan error message is shown', async function(assert) {
     const spec = hclJob();
     const errorMessage = 'Plan Failed!! :o';
-
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
     this.server.pretender.post(`/v1/job/${newJobName}/plan`, () => [400, {}, errorMessage]);
 
-    await settled();
     await renderNewJob(this, job);
     await planJob(spec);
     assert.notOk(Editor.parseError.isPresent, 'Parse error is not shown');
@@ -272,19 +227,13 @@ module('Integration | Component | job-editor', function(hooks) {
   test('when run fails, the run error message is shown', async function(assert) {
     const spec = hclJob();
     const errorMessage = 'Run Failed!! :o';
-
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
     this.server.pretender.post('/v1/jobs', () => [400, {}, errorMessage]);
 
-    await settled();
     await renderNewJob(this, job);
     await planJob(spec);
     await Editor.run();
-    await settled();
     assert.notOk(Editor.planError.isPresent, 'Plan error is not shown');
     assert.notOk(Editor.parseError.isPresent, 'Parse error is not shown');
 
@@ -298,12 +247,8 @@ module('Integration | Component | job-editor', function(hooks) {
 
   test('when the scheduler dry-run has warnings, the warnings are shown to the user', async function(assert) {
     const spec = jsonJob({ Unschedulable: true });
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderNewJob(this, job);
     await planJob(spec);
     assert.ok(
@@ -322,12 +267,8 @@ module('Integration | Component | job-editor', function(hooks) {
 
   test('when the scheduler dry-run has no warnings, a success message is shown to the user', async function(assert) {
     const spec = hclJob();
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderNewJob(this, job);
     await planJob(spec);
     assert.ok(
@@ -342,12 +283,8 @@ module('Integration | Component | job-editor', function(hooks) {
 
   test('when a job is submitted in the edit context, a POST request is made to the update job endpoint', async function(assert) {
     const spec = hclJob();
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderEditJob(this, job);
     await planJob(spec);
     await Editor.run();
@@ -358,12 +295,8 @@ module('Integration | Component | job-editor', function(hooks) {
 
   test('when a job is submitted in the new context, a POST request is made to the create job endpoint', async function(assert) {
     const spec = hclJob();
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderNewJob(this, job);
     await planJob(spec);
     await Editor.run();
@@ -377,16 +310,11 @@ module('Integration | Component | job-editor', function(hooks) {
 
   test('when a job is successfully submitted, the onSubmit hook is called', async function(assert) {
     const spec = hclJob();
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderNewJob(this, job);
     await planJob(spec);
     await Editor.run();
-    await settled();
     assert.ok(
       this.get('onSubmit').calledWith(newJobName, 'default'),
       'The onSubmit hook was called with the correct arguments'
@@ -394,34 +322,22 @@ module('Integration | Component | job-editor', function(hooks) {
   });
 
   test('when the job-editor cancelable flag is false, there is no cancel button in the header', async function(assert) {
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderNewJob(this, job);
     assert.notOk(Editor.cancelEditingIsAvailable, 'No way to cancel editing');
   });
 
   test('when the job-editor cancelable flag is true, there is a cancel button in the header', async function(assert) {
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderEditJob(this, job);
     assert.ok(Editor.cancelEditingIsAvailable, 'Cancel editing button exists');
   });
 
   test('when the job-editor cancel button is clicked, the onCancel hook is called', async function(assert) {
-    let job;
-    run(() => {
-      job = this.store.createRecord('job');
-    });
+    const job = await this.store.createRecord('job');
 
-    await settled();
     await renderEditJob(this, job);
     await Editor.cancelEditing();
     assert.ok(this.get('onCancel').calledOnce, 'The onCancel hook was called');
