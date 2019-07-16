@@ -6,10 +6,10 @@ import flat from 'flat';
 const { unflatten } = flat;
 
 export default Fragment.extend({
-  attributes: attr(),
+  nodeAttributes: attr(),
 
-  attributesStructured: computed('attributes', function() {
-    const original = this.attributes;
+  attributesStructured: computed('nodeAttributes', function() {
+    const original = this.nodeAttributes;
 
     if (!original) {
       return;
