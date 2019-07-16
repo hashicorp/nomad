@@ -1,5 +1,5 @@
 {{head-layout}}
-{{title "Nomad" separator=" - "}}
+{{title (if system.shouldShowRegions (concat system.activeRegion " - ")) "Nomad" separator=" - "}}
 {{partial "svg-patterns"}}
 {{#unless error}}
   {{outlet}}
