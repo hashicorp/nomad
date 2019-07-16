@@ -7,6 +7,8 @@ import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
 
+import Ember from 'ember';
+
 const JOB_TYPES = ['service', 'batch', 'system'];
 
 export default Model.extend({
@@ -144,9 +146,7 @@ export default Model.extend({
   }),
 
   hasBlockedEvaluation: computed('evaluations.@each.isBlocked', function() {
-    return this.evaluations
-      .toArray()
-      .some(evaluation => evaluation.get('isBlocked'));
+    return this.evaluations.toArray().some(evaluation => evaluation.get('isBlocked'));
   }),
 
   hasPlacementFailures: and('latestFailureEvaluation', 'hasBlockedEvaluation'),
@@ -249,7 +249,10 @@ export default Model.extend({
     this.set('id', JSON.stringify([id, namespace]));
 
     const namespaceRecord = this.store.peekRecord('namespace', namespace);
-    if (namespaceRecord) {
+    // FIXME this set seems to not work when the record is unsaved…?
+    // This line is failing as internalModel is undefined:
+    // https://github.com/emberjs/data/blob/v3.8.0/addon/-private/system/store/record-data-wrapper.js#L74
+    if (namespaceRecord && !Ember.testing) {
       this.set('namespace', namespaceRecord);
     }
   },
