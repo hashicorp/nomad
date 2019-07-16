@@ -44,12 +44,12 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
     this.setProperties(props(job));
 
     await this.render(hbs`
-    {{job-page/parts/task-groups
-      job=job
-      sortProperty=sortProperty
-      sortDescending=sortDescending
-      gotoTaskGroup=gotoTaskGroup}}
-  `);
+      {{job-page/parts/task-groups
+        job=job
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        gotoTaskGroup=gotoTaskGroup}}
+    `);
 
     assert.equal(
       findAll('[data-test-task-group]').length,
@@ -76,12 +76,12 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
     this.setProperties(props(job));
 
     await this.render(hbs`
-    {{job-page/parts/task-groups
-      job=job
-      sortProperty=sortProperty
-      sortDescending=sortDescending
-      gotoTaskGroup=gotoTaskGroup}}
-  `);
+      {{job-page/parts/task-groups
+        job=job
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        gotoTaskGroup=gotoTaskGroup}}
+    `);
 
     const taskGroupRow = find('[data-test-task-group]');
 
@@ -136,12 +136,12 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
     );
 
     await this.render(hbs`
-    {{job-page/parts/task-groups
-      job=job
-      sortProperty=sortProperty
-      sortDescending=sortDescending
-      gotoTaskGroup=gotoTaskGroup}}
-  `);
+      {{job-page/parts/task-groups
+        job=job
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        gotoTaskGroup=gotoTaskGroup}}
+    `);
 
     await click('[data-test-task-group]');
 
