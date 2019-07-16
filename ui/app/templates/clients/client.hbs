@@ -3,7 +3,10 @@
   <h1 data-test-title class="title">
     <span data-test-node-status="{{model.compositeStatus}}" class="node-status-light {{model.compositeStatus}}"></span>
     {{or model.name model.shortId}}
-    <span class="tag is-hollow is-small no-text-transform">{{model.id}}</span>
+    <span class="tag is-hollow is-small no-text-transform">
+      {{model.id}}
+      {{copy-button clipboardText=model.id}}
+    </span>
   </h1>
 
   <div class="boxed-section is-small">
