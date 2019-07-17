@@ -261,10 +261,14 @@ type ClientConfig struct {
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
 
-	// AutoFetchCNIPlugins
-	AutoFetchCNIPlugins bool `hcl:"auto_fetch_cni_plugins`
+	// AutoFetchCNIPlugins toggles if the Nomad client should attempt to
+	// automatically download a standard set of CNI plugins, typically from
+	// the community repo https://github.com/containernetworking/plugins/releases
+	AutoFetchCNIPlugins bool `hcl:"auto_fetch_cni_plugins"`
 
-	// AutoFetchCNIPluginsURL
+	// AutoFetchCNIPluginsURL sets the source URL to be used if automatically
+	// downloading CNI plugins. If not set will use a known working version from
+	// the community repo https://github.com/containernetworking/plugins/releases
 	AutoFetchCNIPluginsURL string `hcl:"auto_fetch_cni_plugins_url"`
 }
 
