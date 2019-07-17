@@ -106,7 +106,9 @@ export default Watchable.extend({
   },
 
   update(job) {
-    return this.ajax(this.urlForUpdateRecord(job.get('id'), 'job'), 'POST', {
+    // TODO _presavedId is set in model:job#setIdByPayload
+    const jobId = job.get('id') || job.get('_presavedId');
+    return this.ajax(this.urlForUpdateRecord(jobId, 'job'), 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),
       },
