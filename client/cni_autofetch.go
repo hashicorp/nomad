@@ -47,5 +47,5 @@ func (g *CNIGetter) CNIPath(path string) string {
 	if path == "" {
 		return g.dst
 	}
-	return strings.Join([]string{path, g.dst}, ":")
+	return path + ":" + g.dst
 }

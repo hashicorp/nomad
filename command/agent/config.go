@@ -265,7 +265,7 @@ type ClientConfig struct {
 	AutoFetchCNIPlugins bool `hcl:"auto_fetch_cni_plugins`
 
 	// AutoFetchCNIPluginsURL
-	AutoFetchCNIPluginsURL string `hcl:"auto_fetch_cni_plugins_url`
+	AutoFetchCNIPluginsURL string `hcl:"auto_fetch_cni_plugins_url"`
 }
 
 // ACLConfig is configuration specific to the ACL system

@@ -571,7 +571,7 @@ func (c *Client) init() error {
 	// Ensure the cnibin dir exists if we have one
 	if c.config.AutoFetchCNIDir != "" {
 		if err := os.MkdirAll(c.config.AutoFetchCNIDir, 0755); err != nil {
-			return fmt.Errorf("failed creating cnibin dir: %s", err)
+			return fmt.Errorf("failed to create directory for AutoFetchCNIDir: %s", err)
 		}
 	} else {
 		// Otherwise make a temp directory to use.
