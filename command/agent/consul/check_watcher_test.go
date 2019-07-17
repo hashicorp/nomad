@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 // checkRestartRecord is used by a testFakeCtx to record when restarts occur
@@ -192,6 +193,28 @@ func TestCheckWatcher_Healthy(t *testing.T) {
 	if n := len(restarter2.restarts); n > 0 {
 		t.Errorf("expected check 2 to not be restarted but found %d:\n%s", n, restarter2)
 	}
+}
+
+// TestCheckWatcher_Unhealthy asserts unhealthy tasks are restarted exactly once.
+func TestCheckWatcher_Unhealthy(t *testing.T) {
+	t.Parallel()
+
+	fakeAPI, cw := testWatcherSetup(t)
+
+	check1 := testCheck()
+	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
+	cw.Watch("testalloc1", "testtask1", "testcheck1", check1, restarter1)
+
+	// Check has always been failing
+	fakeAPI.add("testcheck1", "critical", time.Time{})
+
+	// Run
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	cw.Run(ctx)
+
+	// Ensure restart was called exactly once
+	require.Len(t, restarter1.restarts, 1)
 }
 
 // TestCheckWatcher_HealthyWarning asserts checks in warning with
