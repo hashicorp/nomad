@@ -679,6 +679,7 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 }
 
 // runDriver runs the driver and waits for it to exit
+// runDriver emits an appropriate task event on success/failure
 func (tr *TaskRunner) runDriver() error {
 
 	taskConfig := tr.buildTaskConfig()
@@ -706,13 +707,15 @@ func (tr *TaskRunner) runDriver() error {
 
 	val, diag, diagErrs := hclutils.ParseHclInterface(tr.task.Config, tr.taskSchema, vars)
 	if diag.HasErrors() {
-		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetDriverError(err))
-		return multierror.Append(errors.New("failed to parse config"), diagErrs...)
+		parseErr := multierror.Append(errors.New("failed to parse config"), diagErrs...)
+		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetDriverError(parseErr))
+		return parseErr
 	}
 
 	if err := taskConfig.EncodeDriverConfig(val); err != nil {
-		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetDriverError(err))
-		return fmt.Errorf("failed to encode driver config: %v", err)
+		encodeErr := fmt.Errorf("failed to encode driver config: %v", err)
+		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetDriverError(encodeErr))
+		return encodeErr
 	}
 
 	// If there's already a task handle (eg from a Restore) there's nothing
@@ -735,14 +738,16 @@ func (tr *TaskRunner) runDriver() error {
 		if err == bstructs.ErrPluginShutdown {
 			tr.logger.Info("failed to start task because plugin shutdown unexpectedly; attempting to recover")
 			if err := tr.initDriver(); err != nil {
-				tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
-				return fmt.Errorf("failed to initialize driver after it exited unexpectedly: %v", err)
+				taskErr := fmt.Errorf("failed to initialize driver after it exited unexpectedly: %v", err)
+				tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(taskErr))
+				return taskErr
 			}
 
 			handle, net, err = tr.driver.StartTask(taskConfig)
 			if err != nil {
-				tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
-				return fmt.Errorf("failed to start task after driver exited unexpectedly: %v", err)
+				taskErr := fmt.Errorf("failed to start task after driver exited unexpectedly: %v", err)
+				tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(taskErr))
+				return taskErr
 			}
 		} else {
 			// Do *NOT* wrap the error here without maintaining
