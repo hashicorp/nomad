@@ -21,6 +21,7 @@ module('Acceptance | job versions', function(hooks) {
 
   test('/jobs/:id/versions should list all job versions', async function(assert) {
     assert.ok(Versions.versions.length, versions.length, 'Each version gets a row in the timeline');
+    assert.equal(document.title, `Job ${job.name} versions - Nomad`);
   });
 
   test('each version mentions the version number, the stability, and the submitted time', async function(assert) {
