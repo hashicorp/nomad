@@ -107,7 +107,11 @@ func (t *testFakeCtx) syncOnce() error {
 	select {
 	case ops := <-t.ServiceClient.opCh:
 		t.ServiceClient.merge(ops)
-		return t.ServiceClient.sync()
+		err := t.ServiceClient.sync()
+		if err == nil {
+			t.ServiceClient.clearExplicitlyDeregistered()
+		}
+		return err
 	default:
 		return errNoOps
 	}
@@ -118,8 +122,13 @@ func (t *testFakeCtx) syncOnce() error {
 func setupFake(t *testing.T) *testFakeCtx {
 	fc := NewMockAgent()
 	tt := testTask()
+
+	// by default start fake client being out of probation
+	sc := NewServiceClient(fc, testlog.HCLogger(t), true)
+	sc.deregisterProbationExpiry = time.Now().Add(-1 * time.Minute)
+
 	return &testFakeCtx{
-		ServiceClient: NewServiceClient(fc, testlog.HCLogger(t), true),
+		ServiceClient: sc,
 		FakeConsul:    fc,
 		Task:          tt,
 		MockExec:      tt.DriverExec.(*mockExec),
@@ -1675,4 +1684,236 @@ func TestConsul_ServiceName_Duplicates(t *testing.T) {
 			require.Len(v.Checks, 0)
 		}
 	}
+}
+
+// TestConsul_ServiceDeregistration_OutOfProbation asserts that during in steady
+// state we remove any services we don't reconize locally
+func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
+	t.Parallel()
+	ctx := setupFake(t)
+	require := require.New(t)
+
+	ctx.ServiceClient.deregisterProbationExpiry = time.Now().Add(-1 * time.Hour)
+
+	remainingTask := testTask()
+	remainingTask.Services = []*structs.Service{
+		{
+			Name:      "remaining-service",
+			PortLabel: "x",
+			Checks: []*structs.ServiceCheck{
+				{
+					Name:     "check",
+					Type:     "tcp",
+					Interval: time.Second,
+					Timeout:  time.Second,
+				},
+			},
+		},
+	}
+	remainingTaskServiceID := makeTaskServiceID(remainingTask.AllocID,
+		remainingTask.Name, remainingTask.Services[0], false)
+
+	require.NoError(ctx.ServiceClient.RegisterTask(remainingTask))
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 1)
+	require.Len(ctx.FakeConsul.checks, 1)
+
+	explicitlyRemovedTask := testTask()
+	explicitlyRemovedTask.Services = []*structs.Service{
+		{
+			Name:      "explicitly-removed-service",
+			PortLabel: "y",
+			Checks: []*structs.ServiceCheck{
+				{
+					Name:     "check",
+					Type:     "tcp",
+					Interval: time.Second,
+					Timeout:  time.Second,
+				},
+			},
+		},
+	}
+	explicitlyRemovedTaskServiceID := makeTaskServiceID(explicitlyRemovedTask.AllocID,
+		explicitlyRemovedTask.Name, explicitlyRemovedTask.Services[0], false)
+
+	require.NoError(ctx.ServiceClient.RegisterTask(explicitlyRemovedTask))
+
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 2)
+	require.Len(ctx.FakeConsul.checks, 2)
+
+	// we register a task through nomad API then remove it out of band
+	outofbandTask := testTask()
+	outofbandTask.Services = []*structs.Service{
+		{
+			Name:      "unknown-service",
+			PortLabel: "x",
+			Checks: []*structs.ServiceCheck{
+				{
+					Name:     "check",
+					Type:     "tcp",
+					Interval: time.Second,
+					Timeout:  time.Second,
+				},
+			},
+		},
+	}
+	outofbandTaskServiceID := makeTaskServiceID(outofbandTask.AllocID,
+		outofbandTask.Name, outofbandTask.Services[0], false)
+
+	require.NoError(ctx.ServiceClient.RegisterTask(outofbandTask))
+	require.NoError(ctx.syncOnce())
+
+	require.Len(ctx.FakeConsul.services, 3)
+
+	// remove outofbandTask from local services so it appears unknown to client
+	require.Len(ctx.ServiceClient.services, 3)
+	require.Len(ctx.ServiceClient.checks, 3)
+
+	delete(ctx.ServiceClient.services, outofbandTaskServiceID)
+	delete(ctx.ServiceClient.checks, makeCheckID(outofbandTaskServiceID, outofbandTask.Services[0].Checks[0]))
+
+	require.Len(ctx.ServiceClient.services, 2)
+	require.Len(ctx.ServiceClient.checks, 2)
+
+	// Sync and ensure that explicitly removed service as well as outofbandTask were removed
+
+	ctx.ServiceClient.RemoveTask(explicitlyRemovedTask)
+	require.NoError(ctx.syncOnce())
+	require.NoError(ctx.ServiceClient.sync())
+	require.Len(ctx.FakeConsul.services, 1)
+	require.Len(ctx.FakeConsul.checks, 1)
+
+	require.Contains(ctx.FakeConsul.services, remainingTaskServiceID)
+	require.NotContains(ctx.FakeConsul.services, outofbandTaskServiceID)
+	require.NotContains(ctx.FakeConsul.services, explicitlyRemovedTaskServiceID)
+
+	require.Contains(ctx.FakeConsul.checks, makeCheckID(remainingTaskServiceID, remainingTask.Services[0].Checks[0]))
+	require.NotContains(ctx.FakeConsul.checks, makeCheckID(outofbandTaskServiceID, outofbandTask.Services[0].Checks[0]))
+	require.NotContains(ctx.FakeConsul.checks, makeCheckID(explicitlyRemovedTaskServiceID, explicitlyRemovedTask.Services[0].Checks[0]))
+}
+
+// TestConsul_ServiceDeregistration_InProbation asserts that during initialization
+// we only deregister services that were explicitly removed and leave unknown
+// services untouched.  This adds a grace period for restoring recovered tasks
+// before deregistering them
+func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
+	t.Parallel()
+	ctx := setupFake(t)
+	require := require.New(t)
+
+	ctx.ServiceClient.deregisterProbationExpiry = time.Now().Add(1 * time.Hour)
+
+	remainingTask := testTask()
+	remainingTask.Services = []*structs.Service{
+		{
+			Name:      "remaining-service",
+			PortLabel: "x",
+			Checks: []*structs.ServiceCheck{
+				{
+					Name:     "check",
+					Type:     "tcp",
+					Interval: time.Second,
+					Timeout:  time.Second,
+				},
+			},
+		},
+	}
+	remainingTaskServiceID := makeTaskServiceID(remainingTask.AllocID,
+		remainingTask.Name, remainingTask.Services[0], false)
+
+	require.NoError(ctx.ServiceClient.RegisterTask(remainingTask))
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 1)
+	require.Len(ctx.FakeConsul.checks, 1)
+
+	explicitlyRemovedTask := testTask()
+	explicitlyRemovedTask.Services = []*structs.Service{
+		{
+			Name:      "explicitly-removed-service",
+			PortLabel: "y",
+			Checks: []*structs.ServiceCheck{
+				{
+					Name:     "check",
+					Type:     "tcp",
+					Interval: time.Second,
+					Timeout:  time.Second,
+				},
+			},
+		},
+	}
+	explicitlyRemovedTaskServiceID := makeTaskServiceID(explicitlyRemovedTask.AllocID,
+		explicitlyRemovedTask.Name, explicitlyRemovedTask.Services[0], false)
+
+	require.NoError(ctx.ServiceClient.RegisterTask(explicitlyRemovedTask))
+
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 2)
+	require.Len(ctx.FakeConsul.checks, 2)
+
+	// we register a task through nomad API then remove it out of band
+	outofbandTask := testTask()
+	outofbandTask.Services = []*structs.Service{
+		{
+			Name:      "unknown-service",
+			PortLabel: "x",
+			Checks: []*structs.ServiceCheck{
+				{
+					Name:     "check",
+					Type:     "tcp",
+					Interval: time.Second,
+					Timeout:  time.Second,
+				},
+			},
+		},
+	}
+	outofbandTaskServiceID := makeTaskServiceID(outofbandTask.AllocID,
+		outofbandTask.Name, outofbandTask.Services[0], false)
+
+	require.NoError(ctx.ServiceClient.RegisterTask(outofbandTask))
+	require.NoError(ctx.syncOnce())
+
+	require.Len(ctx.FakeConsul.services, 3)
+
+	// remove outofbandTask from local services so it appears unknown to client
+	require.Len(ctx.ServiceClient.services, 3)
+	require.Len(ctx.ServiceClient.checks, 3)
+
+	delete(ctx.ServiceClient.services, outofbandTaskServiceID)
+	delete(ctx.ServiceClient.checks, makeCheckID(outofbandTaskServiceID, outofbandTask.Services[0].Checks[0]))
+
+	require.Len(ctx.ServiceClient.services, 2)
+	require.Len(ctx.ServiceClient.checks, 2)
+
+	// Sync and ensure that explicitly removed service was removed, but outofbandTask remains
+
+	ctx.ServiceClient.RemoveTask(explicitlyRemovedTask)
+	require.NoError(ctx.syncOnce())
+	require.NoError(ctx.ServiceClient.sync())
+	require.Len(ctx.FakeConsul.services, 2)
+	require.Len(ctx.FakeConsul.checks, 2)
+
+	require.Contains(ctx.FakeConsul.services, remainingTaskServiceID)
+	require.Contains(ctx.FakeConsul.services, outofbandTaskServiceID)
+	require.NotContains(ctx.FakeConsul.services, explicitlyRemovedTaskServiceID)
+
+	require.Contains(ctx.FakeConsul.checks, makeCheckID(remainingTaskServiceID, remainingTask.Services[0].Checks[0]))
+	require.Contains(ctx.FakeConsul.checks, makeCheckID(outofbandTaskServiceID, outofbandTask.Services[0].Checks[0]))
+	require.NotContains(ctx.FakeConsul.checks, makeCheckID(explicitlyRemovedTaskServiceID, explicitlyRemovedTask.Services[0].Checks[0]))
+
+	// after probation, outofband services and checks are removed
+	ctx.ServiceClient.deregisterProbationExpiry = time.Now().Add(-1 * time.Hour)
+
+	require.NoError(ctx.ServiceClient.sync())
+	require.Len(ctx.FakeConsul.services, 1)
+	require.Len(ctx.FakeConsul.checks, 1)
+
+	require.Contains(ctx.FakeConsul.services, remainingTaskServiceID)
+	require.NotContains(ctx.FakeConsul.services, outofbandTaskServiceID)
+	require.NotContains(ctx.FakeConsul.services, explicitlyRemovedTaskServiceID)
+
+	require.Contains(ctx.FakeConsul.checks, makeCheckID(remainingTaskServiceID, remainingTask.Services[0].Checks[0]))
+	require.NotContains(ctx.FakeConsul.checks, makeCheckID(outofbandTaskServiceID, outofbandTask.Services[0].Checks[0]))
+	require.NotContains(ctx.FakeConsul.checks, makeCheckID(explicitlyRemovedTaskServiceID, explicitlyRemovedTask.Services[0].Checks[0]))
+
 }
