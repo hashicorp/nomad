@@ -70,9 +70,9 @@ const (
 	ServiceTagSerf = "serf"
 
 	// deregisterProbationPeriod is the initialization period where
-	// services registered in Consul but not in Nomad don't get registered,
+	// services registered in Consul but not in Nomad don't get deregistered,
 	// to allow for nomad restoring tasks
-	deregisterProbationPeriod = 10 * time.Minute
+	deregisterProbationPeriod = time.Minute
 )
 
 // CatalogAPI is the consul/api.Catalog API used by Nomad.
