@@ -1,3 +1,4 @@
+enable_debug = true
 data_dir = "/opt/nomad/data"
 bind_addr = "0.0.0.0"
 datacenter = "dc2"
