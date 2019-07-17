@@ -78,7 +78,8 @@ export default Watchable.extend({
   },
 
   plan(job) {
-    const jobId = job.get('id');
+    // TODO _presavedId is set in model:job#setIdByPayload
+    const jobId = job.get('id') || job.get('_presavedId');
     const store = this.store;
     const url = addToPath(this.urlForFindRecord(jobId, 'job'), '/plan');
 

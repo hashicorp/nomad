@@ -7,8 +7,6 @@ import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
 
-import Ember from 'ember';
-
 const JOB_TYPES = ['service', 'batch', 'system'];
 
 export default Model.extend({
@@ -246,13 +244,13 @@ export default Model.extend({
     const id = payload.Name;
 
     this.set('plainId', id);
-    this.set('id', JSON.stringify([id, namespace]));
+    // TODO this formerly set the id, but Chris Thoburn tells me that the id can’t be changed after it’s first set
+    // https://discordapp.com/channels/480462759797063690/486549196837486592/601083103364251659
+    // I’ll have to find what other implications this change might have, but it makes the job run test pass!
+    this.set('_presavedId', JSON.stringify([id, namespace]));
 
     const namespaceRecord = this.store.peekRecord('namespace', namespace);
-    // FIXME this set seems to not work when the record is unsaved…?
-    // This line is failing as internalModel is undefined:
-    // https://github.com/emberjs/data/blob/v3.8.0/addon/-private/system/store/record-data-wrapper.js#L74
-    if (namespaceRecord && !Ember.testing) {
+    if (namespaceRecord) {
       this.set('namespace', namespaceRecord);
     }
   },
