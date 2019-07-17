@@ -354,13 +354,14 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.configCopy = c.config.Copy()
 	c.configLock.Unlock()
 
+	// Auto download CNI binaries and configure CNI_PATH if requested.
 	if c.config.AutoFetchCNI {
-		cniGetter := NewCNIGetter(c.config.AutoFetchCNIURL, c.config.AutoFetchCNIDir)
-		c.logger.Info("downloading CNI plugins", "url", cniGetter.src)
-		if err := cniGetter.Get(); err != nil {
-			c.logger.Warn("failed to fetch CNI plugins", "url", cniGetter.src, "error", err)
-		} else {
-			c.config.CNIPath = cniGetter.CNIPath(c.config.CNIPath)
+		if cniPath := FetchCNIPlugins(c.logger, c.config.AutoFetchCNIURL, c.config.AutoFetchCNIDir); cniPath != "" {
+			if c.config.CNIPath == "" {
+				c.config.CNIPath = cniPath
+			} else {
+				c.config.CNIPath = c.config.CNIPath + ":" + cniPath
+			}
 			c.logger.Debug("using new CNI Path", "cni_path", c.config.CNIPath)
 		}
 	}
@@ -594,7 +595,7 @@ func (c *Client) init() error {
 	}
 
 	if c.config.AutoFetchCNI {
-		c.logger.Info("using alloc directory", "alloc_dir", c.config.AllocDir)
+		c.logger.Info("using cni directory for plugin downloads", "cni_dir", c.config.AutoFetchCNIDir)
 	}
 	return nil
 }
