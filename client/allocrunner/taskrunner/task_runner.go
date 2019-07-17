@@ -487,7 +487,6 @@ MAIN:
 		// Run the task
 		if err := tr.runDriver(); err != nil {
 			tr.logger.Error("running driver failed", "error", err)
-			tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 			tr.restartTracker.SetStartError(err)
 			goto RESTART
 		}
@@ -705,12 +704,14 @@ func (tr *TaskRunner) runDriver() error {
 		tr.logger.Warn("some environment variables not available for rendering", "keys", strings.Join(keys, ", "))
 	}
 
-	val, diag := hclutils.ParseHclInterface(tr.task.Config, tr.taskSchema, vars)
+	val, diag, diagErrs := hclutils.ParseHclInterface(tr.task.Config, tr.taskSchema, vars)
 	if diag.HasErrors() {
-		return multierror.Append(errors.New("failed to parse config"), diag.Errs()...)
+		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetDriverError(err))
+		return multierror.Append(errors.New("failed to parse config"), diagErrs...)
 	}
 
 	if err := taskConfig.EncodeDriverConfig(val); err != nil {
+		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetDriverError(err))
 		return fmt.Errorf("failed to encode driver config: %v", err)
 	}
 
@@ -734,11 +735,13 @@ func (tr *TaskRunner) runDriver() error {
 		if err == bstructs.ErrPluginShutdown {
 			tr.logger.Info("failed to start task because plugin shutdown unexpectedly; attempting to recover")
 			if err := tr.initDriver(); err != nil {
+				tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 				return fmt.Errorf("failed to initialize driver after it exited unexpectedly: %v", err)
 			}
 
 			handle, net, err = tr.driver.StartTask(taskConfig)
 			if err != nil {
+				tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 				return fmt.Errorf("failed to start task after driver exited unexpectedly: %v", err)
 			}
 		} else {

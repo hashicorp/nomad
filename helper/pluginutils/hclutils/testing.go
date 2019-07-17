@@ -70,7 +70,7 @@ func (b *HCLParser) parse(t *testing.T, config, out interface{}) {
 	decSpec, diags := hclspecutils.Convert(b.spec)
 	require.Empty(t, diags)
 
-	ctyValue, diag := ParseHclInterface(config, decSpec, b.vars)
+	ctyValue, diag, _ := ParseHclInterface(config, decSpec, b.vars)
 	require.Empty(t, diag)
 
 	// encode

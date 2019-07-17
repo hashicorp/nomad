@@ -358,9 +358,9 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Logf("Val: % #v", pretty.Formatter(c.config))
 			// Parse the interface
-			ctyValue, diag := hclutils.ParseHclInterface(c.config, c.spec, c.vars)
+			ctyValue, diag, errs := hclutils.ParseHclInterface(c.config, c.spec, c.vars)
 			if diag.HasErrors() {
-				for _, err := range diag.Errs() {
+				for _, err := range errs {
 					t.Error(err)
 				}
 				t.FailNow()
@@ -497,7 +497,7 @@ func TestParseUnknown(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			inter := hclutils.HclConfigToInterface(t, c.hcl)
 
-			ctyValue, diag := hclutils.ParseHclInterface(inter, cSpec, vars)
+			ctyValue, diag, _ := hclutils.ParseHclInterface(inter, cSpec, vars)
 			t.Logf("parsed: %# v", pretty.Formatter(ctyValue))
 
 			require.True(t, diag.HasErrors())
