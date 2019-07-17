@@ -67,3 +67,7 @@ func (e *UniversalExecutor) shutdownProcess(_ os.Signal, proc *os.Process) error
 
 	return nil
 }
+
+func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
+	return getAllPidsByScanning()
+}
