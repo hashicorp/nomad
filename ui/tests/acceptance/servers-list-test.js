@@ -37,6 +37,8 @@ module('Acceptance | servers list', function(hooks) {
     ServersList.servers.forEach((server, index) => {
       assert.equal(server.name, sortedAgents[index].name, 'Servers are ordered');
     });
+
+    assert.equal(document.title, 'Servers - Nomad');
   });
 
   test('each server should show high-level info of the server', async function(assert) {

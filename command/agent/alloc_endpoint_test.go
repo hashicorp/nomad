@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -419,6 +420,8 @@ func TestHTTP_AllocStop(t *testing.T) {
 			a := obj.(*structs.AllocStopResponse)
 			require.NotEmpty(a.EvalID, "missing eval")
 			require.NotEmpty(a.Index, "missing index")
+			headerIndex, _ := strconv.ParseUint(respW.Header().Get("X-Nomad-Index"), 10, 64)
+			require.Equal(a.Index, headerIndex)
 		}
 
 		// Test that we 404 when the allocid is invalid
