@@ -137,6 +137,7 @@ MAIN:
 	// check if the error is terminal otherwise it's likely a
 	// transport error and we should retry
 	if re, ok := err.(*structs.RecoverableError); ok && re.IsUnrecoverable() {
+		h.logger.Error("failed to start stats collection for task with unrecoverable error", "error", err)
 		return nil, err
 	}
 
