@@ -101,7 +101,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	return snap, nil
 }
 
-// SnapshotAfter is used to create a point in time snapshot where the index is
+// SnapshotMinIndex is used to create a state snapshot where the index is
 // guaranteed to be greater than or equal to the index parameter.
 //
 // Some server operations (such as scheduling) exchange objects via RPC
@@ -111,7 +111,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 //
 // Callers should maintain their own timer metric as the time this method
 // blocks indicates Raft log application latency relative to scheduling.
-func (s *StateStore) SnapshotAfter(ctx context.Context, index uint64) (*StateSnapshot, error) {
+func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*StateSnapshot, error) {
 	// Ported from work.go:waitForIndex prior to 0.9
 
 	const backoffBase = 20 * time.Millisecond

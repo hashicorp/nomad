@@ -4609,6 +4609,14 @@ ember-cli-get-component-path-option@^1.0.0:
   resolved "https://registry.yarnpkg.com/ember-cli-get-component-path-option/-/ember-cli-get-component-path-option-1.0.0.tgz#0d7b595559e2f9050abed804f1d8eff1b08bc771"
   integrity sha1-DXtZVVni+QUKvtgE8djv8bCLx3E=
 
+ember-cli-head@^0.4.0:
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/ember-cli-head/-/ember-cli-head-0.4.1.tgz#28b7ee86439746640834b232a3b34ab1329f3cf3"
+  integrity sha512-MIgshw5nGil7Q/TU4SDRCsgsiA3wPC9WqOig/g1LlHTNXjR4vH7s/ddG7GTfK5Kt4ZQHJEUDXpd/lIbdBkIQ/Q==
+  dependencies:
+    ember-cli-babel "^6.11.0"
+    ember-cli-htmlbars "^2.0.3"
+
 ember-cli-htmlbars-inline-precompile@^1.0.0, ember-cli-htmlbars-inline-precompile@^1.0.3:
   version "1.0.5"
   resolved "https://registry.yarnpkg.com/ember-cli-htmlbars-inline-precompile/-/ember-cli-htmlbars-inline-precompile-1.0.5.tgz#312e050c9e3dd301c55fb399fd706296cd0b1d6a"
@@ -5216,6 +5224,16 @@ ember-native-dom-helpers@^0.5.3:
   dependencies:
     broccoli-funnel "^1.1.0"
     ember-cli-babel "^6.6.0"
+
+ember-page-title@^5.0.2:
+  version "5.0.2"
+  resolved "https://registry.yarnpkg.com/ember-page-title/-/ember-page-title-5.0.2.tgz#ab5a60c16318ba7f5e66cd41f580c9831ce3b612"
+  integrity sha512-v5K8tfPxdLmZRRdUP0L9ed+ufC1tw+tAhlHslt5MchDwHh192OH1JhDROp6Wci8/Np9kaSCICxS27nXEgXxxsg==
+  dependencies:
+    ember-cli-babel "^7.7.3"
+    ember-cli-head "^0.4.0"
+    ember-cli-htmlbars "^3.0.1"
+    ember-copy "^1.0.0"
 
 ember-power-select@^2.2.3:
   version "2.3.5"
