@@ -644,3 +644,30 @@ func TestBlockedEvals_SystemUntrack(t *testing.T) {
 	require.Equal(t, 0, bs.TotalEscaped)
 	require.Equal(t, 0, bs.TotalQuotaLimit)
 }
+
+func TestBlockedEvals_SystemDisableFlush(t *testing.T) {
+	t.Parallel()
+	blocked, _ := testBlockedEvals(t)
+
+	// Create a blocked evals and add it to the blocked tracker.
+	e := mock.Eval()
+	e.Type = structs.JobTypeSystem
+	e.NodeID = "foo"
+	blocked.Block(e)
+
+	// Verify block did track
+	bs := blocked.Stats()
+	require.Equal(t, 1, bs.TotalBlocked)
+	require.Equal(t, 0, bs.TotalEscaped)
+	require.Equal(t, 0, bs.TotalQuotaLimit)
+
+	// Disable empties
+	blocked.SetEnabled(false)
+	bs = blocked.Stats()
+	require.Equal(t, 0, bs.TotalBlocked)
+	require.Equal(t, 0, bs.TotalEscaped)
+	require.Equal(t, 0, bs.TotalQuotaLimit)
+	require.Empty(t, blocked.system.evals)
+	require.Empty(t, blocked.system.byJob)
+	require.Empty(t, blocked.system.byNode)
+}
