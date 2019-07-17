@@ -8613,6 +8613,11 @@ type Plan struct {
 	// lower priority jobs that are preempted. Preempted allocations are marked
 	// as evicted.
 	NodePreemptions map[string][]*Allocation
+
+	// SnapshotIndex is the Raft index of the snapshot used to create the
+	// Plan. The leader will wait to evaluate the plan until its StateStore
+	// has reached at least this index.
+	SnapshotIndex uint64
 }
 
 // AppendStoppedAlloc marks an allocation to be stopped. The clientStatus of the
