@@ -1,4 +1,4 @@
-import { module, skip, test } from 'qunit';
+import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import Service from '@ember/service';
 
@@ -45,11 +45,10 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
     assert.ok(jobAbility.canRun);
   });
 
-  // TODO is this true, that a more-permissive default wins?
-  skip('it permits job run for client tokens with a policy that has default namespace write', function(assert) {
+  test('it permits job run for client tokens with a policy that has default namespace write and no policy for active namespace', function(assert) {
     const mockSystem = Service.extend({
       activeNamespace: {
-        name: 'aNamespace',
+        name: 'anotherNamespace',
       },
     });
 

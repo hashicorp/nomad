@@ -22,8 +22,12 @@ export default Ability.extend({
       const activeNamespace = this.activeNamespace;
 
       return (this.get('token.selfTokenPolicies') || []).toArray().reduce((rules, policy) => {
-        if (getWithDefault(policy, 'rulesJson.namespace', {})[activeNamespace]) {
-          rules.push(policy.rulesJson.namespace[activeNamespace]);
+        const policyNamespaces = getWithDefault(policy, 'rulesJson.namespace', {});
+
+        if (policyNamespaces[activeNamespace]) {
+          rules.push(policyNamespaces[activeNamespace]);
+        } else if (policyNamespaces.default) {
+          rules.push(policyNamespaces.default);
         }
 
         return rules;
