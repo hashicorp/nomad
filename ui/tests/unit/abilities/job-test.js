@@ -105,4 +105,48 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
     const jobAbility = this.owner.lookup('ability:job');
     assert.notOk(jobAbility.canRun);
   });
+
+  test('it handles globs in namespace names', function(assert) {
+    const mockSystem = Service.extend({
+      activeNamespace: {
+        name: 'aNamespace',
+      },
+    });
+
+    const mockToken = Service.extend({
+      selfToken: { type: 'client' },
+      selfTokenPolicies: [
+        {
+          rulesJson: {
+            namespace: {
+              'production-*': {
+                policy: 'write',
+              },
+              'production-api': {
+                policy: 'write',
+              },
+              'production-web': {
+                policy: 'deny',
+              },
+            },
+          },
+        },
+      ],
+    });
+
+    this.owner.register('service:system', mockSystem);
+    this.owner.register('service:token', mockToken);
+
+    const jobAbility = this.owner.lookup('ability:job');
+    const systemService = this.owner.lookup('service:system');
+
+    systemService.set('activeNamespace.name', 'production-web');
+    assert.notOk(jobAbility.canRun);
+
+    systemService.set('activeNamespace.name', 'production-api');
+    assert.ok(jobAbility.canRun);
+
+    systemService.set('activeNamespace.name', 'production-other');
+    assert.ok(jobAbility.canRun);
+  });
 });

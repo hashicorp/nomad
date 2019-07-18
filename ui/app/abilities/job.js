@@ -24,10 +24,10 @@ export default Ability.extend({
       return (this.get('token.selfTokenPolicies') || []).toArray().reduce((rules, policy) => {
         const policyNamespaces = getWithDefault(policy, 'rulesJson.namespace', {});
 
-        if (policyNamespaces[activeNamespace]) {
-          rules.push(policyNamespaces[activeNamespace]);
-        } else if (policyNamespaces.default) {
-          rules.push(policyNamespaces.default);
+        const matchingNamespace = this._findMatchingNamespace(policyNamespaces, activeNamespace);
+
+        if (matchingNamespace) {
+          rules.push(policyNamespaces[matchingNamespace]);
         }
 
         return rules;
@@ -47,4 +47,24 @@ export default Ability.extend({
       });
     }
   ),
+
+  _findMatchingNamespace(policyNamespaces, activeNamespace) {
+    if (policyNamespaces[activeNamespace]) {
+      return activeNamespace;
+    }
+
+    const namespaceNames = Object.keys(policyNamespaces);
+    const globNamespaceNames = namespaceNames.filter(namespaceName => namespaceName.includes('*'));
+
+    const matchingNamespaceName = globNamespaceNames.find(namespaceName => {
+      // TODO what kind of protection/sanitisation is needed here, if any?
+      return activeNamespace.match(new RegExp(namespaceName));
+    });
+
+    if (matchingNamespaceName) {
+      return matchingNamespaceName;
+    } else if (policyNamespaces.default) {
+      return 'default';
+    }
+  },
 });
