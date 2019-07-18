@@ -126,7 +126,7 @@ func asyncRestart(ctx context.Context, logger log.Logger, task TaskRestarter, ev
 	if err := task.Restart(ctx, event, failure); err != nil {
 		// Restart errors are not actionable and only relevant when
 		// debugging allocation lifecycle management.
-		logger.Debug("error restarting task", "error", err,
+		logger.Debug("failed to restart task", "error", err,
 			"event_time", event.Time, "event_type", event.Type)
 	}
 }
