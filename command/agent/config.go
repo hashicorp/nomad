@@ -315,6 +315,10 @@ type ServerConfig struct {
 	// can be used to filter by age.
 	NodeGCThreshold string `hcl:"node_gc_threshold"`
 
+	// JobGCInterval controls how often we dispatch a job to GC jobs that are
+	// available for garbage collection.
+	JobGCInterval string `hcl:"job_gc_interval"`
+
 	// JobGCThreshold controls how "old" a job must be to be collected by GC.
 	// Age is not the only requirement for a Job to be GCed but the threshold
 	// can be used to filter by age.
@@ -1132,6 +1136,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.NodeGCThreshold != "" {
 		result.NodeGCThreshold = b.NodeGCThreshold
+	}
+	if b.JobGCInterval != "" {
+		result.JobGCInterval = b.JobGCInterval
 	}
 	if b.JobGCThreshold != "" {
 		result.JobGCThreshold = b.JobGCThreshold

@@ -93,6 +93,7 @@ var basicConfig = &Config{
 		EnabledSchedulers:      []string{"test"},
 		NodeGCThreshold:        "12h",
 		EvalGCThreshold:        "12h",
+		JobGCInterval:          "3m",
 		JobGCThreshold:         "12h",
 		DeploymentGCThreshold:  "12h",
 		HeartbeatGrace:         30 * time.Second,

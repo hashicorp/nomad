@@ -275,6 +275,13 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 		conf.NodeGCThreshold = dur
 	}
+	if gcInterval := agentConfig.Server.JobGCInterval; gcInterval != "" {
+		dur, err := time.ParseDuration(gcInterval)
+		if err != nil {
+			return nil, err
+		}
+		conf.JobGCInterval = dur
+	}
 	if gcThreshold := agentConfig.Server.JobGCThreshold; gcThreshold != "" {
 		dur, err := time.ParseDuration(gcThreshold)
 		if err != nil {

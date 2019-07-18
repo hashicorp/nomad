@@ -208,6 +208,7 @@
       "encrypt": "abc",
       "eval_gc_threshold": "12h",
       "heartbeat_grace": "30s",
+      "job_gc_interval": "3m",
       "job_gc_threshold": "12h",
       "max_heartbeats_per_second": 11,
       "min_heartbeat_ttl": "33s",

@@ -77,6 +77,14 @@ server {
   terminal state before it is garbage collected and purged from the system. This
   is specified using a label suffix like "30s" or "1h".
 
+- `job_gc_interval` `(string: "5m")` - Specifies the interval between the job
+  garbage collections. Only jobs who have been terminal for at least
+  `job_gc_threshold` will be collected. Lowering the interval will perform more
+  frequent but smaller collections. Raising the interval will perform collections
+  less frequently but collect more jobs at a time. Reducing this interval is
+  useful if there is a large throughput of tasks, leading to a large set of
+  dead jobs. This is specified using a label suffix like "30s" or "3m". 
+
 - `job_gc_threshold` `(string: "4h")` - Specifies the minimum time a job must be
   in the terminal state before it is eligible for garbage collection. This is
   specified using a label suffix like "30s" or "1h".

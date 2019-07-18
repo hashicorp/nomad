@@ -101,6 +101,7 @@ server {
   num_schedulers            = 2
   enabled_schedulers        = ["test"]
   node_gc_threshold         = "12h"
+  job_gc_interval           = "3m"
   job_gc_threshold          = "12h"
   eval_gc_threshold         = "12h"
   deployment_gc_threshold   = "12h"
