@@ -56,10 +56,27 @@ export default Ability.extend({
     const namespaceNames = Object.keys(policyNamespaces);
     const globNamespaceNames = namespaceNames.filter(namespaceName => namespaceName.includes('*'));
 
-    const matchingNamespaceName = globNamespaceNames.find(namespaceName => {
-      // TODO what kind of protection/sanitisation is needed here, if any?
-      return activeNamespace.match(new RegExp(namespaceName));
-    });
+    const matchingNamespaceName = globNamespaceNames.reduce(
+      (mostMatching, namespaceName) => {
+        // TODO what kind of protection/sanitisation is needed here, if any?
+        // and, can there be more than one *?
+        const namespaceNameRegExp = new RegExp(namespaceName.replace('*', '.*'));
+        const characterDifference = activeNamespace.length - namespaceName.length;
+
+        if (
+          characterDifference < mostMatching.mostMatchingCharacterDifference &&
+          activeNamespace.match(namespaceNameRegExp)
+        ) {
+          return {
+            mostMatchingNamespaceName: namespaceName,
+            mostMatchingCharacterDifference: characterDifference,
+          };
+        } else {
+          return mostMatching;
+        }
+      },
+      { mostMatchingNamespaceName: null, mostMatchingCharacterDifference: Number.MAX_SAFE_INTEGER }
+    ).mostMatchingNamespaceName;
 
     if (matchingNamespaceName) {
       return matchingNamespaceName;

@@ -128,6 +128,12 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
               'production-web': {
                 policy: 'deny',
               },
+              '*-suffixed': {
+                policy: 'write',
+              },
+              '*-more-suffixed': {
+                policy: 'deny',
+              },
             },
           },
         },
@@ -148,5 +154,14 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
 
     systemService.set('activeNamespace.name', 'production-other');
     assert.ok(jobAbility.canRun);
+
+    systemService.set('activeNamespace.name', 'something-suffixed');
+    assert.ok(jobAbility.canRun);
+
+    systemService.set('activeNamespace.name', 'something-more-suffixed');
+    assert.notOk(
+      jobAbility.canRun,
+      'expected the namespace with the greatest number of matched characters to be chosen'
+    );
   });
 });
