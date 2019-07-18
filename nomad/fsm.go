@@ -344,6 +344,7 @@ func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
 
 		}
 		n.blockedEvals.Unblock(node.ComputedClass, index)
+		n.blockedEvals.UnblockNode(req.NodeID, index)
 	}
 
 	return nil
@@ -415,6 +416,7 @@ func (n *nomadFSM) applyNodeEligibilityUpdate(buf []byte, index uint64) interfac
 	if node != nil && node.SchedulingEligibility == structs.NodeSchedulingIneligible &&
 		req.Eligibility == structs.NodeSchedulingEligible {
 		n.blockedEvals.Unblock(node.ComputedClass, index)
+		n.blockedEvals.UnblockNode(req.NodeID, index)
 	}
 
 	return nil
@@ -760,6 +762,7 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 			}
 
 			n.blockedEvals.UnblockClassAndQuota(node.ComputedClass, quota, index)
+			n.blockedEvals.UnblockNode(node.ID, index)
 		}
 	}
 

@@ -253,7 +253,7 @@ func (w *Worker) invokeScheduler(snap *state.StateSnapshot, eval *structs.Evalua
 		return fmt.Errorf("failed to determine snapshot's index: %v", err)
 	}
 
-	// Create the scheduler, or use the special system scheduler
+	// Create the scheduler, or use the special core scheduler
 	var sched scheduler.Scheduler
 	if eval.Type == structs.JobTypeCore {
 		sched = NewCoreScheduler(w.srv, snap)
