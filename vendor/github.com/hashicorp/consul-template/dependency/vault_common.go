@@ -225,6 +225,12 @@ func isKVv2(client *api.Client, path string) (string, bool, error) {
 			return "", false, nil
 		}
 
+		// anonymous requests may fail to access /sys/internal/ui path
+		// Vault v1.1.3 returns 500 status code but may return 4XX in future
+		if client.Token() == "" {
+			return "", false, nil
+		}
+
 		return "", false, err
 	}
 

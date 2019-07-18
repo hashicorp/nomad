@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
@@ -79,11 +80,18 @@ type Config struct {
 
 	// Wait is the quiescence timers.
 	Wait *WaitConfig `mapstructure:"wait"`
+
+	// Additional command line options
+	// Run once, executing each template exactly once, and exit
+	Once bool
 }
 
 // Copy returns a deep copy of the current configuration. This is useful because
 // the nested data structures may be shared.
 func (c *Config) Copy() *Config {
+	if c == nil {
+		return nil
+	}
 	var o Config
 
 	o.Consul = c.Consul
@@ -125,6 +133,8 @@ func (c *Config) Copy() *Config {
 	if c.Wait != nil {
 		o.Wait = c.Wait.Copy()
 	}
+
+	o.Once = c.Once
 
 	return &o
 }
@@ -192,6 +202,8 @@ func (c *Config) Merge(o *Config) *Config {
 	if o.Wait != nil {
 		r.Wait = r.Wait.Merge(o.Wait)
 	}
+
+	r.Once = o.Once
 
 	return r
 }
@@ -380,7 +392,8 @@ func (c *Config) GoString() string {
 		"Syslog:%#v, "+
 		"Templates:%#v, "+
 		"Vault:%#v, "+
-		"Wait:%#v"+
+		"Wait:%#v,"+
+		"Once:%#v"+
 		"}",
 		c.Consul,
 		c.Dedup,
@@ -394,7 +407,29 @@ func (c *Config) GoString() string {
 		c.Templates,
 		c.Vault,
 		c.Wait,
+		c.Once,
 	)
+}
+
+// Show diff between 2 Configs, useful in tests
+func (expected *Config) Diff(actual *Config) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n")
+	ve := reflect.ValueOf(*expected)
+	va := reflect.ValueOf(*actual)
+	ct := ve.Type()
+
+	for i := 0; i < ve.NumField(); i++ {
+		fc := ve.Field(i)
+		fo := va.Field(i)
+		if !reflect.DeepEqual(fc.Interface(), fo.Interface()) {
+			fmt.Fprintf(&b, "%s:\n", ct.Field(i).Name)
+			fmt.Fprintf(&b, "\texp: %#v\n", fc.Interface())
+			fmt.Fprintf(&b, "\tact: %#v\n", fo.Interface())
+		}
+	}
+
+	return b.String()
 }
 
 // DefaultConfig returns the default configuration struct. Certain environment
@@ -417,6 +452,9 @@ func DefaultConfig() *Config {
 // data was given, but the user did not explicitly add "Enabled: true" to the
 // configuration.
 func (c *Config) Finalize() {
+	if c == nil {
+		return
+	}
 	if c.Consul == nil {
 		c.Consul = DefaultConsulConfig()
 	}
@@ -474,6 +512,11 @@ func (c *Config) Finalize() {
 		c.Wait = DefaultWaitConfig()
 	}
 	c.Wait.Finalize()
+
+	// disable Wait if -once was specified
+	if c.Once {
+		c.Wait = &WaitConfig{Enabled: Bool(false)}
+	}
 }
 
 func stringFromEnv(list []string, def string) *string {
