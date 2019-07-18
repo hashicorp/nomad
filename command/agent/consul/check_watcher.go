@@ -103,18 +103,32 @@ func (c *checkRestart) apply(ctx context.Context, now time.Time, status string) 
 		c.logger.Debug("restarting due to unhealthy check")
 
 		// Tell TaskRunner to restart due to failure
-		const failure = true
 		reason := fmt.Sprintf("healthcheck: check %q unhealthy", c.checkName)
 		event := structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reason)
-		err := c.task.Restart(ctx, event, failure)
-		if err != nil {
-			// Error restarting
-			return false
-		}
+		go asyncRestart(ctx, c.logger, c.task, event)
 		return true
 	}
 
 	return false
+}
+
+// asyncRestart mimics the pre-0.9 TaskRunner.Restart behavior and is intended
+// to be called in a goroutine.
+func asyncRestart(ctx context.Context, logger log.Logger, task TaskRestarter, event *structs.TaskEvent) {
+	// Check watcher restarts are always failures
+	const failure = true
+
+	// Restarting is asynchronous so there's no reason to allow this
+	// goroutine to block indefinitely.
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	if err := task.Restart(ctx, event, failure); err != nil {
+		// Restart errors are not actionable and only relevant when
+		// debugging allocation lifecycle management.
+		logger.Debug("failed to restart task", "error", err,
+			"event_time", event.Time, "event_type", event.Type)
+	}
 }
 
 // checkWatchUpdates add or remove checks from the watcher
