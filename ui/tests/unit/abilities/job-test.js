@@ -134,6 +134,9 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
               '*-more-suffixed': {
                 policy: 'deny',
               },
+              '*-abc-*': {
+                policy: 'write',
+              },
             },
           },
         },
@@ -163,5 +166,8 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
       jobAbility.canRun,
       'expected the namespace with the greatest number of matched characters to be chosen'
     );
+
+    systemService.set('activeNamespace.name', '000-abc-999');
+    assert.ok(jobAbility.canRun, 'expected to be able to match against more than one wildcard');
   });
 });
