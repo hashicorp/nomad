@@ -1,6 +1,10 @@
-data_dir = "/opt/nomad/data"
-bind_addr = "0.0.0.0"
+enable_debug = true
+log_level    = "debug"
+data_dir     = "/opt/nomad/data"
+bind_addr    = "0.0.0.0"
+
 datacenter = "dc2"
+
 # Enable the client
 client {
   enabled = true
