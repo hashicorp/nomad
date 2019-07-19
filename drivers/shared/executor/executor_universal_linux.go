@@ -75,9 +75,22 @@ func (e *UniversalExecutor) configureResourceContainer(pid int) error {
 		},
 	}
 
-	configureBasicCgroups(cfg)
+	err := configureBasicCgroups(cfg)
+	if err != nil {
+		e.logger.Warn("failed to create cgroup", "error", err)
+		return err
+	}
+
 	e.resConCtx.groups = cfg.Cgroups
 	return cgroups.EnterPid(cfg.Cgroups.Paths, pid)
+}
+
+func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
+	if e.resConCtx.isEmpty() {
+		return getAllPidsByScanning()
+	} else {
+		return e.resConCtx.getAllPidsByCgroup()
+	}
 }
 
 // DestroyCgroup kills all processes in the cgroup and removes the cgroup

@@ -4,6 +4,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/hashicorp/nomad/client/stats"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 )
 
@@ -22,4 +24,39 @@ func (rc *resourceContainerContext) executorCleanup() error {
 		return err
 	}
 	return nil
+}
+
+func (rc *resourceContainerContext) isEmpty() bool {
+	return rc.groups == nil
+}
+
+func (rc *resourceContainerContext) getAllPidsByCgroup() (map[int]*nomadPid, error) {
+	nPids := map[int]*nomadPid{}
+
+	if rc.groups == nil {
+		return nPids, nil
+	}
+
+	var path string
+	if p, ok := rc.groups.Paths["freezer"]; ok {
+		path = p
+	} else {
+		path = rc.groups.Path
+	}
+
+	pids, err := cgroups.GetAllPids(path)
+	if err != nil {
+		return nPids, err
+	}
+
+	for _, pid := range pids {
+		nPids[pid] = &nomadPid{
+			pid:           pid,
+			cpuStatsTotal: stats.NewCpuStats(),
+			cpuStatsUser:  stats.NewCpuStats(),
+			cpuStatsSys:   stats.NewCpuStats(),
+		}
+	}
+
+	return nPids, nil
 }
