@@ -370,6 +370,7 @@ func TestTask_Artifact(t *testing.T) {
 
 // Ensures no regression on https://github.com/hashicorp/nomad/issues/3132
 func TestTaskGroup_Canonicalize_Update(t *testing.T) {
+	// Job with an Empty() Update
 	job := &Job{
 		ID: stringToPtr("test"),
 		Update: &UpdateStrategy{
@@ -389,7 +390,39 @@ func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 		Name: stringToPtr("foo"),
 	}
 	tg.Canonicalize(job)
+	assert.NotNil(t, job.Update)
 	assert.Nil(t, tg.Update)
+}
+
+func TestTaskGroup_Merge_Update(t *testing.T) {
+	job := &Job{
+		ID:     stringToPtr("test"),
+		Update: &UpdateStrategy{},
+	}
+	job.Canonicalize()
+
+	// Merge and canonicalize part of an update stanza
+	tg := &TaskGroup{
+		Name: stringToPtr("foo"),
+		Update: &UpdateStrategy{
+			AutoRevert:  boolToPtr(true),
+			Canary:      intToPtr(5),
+			HealthCheck: stringToPtr("foo"),
+		},
+	}
+
+	tg.Canonicalize(job)
+	require.Equal(t, &UpdateStrategy{
+		AutoRevert:       boolToPtr(true),
+		AutoPromote:      boolToPtr(false),
+		Canary:           intToPtr(5),
+		HealthCheck:      stringToPtr("foo"),
+		HealthyDeadline:  timeToPtr(5 * time.Minute),
+		ProgressDeadline: timeToPtr(10 * time.Minute),
+		MaxParallel:      intToPtr(1),
+		MinHealthyTime:   timeToPtr(10 * time.Second),
+		Stagger:          timeToPtr(30 * time.Second),
+	}, tg.Update)
 }
 
 // Verifies that migrate strategy is merged correctly
