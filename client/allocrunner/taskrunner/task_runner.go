@@ -707,14 +707,14 @@ func (tr *TaskRunner) runDriver() error {
 
 	val, diag, diagErrs := hclutils.ParseHclInterface(tr.task.Config, tr.taskSchema, vars)
 	if diag.HasErrors() {
-		parseErr := multierror.Append(errors.New("failed to parse config"), diagErrs...)
-		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetDriverError(parseErr))
+		parseErr := multierror.Append(errors.New("failed to parse config: "), diagErrs...)
+		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetValidationError(parseErr))
 		return parseErr
 	}
 
 	if err := taskConfig.EncodeDriverConfig(val); err != nil {
 		encodeErr := fmt.Errorf("failed to encode driver config: %v", err)
-		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetDriverError(encodeErr))
+		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetValidationError(encodeErr))
 		return encodeErr
 	}
 
@@ -750,8 +750,9 @@ func (tr *TaskRunner) runDriver() error {
 				return taskErr
 			}
 		} else {
-			// Do *NOT* wrap the error here without maintaining
-			// whether or not is Recoverable.
+			// Do *NOT* wrap the error here without maintaining whether or not is Recoverable.
+			// You must emit a task event failure to be considered Recoverable
+			tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 			return err
 		}
 	}

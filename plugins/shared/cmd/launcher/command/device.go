@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/go-multierror"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
@@ -199,7 +199,7 @@ func (c *Device) setConfig(spec hcldec.Spec, apiVersion string, config []byte, n
 
 	val, diag, diagErrs := hclutils.ParseHclInterface(configVal, spec, nil)
 	if diag.HasErrors() {
-		return multierror.Append(errors.New("failed to parse config"), diagErrs...)
+		return multierror.Append(errors.New("failed to parse config: "), diagErrs...)
 	}
 	c.logger.Trace("parsed hcl config", "config", hclog.Fmt("% #v", pretty.Formatter(val)))
 

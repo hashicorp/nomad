@@ -76,6 +76,9 @@ func GetStdlibFuncs() map[string]function.Function {
 	}
 }
 
+// TODO: update hcl2 library with better diagnostics formatting for streamed configs
+// - should be arbitrary labels not JSON https://github.com/hashicorp/hcl2/blob/4fba5e1a75e382aed7f7a7993f2c4836a5e1cd52/hcl/json/structure.go#L66
+// - should not print diagnostic subject https://github.com/hashicorp/hcl2/blob/4fba5e1a75e382aed7f7a7993f2c4836a5e1cd52/hcl/diagnostic.go#L77
 func formattedDiagnosticErrors(diag hcl.Diagnostics) []error {
 	var errs []error
 	for _, d := range diag {

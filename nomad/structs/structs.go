@@ -5937,15 +5937,15 @@ const (
 	TaskSetupFailure = "Setup Failure"
 
 	// TaskDriveFailure indicates that the task could not be started due to a
-	// failure in the driver.
+	// failure in the driver. TaskDriverFailure is considered Recoverable.
 	TaskDriverFailure = "Driver Failure"
 
 	// TaskReceived signals that the task has been pulled by the client at the
 	// given timestamp.
 	TaskReceived = "Received"
 
-	// TaskFailedValidation indicates the task was invalid and as such was not
-	// run.
+	// TaskFailedValidation indicates the task was invalid and as such was not run.
+	// TaskFailedValidation is not considered Recoverable.
 	TaskFailedValidation = "Failed Validation"
 
 	// TaskStarted signals that the task was started and its timestamp can be
