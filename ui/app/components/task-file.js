@@ -1,6 +1,7 @@
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { equal } from '@ember/object/computed';
 import RSVP from 'rsvp';
 import Log from 'nomad-ui/utils/classes/log';
 import timeout from 'nomad-ui/utils/timeout';
@@ -27,19 +28,14 @@ export default Component.extend({
   mode: 'head',
 
   fileComponent: computed('stat', function() {
-    // TODO: Switch to this.stat.ContentType
-    // TODO: Determine binary/unsupported non-text files to set to "cannot view" component
-    const matches = this.stat.Name.match(/^.+?\.(.+)$/);
-    const ext = matches ? matches[1] : '';
+    const contentType = this.stat.ContentType;
 
-    switch (ext) {
-      case 'jpg':
-      case 'jpeg':
-      case 'gif':
-      case 'png':
-        return 'image';
-      default:
-        return 'stream';
+    if (contentType.startsWith('image/')) {
+      return 'image';
+    } else if (contentType.startsWith('text/') || contentType.startsWith('application/json')) {
+      return 'stream';
+    } else {
+      return 'unknown';
     }
   }),
 
@@ -47,11 +43,7 @@ export default Component.extend({
     return this.stat.Size > 50000;
   }),
 
-  isStreamable: computed('stat', function() {
-    return true;
-    return this.stat.ContentType.startsWith('text/');
-  }),
-
+  isStreamable: equal('fileComponent', 'stream'),
   isStreaming: false,
 
   catUrl: computed('allocation.id', 'task.name', 'file', function() {
@@ -59,13 +51,15 @@ export default Component.extend({
   }),
 
   fetchMode: computed('isLarge', 'mode', function() {
+    if (this.mode === 'streaming') {
+      return 'stream';
+    }
+
     if (!this.isLarge) {
       return 'cat';
     } else if (this.mode === 'head' || this.mode === 'tail') {
       return 'readat';
     }
-
-    return 'stream';
   }),
 
   fileUrl: computed(

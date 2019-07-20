@@ -16,6 +16,7 @@ export default Controller.extend({
   task: null,
   directoryEntries: null,
   isFile: null,
+  stat: null,
 
   directories: filterBy('directoryEntries', 'IsDir'),
   files: filterBy('directoryEntries', 'IsDir', false),
