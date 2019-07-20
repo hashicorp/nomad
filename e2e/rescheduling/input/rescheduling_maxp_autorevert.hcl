@@ -15,10 +15,10 @@ job "demo3" {
     }
 
     update {
-      max_parallel     = 1
-      min_healthy_time = "1s"
-      auto_revert      = true
-      healthy_deadline = "2s"
+      max_parallel      = 1
+      min_healthy_time  = "1s"
+      auto_revert       = true
+      healthy_deadline  = "2s"
       progress_deadline = "3s"
     }
 
