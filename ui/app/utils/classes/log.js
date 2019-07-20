@@ -42,6 +42,7 @@ const Log = EmberObject.extend(Evented, {
   // the logPointer is pointed at head or tail
   output: computed('logPointer', 'head', 'tail', function() {
     let logs = this.logPointer === 'head' ? this.head : this.tail;
+    logs = logs.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     let colouredLogs = Anser.ansiToHtml(logs);
     return htmlSafe(colouredLogs);
   }),
