@@ -1,4 +1,5 @@
 log_level = "DEBUG"
+
 data_dir = "/tmp/nomad-server"
 
 server {
@@ -10,6 +11,7 @@ server {
 
 client {
   enabled = true
+
   options {
     "docker.privileged.enabled" = "true"
   }

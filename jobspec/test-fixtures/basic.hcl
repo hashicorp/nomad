@@ -18,32 +18,34 @@ job "binstore-storagelocker" {
 
   affinity {
     attribute = "${meta.team}"
-    value = "mobile"
-    operator = "="
-    weight = 50
+    value     = "mobile"
+    operator  = "="
+    weight    = 50
   }
 
-   spread {
-     attribute = "${meta.rack}"
-     weight = 100
-     target "r1" {
-       percent = 40
-     }
-     target "r2" {
-       percent = 60
-     }
-   }
+  spread {
+    attribute = "${meta.rack}"
+    weight    = 100
+
+    target "r1" {
+      percent = 40
+    }
+
+    target "r2" {
+      percent = 60
+    }
+  }
 
   update {
-    stagger      = "60s"
-    max_parallel = 2
-    health_check = "manual"
-    min_healthy_time = "10s"
-    healthy_deadline = "10m"
+    stagger           = "60s"
+    max_parallel      = 2
+    health_check      = "manual"
+    min_healthy_time  = "10s"
+    healthy_deadline  = "10m"
     progress_deadline = "10m"
-    auto_revert = true
-    auto_promote = true
-    canary = 1
+    auto_revert       = true
+    auto_promote      = true
+    canary            = 1
   }
 
   task "outside" {
@@ -69,54 +71,56 @@ job "binstore-storagelocker" {
     }
 
     reschedule {
-       attempts = 5
-       interval = "12h"
+      attempts = 5
+      interval = "12h"
     }
 
     ephemeral_disk {
-        sticky = true
-        size = 150
+      sticky = true
+      size   = 150
     }
 
     update {
-        max_parallel = 3
-        health_check = "checks"
-        min_healthy_time = "1s"
-        healthy_deadline = "1m"
-        progress_deadline = "1m"
-        auto_revert = false
-        auto_promote = false
-        canary = 2
+      max_parallel      = 3
+      health_check      = "checks"
+      min_healthy_time  = "1s"
+      healthy_deadline  = "1m"
+      progress_deadline = "1m"
+      auto_revert       = false
+      auto_promote      = false
+      canary            = 2
     }
 
     migrate {
-        max_parallel = 2
-        health_check = "task_states"
-        min_healthy_time = "11s"
-        healthy_deadline = "11m"
+      max_parallel     = 2
+      health_check     = "task_states"
+      min_healthy_time = "11s"
+      healthy_deadline = "11m"
     }
 
     affinity {
       attribute = "${node.datacenter}"
-      value = "dc2"
-      operator = "="
-      weight = 100
+      value     = "dc2"
+      operator  = "="
+      weight    = 100
     }
-    
+
     spread {
       attribute = "${node.datacenter}"
-      weight = 50
+      weight    = 50
+
       target "dc1" {
         percent = 50
       }
+
       target "dc2" {
         percent = 25
       }
+
       target "dc3" {
         percent = 25
       }
     }
-
 
     task "binstore" {
       driver = "docker"
@@ -125,9 +129,9 @@ job "binstore-storagelocker" {
 
       affinity {
         attribute = "${meta.foo}"
-        value = "a,b,c"
-        operator = "set_contains"
-        weight = 25
+        value     = "a,b,c"
+        operator  = "set_contains"
+        weight    = 25
       }
 
       config {
@@ -149,9 +153,9 @@ job "binstore-storagelocker" {
       }
 
       service {
-        tags = ["foo", "bar"]
+        tags        = ["foo", "bar"]
         canary_tags = ["canary", "bam"]
-        port = "http"
+        port        = "http"
 
         check {
           name         = "check-name"
@@ -163,8 +167,8 @@ job "binstore-storagelocker" {
           grpc_use_tls = true
 
           check_restart {
-            limit = 3
-            grace = "10s"
+            limit           = 3
+            grace           = "10s"
             ignore_warnings = true
           }
         }
@@ -189,31 +193,29 @@ job "binstore-storagelocker" {
             static = 3
           }
 
-          port "http" {
-          }
+          port "http" {}
 
-          port "https" {
-          }
+          port "https" {}
 
-          port "admin" {
-          }
+          port "admin" {}
         }
 
         device "nvidia/gpu" {
-            count = 10
-            constraint {
-              attribute = "${device.attr.memory}"
-              value = "2GB"
-              operator = ">"
-            }
+          count = 10
 
-            affinity {
-              attribute = "${device.model}"
-              value     = "1080ti"
-              weight = 50
-            }
+          constraint {
+            attribute = "${device.attr.memory}"
+            value     = "2GB"
+            operator  = ">"
+          }
+
+          affinity {
+            attribute = "${device.model}"
+            value     = "1080ti"
+            weight    = 50
+          }
         }
-        
+
         device "intel/gpu" {}
       }
 
@@ -230,9 +232,9 @@ job "binstore-storagelocker" {
       }
 
       artifact {
-        source = "http://bar.com/artifact"
+        source      = "http://bar.com/artifact"
         destination = "test/foo/"
-        mode = "file"
+        mode        = "file"
 
         options {
           checksum = "md5:ff1cc0d3432dad54d607c1505fb7245c"
@@ -244,20 +246,20 @@ job "binstore-storagelocker" {
       }
 
       template {
-        source = "foo"
-        destination = "foo"
-        change_mode = "foo"
+        source        = "foo"
+        destination   = "foo"
+        change_mode   = "foo"
         change_signal = "foo"
-        splay = "10s"
-        env = true
-        vault_grace = "33s"
+        splay         = "10s"
+        env           = true
+        vault_grace   = "33s"
       }
 
       template {
-        source = "bar"
-        destination = "bar"
-        perms = "777"
-        left_delimiter = "--"
+        source          = "bar"
+        destination     = "bar"
+        perms           = "777"
+        left_delimiter  = "--"
         right_delimiter = "__"
       }
     }
@@ -280,9 +282,9 @@ job "binstore-storagelocker" {
       }
 
       vault {
-        policies = ["foo", "bar"]
-        env = false
-        change_mode = "signal"
+        policies      = ["foo", "bar"]
+        env           = false
+        change_mode   = "signal"
         change_signal = "SIGUSR1"
       }
     }
