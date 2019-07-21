@@ -75,10 +75,13 @@ const Log = EmberObject.extend(Evented, {
   gotoHead: task(function*() {
     const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
-      assign(this.params, {
-        origin: 'start',
-        offset: 0,
-      })
+      assign(
+        {
+          origin: 'start',
+          offset: 0,
+        },
+        this.params
+      )
     );
     const url = `${this.url}?${queryParams}`;
 
@@ -97,10 +100,13 @@ const Log = EmberObject.extend(Evented, {
   gotoTail: task(function*() {
     const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
-      assign(this.params, {
-        origin: 'end',
-        offset: MAX_OUTPUT_LENGTH,
-      })
+      assign(
+        {
+          origin: 'end',
+          offset: MAX_OUTPUT_LENGTH,
+        },
+        this.params
+      )
     );
     const url = `${this.url}?${queryParams}`;
 
