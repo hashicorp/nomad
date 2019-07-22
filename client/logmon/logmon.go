@@ -204,7 +204,8 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator *logging.Fil
 	var openFn func() (io.ReadCloser, error)
 	var err error
 
-	if _, ferr := os.Stat(path); os.IsNotExist(ferr) {
+	_, serr := os.Stat(path)
+	if serr != nil {
 		openFn, err = fifo.CreateAndRead(path)
 	} else {
 		openFn = func() (io.ReadCloser, error) {
@@ -213,6 +214,7 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator *logging.Fil
 	}
 
 	if err != nil {
+		logger.Error("Failed to create FIFO", "stat_error", serr, "create_err", err)
 		return nil, fmt.Errorf("failed to create fifo for extracting logs: %v", err)
 	}
 
