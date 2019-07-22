@@ -8507,6 +8507,9 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 		Status:         EvalStatusPending,
 		Wait:           wait,
 		PreviousEval:   e.ID,
+		CreateTime:     time.Now().UTC().UnixNano(),
+		ModifyTime:     time.Now().UTC().UnixNano(),
+		// TODO(@jasmine): is a NextRollingEval technically created now or when original eval was created?
 	}
 }
 
@@ -8530,6 +8533,8 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
 		ClassEligibility:     classEligibility,
 		EscapedComputedClass: escaped,
 		QuotaLimitReached:    quotaReached,
+		CreateTime:           time.Now().UTC().UnixNano(),
+		ModifyTime:           time.Now().UTC().UnixNano(),
 	}
 }
 
@@ -8549,6 +8554,8 @@ func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 		Status:         EvalStatusPending,
 		Wait:           wait,
 		PreviousEval:   e.ID,
+		CreateTime:     time.Now().UTC().UnixNano(),
+		ModifyTime:     time.Now().UTC().UnixNano(),
 	}
 }
 

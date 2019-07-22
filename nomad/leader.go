@@ -533,10 +533,8 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			followupEvalWait := s.config.EvalFailedFollowupBaselineDelay +
 				time.Duration(rand.Int63n(int64(s.config.EvalFailedFollowupDelayRange)))
 
-			// TODO: what is this followup eval and where to create timestamp?
 			followupEval := eval.CreateFailedFollowUpEval(followupEvalWait)
 			updateEval.NextEval = followupEval.ID
-			updateEval.CreateTime = time.Now().UTC().UnixNano()
 			updateEval.ModifyTime = time.Now().UTC().UnixNano()
 
 			// Update via Raft
