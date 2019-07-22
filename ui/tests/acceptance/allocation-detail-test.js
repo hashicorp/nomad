@@ -103,7 +103,12 @@ module('Acceptance | allocation detail', function(hooks) {
       taskRow.reservedPorts[index].as(renderedPort => {
         assert.ok(renderedPort.text.includes(serverPort.Label), `Found label ${serverPort.Label}`);
         assert.ok(renderedPort.text.includes(serverPort.Value), `Found value ${serverPort.Value}`);
-        assert.equal(renderedPort.href, `http://${network.IP}:${serverPort.Value}`);
+
+        if (network.IP.includes(':')) {
+          assert.equal(renderedPort.href, `http://[${network.IP}]:${serverPort.Value}`);
+        } else {
+          assert.equal(renderedPort.href, `http://${network.IP}:${serverPort.Value}`);
+        }
       });
     });
 
@@ -111,7 +116,12 @@ module('Acceptance | allocation detail', function(hooks) {
       taskRow.dynamicPorts[index].as(renderedPort => {
         assert.ok(renderedPort.text.includes(serverPort.Label), `Found label ${serverPort.Label}`);
         assert.ok(renderedPort.text.includes(serverPort.Value), `Found value ${serverPort.Value}`);
-        assert.equal(renderedPort.href, `http://${network.IP}:${serverPort.Value}`);
+
+        if (network.IP.includes(':')) {
+          assert.equal(renderedPort.href, `http://[${network.IP}]:${serverPort.Value}`);
+        } else {
+          assert.equal(renderedPort.href, `http://${network.IP}:${serverPort.Value}`);
+        }
       });
     });
   });
