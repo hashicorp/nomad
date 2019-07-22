@@ -205,7 +205,7 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator io.WriteClos
 	var err error
 
 	//FIXME Revert #5990 and check os.IsNotExist once Go >= 1.12 is the
-	//      release compiler.
+	// release compiler.
 	_, serr := os.Stat(path)
 	if serr != nil {
 		openFn, err = fifo.CreateAndRead(path)
