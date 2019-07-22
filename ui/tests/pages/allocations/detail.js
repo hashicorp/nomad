@@ -41,7 +41,14 @@ export default create({
     state: text('[data-test-state]'),
     message: text('[data-test-message]'),
     time: text('[data-test-time]'),
-    ports: text('[data-test-ports]'),
+
+    reservedPorts: collection('[data-test-reserved-port]', {
+      href: attribute('href', 'a'),
+    }),
+
+    dynamicPorts: collection('[data-test-dynamic-port]', {
+      href: attribute('href', 'a'),
+    }),
 
     hasUnhealthyDriver: isPresent('[data-test-icon="unhealthy-driver"]'),
 

@@ -19,17 +19,17 @@
   {{/if}}
 </td>
 <td data-test-time>{{format-ts task.events.lastObject.time}}</td>
-<td data-test-ports>
+<td>
   <ul>
     {{#with task.resources.networks.firstObject as |network|}}
       {{#each network.reservedPorts as |port|}}
-        <li data-test-port>
+        <li data-test-reserved-port>
           <strong>{{port.Label}}:</strong>
           <a href="http://{{network.ip}}:{{port.Value}}" target="_blank" rel="noopener noreferrer">{{network.ip}}:{{port.Value}}</a>
         </li>
       {{/each}}
       {{#each network.dynamicPorts as |port|}}
-        <li>
+        <li data-test-dynamic-port>
           <strong>{{port.Label}}:</strong>
           <a href="http://{{network.ip}}:{{port.Value}}" target="_blank" rel="noopener noreferrer">{{network.ip}}:{{port.Value}}</a>
         </li>

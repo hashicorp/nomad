@@ -98,14 +98,20 @@ module('Acceptance | allocation detail', function(hooks) {
     assert.ok(reservedPorts.length, 'The task has reserved ports');
     assert.ok(dynamicPorts.length, 'The task has dynamic ports');
 
-    const addressesText = taskRow.ports;
-    reservedPorts.forEach(port => {
-      assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
-      assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
+    reservedPorts.forEach((serverPort, index) => {
+      taskRow.reservedPorts[index].as(renderedPort => {
+        assert.ok(renderedPort.text.includes(serverPort.Label), `Found label ${serverPort.Label}`);
+        assert.ok(renderedPort.text.includes(serverPort.Value), `Found value ${serverPort.Value}`);
+        assert.ok(renderedPort.href.endsWith(`${serverPort.Value}`));
+      });
     });
-    dynamicPorts.forEach(port => {
-      assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
-      assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
+
+    dynamicPorts.forEach((serverPort, index) => {
+      taskRow.dynamicPorts[index].as(renderedPort => {
+        assert.ok(renderedPort.text.includes(serverPort.Label), `Found label ${serverPort.Label}`);
+        assert.ok(renderedPort.text.includes(serverPort.Value), `Found value ${serverPort.Value}`);
+        assert.ok(renderedPort.href.endsWith(`${serverPort.Value}`));
+      });
     });
   });
 
