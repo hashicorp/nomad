@@ -19,7 +19,7 @@ module('Acceptance | allocation detail', function(hooks) {
     server.create('agent');
 
     node = server.create('node');
-    job = server.create('job', { groupsCount: 1, createAllocations: false });
+    job = server.create('job', { groupsCount: 1, groupTasksCount: 2, createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
 
     // Make sure the node has an unhealthy driver

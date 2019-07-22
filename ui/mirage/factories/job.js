@@ -114,12 +114,18 @@ export default Factory.extend({
       });
     }
 
-    const groups = server.createList('task-group', job.groupsCount, {
+    const groupsOptions = {
       job,
       createAllocations: job.createAllocations,
       withRescheduling: job.withRescheduling,
       shallow: job.shallow,
-    });
+    };
+
+    if (job.groupTasksCount) {
+      groupsOptions.count = job.groupTasksCount;
+    }
+
+    const groups = server.createList('task-group', job.groupsCount, groupsOptions);
 
     job.update({
       taskGroupIds: groups.mapBy('id'),
