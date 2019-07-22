@@ -1,5 +1,5 @@
 job "foo" {
-    constraint {
-        distinct_property = "${meta.rack}"
-    }
+  constraint {
+    distinct_property = "${meta.rack}"
+  }
 }

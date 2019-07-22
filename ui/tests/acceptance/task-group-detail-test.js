@@ -85,6 +85,8 @@ module('Acceptance | task group detail', function(hooks) {
       `Reserved Disk ${totalDisk} MiB`,
       'Aggregated Disk reservation for all tasks'
     );
+
+    assert.equal(document.title, `Task group ${taskGroup.name} - Job ${job.name} - Nomad`);
   });
 
   test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', async function(assert) {

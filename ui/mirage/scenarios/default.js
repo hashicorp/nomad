@@ -11,6 +11,7 @@ const allScenarios = {
   massiveCluster,
   allJobTypes,
   allNodeTypes,
+  everyFeature,
   emptyCluster,
 };
 
@@ -82,6 +83,31 @@ function allNodeTypes(server) {
   server.create('node', 'withMeta');
 
   server.createList('job', 3);
+}
+
+function everyFeature(server) {
+  server.createList('agent', 3);
+
+  server.create('node', 'forceIPv4');
+  server.create('node', 'draining');
+  server.create('node', 'forcedDraining');
+  server.create('node', 'noDeadlineDraining');
+  server.create('node', 'withMeta');
+
+  const job1 = server.create('job', {
+    type: 'service',
+    activeDeployment: true,
+    namespaceId: 'default',
+    createAllocations: false,
+  });
+  server.create('job', { type: 'batch', failedPlacements: true, namespaceId: 'default' });
+  server.create('job', { type: 'system', namespaceId: 'default' });
+  server.create('job', 'periodic', { namespaceId: 'default' });
+  server.create('job', 'parameterized', { namespaceId: 'default' });
+
+  server.create('allocation', 'rescheduled', { jobId: job1.id });
+  server.create('allocation', 'preempter', { jobId: job1.id });
+  server.create('allocation', 'preempted', { jobId: job1.id });
 }
 
 function emptyCluster(server) {

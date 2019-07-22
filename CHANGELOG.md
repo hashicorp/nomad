@@ -1,26 +1,65 @@
+## 0.9.4 (Unreleased)
+
+IMPROVEMENTS:
+ * api: Inferred content type of file in alloc filesystem stat endpoint [[GH-5907](https://github.com/hashicorp/nomad/issues/5907)]
+ * api: Used region from job hcl when not provided as query parameter in job registration and plan endpoints [[GH-5664](https://github.com/hashicorp/nomad/pull/5664)]
+ * core: Deregister nodes in batches rather than one at a time [[GH-5784](https://github.com/hashicorp/nomad/pull/5784)
+ * core: Removed deprecated upgrade path code pertaining to older versions of Nomad [[GH-5894](https://github.com/hashicorp/nomad/issues/5894)]
+ * core: System jobs that fail because of resource availability are retried when resources are freed [[GH-5900](https://github.com/hashicorp/nomad/pull/5900)]
+ * client: Improved task event display message to include kill time out [[GH-5943](https://github.com/hashicorp/nomad/issues/5943)]
+ * client: Removed extraneous information to improve formatting for hcl parsing error messages [[GH-5972](https://github.com/hashicorp/nomad/pull/5972)]
+ * driver/docker: Added logging defaults to use json-file log driver with log rotation [[GH-5846](https://github.com/hashicorp/nomad/pull/5846)]
+ * metrics: Added namespace label as appropriate to metrics [[GH-5847](https://github.com/hashicorp/nomad/issues/5847)]
+ * ui: Moved client status, draining, and eligibility fields into single state column [[GH-5789](https://github.com/hashicorp/nomad/pull/5789)]
+ * ui: Added buttons to copy client and allocation UUIDs [[GH-5926](https://github.com/hashicorp/nomad/pull/5926)]
+ * ui: Added page titles [[GH-5924](https://github.com/hashicorp/nomad/pull/5924)]
+
+BUG FIXES:
+
+ * core: Ensure plans are evaluated against a new enough snapshot index [[GH-5791](https://github.com/hashicorp/nomad/issues/5791)]
+ * core: Handle error case when attempting to stop a non-existent allocation [[GH-5865](https://github.com/hashicorp/nomad/issues/5865)]
+ * core: Improved job spec parsing error messages for variable interpolation failures [[GH-5844](https://github.com/hashicorp/nomad/issues/5844)]
+ * core: Fixed a bug where nomad log and exec requests may time out or fail in tls enabled clusters [[GH-5954](https://github.com/hashicorp/nomad/issues/5954)].
+ * client: Fixed a bug where consul service health checks may flap on client restart [[GH-5837](https://github.com/hashicorp/nomad/issues/5837)]
+ * client: Fixed a bug where too many check-based restarts would deadlock the client [[GH-5975](https://github.com/hashicorp/nomad/issues/5975)]
+ * client: Fixed a bug where successfully completed tasks may restart on client restart [[GH-5890](https://github.com/hashicorp/nomad/issues/5890)]
+ * client: Fixed a bug where stats of external driver plugins aren't collected on plugin restart [[GH-5948](https://github.com/hashicorp/nomad/issues/5948)]
+ * client: Fixed an issue where an alloc remains in pending state if nomad fails to create alloc directory [[GH-5905](https://github.com/hashicorp/nomad/issues/5905)]
+ * client: Fixed an issue where client may kill running allocs if the client and the leader are restarting simultaneously [[GH-5906](//github.com/hashicorp/nomad/issues/5906)]
+ * client: Fixed regression that prevented registering multiple services with the same name but different ports in Consul correctly [[GH-5829](https://github.com/hashicorp/nomad/issues/5829)]
+ * client: Fixed a race condition when performing local task restarts that would result in incorrect task not found errors on Windows [[GH-5899](https://github.com/hashicorp/nomad/pull/5889)]
+ * client: Reduce CPU usage on clients running many tasks on Linux [[GH-5951](https://github.com/hashicorp/nomad/pull/5951)]
+ * driver: Fixed an issue preventing local task restarts on Windows [[GH-5864](https://github.com/hashicorp/nomad/pull/5864)]
+ * driver: Fixed an issue preventing external driver plugins from launching executor process [[GH-5726](https://github.com/hashicorp/nomad/issues/5726)]
+ * driver/docker: Fixed a bug mounting relative paths on Windows [[GH-5811](https://github.com/hashicorp/nomad/issues/5811)]
+ * driver/exec: Upgraded libcontainer dependency to avoid zombie `runc:[1:CHILD]]` processes [[GH-5851](https://github.com/hashicorp/nomad/issues/5851)]
+ * metrics: Added metrics for raft and state store indexes. [[GH-5841](https://github.com/hashicorp/nomad/issues/5841)] 
+ * metrics: Upgrade prometheus client to avoid label conflicts [[GH-5850](https://github.com/hashicorp/nomad/issues/5850)]
+ * ui: Fixed ability to click sort arrow to change sort direction [[GH-5833](https://github.com/hashicorp/nomad/pull/5833)]
+
 ## 0.9.3 (June 12, 2019)
 
 BUG FIXES:
 
-* core: Fixed a panic that occurs if a job is updated with new task groups [[GH-5805](https://github.com/hashicorp/nomad/issues/5805)]
-* core: Update node's `StatusUpdatedAt` when node drain or eligibility changes [[GH-5746](https://github.com/hashicorp/nomad/issues/5746)]
-* core: Fixed a panic that may occur when preempting jobs for network resources [[GH-5794](https://github.com/hashicorp/nomad/issues/5794)]
-* core: Fixed a config parsing issue when client metadata contains a boolean value [[GH-5802](https://github.com/hashicorp/nomad/issues/5802)]
-* core: Fixed a config parsing issue where consul, vault, and autopilot stanzas break when using a config directory [[GH-5817](https://github.com/hashicorp/nomad/issues/5817)]
-* api: Allow sumitting alloc restart requests with an empty body [[GH-5823](https://github.com/hashicorp/nomad/pull/5823)]
-* client: Fixed an issue where task restart attempts is not honored properly [[GH-5737](https://github.com/hashicorp/nomad/issues/5737)]
-* client: Fixed a panic that occurs when a 0.9.2 client is running with 0.8 nomad servers [[GH-5812](https://github.com/hashicorp/nomad/issues/5812)]
-* client: Fixed an issue with cleaning up consul service registration entries when tasks fail to start. [[GH-5821](https://github.com/hashicorp/nomad/pull/5821)]
+ * core: Fixed a panic that occurs if a job is updated with new task groups [[GH-5805](https://github.com/hashicorp/nomad/issues/5805)]
+ * core: Update node's `StatusUpdatedAt` when node drain or eligibility changes [[GH-5746](https://github.com/hashicorp/nomad/issues/5746)]
+ * core: Fixed a panic that may occur when preempting jobs for network resources [[GH-5794](https://github.com/hashicorp/nomad/issues/5794)]
+ * core: Fixed a config parsing issue when client metadata contains a boolean value [[GH-5802](https://github.com/hashicorp/nomad/issues/5802)]
+ * core: Fixed a config parsing issue where consul, vault, and autopilot stanzas break when using a config directory [[GH-5817](https://github.com/hashicorp/nomad/issues/5817)]
+ * api: Allow sumitting alloc restart requests with an empty body [[GH-5823](https://github.com/hashicorp/nomad/pull/5823)]
+ * client: Fixed an issue where task restart attempts is not honored properly [[GH-5737](https://github.com/hashicorp/nomad/issues/5737)]
+ * client: Fixed a panic that occurs when a 0.9.2 client is running with 0.8 nomad servers [[GH-5812](https://github.com/hashicorp/nomad/issues/5812)]
+ * client: Fixed an issue with cleaning up consul service registration entries when tasks fail to start. [[GH-5821](https://github.com/hashicorp/nomad/pull/5821)]
 
 ## 0.9.2 (June 5, 2019)
 
 SECURITY:
 
-* driver/exec: Fix privilege escalation issue introduced in Nomad 0.9.0.  In
-  Nomad 0.9.0 and 0.9.1, exec tasks by default run as `nobody` but with
-  elevated capabilities, allowing tasks to perform privileged linux operations
-  and potentially escalate permissions. (CVE-2019-12618)
-  [[GH-5728](https://github.com/hashicorp/nomad/pull/5728)]
+ * driver/exec: Fix privilege escalation issue introduced in Nomad 0.9.0.  In
+   Nomad 0.9.0 and 0.9.1, exec tasks by default run as `nobody` but with
+   elevated capabilities, allowing tasks to perform privileged linux operations
+   and potentially escalate permissions. (CVE-2019-12618)
+   [[GH-5728](https://github.com/hashicorp/nomad/pull/5728)]
 
 __BACKWARDS INCOMPATIBILITIES:__
 

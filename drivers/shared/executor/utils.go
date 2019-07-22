@@ -3,13 +3,13 @@ package executor
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 
 	"github.com/golang/protobuf/ptypes"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
-	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/plugins/base"
 )
 
@@ -32,7 +32,7 @@ func CreateExecutor(logger hclog.Logger, driverConfig *base.ClientDriverConfig,
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create executor config: %v", err)
 	}
-	bin, err := discover.NomadExecutable()
+	bin, err := os.Executable()
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}

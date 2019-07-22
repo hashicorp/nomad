@@ -7,6 +7,7 @@ datacenter = "dc1"
 client {
   enabled = true
   servers = ["127.0.0.1:4647"]
+
   meta {
     secondary = 1
   }
@@ -15,4 +16,3 @@ client {
 ports {
   http = 5656
 }
-

@@ -248,10 +248,18 @@ func (ar *allocRunner) Run() {
 	default:
 	}
 
+	// When handling (potentially restored) terminal alloc, ensure tasks and post-run hooks are run
+	// to perform any cleanup that's necessary, potentially not done prior to earlier termination
+
 	// Run the prestart hooks if non-terminal
 	if ar.shouldRun() {
 		if err := ar.prerun(); err != nil {
 			ar.logger.Error("prerun failed", "error", err)
+
+			for _, tr := range ar.tasks {
+				tr.MarkFailedDead(fmt.Sprintf("failed to setup runner: %v", err))
+			}
+
 			goto POST
 		}
 	}
@@ -491,7 +499,9 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 			continue
 		}
 
-		err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilling))
+		taskEvent := structs.NewTaskEvent(structs.TaskKilling)
+		taskEvent.SetKillTimeout(tr.Task().KillTimeout)
+		err := tr.Kill(context.TODO(), taskEvent)
 		if err != nil && err != taskrunner.ErrTaskNotRunning {
 			ar.logger.Warn("error stopping leader task", "error", err, "task_name", name)
 		}
@@ -511,7 +521,9 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		wg.Add(1)
 		go func(name string, tr *taskrunner.TaskRunner) {
 			defer wg.Done()
-			err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilling))
+			taskEvent := structs.NewTaskEvent(structs.TaskKilling)
+			taskEvent.SetKillTimeout(tr.Task().KillTimeout)
+			err := tr.Kill(context.TODO(), taskEvent)
 			if err != nil && err != taskrunner.ErrTaskNotRunning {
 				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
 			}

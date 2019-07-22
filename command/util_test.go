@@ -42,7 +42,7 @@ func testJob(jobID string) *api.Job {
 			SizeMB: helper.IntToPtr(20),
 		})
 
-	job := api.NewBatchJob(jobID, jobID, "region1", 1).
+	job := api.NewBatchJob(jobID, jobID, "global", 1).
 		AddDatacenter("dc1").
 		AddTaskGroup(group)
 

@@ -1,6 +1,6 @@
 job "foo" {
   task "bar" {
-    driver = "docker"
+    driver      = "docker"
     kill_signal = "SIGQUIT"
 
     config {

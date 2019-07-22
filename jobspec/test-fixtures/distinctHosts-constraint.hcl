@@ -1,5 +1,5 @@
 job "foo" {
-    constraint {
-        distinct_hosts = "true"
-    }
+  constraint {
+    distinct_hosts = "true"
+  }
 }

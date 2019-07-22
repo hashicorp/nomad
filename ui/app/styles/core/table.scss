@@ -167,6 +167,7 @@
           bottom: 0.75em;
           position: absolute;
           display: block;
+          pointer-events: none;
         }
 
         &.asc::after {

@@ -1,6 +1,6 @@
 # Consul Template
 
-[![Build Status](http://img.shields.io/travis/hashicorp/consul-template.svg?style=flat-square)](https://travis-ci.org/hashicorp/consul-template)
+[![CircleCI](https://circleci.com/gh/hashicorp/consul-template.svg?style=svg)](https://circleci.com/gh/hashicorp/consul-template)
 [![Go Documentation](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)](https://godoc.org/github.com/hashicorp/consul-template)
 
 This project provides a convenient way to populate values from [Consul][consul]
@@ -19,6 +19,20 @@ this functionality might prove useful.
 **Please see the [Git tag](https://github.com/hashicorp/consul-template/releases) that corresponds to your version of Consul Template for the proper documentation.**
 
 ---
+
+## Community Support
+
+If you have questions about how consul-template works, its capabilities or
+anything other than a bug or feature request (use github's issue tracker for
+those), please see our community support resources.
+
+Community portal: https://discuss.hashicorp.com/c/consul
+
+Other resources: https://www.consul.io/community.html
+
+Additionally, for issues and pull requests, we'll be using the :+1: reactions
+as a rough voting system to help gauge community priorities. So please add :+1:
+to any issue or pull request you'd like to see worked on. Thanks.
 
 
 ## Installation
@@ -967,6 +981,9 @@ This will returns services which are deemed "passing" or "warning" according to
 their node and service-level checks defined in Consul. Please note that the
 comma implies an "or", not an "and".
 
+**Note:** Due to the use of dot `.` to delimit TAG, the `service` command will
+not recognize service names containing dots.
+
 **Note:** There is an architectural difference between the following:
 
 ```liquid
@@ -979,6 +996,7 @@ passing. The latter will return all services registered with the Consul agent
 and perform client-side filtering. As a general rule, do not use the "passing"
 argument alone if you want only healthy services - simply omit the second
 argument instead.
+
 
 ##### `services`
 
@@ -1476,7 +1494,9 @@ plugin.
 {{ plugin "my-plugin" }}
 ```
 
-This is most commonly combined with a JSON filter for customization:
+The plugin can take an arbitrary number of string arguments, and can be the 
+target of a pipeline that produces strings as well. This is most commonly 
+combined with a JSON filter for customization:
 
 ```liquid
 {{ tree "foo" | explode | toJSON | plugin "my-plugin" }}
@@ -1777,7 +1797,9 @@ $ NAME [INPUT...]
   inherited `PATH` so e.g. the plugin `cat` will run the first executable `cat`
   that is found on the `PATH`.
 
-- `INPUT` - input from the template - this will always be JSON if provided
+- `INPUT` - input from the template. There will be one INPUT for every argument passed
+  to the `plugin` function. If the arguments contain whitespace, that whitespace 
+  will be passed as if the argument were quoted by the shell.
 
 #### Important Notes
 
@@ -1788,7 +1810,8 @@ $ NAME [INPUT...]
 
 - Plugin output must be returned as a string on stdout. Only stdout will be
   parsed for output. Be sure to log all errors, debugging messages onto stderr
-  to avoid errors when Consul Template returns the value.
+  to avoid errors when Consul Template returns the value. Note that output to
+  stderr will only be output if the plugin returns a non-zero exit code.
 
 - Always `exit 0` or Consul Template will assume the plugin failed to execute
 
@@ -1843,6 +1866,14 @@ func main() {
 
 ## Caveats
 
+### Dots in Service Names
+
+Using dots `.` in service names will conflict with the use of dots for [TAG
+delineation](https://github.com/hashicorp/consul-template#service) in the
+template. Dots already [interfere with using
+DNS](https://www.consul.io/docs/agent/services.html#service-and-tag-names-with-dns)
+for service names, so we recommend avoiding dots wherever possible.
+
 ### Once Mode
 
 In Once mode, Consul Template will wait for all dependencies to be rendered. If
@@ -1870,6 +1901,8 @@ lookup each `service`, since the inner loops cannot be evaluated until the outer
 loop returns a response. Consul Template waits until it gets a response from
 Consul for all dependencies before rendering a template. It does not wait until
 that response is non-empty though.
+
+**Note:** Once mode implicitly disables any wait/quiescence timers specified in configuration files or passed on the command line.
 
 ### Exec Mode
 
@@ -2191,7 +2224,7 @@ If you want to compile a specific binary, set `XC_OS` and `XC_ARCH` or run the
 following to generate all binaries:
 
 ```shell
-$ make bin
+$ make build
 ```
 
 If you want to run the tests, first [install consul locally](https://www.consul.io/docs/install/index.html), then:

@@ -217,3 +217,22 @@
 /guides/operations/upgrade/                       /guides/upgrade/index.html
 /guides/operations/upgrade/index.html             /guides/upgrade/index.html
 /guides/operations/upgrade/upgrade-specific.html  /guides/upgrade/upgrade-specific.html
+
+# Enterprise
+
+# Reorganized Enterprise into single pager
+/docs/enterprise/namespaces                       /docs/enterprise/index.html#namespaces
+/docs/enterprise/namespaces/                      /docs/enterprise/index.html#namespaces
+/docs/enterprise/namespaces/index.html            /docs/enterprise/index.html#namespaces
+/docs/enterprise/quotas                           /docs/enterprise/index.html#resource-quotas
+/docs/enterprise/quotas/                          /docs/enterprise/index.html#resource-quotas
+/docs/enterprise/quotas/index.html                /docs/enterprise/index.html#resource-quotas
+/docs/enterprise/preemption                       /docs/enterprise/index.html#preemption
+/docs/enterprise/preemption/                      /docs/enterprise/index.html#preemption
+/docs/enterprise/preemption/index.html            /docs/enterprise/index.html#preemption
+/docs/enterprise/sentinel                         /docs/enterprise/index.html#sentinel-policies
+/docs/enterprise/sentinel/                        /docs/enterprise/index.html#sentinel-policies
+/docs/enterprise/sentinel/index.html              /docs/enterprise/index.html#sentinel-policies
+/docs/enterprise/autopilot                        /docs/enterprise/index.html#nomad-enterprise-platform
+/docs/enterprise/autopilot/                       /docs/enterprise/index.html#nomad-enterprise-platform
+/docs/enterprise/autopilot/index.html             /docs/enterprise/index.html#nomad-enterprise-platform

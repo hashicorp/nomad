@@ -12,40 +12,52 @@ addons:
 git:
   depth: 300
 
+# This skips non-UI jobs for UI-only branches with names like f-ui/whatever or b-ui/something.
+_skip_for_ui_branches: &skip_for_ui_branches
+  if: (type = push AND NOT branch =~ /^.-ui\b/) OR (type = pull_request AND NOT head_branch =~ /^.-ui\b/)
+
 matrix:
   include:
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./api"
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./client"
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./drivers/docker"
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./drivers/exec"
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS="./nomad"
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: GOTEST_PKGS_EXCLUDE="./api|./client|./drivers/docker|./drivers/exec|./nomad"
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: ENABLE_RACE=1
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: false
       env: RUN_WEBSITE_TESTS=1 SKIP_NOMAD_TESTS=1
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: false
@@ -54,12 +66,15 @@ matrix:
       dist: xenial
       sudo: false
       env: RUN_STATIC_CHECKS=1 SKIP_NOMAD_TESTS=1
+      <<: *skip_for_ui_branches
     - os: osx
       osx_image: xcode9.1
+      <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
       sudo: required
       env: RUN_E2E_TESTS=1 SKIP_NOMAD_TESTS=1
+      <<: *skip_for_ui_branches
   allow_failures:
     # Allow osx to fail as its flaky
     - os: osx

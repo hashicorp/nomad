@@ -3,6 +3,10 @@ image: Visual Studio 2017
 
 clone_folder: c:\gopath\src\github.com\hashicorp\nomad
 
+branches:
+  except:
+    - /^.-ui\b/
+
 environment:
   GOPATH: c:\gopath
   GOBIN: c:\gopath\bin
@@ -42,6 +46,7 @@ test_script:
       gotestsum --junitfile results.xml
            github.com/hashicorp/nomad/drivers/docker
            github.com/hashicorp/nomad/client/lib/fifo
+           github.com/hashicorp/nomad/client/logmon
 # on_finish:
 #   - ps: |
 #       Push-AppveyorArtifact (Resolve-Path .\results.xml)

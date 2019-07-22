@@ -15,11 +15,11 @@ job "test" {
     }
 
     update {
-      canary           = 3
-      max_parallel     = 1
-      min_healthy_time = "1s"
-      auto_revert      = true
-      healthy_deadline = "2s"
+      canary            = 3
+      max_parallel      = 1
+      min_healthy_time  = "1s"
+      auto_revert       = true
+      healthy_deadline  = "2s"
       progress_deadline = "3s"
     }
 

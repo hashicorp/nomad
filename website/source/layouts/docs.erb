@@ -477,6 +477,9 @@
               <li<%= sidebar_current("docs-drivers-community-singularity") %>>
               <a href="/docs/drivers/external/singularity.html">Singularity</a>
             </li>
+              <li<%= sidebar_current("docs-drivers-community-jail-task-driver") %>>
+              <a href="/docs/drivers/external/jail-task-driver.html">Jailtask driver</a>
+            </li>
             </ul>
           </li>
 
@@ -506,6 +509,14 @@
 
       <li<%= sidebar_current("docs-telemetry") %>>
         <a href="/docs/telemetry/index.html">Telemetry</a>
+        <ul class="nav">
+          <li<%= sidebar_current("docs-telemetry-overview") %>>
+            <a href="/docs/telemetry/overview.html">Overview</a>
+          </li>
+          <li<%= sidebar_current("docs-telemetry-metrics") %>>
+            <a href="/docs/telemetry/metrics.html">Metrics</a>
+          </li>
+        </ul>
       </li>
 
       <li<%= sidebar_current("docs-variable-interpolation") %>>
@@ -521,20 +532,26 @@
       <li<%= sidebar_current("docs-enterprise") %>>
         <a href="/docs/enterprise/index.html">Nomad Enterprise</a>
         <ul class="nav">
+          <li<%= sidebar_current("docs-enterprise-upgrades") %>>
+            <a href="/docs/enterprise/index.html#automated-upgrades">Automated Upgrades</a>
+          </li>
+          <li<%= sidebar_current("docs-enterprise-scalability") %>>
+            <a href="/docs/enterprise/index.html#enhanced-read-scalability">Enhanced Read Scalability</a>
+          </li>
+          <li<%= sidebar_current("docs-enterprise-redundancy") %>>
+            <a href="/docs/enterprise/index.html#redundancy-zones">Redundancy Zones</a>
+          </li>
           <li<%= sidebar_current("docs-enterprise-namespaces") %>>
-            <a href="/docs/enterprise/namespaces/index.html">Namespaces</a>
+            <a href="/docs/enterprise/index.html#namespaces">Namespaces</a>
           </li>
           <li<%= sidebar_current("docs-enterprise-quotas") %>>
-            <a href="/docs/enterprise/quotas/index.html">Resource Quotas</a>
-          </li>
-          <li<%= sidebar_current("docs-enterprise-sentinel") %>>
-            <a href="/docs/enterprise/sentinel/index.html">Sentinel Policies</a>
+            <a href="/docs/enterprise/index.html#resource-quotas">Resource Quotas</a>
           </li>
           <li<%= sidebar_current("docs-enterprise-preemption") %>>
-            <a href="/docs/enterprise/preemption/index.html">Preemption</a>
+            <a href="/docs/enterprise/index.html#preemption">Preemption</a>
           </li>
-          <li<%= sidebar_current("docs-enterprise-autopilot") %>>
-            <a href="/docs/enterprise/autopilot/index.html">Advanced Autopilot</a>
+          <li<%= sidebar_current("docs-enterprise-sentinel") %>>
+            <a href="/docs/enterprise/index.html#sentinel-policies">Sentinel Policies</a>
           </li>
         </ul>
       </li>

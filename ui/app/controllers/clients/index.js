@@ -19,9 +19,8 @@ export default Controller.extend(Sortable, Searchable, {
     sortProperty: 'sort',
     sortDescending: 'desc',
     qpClass: 'class',
-    qpStatus: 'status',
+    qpState: 'state',
     qpDatacenter: 'dc',
-    qpFlags: 'flags',
   },
 
   currentPage: 1,
@@ -33,14 +32,12 @@ export default Controller.extend(Sortable, Searchable, {
   searchProps: computed(() => ['id', 'name', 'datacenter']),
 
   qpClass: '',
-  qpStatus: '',
+  qpState: '',
   qpDatacenter: '',
-  qpFlags: '',
 
   selectionClass: selection('qpClass'),
-  selectionStatus: selection('qpStatus'),
+  selectionState: selection('qpState'),
   selectionDatacenter: selection('qpDatacenter'),
-  selectionFlags: selection('qpFlags'),
 
   optionsClass: computed('nodes.[]', function() {
     const classes = Array.from(new Set(this.nodes.mapBy('nodeClass'))).compact();
@@ -53,10 +50,12 @@ export default Controller.extend(Sortable, Searchable, {
     return classes.sort().map(dc => ({ key: dc, label: dc }));
   }),
 
-  optionsStatus: computed(() => [
+  optionsState: computed(() => [
     { key: 'initializing', label: 'Initializing' },
     { key: 'ready', label: 'Ready' },
     { key: 'down', label: 'Down' },
+    { key: 'ineligible', label: 'Ineligible' },
+    { key: 'draining', label: 'Draining' },
   ]),
 
   optionsDatacenter: computed('nodes.[]', function() {
@@ -64,36 +63,29 @@ export default Controller.extend(Sortable, Searchable, {
 
     // Remove any invalid datacenters from the query param/selection
     scheduleOnce('actions', () => {
-      this.set(
-        'qpDatacenter',
-        serialize(intersection(datacenters, this.selectionDatacenter))
-      );
+      this.set('qpDatacenter', serialize(intersection(datacenters, this.selectionDatacenter)));
     });
 
     return datacenters.sort().map(dc => ({ key: dc, label: dc }));
   }),
 
-  optionsFlags: computed(() => [
-    { key: 'ineligible', label: 'Ineligible' },
-    { key: 'draining', label: 'Draining' },
-  ]),
-
   filteredNodes: computed(
     'nodes.[]',
     'selectionClass',
-    'selectionStatus',
+    'selectionState',
     'selectionDatacenter',
-    'selectionFlags',
     function() {
       const {
         selectionClass: classes,
-        selectionStatus: statuses,
+        selectionState: states,
         selectionDatacenter: datacenters,
-        selectionFlags: flags,
       } = this;
 
-      const onlyIneligible = flags.includes('ineligible');
-      const onlyDraining = flags.includes('draining');
+      const onlyIneligible = states.includes('ineligible');
+      const onlyDraining = states.includes('draining');
+
+      // states is a composite of node status and other node states
+      const statuses = states.without('ineligible').without('draining');
 
       return this.nodes.filter(node => {
         if (classes.length && !classes.includes(node.get('nodeClass'))) return false;

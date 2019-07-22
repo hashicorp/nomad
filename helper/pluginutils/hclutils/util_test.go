@@ -358,9 +358,9 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Logf("Val: % #v", pretty.Formatter(c.config))
 			// Parse the interface
-			ctyValue, diag := hclutils.ParseHclInterface(c.config, c.spec, c.vars)
+			ctyValue, diag, errs := hclutils.ParseHclInterface(c.config, c.spec, c.vars)
 			if diag.HasErrors() {
-				for _, err := range diag.Errs() {
+				for _, err := range errs {
 					t.Error(err)
 				}
 				t.FailNow()
@@ -455,6 +455,87 @@ func TestParseNullFields(t *testing.T) {
 			parser.ParseJson(t, c.json, &tc)
 
 			require.EqualValues(t, c.expected, tc)
+		})
+	}
+}
+
+func TestParseUnknown(t *testing.T) {
+	spec := hclspec.NewObject(map[string]*hclspec.Spec{
+		"string_field":   hclspec.NewAttr("string_field", "string", false),
+		"map_field":      hclspec.NewAttr("map_field", "map(string)", false),
+		"list_field":     hclspec.NewAttr("list_field", "map(string)", false),
+		"map_list_field": hclspec.NewAttr("map_list_field", "list(map(string))", false),
+	})
+	cSpec, diags := hclspecutils.Convert(spec)
+	require.False(t, diags.HasErrors())
+
+	cases := []struct {
+		name string
+		hcl  string
+	}{
+		{
+			"string field",
+			`config {  string_field = "${MYENV}" }`,
+		},
+		{
+			"map_field",
+			`config { map_field { key = "${MYENV}" }}`,
+		},
+		{
+			"list_field",
+			`config { list_field = ["${MYENV}"]}`,
+		},
+		{
+			"map_list_field",
+			`config { map_list_field { key = "${MYENV}"}}`,
+		},
+	}
+
+	vars := map[string]cty.Value{}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			inter := hclutils.HclConfigToInterface(t, c.hcl)
+
+			ctyValue, diag, errs := hclutils.ParseHclInterface(inter, cSpec, vars)
+			t.Logf("parsed: %# v", pretty.Formatter(ctyValue))
+
+			require.NotNil(t, errs)
+			require.True(t, diag.HasErrors())
+			require.Contains(t, errs[0].Error(), "no variable named")
+		})
+	}
+}
+
+func TestParseInvalid(t *testing.T) {
+	dockerDriver := new(docker.Driver)
+	dockerSpec, err := dockerDriver.TaskConfigSchema()
+	require.NoError(t, err)
+	spec, diags := hclspecutils.Convert(dockerSpec)
+	require.False(t, diags.HasErrors())
+
+	cases := []struct {
+		name string
+		hcl  string
+	}{
+		{
+			"invalid_field",
+			`config { image = "redis:3.2" bad_key = "whatever"}`,
+		},
+	}
+
+	vars := map[string]cty.Value{}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			inter := hclutils.HclConfigToInterface(t, c.hcl)
+
+			ctyValue, diag, errs := hclutils.ParseHclInterface(inter, spec, vars)
+			t.Logf("parsed: %# v", pretty.Formatter(ctyValue))
+
+			require.NotNil(t, errs)
+			require.True(t, diag.HasErrors())
+			require.Contains(t, errs[0].Error(), "Invalid label")
 		})
 	}
 }

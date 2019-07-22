@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func testBlockedEvals(t *testing.T) (*BlockedEvals, *EvalBroker) {
@@ -174,18 +175,21 @@ func TestBlockedEvals_UnblockEscaped(t *testing.T) {
 	}
 
 	blocked.Unblock("v1:123", 1000)
+	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
+}
 
+func requireBlockedEvalsEnqueued(t *testing.T, blocked *BlockedEvals, broker *EvalBroker, enqueued int) {
 	testutil.WaitForResult(func() (bool, error) {
 		// Verify Unblock caused an enqueue
 		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != 1 {
-			return false, fmt.Errorf("bad: %#v", brokerStats)
+		if brokerStats.TotalReady != enqueued {
+			return false, fmt.Errorf("missing enqueued evals: %#v", brokerStats)
 		}
 
 		// Verify Unblock updates the stats
 		bStats := blocked.Stats()
 		if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
-			return false, fmt.Errorf("bad: %#v", bStats)
+			return false, fmt.Errorf("evals still blocked: %#v", bStats)
 		}
 		return true, nil
 	}, func(err error) {
@@ -211,23 +215,7 @@ func TestBlockedEvals_UnblockEligible(t *testing.T) {
 	}
 
 	blocked.Unblock("v1:123", 1000)
-
-	testutil.WaitForResult(func() (bool, error) {
-		// Verify Unblock caused an enqueue
-		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != 1 {
-			return false, fmt.Errorf("bad: %#v", brokerStats)
-		}
-
-		// Verify Unblock updates the stats
-		bStats := blocked.Stats()
-		if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
-			return false, fmt.Errorf("bad: %#v", bStats)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
 
 func TestBlockedEvals_UnblockIneligible(t *testing.T) {
@@ -286,23 +274,7 @@ func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 
 	// Should unblock because the eval hasn't seen this node class.
 	blocked.Unblock("v1:789", 1000)
-
-	testutil.WaitForResult(func() (bool, error) {
-		// Verify Unblock causes an enqueue
-		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != 1 {
-			return false, fmt.Errorf("bad: %#v", brokerStats)
-		}
-
-		// Verify Unblock updates the stats
-		bStats := blocked.Stats()
-		if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
-			return false, fmt.Errorf("bad: %#v", bStats)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
 
 func TestBlockedEvals_UnblockEligible_Quota(t *testing.T) {
@@ -322,23 +294,7 @@ func TestBlockedEvals_UnblockEligible_Quota(t *testing.T) {
 	}
 
 	blocked.UnblockQuota("foo", 1000)
-
-	testutil.WaitForResult(func() (bool, error) {
-		// Verify Unblock caused an enqueue
-		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != 1 {
-			return false, fmt.Errorf("bad: %#v", brokerStats)
-		}
-
-		// Verify Unblock updates the stats
-		bs := blocked.Stats()
-		if bs.TotalBlocked != 0 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 0 {
-			return false, fmt.Errorf("bad: %#v", bs)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
 
 func TestBlockedEvals_UnblockIneligible_Quota(t *testing.T) {
@@ -416,22 +372,7 @@ func TestBlockedEvals_Reblock(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	testutil.WaitForResult(func() (bool, error) {
-		// Verify Unblock causes an enqueue
-		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != 1 {
-			return false, fmt.Errorf("bad: %#v", brokerStats)
-		}
-
-		// Verify Unblock updates the stats
-		bStats := blocked.Stats()
-		if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
-			return false, fmt.Errorf("bad: %#v", bStats)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
 
 // Test the block case in which the eval should be immediately unblocked since
@@ -457,17 +398,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
 		t.Fatalf("bad: %#v", blockedStats)
 	}
 
-	testutil.WaitForResult(func() (bool, error) {
-		// Verify Unblock caused an enqueue
-		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != 1 {
-			return false, fmt.Errorf("bad: %#v", brokerStats)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
 
 // Test the block case in which the eval should be immediately unblocked since
@@ -494,17 +425,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_After(t *testing.T) {
 		t.Fatalf("bad: %#v", blockedStats)
 	}
 
-	testutil.WaitForResult(func() (bool, error) {
-		// Verify Unblock caused an enqueue
-		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != 1 {
-			return false, fmt.Errorf("bad: %#v", brokerStats)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
 
 // Test the block case in which the eval should not immediately unblock since
@@ -555,17 +476,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_SeenClass(t *testing.T) {
 		t.Fatalf("bad: %#v", blockedStats)
 	}
 
-	testutil.WaitForResult(func() (bool, error) {
-		// Verify Unblock caused an enqueue
-		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != 1 {
-			return false, fmt.Errorf("bad: %#v", brokerStats)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
 
 // Test the block case in which the eval should be immediately unblocked since
@@ -591,17 +502,7 @@ func TestBlockedEvals_Block_ImmediateUnblock_Quota(t *testing.T) {
 		t.Fatalf("bad: %#v", bs)
 	}
 
-	testutil.WaitForResult(func() (bool, error) {
-		// Verify Unblock caused an enqueue
-		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != 1 {
-			return false, fmt.Errorf("bad: %#v", brokerStats)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
 
 func TestBlockedEvals_UnblockFailed(t *testing.T) {
@@ -636,16 +537,7 @@ func TestBlockedEvals_UnblockFailed(t *testing.T) {
 		t.Fatalf("bad: %#v", bs)
 	}
 
-	testutil.WaitForResult(func() (bool, error) {
-		// Verify Unblock caused an enqueue
-		brokerStats := broker.Stats()
-		if brokerStats.TotalReady != 3 {
-			return false, fmt.Errorf("bad: %#v", brokerStats)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+	requireBlockedEvalsEnqueued(t, blocked, broker, 3)
 
 	// Reblock an eval for the same job and check that it gets tracked.
 	blocked.Block(e)
@@ -703,4 +595,79 @@ func TestBlockedEvals_Untrack_Quota(t *testing.T) {
 	if bs.TotalBlocked != 0 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 0 {
 		t.Fatalf("bad: %#v", bs)
 	}
+}
+
+func TestBlockedEvals_UnblockNode(t *testing.T) {
+	t.Parallel()
+	blocked, broker := testBlockedEvals(t)
+
+	require.NotNil(t, broker)
+
+	// Create a blocked evals and add it to the blocked tracker.
+	e := mock.Eval()
+	e.Type = structs.JobTypeSystem
+	e.NodeID = "foo"
+	e.SnapshotIndex = 999
+	blocked.Block(e)
+
+	// Verify block did track
+	bs := blocked.Stats()
+	require.Equal(t, 1, bs.TotalBlocked)
+
+	blocked.UnblockNode("foo", 1000)
+	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
+	bs = blocked.Stats()
+	require.Empty(t, blocked.system.byNode)
+	require.Equal(t, 0, bs.TotalBlocked)
+}
+
+func TestBlockedEvals_SystemUntrack(t *testing.T) {
+	t.Parallel()
+	blocked, _ := testBlockedEvals(t)
+
+	// Create a blocked evals and add it to the blocked tracker.
+	e := mock.Eval()
+	e.Type = structs.JobTypeSystem
+	e.NodeID = "foo"
+	blocked.Block(e)
+
+	// Verify block did track
+	bs := blocked.Stats()
+	require.Equal(t, 1, bs.TotalBlocked)
+	require.Equal(t, 0, bs.TotalEscaped)
+	require.Equal(t, 0, bs.TotalQuotaLimit)
+
+	// Untrack and verify
+	blocked.Untrack(e.JobID, e.Namespace)
+	bs = blocked.Stats()
+	require.Equal(t, 0, bs.TotalBlocked)
+	require.Equal(t, 0, bs.TotalEscaped)
+	require.Equal(t, 0, bs.TotalQuotaLimit)
+}
+
+func TestBlockedEvals_SystemDisableFlush(t *testing.T) {
+	t.Parallel()
+	blocked, _ := testBlockedEvals(t)
+
+	// Create a blocked evals and add it to the blocked tracker.
+	e := mock.Eval()
+	e.Type = structs.JobTypeSystem
+	e.NodeID = "foo"
+	blocked.Block(e)
+
+	// Verify block did track
+	bs := blocked.Stats()
+	require.Equal(t, 1, bs.TotalBlocked)
+	require.Equal(t, 0, bs.TotalEscaped)
+	require.Equal(t, 0, bs.TotalQuotaLimit)
+
+	// Disable empties
+	blocked.SetEnabled(false)
+	bs = blocked.Stats()
+	require.Equal(t, 0, bs.TotalBlocked)
+	require.Equal(t, 0, bs.TotalEscaped)
+	require.Equal(t, 0, bs.TotalQuotaLimit)
+	require.Empty(t, blocked.system.evals)
+	require.Empty(t, blocked.system.byJob)
+	require.Empty(t, blocked.system.byNode)
 }

@@ -33,7 +33,7 @@ As each file is processed, its contents are merged into the existing
 configuration. When merging, any non-empty values from the latest config file
 will append or replace parameters in the current configuration. An empty value
 means `""` for strings, `0` for integer or float values, and `false` for
-booleans. Since empty values are ignored you cannot disable an parameter like
+booleans. Since empty values are ignored you cannot disable a parameter like
 `server` mode once you've enabled it.
 
 Here is an example Nomad agent configuration that runs in both client and server
@@ -59,8 +59,11 @@ server {
 client {
   enabled       = true
   network_speed = 10
-  options {
-    "driver.raw_exec.enable" = "1"
+}
+
+plugin "raw_exec" {
+  config {
+    enabled = true
   }
 }
 

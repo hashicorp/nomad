@@ -59,7 +59,7 @@ func TestNomad_RemovePeer(t *testing.T) {
 	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	s2 := TestServer(t, func(c *Config) {
-		c.Region = "region2"
+		c.Region = "global"
 	})
 	defer s2.Shutdown()
 	TestJoin(t, s1, s2)

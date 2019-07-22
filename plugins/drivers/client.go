@@ -269,7 +269,7 @@ func (d *driverPluginClient) TaskStats(ctx context.Context, taskID string, inter
 				return nil, structs.NewRecoverableError(err, rec.Recoverable)
 			}
 		}
-		return nil, err
+		return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
 	ch := make(chan *cstructs.TaskResourceUsage, 1)

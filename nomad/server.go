@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
@@ -409,6 +410,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 
 	// Emit metrics
 	go s.heartbeatStats()
+
+	// Emit raft and state store metrics
+	go s.EmitRaftStats(10*time.Second, s.shutdownCh)
 
 	// Start enterprise background workers
 	s.startEnterpriseBackground()
@@ -1448,6 +1452,27 @@ func (s *Server) Stats() map[string]map[string]string {
 	}
 
 	return stats
+}
+
+// EmitRaftStats is used to export metrics about raft indexes and state store snapshot index
+func (s *Server) EmitRaftStats(period time.Duration, stopCh <-chan struct{}) {
+	for {
+		select {
+		case <-time.After(period):
+			lastIndex := s.raft.LastIndex()
+			metrics.SetGauge([]string{"raft", "lastIndex"}, float32(lastIndex))
+			appliedIndex := s.raft.AppliedIndex()
+			metrics.SetGauge([]string{"raft", "appliedIndex"}, float32(appliedIndex))
+			stateStoreSnapshotIndex, err := s.State().LatestIndex()
+			if err != nil {
+				s.logger.Warn("Unable to read snapshot index from statestore, metric will not be emitted", "error", err)
+			} else {
+				metrics.SetGauge([]string{"state", "snapshotIndex"}, float32(stateStoreSnapshotIndex))
+			}
+		case <-stopCh:
+			return
+		}
+	}
 }
 
 // Region returns the region of the server
