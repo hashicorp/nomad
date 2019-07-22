@@ -99,8 +99,17 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 		// Validate Volume Permsissions
 		for _, tg := range args.Job.TaskGroups {
-			for _, vol := range tg.HostVolumes {
-				if !aclObj.AllowHostVolumeOperation(vol.Config.Source, acl.HostVolumeCapabilityMount) {
+			for _, vol := range tg.Volumes {
+				if vol.Volume.Type != "host" {
+					return structs.ErrPermissionDenied
+				}
+
+				cfg, err := structs.ParseHostVolumeConfig(vol.Config)
+				if err != nil {
+					return structs.ErrPermissionDenied
+				}
+
+				if !aclObj.AllowHostVolumeOperation(cfg.Source, acl.HostVolumeCapabilityMount) {
 					return structs.ErrPermissionDenied
 				}
 			}

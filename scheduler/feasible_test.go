@@ -105,17 +105,27 @@ func TestHostVolumeChecker(t *testing.T) {
 		"baz": {},
 	}
 
-	noVolumes := map[string]*structs.HostVolumeRequest{}
+	noVolumes := map[string]*structs.VolumeRequest{}
 
-	volumes := map[string]*structs.HostVolumeRequest{
-		"foo": {Config: &structs.HostVolumeConfig{Source: "foo"}},
-		"bar": {Config: &structs.HostVolumeConfig{Source: "bar"}},
+	volumes := map[string]*structs.VolumeRequest{
+		"foo": {
+			Volume: &structs.Volume{Type: "host"},
+			Config: map[string]interface{}{"source": "foo"},
+		},
+		"bar": {
+			Volume: &structs.Volume{Type: "host"},
+			Config: map[string]interface{}{"source": "bar"},
+		},
+		"baz": {
+			Volume: &structs.Volume{Type: "nothost"},
+			Config: map[string]interface{}{"source": "baz"},
+		},
 	}
 
 	checker := NewHostVolumeChecker(ctx)
 	cases := []struct {
 		Node             *structs.Node
-		RequestedVolumes map[string]*structs.HostVolumeRequest
+		RequestedVolumes map[string]*structs.VolumeRequest
 		Result           bool
 	}{
 		{ // Nil Volumes, some requested

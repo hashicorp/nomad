@@ -4643,9 +4643,8 @@ type TaskGroup struct {
 	// allocations across a desired attribute, such as datacenter
 	Spreads []*Spread
 
-	// HostVolumes is a map of host volumes that have been requested by the task
-	// group.
-	HostVolumes map[string]*HostVolumeRequest
+	// Volumes is a map of volumes that have been requested by the task group.
+	Volumes map[string]*VolumeRequest
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -4660,7 +4659,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.ReschedulePolicy = ntg.ReschedulePolicy.Copy()
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
-	ntg.HostVolumes = CopyMapHostVolumeRequest(ntg.HostVolumes)
+	ntg.Volumes = CopyMapVolumeRequest(ntg.Volumes)
 
 	if tg.Tasks != nil {
 		tasks := make([]*Task, len(ntg.Tasks))

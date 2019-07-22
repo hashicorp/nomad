@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/mapstructure"
 )
 
 func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -729,17 +728,10 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	}
 
 	if l := len(taskGroup.Volumes); l != 0 {
-		tg.HostVolumes = make(map[string]*structs.HostVolumeRequest, l)
+		tg.Volumes = make(map[string]*structs.VolumeRequest, l)
 		for k, v := range taskGroup.Volumes {
 			if v.Type != structs.VolumeTypeHost {
-				// Ignore none host volumes in this iteration currently.
-				continue
-			}
-
-			var cfg structs.HostVolumeConfig
-			err := mapstructure.Decode(v.Config, &cfg)
-			if err != nil {
-				// TODO: HACK: Ignore config parse errors for now and skip the volume -_-
+				// Ignore non-host volumes in this iteration currently.
 				continue
 			}
 
@@ -751,9 +743,9 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 				Config:   v.Config,
 			}
 
-			tg.HostVolumes[k] = &structs.HostVolumeRequest{
+			tg.Volumes[k] = &structs.VolumeRequest{
 				Volume: vol,
-				Config: &cfg,
+				Config: v.Config,
 			}
 		}
 	}

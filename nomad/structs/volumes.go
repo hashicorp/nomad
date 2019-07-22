@@ -2,6 +2,7 @@ package structs
 
 import (
 	"github.com/mitchellh/copystructure"
+	"github.com/mitchellh/mapstructure"
 )
 
 const (
@@ -134,31 +135,42 @@ func CopySliceVolumeMount(s []*VolumeMount) []*VolumeMount {
 	return c
 }
 
-type HostVolumeRequest struct {
+type VolumeRequest struct {
 	Volume *Volume
-	Config *HostVolumeConfig
+	Config map[string]interface{}
 }
 
-func (h *HostVolumeRequest) Copy() *HostVolumeRequest {
+func (h *VolumeRequest) Copy() *VolumeRequest {
 	if h == nil {
 		return nil
 	}
 
-	nh := new(HostVolumeRequest)
-	nh.Volume = h.Volume.Copy()
-	nh.Config = h.Config.Copy()
-	return nh
+	c := new(VolumeRequest)
+	c.Volume = h.Volume.Copy()
+	if i, err := copystructure.Copy(h.Config); err != nil {
+		panic(err.Error())
+	} else {
+		c.Config = i.(map[string]interface{})
+	}
+	return c
 }
 
-func CopyMapHostVolumeRequest(m map[string]*HostVolumeRequest) map[string]*HostVolumeRequest {
+func CopyMapVolumeRequest(m map[string]*VolumeRequest) map[string]*VolumeRequest {
 	if m == nil {
 		return nil
 	}
 
 	l := len(m)
-	c := make(map[string]*HostVolumeRequest, l)
+	c := make(map[string]*VolumeRequest, l)
 	for k, v := range m {
 		c[k] = v.Copy()
 	}
 	return c
+}
+
+func ParseHostVolumeConfig(m map[string]interface{}) (*HostVolumeConfig, error) {
+	var c HostVolumeConfig
+	err := mapstructure.Decode(m, &c)
+
+	return &c, err
 }
