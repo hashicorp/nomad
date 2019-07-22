@@ -129,7 +129,7 @@ This endpoint retrieves its latest Autopilot configuration.
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
-| `GET`  | `/operator/autopilot/configuration` | `application/json` |
+| `GET`  | `/v1/operator/autopilot/configuration` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -143,7 +143,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://localhost:4646/operator/autopilot/configuration
+    https://localhost:4646/v1/operator/autopilot/configuration
 ```
 
 ### Sample Response
@@ -171,7 +171,7 @@ This endpoint updates the Autopilot configuration of the cluster.
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
-| `PUT`  | `/operator/autopilot/configuration` | `application/json` |
+| `PUT`  | `/v1/operator/autopilot/configuration` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -235,7 +235,7 @@ This endpoint queries the health of the autopilot status.
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
-| `GET`  | `/operator/autopilot/health` | `application/json`         |
+| `GET`  | `/v1/operator/autopilot/health` | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -335,7 +335,7 @@ the future.
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
-| `GET`  | `/operator/scheduler/configuration` | `application/json` |
+| `GET`  | `/v1/operator/scheduler/configuration` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -349,7 +349,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://localhost:4646/operator/scheduler/configuration
+    https://localhost:4646/v1/operator/scheduler/configuration
 ```
 
 ### Sample Response
@@ -394,7 +394,7 @@ This endpoint updates the scheduler configuration of the cluster.
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
-| `PUT`, `POST`  | `/operator/scheduler/configuration` | `application/json` |
+| `PUT`, `POST`  | `/v1/operator/scheduler/configuration` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and

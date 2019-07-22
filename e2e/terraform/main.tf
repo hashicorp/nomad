@@ -52,6 +52,7 @@ module "keys" {
   name   = "${local.random_name}"
   path   = "${path.root}/keys"
   source = "mitchellh/dynamic-keys/aws"
+  version = "v1.0.0"
 }
 
 data "aws_ami" "main" {

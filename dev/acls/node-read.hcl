@@ -1,3 +1,3 @@
 node {
-    policy = "read"
+  policy = "read"
 }

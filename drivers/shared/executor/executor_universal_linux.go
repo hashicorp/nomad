@@ -75,9 +75,24 @@ func (e *UniversalExecutor) configureResourceContainer(pid int) error {
 		},
 	}
 
-	configureBasicCgroups(cfg)
+	err := configureBasicCgroups(cfg)
+	if err != nil {
+		// Debug this error to help diagnose cases where nomad is run with too few
+		// permissions, but don't return an error. There is no separate check for
+		// cgroup creation permissions, so this may be the happy path.
+		e.logger.Debug("failed to create cgroup", "error", err)
+		return nil
+	}
 	e.resConCtx.groups = cfg.Cgroups
 	return cgroups.EnterPid(cfg.Cgroups.Paths, pid)
+}
+
+func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
+	if e.resConCtx.isEmpty() {
+		return getAllPidsByScanning()
+	} else {
+		return e.resConCtx.getAllPidsByCgroup()
+	}
 }
 
 // DestroyCgroup kills all processes in the cgroup and removes the cgroup

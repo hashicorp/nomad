@@ -253,17 +253,49 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "deregister"}, time.Now())
 
-	// Check node permissions
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID for client deregistration")
+	}
+
+	// deregister takes a batch
+	repack := &structs.NodeBatchDeregisterRequest{
+		NodeIDs:      []string{args.NodeID},
+		WriteRequest: args.WriteRequest,
+	}
+
+	return n.deregister(repack, reply, func() (interface{}, uint64, error) {
+		return n.srv.raftApply(structs.NodeDeregisterRequestType, args)
+	})
+}
+
+// BatchDeregister is used to remove client nodes from the cluster.
+func (n *Node) BatchDeregister(args *structs.NodeBatchDeregisterRequest, reply *structs.NodeUpdateResponse) error {
+	if done, err := n.srv.forward("Node.BatchDeregister", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "batch_deregister"}, time.Now())
+
+	if len(args.NodeIDs) == 0 {
+		return fmt.Errorf("missing node IDs for client deregistration")
+	}
+
+	return n.deregister(args, reply, func() (interface{}, uint64, error) {
+		return n.srv.raftApply(structs.NodeBatchDeregisterRequestType, args)
+	})
+}
+
+// deregister takes a raftMessage closure, to support both Deregister and BatchDeregister
+func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
+	reply *structs.NodeUpdateResponse,
+	raftApplyFn func() (interface{}, uint64, error),
+) error {
+	// Check request permissions
 	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
 	}
 
-	// Verify the arguments
-	if args.NodeID == "" {
-		return fmt.Errorf("missing node ID for client deregistration")
-	}
 	// Look for the node
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
@@ -271,49 +303,56 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	}
 
 	ws := memdb.NewWatchSet()
-	node, err := snap.NodeByID(ws, args.NodeID)
-	if err != nil {
-		return err
-	}
-	if node == nil {
-		return fmt.Errorf("node not found")
-	}
-
-	// Commit this update via Raft
-	_, index, err := n.srv.raftApply(structs.NodeDeregisterRequestType, args)
-	if err != nil {
-		n.logger.Error("deregister failed", "error", err)
-		return err
-	}
-
-	// Clear the heartbeat timer if any
-	n.srv.clearHeartbeatTimer(args.NodeID)
-
-	// Create the evaluations for this node
-	evalIDs, evalIndex, err := n.createNodeEvals(args.NodeID, index)
-	if err != nil {
-		n.logger.Error("eval creation failed", "error", err)
-		return err
-	}
-
-	// Determine if there are any Vault accessors on the node
-	accessors, err := snap.VaultAccessorsByNode(ws, args.NodeID)
-	if err != nil {
-		n.logger.Error("looking up accessors for node failed", "node_id", args.NodeID, "error", err)
-		return err
-	}
-
-	if l := len(accessors); l != 0 {
-		n.logger.Debug("revoking accessors on node due to deregister", "num_accessors", l, "node_id", args.NodeID)
-		if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
-			n.logger.Error("revoking accessors for node failed", "node_id", args.NodeID, "error", err)
+	for _, nodeID := range args.NodeIDs {
+		node, err := snap.NodeByID(ws, nodeID)
+		if err != nil {
 			return err
+		}
+		if node == nil {
+			return fmt.Errorf("node not found")
 		}
 	}
 
-	// Setup the reply
-	reply.EvalIDs = evalIDs
-	reply.EvalCreateIndex = evalIndex
+	// Commit this update via Raft
+	_, index, err := raftApplyFn()
+	if err != nil {
+		n.logger.Error("raft message failed", "error", err)
+		return err
+	}
+
+	for _, nodeID := range args.NodeIDs {
+		// Clear the heartbeat timer if any
+		n.srv.clearHeartbeatTimer(nodeID)
+
+		// Create the evaluations for this node
+		evalIDs, evalIndex, err := n.createNodeEvals(nodeID, index)
+		if err != nil {
+			n.logger.Error("eval creation failed", "error", err)
+			return err
+		}
+
+		// Determine if there are any Vault accessors on the node
+		accessors, err := snap.VaultAccessorsByNode(ws, nodeID)
+		if err != nil {
+			n.logger.Error("looking up accessors for node failed", "node_id", nodeID, "error", err)
+			return err
+		}
+
+		if l := len(accessors); l != 0 {
+			n.logger.Debug("revoking accessors on node due to deregister", "num_accessors", l, "node_id", nodeID)
+			if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
+				n.logger.Error("revoking accessors for node failed", "node_id", nodeID, "error", err)
+				return err
+			}
+		}
+
+		reply.EvalIDs = append(reply.EvalIDs, evalIDs...)
+		// Set the reply eval create index just the first time
+		if reply.EvalCreateIndex == 0 {
+			reply.EvalCreateIndex = evalIndex
+		}
+	}
+
 	reply.NodeModifyIndex = index
 	reply.Index = index
 	return nil

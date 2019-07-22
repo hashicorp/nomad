@@ -33,7 +33,7 @@ func diffAllocs(existing map[string]uint64, allocs *allocUpdates) *diffResult {
 		_, filtered := allocs.filtered[existID]
 
 		// If not updated or filtered, removed
-		if !pulled && !filtered {
+		if !pulled && !filtered && allocs.index > existIndex {
 			result.removed = append(result.removed, existID)
 			continue
 		}

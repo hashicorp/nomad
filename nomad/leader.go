@@ -268,15 +268,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
-	// COMPAT 0.4 - 0.4.1
-	// Reconcile the summaries of the registered jobs. We reconcile summaries
-	// only if the server is 0.4.1 since summaries are not present in 0.4 they
-	// might be incorrect after upgrading to 0.4.1 the summaries might not be
-	// correct
-	if err := s.reconcileJobSummaries(); err != nil {
-		return fmt.Errorf("unable to reconcile job summaries: %v", err)
-	}
-
 	// Start replication of ACLs and Policies if they are enabled,
 	// and we are not the authoritative region.
 	if s.config.ACLEnabled && s.config.Region != s.config.AuthoritativeRegion {
@@ -657,6 +648,10 @@ func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
 					Name:  "task_group",
 					Value: name,
 				},
+				{
+					Name:  "namespace",
+					Value: summary.Namespace,
+				},
 			}
 
 			if strings.Contains(summary.JobID, "/dispatch-") {
@@ -791,25 +786,6 @@ func (s *Server) reconcileMember(member serf.Member) error {
 		s.logger.Error("failed to reconcile member", "member", member, "error", err)
 		return err
 	}
-	return nil
-}
-
-// reconcileJobSummaries reconciles the summaries of all the jobs registered in
-// the system
-// COMPAT 0.4 -> 0.4.1
-func (s *Server) reconcileJobSummaries() error {
-	index, err := s.fsm.state.LatestIndex()
-	if err != nil {
-		return fmt.Errorf("unable to read latest index: %v", err)
-	}
-	s.logger.Debug("leader reconciling job summaries", "index", index)
-
-	args := &structs.GenericResponse{}
-	msg := structs.ReconcileJobSummariesRequestType | structs.IgnoreUnknownTypeFlag
-	if _, _, err = s.raftApply(msg, args); err != nil {
-		return fmt.Errorf("reconciliation of job summaries failed: %v", err)
-	}
-
 	return nil
 }
 

@@ -83,6 +83,7 @@ const (
 	NodeUpdateEligibilityRequestType
 	BatchNodeUpdateDrainRequestType
 	SchedulerConfigRequestType
+	NodeBatchDeregisterRequestType
 )
 
 const (
@@ -319,6 +320,13 @@ type NodeRegisterRequest struct {
 // to deregister a node as being a schedulable entity.
 type NodeDeregisterRequest struct {
 	NodeID string
+	WriteRequest
+}
+
+// NodeBatchDeregisterRequest is used for Node.BatchDeregister endpoint
+// to deregister a batch of nodes from being schedulable entities.
+type NodeBatchDeregisterRequest struct {
+	NodeIDs []string
 	WriteRequest
 }
 
@@ -5929,15 +5937,15 @@ const (
 	TaskSetupFailure = "Setup Failure"
 
 	// TaskDriveFailure indicates that the task could not be started due to a
-	// failure in the driver.
+	// failure in the driver. TaskDriverFailure is considered Recoverable.
 	TaskDriverFailure = "Driver Failure"
 
 	// TaskReceived signals that the task has been pulled by the client at the
 	// given timestamp.
 	TaskReceived = "Received"
 
-	// TaskFailedValidation indicates the task was invalid and as such was not
-	// run.
+	// TaskFailedValidation indicates the task was invalid and as such was not run.
+	// TaskFailedValidation is not considered Recoverable.
 	TaskFailedValidation = "Failed Validation"
 
 	// TaskStarted signals that the task was started and its timestamp can be
@@ -8605,6 +8613,11 @@ type Plan struct {
 	// lower priority jobs that are preempted. Preempted allocations are marked
 	// as evicted.
 	NodePreemptions map[string][]*Allocation
+
+	// SnapshotIndex is the Raft index of the snapshot used to create the
+	// Plan. The leader will wait to evaluate the plan until its StateStore
+	// has reached at least this index.
+	SnapshotIndex uint64
 }
 
 // AppendStoppedAlloc marks an allocation to be stopped. The clientStatus of the

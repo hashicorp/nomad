@@ -98,7 +98,7 @@ func TestFS_Stat(t *testing.T) {
 	// Wait for alloc to be running
 	alloc := testutil.WaitForRunning(t, s.RPC, job)[0]
 
-	// Make the request with bad allocation id
+	// Make the request
 	req := &cstructs.FsStatRequest{
 		AllocID:      alloc.ID,
 		Path:         "/",

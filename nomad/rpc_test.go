@@ -10,8 +10,10 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -20,6 +22,7 @@ import (
 	"github.com/hashicorp/yamux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/ugorji/go/codec"
 )
 
 // rpcClient is a test helper method to return a ClientCodec to use to make rpc
@@ -79,7 +82,7 @@ func TestRPC_forwardRegion(t *testing.T) {
 	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	s2 := TestServer(t, func(c *Config) {
-		c.Region = "region2"
+		c.Region = "global"
 	})
 	defer s2.Shutdown()
 	TestJoin(t, s1, s2)
@@ -87,7 +90,7 @@ func TestRPC_forwardRegion(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 
 	var out struct{}
-	err := s1.forwardRegion("region2", "Status.Ping", struct{}{}, &out)
+	err := s1.forwardRegion("global", "Status.Ping", struct{}{}, &out)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -267,6 +270,135 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 	require.True(structs.IsErrUnknownMethod(err))
 }
 
+func TestRPC_streamingRpcConn_goodMethod_Plaintext(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	s1 := TestServer(t, func(c *Config) {
+		c.Region = "regionFoo"
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node1")
+	})
+	defer s1.Shutdown()
+
+	s2 := TestServer(t, func(c *Config) {
+		c.Region = "regionFoo"
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node2")
+	})
+	defer s2.Shutdown()
+
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	s1.peerLock.RLock()
+	ok, parts := isNomadServer(s2.LocalMember())
+	require.True(ok)
+	server := s1.localPeers[raft.ServerAddress(parts.Addr.String())]
+	require.NotNil(server)
+	s1.peerLock.RUnlock()
+
+	conn, err := s1.streamingRpc(server, "FileSystem.Logs")
+	require.NotNil(conn)
+	require.NoError(err)
+
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+
+	allocID := uuid.Generate()
+	require.NoError(encoder.Encode(cstructs.FsStreamRequest{
+		AllocID: allocID,
+		QueryOptions: structs.QueryOptions{
+			Region: "regionFoo",
+		},
+	}))
+
+	var result cstructs.StreamErrWrapper
+	require.NoError(decoder.Decode(&result))
+	require.Empty(result.Payload)
+	require.True(structs.IsErrUnknownAllocation(result.Error))
+}
+
+func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	s1 := TestServer(t, func(c *Config) {
+		c.Region = "regionFoo"
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node1")
+		c.TLSConfig = &config.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer s1.Shutdown()
+
+	s2 := TestServer(t, func(c *Config) {
+		c.Region = "regionFoo"
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node2")
+		c.TLSConfig = &config.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer s2.Shutdown()
+
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	s1.peerLock.RLock()
+	ok, parts := isNomadServer(s2.LocalMember())
+	require.True(ok)
+	server := s1.localPeers[raft.ServerAddress(parts.Addr.String())]
+	require.NotNil(server)
+	s1.peerLock.RUnlock()
+
+	conn, err := s1.streamingRpc(server, "FileSystem.Logs")
+	require.NotNil(conn)
+	require.NoError(err)
+
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+
+	allocID := uuid.Generate()
+	require.NoError(encoder.Encode(cstructs.FsStreamRequest{
+		AllocID: allocID,
+		QueryOptions: structs.QueryOptions{
+			Region: "regionFoo",
+		},
+	}))
+
+	var result cstructs.StreamErrWrapper
+	require.NoError(decoder.Decode(&result))
+	require.Empty(result.Payload)
+	require.True(structs.IsErrUnknownAllocation(result.Error))
+}
+
 // COMPAT: Remove in 0.10
 // This is a very low level test to assert that the V2 handling works. It is
 // making manual RPC calls since no helpers exist at this point since we are
@@ -321,7 +453,7 @@ func TestRPC_handleMultiplexV2(t *testing.T) {
 	require.NotEmpty(l)
 
 	// Make a streaming RPC
-	err = s.streamingRpcImpl(s2, s.Region(), "Bogus")
+	_, err = s.streamingRpcImpl(s2, s.Region(), "Bogus")
 	require.NotNil(err)
 	require.Contains(err.Error(), "Bogus")
 	require.True(structs.IsErrUnknownMethod(err))

@@ -1,4 +1,5 @@
 bind_addr = "0.0.0.0"
+
 data_dir = "/var/lib/nomad"
 
 advertise {
@@ -8,6 +9,6 @@ advertise {
 }
 
 server {
-  enabled = true
+  enabled          = true
   bootstrap_expect = 3
 }

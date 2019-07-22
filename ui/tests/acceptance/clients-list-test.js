@@ -4,11 +4,6 @@ import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 
-function minimumSetup() {
-  server.createList('node', 1);
-  server.createList('agent', 1);
-}
-
 module('Acceptance | clients list', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
@@ -31,11 +26,13 @@ module('Acceptance | clients list', function(hooks) {
     ClientsList.nodes.forEach((node, index) => {
       assert.equal(node.id, sortedNodes[index].id.split('-')[0], 'Clients are ordered');
     });
+
+    assert.equal(document.title, 'Clients - Nomad');
   });
 
   test('each client record should show high-level info of the client', async function(assert) {
-    minimumSetup();
-    const node = server.db.nodes[0];
+    const node = server.create('node', 'draining');
+    server.createList('agent', 1);
 
     await ClientsList.visit();
 
@@ -44,16 +41,66 @@ module('Acceptance | clients list', function(hooks) {
 
     assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
     assert.equal(nodeRow.name, node.name, 'Name');
-    assert.equal(nodeRow.status, node.status, 'Status');
-    assert.equal(nodeRow.drain, node.drain + '', 'Draining');
-    assert.equal(nodeRow.eligibility, node.schedulingEligibility, 'Eligibility');
+    assert.equal(nodeRow.state.text, 'draining', 'Combined status, draining, and eligbility');
     assert.equal(nodeRow.address, node.httpAddr);
     assert.equal(nodeRow.datacenter, node.datacenter, 'Datacenter');
     assert.equal(nodeRow.allocations, allocations.length, '# Allocations');
   });
 
+  test('client status, draining, and eligibility are collapsed into one column', async function(assert) {
+    server.createList('agent', 1);
+
+    server.create('node', {
+      modifyIndex: 4,
+      status: 'ready',
+      schedulingEligibility: 'eligible',
+      drain: false,
+    });
+    server.create('node', {
+      modifyIndex: 3,
+      status: 'initializing',
+      schedulingEligibility: 'eligible',
+      drain: false,
+    });
+    server.create('node', {
+      modifyIndex: 2,
+      status: 'down',
+      schedulingEligibility: 'eligible',
+      drain: false,
+    });
+    server.create('node', {
+      modifyIndex: 1,
+      status: 'ready',
+      schedulingEligibility: 'ineligible',
+      drain: false,
+    });
+    server.create('node', 'draining', {
+      modifyIndex: 0,
+      status: 'ready',
+    });
+
+    await ClientsList.visit();
+
+    ClientsList.nodes[0].state.as(readyClient => {
+      assert.equal(readyClient.text, 'ready');
+      assert.ok(readyClient.isUnformatted, 'expected no status class');
+      assert.equal(readyClient.tooltip, 'ready / not draining / eligible');
+    });
+
+    assert.equal(ClientsList.nodes[1].state.text, 'initializing');
+    assert.equal(ClientsList.nodes[2].state.text, 'down');
+
+    assert.equal(ClientsList.nodes[3].state.text, 'ineligible');
+    assert.ok(ClientsList.nodes[3].state.isWarning, 'expected warning class');
+
+    assert.equal(ClientsList.nodes[4].state.text, 'draining');
+    assert.ok(ClientsList.nodes[4].state.isInfo, 'expected info class');
+  });
+
   test('each client should link to the client detail page', async function(assert) {
-    minimumSetup();
+    server.createList('node', 1);
+    server.createList('agent', 1);
+
     const node = server.db.nodes[0];
 
     await ClientsList.visit();
@@ -112,18 +159,30 @@ module('Acceptance | clients list', function(hooks) {
     filter: (node, selection) => selection.includes(node.nodeClass),
   });
 
-  testFacet('Status', {
-    facet: ClientsList.facets.status,
-    paramName: 'status',
-    expectedOptions: ['Initializing', 'Ready', 'Down'],
+  testFacet('State', {
+    facet: ClientsList.facets.state,
+    paramName: 'state',
+    expectedOptions: ['Initializing', 'Ready', 'Down', 'Ineligible', 'Draining'],
     async beforeEach() {
       server.create('agent');
+
       server.createList('node', 2, { status: 'initializing' });
       server.createList('node', 2, { status: 'ready' });
       server.createList('node', 2, { status: 'down' });
+
+      server.createList('node', 2, { schedulingEligibility: 'eligible', drain: false });
+      server.createList('node', 2, { schedulingEligibility: 'ineligible', drain: false });
+      server.createList('node', 2, { schedulingEligibility: 'ineligible', drain: true });
+
       await ClientsList.visit();
     },
-    filter: (node, selection) => selection.includes(node.status),
+    filter: (node, selection) => {
+      if (selection.includes('draining') && !node.drain) return false;
+      if (selection.includes('ineligible') && node.schedulingEligibility === 'eligible')
+        return false;
+
+      return selection.includes(node.status);
+    },
   });
 
   testFacet('Datacenters', {
@@ -142,33 +201,14 @@ module('Acceptance | clients list', function(hooks) {
     filter: (node, selection) => selection.includes(node.datacenter),
   });
 
-  testFacet('Flags', {
-    facet: ClientsList.facets.flags,
-    paramName: 'flags',
-    expectedOptions: ['Ineligible', 'Draining'],
-    async beforeEach() {
-      server.create('agent');
-      server.createList('node', 2, { schedulingEligibility: 'eligible', drain: false });
-      server.createList('node', 2, { schedulingEligibility: 'ineligible', drain: false });
-      server.createList('node', 2, { schedulingEligibility: 'ineligible', drain: true });
-      await ClientsList.visit();
-    },
-    filter: (node, selection) => {
-      if (selection.includes('draining') && !node.drain) return false;
-      if (selection.includes('ineligible') && node.schedulingEligibility === 'eligible')
-        return false;
-      return true;
-    },
-  });
-
   test('when the facet selections result in no matches, the empty state states why', async function(assert) {
     server.create('agent');
     server.createList('node', 2, { status: 'ready' });
 
     await ClientsList.visit();
 
-    await ClientsList.facets.status.toggle();
-    await ClientsList.facets.status.options.objectAt(0).toggle();
+    await ClientsList.facets.state.toggle();
+    await ClientsList.facets.state.options.objectAt(0).toggle();
     assert.ok(ClientsList.isEmpty, 'There is an empty message');
     assert.equal(ClientsList.empty.headline, 'No Matches', 'The message is appropriate');
   });

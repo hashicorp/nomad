@@ -362,6 +362,10 @@ func (tr *TaskRunner) initLabels() {
 			Name:  "task",
 			Value: tr.taskName,
 		},
+		{
+			Name:  "namespace",
+			Value: tr.alloc.Namespace,
+		},
 	}
 
 	if tr.alloc.Job.ParentID != "" {
@@ -384,11 +388,56 @@ func (tr *TaskRunner) initLabels() {
 	}
 }
 
+// Mark a task as failed and not to run.  Aimed to be invoked when alloc runner
+// prestart hooks failed.
+// Should never be called with Run().
+func (tr *TaskRunner) MarkFailedDead(reason string) {
+	defer close(tr.waitCh)
+
+	tr.stateLock.Lock()
+	if err := tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, tr.localState); err != nil {
+		//TODO Nomad will be unable to restore this task; try to kill
+		//     it now and fail? In general we prefer to leave running
+		//     tasks running even if the agent encounters an error.
+		tr.logger.Warn("error persisting local failed task state; may be unable to restore after a Nomad restart",
+			"error", err)
+	}
+	tr.stateLock.Unlock()
+
+	event := structs.NewTaskEvent(structs.TaskSetupFailure).
+		SetDisplayMessage(reason).
+		SetFailsTask()
+	tr.UpdateState(structs.TaskStateDead, event)
+
+	// Run the stop hooks in case task was a restored task that failed prestart
+	if err := tr.stop(); err != nil {
+		tr.logger.Error("stop failed while marking task dead", "error", err)
+	}
+}
+
 // Run the TaskRunner. Starts the user's task or reattaches to a restored task.
 // Run closes WaitCh when it exits. Should be started in a goroutine.
 func (tr *TaskRunner) Run() {
 	defer close(tr.waitCh)
 	var result *drivers.ExitResult
+
+	tr.stateLock.RLock()
+	dead := tr.state.State == structs.TaskStateDead
+	tr.stateLock.RUnlock()
+
+	// if restoring a dead task, ensure that task is cleared and all post hooks
+	// are called without additional state updates
+	if dead {
+		// do cleanup functions without emitting any additional events/work
+		// to handle cases where we restored a dead task where client terminated
+		// after task finished before completing post-run actions.
+		tr.clearDriverHandle()
+		tr.stateUpdater.TaskStateUpdated()
+		if err := tr.stop(); err != nil {
+			tr.logger.Error("stop failed on terminal task", "error", err)
+		}
+		return
+	}
 
 	// Updates are handled asynchronously with the other hooks but each
 	// triggered update - whether due to alloc updates or a new vault token
@@ -438,7 +487,6 @@ MAIN:
 		// Run the task
 		if err := tr.runDriver(); err != nil {
 			tr.logger.Error("running driver failed", "error", err)
-			tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 			tr.restartTracker.SetStartError(err)
 			goto RESTART
 		}
@@ -631,6 +679,7 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 }
 
 // runDriver runs the driver and waits for it to exit
+// runDriver emits an appropriate task event on success/failure
 func (tr *TaskRunner) runDriver() error {
 
 	taskConfig := tr.buildTaskConfig()
@@ -656,13 +705,17 @@ func (tr *TaskRunner) runDriver() error {
 		tr.logger.Warn("some environment variables not available for rendering", "keys", strings.Join(keys, ", "))
 	}
 
-	val, diag := hclutils.ParseHclInterface(tr.task.Config, tr.taskSchema, vars)
+	val, diag, diagErrs := hclutils.ParseHclInterface(tr.task.Config, tr.taskSchema, vars)
 	if diag.HasErrors() {
-		return multierror.Append(errors.New("failed to parse config"), diag.Errs()...)
+		parseErr := multierror.Append(errors.New("failed to parse config: "), diagErrs...)
+		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetValidationError(parseErr))
+		return parseErr
 	}
 
 	if err := taskConfig.EncodeDriverConfig(val); err != nil {
-		return fmt.Errorf("failed to encode driver config: %v", err)
+		encodeErr := fmt.Errorf("failed to encode driver config: %v", err)
+		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetValidationError(encodeErr))
+		return encodeErr
 	}
 
 	// If there's already a task handle (eg from a Restore) there's nothing
@@ -685,16 +738,21 @@ func (tr *TaskRunner) runDriver() error {
 		if err == bstructs.ErrPluginShutdown {
 			tr.logger.Info("failed to start task because plugin shutdown unexpectedly; attempting to recover")
 			if err := tr.initDriver(); err != nil {
-				return fmt.Errorf("failed to initialize driver after it exited unexpectedly: %v", err)
+				taskErr := fmt.Errorf("failed to initialize driver after it exited unexpectedly: %v", err)
+				tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(taskErr))
+				return taskErr
 			}
 
 			handle, net, err = tr.driver.StartTask(taskConfig)
 			if err != nil {
-				return fmt.Errorf("failed to start task after driver exited unexpectedly: %v", err)
+				taskErr := fmt.Errorf("failed to start task after driver exited unexpectedly: %v", err)
+				tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(taskErr))
+				return taskErr
 			}
 		} else {
-			// Do *NOT* wrap the error here without maintaining
-			// whether or not is Recoverable.
+			// Do *NOT* wrap the error here without maintaining whether or not is Recoverable.
+			// You must emit a task event failure to be considered Recoverable
+			tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 			return err
 		}
 	}
@@ -895,7 +953,7 @@ func (tr *TaskRunner) Restore() error {
 		}
 
 		alloc := tr.Alloc()
-		if alloc.TerminalStatus() || alloc.Job.Type == structs.JobTypeSystem {
+		if tr.state.State == structs.TaskStateDead || alloc.TerminalStatus() || alloc.Job.Type == structs.JobTypeSystem {
 			return nil
 		}
 

@@ -1,6 +1,6 @@
 "advertise" = {
   "http" = "host.example.com"
-  "rpc" = "host.example.com"
+  "rpc"  = "host.example.com"
   "serf" = "host.example.com"
 }
 
@@ -11,7 +11,7 @@
 "consul" = {
   "client_auto_join" = false
   "server_auto_join" = false
-  "token" = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+  "token"            = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 }
 
 vault = {

@@ -36,11 +36,12 @@ type ClientStatsResponse struct {
 
 // AllocFileInfo holds information about a file inside the AllocDir
 type AllocFileInfo struct {
-	Name     string
-	IsDir    bool
-	Size     int64
-	FileMode string
-	ModTime  time.Time
+	Name        string
+	IsDir       bool
+	Size        int64
+	FileMode    string
+	ModTime     time.Time
+	ContentType string `json:",omitempty"`
 }
 
 // FsListRequest is used to list an allocation's directory.

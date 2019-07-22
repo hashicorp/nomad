@@ -108,7 +108,7 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 
 	var drainRequest api.NodeUpdateDrainRequest
 
-	// COMPAT: Remove in 0.9. Allow the old style enable query param.
+	// COMPAT: Remove in 0.10. Allow the old style enable query param.
 	// Get the enable parameter
 	enableRaw := req.URL.Query().Get("enable")
 	var enable bool
@@ -166,6 +166,10 @@ func (s *HTTPServer) nodeToggleEligibility(resp http.ResponseWriter, req *http.R
 	if err := decodeBody(req, &eligibilityRequest); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
+	if eligibilityRequest.NodeID == "" {
+		eligibilityRequest.NodeID = nodeID
+	}
+
 	s.parseWriteRequest(req, &eligibilityRequest.WriteRequest)
 
 	var out structs.NodeEligibilityUpdateResponse

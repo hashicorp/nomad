@@ -26,6 +26,7 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
 
     test('visiting /jobs/:job_id', async function(assert) {
       assert.equal(currentURL(), `/jobs/${job.id}`);
+      assert.equal(document.title, `Job ${job.name} - Nomad`);
     });
 
     test('the subnav links to overview', async function(assert) {

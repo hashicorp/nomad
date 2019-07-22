@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/version"
 	colorable "github.com/mattn/go-colorable"
 	"github.com/mitchellh/cli"
@@ -237,11 +236,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		docklog.PluginName: func() (cli.Command, error) {
-			return &DockerLoggerPluginCommand{
-				Meta: meta,
-			}, nil
-		},
 		"eval": func() (cli.Command, error) {
 			return &EvalCommand{
 				Meta: meta,
@@ -259,11 +253,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"exec": func() (cli.Command, error) {
 			return &AllocExecCommand{
-				Meta: meta,
-			}, nil
-		},
-		"executor": func() (cli.Command, error) {
-			return &ExecutorPluginCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -369,11 +358,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"job validate": func() (cli.Command, error) {
 			return &JobValidateCommand{
-				Meta: meta,
-			}, nil
-		},
-		"logmon": func() (cli.Command, error) {
-			return &LogMonPluginCommand{
 				Meta: meta,
 			}, nil
 		},

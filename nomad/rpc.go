@@ -540,18 +540,14 @@ func (r *rpcHandler) streamingRpc(server *serverParts, method string) (net.Conn,
 		tcp.SetNoDelay(true)
 	}
 
-	if err := r.streamingRpcImpl(conn, server.Region, method); err != nil {
-		return nil, err
-	}
-
-	return conn, nil
+	return r.streamingRpcImpl(conn, server.Region, method)
 }
 
 // streamingRpcImpl takes a pre-established connection to a server and conducts
 // the handshake to establish a streaming RPC for the given method. If an error
 // is returned, the underlying connection has been closed. Otherwise it is
 // assumed that the connection has been hijacked by the RPC method.
-func (r *rpcHandler) streamingRpcImpl(conn net.Conn, region, method string) error {
+func (r *rpcHandler) streamingRpcImpl(conn net.Conn, region, method string) (net.Conn, error) {
 	// Check if TLS is enabled
 	r.tlsWrapLock.RLock()
 	tlsWrap := r.tlsWrap
@@ -561,14 +557,14 @@ func (r *rpcHandler) streamingRpcImpl(conn net.Conn, region, method string) erro
 		// Switch the connection into TLS mode
 		if _, err := conn.Write([]byte{byte(pool.RpcTLS)}); err != nil {
 			conn.Close()
-			return err
+			return nil, err
 		}
 
 		// Wrap the connection in a TLS client
 		tlsConn, err := tlsWrap(region, conn)
 		if err != nil {
 			conn.Close()
-			return err
+			return nil, err
 		}
 		conn = tlsConn
 	}
@@ -576,7 +572,7 @@ func (r *rpcHandler) streamingRpcImpl(conn net.Conn, region, method string) erro
 	// Write the multiplex byte to set the mode
 	if _, err := conn.Write([]byte{byte(pool.RpcStreaming)}); err != nil {
 		conn.Close()
-		return err
+		return nil, err
 	}
 
 	// Send the header
@@ -587,22 +583,22 @@ func (r *rpcHandler) streamingRpcImpl(conn net.Conn, region, method string) erro
 	}
 	if err := encoder.Encode(header); err != nil {
 		conn.Close()
-		return err
+		return nil, err
 	}
 
 	// Wait for the acknowledgement
 	var ack structs.StreamingRpcAck
 	if err := decoder.Decode(&ack); err != nil {
 		conn.Close()
-		return err
+		return nil, err
 	}
 
 	if ack.Error != "" {
 		conn.Close()
-		return errors.New(ack.Error)
+		return nil, errors.New(ack.Error)
 	}
 
-	return nil
+	return conn, nil
 }
 
 // raftApplyFuture is used to encode a message, run it through raft, and return the Raft future.

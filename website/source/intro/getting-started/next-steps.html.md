@@ -22,7 +22,7 @@ We recommend exploring the following resources as next steps.
     all available features and options of Nomad.
 
   * [Job Lifecycle](/guides/operating-a-job/index.html) - Additional details 
-    specific to runnning a job in production.
+    specific to running a job in production.
 
   * [Creating a Cluster](/guides/operations/cluster/bootstrapping.html) - Additional 
     details on creating a production worthy Nomad Cluster.
