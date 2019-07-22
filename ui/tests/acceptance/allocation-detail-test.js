@@ -80,8 +80,9 @@ module('Acceptance | allocation detail', function(hooks) {
     const taskResources = allocation.taskResourceIds
       .map(id => server.db.taskResources.find(id))
       .sortBy('name')[0];
-    const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
-    const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
+    const network = taskResources.resources.Networks[0];
+    const reservedPorts = network.ReservedPorts;
+    const dynamicPorts = network.DynamicPorts;
     const taskRow = Allocation.tasks.objectAt(0);
     const events = server.db.taskEvents.where({ taskStateId: task.id });
     const event = events[events.length - 1];
@@ -102,7 +103,7 @@ module('Acceptance | allocation detail', function(hooks) {
       taskRow.reservedPorts[index].as(renderedPort => {
         assert.ok(renderedPort.text.includes(serverPort.Label), `Found label ${serverPort.Label}`);
         assert.ok(renderedPort.text.includes(serverPort.Value), `Found value ${serverPort.Value}`);
-        assert.ok(renderedPort.href.endsWith(`${serverPort.Value}`));
+        assert.equal(renderedPort.href, `http://${network.IP}:${serverPort.Value}`);
       });
     });
 
@@ -110,7 +111,7 @@ module('Acceptance | allocation detail', function(hooks) {
       taskRow.dynamicPorts[index].as(renderedPort => {
         assert.ok(renderedPort.text.includes(serverPort.Label), `Found label ${serverPort.Label}`);
         assert.ok(renderedPort.text.includes(serverPort.Value), `Found value ${serverPort.Value}`);
-        assert.ok(renderedPort.href.endsWith(`${serverPort.Value}`));
+        assert.equal(renderedPort.href, `http://${network.IP}:${serverPort.Value}`);
       });
     });
   });
