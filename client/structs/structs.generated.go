@@ -10074,13 +10074,7 @@ func (x codecSelfer102) encMapstringPtrtostructs_DriverInfo(v map[string]*pkg4_s
 		if yyv1 == nil {
 			r.EncodeNil()
 		} else {
-			yym3 := z.EncBinary()
-			_ = yym3
-			if false {
-			} else if z.HasExtensions() && z.EncExt(yyv1) {
-			} else {
-				z.EncFallback(yyv1)
-			}
+			yyv1.CodecEncodeSelf(e)
 		}
 	}
 	z.EncSendContainerState(codecSelfer_containerMapEnd102)
@@ -10138,13 +10132,7 @@ func (x codecSelfer102) decMapstringPtrtostructs_DriverInfo(v *map[string]*pkg4_
 				if yymv1 == nil {
 					yymv1 = new(pkg4_structs.DriverInfo)
 				}
-				yym5 := z.DecBinary()
-				_ = yym5
-				if false {
-				} else if z.HasExtensions() && z.DecExt(yymv1) {
-				} else {
-					z.DecFallback(yymv1, false)
-				}
+				yymv1.CodecDecodeSelf(d)
 			}
 
 			if yyms1 && yyv1 != nil {
@@ -10157,12 +10145,12 @@ func (x codecSelfer102) decMapstringPtrtostructs_DriverInfo(v *map[string]*pkg4_
 			if r.TryDecodeAsNil() {
 				yymk1 = ""
 			} else {
-				yyv6 := &yymk1
-				yym7 := z.DecBinary()
-				_ = yym7
+				yyv5 := &yymk1
+				yym6 := z.DecBinary()
+				_ = yym6
 				if false {
 				} else {
-					*((*string)(yyv6)) = r.DecodeString()
+					*((*string)(yyv5)) = r.DecodeString()
 				}
 			}
 
@@ -10184,13 +10172,7 @@ func (x codecSelfer102) decMapstringPtrtostructs_DriverInfo(v *map[string]*pkg4_
 				if yymv1 == nil {
 					yymv1 = new(pkg4_structs.DriverInfo)
 				}
-				yym9 := z.DecBinary()
-				_ = yym9
-				if false {
-				} else if z.HasExtensions() && z.DecExt(yymv1) {
-				} else {
-					z.DecFallback(yymv1, false)
-				}
+				yymv1.CodecDecodeSelf(d)
 			}
 
 			if yyms1 && yyv1 != nil {
