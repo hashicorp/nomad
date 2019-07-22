@@ -76,54 +76,70 @@ module('Acceptance | allocation detail', function(hooks) {
   });
 
   test('each task row should list high-level information for the task', async function(assert) {
-    const task = server.db.taskStates.where({ allocationId: allocation.id }).sortBy('name')[0];
-    const taskResources = allocation.taskResourceIds
-      .map(id => server.db.taskResources.find(id))
-      .sortBy('name')[0];
-    const network = taskResources.resources.Networks[0];
-    const reservedPorts = network.ReservedPorts;
-    const dynamicPorts = network.DynamicPorts;
-    const taskRow = Allocation.tasks.objectAt(0);
-    const events = server.db.taskEvents.where({ taskStateId: task.id });
-    const event = events[events.length - 1];
+    server.db.taskStates
+      .where({ allocationId: allocation.id })
+      .sortBy('name')
+      .forEach(task => {
+        const taskResources = allocation.taskResourceIds
+          .map(id => server.db.taskResources.find(id))
+          .sortBy('name')[0];
+        const network = taskResources.resources.Networks[0];
+        const reservedPorts = network.ReservedPorts;
+        const dynamicPorts = network.DynamicPorts;
+        const taskRow = Allocation.tasks.objectAt(0);
+        const events = server.db.taskEvents.where({ taskStateId: task.id });
+        const event = events[events.length - 1];
 
-    assert.equal(taskRow.name, task.name, 'Name');
-    assert.equal(taskRow.state, task.state, 'State');
-    assert.equal(taskRow.message, event.displayMessage, 'Event Message');
-    assert.equal(
-      taskRow.time,
-      moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
-      'Event Time'
-    );
+        assert.equal(taskRow.name, task.name, 'Name');
+        assert.equal(taskRow.state, task.state, 'State');
+        assert.equal(taskRow.message, event.displayMessage, 'Event Message');
+        assert.equal(
+          taskRow.time,
+          moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
+          'Event Time'
+        );
 
-    assert.ok(reservedPorts.length, 'The task has reserved ports');
-    assert.ok(dynamicPorts.length, 'The task has dynamic ports');
+        assert.ok(reservedPorts.length, 'The task has reserved ports');
+        assert.ok(dynamicPorts.length, 'The task has dynamic ports');
 
-    reservedPorts.forEach((serverPort, index) => {
-      taskRow.reservedPorts[index].as(renderedPort => {
-        assert.ok(renderedPort.text.includes(serverPort.Label), `Found label ${serverPort.Label}`);
-        assert.ok(renderedPort.text.includes(serverPort.Value), `Found value ${serverPort.Value}`);
+        reservedPorts.forEach((serverPort, index) => {
+          taskRow.reservedPorts[index].as(renderedPort => {
+            assert.ok(
+              renderedPort.text.includes(serverPort.Label),
+              `Found label ${serverPort.Label}`
+            );
+            assert.ok(
+              renderedPort.text.includes(serverPort.Value),
+              `Found value ${serverPort.Value}`
+            );
 
-        if (network.IP.includes(':')) {
-          assert.equal(renderedPort.href, `http://[${network.IP}]:${serverPort.Value}`);
-        } else {
-          assert.equal(renderedPort.href, `http://${network.IP}:${serverPort.Value}`);
-        }
+            if (network.IP.includes(':')) {
+              assert.equal(renderedPort.href, `http://[${network.IP}]:${serverPort.Value}`);
+            } else {
+              assert.equal(renderedPort.href, `http://${network.IP}:${serverPort.Value}`);
+            }
+          });
+        });
+
+        dynamicPorts.forEach((serverPort, index) => {
+          taskRow.dynamicPorts[index].as(renderedPort => {
+            assert.ok(
+              renderedPort.text.includes(serverPort.Label),
+              `Found label ${serverPort.Label}`
+            );
+            assert.ok(
+              renderedPort.text.includes(serverPort.Value),
+              `Found value ${serverPort.Value}`
+            );
+
+            if (network.IP.includes(':')) {
+              assert.equal(renderedPort.href, `http://[${network.IP}]:${serverPort.Value}`);
+            } else {
+              assert.equal(renderedPort.href, `http://${network.IP}:${serverPort.Value}`);
+            }
+          });
+        });
       });
-    });
-
-    dynamicPorts.forEach((serverPort, index) => {
-      taskRow.dynamicPorts[index].as(renderedPort => {
-        assert.ok(renderedPort.text.includes(serverPort.Label), `Found label ${serverPort.Label}`);
-        assert.ok(renderedPort.text.includes(serverPort.Value), `Found value ${serverPort.Value}`);
-
-        if (network.IP.includes(':')) {
-          assert.equal(renderedPort.href, `http://[${network.IP}]:${serverPort.Value}`);
-        } else {
-          assert.equal(renderedPort.href, `http://${network.IP}:${serverPort.Value}`);
-        }
-      });
-    });
   });
 
   test('each task row should link to the task detail page', async function(assert) {
