@@ -6,8 +6,12 @@ export default Factory.extend({
 
   resources: generateResources,
 
-  withReservedPorts: trait({
+  withReservedv4Ports: trait({
     resources: () => generateResources({ networks: { minPorts: 1 } }),
+  }),
+
+  withReservedv6Ports: trait({
+    resources: () => generateResources({ networks: { ipv6: true, minPorts: 1 } }),
   }),
 
   withoutReservedPorts: trait({

@@ -34,10 +34,10 @@ export function generateResources(options = {}) {
 export function generateNetworks(options = {}) {
   return Array(faker.random.number({ min: 1, max: 3 }))
     .fill(null)
-    .map(() => ({
+    .map((_null, index) => ({
       Device: `eth${faker.random.number({ max: 5 })}`,
       CIDR: '',
-      IP: faker.internet.ip(),
+      IP: options.ipv6 ? ipv6() : faker.internet.ip(),
       MBits: 10,
       ReservedPorts: Array(
         faker.random.number({

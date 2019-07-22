@@ -32,14 +32,14 @@ export default Factory.extend({
   withTaskWithPorts: trait({
     afterCreate(allocation, server) {
       const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
-      const resources = taskGroup.taskIds.map(id =>
+      const resources = taskGroup.taskIds.map((id, index) =>
         server.create(
           'task-resource',
           {
             allocation,
             name: server.db.tasks.find(id).name,
           },
-          'withReservedPorts'
+          index % 2 == 0 ? 'withReservedv4Ports' : 'withReservedv6Ports'
         )
       );
 
