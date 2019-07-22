@@ -77,10 +77,12 @@ func (e *UniversalExecutor) configureResourceContainer(pid int) error {
 
 	err := configureBasicCgroups(cfg)
 	if err != nil {
-		e.logger.Warn("failed to create cgroup", "error", err)
-		return err
+		// Debug this error to help diagnose cases where nomad is run with too few
+		// permissions, but don't return an error. There is no separate check for
+		// cgroup creation permissions, so this may be the happy path.
+		e.logger.Debug("failed to create cgroup", "error", err)
+		return nil
 	}
-
 	e.resConCtx.groups = cfg.Cgroups
 	return cgroups.EnterPid(cfg.Cgroups.Paths, pid)
 }
