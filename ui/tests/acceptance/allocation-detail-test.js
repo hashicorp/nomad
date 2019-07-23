@@ -6,6 +6,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
+import isIp from 'is-ip';
 
 let job;
 let node;
@@ -107,7 +108,7 @@ module('Acceptance | allocation detail', function(hooks) {
             assert.equal(renderedPort.label, `${serverPort.Label}:`);
             assert.equal(renderedPort.link.text, `${network.IP}:${serverPort.Value}`);
 
-            if (network.IP.includes(':')) {
+            if (isIp.v6(network.IP)) {
               assert.equal(renderedPort.link.href, `http://[${network.IP}]:${serverPort.Value}`);
             } else {
               assert.equal(renderedPort.link.href, `http://${network.IP}:${serverPort.Value}`);
@@ -120,7 +121,7 @@ module('Acceptance | allocation detail', function(hooks) {
             assert.equal(renderedPort.label, `${serverPort.Label}:`);
             assert.equal(renderedPort.link.text, `${network.IP}:${serverPort.Value}`);
 
-            if (network.IP.includes(':')) {
+            if (isIp.v6(network.IP)) {
               assert.equal(renderedPort.link.href, `http://[${network.IP}]:${serverPort.Value}`);
             } else {
               assert.equal(renderedPort.link.href, `http://${network.IP}:${serverPort.Value}`);
