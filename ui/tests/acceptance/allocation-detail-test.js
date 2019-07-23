@@ -104,38 +104,26 @@ module('Acceptance | allocation detail', function(hooks) {
 
         reservedPorts.forEach((serverPort, index) => {
           taskRow.reservedPorts[index].as(renderedPort => {
-            assert.ok(
-              renderedPort.text.includes(serverPort.Label),
-              `Found label ${serverPort.Label}`
-            );
-            assert.ok(
-              renderedPort.text.includes(serverPort.Value),
-              `Found value ${serverPort.Value}`
-            );
+            assert.equal(renderedPort.label, `${serverPort.Label}:`);
+            assert.equal(renderedPort.link.text, `${network.IP}:${serverPort.Value}`);
 
             if (network.IP.includes(':')) {
-              assert.equal(renderedPort.href, `http://[${network.IP}]:${serverPort.Value}`);
+              assert.equal(renderedPort.link.href, `http://[${network.IP}]:${serverPort.Value}`);
             } else {
-              assert.equal(renderedPort.href, `http://${network.IP}:${serverPort.Value}`);
+              assert.equal(renderedPort.link.href, `http://${network.IP}:${serverPort.Value}`);
             }
           });
         });
 
         dynamicPorts.forEach((serverPort, index) => {
           taskRow.dynamicPorts[index].as(renderedPort => {
-            assert.ok(
-              renderedPort.text.includes(serverPort.Label),
-              `Found label ${serverPort.Label}`
-            );
-            assert.ok(
-              renderedPort.text.includes(serverPort.Value),
-              `Found value ${serverPort.Value}`
-            );
+            assert.equal(renderedPort.label, `${serverPort.Label}:`);
+            assert.equal(renderedPort.link.text, `${network.IP}:${serverPort.Value}`);
 
             if (network.IP.includes(':')) {
-              assert.equal(renderedPort.href, `http://[${network.IP}]:${serverPort.Value}`);
+              assert.equal(renderedPort.link.href, `http://[${network.IP}]:${serverPort.Value}`);
             } else {
-              assert.equal(renderedPort.href, `http://${network.IP}:${serverPort.Value}`);
+              assert.equal(renderedPort.link.href, `http://${network.IP}:${serverPort.Value}`);
             }
           });
         });
