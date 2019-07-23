@@ -43,11 +43,19 @@ export default create({
     time: text('[data-test-time]'),
 
     reservedPorts: collection('[data-test-reserved-port]', {
-      href: attribute('href', 'a'),
+      label: text('strong'),
+      link: {
+        scope: 'a',
+        href: attribute('href'),
+      },
     }),
 
     dynamicPorts: collection('[data-test-dynamic-port]', {
-      href: attribute('href', 'a'),
+      label: text('strong'),
+      link: {
+        scope: 'a',
+        href: attribute('href'),
+      },
     }),
 
     hasUnhealthyDriver: isPresent('[data-test-icon="unhealthy-driver"]'),
