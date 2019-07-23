@@ -4,6 +4,14 @@ import { filterBy } from '@ember/object/computed';
 import { isEmpty } from '@ember/utils';
 
 export default Controller.extend({
+  queryParams: {
+    sortProperty: 'sort',
+    sortDescending: 'desc',
+  },
+
+  sortProperty: 'Name',
+  sortDescending: false,
+
   path: null,
   task: null,
   directoryEntries: null,
@@ -11,6 +19,28 @@ export default Controller.extend({
 
   directories: filterBy('directoryEntries', 'IsDir'),
   files: filterBy('directoryEntries', 'IsDir', false),
+
+  sortedDirectoryEntries: computed(
+    'directoryEntries.[]',
+    'sortProperty',
+    'sortDescending',
+    function() {
+      const sortProperty = this.sortProperty;
+
+      const directorySortProperty = sortProperty === 'Size' ? 'Name' : sortProperty;
+
+      const sortedDirectories = this.directories.sortBy(directorySortProperty);
+      const sortedFiles = this.files.sortBy(sortProperty);
+
+      const sortedDirectoryEntries = sortedDirectories.concat(sortedFiles);
+
+      if (this.sortDescending) {
+        return sortedDirectoryEntries.reverse();
+      } else {
+        return sortedDirectoryEntries;
+      }
+    }
+  ),
 
   breadcrumbs: computed('path', function() {
     const breadcrumbs = this.path

@@ -5,6 +5,7 @@ import { setupApplicationTest } from 'ember-qunit';
 
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Response from 'ember-cli-mirage/response';
+import moment from 'moment';
 
 import FS from 'nomad-ui/tests/pages/allocations/task/fs';
 
@@ -127,6 +128,131 @@ module('Acceptance | task fs', function(hooks) {
     await FS.breadcrumbs[1].visit();
     assert.equal(FS.breadcrumbsText, 'task-name directory');
     assert.equal(FS.breadcrumbs.length, 2);
+  });
+
+  test('sorting allocation filesystem directory', async function(assert) {
+    this.server.get('/client/fs/ls/:allocation_id', () => {
+      return [
+        {
+          Name: 'aaa-big-old-file',
+          IsDir: false,
+          Size: 19190000,
+          ModTime: moment()
+            .subtract(1, 'year')
+            .format(),
+        },
+        {
+          Name: 'mmm-small-mid-file',
+          IsDir: false,
+          Size: 1919,
+          ModTime: moment()
+            .subtract(6, 'month')
+            .format(),
+        },
+        {
+          Name: 'zzz-med-new-file',
+          IsDir: false,
+          Size: 191900,
+          ModTime: moment().format(),
+        },
+        {
+          Name: 'aaa-big-old-directory',
+          IsDir: true,
+          Size: 19190000,
+          ModTime: moment()
+            .subtract(1, 'year')
+            .format(),
+        },
+        {
+          Name: 'mmm-small-mid-directory',
+          IsDir: true,
+          Size: 1919,
+          ModTime: moment()
+            .subtract(6, 'month')
+            .format(),
+        },
+        {
+          Name: 'zzz-med-new-directory',
+          IsDir: true,
+          Size: 191900,
+          ModTime: moment().format(),
+        },
+      ];
+    });
+
+    await FS.visitPath({ id: allocation.id, name: task.name, path: '/' });
+
+    assert.deepEqual(FS.directoryEntryNames(), [
+      'aaa-big-old-directory',
+      'mmm-small-mid-directory',
+      'zzz-med-new-directory',
+      'aaa-big-old-file',
+      'mmm-small-mid-file',
+      'zzz-med-new-file',
+    ]);
+
+    await FS.sortBy('Name');
+
+    assert.deepEqual(FS.directoryEntryNames(), [
+      'zzz-med-new-file',
+      'mmm-small-mid-file',
+      'aaa-big-old-file',
+      'zzz-med-new-directory',
+      'mmm-small-mid-directory',
+      'aaa-big-old-directory',
+    ]);
+
+    await FS.sortBy('ModTime');
+
+    assert.deepEqual(FS.directoryEntryNames(), [
+      'zzz-med-new-file',
+      'mmm-small-mid-file',
+      'aaa-big-old-file',
+      'zzz-med-new-directory',
+      'mmm-small-mid-directory',
+      'aaa-big-old-directory',
+    ]);
+
+    await FS.sortBy('ModTime');
+
+    assert.deepEqual(FS.directoryEntryNames(), [
+      'aaa-big-old-directory',
+      'mmm-small-mid-directory',
+      'zzz-med-new-directory',
+      'aaa-big-old-file',
+      'mmm-small-mid-file',
+      'zzz-med-new-file',
+    ]);
+
+    await FS.sortBy('Size');
+
+    assert.deepEqual(
+      FS.directoryEntryNames(),
+      [
+        'aaa-big-old-file',
+        'zzz-med-new-file',
+        'mmm-small-mid-file',
+        'zzz-med-new-directory',
+        'mmm-small-mid-directory',
+        'aaa-big-old-directory',
+      ],
+      'expected files to be sorted by descending size and directories to be sorted by descending name'
+    );
+
+    await FS.sortBy('Size');
+
+    assert.deepEqual(
+      FS.directoryEntryNames(),
+      [
+        'aaa-big-old-directory',
+        'mmm-small-mid-directory',
+        'zzz-med-new-directory',
+        'mmm-small-mid-file',
+        'zzz-med-new-file',
+        'aaa-big-old-file',
+      ],
+      'expected directories to be sorted by name and files to be sorted by ascending size'
+    );
   });
 
   test('viewing a file', async function(assert) {
