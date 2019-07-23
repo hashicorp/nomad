@@ -29,6 +29,7 @@ BUG FIXES:
  * client: Fixed regression that prevented registering multiple services with the same name but different ports in Consul correctly [[GH-5829](https://github.com/hashicorp/nomad/issues/5829)]
  * client: Fixed a race condition when performing local task restarts that would result in incorrect task not found errors on Windows [[GH-5899](https://github.com/hashicorp/nomad/pull/5889)]
  * client: Reduce CPU usage on clients running many tasks on Linux [[GH-5951](https://github.com/hashicorp/nomad/pull/5951)]
+ * client: Updated consul-template dependency to address issue with anonymous requests [[GH-5976](https://github.com/hashicorp/nomad/issues/5976)]
  * driver: Fixed an issue preventing local task restarts on Windows [[GH-5864](https://github.com/hashicorp/nomad/pull/5864)]
  * driver: Fixed an issue preventing external driver plugins from launching executor process [[GH-5726](https://github.com/hashicorp/nomad/issues/5726)]
  * driver/docker: Fixed a bug mounting relative paths on Windows [[GH-5811](https://github.com/hashicorp/nomad/issues/5811)]
