@@ -846,6 +846,93 @@ func TestTaskGroup_Validate(t *testing.T) {
 	if !strings.Contains(err.Error(), "System jobs should not have a reschedule policy") {
 		t.Fatalf("err: %s", err)
 	}
+
+	tg = &TaskGroup{
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Volume: &Volume{
+					Type: "nothost",
+				},
+				Config: map[string]interface{}{
+					"sOuRcE": "foo",
+				},
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	expected = `Volume foo has unrecognised type nothost`
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
+	}
+
+	tg = &TaskGroup{
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Volume: &Volume{
+					Type: "host",
+				},
+				Config: nil,
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	expected = `Volume foo has an empty source`
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
+	}
+
+	tg = &TaskGroup{
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Volume: &Volume{
+					Type: "host",
+				},
+				Config: nil,
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+				VolumeMounts: []*VolumeMount{
+					{
+						Volume: "",
+					},
+				},
+			},
+			{
+				Name:      "task-b",
+				Resources: &Resources{},
+				VolumeMounts: []*VolumeMount{
+					{
+						Volume: "foob",
+					},
+				},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	expected = `Task task-a has a volume mount (0) referencing an empty volume`
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
+	}
+
+	expected = `Task task-b has a volume mount (0) referencing undefined volume foob`
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
+	}
 }
 
 func TestTask_Validate(t *testing.T) {

@@ -4809,8 +4809,27 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 	}
 
+	// Validate the Host Volumes
+	for name, decl := range tg.Volumes {
+		if decl.Volume.Type != VolumeTypeHost {
+			// TODO: Remove this error when adding new volume types
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unrecognised type %s", name, decl.Volume.Type))
+			continue
+		}
+
+		cfg, err := ParseHostVolumeConfig(decl.Config)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unparseable config: %v", name, err))
+			continue
+		}
+
+		if cfg.Source == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has an empty source", name))
+		}
+	}
+
 	// Check for duplicate tasks, that there is only leader task if any,
-	// and no duplicated static ports
+	// and no duplicated static ports, and missing group level volumes
 	tasks := make(map[string]int)
 	staticPorts := make(map[int]string)
 	leaderTasks := 0
@@ -4839,6 +4858,18 @@ func (tg *TaskGroup) Validate(j *Job) error {
 				} else {
 					staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
 				}
+			}
+		}
+
+		for i, mnt := range task.VolumeMounts {
+			if mnt.Volume == "" {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %s has a volume mount (%d) referencing an empty volume", task.Name, i))
+				continue
+			}
+
+			if _, ok := tg.Volumes[mnt.Volume]; !ok {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %s has a volume mount (%d) referencing undefined volume %s", task.Name, i, mnt.Volume))
+				continue
 			}
 		}
 	}
