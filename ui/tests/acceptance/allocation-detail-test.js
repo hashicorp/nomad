@@ -79,14 +79,14 @@ module('Acceptance | allocation detail', function(hooks) {
     server.db.taskStates
       .where({ allocationId: allocation.id })
       .sortBy('name')
-      .forEach(task => {
+      .forEach((task, taskIndex) => {
         const taskResources = allocation.taskResourceIds
           .map(id => server.db.taskResources.find(id))
-          .sortBy('name')[0];
+          .sortBy('name')[taskIndex];
         const network = taskResources.resources.Networks[0];
         const reservedPorts = network.ReservedPorts;
         const dynamicPorts = network.DynamicPorts;
-        const taskRow = Allocation.tasks.objectAt(0);
+        const taskRow = Allocation.tasks.objectAt(taskIndex);
         const events = server.db.taskEvents.where({ taskStateId: task.id });
         const event = events[events.length - 1];
 
