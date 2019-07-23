@@ -91,14 +91,11 @@ job "binstore-storagelocker" {
             static = 3
           }
 
-          port "http" {
-          }
+          port "http" {}
 
-          port "https" {
-          }
+          port "https" {}
 
-          port "admin" {
-          }
+          port "admin" {}
         }
       }
 

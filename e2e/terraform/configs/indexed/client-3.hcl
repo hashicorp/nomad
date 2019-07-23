@@ -1,13 +1,22 @@
+enable_debug = true
+
+log_level = "debug"
+
 data_dir = "/opt/nomad/data"
+
 bind_addr = "0.0.0.0"
+
 datacenter = "dc2"
+
 # Enable the client
 client {
   enabled = true
+
   options {
-    "driver.raw_exec.enable" = "1"
+    "driver.raw_exec.enable"    = "1"
     "docker.privileged.enabled" = "true"
   }
+
   meta {
     "rack" = "r2"
   }
@@ -23,9 +32,9 @@ vault {
 }
 
 telemetry {
-  collection_interval = "1s"
-  disable_hostname = true
-  prometheus_metrics = true
+  collection_interval        = "1s"
+  disable_hostname           = true
+  prometheus_metrics         = true
   publish_allocation_metrics = true
-  publish_node_metrics = true
+  publish_node_metrics       = true
 }

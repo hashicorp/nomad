@@ -1,5 +1,5 @@
 client {
-    options {
-        driver.whitelist = "docker"
-    }
+  options {
+    driver.whitelist = "docker"
+  }
 }

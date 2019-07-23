@@ -210,7 +210,7 @@ func aggregatedResourceUsage(systemCpuStats *stats.CpuStats, pidStats map[string
 	}
 }
 
-func getAllPids() (map[int]*nomadPid, error) {
+func getAllPidsByScanning() (map[int]*nomadPid, error) {
 	allProcesses, err := ps.Processes()
 	if err != nil {
 		return nil, err

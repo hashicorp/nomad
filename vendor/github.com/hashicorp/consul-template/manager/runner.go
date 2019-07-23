@@ -37,10 +37,8 @@ type Runner struct {
 	// construct other objects and pass data.
 	config *config.Config
 
-	// dry signals that output should be sent to stdout instead of committed to
-	// disk. once indicates the runner should execute each template exactly one
-	// time and then stop.
-	dry, once bool
+	// signals sending output to STDOUT instead of to a file.
+	dry bool
 
 	// outStream and errStream are the io.Writer streams where the runner will
 	// write information. These can be modified by calling SetOutStream and
@@ -172,13 +170,13 @@ type RenderEvent struct {
 
 // NewRunner accepts a slice of TemplateConfigs and returns a pointer to the new
 // Runner and any error that occurred during creation.
-func NewRunner(config *config.Config, dry, once bool) (*Runner, error) {
-	log.Printf("[INFO] (runner) creating new runner (dry: %v, once: %v)", dry, once)
+func NewRunner(config *config.Config, dry bool) (*Runner, error) {
+	log.Printf("[INFO] (runner) creating new runner (dry: %v, once: %v)",
+		dry, config.Once)
 
 	runner := &Runner{
 		config: config,
 		dry:    dry,
-		once:   once,
 	}
 
 	if err := runner.init(); err != nil {
@@ -305,7 +303,7 @@ func (r *Runner) Start() {
 
 			// If we are running in once mode and all our templates are rendered,
 			// then we should exit here.
-			if r.once {
+			if r.config.Once {
 				log.Printf("[INFO] (runner) once mode and all templates rendered")
 
 				if r.child != nil {
@@ -653,7 +651,7 @@ func (r *Runner) runTemplate(tmpl *template.Template, runCtx *templateRunCtx) (*
 	// If we are in once mode and this template was already rendered, move
 	// onto the next one. We do not want to re-render the template if we are
 	// in once mode, and we certainly do not want to re-run any commands.
-	if r.once {
+	if r.config.Once {
 		r.renderEventsLock.RLock()
 		event, ok := r.renderEvents[tmpl.ID()]
 		r.renderEventsLock.RUnlock()
@@ -836,7 +834,7 @@ func (r *Runner) init() error {
 	}
 
 	// Create the watcher
-	watcher, err := newWatcher(r.config, clients, r.once)
+	watcher, err := newWatcher(r.config, clients, r.config.Once)
 	if err != nil {
 		return fmt.Errorf("runner: %s", err)
 	}
@@ -895,7 +893,7 @@ func (r *Runner) init() error {
 	r.quiescenceCh = make(chan *template.Template)
 
 	if *r.config.Dedup.Enabled {
-		if r.once {
+		if r.config.Once {
 			log.Printf("[INFO] (runner) disabling de-duplication in once mode")
 		} else {
 			r.dedup, err = NewDedupManager(r.config.Dedup, clients, r.brain, r.templates)
@@ -1269,7 +1267,7 @@ func newWatcher(c *config.Config, clients *dep.ClientSet, once bool) (*watch.Wat
 	w, err := watch.NewWatcher(&watch.NewWatcherInput{
 		Clients:             clients,
 		MaxStale:            config.TimeDurationVal(c.MaxStale),
-		Once:                once,
+		Once:                c.Once,
 		RenewVault:          clients.Vault().Token() != "" && config.BoolVal(c.Vault.RenewToken),
 		VaultAgentTokenFile: config.StringVal(c.Vault.VaultAgentTokenFile),
 		RetryFuncConsul:     watch.RetryFunc(c.Consul.Retry.RetryFunc()),

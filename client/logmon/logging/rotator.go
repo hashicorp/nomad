@@ -242,7 +242,8 @@ func (f *FileRotator) flushPeriodically() {
 	}
 }
 
-func (f *FileRotator) Close() {
+// Close flushes and closes the rotator. It never returns an error.
+func (f *FileRotator) Close() error {
 	f.closedLock.Lock()
 	defer f.closedLock.Unlock()
 
@@ -256,6 +257,8 @@ func (f *FileRotator) Close() {
 		close(f.purgeCh)
 		f.closed = true
 	}
+
+	return nil
 }
 
 // purgeOldFiles removes older files and keeps only the last N files rotated for
