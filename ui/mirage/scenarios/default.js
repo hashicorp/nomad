@@ -17,8 +17,10 @@ const allScenarios = {
 
 const scenario = getConfigValue('mirageScenario', 'emptyCluster');
 
+// FIXME all changes to this file are for demonstration only and will be removed before merging.
+
 export default function(server) {
-  const activeScenario = allScenarios[scenario];
+  const activeScenario = ipV6Cluster;
   if (!activeScenario) {
     throw new Error(
       `Selected Mirage scenario does not exist.\n\n${scenario} not in list: \n\n\t${Object.keys(
@@ -27,13 +29,44 @@ export default function(server) {
     );
   }
 
-  if (withNamespaces) createNamespaces(server);
-  if (withTokens) createTokens(server);
-  if (withRegions) createRegions(server);
+  // if (withNamespaces) createNamespaces(server);
+  // if (withTokens) createTokens(server);
+  // if (withRegions) createRegions(server);
   activeScenario(server);
 }
 
 // Scenarios
+
+function ipV6Cluster(server) {
+  server.create('agent');
+
+  const node = server.create('node');
+  server.create('job', {
+    id: 'a-job',
+    groupsCount: 1,
+    groupTasksCount: 2,
+    createAllocations: false,
+  });
+  server.create('allocation', 'withTaskWithPorts', {
+    id: '4dda8e19-a4a8-4843-bf30-bc824092c617',
+    clientStatus: 'running',
+  });
+
+  // Make sure the node has an unhealthy driver
+  node.update({
+    driver: Object.assign(node.drivers, {
+      docker: {
+        detected: true,
+        healthy: false,
+      },
+    }),
+  });
+
+  // Make sure a task for the allocation depends on the unhealthy driver
+  server.schema.tasks.first().update({
+    driver: 'docker',
+  });
+}
 
 function smallCluster(server) {
   server.createList('agent', 3);
