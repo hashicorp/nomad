@@ -1,18 +1,15 @@
 import { assign } from '@ember/polyfills';
 import hbs from 'htmlbars-inline-precompile';
-import { click, findAll, find } from 'ember-native-dom-helpers';
+import { click, findAll, find } from '@ember/test-helpers';
 import { module, test } from 'qunit';
-import { setupRenderingTest } from 'ember-qunit';
-import { render, settled } from '@ember/test-helpers';
 import sinon from 'sinon';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
-import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
+import { setupRenderingTest } from 'ember-qunit';
 
 module('Integration | Component | job-page/parts/task-groups', function(hooks) {
   setupRenderingTest(hooks);
 
   hooks.beforeEach(function() {
-    fragmentSerializerInitializer(this.owner);
     window.localStorage.clear();
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
@@ -34,135 +31,123 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
       options
     );
 
-  test('the job detail page should list all task groups', function(assert) {
+  test('the job detail page should list all task groups', async function(assert) {
     this.server.create('job', {
       createAllocations: false,
     });
 
-    this.store.findAll('job').then(jobs => {
+    await this.store.findAll('job').then(jobs => {
       jobs.forEach(job => job.reload());
     });
 
-    return settled().then(async () => {
-      const job = this.store.peekAll('job').get('firstObject');
-      this.setProperties(props(job));
+    const job = this.store.peekAll('job').get('firstObject');
+    this.setProperties(props(job));
 
-      await render(hbs`
-        {{job-page/parts/task-groups
-          job=job
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          gotoTaskGroup=gotoTaskGroup}}
-      `);
+    await this.render(hbs`
+      {{job-page/parts/task-groups
+        job=job
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        gotoTaskGroup=gotoTaskGroup}}
+    `);
 
-      return settled().then(() => {
-        assert.equal(
-          findAll('[data-test-task-group]').length,
-          job.get('taskGroups.length'),
-          'One row per task group'
-        );
-      });
-    });
+    assert.equal(
+      findAll('[data-test-task-group]').length,
+      job.get('taskGroups.length'),
+      'One row per task group'
+    );
   });
 
-  test('each row in the task group table should show basic information about the task group', function(assert) {
+  test('each row in the task group table should show basic information about the task group', async function(assert) {
     this.server.create('job', {
       createAllocations: false,
     });
 
-    this.store.findAll('job').then(jobs => {
-      jobs.forEach(job => job.reload());
+    const job = await this.store.findAll('job').then(async jobs => {
+      return await jobs.get('firstObject').reload();
     });
 
-    return settled().then(async () => {
-      const job = this.store.peekAll('job').get('firstObject');
-      const taskGroup = job
-        .get('taskGroups')
-        .sortBy('name')
-        .reverse()
-        .get('firstObject');
+    const taskGroups = await job.get('taskGroups');
+    const taskGroup = taskGroups
+      .sortBy('name')
+      .reverse()
+      .get('firstObject');
 
-      this.setProperties(props(job));
+    this.setProperties(props(job));
 
-      await render(hbs`
-        {{job-page/parts/task-groups
-          job=job
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          gotoTaskGroup=gotoTaskGroup}}
-      `);
+    await this.render(hbs`
+      {{job-page/parts/task-groups
+        job=job
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        gotoTaskGroup=gotoTaskGroup}}
+    `);
 
-      return settled().then(() => {
-        const taskGroupRow = find('[data-test-task-group]');
+    const taskGroupRow = find('[data-test-task-group]');
 
-        assert.equal(
-          taskGroupRow.querySelector('[data-test-task-group-name]').textContent.trim(),
-          taskGroup.get('name'),
-          'Name'
-        );
-        assert.equal(
-          taskGroupRow.querySelector('[data-test-task-group-count]').textContent.trim(),
-          taskGroup.get('count'),
-          'Count'
-        );
-        assert.equal(
-          taskGroupRow.querySelector('[data-test-task-group-cpu]').textContent.trim(),
-          `${taskGroup.get('reservedCPU')} MHz`,
-          'Reserved CPU'
-        );
-        assert.equal(
-          taskGroupRow.querySelector('[data-test-task-group-mem]').textContent.trim(),
-          `${taskGroup.get('reservedMemory')} MiB`,
-          'Reserved Memory'
-        );
-        assert.equal(
-          taskGroupRow.querySelector('[data-test-task-group-disk]').textContent.trim(),
-          `${taskGroup.get('reservedEphemeralDisk')} MiB`,
-          'Reserved Disk'
-        );
-      });
-    });
+    assert.equal(
+      taskGroupRow.querySelector('[data-test-task-group-name]').textContent.trim(),
+      taskGroup.get('name'),
+      'Name'
+    );
+    assert.equal(
+      taskGroupRow.querySelector('[data-test-task-group-count]').textContent.trim(),
+      taskGroup.get('count'),
+      'Count'
+    );
+    assert.equal(
+      taskGroupRow.querySelector('[data-test-task-group-cpu]').textContent.trim(),
+      `${taskGroup.get('reservedCPU')} MHz`,
+      'Reserved CPU'
+    );
+    assert.equal(
+      taskGroupRow.querySelector('[data-test-task-group-mem]').textContent.trim(),
+      `${taskGroup.get('reservedMemory')} MiB`,
+      'Reserved Memory'
+    );
+    assert.equal(
+      taskGroupRow.querySelector('[data-test-task-group-disk]').textContent.trim(),
+      `${taskGroup.get('reservedEphemeralDisk')} MiB`,
+      'Reserved Disk'
+    );
   });
 
-  test('gotoTaskGroup is called when task group rows are clicked', function(assert) {
+  test('gotoTaskGroup is called when task group rows are clicked', async function(assert) {
     this.server.create('job', {
       createAllocations: false,
     });
 
-    this.store.findAll('job').then(jobs => {
-      jobs.forEach(job => job.reload());
+    const job = await this.store.findAll('job').then(async jobs => {
+      return await jobs.get('firstObject').reload();
     });
 
-    return settled().then(async () => {
-      const taskGroupSpy = sinon.spy();
-      const job = this.store.peekAll('job').get('firstObject');
-      const taskGroup = job
-        .get('taskGroups')
-        .sortBy('name')
-        .reverse()
-        .get('firstObject');
+    const taskGroupSpy = sinon.spy();
 
-      this.setProperties(
-        props(job, {
-          gotoTaskGroup: taskGroupSpy,
-        })
-      );
+    const taskGroups = await job.get('taskGroups');
+    const taskGroup = taskGroups
+      .sortBy('name')
+      .reverse()
+      .get('firstObject');
 
-      await render(hbs`
-        {{job-page/parts/task-groups
-          job=job
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          gotoTaskGroup=gotoTaskGroup}}
-      `);
+    this.setProperties(
+      props(job, {
+        gotoTaskGroup: taskGroupSpy,
+      })
+    );
 
-      return settled().then(() => {
-        click('[data-test-task-group]');
-        assert.ok(
-          taskGroupSpy.withArgs(taskGroup).calledOnce,
-          'Clicking the task group row calls the gotoTaskGroup action'
-        );
-      });
-    });
+    await this.render(hbs`
+      {{job-page/parts/task-groups
+        job=job
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        gotoTaskGroup=gotoTaskGroup}}
+    `);
+
+    await click('[data-test-task-group]');
+
+    assert.ok(
+      taskGroupSpy.withArgs(taskGroup).calledOnce,
+      'Clicking the task group row calls the gotoTaskGroup action'
+    );
   });
 });
