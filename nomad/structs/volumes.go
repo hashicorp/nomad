@@ -27,6 +27,19 @@ func (p *ClientHostVolumeConfig) Copy() *ClientHostVolumeConfig {
 	return c
 }
 
+func CopyMapStringClientHostVolumeConfig(m map[string]*ClientHostVolumeConfig) map[string]*ClientHostVolumeConfig {
+	if m == nil {
+		return nil
+	}
+
+	nm := make(map[string]*ClientHostVolumeConfig, len(m))
+	for k, v := range m {
+		nm[k] = v.Copy()
+	}
+
+	return nm
+}
+
 func HostVolumeSliceMerge(a, b []*ClientHostVolumeConfig) []*ClientHostVolumeConfig {
 	n := make([]*ClientHostVolumeConfig, len(a))
 	seenKeys := make(map[string]struct{}, len(a))
