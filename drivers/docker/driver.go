@@ -882,8 +882,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			hostConfig.NetworkMode = netMode
 		} else {
 			// docker default
-			logger.Debug("networking mode not specified; using default", "network_mode", defaultNetworkMode)
-			hostConfig.NetworkMode = defaultNetworkMode
+			logger.Debug("networking mode not specified; using default")
+			hostConfig.NetworkMode = "default"
 		}
 	}
 
