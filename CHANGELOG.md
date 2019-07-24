@@ -13,6 +13,7 @@ IMPROVEMENTS:
  * ui: Moved client status, draining, and eligibility fields into single state column [[GH-5789](https://github.com/hashicorp/nomad/pull/5789)]
  * ui: Added buttons to copy client and allocation UUIDs [[GH-5926](https://github.com/hashicorp/nomad/pull/5926)]
  * ui: Added page titles [[GH-5924](https://github.com/hashicorp/nomad/pull/5924)]
+ * ui: Fixed links containing IPv6 addresses to include required square brackets [[GH-6007](https://github.com/hashicorp/nomad/pull/6007)]
 
 BUG FIXES:
 
