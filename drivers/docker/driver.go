@@ -884,7 +884,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 	} else {
 		// TODO add support for more than one network
-		network := task.Resources.NomadResources.Networks[0]
+		network := task.Resources.NomadResources.Networks[1]
 		publishedPorts := map[docker.Port][]docker.PortBinding{}
 		exposedPorts := map[docker.Port]struct{}{}
 
