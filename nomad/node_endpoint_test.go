@@ -2351,6 +2351,12 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 		if eval.JobID != expJobID {
 			t.Fatalf("JobID incorrect on type %v: %#v", schedType, eval)
 		}
+		if eval.CreateTime == 0 {
+			t.Fatalf("CreateTime is unset on type %v: %#v", schedType, eval)
+		}
+		if eval.ModifyTime == 0 {
+			t.Fatalf("ModifyTime is unset on type %v: %#v", schedType, eval)
+		}
 	}
 }
 
@@ -2432,6 +2438,12 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 	}
 	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.CreateTime == 0 {
+		t.Fatalf("CreateTime is unset: %#v", eval)
+	}
+	if eval.ModifyTime == 0 {
+		t.Fatalf("ModifyTime is unset: %#v", eval)
 	}
 }
 
