@@ -1214,8 +1214,8 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		Status:         structs.EvalStatusPending,
 		AnnotatePlan:   true,
 		// Timestamps are added for consistency but this eval is never persisted
-		CreateTime:     time.Now().UTC().UnixNano(),
-		ModifyTime:     time.Now().UTC().UnixNano(),
+		CreateTime: time.Now().UTC().UnixNano(),
+		ModifyTime: time.Now().UTC().UnixNano(),
 	}
 
 	snap.UpsertEvals(100, []*structs.Evaluation{eval})
