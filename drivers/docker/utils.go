@@ -237,7 +237,7 @@ func parseVolumeSpecWindows(volBind string) (hostPath string, containerPath stri
 		return "", "", "", fmt.Errorf("not <src>:<destination> format")
 	}
 
-	hostPath = parts[0]
+	hostPath = filepath.FromSlash(parts[0])
 	containerPath = parts[1]
 
 	if len(parts) > 2 {
