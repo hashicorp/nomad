@@ -2,21 +2,20 @@ package allocdir
 
 import (
 	"os"
-	"path/filepath"
 )
 
 var (
 	// SharedAllocContainerPath is the path inside container for mounted
 	// directory shared across tasks in a task group.
-	SharedAllocContainerPath = filepath.Join("c:\\", SharedAllocName)
+	SharedAllocContainerPath = "/" + SharedAllocName
 
 	// TaskLocalContainer is the path inside a container for mounted directory
 	// for local storage.
-	TaskLocalContainerPath = filepath.Join("c:\\", TaskLocal)
+	TaskLocalContainerPath = "/" + TaskLocal
 
 	// TaskSecretsContainerPath is the path inside a container for mounted
 	// secrets directory
-	TaskSecretsContainerPath = filepath.Join("c:\\", TaskSecrets)
+	TaskSecretsContainerPath = "/" + TaskSecrets
 )
 
 // linkOrCopy is always copies dst to src on Windows.
