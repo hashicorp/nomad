@@ -78,8 +78,7 @@ export default Watchable.extend({
   },
 
   plan(job) {
-    // TODO _presavedId is set in model:job#setIdByPayload
-    const jobId = job.get('id') || job.get('_presavedId');
+    const jobId = job.get('id') || job.get('_idBeforeSaving');
     const store = this.store;
     const url = addToPath(this.urlForFindRecord(jobId, 'job'), '/plan');
 
@@ -106,8 +105,7 @@ export default Watchable.extend({
   },
 
   update(job) {
-    // TODO _presavedId is set in model:job#setIdByPayload
-    const jobId = job.get('id') || job.get('_presavedId');
+    const jobId = job.get('id') || job.get('_idBeforeSaving');
     return this.ajax(this.urlForUpdateRecord(jobId, 'job'), 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),

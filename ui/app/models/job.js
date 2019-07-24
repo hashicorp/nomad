@@ -244,10 +244,7 @@ export default Model.extend({
     const id = payload.Name;
 
     this.set('plainId', id);
-    // TODO this formerly set the id, but Chris Thoburn tells me that the id can’t be changed after it’s first set
-    // https://discordapp.com/channels/480462759797063690/486549196837486592/601083103364251659
-    // I’ll have to find what other implications this change might have, but it makes the job run test pass!
-    this.set('_presavedId', JSON.stringify([id, namespace]));
+    this.set('_idBeforeSaving', JSON.stringify([id, namespace]));
 
     const namespaceRecord = this.store.peekRecord('namespace', namespace);
     if (namespaceRecord) {
