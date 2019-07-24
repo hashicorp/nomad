@@ -1,6 +1,12 @@
 SHELL = bash
 PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-THIS_OS := $(shell uname)
+
+THIS_OS := "Undetected"
+ifeq ($(OS),Windows_NT)
+	THIS_OS = Windows
+else
+	THIS_OS = $(shell uname -s)
+endif
 
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
@@ -8,7 +14,7 @@ GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 GO_TAGS =
 
-GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
+GO_TEST_CMD = $(if $(shell command -v gotestsum 2> /dev/null),gotestsum --,go test)
 
 ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
 GOTEST_PKGS ?= "./..."
@@ -16,11 +22,11 @@ else
 GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))$$")
 endif
 
-default: help
+VENDORFMT := $(shell command -v vendorfmt 2> /dev/null)
 
-ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD Windows))
-$(error Building Nomad is currently only supported on Darwin and Linux.)
-endif
+SED := $(shell command -v sed 2> /dev/null)
+
+default: help
 
 # On Linux we build for Linux and Windows
 ifeq (Linux,$(THIS_OS))
@@ -136,7 +142,7 @@ $(foreach t,$(ALL_TARGETS),$(eval $(call makePackageTarget,$(t))))
 bootstrap: deps lint-deps git-hooks # Install all dependencies
 
 .PHONY: deps
-deps:  ## Install build and development dependencies
+deps: pinned-deps  ## Install build and development dependencies
 	@echo "==> Updating build dependencies..."
 	go get -u github.com/kardianos/govendor
 	go get -u github.com/hashicorp/go-bindata/go-bindata
@@ -144,8 +150,17 @@ deps:  ## Install build and development dependencies
 	go get -u github.com/a8m/tree/cmd/tree
 	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 	go get -u gotest.tools/gotestsum
-	@bash -C "$(PROJECT_ROOT)/scripts/install-codecgen.sh"
-	@bash -C "$(PROJECT_ROOT)/scripts/install-protoc-gen-go.sh"
+
+.PHONY: pinned-deps
+pinned-deps:
+	@echo "==> Installing pinned dependencies..."
+ifeq (Windows,$(THIS_OS))
+		@powershell "$(PROJECT_ROOT)/scripts/install-codecgen.ps1" "0053ebfd9d0ee06ccefbfe17072021e1d4acebee"
+		@powershell "$(PROJECT_ROOT)/scripts/install-protoc-gen-go.ps1" "v1.2.0"
+else
+		@bash -C "$(PROJECT_ROOT)/scripts/install-codecgen.sh"
+		@bash -C "$(PROJECT_ROOT)/scripts/install-protoc-gen-go.sh"
+endif
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -157,8 +172,12 @@ lint-deps: ## Install linter dependencies
 git-dir = $(shell git rev-parse --git-dir)
 git-hooks: $(git-dir)/hooks/pre-push
 $(git-dir)/hooks/%: dev/hooks/%
+ifneq (Windows,$(THIS_OS))
 	cp $^ $@
 	chmod 755 $@
+else
+	@echo "Skipping $@ hook installation on Windows"
+endif
 
 .PHONY: check
 check: ## Lint the source code
@@ -214,14 +233,22 @@ proto:
 		protoc -I . -I ../../.. --go_out=plugins=grpc:. $$file; \
 	done
 
-
+.PHONY: vendorfmt
 vendorfmt:
 	@echo "--> Formatting vendor/vendor.json"
-	test -x $(GOPATH)/bin/vendorfmt || go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
-		vendorfmt
+ifndef VENDORFMT
+	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
+endif
+	vendorfmt
+
+.PHONY: changelogfmt
 changelogfmt:
+ifndef SED
+	@echo "--> Skipping making [GH-xxxx] references clickable because sed is not installed."
+else
 	@echo "--> Making [GH-xxxx] references clickable..."
 	@sed -E 's|([^\[])\[GH-([0-9]+)\]|\1[[GH-\2](https://github.com/hashicorp/nomad/issues/\2)]|g' CHANGELOG.md > changelog.tmp && mv changelog.tmp CHANGELOG.md
+endif
 
 
 .PHONY: dev
