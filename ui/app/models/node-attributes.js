@@ -26,7 +26,6 @@ export default Fragment.extend({
   }),
 
   unknownProperty(key) {
-    // TODO how questionable is this?
     if (key === 'recordData') {
       return null;
     }
