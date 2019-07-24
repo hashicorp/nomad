@@ -26,14 +26,12 @@ export default Fragment.extend({
   }),
 
   unknownProperty(key) {
-    if (key === 'recordData') {
-      return null;
-    }
-
     // Returns the exact value in index 0 and the subtree in index 1
     //
     // ex: nodeAttrs.get('driver.docker')
     // [ "1", { version: "17.05.0-ce", volumes: { enabled: "1" } } ]
-    return get(this.attributesStructured, key);
+    if (this.attributesStructured) {
+      return get(this.attributesStructured, key);
+    }
   },
 });
