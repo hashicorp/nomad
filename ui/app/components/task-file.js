@@ -43,6 +43,7 @@ export default Component.extend({
     return this.stat.Size > 50000;
   }),
 
+  fileTypeIsUnknown: equal('fileComponent', 'unknown'),
   isStreamable: equal('fileComponent', 'stream'),
   isStreaming: false,
 
