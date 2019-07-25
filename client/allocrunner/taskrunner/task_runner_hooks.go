@@ -61,6 +61,7 @@ func (tr *TaskRunner) initHooks() {
 		newTaskDirHook(tr, hookLogger),
 		newLogMonHook(tr.logmonHookConfig, hookLogger),
 		newDispatchHook(tr.Alloc(), hookLogger),
+		newVolumeHook(tr, hookLogger),
 		newArtifactHook(tr, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
