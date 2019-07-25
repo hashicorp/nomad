@@ -106,44 +106,108 @@ func TestJobEndpoint_Register(t *testing.T) {
 
 func TestJobEndpoint_Register_ACL(t *testing.T) {
 	t.Parallel()
+
 	s1, root := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
-	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// Create the register request
-	job := mock.Job()
-	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+	newVolumeJob := func() *structs.Job {
+		j := mock.Job()
+		tg := j.TaskGroups[0]
+		tg.Volumes = map[string]*structs.VolumeRequest{
+			"ca-certs": {
+				Type: structs.VolumeTypeHost,
+				Config: map[string]interface{}{
+					"source": "prod-ca-certs",
+				},
+			},
+		}
+
+		tg.Tasks[0].VolumeMounts = []*structs.VolumeMount{
+			{
+				Volume:      "ca-certs",
+				Destination: "/etc/ca-certificates",
+				ReadOnly:    true,
+			},
+		}
+
+		return j
 	}
 
-	// Try without a token, expect failure
-	var resp structs.JobRegisterResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err == nil {
-		t.Fatalf("expected error")
+	submitJobPolicy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob, acl.NamespaceCapabilitySubmitJob})
+
+	submitJobToken := mock.CreatePolicyAndToken(t, s1.State(), 1001, "test-submit-job", submitJobPolicy)
+
+	volumesPolicy := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMount})
+
+	submitJobWithVolumesToken := mock.CreatePolicyAndToken(t, s1.State(), 1002, "test-submit-volumes", submitJobPolicy+"\n"+volumesPolicy)
+
+	cases := []struct {
+		Name        string
+		Job         *structs.Job
+		Token       string
+		ErrExpected bool
+	}{
+		{
+			Name:        "without a token",
+			Job:         mock.Job(),
+			Token:       "",
+			ErrExpected: true,
+		},
+		{
+			Name:        "with a token",
+			Job:         mock.Job(),
+			Token:       root.SecretID,
+			ErrExpected: false,
+		},
+		{
+			Name:        "with a token that can submit a job, but not use a required volumes",
+			Job:         newVolumeJob(),
+			Token:       submitJobToken.SecretID,
+			ErrExpected: true,
+		},
+		{
+			Name:        "with a token that can submit a job, and use all required volumes",
+			Job:         newVolumeJob(),
+			Token:       submitJobWithVolumesToken.SecretID,
+			ErrExpected: false,
+		},
 	}
 
-	// Try with a token
-	req.AuthToken = root.SecretID
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp.Index == 0 {
-		t.Fatalf("bad index: %d", resp.Index)
-	}
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
+			codec := rpcClient(t, s1)
+			req := &structs.JobRegisterRequest{
+				Job:          tt.Job,
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+			req.AuthToken = tt.Token
 
-	// Check for the node in the FSM
-	state := s1.fsm.State()
-	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out == nil {
-		t.Fatalf("expected job")
+			// Try without a token, expect failure
+			var resp structs.JobRegisterResponse
+			err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+
+			// If we expected an error, then the job should _not_ be registered.
+			if tt.ErrExpected {
+				require.Error(t, err, "expected error")
+				return
+			}
+
+			if !tt.ErrExpected {
+				require.NoError(t, err, "unexpected error")
+			}
+
+			require.NotEqual(t, 0, resp.Index)
+
+			state := s1.fsm.State()
+			ws := memdb.NewWatchSet()
+			out, err := state.JobByID(ws, tt.Job.Namespace, tt.Job.ID)
+			require.NoError(t, err)
+			require.NotNil(t, out)
+			require.Equal(t, tt.Job.TaskGroups, out.TaskGroups)
+		})
 	}
 }
 
