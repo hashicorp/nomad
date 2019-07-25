@@ -652,6 +652,13 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	return binds, nil
 }
 
+var userMountToUnixMount = map[string]string{
+	"":              "private",
+	"private":       "private",
+	"host-to-task":  "rslave",
+	"bidirectional": "rshared",
+}
+
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (docker.CreateContainerOptions, error) {
 
@@ -840,13 +847,24 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
 	}
+
 	for _, m := range task.Mounts {
-		hostConfig.Mounts = append(hostConfig.Mounts, docker.HostMount{
+		hm := docker.HostMount{
 			Type:     "bind",
 			Target:   m.TaskPath,
 			Source:   m.HostPath,
 			ReadOnly: m.Readonly,
-		})
+		}
+
+		// MountPropagation is only supported by Docker on Linux:
+		// https://docs.docker.com/storage/bind-mounts/#configure-bind-propagation
+		if runtime.GOOS == "linux" {
+			hm.BindOptions = &docker.BindOptions{
+				Propagation: userMountToUnixMount[m.PropagationMode],
+			}
+		}
+
+		hostConfig.Mounts = append(hostConfig.Mounts, hm)
 	}
 
 	// set DNS search domains and extra hosts
