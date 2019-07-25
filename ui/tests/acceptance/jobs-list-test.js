@@ -105,6 +105,19 @@ module('Acceptance | jobs list', function(hooks) {
       node {
           policy = "read"
       }`,
+      // TODO worth keeping HCL rules for comparison?
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: job1.namespaceId,
+            Policy: 'write',
+          },
+          {
+            Name: job2.namespaceId,
+            Capabilities: ['list-jobs'],
+          },
+        ],
+      },
     });
 
     clientToken.policyIds = [policy.id];
@@ -133,6 +146,14 @@ module('Acceptance | jobs list', function(hooks) {
       node {
           policy = "read"
       }`,
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: 'default',
+            Policy: 'write',
+          },
+        ],
+      },
     });
 
     await JobsList.visit();

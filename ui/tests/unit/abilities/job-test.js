@@ -27,12 +27,13 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
-          rulesJson: {
-            namespace: {
-              aNamespace: {
-                policy: 'write',
+          rulesJSON: {
+            Namespaces: [
+              {
+                Name: 'aNamespace',
+                Policy: 'write',
               },
-            },
+            ],
           },
         },
       ],
@@ -56,15 +57,17 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
-          rulesJson: {
-            namespace: {
-              aNamespace: {
-                policy: 'read',
+          rulesJSON: {
+            Namespaces: [
+              {
+                Name: 'aNamespace',
+                Policy: 'read',
               },
-              default: {
-                policy: 'write',
+              {
+                Name: 'default',
+                Policy: 'write',
               },
-            },
+            ],
           },
         },
       ],
@@ -88,12 +91,13 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
-          rulesJson: {
-            namespace: {
-              aNamespace: {
-                policy: 'read',
+          rulesJSON: {
+            Namespaces: [
+              {
+                Name: 'aNamespace',
+                Policy: 'read',
               },
-            },
+            ],
           },
         },
       ],
@@ -117,27 +121,33 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
-          rulesJson: {
-            namespace: {
-              'production-*': {
-                policy: 'write',
+          rulesJSON: {
+            Namespaces: [
+              {
+                Name: 'production-*',
+                Policy: 'write',
               },
-              'production-api': {
-                policy: 'write',
+              {
+                Name: 'production-api',
+                Policy: 'write',
               },
-              'production-web': {
-                policy: 'deny',
+              {
+                Name: 'production-web',
+                Policy: 'deny',
               },
-              '*-suffixed': {
-                policy: 'write',
+              {
+                Name: '*-suffixed',
+                Policy: 'write',
               },
-              '*-more-suffixed': {
-                policy: 'deny',
+              {
+                Name: '*-more-suffixed',
+                Policy: 'deny',
               },
-              '*-abc-*': {
-                policy: 'write',
+              {
+                Name: '*-abc-*',
+                Policy: 'write',
               },
-            },
+            ],
           },
         },
       ],

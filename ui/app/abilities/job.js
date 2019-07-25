@@ -17,17 +17,17 @@ export default Ability.extend({
 
   rulesForActiveNamespace: computed(
     'activeNamespace',
-    'token.selfTokenPolicies.@each.namespace' /* FIXME not quite */,
+    'token.selfTokenPolicies.@each.Namespaces' /* FIXME not quite */,
     function() {
       const activeNamespace = this.activeNamespace;
 
       return (this.get('token.selfTokenPolicies') || []).toArray().reduce((rules, policy) => {
-        const policyNamespaces = getWithDefault(policy, 'rulesJson.namespace', {});
+        const policyNamespaces = getWithDefault(policy, 'rulesJSON.Namespaces', []);
 
         const matchingNamespace = this._findMatchingNamespace(policyNamespaces, activeNamespace);
 
         if (matchingNamespace) {
-          rules.push(policyNamespaces[matchingNamespace]);
+          rules.push(policyNamespaces.find(namespace => namespace.Name === matchingNamespace));
         }
 
         return rules;
@@ -40,8 +40,8 @@ export default Ability.extend({
     'rulesForActiveNamespace.@each.capabilities',
     function() {
       return this.rulesForActiveNamespace.some(rules => {
-        const policy = rules.policy;
-        const capabilities = getWithDefault(rules, 'capabilities', []);
+        const policy = rules.Policy;
+        const capabilities = getWithDefault(rules, 'Capabilities', []);
 
         return policy == 'write' || capabilities.includes('submit-job');
       });
@@ -49,11 +49,12 @@ export default Ability.extend({
   ),
 
   _findMatchingNamespace(policyNamespaces, activeNamespace) {
-    if (policyNamespaces[activeNamespace]) {
+    const namespaceNames = policyNamespaces.mapBy('Name');
+
+    if (namespaceNames.includes(activeNamespace)) {
       return activeNamespace;
     }
 
-    const namespaceNames = Object.keys(policyNamespaces);
     const globNamespaceNames = namespaceNames.filter(namespaceName => namespaceName.includes('*'));
 
     const matchingNamespaceName = globNamespaceNames.reduce(
@@ -80,7 +81,7 @@ export default Ability.extend({
 
     if (matchingNamespaceName) {
       return matchingNamespaceName;
-    } else if (policyNamespaces.default) {
+    } else if (namespaceNames.includes('default')) {
       return 'default';
     }
   },
