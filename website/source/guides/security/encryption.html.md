@@ -17,7 +17,7 @@ RPC.
 Enabling gossip encryption only requires that you set an encryption key when
 starting the Nomad server. The key can be set via the
 [`encrypt`](/docs/configuration/server.html#encrypt) parameter: the value
-of this setting is a server configuration file containing the encryption key.
+of this setting is a server configuration file containing the encryption key. The same encryption key should be used on every server in the cluster. 
 
 The key must be 16 bytes, base64 encoded. As a convenience, Nomad provides the
 [`nomad operator keygen`](/docs/commands/operator/keygen.html) command to
