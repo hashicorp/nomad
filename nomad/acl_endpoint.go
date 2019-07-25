@@ -11,6 +11,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -263,6 +264,14 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 			reply.Policy = out
 			if out != nil {
 				reply.Index = out.ModifyIndex
+
+				rules, err := policy.Parse(out.Rules)
+
+				if err != nil {
+					// FIXME what to do? should be impossible?
+				} else {
+					reply.Policy.RulesJSON = rules
+				}
 			} else {
 				// Use the last index that affected the policy table
 				index, err := state.Index("acl_policy")
