@@ -436,6 +436,13 @@ type DriverInfo struct {
 	UpdateTime        time.Time
 }
 
+// HostVolumeInfo is used to return metadata about a given HostVolume.
+type HostVolumeInfo struct {
+	Source   string
+	ReadOnly bool
+	Hidden   bool
+}
+
 // Node is used to deserialize a node entry.
 type Node struct {
 	ID                    string
@@ -459,6 +466,7 @@ type Node struct {
 	StatusUpdatedAt       int64
 	Events                []*NodeEvent
 	Drivers               map[string]*DriverInfo
+	HostVolumes           map[string]*HostVolumeInfo
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }
