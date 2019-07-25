@@ -63,6 +63,10 @@ job "binstore-storagelocker" {
   group "binsl" {
     count = 5
 
+    volume "foo" {
+      type = "host"
+    }
+
     restart {
       attempts = 5
       interval = "10m"
@@ -140,6 +144,11 @@ job "binstore-storagelocker" {
         labels {
           FOO = "bar"
         }
+      }
+
+      volume_mount {
+        volume      = "foo"
+        destination = "/mnt/foo"
       }
 
       logs {

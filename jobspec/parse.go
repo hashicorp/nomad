@@ -316,6 +316,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"spread",
 			"network",
 			"service",
+			"volume",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -337,6 +338,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		delete(m, "spread")
 		delete(m, "network")
 		delete(m, "service")
+		delete(m, "volume")
 
 		// Build the group with the basic decode
 		var g api.TaskGroup
@@ -424,6 +426,12 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			}
 		}
 
+		// Parse any volume declarations
+		if o := listVal.Filter("volume"); len(o.Items) > 0 {
+			if err := parseVolumes(&g.Volumes, o); err != nil {
+				return multierror.Prefix(err, "volume ->")
+			}
+		}
 		// Parse tasks
 		if o := listVal.Filter("task"); len(o.Items) > 0 {
 			if err := parseTasks(*result.Name, *g.Name, &g.Tasks, o); err != nil {
@@ -460,6 +468,101 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 	}
 
 	result.TaskGroups = append(result.TaskGroups, collection...)
+	return nil
+}
+
+func parseVolumes(out *map[string]*api.Volume, list *ast.ObjectList) error {
+	volumes := make(map[string]*api.Volume, len(list.Items))
+
+	for _, item := range list.Items {
+		n := item.Keys[0].Token.Value().(string)
+		valid := []string{
+			"type",
+			"read_only",
+			"hidden",
+			"config",
+		}
+		if err := helper.CheckHCLKeys(item.Val, valid); err != nil {
+			return err
+		}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, item.Val); err != nil {
+			return err
+		}
+
+		// TODO(dani): FIXME: this is gross but we don't have ObjectList.Filter here
+		var cfg map[string]interface{}
+		if cfgI, ok := m["config"]; ok {
+			cfgL, ok := cfgI.([]map[string]interface{})
+			if !ok {
+				return fmt.Errorf("Incorrect `config` type, expected map")
+			}
+
+			if len(cfgL) != 1 {
+				return fmt.Errorf("Expected single `config`, found %d", len(cfgL))
+			}
+
+			cfg = cfgL[0]
+		}
+		delete(m, "config")
+
+		var result api.Volume
+		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			WeaklyTypedInput: true,
+			Result:           &result,
+		})
+		if err != nil {
+			return err
+		}
+		if err := dec.Decode(m); err != nil {
+			return err
+		}
+
+		result.Name = n
+		result.Config = cfg
+
+		volumes[n] = &result
+	}
+
+	*out = volumes
+	return nil
+}
+
+func parseVolumeMounts(out *[]*api.VolumeMount, list *ast.ObjectList) error {
+	mounts := make([]*api.VolumeMount, len(list.Items))
+
+	for i, item := range list.Items {
+		valid := []string{
+			"volume",
+			"read_only",
+			"destination",
+		}
+		if err := helper.CheckHCLKeys(item.Val, valid); err != nil {
+			return err
+		}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, item.Val); err != nil {
+			return err
+		}
+
+		var result api.VolumeMount
+		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			WeaklyTypedInput: true,
+			Result:           &result,
+		})
+		if err != nil {
+			return err
+		}
+		if err := dec.Decode(m); err != nil {
+			return err
+		}
+
+		mounts[i] = &result
+	}
+
+	*out = mounts
 	return nil
 }
 
@@ -892,6 +995,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			"user",
 			"vault",
 			"kill_signal",
+			"volume_mount",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -913,6 +1017,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 		delete(m, "service")
 		delete(m, "template")
 		delete(m, "vault")
+		delete(m, "volume_mount")
 
 		// Build the task
 		var t api.Task
@@ -992,6 +1097,14 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 				if err := mapstructure.WeakDecode(m, &t.Meta); err != nil {
 					return err
 				}
+			}
+		}
+
+		// Parse volume mounts
+		if o := listVal.Filter("volume_mount"); len(o.Items) > 0 {
+			if err := parseVolumeMounts(&t.VolumeMounts, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf(
+					"'%s', volume_mount ->", n))
 			}
 		}
 
