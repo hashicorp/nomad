@@ -190,7 +190,7 @@
 		{"path":"github.com/hashicorp/go-discover/provider/softlayer","checksumSHA1":"SIyZ44AHIUTBfI336ACpCeybsLg=","revision":"40ccfdee6c0d7136f98f2b54882b86aaf0250d2f","revisionTime":"2018-05-03T15:30:45Z","tree":true},
 		{"path":"github.com/hashicorp/go-discover/provider/triton","checksumSHA1":"n2iQu2IbTPw2XpWF2CqBrFSMjwI=","revision":"40ccfdee6c0d7136f98f2b54882b86aaf0250d2f","revisionTime":"2018-05-03T15:30:45Z","tree":true},
 		{"path":"github.com/hashicorp/go-envparse","checksumSHA1":"FKmqR4DC3nCXtnT9pe02z5CLNWo=","revision":"310ca1881b22af3522e3a8638c0b426629886196","revisionTime":"2018-01-19T21:58:41Z"},
-		{"path":"github.com/hashicorp/go-getter","checksumSHA1":"uGH6AI982csQJoRPsSooK7FoWqo=","revision":"3f60ec5cfbb2a39731571b9ddae54b303bb0a969","revisionTime":"2018-04-25T22:41:30Z"},
+		{"path":"github.com/hashicorp/go-getter","checksumSHA1":"DPz/YgCQgHt4RkkJhgOHtj1w2JM=","revision":"9363991638334fdee4f649819138250a3b6402c8","revisionTime":"2019-02-18T16:50:04Z","version":"v1.1.0","versionExact":"v1.1.0"},
 		{"path":"github.com/hashicorp/go-getter/helper/url","checksumSHA1":"9J+kDr29yDrwsdu2ULzewmqGjpA=","revision":"b345bfcec894fb7ff3fdf9b21baf2f56ea423d98","revisionTime":"2018-04-10T17:49:45Z"},
 		{"path":"github.com/hashicorp/go-hclog","checksumSHA1":"dOP7kCX3dACHc9mU79826N411QA=","revision":"ff2cf002a8dd750586d91dddd4470c341f981fe1","revisionTime":"2018-07-09T16:53:50Z"},
 		{"path":"github.com/hashicorp/go-immutable-radix","checksumSHA1":"Cas2nprG6pWzf05A2F/OlnjUu2Y=","revision":"8aac2701530899b64bdea735a1de8da899815220","revisionTime":"2017-07-25T22:12:15Z"},
