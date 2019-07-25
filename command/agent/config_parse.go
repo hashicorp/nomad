@@ -138,6 +138,11 @@ func extraKeys(c *Config) error {
 	// stats is an unused key, continue to silently ignore it
 	removeEqualFold(&c.Client.ExtraKeysHCL, "stats")
 
+	// Remove HostVolume extra keys
+	for _, hv := range c.Client.HostVolumes {
+		removeEqualFold(&c.Client.ExtraKeysHCL, hv.Name)
+	}
+
 	for _, k := range []string{"enabled_schedulers", "start_join", "retry_join", "server_join"} {
 		removeEqualFold(&c.ExtraKeysHCL, k)
 		removeEqualFold(&c.ExtraKeysHCL, "server")

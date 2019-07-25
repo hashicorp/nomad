@@ -89,6 +89,10 @@ client {
   gc_max_allocs            = 50
   no_host_uuid             = false
   disable_remote_exec      = true
+
+  host_volume "tmp" {
+    source = "/tmp"
+  }
 }
 
 server {
