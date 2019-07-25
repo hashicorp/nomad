@@ -336,6 +336,46 @@ export default function() {
     return this.serialize(file);
   };
 
+  const clientAllocationCatHandler = function({ allocFiles }, { queryParams }) {
+    const [file, err] = fileOrError(allocFiles, queryParams.path);
+
+    if (err) return err;
+    return file.body;
+  };
+
+  const clientAllocationStreamHandler = function({ allocFiles }, { queryParams }) {
+    const [file, err] = fileOrError(allocFiles, queryParams.path);
+
+    if (err) return err;
+
+    // Pretender, and therefore Mirage, doesn't support streaming responses.
+    return file.body;
+  };
+
+  const clientAllocationReadAtHandler = function({ allocFiles }, { queryParams }) {
+    const [file, err] = fileOrError(allocFiles, queryParams.path);
+
+    if (err) return err;
+    return file.body.substr(queryParams.offset || 0, queryParams.limit);
+  };
+
+  const fileOrError = function(allocFiles, path, message = 'Operation not allowed on a directory') {
+    // Ignore the task name at the beginning of the path
+    const filterPath = path.substr(path.indexOf('/') + 1);
+
+    // Root path
+    if (!filterPath) {
+      return [null, new Response(400, {}, message)];
+    }
+
+    const file = allocFiles.where({ path: filterPath }).models[0];
+    if (file.isDir) {
+      return [null, new Response(400, {}, message)];
+    }
+
+    return [file, null];
+  };
+
   // Client requests are available on the server and the client
   this.put('/client/allocation/:id/restart', function() {
     return new Response(204, {}, '');
@@ -346,6 +386,9 @@ export default function() {
 
   this.get('/client/fs/ls/:allocation_id', clientAllocationFSLsHandler);
   this.get('/client/fs/stat/:allocation_id', clientAllocationFSStatHandler);
+  this.get('/client/fs/cat/:allocation_id', clientAllocationCatHandler);
+  this.get('/client/fs/stream/:allocation_id', clientAllocationStreamHandler);
+  this.get('/client/fs/readat/:allocation_id', clientAllocationReadAtHandler);
 
   this.get('/client/stats', function({ clientStats }, { queryParams }) {
     const seed = Math.random();
