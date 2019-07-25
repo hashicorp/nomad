@@ -1,6 +1,7 @@
 import { Factory, faker, trait } from 'ember-cli-mirage';
 import { pickOne } from '../utils';
 
+const REF_TIME = new Date();
 const EMOJI = '🏆 💃 🤩 🙌🏿 🖨'.split(' ');
 const makeWord = () => Math.round(Math.random() * 10000000 + 50000).toString(36);
 const makeSentence = (count = 10) =>
@@ -67,16 +68,18 @@ export default Factory.extend({
     return fileTypeMapping[this.fileType] || null;
   },
 
-  name() {
-    const fileName = `${faker.hacker.noun().dasherize()}-${pickOne(EMOJI)}${
-      this.isDir ? '' : `.${this.fileType}`
-    }`;
-
+  path() {
     if (this.parent) {
-      return `${this.parent.name}/${fileName}`;
+      return `${this.parent.name}/${this.name}`;
     }
 
-    return fileName;
+    return this.name;
+  },
+
+  name() {
+    return `${faker.hacker.noun().dasherize()}-${pickOne(EMOJI)}${
+      this.isDir ? '' : `.${this.fileType}`
+    }`;
   },
 
   body() {
@@ -87,6 +90,8 @@ export default Factory.extend({
   size() {
     return this.body.length;
   },
+
+  modTime: () => faker.date.past(2 / 365, REF_TIME),
 
   dir: trait({
     isDir: true,

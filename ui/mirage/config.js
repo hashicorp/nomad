@@ -305,63 +305,35 @@ export default function() {
     return logEncode(logFrames, logFrames.length - 1);
   };
 
-  const clientAllocationFSLsHandler = function(schema, { queryParams }) {
-    if (queryParams.path.endsWith('empty-directory')) {
-      return [];
-    } else if (queryParams.path.endsWith('directory')) {
-      return [
-        {
-          Name: 'another',
-          IsDir: true,
-          ModTime: moment().format(),
-        },
-      ];
-    } else if (queryParams.path.endsWith('another')) {
-      return [
-        {
-          Name: 'something.txt',
-          IsDir: false,
-          ModTime: moment().format(),
-        },
-      ];
-    } else {
-      return [
-        {
-          Name: '🤩.txt',
-          IsDir: false,
-          Size: 1919,
-          ModTime: moment()
-            .subtract(2, 'day')
-            .format(),
-        },
-        {
-          Name: '🙌🏿.txt',
-          IsDir: false,
-          ModTime: moment()
-            .subtract(2, 'minute')
-            .format(),
-        },
-        {
-          Name: 'directory',
-          IsDir: true,
-          Size: 3682561,
-          ModTime: moment()
-            .subtract(1, 'year')
-            .format(),
-        },
-        {
-          Name: 'empty-directory',
-          IsDir: true,
-          ModTime: moment().format(),
-        },
-      ];
-    }
+  const clientAllocationFSLsHandler = function({ allocFiles }, { queryParams }) {
+    // Ignore the task name at the beginning of the path
+    const filterPath = queryParams.path.substr(queryParams.path.indexOf('/') + 1);
+
+    const files = allocFiles.where(
+      file =>
+        (!filterPath || file.path.startsWith(filterPath)) &&
+        file.path.length > filterPath.length &&
+        !file.path.substr(filterPath.length + 1).includes('/')
+    );
+
+    return this.serialize(files);
   };
 
-  const clientAllocationFSStatHandler = function(schema, { queryParams }) {
-    return {
-      IsDir: !queryParams.path.endsWith('.txt'),
-    };
+  const clientAllocationFSStatHandler = function({ allocFiles }, { queryParams }) {
+    // Ignore the task name at the beginning of the path
+    const filterPath = queryParams.path.substr(queryParams.path.indexOf('/') + 1);
+
+    // Root path
+    if (!filterPath) {
+      return this.serialize({
+        IsDir: true,
+        ModTime: new Date(),
+      });
+    }
+
+    // Either a file or a nested directory
+    const file = allocFiles.where({ path: filterPath }).models[0];
+    return this.serialize(file);
   };
 
   // Client requests are available on the server and the client
