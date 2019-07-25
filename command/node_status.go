@@ -299,6 +299,16 @@ func nodeDrivers(n *api.Node) []string {
 	return drivers
 }
 
+func nodeVolumeNames(n *api.Node) []string {
+	var volumes []string
+	for name, _ := range n.HostVolumes {
+		volumes = append(volumes, name)
+	}
+
+	sort.Strings(volumes)
+	return volumes
+}
+
 func formatDrain(n *api.Node) string {
 	if n.DrainStrategy != nil {
 		b := new(strings.Builder)
@@ -333,6 +343,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	}
 
 	if c.short {
+		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
 		basic = append(basic, fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")))
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 	} else {
@@ -347,6 +358,11 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 			basic = append(basic, fmt.Sprintf("Uptime|%s", uptime.String()))
 		}
 
+		// Emit the volume info
+		if !c.verbose {
+			basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
+		}
+
 		// Emit the driver info
 		if !c.verbose {
 			driverStatus := fmt.Sprintf("Driver Status| %s", c.outputTruncatedNodeDriverInfo(node))
@@ -356,6 +372,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
 		if c.verbose {
+			c.outputNodeVolumeInfo(node)
 			c.outputNodeDriverInfo(node)
 		}
 
@@ -441,6 +458,25 @@ func (c *NodeStatusCommand) outputTruncatedNodeDriverInfo(node *api.Node) string
 	}
 	sort.Strings(drivers)
 	return strings.Trim(strings.Join(drivers, ","), ", ")
+}
+
+func (c *NodeStatusCommand) outputNodeVolumeInfo(node *api.Node) {
+	c.Ui.Output(c.Colorize().Color("\n[bold]Host Volumes"))
+
+	names := make([]string, 0, len(node.HostVolumes))
+	for name := range node.HostVolumes {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	output := make([]string, 0, len(names)+1)
+	output = append(output, "Name|ReadOnly|Hidden|Source")
+
+	for _, volName := range names {
+		info := node.HostVolumes[volName]
+		output = append(output, fmt.Sprintf("%s|%v|%v|%s", volName, info.ReadOnly, info.Hidden, info.Source))
+	}
+	c.Ui.Output(formatList(output))
 }
 
 func (c *NodeStatusCommand) outputNodeDriverInfo(node *api.Node) {
