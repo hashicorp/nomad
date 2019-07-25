@@ -72,6 +72,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		"vault",
 		"kill_signal",
 		"kind",
+		"volume_mount",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return nil, err
@@ -93,6 +94,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 	delete(m, "service")
 	delete(m, "template")
 	delete(m, "vault")
+	delete(m, "volume_mount")
 
 	// Build the task
 	var t api.Task
@@ -170,6 +172,14 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 			if err := mapstructure.WeakDecode(m, &t.Meta); err != nil {
 				return nil, err
 			}
+		}
+	}
+
+	// Parse volume mounts
+	if o := listVal.Filter("volume_mount"); len(o.Items) > 0 {
+		if err := parseVolumeMounts(&t.VolumeMounts, o); err != nil {
+			return multierror.Prefix(err, fmt.Sprintf(
+				"'%s', volume_mount ->", n))
 		}
 	}
 
@@ -502,5 +512,42 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 		}
 	}
 
+	return nil
+}
+
+func parseVolumeMounts(out *[]*api.VolumeMount, list *ast.ObjectList) error {
+	mounts := make([]*api.VolumeMount, len(list.Items))
+
+	for i, item := range list.Items {
+		valid := []string{
+			"volume",
+			"read_only",
+			"destination",
+		}
+		if err := helper.CheckHCLKeys(item.Val, valid); err != nil {
+			return err
+		}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, item.Val); err != nil {
+			return err
+		}
+
+		var result api.VolumeMount
+		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			WeaklyTypedInput: true,
+			Result:           &result,
+		})
+		if err != nil {
+			return err
+		}
+		if err := dec.Decode(m); err != nil {
+			return err
+		}
+
+		mounts[i] = &result
+	}
+
+	*out = mounts
 	return nil
 }
