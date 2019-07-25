@@ -96,6 +96,69 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 	return NewStaticIterator(ctx, nodes)
 }
 
+// HostVolumeChecker is a FeasibilityChecker which returns whether a node has
+// the host volumes necessary to schedule a task group.
+type HostVolumeChecker struct {
+	ctx     Context
+	volumes map[string][]*structs.VolumeRequest
+}
+
+// NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
+func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
+	return &HostVolumeChecker{
+		ctx: ctx,
+	}
+}
+
+// SetVolumes takes the volumes required by a task group and updates the checker.
+func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
+	nm := make(map[string][]*structs.VolumeRequest)
+
+	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
+	// lookup performance. Also filter non-host volumes.
+	for _, req := range volumes {
+		if req.Volume.Type != "host" {
+			continue
+		}
+
+		cfg, err := structs.ParseHostVolumeConfig(req.Config)
+		if err != nil {
+			// Could not parse host volume config, skip the volume for now.
+			continue
+		}
+
+		nm[cfg.Source] = append(nm[cfg.Source], req)
+	}
+	h.volumes = nm
+}
+
+func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
+	if h.hasVolumes(candidate) {
+		return true
+	}
+
+	h.ctx.Metrics().FilterNode(candidate, "missing compatible host volumes")
+	return false
+}
+
+func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
+	hLen := len(h.volumes)
+	nLen := len(n.HostVolumes)
+
+	// Fast path: Requesting more volumes than the node has, can't meet the criteria.
+	if hLen > nLen {
+		return false
+	}
+
+	for source := range h.volumes {
+		if _, ok := n.HostVolumes[source]; !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
 // DriverChecker is a FeasibilityChecker which returns whether a node has the
 // drivers necessary to scheduler a task group.
 type DriverChecker struct {
