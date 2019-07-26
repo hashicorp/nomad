@@ -20,6 +20,16 @@ export default Controller.extend({
   directories: filterBy('directoryEntries', 'IsDir'),
   files: filterBy('directoryEntries', 'IsDir', false),
 
+  pathWithLeadingSlash: computed('path', function() {
+    const path = this.path;
+
+    if (path.startsWith('/')) {
+      return path;
+    } else {
+      return `/${path}`;
+    }
+  }),
+
   sortedDirectoryEntries: computed(
     'directoryEntries.[]',
     'sortProperty',
