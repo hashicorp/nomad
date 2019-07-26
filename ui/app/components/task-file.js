@@ -11,6 +11,8 @@ export default Component.extend({
 
   classNames: ['boxed-section', 'task-log'],
 
+  'data-test-file-viewer': true,
+
   allocation: null,
   task: null,
   file: null,
@@ -28,7 +30,7 @@ export default Component.extend({
   mode: 'head',
 
   fileComponent: computed('stat', function() {
-    const contentType = this.stat.ContentType;
+    const contentType = this.stat.ContentType || '';
 
     if (contentType.startsWith('image/')) {
       return 'image';

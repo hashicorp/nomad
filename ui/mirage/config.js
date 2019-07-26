@@ -5,7 +5,6 @@ import { logFrames, logEncode } from './data/logs';
 import { generateDiff } from './factories/job-version';
 import { generateTaskGroupFailures } from './factories/evaluation';
 import { copy } from 'ember-copy';
-import moment from 'moment';
 
 export function findLeader(schema) {
   const agent = schema.agents.first();

@@ -1,5 +1,4 @@
 import Component from '@ember/component';
-import { computed } from '@ember/object';
 import { run } from '@ember/runloop';
 import { task } from 'ember-concurrency';
 import WindowResizable from 'nomad-ui/mixins/window-resizable';

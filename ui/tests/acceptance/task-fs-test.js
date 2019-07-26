@@ -2,15 +2,19 @@ import { currentURL, visit } from '@ember/test-helpers';
 import { Promise } from 'rsvp';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import moment from 'moment';
 
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Response from 'ember-cli-mirage/response';
 import moment from 'moment';
 
+import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+
 import FS from 'nomad-ui/tests/pages/allocations/task/fs';
 
 let allocation;
 let task;
+let files;
 
 module('Acceptance | task fs', function(hooks) {
   setupApplicationTest(hooks);
@@ -25,6 +29,24 @@ module('Acceptance | task fs', function(hooks) {
     task = server.schema.taskStates.where({ allocationId: allocation.id }).models[0];
     task.name = 'task-name';
     task.save();
+
+    // Reset files
+    files = [];
+
+    // Nested files
+    files.push(server.create('allocFile', { isDir: true, name: 'directory' }));
+    files.push(server.create('allocFile', { isDir: true, name: 'another', parent: files[0] }));
+    files.push(
+      server.create('allocFile', 'file', {
+        name: 'something.txt',
+        fileType: 'txt',
+        parent: files[1],
+      })
+    );
+
+    files.push(server.create('allocFile', { isDir: true, name: 'empty-directory' }));
+    files.push(server.create('allocFile', 'file'));
+    files.push(server.create('allocFile', 'file'));
   });
 
   test('visiting /allocations/:allocation_id/:task_name/fs', async function(assert) {
@@ -78,18 +100,20 @@ module('Acceptance | task fs', function(hooks) {
     assert.equal(FS.breadcrumbs[0].text, 'task-name');
 
     FS.directoryEntries[0].as(directory => {
-      assert.equal(directory.name, 'directory', 'directories should come first');
+      const fileRecord = files[0];
+      assert.equal(directory.name, fileRecord.name, 'directories should come first');
       assert.ok(directory.isDirectory);
       assert.equal(directory.size, '', 'directory sizes are hidden');
-      assert.equal(directory.lastModified, 'a year ago');
+      assert.equal(directory.lastModified, moment(fileRecord.modTime).fromNow());
       assert.notOk(directory.path.includes('//'), 'paths shouldn’t have redundant separators');
     });
 
     FS.directoryEntries[2].as(file => {
-      assert.equal(file.name, '🤩.txt');
+      const fileRecord = files[4];
+      assert.equal(file.name, fileRecord.name);
       assert.ok(file.isFile);
-      assert.equal(file.size, '1 KiB');
-      assert.equal(file.lastModified, '2 days ago');
+      assert.equal(file.size, formatBytes([fileRecord.size]));
+      assert.equal(file.lastModified, moment(fileRecord.modTime).fromNow());
     });
 
     await FS.directoryEntries[0].visit();
@@ -97,11 +121,11 @@ module('Acceptance | task fs', function(hooks) {
     assert.equal(FS.directoryEntries.length, 1);
 
     assert.equal(FS.breadcrumbs.length, 2);
-    assert.equal(FS.breadcrumbsText, 'task-name directory');
+    assert.equal(FS.breadcrumbsText, `${task.name} ${files[0].name}`);
 
     assert.notOk(FS.breadcrumbs[0].isActive);
 
-    assert.equal(FS.breadcrumbs[1].text, 'directory');
+    assert.equal(FS.breadcrumbs[1].text, files[0].name);
     assert.ok(FS.breadcrumbs[1].isActive);
 
     await FS.directoryEntries[0].visit();
@@ -113,8 +137,8 @@ module('Acceptance | task fs', function(hooks) {
     );
 
     assert.equal(FS.breadcrumbs.length, 3);
-    assert.equal(FS.breadcrumbsText, 'task-name directory another');
-    assert.equal(FS.breadcrumbs[2].text, 'another');
+    assert.equal(FS.breadcrumbsText, `${task.name} ${files[0].name} ${files[1].name}`);
+    assert.equal(FS.breadcrumbs[2].text, files[1].name);
 
     assert.notOk(
       FS.breadcrumbs[0].path.includes('//'),
@@ -126,7 +150,7 @@ module('Acceptance | task fs', function(hooks) {
     );
 
     await FS.breadcrumbs[1].visit();
-    assert.equal(FS.breadcrumbsText, 'task-name directory');
+    assert.equal(FS.breadcrumbsText, `${task.name} ${files[0].name}`);
     assert.equal(FS.breadcrumbs.length, 2);
   });
 
@@ -259,7 +283,9 @@ module('Acceptance | task fs', function(hooks) {
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/' });
     await FS.directoryEntries[2].visit();
 
-    assert.equal(FS.breadcrumbsText, 'task-name 🤩.txt');
+    const fileRecord = files[4];
+
+    assert.equal(FS.breadcrumbsText, `${task.name} ${fileRecord.name}`);
 
     assert.ok(FS.fileViewer.isPresent);
   });
@@ -294,7 +320,7 @@ module('Acceptance | task fs', function(hooks) {
       return new Response(500, {}, 'no such file or directory');
     });
 
-    await FS.visitPath({ id: allocation.id, name: task.name, path: '/what-is-this' });
+    await FS.visitPath({ id: allocation.id, name: task.name, path: files[0].name });
     assert.equal(FS.error.title, 'Not Found', '500 is interpreted as 404');
 
     await visit('/');
@@ -303,7 +329,7 @@ module('Acceptance | task fs', function(hooks) {
       return new Response(999);
     });
 
-    await FS.visitPath({ id: allocation.id, name: task.name, path: '/what-is-this' });
+    await FS.visitPath({ id: allocation.id, name: task.name, path: files[0].name });
     assert.equal(FS.error.title, 'Error', 'other statuses are passed through');
   });
 });

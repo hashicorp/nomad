@@ -70,7 +70,7 @@ export default Factory.extend({
 
   path() {
     if (this.parent) {
-      return `${this.parent.name}/${this.name}`;
+      return `${this.parent.path}/${this.name}`;
     }
 
     return this.name;
