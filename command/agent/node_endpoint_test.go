@@ -370,13 +370,12 @@ func TestHTTP_NodeEligible(t *testing.T) {
 		var resp structs.NodeUpdateResponse
 		require.Nil(s.Agent.RPC("Node.Register", &args, &resp))
 
-		drainReq := api.NodeUpdateEligibilityRequest{
-			NodeID:      node.ID,
+		eligibilityReq := api.NodeUpdateEligibilityRequest{
 			Eligibility: structs.NodeSchedulingIneligible,
 		}
 
 		// Make the HTTP request
-		buf := encodeReq(drainReq)
+		buf := encodeReq(eligibilityReq)
 		req, err := http.NewRequest("POST", "/v1/node/"+node.ID+"/eligibility", buf)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
@@ -399,8 +398,8 @@ func TestHTTP_NodeEligible(t *testing.T) {
 		require.Equal(structs.NodeSchedulingIneligible, out.SchedulingEligibility)
 
 		// Make the HTTP request to set something invalid
-		drainReq.Eligibility = "foo"
-		buf = encodeReq(drainReq)
+		eligibilityReq.Eligibility = "foo"
+		buf = encodeReq(eligibilityReq)
 		req, err = http.NewRequest("POST", "/v1/node/"+node.ID+"/eligibility", buf)
 		require.Nil(err)
 		respW = httptest.NewRecorder()

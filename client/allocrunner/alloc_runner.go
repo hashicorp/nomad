@@ -499,7 +499,9 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 			continue
 		}
 
-		err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilling))
+		taskEvent := structs.NewTaskEvent(structs.TaskKilling)
+		taskEvent.SetKillTimeout(tr.Task().KillTimeout)
+		err := tr.Kill(context.TODO(), taskEvent)
 		if err != nil && err != taskrunner.ErrTaskNotRunning {
 			ar.logger.Warn("error stopping leader task", "error", err, "task_name", name)
 		}
@@ -519,7 +521,9 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		wg.Add(1)
 		go func(name string, tr *taskrunner.TaskRunner) {
 			defer wg.Done()
-			err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilling))
+			taskEvent := structs.NewTaskEvent(structs.TaskKilling)
+			taskEvent.SetKillTimeout(tr.Task().KillTimeout)
+			err := tr.Kill(context.TODO(), taskEvent)
 			if err != nil && err != taskrunner.ErrTaskNotRunning {
 				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
 			}

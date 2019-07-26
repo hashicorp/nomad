@@ -1,13 +1,15 @@
 job "binstore-storagelocker" {
-    group "binsl" {
-        count = 5
-        task "binstore" {
-            driver = "docker"
+  group "binsl" {
+    count = 5
 
-            artifact {
-                bad = "bad"
-            }
-            resources {}
-        }
+    task "binstore" {
+      driver = "docker"
+
+      artifact {
+        bad = "bad"
+      }
+
+      resources {}
     }
+  }
 }

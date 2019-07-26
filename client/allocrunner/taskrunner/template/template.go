@@ -503,7 +503,7 @@ func templateRunner(config *TaskTemplateManagerConfig) (
 		return nil, nil, err
 	}
 
-	runner, err := manager.NewRunner(runnerConfig, false, false)
+	runner, err := manager.NewRunner(runnerConfig, false)
 	if err != nil {
 		return nil, nil, err
 	}

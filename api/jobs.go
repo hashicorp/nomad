@@ -383,7 +383,6 @@ type UpdateStrategy struct {
 // DefaultUpdateStrategy provides a baseline that can be used to upgrade
 // jobs with the old policy or for populating field defaults.
 func DefaultUpdateStrategy() *UpdateStrategy {
-	// boolPtr fields are omitted to avoid masking an unconfigured nil
 	return &UpdateStrategy{
 		Stagger:          timeToPtr(30 * time.Second),
 		MaxParallel:      intToPtr(1),
@@ -393,6 +392,7 @@ func DefaultUpdateStrategy() *UpdateStrategy {
 		ProgressDeadline: timeToPtr(10 * time.Minute),
 		AutoRevert:       boolToPtr(false),
 		Canary:           intToPtr(0),
+		AutoPromote:      boolToPtr(false),
 	}
 }
 
@@ -487,8 +487,6 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 func (u *UpdateStrategy) Canonicalize() {
 	d := DefaultUpdateStrategy()
 
-	// boolPtr fields are omitted to avoid masking an unconfigured nil
-
 	if u.MaxParallel == nil {
 		u.MaxParallel = d.MaxParallel
 	}
@@ -519,6 +517,10 @@ func (u *UpdateStrategy) Canonicalize() {
 
 	if u.Canary == nil {
 		u.Canary = d.Canary
+	}
+
+	if u.AutoPromote == nil {
+		u.AutoPromote = d.AutoPromote
 	}
 }
 
@@ -553,6 +555,10 @@ func (u *UpdateStrategy) Empty() bool {
 	}
 
 	if u.AutoRevert != nil && *u.AutoRevert {
+		return false
+	}
+
+	if u.AutoPromote != nil && *u.AutoPromote {
 		return false
 	}
 

@@ -101,7 +101,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	return snap, nil
 }
 
-// SnapshotAfter is used to create a point in time snapshot where the index is
+// SnapshotMinIndex is used to create a state snapshot where the index is
 // guaranteed to be greater than or equal to the index parameter.
 //
 // Some server operations (such as scheduling) exchange objects via RPC
@@ -111,7 +111,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 //
 // Callers should maintain their own timer metric as the time this method
 // blocks indicates Raft log application latency relative to scheduling.
-func (s *StateStore) SnapshotAfter(ctx context.Context, index uint64) (*StateSnapshot, error) {
+func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*StateSnapshot, error) {
 	// Ported from work.go:waitForIndex prior to 0.9
 
 	const backoffBase = 20 * time.Millisecond
@@ -677,24 +677,30 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 	return nil
 }
 
-// DeleteNode is used to deregister a node
-func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
+// DeleteNode deregisters a batch of nodes
+func (s *StateStore) DeleteNode(index uint64, nodes []string) error {
+	if len(nodes) == 0 {
+		return fmt.Errorf("node ids missing")
+	}
+
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	// Lookup the node
-	existing, err := txn.First("nodes", "id", nodeID)
-	if err != nil {
-		return fmt.Errorf("node lookup failed: %v", err)
-	}
-	if existing == nil {
-		return fmt.Errorf("node not found")
+	for _, nodeID := range nodes {
+		existing, err := txn.First("nodes", "id", nodeID)
+		if err != nil {
+			return fmt.Errorf("node lookup failed: %s: %v", nodeID, err)
+		}
+		if existing == nil {
+			return fmt.Errorf("node not found: %s", nodeID)
+		}
+
+		// Delete the node
+		if err := txn.Delete("nodes", existing); err != nil {
+			return fmt.Errorf("node delete failed: %s: %v", nodeID, err)
+		}
 	}
 
-	// Delete the node
-	if err := txn.Delete("nodes", existing); err != nil {
-		return fmt.Errorf("node delete failed: %v", err)
-	}
 	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}

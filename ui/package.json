@@ -45,6 +45,7 @@
     "ember-auto-import": "^1.2.21",
     "ember-cli": "~3.4.4",
     "ember-cli-babel": "^7.1.2",
+    "ember-cli-clipboard": "^0.13.0",
     "ember-cli-dependency-checker": "^3.0.0",
     "ember-cli-deprecation-workflow": "^1.0.1",
     "ember-cli-eslint": "^5.1.0",
@@ -74,7 +75,7 @@
     "ember-load-initializers": "^1.1.0",
     "ember-maybe-import-regenerator": "^0.1.6",
     "ember-moment": "^7.8.1",
-    "ember-native-dom-helpers": "^0.5.4",
+    "ember-page-title": "^5.0.2",
     "ember-power-select": "^2.2.3",
     "ember-qunit-nice-errors": "^1.2.0",
     "ember-resolver": "^5.0.1",
@@ -93,6 +94,7 @@
     "lodash.intersection": "^4.4.0",
     "prettier": "^1.4.4",
     "query-string": "^5.0.0",
+    "qunit-dom": "^0.9.0",
     "sass": "^1.17.3"
   },
   "engines": {

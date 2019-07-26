@@ -809,49 +809,45 @@ func TestStateStore_UpsertNode_Node(t *testing.T) {
 
 func TestStateStore_DeleteNode_Node(t *testing.T) {
 	state := testStateStore(t)
-	node := mock.Node()
 
-	err := state.UpsertNode(1000, node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	// Create and insert two nodes, which we'll delete
+	node0 := mock.Node()
+	node1 := mock.Node()
+	err := state.UpsertNode(1000, node0)
+	require.NoError(t, err)
+	err = state.UpsertNode(1001, node1)
+	require.NoError(t, err)
 
 	// Create a watchset so we can test that delete fires the watch
 	ws := memdb.NewWatchSet()
-	if _, err := state.NodeByID(ws, node.ID); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
 
-	err = state.DeleteNode(1001, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	// Check that both nodes are not nil
+	out, err := state.NodeByID(ws, node0.ID)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	out, err = state.NodeByID(ws, node1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, out)
 
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	// Delete both nodes in a batch, fires the watch
+	err = state.DeleteNode(1002, []string{node0.ID, node1.ID})
+	require.NoError(t, err)
+	require.True(t, watchFired(ws))
 
+	// Check that both nodes are nil
 	ws = memdb.NewWatchSet()
-	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	out, err = state.NodeByID(ws, node0.ID)
+	require.NoError(t, err)
+	require.Nil(t, out)
+	out, err = state.NodeByID(ws, node1.ID)
+	require.NoError(t, err)
+	require.Nil(t, out)
 
-	if out != nil {
-		t.Fatalf("bad: %#v %#v", node, out)
-	}
-
+	// Ensure that the index is still at 1002, from DeleteNode
 	index, err := state.Index("nodes")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 1001 {
-		t.Fatalf("bad: %d", index)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.NoError(t, err)
+	require.Equal(t, uint64(1002), index)
+	require.False(t, watchFired(ws))
 }
 
 func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
@@ -7138,9 +7134,9 @@ func TestStateSnapshot_DenormalizeAllocationDiffSlice_AllocDoesNotExist(t *testi
 	require.Nil(denormalizedAllocs)
 }
 
-// TestStateStore_SnapshotAfter_OK asserts StateStore.SnapshotAfter blocks
+// TestStateStore_SnapshotMinIndex_OK asserts StateStore.SnapshotMinIndex blocks
 // until the StateStore's latest index is >= the requested index.
-func TestStateStore_SnapshotAfter_OK(t *testing.T) {
+func TestStateStore_SnapshotMinIndex_OK(t *testing.T) {
 	t.Parallel()
 
 	s := testStateStore(t)
@@ -7150,9 +7146,9 @@ func TestStateStore_SnapshotAfter_OK(t *testing.T) {
 	node := mock.Node()
 	require.NoError(t, s.UpsertNode(index+1, node))
 
-	// Assert SnapshotAfter returns immediately if index < latest index
+	// Assert SnapshotMinIndex returns immediately if index < latest index
 	ctx, cancel := context.WithTimeout(context.Background(), 0)
-	snap, err := s.SnapshotAfter(ctx, index)
+	snap, err := s.SnapshotMinIndex(ctx, index)
 	cancel()
 	require.NoError(t, err)
 
@@ -7162,9 +7158,9 @@ func TestStateStore_SnapshotAfter_OK(t *testing.T) {
 		require.Fail(t, "snapshot index should be greater than index")
 	}
 
-	// Assert SnapshotAfter returns immediately if index == latest index
+	// Assert SnapshotMinIndex returns immediately if index == latest index
 	ctx, cancel = context.WithTimeout(context.Background(), 0)
-	snap, err = s.SnapshotAfter(ctx, index+1)
+	snap, err = s.SnapshotMinIndex(ctx, index+1)
 	cancel()
 	require.NoError(t, err)
 
@@ -7172,14 +7168,14 @@ func TestStateStore_SnapshotAfter_OK(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, snapIndex, index+1)
 
-	// Assert SnapshotAfter blocks if index > latest index
+	// Assert SnapshotMinIndex blocks if index > latest index
 	errCh := make(chan error, 1)
 	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	go func() {
 		defer close(errCh)
 		waitIndex := index + 2
-		snap, err := s.SnapshotAfter(ctx, waitIndex)
+		snap, err := s.SnapshotMinIndex(ctx, waitIndex)
 		if err != nil {
 			errCh <- err
 			return
@@ -7211,23 +7207,23 @@ func TestStateStore_SnapshotAfter_OK(t *testing.T) {
 	case err := <-errCh:
 		require.NoError(t, err)
 	case <-time.After(5 * time.Second):
-		require.Fail(t, "timed out waiting for SnapshotAfter to unblock")
+		require.Fail(t, "timed out waiting for SnapshotMinIndex to unblock")
 	}
 }
 
-// TestStateStore_SnapshotAfter_Timeout asserts StateStore.SnapshotAfter
+// TestStateStore_SnapshotMinIndex_Timeout asserts StateStore.SnapshotMinIndex
 // returns an error if the desired index is not reached within the deadline.
-func TestStateStore_SnapshotAfter_Timeout(t *testing.T) {
+func TestStateStore_SnapshotMinIndex_Timeout(t *testing.T) {
 	t.Parallel()
 
 	s := testStateStore(t)
 	index, err := s.LatestIndex()
 	require.NoError(t, err)
 
-	// Assert SnapshotAfter blocks if index > latest index
+	// Assert SnapshotMinIndex blocks if index > latest index
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	snap, err := s.SnapshotAfter(ctx, index+1)
+	snap, err := s.SnapshotMinIndex(ctx, index+1)
 	require.EqualError(t, err, context.DeadlineExceeded.Error())
 	require.Nil(t, snap)
 }

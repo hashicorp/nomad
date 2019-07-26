@@ -63,7 +63,7 @@ func NewCLI(out, err io.Writer) *CLI {
 // status from the command.
 func (cli *CLI) Run(args []string) int {
 	// Parse the flags
-	config, paths, once, dry, isVersion, err := cli.ParseFlags(args[1:])
+	config, paths, dry, isVersion, err := cli.ParseFlags(args[1:])
 	if err != nil {
 		if err == flag.ErrHelp {
 			fmt.Fprintf(cli.errStream, usage, version.Name)
@@ -103,7 +103,7 @@ func (cli *CLI) Run(args []string) int {
 	}
 
 	// Initial runner
-	runner, err := manager.NewRunner(config, dry, once)
+	runner, err := manager.NewRunner(config, dry)
 	if err != nil {
 		return logError(err, ExitCodeRunnerError)
 	}
@@ -145,7 +145,7 @@ func (cli *CLI) Run(args []string) int {
 					return logError(err, ExitCodeConfigError)
 				}
 
-				runner, err = manager.NewRunner(config, dry, once)
+				runner, err = manager.NewRunner(config, dry)
 				if err != nil {
 					return logError(err, ExitCodeRunnerError)
 				}
@@ -188,15 +188,17 @@ func (cli *CLI) stop() {
 // Flag library. This is extracted into a helper to keep the main function
 // small, but it also makes writing tests for parsing command line arguments
 // much easier and cleaner.
-func (cli *CLI) ParseFlags(args []string) (*config.Config, []string, bool, bool, bool, error) {
-	var dry, once, isVersion bool
+func (cli *CLI) ParseFlags(args []string) (
+	*config.Config, []string, bool, bool, error,
+) {
+	var dry, isVersion bool
 
 	c := config.DefaultConfig()
 
 	if s := os.Getenv("CT_LOCAL_CONFIG"); s != "" {
 		envConfig, err := config.Parse(s)
 		if err != nil {
-			return nil, nil, false, false, false, err
+			return nil, nil, false, false, err
 		}
 		c = c.Merge(envConfig)
 	}
@@ -373,7 +375,10 @@ func (cli *CLI) ParseFlags(args []string) (*config.Config, []string, bool, bool,
 		return nil
 	}), "max-stale", "")
 
-	flags.BoolVar(&once, "once", false, "")
+	flags.Var((funcBoolVar)(func(b bool) error {
+		c.Once = *(config.Bool(b))
+		return nil
+	}), "once", "")
 
 	flags.Var((funcVar)(func(s string) error {
 		c.PidFile = config.String(s)
@@ -537,16 +542,16 @@ func (cli *CLI) ParseFlags(args []string) (*config.Config, []string, bool, bool,
 
 	// If there was a parser error, stop
 	if err := flags.Parse(args); err != nil {
-		return nil, nil, false, false, false, err
+		return nil, nil, false, false, err
 	}
 
 	// Error if extra arguments are present
 	args = flags.Args()
 	if len(args) > 0 {
-		return nil, nil, false, false, false, fmt.Errorf("cli: extra args: %q", args)
+		return nil, nil, false, false, fmt.Errorf("cli: extra args: %q", args)
 	}
 
-	return c, configPaths, once, dry, isVersion, nil
+	return c, configPaths, dry, isVersion, nil
 }
 
 // loadConfigs loads the configuration from the list of paths. The optional
@@ -699,7 +704,7 @@ Options:
       distribute work among all servers instead of just the leader
 
   -once
-      Do not run the process as a daemon
+      Do not run the process as a daemon. This disables wait/quiescence timers.
 
   -pid-file=<path>
       Path on disk to write the PID of the process

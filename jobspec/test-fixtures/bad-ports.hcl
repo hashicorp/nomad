@@ -61,11 +61,9 @@ job "binstore-storagelocker" {
             static = 3
           }
 
-          port "this_is_aport" {
-          }
+          port "this_is_aport" {}
 
-          port "" {
-          }
+          port "" {}
         }
       }
     }

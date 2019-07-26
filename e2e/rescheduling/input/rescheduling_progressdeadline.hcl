@@ -15,10 +15,10 @@ job "demo2" {
     }
 
     update {
-      max_parallel     = 1
-      min_healthy_time = "1s"
-      auto_revert      = false
-      healthy_deadline = "2s"
+      max_parallel      = 1
+      min_healthy_time  = "1s"
+      auto_revert       = false
+      healthy_deadline  = "2s"
       progress_deadline = "30s"
     }
 
@@ -28,9 +28,9 @@ job "demo2" {
     }
 
     reschedule {
-      unlimited = "true"
+      unlimited      = "true"
       delay_function = "constant"
-      delay = "5s"
+      delay          = "5s"
     }
   }
 }

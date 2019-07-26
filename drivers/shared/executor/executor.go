@@ -312,7 +312,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
 
-	go e.pidCollector.collectPids(e.processExited, getAllPids)
+	go e.pidCollector.collectPids(e.processExited, e.getAllPids)
 	go e.wait()
 	return &ProcessState{Pid: e.childCmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
 }

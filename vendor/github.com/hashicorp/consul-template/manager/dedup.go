@@ -19,7 +19,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 )
 
-const (
+var (
 	// sessionCreateRetry is the amount of time we wait
 	// to recreate a session when lost.
 	sessionCreateRetry = 15 * time.Second
@@ -30,6 +30,12 @@ const (
 	// listRetry is the interval on which we retry listing a data path
 	listRetry = 10 * time.Second
 
+	// timeout passed through to consul api client Lock
+	// here to override in testing (see ./dedup_test.go)
+	lockWaitTime = 15 * time.Second
+)
+
+const (
 	// templateDataFlag is added as a flag to the shared data values
 	// so that we can use it as a sanity check
 	templateDataFlag = 0x22b9a127a2c03520
@@ -454,6 +460,7 @@ func (d *DedupManager) attemptLock(client *consulapi.Client, session string, ses
 			Session:          session,
 			MonitorRetries:   3,
 			MonitorRetryTime: 3 * time.Second,
+			LockWaitTime:     lockWaitTime,
 		}
 		lock, err := client.LockOpts(lopts)
 		if err != nil {

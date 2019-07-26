@@ -1,3 +1,4 @@
+{{title "Allocation " model.name}}
 <section class="section">
   {{#if error}}
     <div data-test-inline-error class="notification is-danger">
@@ -16,7 +17,10 @@
   <h1 data-test-title class="title with-headroom">
     Allocation {{model.name}}
     <span class="bumper-left tag {{model.statusClass}}">{{model.clientStatus}}</span>
-    <span class="tag is-hollow is-small no-text-transform">{{model.id}}</span>
+    <span class="tag is-hollow is-small no-text-transform">
+      {{model.id}}
+      {{copy-button clipboardText=model.id}}
+    </span>
     {{#if model.isRunning}}
       {{two-step-button
         data-test-stop
