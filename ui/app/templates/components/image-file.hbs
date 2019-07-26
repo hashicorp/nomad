@@ -1,11 +1,11 @@
-<a href={{src}} target="_blank" rel="noopenner noreferrer" class="image-file-image">
-  <img src={{src}} alt={{or alt fileName}} title={{fileName}} onload={{action updateImageMeta}} />
+<a data-test-image-link href={{src}} target="_blank" rel="noopener noreferrer" class="image-file-image">
+  <img data-test-image src={{src}} alt={{or alt fileName}} title={{fileName}} onload={{action updateImageMeta}} />
 </a>
 <figcaption class="image-file-caption">
   <span class="image-file-caption-primary">
-    <strong>{{fileName}}</strong>
+    <strong data-test-file-name>{{fileName}}</strong>
     {{#if (and width height)}}
-      ({{width}}px &times; {{height}}{{#if size}}px, {{format-bytes size}}{{/if}})
+      <span data-test-file-stats>({{width}}px &times; {{height}}{{#if size}}px, {{format-bytes size}}{{/if}})</span>
     {{/if}}
   </span>
 </figcaption>
