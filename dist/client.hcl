@@ -1,4 +1,5 @@
 bind_addr = "127.0.0.1"
+
 data_dir = "/var/lib/nomad/"
 
 client {

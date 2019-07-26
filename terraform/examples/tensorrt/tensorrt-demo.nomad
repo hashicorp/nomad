@@ -91,7 +91,7 @@ job "tensorrt" {
       driver = "docker"
 
       config {
-        image = "renaudwastaken/tensorrt-frontend:latest"
+        image = "nvidia/tensorrt-labs:frontend"
         args = [
           "main.py", "${RTSERVER}"
         ]

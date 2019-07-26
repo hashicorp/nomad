@@ -457,10 +457,11 @@ func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) error
 	}
 
 	// Parse the config using the spec
-	val, diag := hclutils.ParseHclInterface(info.config, spec, nil)
+	val, diag, diagErrs := hclutils.ParseHclInterface(info.config, spec, nil)
 	if diag.HasErrors() {
-		multierror.Append(&mErr, diag.Errs()...)
-		return multierror.Prefix(&mErr, "failed parsing config:")
+		multierror.Append(&mErr, diagErrs...)
+		return multierror.Prefix(&mErr, "failed to parse config: ")
+
 	}
 
 	// Marshal the value

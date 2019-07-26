@@ -3,6 +3,7 @@ log_level = "DEBUG"
 
 # Setup data dir
 data_dir = "/tmp/server3"
+
 # Give the agent a unique name. Defaults to hostname
 name = "server3"
 
@@ -20,6 +21,6 @@ server {
 
 ports {
   http = 6646
-  rpc = 6647
+  rpc  = 6647
   serf = 6648
 }

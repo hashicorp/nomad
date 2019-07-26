@@ -41,6 +41,7 @@ module('Acceptance | job deployments', function(hooks) {
       deployments.length,
       'Each deployment gets a row in the timeline'
     );
+    assert.equal(document.title, `Job ${job.name} deployments - Nomad`);
   });
 
   test('each deployment mentions the deployment shortId, status, version, and time since it was submitted', async function(assert) {

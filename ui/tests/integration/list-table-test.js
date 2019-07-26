@@ -1,7 +1,6 @@
-import { findAll, find } from 'ember-native-dom-helpers';
+import { findAll, find, render } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render } from '@ember/test-helpers';
 import { faker } from 'ember-cli-mirage';
 import hbs from 'htmlbars-inline-precompile';
 

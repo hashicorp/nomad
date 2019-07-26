@@ -1,7 +1,6 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render, settled } from '@ember/test-helpers';
-import { click, find } from 'ember-native-dom-helpers';
+import { click, find, render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import moment from 'moment';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
@@ -23,182 +22,156 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
     window.localStorage.clear();
   });
 
-  test('there is no latest deployment section when the job has no deployments', function(assert) {
+  test('there is no latest deployment section when the job has no deployments', async function(assert) {
     this.server.create('job', {
       type: 'service',
       noDeployments: true,
       createAllocations: false,
     });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled().then(async () => {
-      this.set('job', this.store.peekAll('job').get('firstObject'));
-      await render(hbs`
-        {{job-page/parts/latest-deployment job=job}})
-      `);
+    this.set('job', this.store.peekAll('job').get('firstObject'));
+    await render(hbs`
+      {{job-page/parts/latest-deployment job=job}})
+    `);
 
-      return settled().then(() => {
-        assert.notOk(find('[data-test-active-deployment]'), 'No active deployment');
-      });
-    });
+    assert.notOk(find('[data-test-active-deployment]'), 'No active deployment');
   });
 
-  test('the latest deployment section shows up for the currently running deployment', function(assert) {
+  test('the latest deployment section shows up for the currently running deployment', async function(assert) {
     this.server.create('job', {
       type: 'service',
       createAllocations: false,
       activeDeployment: true,
     });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled().then(async () => {
-      this.set('job', this.store.peekAll('job').get('firstObject'));
-      await render(hbs`
-        {{job-page/parts/latest-deployment job=job}}
-      `);
+    this.set('job', this.store.peekAll('job').get('firstObject'));
+    await render(hbs`
+      {{job-page/parts/latest-deployment job=job}}
+    `);
 
-      return settled().then(() => {
-        const deployment = this.get('job.latestDeployment');
-        const version = deployment.get('version');
+    const deployment = await this.get('job.latestDeployment');
+    const version = await deployment.get('version');
 
-        assert.ok(find('[data-test-active-deployment]'), 'Active deployment');
-        assert.ok(
-          find('[data-test-active-deployment]').classList.contains('is-info'),
-          'Running deployment gets the is-info class'
-        );
-        assert.equal(
-          find('[data-test-active-deployment-stat="id"]').textContent.trim(),
-          deployment.get('shortId'),
-          'The active deployment is the most recent running deployment'
-        );
+    assert.ok(find('[data-test-active-deployment]'), 'Active deployment');
+    assert.ok(
+      find('[data-test-active-deployment]').classList.contains('is-info'),
+      'Running deployment gets the is-info class'
+    );
+    assert.equal(
+      find('[data-test-active-deployment-stat="id"]').textContent.trim(),
+      deployment.get('shortId'),
+      'The active deployment is the most recent running deployment'
+    );
 
-        assert.equal(
-          find('[data-test-active-deployment-stat="submit-time"]').textContent.trim(),
-          moment(version.get('submitTime')).fromNow(),
-          'Time since the job was submitted is in the active deployment header'
-        );
+    assert.equal(
+      find('[data-test-active-deployment-stat="submit-time"]').textContent.trim(),
+      moment(version.get('submitTime')).fromNow(),
+      'Time since the job was submitted is in the active deployment header'
+    );
 
-        assert.equal(
-          find('[data-test-deployment-metric="canaries"]').textContent.trim(),
-          `${deployment.get('placedCanaries')} / ${deployment.get('desiredCanaries')}`,
-          'Canaries, both places and desired, are in the metrics'
-        );
+    assert.equal(
+      find('[data-test-deployment-metric="canaries"]').textContent.trim(),
+      `${deployment.get('placedCanaries')} / ${deployment.get('desiredCanaries')}`,
+      'Canaries, both places and desired, are in the metrics'
+    );
 
-        assert.equal(
-          find('[data-test-deployment-metric="placed"]').textContent.trim(),
-          deployment.get('placedAllocs'),
-          'Placed allocs aggregates across task groups'
-        );
+    assert.equal(
+      find('[data-test-deployment-metric="placed"]').textContent.trim(),
+      deployment.get('placedAllocs'),
+      'Placed allocs aggregates across task groups'
+    );
 
-        assert.equal(
-          find('[data-test-deployment-metric="desired"]').textContent.trim(),
-          deployment.get('desiredTotal'),
-          'Desired allocs aggregates across task groups'
-        );
+    assert.equal(
+      find('[data-test-deployment-metric="desired"]').textContent.trim(),
+      deployment.get('desiredTotal'),
+      'Desired allocs aggregates across task groups'
+    );
 
-        assert.equal(
-          find('[data-test-deployment-metric="healthy"]').textContent.trim(),
-          deployment.get('healthyAllocs'),
-          'Healthy allocs aggregates across task groups'
-        );
+    assert.equal(
+      find('[data-test-deployment-metric="healthy"]').textContent.trim(),
+      deployment.get('healthyAllocs'),
+      'Healthy allocs aggregates across task groups'
+    );
 
-        assert.equal(
-          find('[data-test-deployment-metric="unhealthy"]').textContent.trim(),
-          deployment.get('unhealthyAllocs'),
-          'Unhealthy allocs aggregates across task groups'
-        );
+    assert.equal(
+      find('[data-test-deployment-metric="unhealthy"]').textContent.trim(),
+      deployment.get('unhealthyAllocs'),
+      'Unhealthy allocs aggregates across task groups'
+    );
 
-        assert.equal(
-          find('[data-test-deployment-notification]').textContent.trim(),
-          deployment.get('statusDescription'),
-          'Status description is in the metrics block'
-        );
-      });
-    });
+    assert.equal(
+      find('[data-test-deployment-notification]').textContent.trim(),
+      deployment.get('statusDescription'),
+      'Status description is in the metrics block'
+    );
   });
 
-  test('when there is no running deployment, the latest deployment section shows up for the last deployment', function(assert) {
+  test('when there is no running deployment, the latest deployment section shows up for the last deployment', async function(assert) {
     this.server.create('job', {
       type: 'service',
       createAllocations: false,
       noActiveDeployment: true,
     });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled().then(async () => {
-      this.set('job', this.store.peekAll('job').get('firstObject'));
-      await render(hbs`
-        {{job-page/parts/latest-deployment job=job}}
-      `);
+    this.set('job', this.store.peekAll('job').get('firstObject'));
+    await render(hbs`
+      {{job-page/parts/latest-deployment job=job}}
+    `);
 
-      return settled().then(() => {
-        assert.ok(find('[data-test-active-deployment]'), 'Active deployment');
-        assert.notOk(
-          find('[data-test-active-deployment]').classList.contains('is-info'),
-          'Non-running deployment does not get the is-info class'
-        );
-      });
-    });
+    assert.ok(find('[data-test-active-deployment]'), 'Active deployment');
+    assert.notOk(
+      find('[data-test-active-deployment]').classList.contains('is-info'),
+      'Non-running deployment does not get the is-info class'
+    );
   });
 
-  test('the latest deployment section can be expanded to show task groups and allocations', function(assert) {
+  test('the latest deployment section can be expanded to show task groups and allocations', async function(assert) {
     this.server.create('node');
     this.server.create('job', { type: 'service', activeDeployment: true });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled().then(async () => {
-      this.set('job', this.store.peekAll('job').get('firstObject'));
-      await render(hbs`
-        {{job-page/parts/latest-deployment job=job}}
-      `);
+    this.set('job', this.store.peekAll('job').get('firstObject'));
+    await render(hbs`
+      {{job-page/parts/latest-deployment job=job}}
+    `);
 
-      return settled().then(() => {
-        assert.notOk(find('[data-test-deployment-task-groups]'), 'Task groups not found');
-        assert.notOk(find('[data-test-deployment-allocations]'), 'Allocations not found');
+    assert.notOk(find('[data-test-deployment-task-groups]'), 'Task groups not found');
+    assert.notOk(find('[data-test-deployment-allocations]'), 'Allocations not found');
 
-        click('[data-test-deployment-toggle-details]');
+    await click('[data-test-deployment-toggle-details]');
 
-        return settled().then(() => {
-          assert.ok(find('[data-test-deployment-task-groups]'), 'Task groups found');
-          assert.ok(find('[data-test-deployment-allocations]'), 'Allocations found');
-        });
-      });
-    });
+    assert.ok(find('[data-test-deployment-task-groups]'), 'Task groups found');
+    assert.ok(find('[data-test-deployment-allocations]'), 'Allocations found');
   });
 
-  test('each task group in the expanded task group section shows task group details', function(assert) {
+  test('each task group in the expanded task group section shows task group details', async function(assert) {
     this.server.create('node');
     this.server.create('job', { type: 'service', activeDeployment: true });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled().then(async () => {
-      const job = this.store.peekAll('job').get('firstObject');
+    const job = this.store.peekAll('job').get('firstObject');
 
-      this.set('job', job);
-      await render(hbs`
-        {{job-page/parts/latest-deployment job=job}}
-      `);
+    this.set('job', job);
+    await render(hbs`
+      {{job-page/parts/latest-deployment job=job}}
+    `);
 
-      return settled()
-        .then(() => {
-          click('[data-test-deployment-toggle-details]');
-          return settled();
-        })
-        .then(() => {
-          const task = job.get('runningDeployment.taskGroupSummaries.firstObject');
-          const findForTaskGroup = selector =>
-            find(`[data-test-deployment-task-group-${selector}]`);
-          assert.equal(findForTaskGroup('name').textContent.trim(), task.get('name'));
-          assert.equal(
-            findForTaskGroup('progress-deadline').textContent.trim(),
-            moment(task.get('requireProgressBy')).format("MMM DD, 'YY HH:mm:ss ZZ")
-          );
-        });
-    });
+    await click('[data-test-deployment-toggle-details]');
+
+    const task = job.get('runningDeployment.taskGroupSummaries.firstObject');
+    const findForTaskGroup = selector => find(`[data-test-deployment-task-group-${selector}]`);
+    assert.equal(findForTaskGroup('name').textContent.trim(), task.get('name'));
+    assert.equal(
+      findForTaskGroup('progress-deadline').textContent.trim(),
+      moment(task.get('requireProgressBy')).format("MMM DD, 'YY HH:mm:ss ZZ")
+    );
   });
 });

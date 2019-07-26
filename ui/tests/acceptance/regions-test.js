@@ -18,12 +18,13 @@ module('Acceptance | regions (only one)', function(hooks) {
     server.createList('job', 2, { createAllocations: false, noDeployments: true });
   });
 
-  test('when there is only one region, the region switcher is not shown in the nav bar', async function(assert) {
+  test('when there is only one region, the region switcher is not shown in the nav bar and the region is not in the page title', async function(assert) {
     server.create('region', { id: 'global' });
 
     await JobsList.visit();
 
     assert.notOk(PageLayout.navbar.regionSwitcher.isPresent, 'No region switcher');
+    assert.equal(document.title, 'Jobs - Nomad');
   });
 
   test('when the only region is not named "global", the region switcher still is not shown', async function(assert) {
@@ -74,10 +75,11 @@ module('Acceptance | regions (many)', function(hooks) {
     server.create('region', { id: 'region-2' });
   });
 
-  test('the region switcher is rendered in the nav bar', async function(assert) {
+  test('the region switcher is rendered in the nav bar and the region is in the page title', async function(assert) {
     await JobsList.visit();
 
     assert.ok(PageLayout.navbar.regionSwitcher.isPresent, 'Region switcher is shown');
+    assert.equal(document.title, 'Jobs - global - Nomad');
   });
 
   test('when on the default region, pages do not include the region query param', async function(assert) {
