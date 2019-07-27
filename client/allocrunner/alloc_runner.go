@@ -46,6 +46,11 @@ type allocRunner struct {
 	// the goroutine is already processing a previous update.
 	taskStateUpdatedCh chan struct{}
 
+
+	// TODO(dmw) comment / rename
+	// orderedTaskCh
+	orderedTaskCh chan struct{}
+
 	// taskStateUpdateHandlerCh is closed when the task state handling
 	// goroutine exits. It is unsafe to destroy the local allocation state
 	// before this goroutine exits.
@@ -116,6 +121,9 @@ type allocRunner struct {
 	// tasks are the set of task runners
 	tasks map[string]*taskrunner.TaskRunner
 
+	// order to run tasks by task name
+	runTaskOrder []string
+
 	// deviceStatsReporter is used to lookup resource usage for alloc devices
 	deviceStatsReporter cinterfaces.DeviceStatsReporter
 
@@ -165,6 +173,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		stateDB:                  config.StateDB,
 		stateUpdater:             config.StateUpdater,
 		taskStateUpdatedCh:       make(chan struct{}, 1),
+		orderedTaskCh:            make(chan struct{}),
 		taskStateUpdateHandlerCh: make(chan struct{}),
 		allocUpdatedCh:           make(chan *structs.Allocation, 1),
 		deviceStatsReporter:      config.DeviceStatsReporter,
@@ -221,6 +230,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 		}
 
 		ar.tasks[task.Name] = tr
+		ar.runTaskOrder = append(ar.runTaskOrder, task.Name)
 	}
 	return nil
 }
@@ -301,8 +311,12 @@ func (ar *allocRunner) shouldRun() bool {
 
 // runTasks is used to run the task runners and block until they exit.
 func (ar *allocRunner) runTasks() {
-	for _, task := range ar.tasks {
+	// TODO(dmw) Flag gate + add tests
+	for _, name:= range ar.runTaskOrder {
+		task := ar.tasks[name]
 		go task.Run()
+		// Wait for each task to change state before starting the next
+		<- ar.orderedTaskCh
 	}
 
 	for _, task := range ar.tasks {
@@ -419,6 +433,13 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 		trNum := len(ar.tasks)
 		liveRunners := make([]*taskrunner.TaskRunner, 0, trNum)
 		states := make(map[string]*structs.TaskState, trNum)
+
+		// TODO(dmw) flag gate all this?
+		select {
+		case ar.orderedTaskCh <- struct{}{}:
+		default:
+		// ordered tasks already started, skip if no listeners
+		}
 
 		for name, tr := range ar.tasks {
 			state := tr.TaskState()
