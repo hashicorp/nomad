@@ -33,7 +33,7 @@ const (
 	// rxHostDir is the first option of a source
 	rxHostDir = `(?:\\\\\?\\)?[a-z]:[\\/](?:[^\\/:*?"<>|\r\n]+[\\/]?)*`
 	// rxName is the second option of a source
-	rxName = `[^\\/:*?"<>|\r\n]+\/?.*`
+	rxName = `[^\\/:*?"<>|\r\n]+`
 
 	// RXReservedNames are reserved names not possible on Windows
 	rxReservedNames = `(con)|(prn)|(nul)|(aux)|(com[1-9])|(lpt[1-9])`
@@ -58,7 +58,7 @@ const (
 	//    -  And can be optional
 
 	// rxDestination is the regex expression for the mount destination
-	rxDestination = `(?P<destination>((?:\\\\\?\\)?([a-z]):((?:[\\/][^\\/:*?"<>\r\n]+)*[\\/]?))|(` + rxPipe + `)|([/].*))`
+	rxDestination = `(?P<destination>((?:\\\\\?\\)?([a-z]):((?:[\\/][^\\/:*?"<>\r\n]+)*[\\/]?))|(` + rxPipe + `))`
 
 	// Destination (aka container path):
 	//    -  Variation on hostdir but can be a drive followed by colon as well
