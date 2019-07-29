@@ -220,34 +220,32 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	}
 
 	// If the policy is the anonymous one, anyone can get it
-	if args.Name != "anonymous" {
-		// If it is not a management token determine if it can get this policy
-		mgt := acl.IsManagement()
-		if !mgt {
-			snap, err := a.srv.fsm.State().Snapshot()
-			if err != nil {
-				return err
-			}
+	// If it is not a management token determine if it can get this policy
+	mgt := acl.IsManagement()
+	if !mgt && args.Name != "anonymous" {
+		snap, err := a.srv.fsm.State().Snapshot()
+		if err != nil {
+			return err
+		}
 
-			token, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
-			if err != nil {
-				return err
-			}
-			if token == nil {
-				return structs.ErrTokenNotFound
-			}
+		token, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
+		if err != nil {
+			return err
+		}
+		if token == nil {
+			return structs.ErrTokenNotFound
+		}
 
-			found := false
-			for _, p := range token.Policies {
-				if p == args.Name {
-					found = true
-					break
-				}
+		found := false
+		for _, p := range token.Policies {
+			if p == args.Name {
+				found = true
+				break
 			}
+		}
 
-			if !found {
-				return structs.ErrPermissionDenied
-			}
+		if !found {
+			return structs.ErrPermissionDenied
 		}
 	}
 
