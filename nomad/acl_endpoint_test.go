@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestACLEndpoint_GetPolicy(t *testing.T) {
@@ -84,7 +85,7 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 	}
 	var resp3 structs.SingleACLPolicyResponse
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", get, &resp3); err != nil {
-		t.Fatalf("err: %v", err)
+		require.NoError(t, err)
 	}
 	assert.EqualValues(t, 1001, resp3.Index)
 	assert.Equal(t, anonymousPolicy, resp3.Policy)
