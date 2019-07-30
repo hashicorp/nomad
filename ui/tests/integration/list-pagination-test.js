@@ -1,7 +1,6 @@
-import { findAll, find } from 'ember-native-dom-helpers';
+import { findAll, find, render } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 
 module('Integration | Component | list pagination', function(hooks) {
@@ -240,7 +239,8 @@ module('Integration | Component | list pagination', function(hooks) {
       assert.equal(
         findAll('.item')[item].textContent,
         item + (currentPage - 1) * size,
-        `Rendered items are in the current page, ${currentPage} (${item + (currentPage - 1) * size})`
+        `Rendered items are in the current page, ${currentPage} (${item +
+          (currentPage - 1) * size})`
       );
     }
   }

@@ -17,6 +17,19 @@ install:
   - cmd: docker info
   - cmd: docker run --rm dantoml/busybox-windows:08012019 echo hi there
 
+  - cmd: |
+      cd C:\go
+      del /F/Q/S *.* > NUL
+      cd %APPVEYOR_BUILD_FOLDER%
+      rmdir /Q/S C:\go
+
+  # install go 1.11.11 to match version used for cutting a release
+  - cmd: |
+      mkdir c:\go
+      appveyor DownloadFile "https://dl.google.com/go/go1.11.11.windows-amd64.zip" -FileName "%TEMP%\\go.zip"
+      
+  - ps: Expand-Archive $Env:TEMP\go.zip -DestinationPath C:\
+
   - cmd: set PATH=%GOBIN%;c:\go\bin;%PATH%
   - cmd: echo %Path%
   - cmd: go version

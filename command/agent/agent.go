@@ -934,10 +934,14 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
 
+	if newConfig.LogLevel != "" && newConfig.LogLevel != a.config.LogLevel {
+		agent = true
+	}
+
 	isEqual, err := a.config.TLSConfig.CertificateInfoIsEqual(newConfig.TLSConfig)
 	if err != nil {
 		a.logger.Error("parsing TLS certificate", "error", err)
-		return false, false
+		return agent, false
 	} else if !isEqual {
 		return true, true
 	}
@@ -962,13 +966,27 @@ func (a *Agent) Reload(newConfig *Config) error {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
 
-	if newConfig == nil || newConfig.TLSConfig == nil {
+	updatedLogging := newConfig != nil && (newConfig.LogLevel != a.config.LogLevel)
+
+	if newConfig == nil || newConfig.TLSConfig == nil && !updatedLogging {
 		return fmt.Errorf("cannot reload agent with nil configuration")
 	}
 
-	// This is just a TLS configuration reload, we don't need to refresh
-	// existing network connections
+	if updatedLogging {
+		a.config.LogLevel = newConfig.LogLevel
+		a.logger.SetLevel(log.LevelFromString(newConfig.LogLevel))
+	}
+
+	fullUpdateTLSConfig := func() {
+		// Completely reload the agent's TLS configuration (moving from non-TLS to
+		// TLS, or vice versa)
+		// This does not handle errors in loading the new TLS configuration
+		a.config.TLSConfig = newConfig.TLSConfig.Copy()
+	}
+
 	if !a.config.TLSConfig.IsEmpty() && !newConfig.TLSConfig.IsEmpty() {
+		// This is just a TLS configuration reload, we don't need to refresh
+		// existing network connections
 
 		// Reload the certificates on the keyloader and on success store the
 		// updated TLS config. It is important to reuse the same keyloader
@@ -983,17 +1001,12 @@ func (a *Agent) Reload(newConfig *Config) error {
 		a.config.TLSConfig = newConfig.TLSConfig
 		a.config.TLSConfig.KeyLoader = keyloader
 		return nil
-	}
-
-	// Completely reload the agent's TLS configuration (moving from non-TLS to
-	// TLS, or vice versa)
-	// This does not handle errors in loading the new TLS configuration
-	a.config.TLSConfig = newConfig.TLSConfig.Copy()
-
-	if newConfig.TLSConfig.IsEmpty() {
+	} else if newConfig.TLSConfig.IsEmpty() && !a.config.TLSConfig.IsEmpty() {
 		a.logger.Warn("downgrading agent's existing TLS configuration to plaintext")
-	} else {
+		fullUpdateTLSConfig()
+	} else if !newConfig.TLSConfig.IsEmpty() && a.config.TLSConfig.IsEmpty() {
 		a.logger.Info("upgrading from plaintext configuration to TLS")
+		fullUpdateTLSConfig()
 	}
 
 	return nil
