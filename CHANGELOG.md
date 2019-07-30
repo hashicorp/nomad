@@ -1,4 +1,4 @@
-## 0.9.4 (Unreleased)
+## 0.9.4 (July 30, 2019)
 
 IMPROVEMENTS:
  * api: Inferred content type of file in alloc filesystem stat endpoint [[GH-5907](https://github.com/hashicorp/nomad/issues/5907)]
