@@ -1492,9 +1492,42 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					ProgressDeadline: helper.TimeToPtr(5 * time.Minute),
 					AutoRevert:       helper.BoolToPtr(true),
 				},
-
 				Meta: map[string]string{
 					"key": "value",
+				},
+				Services: []*api.Service{
+					{
+						Name:       "groupserviceA",
+						Tags:       []string{"a", "b"},
+						CanaryTags: []string{"d", "e"},
+						PortLabel:  "1234",
+						CheckRestart: &api.CheckRestart{
+							Limit: 4,
+							Grace: helper.TimeToPtr(11 * time.Second),
+						},
+						Checks: []api.ServiceCheck{
+							{
+								Id:            "hello",
+								Name:          "bar",
+								Type:          "http",
+								Command:       "foo",
+								Args:          []string{"a", "b"},
+								Path:          "/check",
+								Protocol:      "http",
+								PortLabel:     "foo",
+								AddressMode:   "driver",
+								GRPCService:   "foo.Bar",
+								GRPCUseTLS:    true,
+								Interval:      4 * time.Second,
+								Timeout:       2 * time.Second,
+								InitialStatus: "ok",
+								CheckRestart: &api.CheckRestart{
+									Limit:          3,
+									IgnoreWarnings: true,
+								},
+							},
+						},
+					},
 				},
 				Tasks: []*api.Task{
 					{
@@ -1797,6 +1830,37 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 				Meta: map[string]string{
 					"key": "value",
+				},
+				Services: []*structs.Service{
+					{
+						Name:        "groupserviceA",
+						Tags:        []string{"a", "b"},
+						CanaryTags:  []string{"d", "e"},
+						PortLabel:   "1234",
+						AddressMode: "auto",
+						Checks: []*structs.ServiceCheck{
+							{
+								Name:          "bar",
+								Type:          "http",
+								Command:       "foo",
+								Args:          []string{"a", "b"},
+								Path:          "/check",
+								Protocol:      "http",
+								PortLabel:     "foo",
+								AddressMode:   "driver",
+								GRPCService:   "foo.Bar",
+								GRPCUseTLS:    true,
+								Interval:      4 * time.Second,
+								Timeout:       2 * time.Second,
+								InitialStatus: "ok",
+								CheckRestart: &structs.CheckRestart{
+									Grace:          11 * time.Second,
+									Limit:          3,
+									IgnoreWarnings: true,
+								},
+							},
+						},
+					},
 				},
 				Tasks: []*structs.Task{
 					{
