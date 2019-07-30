@@ -20,9 +20,10 @@ description: |-
 </table>
 
 The `job` stanza is the top-most configuration option in the job specification.
-A job is a declarative specification of tasks that Nomad should run. Jobs have a
-globally unique name, one or many task groups, which are themselves collections
-of one or many tasks.
+A job is a declarative specification of tasks that Nomad should run. Jobs have
+one or more task groups, which are themselves collections of one or more tasks.
+Job names are unique per [region][region] or [namespace][namespace] (if Nomad
+Enterprise is used).
 
 ```hcl
 job "docs" {
@@ -232,16 +233,18 @@ When submitting this job, you would run:
 $ VAULT_TOKEN="..." nomad job run example.nomad
 ```
 
-[constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
 [affinity]: /docs/job-specification/affinity.html "Nomad affinity Job Specification"
-[spread]: /docs/job-specification/spread.html "Nomad spread Job Specification"
+[constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
 [group]: /docs/job-specification/group.html "Nomad group Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [migrate]: /docs/job-specification/migrate.html "Nomad migrate Job Specification"
+[namespace]: /guides/governance-and-policy/namespaces.html
 [parameterized]: /docs/job-specification/parameterized.html "Nomad parameterized Job Specification"
 [periodic]: /docs/job-specification/periodic.html "Nomad periodic Job Specification"
+[region]: /guides/operations/federation.html
 [reschedule]: /docs/job-specification/reschedule.html "Nomad reschedule Job Specification"
+[scheduler]: /docs/schedulers.html "Nomad Scheduler Types"
+[spread]: /docs/job-specification/spread.html "Nomad spread Job Specification"
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [update]: /docs/job-specification/update.html "Nomad update Job Specification"
 [vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"
-[scheduler]: /docs/schedulers.html "Nomad Scheduler Types"
