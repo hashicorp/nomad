@@ -6,8 +6,8 @@ IMPROVEMENTS:
 BUG FIXES:
  * api: Fixed job region to default to client node region if none provided [[GH-6064](https://github.com/hashicorp/nomad/pull/6064)]
  * client: When rendering a task template, ensure that only task environment variables are used. [[GH-6055](https://github.com/hashicorp/nomad/issues/6055)]
+ * ui: Fixed links containing IPv6 addresses to include required square brackets [[GH-6007](https://github.com/hashicorp/nomad/pull/6007)]
  * vault: Fix deadlock when reloading server Vault configuration [[GH-6082](https://github.com/hashicorp/nomad/issues/6082)]
-
 
 ## 0.9.4 (July 30, 2019)
 
