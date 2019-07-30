@@ -1,3 +1,9 @@
+## 0.9.5 (Unreleased)
+
+BUG FIXES:
+
+ * ui: Fixed links containing IPv6 addresses to include required square brackets [[GH-6007](https://github.com/hashicorp/nomad/pull/6007)]
+
 ## 0.9.4 (July 30, 2019)
 
 IMPROVEMENTS:
@@ -13,7 +19,6 @@ IMPROVEMENTS:
  * metrics: Added namespace label as appropriate to metrics [[GH-5847](https://github.com/hashicorp/nomad/issues/5847)]
  * ui: Added page titles [[GH-5924](https://github.com/hashicorp/nomad/pull/5924)]
  * ui: Added buttons to copy client and allocation UUIDs [[GH-5926](https://github.com/hashicorp/nomad/pull/5926)]
- * ui: Fixed links containing IPv6 addresses to include required square brackets [[GH-6007](https://github.com/hashicorp/nomad/pull/6007)]
  * ui: Moved client status, draining, and eligibility fields into single state column [[GH-5789](https://github.com/hashicorp/nomad/pull/5789)]
 
 BUG FIXES:
