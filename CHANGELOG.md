@@ -1,3 +1,9 @@
+## 0.9.5 (Unreleased)
+
+BUG FIXES:
+
+ * ui: Fixed links containing IPv6 addresses to include required square brackets [[GH-6007](https://github.com/hashicorp/nomad/pull/6007)]
+
 ## 0.9.4 (July 30, 2019)
 
 IMPROVEMENTS:
