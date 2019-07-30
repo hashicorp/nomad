@@ -107,8 +107,10 @@ client {
 * `no_cgroups` - Specifies whether the driver should not use
   cgroups to manage the process group launched by the driver. By default,
   cgroups are used to manage the process tree to ensure full cleanup of all
-  processes started by the task. The driver only uses cgroups when Nomad is
-  launched as root, on Linux and when cgroups are detected.
+  processes started by the task. The driver uses cgroups by default on
+  Linux and when `/sys/fs/cgroup/freezer/nomad` is writable for the
+  Nomad process. Using a cgroup significantly reduces Nomad's CPU
+  usage when collecting process metrics.
 
 ## Client Options
 
