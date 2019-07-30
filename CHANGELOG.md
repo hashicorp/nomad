@@ -1,3 +1,8 @@
+## 0.10.0 (Unreleased)
+
+IMPROVEMENTS:
+ * agent: allow the job GC interval to be configured [[GH-5978](https://github.com/hashicorp/nomad/issues/5978)]
+
 ## 0.9.5 (Unreleased)
 
 BUG FIXES:
