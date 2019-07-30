@@ -161,7 +161,7 @@ The `Job` object supports the following keys:
 - `Affinities` - A list to define placement preferences on nodes where a job can be
   run. See the affinity reference for more details.
 
-- `Spread` - A list to define allocation spread across attributes. See the spread reference
+- `Spreads` - A list to define allocation spread across attributes. See the spread reference
   for more details.
 
 - `Datacenters` - A list of datacenters in the region which are eligible
