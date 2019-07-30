@@ -1,4 +1,4 @@
-## 0.9.4 (Unreleased)
+## 0.9.4 (July 30, 2019)
 
 IMPROVEMENTS:
  * api: Inferred content type of file in alloc filesystem stat endpoint [[GH-5907](https://github.com/hashicorp/nomad/issues/5907)]
@@ -6,6 +6,7 @@ IMPROVEMENTS:
  * core: Deregister nodes in batches rather than one at a time [[GH-5784](https://github.com/hashicorp/nomad/pull/5784)]
  * core: Removed deprecated upgrade path code pertaining to older versions of Nomad [[GH-5894](https://github.com/hashicorp/nomad/issues/5894)]
  * core: System jobs that fail because of resource availability are retried when resources are freed [[GH-5900](https://github.com/hashicorp/nomad/pull/5900)]
+ * core: Support reloading log level in agent via SIGHUP [[GH-5996](https://github.com/hashicorp/nomad/issues/5996)]
  * client: Improved task event display message to include kill time out [[GH-5943](https://github.com/hashicorp/nomad/issues/5943)]
  * client: Removed extraneous information to improve formatting for hcl parsing error messages [[GH-5972](https://github.com/hashicorp/nomad/pull/5972)]
  * driver/docker: Added logging defaults to use json-file log driver with log rotation [[GH-5846](https://github.com/hashicorp/nomad/pull/5846)]

@@ -52,7 +52,7 @@ The time taken by a new server to join an existing large cluster may increase as
 
 ### <a name="multi-region"></a>Deployment Topology across Multiple Regions
 
-By deploying Nomad server clusters in multiple regions, the user is able to interact with the Nomad servers by targeting any region from any Nomad server even if that server resides in a separate region. Data, however, is not replicated between regions as they are fully independent clusters.
+By deploying Nomad server clusters in multiple regions, the user is able to interact with the Nomad servers by targeting any region from any Nomad server even if that server resides in a separate region. However, most data is not replicated between regions as they are fully independent clusters. The exceptions are [ACL tokens and policies][acl], as well as [Sentinel policies in Nomad Enterprise][sentinel], which *are* replicated between regions.
 
 Nomad server clusters in different datacenters can be federated using WAN links. The server clusters can be joined to communicate over the WAN on port `4648`. This same port is used for single datacenter deployments over LAN as well.
 
@@ -129,3 +129,6 @@ In the event of a region-level failure (which would contain an entire Nomad serv
 
 - Read [Deployment Guide](/guides/install/production/deployment-guide.html) to learn
   the steps required to install and configure a single HashiCorp Nomad cluster.
+
+[acl]: /guides/security/acl.html
+[sentinel]: /guides/governance-and-policy/sentinel/sentinel-policy.html
