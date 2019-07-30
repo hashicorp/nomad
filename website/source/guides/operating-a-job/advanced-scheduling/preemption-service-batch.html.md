@@ -422,7 +422,7 @@ Enterprise [here][enterprise-preemption].
 [batch-job]: /docs/schedulers.html#batch
 [count]: /docs/job-specification/group.html#count
 [enterprise]: /docs/enterprise/index.html
-[enterprise-preemption]: /docs/enterprise/preemption/index.html
+[enterprise-preemption]: /docs/enterprise/index.html#preemption
 [memory]: /docs/job-specification/resources.html#memory
 [payload-preemption-config]: /api/operator.html#sample-payload-1
 [plan]: /docs/commands/job/plan.html
