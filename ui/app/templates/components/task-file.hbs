@@ -4,7 +4,7 @@
     <p>The files for this task are inaccessible. Check the condition of the client the allocation is on.</p>
   </div>
 {{/if}}
-<div class="boxed-section-head">
+<div data-test-header class="boxed-section-head">
   {{yield}}
   <span class="pull-right">
 
@@ -28,7 +28,7 @@
   {{else if (eq fileComponent "image")}}
     {{image-file src=catUrl alt=stat.Name size=stat.Size}}
   {{else}}
-    <div class="empty-message is-hollow">
+    <div data-test-unsupported-type class="empty-message is-hollow">
       <h3 class="empty-message-headline">Unsupported File Type</h3>
       <p class="empty-message-body message">The Nomad UI could not render this file, but you can still call view the file directly.</p>
       <p class="empty-message-body">

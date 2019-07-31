@@ -4,6 +4,7 @@ import { computed } from '@ember/object';
 export default Component.extend({
   tagName: 'figure',
   classNames: 'image-file',
+  'data-test-image-file': true,
 
   src: null,
   alt: null,

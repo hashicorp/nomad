@@ -29,7 +29,7 @@ export default Component.extend({
 
   mode: 'head',
 
-  fileComponent: computed('stat', function() {
+  fileComponent: computed('stat.ContentType', function() {
     const contentType = this.stat.ContentType || '';
 
     if (contentType.startsWith('image/')) {
@@ -41,7 +41,7 @@ export default Component.extend({
     }
   }),
 
-  isLarge: computed('stat', function() {
+  isLarge: computed('stat.Size', function() {
     return this.stat.Size > 50000;
   }),
 
@@ -107,7 +107,6 @@ export default Component.extend({
             this.set('noConnection', true);
           } else {
             this.send('failoverToServer');
-            this.stream.perform();
           }
           throw error;
         }
