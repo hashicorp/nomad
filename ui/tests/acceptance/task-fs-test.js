@@ -6,15 +6,29 @@ import moment from 'moment';
 
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Response from 'ember-cli-mirage/response';
-import moment from 'moment';
 
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+import { filesForPath } from 'nomad-ui/mirage/config';
 
 import FS from 'nomad-ui/tests/pages/allocations/task/fs';
 
 let allocation;
 let task;
 let files;
+
+const fileSort = (prop, files) => {
+  let dir = [];
+  let file = [];
+  files.forEach(f => {
+    if (f.isDir) {
+      dir.push(f);
+    } else {
+      file.push(f);
+    }
+  });
+
+  return dir.sortBy(prop).concat(file.sortBy(prop));
+};
 
 module('Acceptance | task fs', function(hooks) {
   setupApplicationTest(hooks);
@@ -89,6 +103,8 @@ module('Acceptance | task fs', function(hooks) {
   test('navigating allocation filesystem', async function(assert) {
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/' });
 
+    const sortedFiles = fileSort('name', filesForPath(this.server.schema.allocFiles, '').models);
+
     assert.ok(FS.fileViewer.isHidden);
 
     assert.equal(FS.directoryEntries.length, 4);
@@ -100,7 +116,7 @@ module('Acceptance | task fs', function(hooks) {
     assert.equal(FS.breadcrumbs[0].text, 'task-name');
 
     FS.directoryEntries[0].as(directory => {
-      const fileRecord = files[0];
+      const fileRecord = sortedFiles[0];
       assert.equal(directory.name, fileRecord.name, 'directories should come first');
       assert.ok(directory.isDirectory);
       assert.equal(directory.size, '', 'directory sizes are hidden');
@@ -109,7 +125,7 @@ module('Acceptance | task fs', function(hooks) {
     });
 
     FS.directoryEntries[2].as(file => {
-      const fileRecord = files[4];
+      const fileRecord = sortedFiles[2];
       assert.equal(file.name, fileRecord.name);
       assert.ok(file.isFile);
       assert.equal(file.size, formatBytes([fileRecord.size]));
@@ -281,9 +297,12 @@ module('Acceptance | task fs', function(hooks) {
 
   test('viewing a file', async function(assert) {
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/' });
-    await FS.directoryEntries[2].visit();
 
-    const fileRecord = files[4];
+    const sortedFiles = fileSort('name', filesForPath(this.server.schema.allocFiles, '').models);
+    const fileRecord = sortedFiles.find(f => !f.isDir);
+    const fileIndex = sortedFiles.indexOf(fileRecord);
+
+    await FS.directoryEntries[fileIndex].visit();
 
     assert.equal(FS.breadcrumbsText, `${task.name} ${fileRecord.name}`);
 

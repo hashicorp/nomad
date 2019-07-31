@@ -11,6 +11,15 @@ export function findLeader(schema) {
   return `${agent.address}:${agent.tags.port}`;
 }
 
+export function filesForPath(allocFiles, filterPath) {
+  return allocFiles.where(
+    file =>
+      (!filterPath || file.path.startsWith(filterPath)) &&
+      file.path.length > filterPath.length &&
+      !file.path.substr(filterPath.length + 1).includes('/')
+  );
+}
+
 export default function() {
   this.timing = 0; // delay for each request, automatically set to 0 during testing
 
@@ -307,14 +316,7 @@ export default function() {
   const clientAllocationFSLsHandler = function({ allocFiles }, { queryParams }) {
     // Ignore the task name at the beginning of the path
     const filterPath = queryParams.path.substr(queryParams.path.indexOf('/') + 1);
-
-    const files = allocFiles.where(
-      file =>
-        (!filterPath || file.path.startsWith(filterPath)) &&
-        file.path.length > filterPath.length &&
-        !file.path.substr(filterPath.length + 1).includes('/')
-    );
-
+    const files = filesForPath(allocFiles, filterPath);
     return this.serialize(files);
   };
 
