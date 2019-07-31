@@ -1937,13 +1937,7 @@ func (r *Resources) Copy() *Resources {
 	*newR = *r
 
 	// Copy the network objects
-	if r.Networks != nil {
-		n := len(r.Networks)
-		newR.Networks = make([]*NetworkResource, n)
-		for i := 0; i < n; i++ {
-			newR.Networks[i] = r.Networks[i].Copy()
-		}
-	}
+	newR.Networks = r.Networks.Copy()
 
 	// Copy the devices
 	if r.Devices != nil {
@@ -2011,11 +2005,13 @@ func (r *Resources) GoString() string {
 type Port struct {
 	Label string
 	Value int
+	To    int
 }
 
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
+	Mode          string // Mode of the network
 	Device        string // Name of the device
 	CIDR          string // CIDR block of addresses
 	IP            string // Host IP address
@@ -2025,6 +2021,10 @@ type NetworkResource struct {
 }
 
 func (nr *NetworkResource) Equals(other *NetworkResource) bool {
+	if nr.Mode != other.Mode {
+		return false
+	}
+
 	if nr.Device != other.Device {
 		return false
 	}
@@ -2065,6 +2065,7 @@ func (nr *NetworkResource) Equals(other *NetworkResource) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -2136,6 +2137,18 @@ func (n *NetworkResource) PortLabels() map[string]int {
 
 // Networks defined for a task on the Resources struct.
 type Networks []*NetworkResource
+
+func (ns Networks) Copy() Networks {
+	if len(ns) == 0 {
+		return nil
+	}
+
+	out := make([]*NetworkResource, len(ns))
+	for i := range ns {
+		out[i] = ns[i].Copy()
+	}
+	return out
+}
 
 // Port assignment and IP for the given label or empty values.
 func (ns Networks) Port(label string) (string, int) {
@@ -2289,13 +2302,7 @@ func (n *NodeResources) Copy() *NodeResources {
 	*newN = *n
 
 	// Copy the networks
-	if n.Networks != nil {
-		networks := len(n.Networks)
-		newN.Networks = make([]*NetworkResource, networks)
-		for i := 0; i < networks; i++ {
-			newN.Networks[i] = n.Networks[i].Copy()
-		}
-	}
+	newN.Networks = n.Networks.Copy()
 
 	// Copy the devices
 	if n.Devices != nil {
@@ -2822,18 +2829,19 @@ func (a *AllocatedResources) Copy() *AllocatedResources {
 	if a == nil {
 		return nil
 	}
-	newA := new(AllocatedResources)
-	*newA = *a
 
-	if a.Tasks != nil {
-		tr := make(map[string]*AllocatedTaskResources, len(newA.Tasks))
-		for task, resource := range newA.Tasks {
-			tr[task] = resource.Copy()
-		}
-		newA.Tasks = tr
+	out := AllocatedResources{
+		Shared: a.Shared.Copy(),
 	}
 
-	return newA
+	if a.Tasks != nil {
+		out.Tasks = make(map[string]*AllocatedTaskResources, len(out.Tasks))
+		for task, resource := range a.Tasks {
+			out.Tasks[task] = resource.Copy()
+		}
+	}
+
+	return &out
 }
 
 // Comparable returns a comparable version of the allocations allocated
@@ -2849,6 +2857,13 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 	for _, r := range a.Tasks {
 		c.Flattened.Add(r)
 	}
+	// Add network resources that are at the task group level
+	for _, network := range a.Shared.Networks {
+		c.Flattened.Add(&AllocatedTaskResources{
+			Networks: []*NetworkResource{network},
+		})
+	}
+
 	return c
 }
 
@@ -2882,13 +2897,7 @@ func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
 	*newA = *a
 
 	// Copy the networks
-	if a.Networks != nil {
-		n := len(a.Networks)
-		newA.Networks = make([]*NetworkResource, n)
-		for i := 0; i < n; i++ {
-			newA.Networks[i] = a.Networks[i].Copy()
-		}
-	}
+	newA.Networks = a.Networks.Copy()
 
 	// Copy the devices
 	if newA.Devices != nil {
@@ -2970,15 +2979,24 @@ func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
 
 // AllocatedSharedResources are the set of resources allocated to a task group.
 type AllocatedSharedResources struct {
-	DiskMB int64
+	Networks Networks
+	DiskMB   int64
+}
+
+func (a AllocatedSharedResources) Copy() AllocatedSharedResources {
+	return AllocatedSharedResources{
+		Networks: a.Networks.Copy(),
+		DiskMB:   a.DiskMB,
+	}
 }
 
 func (a *AllocatedSharedResources) Add(delta *AllocatedSharedResources) {
 	if delta == nil {
 		return
 	}
-
+	a.Networks = append(a.Networks, delta.Networks...)
 	a.DiskMB += delta.DiskMB
+
 }
 
 func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
@@ -2986,6 +3004,17 @@ func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
 		return
 	}
 
+	diff := map[*NetworkResource]bool{}
+	for _, n := range delta.Networks {
+		diff[n] = true
+	}
+	var nets Networks
+	for _, n := range a.Networks {
+		if _, ok := diff[n]; !ok {
+			nets = append(nets, n)
+		}
+	}
+	a.Networks = nets
 	a.DiskMB -= delta.DiskMB
 }
 
@@ -4623,6 +4652,13 @@ type TaskGroup struct {
 	// Spread can be specified at the task group level to express spreading
 	// allocations across a desired attribute, such as datacenter
 	Spreads []*Spread
+
+	// Networks are the network configuration for the task group. This can be
+	// overridden in the task.
+	Networks Networks
+
+	// Services this group provides
+	Services []*Service
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -4638,6 +4674,15 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
 
+	// Copy the network objects
+	if tg.Networks != nil {
+		n := len(tg.Networks)
+		ntg.Networks = make([]*NetworkResource, n)
+		for i := 0; i < n; i++ {
+			ntg.Networks[i] = tg.Networks[i].Copy()
+		}
+	}
+
 	if tg.Tasks != nil {
 		tasks := make([]*Task, len(ntg.Tasks))
 		for i, t := range ntg.Tasks {
@@ -4651,6 +4696,14 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	if tg.EphemeralDisk != nil {
 		ntg.EphemeralDisk = tg.EphemeralDisk.Copy()
 	}
+
+	if tg.Services != nil {
+		ntg.Services = make([]*Service, len(tg.Services))
+		for i, s := range tg.Services {
+			ntg.Services[i] = s.Copy()
+		}
+	}
+
 	return ntg
 }
 
@@ -4786,10 +4839,8 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 	}
 
-	// Check for duplicate tasks, that there is only leader task if any,
-	// and no duplicated static ports
+	// Check that there is only one leader task if any
 	tasks := make(map[string]int)
-	staticPorts := make(map[int]string)
 	leaderTasks := 0
 	for idx, task := range tg.Tasks {
 		if task.Name == "" {
@@ -4803,25 +4854,16 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		if task.Leader {
 			leaderTasks++
 		}
-
-		if task.Resources == nil {
-			continue
-		}
-
-		for _, net := range task.Resources.Networks {
-			for _, port := range net.ReservedPorts {
-				if other, ok := staticPorts[port.Value]; ok {
-					err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
-					mErr.Errors = append(mErr.Errors, err)
-				} else {
-					staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
-				}
-			}
-		}
 	}
 
 	if leaderTasks > 1 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Only one task may be marked as leader"))
+	}
+
+	// Validate task group and task network resources
+	if err := tg.validateNetworks(); err != nil {
+		outer := fmt.Errorf("Task group network validation failed: %v", err)
+		mErr.Errors = append(mErr.Errors, outer)
 	}
 
 	// Validate the tasks
@@ -4829,6 +4871,75 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		if err := task.Validate(tg.EphemeralDisk, j.Type); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+func (tg *TaskGroup) validateNetworks() error {
+	var mErr multierror.Error
+	portLabels := make(map[string]string)
+	staticPorts := make(map[int]string)
+	mappedPorts := make(map[int]string)
+
+	for _, net := range tg.Networks {
+		for _, port := range append(net.ReservedPorts, net.DynamicPorts...) {
+			if other, ok := portLabels[port.Label]; ok {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Port label %s already in use by %s", port.Label, other))
+			} else {
+				portLabels[port.Label] = "taskgroup network"
+			}
+
+			if port.Value != 0 {
+				// static port
+				if other, ok := staticPorts[port.Value]; ok {
+					err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
+					mErr.Errors = append(mErr.Errors, err)
+				} else {
+					staticPorts[port.Value] = fmt.Sprintf("taskgroup network:%s", port.Label)
+				}
+			}
+
+			if port.To != 0 {
+				if other, ok := mappedPorts[port.To]; ok {
+					err := fmt.Errorf("Port mapped to %d already in use by %s", port.To, other)
+					mErr.Errors = append(mErr.Errors, err)
+				} else {
+					mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
+				}
+			}
+		}
+	}
+	// Check for duplicate tasks or port labels, and no duplicated static or mapped ports
+	for _, task := range tg.Tasks {
+		if task.Resources == nil {
+			continue
+		}
+
+		for _, net := range task.Resources.Networks {
+			for _, port := range append(net.ReservedPorts, net.DynamicPorts...) {
+				if other, ok := portLabels[port.Label]; ok {
+					mErr.Errors = append(mErr.Errors, fmt.Errorf("Port label %s already in use by %s", port.Label, other))
+				}
+
+				if port.Value != 0 {
+					if other, ok := staticPorts[port.Value]; ok {
+						err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
+						mErr.Errors = append(mErr.Errors, err)
+					} else {
+						staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
+					}
+				}
+
+				if port.To != 0 {
+					if other, ok := mappedPorts[port.To]; ok {
+						err := fmt.Errorf("Port mapped to %d already in use by %s", port.To, other)
+						mErr.Errors = append(mErr.Errors, err)
+					} else {
+						mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
+					}
+				}
+			}
 		}
 	}
 	return mErr.ErrorOrNil()
@@ -4889,6 +5000,26 @@ func (c *CheckRestart) Copy() *CheckRestart {
 	nc := new(CheckRestart)
 	*nc = *c
 	return nc
+}
+
+func (c *CheckRestart) Equals(o *CheckRestart) bool {
+	if c == nil || o == nil {
+		return c == o
+	}
+
+	if c.Limit != o.Limit {
+		return false
+	}
+
+	if c.Grace != o.Grace {
+		return false
+	}
+
+	if c.IgnoreWarnings != o.IgnoreWarnings {
+		return false
+	}
+
+	return true
 }
 
 func (c *CheckRestart) Validate() error {
@@ -4956,6 +5087,83 @@ func (sc *ServiceCheck) Copy() *ServiceCheck {
 	nsc.Header = helper.CopyMapStringSliceString(sc.Header)
 	nsc.CheckRestart = sc.CheckRestart.Copy()
 	return nsc
+}
+
+func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
+	if sc == nil || o == nil {
+		return sc == o
+	}
+
+	if sc.Name != o.Name {
+		return false
+	}
+
+	if sc.AddressMode != o.AddressMode {
+		return false
+	}
+
+	if !helper.CompareSliceSetString(sc.Args, o.Args) {
+		return false
+	}
+
+	if !sc.CheckRestart.Equals(o.CheckRestart) {
+		return false
+	}
+
+	if sc.Command != o.Command {
+		return false
+	}
+
+	if sc.GRPCService != o.GRPCService {
+		return false
+	}
+
+	if sc.GRPCUseTLS != o.GRPCUseTLS {
+		return false
+	}
+
+	// Use DeepEqual here as order of slice values could matter
+	if !reflect.DeepEqual(sc.Header, o.Header) {
+		return false
+	}
+
+	if sc.InitialStatus != o.InitialStatus {
+		return false
+	}
+
+	if sc.Interval != o.Interval {
+		return false
+	}
+
+	if sc.Method != o.Method {
+		return false
+	}
+
+	if sc.Path != o.Path {
+		return false
+	}
+
+	if sc.PortLabel != o.Path {
+		return false
+	}
+
+	if sc.Protocol != o.Protocol {
+		return false
+	}
+
+	if sc.TLSSkipVerify != o.TLSSkipVerify {
+		return false
+	}
+
+	if sc.Timeout != o.Timeout {
+		return false
+	}
+
+	if sc.Type != o.Type {
+		return false
+	}
+
+	return true
 }
 
 func (sc *ServiceCheck) Canonicalize(serviceName string) {
@@ -5134,6 +5342,7 @@ type Service struct {
 	Tags       []string        // List of tags for the service
 	CanaryTags []string        // List of tags for the service when it is a canary
 	Checks     []*ServiceCheck // List of checks associated with the service
+	Connect    *ConsulConnect  // Consul Connect configuration
 }
 
 func (s *Service) Copy() *Service {
@@ -5258,6 +5467,55 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	// 8 bytes vs hex. Since these hashes are used in Consul URLs it's nice
 	// to have a reasonably compact URL-safe representation.
 	return b32.EncodeToString(h.Sum(nil))
+}
+
+func (s *Service) Equals(o *Service) bool {
+	if s == nil || o == nil {
+		return s == o
+	}
+
+	if s.AddressMode != o.AddressMode {
+		return false
+	}
+
+	if !helper.CompareSliceSetString(s.CanaryTags, o.CanaryTags) {
+		return false
+	}
+
+	if len(s.Checks) != len(o.Checks) {
+		return false
+	}
+
+OUTER:
+	for i := range s.Checks {
+		for ii := range o.Checks {
+			if s.Checks[i].Equals(o.Checks[ii]) {
+				// Found match; continue with next check
+				continue OUTER
+			}
+		}
+
+		// No match
+		return false
+	}
+
+	if !s.Connect.Equals(o.Connect) {
+		return false
+	}
+
+	if s.Name != o.Name {
+		return false
+	}
+
+	if s.PortLabel != o.PortLabel {
+		return false
+	}
+
+	if !helper.CompareSliceSetString(s.Tags, o.Tags) {
+		return false
+	}
+
+	return true
 }
 
 const (
@@ -7828,7 +8086,7 @@ func (a *Allocation) SetEventDisplayMessages() {
 }
 
 // COMPAT(0.11): Remove in 0.11
-// ComparableResources returns the resouces on the allocation
+// ComparableResources returns the resources on the allocation
 // handling upgrade paths. After 0.11 calls to this should be replaced with:
 // alloc.AllocatedResources.Comparable()
 func (a *Allocation) ComparableResources() *ComparableResources {

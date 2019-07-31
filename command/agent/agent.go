@@ -437,6 +437,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if agentConfig.DataDir != "" {
 		conf.StateDir = filepath.Join(agentConfig.DataDir, "client")
 		conf.AllocDir = filepath.Join(agentConfig.DataDir, "alloc")
+		conf.AutoFetchCNIDir = filepath.Join(agentConfig.DataDir, "cnibin")
 	}
 	if agentConfig.Client.StateDir != "" {
 		conf.StateDir = agentConfig.Client.StateDir
@@ -537,6 +538,13 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ACLEnabled = agentConfig.ACL.Enabled
 	conf.ACLTokenTTL = agentConfig.ACL.TokenTTL
 	conf.ACLPolicyTTL = agentConfig.ACL.PolicyTTL
+
+	// Setup networking configration
+	conf.CNIPath = agentConfig.Client.CNIPath
+	conf.BridgeNetworkName = agentConfig.Client.BridgeNetworkName
+	conf.BridgeNetworkAllocSubnet = agentConfig.Client.BridgeNetworkSubnet
+	conf.AutoFetchCNI = agentConfig.Client.AutoFetchCNIPlugins
+	conf.AutoFetchCNIURL = agentConfig.Client.AutoFetchCNIPluginsURL
 
 	return conf, nil
 }

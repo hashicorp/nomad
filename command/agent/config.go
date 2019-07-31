@@ -247,6 +247,29 @@ type ClientConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// CNIPath is the path to search for CNI plugins, multiple paths can be
+	// specified colon delimited
+	CNIPath string `hcl:"cni_path"`
+
+	// BridgeNetworkName is the name of the bridge to create when using the
+	// bridge network mode
+	BridgeNetworkName string `hcl:"bridge_network_name"`
+
+	// BridgeNetworkSubnet is the subnet to allocate IP addresses from when
+	// creating allocations with bridge networking mode. This range is local to
+	// the host
+	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
+
+	// AutoFetchCNIPlugins toggles if the Nomad client should attempt to
+	// automatically download a standard set of CNI plugins, typically from
+	// the community repo https://github.com/containernetworking/plugins/releases
+	AutoFetchCNIPlugins bool `hcl:"auto_fetch_cni_plugins"`
+
+	// AutoFetchCNIPluginsURL sets the source URL to be used if automatically
+	// downloading CNI plugins. If not set will use a known working version from
+	// the community repo https://github.com/containernetworking/plugins/releases
+	AutoFetchCNIPluginsURL string `hcl:"auto_fetch_cni_plugins_url"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -661,6 +684,7 @@ func DevConfig() *Config {
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
+	conf.Client.AutoFetchCNIPlugins = true
 
 	return conf
 }

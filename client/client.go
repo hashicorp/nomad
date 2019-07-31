@@ -354,6 +354,18 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.configCopy = c.config.Copy()
 	c.configLock.Unlock()
 
+	// Auto download CNI binaries and configure CNI_PATH if requested.
+	if c.config.AutoFetchCNI {
+		if cniPath := FetchCNIPlugins(c.logger, c.config.AutoFetchCNIURL, c.config.AutoFetchCNIDir); cniPath != "" {
+			if c.config.CNIPath == "" {
+				c.config.CNIPath = cniPath
+			} else {
+				c.config.CNIPath = c.config.CNIPath + ":" + cniPath
+			}
+			c.logger.Debug("using new CNI Path", "cni_path", c.config.CNIPath)
+		}
+	}
+
 	fingerprintManager := NewFingerprintManager(
 		c.configCopy.PluginSingletonLoader, c.GetConfig, c.configCopy.Node,
 		c.shutdownCh, c.updateNodeFromFingerprint, c.logger)
@@ -556,6 +568,35 @@ func (c *Client) init() error {
 	}
 
 	c.logger.Info("using alloc directory", "alloc_dir", c.config.AllocDir)
+
+	// Ensure the cnibin dir exists if we have one
+	if c.config.AutoFetchCNIDir != "" {
+		if err := os.MkdirAll(c.config.AutoFetchCNIDir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory for AutoFetchCNIDir: %s", err)
+		}
+	} else {
+		// Otherwise make a temp directory to use.
+		p, err := ioutil.TempDir("", "NomadClient")
+		if err != nil {
+			return fmt.Errorf("failed creating temporary directory for the AutoFetchCNIDir: %v", err)
+		}
+
+		p, err = filepath.EvalSymlinks(p)
+		if err != nil {
+			return fmt.Errorf("failed to find temporary directory for the AutoFetchCNIDir: %v", err)
+		}
+
+		// Change the permissions to have the execute bit
+		if err := os.Chmod(p, 0755); err != nil {
+			return fmt.Errorf("failed to change directory permissions for the AutoFetchCNIdir: %v", err)
+		}
+
+		c.config.AutoFetchCNIDir = p
+	}
+
+	if c.config.AutoFetchCNI {
+		c.logger.Info("using cni directory for plugin downloads", "cni_dir", c.config.AutoFetchCNIDir)
+	}
 	return nil
 }
 

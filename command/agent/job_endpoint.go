@@ -685,6 +685,8 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	tg.Meta = taskGroup.Meta
 	tg.Constraints = ApiConstraintsToStructs(taskGroup.Constraints)
 	tg.Affinities = ApiAffinitiesToStructs(taskGroup.Affinities)
+	tg.Networks = ApiNetworkResourceToStructs(taskGroup.Networks)
+	tg.Services = ApiServicesToStructs(taskGroup.Services)
 
 	tg.RestartPolicy = &structs.RestartPolicy{
 		Attempts: *taskGroup.RestartPolicy.Attempts,
@@ -886,35 +888,8 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		out.IOPS = *in.IOPS
 	}
 
-	if l := len(in.Networks); l != 0 {
-		out.Networks = make([]*structs.NetworkResource, l)
-		for i, nw := range in.Networks {
-			out.Networks[i] = &structs.NetworkResource{
-				CIDR:  nw.CIDR,
-				IP:    nw.IP,
-				MBits: *nw.MBits,
-			}
-
-			if l := len(nw.DynamicPorts); l != 0 {
-				out.Networks[i].DynamicPorts = make([]structs.Port, l)
-				for j, dp := range nw.DynamicPorts {
-					out.Networks[i].DynamicPorts[j] = structs.Port{
-						Label: dp.Label,
-						Value: dp.Value,
-					}
-				}
-			}
-
-			if l := len(nw.ReservedPorts); l != 0 {
-				out.Networks[i].ReservedPorts = make([]structs.Port, l)
-				for j, rp := range nw.ReservedPorts {
-					out.Networks[i].ReservedPorts[j] = structs.Port{
-						Label: rp.Label,
-						Value: rp.Value,
-					}
-				}
-			}
-		}
+	if len(in.Networks) != 0 {
+		out.Networks = ApiNetworkResourceToStructs(in.Networks)
 	}
 
 	if l := len(in.Devices); l != 0 {
@@ -927,6 +902,127 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 				Affinities:  ApiAffinitiesToStructs(d.Affinities),
 			}
 		}
+	}
+
+	return out
+}
+
+func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkResource {
+	var out []*structs.NetworkResource
+	if len(in) == 0 {
+		return out
+	}
+	out = make([]*structs.NetworkResource, len(in))
+	for i, nw := range in {
+		out[i] = &structs.NetworkResource{
+			Mode:  nw.Mode,
+			CIDR:  nw.CIDR,
+			IP:    nw.IP,
+			MBits: *nw.MBits,
+		}
+
+		if l := len(nw.DynamicPorts); l != 0 {
+			out[i].DynamicPorts = make([]structs.Port, l)
+			for j, dp := range nw.DynamicPorts {
+				out[i].DynamicPorts[j] = structs.Port{
+					Label: dp.Label,
+					Value: dp.Value,
+					To:    dp.To,
+				}
+			}
+		}
+
+		if l := len(nw.ReservedPorts); l != 0 {
+			out[i].ReservedPorts = make([]structs.Port, l)
+			for j, rp := range nw.ReservedPorts {
+				out[i].ReservedPorts[j] = structs.Port{
+					Label: rp.Label,
+					Value: rp.Value,
+					To:    rp.To,
+				}
+			}
+		}
+	}
+
+	return out
+}
+
+//TODO(schmichael) refactor and reuse in service parsing above
+func ApiServicesToStructs(in []*api.Service) []*structs.Service {
+	if len(in) == 0 {
+		return nil
+	}
+
+	out := make([]*structs.Service, len(in))
+	for i, s := range in {
+		out[i] = &structs.Service{
+			Name:        s.Name,
+			PortLabel:   s.PortLabel,
+			Tags:        s.Tags,
+			CanaryTags:  s.CanaryTags,
+			AddressMode: s.AddressMode,
+		}
+
+		if l := len(s.Checks); l != 0 {
+			out[i].Checks = make([]*structs.ServiceCheck, l)
+			for j, check := range s.Checks {
+				out[i].Checks[j] = &structs.ServiceCheck{
+					Name:          check.Name,
+					Type:          check.Type,
+					Command:       check.Command,
+					Args:          check.Args,
+					Path:          check.Path,
+					Protocol:      check.Protocol,
+					PortLabel:     check.PortLabel,
+					AddressMode:   check.AddressMode,
+					Interval:      check.Interval,
+					Timeout:       check.Timeout,
+					InitialStatus: check.InitialStatus,
+					TLSSkipVerify: check.TLSSkipVerify,
+					Header:        check.Header,
+					Method:        check.Method,
+					GRPCService:   check.GRPCService,
+					GRPCUseTLS:    check.GRPCUseTLS,
+				}
+				if check.CheckRestart != nil {
+					out[i].Checks[j].CheckRestart = &structs.CheckRestart{
+						Limit:          check.CheckRestart.Limit,
+						Grace:          *check.CheckRestart.Grace,
+						IgnoreWarnings: check.CheckRestart.IgnoreWarnings,
+					}
+				}
+			}
+		}
+
+		if s.Connect == nil {
+			continue
+		}
+
+		out[i].Connect = &structs.ConsulConnect{}
+
+		if s.Connect.SidecarService == nil {
+			continue
+		}
+
+		out[i].Connect.SidecarService = &structs.ConsulSidecarService{
+			Port: s.Connect.SidecarService.Port,
+		}
+
+		if s.Connect.SidecarService.Proxy == nil {
+			continue
+		}
+
+		out[i].Connect.SidecarService.Proxy = &structs.ConsulProxy{}
+
+		upstreams := make([]*structs.ConsulUpstream, len(s.Connect.SidecarService.Proxy.Upstreams))
+		for i, p := range s.Connect.SidecarService.Proxy.Upstreams {
+			upstreams[i] = &structs.ConsulUpstream{
+				DestinationName: p.DestinationName,
+				LocalBindPort:   p.LocalBindPort,
+			}
+		}
+
+		out[i].Connect.SidecarService.Proxy.Upstreams = upstreams
 	}
 
 	return out

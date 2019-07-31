@@ -95,6 +95,10 @@ var (
 		SendSignals: true,
 		Exec:        true,
 		FSIsolation: drivers.FSIsolationNone,
+		NetIsolationModes: []drivers.NetIsolationMode{
+			drivers.NetIsolationModeHost,
+			drivers.NetIsolationModeGroup,
+		},
 	}
 )
 
@@ -342,6 +346,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		TaskDir:            cfg.TaskDir().Dir,
 		StdoutPath:         cfg.StdoutPath,
 		StderrPath:         cfg.StderrPath,
+		NetworkIsolation:   cfg.NetworkIsolation,
 	}
 
 	ps, err := exec.Launch(execCmd)
