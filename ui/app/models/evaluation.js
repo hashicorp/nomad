@@ -20,6 +20,10 @@ export default Model.extend({
   job: belongsTo('job'),
 
   modifyIndex: attr('number'),
+  modifyTime: attr('date'),
+
+  createIndex: attr('number'),
+  createTime: attr('date'),
 
   waitUntil: attr('date'),
 });
