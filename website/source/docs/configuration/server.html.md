@@ -193,7 +193,12 @@ the cluster
 server {
   enabled          = true
   bootstrap_expect = 3
-  retry_join       = ["1.2.3.4", "5.6.7.8"]
+  
+  server_join {
+    retry_join     = [ "1.1.1.1", "2.2.2.2" ]
+    retry_max      = 3
+    retry_interval = "15s"
+  }
 }
 ```
 
