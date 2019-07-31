@@ -40,6 +40,8 @@ function smallCluster(server) {
   server.createList('agent', 3);
   server.createList('node', 5);
   server.createList('job', 5);
+  server.createList('allocFile', 5);
+  server.create('allocFile', 'dir', { depth: 2 });
 }
 
 function mediumCluster(server) {
@@ -141,6 +143,8 @@ function allocationFileExplorer(server) {
     jobId: job.id,
     taskGroup: taskGroup.name,
   });
+  server.createList('allocFile', 5);
+  server.create('allocFile', 'dir', { depth: 2 });
 }
 
 // Behaviors
