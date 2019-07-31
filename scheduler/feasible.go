@@ -117,7 +117,7 @@ func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest
 	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
 	// lookup performance. Also filter non-host volumes.
 	for _, req := range volumes {
-		if req.Volume.Type != "host" {
+		if req.Volume.Type != structs.VolumeTypeHost {
 			continue
 		}
 
