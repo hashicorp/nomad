@@ -132,7 +132,7 @@ The table below shows this endpoint's support for
 
 ```javascript
 {
-  "Namespace": "api-prod",
+  "Name": "api-prod",
   "Description": "Production API Servers"
 }
 ```      
