@@ -270,14 +270,14 @@ func (c *Command) readConfig() *Config {
 		config.PluginDir = filepath.Join(config.DataDir, "plugins")
 	}
 
-	if !c.isValidConfig(config) {
+	if !c.isValidConfig(config, cmdConfig) {
 		return nil
 	}
 
 	return config
 }
 
-func (c *Command) isValidConfig(config *Config) bool {
+func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
@@ -353,11 +353,12 @@ func (c *Command) isValidConfig(config *Config) bool {
 	}
 
 	// Check the bootstrap flags
-	if config.Server.BootstrapExpect > 0 && !config.Server.Enabled {
+	if !config.Server.Enabled && cmdConfig.Server.BootstrapExpect > 0 {
+		// report an error if BootstrapExpect is set in CLI but server is disabled
 		c.Ui.Error("Bootstrap requires server mode to be enabled")
 		return false
 	}
-	if config.Server.BootstrapExpect == 1 {
+	if config.Server.Enabled && config.Server.BootstrapExpect == 1 {
 		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
 	}
 
