@@ -221,6 +221,31 @@ type Config struct {
 
 	// StateDBFactory is used to override stateDB implementations,
 	StateDBFactory state.NewStateDBFunc
+
+	// CNIPath is the path used to search for CNI plugins. Multiple paths can
+	// be specified with colon delimited
+	CNIPath string
+
+	// BridgeNetworkName is the name to use for the bridge created in bridge
+	// networking mode. This defaults to 'nomad' if not set
+	BridgeNetworkName string
+
+	// BridgeNetworkAllocSubnet is the IP subnet to use for address allocation
+	// for allocations in bridge networking mode. Subnet must be in CIDR
+	// notation
+	BridgeNetworkAllocSubnet string
+
+	// AutoFetchCNI is a toggle to enable auto downloading of the CNI standard
+	// plugins managed by the CNI team. This defaults to false
+	AutoFetchCNI bool
+
+	// AutoFetchCNIURL is the go-getter URL to use when auto downloading CNI
+	// plugins
+	AutoFetchCNIURL string
+
+	// AutoFetchCNIDir is the destination dir to use when auto doanloading CNI plugins.
+	// This directory will be appended to the CNIPath so it is searched last
+	AutoFetchCNIDir string
 }
 
 func (c *Config) Copy() *Config {
@@ -255,6 +280,7 @@ func DefaultConfig() *Config {
 		DisableRemoteExec:          false,
 		BackwardsCompatibleMetrics: false,
 		RPCHoldTimeout:             5 * time.Second,
+		AutoFetchCNI:               false,
 	}
 }
 

@@ -238,7 +238,12 @@ func (t *Tracker) watchTaskEvents() {
 		// Store the task states
 		t.l.Lock()
 		for task, state := range alloc.TaskStates {
-			t.taskHealth[task].state = state
+			//TODO(schmichael) for now skip unknown tasks as
+			//they're task group services which don't currently
+			//support checks anyway
+			if v, ok := t.taskHealth[task]; ok {
+				v.state = state
+			}
 		}
 		t.l.Unlock()
 
@@ -355,7 +360,12 @@ OUTER:
 		// Store the task registrations
 		t.l.Lock()
 		for task, reg := range allocReg.Tasks {
-			t.taskHealth[task].taskRegistrations = reg
+			//TODO(schmichael) for now skip unknown tasks as
+			//they're task group services which don't currently
+			//support checks anyway
+			if v, ok := t.taskHealth[task]; ok {
+				v.taskRegistrations = reg
+			}
 		}
 		t.l.Unlock()
 

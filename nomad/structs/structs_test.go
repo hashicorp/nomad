@@ -846,6 +846,28 @@ func TestTaskGroup_Validate(t *testing.T) {
 	if !strings.Contains(err.Error(), "System jobs should not have a reschedule policy") {
 		t.Fatalf("err: %s", err)
 	}
+
+	tg = &TaskGroup{
+		Networks: []*NetworkResource{
+			{
+				DynamicPorts: []Port{{"http", 0, 80}},
+			},
+		},
+		Tasks: []*Task{
+			{
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						{
+							DynamicPorts: []Port{{"http", 0, 80}},
+						},
+					},
+				},
+			},
+		},
+	}
+	err = tg.Validate(j)
+	require.Contains(t, err.Error(), "Port label http already in use")
+	require.Contains(t, err.Error(), "Port mapped to 80 already in use")
 }
 
 func TestTask_Validate(t *testing.T) {
@@ -1856,7 +1878,7 @@ func TestResource_Add(t *testing.T) {
 			{
 				CIDR:          "10.0.0.0/8",
 				MBits:         100,
-				ReservedPorts: []Port{{"ssh", 22}},
+				ReservedPorts: []Port{{"ssh", 22, 0}},
 			},
 		},
 	}
@@ -1868,7 +1890,7 @@ func TestResource_Add(t *testing.T) {
 			{
 				IP:            "10.0.0.1",
 				MBits:         50,
-				ReservedPorts: []Port{{"web", 80}},
+				ReservedPorts: []Port{{"web", 80, 0}},
 			},
 		},
 	}
@@ -1886,7 +1908,7 @@ func TestResource_Add(t *testing.T) {
 			{
 				CIDR:          "10.0.0.0/8",
 				MBits:         150,
-				ReservedPorts: []Port{{"ssh", 22}, {"web", 80}},
+				ReservedPorts: []Port{{"ssh", 22, 0}, {"web", 80, 0}},
 			},
 		},
 	}
@@ -1902,7 +1924,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			{
 				MBits:        50,
-				DynamicPorts: []Port{{"http", 0}, {"https", 0}},
+				DynamicPorts: []Port{{"http", 0, 80}, {"https", 0, 443}},
 			},
 		},
 	}
@@ -1910,7 +1932,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			{
 				MBits:        25,
-				DynamicPorts: []Port{{"admin", 0}},
+				DynamicPorts: []Port{{"admin", 0, 8080}},
 			},
 		},
 	}
@@ -1928,7 +1950,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			{
 				MBits:        75,
-				DynamicPorts: []Port{{"http", 0}, {"https", 0}, {"admin", 0}},
+				DynamicPorts: []Port{{"http", 0, 80}, {"https", 0, 443}, {"admin", 0, 8080}},
 			},
 		},
 	}
@@ -1951,7 +1973,7 @@ func TestComparableResources_Subtract(t *testing.T) {
 				{
 					CIDR:          "10.0.0.0/8",
 					MBits:         100,
-					ReservedPorts: []Port{{"ssh", 22}},
+					ReservedPorts: []Port{{"ssh", 22, 0}},
 				},
 			},
 		},
@@ -1972,7 +1994,7 @@ func TestComparableResources_Subtract(t *testing.T) {
 				{
 					CIDR:          "10.0.0.0/8",
 					MBits:         20,
-					ReservedPorts: []Port{{"ssh", 22}},
+					ReservedPorts: []Port{{"ssh", 22, 0}},
 				},
 			},
 		},
@@ -1994,7 +2016,7 @@ func TestComparableResources_Subtract(t *testing.T) {
 				{
 					CIDR:          "10.0.0.0/8",
 					MBits:         100,
-					ReservedPorts: []Port{{"ssh", 22}},
+					ReservedPorts: []Port{{"ssh", 22, 0}},
 				},
 			},
 		},
@@ -4040,12 +4062,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80}},
+					ReservedPorts: []Port{{"web", 80, 0}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80}},
+					ReservedPorts: []Port{{"web", 80, 0}},
 				},
 			},
 			true,
@@ -4056,12 +4078,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.0",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80}},
+					ReservedPorts: []Port{{"web", 80, 0}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80}},
+					ReservedPorts: []Port{{"web", 80, 0}},
 				},
 			},
 			false,
@@ -4072,12 +4094,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         40,
-					ReservedPorts: []Port{{"web", 80}},
+					ReservedPorts: []Port{{"web", 80, 0}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80}},
+					ReservedPorts: []Port{{"web", 80, 0}},
 				},
 			},
 			false,
@@ -4088,12 +4110,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80}},
+					ReservedPorts: []Port{{"web", 80, 0}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80}, {"web", 80}},
+					ReservedPorts: []Port{{"web", 80, 0}, {"web", 80, 0}},
 				},
 			},
 			false,
@@ -4104,7 +4126,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80}},
+					ReservedPorts: []Port{{"web", 80, 0}},
 				},
 				{
 					IP:            "10.0.0.1",
@@ -4120,12 +4142,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80}},
+					ReservedPorts: []Port{{"web", 80, 0}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"notweb", 80}},
+					ReservedPorts: []Port{{"notweb", 80, 0}},
 				},
 			},
 			false,
@@ -4136,12 +4158,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80}},
+					DynamicPorts: []Port{{"web", 80, 0}},
 				},
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80}, {"web", 80}},
+					DynamicPorts: []Port{{"web", 80, 0}, {"web", 80, 0}},
 				},
 			},
 			false,
@@ -4152,7 +4174,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80}},
+					DynamicPorts: []Port{{"web", 80, 0}},
 				},
 				{
 					IP:           "10.0.0.1",
@@ -4168,12 +4190,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80}},
+					DynamicPorts: []Port{{"web", 80, 0}},
 				},
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"notweb", 80}},
+					DynamicPorts: []Port{{"notweb", 80, 0}},
 				},
 			},
 			false,

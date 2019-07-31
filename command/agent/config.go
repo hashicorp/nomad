@@ -247,6 +247,29 @@ type ClientConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// CNIPath is the path to search for CNI plugins, multiple paths can be
+	// specified colon delimited
+	CNIPath string `hcl:"cni_path"`
+
+	// BridgeNetworkName is the name of the bridge to create when using the
+	// bridge network mode
+	BridgeNetworkName string `hcl:"bridge_network_name"`
+
+	// BridgeNetworkSubnet is the subnet to allocate IP addresses from when
+	// creating allocations with bridge networking mode. This range is local to
+	// the host
+	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
+
+	// AutoFetchCNIPlugins toggles if the Nomad client should attempt to
+	// automatically download a standard set of CNI plugins, typically from
+	// the community repo https://github.com/containernetworking/plugins/releases
+	AutoFetchCNIPlugins bool `hcl:"auto_fetch_cni_plugins"`
+
+	// AutoFetchCNIPluginsURL sets the source URL to be used if automatically
+	// downloading CNI plugins. If not set will use a known working version from
+	// the community repo https://github.com/containernetworking/plugins/releases
+	AutoFetchCNIPluginsURL string `hcl:"auto_fetch_cni_plugins_url"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -314,6 +337,10 @@ type ServerConfig struct {
 	// Age is not the only requirement for a node to be GCed but the threshold
 	// can be used to filter by age.
 	NodeGCThreshold string `hcl:"node_gc_threshold"`
+
+	// JobGCInterval controls how often we dispatch a job to GC jobs that are
+	// available for garbage collection.
+	JobGCInterval string `hcl:"job_gc_interval"`
 
 	// JobGCThreshold controls how "old" a job must be to be collected by GC.
 	// Age is not the only requirement for a Job to be GCed but the threshold
@@ -657,6 +684,7 @@ func DevConfig() *Config {
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
+	conf.Client.AutoFetchCNIPlugins = true
 
 	return conf
 }
@@ -1132,6 +1160,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.NodeGCThreshold != "" {
 		result.NodeGCThreshold = b.NodeGCThreshold
+	}
+	if b.JobGCInterval != "" {
+		result.JobGCInterval = b.JobGCInterval
 	}
 	if b.JobGCThreshold != "" {
 		result.JobGCThreshold = b.JobGCThreshold
