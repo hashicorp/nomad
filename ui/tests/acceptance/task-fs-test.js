@@ -49,11 +49,21 @@ module('Acceptance | task fs', function(hooks) {
     const paths = ['some-file.log', 'a/deep/path/to/a/file.log', '/', 'Unicode™®'];
 
     const testPath = async filePath => {
+      let pathWithLeadingSlash = filePath;
+
+      if (!pathWithLeadingSlash.startsWith('/')) {
+        pathWithLeadingSlash = `/${filePath}`;
+      }
+
       await FS.visitPath({ id: allocation.id, name: task.name, path: filePath });
       assert.equal(
         currentURL(),
         `/allocations/${allocation.id}/${task.name}/fs/${encodeURIComponent(filePath)}`,
         'No redirect'
+      );
+      assert.equal(
+        document.title,
+        `${pathWithLeadingSlash} - Task ${task.name} filesystem - Nomad`
       );
       assert.equal(FS.breadcrumbsText, `${task.name} ${filePath.replace(/\//g, ' ')}`.trim());
     };
