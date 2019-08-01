@@ -1327,11 +1327,7 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 
 	if len(a.HostVolumes) == 0 && len(b.HostVolumes) != 0 {
-		cc := make([]*structs.ClientHostVolumeConfig, len(b.HostVolumes))
-		for k, v := range b.HostVolumes {
-			cc[k] = v.Copy()
-		}
-		result.HostVolumes = cc
+		result.HostVolumes = structs.CopySliceClientHostVolumeConfig(b.HostVolumes)
 	} else if len(b.HostVolumes) != 0 {
 		result.HostVolumes = structs.HostVolumeSliceMerge(a.HostVolumes, b.HostVolumes)
 	}
