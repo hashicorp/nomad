@@ -508,7 +508,11 @@ func templateRunner(config *TaskTemplateManagerConfig) (
 		return nil, nil, err
 	}
 
-	// Set Nomad's environment variables
+	// Set Nomad's environment variables.
+	// consul-template falls back to the host process environment if a
+	// variable isn't explicitly set in the configuration, so we need
+	// to mask the environment out to ensure only the task env vars are
+	// available.
 	runner.Env = maskProcessEnv(config.EnvBuilder.Build().All())
 
 	// Build the lookup
