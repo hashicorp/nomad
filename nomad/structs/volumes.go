@@ -40,23 +40,36 @@ func CopyMapStringClientHostVolumeConfig(m map[string]*ClientHostVolumeConfig) m
 	return nm
 }
 
+func CopySliceClientHostVolumeConfig(s []*ClientHostVolumeConfig) []*ClientHostVolumeConfig {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	ns := make([]*ClientHostVolumeConfig, l)
+	for idx, cfg := range s {
+		ns[idx] = cfg.Copy()
+	}
+
+	return ns
+}
+
 func HostVolumeSliceMerge(a, b []*ClientHostVolumeConfig) []*ClientHostVolumeConfig {
 	n := make([]*ClientHostVolumeConfig, len(a))
-	seenKeys := make(map[string]struct{}, len(a))
+	seenKeys := make(map[string]int, len(a))
 
-	for k, v := range a {
-		if _, ok := seenKeys[v.Name]; ok {
-			continue
-		}
-		n[k] = v.Copy()
-		seenKeys[v.Name] = struct{}{}
+	for i, config := range a {
+		n[i] = config.Copy()
+		seenKeys[config.Name] = i
 	}
-	for k, v := range b {
-		if _, ok := seenKeys[v.Name]; ok {
+
+	for _, config := range b {
+		if fIndex, ok := seenKeys[config.Name]; ok {
+			n[fIndex] = config.Copy()
 			continue
 		}
-		n[k] = v.Copy()
-		seenKeys[v.Name] = struct{}{}
+
+		n = append(n, config.Copy())
 	}
 
 	return n
@@ -78,8 +91,8 @@ func (h *HostVolumeConfig) Copy() *HostVolumeConfig {
 	return nh
 }
 
-// Volume is a representation of a storage volume that a TaskGroup wishes to use.
-type Volume struct {
+// VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
+type VolumeRequest struct {
 	Name     string
 	Type     string
 	ReadOnly bool
@@ -88,11 +101,11 @@ type Volume struct {
 	Config map[string]interface{}
 }
 
-func (v *Volume) Copy() *Volume {
+func (v *VolumeRequest) Copy() *VolumeRequest {
 	if v == nil {
 		return nil
 	}
-	nv := new(Volume)
+	nv := new(VolumeRequest)
 	*nv = *v
 
 	if i, err := copystructure.Copy(nv.Config); err != nil {
@@ -104,13 +117,13 @@ func (v *Volume) Copy() *Volume {
 	return nv
 }
 
-func CopyMapVolumes(s map[string]*Volume) map[string]*Volume {
+func CopyMapVolumeRequest(s map[string]*VolumeRequest) map[string]*VolumeRequest {
 	if s == nil {
 		return nil
 	}
 
 	l := len(s)
-	c := make(map[string]*Volume, l)
+	c := make(map[string]*VolumeRequest, l)
 	for k, v := range s {
 		c[k] = v.Copy()
 	}
@@ -143,39 +156,6 @@ func CopySliceVolumeMount(s []*VolumeMount) []*VolumeMount {
 	c := make([]*VolumeMount, l)
 	for i, v := range s {
 		c[i] = v.Copy()
-	}
-	return c
-}
-
-type VolumeRequest struct {
-	Volume *Volume
-	Config map[string]interface{}
-}
-
-func (h *VolumeRequest) Copy() *VolumeRequest {
-	if h == nil {
-		return nil
-	}
-
-	c := new(VolumeRequest)
-	c.Volume = h.Volume.Copy()
-	if i, err := copystructure.Copy(h.Config); err != nil {
-		panic(err.Error())
-	} else {
-		c.Config = i.(map[string]interface{})
-	}
-	return c
-}
-
-func CopyMapVolumeRequest(m map[string]*VolumeRequest) map[string]*VolumeRequest {
-	if m == nil {
-		return nil
-	}
-
-	l := len(m)
-	c := make(map[string]*VolumeRequest, l)
-	for k, v := range m {
-		c[k] = v.Copy()
 	}
 	return c
 }

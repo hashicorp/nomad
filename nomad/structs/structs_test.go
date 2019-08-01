@@ -872,9 +872,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{
 			"foo": {
-				Volume: &Volume{
-					Type: "nothost",
-				},
+				Type: "nothost",
 				Config: map[string]interface{}{
 					"sOuRcE": "foo",
 				},
@@ -893,10 +891,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{
 			"foo": {
-				Volume: &Volume{
-					Type: "host",
-				},
-				Config: nil,
+				Type: "host",
 			},
 		},
 		Tasks: []*Task{
@@ -912,10 +907,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{
 			"foo": {
-				Volume: &Volume{
-					Type: "host",
-				},
-				Config: nil,
+				Type: "host",
 			},
 		},
 		Tasks: []*Task{
