@@ -83,7 +83,7 @@ var basicConfig = &Config{
 		NoHostUUID:            helper.BoolToPtr(false),
 		DisableRemoteExec:     true,
 		HostVolumes: []*structs.ClientHostVolumeConfig{
-			{Name: "tmp", Source: "/tmp"},
+			{Name: "tmp", Path: "/tmp"},
 		},
 	},
 	Server: &ServerConfig{

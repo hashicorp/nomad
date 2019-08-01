@@ -91,7 +91,7 @@ client {
   disable_remote_exec      = true
 
   host_volume "tmp" {
-    source = "/tmp"
+    path = "/tmp"
   }
 }
 

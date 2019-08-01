@@ -78,7 +78,7 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 		}
 
 		mcfg := &drivers.MountConfig{
-			HostPath: hostVolume.Source,
+			HostPath: hostVolume.Path,
 			TaskPath: m.Destination,
 			Readonly: hostVolume.ReadOnly || req.ReadOnly || m.ReadOnly,
 		}
