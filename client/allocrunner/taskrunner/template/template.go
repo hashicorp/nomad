@@ -13,6 +13,7 @@ import (
 	"time"
 
 	ctconf "github.com/hashicorp/consul-template/config"
+	ctmanager "github.com/hashicorp/consul-template/manager"
 	"github.com/hashicorp/consul-template/manager"
 	"github.com/hashicorp/consul-template/signals"
 	envparse "github.com/hashicorp/go-envparse"
@@ -123,7 +124,7 @@ func (c *TaskTemplateManagerConfig) Validate() error {
 	return nil
 }
 
-func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateManager, error) {
+func NewTaskTemplateManager(config *TaskTemplateManagerConfig, restored bool) (*TaskTemplateManager, error) {
 	// Check pre-conditions
 	if err := config.Validate(); err != nil {
 		return nil, err
@@ -160,7 +161,7 @@ func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateMan
 	tm.runner = runner
 	tm.lookup = lookup
 
-	go tm.run()
+	go tm.run(restored)
 	return tm, nil
 }
 
@@ -183,7 +184,7 @@ func (tm *TaskTemplateManager) Stop() {
 }
 
 // run is the long lived loop that handles errors and templates being rendered
-func (tm *TaskTemplateManager) run() {
+func (tm *TaskTemplateManager) run(restored bool) {
 	// Runner is nil if there is no templates
 	if tm.runner == nil {
 		// Unblock the start if there is nothing to do
@@ -195,7 +196,7 @@ func (tm *TaskTemplateManager) run() {
 	go tm.runner.Start()
 
 	// Block till all the templates have been rendered
-	tm.handleFirstRender()
+	events := tm.handleFirstRender()
 
 	// Detect if there was a shutdown.
 	select {
@@ -215,6 +216,60 @@ func (tm *TaskTemplateManager) run() {
 	}
 	tm.config.EnvBuilder.SetTemplateEnv(envMap)
 
+	if restored && events != nil {
+		restart := false
+		signals := make(map[string]struct{})
+		for id, event := range events {
+			if !event.DidRender {
+				continue
+			}
+
+			// Lookup the template and determine what to do
+			tmpls, ok := tm.lookup[id]
+			if ok {
+				for _, tmpl := range tmpls {
+					switch tmpl.ChangeMode {
+					case structs.TemplateChangeModeSignal:
+						signals[tmpl.ChangeSignal] = struct{}{}
+					case structs.TemplateChangeModeRestart:
+						restart = true
+					case structs.TemplateChangeModeNoop:
+						continue
+					}
+				}
+			}
+		}
+
+		if restart || len(signals) != 0 {
+			if restart {
+				tm.config.Lifecycle.Restart(context.Background(),
+					structs.NewTaskEvent(structs.TaskRestartSignal).
+					SetDisplayMessage("Template with change_mode restart re-rendered after nomad agent restart"), false)
+			} else if len(signals) != 0 {
+				var mErr multierror.Error 
+				for signal := range signals {
+					s := tm.signals[signal]
+					event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Template re-rendered after nomad agent restart")
+					if err := tm.config.Lifecycle.Signal(event, signal); err != nil {
+						multierror.Append(&mErr, err)
+					}
+				}
+
+				if err := mErr.ErrorOrNil(); err != nil {
+					flat := make([]os.Signal, 0, len(signals))
+					for signal := range signals {
+						flat = append(flat, tm.signals[signal])
+					}
+
+					tm.config.Lifecycle.Kill(context.Background(),
+						structs.NewTaskEvent(structs.TaskKilling).
+							SetFailsTask().
+							SetDisplayMessage(fmt.Sprintf("Template failed to send signals %v: %v", flat, err)))
+				}
+			}
+		}
+	}
+
 	// Unblock the task
 	close(tm.config.UnblockCh)
 
@@ -228,9 +283,10 @@ func (tm *TaskTemplateManager) run() {
 }
 
 // handleFirstRender blocks till all templates have been rendered
-func (tm *TaskTemplateManager) handleFirstRender() {
+func (tm *TaskTemplateManager) handleFirstRender() map[string]*ctmanager.RenderEvent {
 	// missingDependencies is the set of missing dependencies.
 	var missingDependencies map[string]struct{}
+	var events map[string]*ctmanager.RenderEvent
 
 	// eventTimer is used to trigger the firing of an event showing the missing
 	// dependencies.
@@ -248,7 +304,7 @@ WAIT:
 	for {
 		select {
 		case <-tm.shutdownCh:
-			return
+			return nil
 		case err, ok := <-tm.runner.ErrCh:
 			if !ok {
 				continue
@@ -260,7 +316,7 @@ WAIT:
 					SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
 		case <-tm.runner.TemplateRenderedCh():
 			// A template has been rendered, figure out what to do
-			events := tm.runner.RenderEvents()
+			events = tm.runner.RenderEvents()
 
 			// Not all templates have been rendered yet
 			if len(events) < len(tm.lookup) {
@@ -276,7 +332,7 @@ WAIT:
 
 			break WAIT
 		case <-tm.runner.RenderEventCh():
-			events := tm.runner.RenderEvents()
+			events = tm.runner.RenderEvents()
 			joinedSet := make(map[string]struct{})
 			for _, event := range events {
 				missing := event.MissingDeps
@@ -338,6 +394,8 @@ WAIT:
 			tm.config.Events.EmitEvent(structs.NewTaskEvent(consulTemplateSourceName).SetDisplayMessage(fmt.Sprintf("Missing: %s", missingStr)))
 		}
 	}
+
+	return events
 }
 
 // handleTemplateRerenders is used to handle template render events after they

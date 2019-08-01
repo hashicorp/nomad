@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"strconv"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -72,10 +73,12 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		return nil
 	}
 
+	l_restored, err := strconv.ParseBool(req.PreviousState["hoookRestoredFromRestart"])
+
 	// Store the current Vault token and the task directory
 	h.taskDir = req.TaskDir.Dir
 	h.vaultToken = req.VaultToken
-	unblockCh, err := h.newManager()
+	unblockCh, err := h.newManager(l_restored)
 	if err != nil {
 		return err
 	}
@@ -89,7 +92,7 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	return nil
 }
 
-func (h *templateHook) newManager() (unblock chan struct{}, err error) {
+func (h *templateHook) newManager(restored bool) (unblock chan struct{}, err error) {
 	unblock = make(chan struct{})
 	m, err := template.NewTaskTemplateManager(&template.TaskTemplateManagerConfig{
 		UnblockCh:            unblock,
@@ -101,7 +104,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.config.envBuilder,
 		MaxTemplateEventRate: template.DefaultMaxTemplateEventRate,
-	})
+	}, restored)
 	if err != nil {
 		h.logger.Error("failed to create template manager", "error", err)
 		return nil, err
@@ -145,7 +148,7 @@ func (h *templateHook) Update(ctx context.Context, req *interfaces.TaskUpdateReq
 	h.templateManager = nil
 
 	// Create the new template
-	if _, err := h.newManager(); err != nil {
+	if _, err := h.newManager(false); err != nil {
 		err := fmt.Errorf("failed to build template manager: %v", err)
 		h.logger.Error("failed to build template manager", "error", err)
 		h.config.lifecycle.Kill(context.Background(),

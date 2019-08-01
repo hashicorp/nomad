@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"strconv"
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -168,6 +169,14 @@ func (tr *TaskRunner) prestart() error {
 
 			// Give the hook it's old data
 			req.PreviousState = origHookState.Data
+		}
+
+		if name == "template" {
+			if req.PreviousState == nil {
+				req.PreviousState = make(map[string]string)
+			}
+
+			req.PreviousState["hoookRestoredFromRestart"] = strconv.FormatBool(tr.restored)
 		}
 
 		req.VaultToken = tr.getVaultToken()

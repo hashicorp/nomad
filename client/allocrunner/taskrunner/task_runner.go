@@ -203,6 +203,8 @@ type TaskRunner struct {
 	// closed.
 	waitOnServers bool
 
+	restored bool
+
 	networkIsolationLock sync.Mutex
 	networkIsolationSpec *drivers.NetworkIsolationSpec
 }
@@ -944,6 +946,8 @@ func (tr *TaskRunner) Restore() error {
 		ts.Canonicalize()
 		tr.state = ts
 	}
+
+	tr.restored = true
 
 	// If a TaskHandle was persisted, ensure it is valid or destroy it.
 	if taskHandle := tr.localState.TaskHandle; taskHandle != nil {
