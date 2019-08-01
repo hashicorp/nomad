@@ -99,7 +99,10 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 // HostVolumeChecker is a FeasibilityChecker which returns whether a node has
 // the host volumes necessary to schedule a task group.
 type HostVolumeChecker struct {
-	ctx     Context
+	ctx Context
+
+	// volumes is a map[HostVolumeName][]RequestedVolume. The requested volumes are
+	// a slice because a single task group may request the same volume multiple times.
 	volumes map[string][]*structs.VolumeRequest
 }
 
@@ -117,7 +120,7 @@ func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest
 	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
 	// lookup performance. Also filter non-host volumes.
 	for _, req := range volumes {
-		if req.Volume.Type != structs.VolumeTypeHost {
+		if req.Type != structs.VolumeTypeHost {
 			continue
 		}
 
@@ -142,11 +145,16 @@ func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
 }
 
 func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
-	hLen := len(h.volumes)
-	nLen := len(n.HostVolumes)
+	rLen := len(h.volumes)
+	hLen := len(n.HostVolumes)
+
+	// Fast path: Requested no volumes. No need to check further.
+	if rLen == 0 {
+		return true
+	}
 
 	// Fast path: Requesting more volumes than the node has, can't meet the criteria.
-	if hLen > nLen {
+	if rLen > hLen {
 		return false
 	}
 

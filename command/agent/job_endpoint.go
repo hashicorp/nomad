@@ -737,7 +737,7 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 				continue
 			}
 
-			vol := &structs.Volume{
+			vol := &structs.VolumeRequest{
 				Name:     v.Name,
 				Type:     v.Type,
 				ReadOnly: v.ReadOnly,
@@ -745,10 +745,7 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 				Config:   v.Config,
 			}
 
-			tg.Volumes[k] = &structs.VolumeRequest{
-				Volume: vol,
-				Config: v.Config,
-			}
+			tg.Volumes[k] = vol
 		}
 	}
 

@@ -109,15 +109,15 @@ func TestHostVolumeChecker(t *testing.T) {
 
 	volumes := map[string]*structs.VolumeRequest{
 		"foo": {
-			Volume: &structs.Volume{Type: "host"},
+			Type:   "host",
 			Config: map[string]interface{}{"source": "foo"},
 		},
 		"bar": {
-			Volume: &structs.Volume{Type: "host"},
+			Type:   "host",
 			Config: map[string]interface{}{"source": "bar"},
 		},
 		"baz": {
-			Volume: &structs.Volume{Type: "nothost"},
+			Type:   "nothost",
 			Config: map[string]interface{}{"source": "baz"},
 		},
 	}

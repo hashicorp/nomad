@@ -30,20 +30,21 @@ func (*volumeHook) Name() string {
 	return "volumes"
 }
 
-func validateHostVolumes(requested map[string]*structs.VolumeRequest, client map[string]*structs.ClientHostVolumeConfig) error {
+func validateHostVolumes(requestedByAlias map[string]*structs.VolumeRequest, clientVolumesByName map[string]*structs.ClientHostVolumeConfig) error {
 	var result error
 
-	for n, req := range requested {
-		if req.Volume.Type != "host" {
+	for n, req := range requestedByAlias {
+		if req.Type != structs.VolumeTypeHost {
 			continue
 		}
 
 		cfg, err := structs.ParseHostVolumeConfig(req.Config)
 		if err != nil {
 			result = multierror.Append(result, fmt.Errorf("failed to parse config for %s: %v", n, err))
+			continue
 		}
 
-		_, ok := client[cfg.Source]
+		_, ok := clientVolumesByName[cfg.Source]
 		if !ok {
 			result = multierror.Append(result, fmt.Errorf("missing %s", cfg.Source))
 		}
@@ -52,10 +53,13 @@ func validateHostVolumes(requested map[string]*structs.VolumeRequest, client map
 	return result
 }
 
-func (h *volumeHook) hostVolumeMountConfigurations(vmounts []*structs.VolumeMount, volumes map[string]*structs.VolumeRequest, client map[string]*structs.ClientHostVolumeConfig) ([]*drivers.MountConfig, error) {
+// hostVolumeMountConfigurations takes the users requested volume mounts,
+// volumes, and the client host volume configuration and converts them into a
+// format that can be used by drivers.
+func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeMount, taskVolumesByAlias map[string]*structs.VolumeRequest, clientVolumesByName map[string]*structs.ClientHostVolumeConfig) ([]*drivers.MountConfig, error) {
 	var mounts []*drivers.MountConfig
-	for _, m := range vmounts {
-		req, ok := volumes[m.Volume]
+	for _, m := range taskMounts {
+		req, ok := taskVolumesByAlias[m.Volume]
 		if !ok {
 			// Should never happen unless we misvalidated on job submission
 			return nil, fmt.Errorf("No group volume declaration found named: %s", m.Volume)
@@ -66,7 +70,7 @@ func (h *volumeHook) hostVolumeMountConfigurations(vmounts []*structs.VolumeMoun
 			return nil, fmt.Errorf("failed to parse config for %s: %v", m.Volume, err)
 		}
 
-		hostVolume, ok := client[cfg.Source]
+		hostVolume, ok := clientVolumesByName[cfg.Source]
 		if !ok {
 			// Should never happen, but unless the client volumes were mutated during
 			// the execution of this hook.
@@ -76,7 +80,7 @@ func (h *volumeHook) hostVolumeMountConfigurations(vmounts []*structs.VolumeMoun
 		mcfg := &drivers.MountConfig{
 			HostPath: hostVolume.Source,
 			TaskPath: m.Destination,
-			Readonly: hostVolume.ReadOnly || req.Volume.ReadOnly || m.ReadOnly,
+			Readonly: hostVolume.ReadOnly || req.ReadOnly || m.ReadOnly,
 		}
 		mounts = append(mounts, mcfg)
 	}
