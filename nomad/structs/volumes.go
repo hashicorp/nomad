@@ -12,7 +12,7 @@ const (
 // ClientHostVolumeConfig is used to configure access to host paths on a Nomad Client
 type ClientHostVolumeConfig struct {
 	Name     string `hcl:",key"`
-	Source   string `hcl:"source"`
+	Path     string `hcl:"path"`
 	ReadOnly bool   `hcl:"read_only"`
 	Hidden   bool   `hcl:"hidden"`
 }
