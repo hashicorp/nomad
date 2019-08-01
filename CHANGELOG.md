@@ -2,6 +2,7 @@
 
 IMPROVEMENTS:
  * agent: allow the job GC interval to be configured [[GH-5978](https://github.com/hashicorp/nomad/issues/5978)]
+ * api: add follow parameter to file streaming endpoint to support older browsers [[GH-6049](https://github.com/hashicorp/nomad/issues/6049)]
 
 ## 0.9.5 (Unreleased)
 
@@ -46,7 +47,7 @@ BUG FIXES:
  * driver: Fixed an issue preventing external driver plugins from launching executor process [[GH-5726](https://github.com/hashicorp/nomad/issues/5726)]
  * driver/docker: Fixed a bug mounting relative paths on Windows [[GH-5811](https://github.com/hashicorp/nomad/issues/5811)]
  * driver/exec: Upgraded libcontainer dependency to avoid zombie `runc:[1:CHILD]]` processes [[GH-5851](https://github.com/hashicorp/nomad/issues/5851)]
- * metrics: Added metrics for raft and state store indexes. [[GH-5841](https://github.com/hashicorp/nomad/issues/5841)] 
+ * metrics: Added metrics for raft and state store indexes. [[GH-5841](https://github.com/hashicorp/nomad/issues/5841)]
  * metrics: Upgrade prometheus client to avoid label conflicts [[GH-5850](https://github.com/hashicorp/nomad/issues/5850)]
  * ui: Fixed ability to click sort arrow to change sort direction [[GH-5833](https://github.com/hashicorp/nomad/pull/5833)]
 
@@ -1629,4 +1630,3 @@ BUG FIXES:
 ## 0.1.0 (September 28, 2015)
 
   * Initial release
-
