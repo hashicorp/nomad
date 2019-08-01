@@ -33,15 +33,17 @@ const (
 )
 
 type vaultTokenUpdateHandler interface {
-	updatedVaultToken(token string)
+	updatedVaultToken(token string, first bool)
 }
 
-func (tr *TaskRunner) updatedVaultToken(token string) {
+func (tr *TaskRunner) updatedVaultToken(token string, first bool) {
 	// Update the task runner and environment
 	tr.setVaultToken(token)
 
 	// Trigger update hooks with the new Vault token
-	tr.triggerUpdateHooks()
+	if !first {
+		tr.triggerUpdateHooks()
+	}
 }
 
 type vaultHookConfig struct {
@@ -152,7 +154,7 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 		return nil
 	}
 
-	h.updater.updatedVaultToken(h.future.Get())
+	h.updater.updatedVaultToken(h.future.Get(), first)
 	return nil
 }
 
@@ -266,7 +268,7 @@ OUTER:
 			updatedToken = false
 
 			// Call the handler
-			h.updater.updatedVaultToken(token)
+			h.updater.updatedVaultToken(token, false)
 		}
 
 		// Start watching for renewal errors
