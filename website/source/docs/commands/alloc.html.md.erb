@@ -27,6 +27,6 @@ subcommands are available:
 [fs]: /docs/commands/alloc/fs.html "Inspect the contents of an allocation directory"
 [logs]: /docs/commands/alloc/logs.html "Streams the logs of a task"
 [restart]: /docs/commands/alloc/restart.html "Restart a running allocation or task"
-[status]: /docs/commands/alloc/signal.html "Signal a running allocation"
+[signal]: /docs/commands/alloc/signal.html "Signal a running allocation"
 [status]: /docs/commands/alloc/status.html "Display allocation status information and metadata"
 [stop]: /docs/commands/alloc/stop.html "Stop and reschedule a running allocation"
