@@ -242,11 +242,28 @@ type ClientConfig struct {
 	// DisableRemoteExec disables remote exec targeting tasks on this client
 	DisableRemoteExec bool `hcl:"disable_remote_exec"`
 
+	// TemplateConfig includes configuration for template rendering
+	TemplateConfig *ClientTemplateConfig `hcl:"template"`
+
 	// ServerJoin contains information that is used to attempt to join servers
 	ServerJoin *ServerJoin `hcl:"server_join"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+}
+
+// ClientTemplateConfig is configuration on the client specific to template
+// rendering
+type ClientTemplateConfig struct {
+
+	// FunctionBlacklist disables functions in consul-template that
+	// are unsafe because they expose information from the client host.
+	FunctionBlacklist []string `hcl:"function_blacklist"`
+
+	// DisableSandbox allows templates to access arbitrary files on the
+	// client host. By default templates can access files only within
+	// the task directory.
+	DisableSandbox bool `hcl:"disable_file_sandbox"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -654,6 +671,10 @@ func DevConfig() *Config {
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
+	conf.Client.TemplateConfig = &ClientTemplateConfig{
+		FunctionBlacklist: []string{"plugin"},
+		DisableSandbox:    false,
+	}
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
@@ -694,6 +715,10 @@ func DefaultConfig() *Config {
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
 				RetryMaxAttempts: 0,
+			},
+			TemplateConfig: &ClientTemplateConfig{
+				FunctionBlacklist: []string{"plugin"},
+				DisableSandbox:    false,
 			},
 		},
 		Server: &ServerConfig{
@@ -1269,6 +1294,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 
 	if b.DisableRemoteExec {
 		result.DisableRemoteExec = b.DisableRemoteExec
+	}
+
+	if b.TemplateConfig != nil {
+		result.TemplateConfig = b.TemplateConfig
 	}
 
 	// Add the servers

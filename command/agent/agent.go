@@ -461,6 +461,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ClientMaxPort = uint(agentConfig.Client.ClientMaxPort)
 	conf.ClientMinPort = uint(agentConfig.Client.ClientMinPort)
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
+	conf.TemplateConfig.FunctionBlacklist = agentConfig.Client.TemplateConfig.FunctionBlacklist
+	conf.TemplateConfig.DisableSandbox = agentConfig.Client.TemplateConfig.DisableSandbox
 
 	// Setup the node
 	conf.Node = new(structs.Node)

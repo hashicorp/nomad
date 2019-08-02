@@ -201,6 +201,9 @@ type Config struct {
 	// DisableRemoteExec disables remote exec targeting tasks on this client
 	DisableRemoteExec bool
 
+	// TemplateConfig includes configuration for template rendering
+	TemplateConfig *ClientTemplateConfig
+
 	// BackwardsCompatibleMetrics determines whether to show methods of
 	// displaying metrics for older versions, or to only show the new format
 	BackwardsCompatibleMetrics bool
@@ -223,6 +226,11 @@ type Config struct {
 	StateDBFactory state.NewStateDBFunc
 }
 
+type ClientTemplateConfig struct {
+	FunctionBlacklist []string
+	DisableSandbox    bool
+}
+
 func (c *Config) Copy() *Config {
 	nc := new(Config)
 	*nc = *c
@@ -237,22 +245,26 @@ func (c *Config) Copy() *Config {
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
-		Version:                    version.GetVersion(),
-		VaultConfig:                config.DefaultVaultConfig(),
-		ConsulConfig:               config.DefaultConsulConfig(),
-		LogOutput:                  os.Stderr,
-		Region:                     "global",
-		StatsCollectionInterval:    1 * time.Second,
-		TLSConfig:                  &config.TLSConfig{},
-		LogLevel:                   "DEBUG",
-		GCInterval:                 1 * time.Minute,
-		GCParallelDestroys:         2,
-		GCDiskUsageThreshold:       80,
-		GCInodeUsageThreshold:      70,
-		GCMaxAllocs:                50,
-		NoHostUUID:                 true,
-		DisableTaggedMetrics:       false,
-		DisableRemoteExec:          false,
+		Version:                 version.GetVersion(),
+		VaultConfig:             config.DefaultVaultConfig(),
+		ConsulConfig:            config.DefaultConsulConfig(),
+		LogOutput:               os.Stderr,
+		Region:                  "global",
+		StatsCollectionInterval: 1 * time.Second,
+		TLSConfig:               &config.TLSConfig{},
+		LogLevel:                "DEBUG",
+		GCInterval:              1 * time.Minute,
+		GCParallelDestroys:      2,
+		GCDiskUsageThreshold:    80,
+		GCInodeUsageThreshold:   70,
+		GCMaxAllocs:             50,
+		NoHostUUID:              true,
+		DisableTaggedMetrics:    false,
+		DisableRemoteExec:       false,
+		TemplateConfig: &ClientTemplateConfig{
+			FunctionBlacklist: []string{"plugin"},
+			DisableSandbox:    false,
+		},
 		BackwardsCompatibleMetrics: false,
 		RPCHoldTimeout:             5 * time.Second,
 	}

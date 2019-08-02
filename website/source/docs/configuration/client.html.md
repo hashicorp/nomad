@@ -136,6 +136,9 @@ driver) but will be removed in a future release.
   generated, but setting this to `false` will use the system's UUID. Before
   Nomad 0.6 the default was to use the system UUID.
 
+- `template` <code>([Template](#template-parameters): nil)</code> - Specifies
+  controls on the behavior of task [`template`](/docs/job-specification/template.html) stanzas.
+
 ### `chroot_env` Parameters
 
 Drivers based on [isolated fork/exec](/docs/drivers/exec.html) implement file
@@ -317,6 +320,19 @@ see the [drivers documentation](/docs/drivers/index.html).
 - `reserved_ports` `(string: "")` - Specifies a comma-separated list of ports to
   reserve on all fingerprinted network devices. Ranges can be specified by using
   a hyphen separated the two inclusive ends.
+
+
+### `template` Parameters
+
+- `function_blacklist` `([]string: ["plugin"])` - Specifies a list of template
+  rendering functions that should be disallowed in job specs. By default the
+  `plugin` function is disallowed as it allows running arbitrary commands on
+  the host as root (unless Nomad is configured to run as a non-root user).
+
+- `disable_file_sandbox` `(bool: false)` - Allows templates access to arbitrary
+  files on the client host via the `file` function. By default templates can
+  access files only within the task directory.
+
 
 ## `client` Examples
 
