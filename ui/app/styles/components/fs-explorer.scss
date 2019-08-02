@@ -18,7 +18,8 @@
     }
   }
 
-  a {
+  .breadcrumb a,
+  tbody a {
     position: relative;
 
     // This is adapted from Bulma’s .button.is-loading::after
