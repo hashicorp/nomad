@@ -1347,7 +1347,12 @@ func appendTaskEvent(state *structs.TaskState, event *structs.TaskEvent, capacit
 }
 
 func (tr *TaskRunner) TaskExecHandler() drivermanager.TaskExecHandler {
-	return tr.getDriverHandle().ExecStreaming
+	// Check it is running
+	handle := tr.getDriverHandle()
+	if handle == nil {
+		return nil
+	}
+	return handle.ExecStreaming
 }
 
 func (tr *TaskRunner) DriverCapabilities() (*drivers.Capabilities, error) {
