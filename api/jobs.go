@@ -704,7 +704,7 @@ func (j *Job) Canonicalize() {
 		j.Stop = boolToPtr(false)
 	}
 	if j.Region == nil {
-		j.Region = stringToPtr("")
+		j.Region = stringToPtr("global")
 	}
 	if j.Namespace == nil {
 		j.Namespace = stringToPtr("default")
