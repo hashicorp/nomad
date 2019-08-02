@@ -16,8 +16,8 @@ import (
 	"github.com/hashicorp/consul-template/renderer"
 	"github.com/hashicorp/consul-template/template"
 	"github.com/hashicorp/consul-template/watch"
-	"github.com/hashicorp/go-multierror"
-	"github.com/mattn/go-shellwords"
+	multierror "github.com/hashicorp/go-multierror"
+	shellwords "github.com/mattn/go-shellwords"
 	"github.com/pkg/errors"
 )
 
@@ -221,31 +221,6 @@ func (r *Runner) Start() {
 	}
 
 	for {
-		// Enable quiescence for all templates if we have specified wait
-		// intervals.
-	NEXT_Q:
-		for _, t := range r.templates {
-			if _, ok := r.quiescenceMap[t.ID()]; ok {
-				continue NEXT_Q
-			}
-
-			for _, c := range r.templateConfigsFor(t) {
-				if *c.Wait.Enabled {
-					log.Printf("[DEBUG] (runner) enabling template-specific quiescence for %q", t.ID())
-					r.quiescenceMap[t.ID()] = newQuiescence(
-						r.quiescenceCh, *c.Wait.Min, *c.Wait.Max, t)
-					continue NEXT_Q
-				}
-			}
-
-			if *r.config.Wait.Enabled {
-				log.Printf("[DEBUG] (runner) enabling global quiescence for %q", t.ID())
-				r.quiescenceMap[t.ID()] = newQuiescence(
-					r.quiescenceCh, *r.config.Wait.Min, *r.config.Wait.Max, t)
-				continue NEXT_Q
-			}
-		}
-
 		// Warn the user if they are watching too many dependencies.
 		if r.watcher.Size() > saneViewLimit {
 			log.Printf("[WARN] (runner) watching %d dependencies - watching this "+
@@ -256,6 +231,32 @@ func (r *Runner) Start() {
 
 		if r.allTemplatesRendered() {
 			log.Printf("[DEBUG] (runner) all templates rendered")
+			// Enable quiescence for all templates if we have specified wait
+			// intervals.
+		NEXT_Q:
+			for _, t := range r.templates {
+				if _, ok := r.quiescenceMap[t.ID()]; ok {
+					continue NEXT_Q
+				}
+
+				for _, c := range r.templateConfigsFor(t) {
+					if *c.Wait.Enabled {
+						log.Printf("[DEBUG] (runner) enabling template-specific "+
+							"quiescence for %q", t.ID())
+						r.quiescenceMap[t.ID()] = newQuiescence(
+							r.quiescenceCh, *c.Wait.Min, *c.Wait.Max, t)
+						continue NEXT_Q
+					}
+				}
+
+				if *r.config.Wait.Enabled {
+					log.Printf("[DEBUG] (runner) enabling global quiescence for %q",
+						t.ID())
+					r.quiescenceMap[t.ID()] = newQuiescence(
+						r.quiescenceCh, *r.config.Wait.Min, *r.config.Wait.Max, t)
+					continue NEXT_Q
+				}
+			}
 
 			// If an exec command was given and a command is not currently running,
 			// spawn the child process for supervision.
@@ -850,11 +851,13 @@ func (r *Runner) init() error {
 	// destinations.
 	for _, ctmpl := range *r.config.Templates {
 		tmpl, err := template.NewTemplate(&template.NewTemplateInput{
-			Source:        config.StringVal(ctmpl.Source),
-			Contents:      config.StringVal(ctmpl.Contents),
-			ErrMissingKey: config.BoolVal(ctmpl.ErrMissingKey),
-			LeftDelim:     config.StringVal(ctmpl.LeftDelim),
-			RightDelim:    config.StringVal(ctmpl.RightDelim),
+			Source:            config.StringVal(ctmpl.Source),
+			Contents:          config.StringVal(ctmpl.Contents),
+			ErrMissingKey:     config.BoolVal(ctmpl.ErrMissingKey),
+			LeftDelim:         config.StringVal(ctmpl.LeftDelim),
+			RightDelim:        config.StringVal(ctmpl.RightDelim),
+			FunctionBlacklist: ctmpl.FunctionBlacklist,
+			SandboxPath:       config.StringVal(ctmpl.SandboxPath),
 		})
 		if err != nil {
 			return err
@@ -938,14 +941,16 @@ func (r *Runner) templateConfigsFor(tmpl *template.Template) []*config.TemplateC
 
 // TemplateConfigMapping returns a mapping between the template ID and the set
 // of TemplateConfig represented by the template ID
-func (r *Runner) TemplateConfigMapping() map[string][]config.TemplateConfig {
-	m := make(map[string][]config.TemplateConfig, len(r.ctemplatesMap))
+func (r *Runner) TemplateConfigMapping() map[string][]*config.TemplateConfig {
+	// this method is primarily used to support embedding consul-template
+	// in other applications (ex. Nomad)
+	m := make(map[string][]*config.TemplateConfig, len(r.ctemplatesMap))
 
 	for id, set := range r.ctemplatesMap {
-		ctmpls := make([]config.TemplateConfig, len(set))
+		ctmpls := make([]*config.TemplateConfig, len(set))
 		m[id] = ctmpls
 		for i, ctmpl := range set {
-			ctmpls[i] = *ctmpl
+			ctmpls[i] = ctmpl
 		}
 	}
 
