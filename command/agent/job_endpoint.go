@@ -384,13 +384,17 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match name")
 	}
 
-	// Http region takes precedence over hcl region
+	// Region in api request query param takes precedence over region in job config
 	if args.WriteRequest.Region != "" {
 		args.Job.Region = helper.StringToPtr(args.WriteRequest.Region)
 	}
 
-	// If no region given, region is canonicalized to 'global'
 	sJob := ApiJobToStructJob(args.Job)
+
+	// If no region given, defaults to region of the node
+	if sJob.Region == "" {
+		sJob.Region = s.agent.config.Region
+	}
 
 	regReq := structs.JobRegisterRequest{
 		Job:            sJob,
