@@ -30,6 +30,7 @@ import (
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/helper/logging"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/service_os"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -777,6 +778,8 @@ WAIT:
 	select {
 	case s := <-signalCh:
 		sig = s
+	case <-service_os.Shutdown_Channel():
+		sig = os.Interrupt
 	case <-c.ShutdownCh:
 		sig = os.Interrupt
 	case <-c.retryJoinErrCh:
