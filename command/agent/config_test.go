@@ -94,6 +94,10 @@ func TestConfig_Merge(t *testing.T) {
 			MaxKillTimeout:    "20s",
 			ClientMaxPort:     19996,
 			DisableRemoteExec: false,
+			TemplateConfig: &ClientTemplateConfig{
+				FunctionBlacklist: []string{"plugin"},
+				DisableSandbox:    false,
+			},
 			Reserved: &Resources{
 				CPU:           10,
 				MemoryMB:      10,
@@ -253,6 +257,10 @@ func TestConfig_Merge(t *testing.T) {
 			MemoryMB:          105,
 			MaxKillTimeout:    "50s",
 			DisableRemoteExec: false,
+			TemplateConfig: &ClientTemplateConfig{
+				FunctionBlacklist: []string{"plugin"},
+				DisableSandbox:    false,
+			},
 			Reserved: &Resources{
 				CPU:           15,
 				MemoryMB:      15,

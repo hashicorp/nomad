@@ -125,8 +125,13 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 		mockHooks: NewMockTaskHooks(),
 		templates: templates,
 		node:      mock.Node(),
-		config:    &config.Config{Region: region},
-		emitRate:  DefaultMaxTemplateEventRate,
+		config: &config.Config{
+			Region: region,
+			TemplateConfig: &config.ClientTemplateConfig{
+				FunctionBlacklist: []string{"plugin"},
+				DisableSandbox:    false,
+			}},
+		emitRate: DefaultMaxTemplateEventRate,
 	}
 
 	// Build the task environment
