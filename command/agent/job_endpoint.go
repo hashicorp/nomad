@@ -147,7 +147,7 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 	}
 	// If 'global' region is specified or if no region is given,
 	// default to region of the node you're submitting to
-	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == "global" {
+	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
 		args.Job.Region = &s.agent.config.Region
 	}
 
@@ -396,7 +396,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	}
 	// If 'global' region is specified or if no region is given,
 	// default to region of the node you're submitting to
-	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == "global" {
+	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
 		args.Job.Region = &s.agent.config.Region
 	}
 

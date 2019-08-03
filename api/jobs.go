@@ -25,6 +25,11 @@ const (
 
 	// DefaultNamespace is the default namespace.
 	DefaultNamespace = "default"
+
+	// GlobalRegion is a sentinel region value that users may specify
+	// to indicate the job should be run on the region of the node
+	// that the job was submitted to
+	GlobalRegion = "global"
 )
 
 const (
@@ -704,7 +709,7 @@ func (j *Job) Canonicalize() {
 		j.Stop = boolToPtr(false)
 	}
 	if j.Region == nil {
-		j.Region = stringToPtr("global")
+		j.Region = stringToPtr(GlobalRegion)
 	}
 	if j.Namespace == nil {
 		j.Namespace = stringToPtr("default")
