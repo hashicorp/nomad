@@ -254,6 +254,9 @@ type ClientConfig struct {
 	// available to jobs running on this node.
 	HostVolumes []*structs.ClientHostVolumeConfig `hcl:"host_volume"`
 
+	// CSIPlugins is a list of configurations of CSI plugins that should be loaded
+	CSIPlugins []*CSIPluginConfig `hcl:"csi_plugin"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 
@@ -283,6 +286,11 @@ type ClientTemplateConfig struct {
 	// client host. By default templates can access files only within
 	// the task directory.
 	DisableSandbox bool `hcl:"disable_file_sandbox"`
+}
+
+// CSIPluginConfig holds the configuration for a given CSI plugin
+type CSIPluginConfig struct {
+	Address string
 }
 
 // ACLConfig is configuration specific to the ACL system

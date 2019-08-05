@@ -44,6 +44,11 @@
       "client_max_port": 2000,
       "client_min_port": 1000,
       "cpu_total_compute": 4444,
+      "csi_plugin": [
+        {
+          "address": "/tmp/foo.sock"
+        }
+      ],
       "disable_remote_exec": true,
       "enabled": true,
       "gc_disk_usage_threshold": 82,
