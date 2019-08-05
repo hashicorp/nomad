@@ -311,6 +311,8 @@ func (v *vaultClient) SetActive(active bool) {
 func (v *vaultClient) flush() {
 	v.l.Lock()
 	defer v.l.Unlock()
+	v.revLock.Lock()
+	defer v.revLock.Unlock()
 
 	v.client = nil
 	v.clientSys = nil
