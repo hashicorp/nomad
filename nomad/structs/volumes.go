@@ -130,7 +130,8 @@ func CopyMapVolumeRequest(s map[string]*VolumeRequest) map[string]*VolumeRequest
 	return c
 }
 
-// VolumeMount is ...
+// VolumeMount represents the relationship between a destination path in a task
+// and the task group volume that should be mounted there.
 type VolumeMount struct {
 	Volume      string
 	Destination string
