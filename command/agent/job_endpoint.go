@@ -141,12 +141,16 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
-	// Http region takes precedence over hcl region
+	// Region in http request query param takes precedence over region in job hcl config
 	if args.WriteRequest.Region != "" {
 		args.Job.Region = helper.StringToPtr(args.WriteRequest.Region)
 	}
+	// If 'global' region is specified or if no region is given,
+	// default to region of the node you're submitting to
+	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
+		args.Job.Region = &s.agent.config.Region
+	}
 
-	// If no region given, region is canonicalized to 'global'
 	sJob := ApiJobToStructJob(args.Job)
 
 	planReq := structs.JobPlanRequest{
@@ -157,6 +161,8 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 			Region: sJob.Region,
 		},
 	}
+	// parseWriteRequest overrides Namespace, Region and AuthToken
+	// based on values from the original http request
 	s.parseWriteRequest(req, &planReq.WriteRequest)
 	planReq.Namespace = sJob.Namespace
 
@@ -384,12 +390,16 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match name")
 	}
 
-	// Http region takes precedence over hcl region
+	// Region in http request query param takes precedence over region in job hcl config
 	if args.WriteRequest.Region != "" {
 		args.Job.Region = helper.StringToPtr(args.WriteRequest.Region)
 	}
+	// If 'global' region is specified or if no region is given,
+	// default to region of the node you're submitting to
+	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
+		args.Job.Region = &s.agent.config.Region
+	}
 
-	// If no region given, region is canonicalized to 'global'
 	sJob := ApiJobToStructJob(args.Job)
 
 	regReq := structs.JobRegisterRequest{
@@ -402,6 +412,8 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 			AuthToken: args.WriteRequest.SecretID,
 		},
 	}
+	// parseWriteRequest overrides Namespace, Region and AuthToken
+	// based on values from the original http request
 	s.parseWriteRequest(req, &regReq.WriteRequest)
 	regReq.Namespace = sJob.Namespace
 
