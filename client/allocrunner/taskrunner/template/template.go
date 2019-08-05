@@ -508,8 +508,12 @@ func templateRunner(config *TaskTemplateManagerConfig) (
 		return nil, nil, err
 	}
 
-	// Set Nomad's environment variables
-	runner.Env = config.EnvBuilder.Build().All()
+	// Set Nomad's environment variables.
+	// consul-template falls back to the host process environment if a
+	// variable isn't explicitly set in the configuration, so we need
+	// to mask the environment out to ensure only the task env vars are
+	// available.
+	runner.Env = maskProcessEnv(config.EnvBuilder.Build().All())
 
 	// Build the lookup
 	idMap := runner.TemplateConfigMapping()
@@ -523,6 +527,20 @@ func templateRunner(config *TaskTemplateManagerConfig) (
 	}
 
 	return runner, lookup, nil
+}
+
+// maskProcessEnv masks away any environment variable not found in task env.
+// It manipulates the parameter directly and returns it without copying.
+func maskProcessEnv(env map[string]string) map[string]string {
+	procEnvs := os.Environ()
+	for _, e := range procEnvs {
+		ekv := strings.SplitN(e, "=", 2)
+		if _, ok := env[ekv[0]]; !ok {
+			env[ekv[0]] = ""
+		}
+	}
+
+	return env
 }
 
 // parseTemplateConfigs converts the tasks templates in the config into
