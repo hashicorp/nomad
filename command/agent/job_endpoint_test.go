@@ -493,10 +493,16 @@ func TestHTTP_JobUpdateRegion(t *testing.T) {
 			ExpectedRegion: "north-america",
 		},
 		{
-			Name:           "falls back to default if no region is provided",
+			Name:           "defaults to node region global if no region is provided",
 			ConfigRegion:   "",
 			APIRegion:      "",
 			ExpectedRegion: "global",
+		},
+		{
+			Name:           "defaults to node region not-global if no region is provided",
+			ConfigRegion:   "",
+			APIRegion:      "",
+			ExpectedRegion: "not-global",
 		},
 	}
 
