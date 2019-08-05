@@ -26,9 +26,11 @@ const (
 	// DefaultNamespace is the default namespace.
 	DefaultNamespace = "default"
 
-	// GlobalRegion is a sentinel region value that users may specify
-	// to indicate the job should be run on the region of the node
-	// that the job was submitted to
+	// For Job configuration, GlobalRegion is a sentinel region value
+	// that users may specify to indicate the job should be run on
+	// the region of the node that the job was submitted to.
+	// For Client configuration, if no region information is given,
+	// the client node will default to be part of the GlobalRegion.
 	GlobalRegion = "global"
 )
 
