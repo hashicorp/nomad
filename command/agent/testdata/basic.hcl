@@ -93,6 +93,10 @@ client {
   host_volume "tmp" {
     path = "/tmp"
   }
+
+  csi_plugin {
+    address = "/tmp/foo.sock"
+  }
 }
 
 server {

@@ -249,6 +249,9 @@ type ClientConfig struct {
 	// available to jobs running on this node.
 	HostVolumes []*structs.ClientHostVolumeConfig `hcl:"host_volume"`
 
+	// CSIPlugins is a list of configurations of CSI plugins that should be loaded
+	CSIPlugins []*CSIPluginConfig `hcl:"csi_plugin"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 
@@ -274,6 +277,11 @@ type ClientConfig struct {
 	// downloading CNI plugins. If not set will use a known working version from
 	// the community repo https://github.com/containernetworking/plugins/releases
 	AutoFetchCNIPluginsURL string `hcl:"auto_fetch_cni_plugins_url"`
+}
+
+// CSIPluginConfig holds the configuration for a given CSI plugin
+type CSIPluginConfig struct {
+	Address string
 }
 
 // ACLConfig is configuration specific to the ACL system

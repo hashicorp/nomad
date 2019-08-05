@@ -85,6 +85,11 @@ var basicConfig = &Config{
 		HostVolumes: []*structs.ClientHostVolumeConfig{
 			{Name: "tmp", Path: "/tmp"},
 		},
+		CSIPlugins: []*CSIPluginConfig{
+			{
+				Address: "/tmp/foo.sock",
+			},
+		},
 	},
 	Server: &ServerConfig{
 		Enabled:                true,
@@ -409,13 +414,11 @@ func TestConfig_Parse(t *testing.T) {
 		t.Run(tc.File, func(t *testing.T) {
 			require := require.New(t)
 			path, err := filepath.Abs(filepath.Join("./testdata", tc.File))
-			if err != nil {
-				t.Fatalf("file: %s\n\n%s", tc.File, err)
-			}
+			require.NoError(err)
 
 			actual, err := ParseConfigFile(path)
-			if (err != nil) != tc.Err {
-				t.Fatalf("file: %s\n\n%s", tc.File, err)
+			if !tc.Err {
+				require.NoError(err)
 			}
 
 			// ParseConfig used to re-merge defaults for these three objects,
@@ -429,7 +432,6 @@ func TestConfig_Parse(t *testing.T) {
 			}
 			actual = oldDefault.Merge(actual)
 
-			//panic(fmt.Sprintf("first: %+v \n second: %+v", actual.TLSConfig, tc.Result.TLSConfig))
 			require.EqualValues(tc.Result, removeHelperAttributes(actual))
 		})
 	}
