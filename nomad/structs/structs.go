@@ -3313,7 +3313,10 @@ type Job struct {
 
 	// Stable marks a job as stable. Stability is only defined on "service" and
 	// "system" jobs. The stability of a job will be set automatically as part
-	// of a deployment and can be manually set via APIs.
+	// of a deployment and can be manually set via APIs. This field is updated
+	// when the status of a corresponding deployment transitions to Failed
+	// or Successful. This field is not meaningful for jobs that don't have an
+	// update stanza.
 	Stable bool
 
 	// Version is a monotonically increasing version number that is incremented
