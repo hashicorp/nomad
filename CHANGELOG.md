@@ -1,3 +1,8 @@
+## 0.9.5 (Unreleased)
+
+BUG FIXES:
+ * vault: Fix deadlock when reloading server Vault configuration [[GH-6082](https://github.com/hashicorp/nomad/issues/6082)]
+
 ## 0.9.4 (July 30, 2019)
 
 IMPROVEMENTS:
