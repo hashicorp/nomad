@@ -519,6 +519,38 @@ func TestVaultClient_SetConfig(t *testing.T) {
 	}
 }
 
+// TestVaultClient_SetConfig_Deadlock asserts that calling SetConfig
+// concurrently with establishConnection does not deadlock.
+func TestVaultClient_SetConfig_Deadlock(t *testing.T) {
+	t.Parallel()
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	v2 := testutil.NewTestVault(t)
+	defer v2.Stop()
+
+	// Set the configs token in a new test role
+	v2.Config.Token = defaultTestVaultWhitelistRoleAndToken(v2, t, 20)
+
+	logger := testlog.HCLogger(t)
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	defer client.Stop()
+
+	for i := 0; i < 100; i++ {
+		// Alternate configs to cause updates
+		conf := v.Config
+		if i%2 == 0 {
+			conf = v2.Config
+		}
+		if err := client.SetConfig(conf); err != nil {
+			t.Fatalf("SetConfig failed: %v", err)
+		}
+	}
+}
+
 // Test that we can disable vault
 func TestVaultClient_SetConfig_Disable(t *testing.T) {
 	t.Parallel()
