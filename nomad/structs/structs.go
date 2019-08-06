@@ -8510,7 +8510,6 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 		PreviousEval:   e.ID,
 		CreateTime:     now,
 		ModifyTime:     now,
-		// TODO(@jasmine): is a NextRollingEval technically created now or when original eval was created?
 	}
 }
 
@@ -8562,8 +8561,8 @@ func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 }
 
 // UpdateModifyTime takes into account that clocks on different servers may be
-// slightly out of sync. Even in case of a leader change, it will guarantee that
-// ModifyTime will always be after CreateTime.
+// slightly out of sync. Even in case of a leader change, this method will
+// guarantee that ModifyTime will always be after CreateTime.
 func (e *Evaluation) UpdateModifyTime() {
 	now := time.Now().UTC().UnixNano()
 	if now <= e.CreateTime {
