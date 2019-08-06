@@ -325,12 +325,17 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 
 	// Kill any background routines
 	if v.running {
-		// Stop accepting any new request
-		v.connEstablished = false
-
-		// Kill any background routine and create a new tomb
+		// Kill any background routine
 		v.tomb.Kill(nil)
+
+		// Locking around tomb.Wait can deadlock with
+		// establishConnection exiting, so we must unlock here.
+		v.l.Unlock()
 		v.tomb.Wait()
+		v.l.Lock()
+
+		// Stop accepting any new requests
+		v.connEstablished = false
 		v.tomb = &tomb.Tomb{}
 		v.running = false
 	}
