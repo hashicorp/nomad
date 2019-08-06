@@ -8561,6 +8561,18 @@ func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 	}
 }
 
+// UpdateModifyTime takes into account that clocks on different servers may be
+// slightly out of sync. Even in case of a leader change, it will guarantee that
+// ModifyTime will always be after CreateTime.
+func (e *Evaluation) UpdateModifyTime() {
+	now := time.Now().UTC().UnixNano()
+	if now <= e.CreateTime {
+		e.ModifyTime = e.CreateTime + 1
+	} else {
+		e.ModifyTime = now
+	}
+}
+
 // Plan is used to submit a commit plan for task allocations. These
 // are submitted to the leader which verifies that resources have
 // not been overcommitted before admitting the plan.
