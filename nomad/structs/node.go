@@ -6,6 +6,35 @@ import (
 	"github.com/hashicorp/nomad/helper"
 )
 
+// StoragePluginInfo is the current state of a single storage plugin. This
+// is updated as regularly as plugin health changes on the node
+// TODO: Add support for NodeTopology.
+type StoragePluginInfo struct {
+	Attributes        map[string]string
+	Detected          bool
+	Healhty           bool
+	HealthDescription string
+
+	// NodeID is the ID of the Node in the external storage provider as returned
+	// by the CSI NodePlugin.NodeGetInfo() RPC.
+	NodeID string
+
+	// MaxVolumeCount is the number of volumes that the plugin can mount to the
+	// Node as returned by the CSI NodePlugin.NodeGetInfo() RPC.
+	MaxVolumeCount int64
+}
+
+func (s *StoragePluginInfo) Copy() *StoragePluginInfo {
+	if s == nil {
+		return nil
+	}
+
+	c := new(StoragePluginInfo)
+	*c = *s
+	c.Attributes = helper.CopyMapStringString(s.Attributes)
+	return c
+}
+
 // DriverInfo is the current state of a single driver. This is updated
 // regularly as driver health changes on the node.
 type DriverInfo struct {
