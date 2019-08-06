@@ -443,6 +443,18 @@ type HostVolumeInfo struct {
 	Hidden   bool
 }
 
+// StoragePluginInfo is the current state of a single storage plugin. This
+// is updated as regularly as plugin health changes on the node
+type StoragePluginInfo struct {
+	Attributes        map[string]string
+	Detected          bool
+	Healhty           bool
+	HealthDescription string
+
+	NodeID         string
+	MaxVolumeCount int64
+}
+
 // Node is used to deserialize a node entry.
 type Node struct {
 	ID                    string
@@ -467,6 +479,7 @@ type Node struct {
 	Events                []*NodeEvent
 	Drivers               map[string]*DriverInfo
 	HostVolumes           map[string]*HostVolumeInfo
+	StoragePlugins        map[string]*StoragePluginInfo
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }

@@ -1243,6 +1243,10 @@ func (c *Client) setupNode() error {
 		}
 	}
 
+	if node.StoragePlugins == nil {
+		node.StoragePlugins = make(map[string]*structs.StoragePluginInfo)
+	}
+
 	if node.Name == "" {
 		node.Name = node.ID
 	}

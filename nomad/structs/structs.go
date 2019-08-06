@@ -1575,6 +1575,9 @@ type Node struct {
 	// Drivers is a map of driver names to current driver information
 	Drivers map[string]*DriverInfo
 
+	// StoragePlugins is a map of storage plugin names to current plugin info
+	StoragePlugins map[string]*StoragePluginInfo
+
 	// HostVolumes is a map of host volume names to their configuration
 	HostVolumes map[string]*ClientHostVolumeConfig
 
@@ -1610,6 +1613,7 @@ func (n *Node) Copy() *Node {
 	if n == nil {
 		return nil
 	}
+
 	nn := new(Node)
 	*nn = *n
 	nn.Attributes = helper.CopyMapStringString(nn.Attributes)
@@ -1623,6 +1627,8 @@ func (n *Node) Copy() *Node {
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
 	nn.Drivers = copyNodeDrivers(n.Drivers)
 	nn.HostVolumes = copyNodeHostVolumes(n.HostVolumes)
+	nn.StoragePlugins = copyNodeStoragePlugins(n.StoragePlugins)
+
 	return nn
 }
 
@@ -1650,6 +1656,20 @@ func copyNodeDrivers(drivers map[string]*DriverInfo) map[string]*DriverInfo {
 	c := make(map[string]*DriverInfo, l)
 	for driver, info := range drivers {
 		c[driver] = info.Copy()
+	}
+	return c
+}
+
+// copyNodeStoragePlugins is a helper to copy a map of StoragePluginInfo
+func copyNodeStoragePlugins(plugins map[string]*StoragePluginInfo) map[string]*StoragePluginInfo {
+	l := len(plugins)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]*StoragePluginInfo, l)
+	for name, info := range plugins {
+		c[name] = info.Copy()
 	}
 	return c
 }
