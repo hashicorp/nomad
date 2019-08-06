@@ -236,9 +236,9 @@ func parseVolumeSpecWindows(volBind string) (hostPath string, containerPath stri
 	if len(parts) < 2 {
 		return "", "", "", fmt.Errorf("not <src>:<destination> format")
 	}
-
-	// for nomad to be OS agnostic the host mount path with forward or backward slash
-	// we then convert the slashes to OS specific slash in the agent side
+        
+	// In order to be OS agnostic, the host mount path should support either forward or backward slash.
+        // These will later to converted to OS specific slash in the agent side
 	hostPath = filepath.FromSlash(parts[0])
 	containerPath = parts[1]
 
