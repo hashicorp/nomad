@@ -650,17 +650,16 @@ func TestEnvironment_AppendHostEnvvars(t *testing.T) {
 	}
 }
 
-// TestEnvironment_DashesInTaskName asserts dashes in port labels are properly
-// converted to underscores in environment variables.
-// See: https://github.com/hashicorp/nomad/issues/2405
+// TestEnvironment_DashesInTaskName asserts dashes are kept in environment variables.
+// See: https://github.com/hashicorp/nomad/issues/6079
 func TestEnvironment_DashesInTaskName(t *testing.T) {
 	a := mock.Alloc()
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Env = map[string]string{"test-one-two": "three-four"}
 	envMap := NewBuilder(mock.Node(), a, task, "global").Build().Map()
 
-	if envMap["test_one_two"] != "three-four" {
-		t.Fatalf("Expected test_one_two=three-four in TaskEnv; found:\n%#v", envMap)
+	if envMap["test-one-two"] != "three-four" {
+		t.Fatalf("Expected test-one-two=three-four in TaskEnv; found:\n%#v", envMap)
 	}
 }
 
