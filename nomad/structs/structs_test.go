@@ -2235,6 +2235,69 @@ func TestService_Canonicalize(t *testing.T) {
 
 }
 
+func TestService_Validate(t *testing.T) {
+	s := Service{
+		Name: "testservice",
+	}
+
+	s.Canonicalize("testjob", "testgroup", "testtask")
+
+	// Base service should be valid
+	require.NoError(t, s.Validate())
+
+	// Native Connect should be valid
+	s.Connect = &ConsulConnect{
+		Native: true,
+	}
+	require.NoError(t, s.Validate())
+
+	// Native Connect + Sidecar should be invalid
+	s.Connect.SidecarService = &ConsulSidecarService{}
+	require.Error(t, s.Validate())
+}
+
+func TestService_Equals(t *testing.T) {
+	s := Service{
+		Name: "testservice",
+	}
+
+	s.Canonicalize("testjob", "testgroup", "testtask")
+
+	o := s.Copy()
+
+	// Base service should be equal to copy of itself
+	require.True(t, s.Equals(o))
+
+	// create a helper to assert a diff and reset the struct
+	assertDiff := func() {
+		require.False(t, s.Equals(o))
+		o = s.Copy()
+		require.True(t, s.Equals(o), "bug in copy")
+	}
+
+	// Changing any field should cause inequality
+	o.Name = "diff"
+	assertDiff()
+
+	o.PortLabel = "diff"
+	assertDiff()
+
+	o.AddressMode = AddressModeDriver
+	assertDiff()
+
+	o.Tags = []string{"diff"}
+	assertDiff()
+
+	o.CanaryTags = []string{"diff"}
+	assertDiff()
+
+	o.Checks = []*ServiceCheck{{Name: "diff"}}
+	assertDiff()
+
+	o.Connect = &ConsulConnect{Native: true}
+	assertDiff()
+}
+
 func TestJob_ExpandServiceNames(t *testing.T) {
 	j := &Job{
 		Name: "my-job",
