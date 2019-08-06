@@ -320,7 +320,7 @@ module('Acceptance | proxy task detail', function(hooks) {
     allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'complete' });
     task = allocation.task_states.models[0];
 
-    task.name = 'nomad_envoy';
+    task.kind = 'connect-proxy:task';
     task.save();
 
     await Task.visit({ id: allocation.id, name: task.name });

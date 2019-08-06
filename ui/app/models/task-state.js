@@ -9,12 +9,17 @@ export default Fragment.extend({
 
   name: attr('string'),
   state: attr('string'),
+  kind: attr('string'),
   startedAt: attr('date'),
   finishedAt: attr('date'),
   failed: attr('boolean'),
 
   isActive: none('finishedAt'),
   isRunning: and('isActive', 'allocation.isRunning'),
+
+  isConnectProxy: computed('kind', function() {
+    return (this.kind || '').startsWith('connect-proxy:');
+  }),
 
   task: computed('allocation.taskGroup.tasks.[]', function() {
     const tasks = this.get('allocation.taskGroup.tasks');
