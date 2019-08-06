@@ -402,6 +402,7 @@ func PeriodicJob() *structs.Job {
 }
 
 func Eval() *structs.Evaluation {
+	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
 		ID:         uuid.Generate(),
 		Namespace:  structs.DefaultNamespace,
@@ -409,8 +410,8 @@ func Eval() *structs.Evaluation {
 		Type:       structs.JobTypeService,
 		JobID:      uuid.Generate(),
 		Status:     structs.EvalStatusPending,
-		CreateTime: time.Now().UTC().UnixNano(),
-		ModifyTime: time.Now().UTC().UnixNano(),
+		CreateTime: now,
+		ModifyTime: now,
 	}
 	return eval
 }

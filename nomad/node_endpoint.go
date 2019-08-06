@@ -1038,8 +1038,8 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 						Type:        job.Type,
 						Priority:    job.Priority,
 						Status:      structs.EvalStatusPending,
-						CreateTime:  time.Now().UTC().UnixNano(),
-						ModifyTime:  time.Now().UTC().UnixNano(),
+						CreateTime:  now.UTC().UnixNano(),
+						ModifyTime:  now.UTC().UnixNano(),
 					}
 					evals = append(evals, eval)
 				}
@@ -1097,8 +1097,9 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 		}
 		_, exists := evalsByJobId[namespacedID]
 		if !exists {
-			eval.CreateTime = time.Now().UTC().UnixNano()
-			eval.ModifyTime = time.Now().UTC().UnixNano()
+			now := time.Now().UTC().UnixNano()
+			eval.CreateTime = now
+			eval.ModifyTime = now
 			trimmedEvals = append(trimmedEvals, eval)
 			evalsByJobId[namespacedID] = struct{}{}
 		}
@@ -1246,6 +1247,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 	var evals []*structs.Evaluation
 	var evalIDs []string
 	jobIDs := make(map[string]struct{})
+	now := time.Now().UTC().UnixNano()
 
 	for _, alloc := range allocs {
 		// Deduplicate on JobID
@@ -1265,8 +1267,8 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			NodeID:          nodeID,
 			NodeModifyIndex: nodeIndex,
 			Status:          structs.EvalStatusPending,
-			CreateTime:      time.Now().UTC().UnixNano(),
-			ModifyTime:      time.Now().UTC().UnixNano(),
+			CreateTime:      now,
+			ModifyTime:      now,
 		}
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
@@ -1291,8 +1293,8 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			NodeID:          nodeID,
 			NodeModifyIndex: nodeIndex,
 			Status:          structs.EvalStatusPending,
-			CreateTime:      time.Now().UTC().UnixNano(),
-			ModifyTime:      time.Now().UTC().UnixNano(),
+			CreateTime:      now,
+			ModifyTime:      now,
 		}
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)

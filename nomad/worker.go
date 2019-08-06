@@ -387,8 +387,10 @@ func (w *Worker) CreateEval(eval *structs.Evaluation) error {
 
 	// Store the snapshot index in the eval
 	eval.SnapshotIndex = w.snapshotIndex
-	eval.CreateTime = time.Now().UTC().UnixNano()
-	eval.ModifyTime = time.Now().UTC().UnixNano()
+
+	now := time.Now().UTC().UnixNano()
+	eval.CreateTime = now
+	eval.ModifyTime = now
 
 	// Setup the request
 	req := structs.EvalUpdateRequest{

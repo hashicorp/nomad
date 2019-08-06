@@ -402,6 +402,7 @@ func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs
 	}
 
 	evals := make([]*structs.Evaluation, 0, len(jobs))
+	now := time.Now().UTC().UnixNano()
 	for job, alloc := range jobs {
 		evals = append(evals, &structs.Evaluation{
 			ID:          uuid.Generate(),
@@ -411,8 +412,8 @@ func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs
 			TriggeredBy: structs.EvalTriggerNodeDrain,
 			JobID:       job,
 			Status:      structs.EvalStatusPending,
-			CreateTime:  time.Now().UTC().UnixNano(),
-			ModifyTime:  time.Now().UTC().UnixNano(),
+			CreateTime:  now,
+			ModifyTime:  now,
 		})
 	}
 

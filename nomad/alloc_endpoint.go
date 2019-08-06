@@ -235,6 +235,7 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 		return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
 	}
 
+	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      alloc.Namespace,
@@ -244,8 +245,8 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 		JobID:          alloc.Job.ID,
 		JobModifyIndex: alloc.Job.ModifyIndex,
 		Status:         structs.EvalStatusPending,
-		CreateTime:     time.Now().UTC().UnixNano(),
-		ModifyTime:     time.Now().UTC().UnixNano(),
+		CreateTime:     now,
+		ModifyTime:     now,
 	}
 
 	transitionReq := &structs.AllocUpdateDesiredTransitionRequest{
