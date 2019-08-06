@@ -233,6 +233,9 @@ type vaultClient struct {
 	// l is used to lock the configuration aspects of the client such that
 	// multiple callers can't cause conflicting config updates
 	l sync.Mutex
+
+	// setConfigLock serializes access to the SetConfig method
+	setConfigLock sync.Mutex
 }
 
 // NewVaultClient returns a Vault client from the given config. If the client
@@ -332,6 +335,8 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 	if config == nil {
 		return fmt.Errorf("must pass valid VaultConfig")
 	}
+	v.setConfigLock.Lock()
+	defer v.setConfigLock.Unlock()
 
 	v.l.Lock()
 	defer v.l.Unlock()
@@ -343,12 +348,17 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 
 	// Kill any background routines
 	if v.running {
-		// Stop accepting any new request
-		v.connEstablished = false
-
-		// Kill any background routine and create a new tomb
+		// Kill any background routine
 		v.tomb.Kill(nil)
+
+		// Locking around tomb.Wait can deadlock with
+		// establishConnection exiting, so we must unlock here.
+		v.l.Unlock()
 		v.tomb.Wait()
+		v.l.Lock()
+
+		// Stop accepting any new requests
+		v.connEstablished = false
 		v.tomb = &tomb.Tomb{}
 		v.running = false
 	}
