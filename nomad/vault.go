@@ -233,6 +233,9 @@ type vaultClient struct {
 	// l is used to lock the configuration aspects of the client such that
 	// multiple callers can't cause conflicting config updates
 	l sync.Mutex
+
+	// setConfigLock serializes access to the SetConfig method
+	setConfigLock sync.Mutex
 }
 
 // NewVaultClient returns a Vault client from the given config. If the client
@@ -330,6 +333,8 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 	if config == nil {
 		return fmt.Errorf("must pass valid VaultConfig")
 	}
+	v.setConfigLock.Lock()
+	defer v.setConfigLock.Unlock()
 
 	v.l.Lock()
 	defer v.l.Unlock()
