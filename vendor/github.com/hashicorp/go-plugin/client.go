@@ -780,7 +780,10 @@ func (c *Client) reattach() (net.Addr, error) {
 	// Verify the process still exists. If not, then it is an error
 	p, err := os.FindProcess(c.config.Reattach.Pid)
 	if err != nil {
-		return nil, err
+		// On Unix systems, FindProcess never returns an error.
+		// On Windows, for non-existent pids it returns:
+		// os.SyscallError - 'OpenProcess: the paremter is incorrect'
+		return nil, ErrProcessNotFound
 	}
 
 	// Attempt to connect to the addr since on Unix systems FindProcess

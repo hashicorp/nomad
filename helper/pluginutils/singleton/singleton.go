@@ -87,14 +87,16 @@ func (s *SingletonLoader) getPlugin(reattach bool, name, pluginType string, logg
 	s.instanceLock.Unlock()
 
 	i, err := f.wait().result()
+
+	if (err == nil && i.Exited()) || err == plugin.ErrProcessNotFound {
+		// On Windows, a stale pid in Reattach info results in ErrProcessNotFound
+		s.clearFuture(id, f)
+		return nil, SingletonPluginExited
+	}
+
 	if err != nil {
 		s.clearFuture(id, f)
 		return nil, err
-	}
-
-	if i.Exited() {
-		s.clearFuture(id, f)
-		return nil, SingletonPluginExited
 	}
 
 	return i, nil
