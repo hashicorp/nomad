@@ -14,12 +14,7 @@ module('Integration | Component | image file', function(hooks) {
   `;
 
   const commonProperties = {
-    // HACK!
-    // Without mocking the entire image element, this component will make a
-    // real request for a real image. It's unfortuante to couple this test to the
-    // favicon, but it's an unlikely asset to be removed, and it's better than
-    // attempting to mock this.
-    src: '/ui/favicon.png',
+    src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
     alt: 'This is the alt text',
     size: 123456,
   };
