@@ -2,7 +2,7 @@ import { Factory, faker, trait } from 'ember-cli-mirage';
 import { pickOne } from '../utils';
 
 const REF_TIME = new Date();
-const EMOJI = '🏆 💃 🤩 🙌🏿 🖨'.split(' ');
+const TROUBLESOME_CHARACTERS = '🏆 💃 🤩 🙌🏿 🖨 ? / + ; %'.split(' ');
 const makeWord = () => Math.round(Math.random() * 10000000 + 50000).toString(36);
 const makeSentence = (count = 10) =>
   new Array(count)
@@ -77,7 +77,7 @@ export default Factory.extend({
   },
 
   name() {
-    return `${faker.hacker.noun().dasherize()}-${pickOne(EMOJI)}${
+    return `${faker.hacker.noun().dasherize()}-${pickOne(TROUBLESOME_CHARACTERS)}${
       this.isDir ? '' : `.${this.fileType}`
     }`;
   },
