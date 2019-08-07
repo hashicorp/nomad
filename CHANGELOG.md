@@ -3,6 +3,7 @@
 IMPROVEMENTS:
  * agent: allow the job GC interval to be configured [[GH-5978](https://github.com/hashicorp/nomad/issues/5978)]
  * api: add follow parameter to file streaming endpoint to support older browsers [[GH-6049](https://github.com/hashicorp/nomad/issues/6049)]
+ * metrics: Add job status (pending, running, dead) metrics [[GH-6003](https://github.com/hashicorp/nomad/issues/6003)]
 
 BUG FIXES:
 
