@@ -583,6 +583,7 @@ type Task struct {
 	Leader          bool
 	ShutdownDelay   time.Duration `mapstructure:"shutdown_delay"`
 	KillSignal      string        `mapstructure:"kill_signal"`
+	Kind            string
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {

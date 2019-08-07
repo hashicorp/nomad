@@ -5142,6 +5142,10 @@ type Task struct {
 	// KillSignal is the kill signal to use for the task. This is an optional
 	// specification and defaults to SIGINT
 	KillSignal string
+
+	// Used internally to manage tasks according to their Kind. Initial use case
+	// is for Consul Connect
+	Kind string
 }
 
 func (t *Task) Copy() *Task {
