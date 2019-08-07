@@ -893,6 +893,26 @@ func TestParse(t *testing.T) {
 								},
 							},
 						},
+						Services: []*api.Service{
+							{
+								Name:       "connect-service",
+								Tags:       []string{"foo", "bar"},
+								CanaryTags: []string{"canary", "bam"},
+								PortLabel:  "1234",
+								Connect: &api.ConsulConnect{
+									SidecarService: &api.ConsulSidecarService{
+										Proxy: &api.ConsulProxy{
+											Upstreams: []*api.ConsulUpstream{
+												{
+													DestinationName: "other-service",
+													LocalBindPort:   4567,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
 						Tasks: []*api.Task{
 							{
 								Name:   "bar",

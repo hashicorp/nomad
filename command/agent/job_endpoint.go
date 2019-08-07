@@ -1010,7 +1010,9 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			continue
 		}
 
-		out[i].Connect = &structs.ConsulConnect{}
+		out[i].Connect = &structs.ConsulConnect{
+			Native: s.Connect.Native,
+		}
 
 		if s.Connect.SidecarService == nil {
 			continue
@@ -1024,7 +1026,9 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			continue
 		}
 
-		out[i].Connect.SidecarService.Proxy = &structs.ConsulProxy{}
+		out[i].Connect.SidecarService.Proxy = &structs.ConsulProxy{
+			Config: s.Connect.SidecarService.Proxy.Config,
+		}
 
 		upstreams := make([]*structs.ConsulUpstream, len(s.Connect.SidecarService.Proxy.Upstreams))
 		for i, p := range s.Connect.SidecarService.Proxy.Upstreams {
