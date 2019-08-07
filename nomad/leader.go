@@ -523,8 +523,10 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			// due to the fairly large backoff.
 			followupEvalWait := s.config.EvalFailedFollowupBaselineDelay +
 				time.Duration(rand.Int63n(int64(s.config.EvalFailedFollowupDelayRange)))
+
 			followupEval := eval.CreateFailedFollowUpEval(followupEvalWait)
 			updateEval.NextEval = followupEval.ID
+			updateEval.UpdateModifyTime()
 
 			// Update via Raft
 			req := structs.EvalUpdateRequest{
@@ -561,6 +563,7 @@ func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
 				newEval := dup.Copy()
 				newEval.Status = structs.EvalStatusCancelled
 				newEval.StatusDescription = fmt.Sprintf("existing blocked evaluation exists for job %q", newEval.JobID)
+				newEval.UpdateModifyTime()
 				cancel[i] = newEval
 			}
 
