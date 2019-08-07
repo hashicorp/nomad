@@ -1,5 +1,5 @@
 import { run } from '@ember/runloop';
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, visit } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -132,6 +132,22 @@ module('Acceptance | allocation detail', function(hooks) {
 
   test('tasks with an unhealthy driver have a warning icon', async function(assert) {
     assert.ok(Allocation.firstUnhealthyTask().hasUnhealthyDriver, 'Warning is shown');
+  });
+
+  test('proxy task has a proxy icon', async function(assert) {
+    const firstTaskRow = Allocation.tasks[0];
+
+    const firstTaskModel = allocation.task_states.models.find(
+      task => task.attrs.name === firstTaskRow.name
+    );
+    firstTaskModel.kind = 'connect-proxy:task';
+    firstTaskModel.save();
+
+    // TODO it would be nice to not have this but can’t “refresh”, have to move elsewhere and return…?
+    await visit('/');
+    await Allocation.visit({ id: allocation.id });
+
+    assert.ok(firstTaskRow.hasProxyIcon);
   });
 
   test('when there are no tasks, an empty state is shown', async function(assert) {

@@ -44,6 +44,7 @@ export default create({
     ports: text('[data-test-ports]'),
 
     hasUnhealthyDriver: isPresent('[data-test-icon="unhealthy-driver"]'),
+    hasProxyIcon: isPresent('.icon-is-proxy'),
 
     clickLink: clickable('[data-test-name] a'),
     clickRow: clickable('[data-test-name]'),
