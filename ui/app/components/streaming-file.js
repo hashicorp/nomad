@@ -76,14 +76,14 @@ export default Component.extend(WindowResizable, {
   },
 
   stream: task(function*() {
-    // Follow the log if the scroll position is near the bottom of the cli window
-    this.logger.on('tick', () => {
-      run.scheduleOnce('afterRender', () => this.synchronizeScrollPosition());
-    });
-
     // Force the scroll position to the bottom of the window when starting streaming
     this.logger.one('tick', () => {
       run.scheduleOnce('afterRender', () => this.synchronizeScrollPosition(true));
+    });
+
+    // Follow the log if the scroll position is near the bottom of the cli window
+    this.logger.on('tick', () => {
+      run.scheduleOnce('afterRender', () => this.synchronizeScrollPosition());
     });
 
     yield this.logger.startStreaming();

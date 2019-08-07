@@ -1,6 +1,7 @@
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { gt } from '@ember/object/computed';
 import { equal } from '@ember/object/computed';
 import RSVP from 'rsvp';
 import Log from 'nomad-ui/utils/classes/log';
@@ -41,9 +42,7 @@ export default Component.extend({
     }
   }),
 
-  isLarge: computed('stat.Size', function() {
-    return this.stat.Size > 50000;
-  }),
+  isLarge: gt('stat.Size', 50000),
 
   fileTypeIsUnknown: equal('fileComponent', 'unknown'),
   isStreamable: equal('fileComponent', 'stream'),
