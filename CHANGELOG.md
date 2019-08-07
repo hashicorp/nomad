@@ -1,6 +1,10 @@
 ## 0.9.5 (Unreleased)
 
+IMPROVEMENTS:
+ * core: Added create and modify timestamps to evaluations [[GH-5881](https://github.com/hashicorp/nomad/pull/5881)]
+
 BUG FIXES:
+ * api: Fixed job region to default to client node region if none provided [[GH-6064](https://github.com/hashicorp/nomad/pull/6064)]
  * vault: Fix deadlock when reloading server Vault configuration [[GH-6082](https://github.com/hashicorp/nomad/issues/6082)]
 
 ## 0.9.4 (July 30, 2019)
