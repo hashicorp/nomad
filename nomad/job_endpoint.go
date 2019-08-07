@@ -208,6 +208,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Create a new evaluation
+	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -217,6 +218,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		JobID:          args.Job.ID,
 		JobModifyIndex: reply.JobModifyIndex,
 		Status:         structs.EvalStatusPending,
+		CreateTime:     now,
+		ModifyTime:     now,
 	}
 	update := &structs.EvalUpdateRequest{
 		Evals:        []*structs.Evaluation{eval},
@@ -571,6 +574,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	}
 
 	// Create a new evaluation
+	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -580,6 +584,8 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 		JobID:          job.ID,
 		JobModifyIndex: job.ModifyIndex,
 		Status:         structs.EvalStatusPending,
+		CreateTime:     now,
+		ModifyTime:     now,
 	}
 
 	// Create a AllocUpdateDesiredTransitionRequest request with the eval and any forced rescheduled allocs
@@ -650,6 +656,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// Create a new evaluation
 	// XXX: The job priority / type is strange for this, since it's not a high
 	// priority even if the job was.
+	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -659,6 +666,8 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		JobID:          args.JobID,
 		JobModifyIndex: index,
 		Status:         structs.EvalStatusPending,
+		CreateTime:     now,
+		ModifyTime:     now,
 	}
 	update := &structs.EvalUpdateRequest{
 		Evals:        []*structs.Evaluation{eval},
@@ -738,6 +747,7 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 		}
 
 		// Create a new evaluation
+		now := time.Now().UTC().UnixNano()
 		eval := &structs.Evaluation{
 			ID:          uuid.Generate(),
 			Namespace:   jobNS.Namespace,
@@ -746,6 +756,8 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 			TriggeredBy: structs.EvalTriggerJobDeregister,
 			JobID:       jobNS.ID,
 			Status:      structs.EvalStatusPending,
+			CreateTime:  now,
+			ModifyTime:  now,
 		}
 		args.Evals = append(args.Evals, eval)
 	}
@@ -1195,6 +1207,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Create an eval and mark it as requiring annotations and insert that as well
+	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -1205,6 +1218,9 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		JobModifyIndex: updatedIndex,
 		Status:         structs.EvalStatusPending,
 		AnnotatePlan:   true,
+		// Timestamps are added for consistency but this eval is never persisted
+		CreateTime: now,
+		ModifyTime: now,
 	}
 
 	snap.UpsertEvals(100, []*structs.Evaluation{eval})
@@ -1415,6 +1431,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	// If the job is periodic, we don't create an eval.
 	if !dispatchJob.IsPeriodic() {
 		// Create a new evaluation
+		now := time.Now().UTC().UnixNano()
 		eval := &structs.Evaluation{
 			ID:             uuid.Generate(),
 			Namespace:      args.RequestNamespace(),
@@ -1424,6 +1441,8 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 			JobID:          dispatchJob.ID,
 			JobModifyIndex: jobCreateIndex,
 			Status:         structs.EvalStatusPending,
+			CreateTime:     now,
+			ModifyTime:     now,
 		}
 		update := &structs.EvalUpdateRequest{
 			Evals:        []*structs.Evaluation{eval},

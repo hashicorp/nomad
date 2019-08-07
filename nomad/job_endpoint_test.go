@@ -96,6 +96,12 @@ func TestJobEndpoint_Register(t *testing.T) {
 	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
 	}
+	if eval.CreateTime == 0 {
+		t.Fatalf("eval CreateTime is unset: %#v", eval)
+	}
+	if eval.ModifyTime == 0 {
+		t.Fatalf("eval ModifyTime is unset: %#v", eval)
+	}
 }
 
 func TestJobEndpoint_Register_ACL(t *testing.T) {
@@ -301,6 +307,12 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	}
 	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.CreateTime == 0 {
+		t.Fatalf("eval CreateTime is unset: %#v", eval)
+	}
+	if eval.ModifyTime == 0 {
+		t.Fatalf("eval ModifyTime is unset: %#v", eval)
 	}
 
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
@@ -1500,6 +1512,12 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
 	}
+	if eval.CreateTime == 0 {
+		t.Fatalf("eval CreateTime is unset: %#v", eval)
+	}
+	if eval.ModifyTime == 0 {
+		t.Fatalf("eval ModifyTime is unset: %#v", eval)
+	}
 }
 
 func TestJobEndpoint_ForceRescheduleEvaluate(t *testing.T) {
@@ -1569,6 +1587,8 @@ func TestJobEndpoint_ForceRescheduleEvaluate(t *testing.T) {
 	require.Equal(eval.JobID, job.ID)
 	require.Equal(eval.JobModifyIndex, resp.JobModifyIndex)
 	require.Equal(eval.Status, structs.EvalStatusPending)
+	require.NotZero(eval.CreateTime)
+	require.NotZero(eval.ModifyTime)
 
 	// Lookup the alloc, verify DesiredTransition ForceReschedule
 	alloc, err = state.AllocByID(ws, alloc.ID)
@@ -1647,6 +1667,8 @@ func TestJobEndpoint_Evaluate_ACL(t *testing.T) {
 	require.Equal(eval.JobID, job.ID)
 	require.Equal(eval.JobModifyIndex, validResp2.JobModifyIndex)
 	require.Equal(eval.Status, structs.EvalStatusPending)
+	require.NotZero(eval.CreateTime)
+	require.NotZero(eval.ModifyTime)
 }
 
 func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
@@ -1790,6 +1812,8 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 	require.Equal(structs.EvalTriggerJobDeregister, eval.TriggeredBy)
 	require.Equal(job.ID, eval.JobID)
 	require.Equal(structs.EvalStatusPending, eval.Status)
+	require.NotZero(eval.CreateTime)
+	require.NotZero(eval.ModifyTime)
 
 	// Deregister and purge
 	dereg2 := &structs.JobDeregisterRequest{
@@ -1820,6 +1844,8 @@ func TestJobEndpoint_Deregister(t *testing.T) {
 	require.Equal(structs.EvalTriggerJobDeregister, eval.TriggeredBy)
 	require.Equal(job.ID, eval.JobID)
 	require.Equal(structs.EvalStatusPending, eval.Status)
+	require.NotZero(eval.CreateTime)
+	require.NotZero(eval.ModifyTime)
 }
 
 func TestJobEndpoint_Deregister_ACL(t *testing.T) {
@@ -1899,6 +1925,8 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	require.Equal(eval.JobID, job.ID)
 	require.Equal(eval.JobModifyIndex, validResp2.JobModifyIndex)
 	require.Equal(eval.Status, structs.EvalStatusPending)
+	require.NotZero(eval.CreateTime)
+	require.NotZero(eval.ModifyTime)
 }
 
 func TestJobEndpoint_Deregister_Nonexistent(t *testing.T) {
@@ -1958,6 +1986,12 @@ func TestJobEndpoint_Deregister_Nonexistent(t *testing.T) {
 	}
 	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
+	}
+	if eval.CreateTime == 0 {
+		t.Fatalf("eval CreateTime is unset: %#v", eval)
+	}
+	if eval.ModifyTime == 0 {
+		t.Fatalf("eval ModifyTime is unset: %#v", eval)
 	}
 }
 
@@ -2165,6 +2199,8 @@ func TestJobEndpoint_BatchDeregister(t *testing.T) {
 		require.Equal(structs.EvalTriggerJobDeregister, eval.TriggeredBy)
 		require.Equal(expectedJob.ID, eval.JobID)
 		require.Equal(structs.EvalStatusPending, eval.Status)
+		require.NotZero(eval.CreateTime)
+		require.NotZero(eval.ModifyTime)
 	}
 }
 
