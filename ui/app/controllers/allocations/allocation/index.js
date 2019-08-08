@@ -31,14 +31,12 @@ export default Controller.extend(Sortable, {
 
   network: alias('model.allocatedResources.networks.firstObject'),
   ports: computed('network.reservedPorts.[]', 'network.dynamicPorts.[]', function() {
-    const mode = this.network.mode;
     return (this.get('network.reservedPorts') || [])
       .map(port => ({
         name: port.Label,
         port: port.Value,
         to: port.To,
         isDynamic: false,
-        mode,
       }))
       .concat(
         (this.get('network.dynamicPorts') || []).map(port => ({
@@ -46,7 +44,6 @@ export default Controller.extend(Sortable, {
           port: port.Value,
           to: port.To,
           isDynamic: true,
-          mode,
         }))
       )
       .sortBy('name');
