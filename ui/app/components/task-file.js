@@ -100,15 +100,13 @@ export default Component.extend({
     const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
     const logFetch = url =>
       RSVP.race([this.token.authorizedRequest(url), timeout(timing)]).then(
-        response => response,
-        error => {
-          if (this.useServer) {
-            this.set('noConnection', true);
-          } else {
-            this.send('failoverToServer');
+        response => {
+          if (!response || !response.ok) {
+            this.nextErrorState(response);
           }
-          throw error;
-        }
+          return response;
+        },
+        error => this.nextErrorState(error)
       );
 
     return Log.create({
@@ -118,6 +116,15 @@ export default Component.extend({
       url: this.fileUrl,
     });
   }),
+
+  nextErrorState(error) {
+    if (this.useServer) {
+      this.set('noConnection', true);
+    } else {
+      this.send('failoverToServer');
+    }
+    throw error;
+  },
 
   actions: {
     toggleStream() {

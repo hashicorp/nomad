@@ -9,9 +9,8 @@ export default Route.extend({
 
     const pathWithTaskName = `${task.name}${decodedPath.startsWith('/') ? '' : '/'}${decodedPath}`;
 
-    return task
-      .stat(pathWithTaskName)
-      .then(statJson => {
+    return RSVP.all([task.stat(pathWithTaskName), task.get('allocation.node')])
+      .then(([statJson]) => {
         if (statJson.IsDir) {
           return RSVP.hash({
             path: decodedPath,
