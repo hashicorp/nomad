@@ -413,6 +413,9 @@ export default function() {
 
     this.get(`http://${host}/v1/client/fs/ls/:allocation_id`, clientAllocationFSLsHandler);
     this.get(`http://${host}/v1/client/stat/ls/:allocation_id`, clientAllocationFSStatHandler);
+    this.get(`http://${host}/v1/client/fs/cat/:allocation_id`, clientAllocationCatHandler);
+    this.get(`http://${host}/v1/client/fs/stream/:allocation_id`, clientAllocationStreamHandler);
+    this.get(`http://${host}/v1/client/fs/readat/:allocation_id`, clientAllocationReadAtHandler);
 
     this.get(`http://${host}/v1/client/stats`, function({ clientStats }) {
       return this.serialize(clientStats.find(host));
