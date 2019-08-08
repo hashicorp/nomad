@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	clientconfig "github.com/hashicorp/nomad/client/config"
@@ -112,6 +113,8 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 
 	// create network configurator
 	nc := newNetworkConfigurator(ar.Alloc(), config)
+	spew.Dump(config.BridgeNetworkName)
+	spew.Dump(config.BridgeNetworkAllocSubnet)
 
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
