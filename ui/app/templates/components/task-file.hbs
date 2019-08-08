@@ -9,14 +9,14 @@
   <span class="pull-right">
 
     {{#if (not fileTypeIsUnknown)}}
-      <a data-test-log-action="raw" class="button is-white" href="{{catUrl}}" target="_blank" rel="noopener noreferrer">View Raw File</a>
+      <a data-test-log-action="raw" class="button is-white is-compact" href="{{catUrl}}" target="_blank" rel="noopener noreferrer">View Raw File</a>
     {{/if}}
     {{#if (and isLarge isStreamable)}}
-      <button data-test-log-action="head" class="button is-white" onclick={{action "gotoHead"}}>Head</button>
-      <button data-test-log-action="tail" class="button is-white" onclick={{action "gotoTail"}}>Tail</button>
+      <button data-test-log-action="head" class="button is-white is-compact" onclick={{action "gotoHead"}}>Head</button>
+      <button data-test-log-action="tail" class="button is-white is-compact" onclick={{action "gotoTail"}}>Tail</button>
     {{/if}}
     {{#if isStreamable}}
-      <button data-test-log-action="toggle-stream" class="button is-white" onclick={{action "toggleStream"}}>
+      <button data-test-log-action="toggle-stream" class="button is-white is-compact" onclick={{action "toggleStream"}}>
         {{x-icon (if logger.isStreaming "media-pause" "media-play") class="is-text"}}
       </button>
     {{/if}}
