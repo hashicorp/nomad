@@ -30,7 +30,7 @@ export default Controller.extend(Sortable, {
   }),
 
   network: alias('model.allocatedResources.networks.firstObject'),
-  brokenPorts: computed('network.reservedPorts.[]', 'network.dynamicPorts.[]', function() {
+  ports: computed('network.reservedPorts.[]', 'network.dynamicPorts.[]', function() {
     const mode = this.network.mode;
     return (this.get('network.reservedPorts') || [])
       .map(port => ({

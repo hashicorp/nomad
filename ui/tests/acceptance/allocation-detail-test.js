@@ -20,7 +20,9 @@ module('Acceptance | allocation detail', function(hooks) {
 
     node = server.create('node');
     job = server.create('job', { groupsCount: 1, createAllocations: false });
-    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
+    allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
+      clientStatus: 'running',
+    });
 
     // Make sure the node has an unhealthy driver
     node.update({
@@ -160,6 +162,23 @@ module('Acceptance | allocation detail', function(hooks) {
 
   test('when the allocation has not been rescheduled, the reschedule events section is not rendered', async function(assert) {
     assert.notOk(Allocation.hasRescheduleEvents, 'Reschedule Events section exists');
+  });
+
+  test('ports are listed', async function(assert) {
+    const serverNetwork = allocation.allocatedResources.Networks[0];
+    const allServerPorts = serverNetwork.ReservedPorts.concat(serverNetwork.DynamicPorts);
+
+    allServerPorts.sortBy('Label').forEach((serverPort, index) => {
+      const renderedPort = Allocation.addresses[index];
+
+      assert.equal(
+        renderedPort.dynamic,
+        serverNetwork.ReservedPorts.includes(serverPort) ? 'No' : 'Yes'
+      );
+      assert.equal(renderedPort.name, serverPort.Label);
+      assert.equal(renderedPort.mode, serverNetwork.Mode);
+      assert.equal(renderedPort.address, `${serverNetwork.IP}:${serverPort.Value}`);
+    });
   });
 
   test('when the allocation is not found, an error message is shown, but the URL persists', async function(assert) {
