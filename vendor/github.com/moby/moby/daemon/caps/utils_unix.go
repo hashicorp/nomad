@@ -90,33 +90,23 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 	// FIXME(tonistiigi): docker format is without CAP_ prefix, oci is with prefix
 	// Currently they are mixed in here. We should do conversion in one place.
 
-	// look for invalid cap in the drop list
-	for _, cap := range drops {
-		if strings.ToLower(cap) == "all" {
-			continue
-		}
-
-		if !inSlice(allCaps, "CAP_"+cap) {
-			return nil, fmt.Errorf("Unknown capability drop: %q", cap)
-		}
-	}
-
 	// handle --cap-add=all
 	if inSlice(adds, "all") {
 		basics = allCaps
+		// replace "all" keyword with entire list of capabilities
+		adds = basics
 	}
 
-	if !inSlice(drops, "all") {
-		for _, cap := range basics {
-			// skip `all` already handled above
-			if strings.ToLower(cap) == "all" {
-				continue
-			}
+	for _, cap := range drops {
+		// handle --cap-drop=all
+		if strings.ToLower(cap) == "all" {
+			// ignore all added caps (keep nothing)
+			return newCaps, nil
+		}
 
-			// if we don't drop `all`, add back all the non-dropped caps
-			if !inSlice(drops, cap[4:]) {
-				newCaps = append(newCaps, strings.ToUpper(cap))
-			}
+		// this cap is not supported
+		if !inSlice(allCaps, "CAP_"+cap) {
+			return nil, fmt.Errorf("Unknown capability drop: %q", cap)
 		}
 	}
 
@@ -128,11 +118,17 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 
 		cap = "CAP_" + cap
 
+		// this cap is not supported
 		if !inSlice(allCaps, cap) {
 			return nil, fmt.Errorf("Unknown capability to add: %q", cap)
 		}
 
-		// add cap if not already in the list
+		// this cap is dropped; don't add
+		if inSlice(drops, cap) {
+			continue
+		}
+
+		// add this cap if not already in the list
 		if !inSlice(newCaps, cap) {
 			newCaps = append(newCaps, strings.ToUpper(cap))
 		}
