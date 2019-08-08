@@ -53,6 +53,8 @@ export function generateNetworks(options = {}) {
         .map(() => ({
           Label: faker.hacker.noun(),
           Value: faker.random.number({ min: 5000, max: 60000 }),
+          // FIXME (and below) does this need to be conditional?
+          To: faker.random.number({ min: 5000, max: 60000 }),
         })),
       DynamicPorts: Array(
         faker.random.number({
@@ -64,6 +66,7 @@ export function generateNetworks(options = {}) {
         .map(() => ({
           Label: faker.hacker.noun(),
           Value: faker.random.number({ min: 5000, max: 60000 }),
+          To: faker.random.number({ min: 5000, max: 60000 }),
         })),
     }));
 }
