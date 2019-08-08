@@ -76,12 +76,12 @@ export default create({
   preempted: isPresent('[data-test-preemptions]'),
   ...allocations('[data-test-preemptions] [data-test-allocation]', 'preemptions'),
 
-  addresses: collection('[data-test-task-address]', {
-    dynamic: text('[data-test-task-address-is-dynamic]'),
-    name: text('[data-test-task-address-name]'),
-    mode: text('[data-test-task-address-mode]'),
-    address: text('[data-test-task-address-address]'),
-    to: text('[data-test-task-address-to]'),
+  ports: collection('[data-test-task-port]', {
+    dynamic: text('[data-test-task-port-is-dynamic]'),
+    name: text('[data-test-task-port-name]'),
+    mode: text('[data-test-task-port-mode]'),
+    address: text('[data-test-task-port-address]'),
+    to: text('[data-test-task-port-to]'),
   }),
 
   error: {

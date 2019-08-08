@@ -116,9 +116,9 @@
   </div>
 
   {{#if ports.length}}
-    <div class="boxed-section" data-test-task-addresses>
+    <div class="boxed-section" data-test-task-ports>
       <div class="boxed-section-head">
-        Addresses
+        Ports
       </div>
       <div class="boxed-section-body is-full-bleed">
         {{#list-table source=ports as |t|}}
@@ -130,11 +130,11 @@
             <th>To</th>
           {{/t.head}}
           {{#t.body as |row|}}
-            <tr data-test-task-address>
-              <td data-test-task-address-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
-              <td data-test-task-address-name>{{row.model.name}}</td>
-              <td data-test-task-address-mode>{{row.model.mode}}</td>
-              <td data-test-task-address-address>
+            <tr data-test-task-port>
+              <td data-test-task-port-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
+              <td data-test-task-port-name>{{row.model.name}}</td>
+              <td data-test-task-port-mode>{{row.model.mode}}</td>
+              <td data-test-task-port-address>
                   {{network.ip}}:{{row.model.port}}
               </td>
               <td>

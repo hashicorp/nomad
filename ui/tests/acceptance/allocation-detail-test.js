@@ -169,7 +169,7 @@ module('Acceptance | allocation detail', function(hooks) {
     const allServerPorts = serverNetwork.ReservedPorts.concat(serverNetwork.DynamicPorts);
 
     allServerPorts.sortBy('Label').forEach((serverPort, index) => {
-      const renderedPort = Allocation.addresses[index];
+      const renderedPort = Allocation.ports[index];
 
       assert.equal(
         renderedPort.dynamic,
