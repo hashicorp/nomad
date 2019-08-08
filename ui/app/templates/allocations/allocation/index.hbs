@@ -116,7 +116,7 @@
   </div>
 
   {{#if ports.length}}
-    <div class="boxed-section" data-test-task-ports>
+    <div class="boxed-section" data-test-allocation-ports>
       <div class="boxed-section-head">
         Ports
       </div>
@@ -130,14 +130,14 @@
             <th>To</th>
           {{/t.head}}
           {{#t.body as |row|}}
-            <tr data-test-task-port>
-              <td data-test-task-port-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
-              <td data-test-task-port-name>{{row.model.name}}</td>
-              <td data-test-task-port-mode>{{row.model.mode}}</td>
-              <td data-test-task-port-address>
+            <tr data-test-allocation-port>
+              <td data-test-allocation-port-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
+              <td data-test-allocation-port-name>{{row.model.name}}</td>
+              <td data-test-allocation-port-mode>{{row.model.mode}}</td>
+              <td data-test-allocation-port-address>
                   {{network.ip}}:{{row.model.port}}
               </td>
-              <td data-test-task-port-to>{{row.model.to}}</td>
+              <td data-test-allocation-port-to>{{row.model.to}}</td>
             </tr>
           {{/t.body}}
         {{/list-table}}
