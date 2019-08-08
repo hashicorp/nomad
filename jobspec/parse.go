@@ -892,6 +892,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			"user",
 			"vault",
 			"kill_signal",
+			"kind",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))

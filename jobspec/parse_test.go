@@ -178,6 +178,7 @@ func TestParse(t *testing.T) {
 								Name:   "binstore",
 								Driver: "docker",
 								User:   "bob",
+								Kind:   "connect-proxy:test",
 								Config: map[string]interface{}{
 									"image": "hashicorp/binstore",
 									"labels": []map[string]interface{}{

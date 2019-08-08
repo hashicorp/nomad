@@ -126,6 +126,7 @@ job "binstore-storagelocker" {
       driver = "docker"
       user   = "bob"
       leader = true
+      kind = "connect-proxy:test"
 
       affinity {
         attribute = "${meta.foo}"
