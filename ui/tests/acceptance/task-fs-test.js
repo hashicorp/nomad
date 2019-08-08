@@ -59,8 +59,8 @@ module('Acceptance | task fs', function(hooks) {
     );
 
     files.push(server.create('allocFile', { isDir: true, name: 'empty-directory' }));
-    files.push(server.create('allocFile', 'file'));
-    files.push(server.create('allocFile', 'file'));
+    files.push(server.create('allocFile', 'file', { fileType: 'txt' }));
+    files.push(server.create('allocFile', 'file', { fileType: 'txt' }));
   });
 
   test('visiting /allocations/:allocation_id/:task_name/fs', async function(assert) {
@@ -296,6 +296,13 @@ module('Acceptance | task fs', function(hooks) {
   });
 
   test('viewing a file', async function(assert) {
+    const node = server.db.nodes.find(allocation.nodeId);
+
+    server.logging = true;
+    server.get(`http://${node.httpAddr}/v1/client/fs/readat/:allocation_id`, function() {
+      return new Response(500);
+    });
+
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/' });
 
     const sortedFiles = fileSort('name', filesForPath(this.server.schema.allocFiles, '').models);
@@ -307,6 +314,22 @@ module('Acceptance | task fs', function(hooks) {
     assert.equal(FS.breadcrumbsText, `${task.name} ${fileRecord.name}`);
 
     assert.ok(FS.fileViewer.isPresent);
+
+    const requests = this.server.pretender.handledRequests;
+    const secondAttempt = requests.pop();
+    const firstAttempt = requests.pop();
+
+    assert.equal(
+      firstAttempt.url.split('?')[0],
+      `//${node.httpAddr}/v1/client/fs/readat/${allocation.id}`,
+      'Client is hit first'
+    );
+    assert.equal(firstAttempt.status, 500, 'Client request fails');
+    assert.equal(
+      secondAttempt.url.split('?')[0],
+      `/v1/client/fs/readat/${allocation.id}`,
+      'Server is hit second'
+    );
   });
 
   test('viewing an empty directory', async function(assert) {
