@@ -4923,7 +4923,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			}
 		}
 
-		if err := task.Validate(tg.EphemeralDisk, j.Type); err != nil {
+		if err := task.Validate(tg.EphemeralDisk, j.Type, tg.Services); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
@@ -5301,7 +5301,7 @@ func (t *Task) GoString() string {
 }
 
 // Validate is used to sanity check a task
-func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string) error {
+func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices []*Service) error {
 	var mErr multierror.Error
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
@@ -5410,6 +5410,34 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string) error {
 		}
 	}
 
+	// Validation for Kind field which is used for Consul Connect integration
+	// TODO better wording for all error messages
+	if strings.HasPrefix(t.Kind, "connect:") {
+		// This task is a Connect proxy so it should not have service stanzas
+		if len(t.Services) > 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task should not have service stanza in it"))
+		}
+		if t.Leader {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task must not have leader set"))
+		}
+
+		parts := strings.Split(t.Kind, ":")
+		serviceName := strings.Join(parts[1:], "")
+		if len(parts) > 2 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Proxy service name %q should not contain `:`", serviceName))
+		}
+		// TODO Check if service exists at group level
+		found := false
+		for _, svc := range tgServices {
+			if svc.Name == serviceName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy service name not found in services from task group"))
+		}
+	}
 	return mErr.ErrorOrNil()
 }
 
