@@ -1037,9 +1037,9 @@ func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
 				Config: in.SidecarService.Proxy.Config,
 			}
 
-			upstreams := make([]*structs.ConsulUpstream, len(in.SidecarService.Proxy.Upstreams))
+			upstreams := make([]structs.ConsulUpstream, len(in.SidecarService.Proxy.Upstreams))
 			for i, p := range in.SidecarService.Proxy.Upstreams {
-				upstreams[i] = &structs.ConsulUpstream{
+				upstreams[i] = structs.ConsulUpstream{
 					DestinationName: p.DestinationName,
 					LocalBindPort:   p.LocalBindPort,
 				}

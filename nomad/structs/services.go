@@ -599,7 +599,7 @@ func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
 type ConsulProxy struct {
 	// Upstreams configures the upstream services this service intends to
 	// connect to.
-	Upstreams []*ConsulUpstream
+	Upstreams []ConsulUpstream
 
 	// Config is a proxy configuration. It is opaque to Nomad and passed
 	// directly to Consul.
@@ -615,10 +615,10 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 	newP := ConsulProxy{}
 
 	if n := len(p.Upstreams); n > 0 {
-		newP.Upstreams = make([]*ConsulUpstream, n)
+		newP.Upstreams = make([]ConsulUpstream, n)
 
 		for i := range p.Upstreams {
-			newP.Upstreams[i] = p.Upstreams[i].Copy()
+			newP.Upstreams[i] = *p.Upstreams[i].Copy()
 		}
 	}
 
@@ -647,7 +647,7 @@ func (p *ConsulProxy) Equals(o *ConsulProxy) bool {
 OUTER:
 	for _, up := range p.Upstreams {
 		for _, innerUp := range o.Upstreams {
-			if up.Equals(innerUp) {
+			if up.Equals(&innerUp) {
 				// Match; find next upstream
 				continue OUTER
 			}
