@@ -1,3 +1,4 @@
 source "https://rubygems.org"
 
 gem "middleman-hashicorp", "0.3.39"
+gem "redcarpet", "~>3.5.0"
