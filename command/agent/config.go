@@ -290,7 +290,30 @@ type ClientTemplateConfig struct {
 
 // CSIPluginConfig holds the configuration for a given CSI plugin
 type CSIPluginConfig struct {
-	Address string
+	Name         string   `hcl:",key"`
+	Address      string   `hcl:"address"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+}
+
+func (c *CSIPluginConfig) Copy() *CSIPluginConfig {
+	nc := new(CSIPluginConfig)
+	*nc = *c
+	return nc
+}
+
+func MergeSliceCSIPluginConfig(a, b []*CSIPluginConfig) []*CSIPluginConfig {
+	ns := make([]*CSIPluginConfig, len(a)+len(b))
+	idx := 0
+	for _, cfg := range a {
+		ns[idx] = cfg.Copy()
+		idx += 1
+	}
+	for _, cfg := range b {
+		ns[idx] = cfg.Copy()
+		idx += 1
+	}
+
+	return ns
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -1453,6 +1476,8 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	} else if len(b.HostVolumes) != 0 {
 		result.HostVolumes = structs.HostVolumeSliceMerge(a.HostVolumes, b.HostVolumes)
 	}
+
+	result.CSIPlugins = MergeSliceCSIPluginConfig(a.CSIPlugins, b.CSIPlugins)
 
 	return &result
 }
