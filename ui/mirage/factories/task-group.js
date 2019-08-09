@@ -56,7 +56,8 @@ export default Factory.extend({
           if (group.withRescheduling) {
             server.create('allocation', 'rescheduled', props);
           } else {
-            server.create('allocation', props);
+            // FIXME for demonstration only
+            server.create('allocation', 'withAllocatedResources', props);
           }
         });
     }

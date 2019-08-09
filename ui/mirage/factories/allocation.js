@@ -4,6 +4,9 @@ import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide, pickOne } from '../utils';
 import { generateResources } from '../common';
 
+// FIXME for demonstration only
+faker.seed(100);
+
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
 const CLIENT_STATUSES = ['pending', 'running', 'complete', 'failed', 'lost'];
 const DESIRED_STATUSES = ['run', 'stop', 'evict'];
