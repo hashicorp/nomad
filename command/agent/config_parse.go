@@ -143,6 +143,11 @@ func extraKeys(c *Config) error {
 		removeEqualFold(&c.Client.ExtraKeysHCL, hv.Name)
 	}
 
+	// Remove CSIPlugin extra keys
+	for _, cfg := range c.Client.CSIPlugins {
+		removeEqualFold(&c.Client.ExtraKeysHCL, cfg.Name)
+	}
+
 	for _, k := range []string{"enabled_schedulers", "start_join", "retry_join", "server_join"} {
 		removeEqualFold(&c.ExtraKeysHCL, k)
 		removeEqualFold(&c.ExtraKeysHCL, "server")
