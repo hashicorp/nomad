@@ -64,6 +64,18 @@ helpers do
     end
   end
 
+  # Returns a <ul> with links to API subheaders
+  def api_toc(filename)
+    html_toc = Redcarpet::Markdown.new(Redcarpet::Render::HTML_TOC.new(nesting_level: 2..2))
+    file = ::File.read("source/api/#{filename}.html.md")
+
+    # remove YAML frontmatter
+    file = file.gsub(/^(---\s*\n.*?\n?)^(---\s*$\n?)/m,'')
+
+    rendered = html_toc.render file
+    rendered.gsub("<ul", "<ul class='nav'")
+  end
+
   # Returns the id for this page.
   # @return [String]
   def body_id_for(page)
