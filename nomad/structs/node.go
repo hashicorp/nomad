@@ -12,7 +12,7 @@ import (
 type StoragePluginInfo struct {
 	Attributes        map[string]string
 	Detected          bool
-	Healhty           bool
+	Healthy           bool
 	HealthDescription string
 
 	// NodeID is the ID of the Node in the external storage provider as returned
