@@ -868,6 +868,75 @@ func TestTaskGroup_Validate(t *testing.T) {
 	err = tg.Validate(j)
 	require.Contains(t, err.Error(), "Port label http already in use")
 	require.Contains(t, err.Error(), "Port mapped to 80 already in use")
+
+	tg = &TaskGroup{
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Type: "nothost",
+				Config: map[string]interface{}{
+					"sOuRcE": "foo",
+				},
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	require.Contains(t, err.Error(), `Volume foo has unrecognised type nothost`)
+
+	tg = &TaskGroup{
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Type: "host",
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	require.Contains(t, err.Error(), `Volume foo has an empty source`)
+
+	tg = &TaskGroup{
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Type: "host",
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+				VolumeMounts: []*VolumeMount{
+					{
+						Volume: "",
+					},
+				},
+			},
+			{
+				Name:      "task-b",
+				Resources: &Resources{},
+				VolumeMounts: []*VolumeMount{
+					{
+						Volume: "foob",
+					},
+				},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	expected = `Task task-a has a volume mount (0) referencing an empty volume`
+	require.Contains(t, err.Error(), expected)
+
+	expected = `Task task-b has a volume mount (0) referencing undefined volume foob`
+	require.Contains(t, err.Error(), expected)
 }
 
 func TestTask_Validate(t *testing.T) {

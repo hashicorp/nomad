@@ -1578,6 +1578,9 @@ type Node struct {
 	// Drivers is a map of driver names to current driver information
 	Drivers map[string]*DriverInfo
 
+	// HostVolumes is a map of host volume names to their configuration
+	HostVolumes map[string]*ClientHostVolumeConfig
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -1622,6 +1625,7 @@ func (n *Node) Copy() *Node {
 	nn.Events = copyNodeEvents(n.Events)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
 	nn.Drivers = copyNodeDrivers(n.Drivers)
+	nn.HostVolumes = copyNodeHostVolumes(n.HostVolumes)
 	return nn
 }
 
@@ -1650,6 +1654,21 @@ func copyNodeDrivers(drivers map[string]*DriverInfo) map[string]*DriverInfo {
 	for driver, info := range drivers {
 		c[driver] = info.Copy()
 	}
+	return c
+}
+
+// copyNodeHostVolumes is a helper to copy a map of string to Volume
+func copyNodeHostVolumes(volumes map[string]*ClientHostVolumeConfig) map[string]*ClientHostVolumeConfig {
+	l := len(volumes)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]*ClientHostVolumeConfig, l)
+	for volume, v := range volumes {
+		c[volume] = v.Copy()
+	}
+
 	return c
 }
 
@@ -4659,6 +4678,9 @@ type TaskGroup struct {
 
 	// Services this group provides
 	Services []*Service
+
+	// Volumes is a map of volumes that have been requested by the task group.
+	Volumes map[string]*VolumeRequest
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -4673,6 +4695,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.ReschedulePolicy = ntg.ReschedulePolicy.Copy()
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
+	ntg.Volumes = CopyMapVolumeRequest(ntg.Volumes)
 
 	// Copy the network objects
 	if tg.Networks != nil {
@@ -4860,6 +4883,25 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Only one task may be marked as leader"))
 	}
 
+	// Validate the Host Volumes
+	for name, decl := range tg.Volumes {
+		if decl.Type != VolumeTypeHost {
+			// TODO: Remove this error when adding new volume types
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unrecognised type %s", name, decl.Type))
+			continue
+		}
+
+		cfg, err := ParseHostVolumeConfig(decl.Config)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unparseable config: %v", name, err))
+			continue
+		}
+
+		if cfg.Source == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has an empty source", name))
+		}
+	}
+
 	// Validate task group and task network resources
 	if err := tg.validateNetworks(); err != nil {
 		outer := fmt.Errorf("Task group network validation failed: %v", err)
@@ -4868,6 +4910,19 @@ func (tg *TaskGroup) Validate(j *Job) error {
 
 	// Validate the tasks
 	for _, task := range tg.Tasks {
+		// Validate the task does not reference undefined volume mounts
+		for i, mnt := range task.VolumeMounts {
+			if mnt.Volume == "" {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %s has a volume mount (%d) referencing an empty volume", task.Name, i))
+				continue
+			}
+
+			if _, ok := tg.Volumes[mnt.Volume]; !ok {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %s has a volume mount (%d) referencing undefined volume %s", task.Name, i, mnt.Volume))
+				continue
+			}
+		}
+
 		if err := task.Validate(tg.EphemeralDisk, j.Type); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
@@ -5616,6 +5671,10 @@ type Task struct {
 	// task from Consul and sending it a signal to shutdown. See #2441
 	ShutdownDelay time.Duration
 
+	// VolumeMounts is a list of Volume name <-> mount configurations that will be
+	// attached to this task.
+	VolumeMounts []*VolumeMount
+
 	// The kill signal to use for the task. This is an optional specification,
 
 	// KillSignal is the kill signal to use for the task. This is an optional
@@ -5641,6 +5700,7 @@ func (t *Task) Copy() *Task {
 
 	nt.Constraints = CopySliceConstraints(nt.Constraints)
 	nt.Affinities = CopySliceAffinities(nt.Affinities)
+	nt.VolumeMounts = CopySliceVolumeMount(nt.VolumeMounts)
 
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()

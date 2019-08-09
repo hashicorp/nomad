@@ -246,6 +246,9 @@ type Config struct {
 	// AutoFetchCNIDir is the destination dir to use when auto doanloading CNI plugins.
 	// This directory will be appended to the CNIPath so it is searched last
 	AutoFetchCNIDir string
+
+	// HostVolumes is the set of configured host volumes
+	HostVolumes map[string]*structs.ClientHostVolumeConfig
 }
 
 func (c *Config) Copy() *Config {
@@ -254,6 +257,7 @@ func (c *Config) Copy() *Config {
 	nc.Node = nc.Node.Copy()
 	nc.Servers = helper.CopySliceString(nc.Servers)
 	nc.Options = helper.CopyMapStringString(nc.Options)
+	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
 	return nc
