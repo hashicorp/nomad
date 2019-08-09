@@ -331,6 +331,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.batchNodeUpdates = newBatchNodeUpdates(
 		c.updateNodeFromDriver,
 		c.updateNodeFromDevices,
+		c.updateNodeFromStorage,
 	)
 
 	// Initialize the server manager
@@ -406,7 +407,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.devicemanager = devManager
 	c.pluginManagers.RegisterAndRun(devManager)
 
-	storageManager := storagemanager.New(c.logger, c.configCopy.StoragePluginCatalog)
+	storageManager := storagemanager.New(c.logger, c.configCopy.StoragePluginCatalog, c.batchNodeUpdates.updateNodeFromStorage)
 	c.pluginManagers.RegisterAndRun(storageManager)
 
 	// Batching of initial fingerprints is done to reduce the number of node

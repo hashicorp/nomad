@@ -14,6 +14,7 @@ type StoragePluginInfo struct {
 	Detected          bool
 	Healthy           bool
 	HealthDescription string
+	UpdateTime        time.Time
 
 	// NodeID is the ID of the Node in the external storage provider as returned
 	// by the CSI NodePlugin.NodeGetInfo() RPC.

@@ -31,10 +31,11 @@ type Manager interface {
 // the second is the fingerprint result.
 type UpdateNodeStorageInfoFn func(string, *structs.StoragePluginInfo)
 
-func New(logger hclog.Logger, loader storage.PluginCatalog) Manager {
+func New(logger hclog.Logger, loader storage.PluginCatalog, updater UpdateNodeStorageInfoFn) Manager {
 	return &manager{
-		logger: logger.Named("storage_mgr"),
-		loader: loader,
+		logger:  logger.Named("storage_mgr"),
+		loader:  loader,
+		updater: updater,
 	}
 }
 
@@ -47,6 +48,10 @@ type manager struct {
 
 	// cancelFn ends the manager context and shuts down all plugin managers
 	cancelFn context.CancelFunc
+
+	// updater is the function call back passed to instance managers for returning
+	// fingerprint info back to the client
+	updater UpdateNodeStorageInfoFn
 
 	// managers is a map of initialized instance managers
 	managers     map[string]*instanceManager
@@ -67,12 +72,10 @@ func (m *manager) Run() {
 	for name, cfg := range m.loader.Configs() {
 		m.logger.Info("Starting manager", "name", name, "addr", cfg.Address)
 		instanceManagers[name] = newInstanceManager(name, &instanceManagerConfig{
-			Logger: m.logger,
-			Ctx:    ctx,
-			Cfg:    cfg,
-			UpdateNodeFromPlugin: func(pluginName string, info *structs.StoragePluginInfo) {
-				m.logger.Info("fingerprinted plugin", "name", pluginName, "info", info)
-			},
+			Logger:               m.logger,
+			Ctx:                  ctx,
+			Cfg:                  cfg,
+			UpdateNodeFromPlugin: m.updater,
 		})
 	}
 
@@ -106,6 +109,7 @@ func (m *manager) WaitForFirstFingerprint(ctx context.Context) <-chan struct{} {
 
 	go func() {
 		wg.Wait()
+		m.logger.Info("finished initial fingerprinting")
 		close(resultCh)
 	}()
 

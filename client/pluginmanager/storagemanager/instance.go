@@ -2,6 +2,7 @@ package storagemanager
 
 import (
 	"context"
+	"os"
 	"sync"
 	"time"
 
@@ -155,23 +156,23 @@ func (i *instanceManager) updateLastHealthState(fp *structs.StoragePluginInfo) {
 	i.lastHealthStateMu.Lock()
 	defer i.lastHealthStateMu.Unlock()
 
-	if !fp.Healthy && !i.hasFingerprinted {
-		i.lastHealthState = drivers.HealthStateUndetected
-		return
-	} else if fp.Healthy && !i.hasFingerprinted {
-		i.lastHealthState = drivers.HealthStateHealthy
-		i.hasFingerprinted = true
-		close(i.firstFingerprintCh)
-
-		i.logger.Info("plugin is now available")
-		return
-	}
-
 	state := drivers.HealthStateUndetected
 	if fp.Healthy {
 		state = drivers.HealthStateHealthy
 	} else {
 		state = drivers.HealthStateUnhealthy
+	}
+
+	if !fp.Detected && !i.hasFingerprinted {
+		i.lastHealthState = drivers.HealthStateUndetected
+		return
+	} else if fp.Detected && !i.hasFingerprinted {
+		i.lastHealthState = state
+		i.hasFingerprinted = true
+		close(i.firstFingerprintCh)
+
+		i.logger.Info("plugin is now available")
+		return
 	}
 
 	if i.lastHealthState != state {
@@ -182,13 +183,22 @@ func (i *instanceManager) updateLastHealthState(fp *structs.StoragePluginInfo) {
 }
 
 func (i *instanceManager) fingerprintOnce(ctx context.Context) (*structs.StoragePluginInfo, error) {
-	client, err := i.dispenseClient()
-	if err != nil {
-		return nil, err
+	if _, err := os.Stat(i.cfg.Address); os.IsNotExist(err) {
+		return &structs.StoragePluginInfo{
+			Detected:          false,
+			Healthy:           false,
+			HealthDescription: "csi socket path does not exist",
+		}, nil
 	}
 
 	result := &structs.StoragePluginInfo{}
 	result.Attributes = make(map[string]string)
+	result.Detected = true
+
+	client, err := i.dispenseClient()
+	if err != nil {
+		return nil, err
+	}
 
 	healthy, err := client.PluginProbe(ctx)
 	if err != nil {
