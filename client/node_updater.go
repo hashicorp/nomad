@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/storagemanager"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -60,12 +61,79 @@ SEND_BATCH:
 		}
 	})
 
+	// storage node updates
+	var storageChanged bool
+	c.batchNodeUpdates.batchStorageUpdates(func(name string, info *structs.StoragePluginInfo) {
+		if c.updateNodeFromStorageLocked(name, info) {
+			storageChanged = true
+		}
+	})
+
 	// only update the node if changes occurred
-	if driverChanged || devicesChanged {
+	if driverChanged || devicesChanged || storageChanged {
 		c.updateNodeLocked()
 	}
 
 	close(c.fpInitialized)
+}
+
+// updateNodeFromStorage recieves a StorageProviderInfo struct for the driver
+// and updates the node accordingly
+func (c *Client) updateNodeFromStorage(name string, info *structs.StoragePluginInfo) {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	if c.updateNodeFromStorageLocked(name, info) {
+		c.config.Node.StoragePlugins[name] = info
+		if c.config.Node.StoragePlugins[name].UpdateTime.IsZero() {
+			c.config.Node.StoragePlugins[name].UpdateTime = time.Now()
+		}
+		c.updateNodeLocked()
+	}
+}
+
+// updateNodeFromStorageLocked makes the changes to the node from a storage plugin
+// update but does not send the update to the server. c.configLock must be held before
+// calling this func
+func (c *Client) updateNodeFromStorageLocked(name string, info *structs.StoragePluginInfo) bool {
+	var hasChanged bool
+
+	hadPlugin := c.config.Node.StoragePlugins[name] != nil
+	if !hadPlugin {
+		hasChanged = true
+	} else {
+		oldVal := c.config.Node.StoragePlugins[name]
+
+		// The info has already been set, fix it up
+		if oldVal.Detected != info.Detected {
+			hasChanged = true
+		}
+
+		// If health state has change, trigger node event
+		if oldVal.Healthy != info.Healthy || oldVal.HealthDescription != info.HealthDescription {
+			hasChanged = true
+			if info.HealthDescription != "" {
+				event := &structs.NodeEvent{
+					Subsystem: "Storage",
+					Message:   info.HealthDescription,
+					Timestamp: time.Now(),
+					Details:   map[string]string{"storage_plugin": name},
+				}
+				c.triggerNodeEvent(event)
+			}
+		}
+
+		for attrName, newVal := range info.Attributes {
+			oldVal := c.config.Node.StoragePlugins[name].Attributes[attrName]
+			if oldVal == newVal {
+				continue
+			}
+
+			hasChanged = true
+		}
+	}
+
+	return hasChanged
 }
 
 // updateNodeFromDriver receives a DriverInfo struct for the driver and updates
@@ -187,17 +255,26 @@ type batchNodeUpdates struct {
 	devicesBatched bool
 	devicesCB      devicemanager.UpdateNodeDevicesFn
 	devicesMu      sync.Mutex
+
+	// access to storage fields must hold storageMu lock
+	storageProviders map[string]*structs.StoragePluginInfo
+	storageBatched   bool
+	storageCB        storagemanager.UpdateNodeStorageInfoFn
+	storageMu        sync.Mutex
 }
 
 func newBatchNodeUpdates(
 	driverCB drivermanager.UpdateNodeDriverInfoFn,
-	devicesCB devicemanager.UpdateNodeDevicesFn) *batchNodeUpdates {
+	devicesCB devicemanager.UpdateNodeDevicesFn,
+	storageCB storagemanager.UpdateNodeStorageInfoFn) *batchNodeUpdates {
 
 	return &batchNodeUpdates{
-		drivers:   make(map[string]*structs.DriverInfo),
-		driverCB:  driverCB,
-		devices:   []*structs.NodeDeviceResource{},
-		devicesCB: devicesCB,
+		drivers:          make(map[string]*structs.DriverInfo),
+		driverCB:         driverCB,
+		devices:          []*structs.NodeDeviceResource{},
+		devicesCB:        devicesCB,
+		storageProviders: make(map[string]*structs.StoragePluginInfo),
+		storageCB:        storageCB,
 	}
 }
 
@@ -226,6 +303,35 @@ func (b *batchNodeUpdates) batchDriverUpdates(f drivermanager.UpdateNodeDriverIn
 	b.driversBatched = true
 	for driver, info := range b.drivers {
 		f(driver, info)
+	}
+	return nil
+}
+
+// updateNodeFromStorage implements storagemanager.UpdateNodeStorageInfoFn and is
+// called in storagemanager.instanceManager's to update fingerprinted data
+func (b *batchNodeUpdates) updateNodeFromStorage(name string, info *structs.StoragePluginInfo) {
+	b.storageMu.Lock()
+	defer b.storageMu.Unlock()
+	if b.storageBatched {
+		b.storageCB(name, info)
+		return
+	}
+
+	b.storageProviders[name] = info
+}
+
+// batchStorageUpdates sends all of the batched storage node updates by calling f
+// for each plguin batched
+func (b *batchNodeUpdates) batchStorageUpdates(f storagemanager.UpdateNodeStorageInfoFn) error {
+	b.storageMu.Lock()
+	defer b.storageMu.Unlock()
+	if b.storageBatched {
+		return fmt.Errorf("storage updates already batched")
+	}
+
+	b.storageBatched = true
+	for plugin, info := range b.storageProviders {
+		f(plugin, info)
 	}
 	return nil
 }
