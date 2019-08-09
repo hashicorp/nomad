@@ -1205,7 +1205,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 		{
 			Name:       "restrictive-whitelist-add-forbidden",
 			CapAdd:     []string{"net_admin", "mknod"},
-			CapDrop:    []string{"all"},
+			CapDrop:    []string{"mknod"},
 			Whitelist:  "fowner,mknod",
 			StartError: "net_admin",
 		},
