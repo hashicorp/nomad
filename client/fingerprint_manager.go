@@ -7,6 +7,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/storage"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -15,6 +16,7 @@ import (
 // updates the client when the node has changed
 type FingerprintManager struct {
 	singletonLoader loader.PluginCatalog
+	storagePlugins  storage.PluginCatalog
 	getConfig       func() *config.Config
 	node            *structs.Node
 	nodeLock        sync.Mutex

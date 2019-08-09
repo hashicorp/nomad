@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/storagemanager"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/stats"
@@ -408,6 +409,9 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	devManager := devicemanager.New(devConfig)
 	c.devicemanager = devManager
 	c.pluginManagers.RegisterAndRun(devManager)
+
+	storageManager := storagemanager.New(c.logger, c.configCopy.StoragePluginCatalog)
+	c.pluginManagers.RegisterAndRun(storageManager)
 
 	// Batching of initial fingerprints is done to reduce the number of node
 	// updates sent to the server on startup.

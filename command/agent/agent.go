@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/client/storage"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -361,7 +362,7 @@ func (a *Agent) finalizeServerConfig(c *nomad.Config) {
 // clientConfig is used to generate a new client configuration struct for
 // initializing a Nomad client.
 func (a *Agent) clientConfig() (*clientconfig.Config, error) {
-	c, err := convertClientConfig(a.config)
+	c, err := convertClientConfig(a.config, a.logger)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +422,7 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 // convertClientConfig takes an agent config and log output and returns a client
 // Config. There may be missing fields that must be set by the agent. To do this
 // call finalizeServerConfig
-func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
+func convertClientConfig(agentConfig *Config, logger log.Logger) (*clientconfig.Config, error) {
 	// Setup the configuration
 	conf := agentConfig.ClientConfig
 	if conf == nil {
@@ -475,6 +476,12 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		hvMap[v.Name] = v
 	}
 	conf.HostVolumes = hvMap
+
+	configs := make(map[string]*storage.PluginConfig)
+	for _, cc := range agentConfig.Client.CSIPlugins {
+		configs[cc.Name] = &storage.PluginConfig{Address: cc.Address}
+	}
+	conf.StoragePluginCatalog = storage.NewPluginLoader(logger, configs)
 
 	// Setup the node
 	conf.Node = new(structs.Node)
