@@ -34,7 +34,7 @@ func TestConsulConnect_CopyEquals(t *testing.T) {
 		SidecarService: &ConsulSidecarService{
 			Port: "9001",
 			Proxy: &ConsulProxy{
-				Upstreams: []*ConsulUpstream{
+				Upstreams: []ConsulUpstream{
 					{
 						DestinationName: "up1",
 						LocalBindPort:   9002,
