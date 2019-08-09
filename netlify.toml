@@ -5,4 +5,4 @@
 [build]
   command = "bundle exec middleman build"
   base = "website"
-  publish = "build"
+  publish = "website/build"
