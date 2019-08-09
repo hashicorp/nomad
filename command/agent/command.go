@@ -863,7 +863,7 @@ func (c *Command) handleReload() {
 
 	if s := c.agent.Client(); s != nil {
 		c.agent.logger.Debug("starting reload of client config")
-		clientConfig, err := convertClientConfig(newConf)
+		clientConfig, err := convertClientConfig(newConf, c.agent.logger)
 		if err != nil {
 			c.agent.logger.Error("failed to convert client config", "error", err)
 			return
