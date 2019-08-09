@@ -12,7 +12,7 @@ import (
 )
 
 //TODO(schmichael) combine with non-group services
-func parseGroupServices(jobName string, taskGroupName string, g *api.TaskGroup, serviceObjs *ast.ObjectList) error {
+func parseGroupServices(g *api.TaskGroup, serviceObjs *ast.ObjectList) error {
 	g.Services = make([]*api.Service, len(serviceObjs.Items))
 	for idx, o := range serviceObjs.Items {
 		// Check for invalid keys
@@ -88,7 +88,7 @@ func parseGroupServices(jobName string, taskGroupName string, g *api.TaskGroup, 
 	return nil
 }
 
-func parseServices(jobName string, taskGroupName string, serviceObjs *ast.ObjectList) ([]*api.Service, error) {
+func parseServices(serviceObjs *ast.ObjectList) ([]*api.Service, error) {
 	services := make([]*api.Service, len(serviceObjs.Items))
 	for idx, o := range serviceObjs.Items {
 		// Check for invalid keys
@@ -170,6 +170,7 @@ func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 	valid := []string{
 		"native",
 		"sidecar_service",
+		"sidecar_task",
 	}
 
 	if err := helper.CheckHCLKeys(co.Val, valid); err != nil {
@@ -183,6 +184,7 @@ func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 	}
 
 	delete(m, "sidecar_service")
+	delete(m, "sidecar_task")
 
 	if err := mapstructure.WeakDecode(m, &connect); err != nil {
 		return nil, err
@@ -209,6 +211,21 @@ func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 		return nil, fmt.Errorf("sidecar_service, %v", err)
 	}
 	connect.SidecarService = r
+
+	// Parse the sidecar_task
+	o = connectList.Filter("sidecar_task")
+	if len(o.Items) == 0 {
+		return &connect, nil
+	}
+	if len(o.Items) > 1 {
+		return nil, fmt.Errorf("only one 'sidecar_task' block allowed per task")
+	}
+
+	t, err := parseTask(o.Items[0])
+	if err != nil {
+		return nil, fmt.Errorf("sidecar_task, %v", err)
+	}
+	connect.SidecarTask = t
 
 	return &connect, nil
 }

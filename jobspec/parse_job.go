@@ -157,7 +157,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	// If we have tasks outside, create TaskGroups for them
 	if o := listVal.Filter("task"); len(o.Items) > 0 {
 		var tasks []*api.Task
-		if err := parseTasks(*result.Name, "", &tasks, o); err != nil {
+		if err := parseTasks(&tasks, o); err != nil {
 			return multierror.Prefix(err, "task:")
 		}
 

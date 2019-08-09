@@ -911,6 +911,15 @@ func TestParse(t *testing.T) {
 											},
 										},
 									},
+									SidecarTask: &api.Task{
+										Resources: &api.Resources{
+											CPU:      helper.IntToPtr(500),
+											MemoryMB: helper.IntToPtr(1024),
+										},
+										Env: map[string]string{
+											"FOO": "abc",
+										},
+									},
 								},
 							},
 						},

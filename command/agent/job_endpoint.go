@@ -1007,39 +1007,50 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			}
 		}
 
-		if s.Connect == nil {
-			continue
+		if s.Connect != nil {
+			out[i].Connect = ApiConsulConnectToStructs(s.Connect)
 		}
 
-		out[i].Connect = &structs.ConsulConnect{
-			Native: s.Connect.Native,
+	}
+
+	return out
+}
+
+func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
+	if in == nil {
+		return nil
+	}
+
+	out := &structs.ConsulConnect{
+		Native: in.Native,
+	}
+
+	if in.SidecarService != nil {
+
+		out.SidecarService = &structs.ConsulSidecarService{
+			Port: in.SidecarService.Port,
 		}
 
-		if s.Connect.SidecarService == nil {
-			continue
-		}
+		if in.SidecarService.Proxy != nil {
 
-		out[i].Connect.SidecarService = &structs.ConsulSidecarService{
-			Port: s.Connect.SidecarService.Port,
-		}
-
-		if s.Connect.SidecarService.Proxy == nil {
-			continue
-		}
-
-		out[i].Connect.SidecarService.Proxy = &structs.ConsulProxy{
-			Config: s.Connect.SidecarService.Proxy.Config,
-		}
-
-		upstreams := make([]*structs.ConsulUpstream, len(s.Connect.SidecarService.Proxy.Upstreams))
-		for i, p := range s.Connect.SidecarService.Proxy.Upstreams {
-			upstreams[i] = &structs.ConsulUpstream{
-				DestinationName: p.DestinationName,
-				LocalBindPort:   p.LocalBindPort,
+			out.SidecarService.Proxy = &structs.ConsulProxy{
+				Config: in.SidecarService.Proxy.Config,
 			}
-		}
 
-		out[i].Connect.SidecarService.Proxy.Upstreams = upstreams
+			upstreams := make([]*structs.ConsulUpstream, len(in.SidecarService.Proxy.Upstreams))
+			for i, p := range in.SidecarService.Proxy.Upstreams {
+				upstreams[i] = &structs.ConsulUpstream{
+					DestinationName: p.DestinationName,
+					LocalBindPort:   p.LocalBindPort,
+				}
+			}
+
+			out.SidecarService.Proxy.Upstreams = upstreams
+		}
+	}
+
+	if in.SidecarTask != nil {
+		ApiTaskToStructsTask(in.SidecarTask, out.SidecarTask)
 	}
 
 	return out

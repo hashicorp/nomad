@@ -163,7 +163,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 
 		// Parse tasks
 		if o := listVal.Filter("task"); len(o.Items) > 0 {
-			if err := parseTasks(*result.Name, *g.Name, &g.Tasks, o); err != nil {
+			if err := parseTasks(&g.Tasks, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', task:", n))
 			}
 		}
@@ -188,7 +188,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		}
 
 		if o := listVal.Filter("service"); len(o.Items) > 0 {
-			if err := parseGroupServices(*result.Name, *g.Name, &g, o); err != nil {
+			if err := parseGroupServices(&g, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
 			}
 		}

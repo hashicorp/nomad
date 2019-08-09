@@ -9,7 +9,7 @@ job "foo" {
         to = 8080
       }
     }
-      
+
     service {
       name        = "connect-service"
       tags        = ["foo", "bar"]
@@ -23,6 +23,16 @@ job "foo" {
               destination_name = "other-service"
               local_bind_port  = 4567
             }
+          }
+        }
+        sidecar_task {
+          resources {
+            cpu = 500
+            memory = 1024
+          }
+
+          env {
+            FOO = "abc"
           }
         }
       }

@@ -515,6 +515,9 @@ type ConsulConnect struct {
 
 	// SidecarService is non-nil if a service requires a sidecar.
 	SidecarService *ConsulSidecarService
+
+	// SidecarTask is non-nil if sidecar overrides are set
+	SidecarTask *Task
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -526,6 +529,7 @@ func (c *ConsulConnect) Copy() *ConsulConnect {
 	return &ConsulConnect{
 		Native:         c.Native,
 		SidecarService: c.SidecarService.Copy(),
+		SidecarTask:    c.SidecarTask.Copy(),
 	}
 }
 

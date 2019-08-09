@@ -12,7 +12,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list *ast.ObjectList) error {
+func parseTasks(result *[]*api.Task, list *ast.ObjectList) error {
 	list = list.Children()
 	if len(list.Items) == 0 {
 		return nil
@@ -29,238 +29,244 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 		}
 		seen[n] = struct{}{}
 
-		// We need this later
-		var listVal *ast.ObjectList
-		if ot, ok := item.Val.(*ast.ObjectType); ok {
-			listVal = ot.List
-		} else {
-			return fmt.Errorf("group '%s': should be an object", n)
-		}
-
-		// Check for invalid keys
-		valid := []string{
-			"artifact",
-			"config",
-			"constraint",
-			"affinity",
-			"dispatch_payload",
-			"driver",
-			"env",
-			"kill_timeout",
-			"leader",
-			"logs",
-			"meta",
-			"resources",
-			"service",
-			"shutdown_delay",
-			"template",
-			"user",
-			"vault",
-			"kill_signal",
-			"kind",
-		}
-		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
-			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
-		}
-
-		var m map[string]interface{}
-		if err := hcl.DecodeObject(&m, item.Val); err != nil {
-			return err
-		}
-		delete(m, "artifact")
-		delete(m, "config")
-		delete(m, "constraint")
-		delete(m, "affinity")
-		delete(m, "dispatch_payload")
-		delete(m, "env")
-		delete(m, "logs")
-		delete(m, "meta")
-		delete(m, "resources")
-		delete(m, "service")
-		delete(m, "template")
-		delete(m, "vault")
-
-		// Build the task
-		var t api.Task
-		t.Name = n
-		if taskGroupName == "" {
-			taskGroupName = n
-		}
-		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
-			WeaklyTypedInput: true,
-			Result:           &t,
-		})
-
+		t, err := parseTask(item)
 		if err != nil {
-			return err
-		}
-		if err := dec.Decode(m); err != nil {
-			return err
+			return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
 		}
 
-		// If we have env, then parse them
-		if o := listVal.Filter("env"); len(o.Items) > 0 {
-			for _, o := range o.Elem().Items {
-				var m map[string]interface{}
-				if err := hcl.DecodeObject(&m, o.Val); err != nil {
-					return err
-				}
-				if err := mapstructure.WeakDecode(m, &t.Env); err != nil {
-					return err
-				}
-			}
-		}
+		t.Name = n
 
-		if o := listVal.Filter("service"); len(o.Items) > 0 {
-			services, err := parseServices(jobName, taskGroupName, o)
-			if err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
-			}
-
-			t.Services = services
-		}
-
-		// If we have config, then parse that
-		if o := listVal.Filter("config"); len(o.Items) > 0 {
-			for _, o := range o.Elem().Items {
-				var m map[string]interface{}
-				if err := hcl.DecodeObject(&m, o.Val); err != nil {
-					return err
-				}
-
-				if err := mapstructure.WeakDecode(m, &t.Config); err != nil {
-					return err
-				}
-			}
-		}
-
-		// Parse constraints
-		if o := listVal.Filter("constraint"); len(o.Items) > 0 {
-			if err := parseConstraints(&t.Constraints, o); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf(
-					"'%s', constraint ->", n))
-			}
-		}
-
-		// Parse affinities
-		if o := listVal.Filter("affinity"); len(o.Items) > 0 {
-			if err := parseAffinities(&t.Affinities, o); err != nil {
-				return multierror.Prefix(err, "affinity ->")
-			}
-		}
-
-		// Parse out meta fields. These are in HCL as a list so we need
-		// to iterate over them and merge them.
-		if metaO := listVal.Filter("meta"); len(metaO.Items) > 0 {
-			for _, o := range metaO.Elem().Items {
-				var m map[string]interface{}
-				if err := hcl.DecodeObject(&m, o.Val); err != nil {
-					return err
-				}
-				if err := mapstructure.WeakDecode(m, &t.Meta); err != nil {
-					return err
-				}
-			}
-		}
-
-		// If we have resources, then parse that
-		if o := listVal.Filter("resources"); len(o.Items) > 0 {
-			var r api.Resources
-			if err := parseResources(&r, o); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
-			}
-
-			t.Resources = &r
-		}
-
-		// If we have logs then parse that
-		if o := listVal.Filter("logs"); len(o.Items) > 0 {
-			if len(o.Items) > 1 {
-				return fmt.Errorf("only one logs block is allowed in a Task. Number of logs block found: %d", len(o.Items))
-			}
-			var m map[string]interface{}
-			logsBlock := o.Items[0]
-
-			// Check for invalid keys
-			valid := []string{
-				"max_files",
-				"max_file_size",
-			}
-			if err := helper.CheckHCLKeys(logsBlock.Val, valid); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("'%s', logs ->", n))
-			}
-
-			if err := hcl.DecodeObject(&m, logsBlock.Val); err != nil {
-				return err
-			}
-
-			var log api.LogConfig
-			if err := mapstructure.WeakDecode(m, &log); err != nil {
-				return err
-			}
-
-			t.LogConfig = &log
-		}
-
-		// Parse artifacts
-		if o := listVal.Filter("artifact"); len(o.Items) > 0 {
-			if err := parseArtifacts(&t.Artifacts, o); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("'%s', artifact ->", n))
-			}
-		}
-
-		// Parse templates
-		if o := listVal.Filter("template"); len(o.Items) > 0 {
-			if err := parseTemplates(&t.Templates, o); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("'%s', template ->", n))
-			}
-		}
-
-		// If we have a vault block, then parse that
-		if o := listVal.Filter("vault"); len(o.Items) > 0 {
-			v := &api.Vault{
-				Env:        helper.BoolToPtr(true),
-				ChangeMode: helper.StringToPtr("restart"),
-			}
-
-			if err := parseVault(v, o); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("'%s', vault ->", n))
-			}
-
-			t.Vault = v
-		}
-
-		// If we have a dispatch_payload block parse that
-		if o := listVal.Filter("dispatch_payload"); len(o.Items) > 0 {
-			if len(o.Items) > 1 {
-				return fmt.Errorf("only one dispatch_payload block is allowed in a task. Number of dispatch_payload blocks found: %d", len(o.Items))
-			}
-			var m map[string]interface{}
-			dispatchBlock := o.Items[0]
-
-			// Check for invalid keys
-			valid := []string{
-				"file",
-			}
-			if err := helper.CheckHCLKeys(dispatchBlock.Val, valid); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("'%s', dispatch_payload ->", n))
-			}
-
-			if err := hcl.DecodeObject(&m, dispatchBlock.Val); err != nil {
-				return err
-			}
-
-			t.DispatchPayload = &api.DispatchPayloadConfig{}
-			if err := mapstructure.WeakDecode(m, t.DispatchPayload); err != nil {
-				return err
-			}
-		}
-
-		*result = append(*result, &t)
+		*result = append(*result, t)
 	}
 
 	return nil
+}
+
+func parseTask(item *ast.ObjectItem) (*api.Task, error) {
+	// We need this later
+	var listVal *ast.ObjectList
+	if ot, ok := item.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("should be an object")
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"artifact",
+		"config",
+		"constraint",
+		"affinity",
+		"dispatch_payload",
+		"driver",
+		"env",
+		"kill_timeout",
+		"leader",
+		"logs",
+		"meta",
+		"resources",
+		"service",
+		"shutdown_delay",
+		"template",
+		"user",
+		"vault",
+		"kill_signal",
+		"kind",
+	}
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		return nil, err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, item.Val); err != nil {
+		return nil, err
+	}
+	delete(m, "artifact")
+	delete(m, "config")
+	delete(m, "constraint")
+	delete(m, "affinity")
+	delete(m, "dispatch_payload")
+	delete(m, "env")
+	delete(m, "logs")
+	delete(m, "meta")
+	delete(m, "resources")
+	delete(m, "service")
+	delete(m, "template")
+	delete(m, "vault")
+
+	// Build the task
+	var t api.Task
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &t,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+
+	// If we have env, then parse them
+	if o := listVal.Filter("env"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return nil, err
+			}
+			if err := mapstructure.WeakDecode(m, &t.Env); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if o := listVal.Filter("service"); len(o.Items) > 0 {
+		services, err := parseServices(o)
+		if err != nil {
+			return nil, err
+		}
+
+		t.Services = services
+	}
+
+	// If we have config, then parse that
+	if o := listVal.Filter("config"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return nil, err
+			}
+
+			if err := mapstructure.WeakDecode(m, &t.Config); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Parse constraints
+	if o := listVal.Filter("constraint"); len(o.Items) > 0 {
+		if err := parseConstraints(&t.Constraints, o); err != nil {
+			return nil, multierror.Prefix(err, "constraint ->")
+		}
+	}
+
+	// Parse affinities
+	if o := listVal.Filter("affinity"); len(o.Items) > 0 {
+		if err := parseAffinities(&t.Affinities, o); err != nil {
+			return nil, multierror.Prefix(err, "affinity ->")
+		}
+	}
+
+	// Parse out meta fields. These are in HCL as a list so we need
+	// to iterate over them and merge them.
+	if metaO := listVal.Filter("meta"); len(metaO.Items) > 0 {
+		for _, o := range metaO.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return nil, err
+			}
+			if err := mapstructure.WeakDecode(m, &t.Meta); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// If we have resources, then parse that
+	if o := listVal.Filter("resources"); len(o.Items) > 0 {
+		var r api.Resources
+		if err := parseResources(&r, o); err != nil {
+			return nil, multierror.Prefix(err, "resources ->")
+		}
+
+		t.Resources = &r
+	}
+
+	// If we have logs then parse that
+	if o := listVal.Filter("logs"); len(o.Items) > 0 {
+		if len(o.Items) > 1 {
+			return nil, fmt.Errorf("only one logs block is allowed in a Task. Number of logs block found: %d", len(o.Items))
+		}
+		var m map[string]interface{}
+		logsBlock := o.Items[0]
+
+		// Check for invalid keys
+		valid := []string{
+			"max_files",
+			"max_file_size",
+		}
+		if err := helper.CheckHCLKeys(logsBlock.Val, valid); err != nil {
+			return nil, multierror.Prefix(err, "logs ->")
+		}
+
+		if err := hcl.DecodeObject(&m, logsBlock.Val); err != nil {
+			return nil, err
+		}
+
+		var log api.LogConfig
+		if err := mapstructure.WeakDecode(m, &log); err != nil {
+			return nil, err
+		}
+
+		t.LogConfig = &log
+	}
+
+	// Parse artifacts
+	if o := listVal.Filter("artifact"); len(o.Items) > 0 {
+		if err := parseArtifacts(&t.Artifacts, o); err != nil {
+			return nil, multierror.Prefix(err, "artifact ->")
+		}
+	}
+
+	// Parse templates
+	if o := listVal.Filter("template"); len(o.Items) > 0 {
+		if err := parseTemplates(&t.Templates, o); err != nil {
+			return nil, multierror.Prefix(err, "template ->")
+		}
+	}
+
+	// If we have a vault block, then parse that
+	if o := listVal.Filter("vault"); len(o.Items) > 0 {
+		v := &api.Vault{
+			Env:        helper.BoolToPtr(true),
+			ChangeMode: helper.StringToPtr("restart"),
+		}
+
+		if err := parseVault(v, o); err != nil {
+			return nil, multierror.Prefix(err, "vault ->")
+		}
+
+		t.Vault = v
+	}
+
+	// If we have a dispatch_payload block parse that
+	if o := listVal.Filter("dispatch_payload"); len(o.Items) > 0 {
+		if len(o.Items) > 1 {
+			return nil, fmt.Errorf("only one dispatch_payload block is allowed in a task. Number of dispatch_payload blocks found: %d", len(o.Items))
+		}
+		var m map[string]interface{}
+		dispatchBlock := o.Items[0]
+
+		// Check for invalid keys
+		valid := []string{
+			"file",
+		}
+		if err := helper.CheckHCLKeys(dispatchBlock.Val, valid); err != nil {
+			return nil, multierror.Prefix(err, "dispatch_payload ->")
+		}
+
+		if err := hcl.DecodeObject(&m, dispatchBlock.Val); err != nil {
+			return nil, err
+		}
+
+		t.DispatchPayload = &api.DispatchPayloadConfig{}
+		if err := mapstructure.WeakDecode(m, t.DispatchPayload); err != nil {
+			return nil, err
+		}
+	}
+
+	return &t, nil
 }
 
 func parseArtifacts(result *[]*api.TaskArtifact, list *ast.ObjectList) error {
