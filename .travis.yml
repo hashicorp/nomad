@@ -31,12 +31,7 @@ matrix:
     - os: linux
       dist: xenial
       sudo: required
-      env: GOTEST_PKGS="./command" GOTEST_PKGS_EXCLUDE="./command/agent"
-      <<: *skip_for_ui_branches
-    - os: linux
-      dist: xenial
-      sudo: required
-      env: GOTEST_PKGS="./command/agent"
+      env: GOTEST_PKGS="./command"
       <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
@@ -56,7 +51,7 @@ matrix:
     - os: linux
       dist: xenial
       sudo: required
-      env: GOTEST_PKGS_EXCLUDE="./api|./client|./command|./command/agent|./drivers/docker|./drivers/exec|./nomad"
+      env: GOTEST_PKGS_EXCLUDE="./api|./client|./command|./drivers/docker|./drivers/exec|./nomad"
       <<: *skip_for_ui_branches
     - os: linux
       dist: xenial
