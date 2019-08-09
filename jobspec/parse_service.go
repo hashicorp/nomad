@@ -11,78 +11,14 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-//TODO(schmichael) combine with non-group services
 func parseGroupServices(g *api.TaskGroup, serviceObjs *ast.ObjectList) error {
 	g.Services = make([]*api.Service, len(serviceObjs.Items))
 	for idx, o := range serviceObjs.Items {
-		// Check for invalid keys
-		valid := []string{
-			"name",
-			"tags",
-			"canary_tags",
-			"port",
-			"check",
-			"address_mode",
-			"check_restart",
-			"connect",
+		service, err := parseService(o)
+		if err != nil {
+			return multierror.Prefix(err, fmt.Sprintf("service (%d):", idx))
 		}
-		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
-			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
-		}
-
-		var service api.Service
-		var m map[string]interface{}
-		if err := hcl.DecodeObject(&m, o.Val); err != nil {
-			return err
-		}
-
-		delete(m, "check")
-		delete(m, "check_restart")
-		delete(m, "connect")
-
-		if err := mapstructure.WeakDecode(m, &service); err != nil {
-			return err
-		}
-
-		// Filter checks
-		var checkList *ast.ObjectList
-		if ot, ok := o.Val.(*ast.ObjectType); ok {
-			checkList = ot.List
-		} else {
-			return fmt.Errorf("service '%s': should be an object", service.Name)
-		}
-
-		if co := checkList.Filter("check"); len(co.Items) > 0 {
-			if err := parseChecks(&service, co); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
-			}
-		}
-
-		// Filter check_restart
-		if cro := checkList.Filter("check_restart"); len(cro.Items) > 0 {
-			if len(cro.Items) > 1 {
-				return fmt.Errorf("check_restart '%s': cannot have more than 1 check_restart", service.Name)
-			}
-			if cr, err := parseCheckRestart(cro.Items[0]); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
-			} else {
-				service.CheckRestart = cr
-			}
-		}
-
-		// Filter connect
-		if co := checkList.Filter("connect"); len(co.Items) > 0 {
-			if len(co.Items) > 1 {
-				return fmt.Errorf("connect '%s': cannot have more than 1 connect", service.Name)
-			}
-			if c, err := parseConnect(co.Items[0]); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
-			} else {
-				service.Connect = c
-			}
-		}
-
-		g.Services[idx] = &service
+		g.Services[idx] = service
 	}
 
 	return nil
@@ -91,79 +27,86 @@ func parseGroupServices(g *api.TaskGroup, serviceObjs *ast.ObjectList) error {
 func parseServices(serviceObjs *ast.ObjectList) ([]*api.Service, error) {
 	services := make([]*api.Service, len(serviceObjs.Items))
 	for idx, o := range serviceObjs.Items {
-		// Check for invalid keys
-		valid := []string{
-			"name",
-			"tags",
-			"canary_tags",
-			"port",
-			"check",
-			"address_mode",
-			"check_restart",
-			"connect",
+		service, err := parseService(o)
+		if err != nil {
+			return nil, multierror.Prefix(err, fmt.Sprintf("service (%d):", idx))
 		}
-		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
-			return nil, multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
-		}
-
-		var service api.Service
-		var m map[string]interface{}
-		if err := hcl.DecodeObject(&m, o.Val); err != nil {
-			return nil, err
-		}
-
-		delete(m, "check")
-		delete(m, "check_restart")
-		delete(m, "connect")
-
-		if err := mapstructure.WeakDecode(m, &service); err != nil {
-			return nil, err
-		}
-
-		// Filter checks
-		var checkList *ast.ObjectList
-		if ot, ok := o.Val.(*ast.ObjectType); ok {
-			checkList = ot.List
-		} else {
-			return nil, fmt.Errorf("service '%s': should be an object", service.Name)
-		}
-
-		if co := checkList.Filter("check"); len(co.Items) > 0 {
-			if err := parseChecks(&service, co); err != nil {
-				return nil, multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
-			}
-		}
-
-		// Filter check_restart
-		if cro := checkList.Filter("check_restart"); len(cro.Items) > 0 {
-			if len(cro.Items) > 1 {
-				return nil, fmt.Errorf("check_restart '%s': cannot have more than 1 check_restart", service.Name)
-			}
-			if cr, err := parseCheckRestart(cro.Items[0]); err != nil {
-				return nil, multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
-			} else {
-				service.CheckRestart = cr
-			}
-		}
-
-		// Filter connect
-		if co := checkList.Filter("connect"); len(co.Items) > 0 {
-			if len(co.Items) > 1 {
-				return nil, fmt.Errorf("connect '%s': cannot have more than 1 connect stanza", service.Name)
-			}
-
-			c, err := parseConnect(co.Items[0])
-			if err != nil {
-				return nil, multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
-			}
-
-			service.Connect = c
-		}
-
-		services[idx] = &service
+		services[idx] = service
+	}
+	return services, nil
+}
+func parseService(o *ast.ObjectItem) (*api.Service, error) {
+	// Check for invalid keys
+	valid := []string{
+		"name",
+		"tags",
+		"canary_tags",
+		"port",
+		"check",
+		"address_mode",
+		"check_restart",
+		"connect",
+	}
+	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+		return nil, err
 	}
 
-	return services, nil
+	var service api.Service
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	delete(m, "check")
+	delete(m, "check_restart")
+	delete(m, "connect")
+
+	if err := mapstructure.WeakDecode(m, &service); err != nil {
+		return nil, err
+	}
+
+	// Filter checks
+	var checkList *ast.ObjectList
+	if ot, ok := o.Val.(*ast.ObjectType); ok {
+		checkList = ot.List
+	} else {
+		return nil, fmt.Errorf("'%s': should be an object", service.Name)
+	}
+
+	if co := checkList.Filter("check"); len(co.Items) > 0 {
+		if err := parseChecks(&service, co); err != nil {
+			return nil, multierror.Prefix(err, fmt.Sprintf("'%s',", service.Name))
+		}
+	}
+
+	// Filter check_restart
+	if cro := checkList.Filter("check_restart"); len(cro.Items) > 0 {
+		if len(cro.Items) > 1 {
+			return nil, fmt.Errorf("check_restart '%s': cannot have more than 1 check_restart", service.Name)
+		}
+		cr, err := parseCheckRestart(cro.Items[0])
+		if err != nil {
+			return nil, multierror.Prefix(err, fmt.Sprintf("'%s',", service.Name))
+		}
+		service.CheckRestart = cr
+
+	}
+
+	// Filter connect
+	if co := checkList.Filter("connect"); len(co.Items) > 0 {
+		if len(co.Items) > 1 {
+			return nil, fmt.Errorf("connect '%s': cannot have more than 1 connect stanza", service.Name)
+		}
+
+		c, err := parseConnect(co.Items[0])
+		if err != nil {
+			return nil, multierror.Prefix(err, fmt.Sprintf("'%s',", service.Name))
+		}
+
+		service.Connect = c
+	}
+
+	return &service, nil
 }
 
 func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
@@ -461,11 +404,11 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			if len(cro.Items) > 1 {
 				return fmt.Errorf("check_restart '%s': cannot have more than 1 check_restart", check.Name)
 			}
-			if cr, err := parseCheckRestart(cro.Items[0]); err != nil {
+			cr, err := parseCheckRestart(cro.Items[0])
+			if err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("check: '%s',", check.Name))
-			} else {
-				check.CheckRestart = cr
 			}
+			check.CheckRestart = cr
 		}
 
 		service.Checks[idx] = check

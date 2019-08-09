@@ -1013,7 +1013,7 @@ func TestIncorrectKey(t *testing.T) {
 		t.Fatalf("Expected an error")
 	}
 
-	if !strings.Contains(err.Error(), "* group: 'binsl', task: 'binstore', service: 'foo', check -> invalid key: nterval") {
+	if !strings.Contains(err.Error(), "* group: 'binsl', task: 'binstore', service (0): 'foo', check -> invalid key: nterval") {
 		t.Fatalf("Expected key error; got %v", err)
 	}
 }
