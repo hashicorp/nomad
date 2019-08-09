@@ -1513,6 +1513,117 @@ func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
 	assert.Nil(t, validCheckRestart.Validate())
 }
 
+func TestTask_Validate_ConnectKind(t *testing.T) {
+	ephemeralDisk := DefaultEphemeralDisk()
+	getTask := func(kind Kind, leader bool) *Task {
+		task := &Task{
+			Name:      "web",
+			Driver:    "docker",
+			Resources: DefaultResources(),
+			LogConfig: DefaultLogConfig(),
+			Kind:      kind,
+			Leader:    leader,
+		}
+		task.Resources.Networks = []*NetworkResource{
+			{
+				MBits: 10,
+				DynamicPorts: []Port{
+					{
+						Label: "http",
+						Value: 80,
+					},
+				},
+			},
+		}
+		return task
+	}
+
+	cases := []struct {
+		Desc        string
+		Kind        Kind
+		Leader      bool
+		Service     *Service
+		TgService   []*Service
+		ErrContains string
+	}{
+		{
+			Desc: "Not connect",
+			Kind: "test",
+		},
+		{
+			Desc: "Invalid because of service in task definition",
+			Kind: "connect:redis",
+			Service: &Service{
+				Name: "redis",
+			},
+			ErrContains: "Connect proxy task should not have service stanza in it",
+		},
+		{
+			Desc:   "Leader should not be set",
+			Kind:   "connect:redis",
+			Leader: true,
+			Service: &Service{
+				Name: "redis",
+			},
+			ErrContains: "Connect proxy task must not have leader set",
+		},
+		{
+			Desc: "Service name invalid",
+			Kind: "connect:redis:test",
+			Service: &Service{
+				Name: "redis",
+			},
+			ErrContains: "Connect proxy service kind \"connect:redis:test\" should not contain `:`",
+		},
+		{
+			Desc:        "Service name not found in group",
+			Kind:        "connect:redis",
+			ErrContains: "Connect proxy service name not found in services from task group",
+		},
+		{
+			Desc: "Connect stanza not configured in group",
+			Kind: "connect:redis",
+			TgService: []*Service{{
+				Name: "redis",
+			}},
+			ErrContains: "Connect proxy service name not found in services from task group",
+		},
+		{
+			Desc: "Valid connect proxy kind",
+			Kind: "connect:redis",
+			TgService: []*Service{{
+				Name: "redis",
+				Connect: &ConsulConnect{
+					SidecarService: &ConsulSidecarService{
+						Port: "db",
+					},
+				},
+			}},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		task := getTask(tc.Kind, tc.Leader)
+		if tc.Service != nil {
+			task.Services = []*Service{tc.Service}
+		}
+		t.Run(tc.Desc, func(t *testing.T) {
+			err := task.Validate(ephemeralDisk, "service", tc.TgService)
+			if err == nil && tc.ErrContains == "" {
+				// Ok!
+				return
+			}
+			if err == nil {
+				t.Fatalf("no error returned. expected: %s", tc.ErrContains)
+			}
+			if !strings.Contains(err.Error(), tc.ErrContains) {
+				t.Fatalf("expected %q but found: %v", tc.ErrContains, err)
+			}
+		})
+	}
+
+}
 func TestTask_Validate_LogConfig(t *testing.T) {
 	task := &Task{
 		LogConfig: DefaultLogConfig(),

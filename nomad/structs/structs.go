@@ -5412,7 +5412,8 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 
 	// Validation for Kind field which is used for Consul Connect integration
 	// TODO better wording for all error messages
-	if strings.HasPrefix(t.Kind, "connect:") {
+	taskKind := t.Kind
+	if taskKind.IsConnect() {
 		// This task is a Connect proxy so it should not have service stanzas
 		if len(t.Services) > 0 {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task should not have service stanza in it"))
@@ -5420,22 +5421,9 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		if t.Leader {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task must not have leader set"))
 		}
-
-		parts := strings.Split(t.Kind, ":")
-		serviceName := strings.Join(parts[1:], "")
-		if len(parts) > 2 {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Proxy service name %q should not contain `:`", serviceName))
-		}
-		// TODO Check if service exists at group level
-		found := false
-		for _, svc := range tgServices {
-			if svc.Name == serviceName {
-				found = true
-				break
-			}
-		}
-		if !found {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy service name not found in services from task group"))
+		serviceErr := taskKind.ValidateService(tgServices)
+		if serviceErr != nil {
+			mErr.Errors = append(mErr.Errors, serviceErr)
 		}
 	}
 	return mErr.ErrorOrNil()
@@ -5576,6 +5564,37 @@ func (t *Task) Warnings() error {
 	// Validate the resources
 	if t.Resources != nil && t.Resources.IOPS != 0 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("IOPS has been deprecated as of Nomad 0.9.0. Please remove IOPS from resource stanza."))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+type Kind string
+
+const connect_prefix = "connect:"
+
+func (k Kind) IsConnect() bool {
+	return strings.HasPrefix(string(k), connect_prefix) && len(k) > len(connect_prefix)
+}
+
+func (k Kind) ValidateService(tgServices []*Service) error {
+	var mErr multierror.Error
+	parts := strings.Split(string(k), ":")
+	serviceName := strings.Join(parts[1:], "")
+	if len(parts) > 2 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy service kind %q should not contain `:`", k))
+	}
+
+	found := false
+	for _, svc := range tgServices {
+		if svc.Name == serviceName && svc.Connect != nil && svc.Connect.SidecarService != nil {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy service name not found in services from task group"))
 	}
 
 	return mErr.ErrorOrNil()

@@ -805,7 +805,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.KillTimeout = *apiTask.KillTimeout
 	structsTask.ShutdownDelay = apiTask.ShutdownDelay
 	structsTask.KillSignal = apiTask.KillSignal
-	structsTask.Kind = apiTask.Kind
+	structsTask.Kind = structs.Kind(apiTask.Kind)
 	structsTask.Constraints = ApiConstraintsToStructs(apiTask.Constraints)
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
 
