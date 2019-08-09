@@ -125,7 +125,6 @@
           {{#t.head}}
             <th class="is-1">Dynamic?</th>
             <th class="is-2">Name</th>
-            <th class="is-2">Mode</th>
             <th>Address</th>
             <th>To</th>
           {{/t.head}}
@@ -133,7 +132,6 @@
             <tr data-test-allocation-port>
               <td data-test-allocation-port-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
               <td data-test-allocation-port-name>{{row.model.name}}</td>
-              <td data-test-allocation-port-mode>{{network.mode}}</td>
               <td data-test-allocation-port-address>
                   {{network.ip}}:{{row.model.port}}
               </td>

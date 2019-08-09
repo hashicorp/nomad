@@ -79,7 +79,6 @@ export default create({
   ports: collection('[data-test-allocation-port]', {
     dynamic: text('[data-test-allocation-port-is-dynamic]'),
     name: text('[data-test-allocation-port-name]'),
-    mode: text('[data-test-allocation-port-mode]'),
     address: text('[data-test-allocation-port-address]'),
     to: text('[data-test-allocation-port-to]'),
   }),

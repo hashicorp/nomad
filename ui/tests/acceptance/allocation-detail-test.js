@@ -176,7 +176,6 @@ module('Acceptance | allocation detail', function(hooks) {
         serverNetwork.ReservedPorts.includes(serverPort) ? 'No' : 'Yes'
       );
       assert.equal(renderedPort.name, serverPort.Label);
-      assert.equal(renderedPort.mode, serverNetwork.Mode);
       assert.equal(renderedPort.address, `${serverNetwork.IP}:${serverPort.Value}`);
       assert.equal(renderedPort.to, serverPort.To);
     });
