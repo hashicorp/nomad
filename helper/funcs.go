@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"bytes"
 	"crypto/sha512"
 	"fmt"
 	"regexp"
@@ -343,11 +344,12 @@ func CopySliceInt(s []int) []int {
 
 // CleanEnvVar replaces all occurrences of illegal characters in an environment
 // variable with the specified byte.
-func CleanEnvVar(s string, r byte) string {
+// any extra characters will be considered valid
+func CleanEnvVar(s string, r byte, e string) string {
 	b := []byte(s)
 	for i, c := range b {
 		switch {
-		case c == '-':
+		case bytes.ContainsAny([]byte{c}, e):
 		case c == '_':
 		case c == '.':
 		case c >= 'a' && c <= 'z':

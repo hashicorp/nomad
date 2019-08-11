@@ -476,7 +476,12 @@ func (b *Builder) Build() *TaskEnv {
 	// Clean keys (see #2405)
 	cleanedEnv := make(map[string]string, len(envMap))
 	for k, v := range envMap {
-		cleanedK := helper.CleanEnvVar(k, '_')
+		var cleanedK string
+		if strings.HasPrefix(k, "NOMAD_") {
+			cleanedK = helper.CleanEnvVar(k, '_', "")
+		} else {
+			cleanedK = helper.CleanEnvVar(k, '_', "-")
+		}
 		cleanedEnv[cleanedK] = v
 	}
 
@@ -484,7 +489,12 @@ func (b *Builder) Build() *TaskEnv {
 	if deviceEnvs != nil {
 		cleanedDeviceEnvs = make(map[string]string, len(deviceEnvs))
 		for k, v := range deviceEnvs {
-			cleanedK := helper.CleanEnvVar(k, '_')
+			var cleanedK string
+			if strings.HasPrefix(k, "NOMAD_") {
+				cleanedK = helper.CleanEnvVar(k, '_', "")
+			} else {
+				cleanedK = helper.CleanEnvVar(k, '_', "-")
+			}
 			cleanedDeviceEnvs[cleanedK] = v
 		}
 	}
