@@ -284,8 +284,8 @@ func parseRestartPolicy(final **api.RestartPolicy, list *ast.ObjectList) error {
 	return nil
 }
 
-func parseVolumes(out *map[string]*api.Volume, list *ast.ObjectList) error {
-	volumes := make(map[string]*api.Volume, len(list.Items))
+func parseVolumes(out *map[string]*api.VolumeRequest, list *ast.ObjectList) error {
+	volumes := make(map[string]*api.VolumeRequest, len(list.Items))
 
 	for _, item := range list.Items {
 		n := item.Keys[0].Token.Value().(string)
@@ -304,7 +304,7 @@ func parseVolumes(out *map[string]*api.Volume, list *ast.ObjectList) error {
 			return err
 		}
 
-		// TODO(dani): FIXME: this is gross but we don't have ObjectList.Filter here
+		// TODO(dani): this is gross but we don't have ObjectList.Filter here
 		var cfg map[string]interface{}
 		if cfgI, ok := m["config"]; ok {
 			cfgL, ok := cfgI.([]map[string]interface{})
@@ -320,7 +320,7 @@ func parseVolumes(out *map[string]*api.Volume, list *ast.ObjectList) error {
 		}
 		delete(m, "config")
 
-		var result api.Volume
+		var result api.VolumeRequest
 		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 			WeaklyTypedInput: true,
 			Result:           &result,

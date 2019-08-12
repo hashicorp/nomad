@@ -362,7 +362,8 @@ func (m *MigrateStrategy) Copy() *MigrateStrategy {
 	return nm
 }
 
-type Volume struct {
+// VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
+type VolumeRequest struct {
 	Name     string
 	Type     string
 	ReadOnly bool `mapstructure:"read_only"`
@@ -371,6 +372,8 @@ type Volume struct {
 	Config map[string]interface{}
 }
 
+// VolumeMount represents the relationship between a destination path in a task
+// and the task group volume that should be mounted there.
 type VolumeMount struct {
 	Volume      string
 	Destination string
@@ -385,7 +388,7 @@ type TaskGroup struct {
 	Affinities       []*Affinity
 	Tasks            []*Task
 	Spreads          []*Spread
-	Volumes          map[string]*Volume
+	Volumes          map[string]*VolumeRequest
 	RestartPolicy    *RestartPolicy
 	ReschedulePolicy *ReschedulePolicy
 	EphemeralDisk    *EphemeralDisk

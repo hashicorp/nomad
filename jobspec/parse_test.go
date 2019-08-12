@@ -112,7 +112,7 @@ func TestParse(t *testing.T) {
 							},
 						},
 
-						Volumes: map[string]*api.Volume{
+						Volumes: map[string]*api.VolumeRequest{
 							"foo": {
 								Name: "foo",
 								Type: "host",

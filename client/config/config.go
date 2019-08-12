@@ -235,7 +235,7 @@ type Config struct {
 	// notation
 	BridgeNetworkAllocSubnet string
 
-	// HostVolumes is the set of configured host volumes
+	// HostVolumes is a map of the configured host volumes by name.
 	HostVolumes map[string]*structs.ClientHostVolumeConfig
 }
 
