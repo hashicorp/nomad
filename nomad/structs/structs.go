@@ -5202,9 +5202,9 @@ type Task struct {
 	// specification and defaults to SIGINT
 	KillSignal string
 
-	// Used internally to manage tasks according to their Kind. Initial use case
+	// Used internally to manage tasks according to their TaskKind. Initial use case
 	// is for Consul Connect
-	Kind Kind
+	Kind TaskKind
 }
 
 func (t *Task) Copy() *Task {
@@ -5410,8 +5410,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		}
 	}
 
-	// Validation for Kind field which is used for Consul Connect integration
-	// TODO better wording for all error messages
+	// Validation for TaskKind field which is used for Consul Connect integration
 	taskKind := t.Kind
 	if taskKind.IsConnect() {
 		// This task is a Connect proxy so it should not have service stanzas
@@ -5421,7 +5420,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		if t.Leader {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task must not have leader set"))
 		}
-		serviceErr := taskKind.ValidateService(tgServices)
+		serviceErr := taskKind.validateProxyService(tgServices)
 		if serviceErr != nil {
 			mErr.Errors = append(mErr.Errors, serviceErr)
 		}
@@ -5569,20 +5568,23 @@ func (t *Task) Warnings() error {
 	return mErr.ErrorOrNil()
 }
 
-type Kind string
+type TaskKind string
 
-const connect_prefix = "connect:"
+const connectPrefix = "connect-proxy:"
 
-func (k Kind) IsConnect() bool {
-	return strings.HasPrefix(string(k), connect_prefix) && len(k) > len(connect_prefix)
+func (k TaskKind) IsConnect() bool {
+	return strings.HasPrefix(string(k), connectPrefix) && len(k) > len(connectPrefix)
 }
 
-func (k Kind) ValidateService(tgServices []*Service) error {
+// validateProxyService checks that the service that is being
+// proxied by this task exists in the task group and contains
+// valid Connect config.
+func (k TaskKind) validateProxyService(tgServices []*Service) error {
 	var mErr multierror.Error
 	parts := strings.Split(string(k), ":")
 	serviceName := strings.Join(parts[1:], "")
 	if len(parts) > 2 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy service kind %q should not contain `:`", k))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy service kind %q must not contain `:`", k))
 	}
 
 	found := false

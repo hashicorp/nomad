@@ -1515,7 +1515,7 @@ func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
 
 func TestTask_Validate_ConnectKind(t *testing.T) {
 	ephemeralDisk := DefaultEphemeralDisk()
-	getTask := func(kind Kind, leader bool) *Task {
+	getTask := func(kind TaskKind, leader bool) *Task {
 		task := &Task{
 			Name:      "web",
 			Driver:    "docker",
@@ -1540,7 +1540,7 @@ func TestTask_Validate_ConnectKind(t *testing.T) {
 
 	cases := []struct {
 		Desc        string
-		Kind        Kind
+		Kind        TaskKind
 		Leader      bool
 		Service     *Service
 		TgService   []*Service
@@ -1552,15 +1552,15 @@ func TestTask_Validate_ConnectKind(t *testing.T) {
 		},
 		{
 			Desc: "Invalid because of service in task definition",
-			Kind: "connect:redis",
+			Kind: "connect-proxy:redis",
 			Service: &Service{
 				Name: "redis",
 			},
-			ErrContains: "Connect proxy task should not have service stanza in it",
+			ErrContains: "Connect proxy task must not have a service stanza",
 		},
 		{
 			Desc:   "Leader should not be set",
-			Kind:   "connect:redis",
+			Kind:   "connect-proxy:redis",
 			Leader: true,
 			Service: &Service{
 				Name: "redis",
@@ -1569,20 +1569,20 @@ func TestTask_Validate_ConnectKind(t *testing.T) {
 		},
 		{
 			Desc: "Service name invalid",
-			Kind: "connect:redis:test",
+			Kind: "connect-proxy:redis:test",
 			Service: &Service{
 				Name: "redis",
 			},
-			ErrContains: "Connect proxy service kind \"connect:redis:test\" should not contain `:`",
+			ErrContains: "Connect proxy service kind \"connect-proxy:redis:test\" must not contain `:`",
 		},
 		{
 			Desc:        "Service name not found in group",
-			Kind:        "connect:redis",
+			Kind:        "connect-proxy:redis",
 			ErrContains: "Connect proxy service name not found in services from task group",
 		},
 		{
 			Desc: "Connect stanza not configured in group",
-			Kind: "connect:redis",
+			Kind: "connect-proxy:redis",
 			TgService: []*Service{{
 				Name: "redis",
 			}},
@@ -1590,7 +1590,7 @@ func TestTask_Validate_ConnectKind(t *testing.T) {
 		},
 		{
 			Desc: "Valid connect proxy kind",
-			Kind: "connect:redis",
+			Kind: "connect-proxy:redis",
 			TgService: []*Service{{
 				Name: "redis",
 				Connect: &ConsulConnect{
