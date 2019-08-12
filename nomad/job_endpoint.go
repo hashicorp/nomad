@@ -59,6 +59,23 @@ type Job struct {
 	validators []jobValidator
 }
 
+// NewJobEndpoints creates a new job endpoint with builtin admission controllers
+func NewJobEndpoints(s *Server) *Job {
+	return &Job{
+		srv:    s,
+		logger: s.logger.Named("job"),
+		mutators: []jobMutator{
+			jobConnectHook{},
+			jobCanonicalizer{},
+			jobImpliedConstraints{},
+		},
+		validators: []jobValidator{
+			jobConnectHook{},
+			jobValidate{},
+		},
+	}
+}
+
 // Register is used to upsert a job for scheduling
 func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegisterResponse) error {
 	if done, err := j.srv.forward("Job.Register", args, args, reply); done {
