@@ -133,7 +133,7 @@
               <td data-test-allocation-port-name>{{row.model.name}}</td>
               <td data-test-allocation-port-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
               <td data-test-allocation-port-address>
-                  {{network.ip}}:{{row.model.port}}
+                <a href="http://{{network.ip}}:{{row.model.port}}" target="_blank" rel="noopener noreferrer">{{network.ip}}:{{row.model.port}}</a>
               </td>
               <td data-test-allocation-port-to>{{row.model.to}}</td>
             </tr>
