@@ -80,9 +80,10 @@ helpers do
   def insert_api_toc(html)
     doc = Nokogiri::HTML::DocumentFragment.parse(html)
 
-    first_h2 = doc.at_css "h2"
+    h2_count = doc.css("h2").length
 
-    if first_h2
+    if h2_count > 1
+      first_h2 = doc.at_css "h2"
       first_h2.add_previous_sibling(api_toc("source/#{current_page.path}.md"))
 
       doc.to_html
