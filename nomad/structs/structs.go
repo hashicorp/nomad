@@ -5204,7 +5204,7 @@ type Task struct {
 
 	// Used internally to manage tasks according to their Kind. Initial use case
 	// is for Consul Connect
-	Kind string
+	Kind Kind
 }
 
 func (t *Task) Copy() *Task {
