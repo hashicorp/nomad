@@ -64,34 +64,6 @@ helpers do
     end
   end
 
-  # Returns a <ul> with links to API subheaders
-  def api_toc(path)
-    html_toc = Redcarpet::Markdown.new(Redcarpet::Render::HTML_TOC.new(nesting_level: 2..2))
-    file = ::File.read(path)
-
-    # remove YAML frontmatter
-    file = file.gsub(/^(---\s*\n.*?\n?)^(---\s*$\n?)/m,'')
-
-    rendered = html_toc.render file
-    rendered.gsub("<ul", "<ul class='api-nav'")
-  end
-
-  # Inserts a TOC before the first subhead
-  def insert_api_toc(html)
-    doc = Nokogiri::HTML::DocumentFragment.parse(html)
-
-    h2_count = doc.css("h2").length
-
-    if h2_count > 1
-      first_h2 = doc.at_css "h2"
-      first_h2.add_previous_sibling(api_toc("source/#{current_page.path}.md"))
-
-      doc.to_html
-    else
-      html
-    end
-  end
-
   # Returns the id for this page.
   # @return [String]
   def body_id_for(page)
