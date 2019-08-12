@@ -178,8 +178,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 	// Parse volume mounts
 	if o := listVal.Filter("volume_mount"); len(o.Items) > 0 {
 		if err := parseVolumeMounts(&t.VolumeMounts, o); err != nil {
-			return multierror.Prefix(err, fmt.Sprintf(
-				"'%s', volume_mount ->", n))
+			return nil, multierror.Prefix(err, "volume_mount ->")
 		}
 	}
 
