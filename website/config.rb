@@ -81,9 +81,14 @@ helpers do
     doc = Nokogiri::HTML::DocumentFragment.parse(html)
 
     first_h2 = doc.at_css "h2"
-    first_h2.add_previous_sibling(api_toc("source/#{current_page.path}.md"))
 
-    doc.to_html
+    if first_h2
+      first_h2.add_previous_sibling(api_toc("source/#{current_page.path}.md"))
+
+      doc.to_html
+    else
+      html
+    end
   end
 
   # Returns the id for this page.
