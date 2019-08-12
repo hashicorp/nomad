@@ -245,6 +245,10 @@ type ClientConfig struct {
 	// ServerJoin contains information that is used to attempt to join servers
 	ServerJoin *ServerJoin `hcl:"server_join"`
 
+	// HostVolumes contains information about the volumes an operator has made
+	// available to jobs running on this node.
+	HostVolumes []*structs.ClientHostVolumeConfig `hcl:"host_volume"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 
@@ -1320,6 +1324,12 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 
 	if b.ServerJoin != nil {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
+	}
+
+	if len(a.HostVolumes) == 0 && len(b.HostVolumes) != 0 {
+		result.HostVolumes = structs.CopySliceClientHostVolumeConfig(b.HostVolumes)
+	} else if len(b.HostVolumes) != 0 {
+		result.HostVolumes = structs.HostVolumeSliceMerge(a.HostVolumes, b.HostVolumes)
 	}
 
 	return &result

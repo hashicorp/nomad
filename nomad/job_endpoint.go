@@ -89,6 +89,24 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
 			return structs.ErrPermissionDenied
 		}
+		// Validate Volume Permsissions
+		for _, tg := range args.Job.TaskGroups {
+			for _, vol := range tg.Volumes {
+				if vol.Type != structs.VolumeTypeHost {
+					return structs.ErrPermissionDenied
+				}
+
+				cfg, err := structs.ParseHostVolumeConfig(vol.Config)
+				if err != nil {
+					return structs.ErrPermissionDenied
+				}
+
+				if !aclObj.AllowHostVolumeOperation(cfg.Source, acl.HostVolumeCapabilityMount) {
+					return structs.ErrPermissionDenied
+				}
+			}
+		}
+
 		// Check if override is set and we do not have permissions
 		if args.PolicyOverride {
 			if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySentinelOverride) {

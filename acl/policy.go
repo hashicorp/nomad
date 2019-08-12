@@ -21,6 +21,7 @@ const (
 	// The Policy stanza is a short hand for granting several of these. When capabilities are
 	// combined we take the union of all capabilities. If the deny capability is present, it
 	// takes precedence and overwrites all other capabilities.
+
 	NamespaceCapabilityDeny             = "deny"
 	NamespaceCapabilityListJobs         = "list-jobs"
 	NamespaceCapabilityReadJob          = "read-job"
@@ -38,20 +39,36 @@ var (
 	validNamespace = regexp.MustCompile("^[a-zA-Z0-9-*]{1,128}$")
 )
 
+const (
+	// The following are the fine-grained capabilities that can be granted for a volume set.
+	// The Policy stanza is a short hand for granting several of these. When capabilities are
+	// combined we take the union of all capabilities. If the deny capability is present, it
+	// takes precedence and overwrites all other capabilities.
+
+	HostVolumeCapabilityDeny  = "deny"
+	HostVolumeCapabilityMount = "mount"
+)
+
+var (
+	validVolume = regexp.MustCompile("^[a-zA-Z0-9-*]{1,128}$")
+)
+
 // Policy represents a parsed HCL or JSON policy.
 type Policy struct {
-	Namespaces []*NamespacePolicy `hcl:"namespace,expand"`
-	Agent      *AgentPolicy       `hcl:"agent"`
-	Node       *NodePolicy        `hcl:"node"`
-	Operator   *OperatorPolicy    `hcl:"operator"`
-	Quota      *QuotaPolicy       `hcl:"quota"`
-	Raw        string             `hcl:"-"`
+	Namespaces  []*NamespacePolicy  `hcl:"namespace,expand"`
+	HostVolumes []*HostVolumePolicy `hcl:"host_volume,expand"`
+	Agent       *AgentPolicy        `hcl:"agent"`
+	Node        *NodePolicy         `hcl:"node"`
+	Operator    *OperatorPolicy     `hcl:"operator"`
+	Quota       *QuotaPolicy        `hcl:"quota"`
+	Raw         string              `hcl:"-"`
 }
 
 // IsEmpty checks to make sure that at least one policy has been set and is not
 // comprised of only a raw policy.
 func (p *Policy) IsEmpty() bool {
 	return len(p.Namespaces) == 0 &&
+		len(p.HostVolumes) == 0 &&
 		p.Agent == nil &&
 		p.Node == nil &&
 		p.Operator == nil &&
@@ -60,6 +77,13 @@ func (p *Policy) IsEmpty() bool {
 
 // NamespacePolicy is the policy for a specific namespace
 type NamespacePolicy struct {
+	Name         string `hcl:",key"`
+	Policy       string
+	Capabilities []string
+}
+
+// HostVolumePolicy is the policy for a specific named host volume
+type HostVolumePolicy struct {
 	Name         string `hcl:",key"`
 	Policy       string
 	Capabilities []string
@@ -134,6 +158,28 @@ func expandNamespacePolicy(policy string) []string {
 	}
 }
 
+func isHostVolumeCapabilityValid(cap string) bool {
+	switch cap {
+	case HostVolumeCapabilityDeny, HostVolumeCapabilityMount:
+		return true
+	default:
+		return false
+	}
+}
+
+func expandHostVolumePolicy(policy string) []string {
+	switch policy {
+	case PolicyDeny:
+		return []string{HostVolumeCapabilityDeny}
+	case PolicyRead:
+		return []string{HostVolumeCapabilityDeny}
+	case PolicyWrite:
+		return []string{HostVolumeCapabilityMount}
+	default:
+		return nil
+	}
+}
+
 // Parse is used to parse the specified ACL rules into an
 // intermediary set of policies, before being compiled into
 // the ACL
@@ -175,6 +221,27 @@ func Parse(rules string) (*Policy, error) {
 		if ns.Policy != "" {
 			extraCap := expandNamespacePolicy(ns.Policy)
 			ns.Capabilities = append(ns.Capabilities, extraCap...)
+		}
+	}
+
+	for _, hv := range p.HostVolumes {
+		if !validVolume.MatchString(hv.Name) {
+			return nil, fmt.Errorf("Invalid host volume name: %#v", hv)
+		}
+		if hv.Policy != "" && !isPolicyValid(hv.Policy) {
+			return nil, fmt.Errorf("Invalid host volume policy: %#v", hv)
+		}
+		for _, cap := range hv.Capabilities {
+			if !isHostVolumeCapabilityValid(cap) {
+				return nil, fmt.Errorf("Invalid host volume capability '%s': %#v", cap, hv)
+			}
+		}
+
+		// Expand the short hand policy to the capabilities and
+		// add to any existing capabilities
+		if hv.Policy != "" {
+			extraCap := expandHostVolumePolicy(hv.Policy)
+			hv.Capabilities = append(hv.Capabilities, extraCap...)
 		}
 	}
 

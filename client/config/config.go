@@ -234,6 +234,9 @@ type Config struct {
 	// for allocations in bridge networking mode. Subnet must be in CIDR
 	// notation
 	BridgeNetworkAllocSubnet string
+
+	// HostVolumes is a map of the configured host volumes by name.
+	HostVolumes map[string]*structs.ClientHostVolumeConfig
 }
 
 func (c *Config) Copy() *Config {
@@ -242,6 +245,7 @@ func (c *Config) Copy() *Config {
 	nc.Node = nc.Node.Copy()
 	nc.Servers = helper.CopySliceString(nc.Servers)
 	nc.Options = helper.CopyMapStringString(nc.Options)
+	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
 	return nc
