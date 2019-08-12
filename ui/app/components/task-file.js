@@ -49,7 +49,8 @@ export default Component.extend({
   isStreaming: false,
 
   catUrl: computed('allocation.id', 'task.name', 'file', function() {
-    return `/v1/client/fs/cat/${this.allocation.id}?path=${this.task.name}/${this.file}`;
+    const encodedPath = encodeURIComponent(`${this.task.name}/${this.file}`);
+    return `/v1/client/fs/cat/${this.allocation.id}?path=${encodedPath}`;
   }),
 
   fetchMode: computed('isLarge', 'mode', function() {
@@ -77,6 +78,7 @@ export default Component.extend({
   ),
 
   fileParams: computed('task.name', 'file', 'mode', function() {
+    // The Log class handles encoding query params
     const path = `${this.task.name}/${this.file}`;
 
     switch (this.mode) {

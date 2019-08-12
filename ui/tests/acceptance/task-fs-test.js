@@ -298,7 +298,6 @@ module('Acceptance | task fs', function(hooks) {
   test('viewing a file', async function(assert) {
     const node = server.db.nodes.find(allocation.nodeId);
 
-    server.logging = true;
     server.get(`http://${node.httpAddr}/v1/client/fs/readat/:allocation_id`, function() {
       return new Response(500);
     });

@@ -7,7 +7,7 @@ export default Component.extend({
 
   pathToEntry: computed('path', 'entry.Name', function() {
     const pathWithNoLeadingSlash = this.get('path').replace(/^\//, '');
-    const name = this.get('entry.Name');
+    const name = encodeURIComponent(this.get('entry.Name'));
 
     if (isEmpty(pathWithNoLeadingSlash)) {
       return name;

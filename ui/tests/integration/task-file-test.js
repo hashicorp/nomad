@@ -132,7 +132,9 @@ module('Integration | Component | task file', function(hooks) {
     const rawLink = find('[data-test-log-action="raw"]');
     assert.equal(
       rawLink.getAttribute('href'),
-      `/v1/client/fs/cat/${props.allocation.id}?path=${props.task.name}/${props.file}`,
+      `/v1/client/fs/cat/${props.allocation.id}?path=${encodeURIComponent(
+        `${props.task.name}/${props.file}`
+      )}`,
       'Raw link href is correct'
     );
 
