@@ -25,10 +25,10 @@ endif
 # On Linux we build for Linux and Windows
 ifeq (Linux,$(THIS_OS))
 
-ifeq ($(TRAVIS),true)
-$(info Running in Travis, verbose mode is disabled)
+ifeq ($(CI),true)
+	$(info Running in a CI environment, verbose mode is disabled)
 else
-VERBOSE="true"
+	VERBOSE="true"
 endif
 
 
@@ -356,6 +356,7 @@ help: ## Display this usage information
 	@echo "This host will build the following targets if 'make release' is invoked:"
 	@echo $(ALL_TARGETS) | sed 's/^/    /'
 
+.PHONY: ui-screenshots
 ui-screenshots:
 	@echo "==> Collecting UI screenshots..."
 	# Build the screenshots image if it doesn't exist yet
@@ -367,6 +368,14 @@ ui-screenshots:
 		--volume "$(shell pwd)/scripts/screenshots/screenshots:/screenshots" \
 		nomad-ui-screenshots
 
+.PHONY: ui-screenshots-local
 ui-screenshots-local:
 	@echo "==> Collecting UI screenshots (local)..."
 	@cd scripts/screenshots/src && SCREENSHOTS_DIR="../screenshots" node index.js
+
+.PHONY: ci-image
+ci-image:
+	@echo "==> Building CI Image hashicorpnomad/ci-build-image:$(date %Y%m%d)"
+	@docker build . -f Dockerfile.ci -t hashicorpnomad/ci-build-image:$(date %Y%m%d)
+	@echo "To push the image, run `docker push -t hashicorpnomad/ci-build-image:$(date %Y%m%d)"
+
