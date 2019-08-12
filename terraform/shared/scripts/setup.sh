@@ -29,7 +29,7 @@ CONSULTEMPLATEDOWNLOAD=https://releases.hashicorp.com/consul-template/${CONSULTE
 CONSULTEMPLATECONFIGDIR=/etc/consul-template.d
 CONSULTEMPLATEDIR=/opt/consul-template
 
-HADOOP_VERSION=2.7.6
+HADOOP_VERSION=2.7.7
 
 # Dependencies
 sudo apt-get install -y software-properties-common
