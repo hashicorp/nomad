@@ -12,7 +12,9 @@ workflows:
       - test-machine:
           name: "test-nomad"
           test_packages: "./nomad/..."
-      - test-container:
+      - test-machine:
+          # API Tests run in a VM rather than container due to the FS tests
+          # requiring `mount` priviliges.
           name: "test-api"
           test_packages: "./api/..."
       - test-container:
