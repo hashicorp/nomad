@@ -1,7 +1,7 @@
 version: 2.1
 
 references:
-  GO_VERSION: &GOVERSION 1.12.1
+  GO_VERSION: &GOVERSION 1.12.7
 workflows:
   build-test:
     jobs:
@@ -48,7 +48,7 @@ executors:
   go:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     docker:
-      - image: dantoml/nomad-build-image:e8d69b1e8
+      - image: hashicorpnomad/ci-build-image:20190812
   go-machine:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
@@ -62,9 +62,8 @@ jobs:
     executor: docker-builder
     steps:
       - checkout
-      - run: docker pull dantoml/nomad-build-image:latest || true
-      - run: docker build -t dantoml/nomad-build-image:$CIRCLE_SHA1 ./.circleci/build-images/go
-      - run: docker push dantoml/nomad-build-image:$CIRCLE_SHA1
+      - run: docker build -t hashicorpnomad/ci-build-image:$CIRCLE_SHA1 . -f ./Dockerfile.ci
+      - run: docker push hashicorpnomad/ci-build-image:$CIRCLE_SHA1
 
   lint:
     executor: go
