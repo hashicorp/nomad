@@ -545,11 +545,11 @@ func maskProcessEnv(env map[string]string) map[string]string {
 
 // parseTemplateConfigs converts the tasks templates in the config into
 // consul-templates
-func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[ctconf.TemplateConfig]*structs.Template, error) {
+func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.TemplateConfig]*structs.Template, error) {
 	allowAbs := config.ClientConfig.ReadBoolDefault(hostSrcOption, true)
 	taskEnv := config.EnvBuilder.Build()
 
-	ctmpls := make(map[ctconf.TemplateConfig]*structs.Template, len(config.Templates))
+	ctmpls := make(map[*ctconf.TemplateConfig]*structs.Template, len(config.Templates))
 	for _, tmpl := range config.Templates {
 		var src, dest string
 		if tmpl.SourcePath != "" {
@@ -585,7 +585,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[ctconf.Templat
 		}
 		ct.Finalize()
 
-		ctmpls[*ct] = tmpl
+		ctmpls[ct] = tmpl
 	}
 
 	return ctmpls, nil
@@ -594,7 +594,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[ctconf.Templat
 // newRunnerConfig returns a consul-template runner configuration, setting the
 // Vault and Consul configurations based on the clients configs.
 func newRunnerConfig(config *TaskTemplateManagerConfig,
-	templateMapping map[ctconf.TemplateConfig]*structs.Template) (*ctconf.Config, error) {
+	templateMapping map[*ctconf.TemplateConfig]*structs.Template) (*ctconf.Config, error) {
 
 	cc := config.ClientConfig
 	conf := ctconf.DefaultConfig()
@@ -603,7 +603,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	flat := ctconf.TemplateConfigs(make([]*ctconf.TemplateConfig, 0, len(templateMapping)))
 	for ctmpl := range templateMapping {
 		local := ctmpl
-		flat = append(flat, &local)
+		flat = append(flat, local)
 	}
 	conf.Templates = &flat
 
