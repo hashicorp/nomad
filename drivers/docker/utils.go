@@ -236,9 +236,10 @@ func parseVolumeSpecWindows(volBind string) (hostPath string, containerPath stri
 	if len(parts) < 2 {
 		return "", "", "", fmt.Errorf("not <src>:<destination> format")
 	}
-        
-	// In order to be OS agnostic, the host mount path should support either forward or backward slash.
-        // These will later to converted to OS specific slash in the agent side
+
+	// Convert host mount path separators to match the host OS's separator
+	// so that relative paths are supported cross-platform regardless of
+	// what slash is used in the jobspec.
 	hostPath = filepath.FromSlash(parts[0])
 	containerPath = parts[1]
 
