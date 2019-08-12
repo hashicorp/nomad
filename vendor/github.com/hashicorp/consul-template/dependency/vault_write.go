@@ -173,7 +173,9 @@ func (d *VaultWriteQuery) writeSecret(clients *ClientSet, opts *QueryOptions) (*
 		return nil, errors.Wrap(err, d.String())
 	}
 	if vaultSecret == nil {
-		return nil, fmt.Errorf("no secret exists at %s", d.path)
+		if _, isv2, _ := isKVv2(clients.Vault(), d.path); isv2 {
+			return nil, fmt.Errorf("no secret exists at %s", d.path)
+		}
 	}
 
 	return vaultSecret, nil

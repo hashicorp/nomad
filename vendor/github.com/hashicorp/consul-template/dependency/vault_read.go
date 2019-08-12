@@ -147,10 +147,10 @@ func (d *VaultReadQuery) readSecret(clients *ClientSet, opts *QueryOptions) (*ap
 	if d.isKVv2 == nil {
 		mountPath, isKVv2, err := isKVv2(vaultClient, d.rawPath)
 		if err != nil {
-			return nil, errors.Wrap(err, d.String())
-		}
-
-		if isKVv2 {
+			log.Printf("[WARN] %s: failed to check if %s is KVv2, assume not: %s", d, d.rawPath, err)
+			isKVv2 = false
+			d.secretPath = d.rawPath
+		} else if isKVv2 {
 			d.secretPath = addPrefixToVKVPath(d.rawPath, mountPath, "data")
 		} else {
 			d.secretPath = d.rawPath
