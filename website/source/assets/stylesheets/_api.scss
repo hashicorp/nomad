@@ -57,4 +57,21 @@
       }
     }
   }
+
+  ul.api-nav {
+    padding: 0;
+
+    li {
+      display: inline;
+      white-space: nowrap;
+
+      &::after {
+        content: ' | ';
+      }
+
+      &:last-child::after {
+        content: '';
+      }
+    }
+  }
 }
