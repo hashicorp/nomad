@@ -17,7 +17,7 @@ jobs:
       uses: actions/checkout@master
 
     - name: Get dependencies
-      run: make deps lint-deps
+      run: make deps
 
     - name: Build
       run: go build -v .
