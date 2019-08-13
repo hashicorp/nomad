@@ -14,7 +14,7 @@ or server functionality, including exposing interfaces for client consumption
 and running jobs.
 
 Due to the power and flexibility of this command, the Nomad agent is documented
-in its own section. See the [Nomad Agent](/guides/install/production/nomad-agent.html) 
+in its own section. See the [Nomad Agent](/guides/install/production/nomad-agent.html)
 guide and the [Configuration](/docs/configuration/index.html) documentation section for
 more information on how to use this command and the options it has.
 
@@ -55,7 +55,12 @@ via CLI arguments. The `agent` command accepts the following arguments:
 * `-dc=<datacenter>`: Equivalent to the [datacenter](#datacenter) config option.
 * `-dev`: Start the agent in development mode. This enables a pre-configured
   dual-role agent (client + server) which is useful for developing or testing
-  Nomad. No other configuration is required to start the agent in this mode.
+  Nomad. No other configuration is required to start the agent in this mode,
+  but you may pass an optional comma-separated list of mode configurations:
+
+  `-dev=connect`: Start the agent in development mode, but bind to a public network
+  interface rather than localhost for Consul Connect testing.
+
 * `-encrypt`: Set the Serf encryption key. See the [Encryption Overview](/guides/security/encryption.html) for more details.
 * `-join=<address>`: Address of another agent to join upon starting up. This can
   be specified multiple times to specify multiple agents to join.
@@ -102,8 +107,8 @@ via CLI arguments. The `agent` command accepts the following arguments:
 * `vault-cert-file=<path>`: The path to the certificate for Vault communication.
 * `vault-key-file=<path>`: The path to the private key for Vault communication.
 * `vault-namespace=<namespace>`: The Vault namespace used for the integration.
-  Required for servers and clients. Overrides the Vault namespace read from the 
-  VAULT_NAMESPACE environment variable.  
+  Required for servers and clients. Overrides the Vault namespace read from the
+  VAULT_NAMESPACE environment variable.
 * `vault-tls-skip-verify`: A boolean that determines whether to skip SSL
   certificate verification.
 * `vault-tls-server-name=<name>`: Used to set the SNI host when connecting to

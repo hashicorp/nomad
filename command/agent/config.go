@@ -668,22 +668,77 @@ func (r *Resources) CanParseReserved() error {
 	return err
 }
 
+// devModeConfig holds the config for the -dev flag
+type devModeConfig struct {
+	defaultMode bool
+	connectMode bool
+}
+
+// newDevModeConfig parses the optional string value of the -dev flag
+func newDevModeConfig(s string) (*devModeConfig, error) {
+	if s == "" {
+		return nil, nil // no -dev flag
+	}
+	mode := &devModeConfig{}
+	modeFlags := strings.Split(s, ",")
+	for _, modeFlag := range modeFlags {
+		switch modeFlag {
+		case "true": // -dev flag with no params
+			mode.defaultMode = true
+		case "connect":
+			if runtime.GOOS != "linux" {
+				// strictly speaking -dev=connect only binds to the
+				// non-localhost interface, but given its purpose
+				// is to support a feature with network namespaces
+				// we'll return an error here rather than let the agent
+				// come up and fail unexpectedly to run jobs
+				return nil, fmt.Errorf("-dev=connect is only supported on linux")
+			}
+			mode.connectMode = true
+		default:
+			return nil, fmt.Errorf("invalid -dev flag")
+		}
+	}
+	return mode, nil
+}
+
+func (mode *devModeConfig) networkConfig() (string, string) {
+	if runtime.GOOS == "darwin" {
+		return "127.0.0.1", "lo0"
+	}
+	if mode != nil && mode.connectMode {
+		// if we hit either of the errors here we're in a weird situation
+		// where syscalls to get the list of network interfaces are failing.
+		// rather than throwing errors, we'll fall back to the default.
+		iface, err := template.Parse(
+			`{{ GetDefaultInterfaces | limit 1 | attr "name" }}`)
+		if err == nil {
+			addr, err := template.Parse(
+				fmt.Sprintf(`{{ GetInterfaceIP "%s" }}`, iface))
+			if err == nil {
+				return addr, iface
+			}
+		}
+	}
+	return "127.0.0.1", "lo"
+}
+
 // DevConfig is a Config that is used for dev mode of Nomad.
-func DevConfig() *Config {
+func DevConfig(mode *devModeConfig) *Config {
+	if mode == nil {
+		mode = &devModeConfig{defaultMode: true}
+	}
 	conf := DefaultConfig()
-	conf.BindAddr = "127.0.0.1"
+	bindAddr, iface := mode.networkConfig()
+	conf.BindAddr = bindAddr
 	conf.LogLevel = "DEBUG"
 	conf.Client.Enabled = true
 	conf.Server.Enabled = true
-	conf.DevMode = true
+	conf.DevMode = mode != nil
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
 	conf.Consul.AutoAdvertise = helper.BoolToPtr(true)
-	if runtime.GOOS == "darwin" {
-		conf.Client.NetworkInterface = "lo0"
-	} else if runtime.GOOS == "linux" {
-		conf.Client.NetworkInterface = "lo"
-	}
+	conf.Client.NetworkInterface = iface
 	conf.Client.Options = map[string]string{
 		"driver.raw_exec.enable": "true",
 		"driver.docker.volumes":  "true",
