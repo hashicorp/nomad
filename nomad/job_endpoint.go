@@ -1250,32 +1250,6 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	return nil
 }
 
-// validateJob validates a Job and task drivers and returns an error if there is
-// a validation problem or if the Job is of a type a user is not allowed to
-// submit.
-func validateJob(job *structs.Job) (invalid, warnings error) {
-	validationErrors := new(multierror.Error)
-	if err := job.Validate(); err != nil {
-		multierror.Append(validationErrors, err)
-	}
-
-	// Get any warnings
-	warnings = job.Warnings()
-
-	// TODO: Validate the driver configurations. These had to be removed in 0.9
-	//       to support driver plugins, but see issue: #XXXX for more info.
-
-	if job.Type == structs.JobTypeCore {
-		multierror.Append(validationErrors, fmt.Errorf("job type cannot be core"))
-	}
-
-	if len(job.Payload) != 0 {
-		multierror.Append(validationErrors, fmt.Errorf("job can't be submitted with a payload, only dispatched"))
-	}
-
-	return validationErrors.ErrorOrNil(), warnings
-}
-
 // validateJobUpdate ensures updates to a job are valid.
 func validateJobUpdate(old, new *structs.Job) error {
 	// Validate Dispatch not set on new Jobs
