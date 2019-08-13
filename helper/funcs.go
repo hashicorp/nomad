@@ -345,11 +345,11 @@ func CopySliceInt(s []int) []int {
 // CleanEnvVar replaces all occurrences of illegal characters in an environment
 // variable with the specified byte.
 // any extra characters will be considered valid
-func CleanEnvVar(s string, r byte, e string) string {
-	b := []byte(s)
+func CleanEnvVar(str string, replacement byte, extra string) string {
+	b := []byte(str)
 	for i, c := range b {
 		switch {
-		case bytes.ContainsAny([]byte{c}, e):
+		case bytes.ContainsAny([]byte{c}, extra):
 		case c == '_':
 		case c == '.':
 		case c >= 'a' && c <= 'z':
@@ -357,7 +357,7 @@ func CleanEnvVar(s string, r byte, e string) string {
 		case i > 0 && c >= '0' && c <= '9':
 		default:
 			// Replace!
-			b[i] = r
+			b[i] = replacement
 		}
 	}
 	return string(b)
