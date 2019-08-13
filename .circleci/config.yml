@@ -188,7 +188,6 @@ jobs:
           key: v1-deps-{{ checksum "ui/yarn.lock" }}
           paths:
             - ./ui/node_modules
-      - run: export PATH="$HOME/.yarn/bin:$PATH"
       - run:
           name: lint:js
           command: cd ui && yarn run lint:js
