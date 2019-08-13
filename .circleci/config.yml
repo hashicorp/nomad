@@ -2,7 +2,6 @@ version: 2.1
 
 references:
   common_envs: &COMMON_ENVS
-    GOVERSION: "1.12.7"
     GOMAXPROCS: 1
     NOMAD_SLOW_TEST: 1
     GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
@@ -189,13 +188,18 @@ jobs:
 
 commands:
   install-golang:
+    parameters:
+      version:
+        type: string
+        default: "1.12.7"
     steps:
       - run:
-          name: install golang
+          name: install golang << parameters.version >>
           command: |
             sudo rm -rf /usr/local/go
-            wget https://dl.google.com/go/go$GOVERSION.linux-amd64.tar.gz
-            sudo tar -C /usr/local -xzf go$GOVERSION.linux-amd64.tar.gz
+            wget -q -O /tmp/golang.tar.gz https://dl.google.com/go/go<< parameters.version >>.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
 
   install-vault:
     parameters:
@@ -206,9 +210,9 @@ commands:
       - run:
           name: Install Vault << parameters.version >>
           command: |
-            wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/<< parameters.version >>/vault_<< parameters.version>>_linux_amd64.zip \
-            && sudo unzip -d /usr/local/bin /tmp/vault.zip \
-            && rm -rf /tmp/vault*
+            wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/<< parameters.version >>/vault_<< parameters.version>>_linux_amd64.zip
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
 
   install-consul:
     parameters:
@@ -219,9 +223,9 @@ commands:
       - run:
           name: Install Consul << parameters.version >>
           command: |
-            wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/<< parameters.version >>/consul_<< parameters.version >>_linux_amd64.zip \
-            && sudo unzip -d /usr/local/bin /tmp/consul.zip \
-            && rm -rf /tmp/consul*
+            wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/<< parameters.version >>/consul_<< parameters.version >>_linux_amd64.zip
+            sudo unzip -d /usr/local/bin /tmp/consul.zip
+            rm -rf /tmp/consul*
 
   install-protoc:
     steps:
