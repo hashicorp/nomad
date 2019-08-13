@@ -942,7 +942,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 func TestTask_Validate(t *testing.T) {
 	task := &Task{}
 	ephemeralDisk := DefaultEphemeralDisk()
-	err := task.Validate(ephemeralDisk, JobTypeBatch)
+	err := task.Validate(ephemeralDisk, JobTypeBatch, nil)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "task name") {
 		t.Fatalf("err: %s", err)
@@ -955,7 +955,7 @@ func TestTask_Validate(t *testing.T) {
 	}
 
 	task = &Task{Name: "web/foo"}
-	err = task.Validate(ephemeralDisk, JobTypeBatch)
+	err = task.Validate(ephemeralDisk, JobTypeBatch, nil)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "slashes") {
 		t.Fatalf("err: %s", err)
@@ -971,7 +971,7 @@ func TestTask_Validate(t *testing.T) {
 		LogConfig: DefaultLogConfig(),
 	}
 	ephemeralDisk.SizeMB = 200
-	err = task.Validate(ephemeralDisk, JobTypeBatch)
+	err = task.Validate(ephemeralDisk, JobTypeBatch, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -985,7 +985,7 @@ func TestTask_Validate(t *testing.T) {
 			LTarget: "${meta.rack}",
 		})
 
-	err = task.Validate(ephemeralDisk, JobTypeBatch)
+	err = task.Validate(ephemeralDisk, JobTypeBatch, nil)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "task level: distinct_hosts") {
 		t.Fatalf("err: %s", err)
@@ -1067,7 +1067,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		},
 	}
 
-	err := task.Validate(ephemeralDisk, JobTypeService)
+	err := task.Validate(ephemeralDisk, JobTypeService, nil)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -1088,7 +1088,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if err = task1.Validate(ephemeralDisk, JobTypeService); err != nil {
+	if err = task1.Validate(ephemeralDisk, JobTypeService, nil); err != nil {
 		t.Fatalf("err : %v", err)
 	}
 }
@@ -1147,7 +1147,7 @@ func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
 	for _, service := range cases {
 		task := getTask(service)
 		t.Run(service.Name, func(t *testing.T) {
-			if err := task.Validate(ephemeralDisk, JobTypeService); err != nil {
+			if err := task.Validate(ephemeralDisk, JobTypeService, nil); err != nil {
 				t.Fatalf("unexpected err: %v", err)
 			}
 		})
@@ -1200,7 +1200,7 @@ func TestTask_Validate_Service_AddressMode_Bad(t *testing.T) {
 	for _, service := range cases {
 		task := getTask(service)
 		t.Run(service.Name, func(t *testing.T) {
-			err := task.Validate(ephemeralDisk, JobTypeService)
+			err := task.Validate(ephemeralDisk, JobTypeService, nil)
 			if err == nil {
 				t.Fatalf("expected an error")
 			}
@@ -1513,6 +1513,117 @@ func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
 	assert.Nil(t, validCheckRestart.Validate())
 }
 
+func TestTask_Validate_ConnectKind(t *testing.T) {
+	ephemeralDisk := DefaultEphemeralDisk()
+	getTask := func(kind TaskKind, leader bool) *Task {
+		task := &Task{
+			Name:      "web",
+			Driver:    "docker",
+			Resources: DefaultResources(),
+			LogConfig: DefaultLogConfig(),
+			Kind:      kind,
+			Leader:    leader,
+		}
+		task.Resources.Networks = []*NetworkResource{
+			{
+				MBits: 10,
+				DynamicPorts: []Port{
+					{
+						Label: "http",
+						Value: 80,
+					},
+				},
+			},
+		}
+		return task
+	}
+
+	cases := []struct {
+		Desc        string
+		Kind        TaskKind
+		Leader      bool
+		Service     *Service
+		TgService   []*Service
+		ErrContains string
+	}{
+		{
+			Desc: "Not connect",
+			Kind: "test",
+		},
+		{
+			Desc: "Invalid because of service in task definition",
+			Kind: "connect-proxy:redis",
+			Service: &Service{
+				Name: "redis",
+			},
+			ErrContains: "Connect proxy task must not have a service stanza",
+		},
+		{
+			Desc:   "Leader should not be set",
+			Kind:   "connect-proxy:redis",
+			Leader: true,
+			Service: &Service{
+				Name: "redis",
+			},
+			ErrContains: "Connect proxy task must not have leader set",
+		},
+		{
+			Desc: "Service name invalid",
+			Kind: "connect-proxy:redis:test",
+			Service: &Service{
+				Name: "redis",
+			},
+			ErrContains: "Connect proxy service kind \"connect-proxy:redis:test\" must not contain `:`",
+		},
+		{
+			Desc:        "Service name not found in group",
+			Kind:        "connect-proxy:redis",
+			ErrContains: "Connect proxy service name not found in services from task group",
+		},
+		{
+			Desc: "Connect stanza not configured in group",
+			Kind: "connect-proxy:redis",
+			TgService: []*Service{{
+				Name: "redis",
+			}},
+			ErrContains: "Connect proxy service name not found in services from task group",
+		},
+		{
+			Desc: "Valid connect proxy kind",
+			Kind: "connect-proxy:redis",
+			TgService: []*Service{{
+				Name: "redis",
+				Connect: &ConsulConnect{
+					SidecarService: &ConsulSidecarService{
+						Port: "db",
+					},
+				},
+			}},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		task := getTask(tc.Kind, tc.Leader)
+		if tc.Service != nil {
+			task.Services = []*Service{tc.Service}
+		}
+		t.Run(tc.Desc, func(t *testing.T) {
+			err := task.Validate(ephemeralDisk, "service", tc.TgService)
+			if err == nil && tc.ErrContains == "" {
+				// Ok!
+				return
+			}
+			if err == nil {
+				t.Fatalf("no error returned. expected: %s", tc.ErrContains)
+			}
+			if !strings.Contains(err.Error(), tc.ErrContains) {
+				t.Fatalf("expected %q but found: %v", tc.ErrContains, err)
+			}
+		})
+	}
+
+}
 func TestTask_Validate_LogConfig(t *testing.T) {
 	task := &Task{
 		LogConfig: DefaultLogConfig(),
@@ -1521,7 +1632,7 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 		SizeMB: 1,
 	}
 
-	err := task.Validate(ephemeralDisk, JobTypeService)
+	err := task.Validate(ephemeralDisk, JobTypeService, nil)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[3].Error(), "log storage") {
 		t.Fatalf("err: %s", err)
@@ -1538,7 +1649,7 @@ func TestTask_Validate_Template(t *testing.T) {
 		SizeMB: 1,
 	}
 
-	err := task.Validate(ephemeralDisk, JobTypeService)
+	err := task.Validate(ephemeralDisk, JobTypeService, nil)
 	if !strings.Contains(err.Error(), "Template 1 validation failed") {
 		t.Fatalf("err: %s", err)
 	}
@@ -1551,7 +1662,7 @@ func TestTask_Validate_Template(t *testing.T) {
 	}
 
 	task.Templates = []*Template{good, good}
-	err = task.Validate(ephemeralDisk, JobTypeService)
+	err = task.Validate(ephemeralDisk, JobTypeService, nil)
 	if !strings.Contains(err.Error(), "same destination as") {
 		t.Fatalf("err: %s", err)
 	}
@@ -1564,7 +1675,7 @@ func TestTask_Validate_Template(t *testing.T) {
 		},
 	}
 
-	err = task.Validate(ephemeralDisk, JobTypeService)
+	err = task.Validate(ephemeralDisk, JobTypeService, nil)
 	if err == nil {
 		t.Fatalf("expected error from Template.Validate")
 	}

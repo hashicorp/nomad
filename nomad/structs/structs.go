@@ -4923,7 +4923,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			}
 		}
 
-		if err := task.Validate(tg.EphemeralDisk, j.Type); err != nil {
+		if err := task.Validate(tg.EphemeralDisk, j.Type, tg.Services); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
@@ -5202,9 +5202,9 @@ type Task struct {
 	// specification and defaults to SIGINT
 	KillSignal string
 
-	// Used internally to manage tasks according to their Kind. Initial use case
+	// Used internally to manage tasks according to their TaskKind. Initial use case
 	// is for Consul Connect
-	Kind string
+	Kind TaskKind
 }
 
 func (t *Task) Copy() *Task {
@@ -5301,7 +5301,7 @@ func (t *Task) GoString() string {
 }
 
 // Validate is used to sanity check a task
-func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string) error {
+func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices []*Service) error {
 	var mErr multierror.Error
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
@@ -5410,6 +5410,21 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string) error {
 		}
 	}
 
+	// Validation for TaskKind field which is used for Consul Connect integration
+	taskKind := t.Kind
+	if taskKind.IsConnect() {
+		// This task is a Connect proxy so it should not have service stanzas
+		if len(t.Services) > 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task must not have a service stanza"))
+		}
+		if t.Leader {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task must not have leader set"))
+		}
+		serviceErr := taskKind.validateProxyService(tgServices)
+		if serviceErr != nil {
+			mErr.Errors = append(mErr.Errors, serviceErr)
+		}
+	}
 	return mErr.ErrorOrNil()
 }
 
@@ -5548,6 +5563,40 @@ func (t *Task) Warnings() error {
 	// Validate the resources
 	if t.Resources != nil && t.Resources.IOPS != 0 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("IOPS has been deprecated as of Nomad 0.9.0. Please remove IOPS from resource stanza."))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+type TaskKind string
+
+const connectPrefix = "connect-proxy:"
+
+func (k TaskKind) IsConnect() bool {
+	return strings.HasPrefix(string(k), connectPrefix) && len(k) > len(connectPrefix)
+}
+
+// validateProxyService checks that the service that is being
+// proxied by this task exists in the task group and contains
+// valid Connect config.
+func (k TaskKind) validateProxyService(tgServices []*Service) error {
+	var mErr multierror.Error
+	parts := strings.Split(string(k), ":")
+	serviceName := strings.Join(parts[1:], "")
+	if len(parts) > 2 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy service kind %q must not contain `:`", k))
+	}
+
+	found := false
+	for _, svc := range tgServices {
+		if svc.Name == serviceName && svc.Connect != nil && svc.Connect.SidecarService != nil {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy service name not found in services from task group"))
 	}
 
 	return mErr.ErrorOrNil()
