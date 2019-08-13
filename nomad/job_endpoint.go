@@ -83,6 +83,21 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "register"}, time.Now())
 
+	// Validate the arguments
+	if args.Job == nil {
+		return fmt.Errorf("missing job for registration")
+	}
+
+	// Run admission controllers
+	job, warnings, err := j.admissionControllers(args.Job)
+	if err != nil {
+		return err
+	}
+	args.Job = job
+
+	// Set the warning message
+	reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
+
 	// Check job submission permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
@@ -117,21 +132,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			j.logger.Warn("policy override set for job", "job", args.Job.ID)
 		}
 	}
-
-	// Validate the arguments
-	if args.Job == nil {
-		return fmt.Errorf("missing job for registration")
-	}
-
-	// Run admission controllers
-	job, warnings, err := j.admissionControllers(args.Job)
-	if err != nil {
-		return err
-	}
-	args.Job = job
-
-	// Set the warning message
-	reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
 
 	// Lookup the job
 	snap, err := j.srv.State().Snapshot()
@@ -338,18 +338,18 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
+	job, mutateWarnings, err := j.admissionMutators(args.Job)
+	if err != nil {
+		return err
+	}
+	args.Job = job
+
 	// Check for read-job permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
-
-	job, mutateWarnings, err := j.admissionMutators(args.Job)
-	if err != nil {
-		return err
-	}
-	args.Job = job
 
 	// Validate the job and capture any warnings
 	validateWarnings, err := j.admissionValidators(args.Job)
@@ -1105,21 +1105,6 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "plan"}, time.Now())
 
-	// Check job submission permissions, which we assume is the same for plan
-	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil {
-		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
-			return structs.ErrPermissionDenied
-		}
-		// Check if override is set and we do not have permissions
-		if args.PolicyOverride {
-			if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySentinelOverride) {
-				return structs.ErrPermissionDenied
-			}
-		}
-	}
-
 	// Validate the arguments
 	if args.Job == nil {
 		return fmt.Errorf("Job required for plan")
@@ -1134,6 +1119,21 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 
 	// Set the warning message
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
+
+	// Check job submission permissions, which we assume is the same for plan
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil {
+		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+			return structs.ErrPermissionDenied
+		}
+		// Check if override is set and we do not have permissions
+		if args.PolicyOverride {
+			if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySentinelOverride) {
+				return structs.ErrPermissionDenied
+			}
+		}
+	}
 
 	// Enforce Sentinel policies
 	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job)
