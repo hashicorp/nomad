@@ -10,7 +10,7 @@ description: |-
 
 The `/node` endpoints are used to query for and interact with client nodes.
 
-### List Nodes
+## List Nodes
 
 This endpoint lists all nodes registered with Nomad.
 
