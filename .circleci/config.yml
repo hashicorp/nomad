@@ -182,7 +182,7 @@ jobs:
             - v1-deps-{{ .Branch }}-
             - v1-deps-
       - run:
-          name: Yarn Install
+          name: yarn install
           command: cd ui && yarn install
       - save_cache:
           key: v1-deps-{{ .Branch }}-{{ checksum "ui/yarn.lock" }}
@@ -190,13 +190,13 @@ jobs:
             - ./ui/node_modules
       - run: export PATH="$HOME/.yarn/bin:$PATH"
       - run:
-          name: Run JS Lint
+          name: lint:js
           command: cd ui && yarn run lint:js
       - run:
-          name: Run HBS Lint
+          name: lint:hbs
           command: cd ui && yarn run lint:hbs
       - run:
-          name: Run Tests
+          name: Ember tests
           command: cd ui && yarn test
 
   build-website:
