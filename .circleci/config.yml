@@ -61,7 +61,7 @@ workflows:
   
   ui:
     jobs:
-      - all-ui: # to decompose later
+      - test-ui:
           filters:
             branches:
               only: /^.-ui\b.*/
@@ -87,36 +87,6 @@ executors:
     machine: true # TODO: Find latest docker image id
 
 jobs:
-  all-ui:
-    docker:
-      - image: circleci/node:10-browsers
-        environment:
-          JOBS: 2
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-            - v1-deps-{{ .Branch }}-{{ checksum "ui/yarn.lock" }}
-            - v1-deps-{{ .Branch }}-
-            - v1-deps-
-      - run:
-          name: Yarn Install
-          command: cd ui && yarn install
-      - save_cache:
-          key: v1-deps-{{ .Branch }}-{{ checksum "ui/yarn.lock" }}
-          paths:
-            - ./ui/node_modules
-      - run: export PATH="$HOME/.yarn/bin:$PATH"
-      - run:
-          name: Run JS Lint
-          command: cd ui && yarn run lint:js
-      - run:
-          name: Run HBS Lint
-          command: cd ui && yarn run lint:hbs
-      - run:
-          name: Run Tests
-          command: cd ui && yarn test
-
   build-deps-image:
     executor: docker-builder
     steps:
@@ -206,6 +176,35 @@ jobs:
           path: /tmp/test-reports
       - store_artifacts:
           path: /tmp/test-reports
+  test-ui:
+    docker:
+      - image: circleci/node:10-browsers
+        environment:
+          JOBS: 2
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-deps-{{ .Branch }}-{{ checksum "ui/yarn.lock" }}
+            - v1-deps-{{ .Branch }}-
+            - v1-deps-
+      - run:
+          name: Yarn Install
+          command: cd ui && yarn install
+      - save_cache:
+          key: v1-deps-{{ .Branch }}-{{ checksum "ui/yarn.lock" }}
+          paths:
+            - ./ui/node_modules
+      - run: export PATH="$HOME/.yarn/bin:$PATH"
+      - run:
+          name: Run JS Lint
+          command: cd ui && yarn run lint:js
+      - run:
+          name: Run HBS Lint
+          command: cd ui && yarn run lint:hbs
+      - run:
+          name: Run Tests
+          command: cd ui && yarn test
 
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
