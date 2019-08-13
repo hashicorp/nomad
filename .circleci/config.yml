@@ -12,19 +12,19 @@ workflows:
       - lint:
         filters:
           branches:
-            ignore: /^.-ui\b/
+            ignore: /^.-ui\b.*/
       - test-machine:
           name: "test-client"
           test_packages: "./client/..."
           filters:
             branches:
-              ignore: /^.-ui\b/
+              ignore: /^.-ui\b.*/
       - test-machine:
           name: "test-nomad"
           test_packages: "./nomad/..."
           filters:
             branches:
-              ignore: /^.-ui\b/
+              ignore: /^.-ui\b.*/
       - test-machine:
           # API Tests run in a VM rather than container due to the FS tests
           # requiring `mount` priviliges.
@@ -32,41 +32,41 @@ workflows:
           test_packages: "./api/..."
           filters:
             branches:
-              ignore: /^.-ui\b/
+              ignore: /^.-ui\b.*/
       - test-container:
           name: "test-devices"
           test_packages: "./devices/..."
           filters:
             branches:
-              ignore: /^.-ui\b/
+              ignore: /^.-ui\b.*/
       - test-machine:
           name: "test-other"
           exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/rkt|./drivers/shared/executor|./nomad|./devices"
           filters:
             branches:
-              ignore: /^.-ui\b/
+              ignore: /^.-ui\b.*/
       - test-machine:
           name: "test-docker"
           test_packages: "./drivers/docker"
           filters:
             branches:
-              ignore: /^.-ui\b/
+              ignore: /^.-ui\b.*/
       - test-machine:
           name: "test-exec"
           test_packages: "./drivers/exec"
           filters:
             branches:
-              ignore: /^.-ui\b/
+              ignore: /^.-ui\b.*/
       - test-machine:
           name: "test-shared-exec"
           test_packages: "./drivers/shared/executor"
           filters:
             branches:
-              ignore: /^.-ui\b/
+              ignore: /^.-ui\b.*/
       - test-rkt:
           filters:
             branches:
-              ignore: /^.-ui\b/
+              ignore: /^.-ui\b.*/
       # - build-deps-image:
       #     context: dani-test
       #     filters:
@@ -79,7 +79,7 @@ workflows:
       - all-ui: # to decompose later
           filters:
             branches:
-              only: /^.-ui\b/
+              only: /^.-ui\b.*/
 
   website:
     jobs:
