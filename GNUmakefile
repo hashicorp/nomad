@@ -6,7 +6,7 @@ GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
-GO_TAGS =
+GO_TAGS ?=
 
 GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
 
@@ -50,6 +50,9 @@ endif
 ifeq (FreeBSD,$(THIS_OS))
 ALL_TARGETS += freebsd_amd64
 endif
+
+# include per-user customization after all variables are defined
+-include GNUMakefile.local
 
 pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
