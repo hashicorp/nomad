@@ -1239,6 +1239,15 @@ func (c *Client) setupNode() error {
 		node.Name = node.ID
 	}
 	node.Status = structs.NodeStatusInit
+
+	// Setup default meta
+	if _, ok := node.Meta["connect.sidecar_image"]; !ok {
+		node.Meta["connect.sidecar_image"] = "envoyproxy/envoy:v1.11.1"
+	}
+	if _, ok := node.Meta["connect.log_levelj"]; !ok {
+		node.Meta["connect.log_level"] = "info"
+	}
+
 	return nil
 }
 
