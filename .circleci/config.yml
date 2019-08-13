@@ -52,19 +52,15 @@ workflows:
           <<: *IGNORE_FOR_UI_BRANCHES
       - test-rkt:
           <<: *IGNORE_FOR_UI_BRANCHES
+      - test-ui:
+          filters:
+            branches:
+              only: /^.-ui\b.*/
       # - build-deps-image:
       #     context: dani-test
       #     filters:
       #       branches:
       #         only: dani/circleci
-
-  
-  ui:
-    jobs:
-      - test-ui:
-          filters:
-            branches:
-              only: /^.-ui\b.*/
 
   website:
     jobs:
