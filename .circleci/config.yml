@@ -75,6 +75,7 @@ jobs:
           JOBS: 2
     steps:
       - checkout
+      - run: cd ui
       - run:
           name: Yarn Install
           command: yarn install
