@@ -14,7 +14,7 @@ references:
 workflows:
   build-test:
     jobs:
-      - lint:
+      - lint-go:
           <<: *IGNORE_FOR_UI_BRANCHES
       - test-machine:
           name: "test-client"
@@ -87,7 +87,7 @@ jobs:
       - run: docker build -t hashicorpnomad/ci-build-image:$CIRCLE_SHA1 . -f ./Dockerfile.ci
       - run: docker push hashicorpnomad/ci-build-image:$CIRCLE_SHA1
 
-  lint:
+  lint-go:
     executor: go
     environment:
       GOPATH: /go
