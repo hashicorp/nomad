@@ -7,12 +7,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const (
-	// connectProxyPrefix is used when prefixing identifiers such as the sidecar
-	// task Name and Kind fields
-	connectProxyPrefix = "connect-proxy"
-)
-
 var (
 	// connectSidecarResources is the set of resources used by default for the
 	// Consul Connect sidecar task
@@ -72,7 +66,7 @@ func getSidecarTaskForService(tg *structs.TaskGroup, svc string) *structs.Task {
 }
 
 func isSidecarForService(t *structs.Task, svc string) bool {
-	return t.Kind == fmt.Sprintf("%s:%s", connectProxyPrefix, svc)
+	return t.Kind == structs.TaskKind(fmt.Sprintf("%s:%s", structs.ConnectProxyPrefix, svc))
 }
 
 func groupConnectHook(g *structs.TaskGroup) error {
@@ -90,7 +84,7 @@ func groupConnectHook(g *structs.TaskGroup) error {
 			//TODO merge in sidecar_task overrides
 
 			port := structs.Port{
-				Label: fmt.Sprintf("%s-%s", connectProxyPrefix, service.Name),
+				Label: fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name),
 
 				// -1 is a sentinel value to instruct the
 				// scheduler to map the host's dynamic port to
@@ -106,8 +100,8 @@ func groupConnectHook(g *structs.TaskGroup) error {
 
 func newConnectTask(service *structs.Service) *structs.Task {
 	task := &structs.Task{
-		Name:   fmt.Sprintf("%s-%s", connectProxyPrefix, service.Name), // used in container name so must start with '[A-Za-z0-9]'
-		Kind:   fmt.Sprintf("%s:%s", connectProxyPrefix, service.Name),
+		Name:   fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name), // used in container name so must start with '[A-Za-z0-9]'
+		Kind:   structs.TaskKind(fmt.Sprintf("%s:%s", structs.ConnectProxyPrefix, service.Name)),
 		Driver: "docker",
 		Config: map[string]interface{}{
 			"image": "${meta.connect.sidecar_image}",

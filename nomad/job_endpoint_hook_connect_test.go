@@ -71,7 +71,7 @@ func Test_groupConnectHook(t *testing.T) {
 	}
 	tgOut.Networks[0].DynamicPorts = []structs.Port{
 		{
-			Label: fmt.Sprintf("%s-%s", connectProxyPrefix, "backend"),
+			Label: fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, "backend"),
 			To:    -1,
 		},
 	}
