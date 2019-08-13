@@ -42,6 +42,10 @@ workflows:
       #     filters:
       #       branches:
       #         only: dani/circleci
+  
+  ui:
+    jobs:
+      - all-ui # to decompose later
 
   website:
     jobs:
@@ -64,6 +68,27 @@ executors:
     machine: true # TODO: Find latest docker image id
 
 jobs:
+  all-ui:
+    docker:
+      - image: circleci/node:10-browsers
+        environment:
+          JOBS: 2
+    steps:
+      - checkout
+      - run:
+        name: Yarn Install
+        command: yarn install
+      - run: export PATH="$HOME/.yarn/bin:$PATH"
+      - run
+        name: Run JS Lint
+        command: yarn run lint:js
+      - run
+        name: Run HBS Lint
+        command: yarn run lint:hbs
+      - run
+        name: Run Tests
+        command: yarn test
+
   build-deps-image:
     executor: docker-builder
     steps:
