@@ -51,6 +51,9 @@ ifeq (FreeBSD,$(THIS_OS))
 ALL_TARGETS += freebsd_amd64
 endif
 
+# include per-user customization after all variables are defined
+-include GNUMakefile.local
+
 pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
