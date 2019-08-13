@@ -478,9 +478,9 @@ func (b *Builder) Build() *TaskEnv {
 	for k, v := range envMap {
 		var cleanedK string
 		if strings.HasPrefix(k, "NOMAD_") {
-			cleanedK = helper.CleanEnvVar(k, '_', "")
+			cleanedK = helper.CleanEnvVar(k, '_')
 		} else {
-			cleanedK = helper.CleanEnvVar(k, '_', "-")
+			cleanedK = k
 		}
 		cleanedEnv[cleanedK] = v
 	}
@@ -491,9 +491,9 @@ func (b *Builder) Build() *TaskEnv {
 		for k, v := range deviceEnvs {
 			var cleanedK string
 			if strings.HasPrefix(k, "NOMAD_") {
-				cleanedK = helper.CleanEnvVar(k, '_', "")
+				cleanedK = helper.CleanEnvVar(k, '_')
 			} else {
-				cleanedK = helper.CleanEnvVar(k, '_', "-")
+				cleanedK = k
 			}
 			cleanedDeviceEnvs[cleanedK] = v
 		}
