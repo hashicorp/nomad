@@ -1,7 +1,11 @@
 version: 2.1
 
 references:
-  GO_VERSION: &GOVERSION 1.12.7
+  common_envs: &COMMON_ENVS
+    GOMAXPROCS: 1
+    NOMAD_SLOW_TEST: 1
+    GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+
 workflows:
   build-test:
     jobs:
@@ -85,36 +89,28 @@ jobs:
         type: string
         default: ""
     environment:
+      <<: *COMMON_ENVS
       GOTEST_PKGS: "<< parameters.test_packages >>"
       GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
       GOPATH: /go
-      GOTESTSUM_JUNITFILE: /tmp/results.xml
-      GOMAXPROCS: 1
-      NOMAD_SLOW_TEST: 1
     steps:
       - checkout
       - run-tests
       - store_test_results:
-          path: /tmp
+          path: /tmp/test-reports
+      - store_artifacts:
+          path: /tmp/test-reports
 
   test-rkt:
     executor: go-machine
     environment:
+      <<: *COMMON_ENVS
       GOTEST_PKGS: "./drivers/rkt"
-      GOTESTSUM_JUNITFILE: /tmp/results.xml
       GOPATH: /home/circleci/go
-      GOVERSION: *GOVERSION
-      GOMAXPROCS: 1
-      NOMAD_SLOW_TEST: 1
       RKT_VERSION: 1.29.0
     steps:
       - checkout
-      - run:
-          name: install go
-          command: |
-            sudo rm -rf /usr/local/go
-            wget https://dl.google.com/go/go$GOVERSION.linux-amd64.tar.gz
-            sudo tar -C /usr/local -xzf go$GOVERSION.linux-amd64.tar.gz
+      - install-golang
       - install-protoc
       - run:
           name: install rkt
@@ -127,7 +123,9 @@ jobs:
       - run: PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make bootstrap
       - run-tests
       - store_test_results:
-          path: /tmp
+          path: /tmp/test-reports
+      - store_artifacts:
+          path: /tmp/test-reports
 
   test-machine:
     executor: go-machine
@@ -139,28 +137,22 @@ jobs:
         type: string
         default: ""
     environment:
+      <<: *COMMON_ENVS
       GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
       GOTEST_PKGS: "<< parameters.test_packages >>"
-      GOTESTSUM_JUNITFILE: /tmp/results.xml
       GOPATH: /home/circleci/go
-      GOVERSION: *GOVERSION
-      GOMAXPROCS: 1
-      NOMAD_SLOW_TEST: 1
     steps:
       - checkout
-      - run:
-          name: install go
-          command: |
-            sudo rm -rf /usr/local/go
-            wget https://dl.google.com/go/go$GOVERSION.linux-amd64.tar.gz
-            sudo tar -C /usr/local -xzf go$GOVERSION.linux-amd64.tar.gz
+      - install-golang
       - install-protoc
       - install-consul
       - install-vault
       - run: PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make bootstrap
       - run-tests
       - store_test_results:
-          path: /tmp
+          path: /tmp/test-reports
+      - store_artifacts:
+          path: /tmp/test-reports
 
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
@@ -195,6 +187,20 @@ jobs:
           command: ./scripts/deploy.sh
 
 commands:
+  install-golang:
+    parameters:
+      version:
+        type: string
+        default: "1.12.7"
+    steps:
+      - run:
+          name: install golang << parameters.version >>
+          command: |
+            sudo rm -rf /usr/local/go
+            wget -q -O /tmp/golang.tar.gz https://dl.google.com/go/go<< parameters.version >>.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+
   install-vault:
     parameters:
       version:
@@ -204,9 +210,9 @@ commands:
       - run:
           name: Install Vault << parameters.version >>
           command: |
-            wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/<< parameters.version >>/vault_<< parameters.version>>_linux_amd64.zip \
-            && sudo unzip -d /usr/local/bin /tmp/vault.zip \
-            && rm -rf /tmp/vault*
+            wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/<< parameters.version >>/vault_<< parameters.version>>_linux_amd64.zip
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
 
   install-consul:
     parameters:
@@ -217,9 +223,9 @@ commands:
       - run:
           name: Install Consul << parameters.version >>
           command: |
-            wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/<< parameters.version >>/consul_<< parameters.version >>_linux_amd64.zip \
-            && sudo unzip -d /usr/local/bin /tmp/consul.zip \
-            && rm -rf /tmp/consul*
+            wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/<< parameters.version >>/consul_<< parameters.version >>_linux_amd64.zip
+            sudo unzip -d /usr/local/bin /tmp/consul.zip
+            rm -rf /tmp/consul*
 
   install-protoc:
     steps:
@@ -241,5 +247,6 @@ commands:
               unset GOTEST_PKGS
             fi
 
+            mkdir -p /tmp/test-reports
             sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
             sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
