@@ -92,6 +92,14 @@ const (
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
 	allocSyncRetryIntv = 5 * time.Second
+
+	// defaultConnectSidecarImage is the image set in the node meta by default
+	// to be used by Consul Connect sidecar tasks
+	defaultConnectSidecarImage = "envoyproxy/envoy:v1.11.1"
+
+	// defaultConnectLogLevel is the log level set in the node meta by default
+	// to be used by Consul Connect sidecar tasks
+	defaultConnectLogLevel = "info"
 )
 
 var (
@@ -1242,10 +1250,10 @@ func (c *Client) setupNode() error {
 
 	// Setup default meta
 	if _, ok := node.Meta["connect.sidecar_image"]; !ok {
-		node.Meta["connect.sidecar_image"] = "envoyproxy/envoy:v1.11.1"
+		node.Meta["connect.sidecar_image"] = defaultConnectSidecarImage
 	}
 	if _, ok := node.Meta["connect.log_levelj"]; !ok {
-		node.Meta["connect.log_level"] = "info"
+		node.Meta["connect.log_level"] = defaultConnectLogLevel
 	}
 
 	return nil
