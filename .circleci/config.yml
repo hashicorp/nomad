@@ -179,14 +179,13 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - v1-deps-{{ .Branch }}-{{ checksum "ui/yarn.lock" }}
-            - v1-deps-{{ .Branch }}-
+            - v1-deps-{{ checksum "ui/yarn.lock" }}
             - v1-deps-
       - run:
           name: yarn install
           command: cd ui && yarn install
       - save_cache:
-          key: v1-deps-{{ .Branch }}-{{ checksum "ui/yarn.lock" }}
+          key: v1-deps-{{ checksum "ui/yarn.lock" }}
           paths:
             - ./ui/node_modules
       - run: export PATH="$HOME/.yarn/bin:$PATH"
