@@ -75,20 +75,19 @@ jobs:
           JOBS: 2
     steps:
       - checkout
-      - run: cd ui
       - run:
           name: Yarn Install
-          command: yarn install
+          command: cd ui && yarn install
       - run: export PATH="$HOME/.yarn/bin:$PATH"
       - run:
           name: Run JS Lint
-          command: yarn run lint:js
+          command: cd ui && yarn run lint:js
       - run:
           name: Run HBS Lint
-          command: yarn run lint:hbs
+          command: cd ui && yarn run lint:hbs
       - run:
           name: Run Tests
-          command: yarn test
+          command: cd ui && yarn test
 
   build-deps-image:
     executor: docker-builder
