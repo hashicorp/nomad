@@ -1252,7 +1252,7 @@ func (c *Client) setupNode() error {
 	if _, ok := node.Meta["connect.sidecar_image"]; !ok {
 		node.Meta["connect.sidecar_image"] = defaultConnectSidecarImage
 	}
-	if _, ok := node.Meta["connect.log_levelj"]; !ok {
+	if _, ok := node.Meta["connect.log_level"]; !ok {
 		node.Meta["connect.log_level"] = defaultConnectLogLevel
 	}
 

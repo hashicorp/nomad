@@ -10,7 +10,7 @@ import (
 
 func Test_isSidecarForService(t *testing.T) {
 	cases := []struct {
-		t *structs.Task //task
+		t *structs.Task // task
 		s string        // service
 		r bool          // result
 	}{

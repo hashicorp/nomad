@@ -110,7 +110,7 @@ func newConnectTask(service *structs.Service) *structs.Task {
 				"-l", "${meta.connect.log_level}",
 			},
 		},
-		ShutdownDelay: time.Second * 5,
+		ShutdownDelay: 5 * time.Second,
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      2,
 			MaxFileSizeMB: 2,
