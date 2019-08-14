@@ -4,7 +4,6 @@ package getter
 
 import (
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"os/exec"
@@ -12,7 +11,7 @@ import (
 	"strings"
 )
 
-func (g *FileGetter) Get(dst string, u *url.URL) error {
+func (g *FileGetter) Get(dst string, u *url.URL, umask os.FileMode) error {
 	path := u.Path
 	if u.RawPath != "" {
 		path = u.RawPath
@@ -44,7 +43,7 @@ func (g *FileGetter) Get(dst string, u *url.URL) error {
 	}
 
 	// Create all the parent directories
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), mode(0755, umask)); err != nil {
 		return err
 	}
 
@@ -59,7 +58,7 @@ func (g *FileGetter) Get(dst string, u *url.URL) error {
 	return nil
 }
 
-func (g *FileGetter) GetFile(dst string, u *url.URL) error {
+func (g *FileGetter) GetFile(dst string, u *url.URL, umask os.FileMode) error {
 	path := u.Path
 	if u.RawPath != "" {
 		path = u.RawPath
@@ -86,7 +85,7 @@ func (g *FileGetter) GetFile(dst string, u *url.URL) error {
 	}
 
 	// Create all the parent directories
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), mode(0755, umask)); err != nil {
 		return err
 	}
 
@@ -96,19 +95,7 @@ func (g *FileGetter) GetFile(dst string, u *url.URL) error {
 	}
 
 	// Copy
-	srcF, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer srcF.Close()
-
-	dstF, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer dstF.Close()
-
-	_, err = io.Copy(dstF, srcF)
+	_, err = copyFile(dst, path, 0600, umask)
 	return err
 }
 

@@ -2,7 +2,6 @@ package getter
 
 import (
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -59,7 +58,7 @@ func (g *S3Getter) ClientMode(u *url.URL) (ClientMode, error) {
 	return ClientModeFile, nil
 }
 
-func (g *S3Getter) Get(dst string, u *url.URL) error {
+func (g *S3Getter) Get(dst string, u *url.URL, umask os.FileMode) error {
 	// Parse URL
 	region, bucket, path, _, creds, err := g.parseUrl(u)
 	if err != nil {
@@ -80,7 +79,7 @@ func (g *S3Getter) Get(dst string, u *url.URL) error {
 	}
 
 	// Create all the parent directories
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), mode(0755, umask)); err != nil {
 		return err
 	}
 
@@ -124,7 +123,7 @@ func (g *S3Getter) Get(dst string, u *url.URL) error {
 			}
 			objDst = filepath.Join(dst, objDst)
 
-			if err := g.getObject(client, objDst, bucket, objPath, ""); err != nil {
+			if err := g.getObject(client, objDst, bucket, objPath, "", umask); err != nil {
 				return err
 			}
 		}
@@ -133,7 +132,7 @@ func (g *S3Getter) Get(dst string, u *url.URL) error {
 	return nil
 }
 
-func (g *S3Getter) GetFile(dst string, u *url.URL) error {
+func (g *S3Getter) GetFile(dst string, u *url.URL, umask os.FileMode) error {
 	region, bucket, path, version, creds, err := g.parseUrl(u)
 	if err != nil {
 		return err
@@ -142,10 +141,10 @@ func (g *S3Getter) GetFile(dst string, u *url.URL) error {
 	config := g.getAWSConfig(region, u, creds)
 	sess := session.New(config)
 	client := s3.New(sess)
-	return g.getObject(client, dst, bucket, path, version)
+	return g.getObject(client, dst, bucket, path, version, umask)
 }
 
-func (g *S3Getter) getObject(client *s3.S3, dst, bucket, key, version string) error {
+func (g *S3Getter) getObject(client *s3.S3, dst, bucket, key, version string, umask os.FileMode) error {
 	req := &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
@@ -160,17 +159,11 @@ func (g *S3Getter) getObject(client *s3.S3, dst, bucket, key, version string) er
 	}
 
 	// Create all the parent directories
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), mode(0755, umask)); err != nil {
 		return err
 	}
 
-	f, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	_, err = io.Copy(f, resp.Body)
+	_, err = copyReader(dst, resp.Body, 0666, umask)
 	return err
 }
 

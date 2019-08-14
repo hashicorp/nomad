@@ -4,13 +4,12 @@ package getter
 
 import (
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"path/filepath"
 )
 
-func (g *FileGetter) Get(dst string, u *url.URL) error {
+func (g *FileGetter) Get(dst string, u *url.URL, umask os.FileMode) error {
 	path := u.Path
 	if u.RawPath != "" {
 		path = u.RawPath
@@ -42,27 +41,29 @@ func (g *FileGetter) Get(dst string, u *url.URL) error {
 	}
 
 	// Create all the parent directories
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), mode(0755, umask)); err != nil {
 		return err
 	}
 
 	return os.Symlink(path, dst)
 }
 
-func (g *FileGetter) GetFile(dst string, u *url.URL) error {
+func (g *FileGetter) GetFile(dst string, u *url.URL, umask os.FileMode) error {
 	path := u.Path
 	if u.RawPath != "" {
 		path = u.RawPath
 	}
 
 	// The source path must exist and be a file to be usable.
-	if fi, err := os.Stat(path); err != nil {
+	var fi os.FileInfo
+	var err error
+	if fi, err = os.Stat(path); err != nil {
 		return fmt.Errorf("source path error: %s", err)
 	} else if fi.IsDir() {
 		return fmt.Errorf("source path must be a file")
 	}
 
-	_, err := os.Lstat(dst)
+	_, err = os.Lstat(dst)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -76,7 +77,7 @@ func (g *FileGetter) GetFile(dst string, u *url.URL) error {
 	}
 
 	// Create all the parent directories
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err = os.MkdirAll(filepath.Dir(dst), mode(0755, umask)); err != nil {
 		return err
 	}
 
@@ -86,18 +87,6 @@ func (g *FileGetter) GetFile(dst string, u *url.URL) error {
 	}
 
 	// Copy
-	srcF, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer srcF.Close()
-
-	dstF, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer dstF.Close()
-
-	_, err = io.Copy(dstF, srcF)
+	_, err = copyFile(dst, path, fi.Mode(), umask)
 	return err
 }

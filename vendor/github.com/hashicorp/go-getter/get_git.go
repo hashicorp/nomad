@@ -23,7 +23,7 @@ func (g *GitGetter) ClientMode(_ *url.URL) (ClientMode, error) {
 	return ClientModeDir, nil
 }
 
-func (g *GitGetter) Get(dst string, u *url.URL) error {
+func (g *GitGetter) Get(dst string, u *url.URL, umask os.FileMode) error {
 	if _, err := exec.LookPath("git"); err != nil {
 		return fmt.Errorf("git must be available and on the PATH")
 	}
@@ -105,7 +105,7 @@ func (g *GitGetter) Get(dst string, u *url.URL) error {
 
 // GetFile for Git doesn't support updating at this time. It will download
 // the file every time.
-func (g *GitGetter) GetFile(dst string, u *url.URL) error {
+func (g *GitGetter) GetFile(dst string, u *url.URL, umask os.FileMode) error {
 	td, tdcloser, err := safetemp.Dir("", "getter")
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func (g *GitGetter) GetFile(dst string, u *url.URL) error {
 	u.Path = filepath.Dir(u.Path)
 
 	// Get the full repository
-	if err := g.Get(td, u); err != nil {
+	if err := g.Get(td, u, umask); err != nil {
 		return err
 	}
 
@@ -129,7 +129,7 @@ func (g *GitGetter) GetFile(dst string, u *url.URL) error {
 	}
 
 	fg := &FileGetter{Copy: true}
-	return fg.GetFile(dst, u)
+	return fg.GetFile(dst, u, umask)
 }
 
 func (g *GitGetter) checkout(dst string, ref string) error {

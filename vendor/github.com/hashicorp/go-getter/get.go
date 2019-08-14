@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
+	"os"
 	"os/exec"
 	"regexp"
 	"syscall"
@@ -31,12 +32,12 @@ type Getter interface {
 	// The directory may already exist (if we're updating). If it is in a
 	// format that isn't understood, an error should be returned. Get shouldn't
 	// simply nuke the directory.
-	Get(string, *url.URL) error
+	Get(string, *url.URL, os.FileMode) error
 
 	// GetFile downloads the give URL into the given path. The URL must
 	// reference a single file. If possible, the Getter should check if
 	// the remote end contains the same file and no-op this operation.
-	GetFile(string, *url.URL) error
+	GetFile(string, *url.URL, os.FileMode) error
 
 	// ClientMode returns the mode based on the given URL. This is used to
 	// allow clients to let the getters decide which mode to use.

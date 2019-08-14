@@ -2,6 +2,7 @@ package getter
 
 import (
 	"net/url"
+	"os"
 )
 
 // MockGetter is an implementation of Getter that can be used for tests.
@@ -21,25 +22,25 @@ type MockGetter struct {
 	GetFileErr    error
 }
 
-func (g *MockGetter) Get(dst string, u *url.URL) error {
+func (g *MockGetter) Get(dst string, u *url.URL, umask os.FileMode) error {
 	g.GetCalled = true
 	g.GetDst = dst
 	g.GetURL = u
 
 	if g.Proxy != nil {
-		return g.Proxy.Get(dst, u)
+		return g.Proxy.Get(dst, u, umask)
 	}
 
 	return g.GetErr
 }
 
-func (g *MockGetter) GetFile(dst string, u *url.URL) error {
+func (g *MockGetter) GetFile(dst string, u *url.URL, umask os.FileMode) error {
 	g.GetFileCalled = true
 	g.GetFileDst = dst
 	g.GetFileURL = u
 
 	if g.Proxy != nil {
-		return g.Proxy.GetFile(dst, u)
+		return g.Proxy.GetFile(dst, u, umask)
 	}
 	return g.GetFileErr
 }

@@ -1,6 +1,7 @@
 package getter
 
 import (
+	"os"
 	"strings"
 )
 
@@ -14,7 +15,7 @@ type Decompressor interface {
 	// Decompress should decompress src to dst. dir specifies whether dst
 	// is a directory or single file. src is guaranteed to be a single file
 	// that exists. dst is not guaranteed to exist already.
-	Decompress(dst, src string, dir bool) error
+	Decompress(dst, src string, dir bool, umask os.FileMode) error
 }
 
 // Decompressors is the mapping of extension to the Decompressor implementation
