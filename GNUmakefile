@@ -202,7 +202,7 @@ checkscripts: ## Lint shell scripts
 	@find scripts -type f -name '*.sh' | xargs shellcheck
 
 .PHONY: generate-all
-generate-all: generate-structs proto
+generate-all: generate-structs proto generate-examples
 
 .PHONY: generate-structs
 generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
@@ -217,6 +217,11 @@ proto:
 		protoc -I . -I ../../.. --go_out=plugins=grpc:. $$file; \
 	done
 
+.PHONY: generate-examples
+generate-examples: command/job_init.bindata_assetfs.go
+
+command/job_init.bindata_assetfs.go: command/assets/*
+	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
 vendorfmt:
 	@echo "--> Formatting vendor/vendor.json"
@@ -381,4 +386,3 @@ ci-image:
 	@echo "==> Building CI Image hashicorpnomad/ci-build-image:$(date %Y%m%d)"
 	@docker build . -f Dockerfile.ci -t hashicorpnomad/ci-build-image:$(date %Y%m%d)
 	@echo "To push the image, run `docker push -t hashicorpnomad/ci-build-image:$(date %Y%m%d)"
-
