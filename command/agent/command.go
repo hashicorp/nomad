@@ -1172,7 +1172,8 @@ General Options (clients and servers):
 
     -dev=connect
       Start the agent in development mode, but bind to a public network
-      interface rather than localhost for Consul Connect testing.
+      interface rather than localhost for using Consul Connect. This
+      mode is supported only on Linux as root.
 
 Server Options:
 

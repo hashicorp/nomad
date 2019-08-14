@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/go-sockaddr/template"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
@@ -670,8 +672,12 @@ func (r *Resources) CanParseReserved() error {
 
 // devModeConfig holds the config for the -dev flag
 type devModeConfig struct {
+	// mode flags are set at the command line via -dev=<mode>
 	defaultMode bool
 	connectMode bool
+
+	bindAddr string
+	iface    string
 }
 
 // newDevModeConfig parses the optional string value of the -dev flag
@@ -692,45 +698,69 @@ func newDevModeConfig(s string) (*devModeConfig, error) {
 				// is to support a feature with network namespaces
 				// we'll return an error here rather than let the agent
 				// come up and fail unexpectedly to run jobs
-				return nil, fmt.Errorf("-dev=connect is only supported on linux")
+				return nil, fmt.Errorf("-dev=connect is only supported on linux.")
+			}
+			u, err := user.Current()
+			if err != nil {
+				return nil, fmt.Errorf(
+					"-dev=connect uses network namespaces and is only supported for root: %v", err)
+			}
+			if u.Uid != "0" {
+				return nil, fmt.Errorf(
+					"-dev=connect uses network namespaces and is only supported for root.")
 			}
 			mode.connectMode = true
 		default:
-			return nil, fmt.Errorf("invalid -dev flag")
+			return nil, fmt.Errorf("invalid -dev flag: %q", s)
 		}
+	}
+	err := mode.networkConfig()
+	if err != nil {
+		return nil, err
 	}
 	return mode, nil
 }
 
-func (mode *devModeConfig) networkConfig() (string, string) {
+func (mode *devModeConfig) networkConfig() error {
 	if runtime.GOOS == "darwin" {
-		return "127.0.0.1", "lo0"
+		mode.bindAddr = "127.0.0.1"
+		mode.iface = "lo0"
+		return nil
 	}
 	if mode != nil && mode.connectMode {
 		// if we hit either of the errors here we're in a weird situation
 		// where syscalls to get the list of network interfaces are failing.
 		// rather than throwing errors, we'll fall back to the default.
-		iface, err := template.Parse(
-			`{{ GetDefaultInterfaces | limit 1 | attr "name" }}`)
-		if err == nil {
-			addr, err := template.Parse(
-				fmt.Sprintf(`{{ GetInterfaceIP "%s" }}`, iface))
-			if err == nil {
-				return addr, iface
-			}
+		ifAddrs, err := sockaddr.GetDefaultInterfaces()
+		errMsg := "-dev=connect uses network namespaces: %v"
+		if err != nil {
+			return fmt.Errorf(errMsg, err)
 		}
+		if len(ifAddrs) < 1 {
+			return fmt.Errorf(errMsg, "could not find public network inteface")
+		}
+		iface := ifAddrs[0].Name
+		addr, err := sockaddr.GetInterfaceIP(iface)
+		if err != nil {
+			return fmt.Errorf(errMsg, "could not find address for public interface")
+		}
+		mode.iface = iface
+		mode.bindAddr = addr
+		return nil
 	}
-	return "127.0.0.1", "lo"
+	mode.bindAddr = "127.0.0.1"
+	mode.iface = "lo"
+	return nil
 }
 
 // DevConfig is a Config that is used for dev mode of Nomad.
 func DevConfig(mode *devModeConfig) *Config {
 	if mode == nil {
 		mode = &devModeConfig{defaultMode: true}
+		mode.networkConfig()
 	}
 	conf := DefaultConfig()
-	bindAddr, iface := mode.networkConfig()
-	conf.BindAddr = bindAddr
+	conf.BindAddr = mode.bindAddr
 	conf.LogLevel = "DEBUG"
 	conf.Client.Enabled = true
 	conf.Server.Enabled = true
@@ -738,7 +768,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
 	conf.Consul.AutoAdvertise = helper.BoolToPtr(true)
-	conf.Client.NetworkInterface = iface
+	conf.Client.NetworkInterface = mode.iface
 	conf.Client.Options = map[string]string{
 		"driver.raw_exec.enable": "true",
 		"driver.docker.volumes":  "true",
