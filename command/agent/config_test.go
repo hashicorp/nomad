@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -617,6 +619,60 @@ func TestConfig_Listener(t *testing.T) {
 	want = fmt.Sprintf("0.0.0.0:%d", ports[1])
 	if addr := ln.Addr().String(); addr != want {
 		t.Fatalf("expected %q, got: %q", want, addr)
+	}
+}
+
+func TestConfig_DevModeFlag(t *testing.T) {
+	cases := []struct {
+		flag        string
+		expected    *devModeConfig
+		expectedErr string
+	}{}
+	if runtime.GOOS != "linux" {
+		cases = []struct {
+			flag        string
+			expected    *devModeConfig
+			expectedErr string
+		}{
+			{"", nil, ""},
+			{"true", &devModeConfig{defaultMode: true, connectMode: false}, ""},
+			{"true,connect", nil, "-dev=connect is only supported on linux"},
+			{"connect", nil, "-dev=connect is only supported on linux"},
+			{"xxx", nil, "invalid -dev flag"},
+		}
+	}
+	if runtime.GOOS == "linux" {
+		cases = []struct {
+			flag        string
+			expected    *devModeConfig
+			expectedErr string
+		}{
+			{"", nil, ""},
+			{"true", &devModeConfig{defaultMode: true, connectMode: false}, ""},
+			{"true,connect", &devModeConfig{defaultMode: true, connectMode: true}, ""},
+			{"connect", &devModeConfig{defaultMode: false, connectMode: true}, ""},
+			{"xxx", nil, "invalid -dev flag"},
+		}
+	}
+	for _, c := range cases {
+		t.Run(c.flag, func(t *testing.T) {
+			mode, err := newDevModeConfig(c.flag)
+			if err != nil && c.expectedErr == "" {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if err != nil && !strings.Contains(err.Error(), c.expectedErr) {
+				t.Fatalf("expected %s; got %v", c.expectedErr, err)
+			}
+			if mode == nil && c.expected != nil {
+				t.Fatalf("expected %+v but got nil", c.expected)
+			}
+			if mode != nil {
+				if c.expected.defaultMode != mode.defaultMode ||
+					c.expected.connectMode != mode.connectMode {
+					t.Fatalf("expected %+v, got %+v", c.expected, mode)
+				}
+			}
+		})
 	}
 }
 
