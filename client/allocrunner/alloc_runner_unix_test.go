@@ -117,11 +117,13 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 	//   2 removals (canary+noncanary) during prekill
 	//   2 removals (canary+noncanary) during exited
 	//   2 removals (canary+noncanary) during stop
+	//   1 remove group during stop
 	consulOps := conf2.Consul.(*consul.MockConsulServiceClient).GetOps()
-	require.Len(t, consulOps, 6)
-	for _, op := range consulOps {
+	require.Len(t, consulOps, 7)
+	for _, op := range consulOps[:6] {
 		require.Equal(t, "remove", op.Op)
 	}
+	require.Equal(t, "remove_group", consulOps[6].Op)
 
 	// Assert terminated task event was emitted
 	events := ar2.AllocState().TaskStates[task.Name].Events
