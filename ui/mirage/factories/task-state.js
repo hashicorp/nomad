@@ -1,4 +1,6 @@
-import { Factory, faker } from 'ember-cli-mirage';
+import { Factory } from 'ember-cli-mirage';
+
+import faker from 'faker';
 
 const TASK_STATUSES = ['pending', 'running', 'finished', 'failed'];
 const REF_TIME = new Date();

@@ -1,4 +1,4 @@
-import { faker } from 'ember-cli-mirage';
+import faker from 'faker';
 
 export function provide(count, provider) {
   if (typeof count === 'function') {

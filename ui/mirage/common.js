@@ -1,4 +1,4 @@
-import { faker } from 'ember-cli-mirage';
+import faker from 'faker';
 import { provide } from './utils';
 
 // Realistically, resource reservations have a low cardinality

@@ -1,4 +1,5 @@
-import { Factory, faker, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'ember-cli-mirage';
+import faker from 'faker';
 import { provide } from '../utils';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));

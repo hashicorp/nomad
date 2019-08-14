@@ -1,4 +1,5 @@
-import { Factory, faker, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'ember-cli-mirage';
+import faker from 'faker';
 import { provide } from '../utils';
 import { DATACENTERS, HOSTS, generateResources } from '../common';
 import moment from 'moment';

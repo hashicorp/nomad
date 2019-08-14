@@ -1,4 +1,6 @@
-import { Factory, faker } from 'ember-cli-mirage';
+import { Factory } from 'ember-cli-mirage';
+
+import faker from 'faker';
 
 const DISK_RESERVATIONS = [200, 500, 1000, 2000, 5000, 10000, 100000];
 

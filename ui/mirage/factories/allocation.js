@@ -1,6 +1,7 @@
 import Ember from 'ember';
 import moment from 'moment';
-import { Factory, faker, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'ember-cli-mirage';
+import faker from 'faker';
 import { provide, pickOne } from '../utils';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
