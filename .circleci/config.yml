@@ -74,6 +74,7 @@ jobs:
   lint:
     executor: go
     environment:
+      <<: *COMMON_ENVS
       GOPATH: /go
     steps:
       - checkout
