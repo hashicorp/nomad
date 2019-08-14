@@ -55,6 +55,11 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 	if resp.Capabilities != nil {
 		caps.SendSignals = resp.Capabilities.SendSignals
 		caps.Exec = resp.Capabilities.Exec
+		caps.MustInitiateNetwork = resp.Capabilities.MustCreateNetwork
+
+		for _, mode := range resp.Capabilities.NetworkIsolationModes {
+			caps.NetIsolationModes = append(caps.NetIsolationModes, netIsolationModeFromProto(mode))
+		}
 
 		switch resp.Capabilities.FsIsolation {
 		case proto.DriverCapabilities_NONE:
