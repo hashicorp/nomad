@@ -33,6 +33,9 @@ Init Options:
 
   -short
     If the short flag is set, a minimal jobspec without comments is emitted.
+
+  -connect
+    If the connect flag is set, the jobspec includes Consul Connect integration.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -56,10 +59,12 @@ func (c *JobInitCommand) Name() string { return "job init" }
 
 func (c *JobInitCommand) Run(args []string) int {
 	var short bool
+	var connect bool
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
+	flags.BoolVar(&connect, "connect", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -84,10 +89,14 @@ func (c *JobInitCommand) Run(args []string) int {
 	}
 
 	var jobSpec []byte
-
-	if short {
+	switch {
+	case connect && !short:
+		jobSpec, err = Asset("command/assets/connect.nomad")
+	case connect && short:
+		jobSpec, err = Asset("command/assets/connect-short.nomad")
+	case !connect && short:
 		jobSpec, err = Asset("command/assets/example-short.nomad")
-	} else {
+	default:
 		jobSpec, err = Asset("command/assets/example.nomad")
 	}
 	if err != nil {
