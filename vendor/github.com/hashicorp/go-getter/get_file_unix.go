@@ -41,7 +41,7 @@ func (g *FileGetter) Get(dst string, u *url.URL) error {
 	}
 
 	// Create all the parent directories
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), g.client.mode(0755)); err != nil {
 		return err
 	}
 
@@ -56,13 +56,15 @@ func (g *FileGetter) GetFile(dst string, u *url.URL) error {
 	}
 
 	// The source path must exist and be a file to be usable.
-	if fi, err := os.Stat(path); err != nil {
+	var fi os.FileInfo
+	var err error
+	if fi, err = os.Stat(path); err != nil {
 		return fmt.Errorf("source path error: %s", err)
 	} else if fi.IsDir() {
 		return fmt.Errorf("source path must be a file")
 	}
 
-	_, err := os.Lstat(dst)
+	_, err = os.Lstat(dst)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -76,7 +78,7 @@ func (g *FileGetter) GetFile(dst string, u *url.URL) error {
 	}
 
 	// Create all the parent directories
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err = os.MkdirAll(filepath.Dir(dst), g.client.mode(0755)); err != nil {
 		return err
 	}
 
@@ -86,18 +88,6 @@ func (g *FileGetter) GetFile(dst string, u *url.URL) error {
 	}
 
 	// Copy
-	srcF, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer srcF.Close()
-
-	dstF, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer dstF.Close()
-
-	_, err = Copy(ctx, dstF, srcF)
+	_, err = copyFile(ctx, dst, path, fi.Mode(), g.client.umask())
 	return err
 }
