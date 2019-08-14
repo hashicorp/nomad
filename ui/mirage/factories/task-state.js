@@ -7,7 +7,7 @@ const REF_TIME = new Date();
 
 export default Factory.extend({
   name: () => '!!!this should be set by the allocation that owns this task state!!!',
-  state: faker.list.random(...TASK_STATUSES),
+  state: faker.random.arrayElement(TASK_STATUSES),
   startedAt: faker.date.past(2 / 365, REF_TIME),
   finishedAt() {
     if (['pending', 'running'].includes(this.state)) {

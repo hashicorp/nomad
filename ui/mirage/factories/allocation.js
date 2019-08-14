@@ -24,8 +24,8 @@ export default Factory.extend({
 
   namespace: null,
 
-  clientStatus: faker.list.random(...CLIENT_STATUSES),
-  desiredStatus: faker.list.random(...DESIRED_STATUSES),
+  clientStatus: faker.random.arrayElement(CLIENT_STATUSES),
+  desiredStatus: faker.random.arrayElement(DESIRED_STATUSES),
 
   // When true, doesn't create any resources, state, or events
   shallow: false,

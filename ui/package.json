@@ -85,7 +85,7 @@
     "ember-test-selectors": "^2.1.0",
     "ember-truth-helpers": "^2.0.0",
     "eslint": "^5.16.0",
-    "faker": "^4.1.0",
+    "faker": "Marak/faker.js#10bfb9f467b0ac2b8912ffc15690b50ef3244f09",
     "flat": "^4.0.0",
     "fuse.js": "^3.4.4",
     "husky": "^1.3.1",

@@ -6,7 +6,7 @@ const REF_TIME = new Date();
 const STATES = provide(10, faker.system.fileExt.bind(faker.system));
 
 export default Factory.extend({
-  type: faker.list.random(...STATES),
+  type: faker.random.arrayElement(STATES),
 
   signal: () => '',
   exitCode: () => null,
