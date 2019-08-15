@@ -5411,8 +5411,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 	}
 
 	// Validation for TaskKind field which is used for Consul Connect integration
-	taskKind := t.Kind
-	if taskKind.IsConnect() {
+	if t.Kind.IsConnectProxy() {
 		// This task is a Connect proxy so it should not have service stanzas
 		if len(t.Services) > 0 {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task must not have a service stanza"))
@@ -5420,7 +5419,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		if t.Leader {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task must not have leader set"))
 		}
-		serviceErr := taskKind.validateProxyService(tgServices)
+		serviceErr := ValidateConnectProxyService(t.Kind.Value(), tgServices)
 		if serviceErr != nil {
 			mErr.Errors = append(mErr.Errors, serviceErr)
 		}
@@ -5568,24 +5567,44 @@ func (t *Task) Warnings() error {
 	return mErr.ErrorOrNil()
 }
 
+// TaskKind identifies the special kinds of tasks using the following format:
+// '<kind_name>(:<identifier>)`. The TaskKind can optionally include an identifier that
+// is opague to the Task. This identier can be used to relate the task to some
+// other entity based on the kind.
+//
+// For example, a task may have the TaskKind of `connect-proxy:service` where
+// 'connect-proxy' is the kind name and 'service' is the identifier that relates the
+// task to the service name of which it is a connect proxy for.
 type TaskKind string
 
-const connectPrefix = "connect-proxy:"
-
-func (k TaskKind) IsConnect() bool {
-	return strings.HasPrefix(string(k), connectPrefix) && len(k) > len(connectPrefix)
+// Name returns the kind name portion of the TaskKind
+func (k TaskKind) Name() string {
+	return strings.Split(string(k), ":")[0]
 }
 
-// validateProxyService checks that the service that is being
+// Value returns the identifier of the TaskKind or an empty string if it doesn't
+// include one.
+func (k TaskKind) Value() string {
+	if s := strings.SplitN(string(k), ":", 2); len(s) > 1 {
+		return s[1]
+	}
+	return ""
+}
+
+// IsConnectProxy returns true if the TaskKind is connect-proxy
+func (k TaskKind) IsConnectProxy() bool {
+	return strings.HasPrefix(string(k), ConnectProxyPrefix+":") && len(k) > len(ConnectProxyPrefix)+1
+}
+
+// ConnectProxyPrefix is the prefix used for fields referencing a Consul Connect
+// Proxy
+const ConnectProxyPrefix = "connect-proxy"
+
+// ValidateConnectProxyService checks that the service that is being
 // proxied by this task exists in the task group and contains
 // valid Connect config.
-func (k TaskKind) validateProxyService(tgServices []*Service) error {
+func ValidateConnectProxyService(serviceName string, tgServices []*Service) error {
 	var mErr multierror.Error
-	parts := strings.Split(string(k), ":")
-	serviceName := strings.Join(parts[1:], "")
-	if len(parts) > 2 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy service kind %q must not contain `:`", k))
-	}
 
 	found := false
 	for _, svc := range tgServices {

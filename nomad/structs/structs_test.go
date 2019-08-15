@@ -1513,7 +1513,7 @@ func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
 	assert.Nil(t, validCheckRestart.Validate())
 }
 
-func TestTask_Validate_ConnectKind(t *testing.T) {
+func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 	ephemeralDisk := DefaultEphemeralDisk()
 	getTask := func(kind TaskKind, leader bool) *Task {
 		task := &Task{
@@ -1573,7 +1573,7 @@ func TestTask_Validate_ConnectKind(t *testing.T) {
 			Service: &Service{
 				Name: "redis",
 			},
-			ErrContains: "Connect proxy service kind \"connect-proxy:redis:test\" must not contain `:`",
+			ErrContains: "Connect proxy service name not found in services from task group",
 		},
 		{
 			Desc:        "Service name not found in group",

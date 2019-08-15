@@ -546,6 +546,11 @@ func (c *ConsulConnect) Equals(o *ConsulConnect) bool {
 	return c.SidecarService.Equals(o.SidecarService)
 }
 
+// HasSidecar checks if a sidecar task is needed
+func (c *ConsulConnect) HasSidecar() bool {
+	return c != nil && c.SidecarService != nil
+}
+
 // Validate that the Connect stanza has exactly one of Native or sidecar.
 func (c *ConsulConnect) Validate() error {
 	if c == nil {

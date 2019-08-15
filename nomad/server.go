@@ -1021,7 +1021,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.ACL = &ACL{srv: s, logger: s.logger.Named("acl")}
 		s.staticEndpoints.Alloc = &Alloc{srv: s, logger: s.logger.Named("alloc")}
 		s.staticEndpoints.Eval = &Eval{srv: s, logger: s.logger.Named("eval")}
-		s.staticEndpoints.Job = &Job{srv: s, logger: s.logger.Named("job")}
+		s.staticEndpoints.Job = NewJobEndpoints(s)
 		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")} // Add but don't register
 		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
 		s.staticEndpoints.Operator = &Operator{srv: s, logger: s.logger.Named("operator")}
