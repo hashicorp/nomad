@@ -161,6 +161,7 @@ func TestEnvironment_AsList(t *testing.T) {
 			},
 		},
 	}
+	a.Namespace = "not-default"
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Env = map[string]string{
 		"taskEnvKey": "taskEnvVal",
@@ -190,6 +191,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_PORT_ssh_ssh=22",
 		"NOMAD_CPU_LIMIT=500",
 		"NOMAD_DC=dc1",
+		"NOMAD_NAMESPACE=not-default",
 		"NOMAD_REGION=global",
 		"NOMAD_MEMORY_LIMIT=256",
 		"NOMAD_META_ELB_CHECK_INTERVAL=30s",
@@ -301,6 +303,7 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 		"NOMAD_PORT_ssh_ssh=22",
 		"NOMAD_CPU_LIMIT=500",
 		"NOMAD_DC=dc1",
+		"NOMAD_NAMESPACE=default",
 		"NOMAD_REGION=global",
 		"NOMAD_MEMORY_LIMIT=256",
 		"NOMAD_META_ELB_CHECK_INTERVAL=30s",
@@ -418,6 +421,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_PORT_ssh_ssh":            "22",
 		"NOMAD_CPU_LIMIT":               "500",
 		"NOMAD_DC":                      "dc1",
+		"NOMAD_NAMESPACE":               "default",
 		"NOMAD_REGION":                  "global",
 		"NOMAD_MEMORY_LIMIT":            "256",
 		"NOMAD_META_ELB_CHECK_INTERVAL": "30s",
