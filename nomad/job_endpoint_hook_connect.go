@@ -4,13 +4,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
 	// connectSidecarResources is the set of resources used by default for the
 	// Consul Connect sidecar task
-	connectSidecarResources = structs.DefaultResources()
+	connectSidecarResources = &structs.Resources{
+		CPU:      250,
+		MemoryMB: 128,
+	}
 
 	// connectVersionConstraint is used when building the sidecar task to ensure
 	// the proper Consul version is used that supports the nessicary Connect
@@ -18,7 +22,7 @@ var (
 	// grpc xDS api.
 	connectVersionConstraint = &structs.Constraint{
 		LTarget: "${attr.consul.version}",
-		RTarget: ">= 1.6.1",
+		RTarget: ">= 1.6.0beta1",
 		Operand: "version",
 	}
 )
@@ -78,11 +82,21 @@ func groupConnectHook(g *structs.TaskGroup) error {
 			// If the task doesn't already exist, create a new one and add it to the job
 			if task == nil {
 				task = newConnectTask(service)
+
+				// If there happens to be a task defined with the same name
+				// append an UUID fragment to the task name
+				for _, t := range g.Tasks {
+					if t.Name == task.Name {
+						task.Name = task.Name + "-" + uuid.Generate()[:6]
+						break
+					}
+				}
 				g.Tasks = append(g.Tasks, task)
 			}
 
 			//TODO merge in sidecar_task overrides
 
+			// port to be added for the sidecar task's proxy port
 			port := structs.Port{
 				Label: fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name),
 
@@ -91,7 +105,18 @@ func groupConnectHook(g *structs.TaskGroup) error {
 				// the same port in the netns.
 				To: -1,
 			}
-			g.Networks[0].DynamicPorts = append(g.Networks[0].DynamicPorts, port)
+
+			// check that port hasn't already been defined before adding it to tg
+			var found bool
+			for _, p := range g.Networks[0].DynamicPorts {
+				if p.Label == port.Label {
+					found = true
+					break
+				}
+			}
+			if !found {
+				g.Networks[0].DynamicPorts = append(g.Networks[0].DynamicPorts, port)
+			}
 			return nil
 		}
 	}
@@ -100,7 +125,8 @@ func groupConnectHook(g *structs.TaskGroup) error {
 
 func newConnectTask(service *structs.Service) *structs.Task {
 	task := &structs.Task{
-		Name:   fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name), // used in container name so must start with '[A-Za-z0-9]'
+		// Name is used in container name so must start with '[A-Za-z0-9]'
+		Name:   fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name),
 		Kind:   structs.TaskKind(fmt.Sprintf("%s:%s", structs.ConnectProxyPrefix, service.Name)),
 		Driver: "docker",
 		Config: map[string]interface{}{

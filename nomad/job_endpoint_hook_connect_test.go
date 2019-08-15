@@ -48,6 +48,7 @@ func Test_isSidecarForService(t *testing.T) {
 }
 
 func Test_groupConnectHook(t *testing.T) {
+	// Test that connect-proxy task is inserted for backend service
 	tgIn := &structs.TaskGroup{
 		Networks: structs.Networks{
 			{
@@ -76,6 +77,10 @@ func Test_groupConnectHook(t *testing.T) {
 		},
 	}
 
-	groupConnectHook(tgIn)
+	require.NoError(t, groupConnectHook(tgIn))
+	require.Exactly(t, tgOut, tgIn)
+
+	// Test that hook is idempotent
+	require.NoError(t, groupConnectHook(tgIn))
 	require.Exactly(t, tgOut, tgIn)
 }

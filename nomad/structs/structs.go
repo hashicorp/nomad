@@ -5411,8 +5411,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 	}
 
 	// Validation for TaskKind field which is used for Consul Connect integration
-	taskKind := t.Kind
-	if ok, connectProxyKind := taskKind.IsConnectProxy(); ok {
+	if t.Kind.IsConnectProxy() {
 		// This task is a Connect proxy so it should not have service stanzas
 		if len(t.Services) > 0 {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task must not have a service stanza"))
@@ -5420,7 +5419,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		if t.Leader {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task must not have leader set"))
 		}
-		serviceErr := connectProxyKind.validateProxyService(tgServices)
+		serviceErr := ValidateConnectProxyService(t.Kind.Value(), tgServices)
 		if serviceErr != nil {
 			mErr.Errors = append(mErr.Errors, serviceErr)
 		}
@@ -5586,33 +5585,26 @@ func (k TaskKind) Name() string {
 // Value returns the identifier of the TaskKind or an empty string if it doesn't
 // include one.
 func (k TaskKind) Value() string {
-	if s := strings.Split(string(k), ":"); len(s) > 1 {
-		return strings.Join(s[1:], ":")
+	if s := strings.SplitN(string(k), ":", 2); len(s) > 1 {
+		return s[1]
 	}
 	return ""
 }
 
-func (k TaskKind) IsConnectProxy() (bool, TaskKindConnectProxy) {
-	if strings.HasPrefix(string(k), ConnectProxyPrefix+":") && len(k) > len(ConnectProxyPrefix)+1 {
-		return true, TaskKindConnectProxy{k}
-	}
-
-	return false, TaskKindConnectProxy{}
+// IsConnectProxy returns true if the TaskKind is connect-proxy
+func (k TaskKind) IsConnectProxy() bool {
+	return strings.HasPrefix(string(k), ConnectProxyPrefix+":") && len(k) > len(ConnectProxyPrefix)+1
 }
 
+// ConnectProxyPrefix is the prefix used for fields referencing a Consul Connect
+// Proxy
 const ConnectProxyPrefix = "connect-proxy"
 
-// TaskKindProxyConnect is a TaskKind of 'connect-proxy'
-type TaskKindConnectProxy struct {
-	TaskKind
-}
-
-// validateProxyService checks that the service that is being
+// ValidateConnectProxyService checks that the service that is being
 // proxied by this task exists in the task group and contains
 // valid Connect config.
-func (k TaskKindConnectProxy) validateProxyService(tgServices []*Service) error {
+func ValidateConnectProxyService(serviceName string, tgServices []*Service) error {
 	var mErr multierror.Error
-	serviceName := k.Value()
 
 	found := false
 	for _, svc := range tgServices {
