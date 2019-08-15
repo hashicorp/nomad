@@ -37,7 +37,7 @@ func (j *Job) admissionControllers(job *structs.Job) (out *structs.Job, warnings
 	return out, warnings, nil
 }
 
-// admissionMutator returns a
+// admissionMutator returns an updated job as well as warnings or an error.
 func (j *Job) admissionMutators(job *structs.Job) (_ *structs.Job, warnings []error, err error) {
 	var w []error
 	for _, mutator := range j.mutators {
