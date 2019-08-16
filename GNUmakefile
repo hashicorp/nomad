@@ -165,7 +165,7 @@ $(git-dir)/hooks/%: dev/hooks/%
 .PHONY: check
 check: ## Lint the source code
 	@echo "==> Linting source code..."
-	@golangci-lint run
+	@golangci-lint run -j 1
 	@echo "==> Spell checking website..."
 	@misspell -error -source=text website/source/
 
