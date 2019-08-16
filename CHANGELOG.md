@@ -1,11 +1,20 @@
 ## 0.9.5 (Unreleased)
 
+SECURITY:
+
+ * client/template: Fix security vulnerabilities associated with task template rendering (CVE-2019-14802), introduced in Nomad 0.5.0 [[GH-6055](https://github.com/hashicorp/nomad/issues/6055)] [[GH-6075](https://github.com/hashicorp/nomad/issues/6075)]
+
+__BACKWARDS INCOMPATIBILITIES:__
+
+ * client/template: When rendering a task template, only task environment variables are included by default. [[GH-6055](https://github.com/hashicorp/nomad/issues/6055)]
+ * client/template: When rendering a task template, the `plugin` function is no longer permitted by default and will raise an error. [[GH-6075](https://github.com/hashicorp/nomad/issues/6075)]
+ * client/template: When rendering a task template, path parameters for the `file` function will be restricted to the task directory by default. Relative paths or symlinks that point outside the task directory will raise an error. [[GH-6075](https://github.com/hashicorp/nomad/issues/6075)]
+
 IMPROVEMENTS:
  * core: Added create and modify timestamps to evaluations [[GH-5881](https://github.com/hashicorp/nomad/pull/5881)]
 
 BUG FIXES:
  * api: Fixed job region to default to client node region if none provided [[GH-6064](https://github.com/hashicorp/nomad/pull/6064)]
- * client: When rendering a task template, ensure that only task environment variables are used. [[GH-6055](https://github.com/hashicorp/nomad/issues/6055)]
  * ui: Fixed links containing IPv6 addresses to include required square brackets [[GH-6007](https://github.com/hashicorp/nomad/pull/6007)]
  * vault: Fix deadlock when reloading server Vault configuration [[GH-6082](https://github.com/hashicorp/nomad/issues/6082)]
 
