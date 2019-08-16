@@ -67,10 +67,10 @@ driver) but will be removed in a future release.
   default route is used. The scheduler chooses from these fingerprinted IP 
   addresses when allocating ports for tasks.
 
-    Nomad will prefer non-local IP addresses.  If no non-local IP addresses are
-  found, Nomad will fingerprint link-local IPv6 addresses based on the 
-  [`"fingerprint.network.disallow_link_local"`](#quot-fingerprint-network-disallow_link_local-quot-)
-  setting.
+    If no non-local IP addresses are found, Nomad could fingerprint link-local IPv6
+    addresses depending on the client's
+    [`"fingerprint.network.disallow_link_local"`](#quot-fingerprint-network-disallow_link_local-quot-)
+    configuration value.
 
 - `network_speed` `(int: 0)` - Specifies an override for the network link speed.
   This value, if set, overrides any detected or defaulted link speed. Most
