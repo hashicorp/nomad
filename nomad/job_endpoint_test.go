@@ -243,7 +243,7 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 	require.Equal("connect-proxy:backend", string(sidecarTask.Kind))
 	require.Equal("connect-proxy-backend", out.TaskGroups[0].Networks[0].DynamicPorts[0].Label)
 
-	// Check that the correct fields were overriden from the sidecar_task stanza
+	// Check that the correct fields were overridden from the sidecar_task stanza
 	require.Equal("test", sidecarTask.Meta["source"])
 	require.Equal(500, sidecarTask.Resources.CPU)
 	require.Equal(connectSidecarResources.MemoryMB, sidecarTask.Resources.MemoryMB)

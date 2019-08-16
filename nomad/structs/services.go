@@ -601,7 +601,7 @@ func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
 	return s.Proxy.Equals(o.Proxy)
 }
 
-// SidecarTask represents a subset of Task fields that are able to be overriden
+// SidecarTask represents a subset of Task fields that are able to be overridden
 // from the sidecar_task stanza
 type SidecarTask struct {
 	// Name of the task
