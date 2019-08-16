@@ -16,6 +16,16 @@ var (
 		MemoryMB: 128,
 	}
 
+	// connectDriverConfig is the driver configuration used by the injected
+	// connect proxy sidecar task
+	connectDriverConfig = map[string]interface{}{
+		"image": "${meta.connect.sidecar_image}",
+		"args": []interface{}{
+			"-c", "${NOMAD_TASK_DIR}/bootstrap.json",
+			"-l", "${meta.connect.log_level}",
+		},
+	}
+
 	// connectVersionConstraint is used when building the sidecar task to ensure
 	// the proper Consul version is used that supports the nessicary Connect
 	// features. This includes bootstraping envoy with a unix socket for Consul's
@@ -94,7 +104,9 @@ func groupConnectHook(g *structs.TaskGroup) error {
 				g.Tasks = append(g.Tasks, task)
 			}
 
-			//TODO merge in sidecar_task overrides
+			if service.Connect.SidecarTask != nil {
+				service.Connect.SidecarTask.MergeIntoTask(task)
+			}
 
 			// port to be added for the sidecar task's proxy port
 			port := structs.Port{
@@ -126,22 +138,16 @@ func groupConnectHook(g *structs.TaskGroup) error {
 func newConnectTask(service *structs.Service) *structs.Task {
 	task := &structs.Task{
 		// Name is used in container name so must start with '[A-Za-z0-9]'
-		Name:   fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name),
-		Kind:   structs.TaskKind(fmt.Sprintf("%s:%s", structs.ConnectProxyPrefix, service.Name)),
-		Driver: "docker",
-		Config: map[string]interface{}{
-			"image": "${meta.connect.sidecar_image}",
-			"args": []string{
-				"-c", "${NOMAD_TASK_DIR}/bootstrap.json",
-				"-l", "${meta.connect.log_level}",
-			},
-		},
+		Name:          fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name),
+		Kind:          structs.TaskKind(fmt.Sprintf("%s:%s", structs.ConnectProxyPrefix, service.Name)),
+		Driver:        "docker",
+		Config:        connectDriverConfig,
 		ShutdownDelay: 5 * time.Second,
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      2,
 			MaxFileSizeMB: 2,
 		},
-		Resources: connectSidecarResources,
+		Resources: connectSidecarResources.Copy(),
 		Constraints: structs.Constraints{
 			connectVersionConstraint,
 		},

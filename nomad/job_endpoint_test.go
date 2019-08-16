@@ -176,6 +176,101 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 
 }
 
+func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
+	require := require.New(t)
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.TaskGroups[0].Networks = structs.Networks{
+		{
+			Mode: "bridge",
+		},
+	}
+	job.TaskGroups[0].Services = []*structs.Service{
+		{
+			Name:      "backend",
+			PortLabel: "8080",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+				SidecarTask: &structs.SidecarTask{
+					Meta: map[string]string{
+						"source": "test",
+					},
+					Resources: &structs.Resources{
+						CPU: 500,
+					},
+					Config: map[string]interface{}{
+						"labels": map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+		},
+	}
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// Check that the sidecar task was injected
+	require.Len(out.TaskGroups[0].Tasks, 2)
+	sidecarTask := out.TaskGroups[0].Tasks[1]
+	require.Equal("connect-proxy-backend", sidecarTask.Name)
+	require.Equal("connect-proxy:backend", string(sidecarTask.Kind))
+	require.Equal("connect-proxy-backend", out.TaskGroups[0].Networks[0].DynamicPorts[0].Label)
+
+	// Check that the correct fields were overriden from the sidecar_task stanza
+	require.Equal("test", sidecarTask.Meta["source"])
+	require.Equal(500, sidecarTask.Resources.CPU)
+	require.Equal(connectSidecarResources.MemoryMB, sidecarTask.Resources.MemoryMB)
+	cfg := connectDriverConfig
+	cfg["labels"] = map[string]interface{}{
+		"foo": "bar",
+	}
+	require.Equal(cfg, sidecarTask.Config)
+
+	// Check that round tripping the job doesn't change the sidecarTask
+	out.Meta["test"] = "abc"
+	req.Job = out
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+	// Check for the new node in the FSM
+	state = s1.fsm.State()
+	ws = memdb.NewWatchSet()
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	require.Len(out.TaskGroups[0].Tasks, 2)
+	require.Exactly(sidecarTask, out.TaskGroups[0].Tasks[1])
+
+}
+
 func TestJobEndpoint_Register_ACL(t *testing.T) {
 	t.Parallel()
 
