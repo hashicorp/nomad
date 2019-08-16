@@ -489,7 +489,7 @@ func ShouldReloadRPCConnections(old, new *config.TLSConfig) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-	} else if new == nil && old == nil {
+	} else if old == nil {
 		certificateInfoEqual = true
 	}
 

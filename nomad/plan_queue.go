@@ -145,7 +145,7 @@ SCAN:
 
 	// Setup the timeout timer
 	var timerCh <-chan time.Time
-	if timerCh == nil && timeout > 0 {
+	if timeout > 0 {
 		timer := time.NewTimer(timeout)
 		defer timer.Stop()
 		timerCh = timer.C

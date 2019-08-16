@@ -114,7 +114,7 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 			} else if isLoggingTerminalError(err) {
 				d.logger.Error("log streaming ended with terminal error", "error", err)
 				return
-			} else if err != nil {
+			} else {
 				backoff = nextBackoff(backoff)
 				d.logger.Error("log streaming ended with error", "error", err, "retry_in", backoff)
 

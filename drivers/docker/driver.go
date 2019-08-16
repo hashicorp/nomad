@@ -442,7 +442,7 @@ CREATE:
 			if err != nil {
 				d.logger.Error("failed to purge container", "container_id", container.ID)
 				return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
-			} else if err == nil {
+			} else {
 				d.logger.Info("purged container", "container_id", container.ID)
 			}
 		}

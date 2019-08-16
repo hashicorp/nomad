@@ -1171,7 +1171,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 			updatedIndex = oldJob.JobModifyIndex + 1
 			snap.UpsertJob(updatedIndex, args.Job)
 		}
-	} else if oldJob == nil {
+	} else {
 		// Insert the updated Job into the snapshot
 		snap.UpsertJob(100, args.Job)
 	}

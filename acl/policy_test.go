@@ -241,7 +241,8 @@ func TestParse(t *testing.T) {
 				}
 				return
 			}
-			if err == nil && tc.ErrStr != "" {
+
+			if tc.ErrStr != "" {
 				t.Fatalf("Missing expected err")
 			}
 			tc.Expect.Raw = tc.Raw
