@@ -171,6 +171,8 @@ check: ## Lint the source code
 		--vendor \
 		--exclude='.*\.generated\.go' \
 		--exclude='.*bindata_assetfs\.go' \
+		--exclude='vendor/' \
+		--skip='vendor/' \
 		--skip="ui/" \
 		--sort="path" \
 		--aggregate \
