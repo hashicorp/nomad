@@ -60,3 +60,43 @@ func TestConsulConnect_CopyEquals(t *testing.T) {
 	o.SidecarService.Proxy.Upstreams = nil
 	require.False(t, c.Equals(o))
 }
+
+func TestSidecarTask_MergeIntoTask(t *testing.T) {
+
+	task := MockJob().TaskGroups[0].Tasks[0]
+	sTask := &SidecarTask{
+		Name:   "sidecar",
+		Driver: "sidecar",
+		Config: map[string]interface{}{
+			"foo": "bar",
+		},
+		Resources: &Resources{
+			CPU:      10000,
+			MemoryMB: 10000,
+		},
+		Env: map[string]string{
+			"sidecar": "proxy",
+		},
+	}
+
+	expected := task.Copy()
+	expected.Name = "sidecar"
+	expected.Driver = "sidecar"
+	expected.Config = map[string]interface{}{
+		"foo": "bar",
+	}
+	expected.Resources.CPU = 10000
+	expected.Resources.MemoryMB = 10000
+	expected.Env["sidecar"] = "proxy"
+
+	sTask.MergeIntoTask(task)
+
+	require.Exactly(t, expected, task)
+
+	sTask.Config["abc"] = 123
+	expected.Config["abc"] = 123
+
+	sTask.MergeIntoTask(task)
+	require.Exactly(t, expected, task)
+
+}

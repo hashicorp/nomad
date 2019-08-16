@@ -15,6 +15,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/mitchellh/copystructure"
 )
 
 const (
@@ -517,7 +518,7 @@ type ConsulConnect struct {
 	SidecarService *ConsulSidecarService
 
 	// SidecarTask is non-nil if sidecar overrides are set
-	SidecarTask *Task
+	SidecarTask *SidecarTask
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -598,6 +599,139 @@ func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
 	}
 
 	return s.Proxy.Equals(o.Proxy)
+}
+
+// SidecarTask represents a subset of Task fields that are able to be overriden
+// from the sidecar_task stanza
+type SidecarTask struct {
+	// Name of the task
+	Name string
+
+	// Driver is used to control which driver is used
+	Driver string
+
+	// User is used to determine which user will run the task. It defaults to
+	// the same user the Nomad client is being run as.
+	User string
+
+	// Config is provided to the driver to initialize
+	Config map[string]interface{}
+
+	// Map of environment variables to be used by the driver
+	Env map[string]string
+
+	// Resources is the resources needed by this task
+	Resources *Resources
+
+	// Meta is used to associate arbitrary metadata with this
+	// task. This is opaque to Nomad.
+	Meta map[string]string
+
+	// KillTimeout is the time between signaling a task that it will be
+	// killed and killing it.
+	KillTimeout time.Duration
+
+	// LogConfig provides configuration for log rotation
+	LogConfig *LogConfig
+
+	// ShutdownDelay is the duration of the delay between deregistering a
+	// task from Consul and sending it a signal to shutdown. See #2441
+	ShutdownDelay time.Duration
+
+	// The kill signal to use for the task. This is an optional specification,
+
+	// KillSignal is the kill signal to use for the task. This is an optional
+	// specification and defaults to SIGINT
+	KillSignal string
+}
+
+func (t *SidecarTask) Copy() *SidecarTask {
+	if t == nil {
+		return nil
+	}
+	nt := new(SidecarTask)
+	*nt = *t
+	nt.Env = helper.CopyMapStringString(nt.Env)
+
+	nt.Resources = nt.Resources.Copy()
+	nt.Meta = helper.CopyMapStringString(nt.Meta)
+
+	if i, err := copystructure.Copy(nt.Config); err != nil {
+		panic(err.Error())
+	} else {
+		nt.Config = i.(map[string]interface{})
+	}
+
+	return nt
+}
+
+// MergeIntoTask merges the SidecarTask fields over the given task
+func (t *SidecarTask) MergeIntoTask(task *Task) {
+	if t.Name != "" {
+		task.Name = t.Name
+	}
+
+	if t.Driver != "" && t.Driver != task.Driver {
+		task.Driver = t.Driver
+		task.Config = t.Config
+	} else {
+		for k, v := range t.Config {
+			task.Config[k] = v
+		}
+	}
+
+	if t.User != "" {
+		task.User = t.User
+	}
+
+	if t.Env != nil {
+		if task.Env == nil {
+			task.Env = t.Env
+		} else {
+			for k, v := range t.Env {
+				task.Env[k] = v
+			}
+		}
+	}
+
+	if t.Resources != nil {
+		task.Resources.Merge(t.Resources)
+	}
+
+	if t.Meta != nil {
+		if task.Meta == nil {
+			task.Meta = t.Meta
+		} else {
+			for k, v := range t.Meta {
+				task.Meta[k] = v
+			}
+		}
+	}
+
+	if t.KillTimeout != 0 {
+		task.KillTimeout = t.KillTimeout
+	}
+
+	if t.LogConfig != nil {
+		if task.LogConfig == nil {
+			task.LogConfig = t.LogConfig
+		} else {
+			if t.LogConfig.MaxFiles > 0 {
+				task.LogConfig.MaxFiles = t.LogConfig.MaxFiles
+			}
+			if t.LogConfig.MaxFileSizeMB > 0 {
+				task.LogConfig.MaxFileSizeMB = t.LogConfig.MaxFileSizeMB
+			}
+		}
+	}
+
+	if t.ShutdownDelay != 0 {
+		task.ShutdownDelay = 0
+	}
+
+	if t.KillSignal != "" {
+		task.KillSignal = t.KillSignal
+	}
 }
 
 // ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
