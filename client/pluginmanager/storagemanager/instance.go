@@ -152,21 +152,26 @@ func (i *instanceManager) fingerprint() {
 	}
 }
 
+// updateLastHealthState is called when the storage plugin receives a fingerprint
+// result. It manages handling normalization of the healthstate and closing the
+// firstFingerprint channel after the first detected result.
 func (i *instanceManager) updateLastHealthState(fp *structs.StoragePluginInfo) {
 	i.lastHealthStateMu.Lock()
 	defer i.lastHealthStateMu.Unlock()
 
-	state := drivers.HealthStateUndetected
+	if !fp.Detected && !i.hasFingerprinted {
+		i.lastHealthState = drivers.HealthStateUndetected
+		return
+	}
+
+	var state drivers.HealthState
 	if fp.Healthy {
 		state = drivers.HealthStateHealthy
 	} else {
 		state = drivers.HealthStateUnhealthy
 	}
 
-	if !fp.Detected && !i.hasFingerprinted {
-		i.lastHealthState = drivers.HealthStateUndetected
-		return
-	} else if fp.Detected && !i.hasFingerprinted {
+	if fp.Detected && !i.hasFingerprinted {
 		i.lastHealthState = state
 		i.hasFingerprinted = true
 		close(i.firstFingerprintCh)
@@ -203,15 +208,21 @@ func (i *instanceManager) fingerprintOnce(ctx context.Context) (*structs.Storage
 	healthy, err := client.PluginProbe(ctx)
 	if err != nil {
 		return &structs.StoragePluginInfo{
+			// Detected is false, as some csi plugins do not clean up
+			// old sockets, which means on a newly rebooted
+			// node, this would be problemeatic.
+			Detected:          false,
 			Healthy:           false,
 			HealthDescription: "probe request returned error",
 		}, nil
 	}
+	result.Detected = true
 	result.Healthy = healthy
 
 	pluginName, err := client.PluginGetInfo(ctx)
 	if err != nil {
 		return &structs.StoragePluginInfo{
+			Detected:          true,
 			Healthy:           false,
 			HealthDescription: "get plugin info request returned error",
 		}, nil
@@ -221,6 +232,7 @@ func (i *instanceManager) fingerprintOnce(ctx context.Context) (*structs.Storage
 	nodeInfo, err := client.NodeGetInfo(ctx)
 	if err != nil {
 		return &structs.StoragePluginInfo{
+			Detected:          true,
 			Healthy:           false,
 			HealthDescription: "get node info request returned error",
 		}, nil
