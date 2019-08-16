@@ -9,17 +9,20 @@ description: |-
 # Accessing the Web UI
 
 The Nomad Web UI is served alongside the API. If you visit the Nomad server address in a web
-browser, you will be redirected to the Web UI, which is served under `/ui`. If you are unsure what port the Nomad HTTP API is running on, try the default port: `4646`.
+browser, you will be redirected to the Web UI, which is served under `/ui`. If you are unsure what
+port the Nomad HTTP API is running on, try the default port: `4646`.
 
 The first page you will see is a listing of all Jobs for the default namespace.
 
-~> Screenshot!!
+~> Screenshot
 
 The entire Web UI sitemap is [documented as an API](/api/ui.html).
 
 ## Getting to the Web UI from the CLI
 
-In order to make it as seamless as possible to jump between the CLI and UI, the Nomad CLI has a [`ui` subcommand](/docs/commands/ui.html). This command can take any identifier and open the appropriate web page.
+In order to make it as seamless as possible to jump between the CLI and UI, the Nomad CLI has a
+[`ui` subcommand](/docs/commands/ui.html). This command can take any identifier and open the
+appropriate web page.
 
 **Open the UI directly to look at a job:**
 
