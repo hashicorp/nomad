@@ -77,7 +77,7 @@ SEND_BATCH:
 	close(c.fpInitialized)
 }
 
-// updateNodeFromStorage recieves a StorageProviderInfo struct for the driver
+// updateNodeFromStorage receives a StorageProviderInfo struct for the driver
 // and updates the node accordingly
 func (c *Client) updateNodeFromStorage(name string, info *structs.StoragePluginInfo) {
 	c.configLock.Lock()
