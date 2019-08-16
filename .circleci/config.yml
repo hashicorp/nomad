@@ -54,7 +54,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: hashicorpnomad/ci-build-image:20190812
+      - image: hashicorpnomad/ci-build-image:20190816
   go-machine:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
