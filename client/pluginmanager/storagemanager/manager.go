@@ -83,6 +83,8 @@ func (m *manager) Run() {
 }
 
 func (m *manager) Shutdown() {
+	m.logger.Info("Shutting down storage manager")
+	m.cancelFn()
 }
 
 func (m *manager) PluginType() string {
@@ -109,7 +111,7 @@ func (m *manager) WaitForFirstFingerprint(ctx context.Context) <-chan struct{} {
 
 	go func() {
 		wg.Wait()
-		m.logger.Info("finished initial fingerprinting")
+		m.logger.Trace("finished initial fingerprinting")
 		close(resultCh)
 	}()
 
