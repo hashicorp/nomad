@@ -474,32 +474,19 @@ func (b *Builder) Build() *TaskEnv {
 	}
 
 	// Clean keys (see #2405)
+	prefixesToClean := [...]string{AddrPrefix, IpPrefix, PortPrefix, HostPortPrefix, MetaPrefix}
 	cleanedEnv := make(map[string]string, len(envMap))
 	for k, v := range envMap {
-		var cleanedK string
-		if strings.HasPrefix(k, "NOMAD_") {
-			cleanedK = helper.CleanEnvVar(k, '_')
-		} else {
-			cleanedK = k
+		cleanedK := k
+		for i := range prefixesToClean {
+			if strings.HasPrefix(k, prefixesToClean[i]) {
+				cleanedK = helper.CleanEnvVar(k, '_')
+			}
 		}
 		cleanedEnv[cleanedK] = v
 	}
 
-	var cleanedDeviceEnvs map[string]string
-	if deviceEnvs != nil {
-		cleanedDeviceEnvs = make(map[string]string, len(deviceEnvs))
-		for k, v := range deviceEnvs {
-			var cleanedK string
-			if strings.HasPrefix(k, "NOMAD_") {
-				cleanedK = helper.CleanEnvVar(k, '_')
-			} else {
-				cleanedK = k
-			}
-			cleanedDeviceEnvs[cleanedK] = v
-		}
-	}
-
-	return NewTaskEnv(cleanedEnv, cleanedDeviceEnvs, nodeAttrs)
+	return NewTaskEnv(cleanedEnv, deviceEnvs, nodeAttrs)
 }
 
 // Update task updates the environment based on a new alloc and task.
