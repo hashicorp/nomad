@@ -254,6 +254,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Periodically publish job summary metrics
 	go s.publishJobSummaryMetrics(stopCh)
 
+	// Periodically publish job status metrics
+	go s.publishJobStatusMetrics(stopCh)
+
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
 	// node, effectively this means all the timers are renewed at the time of failover.
@@ -523,8 +526,10 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			// due to the fairly large backoff.
 			followupEvalWait := s.config.EvalFailedFollowupBaselineDelay +
 				time.Duration(rand.Int63n(int64(s.config.EvalFailedFollowupDelayRange)))
+
 			followupEval := eval.CreateFailedFollowUpEval(followupEvalWait)
 			updateEval.NextEval = followupEval.ID
+			updateEval.UpdateModifyTime()
 
 			// Update via Raft
 			req := structs.EvalUpdateRequest{
@@ -561,6 +566,7 @@ func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
 				newEval := dup.Copy()
 				newEval.Status = structs.EvalStatusCancelled
 				newEval.StatusDescription = fmt.Sprintf("existing blocked evaluation exists for job %q", newEval.JobID)
+				newEval.UpdateModifyTime()
 				cancel[i] = newEval
 			}
 
@@ -698,6 +704,62 @@ func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
 			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
 		}
 	}
+}
+
+// publishJobStatusMetrics publishes the job statuses as metrics
+func (s *Server) publishJobStatusMetrics(stopCh chan struct{}) {
+	timer := time.NewTimer(0)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-stopCh:
+			return
+		case <-timer.C:
+			timer.Reset(s.config.StatsCollectionInterval)
+			state, err := s.State().Snapshot()
+			if err != nil {
+				s.logger.Error("failed to get state", "error", err)
+				continue
+			}
+			ws := memdb.NewWatchSet()
+			iter, err := state.Jobs(ws)
+			if err != nil {
+				s.logger.Error("failed to get job statuses", "error", err)
+				continue
+			}
+
+			s.iterateJobStatusMetrics(&iter)
+		}
+	}
+}
+
+func (s *Server) iterateJobStatusMetrics(jobs *memdb.ResultIterator) {
+	var pending int64 // Sum of all jobs in 'pending' state
+	var running int64 // Sum of all jobs in 'running' state
+	var dead int64    // Sum of all jobs in 'dead' state
+
+	for {
+		raw := (*jobs).Next()
+		if raw == nil {
+			break
+		}
+
+		job := raw.(*structs.Job)
+
+		switch job.Status {
+		case structs.JobStatusPending:
+			pending++
+		case structs.JobStatusRunning:
+			running++
+		case structs.JobStatusDead:
+			dead++
+		}
+	}
+
+	metrics.SetGauge([]string{"nomad", "job_status", "pending"}, float32(pending))
+	metrics.SetGauge([]string{"nomad", "job_status", "running"}, float32(running))
+	metrics.SetGauge([]string{"nomad", "job_status", "dead"}, float32(dead))
 }
 
 // revokeLeadership is invoked once we step down as leader.
