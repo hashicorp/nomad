@@ -253,7 +253,7 @@ func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 
 		allocs, err := draining.RemainingAllocs()
 		if err != nil {
-			n.logger.Error("failed to retrive allocs on deadlined node", "node_id", node, "error", err)
+			n.logger.Error("failed to retrieve allocs on deadlined node", "node_id", node, "error", err)
 			continue
 		}
 
