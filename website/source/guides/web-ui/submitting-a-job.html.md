@@ -19,7 +19,7 @@ the next step is to run the plan.
 
 ## Nomad plan
 
-It is best practice to run `nomad plan` before running `nomad run`, so the Web UI enforcing this
+It is best practice to run `nomad plan` before running `nomad run`, so the Web UI enforces this
 best practice. From the Job Run page, underneath the code editor, there is a Plan button. Clicking
 this button will proceed the run process to the second step.
 
@@ -36,8 +36,6 @@ potential issues early. Some potential issues are:
 2. There is not enough capacity remaining in your quota to start your job.
 3. Your job has an unresolvable hard constraint (e.g., required port not available).
 4. In order to start your job, other jobs must be preempted.
-
-Read more about placement failures and preemptions below.
 
 ~> Screenshot (Job plan placement failures)
 
@@ -59,16 +57,16 @@ being no placement failures (e.g., artifact cannot download or container startup
 
 ## Preemptions
 
-Another class of potential issues when planning a job is preemptions. This happens when the cluster
-does not have capacity for your job, but your job is a high priority and the cluster has preemptions
-enabled.
+Another class of potential issues when planning a job is
+[preemptions](/docs/internals/scheduling/preemption.html). This happens when the cluster does not
+have capacity for your job, but your job is a high priority and the cluster has preemptions enabled.
 
 ~> Screenshot (Job plan preemptions)
 
-Unlike with placement failures, when you submit a job that has expected preemptions, the job is will
+Unlike with placement failures, when you submit a job that has expected preemptions, the job will
 start. However, other allocations will be stopped to free up capacity.
 
-Note that with Nomad OSS, only system jobs can preempt allocations. Nomad Enterprise allows for both
+~> With Nomad OSS, only system jobs can preempt allocations. Nomad Enterprise allows for both
 service and batch type jobs to preempt lower priority allocations.
 
 ## Job Overview
@@ -78,11 +76,12 @@ Upon submitting a job, you will be redirected to the Job Overview page for the j
 If this is a new job, the job will start in a queued state. If there are no placement failures,
 allocations for the job will naturally transition from a starting to a running or failed state.
 Nomad is quick to schedule allocations (i.e., find a client node to start the allocation on), but an
-allocation may sit in the starting state for awhile if it has to download source images or other
-artifacts. It may also sit in a starting state if the task fails to start and requires retry
-attempts.
+allocation may sit in the starting state for awhile if it has to download
+[source images](/docs/job-specification/task.html#task-examples) or
+[other artifacts](/docs/job-specification/artifact.html). It may also sit in a starting state if the
+task fails to start and requires retry attempts.
 
-If this is was an existing job that was resubmitted, the job overview will just show old allocations
+If this is was an existing job that was resubmitted, the job overview will show old allocations
 moving into a completed status before new allocations are spun up. The exact sequence of events
 depends on the configuration of the job.
 
