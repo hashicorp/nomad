@@ -64,9 +64,13 @@ driver) but will be removed in a future release.
 - `network_interface` `(string: varied)` - Specifies the name of the interface
   to force network fingerprinting on. When run in dev mode, this defaults to the
   loopback interface. When not in dev mode, the interface attached to the
-  default route is used. All IP addresses except those scoped local for IPV6 on
-  the chosen interface are fingerprinted. The scheduler chooses from those IP
+  default route is used. The scheduler chooses from these fingerprinted IP 
   addresses when allocating ports for tasks.
+
+    Nomad will prefer non-local IP addresses.  If no non-local IP addresses are
+  found, Nomad will fingerprint link-local IPv6 addresses based on the 
+  [`"fingerprint.network.disallow_link_local"`](#quot-fingerprint-network-disallow_link_local-quot-)
+  setting.
 
 - `network_speed` `(int: 0)` - Specifies an override for the network link speed.
   This value, if set, overrides any detected or defaulted link speed. Most
