@@ -21,7 +21,7 @@ information such as a visual representation of all allocation statuses.
 
 This view will also live-update as jobs get submitted, get purged, and change status.
 
-~> Screenshot (Jobs Overview)
+~> Screenshot (Jobs List)
 
 ## Filtering Jobs
 
