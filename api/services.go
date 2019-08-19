@@ -91,6 +91,7 @@ type ServiceCheck struct {
 	CheckRestart  *CheckRestart `mapstructure:"check_restart"`
 	GRPCService   string        `mapstructure:"grpc_service"`
 	GRPCUseTLS    bool          `mapstructure:"grpc_use_tls"`
+	TaskName      string        `mapstructure:"task"`
 }
 
 // Service represents a Consul service definition.

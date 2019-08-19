@@ -53,6 +53,7 @@ type ServiceCheck struct {
 	CheckRestart  *CheckRestart       // If and when a task should be restarted based on checks
 	GRPCService   string              // Service for GRPC checks
 	GRPCUseTLS    bool                // Whether or not to use TLS for GRPC checks
+	TaskName      string              // What task to execute this check in
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -87,6 +88,10 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 	}
 
 	if !sc.CheckRestart.Equals(o.CheckRestart) {
+		return false
+	}
+
+	if sc.TaskName != o.TaskName {
 		return false
 	}
 
@@ -386,24 +391,24 @@ func (s *Service) Validate() error {
 	serviceNameStripped := args.ReplaceEnvWithPlaceHolder(s.Name, "ENV-VAR")
 
 	if err := s.ValidateName(serviceNameStripped); err != nil {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes: %q", s.Name))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes: %q", s.Name))
 	}
 
 	switch s.AddressMode {
 	case "", AddressModeAuto, AddressModeHost, AddressModeDriver:
 		// OK
 	default:
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
 	}
 
 	for _, c := range s.Checks {
 		if s.PortLabel == "" && c.PortLabel == "" && c.RequiresPort() {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: check requires a port but neither check nor service %+q have a port", c.Name, s.Name))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: check requires a port but neither check nor service %+q have a port", c.Name, s.Name))
 			continue
 		}
 
 		if err := c.validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: %v", c.Name, err))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: %v", c.Name, err))
 		}
 	}
 
@@ -425,7 +430,7 @@ func (s *Service) ValidateName(name string) error {
 	// (https://tools.ietf.org/html/rfc2782).
 	re := regexp.MustCompile(`^(?i:[a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9])$`)
 	if !re.MatchString(name) {
-		return fmt.Errorf("service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters: %q", name)
+		return fmt.Errorf("Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters: %q", name)
 	}
 	return nil
 }

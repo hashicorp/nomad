@@ -960,6 +960,51 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+
+		{
+			"tg-service-check.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("group_service_check_script"),
+				Name: helper.StringToPtr("group_service_check_script"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:  helper.StringToPtr("group"),
+						Count: helper.IntToPtr(1),
+						Networks: []*api.NetworkResource{
+							{
+								Mode: "bridge",
+								ReservedPorts: []api.Port{
+									{
+										Label: "http",
+										Value: 80,
+										To:    8080,
+									},
+								},
+							},
+						},
+						Services: []*api.Service{
+							{
+								Name:      "foo-service",
+								PortLabel: "http",
+								Checks: []api.ServiceCheck{
+									{
+										Name:          "check-name",
+										Type:          "script",
+										Command:       "/bin/true",
+										Interval:      time.Duration(10 * time.Second),
+										Timeout:       time.Duration(2 * time.Second),
+										InitialStatus: "passing",
+										TaskName:      "foo",
+									},
+								},
+							},
+						},
+						Tasks: []*api.Task{{Name: "foo"}},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
