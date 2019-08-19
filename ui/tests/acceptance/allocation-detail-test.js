@@ -186,9 +186,9 @@ module('Acceptance | allocation detail', function(hooks) {
   });
 
   test('services are listed', async function(assert) {
-    assert.equal(Allocation.services.length, 3);
-
     const taskGroup = server.schema.taskGroups.findBy({ name: allocation.taskGroup });
+
+    assert.equal(Allocation.services.length, taskGroup.services.length);
 
     taskGroup.services.models.forEach((serverService, index) => {
       const renderedService = Allocation.services[index];
