@@ -157,6 +157,8 @@
           {{#t.body as |row|}}
             <tr data-test-service>
               <td data-test-service-name>{{row.model.name}}</td>
+              <td data-test-service-port>{{row.model.portLabel}}</td>
+              <td data-test-service-tags>{{row.model.tagsString}}</td>
             </tr>
           {{/t.body}}
         {{/list-table}}

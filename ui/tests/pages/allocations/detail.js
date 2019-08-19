@@ -85,6 +85,8 @@ export default create({
 
   services: collection('[data-test-service]', {
     name: text('[data-test-service-name]'),
+    port: text('[data-test-service-port]'),
+    tags: text('[data-test-service-tags]'),
   }),
 
   error: {

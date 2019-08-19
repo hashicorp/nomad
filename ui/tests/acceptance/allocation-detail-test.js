@@ -194,6 +194,8 @@ module('Acceptance | allocation detail', function(hooks) {
       const renderedService = Allocation.services[index];
 
       assert.equal(renderedService.name, serverService.name);
+      assert.equal(renderedService.port, serverService.portLabel);
+      assert.equal(renderedService.tags, serverService.tags.join(', '));
     });
   });
 
