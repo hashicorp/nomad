@@ -19,7 +19,11 @@ module('Acceptance | allocation detail', function(hooks) {
     server.create('agent');
 
     node = server.create('node');
-    job = server.create('job', { groupsCount: 1, createAllocations: false });
+    job = server.create('job', {
+      groupsCount: 1,
+      withGroupServices: true,
+      createAllocations: false,
+    });
     allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
       clientStatus: 'running',
     });
@@ -178,6 +182,18 @@ module('Acceptance | allocation detail', function(hooks) {
       assert.equal(renderedPort.name, serverPort.Label);
       assert.equal(renderedPort.address, `${serverNetwork.IP}:${serverPort.Value}`);
       assert.equal(renderedPort.to, serverPort.To);
+    });
+  });
+
+  test('services are listed', async function(assert) {
+    assert.equal(Allocation.services.length, 3);
+
+    const taskGroup = server.schema.taskGroups.findBy({ name: allocation.taskGroup });
+
+    taskGroup.services.models.forEach((serverService, index) => {
+      const renderedService = Allocation.services[index];
+
+      assert.equal(renderedService.name, serverService.name);
     });
   });
 

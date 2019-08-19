@@ -83,6 +83,10 @@ export default create({
     to: text('[data-test-allocation-port-to]'),
   }),
 
+  services: collection('[data-test-service]', {
+    name: text('[data-test-service-name]'),
+  }),
+
   error: {
     isShown: isPresent('[data-test-error]'),
     title: text('[data-test-error-title]'),

@@ -49,6 +49,8 @@ export default Controller.extend(Sortable, {
       .sortBy('name');
   }),
 
+  services: alias('model.taskGroup.services'),
+
   onDismiss() {
     this.set('error', null);
   },

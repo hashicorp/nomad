@@ -14,10 +14,10 @@ export default Fragment.extend({
 
   tasks: fragmentArray('task'),
 
+  services: fragmentArray('service'),
+
   drivers: computed('tasks.@each.driver', function() {
-    return this.tasks
-      .mapBy('driver')
-      .uniq();
+    return this.tasks.mapBy('driver').uniq();
   }),
 
   allocations: computed('job.allocations.@each.taskGroup', function() {
