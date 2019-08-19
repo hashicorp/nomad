@@ -937,6 +937,34 @@ func TestTaskGroup_Validate(t *testing.T) {
 
 	expected = `Task task-b has a volume mount (0) referencing undefined volume foob`
 	require.Contains(t, err.Error(), expected)
+
+	taskA := &Task{Name: "task-a"}
+	tg = &TaskGroup{
+		Name: "group-a",
+		Services: []*Service{
+			{
+				Name: "service-a",
+				Checks: []*ServiceCheck{
+					{
+						Name:      "check-a",
+						Type:      "tcp",
+						TaskName:  "task-b",
+						PortLabel: "http",
+						Interval:  time.Duration(1 * time.Second),
+						Timeout:   time.Duration(1 * time.Second),
+					},
+				},
+			},
+		},
+		Tasks: []*Task{taskA},
+	}
+	err = tg.Validate(&Job{})
+	expected = `Check check-a invalid: refers to non-existent task task-b`
+	require.Contains(t, err.Error(), expected)
+
+	expected = `Check check-a invalid: only script and gRPC checks should have tasks`
+	require.Contains(t, err.Error(), expected)
+
 }
 
 func TestTask_Validate(t *testing.T) {

@@ -4571,6 +4571,12 @@ func TestTaskDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeNone,
+										Name: "TaskName",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeNone,
 										Name: "Timeout",
 										Old:  "1000000000",
 										New:  "1000000000",

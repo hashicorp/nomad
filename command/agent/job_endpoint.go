@@ -1028,6 +1028,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 					Method:        check.Method,
 					GRPCService:   check.GRPCService,
 					GRPCUseTLS:    check.GRPCUseTLS,
+					TaskName:      check.TaskName,
 				}
 				if check.CheckRestart != nil {
 					out[i].Checks[j].CheckRestart = &structs.CheckRestart{
