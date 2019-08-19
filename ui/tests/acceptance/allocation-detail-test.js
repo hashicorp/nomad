@@ -190,7 +190,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
     assert.equal(Allocation.services.length, taskGroup.services.length);
 
-    taskGroup.services.models.forEach((serverService, index) => {
+    taskGroup.services.models.sortBy('name').forEach((serverService, index) => {
       const renderedService = Allocation.services[index];
 
       assert.equal(renderedService.name, serverService.name);
