@@ -1,32 +1,16 @@
 {{title pathWithLeadingSlash " -  Task " task.name " filesystem"}}
 {{task-subnav task=task}}
-<section class="section is-closer">
+<section class="section is-closer {{if isFile "full-width-section"}}">
   {{#if task.isRunning}}
-    <div class="fs-explorer boxed-section">
-      <div class="boxed-section-head is-compact">
-        <nav class="breadcrumb" data-test-fs-breadcrumbs>
-          <ul>
-            <li class={{if breadcrumbs "" "is-active"}}>
-              {{#link-to "allocations.allocation.task.fs-root" task.allocation task activeClass="is-active"}}
-                {{task.name}}
-              {{/link-to}}
-            </li>
-            {{#each breadcrumbs as |breadcrumb|}}
-              <li class={{if breadcrumb.isLast "is-active"}}>
-                {{#link-to "allocations.allocation.task.fs" task.allocation task breadcrumb.path activeClass="is-active"}}
-                  {{breadcrumb.name}}
-                {{/link-to}}
-              </li>
-            {{/each}}
-          </ul>
-        </nav>
-      </div>
-
-      {{#if isFile}}
-        <div class="boxed-section-body">
-          <div data-test-file-viewer>placeholder file viewer</div>
+    {{#if isFile}}
+      {{#task-file allocation=task.allocation task=task file=path stat=stat class="fs-explorer"}}
+        {{fs-breadcrumbs task=task path=path}}
+      {{/task-file}}
+    {{else}}
+      <div class="fs-explorer boxed-section">
+        <div class="boxed-section-head">
+          {{fs-breadcrumbs task=task path=path}}
         </div>
-      {{else}}
         {{#list-table
           source=sortedDirectoryEntries
           sortProperty=sortProperty
@@ -52,8 +36,8 @@
             </tbody>
           {{/if}}
         {{/list-table}}
-      {{/if}}
-    </div>
+      </div>
+    {{/if}}
   {{else}}
     <div data-test-not-running class="empty-message">
       <h3 data-test-not-running-headline class="empty-message-headline">Task is not Running</h3>

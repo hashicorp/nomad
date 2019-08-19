@@ -9,9 +9,8 @@ export default Route.extend({
 
     const pathWithTaskName = `${task.name}${decodedPath.startsWith('/') ? '' : '/'}${decodedPath}`;
 
-    return task
-      .stat(pathWithTaskName)
-      .then(statJson => {
+    return RSVP.all([task.stat(pathWithTaskName), task.get('allocation.node')])
+      .then(([statJson]) => {
         if (statJson.IsDir) {
           return RSVP.hash({
             path: decodedPath,
@@ -24,14 +23,15 @@ export default Route.extend({
             path: decodedPath,
             task,
             isFile: true,
+            stat: statJson,
           };
         }
       })
       .catch(notifyError(this));
   },
 
-  setupController(controller, { path, task, directoryEntries, isFile } = {}) {
+  setupController(controller, { path, task, directoryEntries, isFile, stat } = {}) {
     this._super(...arguments);
-    controller.setProperties({ path, task, directoryEntries, isFile });
+    controller.setProperties({ path, task, directoryEntries, isFile, stat });
   },
 });

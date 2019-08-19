@@ -6,13 +6,15 @@ export default ApplicationAdapter.extend({
 
   ls(model, path) {
     return this.token
-      .authorizedRequest(`/v1/client/fs/ls/${model.allocation.id}?path=${path}`)
+      .authorizedRequest(`/v1/client/fs/ls/${model.allocation.id}?path=${encodeURIComponent(path)}`)
       .then(handleFSResponse);
   },
 
   stat(model, path) {
     return this.token
-      .authorizedRequest(`/v1/client/fs/stat/${model.allocation.id}?path=${path}`)
+      .authorizedRequest(
+        `/v1/client/fs/stat/${model.allocation.id}?path=${encodeURIComponent(path)}`
+      )
       .then(handleFSResponse);
   },
 });
