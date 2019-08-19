@@ -151,8 +151,10 @@
       <div class="boxed-section-body is-full-bleed">
         {{#list-table source=services as |t|}}
           {{#t.head}}
-            <th class="is-2">?</th>
-            <th class="is-1">?</th>
+            <th class="is-2">Name</th>
+            <th class="is-1">Port</th>
+            <td>Tags</td>
+            <td>Connect?</td>
           {{/t.head}}
           {{#t.body as |row|}}
             <tr data-test-service>
