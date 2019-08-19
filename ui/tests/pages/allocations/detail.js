@@ -88,6 +88,7 @@ export default create({
     port: text('[data-test-service-port]'),
     tags: text('[data-test-service-tags]'),
     connect: text('[data-test-service-connect]'),
+    upstreams: text('[data-test-service-upstreams]'),
   }),
 
   error: {
