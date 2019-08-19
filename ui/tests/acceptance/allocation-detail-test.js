@@ -196,6 +196,8 @@ module('Acceptance | allocation detail', function(hooks) {
       assert.equal(renderedService.name, serverService.name);
       assert.equal(renderedService.port, serverService.portLabel);
       assert.equal(renderedService.tags, serverService.tags.join(', '));
+
+      assert.equal(renderedService.connect, serverService.connect ? 'Yes' : 'No');
     });
   });
 

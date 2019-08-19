@@ -7,6 +7,7 @@ export default Fragment.extend({
   name: attr('string'),
   portLabel: attr('number'),
   tags: array({ defaultValue: () => [] }),
+  connect: attr(),
 
   // FIXME service-row instead?
   tagsString: computed('tags.[]', function() {
