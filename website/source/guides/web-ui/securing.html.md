@@ -8,8 +8,20 @@ description: |-
 
 # Securing the Web UI with ACLs
 
+By default, all features—read and write—are available to all users of the Web UI. By using [Access Control Lists](/guides/security/acl.html), it is possible to lock down what users get access to which features.
+
 ## Browsing the Web UI Without an Access Control Token
+
+When a user browses the Web UI without specifying an access control token, they assume the rules of the [anonymous policy](/guides/security/acl.html#set-an-anonymous-policy-optional-). Since Nomad ACLs use a default-deny model, if ACLs are enabled an no anonymous policy is authored, the Web UI will show unauthorized messages on every page other than the settings page.
+
+~> Screenshot (No access, set an ACL token)
 
 ## Setting an Access Control Token
 
-## Disabling the Web UI
+From the ACL Tokens page, which is accessible from the top-right menu, you can set your access control token via the token Secret ID.
+
+This token is saved to local storage and can be manually cleared from the ACL Tokens page.
+
+~> Screenshot (No token set)
+
+~> Screenshot (Token set)
