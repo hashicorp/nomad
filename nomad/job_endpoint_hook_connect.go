@@ -9,11 +9,13 @@ import (
 )
 
 var (
-	// connectSidecarResources is the set of resources used by default for the
-	// Consul Connect sidecar task
-	connectSidecarResources = &structs.Resources{
-		CPU:      250,
-		MemoryMB: 128,
+	// connectSidecarResources returns the set of resources used by default for
+	// the Consul Connect sidecar task
+	connectSidecarResources = func() *structs.Resources {
+		return &structs.Resources{
+			CPU:      250,
+			MemoryMB: 128,
+		}
 	}
 
 	// connectDriverConfig is the driver configuration used by the injected
@@ -30,10 +32,12 @@ var (
 	// the proper Consul version is used that supports the nessicary Connect
 	// features. This includes bootstraping envoy with a unix socket for Consul's
 	// grpc xDS api.
-	connectVersionConstraint = &structs.Constraint{
-		LTarget: "${attr.consul.version}",
-		RTarget: ">= 1.6.0beta1",
-		Operand: "version",
+	connectVersionConstraint = func() *structs.Constraint {
+		return &structs.Constraint{
+			LTarget: "${attr.consul.version}",
+			RTarget: ">= 1.6.0beta1",
+			Operand: "version",
+		}
 	}
 )
 
@@ -147,9 +151,9 @@ func newConnectTask(service *structs.Service) *structs.Task {
 			MaxFiles:      2,
 			MaxFileSizeMB: 2,
 		},
-		Resources: connectSidecarResources.Copy(),
+		Resources: connectSidecarResources(),
 		Constraints: structs.Constraints{
-			connectVersionConstraint,
+			connectVersionConstraint(),
 		},
 	}
 

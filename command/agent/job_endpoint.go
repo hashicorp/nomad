@@ -1084,7 +1084,7 @@ func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
 	if in.SidecarTask != nil {
 		out.SidecarTask = &structs.SidecarTask{
 			Name:          in.SidecarTask.Name,
-			Driver:        in.SidecarTask.Name,
+			Driver:        in.SidecarTask.Driver,
 			Config:        in.SidecarTask.Config,
 			User:          in.SidecarTask.User,
 			Env:           in.SidecarTask.Env,
@@ -1096,7 +1096,7 @@ func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
 		}
 
 		if in.SidecarTask.KillTimeout != nil {
-			out.SidecarTask.KillTimeout = *in.SidecarTask.KillTimeout
+			out.SidecarTask.KillTimeout = in.SidecarTask.KillTimeout
 		}
 		if in.SidecarTask.LogConfig != nil {
 			out.SidecarTask.LogConfig = &structs.LogConfig{}

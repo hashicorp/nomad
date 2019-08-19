@@ -629,16 +629,14 @@ type SidecarTask struct {
 
 	// KillTimeout is the time between signaling a task that it will be
 	// killed and killing it.
-	KillTimeout time.Duration
+	KillTimeout *time.Duration
 
 	// LogConfig provides configuration for log rotation
 	LogConfig *LogConfig
 
 	// ShutdownDelay is the duration of the delay between deregistering a
 	// task from Consul and sending it a signal to shutdown. See #2441
-	ShutdownDelay time.Duration
-
-	// The kill signal to use for the task. This is an optional specification,
+	ShutdownDelay *time.Duration
 
 	// KillSignal is the kill signal to use for the task. This is an optional
 	// specification and defaults to SIGINT
@@ -654,6 +652,7 @@ func (t *SidecarTask) Copy() *SidecarTask {
 	nt.Env = helper.CopyMapStringString(nt.Env)
 
 	nt.Resources = nt.Resources.Copy()
+	nt.LogConfig = nt.LogConfig.Copy()
 	nt.Meta = helper.CopyMapStringString(nt.Meta)
 
 	if i, err := copystructure.Copy(nt.Config); err != nil {
@@ -671,6 +670,8 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 		task.Name = t.Name
 	}
 
+	// If the driver changes then the driver config can be overwritten.
+	// Otherwise we'll merge the driver config togethe
 	if t.Driver != "" && t.Driver != task.Driver {
 		task.Driver = t.Driver
 		task.Config = t.Config
@@ -708,8 +709,8 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 		}
 	}
 
-	if t.KillTimeout != 0 {
-		task.KillTimeout = t.KillTimeout
+	if t.KillTimeout != nil {
+		task.KillTimeout = *t.KillTimeout
 	}
 
 	if t.LogConfig != nil {
@@ -725,8 +726,8 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 		}
 	}
 
-	if t.ShutdownDelay != 0 {
-		task.ShutdownDelay = 0
+	if t.ShutdownDelay != nil {
+		task.ShutdownDelay = *t.ShutdownDelay
 	}
 
 	if t.KillSignal != "" {

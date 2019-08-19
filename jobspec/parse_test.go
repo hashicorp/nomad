@@ -933,6 +933,7 @@ func TestParse(t *testing.T) {
 										Env: map[string]string{
 											"FOO": "abc",
 										},
+										ShutdownDelay: helper.TimeToPtr(5 * time.Second),
 									},
 								},
 							},

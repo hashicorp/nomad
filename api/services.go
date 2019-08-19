@@ -157,7 +157,7 @@ type SidecarTask struct {
 	Meta          map[string]string
 	KillTimeout   *time.Duration `mapstructure:"kill_timeout"`
 	LogConfig     *LogConfig     `mapstructure:"logs"`
-	ShutdownDelay time.Duration  `mapstructure:"shutdown_delay"`
+	ShutdownDelay *time.Duration `mapstructure:"shutdown_delay"`
 	KillSignal    string         `mapstructure:"kill_signal"`
 }
 

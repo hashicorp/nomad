@@ -2,7 +2,9 @@ package structs
 
 import (
 	"testing"
+	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,6 +69,7 @@ func TestSidecarTask_MergeIntoTask(t *testing.T) {
 	sTask := &SidecarTask{
 		Name:   "sidecar",
 		Driver: "sidecar",
+		User:   "test",
 		Config: map[string]interface{}{
 			"foo": "bar",
 		},
@@ -77,22 +80,37 @@ func TestSidecarTask_MergeIntoTask(t *testing.T) {
 		Env: map[string]string{
 			"sidecar": "proxy",
 		},
+		Meta: map[string]string{
+			"abc": "123",
+		},
+		KillTimeout: helper.TimeToPtr(15 * time.Second),
+		LogConfig: &LogConfig{
+			MaxFiles: 3,
+		},
+		ShutdownDelay: helper.TimeToPtr(5 * time.Second),
+		KillSignal:    "SIGABRT",
 	}
 
 	expected := task.Copy()
 	expected.Name = "sidecar"
 	expected.Driver = "sidecar"
+	expected.User = "test"
 	expected.Config = map[string]interface{}{
 		"foo": "bar",
 	}
 	expected.Resources.CPU = 10000
 	expected.Resources.MemoryMB = 10000
 	expected.Env["sidecar"] = "proxy"
+	expected.Meta["abc"] = "123"
+	expected.KillTimeout = 15 * time.Second
+	expected.LogConfig.MaxFiles = 3
+	expected.ShutdownDelay = 5 * time.Second
+	expected.KillSignal = "SIGABRT"
 
 	sTask.MergeIntoTask(task)
-
 	require.Exactly(t, expected, task)
 
+	// Check that changing just driver config doesn't replace map
 	sTask.Config["abc"] = 123
 	expected.Config["abc"] = 123
 

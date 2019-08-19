@@ -34,6 +34,8 @@ job "foo" {
           env {
             FOO = "abc"
           }
+
+          shutdown_delay = "5s"
         }
       }
     }
