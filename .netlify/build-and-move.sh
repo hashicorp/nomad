@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+echo "What is HEAD? $HEAD"
+
 cd website
 bundle install
 bundle exec middleman build
