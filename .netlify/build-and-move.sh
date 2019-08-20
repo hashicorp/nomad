@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-echo "What is HEAD? $HEAD"
-
 cd website
 bundle install
 bundle exec middleman build
@@ -16,9 +14,9 @@ mv dist/* ../website/build/ui/
 
 cd ../
 
-echo "Determining which _redirects file to use based on branch $BRANCH"
+echo "Determining which _redirects file to use based on head branch $HEAD"
 
-if [[ "$BRANCH" =~ ^.-ui\/ ]]; then
+if [[ "$HEAD" =~ ^.-ui\/ ]]; then
     echo "Using the _redirects file for UI"
     cp .netlify/ui-redirects website/build/_redirects
 else
