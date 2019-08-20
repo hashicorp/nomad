@@ -219,7 +219,7 @@ commands:
     parameters:
       version:
         type: string
-        default: 1.0.0
+        default: 1.6.0-rc1
     steps:
       - run:
           name: Install Consul << parameters.version >>
