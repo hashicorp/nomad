@@ -2,7 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import TaskLogs from 'nomad-ui/tests/pages/allocations/task/logs';
 
 let allocation;
