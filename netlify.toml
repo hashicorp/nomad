@@ -2,7 +2,7 @@
 
 [build]
   # The generated site needs to live at /ui/, so this moves it there after building.
-  command = "cd website && bundle install && bundle exec middleman build && cd ../ui/ && ember build && mkdir -p ../website/build/ui && mv dist/* ../website/build/ui/"
+  command = "bash +x .netlify/build-and-move.sh"
   publish = "website/build"
 
 # This ensures that following the link from the PR checks list redirects to the subdirectory.
