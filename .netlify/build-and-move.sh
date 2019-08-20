@@ -11,3 +11,11 @@ ember build
 mkdir -p ../website/build/ui
 
 mv dist/* ../website/build/ui/
+
+cd ../
+
+if [[ "$BRANCH" =~ ^.-ui\/ ]]; then
+    cp .netlify/ui-redirects website/build/_redirects
+else
+    cp .netlify/default-redirects website/build/_redirects
+fi
