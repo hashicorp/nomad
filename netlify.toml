@@ -2,6 +2,6 @@
 
 [build]
   # The generated site needs to live at /ui/, so this moves it there after building.
-  command = "ls && bash +x .netlify/build-and-move.sh"
+  command = "bash +x .netlify/build-and-move.sh"
   base = "."
   publish = "website/build"
