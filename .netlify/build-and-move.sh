@@ -14,6 +14,8 @@ mv dist/* ../website/build/ui/
 
 cd ../
 
+echo "Determining which _redirects file to use based on branch $BRANCH"
+
 if [[ "$BRANCH" =~ ^.-ui\/ ]]; then
     echo "Using the _redirects file for UI"
     cp .netlify/ui-redirects website/build/_redirects
