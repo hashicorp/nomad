@@ -3,6 +3,7 @@
 [build]
   # The generated site needs to live at /ui/, so this moves it there after building.
   command = "ls && bash +x .netlify/build-and-move.sh"
+  base = "."
   publish = "website/build"
 
 # This ensures that following the link from the PR checks list redirects to the subdirectory.
