@@ -2151,6 +2151,24 @@ func (n *NetworkResource) PortLabels() map[string]int {
 	return labelValues
 }
 
+// ConnectPort returns the Connect port for the given service. Returns false if
+// no port was found for a service with that name.
+func (n *NetworkResource) PortForService(serviceName string) (Port, bool) {
+	label := fmt.Sprintf("%s-%s", ConnectProxyPrefix, serviceName)
+	for _, port := range n.ReservedPorts {
+		if port.Label == label {
+			return port, true
+		}
+	}
+	for _, port := range n.DynamicPorts {
+		if port.Label == label {
+			return port, true
+		}
+	}
+
+	return Port{}, false
+}
+
 // Networks defined for a task on the Resources struct.
 type Networks []*NetworkResource
 
