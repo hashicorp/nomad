@@ -246,7 +246,7 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 	// Check that the correct fields were overridden from the sidecar_task stanza
 	require.Equal("test", sidecarTask.Meta["source"])
 	require.Equal(500, sidecarTask.Resources.CPU)
-	require.Equal(connectSidecarResources.MemoryMB, sidecarTask.Resources.MemoryMB)
+	require.Equal(connectSidecarResources().MemoryMB, sidecarTask.Resources.MemoryMB)
 	cfg := connectDriverConfig
 	cfg["labels"] = map[string]interface{}{
 		"foo": "bar",

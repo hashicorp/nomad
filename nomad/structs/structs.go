@@ -5107,6 +5107,9 @@ type LogConfig struct {
 }
 
 func (l *LogConfig) Copy() *LogConfig {
+	if l == nil {
+		return nil
+	}
 	return &LogConfig{
 		MaxFiles:      l.MaxFiles,
 		MaxFileSizeMB: l.MaxFileSizeMB,

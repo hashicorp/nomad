@@ -661,6 +661,14 @@ func (t *SidecarTask) Copy() *SidecarTask {
 		nt.Config = i.(map[string]interface{})
 	}
 
+	if t.KillTimeout != nil {
+		nt.KillTimeout = helper.TimeToPtr(*t.KillTimeout)
+	}
+
+	if t.ShutdownDelay != nil {
+		nt.ShutdownDelay = helper.TimeToPtr(*t.ShutdownDelay)
+	}
+
 	return nt
 }
 
@@ -671,7 +679,7 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 	}
 
 	// If the driver changes then the driver config can be overwritten.
-	// Otherwise we'll merge the driver config togethe
+	// Otherwise we'll merge the driver config together
 	if t.Driver != "" && t.Driver != task.Driver {
 		task.Driver = t.Driver
 		task.Config = t.Config
