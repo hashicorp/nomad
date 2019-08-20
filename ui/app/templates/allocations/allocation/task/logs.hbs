@@ -1,5 +1,5 @@
 {{title "Task " model.name " logs"}}
-{{partial "allocations/allocation/task/subnav"}}
+{{task-subnav task=model}}
 <section class="section full-width-section">
   {{task-log data-test-task-log allocation=model.allocation task=model.name}}
 </section>
