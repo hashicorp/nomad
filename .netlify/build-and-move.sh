@@ -5,7 +5,7 @@ bundle install
 bundle exec middleman build
 
 cd ../ui/
-npm install -g yarn
+npm install -g yarn ember-cli
 yarn
 ember build
 mkdir -p ../website/build/ui
