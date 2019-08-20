@@ -11,12 +11,12 @@
         <div class="boxed-section-head">
           {{fs-breadcrumbs task=task path=path}}
         </div>
-        {{#list-table
-          source=sortedDirectoryEntries
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          class="boxed-section-body is-full-bleed is-compact" as |t|}}
-          {{#if directoryEntries}}
+        {{#if directoryEntries}}
+          {{#list-table
+            source=sortedDirectoryEntries
+            sortProperty=sortProperty
+            sortDescending=sortDescending
+            class="boxed-section-body is-full-bleed is-compact" as |t|}}
             {{#t.head}}
               {{#t.sort-by prop="Name" class="is-two-thirds"}}Name{{/t.sort-by}}
               {{#t.sort-by prop="Size" class="has-text-right"}}File Size{{/t.sort-by}}
@@ -25,17 +25,17 @@
             {{#t.body as |row|}}
               {{fs-directory-entry path=path task=task entry=row.model}}
             {{/t.body}}
-          {{else}}
-            <tbody>
-              <tr data-test-entry>
-                <td colspan="3">
-                  {{x-icon "alert-circle-outline"}}
-                  <span class="name" data-test-name>Directory is empty</span>
-                </td>
-              </tr>
-            </tbody>
-          {{/if}}
-        {{/list-table}}
+          {{/list-table}}
+        {{else}}
+          <div class="boxed-section-body">
+            <div data-test-empty-directory class="empty-message">
+              <h3 data-test-empty-directory-headline class="empty-message-headline">No Files</h3>
+              <p data-test-empty-directory-body class="empty-message-body">
+                Directory is currently empty.
+              </p>
+            </div>
+          </div>
+        {{/if}}
       </div>
     {{/if}}
   {{else}}

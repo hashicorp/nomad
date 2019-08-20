@@ -344,8 +344,7 @@ module('Acceptance | task fs', function(hooks) {
   test('viewing an empty directory', async function(assert) {
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/empty-directory' });
 
-    assert.equal(FS.directoryEntries.length, 1);
-    assert.ok(FS.directoryEntries[0].isEmpty);
+    assert.ok(FS.isEmptyDirectory);
   });
 
   test('viewing paths that produce stat API errors', async function(assert) {

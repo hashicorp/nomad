@@ -42,7 +42,6 @@ export default create({
 
     isFile: isPresent('.icon-is-file-outline'),
     isDirectory: isPresent('.icon-is-folder-outline'),
-    isEmpty: isPresent('.icon-is-alert-circle-outline'),
 
     size: text('[data-test-size]'),
     lastModified: text('[data-test-last-modified]'),
@@ -50,6 +49,8 @@ export default create({
     visit: clickable('a'),
     path: attribute('href', 'a'),
   }),
+
+  isEmptyDirectory: isPresent('[data-test-empty-directory]'),
 
   directoryEntryNames() {
     return this.directoryEntries.toArray().mapBy('name');
