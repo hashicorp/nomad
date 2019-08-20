@@ -1082,7 +1082,31 @@ func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
 	}
 
 	if in.SidecarTask != nil {
-		ApiTaskToStructsTask(in.SidecarTask, out.SidecarTask)
+		out.SidecarTask = &structs.SidecarTask{
+			Name:          in.SidecarTask.Name,
+			Driver:        in.SidecarTask.Driver,
+			Config:        in.SidecarTask.Config,
+			User:          in.SidecarTask.User,
+			Env:           in.SidecarTask.Env,
+			Resources:     ApiResourcesToStructs(in.SidecarTask.Resources),
+			Meta:          in.SidecarTask.Meta,
+			LogConfig:     &structs.LogConfig{},
+			ShutdownDelay: in.SidecarTask.ShutdownDelay,
+			KillSignal:    in.SidecarTask.KillSignal,
+		}
+
+		if in.SidecarTask.KillTimeout != nil {
+			out.SidecarTask.KillTimeout = in.SidecarTask.KillTimeout
+		}
+		if in.SidecarTask.LogConfig != nil {
+			out.SidecarTask.LogConfig = &structs.LogConfig{}
+			if in.SidecarTask.LogConfig.MaxFiles != nil {
+				out.SidecarTask.LogConfig.MaxFiles = *in.SidecarTask.LogConfig.MaxFiles
+			}
+			if in.SidecarTask.LogConfig.MaxFileSizeMB != nil {
+				out.SidecarTask.LogConfig.MaxFileSizeMB = *in.SidecarTask.LogConfig.MaxFileSizeMB
+			}
+		}
 	}
 
 	return out

@@ -164,7 +164,7 @@ func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 		return nil, fmt.Errorf("only one 'sidecar_task' block allowed per task")
 	}
 
-	t, err := parseTask(o.Items[0])
+	t, err := parseSidecarTask(o.Items[0])
 	if err != nil {
 		return nil, fmt.Errorf("sidecar_task, %v", err)
 	}
@@ -226,6 +226,75 @@ func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
 	sidecar.Proxy = r
 
 	return &sidecar, nil
+}
+
+func parseSidecarTask(item *ast.ObjectItem) (*api.SidecarTask, error) {
+	// We need this later
+	var listVal *ast.ObjectList
+	if ot, ok := item.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("should be an object")
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"config",
+		"driver",
+		"env",
+		"kill_timeout",
+		"logs",
+		"meta",
+		"resources",
+		"shutdown_delay",
+		"user",
+		"kill_signal",
+	}
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		return nil, err
+	}
+
+	task, err := parseTask(item)
+	if err != nil {
+		return nil, err
+	}
+
+	sidecarTask := &api.SidecarTask{
+		Name:        task.Name,
+		Driver:      task.Driver,
+		User:        task.User,
+		Config:      task.Config,
+		Env:         task.Env,
+		Resources:   task.Resources,
+		Meta:        task.Meta,
+		KillTimeout: task.KillTimeout,
+		LogConfig:   task.LogConfig,
+		KillSignal:  task.KillSignal,
+	}
+
+	// Parse ShutdownDelay seperatly to get pointer
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, item.Val); err != nil {
+		return nil, err
+	}
+
+	m = map[string]interface{}{
+		"shutdown_delay": m["shutdown_delay"],
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           sidecarTask,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+	return sidecarTask, nil
 }
 
 func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {

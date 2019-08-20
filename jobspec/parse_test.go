@@ -925,7 +925,7 @@ func TestParse(t *testing.T) {
 											},
 										},
 									},
-									SidecarTask: &api.Task{
+									SidecarTask: &api.SidecarTask{
 										Resources: &api.Resources{
 											CPU:      helper.IntToPtr(500),
 											MemoryMB: helper.IntToPtr(1024),
@@ -933,6 +933,7 @@ func TestParse(t *testing.T) {
 										Env: map[string]string{
 											"FOO": "abc",
 										},
+										ShutdownDelay: helper.TimeToPtr(5 * time.Second),
 									},
 								},
 							},

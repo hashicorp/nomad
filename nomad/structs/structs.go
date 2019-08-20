@@ -5106,6 +5106,16 @@ type LogConfig struct {
 	MaxFileSizeMB int
 }
 
+func (l *LogConfig) Copy() *LogConfig {
+	if l == nil {
+		return nil
+	}
+	return &LogConfig{
+		MaxFiles:      l.MaxFiles,
+		MaxFileSizeMB: l.MaxFileSizeMB,
+	}
+}
+
 // DefaultLogConfig returns the default LogConfig values.
 func DefaultLogConfig() *LogConfig {
 	return &LogConfig{
@@ -5229,6 +5239,7 @@ func (t *Task) Copy() *Task {
 
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
+	nt.LogConfig = nt.LogConfig.Copy()
 	nt.Meta = helper.CopyMapStringString(nt.Meta)
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
 
