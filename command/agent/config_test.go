@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -642,6 +643,7 @@ func TestConfig_DevModeFlag(t *testing.T) {
 		}
 	}
 	if runtime.GOOS == "linux" {
+		testutil.RequireRoot(t)
 		cases = []struct {
 			flag        string
 			expected    *devModeConfig
