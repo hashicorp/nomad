@@ -45,8 +45,9 @@ const (
 	// combined we take the union of all capabilities. If the deny capability is present, it
 	// takes precedence and overwrites all other capabilities.
 
-	HostVolumeCapabilityDeny  = "deny"
-	HostVolumeCapabilityMount = "mount"
+	HostVolumeCapabilityDeny           = "deny"
+	HostVolumeCapabilityMountReadOnly  = "mount-readonly"
+	HostVolumeCapabilityMountReadWrite = "mount-readwrite"
 )
 
 var (
@@ -160,7 +161,7 @@ func expandNamespacePolicy(policy string) []string {
 
 func isHostVolumeCapabilityValid(cap string) bool {
 	switch cap {
-	case HostVolumeCapabilityDeny, HostVolumeCapabilityMount:
+	case HostVolumeCapabilityDeny, HostVolumeCapabilityMountReadOnly, HostVolumeCapabilityMountReadWrite:
 		return true
 	default:
 		return false
@@ -172,9 +173,9 @@ func expandHostVolumePolicy(policy string) []string {
 	case PolicyDeny:
 		return []string{HostVolumeCapabilityDeny}
 	case PolicyRead:
-		return []string{HostVolumeCapabilityDeny}
+		return []string{HostVolumeCapabilityMountReadOnly}
 	case PolicyWrite:
-		return []string{HostVolumeCapabilityMount}
+		return []string{HostVolumeCapabilityMountReadOnly, HostVolumeCapabilityMountReadWrite}
 	default:
 		return nil
 	}

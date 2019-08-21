@@ -117,8 +117,18 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 					return structs.ErrPermissionDenied
 				}
 
-				if !aclObj.AllowHostVolumeOperation(cfg.Source, acl.HostVolumeCapabilityMount) {
-					return structs.ErrPermissionDenied
+				// If a volume is readonly, then we allow access if the user has ReadOnly
+				// or ReadWrite access to the volume. Otherwise we only allow access if
+				// they have ReadWrite access.
+				if vol.ReadOnly {
+					if !aclObj.AllowHostVolumeOperation(cfg.Source, acl.HostVolumeCapabilityMountReadOnly) &&
+						!aclObj.AllowHostVolumeOperation(cfg.Source, acl.HostVolumeCapabilityMountReadWrite) {
+						return structs.ErrPermissionDenied
+					}
+				} else {
+					if !aclObj.AllowHostVolumeOperation(cfg.Source, acl.HostVolumeCapabilityMountReadWrite) {
+						return structs.ErrPermissionDenied
+					}
 				}
 			}
 		}
