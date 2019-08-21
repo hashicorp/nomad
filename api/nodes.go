@@ -438,7 +438,7 @@ type DriverInfo struct {
 
 // HostVolumeInfo is used to return metadata about a given HostVolume.
 type HostVolumeInfo struct {
-	Source   string
+	Path     string
 	ReadOnly bool
 	Hidden   bool
 }
