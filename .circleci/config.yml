@@ -14,45 +14,45 @@ references:
 workflows:
   build-test:
     jobs:
-      - lint-go:
-          <<: *IGNORE_FOR_UI_BRANCHES
-      - test-machine:
-          name: "test-client"
-          test_packages: "./client/..."
-          <<: *IGNORE_FOR_UI_BRANCHES
-      - test-machine:
-          name: "test-nomad"
-          test_packages: "./nomad/..."
-          <<: *IGNORE_FOR_UI_BRANCHES
-      - test-machine:
-          # API Tests run in a VM rather than container due to the FS tests
-          # requiring `mount` priviliges.
-          name: "test-api"
-          test_packages: "./api/..."
-          <<: *IGNORE_FOR_UI_BRANCHES
-      - test-container:
-          name: "test-devices"
-          test_packages: "./devices/..."
-          <<: *IGNORE_FOR_UI_BRANCHES
-      - test-machine:
-          name: "test-other"
-          exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/rkt|./drivers/shared/executor|./nomad|./devices"
-          <<: *IGNORE_FOR_UI_BRANCHES
-      - test-machine:
-          name: "test-docker"
-          test_packages: "./drivers/docker"
-          <<: *IGNORE_FOR_UI_BRANCHES
-      - test-machine:
-          name: "test-exec"
-          test_packages: "./drivers/exec"
-          <<: *IGNORE_FOR_UI_BRANCHES
-      - test-machine:
-          name: "test-shared-exec"
-          test_packages: "./drivers/shared/executor"
-          <<: *IGNORE_FOR_UI_BRANCHES
-      - test-rkt:
-          <<: *IGNORE_FOR_UI_BRANCHES
-      - test-ui
+      # - lint-go:
+      #     <<: *IGNORE_FOR_UI_BRANCHES
+      # - test-machine:
+      #     name: "test-client"
+      #     test_packages: "./client/..."
+      #     <<: *IGNORE_FOR_UI_BRANCHES
+      # - test-machine:
+      #     name: "test-nomad"
+      #     test_packages: "./nomad/..."
+      #     <<: *IGNORE_FOR_UI_BRANCHES
+      # - test-machine:
+      #     # API Tests run in a VM rather than container due to the FS tests
+      #     # requiring `mount` priviliges.
+      #     name: "test-api"
+      #     test_packages: "./api/..."
+      #     <<: *IGNORE_FOR_UI_BRANCHES
+      # - test-container:
+      #     name: "test-devices"
+      #     test_packages: "./devices/..."
+      #     <<: *IGNORE_FOR_UI_BRANCHES
+      # - test-machine:
+      #     name: "test-other"
+      #     exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/rkt|./drivers/shared/executor|./nomad|./devices"
+      #     <<: *IGNORE_FOR_UI_BRANCHES
+      # - test-machine:
+      #     name: "test-docker"
+      #     test_packages: "./drivers/docker"
+      #     <<: *IGNORE_FOR_UI_BRANCHES
+      # - test-machine:
+      #     name: "test-exec"
+      #     test_packages: "./drivers/exec"
+      #     <<: *IGNORE_FOR_UI_BRANCHES
+      # - test-machine:
+      #     name: "test-shared-exec"
+      #     test_packages: "./drivers/shared/executor"
+      #     <<: *IGNORE_FOR_UI_BRANCHES
+      # - test-rkt:
+      #     <<: *IGNORE_FOR_UI_BRANCHES
+      # - test-ui
       - test-website:
           <<: *IGNORE_FOR_UI_BRANCHES
       # - build-deps-image:
