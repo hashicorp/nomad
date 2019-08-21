@@ -10,7 +10,7 @@ const JOB_STATUSES = ['pending', 'running', 'dead'];
 
 export default Factory.extend({
   id: i =>
-    `${faker.random.arrayElement(
+    `${faker.helpers.randomize(
       JOB_PREFIXES
     )}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase(),
 
@@ -21,11 +21,11 @@ export default Factory.extend({
   groupsCount: () => faker.random.number({ min: 1, max: 2 }),
 
   region: () => 'global',
-  type: faker.random.arrayElement(JOB_TYPES),
+  type: faker.helpers.randomize(JOB_TYPES),
   priority: () => faker.random.number(100),
   all_at_once: faker.random.boolean,
-  status: faker.random.arrayElement(JOB_STATUSES),
-  datacenters: faker.random.arrayElements(DATACENTERS, faker.random.number({ min: 1, max: 4 })),
+  status: faker.helpers.randomize(JOB_STATUSES),
+  datacenters: faker.helpers.randomize(DATACENTERS, faker.random.number({ min: 1, max: 4 })),
 
   childrenCount: () => faker.random.number({ min: 1, max: 2 }),
 

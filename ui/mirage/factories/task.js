@@ -11,7 +11,7 @@ export default Factory.extend({
   JobID: '',
 
   name: id => `task-${faker.hacker.noun().dasherize()}-${id}`,
-  driver: faker.random.arrayElement(DRIVERS),
+  driver: faker.helpers.randomize(DRIVERS),
 
   Resources: generateResources,
 });

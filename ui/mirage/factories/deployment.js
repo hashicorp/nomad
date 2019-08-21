@@ -11,11 +11,11 @@ export default Factory.extend({
   jobId: null,
   versionNumber: null,
 
-  status: faker.random.arrayElement(DEPLOYMENT_STATUSES),
+  status: faker.helpers.randomize(DEPLOYMENT_STATUSES),
   statusDescription: () => faker.lorem.sentence(),
 
   notActive: trait({
-    status: faker.random.arrayElement(DEPLOYMENT_STATUSES.without('running')),
+    status: faker.helpers.randomize(DEPLOYMENT_STATUSES.without('running')),
   }),
 
   active: trait({

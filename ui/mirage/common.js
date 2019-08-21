@@ -23,10 +23,10 @@ export const HOSTS = provide(100, () => {
 
 export function generateResources(options = {}) {
   return {
-    CPU: faker.random.arrayElement(CPU_RESERVATIONS),
-    MemoryMB: faker.random.arrayElement(MEMORY_RESERVATIONS),
-    DiskMB: faker.random.arrayElement(DISK_RESERVATIONS),
-    IOPS: faker.random.arrayElement(IOPS_RESERVATIONS),
+    CPU: faker.helpers.randomize(CPU_RESERVATIONS),
+    MemoryMB: faker.helpers.randomize(MEMORY_RESERVATIONS),
+    DiskMB: faker.helpers.randomize(DISK_RESERVATIONS),
+    IOPS: faker.helpers.randomize(IOPS_RESERVATIONS),
     Networks: generateNetworks(options.networks),
   };
 }

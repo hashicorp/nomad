@@ -10,7 +10,7 @@ export default Factory.extend({
 
   ephemeralDisk: () => ({
     Sticky: faker.random.boolean(),
-    SizeMB: faker.random.arrayElement(DISK_RESERVATIONS),
+    SizeMB: faker.helpers.randomize(DISK_RESERVATIONS),
     Migrate: faker.random.boolean(),
   }),
 
