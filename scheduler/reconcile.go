@@ -331,7 +331,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	}
 	if !existingDeployment {
 		dstate = &structs.DeploymentState{}
-		if tg.Update != nil {
+		if tg.Update != nil && tg.Update.MaxParallel != 0 {
 			dstate.AutoRevert = tg.Update.AutoRevert
 			dstate.AutoPromote = tg.Update.AutoPromote
 			dstate.ProgressDeadline = tg.Update.ProgressDeadline

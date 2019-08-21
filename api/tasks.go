@@ -438,6 +438,8 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 
 	if g.Update != nil {
 		g.Update.Canonicalize()
+	} else if *job.Type == "service" {
+		g.Update = DefaultUpdateStrategy()
 	}
 
 	// Merge the reschedule policy from the job
