@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 # Build the static web site in website/build
-cd website
 bundle install
 bundle exec middleman build
 
