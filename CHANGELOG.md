@@ -3,6 +3,7 @@
 SECURITY:
 
  * client/template: Fix security vulnerabilities associated with task template rendering (CVE-2019-14802), introduced in Nomad 0.5.0 [[GH-6055](https://github.com/hashicorp/nomad/issues/6055)] [[GH-6075](https://github.com/hashicorp/nomad/issues/6075)]
+ * client/artifact: Fix a privilege escalation in the `exec` driver exploitable by artifacts with setuid permissions (CVE-2019-14803) [[GH-6176](https://github.com/hashicorp/nomad/issues/6176)]
 
 __BACKWARDS INCOMPATIBILITIES:__
 
