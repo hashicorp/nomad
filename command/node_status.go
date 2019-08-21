@@ -490,7 +490,7 @@ func (c *NodeStatusCommand) outputNodeVolumeInfo(node *api.Node) {
 
 	for _, volName := range names {
 		info := node.HostVolumes[volName]
-		output = append(output, fmt.Sprintf("%s|%v|%v|%s", volName, info.ReadOnly, info.Hidden, info.Source))
+		output = append(output, fmt.Sprintf("%s|%v|%v|%s", volName, info.ReadOnly, info.Hidden, info.Path))
 	}
 	c.Ui.Output(formatList(output))
 }
