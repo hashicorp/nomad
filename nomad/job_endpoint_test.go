@@ -185,7 +185,7 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	newVolumeJob := func() *structs.Job {
+	newVolumeJob := func(readonlyVolume bool) *structs.Job {
 		j := mock.Job()
 		tg := j.TaskGroups[0]
 		tg.Volumes = map[string]*structs.VolumeRequest{
@@ -194,6 +194,7 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 				Config: map[string]interface{}{
 					"source": "prod-ca-certs",
 				},
+				ReadOnly: readonlyVolume,
 			},
 		}
 
@@ -201,7 +202,8 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 			{
 				Volume:      "ca-certs",
 				Destination: "/etc/ca-certificates",
-				ReadOnly:    true,
+				// Task readonly does not effect acls
+				ReadOnly: true,
 			},
 		}
 
@@ -212,9 +214,13 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 
 	submitJobToken := mock.CreatePolicyAndToken(t, s1.State(), 1001, "test-submit-job", submitJobPolicy)
 
-	volumesPolicy := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMount})
+	volumesPolicyReadWrite := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadWrite})
 
-	submitJobWithVolumesToken := mock.CreatePolicyAndToken(t, s1.State(), 1002, "test-submit-volumes", submitJobPolicy+"\n"+volumesPolicy)
+	submitJobWithVolumesReadWriteToken := mock.CreatePolicyAndToken(t, s1.State(), 1002, "test-submit-volumes", submitJobPolicy+"\n"+volumesPolicyReadWrite)
+
+	volumesPolicyReadOnly := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadOnly})
+
+	submitJobWithVolumesReadOnlyToken := mock.CreatePolicyAndToken(t, s1.State(), 1003, "test-submit-volumes-readonly", submitJobPolicy+"\n"+volumesPolicyReadOnly)
 
 	cases := []struct {
 		Name        string
@@ -235,15 +241,27 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 			ErrExpected: false,
 		},
 		{
-			Name:        "with a token that can submit a job, but not use a required volumes",
-			Job:         newVolumeJob(),
+			Name:        "with a token that can submit a job, but not use a required volume",
+			Job:         newVolumeJob(false),
 			Token:       submitJobToken.SecretID,
 			ErrExpected: true,
 		},
 		{
 			Name:        "with a token that can submit a job, and use all required volumes",
-			Job:         newVolumeJob(),
-			Token:       submitJobWithVolumesToken.SecretID,
+			Job:         newVolumeJob(false),
+			Token:       submitJobWithVolumesReadWriteToken.SecretID,
+			ErrExpected: false,
+		},
+		{
+			Name:        "with a token that can submit a job, but only has readonly access",
+			Job:         newVolumeJob(false),
+			Token:       submitJobWithVolumesReadOnlyToken.SecretID,
+			ErrExpected: true,
+		},
+		{
+			Name:        "with a token that can submit a job, and readonly volume access is enough",
+			Job:         newVolumeJob(true),
+			Token:       submitJobWithVolumesReadOnlyToken.SecretID,
 			ErrExpected: false,
 		},
 	}
