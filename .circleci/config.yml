@@ -202,8 +202,6 @@ jobs:
           command: cd ui && yarn test
   
   test-website:
-    docker:
-      - image: hashicorp/middleman-hashicorp:0.3.35
     environment:
       RUN_WEBSITE_TESTS: 1
       SKIP_NOMAD_TESTS: 1
