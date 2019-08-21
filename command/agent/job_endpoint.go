@@ -753,7 +753,6 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 				Name:     v.Name,
 				Type:     v.Type,
 				ReadOnly: v.ReadOnly,
-				Hidden:   v.Hidden,
 				Config:   v.Config,
 			}
 
