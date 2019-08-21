@@ -25,6 +25,9 @@ type Client interface {
 	// NodeGetInfo is used to return semantic data about the current node in
 	// respect to the SP.
 	NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error)
+
+	// Shutdown the client and ensure any connections are cleaned up.
+	Close() error
 }
 
 type NodeGetInfoResponse struct {
@@ -37,6 +40,13 @@ type client struct {
 	identityClient   csipbv1.IdentityClient
 	controllerClient csipbv1.ControllerClient
 	nodeClient       csipbv1.NodeClient
+}
+
+func (c *client) Close() error {
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+	return nil
 }
 
 func NewClient(addr string) (Client, error) {
