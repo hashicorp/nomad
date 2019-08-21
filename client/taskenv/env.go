@@ -83,6 +83,9 @@ const (
 	// MetaPrefix is the prefix for passing task meta data.
 	MetaPrefix = "NOMAD_META_"
 
+	// UpstreamPrefix is the prefix for passing upstream IP and ports to the alloc
+	UpstreamPrefix = "NOMAD_UPSTREAM_"
+
 	// VaultToken is the environment variable for passing the Vault token
 	VaultToken = "VAULT_TOKEN"
 
@@ -338,6 +341,9 @@ type Builder struct {
 	// environment variables without having to hardcode the name of the hook.
 	deviceHookName string
 
+	// upstreams from the group connect enabled services
+	upstreams []structs.ConsulUpstream
+
 	mu *sync.RWMutex
 }
 
@@ -421,6 +427,9 @@ func (b *Builder) Build() *TaskEnv {
 	for k, v := range b.otherPorts {
 		envMap[k] = v
 	}
+
+	// Build the Consul Connect upstream env vars
+	buildUpstreamsEnv(envMap, b.upstreams)
 
 	// Build the Vault Token
 	if b.injectVaultToken && b.vaultToken != "" {
@@ -584,8 +593,10 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, k)] = v
 	}
 
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+
 	// COMPAT(0.11): Remove in 0.11
-	b.otherPorts = make(map[string]string, len(alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks)*2)
+	b.otherPorts = make(map[string]string, len(tg.Tasks)*2)
 	if alloc.AllocatedResources != nil {
 		// Populate task resources
 		if tr, ok := alloc.AllocatedResources.Tasks[b.taskName]; ok {
@@ -638,6 +649,12 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 					addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
 				}
 			}
+		}
+	}
+
+	for _, svc := range tg.Services {
+		if svc.Connect.HasSidecar() && svc.Connect.SidecarService.HasUpstreams() {
+			b.AddUpstreams(svc.Connect.SidecarService.Proxy.Upstreams)
 		}
 	}
 	return b
@@ -727,6 +744,31 @@ func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet
 	} else {
 		// Default to host's
 		envMap[PortPrefix+p.Label] = portStr
+	}
+}
+
+// SetUpstreams defined by connect enabled group services
+func (b *Builder) AddUpstreams(upstreams []structs.ConsulUpstream) *Builder {
+	b.mu.Lock()
+	b.upstreams = append(b.upstreams, upstreams...)
+	b.mu.Unlock()
+	return b
+}
+
+// buildUpstreamsEnv builds NOMAD_UPSTREAM_{IP,PORT,ADDR}_{destination} vars
+func buildUpstreamsEnv(envMap map[string]string, upstreams []structs.ConsulUpstream) {
+	const ip = "127.0.0.1"
+	for _, u := range upstreams {
+		port := strconv.Itoa(u.LocalBindPort)
+		envMap[UpstreamPrefix+"IP_"+u.DestinationName] = ip
+		envMap[UpstreamPrefix+"PORT_"+u.DestinationName] = port
+		envMap[UpstreamPrefix+"ADDR_"+u.DestinationName] = net.JoinHostPort(ip, port)
+
+		// Also add cleaned version
+		cleanName := helper.CleanEnvVar(u.DestinationName, '_')
+		envMap[UpstreamPrefix+"ADDR_"+cleanName] = net.JoinHostPort(ip, port)
+		envMap[UpstreamPrefix+"IP_"+cleanName] = ip
+		envMap[UpstreamPrefix+"PORT_"+cleanName] = port
 	}
 }
 
