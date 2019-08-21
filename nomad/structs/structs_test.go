@@ -2373,6 +2373,22 @@ func TestInvalidServiceCheck(t *testing.T) {
 	if err := s.Validate(); err != nil {
 		t.Fatalf("un-expected error: %v", err)
 	}
+
+	s = Service{
+		Name: "service-name",
+		Checks: []*ServiceCheck{
+			{
+				Name:     "tcp-check",
+				Type:     ServiceCheckTCP,
+				Interval: 5 * time.Second,
+				Timeout:  2 * time.Second,
+			},
+		},
+		Connect: &ConsulConnect{
+			SidecarService: &ConsulSidecarService{},
+		},
+	}
+	require.Error(t, s.Validate())
 }
 
 func TestDistinctCheckID(t *testing.T) {

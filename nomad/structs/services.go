@@ -407,6 +407,14 @@ func (s *Service) Validate() error {
 			continue
 		}
 
+		// TCP checks against a Consul Connect enabled service are not supported
+		// due to the service being bound to the loopback interface inside the
+		// network namespace
+		if c.Type == ServiceCheckTCP && s.Connect != nil && s.Connect.SidecarService != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: tcp checks are not valid for Connect enabled services", c.Name))
+			continue
+		}
+
 		if err := c.validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: %v", c.Name, err))
 		}
