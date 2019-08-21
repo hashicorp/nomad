@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 
+# Build the static web site in website/build
 cd website
 bundle install
 bundle exec middleman build
 
+# Build the UI and move it to website/build/ui
 cd ../ui/
 npm install -g yarn ember-cli
 yarn
