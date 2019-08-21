@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Build the static web site in website/build
-bundle install
+# bundle install     should be cached???
 bundle exec middleman build
 
 # Build the UI and move it to website/build/ui
