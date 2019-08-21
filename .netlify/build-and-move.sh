@@ -6,12 +6,12 @@ bundle exec middleman build
 
 # Build the UI and move it to website/build/ui
 cd ../ui/
-# npm install -g yarn ember-cli
-# yarn
-# ember build
-# mkdir -p ../website/build/ui
+npm install -g yarn ember-cli
+yarn
+ember build
+mkdir -p ../website/build/ui
 
-# mv dist/* ../website/build/ui/
+mv dist/* ../website/build/ui/
 
 cd ../
 
