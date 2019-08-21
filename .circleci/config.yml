@@ -53,6 +53,8 @@ workflows:
       - test-rkt:
           <<: *IGNORE_FOR_UI_BRANCHES
       - test-ui
+      - test-website:
+          <<: *IGNORE_FOR_UI_BRANCHES
       # - build-deps-image:
       #     context: dani-test
       #     filters:
@@ -198,6 +200,16 @@ jobs:
       - run:
           name: Ember tests
           command: cd ui && yarn test
+  
+  test-website:
+    docker:
+      - image: hashicorp/middleman-hashicorp:0.3.35
+    environment:
+      RUN_WEBSITE_TESTS: 1
+      SKIP_NOMAD_TESTS: 1
+    steps:
+      - checkout
+      - run: make test
 
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
