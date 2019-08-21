@@ -1,7 +1,6 @@
 # Netlify is installed under the hc-nomad bot account on GitHub.
 
 [build]
-  # The generated site needs to live at /ui/, so this moves it there after building.
   command = "bash +x ../.netlify/build-and-move.sh"
   base = "website"
   publish = "website/build"
