@@ -1,11 +1,9 @@
-job "check_meta" {
+job "service_meta" {
     type = "service"
     group "group" {
-        count = 1
-
         task "task" {
           service {
-            port = "http"
+            name = "http-service"
             meta {
                 foo = "bar"
             }

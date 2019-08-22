@@ -787,8 +787,8 @@ func TestParse(t *testing.T) {
 		{
 			"service-meta.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("service_check_meta"),
-				Name: helper.StringToPtr("service_check_meta"),
+				ID:   helper.StringToPtr("service_meta"),
+				Name: helper.StringToPtr("service_meta"),
 				Type: helper.StringToPtr("service"),
 				TaskGroups: []*api.TaskGroup{
 					{
