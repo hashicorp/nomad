@@ -575,6 +575,10 @@ func (l *LogConfig) Canonicalize() {
 	if l.MaxFileSizeMB == nil {
 		l.MaxFileSizeMB = intToPtr(10)
 	}
+
+	if l.FileExtension == nil {
+		l.FileExtension = stringToPtr("")
+	}
 }
 
 // DispatchPayloadConfig configures how a task gets its input from a job dispatch
