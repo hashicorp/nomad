@@ -9,11 +9,14 @@ module('Unit | Serializer | Evaluation', function(hooks) {
     this.subject = () => this.store.serializerFor('evaluation');
   });
 
+  const sampleDate = new Date('2018-12-12T00:00:00');
   const normalizationTestCases = [
     {
       name: 'Normal',
       in: {
         ID: 'test-eval',
+        CreateTime: +sampleDate * 1000000,
+        ModifyTime: +sampleDate * 1000000,
         FailedTGAllocs: {
           taskGroup: {
             NodesAvailable: 10,
@@ -29,6 +32,8 @@ module('Unit | Serializer | Evaluation', function(hooks) {
           id: 'test-eval',
           type: 'evaluation',
           attributes: {
+            createTime: sampleDate,
+            modifyTime: sampleDate,
             failedTGAllocs: [
               {
                 name: 'taskGroup',
@@ -52,6 +57,8 @@ module('Unit | Serializer | Evaluation', function(hooks) {
       name: 'Dots in task group names',
       in: {
         ID: 'test-eval',
+        CreateTime: +sampleDate * 1000000,
+        ModifyTime: +sampleDate * 1000000,
         FailedTGAllocs: {
           'one.two': {
             NodesAvailable: 10,
@@ -70,6 +77,8 @@ module('Unit | Serializer | Evaluation', function(hooks) {
           id: 'test-eval',
           type: 'evaluation',
           attributes: {
+            modifyTime: sampleDate,
+            createTime: sampleDate,
             failedTGAllocs: [
               {
                 name: 'one.two',
