@@ -35,8 +35,9 @@ const (
 
 // FileRotator writes bytes to a rotated set of files
 type FileRotator struct {
-	MaxFiles int   // MaxFiles is the maximum number of rotated files allowed in a path
-	FileSize int64 // FileSize is the size a rotated file is allowed to grow
+	MaxFiles      int    // MaxFiles is the maximum number of rotated files allowed in a path
+	FileSize      int64  // FileSize is the size a rotated file is allowed to grow
+	FileExtension string // FileExtension is appened to the end of the rotated files
 
 	path             string // path is the path on the file system where the rotated set of files are opened
 	baseFileName     string // baseFileName is the base file name of the rotated files
