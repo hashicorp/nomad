@@ -15,7 +15,7 @@ The first step in running a job is authoring the job HCL or JSON. Code can be au
 the UI, complete with syntax highlighting, or it can be pasted in. After you have authored the job,
 the next step is to run the plan.
 
-~> Screenshot (Job submit editor)
+[![Job Run Page][img-job-run]][img-job-run]
 
 ## Nomad plan
 
@@ -27,7 +27,7 @@ The second step to submitting a job is reviewing the job plan. If you are submit
 plan will only show additions. If you are submitting a new version of the job, the plan will include
 details on what has been changed, added, and removed.
 
-~> Screenshot (Job plan no issues)
+[![Job Plan Page][img-job-plan]][img-job-plan]
 
 The plan operation will also perform a scheduler dry-run. This dry-run is helpful for catching
 potential issues early. Some potential issues are:
@@ -37,7 +37,7 @@ potential issues early. Some potential issues are:
 3. Your job has an unresolvable hard constraint (e.g., required port not available).
 4. In order to start your job, other jobs must be preempted.
 
-~> Screenshot (Job plan placement failures)
+[![Job Plan Placement Failures][img-job-plan-placement-failures]][img-job-plan-placement-failures]
 
 From the plan step, you can either cancel to make edits, or run the job. When you run the job, you
 are redirected to the Job Overview page.
@@ -61,7 +61,7 @@ Another class of potential issues when planning a job is
 [preemptions](/docs/internals/scheduling/preemption.html). This happens when the cluster does not
 have capacity for your job, but your job is a high priority and the cluster has preemptions enabled.
 
-~> Screenshot (Job plan preemptions)
+[![Job Plan Preemptions][img-job-plan-preemptions]][img-job-plan-preemptions]
 
 Unlike with placement failures, when you submit a job that has expected preemptions, the job will
 start. However, other allocations will be stopped to free up capacity.
@@ -88,7 +88,7 @@ depends on the configuration of the job.
 No matter the configuration of the job, the Job Overview page will live-update as the state of the
 job and its allocations change.
 
-~> Screenshot (Job overview)
+[![Job Overview][img-job-overview]][img-job-overview]
 
 ## Job Definition
 
@@ -100,7 +100,7 @@ be on the Job Overview page, but some deeper properties may only be available in
 itself. It can also be convenient to see everything at once rather than traversing through task
 groups, allocations, and tasks.
 
-~> Screenshot (Job definition)
+[![Job Definition][img-job-definition]][img-job-definition]
 
 ## Job Versions
 
@@ -112,7 +112,7 @@ stable, the number of changes, and the job diff itself.
 
 Reviewing the job diffs version by version can be used to debug issues in a similar manner to `git log`.
 
-~> Screenshot (Job version)
+[![Jobs Versions][img-job-versions]][img-job-versions]
 
 ## Job Deployments
 
@@ -127,7 +127,7 @@ The allocation breakdown includes information on allocation placement, including
 have been placed, how many canaries are expected, how many total allocations have been placed, how
 many total allocations are desired, and the health of each allocation.
 
-~> Screenshot (Job deployments)
+[![Jobs Deployments][img-job-deployments]][img-job-deployments]
 
 ## Job Allocations
 
@@ -139,7 +139,7 @@ of the recent allocations for a job for convenience and the Job Task Group page 
 allocations for that task group, but only the Job Allocations page shows every allocation across all
 task groups for the job.
 
-~> Screenshot (Job allocations)
+[![Jobs Allocations][img-job-allocations]][img-job-allocations]
 
 ## Job Evaluations
 
@@ -149,7 +149,7 @@ The Job Evaluations page will show the most recent evaluations for the job. Eval
 internal detail of Nomad's inner scheduling process and as such are generally unimportant to
 monitor, but an experienced Nomad user can use evaluations to diagnose potential issues.
 
-~> Screenshot (Job evaluations)
+[![Job Evaluations][img-job-evaluations]][img-job-evaluations]
 
 ## Access Control
 
@@ -172,3 +172,14 @@ the rest of your infrastructure, as code.
 By checking in your job definition files as source control, you will always have a log of changes to
 assist in debugging issues, rolling back versions, and collaborating on changes using development
 best practices like code review.
+
+[img-job-run]: /assets/images/guide-ui-img-job-run.png
+[img-job-plan]: /assets/images/guide-ui-img-job-plan.png
+[img-job-plan-placement-failures]: /assets/images/guide-ui-img-job-plan-placement-failures.png
+[img-job-plan-preemptions]: /assets/images/guide-ui-img-job-plan-preemptions.png
+[img-job-overview]: /assets/images/guide-ui-img-job-overview-system.png
+[img-job-definition]: /assets/images/guide-ui-img-job-definition.png
+[img-job-versions]: /assets/images/guide-ui-img-job-versions.png
+[img-job-deployments]: /assets/images/guide-ui-img-job-deployments.png
+[img-job-allocations]: /assets/images/guide-ui-img-job-allocations.png
+[img-job-evaluations]: /assets/images/guide-ui-img-job-evaluations.png
