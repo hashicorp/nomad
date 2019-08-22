@@ -324,10 +324,11 @@ type Service struct {
 	// this service.
 	AddressMode string
 
-	Tags       []string        // List of tags for the service
-	CanaryTags []string        // List of tags for the service when it is a canary
-	Checks     []*ServiceCheck // List of checks associated with the service
-	Connect    *ConsulConnect  // Consul Connect configuration
+	Tags       []string          // List of tags for the service
+	CanaryTags []string          // List of tags for the service when it is a canary
+	Checks     []*ServiceCheck   // List of checks associated with the service
+	Connect    *ConsulConnect    // Consul Connect configuration
+	Meta       map[string]string // Consul service meta
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -349,6 +350,8 @@ func (s *Service) Copy() *Service {
 	}
 
 	ns.Connect = s.Connect.Copy()
+
+	ns.Meta = helper.CopyMapStringString(s.Meta)
 
 	return ns
 }
@@ -458,6 +461,10 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	for _, tag := range s.CanaryTags {
 		io.WriteString(h, tag)
 	}
+	for k, v := range s.Meta {
+		io.WriteString(h, k)
+		io.WriteString(h, v)
+	}
 
 	// Vary ID on whether or not CanaryTags will be used
 	if canary {
@@ -511,6 +518,10 @@ OUTER:
 	}
 
 	if s.PortLabel != o.PortLabel {
+		return false
+	}
+
+	if !reflect.DeepEqual(s.Meta, o.Meta) {
 		return false
 	}
 
