@@ -79,6 +79,13 @@ executors:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine: true # TODO: Find latest docker image id
 
+  # uses a more recent image with unattended upgrades disabled properly
+  # but seems to break docker builds
+  go-machine-recent:
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    machine:
+      image: ubuntu-1604:201903-01
+
 jobs:
   build-deps-image:
     executor: docker-builder
@@ -119,7 +126,7 @@ jobs:
           path: /tmp/test-reports
 
   test-rkt:
-    executor: go-machine
+    executor: go-machine-recent
     environment:
       <<: *COMMON_ENVS
       GOTEST_PKGS: "./drivers/rkt"
