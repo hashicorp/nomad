@@ -41,6 +41,9 @@ type LogConfig struct {
 
 	// MaxFileSizeMB is the max log file size in MB allowed before rotation occures
 	MaxFileSizeMB int
+
+	// FileExtension is appended to the end of log files
+	FileExtension string
 }
 
 type LogMon interface {

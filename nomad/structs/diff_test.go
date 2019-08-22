@@ -3402,6 +3402,7 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
+					FileExtension: "txt",
 				},
 			},
 			Expected: &TaskDiff{
@@ -3411,6 +3412,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeAdded,
 						Name: "LogConfig",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "FileExtension",
+								Old:  "",
+								New:  "txt",
+							},
 							{
 								Type: DiffTypeAdded,
 								Name: "MaxFileSizeMB",
@@ -3434,6 +3441,7 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
+					FileExtension: "txt",
 				},
 			},
 			New: &Task{},
@@ -3444,6 +3452,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeDeleted,
 						Name: "LogConfig",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "FileExtension",
+								Old:  "txt",
+								New:  "",
+							},
 							{
 								Type: DiffTypeDeleted,
 								Name: "MaxFileSizeMB",
@@ -3467,12 +3481,14 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
+					FileExtension: "log",
 				},
 			},
 			New: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      2,
 					MaxFileSizeMB: 20,
+					FileExtension: "txt",
 				},
 			},
 			Expected: &TaskDiff{
@@ -3482,6 +3498,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "LogConfig",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "FileExtension",
+								Old:  "log",
+								New:  "txt",
+							},
 							{
 								Type: DiffTypeEdited,
 								Name: "MaxFileSizeMB",
@@ -3506,12 +3528,14 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
+					FileExtension: "txt",
 				},
 			},
 			New: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 20,
+					FileExtension: "txt",
 				},
 			},
 			Expected: &TaskDiff{
@@ -3521,6 +3545,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "LogConfig",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "FileExtension",
+								Old:  "txt",
+								New:  "txt",
+							},
 							{
 								Type: DiffTypeEdited,
 								Name: "MaxFileSizeMB",

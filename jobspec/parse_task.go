@@ -204,6 +204,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		valid := []string{
 			"max_files",
 			"max_file_size",
+			"file_extension",
 		}
 		if err := helper.CheckHCLKeys(logsBlock.Val, valid); err != nil {
 			return nil, multierror.Prefix(err, "logs ->")

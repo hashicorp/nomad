@@ -165,6 +165,7 @@ func (h *logmonHook) prestartOneLoop(ctx context.Context, req *interfaces.TaskPr
 		StderrFifo:    h.config.stderrFifo,
 		MaxFiles:      req.Task.LogConfig.MaxFiles,
 		MaxFileSizeMB: req.Task.LogConfig.MaxFileSizeMB,
+		FileExtension: req.Task.LogConfig.FileExtension,
 	})
 	if err != nil {
 		h.logger.Error("failed to start logmon", "error", err)
