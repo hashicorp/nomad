@@ -14,7 +14,7 @@ port the Nomad HTTP API is running on, try the default port: `4646`.
 
 The first page you will see is a listing of all Jobs for the default namespace.
 
-~> Screenshot
+[![Jobs List][img-jobs-list]][img-jobs-list]
 
 The entire Web UI sitemap is [documented as an API](/api/ui.html).
 
@@ -37,3 +37,5 @@ http://127.0.0.1:4646/ui/jobs/redis-job
 $ nomad ui d4005969
 Opening URL "http://127.0.0.1:4646/ui/allocations/d4005969-b16f-10eb-4fe1-a5374986083d"
 ```
+
+[img-jobs-list]: /assets/images/guide-ui-jobs-list.png
