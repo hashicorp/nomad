@@ -761,6 +761,9 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 			if t.LogConfig.MaxFileSizeMB > 0 {
 				task.LogConfig.MaxFileSizeMB = t.LogConfig.MaxFileSizeMB
 			}
+			if t.LogConfig.FileExtension != "" {
+				task.LogConfig.FileExtension = t.LogConfig.FileExtension
+			}
 		}
 	}
 

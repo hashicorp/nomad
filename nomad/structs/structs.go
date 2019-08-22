@@ -42,6 +42,9 @@ var (
 	// validPolicyName is used to validate a policy name
 	validPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 
+	// validLogExtension is used to validate log extension
+	validLogExtension = regexp.MustCompile(`^[A-Za-z0-9_-]*$`)
+
 	// b32 is a lowercase base32 encoding for use in URL friendly service hashes
 	b32 = base32.NewEncoding(strings.ToLower("abcdefghijklmnopqrstuvwxyz234567"))
 )
@@ -5203,6 +5206,7 @@ const (
 type LogConfig struct {
 	MaxFiles      int
 	MaxFileSizeMB int
+	FileExtension string
 }
 
 func (l *LogConfig) Copy() *LogConfig {
@@ -5212,6 +5216,7 @@ func (l *LogConfig) Copy() *LogConfig {
 	return &LogConfig{
 		MaxFiles:      l.MaxFiles,
 		MaxFileSizeMB: l.MaxFileSizeMB,
+		FileExtension: l.FileExtension,
 	}
 }
 
@@ -5220,6 +5225,7 @@ func DefaultLogConfig() *LogConfig {
 	return &LogConfig{
 		MaxFiles:      10,
 		MaxFileSizeMB: 10,
+		FileExtension: "",
 	}
 }
 
@@ -5233,6 +5239,10 @@ func (l *LogConfig) Validate() error {
 	if l.MaxFileSizeMB < 1 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum file size is 1MB; got %d", l.MaxFileSizeMB))
 	}
+	if validLogExtension.MatchString(l.FileExtension) == false {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid log extension %s", l.FileExtension))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
