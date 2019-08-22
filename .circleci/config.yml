@@ -208,7 +208,7 @@ jobs:
       SKIP_NOMAD_TESTS: 1
     steps:
       - checkout
-      - run: make test
+      - run-tests
 
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
