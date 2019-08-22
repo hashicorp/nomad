@@ -202,6 +202,7 @@ jobs:
           command: cd ui && yarn test
   
   test-website:
+    executor: go
     environment:
       RUN_WEBSITE_TESTS: 1
       SKIP_NOMAD_TESTS: 1
