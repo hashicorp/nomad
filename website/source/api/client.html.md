@@ -9,7 +9,7 @@ description: |-
 
 # Client HTTP API
 
-The `/client` endpoints are used to interact with the Nomad clients. 
+The `/client` endpoints are used to interact with the Nomad clients.
 
 Since Nomad 0.8.0, both a client and server can handle client endpoints. This is
 particularly useful for when a direct connection to a client is not possible due
@@ -362,6 +362,8 @@ The table below shows this endpoint's support for
 
 - `path` `(string: "/")` - Specifies the path of the file to read, relative to
   the root of the allocation directory.
+
+- `follow` `(bool: true)`- Specifies whether to tail the file.
 
 - `offset` `(int: <required>)` - Specifies the byte offset from where content
   will be read.

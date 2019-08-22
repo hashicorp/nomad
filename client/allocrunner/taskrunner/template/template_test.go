@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
@@ -124,8 +125,13 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 		mockHooks: NewMockTaskHooks(),
 		templates: templates,
 		node:      mock.Node(),
-		config:    &config.Config{Region: region},
-		emitRate:  DefaultMaxTemplateEventRate,
+		config: &config.Config{
+			Region: region,
+			TemplateConfig: &config.ClientTemplateConfig{
+				FunctionBlacklist: []string{"plugin"},
+				DisableSandbox:    false,
+			}},
+		emitRate: DefaultMaxTemplateEventRate,
 	}
 
 	// Build the task environment
@@ -1020,6 +1026,52 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 
 	require.NotNil(harness.mockHooks.KillEvent)
 	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "failed to send signals")
+}
+
+// TestTaskTemplateManager_FiltersProcessEnvVars asserts that we only render
+// environment variables found in task env-vars and not read the nomad host
+// process environment variables.  nomad host process environment variables
+// are to be treated the same as not found environment variables.
+func TestTaskTemplateManager_FiltersEnvVars(t *testing.T) {
+	t.Parallel()
+
+	defer os.Setenv("NOMAD_TASK_NAME", os.Getenv("NOMAD_TASK_NAME"))
+	os.Setenv("NOMAD_TASK_NAME", "should be overridden by task")
+
+	testenv := "TESTENV_" + strings.ReplaceAll(uuid.Generate(), "-", "")
+	os.Setenv(testenv, "MY_TEST_VALUE")
+	defer os.Unsetenv(testenv)
+
+	// Make a template that will render immediately
+	content := `Hello Nomad Task: {{env "NOMAD_TASK_NAME"}}
+TEST_ENV: {{ env "` + testenv + `" }}
+TEST_ENV_NOT_FOUND: {{env "` + testenv + `_NOTFOUND" }}`
+	expected := fmt.Sprintf("Hello Nomad Task: %s\nTEST_ENV: \nTEST_ENV_NOT_FOUND: ", TestTaskName)
+
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: content,
+		DestPath:     file,
+		ChangeMode:   structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.start(t)
+	defer harness.stop()
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		require.Fail(t, "Task unblock should have been called")
+	}
+
+	// Check the file is there
+	path := filepath.Join(harness.taskDir, file)
+	raw, err := ioutil.ReadFile(path)
+	require.NoError(t, err)
+
+	require.Equal(t, expected, string(raw))
 }
 
 // TestTaskTemplateManager_Env asserts templates with the env flag set are read

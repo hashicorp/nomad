@@ -453,8 +453,8 @@ func (c *Client) getNodeClientImpl(nodeID string, timeout time.Duration, q *Quer
 		// If the client is configured for a particular region use that
 		region = c.config.Region
 	default:
-		// No region information is given so use the default.
-		region = "global"
+		// No region information is given so use GlobalRegion as the default.
+		region = GlobalRegion
 	}
 
 	// Get an API client for the node

@@ -882,8 +882,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			hostConfig.NetworkMode = netMode
 		} else {
 			// docker default
-			logger.Debug("networking mode not specified; using default", "network_mode", defaultNetworkMode)
-			hostConfig.NetworkMode = defaultNetworkMode
+			logger.Debug("networking mode not specified; using default")
+			hostConfig.NetworkMode = "default"
 		}
 	}
 
@@ -1323,7 +1323,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 	const execTerminatingTimeout = 3 * time.Second
 	start := time.Now()
 	var res *docker.ExecInspect
-	for res == nil || res.Running || time.Since(start) > execTerminatingTimeout {
+	for (res == nil || res.Running) && time.Since(start) <= execTerminatingTimeout {
 		res, err = client.InspectExec(exec.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to inspect exec result: %v", err)

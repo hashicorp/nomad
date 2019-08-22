@@ -18,16 +18,18 @@ import (
 
 // TestDecompressCase is a single test case for testing decompressors
 type TestDecompressCase struct {
-	Input   string   // Input is the complete path to the input file
-	Dir     bool     // Dir is whether or not we're testing directory mode
-	Err     bool     // Err is whether we expect an error or not
-	DirList []string // DirList is the list of files for Dir mode
-	FileMD5 string   // FileMD5 is the expected MD5 for a single file
-	Mtime *time.Time // Mtime is the optionally expected mtime for a single file (or all files if in Dir mode)
+	Input   string     // Input is the complete path to the input file
+	Dir     bool       // Dir is whether or not we're testing directory mode
+	Err     bool       // Err is whether we expect an error or not
+	DirList []string   // DirList is the list of files for Dir mode
+	FileMD5 string     // FileMD5 is the expected MD5 for a single file
+	Mtime   *time.Time // Mtime is the optionally expected mtime for a single file (or all files if in Dir mode)
 }
 
 // TestDecompressor is a helper function for testing generic decompressors.
 func TestDecompressor(t testing.T, d Decompressor, cases []TestDecompressCase) {
+	t.Helper()
+
 	for _, tc := range cases {
 		t.Logf("Testing: %s", tc.Input)
 

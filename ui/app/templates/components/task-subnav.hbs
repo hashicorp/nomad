@@ -1,0 +1,7 @@
+<div class="tabs is-subnav">
+  <ul>
+    <li>{{#link-to "allocations.allocation.task.index" task.allocation task activeClass="is-active"}}Overview{{/link-to}}</li>
+    <li>{{#link-to "allocations.allocation.task.logs" task.allocation task activeClass="is-active"}}Logs{{/link-to}}</li>
+    <li>{{#link-to "allocations.allocation.task.fs-root" task.allocation task class=(if filesLinkActive "is-active")}}Files{{/link-to}}</li>
+  </ul>
+</div>

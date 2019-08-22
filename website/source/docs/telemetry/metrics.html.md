@@ -705,9 +705,9 @@ detailed above) but any new metrics will only be available in the new format.
   </tr>
 </table>
 
-## Job Metrics
+## Job Summary Metrics
 
-Job metrics are emitted by the Nomad leader server.
+Job summary metrics are emitted by the Nomad leader server.
 
 <table class="table table-bordered table-striped">
   <tr>
@@ -758,6 +758,37 @@ Job metrics are emitted by the Nomad leader server.
     <td>Integer</td>
     <td>Gauge</td>
     <td>job, task_group</td>
+  </tr>
+</table>
+
+## Job Status Metrics
+
+Job status metrics are emitted by the Nomad leader server.
+
+<table class="table table-bordered table-striped">
+  <tr>
+    <th>Metric</th>
+    <th>Description</th>
+    <th>Unit</th>
+    <th>Type</th>
+  </tr>
+  <tr>
+    <td>`nomad.job_status.pending`</td>
+    <td>Number jobs pending</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.job_status.running`</td>
+    <td>Number jobs running</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+  </tr>
+  <tr>
+    <td>`nomad.job_status.dead`</td>
+    <td>Number of dead jobs</td>
+    <td>Integer</td>
+    <td>Gauge</td>
   </tr>
 </table>
 

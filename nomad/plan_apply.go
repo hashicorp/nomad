@@ -293,6 +293,8 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 				Type:        job.Type,
 				Priority:    job.Priority,
 				Status:      structs.EvalStatusPending,
+				CreateTime:  now,
+				ModifyTime:  now,
 			}
 			evals = append(evals, eval)
 		}

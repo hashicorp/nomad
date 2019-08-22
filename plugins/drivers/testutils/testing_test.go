@@ -259,3 +259,28 @@ func TestBaseDriver_TaskEvents(t *testing.T) {
 	}
 
 }
+
+func TestBaseDriver_Capabilities(t *testing.T) {
+	capabilities := &drivers.Capabilities{
+		NetIsolationModes: []drivers.NetIsolationMode{
+			drivers.NetIsolationModeHost,
+			drivers.NetIsolationModeGroup,
+		},
+		MustInitiateNetwork: true,
+		SendSignals:         true,
+		Exec:                true,
+		FSIsolation:         drivers.FSIsolationNone,
+	}
+	d := &MockDriver{
+		CapabilitiesF: func() (*drivers.Capabilities, error) {
+			return capabilities, nil
+		},
+	}
+
+	harness := NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	caps, err := harness.Capabilities()
+	require.NoError(t, err)
+	require.Equal(t, capabilities, caps)
+}

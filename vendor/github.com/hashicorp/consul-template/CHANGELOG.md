@@ -1,4 +1,21 @@
-## UNRELEASED
+## v0.21.0 (August 05, 2019)
+
+IMPROVEMENTS:
+
+* Migrated to use Go modules [[GH-1244](https://github.com/hashicorp/consul-template/pull/1244), [GH-1173](https://github.com/hashicorp/consul-template/issues/1173), [GH-1208](https://github.com/hashicorp/consul-template/pull/1208)[GH-1232](https://github.com/hashicorp/consul-template/pull/1232)]
+* Template blacklist feature [[GH-1243](https://github.com/hashicorp/consul-template/pull/1243)]
+
+## v0.20.1 (July 30, 2019)
+
+BUG FIXES:
+
+* Fixed issue with exec running before template rendering when wait is set [[GH-1229](https://github.com/hashicorp/consul-template/issues/1229), [GH-1209](https://github.com/hashicorp/consul-template/issues/1209)]
+* Fixed issue with templates not rendering with `-once` [[GH-1227](https://github.com/hashicorp/consul-template/pull/1227), [GH-1196](https://github.com/hashicorp/consul-template/issues/1196), [GH-1207](https://github.com/hashicorp/consul-template/issues/1207)]
+* Fixed regression with ~/.vault-token and with vault_agent_token_file not respecting renew_token [[GH-1228](https://github.com/hashicorp/consul-template/issues/1228), [GH-1189](https://github.com/hashicorp/consul-template/issues/1189)]
+* CA certificates missing from docker 'light' image [[GH-1200](https://github.com/hashicorp/consul-template/issues/1200)]
+* Fixed issue with dedup data garbage in Consul KV [[GH-1158](https://github.com/hashicorp/consul-template/issues/1158), [[GH-1168](https://github.com/hashicorp/consul-template/issues/1168)]
+* Fixed bad case in import path [[GH-1139](https://github.com/hashicorp/consul-template/issues/1139)]
+* Documented limits on using "." in service names [[GH-1205](https://github.com/hashicorp/consul-template/issues/1205)]
 
 ## v0.20.0 (February 19, 2019)
 
