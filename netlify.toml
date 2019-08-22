@@ -1,6 +1,0 @@
-# Netlify is installed under the hc-nomad bot account on GitHub.
-
-[build]
-  command = "bash +x ../.netlify/build-and-move.sh"
-  base = "website"
-  publish = "website/build"
