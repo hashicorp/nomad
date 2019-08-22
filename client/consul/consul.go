@@ -15,4 +15,5 @@ type ConsulServiceAPI interface {
 	RemoveTask(*consul.TaskServices)
 	UpdateTask(old, newTask *consul.TaskServices) error
 	AllocRegistrations(allocID string) (*consul.AllocRegistration, error)
+	UpdateTTL(id, output, status string) error
 }
