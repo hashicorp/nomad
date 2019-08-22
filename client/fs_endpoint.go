@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -828,9 +827,9 @@ func logIndexes(entries []*cstructs.AllocFileInfo, task, logType string) (indexT
 			continue
 		}
 
-		// Convert to an int
-		idx, err := strconv.Atoi(idxStr)
-		if err != nil {
+		// Get log index from file name, ignore file extension
+		var idx int = -1
+		if n, err := fmt.Sscanf(idxStr, "%d", &idx); err != nil || n == 0 {
 			return nil, fmt.Errorf("failed to convert %q to a log index: %v", idxStr, err)
 		}
 
