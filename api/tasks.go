@@ -367,7 +367,6 @@ type VolumeRequest struct {
 	Name     string
 	Type     string
 	ReadOnly bool `mapstructure:"read_only"`
-	Hidden   bool
 
 	Config map[string]interface{}
 }

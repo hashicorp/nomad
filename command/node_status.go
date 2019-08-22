@@ -486,11 +486,11 @@ func (c *NodeStatusCommand) outputNodeVolumeInfo(node *api.Node) {
 	sort.Strings(names)
 
 	output := make([]string, 0, len(names)+1)
-	output = append(output, "Name|ReadOnly|Hidden|Source")
+	output = append(output, "Name|ReadOnly|Source")
 
 	for _, volName := range names {
 		info := node.HostVolumes[volName]
-		output = append(output, fmt.Sprintf("%s|%v|%v|%s", volName, info.ReadOnly, info.Hidden, info.Path))
+		output = append(output, fmt.Sprintf("%s|%v|%s", volName, info.ReadOnly, info.Path))
 	}
 	c.Ui.Output(formatList(output))
 }

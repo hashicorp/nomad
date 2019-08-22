@@ -440,7 +440,6 @@ type DriverInfo struct {
 type HostVolumeInfo struct {
 	Path     string
 	ReadOnly bool
-	Hidden   bool
 }
 
 // Node is used to deserialize a node entry.

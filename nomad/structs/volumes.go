@@ -14,7 +14,6 @@ type ClientHostVolumeConfig struct {
 	Name     string `hcl:",key"`
 	Path     string `hcl:"path"`
 	ReadOnly bool   `hcl:"read_only"`
-	Hidden   bool   `hcl:"hidden"`
 }
 
 func (p *ClientHostVolumeConfig) Copy() *ClientHostVolumeConfig {
@@ -96,7 +95,6 @@ type VolumeRequest struct {
 	Name     string
 	Type     string
 	ReadOnly bool
-	Hidden   bool
 
 	Config map[string]interface{}
 }
