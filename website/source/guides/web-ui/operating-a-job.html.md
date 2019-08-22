@@ -21,7 +21,7 @@ information such as a visual representation of all allocation statuses.
 
 This view will also live-update as jobs get submitted, get purged, and change status.
 
-~> Screenshot (Jobs List)
+[![Jobs List][img-jobs-list]][img-jobs-list]
 
 ## Filtering Jobs
 
@@ -36,7 +36,7 @@ those matching certain facets. The Web UI has four facets you can filter by:
    based on job names up to the first occurrence of `-`, `.`, and `_`. Only prefixes that match
    multiple jobs are included.
 
-~> Screenshot (Zoom in on job filters, with one open)
+[![Job Filters][img-job-filters]][img-job-filters]
 
 ## Monitoring an Allocation
 
@@ -51,7 +51,7 @@ Web UI uses these metrics to create time-series graphs for the current session.
 
 When viewing an allocation, resource utilization will automatically start logging.
 
-~> Screenshot (resource tuilization)
+[![Allocation Resource Utilization][img-alloc-resource-utilization]][img-alloc-resource-utilization]
 
 ### Task Events
 
@@ -60,7 +60,7 @@ issues in the event that the task fails to start.
 
 Task events are listed on the Task Detail page and live-update as Nomad handles managing the task.
 
-~> Screenshot (task events)
+[![Task Events][img-task-events]][img-task-events]
 
 ### Rescheduled Allocations
 
@@ -77,9 +77,9 @@ rescheduled successor. Since Nomad handles all of this automatically, the Web UI
 explain the state of allocations through iconography and linking previous and next allocations in a
 reschedule chain.
 
-~> Screenshot (reschedule icon)
+[![Allocation Reschedule Icon][img-alloc-reschedule-iconj]][img-alloc-reschedule-icon]
 
-~> Screenshot (reschedule section on alloc detail)
+[![Allocation Reschedule Details][img-alloc-reschedule-details]][img-alloc-reschedule-details]
 
 ### Unhealthy Driver
 
@@ -90,7 +90,7 @@ monitor pertinent conditions including driver health.
 The Web UI denotes when a driver an allocation depends on is unhealthy on the client node the
 allocation is running on.
 
-~> Screenshot (unhealthy driver)
+[![Allocation Unhealthy Driver][img-alloc-unhealthy-driver]][img-alloc-unhealthy-driver]
 
 ### Preempted Allocations
 
@@ -103,9 +103,9 @@ preempted as well as the opposite: what allocations an allocation preempted. Thi
 to traverse down from a job to a preempted allocation, to the allocation that caused the preemption,
 to the job that the preempting allocation is for.
 
-~> Screenshot (preempter)
+[![Allocation Preempter][img-alloc-preempter]][img-alloc-preempter]
 
-~> Screenshot (preemptions)
+[![Allocation Preempted][img-alloc-preempted]][img-alloc-preempted]
 
 ## Reviewing Logs for a Task
 
@@ -117,7 +117,7 @@ The Web UI will first attempt to directly connecto to the client node the task i
 Typically, client nodes are not accessible from the public internet. If this is the case, the Web UI
 will fall back and proxy to the client node from the server node with no loss of functionality.
 
-~> Screenshot (task logs)
+[![Task Logs][img-task-logs]][img-task-logs]
 
 ~> Not all browsers support streaming http requests. In the event that streaming is not supported,
 logs will still be followed using interval polling.
@@ -134,7 +134,7 @@ Nomad will mark the allocation as complete and perform a reschedule onto a diffe
 
 Both of these features are also available in the Web UI.
 
-~> Screenshot (allocation stop and restart)
+[![Allocation Stop and Restart][img-alloc-stop-restart]][img-alloc-stop-restart]
 
 ## Forcing a Periodic Instance
 
@@ -143,7 +143,7 @@ waiting for the period duration to elapse. Nomad calls this a
 [periodic force](/docs/commands/job/periodic-force.html) and it can be done from the Web UI on the
 Job Overview page for a periodic job.
 
-~> Screenshot (periodic force)
+[![Periodic Force][img-periodic-force]][img-periodic-force]
 
 ## Submitting a New Version of a Job
 
@@ -151,7 +151,7 @@ From the Job Definition page, a job can be edited. After clicking the Edit butto
 corner of the code window, the job definition JSON becomes editable. The edits can then be planned
 and scheduled.
 
-~> Screenshot (definition edit)
+[![Job Definition Edit][img-job-definition-edit]][img-job-definition-edit]
 
 ~> Since each job within a namespace must have a unique name, it is possible to submit a new version
 of a job from the Run Job screen. Always review the plan output!
@@ -169,14 +169,14 @@ Optionally, a job may use canary deployments to allow for additional health chec
 before a full roll out. If a job uses canaries and is not configured to automatically promote the
 canary, the canary promotion operation can be done from the Job Overview page in the Web UI.
 
-~> Screenshot (job deployment with canary link)
+[![Job Deployment with Canary Promotion][img-job-deployment-canary]][img-job-deployment-canary]
 
 ## Stopping a Job
 
 Jobs can be stopped from the Job Overview page. Stopping a job will gracefully stop all allocations,
 marking them as complete, and freeing up resources in the cluster.
 
-~> Screenshot (job stop)
+[![Job Stop][img-job-stop]][img-job-stop]
 
 ## Access Control
 
@@ -200,3 +200,19 @@ the rest of your infrastructure, as code.
 By checking in your job definition files as source control, you will always have a log of changes to
 assist in debugging issues, rolling back versions, and collaborating on changes using development
 best practices like code review.
+
+[img-jobs-list]: /assets/images/guide-ui-jobs-list.png
+[img-job-filters]: /assets/images/guide-ui-img-job-filters.png
+[img-alloc-resource-utilization]: /assets/images/guide-ui-img-alloc-resource-utilization.png
+[img-task-events]: /assets/images/guide-ui-img-task-events.png
+[img-alloc-reschedule-icon]: /assets/images/guide-ui-img-alloc-reschedule-icon.png
+[img-alloc-reschedule-details]: /assets/images/guide-ui-img-alloc-reschedule-details.png
+[img-alloc-unhealthy-driver]: /assets/images/guide-ui-img-alloc-unhealthy-driver.png
+[img-alloc-preempter]: /assets/images/guide-ui-img-alloc-preempter.png
+[img-alloc-preempted]: /assets/images/guide-ui-img-alloc-preempted.png
+[img-task-logs]: /assets/images/guide-ui-img-task-logs.png
+[img-alloc-stop-restart]: /assets/images/guide-ui-img-alloc-stop-restart.png
+[img-periodic-force]: /assets/images/guide-ui-img-periodic-force.png
+[img-job-definition-edit]: /assets/images/guide-ui-img-job-definition-edit.png
+[img-job-deployment-canary]: /assets/images/guide-ui-img-job-deployment-canary.png
+[img-job-stop]: /assets/images/guide-ui-img-job-stop.png
