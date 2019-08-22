@@ -71,7 +71,7 @@ func TestConsul_Connect(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, services, 2)
 
-	serviceID := makeTaskServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0], false)
+	serviceID := MakeTaskServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0], false)
 	connectID := serviceID + "-sidecar-proxy"
 
 	require.Contains(t, services, serviceID)

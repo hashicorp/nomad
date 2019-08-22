@@ -5695,8 +5695,6 @@ const ConnectProxyPrefix = "connect-proxy"
 // proxied by this task exists in the task group and contains
 // valid Connect config.
 func ValidateConnectProxyService(serviceName string, tgServices []*Service) error {
-	var mErr multierror.Error
-
 	found := false
 	for _, svc := range tgServices {
 		if svc.Name == serviceName && svc.Connect != nil && svc.Connect.SidecarService != nil {
@@ -5706,10 +5704,10 @@ func ValidateConnectProxyService(serviceName string, tgServices []*Service) erro
 	}
 
 	if !found {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy service name not found in services from task group"))
+		return fmt.Errorf("Connect proxy service name not found in services from task group")
 	}
 
-	return mErr.ErrorOrNil()
+	return nil
 }
 
 const (
