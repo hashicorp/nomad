@@ -740,12 +740,8 @@ func (mode *devModeConfig) networkConfig() error {
 			return fmt.Errorf(errMsg, "could not find public network inteface")
 		}
 		iface := ifAddrs[0].Name
-		addr, err := sockaddr.GetInterfaceIP(iface)
-		if err != nil {
-			return fmt.Errorf(errMsg, "could not find address for public interface")
-		}
 		mode.iface = iface
-		mode.bindAddr = addr
+		mode.bindAddr = "0.0.0.0" // allows CLI to "just work"
 		return nil
 	}
 	mode.bindAddr = "127.0.0.1"
