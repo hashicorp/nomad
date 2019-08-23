@@ -112,6 +112,9 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 
 	// create network configurator
 	nc := newNetworkConfigurator(ar.Alloc(), config)
+	if err = nc.Init(); err != nil {
+		return fmt.Errorf("failed to initialize network configurator: %v", err)
+	}
 
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
