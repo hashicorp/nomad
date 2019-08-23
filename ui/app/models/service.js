@@ -5,7 +5,7 @@ import { computed } from '@ember/object';
 
 export default Fragment.extend({
   name: attr('string'),
-  portLabel: attr('number'),
+  portLabel: attr('string'),
   tags: array({ defaultValue: () => [] }),
   connect: attr(),
 
