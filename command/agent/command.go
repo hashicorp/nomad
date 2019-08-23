@@ -77,6 +77,17 @@ func (c *Command) readConfig() *Config {
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
 
 	// Role options
+
+	// Dev mode flags: the stdlib flag package doesn't allow non-bool flags
+	// to be passed an empty value. Although we can workaround this by setting
+	// IsBoolVar on the Value implementation, this results in unclear error
+	// messages. So we manipulate the args directly before passing into the
+	// Parse method.
+	for argIndex, arg := range c.args {
+		if arg == "-dev" || arg == "--dev" {
+			c.args[argIndex] = "-dev=true"
+		}
+	}
 	flags.Var((flaghelper.FuncOptionalStringVar)(func(s string) (err error) {
 		dev, err = newDevModeConfig(s)
 		return err

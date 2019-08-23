@@ -65,4 +65,4 @@ type FuncOptionalStringVar func(s string) error
 
 func (f FuncOptionalStringVar) Set(s string) error { return f(s) }
 func (f FuncOptionalStringVar) String() string     { return "" }
-func (f FuncOptionalStringVar) IsBoolFlag() bool   { return true }
+func (f FuncOptionalStringVar) IsBoolFlag() bool   { return false }
