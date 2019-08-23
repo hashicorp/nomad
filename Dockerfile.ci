@@ -1,4 +1,4 @@
-FROM circleci/golang:1.12.7
+FROM circleci/golang:1.12.9
 ENV PROTOC_VERSION 3.6.1
 ENV VAULT_VERSION 1.1.0
 ENV CONSUL_VERSION 1.4.0
@@ -7,11 +7,6 @@ RUN sudo apt-get update \
     && sudo apt-get -y upgrade \
     && sudo apt-get install -y unzip \
     && sudo rm -rf /var/lib/apt/lists/*
-
-## Add the git repo and run bootstrap to install CI dependencies, then remove
-## the extra checkout to save image size.
-COPY . /tmp/build
-RUN cd /tmp/build && sudo chown -R $(whoami) /tmp/build && make bootstrap && rm -rf /tmp/build
 
 RUN wget -q -O /tmp/protoc.zip https://github.com/google/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip \
     && unzip /tmp/protoc.zip -d /tmp/protoc3 \
@@ -27,4 +22,10 @@ RUN wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/${VAULT_VERSI
 RUN wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip \
     && sudo unzip -d /usr/local/bin /tmp/consul.zip \
     && rm -rf /tmp/consul*
+
+## Add the git repo and run bootstrap to install CI dependencies, then remove
+## the extra checkout to save image size.
+COPY GNUmakefile /tmp/build/GNUmakefile
+COPY scripts /tmp/build/scripts
+RUN cd /tmp/build && sudo chown -R $(whoami) /tmp/build && make deps lint-deps && rm -rf /tmp/build
 
