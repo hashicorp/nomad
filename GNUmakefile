@@ -185,7 +185,7 @@ check: ## Lint the source code
 		--enable structcheck \
 		--enable unconvert \
 		--enable gofmt \
-		./...
+		$(shell go list ./...)
 	@echo "==> Spell checking website..."
 	@misspell -error -source=text website/source/
 
