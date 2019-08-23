@@ -785,6 +785,33 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"service-meta.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("service_meta"),
+				Name: helper.StringToPtr("service_meta"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("group"),
+						Tasks: []*api.Task{
+							{
+								Name: "task",
+								Services: []*api.Service{
+									{
+										Name: "http-service",
+										Meta: map[string]string{
+											"foo": "bar",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
 			"reschedule-job.hcl",
 			&api.Job{
 				ID:          helper.StringToPtr("foo"),

@@ -828,6 +828,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				Tags:        service.Tags,
 				CanaryTags:  service.CanaryTags,
 				AddressMode: service.AddressMode,
+				Meta:        helper.CopyMapStringString(service.Meta),
 			}
 
 			if l := len(service.Checks); l != 0 {
@@ -1005,6 +1006,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			Tags:        s.Tags,
 			CanaryTags:  s.CanaryTags,
 			AddressMode: s.AddressMode,
+			Meta:        helper.CopyMapStringString(s.Meta),
 		}
 
 		if l := len(s.Checks); l != 0 {

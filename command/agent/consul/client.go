@@ -728,6 +728,14 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
 
+	meta := make(map[string]string, len(service.Meta))
+	for k, v := range service.Meta {
+		meta[k] = v
+	}
+
+	// This enables the consul UI to show that Nomad registered this service
+	meta["external-source"] = "nomad"
+
 	// Build the Consul Service registration request
 	serviceReg := &api.AgentServiceRegistration{
 		ID:      id,
@@ -735,10 +743,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		Tags:    tags,
 		Address: ip,
 		Port:    port,
-		// This enables the consul UI to show that Nomad registered this service
-		Meta: map[string]string{
-			"external-source": "nomad",
-		},
+		Meta:    meta,
 		Connect: connect, // will be nil if no Connect stanza
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
