@@ -728,10 +728,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
 
-	meta := make(map[string]string, len(service.Meta))
-	for k, v := range service.Meta {
-		meta[k] = v
-	}
+	meta := helper.CopyMapStringString(service.Meta)
 
 	// This enables the consul UI to show that Nomad registered this service
 	meta["external-source"] = "nomad"

@@ -461,9 +461,8 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	for _, tag := range s.CanaryTags {
 		io.WriteString(h, tag)
 	}
-	for k, v := range s.Meta {
-		io.WriteString(h, k)
-		io.WriteString(h, v)
+	if len(s.Meta) > 0 {
+		fmt.Fprintf(h, "%v", s.Meta)
 	}
 
 	// Vary ID on whether or not CanaryTags will be used
