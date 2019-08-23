@@ -70,7 +70,11 @@ export default Factory.extend({
   }),
 
   withAllocatedResources: trait({
-    allocatedResources: () => generateResources({ networks: { minPorts: 2 } }),
+    allocatedResources: () => {
+      return {
+        Shared: generateResources({ networks: { minPorts: 2 } }),
+      };
+    },
   }),
 
   rescheduleAttempts: 0,
