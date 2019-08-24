@@ -204,10 +204,7 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator io.WriteClos
 	var openFn func() (io.ReadCloser, error)
 	var err error
 
-	//FIXME Revert #5990 and check os.IsNotExist once Go >= 1.12 is the
-	// release compiler.
-	_, serr := os.Stat(path)
-	if serr != nil {
+	if _, ferr := os.Stat(path); os.IsNotExist(ferr) {
 		openFn, err = fifo.CreateAndRead(path)
 	} else {
 		openFn = func() (io.ReadCloser, error) {
@@ -216,7 +213,6 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator io.WriteClos
 	}
 
 	if err != nil {
-		logger.Error("Failed to create FIFO", "stat_error", serr, "create_err", err)
 		return nil, fmt.Errorf("failed to create fifo for extracting logs: %v", err)
 	}
 
