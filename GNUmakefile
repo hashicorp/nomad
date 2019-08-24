@@ -386,4 +386,4 @@ ci-image: IMAGE_TAG=$(shell date +%Y%m%d)
 ci-image:
 	@echo "==> Building CI Image hashicorpnomad/ci-build-image:$(IMAGE_TAG)"
 	@docker build . -f Dockerfile.ci -t hashicorpnomad/ci-build-image:$(IMAGE_TAG)
-	@echo "To push the image, run 'docker push -t hashicorpnomad/ci-build-image:$(IMAGE_TAG)'"
+	@echo "To push the image, run 'docker push hashicorpnomad/ci-build-image:$(IMAGE_TAG)'"
