@@ -171,7 +171,9 @@ check: ## Lint the source code
 		--vendor \
 		--exclude='.*\.generated\.go' \
 		--exclude='.*bindata_assetfs\.go' \
+		--exclude='.*\.pb\.go' \
 		--skip="ui/" \
+		--skip="vendor/" \
 		--sort="path" \
 		--aggregate \
 		--enable-gc \
