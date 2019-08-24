@@ -26,6 +26,8 @@ readonly nomad_enterprise_branch="${5:-master}"
 readonly script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 readonly project_url=https://circleci.hashicorp.engineering/api/v1.1/project/github/hashicorp/nomad-enterprise/tree/master
 
+readonly build_oss_from_enterprise="${NOMAD_OSS_FROM_ENTERPRISE:-false}"
+
 curl --fail --silent --show-error \
     --user "${CIRCLE_API_TOKEN}:" \
     --form "build_parameters[CIRCLE_JOB]=build" \
@@ -34,5 +36,6 @@ curl --fail --silent --show-error \
     --form "build_parameters[NOMAD_OSS_BRANCH]=${nomad_oss_branch}" \
     --form "build_parameters[NOMAD_ENTERPRISE_BRANCH]=${nomad_enterprise_branch}" \
     --form "build_parameters[NOMAD_VERSION]=${nomad_version}" \
+    --form "build_parameters[NOMAD_OSS_FROM_ENTERPRISE]=${build_oss_from_enterprise}" \
     --form "config=@${script_dir}/circleci-release.yaml" \
     ${project_url} | grep "build_url"
