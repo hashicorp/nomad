@@ -784,6 +784,24 @@ func (ar *allocRunner) destroyImpl() {
 	ar.destroyedLock.Unlock()
 }
 
+func (ar *allocRunner) PersistState() error {
+	// note that a race exists where a goroutine attempts to persist state
+	// while another kicks off destruction process.
+	// Here, we attempt to reconcile by always deleting alloc bucket after alloc destruction
+	if ar.IsDestroyed() {
+		err := ar.stateDB.DeleteAllocationBucket(ar.id)
+		if err != nil {
+			ar.logger.Warn("failed to delete allocation bucket", "error", err)
+		}
+		return nil
+	}
+
+	// TODO: consider persisting deployment state along with task status.
+	// While we study why only the alloc is persisted, I opted to maintain current
+	// behavior and not risk adding yet more IO calls unnecessarily.
+	return ar.stateDB.PutAllocation(ar.Alloc())
+}
+
 // Destroy the alloc runner by stopping it if it is still running and cleaning
 // up all of its resources.
 //
