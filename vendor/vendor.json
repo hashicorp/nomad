@@ -376,7 +376,7 @@
 		{"path":"github.com/testify/require","revision":"v1.4.0","version":"v1.4.0"},
 		{"path":"github.com/tonnerre/golang-text","checksumSHA1":"t24KnvC9jRxiANVhpw2pqFpmEu8=","revision":"048ed3d792f7104850acbc8cfc01e5a6070f4c04","revisionTime":"2013-09-25T19:58:46Z"},
 		{"path":"github.com/tv42/httpunix","checksumSHA1":"2xcr/mhxBFlDjpxe/Mc2Wb4RGR8=","revision":"b75d8614f926c077e48d85f1f8f7885b758c6225","revisionTime":"2015-04-27T01:28:21Z"},
-		{"path":"github.com/ugorji/go/codec","checksumSHA1":"8G1zvpE4gTtWQRuP/x2HPVDmflo=","revision":"0053ebfd9d0ee06ccefbfe17072021e1d4acebee","revisionTime":"2017-06-20T06:01:02Z"},
+		{"path":"github.com/ugorji/go/codec","checksumSHA1":"rIwVAqybgQs3ycR5WEgdxqzmkNo=","revision":"23ab95ef5dc3b70286760af84ce2327a2b64ed62","revisionTime":"2019-07-02T15:00:54Z"},
 		{"path":"github.com/ulikunitz/xz","checksumSHA1":"qgMa75aMGbkFY0jIqqqgVnCUoNA=","revision":"0c6b41e72360850ca4f98dc341fd999726ea007f","revisionTime":"2017-06-05T21:53:11Z"},
 		{"path":"github.com/ulikunitz/xz/internal/hash","checksumSHA1":"vjnTkzNrMs5Xj6so/fq0mQ6dT1c=","revision":"0c6b41e72360850ca4f98dc341fd999726ea007f","revisionTime":"2017-06-05T21:53:11Z"},
 		{"path":"github.com/ulikunitz/xz/internal/xlog","checksumSHA1":"m0pm57ASBK/CTdmC0ppRHO17mBs=","revision":"0c6b41e72360850ca4f98dc341fd999726ea007f","revisionTime":"2017-06-05T21:53:11Z"},
