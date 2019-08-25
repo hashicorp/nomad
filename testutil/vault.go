@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/consul/sdk/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs/config"

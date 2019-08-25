@@ -21,7 +21,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/consul/sdk/freeport"
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/helper/discover"
 	testing "github.com/mitchellh/go-testing-interface"

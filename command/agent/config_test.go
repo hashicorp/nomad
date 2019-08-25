@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/consul/sdk/freeport"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"

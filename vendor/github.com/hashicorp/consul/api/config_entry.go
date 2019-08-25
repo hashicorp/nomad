@@ -24,10 +24,15 @@ type ConfigEntry interface {
 	GetModifyIndex() uint64
 }
 
+type ConnectConfiguration struct {
+	SidecarProxy bool
+}
+
 type ServiceConfigEntry struct {
 	Kind        string
 	Name        string
 	Protocol    string
+	Connect     ConnectConfiguration
 	CreateIndex uint64
 	ModifyIndex uint64
 }
