@@ -154,40 +154,40 @@ $ curl \
 ```json
 {
   "Attributes": {
-    "driver.docker.volumes.enabled": "true",
-    "unique.storage.bytesfree": "8273698816",
-    "driver.mock_driver": "1",
-    "unique.cgroup.mountpoint": "/sys/fs/cgroup",
-    "cpu.arch": "amd64",
+    "consul.datacenter": "dc1",
     "consul.revision": "d2adfc0bd",
-    "cpu.numcores": "8",
-    "os.signals": "SIGTTOU,SIGTTIN,SIGSTOP,SIGSYS,SIGXCPU,SIGBUS,SIGKILL,SIGTERM,SIGIOT,SIGILL,SIGIO,SIGQUIT,SIGSEGV,SIGUSR1,SIGXFSZ,SIGCHLD,SIGUSR2,SIGURG,SIGFPE,SIGHUP,SIGINT,SIGPROF,SIGCONT,SIGALRM,SIGPIPE,SIGTRAP,SIGTSTP,SIGWINCH,SIGABRT",
+    "consul.server": "true",
+    "consul.version": "1.5.2",
+    "cpu.arch": "amd64",
+    "cpu.frequency": "4000",
     "cpu.modelname": "Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz",
-    "nomad.version": "0.10.0-dev",
-    "unique.network.ip-address": "127.0.0.1",
+    "cpu.numcores": "8",
+    "cpu.totalcompute": "32000",
+    "driver.docker": "1",
     "driver.docker.bridge_ip": "172.17.0.1",
-    "nomad.revision": "30da2b8f6c3aa860113c9d313c695a05eff5bb97+CHANGES",
+    "driver.docker.os_type": "linux",
+    "driver.docker.runtimes": "runc",
+    "driver.docker.version": "18.09.6",
+    "driver.docker.volumes.enabled": "true",
+    "driver.mock": "true",
+    "driver.mock_driver": "1",
     "driver.raw_exec": "1",
     "kernel.name": "linux",
-    "driver.mock": "true",
-    "cpu.totalcompute": "32000",
-    "unique.storage.volume": "tmpfs",
-    "cpu.frequency": "4000",
-    "nomad.advertise.address": "127.0.0.1:4646",
-    "driver.docker.os_type": "linux",
-    "unique.storage.bytestotal": "8285835264",
     "kernel.version": "4.19.56",
-    "os.name": "nixos",
-    "driver.docker.version": "18.09.6",
-    "consul.server": "true",
-    "unique.consul.name": "mew",
-    "consul.datacenter": "dc1",
-    "consul.version": "1.5.2",
     "memory.totalbytes": "16571674624",
+    "nomad.advertise.address": "127.0.0.1:4646",
+    "nomad.revision": "30da2b8f6c3aa860113c9d313c695a05eff5bb97+CHANGES",
+    "nomad.version": "0.10.0-dev",
+    "os.name": "nixos",
+    "os.signals": "SIGTTOU,SIGTTIN,SIGSTOP,SIGSYS,SIGXCPU,SIGBUS,SIGKILL,SIGTERM,SIGIOT,SIGILL,SIGIO,SIGQUIT,SIGSEGV,SIGUSR1,SIGXFSZ,SIGCHLD,SIGUSR2,SIGURG,SIGFPE,SIGHUP,SIGINT,SIGPROF,SIGCONT,SIGALRM,SIGPIPE,SIGTRAP,SIGTSTP,SIGWINCH,SIGABRT",
+    "os.version": "\"19.03.173017.85f820d6e41 (Koi)\"",
+    "unique.cgroup.mountpoint": "/sys/fs/cgroup",
+    "unique.consul.name": "mew",
     "unique.hostname": "mew",
-    "driver.docker": "1",
-    "driver.docker.runtimes": "runc",
-    "os.version": "\"19.03.173017.85f820d6e41 (Koi)\""
+    "unique.network.ip-address": "127.0.0.1",
+    "unique.storage.bytesfree": "8273698816",
+    "unique.storage.bytestotal": "8285835264",
+    "unique.storage.volume": "tmpfs"
   },
   "ComputedClass": "v1:390058673753570317",
   "CreateIndex": 6,
@@ -195,12 +195,19 @@ $ curl \
   "Drain": false,
   "DrainStrategy": null,
   "Drivers": {
-    "java": {
-      "Attributes": null,
-      "Detected": false,
-      "HealthDescription": "Driver must run as root",
-      "Healthy": false,
-      "UpdateTime": "2019-08-26T12:22:50.687274359+02:00"
+    "docker": {
+      "Attributes": {
+        "driver.docker": "true",
+        "driver.docker.bridge_ip": "172.17.0.1",
+        "driver.docker.os_type": "linux",
+        "driver.docker.runtimes": "runc",
+        "driver.docker.version": "18.09.6",
+        "driver.docker.volumes.enabled": "true"
+      },
+      "Detected": true,
+      "HealthDescription": "Healthy",
+      "Healthy": true,
+      "UpdateTime": "2019-08-26T12:22:50.762716458+02:00"
     },
     "exec": {
       "Attributes": null,
@@ -209,21 +216,12 @@ $ curl \
       "Healthy": false,
       "UpdateTime": "2019-08-26T12:22:50.6873373+02:00"
     },
-    "raw_exec": {
-      "Attributes": {
-        "driver.raw_exec": "true"
-      },
-      "Detected": true,
-      "HealthDescription": "Healthy",
-      "Healthy": true,
-      "UpdateTime": "2019-08-26T12:22:50.687733347+02:00"
-    },
-    "rkt": {
+    "java": {
       "Attributes": null,
       "Detected": false,
       "HealthDescription": "Driver must run as root",
       "Healthy": false,
-      "UpdateTime": "2019-08-26T12:22:50.68796043+02:00"
+      "UpdateTime": "2019-08-26T12:22:50.687274359+02:00"
     },
     "mock_driver": {
       "Attributes": {
@@ -241,19 +239,21 @@ $ curl \
       "Healthy": false,
       "UpdateTime": "2019-08-26T12:22:50.688023782+02:00"
     },
-    "docker": {
+    "raw_exec": {
       "Attributes": {
-        "driver.docker.runtimes": "runc",
-        "driver.docker.os_type": "linux",
-        "driver.docker": "true",
-        "driver.docker.version": "18.09.6",
-        "driver.docker.volumes.enabled": "true",
-        "driver.docker.bridge_ip": "172.17.0.1"
+        "driver.raw_exec": "true"
       },
       "Detected": true,
       "HealthDescription": "Healthy",
       "Healthy": true,
-      "UpdateTime": "2019-08-26T12:22:50.762716458+02:00"
+      "UpdateTime": "2019-08-26T12:22:50.687733347+02:00"
+    },
+    "rkt": {
+      "Attributes": null,
+      "Detected": false,
+      "HealthDescription": "Driver must run as root",
+      "Healthy": false,
+      "UpdateTime": "2019-08-26T12:22:50.68796043+02:00"
     }
   },
   "Events": [
@@ -267,15 +267,15 @@ $ curl \
   ],
   "HTTPAddr": "127.0.0.1:4646",
   "HostVolumes": {
-    "prod-mysql-a": {
-      "Name": "prod-mysql-a",
-      "Path": "/data/mysql",
-      "ReadOnly": false
-    },
     "certificates": {
       "Name": "certificates",
       "Path": "/etc/ssl/certs",
       "ReadOnly": true
+    },
+    "prod-mysql-a": {
+      "Name": "prod-mysql-a",
+      "Path": "/data/mysql",
+      "ReadOnly": false
     }
   },
   "ID": "1ac61e33-a465-2ace-f63f-cffa1285e7eb",
@@ -283,8 +283,8 @@ $ curl \
     "consul": "dc1.mew"
   },
   "Meta": {
-    "connect.sidecar_image": "envoyproxy/envoy:v1.11.1",
-    "connect.log_level": "info"
+    "connect.log_level": "info",
+    "connect.sidecar_image": "envoyproxy/envoy:v1.11.1"
   },
   "ModifyIndex": 9,
   "Name": "mew",
