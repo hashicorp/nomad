@@ -169,7 +169,7 @@ module('Acceptance | allocation detail', function(hooks) {
   });
 
   test('ports are listed', async function(assert) {
-    const serverNetwork = allocation.allocatedResources.Networks[0];
+    const serverNetwork = allocation.allocatedResources.Shared.Networks[0];
     const allServerPorts = serverNetwork.ReservedPorts.concat(serverNetwork.DynamicPorts);
 
     allServerPorts.sortBy('Label').forEach((serverPort, index) => {
