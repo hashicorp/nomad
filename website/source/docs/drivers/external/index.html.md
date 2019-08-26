@@ -25,8 +25,10 @@ Below is a list of community-supported task drivers you can use with Nomad:
 - [LXC][lxc]
 - [Singularity][singularity]
 - [Jail task driver][jail-task-driver]
+- [Pot task driver][pot-task-driver]
 
 [lxc]: /docs/drivers/external/lxc.html
 [plugin_guide]: /docs/internals/plugins/index.html
 [singularity]: /docs/drivers/external/singularity.html
 [jail-task-driver]: /docs/drivers/external/jail-task-driver.html
+[pot-task-driver]: /docs/drivers/external/pot-task-driver.html
