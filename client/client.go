@@ -131,6 +131,7 @@ type AllocRunner interface {
 	ShutdownCh() <-chan struct{}
 	Signal(taskName, signal string) error
 	GetTaskEventHandler(taskName string) drivermanager.EventHandler
+	PersistState() error
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
 	RestartAll(taskEvent *structs.TaskEvent) error
@@ -1121,7 +1122,7 @@ func (c *Client) saveState() error {
 
 	for id, ar := range runners {
 		go func(id string, ar AllocRunner) {
-			err := c.stateDB.PutAllocation(ar.Alloc())
+			err := ar.PersistState()
 			if err != nil {
 				c.logger.Error("error saving alloc state", "error", err, "alloc_id", id)
 				l.Lock()
