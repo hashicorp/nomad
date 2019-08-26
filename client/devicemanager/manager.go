@@ -118,6 +118,7 @@ func New(c *Config) *manager {
 		loader:           c.Loader,
 		pluginConfig:     c.PluginConfig,
 		updater:          c.Updater,
+		statsInterval:    c.StatsInterval,
 		instances:        make(map[loader.PluginID]*instanceManager),
 		reattachConfigs:  make(map[loader.PluginID]*pstructs.ReattachConfig),
 		fingerprintResCh: make(chan struct{}, 1),

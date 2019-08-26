@@ -1,5 +1,217 @@
-version: 2
+version: 2.1
+
+references:
+  common_envs: &COMMON_ENVS
+    GOMAXPROCS: 1
+    NOMAD_SLOW_TEST: 1
+    GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+  ignore_for_ui_branches: &IGNORE_FOR_UI_BRANCHES
+    filters:
+      branches:
+        ignore: /^.-ui\b.*/
+
+
+workflows:
+  build-test:
+    jobs:
+      - lint-go:
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-client"
+          test_packages: "./client/..."
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-nomad"
+          test_packages: "./nomad/..."
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          # API Tests run in a VM rather than container due to the FS tests
+          # requiring `mount` priviliges.
+          name: "test-api"
+          test_packages: "./api/..."
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-container:
+          name: "test-devices"
+          test_packages: "./devices/..."
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-other"
+          exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/rkt|./drivers/shared/executor|./nomad|./devices"
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-docker"
+          test_packages: "./drivers/docker"
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-exec"
+          test_packages: "./drivers/exec"
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-shared-exec"
+          test_packages: "./drivers/shared/executor"
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-rkt:
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-ui
+      # - build-deps-image:
+      #     context: dani-test
+      #     filters:
+      #       branches:
+      #         only: dani/circleci
+
+  website:
+    jobs:
+      - build-website:
+          context: static-sites
+          filters:
+            branches:
+              only: stable-website
+executors:
+  go:
+    working_directory: /go/src/github.com/hashicorp/nomad
+    docker:
+      - image: circleci/golang:1.12.9
+  go-machine:
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    machine:
+      image: circleci/classic:201808-01
+  docker-builder:
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    machine: true # TODO: Find latest docker image id
+
+  # uses a more recent image with unattended upgrades disabled properly
+  # but seems to break docker builds
+  go-machine-recent:
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    machine:
+      image: ubuntu-1604:201903-01
+
 jobs:
+  build-deps-image:
+    executor: docker-builder
+    steps:
+      - checkout
+      - run: docker build -t hashicorpnomad/ci-build-image:$CIRCLE_SHA1 . -f ./Dockerfile.ci
+      - run: docker push hashicorpnomad/ci-build-image:$CIRCLE_SHA1
+
+  lint-go:
+    executor: go
+    environment:
+      <<: *COMMON_ENVS
+      GOPATH: /go
+    steps:
+      - checkout
+      - install-protoc
+      - run: make deps lint-deps
+      - run: make check
+
+  test-container:
+    executor: go
+    parameters:
+      test_packages:
+        type: string
+        default: ""
+      exclude_packages:
+        type: string
+        default: ""
+    environment:
+      <<: *COMMON_ENVS
+      GOTEST_PKGS: "<< parameters.test_packages >>"
+      GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
+      GOPATH: /go
+    steps:
+      - checkout
+      - run: make deps
+      - install-protoc
+      - install-consul
+      - install-vault
+      - run-tests
+      - store_test_results:
+          path: /tmp/test-reports
+      - store_artifacts:
+          path: /tmp/test-reports
+
+  test-rkt:
+    executor: go-machine-recent
+    environment:
+      <<: *COMMON_ENVS
+      GOTEST_PKGS: "./drivers/rkt"
+      GOPATH: /home/circleci/go
+      RKT_VERSION: 1.29.0
+    steps:
+      - checkout
+      - install-golang
+      - install-protoc
+      - run:
+          name: install rkt
+          command: |
+            gpg --recv-key 18AD5014C99EF7E3BA5F6CE950BDD3E0FC8A365E
+            wget https://github.com/rkt/rkt/releases/download/v$RKT_VERSION/rkt_$RKT_VERSION-1_amd64.deb
+            wget https://github.com/rkt/rkt/releases/download/v$RKT_VERSION/rkt_$RKT_VERSION-1_amd64.deb.asc
+            gpg --verify rkt_$RKT_VERSION-1_amd64.deb.asc
+            sudo dpkg -i rkt_$RKT_VERSION-1_amd64.deb
+      - run: PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make bootstrap
+      - run-tests
+      - store_test_results:
+          path: /tmp/test-reports
+      - store_artifacts:
+          path: /tmp/test-reports
+
+  test-machine:
+    executor: go-machine
+    parameters:
+      test_packages:
+        type: string
+        default: ""
+      exclude_packages:
+        type: string
+        default: ""
+    environment:
+      <<: *COMMON_ENVS
+      GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
+      GOTEST_PKGS: "<< parameters.test_packages >>"
+      GOPATH: /home/circleci/go
+    steps:
+      - checkout
+      - install-golang
+      - install-protoc
+      - install-consul
+      - install-vault
+      - run: PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make bootstrap
+      - run-tests
+      - store_test_results:
+          path: /tmp/test-reports
+      - store_artifacts:
+          path: /tmp/test-reports
+  test-ui:
+    docker:
+      - image: circleci/node:10-browsers
+        environment:
+          # See https://git.io/vdao3 for details.
+          JOBS: 2
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-deps-{{ checksum "ui/yarn.lock" }}
+            - v1-deps-
+      - run:
+          name: yarn install
+          command: cd ui && yarn install
+      - save_cache:
+          key: v1-deps-{{ checksum "ui/yarn.lock" }}
+          paths:
+            - ./ui/node_modules
+      - run:
+          name: lint:js
+          command: cd ui && yarn run lint:js
+      - run:
+          name: lint:hbs
+          command: cd ui && yarn run lint:hbs
+      - run:
+          name: Ember tests
+          command: cd ui && yarn test
+
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
     # to cd into the website/ directory for commands
@@ -32,12 +244,67 @@ jobs:
           name: website deploy
           command: ./scripts/deploy.sh
 
-workflows:
-  version: 2
-  website:
-    jobs:
-      - build-website:
-          context: static-sites
-          filters:
-            branches:
-              only: stable-website
+commands:
+  install-golang:
+    parameters:
+      version:
+        type: string
+        default: "1.12.9"
+    steps:
+      - run:
+          name: install golang << parameters.version >>
+          command: |
+            sudo rm -rf /usr/local/go
+            wget -q -O /tmp/golang.tar.gz https://dl.google.com/go/go<< parameters.version >>.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+
+  install-vault:
+    parameters:
+      version:
+        type: string
+        default: 1.0.0
+    steps:
+      - run:
+          name: Install Vault << parameters.version >>
+          command: |
+            wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/<< parameters.version >>/vault_<< parameters.version>>_linux_amd64.zip
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+
+  install-consul:
+    parameters:
+      version:
+        type: string
+        default: 1.6.0-rc1
+    steps:
+      - run:
+          name: Install Consul << parameters.version >>
+          command: |
+            wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/<< parameters.version >>/consul_<< parameters.version >>_linux_amd64.zip
+            sudo unzip -d /usr/local/bin /tmp/consul.zip
+            rm -rf /tmp/consul*
+
+  install-protoc:
+    steps:
+      - run:
+          name: install protoc
+          command: |
+            sudo rm -rf /usr/bin/protoc
+            sudo ./scripts/vagrant-linux-priv-protoc.sh
+
+  run-tests:
+    steps:
+      - run:
+          name: Running Nomad Tests
+          command: |
+            if [ -z $GOTEST_PKGS_EXCLUDE ];
+            then
+              unset GOTEST_PKGS_EXCLUDE
+            else
+              unset GOTEST_PKGS
+            fi
+
+            mkdir -p /tmp/test-reports
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad

@@ -432,7 +432,7 @@ CHECK_LEADER:
 	isLeader, remoteServer := r.getLeader()
 
 	// Handle the case we are the leader
-	if isLeader {
+	if isLeader && r.Server.isReadyForConsistentReads() {
 		return false, nil
 	}
 
@@ -457,7 +457,11 @@ CHECK_LEADER:
 		}
 	}
 
-	// No leader found and hold time exceeded
+	// hold time exceeeded without being ready to respond
+	if isLeader {
+		return true, structs.ErrNotReadyForConsistentReads
+	}
+
 	return true, structs.ErrNoLeader
 }
 

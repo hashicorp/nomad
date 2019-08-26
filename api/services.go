@@ -91,6 +91,7 @@ type ServiceCheck struct {
 	CheckRestart  *CheckRestart `mapstructure:"check_restart"`
 	GRPCService   string        `mapstructure:"grpc_service"`
 	GRPCUseTLS    bool          `mapstructure:"grpc_use_tls"`
+	TaskName      string        `mapstructure:"task"`
 }
 
 // Service represents a Consul service definition.
@@ -105,6 +106,7 @@ type Service struct {
 	Checks       []ServiceCheck
 	CheckRestart *CheckRestart `mapstructure:"check_restart"`
 	Connect      *ConsulConnect
+	Meta         map[string]string
 }
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task
@@ -135,6 +137,7 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 type ConsulConnect struct {
 	Native         bool
 	SidecarService *ConsulSidecarService `mapstructure:"sidecar_service"`
+	SidecarTask    *SidecarTask          `mapstructure:"sidecar_task"`
 }
 
 // ConsulSidecarService represents a Consul Connect SidecarService jobspec
@@ -142,6 +145,22 @@ type ConsulConnect struct {
 type ConsulSidecarService struct {
 	Port  string
 	Proxy *ConsulProxy
+}
+
+// SidecarTask represents a subset of Task fields that can be set to override
+// the fields of the Task generated for the sidecar
+type SidecarTask struct {
+	Name          string
+	Driver        string
+	User          string
+	Config        map[string]interface{}
+	Env           map[string]string
+	Resources     *Resources
+	Meta          map[string]string
+	KillTimeout   *time.Duration `mapstructure:"kill_timeout"`
+	LogConfig     *LogConfig     `mapstructure:"logs"`
+	ShutdownDelay *time.Duration `mapstructure:"shutdown_delay"`
+	KillSignal    string         `mapstructure:"kill_signal"`
 }
 
 // ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.

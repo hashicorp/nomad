@@ -15,6 +15,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/mitchellh/copystructure"
 )
 
 const (
@@ -52,6 +53,7 @@ type ServiceCheck struct {
 	CheckRestart  *CheckRestart       // If and when a task should be restarted based on checks
 	GRPCService   string              // Service for GRPC checks
 	GRPCUseTLS    bool                // Whether or not to use TLS for GRPC checks
+	TaskName      string              // What task to execute this check in
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -86,6 +88,10 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 	}
 
 	if !sc.CheckRestart.Equals(o.CheckRestart) {
+		return false
+	}
+
+	if sc.TaskName != o.TaskName {
 		return false
 	}
 
@@ -318,10 +324,11 @@ type Service struct {
 	// this service.
 	AddressMode string
 
-	Tags       []string        // List of tags for the service
-	CanaryTags []string        // List of tags for the service when it is a canary
-	Checks     []*ServiceCheck // List of checks associated with the service
-	Connect    *ConsulConnect  // Consul Connect configuration
+	Tags       []string          // List of tags for the service
+	CanaryTags []string          // List of tags for the service when it is a canary
+	Checks     []*ServiceCheck   // List of checks associated with the service
+	Connect    *ConsulConnect    // Consul Connect configuration
+	Meta       map[string]string // Consul service meta
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -343,6 +350,8 @@ func (s *Service) Copy() *Service {
 	}
 
 	ns.Connect = s.Connect.Copy()
+
+	ns.Meta = helper.CopyMapStringString(s.Meta)
 
 	return ns
 }
@@ -385,24 +394,32 @@ func (s *Service) Validate() error {
 	serviceNameStripped := args.ReplaceEnvWithPlaceHolder(s.Name, "ENV-VAR")
 
 	if err := s.ValidateName(serviceNameStripped); err != nil {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes: %q", s.Name))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes: %q", s.Name))
 	}
 
 	switch s.AddressMode {
 	case "", AddressModeAuto, AddressModeHost, AddressModeDriver:
 		// OK
 	default:
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
 	}
 
 	for _, c := range s.Checks {
 		if s.PortLabel == "" && c.PortLabel == "" && c.RequiresPort() {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: check requires a port but neither check nor service %+q have a port", c.Name, s.Name))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: check requires a port but neither check nor service %+q have a port", c.Name, s.Name))
+			continue
+		}
+
+		// TCP checks against a Consul Connect enabled service are not supported
+		// due to the service being bound to the loopback interface inside the
+		// network namespace
+		if c.Type == ServiceCheckTCP && s.Connect != nil && s.Connect.SidecarService != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: tcp checks are not valid for Connect enabled services", c.Name))
 			continue
 		}
 
 		if err := c.validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("check %s invalid: %v", c.Name, err))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: %v", c.Name, err))
 		}
 	}
 
@@ -424,7 +441,7 @@ func (s *Service) ValidateName(name string) error {
 	// (https://tools.ietf.org/html/rfc2782).
 	re := regexp.MustCompile(`^(?i:[a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9])$`)
 	if !re.MatchString(name) {
-		return fmt.Errorf("service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters: %q", name)
+		return fmt.Errorf("Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters: %q", name)
 	}
 	return nil
 }
@@ -443,6 +460,9 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	}
 	for _, tag := range s.CanaryTags {
 		io.WriteString(h, tag)
+	}
+	if len(s.Meta) > 0 {
+		fmt.Fprintf(h, "%v", s.Meta)
 	}
 
 	// Vary ID on whether or not CanaryTags will be used
@@ -500,6 +520,10 @@ OUTER:
 		return false
 	}
 
+	if !reflect.DeepEqual(s.Meta, o.Meta) {
+		return false
+	}
+
 	if !helper.CompareSliceSetString(s.Tags, o.Tags) {
 		return false
 	}
@@ -515,6 +539,9 @@ type ConsulConnect struct {
 
 	// SidecarService is non-nil if a service requires a sidecar.
 	SidecarService *ConsulSidecarService
+
+	// SidecarTask is non-nil if sidecar overrides are set
+	SidecarTask *SidecarTask
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -526,6 +553,7 @@ func (c *ConsulConnect) Copy() *ConsulConnect {
 	return &ConsulConnect{
 		Native:         c.Native,
 		SidecarService: c.SidecarService.Copy(),
+		SidecarTask:    c.SidecarTask.Copy(),
 	}
 }
 
@@ -540,6 +568,11 @@ func (c *ConsulConnect) Equals(o *ConsulConnect) bool {
 	}
 
 	return c.SidecarService.Equals(o.SidecarService)
+}
+
+// HasSidecar checks if a sidecar task is needed
+func (c *ConsulConnect) HasSidecar() bool {
+	return c != nil && c.SidecarService != nil
 }
 
 // Validate that the Connect stanza has exactly one of Native or sidecar.
@@ -591,11 +624,153 @@ func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
 	return s.Proxy.Equals(o.Proxy)
 }
 
+// SidecarTask represents a subset of Task fields that are able to be overridden
+// from the sidecar_task stanza
+type SidecarTask struct {
+	// Name of the task
+	Name string
+
+	// Driver is used to control which driver is used
+	Driver string
+
+	// User is used to determine which user will run the task. It defaults to
+	// the same user the Nomad client is being run as.
+	User string
+
+	// Config is provided to the driver to initialize
+	Config map[string]interface{}
+
+	// Map of environment variables to be used by the driver
+	Env map[string]string
+
+	// Resources is the resources needed by this task
+	Resources *Resources
+
+	// Meta is used to associate arbitrary metadata with this
+	// task. This is opaque to Nomad.
+	Meta map[string]string
+
+	// KillTimeout is the time between signaling a task that it will be
+	// killed and killing it.
+	KillTimeout *time.Duration
+
+	// LogConfig provides configuration for log rotation
+	LogConfig *LogConfig
+
+	// ShutdownDelay is the duration of the delay between deregistering a
+	// task from Consul and sending it a signal to shutdown. See #2441
+	ShutdownDelay *time.Duration
+
+	// KillSignal is the kill signal to use for the task. This is an optional
+	// specification and defaults to SIGINT
+	KillSignal string
+}
+
+func (t *SidecarTask) Copy() *SidecarTask {
+	if t == nil {
+		return nil
+	}
+	nt := new(SidecarTask)
+	*nt = *t
+	nt.Env = helper.CopyMapStringString(nt.Env)
+
+	nt.Resources = nt.Resources.Copy()
+	nt.LogConfig = nt.LogConfig.Copy()
+	nt.Meta = helper.CopyMapStringString(nt.Meta)
+
+	if i, err := copystructure.Copy(nt.Config); err != nil {
+		panic(err.Error())
+	} else {
+		nt.Config = i.(map[string]interface{})
+	}
+
+	if t.KillTimeout != nil {
+		nt.KillTimeout = helper.TimeToPtr(*t.KillTimeout)
+	}
+
+	if t.ShutdownDelay != nil {
+		nt.ShutdownDelay = helper.TimeToPtr(*t.ShutdownDelay)
+	}
+
+	return nt
+}
+
+// MergeIntoTask merges the SidecarTask fields over the given task
+func (t *SidecarTask) MergeIntoTask(task *Task) {
+	if t.Name != "" {
+		task.Name = t.Name
+	}
+
+	// If the driver changes then the driver config can be overwritten.
+	// Otherwise we'll merge the driver config together
+	if t.Driver != "" && t.Driver != task.Driver {
+		task.Driver = t.Driver
+		task.Config = t.Config
+	} else {
+		for k, v := range t.Config {
+			task.Config[k] = v
+		}
+	}
+
+	if t.User != "" {
+		task.User = t.User
+	}
+
+	if t.Env != nil {
+		if task.Env == nil {
+			task.Env = t.Env
+		} else {
+			for k, v := range t.Env {
+				task.Env[k] = v
+			}
+		}
+	}
+
+	if t.Resources != nil {
+		task.Resources.Merge(t.Resources)
+	}
+
+	if t.Meta != nil {
+		if task.Meta == nil {
+			task.Meta = t.Meta
+		} else {
+			for k, v := range t.Meta {
+				task.Meta[k] = v
+			}
+		}
+	}
+
+	if t.KillTimeout != nil {
+		task.KillTimeout = *t.KillTimeout
+	}
+
+	if t.LogConfig != nil {
+		if task.LogConfig == nil {
+			task.LogConfig = t.LogConfig
+		} else {
+			if t.LogConfig.MaxFiles > 0 {
+				task.LogConfig.MaxFiles = t.LogConfig.MaxFiles
+			}
+			if t.LogConfig.MaxFileSizeMB > 0 {
+				task.LogConfig.MaxFileSizeMB = t.LogConfig.MaxFileSizeMB
+			}
+		}
+	}
+
+	if t.ShutdownDelay != nil {
+		task.ShutdownDelay = *t.ShutdownDelay
+	}
+
+	if t.KillSignal != "" {
+		task.KillSignal = t.KillSignal
+	}
+}
+
 // ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
 type ConsulProxy struct {
 	// Upstreams configures the upstream services this service intends to
 	// connect to.
-	Upstreams []*ConsulUpstream
+	Upstreams []ConsulUpstream
 
 	// Config is a proxy configuration. It is opaque to Nomad and passed
 	// directly to Consul.
@@ -611,10 +786,10 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 	newP := ConsulProxy{}
 
 	if n := len(p.Upstreams); n > 0 {
-		newP.Upstreams = make([]*ConsulUpstream, n)
+		newP.Upstreams = make([]ConsulUpstream, n)
 
 		for i := range p.Upstreams {
-			newP.Upstreams[i] = p.Upstreams[i].Copy()
+			newP.Upstreams[i] = *p.Upstreams[i].Copy()
 		}
 	}
 
@@ -643,7 +818,7 @@ func (p *ConsulProxy) Equals(o *ConsulProxy) bool {
 OUTER:
 	for _, up := range p.Upstreams {
 		for _, innerUp := range o.Upstreams {
-			if up.Equals(innerUp) {
+			if up.Equals(&innerUp) {
 				// Match; find next upstream
 				continue OUTER
 			}

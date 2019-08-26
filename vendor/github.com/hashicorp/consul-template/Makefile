@@ -14,14 +14,12 @@ GOTAGS ?=
 GOMAXPROCS ?= 4
 
 # Get the project metadata
-GOVERSION := 1.12.5
-PROJECT := $(CURRENT_DIR:$(GOPATH)/src/%=%)
-OWNER := $(notdir $(patsubst %/,%,$(dir $(PROJECT))))
+GO_DOCKER_VERSION ?= 1.12
+PROJECT := $(shell go list -m -mod=vendor)
+OWNER := "hashicorp"
 NAME := $(notdir $(PROJECT))
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
 VERSION := $(shell awk -F\" '/Version/ { print $$2; exit }' "${CURRENT_DIR}/version/version.go")
-EXTERNAL_TOOLS = \
-	github.com/golang/dep/cmd/dep
 
 # Current system information
 GOOS ?= $(shell go env GOOS)
@@ -44,9 +42,6 @@ LD_FLAGS ?= \
 
 # List of Docker targets to build
 DOCKER_TARGETS ?= alpine light scratch
-
-# List of tests to run
-TEST ?= ./...
 
 # Create a cross-compile target for every os-arch pairing. This will generate
 # a make target for each os/arch like "make linux/amd64" as well as generate a
@@ -85,24 +80,11 @@ pristine:
 		--rm \
 		--dns="8.8.8.8" \
 		--volume="${CURRENT_DIR}:/go/src/${PROJECT}" \
+		--volume="${GOPATH}/pkg/mod:/go/pkg/mod" \
 		--workdir="/go/src/${PROJECT}" \
-		"golang:${GOVERSION}" env GOCACHE=/tmp make -j4 build
-
-# bootstrap installs the necessary go tools for development or build.
-bootstrap:
-	@echo "==> Bootstrapping ${PROJECT}"
-	@for t in ${EXTERNAL_TOOLS}; do \
-		echo "--> Installing $$t" ; \
-		go get -u "$$t"; \
-	done
-.PHONY: bootstrap
-
-# deps updates all dependencies for this project.
-deps:
-	@echo "==> Updating deps for ${PROJECT}"
-	@dep ensure -update
-	@dep prune
-.PHONY: deps
+		--env=CGO_ENABLED="0" \
+		--env=GO111MODULE=on \
+		"golang:${GO_DOCKER_VERSION}" env GOCACHE=/tmp make -j4 build
 
 # dev builds and installs the project locally.
 dev:
@@ -141,6 +123,7 @@ endif
 define make-docker-target
   docker-build/$1:
 		@echo "==> Building ${1} Docker container for ${PROJECT}"
+		@go mod vendor
 		@docker build \
 			--rm \
 			--force-rm \
@@ -149,10 +132,12 @@ define make-docker-target
 			--file="docker/${1}/Dockerfile" \
 			--build-arg="LD_FLAGS=${LD_FLAGS}" \
 			--build-arg="GOTAGS=${GOTAGS}" \
+			--build-arg="GOVERSION=${GO_DOCKER_VERSION}" \
 			$(if $(filter $1,scratch),--tag="${OWNER}/${NAME}",) \
 			--tag="${OWNER}/${NAME}:${1}" \
 			--tag="${OWNER}/${NAME}:${VERSION}-${1}" \
 			"${CURRENT_DIR}"
+		@rm -rf "${CURRENT_DIR}/vendor/"
   .PHONY: docker-build/$1
 
   docker-build:: docker-build/$1
@@ -173,7 +158,7 @@ $(foreach target,$(DOCKER_TARGETS),$(eval $(call make-docker-target,$(target))))
 # test runs the test suite.
 test:
 	@echo "==> Testing ${NAME}"
-	@go test -timeout=30s -parallel=20 -failfast -tags="${GOTAGS}" ./... ${TESTARGS}
+	@go test -count=1 -timeout=30s -parallel=20 -failfast -tags="${GOTAGS}" ./... ${TESTARGS}
 .PHONY: test
 
 # test-race runs the test suite.

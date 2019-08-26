@@ -413,7 +413,7 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	t.Parallel()
 	// Agent.agentHTTPCheck only needs a config and logger
 	a := &Agent{
-		config: DevConfig(),
+		config: DevConfig(nil),
 		logger: testlog.HCLogger(t),
 	}
 	if err := a.config.normalizeAddrs(); err != nil {

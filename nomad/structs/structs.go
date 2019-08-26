@@ -1575,6 +1575,9 @@ type Node struct {
 	// Drivers is a map of driver names to current driver information
 	Drivers map[string]*DriverInfo
 
+	// HostVolumes is a map of host volume names to their configuration
+	HostVolumes map[string]*ClientHostVolumeConfig
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -1619,6 +1622,7 @@ func (n *Node) Copy() *Node {
 	nn.Events = copyNodeEvents(n.Events)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
 	nn.Drivers = copyNodeDrivers(n.Drivers)
+	nn.HostVolumes = copyNodeHostVolumes(n.HostVolumes)
 	return nn
 }
 
@@ -1647,6 +1651,21 @@ func copyNodeDrivers(drivers map[string]*DriverInfo) map[string]*DriverInfo {
 	for driver, info := range drivers {
 		c[driver] = info.Copy()
 	}
+	return c
+}
+
+// copyNodeHostVolumes is a helper to copy a map of string to Volume
+func copyNodeHostVolumes(volumes map[string]*ClientHostVolumeConfig) map[string]*ClientHostVolumeConfig {
+	l := len(volumes)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]*ClientHostVolumeConfig, l)
+	for volume, v := range volumes {
+		c[volume] = v.Copy()
+	}
+
 	return c
 }
 
@@ -2130,6 +2149,24 @@ func (n *NetworkResource) PortLabels() map[string]int {
 		labelValues[port.Label] = port.Value
 	}
 	return labelValues
+}
+
+// ConnectPort returns the Connect port for the given service. Returns false if
+// no port was found for a service with that name.
+func (n *NetworkResource) PortForService(serviceName string) (Port, bool) {
+	label := fmt.Sprintf("%s-%s", ConnectProxyPrefix, serviceName)
+	for _, port := range n.ReservedPorts {
+		if port.Label == label {
+			return port, true
+		}
+	}
+	for _, port := range n.DynamicPorts {
+		if port.Label == label {
+			return port, true
+		}
+	}
+
+	return Port{}, false
 }
 
 // Networks defined for a task on the Resources struct.
@@ -4659,6 +4696,9 @@ type TaskGroup struct {
 
 	// Services this group provides
 	Services []*Service
+
+	// Volumes is a map of volumes that have been requested by the task group.
+	Volumes map[string]*VolumeRequest
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -4673,6 +4713,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.ReschedulePolicy = ntg.ReschedulePolicy.Copy()
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
+	ntg.Volumes = CopyMapVolumeRequest(ntg.Volumes)
 
 	// Copy the network objects
 	if tg.Networks != nil {
@@ -4860,15 +4901,53 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Only one task may be marked as leader"))
 	}
 
+	// Validate the Host Volumes
+	for name, decl := range tg.Volumes {
+		if decl.Type != VolumeTypeHost {
+			// TODO: Remove this error when adding new volume types
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unrecognised type %s", name, decl.Type))
+			continue
+		}
+
+		cfg, err := ParseHostVolumeConfig(decl.Config)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unparseable config: %v", name, err))
+			continue
+		}
+
+		if cfg.Source == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has an empty source", name))
+		}
+	}
+
 	// Validate task group and task network resources
 	if err := tg.validateNetworks(); err != nil {
 		outer := fmt.Errorf("Task group network validation failed: %v", err)
 		mErr.Errors = append(mErr.Errors, outer)
 	}
 
+	// Validate task group and task services
+	if err := tg.validateServices(); err != nil {
+		outer := fmt.Errorf("Task group service validation failed: %v", err)
+		mErr.Errors = append(mErr.Errors, outer)
+	}
+
 	// Validate the tasks
 	for _, task := range tg.Tasks {
-		if err := task.Validate(tg.EphemeralDisk, j.Type); err != nil {
+		// Validate the task does not reference undefined volume mounts
+		for i, mnt := range task.VolumeMounts {
+			if mnt.Volume == "" {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %s has a volume mount (%d) referencing an empty volume", task.Name, i))
+				continue
+			}
+
+			if _, ok := tg.Volumes[mnt.Volume]; !ok {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %s has a volume mount (%d) referencing undefined volume %s", task.Name, i, mnt.Volume))
+				continue
+			}
+		}
+
+		if err := task.Validate(tg.EphemeralDisk, j.Type, tg.Services); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
@@ -4938,6 +5017,62 @@ func (tg *TaskGroup) validateNetworks() error {
 					} else {
 						mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
 					}
+				}
+			}
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+// validateServices runs Service.Validate() on group-level services,
+// checks that group services do not conflict with task services and that
+// group service checks that refer to tasks only refer to tasks that exist.
+func (tg *TaskGroup) validateServices() error {
+	var mErr multierror.Error
+	knownTasks := make(map[string]struct{})
+	knownServices := make(map[string]struct{})
+
+	// Create a map of known tasks and their services so we can compare
+	// vs the group-level services and checks
+	for _, task := range tg.Tasks {
+		knownTasks[task.Name] = struct{}{}
+		if task.Services == nil {
+			continue
+		}
+		for _, service := range task.Services {
+			if _, ok := knownServices[service.Name+service.PortLabel]; ok {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is duplicate", service.Name))
+			}
+			for _, check := range service.Checks {
+				if check.TaskName != "" {
+					mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s is invalid: only task group service checks can be assigned tasks", check.Name))
+				}
+			}
+			knownServices[service.Name+service.PortLabel] = struct{}{}
+		}
+	}
+	for i, service := range tg.Services {
+		if err := service.Validate(); err != nil {
+			outer := fmt.Errorf("Service[%d] %s validation failed: %s", i, service.Name, err)
+			mErr.Errors = append(mErr.Errors, outer)
+			// we break here to avoid the risk of crashing on null-pointer
+			// access in a later step, accepting that we might miss out on
+			// error messages to provide the user.
+			continue
+		}
+		if _, ok := knownServices[service.Name+service.PortLabel]; ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is duplicate", service.Name))
+		}
+		knownServices[service.Name+service.PortLabel] = struct{}{}
+		for _, check := range service.Checks {
+			if check.TaskName != "" {
+				if check.Type != ServiceCheckScript && check.Type != ServiceCheckGRPC {
+					mErr.Errors = append(mErr.Errors,
+						fmt.Errorf("Check %s invalid: only script and gRPC checks should have tasks", check.Name))
+				}
+				if _, ok := knownTasks[check.TaskName]; !ok {
+					mErr.Errors = append(mErr.Errors,
+						fmt.Errorf("Check %s invalid: refers to non-existent task %s", check.Name, check.TaskName))
 				}
 			}
 		}
@@ -5051,6 +5186,16 @@ type LogConfig struct {
 	MaxFileSizeMB int
 }
 
+func (l *LogConfig) Copy() *LogConfig {
+	if l == nil {
+		return nil
+	}
+	return &LogConfig{
+		MaxFiles:      l.MaxFiles,
+		MaxFileSizeMB: l.MaxFileSizeMB,
+	}
+}
+
 // DefaultLogConfig returns the default LogConfig values.
 func DefaultLogConfig() *LogConfig {
 	return &LogConfig{
@@ -5137,11 +5282,19 @@ type Task struct {
 	// task from Consul and sending it a signal to shutdown. See #2441
 	ShutdownDelay time.Duration
 
+	// VolumeMounts is a list of Volume name <-> mount configurations that will be
+	// attached to this task.
+	VolumeMounts []*VolumeMount
+
 	// The kill signal to use for the task. This is an optional specification,
 
 	// KillSignal is the kill signal to use for the task. This is an optional
 	// specification and defaults to SIGINT
 	KillSignal string
+
+	// Used internally to manage tasks according to their TaskKind. Initial use case
+	// is for Consul Connect
+	Kind TaskKind
 }
 
 func (t *Task) Copy() *Task {
@@ -5162,9 +5315,11 @@ func (t *Task) Copy() *Task {
 
 	nt.Constraints = CopySliceConstraints(nt.Constraints)
 	nt.Affinities = CopySliceAffinities(nt.Affinities)
+	nt.VolumeMounts = CopySliceVolumeMount(nt.VolumeMounts)
 
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
+	nt.LogConfig = nt.LogConfig.Copy()
 	nt.Meta = helper.CopyMapStringString(nt.Meta)
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
 
@@ -5237,7 +5392,7 @@ func (t *Task) GoString() string {
 }
 
 // Validate is used to sanity check a task
-func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string) error {
+func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices []*Service) error {
 	var mErr multierror.Error
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
@@ -5346,6 +5501,20 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string) error {
 		}
 	}
 
+	// Validation for TaskKind field which is used for Consul Connect integration
+	if t.Kind.IsConnectProxy() {
+		// This task is a Connect proxy so it should not have service stanzas
+		if len(t.Services) > 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task must not have a service stanza"))
+		}
+		if t.Leader {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task must not have leader set"))
+		}
+		serviceErr := ValidateConnectProxyService(t.Kind.Value(), tgServices)
+		if serviceErr != nil {
+			mErr.Errors = append(mErr.Errors, serviceErr)
+		}
+	}
 	return mErr.ErrorOrNil()
 }
 
@@ -5487,6 +5656,58 @@ func (t *Task) Warnings() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// TaskKind identifies the special kinds of tasks using the following format:
+// '<kind_name>(:<identifier>)`. The TaskKind can optionally include an identifier that
+// is opague to the Task. This identier can be used to relate the task to some
+// other entity based on the kind.
+//
+// For example, a task may have the TaskKind of `connect-proxy:service` where
+// 'connect-proxy' is the kind name and 'service' is the identifier that relates the
+// task to the service name of which it is a connect proxy for.
+type TaskKind string
+
+// Name returns the kind name portion of the TaskKind
+func (k TaskKind) Name() string {
+	return strings.Split(string(k), ":")[0]
+}
+
+// Value returns the identifier of the TaskKind or an empty string if it doesn't
+// include one.
+func (k TaskKind) Value() string {
+	if s := strings.SplitN(string(k), ":", 2); len(s) > 1 {
+		return s[1]
+	}
+	return ""
+}
+
+// IsConnectProxy returns true if the TaskKind is connect-proxy
+func (k TaskKind) IsConnectProxy() bool {
+	return strings.HasPrefix(string(k), ConnectProxyPrefix+":") && len(k) > len(ConnectProxyPrefix)+1
+}
+
+// ConnectProxyPrefix is the prefix used for fields referencing a Consul Connect
+// Proxy
+const ConnectProxyPrefix = "connect-proxy"
+
+// ValidateConnectProxyService checks that the service that is being
+// proxied by this task exists in the task group and contains
+// valid Connect config.
+func ValidateConnectProxyService(serviceName string, tgServices []*Service) error {
+	found := false
+	for _, svc := range tgServices {
+		if svc.Name == serviceName && svc.Connect != nil && svc.Connect.SidecarService != nil {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("Connect proxy service name not found in services from task group")
+	}
+
+	return nil
 }
 
 const (
@@ -8615,12 +8836,17 @@ func (d *DesiredUpdates) GoString() string {
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
 var MsgpackHandle = func() *codec.MsgpackHandle {
-	h := &codec.MsgpackHandle{RawToString: true}
+	h := &codec.MsgpackHandle{}
+	h.RawToString = true
+
+	// maintain binary format from time prior to upgrading latest ugorji
+	h.BasicHandle.TimeNotBuiltin = true
 
 	// Sets the default type for decoding a map into a nil interface{}.
 	// This is necessary in particular because we store the driver configs as a
 	// nil interface{}.
 	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
+
 	return h
 }()
 
@@ -8640,7 +8866,11 @@ var (
 // behind. I feel like its original purpose was to pin at a stable version but
 // now we can accomplish this with vendoring.
 var HashiMsgpackHandle = func() *hcodec.MsgpackHandle {
-	h := &hcodec.MsgpackHandle{RawToString: true}
+	h := &hcodec.MsgpackHandle{}
+	h.RawToString = true
+
+	// maintain binary format from time prior to upgrading latest ugorji
+	h.BasicHandle.TimeNotBuiltin = true
 
 	// Sets the default type for decoding a map into a nil interface{}.
 	// This is necessary in particular because we store the driver configs as a

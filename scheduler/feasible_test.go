@@ -81,6 +81,161 @@ func TestRandomIterator(t *testing.T) {
 	}
 }
 
+func TestHostVolumeChecker(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {Name: "foo"}}
+	nodes[2].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {},
+		"bar": {},
+	}
+	nodes[3].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {},
+		"bar": {},
+	}
+	nodes[4].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {},
+		"baz": {},
+	}
+
+	noVolumes := map[string]*structs.VolumeRequest{}
+
+	volumes := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:   "host",
+			Config: map[string]interface{}{"source": "foo"},
+		},
+		"bar": {
+			Type:   "host",
+			Config: map[string]interface{}{"source": "bar"},
+		},
+		"baz": {
+			Type:   "nothost",
+			Config: map[string]interface{}{"source": "baz"},
+		},
+	}
+
+	checker := NewHostVolumeChecker(ctx)
+	cases := []struct {
+		Node             *structs.Node
+		RequestedVolumes map[string]*structs.VolumeRequest
+		Result           bool
+	}{
+		{ // Nil Volumes, some requested
+			Node:             nodes[0],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{ // Mismatched set of volumes
+			Node:             nodes[1],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{ // Happy Path
+			Node:             nodes[2],
+			RequestedVolumes: volumes,
+			Result:           true,
+		},
+		{ // No Volumes requested or available
+			Node:             nodes[3],
+			RequestedVolumes: noVolumes,
+			Result:           true,
+		},
+		{ // No Volumes requested, some available
+			Node:             nodes[4],
+			RequestedVolumes: noVolumes,
+			Result:           true,
+		},
+	}
+
+	for i, c := range cases {
+		checker.SetVolumes(c.RequestedVolumes)
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+}
+
+func TestHostVolumeChecker_ReadOnly(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+
+	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {
+			ReadOnly: true,
+		},
+	}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {
+			ReadOnly: false,
+		},
+	}
+
+	readwriteRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type: "host",
+			Config: map[string]interface{}{
+				"source": "foo",
+			},
+		},
+	}
+
+	readonlyRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type: "host",
+			Config: map[string]interface{}{
+				"source": "foo",
+			},
+			ReadOnly: true,
+		},
+	}
+
+	checker := NewHostVolumeChecker(ctx)
+	cases := []struct {
+		Node             *structs.Node
+		RequestedVolumes map[string]*structs.VolumeRequest
+		Result           bool
+	}{
+		{ // ReadWrite Request, ReadOnly Host
+			Node:             nodes[0],
+			RequestedVolumes: readwriteRequest,
+			Result:           false,
+		},
+		{ // ReadOnly Request, ReadOnly Host
+			Node:             nodes[0],
+			RequestedVolumes: readonlyRequest,
+			Result:           true,
+		},
+		{ // ReadOnly Request, ReadWrite Host
+			Node:             nodes[1],
+			RequestedVolumes: readonlyRequest,
+			Result:           true,
+		},
+		{ // ReadWrite Request, ReadWrite Host
+			Node:             nodes[1],
+			RequestedVolumes: readwriteRequest,
+			Result:           true,
+		},
+	}
+
+	for i, c := range cases {
+		checker.SetVolumes(c.RequestedVolumes)
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+}
+
 func TestDriverChecker(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{

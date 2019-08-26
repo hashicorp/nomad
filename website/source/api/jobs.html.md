@@ -146,6 +146,9 @@ The table below shows this endpoint's support for
                         "global",
                         "cache"
                     ],
+                    "Meta": {
+                      "meta": "for my service"
+                    },
                     "PortLabel": "db",
                     "AddressMode": "",
                     "Checks": [{
@@ -213,7 +216,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    --data @my-job.json \
+    --data @payload.json \
     https://localhost:4646/v1/jobs
 ```
 
@@ -269,7 +272,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    --data '{"Canonicalize": true, "JobHCL": "job \"my-job\" {}"}' \
+    --data @payload.json \
     https://localhost:4646/v1/jobs/parse
 ```
 
@@ -1256,7 +1259,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    --payload @payload.json \
+    --data @payload.json \
     https://localhost:4646/v1/job/my-job/dispatch
 ```
 
@@ -1316,7 +1319,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    --payload @payload.json \
+    --data @payload.json \
     https://localhost:4646/v1/job/my-job/revert
 ```
 
@@ -1372,7 +1375,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    --payload @payload.json \
+    --data @payload.json \
     https://localhost:4646/v1/job/my-job/stable
 ```
 
@@ -1492,7 +1495,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    --payload @payload.json \
+    --data @payload.json \
     https://localhost:4646/v1/job/my-job/plan
 ```
 

@@ -86,6 +86,7 @@ func TestParse(t *testing.T) {
 				TaskGroups: []*api.TaskGroup{
 					{
 						Name: helper.StringToPtr("outside"),
+
 						Tasks: []*api.Task{
 							{
 								Name:   "outside",
@@ -108,6 +109,13 @@ func TestParse(t *testing.T) {
 								LTarget: "kernel.os",
 								RTarget: "linux",
 								Operand: "=",
+							},
+						},
+
+						Volumes: map[string]*api.VolumeRequest{
+							"foo": {
+								Name: "foo",
+								Type: "host",
 							},
 						},
 						Affinities: []*api.Affinity{
@@ -178,12 +186,19 @@ func TestParse(t *testing.T) {
 								Name:   "binstore",
 								Driver: "docker",
 								User:   "bob",
+								Kind:   "connect-proxy:test",
 								Config: map[string]interface{}{
 									"image": "hashicorp/binstore",
 									"labels": []map[string]interface{}{
 										{
 											"FOO": "bar",
 										},
+									},
+								},
+								VolumeMounts: []*api.VolumeMount{
+									{
+										Volume:      "foo",
+										Destination: "/mnt/foo",
 									},
 								},
 								Affinities: []*api.Affinity{
@@ -770,6 +785,33 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"service-meta.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("service_meta"),
+				Name: helper.StringToPtr("service_meta"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("group"),
+						Tasks: []*api.Task{
+							{
+								Name: "task",
+								Services: []*api.Service{
+									{
+										Name: "http-service",
+										Meta: map[string]string{
+											"foo": "bar",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
 			"reschedule-job.hcl",
 			&api.Job{
 				ID:          helper.StringToPtr("foo"),
@@ -910,6 +952,16 @@ func TestParse(t *testing.T) {
 											},
 										},
 									},
+									SidecarTask: &api.SidecarTask{
+										Resources: &api.Resources{
+											CPU:      helper.IntToPtr(500),
+											MemoryMB: helper.IntToPtr(1024),
+										},
+										Env: map[string]string{
+											"FOO": "abc",
+										},
+										ShutdownDelay: helper.TimeToPtr(5 * time.Second),
+									},
 								},
 							},
 						},
@@ -930,6 +982,51 @@ func TestParse(t *testing.T) {
 								},
 							},
 						},
+					},
+				},
+			},
+			false,
+		},
+
+		{
+			"tg-service-check.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("group_service_check_script"),
+				Name: helper.StringToPtr("group_service_check_script"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:  helper.StringToPtr("group"),
+						Count: helper.IntToPtr(1),
+						Networks: []*api.NetworkResource{
+							{
+								Mode: "bridge",
+								ReservedPorts: []api.Port{
+									{
+										Label: "http",
+										Value: 80,
+										To:    8080,
+									},
+								},
+							},
+						},
+						Services: []*api.Service{
+							{
+								Name:      "foo-service",
+								PortLabel: "http",
+								Checks: []api.ServiceCheck{
+									{
+										Name:          "check-name",
+										Type:          "script",
+										Command:       "/bin/true",
+										Interval:      time.Duration(10 * time.Second),
+										Timeout:       time.Duration(2 * time.Second),
+										InitialStatus: "passing",
+										TaskName:      "foo",
+									},
+								},
+							},
+						},
+						Tasks: []*api.Task{{Name: "foo"}},
 					},
 				},
 			},
@@ -1003,7 +1100,7 @@ func TestIncorrectKey(t *testing.T) {
 		t.Fatalf("Expected an error")
 	}
 
-	if !strings.Contains(err.Error(), "* group: 'binsl', task: 'binstore', service: 'foo', check -> invalid key: nterval") {
+	if !strings.Contains(err.Error(), "* group: 'binsl', task: 'binstore', service (0): 'foo', check -> invalid key: nterval") {
 		t.Fatalf("Expected key error; got %v", err)
 	}
 }
