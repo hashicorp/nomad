@@ -1,5 +1,5 @@
 import { run } from '@ember/runloop';
-import { currentURL, visit } from '@ember/test-helpers';
+import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
