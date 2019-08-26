@@ -154,103 +154,106 @@ $ curl \
 ```json
 {
   "Attributes": {
-    "driver.rkt": "1",
-    "driver.docker.bridge_ip": "172.17.0.1",
-    "unique.storage.volume": "/dev/sda1",
-    "driver.exec": "1",
-    "driver.rkt.volumes.enabled": "1",
-    "os.signals": "SIGSTOP,SIGTTIN,SIGWINCH,SIGXCPU,SIGXFSZ,SIGIO,SIGKILL,SIGTTOU,SIGINT,SIGHUP,SIGTRAP,SIGALRM,SIGPIPE,SIGURG,SIGABRT,SIGSEGV,SIGIOT,SIGTERM,SIGBUS,SIGPROF,SIGQUIT,SIGTSTP,SIGUSR2,SIGFPE,SIGCONT,SIGILL,SIGSYS,SIGUSR1,SIGCHLD",
-    "cpu.totalcompute": "2200",
-    "driver.raw_exec": "1",
-    "driver.java.version": "openjdk version \"1.8.0_162",
-    "kernel.name": "linux",
+    "driver.docker.volumes.enabled": "true",
+    "unique.storage.bytesfree": "8273698816",
+    "driver.mock_driver": "1",
     "unique.cgroup.mountpoint": "/sys/fs/cgroup",
-    "driver.docker.volumes.enabled": "1",
-    "cpu.frequency": "2200",
-    "consul.datacenter": "dc1",
-    "unique.storage.bytestotal": "31637520384",
-    "unique.network.ip-address": "10.138.0.5",
-    "os.version": "9.4",
-    "unique.hostname": "nomad-4",
-    "driver.rkt.version": "1.29.0",
-    "driver.java.vm": "OpenJDK 64-Bit Server VM (build 25.162-b12, mixed mode)",
-    "consul.server": "false",
-    "kernel.version": "4.9.0-6-amd64",
-    "cpu.numcores": "1",
-    "driver.docker.version": "18.03.0-ce",
-    "unique.consul.name": "nomad-4",
-    "driver.java": "1",
-    "consul.revision": "9a494b5f+CHANGES",
-    "os.name": "debian",
-    "consul.version": "1.0.6",
-    "driver.java.runtime": "OpenJDK Runtime Environment (build 1.8.0_162-8u162-b12-1~deb9u1-b12)",
-    "nomad.version": "0.8.0-rc1",
-    "memory.totalbytes": "3883982848",
-    "unique.storage.bytesfree": "26626150400",
-    "driver.docker": "1",
-    "cpu.modelname": "Intel(R) Xeon(R) CPU @ 2.20GHz",
     "cpu.arch": "amd64",
-    "driver.rkt.appc.version": "0.8.11"
+    "consul.revision": "d2adfc0bd",
+    "cpu.numcores": "8",
+    "os.signals": "SIGTTOU,SIGTTIN,SIGSTOP,SIGSYS,SIGXCPU,SIGBUS,SIGKILL,SIGTERM,SIGIOT,SIGILL,SIGIO,SIGQUIT,SIGSEGV,SIGUSR1,SIGXFSZ,SIGCHLD,SIGUSR2,SIGURG,SIGFPE,SIGHUP,SIGINT,SIGPROF,SIGCONT,SIGALRM,SIGPIPE,SIGTRAP,SIGTSTP,SIGWINCH,SIGABRT",
+    "cpu.modelname": "Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz",
+    "nomad.version": "0.10.0-dev",
+    "unique.network.ip-address": "127.0.0.1",
+    "driver.docker.bridge_ip": "172.17.0.1",
+    "nomad.revision": "30da2b8f6c3aa860113c9d313c695a05eff5bb97+CHANGES",
+    "driver.raw_exec": "1",
+    "kernel.name": "linux",
+    "driver.mock": "true",
+    "cpu.totalcompute": "32000",
+    "unique.storage.volume": "tmpfs",
+    "cpu.frequency": "4000",
+    "nomad.advertise.address": "127.0.0.1:4646",
+    "driver.docker.os_type": "linux",
+    "unique.storage.bytestotal": "8285835264",
+    "kernel.version": "4.19.56",
+    "os.name": "nixos",
+    "driver.docker.version": "18.09.6",
+    "consul.server": "true",
+    "unique.consul.name": "mew",
+    "consul.datacenter": "dc1",
+    "consul.version": "1.5.2",
+    "memory.totalbytes": "16571674624",
+    "unique.hostname": "mew",
+    "driver.docker": "1",
+    "driver.docker.runtimes": "runc",
+    "os.version": "\"19.03.173017.85f820d6e41 (Koi)\""
   },
-  "ComputedClass": "v1:1652208824869124256",
+  "ComputedClass": "v1:390058673753570317",
   "CreateIndex": 6,
   "Datacenter": "dc1",
   "Drain": false,
   "DrainStrategy": null,
   "Drivers": {
     "java": {
+      "Attributes": null,
+      "Detected": false,
+      "HealthDescription": "Driver must run as root",
+      "Healthy": false,
+      "UpdateTime": "2019-08-26T12:22:50.687274359+02:00"
+    },
+    "exec": {
+      "Attributes": null,
+      "Detected": false,
+      "HealthDescription": "Driver must run as root",
+      "Healthy": false,
+      "UpdateTime": "2019-08-26T12:22:50.6873373+02:00"
+    },
+    "raw_exec": {
       "Attributes": {
-        "driver.java.runtime": "OpenJDK Runtime Environment (build 1.8.0_162-8u162-b12-1~deb9u1-b12)",
-        "driver.java.vm": "OpenJDK 64-Bit Server VM (build 25.162-b12, mixed mode)",
-        "driver.java.version": "openjdk version \"1.8.0_162"
+        "driver.raw_exec": "true"
       },
       "Detected": true,
-      "HealthDescription": "",
+      "HealthDescription": "Healthy",
       "Healthy": true,
-      "UpdateTime": "2018-04-11T23:33:48.781948669Z"
+      "UpdateTime": "2019-08-26T12:22:50.687733347+02:00"
+    },
+    "rkt": {
+      "Attributes": null,
+      "Detected": false,
+      "HealthDescription": "Driver must run as root",
+      "Healthy": false,
+      "UpdateTime": "2019-08-26T12:22:50.68796043+02:00"
+    },
+    "mock_driver": {
+      "Attributes": {
+        "driver.mock": "true"
+      },
+      "Detected": true,
+      "HealthDescription": "Healthy",
+      "Healthy": true,
+      "UpdateTime": "2019-08-26T12:22:50.687978919+02:00"
     },
     "qemu": {
       "Attributes": null,
       "Detected": false,
       "HealthDescription": "",
       "Healthy": false,
-      "UpdateTime": "2018-04-11T23:33:48.7819898Z"
-    },
-    "rkt": {
-      "Attributes": {
-        "driver.rkt.appc.version": "0.8.11",
-        "driver.rkt.volumes.enabled": "1",
-        "driver.rkt.version": "1.29.0"
-      },
-      "Detected": true,
-      "HealthDescription": "Driver rkt is detected: true",
-      "Healthy": true,
-      "UpdateTime": "2018-04-11T23:34:48.81079772Z"
+      "UpdateTime": "2019-08-26T12:22:50.688023782+02:00"
     },
     "docker": {
       "Attributes": {
-        "driver.docker.bridge_ip": "172.17.0.1",
-        "driver.docker.version": "18.03.0-ce",
-        "driver.docker.volumes.enabled": "1"
+        "driver.docker.runtimes": "runc",
+        "driver.docker.os_type": "linux",
+        "driver.docker": "true",
+        "driver.docker.version": "18.09.6",
+        "driver.docker.volumes.enabled": "true",
+        "driver.docker.bridge_ip": "172.17.0.1"
       },
       "Detected": true,
-      "HealthDescription": "Driver is available and responsive",
+      "HealthDescription": "Healthy",
       "Healthy": true,
-      "UpdateTime": "2018-04-11T23:34:48.713720323Z"
-    },
-    "exec": {
-      "Attributes": {},
-      "Detected": true,
-      "HealthDescription": "Driver exec is detected: true",
-      "Healthy": true,
-      "UpdateTime": "2018-04-11T23:34:48.711026521Z"
-    },
-    "raw_exec": {
-      "Attributes": {},
-      "Detected": true,
-      "HealthDescription": "",
-      "Healthy": true,
-      "UpdateTime": "2018-04-11T23:33:48.710448534Z"
+      "UpdateTime": "2019-08-26T12:22:50.762716458+02:00"
     }
   },
   "Events": [
@@ -259,35 +262,110 @@ $ curl \
       "Details": null,
       "Message": "Node registered",
       "Subsystem": "Cluster",
-      "Timestamp": "2018-04-10T23:43:17Z"
+      "Timestamp": "2019-08-26T12:22:50+02:00"
     }
   ],
-  "HTTPAddr": "10.138.0.5:4646",
-  "ID": "f7476465-4d6e-c0de-26d0-e383c49be941",
-  "Links": {
-    "consul": "dc1.nomad-4"
+  "HTTPAddr": "127.0.0.1:4646",
+  "HostVolumes": {
+    "prod-mysql-a": {
+      "Name": "prod-mysql-a",
+      "Path": "/data/mysql",
+      "ReadOnly": false
+    },
+    "certificates": {
+      "Name": "certificates",
+      "Path": "/etc/ssl/certs",
+      "ReadOnly": true
+    }
   },
-  "Meta": null,
-  "ModifyIndex": 2526,
-  "Name": "nomad-4",
+  "ID": "1ac61e33-a465-2ace-f63f-cffa1285e7eb",
+  "Links": {
+    "consul": "dc1.mew"
+  },
+  "Meta": {
+    "connect.sidecar_image": "envoyproxy/envoy:v1.11.1",
+    "connect.log_level": "info"
+  },
+  "ModifyIndex": 9,
+  "Name": "mew",
   "NodeClass": "",
+  "NodeResources": {
+    "Cpu": {
+      "CpuShares": 32000
+    },
+    "Devices": null,
+    "Disk": {
+      "DiskMB": 7890
+    },
+    "Memory": {
+      "MemoryMB": 15803
+    },
+    "Networks": [
+      {
+        "CIDR": "127.0.0.1/32",
+        "Device": "lo",
+        "DynamicPorts": null,
+        "IP": "127.0.0.1",
+        "MBits": 1000,
+        "Mode": "",
+        "ReservedPorts": null
+      },
+      {
+        "CIDR": "::1/128",
+        "Device": "lo",
+        "DynamicPorts": null,
+        "IP": "::1",
+        "MBits": 1000,
+        "Mode": "",
+        "ReservedPorts": null
+      }
+    ]
+  },
   "Reserved": {
     "CPU": 0,
+    "Devices": null,
     "DiskMB": 0,
+    "IOPS": 0,
     "MemoryMB": 0,
     "Networks": null
   },
+  "ReservedResources": {
+    "Cpu": {
+      "CpuShares": 0
+    },
+    "Disk": {
+      "DiskMB": 0
+    },
+    "Memory": {
+      "MemoryMB": 0
+    },
+    "Networks": {
+      "ReservedHostPorts": ""
+    }
+  },
   "Resources": {
-    "CPU": 2200,
-    "DiskMB": 25392,
-    "MemoryMB": 3704,
+    "CPU": 32000,
+    "Devices": null,
+    "DiskMB": 7890,
+    "IOPS": 0,
+    "MemoryMB": 15803,
     "Networks": [
       {
-        "CIDR": "10.138.0.5/32",
-        "Device": "eth0",
+        "CIDR": "127.0.0.1/32",
+        "Device": "lo",
         "DynamicPorts": null,
-        "IP": "10.138.0.5",
+        "IP": "127.0.0.1",
         "MBits": 1000,
+        "Mode": "",
+        "ReservedPorts": null
+      },
+      {
+        "CIDR": "::1/128",
+        "Device": "lo",
+        "DynamicPorts": null,
+        "IP": "::1",
+        "MBits": 1000,
+        "Mode": "",
         "ReservedPorts": null
       }
     ]
@@ -296,7 +374,7 @@ $ curl \
   "SecretID": "",
   "Status": "ready",
   "StatusDescription": "",
-  "StatusUpdatedAt": 1523552938,
+  "StatusUpdatedAt": 1566814982,
   "TLSEnabled": false
 }
 ```
