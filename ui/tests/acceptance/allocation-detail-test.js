@@ -141,19 +141,18 @@ module('Acceptance | allocation detail', function(hooks) {
   });
 
   test('proxy task has a proxy icon', async function(assert) {
-    const firstTaskRow = Allocation.tasks[0];
+    allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
+      clientStatus: 'running',
+    });
 
-    const firstTaskModel = allocation.task_states.models.find(
-      task => task.attrs.name === firstTaskRow.name
-    );
-    firstTaskModel.kind = 'connect-proxy:task';
-    firstTaskModel.save();
+    allocation.task_states.models.forEach(task => {
+      task.kind = 'connect-proxy:task';
+      task.save();
+    });
 
-    // TODO it would be nice to not have this but can’t “refresh”, have to move elsewhere and return…?
-    await visit('/');
     await Allocation.visit({ id: allocation.id });
 
-    assert.ok(firstTaskRow.hasProxyIcon);
+    assert.ok(Allocation.tasks[0].hasProxyIcon);
   });
 
   test('when there are no tasks, an empty state is shown', async function(assert) {
