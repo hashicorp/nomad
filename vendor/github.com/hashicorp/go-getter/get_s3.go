@@ -169,14 +169,7 @@ func (g *S3Getter) getObject(ctx context.Context, client *s3.S3, dst, bucket, ke
 		return err
 	}
 
-	f, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	_, err = Copy(ctx, f, resp.Body)
-	return err
+	return copyReader(dst, resp.Body, 0666, g.client.umask())
 }
 
 func (g *S3Getter) getAWSConfig(region string, url *url.URL, creds *credentials.Credentials) *aws.Config {
