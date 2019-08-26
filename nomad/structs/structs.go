@@ -5695,8 +5695,6 @@ const ConnectProxyPrefix = "connect-proxy"
 // proxied by this task exists in the task group and contains
 // valid Connect config.
 func ValidateConnectProxyService(serviceName string, tgServices []*Service) error {
-	var mErr multierror.Error
-
 	found := false
 	for _, svc := range tgServices {
 		if svc.Name == serviceName && svc.Connect != nil && svc.Connect.SidecarService != nil {
@@ -5706,10 +5704,10 @@ func ValidateConnectProxyService(serviceName string, tgServices []*Service) erro
 	}
 
 	if !found {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy service name not found in services from task group"))
+		return fmt.Errorf("Connect proxy service name not found in services from task group")
 	}
 
-	return mErr.ErrorOrNil()
+	return nil
 }
 
 const (
@@ -8838,12 +8836,17 @@ func (d *DesiredUpdates) GoString() string {
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
 var MsgpackHandle = func() *codec.MsgpackHandle {
-	h := &codec.MsgpackHandle{RawToString: true}
+	h := &codec.MsgpackHandle{}
+	h.RawToString = true
+
+	// maintain binary format from time prior to upgrading latest ugorji
+	h.BasicHandle.TimeNotBuiltin = true
 
 	// Sets the default type for decoding a map into a nil interface{}.
 	// This is necessary in particular because we store the driver configs as a
 	// nil interface{}.
 	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
+
 	return h
 }()
 
@@ -8863,7 +8866,11 @@ var (
 // behind. I feel like its original purpose was to pin at a stable version but
 // now we can accomplish this with vendoring.
 var HashiMsgpackHandle = func() *hcodec.MsgpackHandle {
-	h := &hcodec.MsgpackHandle{RawToString: true}
+	h := &hcodec.MsgpackHandle{}
+	h.RawToString = true
+
+	// maintain binary format from time prior to upgrading latest ugorji
+	h.BasicHandle.TimeNotBuiltin = true
 
 	// Sets the default type for decoding a map into a nil interface{}.
 	// This is necessary in particular because we store the driver configs as a

@@ -3,7 +3,6 @@ package getter
 import (
 	"compress/gzip"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 )
@@ -12,14 +11,14 @@ import (
 // decompress gzip files.
 type GzipDecompressor struct{}
 
-func (d *GzipDecompressor) Decompress(dst, src string, dir bool) error {
+func (d *GzipDecompressor) Decompress(dst, src string, dir bool, umask os.FileMode) error {
 	// Directory isn't supported at all
 	if dir {
 		return fmt.Errorf("gzip-compressed files can only unarchive to a single file")
 	}
 
 	// If we're going into a directory we should make that first
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), mode(0755, umask)); err != nil {
 		return err
 	}
 
@@ -38,12 +37,5 @@ func (d *GzipDecompressor) Decompress(dst, src string, dir bool) error {
 	defer gzipR.Close()
 
 	// Copy it out
-	dstF, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer dstF.Close()
-
-	_, err = io.Copy(dstF, gzipR)
-	return err
+	return copyReader(dst, gzipR, 0622, umask)
 }

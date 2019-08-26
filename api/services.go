@@ -106,6 +106,7 @@ type Service struct {
 	Checks       []ServiceCheck
 	CheckRestart *CheckRestart `mapstructure:"check_restart"`
 	Connect      *ConsulConnect
+	Meta         map[string]string
 }
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task

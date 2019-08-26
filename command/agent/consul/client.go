@@ -694,7 +694,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 	*ServiceRegistration, error) {
 
 	// Get the services ID
-	id := makeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
+	id := MakeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
 	sreg := &ServiceRegistration{
 		serviceID: id,
 		checkIDs:  make(map[string]struct{}, len(service.Checks)),
@@ -728,6 +728,14 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
 
+	meta := make(map[string]string, len(service.Meta))
+	for k, v := range service.Meta {
+		meta[k] = v
+	}
+
+	// This enables the consul UI to show that Nomad registered this service
+	meta["external-source"] = "nomad"
+
 	// Build the Consul Service registration request
 	serviceReg := &api.AgentServiceRegistration{
 		ID:      id,
@@ -735,10 +743,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		Tags:    tags,
 		Address: ip,
 		Port:    port,
-		// This enables the consul UI to show that Nomad registered this service
-		Meta: map[string]string{
-			"external-source": "nomad",
-		},
+		Meta:    meta,
 		Connect: connect, // will be nil if no Connect stanza
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
@@ -959,7 +964,7 @@ func (c *ServiceClient) RegisterTask(task *TaskServices) error {
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
 	for _, service := range task.Services {
-		serviceID := makeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
+		serviceID := MakeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := makeCheckID(serviceID, check)
@@ -982,11 +987,11 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 
 	existingIDs := make(map[string]*structs.Service, len(old.Services))
 	for _, s := range old.Services {
-		existingIDs[makeTaskServiceID(old.AllocID, old.Name, s, old.Canary)] = s
+		existingIDs[MakeTaskServiceID(old.AllocID, old.Name, s, old.Canary)] = s
 	}
 	newIDs := make(map[string]*structs.Service, len(newTask.Services))
 	for _, s := range newTask.Services {
-		newIDs[makeTaskServiceID(newTask.AllocID, newTask.Name, s, newTask.Canary)] = s
+		newIDs[MakeTaskServiceID(newTask.AllocID, newTask.Name, s, newTask.Canary)] = s
 	}
 
 	// Loop over existing Service IDs to see if they have been removed
@@ -1083,7 +1088,7 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
 	for _, service := range newIDs {
-		serviceID := makeTaskServiceID(newTask.AllocID, newTask.Name, service, newTask.Canary)
+		serviceID := MakeTaskServiceID(newTask.AllocID, newTask.Name, service, newTask.Canary)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := makeCheckID(serviceID, check)
@@ -1101,7 +1106,7 @@ func (c *ServiceClient) RemoveTask(task *TaskServices) {
 	ops := operations{}
 
 	for _, service := range task.Services {
-		id := makeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
+		id := MakeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
 		ops.deregServices = append(ops.deregServices, id)
 
 		for _, check := range service.Checks {
@@ -1262,11 +1267,11 @@ func makeAgentServiceID(role string, service *structs.Service) string {
 	return fmt.Sprintf("%s-%s-%s", nomadServicePrefix, role, service.Hash(role, "", false))
 }
 
-// makeTaskServiceID creates a unique ID for identifying a task service in
+// MakeTaskServiceID creates a unique ID for identifying a task service in
 // Consul.
 //
 //	Example Service ID: _nomad-task-b4e61df9-b095-d64e-f241-23860da1375f-redis-http-http
-func makeTaskServiceID(allocID, taskName string, service *structs.Service, canary bool) string {
+func MakeTaskServiceID(allocID, taskName string, service *structs.Service, canary bool) string {
 	return fmt.Sprintf("%s%s-%s-%s-%s", nomadTaskPrefix, allocID, taskName, service.Name, service.PortLabel)
 }
 

@@ -12,13 +12,13 @@ import (
 // decompress tar.xz files.
 type TarXzDecompressor struct{}
 
-func (d *TarXzDecompressor) Decompress(dst, src string, dir bool) error {
+func (d *TarXzDecompressor) Decompress(dst, src string, dir bool, umask os.FileMode) error {
 	// If we're going into a directory we should make that first
 	mkdir := dst
 	if !dir {
 		mkdir = filepath.Dir(dst)
 	}
-	if err := os.MkdirAll(mkdir, 0755); err != nil {
+	if err := os.MkdirAll(mkdir, mode(0755, umask)); err != nil {
 		return err
 	}
 
@@ -35,5 +35,5 @@ func (d *TarXzDecompressor) Decompress(dst, src string, dir bool) error {
 		return fmt.Errorf("Error opening an xz reader for %s: %s", src, err)
 	}
 
-	return untar(txzR, dst, src, dir)
+	return untar(txzR, dst, src, dir, umask)
 }

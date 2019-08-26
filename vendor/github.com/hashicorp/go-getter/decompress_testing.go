@@ -47,7 +47,7 @@ func TestDecompressor(t testing.T, d Decompressor, cases []TestDecompressCase) {
 			defer os.RemoveAll(td)
 
 			// Decompress
-			err := d.Decompress(dst, tc.Input, tc.Dir)
+			err := d.Decompress(dst, tc.Input, tc.Dir, 0022)
 			if (err != nil) != tc.Err {
 				t.Fatalf("err %s: %s", tc.Input, err)
 			}

@@ -33,6 +33,10 @@ job "docs" {
 
         port = "db"
 
+        meta {
+          meta = "for your service"
+        }
+
         check {
           type     = "tcp"
           port     = "db"
@@ -135,6 +139,9 @@ does not automatically enable service discovery.
     implemented for Docker and rkt.
 
   - `host` - Use the host IP and port.
+  
+- `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
+  the Consul service with user-defined metadata.
 
 ### `check` Parameters
 

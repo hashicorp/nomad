@@ -138,11 +138,11 @@ func (g *HttpGetter) GetFile(dst string, src *url.URL) error {
 	}
 
 	// Create all the parent directories if needed
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), g.client.mode(0755)); err != nil {
 		return err
 	}
 
-	f, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE, os.FileMode(0666))
+	f, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE, g.client.mode(0666))
 	if err != nil {
 		return err
 	}
@@ -253,11 +253,11 @@ func (g *HttpGetter) getSubdir(ctx context.Context, dst, source, subDir string) 
 	}
 
 	// Make the final destination
-	if err := os.MkdirAll(dst, 0755); err != nil {
+	if err := os.MkdirAll(dst, g.client.mode(0755)); err != nil {
 		return err
 	}
 
-	return copyDir(ctx, dst, sourcePath, false)
+	return copyDir(ctx, dst, sourcePath, false, g.client.umask())
 }
 
 // parseMeta looks for the first meta tag in the given reader that

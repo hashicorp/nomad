@@ -146,6 +146,9 @@ The table below shows this endpoint's support for
                         "global",
                         "cache"
                     ],
+                    "Meta": {
+                      "meta": "for my service"
+                    },
                     "PortLabel": "db",
                     "AddressMode": "",
                     "Checks": [{
