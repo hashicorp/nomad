@@ -1001,3 +1001,102 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 		require.Fail(t, "err: %v", err)
 	})
 }
+
+// TestAllocRunner_PersistState_Destroyed asserts that destroyed allocs don't persist anymore
+func TestAllocRunner_PersistState_Destroyed(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	taskName := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks[0].Name
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	conf.StateDB = state.NewMemDB(conf.Logger)
+
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer destroy(ar)
+
+	go ar.Run()
+
+	select {
+	case <-ar.WaitCh():
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "timed out waiting for alloc to complete")
+	}
+
+	// test final persisted state upon completion
+	require.NoError(t, ar.PersistState())
+	allocs, _, err := conf.StateDB.GetAllAllocations()
+	require.NoError(t, err)
+	require.Len(t, allocs, 1)
+	require.Equal(t, alloc.ID, allocs[0].ID)
+	_, ts, err := conf.StateDB.GetTaskRunnerState(alloc.ID, taskName)
+	require.NoError(t, err)
+	require.Equal(t, structs.TaskStateDead, ts.State)
+
+	// check that DB alloc is empty after destroying AR
+	ar.Destroy()
+	select {
+	case <-ar.DestroyCh():
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "timedout waiting for destruction")
+	}
+
+	allocs, _, err = conf.StateDB.GetAllAllocations()
+	require.NoError(t, err)
+	require.Empty(t, allocs)
+	_, ts, err = conf.StateDB.GetTaskRunnerState(alloc.ID, taskName)
+	require.NoError(t, err)
+	require.Nil(t, ts)
+
+	// check that DB alloc is empty after persisting state of destroyed AR
+	ar.PersistState()
+	allocs, _, err = conf.StateDB.GetAllAllocations()
+	require.NoError(t, err)
+	require.Empty(t, allocs)
+	_, ts, err = conf.StateDB.GetTaskRunnerState(alloc.ID, taskName)
+	require.NoError(t, err)
+	require.Nil(t, ts)
+}
+
+// COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
+func TestAllocRunner_WaitForServer_Detects_Suspicious_Allocs(t *testing.T) {
+	t.Parallel()
+	alloc := mock.BatchAlloc()
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	conf.StateDB = state.NewMemDB(conf.Logger)
+
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer destroy(ar)
+
+	defer destroy(ar)
+	go ar.Run()
+
+	select {
+	case <-ar.WaitCh():
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "timed out waiting for alloc to complete")
+	}
+
+	// shouldn't wait after successful completion
+	require.False(t, ar.shouldWaitForServers(nil))
+
+	// new alloc runner shouldn't restore completed alloc
+	ar, err = NewAllocRunner(conf)
+	require.NoError(t, err)
+	ar.Restore()
+	require.False(t, ar.shouldWaitForServers(nil))
+
+	// simulate 0.9.5 behavior
+	require.NoError(t, conf.StateDB.DeleteAllocationBucket(alloc.ID))
+	require.NoError(t, conf.StateDB.PutAllocation(alloc))
+
+	ar, err = NewAllocRunner(conf)
+	require.NoError(t, err)
+	ar.Restore()
+	require.True(t, ar.shouldWaitForServers(nil))
+}
