@@ -765,13 +765,14 @@ func (ar *allocRunner) destroyImpl() {
 	// state if Run() ran at all.
 	<-ar.taskStateUpdateHandlerCh
 
-	// Cleanup state db
+	// Mark alloc as destroyed
+	ar.destroyedLock.Lock()
+
+	// Cleanup state db; while holding the lock to avoid
+	// a race periodic PersistState that may resurrect the alloc
 	if err := ar.stateDB.DeleteAllocationBucket(ar.id); err != nil {
 		ar.logger.Warn("failed to delete allocation state", "error", err)
 	}
-
-	// Mark alloc as destroyed
-	ar.destroyedLock.Lock()
 
 	if !ar.shutdown {
 		ar.shutdown = true
@@ -785,10 +786,10 @@ func (ar *allocRunner) destroyImpl() {
 }
 
 func (ar *allocRunner) PersistState() error {
-	// note that a race exists where a goroutine attempts to persist state
-	// while another kicks off destruction process.
-	// Here, we attempt to reconcile by always deleting alloc bucket after alloc destruction
-	if ar.IsDestroyed() {
+	ar.destroyedLock.Lock()
+	defer ar.destroyedLock.Unlock()
+
+	if ar.destroyed {
 		err := ar.stateDB.DeleteAllocationBucket(ar.id)
 		if err != nil {
 			ar.logger.Warn("failed to delete allocation bucket", "error", err)
