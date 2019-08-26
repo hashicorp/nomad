@@ -158,9 +158,24 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 		return false
 	}
 
-	for source := range h.volumes {
-		if _, ok := n.HostVolumes[source]; !ok {
+	for source, requests := range h.volumes {
+		nodeVolume, ok := n.HostVolumes[source]
+		if !ok {
 			return false
+		}
+
+		// If the volume supports being mounted as ReadWrite, we do not need to
+		// do further validation for readonly placement.
+		if !nodeVolume.ReadOnly {
+			continue
+		}
+
+		// The Volume can only be mounted ReadOnly, validate that no requests for
+		// it are ReadWrite.
+		for _, req := range requests {
+			if !req.ReadOnly {
+				return false
+			}
 		}
 	}
 
