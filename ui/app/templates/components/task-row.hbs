@@ -7,10 +7,10 @@
 </td>
 <td data-test-name class="nowrap">
   {{#link-to "allocations.allocation.task" task.allocation task class="is-primary"}}
-    {{#if task.isConnectProxy}}
-      <span class="tooltip" role="tooltip" aria-label="Proxy Task">{{x-icon "proxy"}}</span>
-    {{/if}}
     {{task.name}}
+    {{#if task.isConnectProxy}}
+      <span data-test-proxy-tag class="tag is-secondary is-structure">Proxy</span>
+    {{/if}}
   {{/link-to}}
 </td>
 <td data-test-state>{{task.state}}</td>

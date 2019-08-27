@@ -16,8 +16,8 @@ export default create({
   title: {
     scope: '[data-test-title]',
 
-    badge: {
-      scope: '.badge',
+    proxyTag: {
+      scope: '[data-test-proxy-tag]',
     },
   },
 

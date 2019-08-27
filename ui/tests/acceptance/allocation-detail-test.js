@@ -140,7 +140,7 @@ module('Acceptance | allocation detail', function(hooks) {
     assert.ok(Allocation.firstUnhealthyTask().hasUnhealthyDriver, 'Warning is shown');
   });
 
-  test('proxy task has a proxy icon', async function(assert) {
+  test('proxy task has a proxy tag', async function(assert) {
     allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
       clientStatus: 'running',
     });
@@ -152,7 +152,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
     await Allocation.visit({ id: allocation.id });
 
-    assert.ok(Allocation.tasks[0].hasProxyIcon);
+    assert.ok(Allocation.tasks[0].hasProxyTag);
   });
 
   test('when there are no tasks, an empty state is shown', async function(assert) {

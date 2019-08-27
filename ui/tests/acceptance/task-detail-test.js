@@ -326,8 +326,7 @@ module('Acceptance | proxy task detail', function(hooks) {
     await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  test('a proxy badge is shown', async function(assert) {
-    assert.ok(Task.title.badge.isPresent);
-    assert.equal(Task.title.badge.text, 'Proxy');
+  test('a proxy tag is shown', async function(assert) {
+    assert.ok(Task.title.proxyTag.isPresent);
   });
 });
