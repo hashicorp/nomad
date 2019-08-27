@@ -115,13 +115,15 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
+	alloc := ar.Alloc()
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newAllocDirHook(hookLogger, ar.allocDir),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
-		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
-		newNetworkHook(hookLogger, ns, ar.Alloc(), nm, nc),
-		newGroupServiceHook(hookLogger, ar.Alloc(), ar.consulClient),
+		newAllocHealthWatcherHook(hookLogger, alloc, hs, ar.Listener(), ar.consulClient),
+		newNetworkHook(hookLogger, ns, alloc, nm, nc),
+		newGroupServiceHook(hookLogger, alloc, ar.consulClient),
+		newConsulSockHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
 	}
 
 	return nil
