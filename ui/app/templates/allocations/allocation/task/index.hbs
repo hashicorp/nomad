@@ -18,7 +18,7 @@
   <h1 class="title" data-test-title>
     {{model.name}}
     {{#if model.isConnectProxy}}
-      <span data-test-proxy-tag class="bumper-left tag is-secondary is-structure">Proxy</span>
+      {{proxy-tag class="bumper-left"}}
     {{/if}}
     <span class="{{unless model.isConnectProxy "bumper-left"}} tag {{model.stateClass}}" data-test-state>{{model.state}}</span>
     {{#if model.isRunning}}
