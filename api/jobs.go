@@ -751,6 +751,8 @@ func (j *Job) Canonicalize() {
 	}
 	if j.Update != nil {
 		j.Update.Canonicalize()
+	} else if *j.Type == JobTypeService {
+		j.Update = DefaultUpdateStrategy()
 	}
 
 	for _, tg := range j.TaskGroups {
