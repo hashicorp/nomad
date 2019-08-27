@@ -3969,8 +3969,8 @@ func (u *UpdateStrategy) Validate() error {
 		multierror.Append(&mErr, fmt.Errorf("Invalid health check given: %q", u.HealthCheck))
 	}
 
-	if u.MaxParallel < 1 {
-		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than one: %d < 1", u.MaxParallel))
+	if u.MaxParallel < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than zero: %d < 1", u.MaxParallel))
 	}
 	if u.Canary < 0 {
 		multierror.Append(&mErr, fmt.Errorf("Canary count can not be less than zero: %d < 0", u.Canary))
