@@ -342,6 +342,7 @@
 		{"path":"github.com/prometheus/client_golang/prometheus","checksumSHA1":"5dHjKxShYVWVB1Fb00dAnR6kqVk=","revision":"2641b987480bca71fb39738eb8c8b0d577cb1d76","revisionTime":"2019-06-07T14:56:44Z","version":"v0.9.4","versionExact":"v0.9.4"},
 		{"path":"github.com/prometheus/client_golang/prometheus/internal","checksumSHA1":"UBqhkyjCz47+S19MVTigxJ2VjVQ=","revision":"2641b987480bca71fb39738eb8c8b0d577cb1d76","revisionTime":"2019-06-07T14:56:44Z","version":"v0.9.4","versionExact":"v0.9.4"},
 		{"path":"github.com/prometheus/client_golang/prometheus/promhttp","checksumSHA1":"V51yx4gq61QCD9clxnps792Eq2Y=","revision":"2641b987480bca71fb39738eb8c8b0d577cb1d76","revisionTime":"2019-06-07T14:56:44Z","version":"v0.9.4","versionExact":"v0.9.4"},
+		{"path":"github.com/prometheus/client_golang/prometheus/push","checksumSHA1":"f419BLQunjoNiCB2UTQSgkmvI4U=","revision":"35ef65db672a76effef5f0808decd0484a636f3f","revisionTime":"2019-08-20T08:35:54Z"},
 		{"path":"github.com/prometheus/client_model/go","checksumSHA1":"DvwvOlPNAgRntBzt3b3OSRMS2N4=","revision":"6f3806018612930941127f2a7c6c453ba2c527d2","revisionTime":"2017-02-16T18:52:47Z"},
 		{"path":"github.com/prometheus/common/expfmt","checksumSHA1":"xfnn0THnqNwjwimeTClsxahYrIo=","revision":"2f17f4a9d485bf34b4bfaccc273805040e4f86c8","revisionTime":"2017-09-08T16:18:22Z"},
 		{"path":"github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg","checksumSHA1":"GWlM3d2vPYyNATtTFgftS10/A9w=","revision":"2f17f4a9d485bf34b4bfaccc273805040e4f86c8","revisionTime":"2017-09-08T16:18:22Z"},
