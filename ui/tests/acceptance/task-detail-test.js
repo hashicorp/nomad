@@ -316,8 +316,7 @@ module('Acceptance | proxy task detail', function(hooks) {
     server.create('agent');
     server.create('node');
     server.create('job', { createAllocations: false });
-    // FIXME when this is `running`, the graphs fail to render, despite this being copied from the first module 🧐
-    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'complete' });
+    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
     task = allocation.task_states.models[0];
 
     task.kind = 'connect-proxy:task';
