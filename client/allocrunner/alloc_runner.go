@@ -141,11 +141,6 @@ type allocRunner struct {
 	// servers have been contacted for the first time in case of a failed
 	// restore.
 	serversContactedCh chan struct{}
-
-	// waitOnServers defaults to false but will be set true if a restore
-	// fails and the Run method should wait until serversContactedCh is
-	// closed.
-	waitOnServers bool
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -245,16 +240,6 @@ func (ar *allocRunner) Run() {
 
 	// Start the alloc update handler
 	go ar.handleAllocUpdates()
-
-	if ar.waitOnServers {
-		ar.logger.Info(" waiting to contact server before restarting")
-		select {
-		case <-ar.taskStateUpdateHandlerCh:
-			return
-		case <-ar.serversContactedCh:
-			ar.logger.Info("server contacted; unblocking waiting alloc")
-		}
-	}
 
 	// If task update chan has been closed, that means we've been shutdown.
 	select {
@@ -366,48 +351,7 @@ func (ar *allocRunner) Restore() error {
 		}
 	}
 
-	ar.waitOnServers = ar.shouldWaitForServers(ds)
 	return nil
-}
-
-// shouldWaitForServers returns true if we suspect the alloc
-// is potentially a completed alloc that got resurrected after AR was destroyed.
-// In such cases, rerunning the alloc can lead to process and task exhaustion.
-//
-// The heaurstic used here is an alloc is suspect if it's in a pending state
-// and no other task/status info is found.
-//
-// See:
-//  * https://github.com/hashicorp/nomad/pull/6207
-//  * https://github.com/hashicorp/nomad/issues/5984
-//
-// COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
-func (ar *allocRunner) shouldWaitForServers(ds *structs.AllocDeploymentStatus) bool {
-	alloc := ar.Alloc()
-
-	if alloc.ClientStatus != structs.AllocClientStatusPending {
-		return false
-	}
-
-	// check if we restore a task but see no other data
-	if ds != nil {
-		return false
-	}
-
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	if tg == nil {
-		// corrupt alloc?!
-		return true
-	}
-
-	for _, task := range tg.Tasks {
-		ls, tr, _ := ar.stateDB.GetTaskRunnerState(alloc.ID, task.Name)
-		if ls != nil || tr != nil {
-			return false
-		}
-	}
-
-	return true
 }
 
 // persistDeploymentStatus stores AllocDeploymentStatus.
