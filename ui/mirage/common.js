@@ -11,8 +11,7 @@ const IOPS_RESERVATIONS = [100000, 250000, 500000, 1000000, 10000000, 20000000];
 IOPS_RESERVATIONS.push(...Array(1000).fill(0));
 DISK_RESERVATIONS.push(...Array(500).fill(0));
 
-// FIXME does `none` make sense?
-const NETWORK_MODES = ['none', 'bridge', 'host'];
+const NETWORK_MODES = ['bridge', 'host'];
 
 export const DATACENTERS = provide(
   15,
