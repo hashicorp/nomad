@@ -108,6 +108,17 @@ func TestJobs_Canonicalize(t *testing.T) {
 				CreateIndex:       uint64ToPtr(0),
 				ModifyIndex:       uint64ToPtr(0),
 				JobModifyIndex:    uint64ToPtr(0),
+				Update: &UpdateStrategy{
+					Stagger:          timeToPtr(30 * time.Second),
+					MaxParallel:      intToPtr(1),
+					HealthCheck:      stringToPtr("checks"),
+					MinHealthyTime:   timeToPtr(10 * time.Second),
+					HealthyDeadline:  timeToPtr(5 * time.Minute),
+					ProgressDeadline: timeToPtr(10 * time.Minute),
+					AutoRevert:       boolToPtr(false),
+					Canary:           intToPtr(0),
+					AutoPromote:      boolToPtr(false),
+				},
 				TaskGroups: []*TaskGroup{
 					{
 						Name:  stringToPtr(""),
@@ -130,6 +141,17 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(30 * time.Second),
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
+						},
+						Update: &UpdateStrategy{
+							Stagger:          timeToPtr(30 * time.Second),
+							MaxParallel:      intToPtr(1),
+							HealthCheck:      stringToPtr("checks"),
+							MinHealthyTime:   timeToPtr(10 * time.Second),
+							HealthyDeadline:  timeToPtr(5 * time.Minute),
+							ProgressDeadline: timeToPtr(10 * time.Minute),
+							AutoRevert:       boolToPtr(false),
+							Canary:           intToPtr(0),
+							AutoPromote:      boolToPtr(false),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -179,6 +201,17 @@ func TestJobs_Canonicalize(t *testing.T) {
 				CreateIndex:       uint64ToPtr(0),
 				ModifyIndex:       uint64ToPtr(0),
 				JobModifyIndex:    uint64ToPtr(0),
+				Update: &UpdateStrategy{
+					Stagger:          timeToPtr(30 * time.Second),
+					MaxParallel:      intToPtr(1),
+					HealthCheck:      stringToPtr("checks"),
+					MinHealthyTime:   timeToPtr(10 * time.Second),
+					HealthyDeadline:  timeToPtr(5 * time.Minute),
+					ProgressDeadline: timeToPtr(10 * time.Minute),
+					AutoRevert:       boolToPtr(false),
+					Canary:           intToPtr(0),
+					AutoPromote:      boolToPtr(false),
+				},
 				TaskGroups: []*TaskGroup{
 					{
 						Name:  stringToPtr("bar"),
@@ -201,6 +234,17 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(30 * time.Second),
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
+						},
+						Update: &UpdateStrategy{
+							Stagger:          timeToPtr(30 * time.Second),
+							MaxParallel:      intToPtr(1),
+							HealthCheck:      stringToPtr("checks"),
+							MinHealthyTime:   timeToPtr(10 * time.Second),
+							HealthyDeadline:  timeToPtr(5 * time.Minute),
+							ProgressDeadline: timeToPtr(10 * time.Minute),
+							AutoRevert:       boolToPtr(false),
+							Canary:           intToPtr(0),
+							AutoPromote:      boolToPtr(false),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
