@@ -57,6 +57,9 @@ const (
 	// Datacenter is the environment variable for passing the datacenter in which the alloc is running.
 	Datacenter = "NOMAD_DC"
 
+	// Namespace is the environment variable for passing the namespace in which the alloc is running.
+	Namespace = "NOMAD_NAMESPACE"
+
 	// Region is the environment variable for passing the region in which the alloc is running.
 	Region = "NOMAD_REGION"
 
@@ -303,6 +306,7 @@ type Builder struct {
 	taskName         string
 	allocIndex       int
 	datacenter       string
+	namespace        string
 	region           string
 	allocId          string
 	allocName        string
@@ -406,6 +410,9 @@ func (b *Builder) Build() *TaskEnv {
 	}
 	if b.datacenter != "" {
 		envMap[Datacenter] = b.datacenter
+	}
+	if b.namespace != "" {
+		envMap[Namespace] = b.namespace
 	}
 	if b.region != "" {
 		envMap[Region] = b.region
@@ -559,6 +566,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 	b.groupName = alloc.TaskGroup
 	b.allocIndex = int(alloc.Index())
 	b.jobName = alloc.Job.Name
+	b.namespace = alloc.Namespace
 
 	// Set meta
 	combined := alloc.Job.CombinedTaskMeta(alloc.TaskGroup, b.taskName)
