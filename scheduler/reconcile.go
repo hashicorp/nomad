@@ -618,7 +618,7 @@ func (a *allocReconciler) handleGroupCanaries(all allocSet, desiredChanges *stru
 func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, destructive, migrate allocSet, canaryState bool) int {
 	// If there is no update strategy or deployment for the group we can deploy
 	// as many as the group has
-	if group.Update == nil || len(destructive)+len(migrate) == 0 {
+	if group.Update == nil || len(destructive)+len(migrate) == 0 || group.Update.MaxParallel == 0 {
 		return group.Count
 	} else if a.deploymentPaused || a.deploymentFailed {
 		// If the deployment is paused or failed, do not create anything else
