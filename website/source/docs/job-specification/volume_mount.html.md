@@ -44,8 +44,8 @@ job "docs" {
 ```
 
 The Nomad client will make the volumes available to tasks according to this
-configuration, and will fail the allocation if the client configuration updates
-to remove a volume that it depends on.
+configuration, and it will fail the allocation if the client configuration
+updates to remove a volume that it depends on.
 
 ## `volume_mount` Parameters
 

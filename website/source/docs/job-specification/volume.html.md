@@ -5,7 +5,7 @@ sidebar_current: "docs-job-specification-volume"
 description: |-
    The "volume" stanza allows the group to specify that it requires a given volume
    from the cluster. Nomad will automatically handle ensuring that the volume is
-   available, and mounted into the task.
+   available and mounted into the task.
 ---
 
 # `volume` Stanza
@@ -21,7 +21,7 @@ description: |-
 
 The "volume" stanza allows the group to specify that it requires a given volume
 from the cluster. Nomad will automatically handle ensuring that the volume is
-available, and mounted into the task.
+available and mounted into the task.
 
 The key of the stanza is the name of the volume as it will be exposed to task
 configuration.
@@ -43,7 +43,7 @@ job "docs" {
 
 The Nomad server will ensure that the allocations are only scheduled on hosts
 that have a set of volumes that meet the criteria specified in the volume
-stanza's.
+stanzas.
 
 The Nomad client will make the volumes available to tasks according to the
 [volume_mount][volume_mount] stanza in the `task` configuration.
@@ -60,7 +60,7 @@ The Nomad client will make the volumes available to tasks according to the
   usage.
 
 - `config` `(json/hcl: nil)` - Specifies the configuration for the volume
-  provider. For `host_volume`'s, the only key is `source`, which is the name of
+  provider. For a `host_volume`, the only key is `source`, which is the name of
   the volume to request.
 
 [volume_mount]: /docs/job-specification/volume_mount.html "Nomad volume_mount Job Specification"
