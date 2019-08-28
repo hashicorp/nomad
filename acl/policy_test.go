@@ -199,6 +199,53 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			`
+			host_volume "production-tls-*" {
+				capabilities = ["mount-readonly"]
+			}
+			`,
+			"",
+			&Policy{
+				HostVolumes: []*HostVolumePolicy{
+					{
+						Name:   "production-tls-*",
+						Policy: "",
+						Capabilities: []string{
+							HostVolumeCapabilityMountReadOnly,
+						},
+					},
+				},
+			},
+		},
+		{
+			`
+			host_volume "production-tls-*" {
+				capabilities = ["mount-readwrite"]
+			}
+			`,
+			"",
+			&Policy{
+				HostVolumes: []*HostVolumePolicy{
+					{
+						Name:   "production-tls-*",
+						Policy: "",
+						Capabilities: []string{
+							HostVolumeCapabilityMountReadWrite,
+						},
+					},
+				},
+			},
+		},
+		{
+			`
+			host_volume "volume has a space" {
+				capabilities = ["mount-readwrite"]
+			}
+			`,
+			"Invalid host volume name",
+			nil,
+		},
 	}
 
 	for idx, tc := range tcases {

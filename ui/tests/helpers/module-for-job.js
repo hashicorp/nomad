@@ -54,6 +54,19 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
         assert.ok(JobDetail.allocationsSummary, 'Allocations are shown in the summary section');
         assert.notOk(JobDetail.childrenSummary, 'Children are not shown in the summary section');
       });
+
+      test('clicking in an allocation row navigates to that allocation', async function(assert) {
+        const allocationRow = JobDetail.allocations[0];
+        const allocationId = allocationRow.id;
+
+        await allocationRow.visitRow();
+
+        assert.equal(
+          currentURL(),
+          `/allocations/${allocationId}`,
+          'Allocation row links to allocation detail'
+        );
+      });
     }
 
     if (context === 'children') {

@@ -2,12 +2,37 @@
 
 IMPROVEMENTS:
  * agent: allow the job GC interval to be configured [[GH-5978](https://github.com/hashicorp/nomad/issues/5978)]
-
-## 0.9.5 (Unreleased)
+ * agent: add `-dev=connect` parameter to support running in dev mode with Consul Connect [[GH-6126](https://github.com/hashicorp/nomad/issues/6126)]
+ * api: add follow parameter to file streaming endpoint to support older browsers [[GH-6049](https://github.com/hashicorp/nomad/issues/6049)]
+ * metrics: Add job status (pending, running, dead) metrics [[GH-6003](https://github.com/hashicorp/nomad/issues/6003)]
+ * ui: Add creation time to evaluations table [[GH-6050](https://github.com/hashicorp/nomad/pull/6050)]
 
 BUG FIXES:
 
+ * command/run: Fixed `nomad run ...` on Windows so it works with unprivileged accounts [[GH-6009](https://github.com/hashicorp/nomad/issues/6009)]
+ * ui: Fixed navigation via clicking recent allocation row [[GH-6087](https://github.com/hashicorp/nomad/pull/6087)]
  * ui: Fixed links containing IPv6 addresses to include required square brackets [[GH-6007](https://github.com/hashicorp/nomad/pull/6007)]
+
+## 0.9.5 (21 August 2019)
+
+SECURITY:
+
+ * client/template: Fix security vulnerabilities associated with task template rendering (CVE-2019-14802), introduced in Nomad 0.5.0 [[GH-6055](https://github.com/hashicorp/nomad/issues/6055)] [[GH-6075](https://github.com/hashicorp/nomad/issues/6075)]
+ * client/artifact: Fix a privilege escalation in the `exec` driver exploitable by artifacts with setuid permissions (CVE-2019-14803) [[GH-6176](https://github.com/hashicorp/nomad/issues/6176)]
+
+__BACKWARDS INCOMPATIBILITIES:__
+
+ * client/template: When rendering a task template, only task environment variables are included by default. [[GH-6055](https://github.com/hashicorp/nomad/issues/6055)]
+ * client/template: When rendering a task template, the `plugin` function is no longer permitted by default and will raise an error. [[GH-6075](https://github.com/hashicorp/nomad/issues/6075)]
+ * client/template: When rendering a task template, path parameters for the `file` function will be restricted to the task directory by default. Relative paths or symlinks that point outside the task directory will raise an error. [[GH-6075](https://github.com/hashicorp/nomad/issues/6075)]
+
+IMPROVEMENTS:
+ * core: Added create and modify timestamps to evaluations [[GH-5881](https://github.com/hashicorp/nomad/pull/5881)]
+
+BUG FIXES:
+ * api: Fixed job region to default to client node region if none provided [[GH-6064](https://github.com/hashicorp/nomad/pull/6064)]
+ * ui: Fixed links containing IPv6 addresses to include required square brackets [[GH-6007](https://github.com/hashicorp/nomad/pull/6007)]
+ * vault: Fix deadlock when reloading server Vault configuration [[GH-6082](https://github.com/hashicorp/nomad/issues/6082)]
 
 ## 0.9.4 (July 30, 2019)
 
@@ -46,7 +71,7 @@ BUG FIXES:
  * driver: Fixed an issue preventing external driver plugins from launching executor process [[GH-5726](https://github.com/hashicorp/nomad/issues/5726)]
  * driver/docker: Fixed a bug mounting relative paths on Windows [[GH-5811](https://github.com/hashicorp/nomad/issues/5811)]
  * driver/exec: Upgraded libcontainer dependency to avoid zombie `runc:[1:CHILD]]` processes [[GH-5851](https://github.com/hashicorp/nomad/issues/5851)]
- * metrics: Added metrics for raft and state store indexes. [[GH-5841](https://github.com/hashicorp/nomad/issues/5841)] 
+ * metrics: Added metrics for raft and state store indexes. [[GH-5841](https://github.com/hashicorp/nomad/issues/5841)]
  * metrics: Upgrade prometheus client to avoid label conflicts [[GH-5850](https://github.com/hashicorp/nomad/issues/5850)]
  * ui: Fixed ability to click sort arrow to change sort direction [[GH-5833](https://github.com/hashicorp/nomad/pull/5833)]
 
@@ -1629,4 +1654,3 @@ BUG FIXES:
 ## 0.1.0 (September 28, 2015)
 
   * Initial release
-

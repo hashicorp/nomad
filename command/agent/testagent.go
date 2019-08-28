@@ -311,7 +311,7 @@ func (a *TestAgent) pickRandomPorts(c *Config) {
 // TestConfig returns a unique default configuration for testing an
 // agent.
 func (a *TestAgent) config() *Config {
-	conf := DevConfig()
+	conf := DevConfig(nil)
 
 	// Customize the server configuration
 	config := nomad.DefaultConfig()

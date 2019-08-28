@@ -1710,7 +1710,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	remainingTaskServiceID := makeTaskServiceID(remainingTask.AllocID,
+	remainingTaskServiceID := MakeTaskServiceID(remainingTask.AllocID,
 		remainingTask.Name, remainingTask.Services[0], false)
 
 	require.NoError(ctx.ServiceClient.RegisterTask(remainingTask))
@@ -1733,7 +1733,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	explicitlyRemovedTaskServiceID := makeTaskServiceID(explicitlyRemovedTask.AllocID,
+	explicitlyRemovedTaskServiceID := MakeTaskServiceID(explicitlyRemovedTask.AllocID,
 		explicitlyRemovedTask.Name, explicitlyRemovedTask.Services[0], false)
 
 	require.NoError(ctx.ServiceClient.RegisterTask(explicitlyRemovedTask))
@@ -1758,7 +1758,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 			},
 		},
 	}
-	outofbandTaskServiceID := makeTaskServiceID(outofbandTask.AllocID,
+	outofbandTaskServiceID := MakeTaskServiceID(outofbandTask.AllocID,
 		outofbandTask.Name, outofbandTask.Services[0], false)
 
 	require.NoError(ctx.ServiceClient.RegisterTask(outofbandTask))
@@ -1819,7 +1819,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	remainingTaskServiceID := makeTaskServiceID(remainingTask.AllocID,
+	remainingTaskServiceID := MakeTaskServiceID(remainingTask.AllocID,
 		remainingTask.Name, remainingTask.Services[0], false)
 
 	require.NoError(ctx.ServiceClient.RegisterTask(remainingTask))
@@ -1842,7 +1842,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	explicitlyRemovedTaskServiceID := makeTaskServiceID(explicitlyRemovedTask.AllocID,
+	explicitlyRemovedTaskServiceID := MakeTaskServiceID(explicitlyRemovedTask.AllocID,
 		explicitlyRemovedTask.Name, explicitlyRemovedTask.Services[0], false)
 
 	require.NoError(ctx.ServiceClient.RegisterTask(explicitlyRemovedTask))
@@ -1867,7 +1867,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 			},
 		},
 	}
-	outofbandTaskServiceID := makeTaskServiceID(outofbandTask.AllocID,
+	outofbandTaskServiceID := MakeTaskServiceID(outofbandTask.AllocID,
 		outofbandTask.Name, outofbandTask.Services[0], false)
 
 	require.NoError(ctx.ServiceClient.RegisterTask(outofbandTask))

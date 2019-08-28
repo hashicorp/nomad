@@ -2433,6 +2433,451 @@ func TestTaskGroupDiff(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			// TaskGroup Services edited
+			Contextual: true,
+			Old: &TaskGroup{
+				Services: []*Service{
+					{
+						Name: "foo",
+						Checks: []*ServiceCheck{
+							{
+								Name:     "foo",
+								Type:     "http",
+								Command:  "foo",
+								Args:     []string{"foo"},
+								Path:     "foo",
+								Protocol: "http",
+								Interval: 1 * time.Second,
+								Timeout:  1 * time.Second,
+							},
+						},
+						Connect: &ConsulConnect{
+							SidecarTask: &SidecarTask{
+								Name:   "sidecar",
+								Driver: "docker",
+								Env: map[string]string{
+									"FOO": "BAR",
+								},
+								Config: map[string]interface{}{
+									"foo": "baz",
+								},
+							},
+						},
+					},
+				},
+			},
+
+			New: &TaskGroup{
+				Services: []*Service{
+					{
+						Name: "foo",
+						Checks: []*ServiceCheck{
+							{
+								Name:     "foo",
+								Type:     "tcp",
+								Command:  "bar",
+								Path:     "bar",
+								Protocol: "tcp",
+								Interval: 2 * time.Second,
+								Timeout:  2 * time.Second,
+								Header: map[string][]string{
+									"Foo": {"baz"},
+								},
+							},
+						},
+						Connect: &ConsulConnect{
+							SidecarService: &ConsulSidecarService{
+								Port: "http",
+								Proxy: &ConsulProxy{
+									Upstreams: []ConsulUpstream{
+										{
+											DestinationName: "foo",
+											LocalBindPort:   8000,
+										},
+									},
+									Config: map[string]interface{}{
+										"foo": "qux",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Service",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "AddressMode",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Name",
+								Old:  "foo",
+								New:  "foo",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "PortLabel",
+								Old:  "",
+								New:  "",
+							},
+						},
+						Objects: []*ObjectDiff{
+
+							{
+								Type: DiffTypeEdited,
+								Name: "Check",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeNone,
+										Name: "AddressMode",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Command",
+										Old:  "foo",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "GRPCService",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "GRPCUseTLS",
+										Old:  "false",
+										New:  "false",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "InitialStatus",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Interval",
+										Old:  "1000000000",
+										New:  "2000000000",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Method",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Name",
+										Old:  "foo",
+										New:  "foo",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Path",
+										Old:  "foo",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "PortLabel",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Protocol",
+										Old:  "http",
+										New:  "tcp",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "TLSSkipVerify",
+										Old:  "false",
+										New:  "false",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "TaskName",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Timeout",
+										Old:  "1000000000",
+										New:  "2000000000",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Type",
+										Old:  "http",
+										New:  "tcp",
+									},
+								},
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Header",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "Foo[0]",
+												Old:  "",
+												New:  "baz",
+											},
+										},
+									},
+								},
+							},
+
+							{
+								Type: DiffTypeEdited,
+								Name: "ConsulConnect",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeNone,
+										Name: "Native",
+										Old:  "false",
+										New:  "false",
+									},
+								},
+								Objects: []*ObjectDiff{
+
+									{
+										Type: DiffTypeAdded,
+										Name: "SidecarService",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "Port",
+												Old:  "",
+												New:  "http",
+											},
+										},
+										Objects: []*ObjectDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "ConsulProxy",
+												Objects: []*ObjectDiff{
+													{
+														Type: DiffTypeAdded,
+														Name: "ConsulUpstreams",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "DestinationName",
+																Old:  "",
+																New:  "foo",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "LocalBindPort",
+																Old:  "",
+																New:  "8000",
+															},
+														},
+													},
+													{
+														Type: DiffTypeAdded,
+														Name: "Config",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "foo",
+																Old:  "",
+																New:  "qux",
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+
+									{
+										Type: DiffTypeDeleted,
+										Name: "SidecarTask",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeDeleted,
+												Name: "Driver",
+												Old:  "docker",
+												New:  "",
+											},
+											{
+												Type: DiffTypeDeleted,
+												Name: "Env[FOO]",
+												Old:  "BAR",
+												New:  "",
+											},
+											{
+												Type: DiffTypeDeleted,
+												Name: "Name",
+												Old:  "sidecar",
+												New:  "",
+											},
+										},
+										Objects: []*ObjectDiff{
+											{
+												Type: DiffTypeDeleted,
+												Name: "Config",
+												Fields: []*FieldDiff{
+													{
+														Type: DiffTypeDeleted,
+														Name: "foo",
+														Old:  "baz",
+														New:  "",
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// TaskGroup Networks edited
+			Contextual: true,
+			Old: &TaskGroup{
+				Networks: Networks{
+					{
+						Device: "foo",
+						CIDR:   "foo",
+						IP:     "foo",
+						MBits:  100,
+						ReservedPorts: []Port{
+							{
+								Label: "foo",
+								Value: 80,
+							},
+						},
+					},
+				},
+			},
+			New: &TaskGroup{
+				Networks: Networks{
+					{
+						Device: "bar",
+						CIDR:   "bar",
+						IP:     "bar",
+						MBits:  200,
+						DynamicPorts: []Port{
+							{
+								Label: "bar",
+								To:    8081,
+							},
+						},
+					},
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Network",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "MBits",
+								Old:  "",
+								New:  "200",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Mode",
+								Old:  "",
+								New:  "",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Dynamic Port",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Label",
+										Old:  "",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "To",
+										Old:  "",
+										New:  "8081",
+									},
+								},
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Network",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "MBits",
+								Old:  "100",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Mode",
+								Old:  "",
+								New:  "",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Static Port",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Label",
+										Old:  "foo",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "To",
+										Old:  "0",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Value",
+										Old:  "80",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 		{
 			// Tasks edited
 			Old: &TaskGroup{
@@ -4158,6 +4603,57 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			Name: "Service with Connect",
+			Old: &Task{
+				Services: []*Service{
+					{
+						Name: "foo",
+					},
+				},
+			},
+			New: &Task{
+				Services: []*Service{
+					{
+						Name: "foo",
+						Connect: &ConsulConnect{
+							SidecarService: &ConsulSidecarService{},
+						},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Service",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "ConsulConnect",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Native",
+										Old:  "",
+										New:  "false",
+									},
+								},
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "SidecarService",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+
 		{
 			Name: "Service Checks edited",
 			Old: &Task{
@@ -4568,6 +5064,12 @@ func TestTaskDiff(t *testing.T) {
 										Name: "TLSSkipVerify",
 										Old:  "false",
 										New:  "false",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "TaskName",
+										Old:  "",
+										New:  "",
 									},
 									{
 										Type: DiffTypeNone,

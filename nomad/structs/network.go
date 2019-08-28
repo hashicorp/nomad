@@ -286,6 +286,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 
 		// Create the offer
 		offer := &NetworkResource{
+			Mode:          ask.Mode,
 			Device:        n.Device,
 			IP:            ipStr,
 			MBits:         ask.MBits,
@@ -312,6 +313,12 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 	BUILD_OFFER:
 		for i, port := range dynPorts {
 			offer.DynamicPorts[i].Value = port
+
+			// This syntax allows you to set the mapped to port to the same port
+			// allocated by the scheduler on the host.
+			if offer.DynamicPorts[i].To == -1 {
+				offer.DynamicPorts[i].To = port
+			}
 		}
 
 		// Stop, we have an offer!

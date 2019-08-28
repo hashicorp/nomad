@@ -201,6 +201,9 @@ type Config struct {
 	// DisableRemoteExec disables remote exec targeting tasks on this client
 	DisableRemoteExec bool
 
+	// TemplateConfig includes configuration for template rendering
+	TemplateConfig *ClientTemplateConfig
+
 	// BackwardsCompatibleMetrics determines whether to show methods of
 	// displaying metrics for older versions, or to only show the new format
 	BackwardsCompatibleMetrics bool
@@ -235,17 +238,24 @@ type Config struct {
 	// notation
 	BridgeNetworkAllocSubnet string
 
-	// AutoFetchCNI is a toggle to enable auto downloading of the CNI standard
-	// plugins managed by the CNI team. This defaults to false
-	AutoFetchCNI bool
+	// HostVolumes is a map of the configured host volumes by name.
+	HostVolumes map[string]*structs.ClientHostVolumeConfig
+}
 
-	// AutoFetchCNIURL is the go-getter URL to use when auto downloading CNI
-	// plugins
-	AutoFetchCNIURL string
+type ClientTemplateConfig struct {
+	FunctionBlacklist []string
+	DisableSandbox    bool
+}
 
-	// AutoFetchCNIDir is the destination dir to use when auto doanloading CNI plugins.
-	// This directory will be appended to the CNIPath so it is searched last
-	AutoFetchCNIDir string
+func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(ClientTemplateConfig)
+	*nc = *c
+	nc.FunctionBlacklist = helper.CopySliceString(nc.FunctionBlacklist)
+	return nc
 }
 
 func (c *Config) Copy() *Config {
@@ -254,33 +264,38 @@ func (c *Config) Copy() *Config {
 	nc.Node = nc.Node.Copy()
 	nc.Servers = helper.CopySliceString(nc.Servers)
 	nc.Options = helper.CopyMapStringString(nc.Options)
+	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
+	nc.TemplateConfig = c.TemplateConfig.Copy()
 	return nc
 }
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
-		Version:                    version.GetVersion(),
-		VaultConfig:                config.DefaultVaultConfig(),
-		ConsulConfig:               config.DefaultConsulConfig(),
-		LogOutput:                  os.Stderr,
-		Region:                     "global",
-		StatsCollectionInterval:    1 * time.Second,
-		TLSConfig:                  &config.TLSConfig{},
-		LogLevel:                   "DEBUG",
-		GCInterval:                 1 * time.Minute,
-		GCParallelDestroys:         2,
-		GCDiskUsageThreshold:       80,
-		GCInodeUsageThreshold:      70,
-		GCMaxAllocs:                50,
-		NoHostUUID:                 true,
-		DisableTaggedMetrics:       false,
-		DisableRemoteExec:          false,
+		Version:                 version.GetVersion(),
+		VaultConfig:             config.DefaultVaultConfig(),
+		ConsulConfig:            config.DefaultConsulConfig(),
+		LogOutput:               os.Stderr,
+		Region:                  "global",
+		StatsCollectionInterval: 1 * time.Second,
+		TLSConfig:               &config.TLSConfig{},
+		LogLevel:                "DEBUG",
+		GCInterval:              1 * time.Minute,
+		GCParallelDestroys:      2,
+		GCDiskUsageThreshold:    80,
+		GCInodeUsageThreshold:   70,
+		GCMaxAllocs:             50,
+		NoHostUUID:              true,
+		DisableTaggedMetrics:    false,
+		DisableRemoteExec:       false,
+		TemplateConfig: &ClientTemplateConfig{
+			FunctionBlacklist: []string{"plugin"},
+			DisableSandbox:    false,
+		},
 		BackwardsCompatibleMetrics: false,
 		RPCHoldTimeout:             5 * time.Second,
-		AutoFetchCNI:               false,
 	}
 }
 

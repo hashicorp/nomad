@@ -1,9 +1,12 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 import PromiseArray from 'nomad-ui/utils/classes/promise-array';
 
 export default Component.extend({
   classNames: ['boxed-section'],
+
+  router: service(),
 
   sortProperty: 'modifyIndex',
   sortDescending: true,
@@ -20,7 +23,7 @@ export default Component.extend({
 
   actions: {
     gotoAllocation(allocation) {
-      this.transitionToRoute('allocations.allocation', allocation);
+      this.router.transitionTo('allocations.allocation', allocation.id);
     },
   },
 });

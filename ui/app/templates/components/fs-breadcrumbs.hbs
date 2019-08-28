@@ -1,0 +1,14 @@
+<ul>
+  <li class={{if breadcrumbs "" "is-active"}}>
+    {{#link-to "allocations.allocation.task.fs-root" task.allocation task activeClass="is-active"}}
+      {{task.name}}
+    {{/link-to}}
+  </li>
+  {{#each breadcrumbs as |breadcrumb|}}
+    <li class={{if breadcrumb.isLast "is-active"}}>
+      {{#link-to "allocations.allocation.task.fs" task.allocation task breadcrumb.path activeClass="is-active"}}
+        {{breadcrumb.name}}
+      {{/link-to}}
+    </li>
+  {{/each}}
+</ul>

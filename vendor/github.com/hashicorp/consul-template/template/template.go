@@ -45,6 +45,15 @@ type Template struct {
 	// errMissingKey causes the template processing to exit immediately if a map
 	// is indexed with a key that does not exist.
 	errMissingKey bool
+
+	// functionBlacklist are functions not permitted to be executed
+	// when we render this template
+	functionBlacklist []string
+
+	// sandboxPath adds a prefix to any path provided to the `file` function
+	// and causes an error if a relative path tries to traverse outside that
+	// prefix.
+	sandboxPath string
 }
 
 // NewTemplateInput is used as input when creating the template.
@@ -62,6 +71,15 @@ type NewTemplateInput struct {
 	// LeftDelim and RightDelim are the template delimiters.
 	LeftDelim  string
 	RightDelim string
+
+	// FunctionBlacklist are functions not permitted to be executed
+	// when we render this template
+	FunctionBlacklist []string
+
+	// SandboxPath adds a prefix to any path provided to the `file` function
+	// and causes an error if a relative path tries to traverse outside that
+	// prefix.
+	SandboxPath string
 }
 
 // NewTemplate creates and parses a new Consul Template template at the given
@@ -86,6 +104,8 @@ func NewTemplate(i *NewTemplateInput) (*Template, error) {
 	t.leftDelim = i.LeftDelim
 	t.rightDelim = i.RightDelim
 	t.errMissingKey = i.ErrMissingKey
+	t.functionBlacklist = i.FunctionBlacklist
+	t.sandboxPath = i.SandboxPath
 
 	if i.Source != "" {
 		contents, err := ioutil.ReadFile(i.Source)
@@ -153,12 +173,15 @@ func (t *Template) Execute(i *ExecuteInput) (*ExecuteResult, error) {
 
 	tmpl := template.New("")
 	tmpl.Delims(t.leftDelim, t.rightDelim)
+
 	tmpl.Funcs(funcMap(&funcMapInput{
-		t:       tmpl,
-		brain:   i.Brain,
-		env:     i.Env,
-		used:    &used,
-		missing: &missing,
+		t:                 tmpl,
+		brain:             i.Brain,
+		env:               i.Env,
+		used:              &used,
+		missing:           &missing,
+		functionBlacklist: t.functionBlacklist,
+		sandboxPath:       t.sandboxPath,
 	}))
 
 	if t.errMissingKey {
@@ -187,21 +210,23 @@ func (t *Template) Execute(i *ExecuteInput) (*ExecuteResult, error) {
 
 // funcMapInput is input to the funcMap, which builds the template functions.
 type funcMapInput struct {
-	t       *template.Template
-	brain   *Brain
-	env     []string
-	used    *dep.Set
-	missing *dep.Set
+	t                 *template.Template
+	brain             *Brain
+	env               []string
+	functionBlacklist []string
+	sandboxPath       string
+	used              *dep.Set
+	missing           *dep.Set
 }
 
 // funcMap is the map of template functions to their respective functions.
 func funcMap(i *funcMapInput) template.FuncMap {
 	var scratch Scratch
 
-	return template.FuncMap{
+	r := template.FuncMap{
 		// API functions
 		"datacenters":  datacentersFunc(i.brain, i.used, i.missing),
-		"file":         fileFunc(i.brain, i.used, i.missing),
+		"file":         fileFunc(i.brain, i.used, i.missing, i.sandboxPath),
 		"key":          keyFunc(i.brain, i.used, i.missing),
 		"keyExists":    keyExistsFunc(i.brain, i.used, i.missing),
 		"keyOrDefault": keyWithDefaultFunc(i.brain, i.used, i.missing),
@@ -263,4 +288,12 @@ func funcMap(i *funcMapInput) template.FuncMap {
 		"divide":   divide,
 		"modulo":   modulo,
 	}
+
+	for _, bf := range i.functionBlacklist {
+		if _, ok := r[bf]; ok {
+			r[bf] = blacklisted
+		}
+	}
+
+	return r
 }

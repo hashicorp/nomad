@@ -299,6 +299,16 @@ func nodeDrivers(n *api.Node) []string {
 	return drivers
 }
 
+func nodeVolumeNames(n *api.Node) []string {
+	var volumes []string
+	for name := range n.HostVolumes {
+		volumes = append(volumes, name)
+	}
+
+	sort.Strings(volumes)
+	return volumes
+}
+
 func formatDrain(n *api.Node) string {
 	if n.DrainStrategy != nil {
 		b := new(strings.Builder)
@@ -333,84 +343,107 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	}
 
 	if c.short {
+		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
 		basic = append(basic, fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")))
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
-	} else {
-		// Get the host stats
-		hostStats, nodeStatsErr := client.Nodes().Stats(node.ID, nil)
-		if nodeStatsErr != nil {
-			c.Ui.Output("")
-			c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", nodeStatsErr))
-		}
-		if hostStats != nil {
-			uptime := time.Duration(hostStats.Uptime * uint64(time.Second))
-			basic = append(basic, fmt.Sprintf("Uptime|%s", uptime.String()))
-		}
 
-		// Emit the driver info
-		if !c.verbose {
-			driverStatus := fmt.Sprintf("Driver Status| %s", c.outputTruncatedNodeDriverInfo(node))
-			basic = append(basic, driverStatus)
-		}
-
-		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
-
-		if c.verbose {
-			c.outputNodeDriverInfo(node)
-		}
-
-		// Emit node events
-		c.outputNodeStatusEvents(node)
-
-		// Get list of running allocations on the node
-		runningAllocs, err := getRunningAllocs(client, node.ID)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying node for running allocations: %s", err))
+		// Output alloc info
+		if err := c.outputAllocInfo(client, node); err != nil {
+			c.Ui.Error(fmt.Sprintf("%s", err))
 			return 1
 		}
 
-		allocatedResources := getAllocatedResources(client, runningAllocs, node)
-		c.Ui.Output(c.Colorize().Color("\n[bold]Allocated Resources[reset]"))
-		c.Ui.Output(formatList(allocatedResources))
+		return 0
+	}
 
-		actualResources, err := getActualResources(client, runningAllocs, node)
-		if err == nil {
-			c.Ui.Output(c.Colorize().Color("\n[bold]Allocation Resource Utilization[reset]"))
-			c.Ui.Output(formatList(actualResources))
-		}
+	// Get the host stats
+	hostStats, nodeStatsErr := client.Nodes().Stats(node.ID, nil)
+	if nodeStatsErr != nil {
+		c.Ui.Output("")
+		c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", nodeStatsErr))
+	}
+	if hostStats != nil {
+		uptime := time.Duration(hostStats.Uptime * uint64(time.Second))
+		basic = append(basic, fmt.Sprintf("Uptime|%s", uptime.String()))
+	}
 
-		hostResources, err := getHostResources(hostStats, node)
-		if err != nil {
-			c.Ui.Output("")
-			c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", err))
-		}
-		if err == nil {
-			c.Ui.Output(c.Colorize().Color("\n[bold]Host Resource Utilization[reset]"))
-			c.Ui.Output(formatList(hostResources))
-		}
+	// When we're not running in verbose mode, then also include host volumes and
+	// driver info in the basic output
+	if !c.verbose {
+		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
 
-		if err == nil && node.NodeResources != nil && len(node.NodeResources.Devices) > 0 {
-			c.Ui.Output(c.Colorize().Color("\n[bold]Device Resource Utilization[reset]"))
-			c.Ui.Output(formatList(getDeviceResourcesForNode(hostStats.DeviceStats, node)))
-		}
-		if hostStats != nil && c.stats {
-			c.Ui.Output(c.Colorize().Color("\n[bold]CPU Stats[reset]"))
-			c.printCpuStats(hostStats)
-			c.Ui.Output(c.Colorize().Color("\n[bold]Memory Stats[reset]"))
-			c.printMemoryStats(hostStats)
-			c.Ui.Output(c.Colorize().Color("\n[bold]Disk Stats[reset]"))
-			c.printDiskStats(hostStats)
-			if len(hostStats.DeviceStats) > 0 {
-				c.Ui.Output(c.Colorize().Color("\n[bold]Device Stats[reset]"))
-				printDeviceStats(c.Ui, hostStats.DeviceStats)
-			}
+		driverStatus := fmt.Sprintf("Driver Status| %s", c.outputTruncatedNodeDriverInfo(node))
+		basic = append(basic, driverStatus)
+	}
+
+	// Output the basic info
+	c.Ui.Output(c.Colorize().Color(formatKV(basic)))
+
+	// If we're running in verbose mode, include full host volume and driver info
+	if c.verbose {
+		c.outputNodeVolumeInfo(node)
+		c.outputNodeDriverInfo(node)
+	}
+
+	// Emit node events
+	c.outputNodeStatusEvents(node)
+
+	// Get list of running allocations on the node
+	runningAllocs, err := getRunningAllocs(client, node.ID)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying node for running allocations: %s", err))
+		return 1
+	}
+
+	allocatedResources := getAllocatedResources(client, runningAllocs, node)
+	c.Ui.Output(c.Colorize().Color("\n[bold]Allocated Resources[reset]"))
+	c.Ui.Output(formatList(allocatedResources))
+
+	actualResources, err := getActualResources(client, runningAllocs, node)
+	if err == nil {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Allocation Resource Utilization[reset]"))
+		c.Ui.Output(formatList(actualResources))
+	}
+
+	hostResources, err := getHostResources(hostStats, node)
+	if err != nil {
+		c.Ui.Output("")
+		c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", err))
+	}
+	if err == nil {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Host Resource Utilization[reset]"))
+		c.Ui.Output(formatList(hostResources))
+	}
+
+	if err == nil && node.NodeResources != nil && len(node.NodeResources.Devices) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Device Resource Utilization[reset]"))
+		c.Ui.Output(formatList(getDeviceResourcesForNode(hostStats.DeviceStats, node)))
+	}
+	if hostStats != nil && c.stats {
+		c.Ui.Output(c.Colorize().Color("\n[bold]CPU Stats[reset]"))
+		c.printCpuStats(hostStats)
+		c.Ui.Output(c.Colorize().Color("\n[bold]Memory Stats[reset]"))
+		c.printMemoryStats(hostStats)
+		c.Ui.Output(c.Colorize().Color("\n[bold]Disk Stats[reset]"))
+		c.printDiskStats(hostStats)
+		if len(hostStats.DeviceStats) > 0 {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Device Stats[reset]"))
+			printDeviceStats(c.Ui, hostStats.DeviceStats)
 		}
 	}
 
+	if err := c.outputAllocInfo(client, node); err != nil {
+		c.Ui.Error(fmt.Sprintf("%s", err))
+		return 1
+	}
+
+	return 0
+}
+
+func (c *NodeStatusCommand) outputAllocInfo(client *api.Client, node *api.Node) error {
 	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
-		return 1
+		return fmt.Errorf("Error querying node allocations: %s", err)
 	}
 
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
@@ -421,8 +454,8 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		c.formatDeviceAttributes(node)
 		c.formatMeta(node)
 	}
-	return 0
 
+	return nil
 }
 
 func (c *NodeStatusCommand) outputTruncatedNodeDriverInfo(node *api.Node) string {
@@ -441,6 +474,25 @@ func (c *NodeStatusCommand) outputTruncatedNodeDriverInfo(node *api.Node) string
 	}
 	sort.Strings(drivers)
 	return strings.Trim(strings.Join(drivers, ","), ", ")
+}
+
+func (c *NodeStatusCommand) outputNodeVolumeInfo(node *api.Node) {
+	c.Ui.Output(c.Colorize().Color("\n[bold]Host Volumes"))
+
+	names := make([]string, 0, len(node.HostVolumes))
+	for name := range node.HostVolumes {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	output := make([]string, 0, len(names)+1)
+	output = append(output, "Name|ReadOnly|Source")
+
+	for _, volName := range names {
+		info := node.HostVolumes[volName]
+		output = append(output, fmt.Sprintf("%s|%v|%s", volName, info.ReadOnly, info.Path))
+	}
+	c.Ui.Output(formatList(output))
 }
 
 func (c *NodeStatusCommand) outputNodeDriverInfo(node *api.Node) {

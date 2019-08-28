@@ -92,6 +92,14 @@ const (
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
 	allocSyncRetryIntv = 5 * time.Second
+
+	// defaultConnectSidecarImage is the image set in the node meta by default
+	// to be used by Consul Connect sidecar tasks
+	defaultConnectSidecarImage = "envoyproxy/envoy:v1.11.1"
+
+	// defaultConnectLogLevel is the log level set in the node meta by default
+	// to be used by Consul Connect sidecar tasks
+	defaultConnectLogLevel = "info"
 )
 
 var (
@@ -131,6 +139,7 @@ type AllocRunner interface {
 	ShutdownCh() <-chan struct{}
 	Signal(taskName, signal string) error
 	GetTaskEventHandler(taskName string) drivermanager.EventHandler
+	PersistState() error
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
 	RestartAll(taskEvent *structs.TaskEvent) error
@@ -354,18 +363,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.configCopy = c.config.Copy()
 	c.configLock.Unlock()
 
-	// Auto download CNI binaries and configure CNI_PATH if requested.
-	if c.config.AutoFetchCNI {
-		if cniPath := FetchCNIPlugins(c.logger, c.config.AutoFetchCNIURL, c.config.AutoFetchCNIDir); cniPath != "" {
-			if c.config.CNIPath == "" {
-				c.config.CNIPath = cniPath
-			} else {
-				c.config.CNIPath = c.config.CNIPath + ":" + cniPath
-			}
-			c.logger.Debug("using new CNI Path", "cni_path", c.config.CNIPath)
-		}
-	}
-
 	fingerprintManager := NewFingerprintManager(
 		c.configCopy.PluginSingletonLoader, c.GetConfig, c.configCopy.Node,
 		c.shutdownCh, c.updateNodeFromFingerprint, c.logger)
@@ -568,35 +565,6 @@ func (c *Client) init() error {
 	}
 
 	c.logger.Info("using alloc directory", "alloc_dir", c.config.AllocDir)
-
-	// Ensure the cnibin dir exists if we have one
-	if c.config.AutoFetchCNIDir != "" {
-		if err := os.MkdirAll(c.config.AutoFetchCNIDir, 0755); err != nil {
-			return fmt.Errorf("failed to create directory for AutoFetchCNIDir: %s", err)
-		}
-	} else {
-		// Otherwise make a temp directory to use.
-		p, err := ioutil.TempDir("", "NomadClient")
-		if err != nil {
-			return fmt.Errorf("failed creating temporary directory for the AutoFetchCNIDir: %v", err)
-		}
-
-		p, err = filepath.EvalSymlinks(p)
-		if err != nil {
-			return fmt.Errorf("failed to find temporary directory for the AutoFetchCNIDir: %v", err)
-		}
-
-		// Change the permissions to have the execute bit
-		if err := os.Chmod(p, 0755); err != nil {
-			return fmt.Errorf("failed to change directory permissions for the AutoFetchCNIdir: %v", err)
-		}
-
-		c.config.AutoFetchCNIDir = p
-	}
-
-	if c.config.AutoFetchCNI {
-		c.logger.Info("using cni directory for plugin downloads", "cni_dir", c.config.AutoFetchCNIDir)
-	}
 	return nil
 }
 
@@ -1117,7 +1085,7 @@ func (c *Client) saveState() error {
 
 	for id, ar := range runners {
 		go func(id string, ar AllocRunner) {
-			err := c.stateDB.PutAllocation(ar.Alloc())
+			err := ar.PersistState()
 			if err != nil {
 				c.logger.Error("error saving alloc state", "error", err, "alloc_id", id)
 				l.Lock()
@@ -1266,10 +1234,29 @@ func (c *Client) setupNode() error {
 	if node.Name == "" {
 		node.Name, _ = os.Hostname()
 	}
+	// TODO(dani): Fingerprint these to handle volumes that don't exist/have bad perms.
+	if node.HostVolumes == nil {
+		if l := len(c.config.HostVolumes); l != 0 {
+			node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig, l)
+			for k, v := range c.config.HostVolumes {
+				node.HostVolumes[k] = v.Copy()
+			}
+		}
+	}
+
 	if node.Name == "" {
 		node.Name = node.ID
 	}
 	node.Status = structs.NodeStatusInit
+
+	// Setup default meta
+	if _, ok := node.Meta["connect.sidecar_image"]; !ok {
+		node.Meta["connect.sidecar_image"] = defaultConnectSidecarImage
+	}
+	if _, ok := node.Meta["connect.log_level"]; !ok {
+		node.Meta["connect.log_level"] = defaultConnectLogLevel
+	}
+
 	return nil
 }
 

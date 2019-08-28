@@ -11,7 +11,7 @@ import (
 
 // untar is a shared helper for untarring an archive. The reader should provide
 // an uncompressed view of the tar archive.
-func untar(input io.Reader, dst, src string, dir bool) error {
+func untar(input io.Reader, dst, src string, dir bool, umask os.FileMode) error {
 	tarR := tar.NewReader(input)
 	done := false
 	dirHdrs := []*tar.Header{}
@@ -51,7 +51,7 @@ func untar(input io.Reader, dst, src string, dir bool) error {
 			}
 
 			// A directory, just make the directory and continue unarchiving...
-			if err := os.MkdirAll(path, 0755); err != nil {
+			if err := os.MkdirAll(path, mode(0755, umask)); err != nil {
 				return err
 			}
 
@@ -67,7 +67,7 @@ func untar(input io.Reader, dst, src string, dir bool) error {
 
 			// Check that the directory exists, otherwise create it
 			if _, err := os.Stat(dstPath); os.IsNotExist(err) {
-				if err := os.MkdirAll(dstPath, 0755); err != nil {
+				if err := os.MkdirAll(dstPath, mode(0755, umask)); err != nil {
 					return err
 				}
 			}
@@ -82,18 +82,8 @@ func untar(input io.Reader, dst, src string, dir bool) error {
 		done = true
 
 		// Open the file for writing
-		dstF, err := os.Create(path)
+		err = copyReader(path, tarR, hdr.FileInfo().Mode(), umask)
 		if err != nil {
-			return err
-		}
-		_, err = io.Copy(dstF, tarR)
-		dstF.Close()
-		if err != nil {
-			return err
-		}
-
-		// Chmod the file
-		if err := os.Chmod(path, hdr.FileInfo().Mode()); err != nil {
 			return err
 		}
 
@@ -115,7 +105,7 @@ func untar(input io.Reader, dst, src string, dir bool) error {
 	for _, dirHdr := range dirHdrs {
 		path := filepath.Join(dst, dirHdr.Name)
 		// Chmod the directory since they might be created before we know the mode flags
-		if err := os.Chmod(path, dirHdr.FileInfo().Mode()); err != nil {
+		if err := os.Chmod(path, mode(dirHdr.FileInfo().Mode(), umask)); err != nil {
 			return err
 		}
 		// Set the mtime/atime attributes since they would have been changed during extraction
@@ -139,13 +129,13 @@ func untar(input io.Reader, dst, src string, dir bool) error {
 // unpack tar files.
 type tarDecompressor struct{}
 
-func (d *tarDecompressor) Decompress(dst, src string, dir bool) error {
+func (d *tarDecompressor) Decompress(dst, src string, dir bool, umask os.FileMode) error {
 	// If we're going into a directory we should make that first
 	mkdir := dst
 	if !dir {
 		mkdir = filepath.Dir(dst)
 	}
-	if err := os.MkdirAll(mkdir, 0755); err != nil {
+	if err := os.MkdirAll(mkdir, mode(0755, umask)); err != nil {
 		return err
 	}
 
@@ -156,5 +146,5 @@ func (d *tarDecompressor) Decompress(dst, src string, dir bool) error {
 	}
 	defer f.Close()
 
-	return untar(f, dst, src, dir)
+	return untar(f, dst, src, dir, umask)
 }

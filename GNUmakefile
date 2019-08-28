@@ -6,7 +6,7 @@ GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
-GO_TAGS =
+GO_TAGS ?=
 
 GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
 
@@ -25,10 +25,10 @@ endif
 # On Linux we build for Linux and Windows
 ifeq (Linux,$(THIS_OS))
 
-ifeq ($(TRAVIS),true)
-$(info Running in Travis, verbose mode is disabled)
+ifeq ($(CI),true)
+	$(info Running in a CI environment, verbose mode is disabled)
 else
-VERBOSE="true"
+	VERBOSE="true"
 endif
 
 
@@ -50,6 +50,9 @@ endif
 ifeq (FreeBSD,$(THIS_OS))
 ALL_TARGETS += freebsd_amd64
 endif
+
+# include per-user customization after all variables are defined
+-include GNUMakefile.local
 
 pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
@@ -199,7 +202,7 @@ checkscripts: ## Lint shell scripts
 	@find scripts -type f -name '*.sh' | xargs shellcheck
 
 .PHONY: generate-all
-generate-all: generate-structs proto
+generate-all: generate-structs proto generate-examples
 
 .PHONY: generate-structs
 generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
@@ -214,6 +217,11 @@ proto:
 		protoc -I . -I ../../.. --go_out=plugins=grpc:. $$file; \
 	done
 
+.PHONY: generate-examples
+generate-examples: command/job_init.bindata_assetfs.go
+
+command/job_init.bindata_assetfs.go: command/assets/*
+	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
 vendorfmt:
 	@echo "--> Formatting vendor/vendor.json"
@@ -236,7 +244,7 @@ dev: vendorfmt changelogfmt ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="$(NOMAD_UI_TAG)"
+		GO_TAGS="$(GO_TAGS) $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
@@ -356,6 +364,7 @@ help: ## Display this usage information
 	@echo "This host will build the following targets if 'make release' is invoked:"
 	@echo $(ALL_TARGETS) | sed 's/^/    /'
 
+.PHONY: ui-screenshots
 ui-screenshots:
 	@echo "==> Collecting UI screenshots..."
 	# Build the screenshots image if it doesn't exist yet
@@ -367,6 +376,7 @@ ui-screenshots:
 		--volume "$(shell pwd)/scripts/screenshots/screenshots:/screenshots" \
 		nomad-ui-screenshots
 
+.PHONY: ui-screenshots-local
 ui-screenshots-local:
 	@echo "==> Collecting UI screenshots (local)..."
 	@cd scripts/screenshots/src && SCREENSHOTS_DIR="../screenshots" node index.js

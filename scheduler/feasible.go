@@ -96,6 +96,92 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 	return NewStaticIterator(ctx, nodes)
 }
 
+// HostVolumeChecker is a FeasibilityChecker which returns whether a node has
+// the host volumes necessary to schedule a task group.
+type HostVolumeChecker struct {
+	ctx Context
+
+	// volumes is a map[HostVolumeName][]RequestedVolume. The requested volumes are
+	// a slice because a single task group may request the same volume multiple times.
+	volumes map[string][]*structs.VolumeRequest
+}
+
+// NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
+func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
+	return &HostVolumeChecker{
+		ctx: ctx,
+	}
+}
+
+// SetVolumes takes the volumes required by a task group and updates the checker.
+func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
+	nm := make(map[string][]*structs.VolumeRequest)
+
+	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
+	// lookup performance. Also filter non-host volumes.
+	for _, req := range volumes {
+		if req.Type != structs.VolumeTypeHost {
+			continue
+		}
+
+		cfg, err := structs.ParseHostVolumeConfig(req.Config)
+		if err != nil {
+			// Could not parse host volume config, skip the volume for now.
+			continue
+		}
+
+		nm[cfg.Source] = append(nm[cfg.Source], req)
+	}
+	h.volumes = nm
+}
+
+func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
+	if h.hasVolumes(candidate) {
+		return true
+	}
+
+	h.ctx.Metrics().FilterNode(candidate, "missing compatible host volumes")
+	return false
+}
+
+func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
+	rLen := len(h.volumes)
+	hLen := len(n.HostVolumes)
+
+	// Fast path: Requested no volumes. No need to check further.
+	if rLen == 0 {
+		return true
+	}
+
+	// Fast path: Requesting more volumes than the node has, can't meet the criteria.
+	if rLen > hLen {
+		return false
+	}
+
+	for source, requests := range h.volumes {
+		nodeVolume, ok := n.HostVolumes[source]
+		if !ok {
+			return false
+		}
+
+		// If the volume supports being mounted as ReadWrite, we do not need to
+		// do further validation for readonly placement.
+		if !nodeVolume.ReadOnly {
+			continue
+		}
+
+		// The Volume can only be mounted ReadOnly, validate that no requests for
+		// it are ReadWrite.
+		for _, req := range requests {
+			if !req.ReadOnly {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 // DriverChecker is a FeasibilityChecker which returns whether a node has the
 // drivers necessary to scheduler a task group.
 type DriverChecker struct {
