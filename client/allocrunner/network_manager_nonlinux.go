@@ -11,10 +11,10 @@ import (
 )
 
 // TODO: Support windows shared networking
-func newNetworkManager(log hclog.Logger, alloc *structs.Allocation, driverManager drivermanager.Manager) (nm drivers.DriverNetworkManager, err error) {
+func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Manager) (nm drivers.DriverNetworkManager, err error) {
 	return nil, nil
 }
 
-func newNetworkConfigurator(alloc *structs.Allocation, config *clientconfig.Config) NetworkConfigurator {
+func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config *clientconfig.Config) NetworkConfigurator {
 	return &hostNetworkConfigurator{}
 }
