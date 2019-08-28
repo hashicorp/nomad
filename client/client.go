@@ -998,11 +998,11 @@ func (c *Client) restoreState() error {
 	for _, alloc := range allocs {
 
 		// COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
-		// See isPotentiallyCompletedAlloc for details.  Skipping suspicious allocs
+		// See hasLocalState for details.  Skipping suspicious allocs
 		// now.  If allocs should be run, they will be started when the client
 		// gets allocs from servers.
-		if c.isPotentiallyCompletedAlloc(alloc) {
-			c.logger.Warn("found a alloc that may have been completed already, skipping restore", "alloc_id", alloc.ID)
+		if !c.hasLocalState(alloc) {
+			c.logger.Warn("found a alloc without any local state, skipping restore", "alloc_id", alloc.ID)
 			continue
 		}
 
@@ -1062,42 +1062,40 @@ func (c *Client) restoreState() error {
 	return nil
 }
 
-// isPotentiallyCompletedAlloc returns true if we suspect the alloc
-// is potentially a completed alloc that got resurrected after AR was destroyed.
-// In such cases, rerunning the alloc can lead to process and task exhaustion.
+// hasLocalState returns true if we have any other associated state
+// with alloc beyond the task itself
+//
+// Useful for detecting if a potentially completed alloc got resurrected
+// after AR was destroyed.  In such cases, re-running the alloc lead to
+// unexpected reruns and may lead to process and task exhaustion on node.
 //
 // The heuristic used here is an alloc is suspect if we see no other information
 // and no other task/status info is found.
+//
+// Also, an alloc without any client state will not be restored correctly; there will
+// be no tasks processes to reattach to, etc.  In such cases, client should
+// wait until it gets allocs from server to launch them.
 //
 // See:
 //  * https://github.com/hashicorp/nomad/pull/6207
 //  * https://github.com/hashicorp/nomad/issues/5984
 //
 // COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
-func (c *Client) isPotentiallyCompletedAlloc(alloc *structs.Allocation) bool {
-	if alloc.ClientStatus != structs.AllocClientStatusPending {
-		return false
-	}
-
-	ds, _ := c.stateDB.GetDeploymentStatus(alloc.ID)
-	if ds != nil {
-		return false
-	}
-
+func (c *Client) hasLocalState(alloc *structs.Allocation) bool {
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
 		// corrupt alloc?!
-		return true
+		return false
 	}
 
 	for _, task := range tg.Tasks {
 		ls, tr, _ := c.stateDB.GetTaskRunnerState(alloc.ID, task.Name)
 		if ls != nil || tr != nil {
-			return false
+			return true
 		}
 	}
 
-	return true
+	return false
 }
 
 func (c *Client) handleInvalidAllocs(alloc *structs.Allocation, err error) {
