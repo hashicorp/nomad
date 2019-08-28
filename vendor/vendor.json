@@ -70,6 +70,7 @@
 		{"path":"github.com/containernetworking/cni/pkg/types/current","checksumSHA1":"X6dNZ3yc3V9ffW9vz4yIyeKXGD0=","revision":"dc953e2fd91f9bc624b03cf9ea3706796bfee920","revisionTime":"2019-06-12T15:24:20Z"},
 		{"path":"github.com/containernetworking/cni/pkg/version","checksumSHA1":"aojwjPoA9XSGB/zVtOGzWvmv/i8=","revision":"dc953e2fd91f9bc624b03cf9ea3706796bfee920","revisionTime":"2019-06-12T15:24:20Z"},
 		{"path":"github.com/containernetworking/plugins/pkg/ns","checksumSHA1":"n3dCDigZOU+eD84Cr4Kg30GO4nI=","revision":"2d6d46d308b2c45a0466324c9e3f1330ab5cacd6","revisionTime":"2019-05-01T19:17:48Z"},
+		{"path":"github.com/coreos/go-iptables/iptables","checksumSHA1":"UAPz3mxGiQmd3pRWOTghB2aXzGU=","revision":"969b135e941d8baadca0a40047a38d6aca381855","revisionTime":"2019-07-24T15:17:50Z"},
 		{"path":"github.com/coreos/go-semver/semver","checksumSHA1":"97BsbXOiZ8+Kr+LIuZkQFtSj7H4=","revision":"1817cd4bea52af76542157eeabd74b057d1a199e","revisionTime":"2017-06-13T09:22:38Z"},
 		{"path":"github.com/coreos/go-systemd/dbus","checksumSHA1":"/zxxFPYjUB7Wowz33r5AhTDvoz0=","origin":"github.com/opencontainers/runc/vendor/github.com/coreos/go-systemd/dbus","revision":"459bfaec1fc6c17d8bfb12d0a0f69e7e7271ed2a","revisionTime":"2018-08-23T14:46:37Z"},
 		{"path":"github.com/coreos/go-systemd/util","checksumSHA1":"e8qgBHxXbij3RVspqrkeBzMZ564=","origin":"github.com/opencontainers/runc/vendor/github.com/coreos/go-systemd/util","revision":"459bfaec1fc6c17d8bfb12d0a0f69e7e7271ed2a","revisionTime":"2018-08-23T14:46:37Z"},

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	hclog "github.com/hashicorp/go-hclog"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/lib/nsutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
@@ -121,7 +122,7 @@ func netModeToIsolationMode(netMode string) drivers.NetIsolationMode {
 	}
 }
 
-func newNetworkConfigurator(alloc *structs.Allocation, config *clientconfig.Config) NetworkConfigurator {
+func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config *clientconfig.Config) NetworkConfigurator {
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 
 	// Check if network stanza is given
@@ -131,7 +132,7 @@ func newNetworkConfigurator(alloc *structs.Allocation, config *clientconfig.Conf
 
 	switch strings.ToLower(tg.Networks[0].Mode) {
 	case "bridge":
-		return newBridgeNetworkConfigurator(context.Background(), config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath)
+		return newBridgeNetworkConfigurator(log, context.Background(), config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath)
 	default:
 		return &hostNetworkConfigurator{}
 	}
