@@ -969,6 +969,20 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		fanout = append(fanout, promSink)
 	}
 
+	// Configure the prometheus pushserver sink
+	if telConfig.PrometheusPushAddr != "" {
+		nodeName := config.NodeName
+		if nodeName == "" {
+			nodeName = "nomad"
+		}
+		sink, err := prometheus.NewPrometheusPushSink(telConfig.PrometheusPushAddr,
+			telConfig.prometheusPushInterval, nodeName)
+		if err != nil {
+			return inm, err
+		}
+		fanout = append(fanout, sink)
+	}
+
 	// Configure the datadog sink
 	if telConfig.DataDogAddr != "" {
 		sink, err := datadog.NewDogStatsdSink(telConfig.DataDogAddr, config.NodeName)

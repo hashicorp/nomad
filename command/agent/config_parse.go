@@ -61,6 +61,7 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"autopilot.server_stabilization_time", &c.Autopilot.ServerStabilizationTime, &c.Autopilot.ServerStabilizationTimeHCL},
 		{"autopilot.last_contact_threshold", &c.Autopilot.LastContactThreshold, &c.Autopilot.LastContactThresholdHCL},
 		{"telemetry.collection_interval", &c.Telemetry.collectionInterval, &c.Telemetry.CollectionInterval},
+		{"telemetry.prometheus_push_interval", &c.Telemetry.prometheusPushInterval, &c.Telemetry.PrometheusPushInterval},
 	})
 	if err != nil {
 		return nil, err
