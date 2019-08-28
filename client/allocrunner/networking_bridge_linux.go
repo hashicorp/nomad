@@ -156,12 +156,12 @@ func (b *bridgeNetworkConfigurator) Setup(alloc *structs.Allocation, spec *drive
 	// in one of them to fail. This rety attempts to overcome any
 	const retry = 3
 	for attempt := 1; ; attempt++ {
-		result, err := b.cniConfig.AddNetworkList(b.ctx, netconf, b.runtimeConf(alloc, spec))
+		_, err := b.cniConfig.AddNetworkList(b.ctx, netconf, b.runtimeConf(alloc, spec))
 		if err == nil {
 			break
 		}
 
-		b.logger.Warn("failed to configure bridge network", "err", err, "result", result.String(), "attempt", attempt)
+		b.logger.Warn("failed to configure bridge network", "err", err, "attempt", attempt)
 		if attempt == retry {
 			return err
 		}
