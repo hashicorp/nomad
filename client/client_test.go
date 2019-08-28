@@ -1648,7 +1648,7 @@ func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
 }
 
 // COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
-func TestClient_Restore_PotentiallyCompletedAlloc(t *testing.T) {
+func TestClient_hasLocalState(t *testing.T) {
 	t.Parallel()
 
 	c, cleanup := TestClient(t, nil)
@@ -1660,7 +1660,7 @@ func TestClient_Restore_PotentiallyCompletedAlloc(t *testing.T) {
 		alloc := mock.BatchAlloc()
 		c.stateDB.PutAllocation(alloc)
 
-		require.True(t, c.isPotentiallyCompletedAlloc(alloc))
+		require.False(t, c.hasLocalState(alloc))
 	})
 
 	t.Run("alloc with a task with local state", func(t *testing.T) {
@@ -1671,10 +1671,10 @@ func TestClient_Restore_PotentiallyCompletedAlloc(t *testing.T) {
 		c.stateDB.PutAllocation(alloc)
 		c.stateDB.PutTaskRunnerLocalState(alloc.ID, taskName, ls)
 
-		require.False(t, c.isPotentiallyCompletedAlloc(alloc))
+		require.True(t, c.hasLocalState(alloc))
 	})
 
-	t.Run("alloc with a task with local state", func(t *testing.T) {
+	t.Run("alloc with a task with task state", func(t *testing.T) {
 		alloc := mock.BatchAlloc()
 		taskName := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks[0].Name
 		ts := &structs.TaskState{
@@ -1684,6 +1684,6 @@ func TestClient_Restore_PotentiallyCompletedAlloc(t *testing.T) {
 		c.stateDB.PutAllocation(alloc)
 		c.stateDB.PutTaskState(alloc.ID, taskName, ts)
 
-		require.False(t, c.isPotentiallyCompletedAlloc(alloc))
+		require.True(t, c.hasLocalState(alloc))
 	})
 }
