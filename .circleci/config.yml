@@ -45,6 +45,7 @@ workflows:
       - test-machine:
           name: "test-exec"
           test_packages: "./drivers/exec"
+          executor: go-machine-recent
           <<: *IGNORE_FOR_UI_BRANCHES
       - test-machine:
           name: "test-shared-exec"
@@ -158,7 +159,7 @@ jobs:
           path: /tmp/test-reports
 
   test-machine:
-    executor: go-machine
+    executor: "<< parameters.executor >>"
     parameters:
       test_packages:
         type: string
@@ -166,6 +167,9 @@ jobs:
       exclude_packages:
         type: string
         default: ""
+      executor:
+        type: string
+        default: "go-machine"
     environment:
       <<: *COMMON_ENVS
       GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
