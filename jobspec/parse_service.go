@@ -46,6 +46,7 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 		"address_mode",
 		"check_restart",
 		"connect",
+		"meta",
 	}
 	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 		return nil, err
@@ -60,27 +61,28 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 	delete(m, "check")
 	delete(m, "check_restart")
 	delete(m, "connect")
+	delete(m, "meta")
 
 	if err := mapstructure.WeakDecode(m, &service); err != nil {
 		return nil, err
 	}
 
-	// Filter checks
-	var checkList *ast.ObjectList
+	// Filter list
+	var listVal *ast.ObjectList
 	if ot, ok := o.Val.(*ast.ObjectType); ok {
-		checkList = ot.List
+		listVal = ot.List
 	} else {
 		return nil, fmt.Errorf("'%s': should be an object", service.Name)
 	}
 
-	if co := checkList.Filter("check"); len(co.Items) > 0 {
+	if co := listVal.Filter("check"); len(co.Items) > 0 {
 		if err := parseChecks(&service, co); err != nil {
 			return nil, multierror.Prefix(err, fmt.Sprintf("'%s',", service.Name))
 		}
 	}
 
 	// Filter check_restart
-	if cro := checkList.Filter("check_restart"); len(cro.Items) > 0 {
+	if cro := listVal.Filter("check_restart"); len(cro.Items) > 0 {
 		if len(cro.Items) > 1 {
 			return nil, fmt.Errorf("check_restart '%s': cannot have more than 1 check_restart", service.Name)
 		}
@@ -93,7 +95,7 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 	}
 
 	// Filter connect
-	if co := checkList.Filter("connect"); len(co.Items) > 0 {
+	if co := listVal.Filter("connect"); len(co.Items) > 0 {
 		if len(co.Items) > 1 {
 			return nil, fmt.Errorf("connect '%s': cannot have more than 1 connect stanza", service.Name)
 		}
@@ -104,6 +106,20 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 		}
 
 		service.Connect = c
+	}
+
+	// Parse out meta fields. These are in HCL as a list so we need
+	// to iterate over them and merge them.
+	if metaO := listVal.Filter("meta"); len(metaO.Items) > 0 {
+		for _, o := range metaO.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return nil, err
+			}
+			if err := mapstructure.WeakDecode(m, &service.Meta); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return &service, nil
@@ -164,7 +180,7 @@ func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 		return nil, fmt.Errorf("only one 'sidecar_task' block allowed per task")
 	}
 
-	t, err := parseTask(o.Items[0])
+	t, err := parseSidecarTask(o.Items[0])
 	if err != nil {
 		return nil, fmt.Errorf("sidecar_task, %v", err)
 	}
@@ -226,6 +242,75 @@ func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
 	sidecar.Proxy = r
 
 	return &sidecar, nil
+}
+
+func parseSidecarTask(item *ast.ObjectItem) (*api.SidecarTask, error) {
+	// We need this later
+	var listVal *ast.ObjectList
+	if ot, ok := item.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("should be an object")
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"config",
+		"driver",
+		"env",
+		"kill_timeout",
+		"logs",
+		"meta",
+		"resources",
+		"shutdown_delay",
+		"user",
+		"kill_signal",
+	}
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		return nil, err
+	}
+
+	task, err := parseTask(item)
+	if err != nil {
+		return nil, err
+	}
+
+	sidecarTask := &api.SidecarTask{
+		Name:        task.Name,
+		Driver:      task.Driver,
+		User:        task.User,
+		Config:      task.Config,
+		Env:         task.Env,
+		Resources:   task.Resources,
+		Meta:        task.Meta,
+		KillTimeout: task.KillTimeout,
+		LogConfig:   task.LogConfig,
+		KillSignal:  task.KillSignal,
+	}
+
+	// Parse ShutdownDelay seperatly to get pointer
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, item.Val); err != nil {
+		return nil, err
+	}
+
+	m = map[string]interface{}{
+		"shutdown_delay": m["shutdown_delay"],
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           sidecarTask,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+	return sidecarTask, nil
 }
 
 func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
@@ -337,6 +422,7 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"address_mode",
 			"grpc_service",
 			"grpc_use_tls",
+			"task",
 		}
 		if err := helper.CheckHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")

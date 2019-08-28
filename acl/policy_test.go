@@ -202,7 +202,7 @@ func TestParse(t *testing.T) {
 		{
 			`
 			host_volume "production-tls-*" {
-				capabilities = ["mount"]
+				capabilities = ["mount-readonly"]
 			}
 			`,
 			"",
@@ -212,7 +212,26 @@ func TestParse(t *testing.T) {
 						Name:   "production-tls-*",
 						Policy: "",
 						Capabilities: []string{
-							HostVolumeCapabilityMount,
+							HostVolumeCapabilityMountReadOnly,
+						},
+					},
+				},
+			},
+		},
+		{
+			`
+			host_volume "production-tls-*" {
+				capabilities = ["mount-readwrite"]
+			}
+			`,
+			"",
+			&Policy{
+				HostVolumes: []*HostVolumePolicy{
+					{
+						Name:   "production-tls-*",
+						Policy: "",
+						Capabilities: []string{
+							HostVolumeCapabilityMountReadWrite,
 						},
 					},
 				},
@@ -221,7 +240,7 @@ func TestParse(t *testing.T) {
 		{
 			`
 			host_volume "volume has a space" {
-				capabilities = ["mount"]
+				capabilities = ["mount-readwrite"]
 			}
 			`,
 			"Invalid host volume name",

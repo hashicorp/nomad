@@ -104,6 +104,173 @@ func TestJobEndpoint_Register(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_Connect(t *testing.T) {
+	require := require.New(t)
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.TaskGroups[0].Networks = structs.Networks{
+		{
+			Mode: "bridge",
+		},
+	}
+	job.TaskGroups[0].Services = []*structs.Service{
+		{
+			Name:      "backend",
+			PortLabel: "8080",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+			},
+		},
+	}
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// Check that the sidecar task was injected
+	require.Len(out.TaskGroups[0].Tasks, 2)
+	sidecarTask := out.TaskGroups[0].Tasks[1]
+	require.Equal("connect-proxy-backend", sidecarTask.Name)
+	require.Equal("connect-proxy:backend", string(sidecarTask.Kind))
+	require.Equal("connect-proxy-backend", out.TaskGroups[0].Networks[0].DynamicPorts[0].Label)
+
+	// Check that round tripping the job doesn't change the sidecarTask
+	out.Meta["test"] = "abc"
+	req.Job = out
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+	// Check for the new node in the FSM
+	state = s1.fsm.State()
+	ws = memdb.NewWatchSet()
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	require.Len(out.TaskGroups[0].Tasks, 2)
+	require.Exactly(sidecarTask, out.TaskGroups[0].Tasks[1])
+
+}
+
+func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
+	require := require.New(t)
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.TaskGroups[0].Networks = structs.Networks{
+		{
+			Mode: "bridge",
+		},
+	}
+	job.TaskGroups[0].Services = []*structs.Service{
+		{
+			Name:      "backend",
+			PortLabel: "8080",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+				SidecarTask: &structs.SidecarTask{
+					Meta: map[string]string{
+						"source": "test",
+					},
+					Resources: &structs.Resources{
+						CPU: 500,
+					},
+					Config: map[string]interface{}{
+						"labels": map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+		},
+	}
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// Check that the sidecar task was injected
+	require.Len(out.TaskGroups[0].Tasks, 2)
+	sidecarTask := out.TaskGroups[0].Tasks[1]
+	require.Equal("connect-proxy-backend", sidecarTask.Name)
+	require.Equal("connect-proxy:backend", string(sidecarTask.Kind))
+	require.Equal("connect-proxy-backend", out.TaskGroups[0].Networks[0].DynamicPorts[0].Label)
+
+	// Check that the correct fields were overridden from the sidecar_task stanza
+	require.Equal("test", sidecarTask.Meta["source"])
+	require.Equal(500, sidecarTask.Resources.CPU)
+	require.Equal(connectSidecarResources().MemoryMB, sidecarTask.Resources.MemoryMB)
+	cfg := connectDriverConfig
+	cfg["labels"] = map[string]interface{}{
+		"foo": "bar",
+	}
+	require.Equal(cfg, sidecarTask.Config)
+
+	// Check that round tripping the job doesn't change the sidecarTask
+	out.Meta["test"] = "abc"
+	req.Job = out
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+	// Check for the new node in the FSM
+	state = s1.fsm.State()
+	ws = memdb.NewWatchSet()
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	require.Len(out.TaskGroups[0].Tasks, 2)
+	require.Exactly(sidecarTask, out.TaskGroups[0].Tasks[1])
+
+}
+
 func TestJobEndpoint_Register_ACL(t *testing.T) {
 	t.Parallel()
 
@@ -113,7 +280,7 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	newVolumeJob := func() *structs.Job {
+	newVolumeJob := func(readonlyVolume bool) *structs.Job {
 		j := mock.Job()
 		tg := j.TaskGroups[0]
 		tg.Volumes = map[string]*structs.VolumeRequest{
@@ -122,6 +289,7 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 				Config: map[string]interface{}{
 					"source": "prod-ca-certs",
 				},
+				ReadOnly: readonlyVolume,
 			},
 		}
 
@@ -129,7 +297,8 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 			{
 				Volume:      "ca-certs",
 				Destination: "/etc/ca-certificates",
-				ReadOnly:    true,
+				// Task readonly does not effect acls
+				ReadOnly: true,
 			},
 		}
 
@@ -140,9 +309,13 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 
 	submitJobToken := mock.CreatePolicyAndToken(t, s1.State(), 1001, "test-submit-job", submitJobPolicy)
 
-	volumesPolicy := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMount})
+	volumesPolicyReadWrite := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadWrite})
 
-	submitJobWithVolumesToken := mock.CreatePolicyAndToken(t, s1.State(), 1002, "test-submit-volumes", submitJobPolicy+"\n"+volumesPolicy)
+	submitJobWithVolumesReadWriteToken := mock.CreatePolicyAndToken(t, s1.State(), 1002, "test-submit-volumes", submitJobPolicy+"\n"+volumesPolicyReadWrite)
+
+	volumesPolicyReadOnly := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadOnly})
+
+	submitJobWithVolumesReadOnlyToken := mock.CreatePolicyAndToken(t, s1.State(), 1003, "test-submit-volumes-readonly", submitJobPolicy+"\n"+volumesPolicyReadOnly)
 
 	cases := []struct {
 		Name        string
@@ -163,15 +336,27 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 			ErrExpected: false,
 		},
 		{
-			Name:        "with a token that can submit a job, but not use a required volumes",
-			Job:         newVolumeJob(),
+			Name:        "with a token that can submit a job, but not use a required volume",
+			Job:         newVolumeJob(false),
 			Token:       submitJobToken.SecretID,
 			ErrExpected: true,
 		},
 		{
 			Name:        "with a token that can submit a job, and use all required volumes",
-			Job:         newVolumeJob(),
-			Token:       submitJobWithVolumesToken.SecretID,
+			Job:         newVolumeJob(false),
+			Token:       submitJobWithVolumesReadWriteToken.SecretID,
+			ErrExpected: false,
+		},
+		{
+			Name:        "with a token that can submit a job, but only has readonly access",
+			Job:         newVolumeJob(false),
+			Token:       submitJobWithVolumesReadOnlyToken.SecretID,
+			ErrExpected: true,
+		},
+		{
+			Name:        "with a token that can submit a job, and readonly volume access is enough",
+			Job:         newVolumeJob(true),
+			Token:       submitJobWithVolumesReadOnlyToken.SecretID,
 			ErrExpected: false,
 		},
 	}

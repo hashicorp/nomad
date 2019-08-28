@@ -1,0 +1,74 @@
+.fs-explorer {
+  width: 100%;
+
+  .table.boxed-section-body.is-full-bleed {
+    border: 1px solid $grey-blue;
+  }
+
+  tbody {
+    a {
+      text-decoration: none;
+      color: inherit;
+
+      &:hover {
+        .name {
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+
+  .breadcrumb a,
+  tbody a {
+    position: relative;
+
+    // This is adapted from Bulma’s .button.is-loading::after
+    &.ember-transitioning-in::after {
+      animation: spinAround 500ms infinite linear;
+      border: 2px solid $grey-light;
+      border-radius: 290486px;
+      border-right-color: transparent;
+      border-top-color: transparent;
+      content: '';
+      display: block;
+      height: 1em;
+      width: 1em;
+      position: absolute;
+      right: -1.5em;
+      top: calc(50% - (1em / 2));
+    }
+  }
+
+  .breadcrumb {
+    margin: 0;
+
+    li::before {
+      color: $grey-light;
+    }
+
+    a {
+      padding-top: 0;
+      padding-bottom: 0;
+      color: $blue;
+      opacity: 1;
+      font-weight: $weight-bold;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+
+      &.ember-transitioning-in {
+        margin-right: 1.5em;
+
+        &::after {
+          right: -1em;
+        }
+      }
+    }
+
+    .is-active a {
+      color: $black;
+    }
+  }
+}

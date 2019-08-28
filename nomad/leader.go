@@ -283,6 +283,8 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
+	s.setConsistentReadReady()
+
 	return nil
 }
 
@@ -766,6 +768,8 @@ func (s *Server) iterateJobStatusMetrics(jobs *memdb.ResultIterator) {
 // This is used to cleanup any state that may be specific to a leader.
 func (s *Server) revokeLeadership() error {
 	defer metrics.MeasureSince([]string{"nomad", "leader", "revoke_leadership"}, time.Now())
+
+	s.resetConsistentReadReady()
 
 	// Clear the leader token since we are no longer the leader.
 	s.setLeaderAcl("")

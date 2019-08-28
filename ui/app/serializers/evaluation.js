@@ -21,6 +21,12 @@ export default ApplicationSerializer.extend({
       'default';
     hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
 
+    hash.ModifyTimeNanos = hash.ModifyTime % 1000000;
+    hash.ModifyTime = Math.floor(hash.ModifyTime / 1000000);
+
+    hash.CreateTimeNanos = hash.CreateTime % 1000000;
+    hash.CreateTime = Math.floor(hash.CreateTime / 1000000);
+
     return this._super(typeHash, hash);
   },
 });

@@ -56,6 +56,9 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
                         "global",
                         "cache"
                     ],
+                    "Meta": {
+                      "meta": "for my service",
+                    },
                     "PortLabel": "db",
                     "AddressMode": "",
                     "Checks": [{
@@ -400,6 +403,9 @@ The `Task` object supports the following keys:
 
      - `Tags`: A list of string tags associated with this Service. String
        interpolation is supported in tags.
+      
+     - `Meta`: A key-value map that annotates the Consul service with
+       user-defined metadata. String interpolation is supported in meta.
 
      - `CanaryTags`: A list of string tags associated with this Service while it
        is a canary. Once the canary is promoted, the registered tags will be

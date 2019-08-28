@@ -56,15 +56,17 @@ func (tr *TaskRunner) initHooks() {
 
 	// Create the task directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
+	alloc := tr.Alloc()
 	tr.runnerHooks = []interfaces.TaskHook{
 		newValidateHook(tr.clientConfig, hookLogger),
 		newTaskDirHook(tr, hookLogger),
 		newLogMonHook(tr.logmonHookConfig, hookLogger),
-		newDispatchHook(tr.Alloc(), hookLogger),
+		newDispatchHook(alloc, hookLogger),
 		newVolumeHook(tr, hookLogger),
 		newArtifactHook(tr, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
+		newEnvoyBootstrapHook(alloc, tr.clientConfig.ConsulConfig.Addr, hookLogger),
 	}
 
 	// If Vault is enabled, add the hook

@@ -5,38 +5,54 @@ references:
     GOMAXPROCS: 1
     NOMAD_SLOW_TEST: 1
     GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+  ignore_for_ui_branches: &IGNORE_FOR_UI_BRANCHES
+    filters:
+      branches:
+        ignore: /^.-ui\b.*/
+
 
 workflows:
   build-test:
     jobs:
-      - lint
+      - lint-go:
+          <<: *IGNORE_FOR_UI_BRANCHES
       - test-machine:
           name: "test-client"
           test_packages: "./client/..."
+          <<: *IGNORE_FOR_UI_BRANCHES
       - test-machine:
           name: "test-nomad"
           test_packages: "./nomad/..."
+          <<: *IGNORE_FOR_UI_BRANCHES
       - test-machine:
           # API Tests run in a VM rather than container due to the FS tests
           # requiring `mount` priviliges.
           name: "test-api"
           test_packages: "./api/..."
+          <<: *IGNORE_FOR_UI_BRANCHES
       - test-container:
           name: "test-devices"
           test_packages: "./devices/..."
+          <<: *IGNORE_FOR_UI_BRANCHES
       - test-machine:
           name: "test-other"
           exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/rkt|./drivers/shared/executor|./nomad|./devices"
+          <<: *IGNORE_FOR_UI_BRANCHES
       - test-machine:
           name: "test-docker"
           test_packages: "./drivers/docker"
+          <<: *IGNORE_FOR_UI_BRANCHES
       - test-machine:
           name: "test-exec"
           test_packages: "./drivers/exec"
+          <<: *IGNORE_FOR_UI_BRANCHES
       - test-machine:
           name: "test-shared-exec"
           test_packages: "./drivers/shared/executor"
-      - test-rkt
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-rkt:
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-ui
       # - build-deps-image:
       #     context: dani-test
       #     filters:
@@ -54,7 +70,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: hashicorpnomad/ci-build-image:20190812
+      - image: hashicorpnomad/ci-build-image:20190823_2
   go-machine:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
@@ -62,6 +78,13 @@ executors:
   docker-builder:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine: true # TODO: Find latest docker image id
+
+  # uses a more recent image with unattended upgrades disabled properly
+  # but seems to break docker builds
+  go-machine-recent:
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    machine:
+      image: ubuntu-1604:201903-01
 
 jobs:
   build-deps-image:
@@ -71,9 +94,10 @@ jobs:
       - run: docker build -t hashicorpnomad/ci-build-image:$CIRCLE_SHA1 . -f ./Dockerfile.ci
       - run: docker push hashicorpnomad/ci-build-image:$CIRCLE_SHA1
 
-  lint:
+  lint-go:
     executor: go
     environment:
+      <<: *COMMON_ENVS
       GOPATH: /go
     steps:
       - checkout
@@ -102,7 +126,7 @@ jobs:
           path: /tmp/test-reports
 
   test-rkt:
-    executor: go-machine
+    executor: go-machine-recent
     environment:
       <<: *COMMON_ENVS
       GOTEST_PKGS: "./drivers/rkt"
@@ -153,6 +177,34 @@ jobs:
           path: /tmp/test-reports
       - store_artifacts:
           path: /tmp/test-reports
+  test-ui:
+    docker:
+      - image: circleci/node:10-browsers
+        environment:
+          # See https://git.io/vdao3 for details.
+          JOBS: 2
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-deps-{{ checksum "ui/yarn.lock" }}
+            - v1-deps-
+      - run:
+          name: yarn install
+          command: cd ui && yarn install
+      - save_cache:
+          key: v1-deps-{{ checksum "ui/yarn.lock" }}
+          paths:
+            - ./ui/node_modules
+      - run:
+          name: lint:js
+          command: cd ui && yarn run lint:js
+      - run:
+          name: lint:hbs
+          command: cd ui && yarn run lint:hbs
+      - run:
+          name: Ember tests
+          command: cd ui && yarn test
 
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
@@ -191,7 +243,7 @@ commands:
     parameters:
       version:
         type: string
-        default: "1.12.7"
+        default: "1.12.9"
     steps:
       - run:
           name: install golang << parameters.version >>
@@ -218,7 +270,7 @@ commands:
     parameters:
       version:
         type: string
-        default: 1.0.0
+        default: 1.6.0-rc1
     steps:
       - run:
           name: Install Consul << parameters.version >>

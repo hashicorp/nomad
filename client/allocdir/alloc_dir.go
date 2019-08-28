@@ -60,6 +60,10 @@ var (
 
 	// TaskDirs is the set of directories created in each tasks directory.
 	TaskDirs = map[string]os.FileMode{TmpDirName: os.ModeSticky | 0777}
+
+	// AllocGRPCSocket is the path relative to the task dir root for the
+	// unix socket connected to Consul's gRPC endpoint.
+	AllocGRPCSocket = filepath.Join(TmpDirName, "consul_grpc.sock")
 )
 
 // AllocDir allows creating, destroying, and accessing an allocation's

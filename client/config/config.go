@@ -247,6 +247,17 @@ type ClientTemplateConfig struct {
 	DisableSandbox    bool
 }
 
+func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(ClientTemplateConfig)
+	*nc = *c
+	nc.FunctionBlacklist = helper.CopySliceString(nc.FunctionBlacklist)
+	return nc
+}
+
 func (c *Config) Copy() *Config {
 	nc := new(Config)
 	*nc = *c
@@ -256,6 +267,7 @@ func (c *Config) Copy() *Config {
 	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
+	nc.TemplateConfig = c.TemplateConfig.Copy()
 	return nc
 }
 
