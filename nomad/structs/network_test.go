@@ -5,6 +5,8 @@ import (
 	"net"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNetworkIndex_Overcommitted(t *testing.T) {
@@ -252,42 +254,30 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 		ReservedPorts: []Port{{"main", 8000, 0}},
 	}
 	offer, err := idx.AssignNetwork(ask)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if offer == nil {
-		t.Fatalf("bad")
-	}
-	if offer.IP != "192.168.0.101" {
-		t.Fatalf("bad: %#v", offer)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, offer)
+	require.Equal(t, "192.168.0.101", offer.IP)
 	rp := Port{"main", 8000, 0}
-	if len(offer.ReservedPorts) != 1 || offer.ReservedPorts[0] != rp {
-		t.Fatalf("bad: %#v", offer)
-	}
+	require.Len(t, offer.ReservedPorts, 1)
+	require.Exactly(t, rp, offer.ReservedPorts[0])
 
 	// Ask for dynamic ports
 	ask = &NetworkResource{
-		DynamicPorts: []Port{{"http", 0, 80}, {"https", 0, 443}, {"admin", 0, 8080}},
+		DynamicPorts: []Port{{"http", 0, 80}, {"https", 0, 443}, {"admin", 0, -1}},
 	}
 	offer, err = idx.AssignNetwork(ask)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if offer == nil {
-		t.Fatalf("bad")
-	}
-	if offer.IP != "192.168.0.100" {
-		t.Fatalf("bad: %#v", offer)
-	}
-	if len(offer.DynamicPorts) != 3 {
-		t.Fatalf("There should be three dynamic ports")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, offer)
+	require.Equal(t, "192.168.0.100", offer.IP)
+	require.Len(t, offer.DynamicPorts, 3)
+	var adminPort Port
 	for _, port := range offer.DynamicPorts {
-		if port.Value == 0 {
-			t.Fatalf("Dynamic Port: %v should have been assigned a host port", port.Label)
+		require.NotZero(t, port.Value)
+		if port.Label == "admin" {
+			adminPort = port
 		}
 	}
+	require.Equal(t, adminPort.Value, adminPort.To)
 
 	// Ask for reserved + dynamic ports
 	ask = &NetworkResource{
@@ -295,32 +285,22 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 		DynamicPorts:  []Port{{"http", 0, 80}, {"https", 0, 443}, {"admin", 0, 8080}},
 	}
 	offer, err = idx.AssignNetwork(ask)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if offer == nil {
-		t.Fatalf("bad")
-	}
-	if offer.IP != "192.168.0.100" {
-		t.Fatalf("bad: %#v", offer)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, offer)
+	require.Equal(t, "192.168.0.100", offer.IP)
 
 	rp = Port{"main", 2345, 0}
-	if len(offer.ReservedPorts) != 1 || offer.ReservedPorts[0] != rp {
-		t.Fatalf("bad: %#v", offer)
-	}
+	require.Len(t, offer.ReservedPorts, 1)
+	require.Exactly(t, rp, offer.ReservedPorts[0])
 
 	// Ask for too much bandwidth
 	ask = &NetworkResource{
 		MBits: 1000,
 	}
 	offer, err = idx.AssignNetwork(ask)
-	if err.Error() != "bandwidth exceeded" {
-		t.Fatalf("err: %v", err)
-	}
-	if offer != nil {
-		t.Fatalf("bad")
-	}
+	require.Error(t, err)
+	require.Equal(t, "bandwidth exceeded", err.Error())
+	require.Nil(t, offer)
 }
 
 // This test ensures that even with a small domain of available ports we are
