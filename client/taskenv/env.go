@@ -652,11 +652,16 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		}
 	}
 
+	upstreams := []structs.ConsulUpstream{}
 	for _, svc := range tg.Services {
 		if svc.Connect.HasSidecar() && svc.Connect.SidecarService.HasUpstreams() {
-			b.AddUpstreams(svc.Connect.SidecarService.Proxy.Upstreams)
+			upstreams = append(upstreams, svc.Connect.SidecarService.Proxy.Upstreams...)
 		}
 	}
+	if len(upstreams) > 0 {
+		b.SetUpstreams(upstreams)
+	}
+
 	return b
 }
 
@@ -748,9 +753,9 @@ func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet
 }
 
 // SetUpstreams defined by connect enabled group services
-func (b *Builder) AddUpstreams(upstreams []structs.ConsulUpstream) *Builder {
+func (b *Builder) SetUpstreams(upstreams []structs.ConsulUpstream) *Builder {
 	b.mu.Lock()
-	b.upstreams = append(b.upstreams, upstreams...)
+	b.upstreams = upstreams
 	b.mu.Unlock()
 	return b
 }
