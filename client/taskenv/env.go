@@ -762,6 +762,7 @@ func (b *Builder) SetUpstreams(upstreams []structs.ConsulUpstream) *Builder {
 
 // buildUpstreamsEnv builds NOMAD_UPSTREAM_{IP,PORT,ADDR}_{destination} vars
 func buildUpstreamsEnv(envMap map[string]string, upstreams []structs.ConsulUpstream) {
+	// Proxy sidecars always bind to localhost
 	const ip = "127.0.0.1"
 	for _, u := range upstreams {
 		port := strconv.Itoa(u.LocalBindPort)
