@@ -17,7 +17,7 @@ export const DATACENTERS = provide(
 );
 
 export const HOSTS = provide(100, () => {
-  const ip = Math.random() > 0.5 ? faker.internet.ip() : `[${ipv6()}]`;
+  const ip = Math.random() > 0.5 ? faker.internet.ip() : `[${faker.internet.ipv6()}]`;
   return `${ip}:${faker.random.number({ min: 4000, max: 4999 })}`;
 });
 
@@ -62,18 +62,4 @@ export function generateNetworks(options = {}) {
           Value: faker.random.number({ min: 5000, max: 60000 }),
         })),
     }));
-}
-
-// Faker v4.0 has a built-in ipv6 function. Once Mirage upgrades,
-// this code can be removed.
-function ipv6() {
-  const subnets = [];
-  for (var i = 0; i < 8; i++) {
-    var subnet = [];
-    for (var char = 0; char < 4; char++) {
-      subnet.push(faker.random.number(15).toString(16));
-    }
-    subnets.push(subnet.join(''));
-  }
-  return subnets.join(':');
 }
