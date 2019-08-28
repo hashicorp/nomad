@@ -73,6 +73,32 @@ func newScriptCheckHook(c scriptCheckHookConfig) *scriptCheckHook {
 		}
 	}
 
+	// Walk back through the task group to see if there are script checks
+	// associated with the task. If so, we'll create scriptCheck tasklets
+	// for them. The group-level service and any check restart behaviors it
+	// needs are entirely encapsulated within the group service hook which
+	// watches Consul for status changes.
+	tg := c.alloc.Job.LookupTaskGroup(c.alloc.TaskGroup)
+	for _, service := range tg.Services {
+		for _, check := range service.Checks {
+			if check.Type != structs.ServiceCheckScript {
+				continue
+			}
+			if check.TaskName != c.task.Name {
+				continue
+			}
+			groupTaskName := "group-" + tg.Name
+			sc := newScriptCheck(&scriptCheckConfig{
+				allocID:  c.alloc.ID,
+				taskName: groupTaskName,
+				service:  service,
+				check:    check,
+				agent:    c.consul,
+			})
+			scriptChecks[sc.id] = sc
+		}
+	}
+
 	h := &scriptCheckHook{
 		consul:         c.consul,
 		allocID:        c.alloc.ID,
