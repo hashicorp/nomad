@@ -603,6 +603,11 @@ type ConsulSidecarService struct {
 	Proxy *ConsulProxy
 }
 
+// HasUpstreams checks if the sidecar service has any upstreams configured
+func (s *ConsulSidecarService) HasUpstreams() bool {
+	return s != nil && s.Proxy != nil && len(s.Proxy.Upstreams) > 0
+}
+
 // Copy the stanza recursively. Returns nil if nil.
 func (s *ConsulSidecarService) Copy() *ConsulSidecarService {
 	return &ConsulSidecarService{
