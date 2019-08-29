@@ -163,6 +163,7 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 			return false
 		}
 	}
+
 	return true
 }
 

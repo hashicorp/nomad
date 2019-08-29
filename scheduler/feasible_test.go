@@ -81,13 +81,67 @@ func TestRandomIterator(t *testing.T) {
 	}
 }
 
-func TestDriverChecker(t *testing.T) {
+func TestDriverChecker_DriverInfo(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	nodes[0].Drivers["foo"] = &structs.DriverInfo{
+		Detected: true,
+		Healthy:  true,
+	}
+	nodes[1].Drivers["foo"] = &structs.DriverInfo{
+		Detected: true,
+		Healthy:  false,
+	}
+	nodes[2].Drivers["foo"] = &structs.DriverInfo{
+		Detected: false,
+		Healthy:  false,
+	}
+
+	drivers := map[string]struct{}{
+		"exec": {},
+		"foo":  {},
+	}
+	checker := NewDriverChecker(ctx, drivers)
+	cases := []struct {
+		Node   *structs.Node
+		Result bool
+	}{
+		{
+			Node:   nodes[0],
+			Result: true,
+		},
+		{
+			Node:   nodes[1],
+			Result: false,
+		},
+		{
+			Node:   nodes[2],
+			Result: false,
+		},
+	}
+
+	for i, c := range cases {
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+}
+
+func TestDriverChecker_Compatibility(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
+	}
+	for _, n := range nodes {
+		// force compatibility mode
+		n.Drivers = nil
 	}
 	nodes[0].Attributes["driver.foo"] = "1"
 	nodes[1].Attributes["driver.foo"] = "0"
