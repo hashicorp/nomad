@@ -1,6 +1,7 @@
 package allocrunner
 
 import (
+	"context"
 	"fmt"
 
 	hclog "github.com/hashicorp/go-hclog"
@@ -70,7 +71,7 @@ func (h *networkHook) Prerun() error {
 		h.setter.SetNetworkIsolation(spec)
 	}
 
-	if err := h.networkConfigurator.Setup(h.alloc, spec); err != nil {
+	if err := h.networkConfigurator.Setup(context.Background(), h.alloc, spec); err != nil {
 		return fmt.Errorf("failed to configure networking for alloc: %v", err)
 	}
 	return nil
@@ -81,7 +82,7 @@ func (h *networkHook) Postrun() error {
 		return nil
 	}
 
-	if err := h.networkConfigurator.Teardown(h.alloc, h.spec); err != nil {
+	if err := h.networkConfigurator.Teardown(context.Background(), h.alloc, h.spec); err != nil {
 		h.logger.Error("failed to cleanup network for allocation, resources may have leaked", "alloc", h.alloc.ID, "error", err)
 	}
 	return h.manager.DestroyNetwork(h.alloc.ID, h.spec)

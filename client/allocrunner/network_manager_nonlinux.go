@@ -15,6 +15,6 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 	return nil, nil
 }
 
-func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config *clientconfig.Config) NetworkConfigurator {
-	return &hostNetworkConfigurator{}
+func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config *clientconfig.Config) (NetworkConfigurator, error) {
+	return &hostNetworkConfigurator{}, nil
 }
