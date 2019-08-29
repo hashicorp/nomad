@@ -46,6 +46,8 @@ export default Ability.extend({
     }
   ),
 
+  // Chooses the closest namespace as described at the bottom here:
+  // https://www.nomadproject.io/guides/security/acl.html#namespace-rules
   _findMatchingNamespace(policyNamespaces, activeNamespace) {
     const namespaceNames = policyNamespaces.mapBy('Name');
 
