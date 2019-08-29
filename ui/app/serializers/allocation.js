@@ -49,7 +49,7 @@ export default ApplicationSerializer.extend({
     hash.PreemptedByAllocationID = hash.PreemptedByAllocation || null;
     hash.WasPreempted = !!hash.PreemptedByAllocationID;
 
-    // FIXME is Shared *always* nested under AllocatedResources?
+    // When present, the resources are nested under AllocatedResources.Shared
     hash.AllocatedResources = hash.AllocatedResources && hash.AllocatedResources.Shared;
 
     return this._super(typeHash, hash);
