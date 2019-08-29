@@ -15,7 +15,7 @@ export default Factory.extend({
     }
   },
 
-  afterCreate(service, server) {
+  afterCreate(service) {
     service.update({
       Connect: {
         SidecarService: {
