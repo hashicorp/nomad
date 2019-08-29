@@ -227,7 +227,11 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 				return false
 			}
 
-			return driverInfo.Detected && driverInfo.Healthy
+			if driverInfo.Detected && driverInfo.Healthy {
+				continue
+			} else {
+				return false
+			}
 		}
 
 		value, ok := option.Attributes[driverStr]
@@ -245,6 +249,7 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
