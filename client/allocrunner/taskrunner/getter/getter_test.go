@@ -8,12 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 // fakeReplacer is a noop version of taskenv.TaskEnv.ReplaceEnv
@@ -212,6 +214,55 @@ func TestGetArtifact_Archive(t *testing.T) {
 		"test.sh":         "sleep 1\n",
 	}
 	checkContents(taskDir, expected, t)
+}
+
+func TestGetArtifact_Setuid(t *testing.T) {
+	// Create the test server hosting the file to download
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("./test-fixtures/"))))
+	defer ts.Close()
+
+	// Create a temp directory to download into and create some of the same
+	// files that exist in the artifact to ensure they are overridden
+	taskDir, err := ioutil.TempDir("", "nomad-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(taskDir)
+
+	file := "setuid.tgz"
+	artifact := &structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, file),
+		GetterOptions: map[string]string{
+			"checksum": "sha1:e892194748ecbad5d0f60c6c6b2db2bdaa384a90",
+		},
+	}
+
+	require.NoError(t, GetArtifact(taskEnv, artifact, taskDir))
+
+	var expected map[string]int
+
+	if runtime.GOOS == "windows" {
+		// windows doesn't support Chmod changing file permissions.
+		expected = map[string]int{
+			"public":  0666,
+			"private": 0666,
+			"setuid":  0666,
+		}
+	} else {
+		// Verify the unarchiving masked files properly.
+		expected = map[string]int{
+			"public":  0666,
+			"private": 0600,
+			"setuid":  0755,
+		}
+	}
+
+	for file, perm := range expected {
+		path := filepath.Join(taskDir, "setuid", file)
+		s, err := os.Stat(path)
+		require.NoError(t, err)
+		p := os.FileMode(perm)
+		o := s.Mode()
+		require.Equalf(t, p, o, "%s expected %o found %o", file, p, o)
+	}
 }
 
 func TestGetGetterUrl_Queries(t *testing.T) {

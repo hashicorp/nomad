@@ -31,6 +31,11 @@ matrix:
     - os: linux
       dist: xenial
       sudo: required
+      env: GOTEST_PKGS="./command"
+      <<: *skip_for_ui_branches
+    - os: linux
+      dist: xenial
+      sudo: required
       env: GOTEST_PKGS="./drivers/docker"
       <<: *skip_for_ui_branches
     - os: linux
@@ -46,7 +51,7 @@ matrix:
     - os: linux
       dist: xenial
       sudo: required
-      env: GOTEST_PKGS_EXCLUDE="./api|./client|./drivers/docker|./drivers/exec|./nomad"
+      env: GOTEST_PKGS_EXCLUDE="./api|./client|./command|./drivers/docker|./drivers/exec|./nomad"
       <<: *skip_for_ui_branches
     - os: linux
       dist: xenial

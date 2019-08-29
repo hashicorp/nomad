@@ -14,11 +14,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-multierror"
+	hclog "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -92,6 +92,14 @@ const (
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
 	allocSyncRetryIntv = 5 * time.Second
+
+	// defaultConnectSidecarImage is the image set in the node meta by default
+	// to be used by Consul Connect sidecar tasks
+	defaultConnectSidecarImage = "envoyproxy/envoy:v1.11.1"
+
+	// defaultConnectLogLevel is the log level set in the node meta by default
+	// to be used by Consul Connect sidecar tasks
+	defaultConnectLogLevel = "info"
 )
 
 var (
@@ -131,6 +139,7 @@ type AllocRunner interface {
 	ShutdownCh() <-chan struct{}
 	Signal(taskName, signal string) error
 	GetTaskEventHandler(taskName string) drivermanager.EventHandler
+	PersistState() error
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
 	RestartAll(taskEvent *structs.TaskEvent) error
@@ -997,6 +1006,15 @@ func (c *Client) restoreState() error {
 	// Load each alloc back
 	for _, alloc := range allocs {
 
+		// COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
+		// See hasLocalState for details.  Skipping suspicious allocs
+		// now.  If allocs should be run, they will be started when the client
+		// gets allocs from servers.
+		if !c.hasLocalState(alloc) {
+			c.logger.Warn("found a alloc without any local state, skipping restore", "alloc_id", alloc.ID)
+			continue
+		}
+
 		//XXX On Restore we give up on watching previous allocs because
 		//    we need the local AllocRunners initialized first. We could
 		//    add a second loop to initialize just the alloc watcher.
@@ -1053,6 +1071,42 @@ func (c *Client) restoreState() error {
 	return nil
 }
 
+// hasLocalState returns true if we have any other associated state
+// with alloc beyond the task itself
+//
+// Useful for detecting if a potentially completed alloc got resurrected
+// after AR was destroyed.  In such cases, re-running the alloc lead to
+// unexpected reruns and may lead to process and task exhaustion on node.
+//
+// The heuristic used here is an alloc is suspect if we see no other information
+// and no other task/status info is found.
+//
+// Also, an alloc without any client state will not be restored correctly; there will
+// be no tasks processes to reattach to, etc.  In such cases, client should
+// wait until it gets allocs from server to launch them.
+//
+// See:
+//  * https://github.com/hashicorp/nomad/pull/6207
+//  * https://github.com/hashicorp/nomad/issues/5984
+//
+// COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
+func (c *Client) hasLocalState(alloc *structs.Allocation) bool {
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		// corrupt alloc?!
+		return false
+	}
+
+	for _, task := range tg.Tasks {
+		ls, tr, _ := c.stateDB.GetTaskRunnerState(alloc.ID, task.Name)
+		if ls != nil || tr != nil {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (c *Client) handleInvalidAllocs(alloc *structs.Allocation, err error) {
 	c.invalidAllocsLock.Lock()
 	c.invalidAllocs[alloc.ID] = struct{}{}
@@ -1076,7 +1130,7 @@ func (c *Client) saveState() error {
 
 	for id, ar := range runners {
 		go func(id string, ar AllocRunner) {
-			err := c.stateDB.PutAllocation(ar.Alloc())
+			err := ar.PersistState()
 			if err != nil {
 				c.logger.Error("error saving alloc state", "error", err, "alloc_id", id)
 				l.Lock()
@@ -1225,10 +1279,29 @@ func (c *Client) setupNode() error {
 	if node.Name == "" {
 		node.Name, _ = os.Hostname()
 	}
+	// TODO(dani): Fingerprint these to handle volumes that don't exist/have bad perms.
+	if node.HostVolumes == nil {
+		if l := len(c.config.HostVolumes); l != 0 {
+			node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig, l)
+			for k, v := range c.config.HostVolumes {
+				node.HostVolumes[k] = v.Copy()
+			}
+		}
+	}
+
 	if node.Name == "" {
 		node.Name = node.ID
 	}
 	node.Status = structs.NodeStatusInit
+
+	// Setup default meta
+	if _, ok := node.Meta["connect.sidecar_image"]; !ok {
+		node.Meta["connect.sidecar_image"] = defaultConnectSidecarImage
+	}
+	if _, ok := node.Meta["connect.log_level"]; !ok {
+		node.Meta["connect.log_level"] = defaultConnectLogLevel
+	}
+
 	return nil
 }
 

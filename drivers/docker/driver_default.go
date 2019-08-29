@@ -7,11 +7,6 @@ import (
 	"github.com/moby/moby/daemon/caps"
 )
 
-const (
-	// Setting default network mode for non-windows OS as bridge
-	defaultNetworkMode = "bridge"
-)
-
 func getPortBinding(ip string, port string) []docker.PortBinding {
 	return []docker.PortBinding{{HostIP: ip, HostPort: port}}
 }

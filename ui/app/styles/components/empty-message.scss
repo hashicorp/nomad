@@ -18,4 +18,8 @@
       color: $grey;
     }
   }
+
+  &.is-hollow {
+    background: transparent;
+  }
 }

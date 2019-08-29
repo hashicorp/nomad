@@ -58,3 +58,11 @@ func (f FuncDurationVar) Set(s string) error {
 }
 func (f FuncDurationVar) String() string   { return "" }
 func (f FuncDurationVar) IsBoolFlag() bool { return false }
+
+// FuncOptionalStringVar is a flag that accepts a function which it
+// calls on the optional string given by the user.
+type FuncOptionalStringVar func(s string) error
+
+func (f FuncOptionalStringVar) Set(s string) error { return f(s) }
+func (f FuncOptionalStringVar) String() string     { return "" }
+func (f FuncOptionalStringVar) IsBoolFlag() bool   { return true }

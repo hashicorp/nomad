@@ -56,7 +56,9 @@ type ConsulConfig struct {
 	// address instead of bind address
 	ChecksUseAdvertise *bool `hcl:"checks_use_advertise"`
 
-	// Addr is the address of the local Consul agent
+	// Addr is the HTTP endpoint address of the local Consul agent
+	//
+	// Uses Consul's default and env var.
 	Addr string `hcl:"address"`
 
 	// Timeout is used by Consul HTTP Client
@@ -71,13 +73,19 @@ type ConsulConfig struct {
 	Auth string `hcl:"auth"`
 
 	// EnableSSL sets the transport scheme to talk to the Consul agent as https
+	//
+	// Uses Consul's default and env var.
 	EnableSSL *bool `hcl:"ssl"`
 
 	// VerifySSL enables or disables SSL verification when the transport scheme
 	// for the consul api client is https
+	//
+	// Uses Consul's default and env var.
 	VerifySSL *bool `hcl:"verify_ssl"`
 
-	// CAFile is the path to the ca certificate used for Consul communication
+	// CAFile is the path to the ca certificate used for Consul communication.
+	//
+	// Uses Consul's default and env var.
 	CAFile string `hcl:"ca_file"`
 
 	// CertFile is the path to the certificate for Consul communication
@@ -99,8 +107,10 @@ type ConsulConfig struct {
 }
 
 // DefaultConsulConfig() returns the canonical defaults for the Nomad
-// `consul` configuration.
+// `consul` configuration. Uses Consul's default configuration which reads
+// environment variables.
 func DefaultConsulConfig() *ConsulConfig {
+	def := consul.DefaultConfig()
 	return &ConsulConfig{
 		ServerServiceName:   "nomad",
 		ServerHTTPCheckName: "Nomad Server HTTP Check",
@@ -110,11 +120,15 @@ func DefaultConsulConfig() *ConsulConfig {
 		ClientHTTPCheckName: "Nomad Client HTTP Check",
 		AutoAdvertise:       helper.BoolToPtr(true),
 		ChecksUseAdvertise:  helper.BoolToPtr(false),
-		EnableSSL:           helper.BoolToPtr(false),
-		VerifySSL:           helper.BoolToPtr(true),
 		ServerAutoJoin:      helper.BoolToPtr(true),
 		ClientAutoJoin:      helper.BoolToPtr(true),
 		Timeout:             5 * time.Second,
+
+		// From Consul api package defaults
+		Addr:      def.Address,
+		EnableSSL: helper.BoolToPtr(def.Scheme == "https"),
+		VerifySSL: helper.BoolToPtr(!def.TLSConfig.InsecureSkipVerify),
+		CAFile:    def.TLSConfig.CAFile,
 	}
 }
 

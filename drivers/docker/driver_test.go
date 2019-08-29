@@ -2230,7 +2230,7 @@ func TestDockerDriver_VolumeError(t *testing.T) {
 	driver := dockerDriverHarness(t, nil)
 
 	// assert volume error is recoverable
-	_, err := driver.Impl().(*Driver).createContainer(fakeDockerClient{}, docker.CreateContainerOptions{Config: &docker.Config{}}, cfg)
+	_, err := driver.Impl().(*Driver).createContainer(fakeDockerClient{}, docker.CreateContainerOptions{Config: &docker.Config{}}, cfg.Image)
 	require.True(t, structs.IsRecoverable(err))
 }
 

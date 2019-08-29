@@ -46,7 +46,7 @@ task "docs" {
   }
 
   # Environment variables are interpreted and can contain both runtime and
-  # node attributes. There environment variables are passed into the task.
+  # node attributes. These environment variables are passed into the task.
   env {
     "DC"      = "Running on datacenter ${node.datacenter}"
     "VERSION" = "Version ${NOMAD_META_VERSION}"
@@ -75,6 +75,11 @@ driver.
     <td><tt>${node.unique.id}</tt></td>
     <td>36 character unique client identifier</td>
     <td><tt>9afa5da1-8f39-25a2-48dc-ba31fd7c0023</tt></td>
+  </tr>
+  <tr>
+    <td><tt>${node.region}</tt></td>
+    <td>Client's region</td>
+    <td><tt>global</tt></td>
   </tr>
   <tr>
     <td><tt>${node.datacenter}</tt></td>

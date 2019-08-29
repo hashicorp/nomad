@@ -36,6 +36,7 @@
 
       &.is-right {
         margin-left: $gutter-width;
+        width: calc(100% - #{$gutter-width});
       }
 
       @media #{$mq-hidden-gutter} {
@@ -51,6 +52,7 @@
 
         &.is-right {
           margin-left: 0;
+          width: 100%;
         }
       }
     }

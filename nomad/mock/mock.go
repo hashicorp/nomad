@@ -15,6 +15,16 @@ func Node() *structs.Node {
 		SecretID:   uuid.Generate(),
 		Datacenter: "dc1",
 		Name:       "foobar",
+		Drivers: map[string]*structs.DriverInfo{
+			"exec": {
+				Detected: true,
+				Healthy:  true,
+			},
+			"mock_driver": {
+				Detected: true,
+				Healthy:  true,
+			},
+		},
 		Attributes: map[string]string{
 			"kernel.name":        "linux",
 			"arch":               "x86",
@@ -402,13 +412,16 @@ func PeriodicJob() *structs.Job {
 }
 
 func Eval() *structs.Evaluation {
+	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
-		ID:        uuid.Generate(),
-		Namespace: structs.DefaultNamespace,
-		Priority:  50,
-		Type:      structs.JobTypeService,
-		JobID:     uuid.Generate(),
-		Status:    structs.EvalStatusPending,
+		ID:         uuid.Generate(),
+		Namespace:  structs.DefaultNamespace,
+		Priority:   50,
+		Type:       structs.JobTypeService,
+		JobID:      uuid.Generate(),
+		Status:     structs.EvalStatusPending,
+		CreateTime: now,
+		ModifyTime: now,
 	}
 	return eval
 }

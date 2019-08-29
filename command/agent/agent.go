@@ -275,6 +275,13 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 		conf.NodeGCThreshold = dur
 	}
+	if gcInterval := agentConfig.Server.JobGCInterval; gcInterval != "" {
+		dur, err := time.ParseDuration(gcInterval)
+		if err != nil {
+			return nil, err
+		}
+		conf.JobGCInterval = dur
+	}
 	if gcThreshold := agentConfig.Server.JobGCThreshold; gcThreshold != "" {
 		dur, err := time.ParseDuration(gcThreshold)
 		if err != nil {
@@ -461,6 +468,14 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ClientMaxPort = uint(agentConfig.Client.ClientMaxPort)
 	conf.ClientMinPort = uint(agentConfig.Client.ClientMinPort)
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
+	conf.TemplateConfig.FunctionBlacklist = agentConfig.Client.TemplateConfig.FunctionBlacklist
+	conf.TemplateConfig.DisableSandbox = agentConfig.Client.TemplateConfig.DisableSandbox
+
+	hvMap := make(map[string]*structs.ClientHostVolumeConfig, len(agentConfig.Client.HostVolumes))
+	for _, v := range agentConfig.Client.HostVolumes {
+		hvMap[v.Name] = v
+	}
+	conf.HostVolumes = hvMap
 
 	// Setup the node
 	conf.Node = new(structs.Node)
@@ -530,6 +545,11 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ACLEnabled = agentConfig.ACL.Enabled
 	conf.ACLTokenTTL = agentConfig.ACL.TokenTTL
 	conf.ACLPolicyTTL = agentConfig.ACL.PolicyTTL
+
+	// Setup networking configration
+	conf.CNIPath = agentConfig.Client.CNIPath
+	conf.BridgeNetworkName = agentConfig.Client.BridgeNetworkName
+	conf.BridgeNetworkAllocSubnet = agentConfig.Client.BridgeNetworkSubnet
 
 	return conf, nil
 }

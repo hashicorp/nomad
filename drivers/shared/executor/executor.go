@@ -126,6 +126,8 @@ type ExecCommand struct {
 
 	// Devices are the the device nodes to be created in isolation environment
 	Devices []*drivers.DeviceConfig
+
+	NetworkIsolation *drivers.NetworkIsolationSpec
 }
 
 // SetWriters sets the writer for the process stdout and stderr. This should
@@ -307,8 +309,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	e.childCmd.Env = e.commandCfg.Env
 
 	// Start the process
-	e.logger.Debug("launching", "command", command.Cmd, "args", strings.Join(command.Args, " "))
-	if err := e.childCmd.Start(); err != nil {
+	if err = e.start(command); err != nil {
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
 

@@ -1126,6 +1126,25 @@ func TestLeader_RevokeLeadership_MultipleTimes(t *testing.T) {
 	require.Nil(t, s1.revokeLeadership())
 }
 
+func TestLeader_TransitionsUpdateConsistencyRead(t *testing.T) {
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	testutil.WaitForResult(func() (bool, error) {
+		return s1.isReadyForConsistentReads(), nil
+	}, func(err error) {
+		require.Fail(t, "should have finished establish leader loop")
+	})
+
+	require.Nil(t, s1.revokeLeadership())
+	require.False(t, s1.isReadyForConsistentReads())
+
+	ch := make(chan struct{})
+	require.Nil(t, s1.establishLeadership(ch))
+	require.True(t, s1.isReadyForConsistentReads())
+}
+
 // Test doing an inplace upgrade on a server from raft protocol 2 to 3
 // This verifies that removing the server and adding it back with a uuid works
 // even if the server's address stays the same.

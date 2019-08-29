@@ -60,6 +60,7 @@ nomad_linux_amd64
 nomad_darwin_amd64
 TODO.md
 codecgen-*.generated.go
+GNUMakefile.local
 
 .terraform
 *.tfstate*

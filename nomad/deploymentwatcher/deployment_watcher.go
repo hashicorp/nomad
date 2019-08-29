@@ -791,6 +791,7 @@ func (w *deploymentWatcher) createBatchedUpdate(allowReplacements []string, forI
 
 // getEval returns an evaluation suitable for the deployment
 func (w *deploymentWatcher) getEval() *structs.Evaluation {
+	now := time.Now().UTC().UnixNano()
 	return &structs.Evaluation{
 		ID:           uuid.Generate(),
 		Namespace:    w.j.Namespace,
@@ -800,6 +801,8 @@ func (w *deploymentWatcher) getEval() *structs.Evaluation {
 		JobID:        w.j.ID,
 		DeploymentID: w.deploymentID,
 		Status:       structs.EvalStatusPending,
+		CreateTime:   now,
+		ModifyTime:   now,
 	}
 }
 
