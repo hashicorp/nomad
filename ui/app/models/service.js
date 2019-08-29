@@ -4,6 +4,6 @@ import Fragment from 'ember-data-model-fragments/fragment';
 export default Fragment.extend({
   name: attr('string'),
   portLabel: attr('string'),
-  tags: attr({ defaultValue: () => [] }),
+  tags: attr(),
   connect: attr(),
 });
