@@ -2,7 +2,7 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import Service from '@ember/service';
 
-module('Unit | Ability | job run FIXME just for ease of filtering', function(hooks) {
+module('Unit | Ability | job', function(hooks) {
   setupTest(hooks);
 
   test('it permits job run for management tokens', function(assert) {
