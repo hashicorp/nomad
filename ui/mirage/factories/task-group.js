@@ -74,7 +74,7 @@ export default Factory.extend({
     if (group.withServices) {
       Array(faker.random.number({ min: 1, max: 3 }))
         .fill(null)
-        .forEach((_, i) => {
+        .forEach(() => {
           server.create('service', {
             task_group: group,
           });
