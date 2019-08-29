@@ -164,7 +164,9 @@
               <td data-test-service-tags>{{join ", " row.model.tags}}</td>
               <td data-test-service-connect>{{if row.model.connect "Yes" "No"}}</td>
               <td data-test-service-upstreams>
-                {{#each row.model.connect.SidecarService.Proxy.Upstreams as |upstream|}}{{upstream.DestinationName}}:{{upstream.LocalBindPort}}{{/each}}
+                {{#each row.model.connect.SidecarService.Proxy.Upstreams as |upstream|}}
+                  {{upstream.DestinationName}}:{{upstream.LocalBindPort}}
+                {{/each}}
               </td>
             </tr>
           {{/t.body}}
