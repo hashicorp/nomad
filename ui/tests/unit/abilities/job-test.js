@@ -27,12 +27,47 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
-          rulesJson: {
-            namespace: {
-              aNamespace: {
-                policy: 'write',
+          rulesJSON: {
+            Namespaces: [
+              {
+                Name: 'aNamespace',
+                Policy: 'write',
               },
-            },
+            ],
+          },
+        },
+      ],
+    });
+
+    this.owner.register('service:system', mockSystem);
+    this.owner.register('service:token', mockToken);
+
+    const jobAbility = this.owner.lookup('ability:job');
+    assert.ok(jobAbility.canRun);
+  });
+
+  test('it permits job run for client tokens with a policy that has default namespace write and no policy for active namespace', function(assert) {
+    const mockSystem = Service.extend({
+      activeNamespace: {
+        name: 'anotherNamespace',
+      },
+    });
+
+    const mockToken = Service.extend({
+      selfToken: { type: 'client' },
+      selfTokenPolicies: [
+        {
+          rulesJSON: {
+            Namespaces: [
+              {
+                Name: 'aNamespace',
+                Policy: 'read',
+              },
+              {
+                Name: 'default',
+                Policy: 'write',
+              },
+            ],
           },
         },
       ],
@@ -56,12 +91,13 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
-          rulesJson: {
-            namespace: {
-              aNamespace: {
-                policy: 'read',
+          rulesJSON: {
+            Namespaces: [
+              {
+                Name: 'aNamespace',
+                Policy: 'read',
               },
-            },
+            ],
           },
         },
       ],
@@ -72,5 +108,76 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
 
     const jobAbility = this.owner.lookup('ability:job');
     assert.notOk(jobAbility.canRun);
+  });
+
+  test('it handles globs in namespace names', function(assert) {
+    const mockSystem = Service.extend({
+      activeNamespace: {
+        name: 'aNamespace',
+      },
+    });
+
+    const mockToken = Service.extend({
+      selfToken: { type: 'client' },
+      selfTokenPolicies: [
+        {
+          rulesJSON: {
+            Namespaces: [
+              {
+                Name: 'production-*',
+                Policy: 'write',
+              },
+              {
+                Name: 'production-api',
+                Policy: 'write',
+              },
+              {
+                Name: 'production-web',
+                Policy: 'deny',
+              },
+              {
+                Name: '*-suffixed',
+                Policy: 'write',
+              },
+              {
+                Name: '*-more-suffixed',
+                Policy: 'deny',
+              },
+              {
+                Name: '*-abc-*',
+                Policy: 'write',
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    this.owner.register('service:system', mockSystem);
+    this.owner.register('service:token', mockToken);
+
+    const jobAbility = this.owner.lookup('ability:job');
+    const systemService = this.owner.lookup('service:system');
+
+    systemService.set('activeNamespace.name', 'production-web');
+    assert.notOk(jobAbility.canRun);
+
+    systemService.set('activeNamespace.name', 'production-api');
+    assert.ok(jobAbility.canRun);
+
+    systemService.set('activeNamespace.name', 'production-other');
+    assert.ok(jobAbility.canRun);
+
+    systemService.set('activeNamespace.name', 'something-suffixed');
+    assert.ok(jobAbility.canRun);
+
+    systemService.set('activeNamespace.name', 'something-more-suffixed');
+    assert.notOk(
+      jobAbility.canRun,
+      'expected the namespace with the greatest number of matched characters to be chosen'
+    );
+
+    systemService.set('activeNamespace.name', '000-abc-999');
+    assert.ok(jobAbility.canRun, 'expected to be able to match against more than one wildcard');
   });
 });
