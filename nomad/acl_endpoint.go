@@ -268,7 +268,7 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 				rules, err := policy.Parse(out.Rules)
 
 				if err != nil {
-					reply.Policy.RulesJSON = nil
+					return err
 				} else {
 					reply.Policy.RulesJSON = rules
 				}
