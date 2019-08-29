@@ -1,5 +1,5 @@
 # This script hardens TLS configuration by disabling weak and broken protocols
-# and enabling useful protocols like TLS 1.1 and 1.1.
+# and enabling useful protocols like TLS 1.1 and 1.2.
 
 $RunningAsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 if (!$RunningAsAdmin) {

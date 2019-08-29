@@ -36,6 +36,13 @@
     },
     {
       "type": "powershell",
+      "inline": [
+        "Set-PSRepository -InstallationPolicy Trusted -Name PSGallery",
+        "Install-Package -Force 7Zip4PowerShell",
+        "Set-PSRepository -InstallationPolicy Untrusted -Name PSGallery"
+    },
+    {
+      "type": "powershell",
       "scripts": [
         "windows/bootstrap/disable-windows-updates.ps1",
         "windows/bootstrap/fix-tls.ps1"
