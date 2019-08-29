@@ -55,7 +55,7 @@ export default Ability.extend({
 
     const matchingNamespaceName = globNamespaceNames.reduce(
       (mostMatching, namespaceName) => {
-        // TODO what kind of protection/sanitisation is needed here, if any?
+        // Convert * wildcards to .* for regex matching
         const namespaceNameRegExp = new RegExp(namespaceName.replace(/\*/g, '.*'));
         const characterDifference = activeNamespace.length - namespaceName.length;
 
