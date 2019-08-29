@@ -14,9 +14,12 @@
         {{/if}}
       </div>
       {{#if (media "isMobile")}}
-        {{! FIXME this is duplicated for non-mobile below!}}
         <div class="toolbar-item is-right-aligned">
-          {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
+          {{#if (can "run job")}}
+            {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
+          {{else}}
+            <div data-test-run-job class="button tooltip" aria-label="You don’t have permission to run jobs" disabled>Run Job</div>
+          {{/if}}
         </div>
       {{/if}}
       <div class="toolbar-item is-right-aligned is-mobile-full-width">
