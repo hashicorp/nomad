@@ -966,7 +966,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	// Configure the prometheus pushserver sink
 	if telConfig.PrometheusPushAddr != "" {
 		nodeName := config.NodeName
-		if nodeName != "" {
+		if nodeName == "" {
 			nodeName = "nomad"
 		}
 		sink, err := prometheus.NewPrometheusPushSink(telConfig.PrometheusPushAddr,
