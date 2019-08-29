@@ -16,7 +16,6 @@ export default Factory.extend({
   },
 
   afterCreate(service, server) {
-    // FIXME if extending to put services in tasks vs task groups, make conditional
     service.update({
       Connect: {
         SidecarService: {
