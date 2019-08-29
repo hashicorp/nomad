@@ -99,7 +99,7 @@ export default Factory.extend({
   withRescheduling: false,
 
   // When true, task groups will have services
-  // FIXME for demonstration only?
+  // FIXME true for demonstration only
   withGroupServices: true,
 
   // When true, only task groups and allocations are made
