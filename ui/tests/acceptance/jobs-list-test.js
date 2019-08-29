@@ -94,19 +94,6 @@ module('Acceptance | jobs list', function(hooks) {
     const policy = server.create('policy', {
       id: 'something',
       name: 'something',
-      rules: `
-      namespace "${job1.namespaceId}" {
-        capabilities = ["list-jobs", "submit-job"]
-      }
-
-      namespace "${job2.namespaceId}" {
-        capabilities = ["list-jobs"]
-      }
-
-      node {
-          policy = "read"
-      }`,
-      // TODO worth keeping HCL rules for comparison?
       rulesJSON: {
         Namespaces: [
           {
@@ -139,14 +126,6 @@ module('Acceptance | jobs list', function(hooks) {
     server.create('policy', {
       id: 'anonymous',
       name: 'anonymous',
-      rules: `
-      namespace "default" {
-          capabilities = ["list-jobs", "submit-job"]
-      }
-
-      node {
-          policy = "read"
-      }`,
       rulesJSON: {
         Namespaces: [
           {
