@@ -198,22 +198,12 @@ module('Acceptance | allocation detail', function(hooks) {
 
       assert.equal(renderedService.connect, serverService.Connect ? 'Yes' : 'No');
 
-      if (
-        serverService.Connect &&
-        serverService.Connect.SidecarService &&
-        serverService.Connect.SidecarService.Proxy &&
-        serverService.Connect.SidecarService.Proxy.Upstreams
-      ) {
-        const upstreams = serverService.Connect.SidecarService.Proxy.Upstreams;
-        const serverUpstreamsString = upstreams
-          .map(upstream => `${upstream.DestinationName}:${upstream.LocalBindPort}`)
-          .join(' ');
+      const upstreams = serverService.Connect.SidecarService.Proxy.Upstreams;
+      const serverUpstreamsString = upstreams
+        .map(upstream => `${upstream.DestinationName}:${upstream.LocalBindPort}`)
+        .join(' ');
 
-        assert.equal(renderedService.upstreams, serverUpstreamsString);
-      } else {
-        // FIXME force testing of this
-        assert.equal(renderedService.upstreams, '');
-      }
+      assert.equal(renderedService.upstreams, serverUpstreamsString);
     });
   });
 
