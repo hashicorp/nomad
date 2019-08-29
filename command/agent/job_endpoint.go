@@ -641,7 +641,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 	// Update has been pushed into the task groups. stagger and max_parallel are
 	// preserved at the job level, but all other values are discarded. The job.Update
 	// api value is merged into TaskGroups already in api.Canonicalize
-	if job.Update != nil {
+	if job.Update != nil && job.Update.MaxParallel != nil && *job.Update.MaxParallel > 0 {
 		j.Update = structs.UpdateStrategy{}
 
 		if job.Update.Stagger != nil {
