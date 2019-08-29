@@ -3,6 +3,7 @@
 IMPROVEMENTS:
  * agent: allow the job GC interval to be configured [[GH-5978](https://github.com/hashicorp/nomad/issues/5978)]
  * agent: add `-dev=connect` parameter to support running in dev mode with Consul Connect [[GH-6126](https://github.com/hashicorp/nomad/issues/6126)]
+ * api: Added JSON representation of rules to policy endpoint response [[GH-6017](https://github.com/hashicorp/nomad/pull/6017)]
  * api: add follow parameter to file streaming endpoint to support older browsers [[GH-6049](https://github.com/hashicorp/nomad/issues/6049)]
  * metrics: Add job status (pending, running, dead) metrics [[GH-6003](https://github.com/hashicorp/nomad/issues/6003)]
  * ui: Add creation time to evaluations table [[GH-6050](https://github.com/hashicorp/nomad/pull/6050)]
