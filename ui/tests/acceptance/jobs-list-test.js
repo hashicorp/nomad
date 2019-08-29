@@ -96,7 +96,7 @@ module('Acceptance | jobs list', function(hooks) {
       name: 'something',
       rules: `
       namespace "${job1.namespaceId}" {
-          policy = "write"
+        capabilities = ["list-jobs", "submit-job"]
       }
 
       namespace "${job2.namespaceId}" {
@@ -111,7 +111,7 @@ module('Acceptance | jobs list', function(hooks) {
         Namespaces: [
           {
             Name: job1.namespaceId,
-            Policy: 'write',
+            Capabilities: ['list-jobs', 'submit-job'],
           },
           {
             Name: job2.namespaceId,
@@ -141,7 +141,7 @@ module('Acceptance | jobs list', function(hooks) {
       name: 'anonymous',
       rules: `
       namespace "default" {
-          policy = "write"
+          capabilities = ["list-jobs", "submit-job"]
       }
 
       node {
@@ -151,7 +151,7 @@ module('Acceptance | jobs list', function(hooks) {
         Namespaces: [
           {
             Name: 'default',
-            Policy: 'write',
+            Capabilities: ['list-jobs', 'submit-job'],
           },
         ],
       },

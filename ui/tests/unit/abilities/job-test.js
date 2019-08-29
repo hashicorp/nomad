@@ -16,7 +16,7 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
     assert.ok(jobAbility.canRun);
   });
 
-  test('it permits job run for client tokens with a policy that has namespace write', function(assert) {
+  test('it permits job run for client tokens with a policy that has namespace submit-job', function(assert) {
     const mockSystem = Service.extend({
       activeNamespace: {
         name: 'aNamespace',
@@ -31,7 +31,7 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
             Namespaces: [
               {
                 Name: 'aNamespace',
-                Policy: 'write',
+                Capabilities: ['submit-job'],
               },
             ],
           },
@@ -46,7 +46,7 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
     assert.ok(jobAbility.canRun);
   });
 
-  test('it permits job run for client tokens with a policy that has default namespace write and no policy for active namespace', function(assert) {
+  test('it permits job run for client tokens with a policy that has default namespace submit-job and no capabilities for active namespace', function(assert) {
     const mockSystem = Service.extend({
       activeNamespace: {
         name: 'anotherNamespace',
@@ -61,11 +61,11 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
             Namespaces: [
               {
                 Name: 'aNamespace',
-                Policy: 'read',
+                Capabilities: [],
               },
               {
                 Name: 'default',
-                Policy: 'write',
+                Capabilities: ['submit-job'],
               },
             ],
           },
@@ -80,7 +80,7 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
     assert.ok(jobAbility.canRun);
   });
 
-  test('it blocks job run for client tokens with a policy that has namespace read', function(assert) {
+  test('it blocks job run for client tokens with a policy that has no submit-job capability', function(assert) {
     const mockSystem = Service.extend({
       activeNamespace: {
         name: 'aNamespace',
@@ -95,7 +95,7 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
             Namespaces: [
               {
                 Name: 'aNamespace',
-                Policy: 'read',
+                Capabilities: ['list-jobs'],
               },
             ],
           },
@@ -125,27 +125,27 @@ module('Unit | Ability | job run FIXME just for ease of filtering', function(hoo
             Namespaces: [
               {
                 Name: 'production-*',
-                Policy: 'write',
+                Capabilities: ['submit-job'],
               },
               {
                 Name: 'production-api',
-                Policy: 'write',
+                Capabilities: ['submit-job'],
               },
               {
                 Name: 'production-web',
-                Policy: 'deny',
+                Capabilities: [],
               },
               {
                 Name: '*-suffixed',
-                Policy: 'write',
+                Capabilities: ['submit-job'],
               },
               {
                 Name: '*-more-suffixed',
-                Policy: 'deny',
+                Capabilities: [],
               },
               {
                 Name: '*-abc-*',
-                Policy: 'write',
+                Capabilities: ['submit-job'],
               },
             ],
           },

@@ -40,13 +40,8 @@ export default Ability.extend({
     'rulesForActiveNamespace.@each.capabilities',
     function() {
       return this.rulesForActiveNamespace.some(rules => {
-        // TODO given that the API returns a fully-expanded set of rules,
-        // where just a policy word turns into an array of capabilities,
-        // maybe checking capabilities is the only necessity?
-        const policy = rules.Policy;
         const capabilities = getWithDefault(rules, 'Capabilities', []);
-
-        return policy == 'write' || capabilities.includes('submit-job');
+        return capabilities.includes('submit-job');
       });
     }
   ),
