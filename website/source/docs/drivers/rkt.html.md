@@ -6,6 +6,15 @@ description: |-
   The rkt task driver is used to run application containers using rkt.
 ---
 
+
+~> **Deprecation Warning!**
+Nomad introduced the Rkt driver in version 0.2.0. The Rkt project had some
+early adoption; in recent times user adoption has trended away from rkt towards
+other projects. Furthermore, project activity has declined and there are unpatched CVEs.
+Nomad 0.11 will convert the Rkt driver to an external driver, and will not prioritize features or pull requests that
+affect the Rkt driver. The external driver will be available as an open source
+repository for community ownership.
+
 # Rkt Driver
 
 Name: `rkt`
