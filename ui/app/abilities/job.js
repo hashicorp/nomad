@@ -15,25 +15,21 @@ export default Ability.extend({
     return this.get('system.activeNamespace.name') || 'default';
   }),
 
-  rulesForActiveNamespace: computed(
-    'activeNamespace',
-    'token.selfTokenPolicies.@each.Namespaces' /* FIXME not quite */,
-    function() {
-      const activeNamespace = this.activeNamespace;
+  rulesForActiveNamespace: computed('activeNamespace', 'token.selfTokenPolicies.[]', function() {
+    const activeNamespace = this.activeNamespace;
 
-      return (this.get('token.selfTokenPolicies') || []).toArray().reduce((rules, policy) => {
-        const policyNamespaces = getWithDefault(policy, 'rulesJSON.Namespaces', []);
+    return (this.get('token.selfTokenPolicies') || []).toArray().reduce((rules, policy) => {
+      const policyNamespaces = getWithDefault(policy, 'rulesJSON.Namespaces', []);
 
-        const matchingNamespace = this._findMatchingNamespace(policyNamespaces, activeNamespace);
+      const matchingNamespace = this._findMatchingNamespace(policyNamespaces, activeNamespace);
 
-        if (matchingNamespace) {
-          rules.push(policyNamespaces.find(namespace => namespace.Name === matchingNamespace));
-        }
+      if (matchingNamespace) {
+        rules.push(policyNamespaces.find(namespace => namespace.Name === matchingNamespace));
+      }
 
-        return rules;
-      }, []);
-    }
-  ),
+      return rules;
+    }, []);
+  }),
 
   policiesSupportRunning: computed(
     'rulesForActiveNamespace.@each.policy',
