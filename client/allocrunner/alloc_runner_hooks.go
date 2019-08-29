@@ -6,8 +6,27 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
+
+type networkIsolationSetter interface {
+	SetNetworkIsolation(*drivers.NetworkIsolationSpec)
+}
+
+// allocNetworkIsolationSetter is a shim to allow the alloc network hook to
+// set the alloc network isolation configuration without full access
+// to the alloc runner
+type allocNetworkIsolationSetter struct {
+	ar *allocRunner
+}
+
+func (a *allocNetworkIsolationSetter) SetNetworkIsolation(n *drivers.NetworkIsolationSpec) {
+	for _, tr := range a.ar.tasks {
+		tr.SetNetworkIsolation(n)
+	}
+}
 
 // allocHealthSetter is a shim to allow the alloc health watcher hook to set
 // and clear the alloc health without full access to the alloc runner state
@@ -76,11 +95,23 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 }
 
 // initRunnerHooks intializes the runners hooks.
-func (ar *allocRunner) initRunnerHooks() {
+func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	hookLogger := ar.logger.Named("runner_hook")
 
 	// create health setting shim
 	hs := &allocHealthSetter{ar}
+
+	// create network isolation setting shim
+	ns := &allocNetworkIsolationSetter{ar: ar}
+
+	// build the network manager
+	nm, err := newNetworkManager(ar.Alloc(), ar.driverManager)
+	if err != nil {
+		return fmt.Errorf("failed to configure network manager: %v", err)
+	}
+
+	// create network configurator
+	nc := newNetworkConfigurator(hookLogger, ar.Alloc(), config)
 
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
@@ -89,7 +120,11 @@ func (ar *allocRunner) initRunnerHooks() {
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
+		newNetworkHook(hookLogger, ns, ar.Alloc(), nm, nc),
+		newGroupServiceHook(hookLogger, ar.Alloc(), ar.consulClient),
 	}
+
+	return nil
 }
 
 // prerun is used to run the runners prerun hooks.

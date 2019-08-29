@@ -38,6 +38,26 @@ func NamespacePolicy(namespace string, policy string, capabilities []string) str
 	return policyHCL
 }
 
+// HostVolumePolicy is a helper for generating the policy hcl for a given
+// host-volume. Either policy or capabilities may be nil but not both.
+func HostVolumePolicy(vol string, policy string, capabilities []string) string {
+	policyHCL := fmt.Sprintf("host_volume %q {", vol)
+	if policy != "" {
+		policyHCL += fmt.Sprintf("\n\tpolicy = %q", policy)
+	}
+	if len(capabilities) != 0 {
+		for i, s := range capabilities {
+			if !strings.HasPrefix(s, "\"") {
+				capabilities[i] = strconv.Quote(s)
+			}
+		}
+
+		policyHCL += fmt.Sprintf("\n\tcapabilities = [%v]", strings.Join(capabilities, ","))
+	}
+	policyHCL += "\n}"
+	return policyHCL
+}
+
 // AgentPolicy is a helper for generating the hcl for a given agent policy.
 func AgentPolicy(policy string) string {
 	return fmt.Sprintf("agent {\n\tpolicy = %q\n}\n", policy)

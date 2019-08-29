@@ -161,6 +161,7 @@ func TestEnvironment_AsList(t *testing.T) {
 			},
 		},
 	}
+	a.Namespace = "not-default"
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Env = map[string]string{
 		"taskEnvKey": "taskEnvVal",
@@ -190,6 +191,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_PORT_ssh_ssh=22",
 		"NOMAD_CPU_LIMIT=500",
 		"NOMAD_DC=dc1",
+		"NOMAD_NAMESPACE=not-default",
 		"NOMAD_REGION=global",
 		"NOMAD_MEMORY_LIMIT=256",
 		"NOMAD_META_ELB_CHECK_INTERVAL=30s",
@@ -301,6 +303,7 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 		"NOMAD_PORT_ssh_ssh=22",
 		"NOMAD_CPU_LIMIT=500",
 		"NOMAD_DC=dc1",
+		"NOMAD_NAMESPACE=default",
 		"NOMAD_REGION=global",
 		"NOMAD_MEMORY_LIMIT=256",
 		"NOMAD_META_ELB_CHECK_INTERVAL=30s",
@@ -418,6 +421,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_PORT_ssh_ssh":            "22",
 		"NOMAD_CPU_LIMIT":               "500",
 		"NOMAD_DC":                      "dc1",
+		"NOMAD_NAMESPACE":               "default",
 		"NOMAD_REGION":                  "global",
 		"NOMAD_MEMORY_LIMIT":            "256",
 		"NOMAD_META_ELB_CHECK_INTERVAL": "30s",
@@ -727,4 +731,56 @@ func TestEnvironment_InterpolateEmptyOptionalMeta(t *testing.T) {
 	env := NewBuilder(mock.Node(), a, task, "global").Build()
 	require.Equal("metaopt1val", env.ReplaceEnv("${NOMAD_META_metaopt1}"))
 	require.Empty(env.ReplaceEnv("${NOMAD_META_metaopt2}"))
+}
+
+// TestEnvironment_Upsteams asserts that group.service.upstreams entries are
+// added to the environment.
+func TestEnvironment_Upstreams(t *testing.T) {
+	t.Parallel()
+
+	// Add some upstreams to the mock alloc
+	a := mock.Alloc()
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	tg.Services = []*structs.Service{
+		// Services without Connect should be ignored
+		{
+			Name: "ignoreme",
+		},
+		// All upstreams from a service should be added
+		{
+			Name: "remote_service",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{
+					Proxy: &structs.ConsulProxy{
+						Upstreams: []structs.ConsulUpstream{
+							{
+								DestinationName: "foo-bar",
+								LocalBindPort:   1234,
+							},
+							{
+								DestinationName: "bar",
+								LocalBindPort:   5678,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Ensure the upstreams can be interpolated
+	tg.Tasks[0].Env = map[string]string{
+		"foo": "${NOMAD_UPSTREAM_ADDR_foo_bar}",
+		"bar": "${NOMAD_UPSTREAM_PORT_foo-bar}",
+	}
+
+	env := NewBuilder(mock.Node(), a, tg.Tasks[0], "global").Build().Map()
+	require.Equal(t, "127.0.0.1:1234", env["NOMAD_UPSTREAM_ADDR_foo_bar"])
+	require.Equal(t, "127.0.0.1", env["NOMAD_UPSTREAM_IP_foo_bar"])
+	require.Equal(t, "1234", env["NOMAD_UPSTREAM_PORT_foo_bar"])
+	require.Equal(t, "127.0.0.1:5678", env["NOMAD_UPSTREAM_ADDR_bar"])
+	require.Equal(t, "127.0.0.1", env["NOMAD_UPSTREAM_IP_bar"])
+	require.Equal(t, "5678", env["NOMAD_UPSTREAM_PORT_bar"])
+	require.Equal(t, "127.0.0.1:1234", env["foo"])
+	require.Equal(t, "1234", env["bar"])
 }

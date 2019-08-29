@@ -1,7 +1,6 @@
-import { find, click } from 'ember-native-dom-helpers';
+import { find, click, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import sinon from 'sinon';
 import { create } from 'ember-cli-page-object';
@@ -53,23 +52,21 @@ module('Integration | Component | two step button', function(hooks) {
     this.setProperties(props);
     await render(commonTemplate);
 
-    TwoStepButton.idle();
+    await TwoStepButton.idle();
 
-    return settled().then(() => {
-      assert.ok(find('[data-test-cancel-button]'), 'Cancel button is rendered');
-      assert.equal(TwoStepButton.cancelText, props.cancelText, 'Button is labeled correctly');
+    assert.ok(find('[data-test-cancel-button]'), 'Cancel button is rendered');
+    assert.equal(TwoStepButton.cancelText, props.cancelText, 'Button is labeled correctly');
 
-      assert.ok(find('[data-test-confirm-button]'), 'Confirm button is rendered');
-      assert.equal(TwoStepButton.confirmText, props.confirmText, 'Button is labeled correctly');
+    assert.ok(find('[data-test-confirm-button]'), 'Confirm button is rendered');
+    assert.equal(TwoStepButton.confirmText, props.confirmText, 'Button is labeled correctly');
 
-      assert.equal(
-        TwoStepButton.confirmationMessage,
-        props.confirmationMessage,
-        'Confirmation message is shown'
-      );
+    assert.equal(
+      TwoStepButton.confirmationMessage,
+      props.confirmationMessage,
+      'Confirmation message is shown'
+    );
 
-      assert.notOk(find('[data-test-idle-button]'), 'No more idle button');
-    });
+    assert.notOk(find('[data-test-idle-button]'), 'No more idle button');
   });
 
   test('canceling in the promptForConfirmation state calls the onCancel hook and resets to the idle state', async function(assert) {
@@ -77,16 +74,12 @@ module('Integration | Component | two step button', function(hooks) {
     this.setProperties(props);
     await render(commonTemplate);
 
-    TwoStepButton.idle();
+    await TwoStepButton.idle();
 
-    return settled().then(() => {
-      TwoStepButton.cancel();
+    await TwoStepButton.cancel();
 
-      return settled().then(() => {
-        assert.ok(props.onCancel.calledOnce, 'The onCancel hook fired');
-        assert.ok(find('[data-test-idle-button]'), 'Idle button is back');
-      });
-    });
+    assert.ok(props.onCancel.calledOnce, 'The onCancel hook fired');
+    assert.ok(find('[data-test-idle-button]'), 'Idle button is back');
   });
 
   test('confirming the promptForConfirmation state calls the onConfirm hook and resets to the idle state', async function(assert) {
@@ -94,16 +87,12 @@ module('Integration | Component | two step button', function(hooks) {
     this.setProperties(props);
     await render(commonTemplate);
 
-    TwoStepButton.idle();
+    await TwoStepButton.idle();
 
-    return settled().then(() => {
-      TwoStepButton.confirm();
+    await TwoStepButton.confirm();
 
-      return settled().then(() => {
-        assert.ok(props.onConfirm.calledOnce, 'The onConfirm hook fired');
-        assert.ok(find('[data-test-idle-button]'), 'Idle button is back');
-      });
-    });
+    assert.ok(props.onConfirm.calledOnce, 'The onConfirm hook fired');
+    assert.ok(find('[data-test-idle-button]'), 'Idle button is back');
   });
 
   test('when awaitingConfirmation is true, the cancel and submit buttons are disabled and the submit button is loading', async function(assert) {
@@ -112,13 +101,11 @@ module('Integration | Component | two step button', function(hooks) {
     this.setProperties(props);
     await render(commonTemplate);
 
-    TwoStepButton.idle();
+    await TwoStepButton.idle();
 
-    return settled().then(() => {
-      assert.ok(TwoStepButton.cancelIsDisabled, 'The cancel button is disabled');
-      assert.ok(TwoStepButton.confirmIsDisabled, 'The confirm button is disabled');
-      assert.ok(TwoStepButton.isRunning, 'The confirm button is in a loading state');
-    });
+    assert.ok(TwoStepButton.cancelIsDisabled, 'The cancel button is disabled');
+    assert.ok(TwoStepButton.confirmIsDisabled, 'The confirm button is disabled');
+    assert.ok(TwoStepButton.isRunning, 'The confirm button is in a loading state');
   });
 
   test('when in the prompt state, clicking outside will reset state back to idle', async function(assert) {
@@ -126,13 +113,11 @@ module('Integration | Component | two step button', function(hooks) {
     this.setProperties(props);
     await render(commonTemplate);
 
-    TwoStepButton.idle();
-    await settled();
+    await TwoStepButton.idle();
 
     assert.ok(find('[data-test-cancel-button]'), 'In the prompt state');
 
-    click(document.body);
-    await settled();
+    await click(document.body);
 
     assert.ok(find('[data-test-idle-button]'), 'Back in the idle state');
   });
@@ -142,13 +127,11 @@ module('Integration | Component | two step button', function(hooks) {
     this.setProperties(props);
     await render(commonTemplate);
 
-    TwoStepButton.idle();
-    await settled();
+    await TwoStepButton.idle();
 
     assert.ok(find('[data-test-cancel-button]'), 'In the prompt state');
 
-    click('[data-test-confirmation-message]');
-    await settled();
+    await click('[data-test-confirmation-message]');
 
     assert.notOk(find('[data-test-idle-button]'), 'Still in the prompt state');
   });
@@ -159,13 +142,11 @@ module('Integration | Component | two step button', function(hooks) {
     this.setProperties(props);
     await render(commonTemplate);
 
-    TwoStepButton.idle();
-    await settled();
+    await TwoStepButton.idle();
 
     assert.ok(find('[data-test-cancel-button]'), 'In the prompt state');
 
-    click(document.body);
-    await settled();
+    await click(document.body);
 
     assert.notOk(find('[data-test-idle-button]'), 'Still in the prompt state');
   });
@@ -178,7 +159,7 @@ module('Integration | Component | two step button', function(hooks) {
 
     assert.ok(TwoStepButton.isDisabled, 'The idle button is disabled');
 
-    TwoStepButton.idle();
+    await TwoStepButton.idle();
     assert.ok(find('[data-test-idle-button]'), 'Still in the idle state after clicking');
   });
 });

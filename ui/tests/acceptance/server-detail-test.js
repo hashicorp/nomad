@@ -18,6 +18,7 @@ module('Acceptance | server detail', function(hooks) {
 
   test('visiting /servers/:server_name', async function(assert) {
     assert.equal(currentURL(), `/servers/${encodeURIComponent(agent.name)}`);
+    assert.equal(document.title, `Server ${agent.name} - Nomad`);
   });
 
   test('the server detail page should list all tags for the server', async function(assert) {

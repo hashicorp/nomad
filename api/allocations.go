@@ -335,9 +335,8 @@ func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal st
 	}
 
 	req := AllocSignalRequest{
-		AllocID: alloc.ID,
-		Signal:  signal,
-		Task:    task,
+		Signal: signal,
+		Task:   task,
 	}
 
 	var resp GenericResponse
@@ -459,7 +458,8 @@ type AllocatedTaskResources struct {
 }
 
 type AllocatedSharedResources struct {
-	DiskMB int64
+	DiskMB   int64
+	Networks []*NetworkResource
 }
 
 type AllocatedCpuResources struct {
@@ -519,9 +519,8 @@ type AllocationRestartRequest struct {
 }
 
 type AllocSignalRequest struct {
-	AllocID string
-	Task    string
-	Signal  string
+	Task   string
+	Signal string
 }
 
 // GenericResponse is used to respond to a request where no

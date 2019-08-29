@@ -21,6 +21,7 @@ module('Acceptance | job definition', function(hooks) {
 
   test('visiting /jobs/:job_id/definition', async function(assert) {
     assert.equal(currentURL(), `/jobs/${job.id}/definition`);
+    assert.equal(document.title, `Job ${job.name} definition - Nomad`);
   });
 
   test('the job definition page contains a json viewer component', async function(assert) {

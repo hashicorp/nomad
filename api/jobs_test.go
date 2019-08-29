@@ -224,6 +224,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Type:        stringToPtr("service"),
 				Update: &UpdateStrategy{
 					MaxParallel: intToPtr(1),
+					AutoPromote: boolToPtr(true),
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -234,6 +235,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Attempts: intToPtr(10),
 							Delay:    timeToPtr(25 * time.Second),
 							Mode:     stringToPtr("delay"),
+						},
+						Update: &UpdateStrategy{
+							AutoRevert: boolToPtr(true),
 						},
 						EphemeralDisk: &EphemeralDisk{
 							SizeMB: intToPtr(300),
@@ -323,7 +327,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 					ProgressDeadline: timeToPtr(10 * time.Minute),
 					AutoRevert:       boolToPtr(false),
 					Canary:           intToPtr(0),
-					AutoPromote:      nil,
+					AutoPromote:      boolToPtr(true),
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -356,9 +360,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							MinHealthyTime:   timeToPtr(10 * time.Second),
 							HealthyDeadline:  timeToPtr(5 * time.Minute),
 							ProgressDeadline: timeToPtr(10 * time.Minute),
-							AutoRevert:       boolToPtr(false),
+							AutoRevert:       boolToPtr(true),
 							Canary:           intToPtr(0),
-							AutoPromote:      nil,
+							AutoPromote:      boolToPtr(true),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{

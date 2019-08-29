@@ -18,6 +18,7 @@ const (
 
 // SystemScheduler is used for 'system' jobs. This scheduler is
 // designed for services that should be run on every client.
+// One for each job, containing an allocation for each node
 type SystemScheduler struct {
 	logger  log.Logger
 	state   State
@@ -61,7 +62,8 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate, structs.EvalTriggerFailedFollowUp,
 		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate, structs.EvalTriggerPreemption,
-		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerNodeDrain, structs.EvalTriggerAllocStop:
+		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerNodeDrain, structs.EvalTriggerAllocStop,
+		structs.EvalTriggerQueuedAllocs:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -324,6 +326,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 			// Actual failure to start this task on this candidate node, report it individually
 			s.failedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
+			s.addBlocked(node)
 			continue
 		}
 
@@ -339,6 +342,10 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			Shared: structs.AllocatedSharedResources{
 				DiskMB: int64(missing.TaskGroup.EphemeralDisk.SizeMB),
 			},
+		}
+
+		if option.AllocResources != nil {
+			resources.Shared.Networks = option.AllocResources.Networks
 		}
 
 		// Create an allocation for this
@@ -357,7 +364,8 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			DesiredStatus:      structs.AllocDesiredStatusRun,
 			ClientStatus:       structs.AllocClientStatusPending,
 			SharedResources: &structs.Resources{
-				DiskMB: missing.TaskGroup.EphemeralDisk.SizeMB,
+				DiskMB:   missing.TaskGroup.EphemeralDisk.SizeMB,
+				Networks: missing.TaskGroup.Networks,
 			},
 		}
 
@@ -389,4 +397,23 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 	}
 
 	return nil
+}
+
+// addBlocked creates a new blocked eval for this job on this node
+// and submit to the planner (worker.go), which keeps the eval for execution later
+func (s *SystemScheduler) addBlocked(node *structs.Node) error {
+	e := s.ctx.Eligibility()
+	escaped := e.HasEscaped()
+
+	// Only store the eligible classes if the eval hasn't escaped.
+	var classEligibility map[string]bool
+	if !escaped {
+		classEligibility = e.GetClasses()
+	}
+
+	blocked := s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached())
+	blocked.StatusDescription = blockedEvalFailedPlacements
+	blocked.NodeID = node.ID
+
+	return s.planner.CreateEval(blocked)
 }

@@ -1,4 +1,4 @@
-import { find } from 'ember-native-dom-helpers';
+import { find } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
@@ -32,6 +32,7 @@ module('Acceptance | tokens', function(hooks) {
 
     await Tokens.visit();
     assert.ok(window.localStorage.nomadTokenSecret == null, 'No token secret set');
+    assert.equal(document.title, 'Tokens - Nomad');
 
     await Tokens.secret(secretId).submit();
     assert.equal(window.localStorage.nomadTokenSecret, secretId, 'Token secret was set');

@@ -49,6 +49,8 @@ module('Acceptance | allocation detail', function(hooks) {
       'Node short id is in the subheading'
     );
 
+    assert.equal(document.title, `Allocation ${allocation.name} - Nomad`);
+
     await Allocation.details.visitJob();
     assert.equal(currentURL(), `/jobs/${job.id}`, 'Job link navigates to the job');
 

@@ -19,7 +19,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 )
 
-const (
+var (
 	// sessionCreateRetry is the amount of time we wait
 	// to recreate a session when lost.
 	sessionCreateRetry = 15 * time.Second
@@ -30,9 +30,13 @@ const (
 	// listRetry is the interval on which we retry listing a data path
 	listRetry = 10 * time.Second
 
-	// templateDataFlag is added as a flag to the shared data values
-	// so that we can use it as a sanity check
-	templateDataFlag = 0x22b9a127a2c03520
+	// timeout passed through to consul api client Lock
+	// here to override in testing (see ./dedup_test.go)
+	lockWaitTime = 15 * time.Second
+)
+
+const (
+	templateNoDataStr = "__NO_DATA__"
 )
 
 // templateData is GOB encoded share the dependency values
@@ -44,6 +48,10 @@ type templateData struct {
 
 	// Data is the actual template data.
 	Data map[string]interface{}
+}
+
+func templateNoData() []byte {
+	return []byte(templateNoDataStr)
 }
 
 // DedupManager is used to de-duplicate which instance of Consul-Template
@@ -148,9 +156,10 @@ START:
 	sessionCh := make(chan struct{})
 	ttl := fmt.Sprintf("%.6fs", float64(*d.config.TTL)/float64(time.Second))
 	se := &consulapi.SessionEntry{
-		Name:     "Consul-Template de-duplication",
-		Behavior: "delete",
-		TTL:      ttl,
+		Name:      "Consul-Template de-duplication",
+		Behavior:  "delete",
+		TTL:       ttl,
+		LockDelay: 1 * time.Millisecond,
 	}
 	id, _, err := session.Create(se, nil)
 	if err != nil {
@@ -251,7 +260,7 @@ func (d *DedupManager) UpdateDeps(t *template.Template, deps []dep.Dependency) e
 	kvPair := consulapi.KVPair{
 		Key:   dataPath,
 		Value: buf.Bytes(),
-		Flags: templateDataFlag,
+		Flags: consulapi.LockFlagValue,
 	}
 	client := d.clients.Consul()
 	if _, err := client.KV().Put(&kvPair, nil); err != nil {
@@ -403,7 +412,7 @@ START:
 	}
 
 	// Parse the data file
-	if pair != nil && pair.Flags == templateDataFlag {
+	if pair != nil && pair.Flags == consulapi.LockFlagValue && !bytes.Equal(pair.Value, templateNoData()) {
 		d.parseData(pair.Key, pair.Value)
 	}
 	goto START
@@ -450,10 +459,12 @@ func (d *DedupManager) attemptLock(client *consulapi.Client, session string, ses
 		log.Printf("[INFO] (dedup) attempting lock for template hash %s", t.ID())
 		basePath := path.Join(*d.config.Prefix, t.ID())
 		lopts := &consulapi.LockOptions{
-			Key:              path.Join(basePath, "lock"),
+			Key:              path.Join(basePath, "data"),
+			Value:            templateNoData(),
 			Session:          session,
 			MonitorRetries:   3,
 			MonitorRetryTime: 3 * time.Second,
+			LockWaitTime:     lockWaitTime,
 		}
 		lock, err := client.LockOpts(lopts)
 		if err != nil {
@@ -484,11 +495,17 @@ func (d *DedupManager) attemptLock(client *consulapi.Client, session string, ses
 		case <-sessionCh:
 			log.Printf("[INFO] (dedup) releasing session '%s'", lopts.Key)
 			d.setLeader(t, nil)
-			lock.Unlock()
+			_, err = client.Session().Destroy(session, nil)
+			if err != nil {
+				log.Printf("[ERROR] (dedup) failed destroying session '%s', %s", session, err)
+			}
 			return
 		case <-d.stopCh:
 			log.Printf("[INFO] (dedup) releasing lock '%s'", lopts.Key)
-			lock.Unlock()
+			_, err = client.Session().Destroy(session, nil)
+			if err != nil {
+				log.Printf("[ERROR] (dedup) failed destroying session '%s', %s", session, err)
+			}
 			return
 		}
 	}

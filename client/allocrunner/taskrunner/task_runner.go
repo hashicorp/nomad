@@ -202,6 +202,9 @@ type TaskRunner struct {
 	// fails and the Run method should wait until serversContactedCh is
 	// closed.
 	waitOnServers bool
+
+	networkIsolationLock sync.Mutex
+	networkIsolationSpec *drivers.NetworkIsolationSpec
 }
 
 type Config struct {
@@ -487,7 +490,6 @@ MAIN:
 		// Run the task
 		if err := tr.runDriver(); err != nil {
 			tr.logger.Error("running driver failed", "error", err)
-			tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 			tr.restartTracker.SetStartError(err)
 			goto RESTART
 		}
@@ -680,6 +682,7 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 }
 
 // runDriver runs the driver and waits for it to exit
+// runDriver emits an appropriate task event on success/failure
 func (tr *TaskRunner) runDriver() error {
 
 	taskConfig := tr.buildTaskConfig()
@@ -705,13 +708,17 @@ func (tr *TaskRunner) runDriver() error {
 		tr.logger.Warn("some environment variables not available for rendering", "keys", strings.Join(keys, ", "))
 	}
 
-	val, diag := hclutils.ParseHclInterface(tr.task.Config, tr.taskSchema, vars)
+	val, diag, diagErrs := hclutils.ParseHclInterface(tr.task.Config, tr.taskSchema, vars)
 	if diag.HasErrors() {
-		return multierror.Append(errors.New("failed to parse config"), diag.Errs()...)
+		parseErr := multierror.Append(errors.New("failed to parse config: "), diagErrs...)
+		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetValidationError(parseErr))
+		return parseErr
 	}
 
 	if err := taskConfig.EncodeDriverConfig(val); err != nil {
-		return fmt.Errorf("failed to encode driver config: %v", err)
+		encodeErr := fmt.Errorf("failed to encode driver config: %v", err)
+		tr.EmitEvent(structs.NewTaskEvent(structs.TaskFailedValidation).SetValidationError(encodeErr))
+		return encodeErr
 	}
 
 	// If there's already a task handle (eg from a Restore) there's nothing
@@ -734,16 +741,21 @@ func (tr *TaskRunner) runDriver() error {
 		if err == bstructs.ErrPluginShutdown {
 			tr.logger.Info("failed to start task because plugin shutdown unexpectedly; attempting to recover")
 			if err := tr.initDriver(); err != nil {
-				return fmt.Errorf("failed to initialize driver after it exited unexpectedly: %v", err)
+				taskErr := fmt.Errorf("failed to initialize driver after it exited unexpectedly: %v", err)
+				tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(taskErr))
+				return taskErr
 			}
 
 			handle, net, err = tr.driver.StartTask(taskConfig)
 			if err != nil {
-				return fmt.Errorf("failed to start task after driver exited unexpectedly: %v", err)
+				taskErr := fmt.Errorf("failed to start task after driver exited unexpectedly: %v", err)
+				tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(taskErr))
+				return taskErr
 			}
 		} else {
-			// Do *NOT* wrap the error here without maintaining
-			// whether or not is Recoverable.
+			// Do *NOT* wrap the error here without maintaining whether or not is Recoverable.
+			// You must emit a task event failure to be considered Recoverable
+			tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 			return err
 		}
 	}
@@ -886,6 +898,8 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	invocationid := uuid.Generate()[:8]
 	taskResources := tr.taskResources
 	env := tr.envBuilder.Build()
+	tr.networkIsolationLock.Lock()
+	defer tr.networkIsolationLock.Unlock()
 
 	return &drivers.TaskConfig{
 		ID:            fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
@@ -900,15 +914,16 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
 			},
 		},
-		Devices:    tr.hookResources.getDevices(),
-		Mounts:     tr.hookResources.getMounts(),
-		Env:        env.Map(),
-		DeviceEnv:  env.DeviceEnv(),
-		User:       task.User,
-		AllocDir:   tr.taskDir.AllocDir,
-		StdoutPath: tr.logmonHookConfig.stdoutFifo,
-		StderrPath: tr.logmonHookConfig.stderrFifo,
-		AllocID:    tr.allocID,
+		Devices:          tr.hookResources.getDevices(),
+		Mounts:           tr.hookResources.getMounts(),
+		Env:              env.Map(),
+		DeviceEnv:        env.DeviceEnv(),
+		User:             task.User,
+		AllocDir:         tr.taskDir.AllocDir,
+		StdoutPath:       tr.logmonHookConfig.stdoutFifo,
+		StderrPath:       tr.logmonHookConfig.stderrFifo,
+		AllocID:          tr.allocID,
+		NetworkIsolation: tr.networkIsolationSpec,
 	}
 }
 
@@ -1172,6 +1187,14 @@ func (tr *TaskRunner) Update(update *structs.Allocation) {
 	}
 }
 
+// SetNetworkIsolation is called by the PreRun allocation hook after configuring
+// the network isolation for the allocation
+func (tr *TaskRunner) SetNetworkIsolation(n *drivers.NetworkIsolationSpec) {
+	tr.networkIsolationLock.Lock()
+	tr.networkIsolationSpec = n
+	tr.networkIsolationLock.Unlock()
+}
+
 // triggerUpdate if there isn't already an update pending. Should be called
 // instead of calling updateHooks directly to serialize runs of update hooks.
 // TaskRunner state should be updated prior to triggering update hooks.
@@ -1338,7 +1361,12 @@ func appendTaskEvent(state *structs.TaskState, event *structs.TaskEvent, capacit
 }
 
 func (tr *TaskRunner) TaskExecHandler() drivermanager.TaskExecHandler {
-	return tr.getDriverHandle().ExecStreaming
+	// Check it is running
+	handle := tr.getDriverHandle()
+	if handle == nil {
+		return nil
+	}
+	return handle.ExecStreaming
 }
 
 func (tr *TaskRunner) DriverCapabilities() (*drivers.Capabilities, error) {

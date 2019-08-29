@@ -84,8 +84,7 @@ job "binstore-storagelocker" {
             static = 3
           }
 
-          port "http" {
-          }
+          port "http" {}
         }
       }
     }

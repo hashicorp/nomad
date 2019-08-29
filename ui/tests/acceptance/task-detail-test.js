@@ -30,6 +30,8 @@ module('Acceptance | task detail', function(hooks) {
       Task.startedAt.includes(moment(task.startedAt).format("MMM DD, 'YY HH:mm:ss ZZ")),
       'Task started at'
     );
+
+    assert.equal(document.title, `Task ${task.name} - Nomad`);
   });
 
   test('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {

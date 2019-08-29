@@ -11,8 +11,19 @@ export function findLeader(schema) {
   return `${agent.address}:${agent.tags.port}`;
 }
 
+export function filesForPath(allocFiles, filterPath) {
+  return allocFiles.where(
+    file =>
+      (!filterPath || file.path.startsWith(filterPath)) &&
+      file.path.length > filterPath.length &&
+      !file.path.substr(filterPath.length + 1).includes('/')
+  );
+}
+
 export default function() {
   this.timing = 0; // delay for each request, automatically set to 0 during testing
+
+  this.logging = window.location.search.includes('mirage-logging=true');
 
   this.namespace = 'v1';
   this.trackRequests = Ember.testing;
@@ -313,6 +324,70 @@ export default function() {
     return logEncode(logFrames, logFrames.length - 1);
   };
 
+  const clientAllocationFSLsHandler = function({ allocFiles }, { queryParams }) {
+    // Ignore the task name at the beginning of the path
+    const filterPath = queryParams.path.substr(queryParams.path.indexOf('/') + 1);
+    const files = filesForPath(allocFiles, filterPath);
+    return this.serialize(files);
+  };
+
+  const clientAllocationFSStatHandler = function({ allocFiles }, { queryParams }) {
+    // Ignore the task name at the beginning of the path
+    const filterPath = queryParams.path.substr(queryParams.path.indexOf('/') + 1);
+
+    // Root path
+    if (!filterPath) {
+      return this.serialize({
+        IsDir: true,
+        ModTime: new Date(),
+      });
+    }
+
+    // Either a file or a nested directory
+    const file = allocFiles.where({ path: filterPath }).models[0];
+    return this.serialize(file);
+  };
+
+  const clientAllocationCatHandler = function({ allocFiles }, { queryParams }) {
+    const [file, err] = fileOrError(allocFiles, queryParams.path);
+
+    if (err) return err;
+    return file.body;
+  };
+
+  const clientAllocationStreamHandler = function({ allocFiles }, { queryParams }) {
+    const [file, err] = fileOrError(allocFiles, queryParams.path);
+
+    if (err) return err;
+
+    // Pretender, and therefore Mirage, doesn't support streaming responses.
+    return file.body;
+  };
+
+  const clientAllocationReadAtHandler = function({ allocFiles }, { queryParams }) {
+    const [file, err] = fileOrError(allocFiles, queryParams.path);
+
+    if (err) return err;
+    return file.body.substr(queryParams.offset || 0, queryParams.limit);
+  };
+
+  const fileOrError = function(allocFiles, path, message = 'Operation not allowed on a directory') {
+    // Ignore the task name at the beginning of the path
+    const filterPath = path.substr(path.indexOf('/') + 1);
+
+    // Root path
+    if (!filterPath) {
+      return [null, new Response(400, {}, message)];
+    }
+
+    const file = allocFiles.where({ path: filterPath }).models[0];
+    if (file.isDir) {
+      return [null, new Response(400, {}, message)];
+    }
+
+    return [file, null];
+  };
+
   // Client requests are available on the server and the client
   this.put('/client/allocation/:id/restart', function() {
     return new Response(204, {}, '');
@@ -320,6 +395,12 @@ export default function() {
 
   this.get('/client/allocation/:id/stats', clientAllocationStatsHandler);
   this.get('/client/fs/logs/:allocation_id', clientAllocationLog);
+
+  this.get('/client/fs/ls/:allocation_id', clientAllocationFSLsHandler);
+  this.get('/client/fs/stat/:allocation_id', clientAllocationFSStatHandler);
+  this.get('/client/fs/cat/:allocation_id', clientAllocationCatHandler);
+  this.get('/client/fs/stream/:allocation_id', clientAllocationStreamHandler);
+  this.get('/client/fs/readat/:allocation_id', clientAllocationReadAtHandler);
 
   this.get('/client/stats', function({ clientStats }, { queryParams }) {
     const seed = Math.random();
@@ -340,6 +421,12 @@ export default function() {
   HOSTS.forEach(host => {
     this.get(`http://${host}/v1/client/allocation/:id/stats`, clientAllocationStatsHandler);
     this.get(`http://${host}/v1/client/fs/logs/:allocation_id`, clientAllocationLog);
+
+    this.get(`http://${host}/v1/client/fs/ls/:allocation_id`, clientAllocationFSLsHandler);
+    this.get(`http://${host}/v1/client/stat/ls/:allocation_id`, clientAllocationFSStatHandler);
+    this.get(`http://${host}/v1/client/fs/cat/:allocation_id`, clientAllocationCatHandler);
+    this.get(`http://${host}/v1/client/fs/stream/:allocation_id`, clientAllocationStreamHandler);
+    this.get(`http://${host}/v1/client/fs/readat/:allocation_id`, clientAllocationReadAtHandler);
 
     this.get(`http://${host}/v1/client/stats`, function({ clientStats }) {
       return this.serialize(clientStats.find(host));

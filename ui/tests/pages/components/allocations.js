@@ -19,6 +19,7 @@ export default function(selector = '[data-test-allocation]', propKey = 'allocati
       rescheduled: isPresent('[data-test-indicators] [data-test-icon="reschedule"]'),
 
       visit: clickable('[data-test-short-id] a'),
+      visitRow: clickable(),
       visitJob: clickable('[data-test-job]'),
       visitClient: clickable('[data-test-client] a'),
     }),

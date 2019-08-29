@@ -3,7 +3,7 @@
 set -e
 
 # Match entry in vendor.json
-GIT_TAG="0053ebfd9d0ee06ccefbfe17072021e1d4acebee"
+GIT_TAG="08f7b401aef15f3d544472dd46bf6788cdfe55bf"
 echo "Installing codec/codecgen@${GIT_TAG} ..."
 
 # Either fetch in existing git repo or use go get to clone

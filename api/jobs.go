@@ -25,6 +25,13 @@ const (
 
 	// DefaultNamespace is the default namespace.
 	DefaultNamespace = "default"
+
+	// For Job configuration, GlobalRegion is a sentinel region value
+	// that users may specify to indicate the job should be run on
+	// the region of the node that the job was submitted to.
+	// For Client configuration, if no region information is given,
+	// the client node will default to be part of the GlobalRegion.
+	GlobalRegion = "global"
 )
 
 const (
@@ -383,7 +390,6 @@ type UpdateStrategy struct {
 // DefaultUpdateStrategy provides a baseline that can be used to upgrade
 // jobs with the old policy or for populating field defaults.
 func DefaultUpdateStrategy() *UpdateStrategy {
-	// boolPtr fields are omitted to avoid masking an unconfigured nil
 	return &UpdateStrategy{
 		Stagger:          timeToPtr(30 * time.Second),
 		MaxParallel:      intToPtr(1),
@@ -393,6 +399,7 @@ func DefaultUpdateStrategy() *UpdateStrategy {
 		ProgressDeadline: timeToPtr(10 * time.Minute),
 		AutoRevert:       boolToPtr(false),
 		Canary:           intToPtr(0),
+		AutoPromote:      boolToPtr(false),
 	}
 }
 
@@ -487,8 +494,6 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 func (u *UpdateStrategy) Canonicalize() {
 	d := DefaultUpdateStrategy()
 
-	// boolPtr fields are omitted to avoid masking an unconfigured nil
-
 	if u.MaxParallel == nil {
 		u.MaxParallel = d.MaxParallel
 	}
@@ -519,6 +524,10 @@ func (u *UpdateStrategy) Canonicalize() {
 
 	if u.Canary == nil {
 		u.Canary = d.Canary
+	}
+
+	if u.AutoPromote == nil {
+		u.AutoPromote = d.AutoPromote
 	}
 }
 
@@ -553,6 +562,10 @@ func (u *UpdateStrategy) Empty() bool {
 	}
 
 	if u.AutoRevert != nil && *u.AutoRevert {
+		return false
+	}
+
+	if u.AutoPromote != nil && *u.AutoPromote {
 		return false
 	}
 
@@ -698,7 +711,7 @@ func (j *Job) Canonicalize() {
 		j.Stop = boolToPtr(false)
 	}
 	if j.Region == nil {
-		j.Region = stringToPtr("global")
+		j.Region = stringToPtr(GlobalRegion)
 	}
 	if j.Namespace == nil {
 		j.Namespace = stringToPtr("default")

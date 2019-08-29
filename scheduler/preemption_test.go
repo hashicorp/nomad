@@ -512,7 +512,7 @@ func TestPreemption(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+				createAllocWithTaskgroupNetwork(allocIDs[1], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -520,9 +520,13 @@ func TestPreemption(t *testing.T) {
 						{
 							Device: "eth0",
 							IP:     "192.168.0.200",
-							MBits:  500,
+							MBits:  200,
 						},
 					},
+				}, &structs.NetworkResource{
+					Device: "eth0",
+					IP:     "192.168.0.201",
+					MBits:  300,
 				}),
 				createAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
 					CPU:      200,
@@ -1379,10 +1383,19 @@ func TestPreemption(t *testing.T) {
 
 // helper method to create allocations with given jobs and resources
 func createAlloc(id string, job *structs.Job, resource *structs.Resources) *structs.Allocation {
-	return createAllocWithDevice(id, job, resource, nil)
+	return createAllocInner(id, job, resource, nil, nil)
+}
+
+// helper method to create allocation with network at the task group level
+func createAllocWithTaskgroupNetwork(id string, job *structs.Job, resource *structs.Resources, tgNet *structs.NetworkResource) *structs.Allocation {
+	return createAllocInner(id, job, resource, nil, tgNet)
 }
 
 func createAllocWithDevice(id string, job *structs.Job, resource *structs.Resources, allocatedDevices *structs.AllocatedDeviceResource) *structs.Allocation {
+	return createAllocInner(id, job, resource, allocatedDevices, nil)
+}
+
+func createAllocInner(id string, job *structs.Job, resource *structs.Resources, allocatedDevices *structs.AllocatedDeviceResource, tgNetwork *structs.NetworkResource) *structs.Allocation {
 	alloc := &structs.Allocation{
 		ID:    id,
 		Job:   job,
@@ -1412,6 +1425,12 @@ func createAllocWithDevice(id string, job *structs.Job, resource *structs.Resour
 
 	if allocatedDevices != nil {
 		alloc.AllocatedResources.Tasks["web"].Devices = []*structs.AllocatedDeviceResource{allocatedDevices}
+	}
+
+	if tgNetwork != nil {
+		alloc.AllocatedResources.Shared = structs.AllocatedSharedResources{
+			Networks: []*structs.NetworkResource{tgNetwork},
+		}
 	}
 	return alloc
 }

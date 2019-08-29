@@ -257,7 +257,8 @@ func (s *GenericScheduler) process() (bool, error) {
 
 	// If there are failed allocations, we need to create a blocked evaluation
 	// to place the failed allocations when resources become available. If the
-	// current evaluation is already a blocked eval, we reuse it.
+	// current evaluation is already a blocked eval, we reuse it by submitting
+	// a new eval to the planner in createBlockedEval
 	if s.eval.Status != structs.EvalStatusBlocked && len(s.failedTGAllocs) != 0 && s.blocked == nil {
 		if err := s.createBlockedEval(false); err != nil {
 			s.logger.Error("failed to make blocked eval", "error", err)
@@ -488,6 +489,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 						DiskMB: int64(tg.EphemeralDisk.SizeMB),
 					},
 				}
+				if option.AllocResources != nil {
+					resources.Shared.Networks = option.AllocResources.Networks
+				}
 
 				// Create an allocation for this
 				alloc := &structs.Allocation{
@@ -506,7 +510,8 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					DesiredStatus:      structs.AllocDesiredStatusRun,
 					ClientStatus:       structs.AllocClientStatusPending,
 					SharedResources: &structs.Resources{
-						DiskMB: tg.EphemeralDisk.SizeMB,
+						DiskMB:   tg.EphemeralDisk.SizeMB,
+						Networks: tg.Networks,
 					},
 				}
 

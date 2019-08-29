@@ -53,6 +53,9 @@ function smallCluster(server) {
         policy = "read"
     }`,
   });
+
+  server.createList('allocFile', 5);
+  server.create('allocFile', 'dir', { depth: 2 });
 }
 
 function mediumCluster(server) {

@@ -56,6 +56,9 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
                         "global",
                         "cache"
                     ],
+                    "Meta": {
+                      "meta": "for my service",
+                    },
                     "PortLabel": "db",
                     "AddressMode": "",
                     "Checks": [{
@@ -161,7 +164,7 @@ The `Job` object supports the following keys:
 - `Affinities` - A list to define placement preferences on nodes where a job can be
   run. See the affinity reference for more details.
 
-- `Spread` - A list to define allocation spread across attributes. See the spread reference
+- `Spreads` - A list to define allocation spread across attributes. See the spread reference
   for more details.
 
 - `Datacenters` - A list of datacenters in the region which are eligible
@@ -400,6 +403,9 @@ The `Task` object supports the following keys:
 
      - `Tags`: A list of string tags associated with this Service. String
        interpolation is supported in tags.
+      
+     - `Meta`: A key-value map that annotates the Consul service with
+       user-defined metadata. String interpolation is supported in meta.
 
      - `CanaryTags`: A list of string tags associated with this Service while it
        is a canary. Once the canary is promoted, the registered tags will be

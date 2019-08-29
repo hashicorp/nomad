@@ -216,6 +216,12 @@ var (
 			hclspec.NewAttr("nvidia_runtime", "string", false),
 			hclspec.NewLiteral(`"nvidia"`),
 		),
+
+		// image to use when creating a network namespace parent container
+		"infra_image": hclspec.NewDefault(
+			hclspec.NewAttr("infra_image", "string", false),
+			hclspec.NewLiteral(`"gcr.io/google_containers/pause-amd64:3.0"`),
+		),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -310,6 +316,12 @@ var (
 		SendSignals: true,
 		Exec:        true,
 		FSIsolation: drivers.FSIsolationImage,
+		NetIsolationModes: []drivers.NetIsolationMode{
+			drivers.NetIsolationModeHost,
+			drivers.NetIsolationModeGroup,
+			drivers.NetIsolationModeTask,
+		},
+		MustInitiateNetwork: true,
 	}
 )
 
@@ -485,6 +497,7 @@ type DriverConfig struct {
 	AllowPrivileged bool         `codec:"allow_privileged"`
 	AllowCaps       []string     `codec:"allow_caps"`
 	GPURuntimeName  string       `codec:"nvidia_runtime"`
+	InfraImage      string       `codec:"infra_image"`
 }
 
 type AuthConfig struct {

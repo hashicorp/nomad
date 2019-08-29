@@ -65,6 +65,9 @@ type DockerImageClient interface {
 // LogEventFn is a callback which allows Drivers to emit task events.
 type LogEventFn func(message string, annotations map[string]string)
 
+// noopLogEventFn satisfies the LogEventFn type but noops when called
+func noopLogEventFn(string, map[string]string) {}
+
 // dockerCoordinatorConfig is used to configure the Docker coordinator.
 type dockerCoordinatorConfig struct {
 	// logger is the logger the coordinator should use

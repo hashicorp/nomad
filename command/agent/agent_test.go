@@ -413,7 +413,7 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	t.Parallel()
 	// Agent.agentHTTPCheck only needs a config and logger
 	a := &Agent{
-		config: DevConfig(),
+		config: DevConfig(nil),
 		logger: testlog.HCLogger(t),
 	}
 	if err := a.config.normalizeAddrs(); err != nil {
@@ -439,6 +439,28 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	if expected := "/v1/agent/health?type=client"; check.Path != expected {
 		t.Errorf("expected client check path to be %q but found %q", expected, check.Path)
 	}
+}
+
+// Here we validate that log levels get updated when the configuration is
+// reloaded. I can't find a good way to fetch this from the logger itself, so
+// we pull it only from the agents configuration struct, not the logger.
+func TestAgent_Reload_LogLevel(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.LogLevel = "INFO"
+	})
+	defer agent.Shutdown()
+
+	assert.Equal("INFO", agent.GetConfig().LogLevel)
+
+	newConfig := &Config{
+		LogLevel: "TRACE",
+	}
+
+	assert.Nil(agent.Reload(newConfig))
+	assert.Equal("TRACE", agent.GetConfig().LogLevel)
 }
 
 // This test asserts that the keyloader embedded in the TLS config is shared

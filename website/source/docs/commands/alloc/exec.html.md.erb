@@ -34,7 +34,7 @@ the given job will be chosen.
 
 ## Exec Options
 
-* `task`: Sets the task to exec command in.  Defaults to first task.
+* `-task`: Sets the task to exec command in.  Defaults to first task.
 
 * `-job`: Use a random allocation from the specified job ID.
 
@@ -123,3 +123,12 @@ convenient than looking up an allocation ID to use.
 `alloc exec` is enabled by default to aid with debugging.  Operators can disable the feature by setting [`disable_remote_exec` client config option][disable_remote_exec_flag] on all clients, or a subset of clients that run sensitive workloads.
 
 [disable_remote_exec_flag]: /docs/configuration/client.html#disable_remote_exec
+
+## Exec targeting a specific task
+
+When trying to `alloc exec` for a job that has more than one task associated with it, you may want to target a specific task.
+
+```
+# open a shell session in one of your allocation's tasks
+$ nomad alloc exec -i -t -task mytask a1827f93 /bin/bash
+```

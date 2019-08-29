@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -15,7 +16,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/burntsushi/toml"
+	"github.com/BurntSushi/toml"
 	dep "github.com/hashicorp/consul-template/dependency"
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
@@ -98,12 +99,15 @@ func executeTemplateFunc(t *template.Template) func(string, ...interface{}) (str
 }
 
 // fileFunc returns or accumulates file dependencies.
-func fileFunc(b *Brain, used, missing *dep.Set) func(string) (string, error) {
+func fileFunc(b *Brain, used, missing *dep.Set, sandboxPath string) func(string) (string, error) {
 	return func(s string) (string, error) {
 		if len(s) == 0 {
 			return "", nil
 		}
-
+		err := pathInSandbox(sandboxPath, s)
+		if err != nil {
+			return "", err
+		}
 		d, err := dep.NewFileQuery(s)
 		if err != nil {
 			return "", err
@@ -1155,4 +1159,28 @@ func modulo(b, a interface{}) (interface{}, error) {
 	default:
 		return nil, fmt.Errorf("modulo: unknown type for %q (%T)", av, a)
 	}
+}
+
+// blacklisted always returns an error, to be used in place of blacklisted template functions
+func blacklisted(...string) (string, error) {
+	return "", errors.New("function is disabled")
+}
+
+// pathInSandbox returns an error if the provided path doesn't fall within the
+// sandbox or if the file can't be evaluated (missing, invalid symlink, etc.)
+func pathInSandbox(sandbox, path string) error {
+	if sandbox != "" {
+		s, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return err
+		}
+		s, err = filepath.Rel(sandbox, s)
+		if err != nil {
+			return err
+		}
+		if strings.HasPrefix(s, "..") {
+			return fmt.Errorf("'%s' is outside of sandbox", path)
+		}
+	}
+	return nil
 }

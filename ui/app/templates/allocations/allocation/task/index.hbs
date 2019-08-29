@@ -1,4 +1,5 @@
-{{partial "allocations/allocation/task/subnav"}}
+{{title "Task " model.name}}
+{{task-subnav task=model}}
 <section class="section">
   {{#if error}}
     <div data-test-inline-error class="notification is-danger">

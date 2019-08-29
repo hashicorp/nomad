@@ -125,9 +125,11 @@ func (s *HTTPServer) allocStop(allocID string, resp http.ResponseWriter, req *ht
 		if structs.IsErrUnknownAllocation(rpcErr) {
 			rpcErr = CodedError(404, allocNotFoundErr)
 		}
+		return nil, rpcErr
 	}
 
-	return &out, rpcErr
+	setIndex(resp, out.Index)
+	return &out, nil
 }
 
 func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
