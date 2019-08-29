@@ -15,6 +15,16 @@ func Node() *structs.Node {
 		SecretID:   uuid.Generate(),
 		Datacenter: "dc1",
 		Name:       "foobar",
+		Drivers: map[string]*structs.DriverInfo{
+			"exec": {
+				Detected: true,
+				Healthy:  true,
+			},
+			"mock_driver": {
+				Detected: true,
+				Healthy:  true,
+			},
+		},
 		Attributes: map[string]string{
 			"kernel.name":        "linux",
 			"arch":               "x86",
