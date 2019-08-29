@@ -471,3 +471,23 @@ config {
 
 	require.EqualValues(t, expected, tc)
 }
+
+func TestRawExecDriver_Disabled(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	d := NewRawExecDriver(testlog.HCLogger(t))
+	d.(*Driver).config.Enabled = false
+
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+	task := &drivers.TaskConfig{
+		ID:   uuid.Generate(),
+		Name: "test",
+	}
+
+	handle, _, err := harness.StartTask(task)
+	require.Error(err)
+	require.Contains(err.Error(), errDisabledDriver.Error())
+	require.Nil(handle)
+}
