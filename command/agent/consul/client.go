@@ -499,6 +499,11 @@ func (c *ServiceClient) sync() error {
 			continue
 		}
 
+		// Ignore if this is a service for a Nomad managed sidecar proxy.
+		if isNomadSidecar(id, c.services) {
+			continue
+		}
+
 		// Unknown Nomad managed service; kill
 		if err := c.client.ServiceDeregister(id); err != nil {
 			if isOldNomadService(id) {
@@ -553,6 +558,11 @@ func (c *ServiceClient) sync() error {
 
 		// Ignore unknown services during probation
 		if inProbation && !c.explicitlyDeregisteredChecks[id] {
+			continue
+		}
+
+		// Ignore if this is a check for a Nomad managed sidecar proxy.
+		if isNomadSidecar(check.ServiceID, c.services) {
 			continue
 		}
 
@@ -1368,6 +1378,28 @@ func isNomadService(id string) bool {
 func isOldNomadService(id string) bool {
 	const prefix = nomadServicePrefix + "-executor"
 	return strings.HasPrefix(id, prefix)
+}
+
+// isNomadSidecar returns true if the ID matches a sidecar proxy for a Nomad
+// managed service.
+//
+// For example if you have a Connect enabled service with the ID:
+//
+//	_nomad-task-5229c7f8-376b-3ccc-edd9-981e238f7033-cache-redis-cache-db
+//
+// Consul will create a service for the sidecar proxy with the ID:
+//
+//	_nomad-task-5229c7f8-376b-3ccc-edd9-981e238f7033-cache-redis-cache-db-sidecar-proxy
+//
+func isNomadSidecar(id string, services map[string]*api.AgentServiceRegistration) bool {
+	const suffix = "-sidecar-proxy"
+	if !strings.HasSuffix(id, suffix) {
+		return false
+	}
+
+	// Make sure the Nomad managed service for this proxy still exists.
+	_, ok := services[id[:len(id)-len(suffix)]]
+	return ok
 }
 
 // getAddress returns the IP and port to use for a service or check. If no port
