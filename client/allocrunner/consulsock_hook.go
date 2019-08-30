@@ -43,7 +43,7 @@ func newConsulSockHook(logger hclog.Logger, alloc *structs.Allocation, allocDir 
 	return h
 }
 
-func (consulSockHook) Name() string {
+func (*consulSockHook) Name() string {
 	return "consul_socket"
 }
 
