@@ -260,6 +260,117 @@ func Job() *structs.Job {
 	return job
 }
 
+func MaxParallelJob() *structs.Job {
+	update := *structs.DefaultUpdateStrategy
+	update.MaxParallel = 0
+	job := &structs.Job{
+		Region:      "global",
+		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
+		Name:        "my-job",
+		Namespace:   structs.DefaultNamespace,
+		Type:        structs.JobTypeService,
+		Priority:    50,
+		AllAtOnce:   false,
+		Datacenters: []string{"dc1"},
+		Constraints: []*structs.Constraint{
+			{
+				LTarget: "${attr.kernel.name}",
+				RTarget: "linux",
+				Operand: "=",
+			},
+		},
+		Update: update,
+		TaskGroups: []*structs.TaskGroup{
+			{
+				Name:  "web",
+				Count: 10,
+				EphemeralDisk: &structs.EphemeralDisk{
+					SizeMB: 150,
+				},
+				RestartPolicy: &structs.RestartPolicy{
+					Attempts: 3,
+					Interval: 10 * time.Minute,
+					Delay:    1 * time.Minute,
+					Mode:     structs.RestartPolicyModeDelay,
+				},
+				ReschedulePolicy: &structs.ReschedulePolicy{
+					Attempts:      2,
+					Interval:      10 * time.Minute,
+					Delay:         5 * time.Second,
+					DelayFunction: "constant",
+				},
+				Migrate: structs.DefaultMigrateStrategy(),
+				Update:  &update,
+				Tasks: []*structs.Task{
+					{
+						Name:   "web",
+						Driver: "exec",
+						Config: map[string]interface{}{
+							"command": "/bin/date",
+						},
+						Env: map[string]string{
+							"FOO": "bar",
+						},
+						Services: []*structs.Service{
+							{
+								Name:      "${TASK}-frontend",
+								PortLabel: "http",
+								Tags:      []string{"pci:${meta.pci-dss}", "datacenter:${node.datacenter}"},
+								Checks: []*structs.ServiceCheck{
+									{
+										Name:     "check-table",
+										Type:     structs.ServiceCheckScript,
+										Command:  "/usr/local/check-table-${meta.database}",
+										Args:     []string{"${meta.version}"},
+										Interval: 30 * time.Second,
+										Timeout:  5 * time.Second,
+									},
+								},
+							},
+							{
+								Name:      "${TASK}-admin",
+								PortLabel: "admin",
+							},
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      500,
+							MemoryMB: 256,
+							Networks: []*structs.NetworkResource{
+								{
+									MBits: 50,
+									DynamicPorts: []structs.Port{
+										{Label: "http"},
+										{Label: "admin"},
+									},
+								},
+							},
+						},
+						Meta: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+				Meta: map[string]string{
+					"elb_check_type":     "http",
+					"elb_check_interval": "30s",
+					"elb_check_min":      "3",
+				},
+			},
+		},
+		Meta: map[string]string{
+			"owner": "armon",
+		},
+		Status:         structs.JobStatusPending,
+		Version:        0,
+		CreateIndex:    42,
+		ModifyIndex:    99,
+		JobModifyIndex: 99,
+	}
+	job.Canonicalize()
+	return job
+}
+
 func BatchJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
