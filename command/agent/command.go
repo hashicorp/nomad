@@ -77,10 +77,10 @@ func (c *Command) readConfig() *Config {
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
 
 	// Role options
-	flags.Var((flaghelper.FuncOptionalStringVar)(func(s string) (err error) {
-		dev, err = newDevModeConfig(s)
-		return err
-	}), "dev", "")
+	var devMode bool
+	var devConnectMode bool
+	flags.BoolVar(&devMode, "dev", false, "")
+	flags.BoolVar(&devConnectMode, "dev-connect", false, "")
 	flags.BoolVar(&cmdConfig.Server.Enabled, "server", false, "")
 	flags.BoolVar(&cmdConfig.Client.Enabled, "client", false, "")
 
@@ -206,6 +206,11 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Load the configuration
+	dev, err := newDevModeConfig(devMode, devConnectMode)
+	if err != nil {
+		c.Ui.Error(err.Error())
+		return nil
+	}
 	var config *Config
 	if dev != nil {
 		config = DevConfig(dev)
@@ -483,6 +488,7 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 
 	return map[string]complete.Predictor{
 		"-dev":                           complete.PredictNothing,
+		"-dev-connect":                   complete.PredictNothing,
 		"-server":                        complete.PredictNothing,
 		"-client":                        complete.PredictNothing,
 		"-bootstrap-expect":              complete.PredictAnything,
@@ -1170,10 +1176,10 @@ General Options (clients and servers):
     agent in this mode, but you may pass an optional comma-separated
     list of mode configurations:
 
-    -dev=connect
-      Start the agent in development mode, but bind to a public network
-      interface rather than localhost for using Consul Connect. This
-      mode is supported only on Linux as root.
+  -dev-connect
+	Start the agent in development mode, but bind to a public network
+	interface rather than localhost for using Consul Connect. This
+	mode is supported only on Linux as root.
 
 Server Options:
 
