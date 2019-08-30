@@ -9,10 +9,12 @@ description: |-
 
 ~> **Deprecation Warning!**
 Nomad introduced the Rkt driver in version 0.2.0. The Rkt project had some
-early adoption; in recent times user adoption has trended away from rkt towards
-other projects. Furthermore, project activity has declined and there are unpatched CVEs.
-Nomad 0.11 will convert the Rkt driver to an external driver, and will not prioritize features or pull requests that
-affect the Rkt driver. The external driver will be available as an open source
+early adoption; in recent times user adoption has trended away from Rkt towards
+other projects. Project activity has declined and there are unpatched CVEs.
+The project has been [archived by the CNCF](https://github.com/rkt/rkt/issues/4004#issuecomment-507358362)
+
+Nomad 0.11 will convert the Rkt driver to an external driver. We will not prioritize features
+or pull requests that affect the Rkt driver. The external driver will be available as an open source
 repository for community ownership.
 
 # Rkt Driver
