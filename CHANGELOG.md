@@ -4,6 +4,7 @@ IMPROVEMENTS:
  * core: Added host volumes [[GH-6100](https://github.com/hashicorp/nomad/pull/6100)]
  * agent: Allowed the job GC interval to be configured [[GH-5978](https://github.com/hashicorp/nomad/issues/5978)]
  * agent: Added `log_level` to be reloaded on SIGHUP [[GH-5996](https://github.com/hashicorp/nomad/pull/5996)]
+ * client: Upgraded `go-getter` to support GCP links [[GH-6215](https://github.com/hashicorp/nomad/pull/6215)]
  * api: Added follow parameter to file streaming endpoint to support older browsers [[GH-6049](https://github.com/hashicorp/nomad/issues/6049)]
  * cli: Added `-dev-connect` parameter to support running in dev mode with Consul Connect [[GH-6126](https://github.com/hashicorp/nomad/issues/6126)]
  * metrics: Add job status (pending, running, dead) metrics [[GH-6003](https://github.com/hashicorp/nomad/issues/6003)]
