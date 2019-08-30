@@ -32,6 +32,12 @@ func TestMain(m *testing.M) {
 	}
 }
 
+func newEnabledRawExecDriver(t *testing.T) *Driver {
+	d := NewRawExecDriver(testlog.HCLogger(t)).(*Driver)
+	d.config.Enabled = true
+	return d
+}
+
 func TestRawExecDriver_SetConfig(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -73,7 +79,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 	fingerprintTest := func(config *Config, expected *drivers.Fingerprint) func(t *testing.T) {
 		return func(t *testing.T) {
 			require := require.New(t)
-			d := NewRawExecDriver(testlog.HCLogger(t)).(*Driver)
+			d := newEnabledRawExecDriver(t)
 			harness := dtestutil.NewDriverHarness(t, d)
 			defer harness.Kill()
 
@@ -133,7 +139,7 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	d := NewRawExecDriver(testlog.HCLogger(t))
+	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 	task := &drivers.TaskConfig{
@@ -175,12 +181,12 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	d := NewRawExecDriver(testlog.HCLogger(t))
+	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
 	// Disable cgroups so test works without root
-	config := &Config{NoCgroups: true}
+	config := &Config{NoCgroups: true, Enabled: true}
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
 	bconfig := &basePlug.Config{PluginConfig: data}
@@ -219,7 +225,7 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	originalStatus, err := d.InspectTask(task.ID)
 	require.NoError(err)
 
-	d.(*Driver).tasks.Delete(task.ID)
+	d.tasks.Delete(task.ID)
 
 	wg.Wait()
 	require.True(waitDone)
@@ -258,7 +264,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	d := NewRawExecDriver(testlog.HCLogger(t))
+	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
@@ -313,7 +319,7 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 	require := require.New(t)
 	pidFile := "pid"
 
-	d := NewRawExecDriver(testlog.HCLogger(t))
+	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
@@ -403,7 +409,7 @@ func TestRawExecDriver_Exec(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	d := NewRawExecDriver(testlog.HCLogger(t))
+	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
@@ -470,4 +476,24 @@ config {
 	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
 
 	require.EqualValues(t, expected, tc)
+}
+
+func TestRawExecDriver_Disabled(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	d := newEnabledRawExecDriver(t)
+	d.config.Enabled = false
+
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+	task := &drivers.TaskConfig{
+		ID:   uuid.Generate(),
+		Name: "test",
+	}
+
+	handle, _, err := harness.StartTask(task)
+	require.Error(err)
+	require.Contains(err.Error(), errDisabledDriver.Error())
+	require.Nil(handle)
 }

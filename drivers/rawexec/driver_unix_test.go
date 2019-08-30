@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
 	basePlug "github.com/hashicorp/nomad/plugins/base"
@@ -31,7 +30,7 @@ func TestRawExecDriver_User(t *testing.T) {
 	}
 	require := require.New(t)
 
-	d := NewRawExecDriver(testlog.HCLogger(t))
+	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
@@ -63,7 +62,7 @@ func TestRawExecDriver_Signal(t *testing.T) {
 	}
 	require := require.New(t)
 
-	d := NewRawExecDriver(testlog.HCLogger(t))
+	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
@@ -134,12 +133,12 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	d := NewRawExecDriver(testlog.HCLogger(t))
+	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
 	// Disable cgroups so test works without root
-	config := &Config{NoCgroups: true}
+	config := &Config{NoCgroups: true, Enabled: true}
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
 	bconfig := &basePlug.Config{PluginConfig: data}
@@ -204,7 +203,7 @@ func TestRawExec_ExecTaskStreaming(t *testing.T) {
 	}
 	require := require.New(t)
 
-	d := NewRawExecDriver(testlog.HCLogger(t))
+	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
