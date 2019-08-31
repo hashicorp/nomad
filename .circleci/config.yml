@@ -54,8 +54,10 @@ workflows:
           name: "test-shared-exec"
           test_packages: "./drivers/shared/executor"
           <<: *IGNORE_FOR_UI_BRANCHES
-      - test-container:
-          name: "test-32bit-fingerprinting"
+      - test-machine:
+          name: "test-32bit"
+          # Currently we only explicitly test fingerprinting on 32bit
+          # architectures.
           test_packages: "./client/fingerprint"
           goarch: "386"
           <<: *IGNORE_FOR_UI_BRANCHES
@@ -131,7 +133,7 @@ jobs:
       GOTEST_PKGS: "<< parameters.test_packages >>"
       GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
       GOPATH: /go
-      GOARCH: "<< parameters.goarch >>"
+      GOTESTARCH: "<< parameters.goarch >>"
     steps:
       - checkout
       - run: make deps
@@ -200,17 +202,30 @@ jobs:
       executor:
         type: string
         default: "go-machine-recent"
+      goarch:
+        type: string
+        default: "amd64"
     environment:
       <<: *COMMON_ENVS
       GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
       GOTEST_PKGS: "<< parameters.test_packages >>"
       GOPATH: /home/circleci/go
+      GOTESTARCH: "<< parameters.goarch >>"
     steps:
       - checkout
       - install-golang
       - install-protoc
       - install-consul
       - install-vault
+      - run:
+          name: Install 32bit gcc libs
+          command: |
+            if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
+              sudo apt-get update
+              sudo apt-get install -y gcc-multilib
+            else
+              echo "Skipping 32bit lib installation while building for not 386"
+            fi
       - run: PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make bootstrap
       - run-tests
       - store_test_results:
@@ -337,6 +352,10 @@ commands:
               unset GOTEST_PKGS_EXCLUDE
             else
               unset GOTEST_PKGS
+            fi
+
+            if [ ! -z $GOTESTARCH ]; then
+              export GOARCH="$GOTESTARCH";
             fi
 
             mkdir -p /tmp/test-reports
