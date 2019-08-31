@@ -3970,7 +3970,7 @@ func (u *UpdateStrategy) Validate() error {
 	}
 
 	if u.MaxParallel < 0 {
-		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than zero: %d < 1", u.MaxParallel))
+		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than zero: %d < 0", u.MaxParallel))
 	}
 	if u.Canary < 0 {
 		multierror.Append(&mErr, fmt.Errorf("Canary count can not be less than zero: %d < 0", u.Canary))
