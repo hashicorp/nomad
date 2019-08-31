@@ -704,7 +704,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 	*ServiceRegistration, error) {
 
 	// Get the services ID
-	id := MakeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
+	id := MakeTaskServiceID(task.AllocID, task.Name, service)
 	sreg := &ServiceRegistration{
 		serviceID: id,
 		checkIDs:  make(map[string]struct{}, len(service.Checks)),
@@ -974,7 +974,7 @@ func (c *ServiceClient) RegisterTask(task *TaskServices) error {
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
 	for _, service := range task.Services {
-		serviceID := MakeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
+		serviceID := MakeTaskServiceID(task.AllocID, task.Name, service)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := makeCheckID(serviceID, check)
@@ -997,11 +997,11 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 
 	existingIDs := make(map[string]*structs.Service, len(old.Services))
 	for _, s := range old.Services {
-		existingIDs[MakeTaskServiceID(old.AllocID, old.Name, s, old.Canary)] = s
+		existingIDs[MakeTaskServiceID(old.AllocID, old.Name, s)] = s
 	}
 	newIDs := make(map[string]*structs.Service, len(newTask.Services))
 	for _, s := range newTask.Services {
-		newIDs[MakeTaskServiceID(newTask.AllocID, newTask.Name, s, newTask.Canary)] = s
+		newIDs[MakeTaskServiceID(newTask.AllocID, newTask.Name, s)] = s
 	}
 
 	// Loop over existing Service IDs to see if they have been removed
@@ -1098,7 +1098,7 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
 	for _, service := range newIDs {
-		serviceID := MakeTaskServiceID(newTask.AllocID, newTask.Name, service, newTask.Canary)
+		serviceID := MakeTaskServiceID(newTask.AllocID, newTask.Name, service)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := makeCheckID(serviceID, check)
@@ -1116,7 +1116,7 @@ func (c *ServiceClient) RemoveTask(task *TaskServices) {
 	ops := operations{}
 
 	for _, service := range task.Services {
-		id := MakeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
+		id := MakeTaskServiceID(task.AllocID, task.Name, service)
 		ops.deregServices = append(ops.deregServices, id)
 
 		for _, check := range service.Checks {
@@ -1281,7 +1281,7 @@ func makeAgentServiceID(role string, service *structs.Service) string {
 // Consul.
 //
 //	Example Service ID: _nomad-task-b4e61df9-b095-d64e-f241-23860da1375f-redis-http-http
-func MakeTaskServiceID(allocID, taskName string, service *structs.Service, canary bool) string {
+func MakeTaskServiceID(allocID, taskName string, service *structs.Service) string {
 	return fmt.Sprintf("%s%s-%s-%s-%s", nomadTaskPrefix, allocID, taskName, service.Name, service.PortLabel)
 }
 
