@@ -25,13 +25,8 @@ func TestMemoryFingerprint(t *testing.T) {
 
 	assertNodeAttributeContains(t, response.Attributes, "memory.totalbytes")
 
-	if response.Resources == nil {
-		t.Fatalf("response resources should not be nil")
-	}
-
-	// COMPAT(0.10): Remove in 0.10
-	if response.Resources.MemoryMB == 0 {
-		t.Fatalf("Expected node.Resources.MemoryMB to be non-zero")
+	if response.NodeResources == nil {
+		t.Fatalf("response noderesources should not be nil")
 	}
 
 	if response.NodeResources.Memory.MemoryMB == 0 {
@@ -55,7 +50,6 @@ func TestMemoryFingerprint_Override(t *testing.T) {
 
 	assertNodeAttributeContains(t, response.Attributes, "memory.totalbytes")
 	require := require.New(t)
-	require.NotNil(response.Resources)
-	require.Equal(response.Resources.MemoryMB, memoryMB)
+	require.NotNil(response.NodeResources)
 	require.EqualValues(response.NodeResources.Memory.MemoryMB, memoryMB)
 }

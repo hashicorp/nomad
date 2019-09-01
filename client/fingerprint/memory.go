@@ -43,11 +43,6 @@ func (f *MemoryFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 	if totalMemory > 0 {
 		resp.AddAttribute("memory.totalbytes", fmt.Sprintf("%d", totalMemory))
 
-		// COMPAT(0.10): Remove in 0.10
-		resp.Resources = &structs.Resources{
-			MemoryMB: totalMemory / bytesInMB,
-		}
-
 		resp.NodeResources = &structs.NodeResources{
 			Memory: structs.NodeMemoryResources{
 				MemoryMB: int64(totalMemory / bytesInMB),
