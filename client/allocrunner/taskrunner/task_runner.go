@@ -350,7 +350,7 @@ func (tr *TaskRunner) initLabels() {
 	alloc := tr.Alloc()
 	tr.baseLabels = []metrics.Label{
 		{
-			Name:  "job",
+			Name:  "job_name",
 			Value: alloc.Job.Name,
 		},
 		{

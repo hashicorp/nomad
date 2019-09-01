@@ -649,7 +649,7 @@ func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
 		if !s.config.DisableTaggedMetrics {
 			labels := []metrics.Label{
 				{
-					Name:  "job",
+					Name:  "job_name",
 					Value: summary.JobID,
 				},
 				{
