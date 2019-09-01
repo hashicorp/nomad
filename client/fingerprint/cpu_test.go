@@ -6,9 +6,11 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCPUFingerprint(t *testing.T) {
+	require := require.New(t)
 	f := NewCPUFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -17,37 +19,18 @@ func TestCPUFingerprint(t *testing.T) {
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(err)
 
-	if !response.Detected {
-		t.Fatalf("expected response to be applicable")
-	}
+	require.True(response.Detected, "expected response to be detected")
 
 	// CPU info
 	attributes := response.Attributes
-	if attributes == nil {
-		t.Fatalf("expected attributes to be initialized")
-	}
-	if attributes["cpu.numcores"] == "" {
-		t.Fatalf("Missing Num Cores")
-	}
-	if attributes["cpu.modelname"] == "" {
-		t.Fatalf("Missing Model Name")
-	}
+	require.NotNil(attributes, "expected attributes to initialized")
 
-	if attributes["cpu.frequency"] == "" {
-		t.Fatalf("Missing CPU Frequency")
-	}
-	if attributes["cpu.totalcompute"] == "" {
-		t.Fatalf("Missing CPU Total Compute")
-	}
-
-	// COMPAT(0.10): Remove in 0.10
-	if response.Resources == nil || response.Resources.CPU == 0 {
-		t.Fatalf("Expected to find CPU Resources")
-	}
+	require.NotEqual(attributes["cpu.numcores"], "", "Missing numcores")
+	require.NotEqual(attributes["cpu.modelname"], "", "Missing modelname")
+	require.NotEqual(attributes["cpu.frequency"], "", "Missing CPU Frequency")
+	require.NotEqual(attributes["cpu.totalcompute"], "", "Missing CPU Total Compute")
 
 	if response.NodeResources == nil || response.NodeResources.Cpu.CpuShares == 0 {
 		t.Fatalf("Expected to find CPU Resources")
@@ -57,48 +40,36 @@ func TestCPUFingerprint(t *testing.T) {
 // TestCPUFingerprint_OverrideCompute asserts that setting cpu_total_compute in
 // the client config overrides the detected CPU freq (if any).
 func TestCPUFingerprint_OverrideCompute(t *testing.T) {
+	require := require.New(t)
 	f := NewCPUFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
 	cfg := &config.Config{}
-	var originalCPU int
+	var originalCPU int64
 
 	{
 		request := &FingerprintRequest{Config: cfg, Node: node}
 		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
+		require.True(response.Detected, "expected response to be detected")
 
-		if !response.Detected {
-			t.Fatalf("expected response to be applicable")
-		}
+		require.NotEqual(response.NodeResources.Cpu.CpuShares, 0, "expected fingerprint of cpu of but found 0")
 
-		if response.Resources.CPU == 0 {
-			t.Fatalf("expected fingerprint of cpu of but found 0")
-		}
-
-		originalCPU = response.Resources.CPU
+		originalCPU = response.NodeResources.Cpu.CpuShares
 	}
 
 	{
 		// Override it with a setting
-		cfg.CpuCompute = originalCPU + 123
+		cfg.CpuCompute = int(originalCPU + 123)
 
 		// Make sure the Fingerprinter applies the override to the node resources
 		request := &FingerprintRequest{Config: cfg, Node: node}
 		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 
-		// COMPAT(0.10): Remove in 0.10
-		if response.Resources.CPU != cfg.CpuCompute {
-			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.Resources.CPU)
-		}
 		if response.NodeResources.Cpu.CpuShares != int64(cfg.CpuCompute) {
 			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.NodeResources.Cpu.CpuShares)
 		}
