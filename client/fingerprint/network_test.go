@@ -214,12 +214,12 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 		t.Fatalf("Bad IP match: %s", ip)
 	}
 
-	if response.Resources == nil || len(response.Resources.Networks) == 0 {
+	if response.NodeResources == nil || len(response.NodeResources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := response.Resources.Networks[0]
+	net := response.NodeResources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to not be empty")
 	}
@@ -288,12 +288,12 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 		t.Fatalf("Bad IP match: %s", ip)
 	}
 
-	if response.Resources == nil || len(response.Resources.Networks) == 0 {
+	if response.NodeResources == nil || len(response.NodeResources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := response.Resources.Networks[0]
+	net := response.NodeResources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to not be empty")
 	}
@@ -335,12 +335,12 @@ func TestNetworkFingerPrint_LinkLocal_Allowed(t *testing.T) {
 		t.Fatalf("Bad IP match: %s", ip)
 	}
 
-	if response.Resources == nil || len(response.Resources.Networks) == 0 {
+	if response.NodeResources == nil || len(response.NodeResources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := response.Resources.Networks[0]
+	net := response.NodeResources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to not be empty")
 	}
@@ -386,12 +386,12 @@ func TestNetworkFingerPrint_LinkLocal_Allowed_MixedIntf(t *testing.T) {
 		t.Fatalf("Bad IP match: %s", ip)
 	}
 
-	if response.Resources == nil || len(response.Resources.Networks) == 0 {
+	if response.NodeResources == nil || len(response.NodeResources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := response.Resources.Networks[0]
+	net := response.NodeResources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to not be empty")
 	}
