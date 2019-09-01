@@ -1343,20 +1343,6 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		}
 	}
 
-	// COMPAT(0.10): Remove in 0.10
-	// update the response networks with the config
-	// if we still have node changes, merge them
-	if response.Resources != nil {
-		response.Resources.Networks = updateNetworks(
-			c.config.Node.Resources.Networks,
-			response.Resources.Networks,
-			c.config)
-		if !c.config.Node.Resources.Equals(response.Resources) {
-			c.config.Node.Resources.Merge(response.Resources)
-			nodeHasChanged = true
-		}
-	}
-
 	// update the response networks with the config
 	// if we still have node changes, merge them
 	if response.NodeResources != nil {

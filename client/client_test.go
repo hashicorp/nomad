@@ -1261,15 +1261,9 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 			Cpu:      structs.NodeCpuResources{CpuShares: 123},
 			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
 		},
-		Resources: &structs.Resources{
-			CPU:      80,
-			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
-		},
 	})
 	assert.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
 	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[0].Device)
-	assert.Equal(t, 80, client.config.Node.Resources.CPU)
-	assert.Equal(t, "any-interface", client.config.Node.Resources.Networks[0].Device)
 
 	// Client with network interface configured keeps the config
 	// setting on update
@@ -1279,7 +1273,6 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 		c.Node.Name = name
 		// Node is already a mock.Node, with a device
 		c.Node.NodeResources.Networks[0].Device = dev
-		c.Node.Resources.Networks = c.Node.NodeResources.Networks
 	})
 	defer cleanup()
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
@@ -1290,10 +1283,6 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 				{Device: dev, MBits: 20},
 			},
 		},
-		Resources: &structs.Resources{
-			CPU:      80,
-			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
-		},
 	})
 	assert.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
 	// only the configured device is kept
@@ -1301,8 +1290,6 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	assert.Equal(t, dev, client.config.Node.NodeResources.Networks[0].Device)
 	// network speed updates to the configured network are kept
 	assert.Equal(t, 20, client.config.Node.NodeResources.Networks[0].MBits)
-	assert.Equal(t, 80, client.config.Node.Resources.CPU)
-	assert.Equal(t, dev, client.config.Node.Resources.Networks[0].Device)
 
 	// Network speed is applied to all NetworkResources
 	client.config.NetworkInterface = ""
@@ -1311,10 +1298,6 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 		NodeResources: &structs.NodeResources{
 			Cpu:      structs.NodeCpuResources{CpuShares: 123},
 			Networks: []*structs.NetworkResource{{Device: "any-interface", MBits: 20}},
-		},
-		Resources: &structs.Resources{
-			CPU:      80,
-			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
 		},
 	})
 	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[0].Device)
@@ -1337,7 +1320,6 @@ func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
 	client, cleanup := TestClient(t, func(c *config.Config) {
 		c.NetworkInterface = dev
 		c.Node.NodeResources.Networks[0].Device = dev
-		c.Node.Resources.Networks = c.Node.NodeResources.Networks
 	})
 	defer cleanup()
 
