@@ -147,13 +147,11 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 	} else if throughput == 0 {
 		// Failed to determine speed. Check if the network fingerprint got it
 		found := false
-		if request.Node.Resources != nil && len(request.Node.Resources.Networks) > 0 {
-			for _, n := range request.Node.Resources.Networks {
-				if n.IP == newNetwork.IP {
-					throughput = n.MBits
-					found = true
-					break
-				}
+		if request.Node.NodeResources.Networks != nil && len(request.Node.NodeResources.Networks) > 0 {
+			for _, n := range request.Node.NodeResources.Networks {
+				throughput = n.MBits
+				found = true
+				break
 			}
 		}
 
