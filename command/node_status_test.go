@@ -78,6 +78,8 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 	})
 	defer srv.Shutdown()
 
+	testutil.WaitForLeader(t, srv.RPC)
+
 	ui := new(cli.MockUi)
 	cmd := &NodeStatusCommand{Meta: Meta{Ui: ui}}
 
