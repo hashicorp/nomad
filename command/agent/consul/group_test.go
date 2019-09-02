@@ -72,7 +72,7 @@ func TestConsul_Connect(t *testing.T) {
 
 	// required by isNomadSidecar assertion below
 	serviceRegMap := map[string]*api.AgentServiceRegistration{
-		MakeTaskServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0], false): nil,
+		MakeTaskServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0]): nil,
 	}
 
 	require.NoError(t, serviceClient.RegisterGroup(alloc))
@@ -90,7 +90,7 @@ func TestConsul_Connect(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, services, 2)
 
-		serviceID := MakeTaskServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0], false)
+		serviceID := MakeTaskServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0])
 		connectID := serviceID + "-sidecar-proxy"
 
 		require.Contains(t, services, serviceID)
