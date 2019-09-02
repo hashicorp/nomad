@@ -2789,7 +2789,7 @@ func (c *Client) emitClientMetrics() {
 func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.ComparableResources {
 	// Unfortunately the allocs only have IP so we need to match them to the
 	// device
-	cidrToDevice := make(map[*net.IPNet]string, len(selfNode.Resources.Networks))
+	cidrToDevice := make(map[*net.IPNet]string, len(selfNode.NodeResources.Networks))
 	for _, n := range selfNode.NodeResources.Networks {
 		_, ipnet, err := net.ParseCIDR(n.CIDR)
 		if err != nil {
