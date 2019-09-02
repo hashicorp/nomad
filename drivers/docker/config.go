@@ -187,7 +187,10 @@ var (
 				hclspec.NewAttr("image", "bool", false),
 				hclspec.NewLiteral("true"),
 			),
-			"image_delay": hclspec.NewAttr("image_delay", "string", false),
+			"image_delay": hclspec.NewDefault(
+				hclspec.NewAttr("image_delay", "string", false),
+				hclspec.NewLiteral("3m"),
+			),
 			"container": hclspec.NewDefault(
 				hclspec.NewAttr("container", "bool", false),
 				hclspec.NewLiteral("true"),
