@@ -498,15 +498,15 @@ type NodeReservedResources struct {
 }
 
 type NodeReservedCpuResources struct {
-	CpuShares uint64
+	CpuShares int64
 }
 
 type NodeReservedMemoryResources struct {
-	MemoryMB uint64
+	MemoryMB int64
 }
 
 type NodeReservedDiskResources struct {
-	DiskMB uint64
+	DiskMB int64
 }
 
 type NodeReservedNetworkResources struct {
