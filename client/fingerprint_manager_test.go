@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
+func TestFingerprintManager_Run_NodeResourcesFingerprint(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	testClient, cleanup := TestClient(t, nil)
@@ -27,9 +27,9 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 
 	node := testClient.config.Node
 
-	require.NotEqual(0, node.Resources.CPU)
-	require.NotEqual(0, node.Resources.MemoryMB)
-	require.NotZero(node.Resources.DiskMB)
+	require.NotEqual(0, node.NodeResources.Cpu.CpuShares)
+	require.NotEqual(0, node.NodeResources.Memory.MemoryMB)
+	require.NotZero(node.NodeResources.Disk.DiskMB)
 }
 
 func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
