@@ -159,8 +159,6 @@ type taskletMock struct {
 
 func newTaskletMock(exec interfaces.ScriptExecutor, logger hclog.Logger, interval, timeout time.Duration) *taskletMock {
 	tm := &taskletMock{calls: make(chan execResult)}
-	tm.allocID = "allocid"
-	tm.taskName = "testtask"
 	tm.exec = exec
 	tm.logger = logger
 	tm.Interval = interval

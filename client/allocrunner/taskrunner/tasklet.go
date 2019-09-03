@@ -64,8 +64,6 @@ func (c *contextExec) Exec(timeout time.Duration, cmd string, args []string) ([]
 // once and on each interval, and fires a callback whenever the script
 // is complete.
 type tasklet struct {
-	allocID    string
-	taskName   string
 	Command    string        // Command is the command to run for tasklet
 	Args       []string      // Args is a list of arguments for tasklet
 	Interval   time.Duration // Interval of the tasklet
@@ -125,8 +123,7 @@ func (t *tasklet) run() *taskletHandle {
 				"client", "allocrunner", "taskrunner", "tasklet_runs"}, 1)
 
 			// Execute check script with timeout
-			t.logger.Trace("tasklet executing",
-				"allocID", t.allocID, "task", t.taskName)
+			t.logger.Trace("tasklet executing")
 			output, code, err := ctxExec.Exec(t.Timeout, t.Command, t.Args)
 			switch err {
 			case context.Canceled:

@@ -277,8 +277,6 @@ func newScriptCheck(config *scriptCheckConfig) *scriptCheck {
 		lastCheckOk: true, // start logging on first failure
 	}
 	// we can't use the promoted fields of tasklet in the struct literal
-	sc.allocID = config.allocID
-	sc.taskName = config.taskName
 	sc.Command = config.check.Command
 	sc.Args = config.check.Args
 	sc.Interval = config.check.Interval
@@ -286,6 +284,7 @@ func newScriptCheck(config *scriptCheckConfig) *scriptCheck {
 	return sc
 }
 
+// Copy does a *shallow* copy of script checks.
 func (sc *scriptCheck) Copy() *scriptCheck {
 	newSc := sc
 	return newSc

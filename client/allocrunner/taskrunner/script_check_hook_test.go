@@ -170,6 +170,8 @@ func TestScript_Exec_Shutdown(t *testing.T) {
 	}
 }
 
+// TestScript_Exec_Codes asserts script exit codes are translated to their
+// corresponding Consul health check status.
 func TestScript_Exec_Codes(t *testing.T) {
 
 	exec := newScriptedExec([]execResult{
