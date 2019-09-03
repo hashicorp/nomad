@@ -72,9 +72,9 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 
 	h.logger.Debug("bootstrapping Connect proxy sidecar", "task", req.Task.Name, "service", serviceName)
 
-	//TODO(schmichael) relies on GRPCSocket being created
-	//TODO(schmichael) unnecessasry if the sidecar is running on the host netns
-	grpcAddr := "unix://" + filepath.Join(allocdir.SharedAllocName, allocdir.AllocGRPCSocket)
+	//TODO Should connect directly to Consul if the sidecar is running on
+	//     the host netns.
+	grpcAddr := "unix://" + allocdir.AllocGRPCSocket
 
 	// Envoy bootstrap configuration may contain a Consul token, so write
 	// it to the secrets directory like Vault tokens.
