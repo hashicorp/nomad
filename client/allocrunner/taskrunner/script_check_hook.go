@@ -3,7 +3,6 @@ package taskrunner
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -351,9 +350,8 @@ const (
 func (s *scriptCheck) updateTTL(ctx context.Context, id, msg, state string) error {
 	for attempts := 0; ; attempts++ {
 		err := s.agent.UpdateTTL(id, msg, state)
-		if err == nil ||
-			!strings.Contains(err.Error(), "does not have associated TTL") {
-			return err
+		if err == nil {
+			return nil
 		}
 
 		// Handle the retry case
