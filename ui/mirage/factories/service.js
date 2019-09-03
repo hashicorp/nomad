@@ -14,21 +14,16 @@ export default Factory.extend({
       return null;
     }
   },
-
-  afterCreate(service) {
-    service.update({
-      Connect: {
-        SidecarService: {
-          Proxy: {
-            Upstreams: [
-              {
-                DestinationName: faker.hacker.noun().dasherize(),
-                LocalBindPort: faker.random.number({ min: 5000, max: 60000 }),
-              },
-            ],
+  Connect: {
+    SidecarService: {
+      Proxy: {
+        Upstreams: [
+          {
+            DestinationName: faker.hacker.noun().dasherize(),
+            LocalBindPort: faker.random.number({ min: 5000, max: 60000 }),
           },
-        },
+        ],
       },
-    });
+    },
   },
 });
