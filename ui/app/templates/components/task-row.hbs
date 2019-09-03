@@ -25,16 +25,10 @@
 <td data-test-ports>
   <ul>
     {{#with task.resources.networks.firstObject as |network|}}
-      {{#each network.reservedPorts as |port|}}
+      {{#each network.ports as |port|}}
         <li data-test-port>
-          <strong>{{port.Label}}:</strong>
-          <a href="http://{{network.ip}}:{{port.Value}}" target="_blank" rel="noopener noreferrer">{{network.ip}}:{{port.Value}}</a>
-        </li>
-      {{/each}}
-      {{#each network.dynamicPorts as |port|}}
-        <li>
-          <strong>{{port.Label}}:</strong>
-          <a href="http://{{network.ip}}:{{port.Value}}" target="_blank" rel="noopener noreferrer">{{network.ip}}:{{port.Value}}</a>
+          <strong>{{port.name}}:</strong>
+          <a href="http://{{network.ip}}:{{port.port}}" target="_blank" rel="noopener noreferrer">{{network.ip}}:{{port.port}}</a>
         </li>
       {{/each}}
     {{/with}}
