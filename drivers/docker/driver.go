@@ -967,6 +967,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		logger.Debug("applied labels on the container", "labels", config.Labels)
 	}
 
+	task.Env = taskenv.WithPortMapEnvs(task.Env, driverConfig.PortMap)
 	config.Env = task.EnvList()
 
 	containerName := fmt.Sprintf("%s-%s", strings.Replace(task.Name, "/", "_", -1), task.AllocID)
