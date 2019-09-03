@@ -77,13 +77,13 @@
     </div>
   </div>
 
-  {{#if ports.length}}
+  {{#if network.ports.length}}
     <div class="boxed-section" data-test-task-addresses>
       <div class="boxed-section-head">
         Addresses
       </div>
       <div class="boxed-section-body is-full-bleed">
-        {{#list-table source=ports as |t|}}
+        {{#list-table source=network.ports as |t|}}
           {{#t.head}}
             <th class="is-1">Dynamic?</th>
             <th class="is-2">Name</th>
