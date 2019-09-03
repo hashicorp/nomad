@@ -170,6 +170,7 @@ check: ## Lint the source code
 		--deadline 10m \
 		--vendor \
 		--exclude='.*\.generated\.go' \
+		--exclude='.*\.pb\.go' \
 		--exclude='.*bindata_assetfs\.go' \
 		--skip="ui/" \
 		--sort="path" \
