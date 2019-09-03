@@ -52,14 +52,4 @@
   &.is-outlined {
     box-shadow: 0 0 0 1px $white;
   }
-
-  &.is-structure {
-    color: rgb(98, 104, 115);
-    text-transform: none;
-    font-size: 12px;
-
-    width: 48px;
-    height: 16px;
-    border-radius: 0;
-  }
 }
