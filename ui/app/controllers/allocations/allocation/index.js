@@ -30,24 +30,6 @@ export default Controller.extend(Sortable, {
   }),
 
   network: alias('model.allocatedResources.networks.firstObject'),
-  ports: computed('network.reservedPorts.[]', 'network.dynamicPorts.[]', function() {
-    return (this.get('network.reservedPorts') || [])
-      .map(port => ({
-        name: port.Label,
-        port: port.Value,
-        to: port.To,
-        isDynamic: false,
-      }))
-      .concat(
-        (this.get('network.dynamicPorts') || []).map(port => ({
-          name: port.Label,
-          port: port.Value,
-          to: port.To,
-          isDynamic: true,
-        }))
-      )
-      .sortBy('name');
-  }),
 
   services: computed('model.taskGroup.services.@each.name', function() {
     return this.get('model.taskGroup.services').sortBy('name');

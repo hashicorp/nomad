@@ -8,6 +8,5 @@ export default Fragment.extend({
   ip: attr('string'),
   mode: attr('string'),
   mbits: attr('number'),
-  reservedPorts: array(),
-  dynamicPorts: array(),
+  ports: array(),
 });
