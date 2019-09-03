@@ -105,10 +105,8 @@ func agentServiceUpdateRequired(reg *api.AgentServiceRegistration, svc *api.Agen
 // operations are submitted to the main loop via commit() for synchronizing
 // with Consul.
 type operations struct {
-	regServices []*api.AgentServiceRegistration
-	regChecks   []*api.AgentCheckRegistration
-	scripts     []*scriptCheck
-
+	regServices   []*api.AgentServiceRegistration
+	regChecks     []*api.AgentCheckRegistration
 	deregServices []string
 	deregChecks   []string
 }
@@ -230,10 +228,8 @@ type ServiceClient struct {
 
 	opCh chan *operations
 
-	services       map[string]*api.AgentServiceRegistration
-	checks         map[string]*api.AgentCheckRegistration
-	scripts        map[string]*scriptCheck
-	runningScripts map[string]*scriptHandle
+	services map[string]*api.AgentServiceRegistration
+	checks   map[string]*api.AgentCheckRegistration
 
 	explicitlyDeregisteredServices map[string]bool
 	explicitlyDeregisteredChecks   map[string]bool
@@ -284,8 +280,6 @@ func NewServiceClient(consulClient AgentAPI, logger log.Logger, isNomadClient bo
 		opCh:                           make(chan *operations, 8),
 		services:                       make(map[string]*api.AgentServiceRegistration),
 		checks:                         make(map[string]*api.AgentCheckRegistration),
-		scripts:                        make(map[string]*scriptCheck),
-		runningScripts:                 make(map[string]*scriptHandle),
 		explicitlyDeregisteredServices: make(map[string]bool),
 		explicitlyDeregisteredChecks:   make(map[string]bool),
 		allocRegistrations:             make(map[string]*AllocRegistration),
@@ -439,25 +433,16 @@ func (c *ServiceClient) merge(ops *operations) {
 	for _, check := range ops.regChecks {
 		c.checks[check.ID] = check
 	}
-	for _, s := range ops.scripts {
-		c.scripts[s.id] = s
-	}
 	for _, sid := range ops.deregServices {
 		delete(c.services, sid)
 		c.explicitlyDeregisteredServices[sid] = true
 	}
 	for _, cid := range ops.deregChecks {
-		if script, ok := c.runningScripts[cid]; ok {
-			script.cancel()
-			delete(c.scripts, cid)
-			delete(c.runningScripts, cid)
-		}
 		delete(c.checks, cid)
 		c.explicitlyDeregisteredChecks[cid] = true
 	}
 	metrics.SetGauge([]string{"client", "consul", "services"}, float32(len(c.services)))
 	metrics.SetGauge([]string{"client", "consul", "checks"}, float32(len(c.checks)))
-	metrics.SetGauge([]string{"client", "consul", "script_checks"}, float32(len(c.runningScripts)))
 }
 
 // sync enqueued operations.
@@ -593,16 +578,6 @@ func (c *ServiceClient) sync() error {
 		}
 		creg++
 		metrics.IncrCounter([]string{"client", "consul", "check_registrations"}, 1)
-
-		// Handle starting scripts
-		if script, ok := c.scripts[id]; ok {
-			// If it's already running, cancel and replace
-			if oldScript, running := c.runningScripts[id]; running {
-				oldScript.cancel()
-			}
-			// Start and store the handle
-			c.runningScripts[id] = script.run()
-		}
 	}
 
 	// Only log if something was actually synced
@@ -649,7 +624,7 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 		ops.regServices = append(ops.regServices, serviceReg)
 
 		for _, check := range service.Checks {
-			checkID := makeCheckID(id, check)
+			checkID := MakeCheckID(id, check)
 			if check.Type == structs.ServiceCheckScript {
 				return fmt.Errorf("service %q contains invalid check: agent checks do not support scripts", service.Name)
 			}
@@ -782,17 +757,9 @@ func (c *ServiceClient) checkRegs(ops *operations, serviceID string, service *st
 
 	checkIDs := make([]string, 0, numChecks)
 	for _, check := range service.Checks {
-		checkID := makeCheckID(serviceID, check)
+		checkID := MakeCheckID(serviceID, check)
 		checkIDs = append(checkIDs, checkID)
 		if check.Type == structs.ServiceCheckScript {
-			if task.DriverExec == nil {
-				return nil, fmt.Errorf("driver doesn't support script checks")
-			}
-
-			sc := newScriptCheck(task.AllocID, task.Name, checkID, check, task.DriverExec,
-				c.client, c.logger, c.shutdownCh)
-			ops.scripts = append(ops.scripts, sc)
-
 			// Skip getAddress for script checks
 			checkReg, err := createCheckReg(serviceID, checkID, check, "", 0)
 			if err != nil {
@@ -977,7 +944,7 @@ func (c *ServiceClient) RegisterTask(task *TaskServices) error {
 		serviceID := MakeTaskServiceID(task.AllocID, task.Name, service)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
-				checkID := makeCheckID(serviceID, check)
+				checkID := MakeCheckID(serviceID, check)
 				c.checkWatcher.Watch(task.AllocID, task.Name, checkID, check, task.Restarter)
 			}
 		}
@@ -1012,7 +979,7 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 			// Existing service entry removed
 			ops.deregServices = append(ops.deregServices, existingID)
 			for _, check := range existingSvc.Checks {
-				cid := makeCheckID(existingID, check)
+				cid := MakeCheckID(existingID, check)
 				ops.deregChecks = append(ops.deregChecks, cid)
 
 				// Unwatch watched checks
@@ -1040,12 +1007,12 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 		// See if any checks were updated
 		existingChecks := make(map[string]*structs.ServiceCheck, len(existingSvc.Checks))
 		for _, check := range existingSvc.Checks {
-			existingChecks[makeCheckID(existingID, check)] = check
+			existingChecks[MakeCheckID(existingID, check)] = check
 		}
 
 		// Register new checks
 		for _, check := range newSvc.Checks {
-			checkID := makeCheckID(existingID, check)
+			checkID := MakeCheckID(existingID, check)
 			if _, exists := existingChecks[checkID]; exists {
 				// Check is still required. Remove it from the map so it doesn't get
 				// deleted later.
@@ -1101,7 +1068,7 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 		serviceID := MakeTaskServiceID(newTask.AllocID, newTask.Name, service)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
-				checkID := makeCheckID(serviceID, check)
+				checkID := MakeCheckID(serviceID, check)
 				c.checkWatcher.Watch(newTask.AllocID, newTask.Name, checkID, check, newTask.Restarter)
 			}
 		}
@@ -1120,7 +1087,7 @@ func (c *ServiceClient) RemoveTask(task *TaskServices) {
 		ops.deregServices = append(ops.deregServices, id)
 
 		for _, check := range service.Checks {
-			cid := makeCheckID(id, check)
+			cid := MakeCheckID(id, check)
 			ops.deregChecks = append(ops.deregChecks, cid)
 
 			if check.TriggersRestarts() {
@@ -1177,6 +1144,11 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, 
 	return reg, nil
 }
 
+// TODO(tgross): make sure this is properly nil-checked, etc.
+func (c *ServiceClient) UpdateTTL(id, output, status string) error {
+	return c.client.UpdateTTL(id, output, status)
+}
+
 // Shutdown the Consul client. Update running task registrations and deregister
 // agent from Consul. On first call blocks up to shutdownWait before giving up
 // on syncing operations.
@@ -1220,14 +1192,6 @@ func (c *ServiceClient) Shutdown() error {
 		}
 	}
 
-	// Give script checks time to exit (no need to lock as Run() has exited)
-	for _, h := range c.runningScripts {
-		select {
-		case <-h.wait():
-		case <-deadline:
-			return fmt.Errorf("timed out waiting for script checks to run")
-		}
-	}
 	return nil
 }
 
@@ -1285,10 +1249,10 @@ func MakeTaskServiceID(allocID, taskName string, service *structs.Service) strin
 	return fmt.Sprintf("%s%s-%s-%s-%s", nomadTaskPrefix, allocID, taskName, service.Name, service.PortLabel)
 }
 
-// makeCheckID creates a unique ID for a check.
+// MakeCheckID creates a unique ID for a check.
 //
 //  Example Check ID: _nomad-check-434ae42f9a57c5705344974ac38de2aee0ee089d
-func makeCheckID(serviceID string, check *structs.ServiceCheck) string {
+func MakeCheckID(serviceID string, check *structs.ServiceCheck) string {
 	return fmt.Sprintf("%s%s", nomadCheckPrefix, check.Hash(serviceID))
 }
 
