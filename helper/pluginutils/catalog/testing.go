@@ -10,7 +10,15 @@ import (
 
 // TestPluginLoader returns a plugin loader populated only with internal plugins
 func TestPluginLoader(t testing.T) loader.PluginCatalog {
-	return TestPluginLoaderWithOptions(t, "", nil, nil)
+	driverConfigs := []*config.PluginConfig{
+		{
+			Name: "raw_exec",
+			Config: map[string]interface{}{
+				"enabled": true,
+			},
+		},
+	}
+	return TestPluginLoaderWithOptions(t, "", nil, driverConfigs)
 }
 
 // TestPluginLoaderWithOptions allows configuring the plugin loader fully.

@@ -3640,7 +3640,7 @@ func (j *Job) Stopped() bool {
 // HasUpdateStrategy returns if any task group in the job has an update strategy
 func (j *Job) HasUpdateStrategy() bool {
 	for _, tg := range j.TaskGroups {
-		if tg.Update != nil {
+		if !tg.Update.IsEmpty() {
 			return true
 		}
 	}
@@ -3969,8 +3969,8 @@ func (u *UpdateStrategy) Validate() error {
 		multierror.Append(&mErr, fmt.Errorf("Invalid health check given: %q", u.HealthCheck))
 	}
 
-	if u.MaxParallel < 1 {
-		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than one: %d < 1", u.MaxParallel))
+	if u.MaxParallel < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than zero: %d < 0", u.MaxParallel))
 	}
 	if u.Canary < 0 {
 		multierror.Append(&mErr, fmt.Errorf("Canary count can not be less than zero: %d < 0", u.Canary))
@@ -3998,6 +3998,14 @@ func (u *UpdateStrategy) Validate() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+func (u *UpdateStrategy) IsEmpty() bool {
+	if u == nil {
+		return true
+	}
+
+	return u.MaxParallel == 0
 }
 
 // TODO(alexdadgar): Remove once no longer used by the scheduler.

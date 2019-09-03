@@ -670,9 +670,9 @@ func (r *Resources) CanParseReserved() error {
 	return err
 }
 
-// devModeConfig holds the config for the -dev flag
+// devModeConfig holds the config for the -dev and -dev-connect flags
 type devModeConfig struct {
-	// mode flags are set at the command line via -dev=<mode>
+	// mode flags are set at the command line via -dev and -dev-connect
 	defaultMode bool
 	connectMode bool
 
@@ -681,38 +681,31 @@ type devModeConfig struct {
 }
 
 // newDevModeConfig parses the optional string value of the -dev flag
-func newDevModeConfig(s string) (*devModeConfig, error) {
-	if s == "" {
-		return nil, nil // no -dev flag
+func newDevModeConfig(devMode, connectMode bool) (*devModeConfig, error) {
+	if !devMode && !connectMode {
+		return nil, nil
 	}
 	mode := &devModeConfig{}
-	modeFlags := strings.Split(s, ",")
-	for _, modeFlag := range modeFlags {
-		switch modeFlag {
-		case "true": // -dev flag with no params
-			mode.defaultMode = true
-		case "connect":
-			if runtime.GOOS != "linux" {
-				// strictly speaking -dev=connect only binds to the
-				// non-localhost interface, but given its purpose
-				// is to support a feature with network namespaces
-				// we'll return an error here rather than let the agent
-				// come up and fail unexpectedly to run jobs
-				return nil, fmt.Errorf("-dev=connect is only supported on linux.")
-			}
-			u, err := user.Current()
-			if err != nil {
-				return nil, fmt.Errorf(
-					"-dev=connect uses network namespaces and is only supported for root: %v", err)
-			}
-			if u.Uid != "0" {
-				return nil, fmt.Errorf(
-					"-dev=connect uses network namespaces and is only supported for root.")
-			}
-			mode.connectMode = true
-		default:
-			return nil, fmt.Errorf("invalid -dev flag: %q", s)
+	mode.defaultMode = devMode
+	if connectMode {
+		if runtime.GOOS != "linux" {
+			// strictly speaking -dev-connect only binds to the
+			// non-localhost interface, but given its purpose
+			// is to support a feature with network namespaces
+			// we'll return an error here rather than let the agent
+			// come up and fail unexpectedly to run jobs
+			return nil, fmt.Errorf("-dev-connect is only supported on linux.")
 		}
+		u, err := user.Current()
+		if err != nil {
+			return nil, fmt.Errorf(
+				"-dev-connect uses network namespaces and is only supported for root: %v", err)
+		}
+		if u.Uid != "0" {
+			return nil, fmt.Errorf(
+				"-dev-connect uses network namespaces and is only supported for root.")
+		}
+		mode.connectMode = true
 	}
 	err := mode.networkConfig()
 	if err != nil {

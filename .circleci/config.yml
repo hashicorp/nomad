@@ -56,12 +56,10 @@ workflows:
           <<: *IGNORE_FOR_UI_BRANCHES
       - test-rkt:
           <<: *IGNORE_FOR_UI_BRANCHES
+      - test-e2e:
+          <<: *IGNORE_FOR_UI_BRANCHES
       - test-ui
-      # - build-deps-image:
-      #     context: dani-test
-      #     filters:
-      #       branches:
-      #         only: dani/circleci
+      - test-website
 
   website:
     jobs:
@@ -106,8 +104,10 @@ jobs:
     steps:
       - checkout
       - install-protoc
+      - run: sudo apt-get update && sudo apt-get install shellcheck
       - run: make deps lint-deps
       - run: make check
+      - run: make checkscripts
 
   test-container:
     executor: go
@@ -134,6 +134,24 @@ jobs:
           path: /tmp/test-reports
       - store_artifacts:
           path: /tmp/test-reports
+
+  test-e2e:
+    executor: go
+    environment:
+      <<: *COMMON_ENVS
+      GOPATH: /go
+    steps:
+      - checkout
+      - run: make deps
+      - run: make e2e-test
+
+  test-website:
+    executor: go-machine-recent
+    environment:
+      <<: *COMMON_ENVS
+    steps:
+      - checkout
+      - run: make test-website
 
   test-rkt:
     executor: go-machine-recent

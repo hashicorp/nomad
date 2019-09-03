@@ -117,7 +117,7 @@ func (h *allocHealthWatcherHook) init() error {
 
 	// No need to watch allocs for deployments that rely on operators
 	// manually setting health
-	if h.isDeploy && (tg.Update == nil || tg.Update.HealthCheck == structs.UpdateStrategyHealthCheck_Manual) {
+	if h.isDeploy && (tg.Update.IsEmpty() || tg.Update.HealthCheck == structs.UpdateStrategyHealthCheck_Manual) {
 		return nil
 	}
 

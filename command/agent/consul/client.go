@@ -499,6 +499,11 @@ func (c *ServiceClient) sync() error {
 			continue
 		}
 
+		// Ignore if this is a service for a Nomad managed sidecar proxy.
+		if isNomadSidecar(id, c.services) {
+			continue
+		}
+
 		// Unknown Nomad managed service; kill
 		if err := c.client.ServiceDeregister(id); err != nil {
 			if isOldNomadService(id) {
@@ -553,6 +558,11 @@ func (c *ServiceClient) sync() error {
 
 		// Ignore unknown services during probation
 		if inProbation && !c.explicitlyDeregisteredChecks[id] {
+			continue
+		}
+
+		// Ignore if this is a check for a Nomad managed sidecar proxy.
+		if isNomadSidecar(check.ServiceID, c.services) {
 			continue
 		}
 
@@ -694,7 +704,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 	*ServiceRegistration, error) {
 
 	// Get the services ID
-	id := MakeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
+	id := MakeTaskServiceID(task.AllocID, task.Name, service)
 	sreg := &ServiceRegistration{
 		serviceID: id,
 		checkIDs:  make(map[string]struct{}, len(service.Checks)),
@@ -964,7 +974,7 @@ func (c *ServiceClient) RegisterTask(task *TaskServices) error {
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
 	for _, service := range task.Services {
-		serviceID := MakeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
+		serviceID := MakeTaskServiceID(task.AllocID, task.Name, service)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := makeCheckID(serviceID, check)
@@ -987,11 +997,11 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 
 	existingIDs := make(map[string]*structs.Service, len(old.Services))
 	for _, s := range old.Services {
-		existingIDs[MakeTaskServiceID(old.AllocID, old.Name, s, old.Canary)] = s
+		existingIDs[MakeTaskServiceID(old.AllocID, old.Name, s)] = s
 	}
 	newIDs := make(map[string]*structs.Service, len(newTask.Services))
 	for _, s := range newTask.Services {
-		newIDs[MakeTaskServiceID(newTask.AllocID, newTask.Name, s, newTask.Canary)] = s
+		newIDs[MakeTaskServiceID(newTask.AllocID, newTask.Name, s)] = s
 	}
 
 	// Loop over existing Service IDs to see if they have been removed
@@ -1088,7 +1098,7 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
 	for _, service := range newIDs {
-		serviceID := MakeTaskServiceID(newTask.AllocID, newTask.Name, service, newTask.Canary)
+		serviceID := MakeTaskServiceID(newTask.AllocID, newTask.Name, service)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := makeCheckID(serviceID, check)
@@ -1106,7 +1116,7 @@ func (c *ServiceClient) RemoveTask(task *TaskServices) {
 	ops := operations{}
 
 	for _, service := range task.Services {
-		id := MakeTaskServiceID(task.AllocID, task.Name, service, task.Canary)
+		id := MakeTaskServiceID(task.AllocID, task.Name, service)
 		ops.deregServices = append(ops.deregServices, id)
 
 		for _, check := range service.Checks {
@@ -1271,7 +1281,7 @@ func makeAgentServiceID(role string, service *structs.Service) string {
 // Consul.
 //
 //	Example Service ID: _nomad-task-b4e61df9-b095-d64e-f241-23860da1375f-redis-http-http
-func MakeTaskServiceID(allocID, taskName string, service *structs.Service, canary bool) string {
+func MakeTaskServiceID(allocID, taskName string, service *structs.Service) string {
 	return fmt.Sprintf("%s%s-%s-%s-%s", nomadTaskPrefix, allocID, taskName, service.Name, service.PortLabel)
 }
 
@@ -1368,6 +1378,28 @@ func isNomadService(id string) bool {
 func isOldNomadService(id string) bool {
 	const prefix = nomadServicePrefix + "-executor"
 	return strings.HasPrefix(id, prefix)
+}
+
+// isNomadSidecar returns true if the ID matches a sidecar proxy for a Nomad
+// managed service.
+//
+// For example if you have a Connect enabled service with the ID:
+//
+//	_nomad-task-5229c7f8-376b-3ccc-edd9-981e238f7033-cache-redis-cache-db
+//
+// Consul will create a service for the sidecar proxy with the ID:
+//
+//	_nomad-task-5229c7f8-376b-3ccc-edd9-981e238f7033-cache-redis-cache-db-sidecar-proxy
+//
+func isNomadSidecar(id string, services map[string]*api.AgentServiceRegistration) bool {
+	const suffix = "-sidecar-proxy"
+	if !strings.HasSuffix(id, suffix) {
+		return false
+	}
+
+	// Make sure the Nomad managed service for this proxy still exists.
+	_, ok := services[id[:len(id)-len(suffix)]]
+	return ok
 }
 
 // getAddress returns the IP and port to use for a service or check. If no port
