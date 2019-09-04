@@ -21,7 +21,7 @@ type MockConsulOp struct {
 func NewMockConsulOp(op, allocID, name string) MockConsulOp {
 	switch op {
 	case "add", "remove", "update", "alloc_registrations",
-		"add_group", "remove_group", "update_group":
+		"add_group", "remove_group", "update_group", "update_ttl":
 	default:
 		panic(fmt.Errorf("invalid consul op: %s", op))
 	}
@@ -121,6 +121,15 @@ func (m *MockConsulServiceClient) AllocRegistrations(allocID string) (*consul.Al
 	}
 
 	return nil, nil
+}
+
+func (m *MockConsulServiceClient) UpdateTTL(checkID, output, status string) error {
+	// TODO(tgross): this method is here so we can implement the
+	// interface but the locking we need for testing creates a lot
+	// of opportunities for deadlocks in testing that will never
+	// appear in live code.
+	m.logger.Trace("UpdateTTL", "check_id", checkID, "status", status)
+	return nil
 }
 
 func (m *MockConsulServiceClient) GetOps() []MockConsulOp {

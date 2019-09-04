@@ -3,10 +3,14 @@ package allocrunner
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/containernetworking/cni/libcni"
+	"github.com/coreos/go-iptables/iptables"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -30,7 +34,11 @@ const (
 
 	// defaultNomadAllocSubnet is the subnet to use for host local ip address
 	// allocation when not specified by the client
-	defaultNomadAllocSubnet = "172.26.66.0/23"
+	defaultNomadAllocSubnet = "172.26.64.0/20" // end 172.26.79.255
+
+	// cniAdminChainName is the name of the admin iptables chain used to allow
+	// forwarding traffic to allocations
+	cniAdminChainName = "NOMAD-ADMIN"
 )
 
 // bridgeNetworkConfigurator is a NetworkConfigurator which adds the alloc to a
@@ -41,13 +49,18 @@ type bridgeNetworkConfigurator struct {
 	cniConfig   *libcni.CNIConfig
 	allocSubnet string
 	bridgeName  string
+
+	rand   *rand.Rand
+	logger hclog.Logger
 }
 
-func newBridgeNetworkConfigurator(ctx context.Context, bridgeName, ipRange, cniPath string) *bridgeNetworkConfigurator {
+func newBridgeNetworkConfigurator(log hclog.Logger, ctx context.Context, bridgeName, ipRange, cniPath string) *bridgeNetworkConfigurator {
 	b := &bridgeNetworkConfigurator{
 		ctx:         ctx,
 		bridgeName:  bridgeName,
 		allocSubnet: ipRange,
+		rand:        rand.New(rand.NewSource(time.Now().Unix())),
+		logger:      log,
 	}
 	if cniPath == "" {
 		if cniPath = os.Getenv(envCNIPath); cniPath == "" {
@@ -67,19 +80,97 @@ func newBridgeNetworkConfigurator(ctx context.Context, bridgeName, ipRange, cniP
 	return b
 }
 
+// ensureForwardingRules ensures that a forwarding rule is added to iptables
+// to allow traffic inbound to the bridge network
+// // ensureForwardingRules ensures that a forwarding rule is added to iptables
+// to allow traffic inbound to the bridge network
+func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
+	ipt, err := iptables.New()
+	if err != nil {
+		return err
+	}
+
+	if err = ensureChain(ipt, "filter", cniAdminChainName); err != nil {
+		return err
+	}
+
+	if err := ensureFirstChainRule(ipt, cniAdminChainName, b.generateAdminChainRule()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ensureChain ensures that the given chain exists, creating it if missing
+func ensureChain(ipt *iptables.IPTables, table, chain string) error {
+	chains, err := ipt.ListChains(table)
+	if err != nil {
+		return fmt.Errorf("failed to list iptables chains: %v", err)
+	}
+	for _, ch := range chains {
+		if ch == chain {
+			return nil
+		}
+	}
+
+	err = ipt.NewChain(table, chain)
+
+	// if err is for chain already existing return as it is possible another
+	// goroutine created it first
+	if e, ok := err.(*iptables.Error); ok && e.ExitStatus() == 1 {
+		return nil
+	}
+
+	return err
+}
+
+// ensureFirstChainRule ensures the given rule exists as the first rule in the chain
+func ensureFirstChainRule(ipt *iptables.IPTables, chain string, rule []string) error {
+	exists, err := ipt.Exists("filter", chain, rule...)
+	if !exists && err == nil {
+		// iptables rules are 1-indexed
+		err = ipt.Insert("filter", chain, 1, rule...)
+	}
+	return err
+}
+
+// generateAdminChainRule builds the iptables rule that is inserted into the
+// CNI admin chain to ensure traffic forwarding to the bridge network
+func (b *bridgeNetworkConfigurator) generateAdminChainRule() []string {
+	return []string{"-o", b.bridgeName, "-d", b.allocSubnet, "-j", "ACCEPT"}
+}
+
 // Setup calls the CNI plugins with the add action
 func (b *bridgeNetworkConfigurator) Setup(alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
+	if err := b.ensureForwardingRules(); err != nil {
+		return fmt.Errorf("failed to initialize table forwarding rules: %v", err)
+	}
+
 	netconf, err := b.buildNomadNetConfig()
 	if err != nil {
 		return err
 	}
 
-	result, err := b.cniConfig.AddNetworkList(b.ctx, netconf, b.runtimeConf(alloc, spec))
-	if result != nil {
-		result.Print()
+	// Depending on the version of bridge cni plugin used, a known race could occure
+	// where two alloc attempt to create the nomad bridge at the same time, resulting
+	// in one of them to fail. This rety attempts to overcome any
+	const retry = 3
+	for attempt := 1; ; attempt++ {
+		result, err := b.cniConfig.AddNetworkList(b.ctx, netconf, b.runtimeConf(alloc, spec))
+		if err == nil {
+			break
+		}
+
+		b.logger.Warn("failed to configure bridge network", "err", err, "result", result.String(), "attempt", attempt)
+		if attempt == retry {
+			return err
+		}
+
+		// Sleep for 1 second + jitter
+		time.Sleep(time.Second + (time.Duration(b.rand.Int63n(1000)) * time.Millisecond))
 	}
 
-	return err
+	return nil
 
 }
 
@@ -139,7 +230,7 @@ func (b *bridgeNetworkConfigurator) runtimeConf(alloc *structs.Allocation, spec 
 // buildNomadNetConfig generates the CNI network configuration for the bridge
 // networking mode
 func (b *bridgeNetworkConfigurator) buildNomadNetConfig() (*libcni.NetworkConfigList, error) {
-	rendered := fmt.Sprintf(nomadCNIConfigTemplate, b.bridgeName, b.allocSubnet)
+	rendered := fmt.Sprintf(nomadCNIConfigTemplate, b.bridgeName, b.allocSubnet, cniAdminChainName)
 	return libcni.ConfListFromBytes([]byte(rendered))
 }
 
@@ -150,8 +241,8 @@ const nomadCNIConfigTemplate = `{
 		{
 			"type": "bridge",
 			"bridge": "%s",
-			"isDefaultGateway": true,
 			"ipMasq": true,
+			"isGateway": true,
 			"ipam": {
 				"type": "host-local",
 				"ranges": [
@@ -160,15 +251,21 @@ const nomadCNIConfigTemplate = `{
 							"subnet": "%s"
 						}
 					]
+				],
+				"routes": [
+					{ "dst": "0.0.0.0/0" }
 				]
 			}
 		},
 		{
-			"type": "firewall"
+			"type": "firewall",
+			"backend": "iptables",
+			"iptablesAdminChainName": "%s"
 		},
 		{
 			"type": "portmap",
-			"capabilities": {"portMappings": true}
+			"capabilities": {"portMappings": true},
+			"snat": true
 		}
 	]
 }

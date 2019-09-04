@@ -3,6 +3,7 @@
 package allocrunner
 
 import (
+	hclog "github.com/hashicorp/go-hclog"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -14,6 +15,6 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 	return nil, nil
 }
 
-func newNetworkConfigurator(alloc *structs.Allocation, config *clientconfig.Config) NetworkConfigurator {
+func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config *clientconfig.Config) NetworkConfigurator {
 	return &hostNetworkConfigurator{}
 }

@@ -29,6 +29,15 @@ used in, and the resource isolation mechanisms available.
 For details on authoring a task driver plugin, please refer to the [plugin
 authoring guide][plugin_guide].
 
+Task driver resource isolation is intended to provide a degree of separation of
+Nomad client CPU / memory / storage between tasks. Resource isolation
+effectiveness is dependent upon individual task driver implementations and
+underlying client operating systems. Task drivers do include various
+security-related controls, but the Nomad client to task interface should not be
+considered a security boundary. See the [access control guide][acl_guide] for
+more information on how to protect Nomad cluster operations.
+
 [plugin]: /docs/configuration/plugin.html
 [docker_plugin]: /docs/drivers/docker.html#client-requirements
 [plugin_guide]: /docs/internals/plugins/index.html
+[acl_guide]: https://www.nomadproject.io/guides/security/acl.html

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-memdb"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -203,7 +203,9 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Check that our optimistic view is updated
 	out, _ := snap.AllocByID(ws, allocEvict.ID)
-	assert.Equal(structs.AllocDesiredStatusEvict, out.DesiredStatus)
+	if out.DesiredStatus != structs.AllocDesiredStatusEvict && out.DesiredStatus != structs.AllocDesiredStatusStop {
+		assert.Equal(structs.AllocDesiredStatusEvict, out.DesiredStatus)
+	}
 
 	// Verify plan applies cleanly
 	index, err = planWaitFuture(future)
@@ -213,7 +215,10 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	// Lookup the allocation
 	allocOut, err = s1.fsm.State().AllocByID(ws, alloc.ID)
 	assert.Nil(err)
-	assert.Equal(structs.AllocDesiredStatusEvict, allocOut.DesiredStatus)
+	if allocOut.DesiredStatus != structs.AllocDesiredStatusEvict && allocOut.DesiredStatus != structs.AllocDesiredStatusStop {
+		assert.Equal(structs.AllocDesiredStatusEvict, allocOut.DesiredStatus)
+	}
+
 	assert.NotNil(allocOut.Job)
 	assert.True(allocOut.ModifyTime > 0)
 

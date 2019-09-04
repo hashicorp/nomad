@@ -105,6 +105,15 @@ func (tr *TaskRunner) initHooks() {
 			logger:    hookLogger,
 		}))
 	}
+
+	// If there are any script checks, add the hook
+	scriptCheckHook := newScriptCheckHook(scriptCheckHookConfig{
+		alloc:  tr.Alloc(),
+		task:   tr.Task(),
+		consul: tr.consulClient,
+		logger: hookLogger,
+	})
+	tr.runnerHooks = append(tr.runnerHooks, scriptCheckHook)
 }
 
 func (tr *TaskRunner) emitHookError(err error, hookName string) {
