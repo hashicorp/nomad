@@ -259,7 +259,7 @@ func (ar *allocRunner) Run() {
 			ar.logger.Error("prerun failed", "error", err)
 
 			for _, tr := range ar.tasks {
-				tr.MarkFailedDead(fmt.Sprintf("failed to setup runner: %v", err))
+				tr.MarkFailedDead(fmt.Sprintf("failed to setup alloc: %v", err))
 			}
 
 			goto POST

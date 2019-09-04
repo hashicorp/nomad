@@ -114,7 +114,10 @@ resource "aws_instance" "client" {
       "sudo chmod 0755 /usr/local/bin/nomad",
       "sudo chown root:root /usr/local/bin/nomad",
 			"sudo systemctl enable nomad.service",
-      "sudo systemctl start nomad.service"
+      "sudo systemctl start nomad.service",
+			# Install CNI plugins
+			"sudo mkdir -p /opt/cni/bin",
+			"wget -q -O - https://github.com/containernetworking/plugins/releases/download/v0.8.2/cni-plugins-linux-amd64-v0.8.2.tgz | sudo tar -C /opt/cni/bin -xz",
     ]
 
     connection {
