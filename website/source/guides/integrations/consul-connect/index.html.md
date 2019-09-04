@@ -34,11 +34,11 @@ or down or gets rescheduled by Nomad.
 # Nomad Consul Connect Example
 
 The following section walks through an example to enable secure communication
-between a web application and a Redis container. The web application and the
-Redis container are managed by Nomad. Nomad additionally configures Envoy
-proxies to run along side these applications. The web application is configured
-to connect to Redis via localhost and Redis's default port (6379). The proxy is
-managed by Nomad, and handles mTLS communication to the Redis container.
+between a web dashboard and a backend counting service. The web dashboard and
+the counting service are managed by Nomad. Nomad additionally configures Envoy
+proxies to run along side these applications. The dashboard is configured to
+connect to the counting service via localhost on port 9001. The proxy is managed
+by Nomad, and handles mTLS communication to the counting service.
 
 ## Prerequisites
 
@@ -80,7 +80,7 @@ $ sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 
 ## Run the Connect-enabled Services
 
-Once Nomad and Consul are running submit the following Connect-enabled services
+Once Nomad and Consul are running, submit the following Connect-enabled services
 to Nomad by copying the HCL into a file named `connect.nomad` and running:
 `nomad run connect.nomad`
 
