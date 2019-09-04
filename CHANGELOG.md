@@ -2,6 +2,8 @@
 
 IMPROVEMENTS:
  * core: Added host volumes [[GH-6100](https://github.com/hashicorp/nomad/pull/6100)]
+ * core: Exposed network namespace as environment variable in allocation [[GH-6192](https://github.com/hashicorp/nomad/pull/6192)]
+ * core: Added rolling deployments for service jobs by default and max_parallel=0 disables deployments [[GH-6191](https://github.com/hashicorp/nomad/pull/6100)]
  * agent: Allowed the job GC interval to be configured [[GH-5978](https://github.com/hashicorp/nomad/issues/5978)]
  * agent: Added `log_level` to be reloaded on SIGHUP [[GH-5996](https://github.com/hashicorp/nomad/pull/5996)]
  * client: Upgraded `go-getter` to support GCP links [[GH-6215](https://github.com/hashicorp/nomad/pull/6215)]
@@ -15,6 +17,7 @@ IMPROVEMENTS:
 BUG FIXES:
 
  * command/run: Fixed `nomad run ...` on Windows so it works with unprivileged accounts [[GH-6009](https://github.com/hashicorp/nomad/issues/6009)]
+ * drivers: Fixed port mapping for docker and qemu drivers [[GH-6251](https://github.com/hashicorp/nomad/pull/6251)]
  * drivers/docker: Fixed a case where a `nomad alloc exec` would never time out [[GH-6144](https://github.com/hashicorp/nomad/pull/6144)]
  * ui: Fixed navigation via clicking recent allocation row [[GH-6087](https://github.com/hashicorp/nomad/pull/6087)]
  * ui: Fixed links containing IPv6 addresses to include required square brackets [[GH-6007](https://github.com/hashicorp/nomad/pull/6007)]
