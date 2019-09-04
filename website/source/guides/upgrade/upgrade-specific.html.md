@@ -15,6 +15,17 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.10.0
+
+### Deployments
+
+Nomad 0.10 enables rolling upgrade deployments for jobs by default.
+Nomad adds a default update stanza to jobs without one.
+This does not affect existing jobs with an update stanza.
+In pre-0.10.0 releases, jobs without an update stanza would be deployed
+with destructive updates by default. To regain this behavior,
+see [`update stanza`][update-stanza].
+
 ## Nomad 0.9.0
 
 ### Preemption
