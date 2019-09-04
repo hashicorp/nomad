@@ -211,7 +211,9 @@ a host network interface. The `to = 9002` parameter forwards that host port to
 port 9002 inside the network namespace.
 
 This allows you to connect to the web frontend in a browser by visiting
-`http://<host_ip>:9002`.
+`http://<host_ip>:9002` as show below:
+
+[![Count Dashboard][count-dashboard]][count-dashboard]
 
 The web frontend connects to the API service via Consul Connect:
 
@@ -258,5 +260,6 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
  - Only the Docker, exec, and raw exec drivers support network namespaces and
    Connect.
 
+[count-dashboard]: /assets/images/count-dashboard.png
 [download]: https://releases.hashicorp.com/nomad/0.10.0-connect1/
 [hashiconfeu]: https://hashiconfeu.hashicorp.com/schedule/service-mesh-with-consul-connect-and-nomad-0.10
