@@ -15,14 +15,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/circonus"
 	"github.com/armon/go-metrics/datadog"
 	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-checkpoint"
-	"github.com/hashicorp/go-discover"
-	"github.com/hashicorp/go-hclog"
+	checkpoint "github.com/hashicorp/go-checkpoint"
+	discover "github.com/hashicorp/go-discover"
+	hclog "github.com/hashicorp/go-hclog"
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper"
@@ -1203,7 +1203,7 @@ Server Options:
 
   -raft-protocol=<num>
     The Raft protocol version to use. Used for enabling certain Autopilot
-    features. Defaults to 2.
+    features. Defaults to 3.
 
   -retry-join=<address>
     Address of an agent to join at start time with retries enabled.
