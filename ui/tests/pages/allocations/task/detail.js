@@ -13,7 +13,14 @@ import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
 export default create({
   visit: visitable('/allocations/:id/:name'),
 
-  title: text('[data-test-title]'),
+  title: {
+    scope: '[data-test-title]',
+
+    proxyTag: {
+      scope: '[data-test-proxy-tag]',
+    },
+  },
+
   state: text('[data-test-state]'),
   startedAt: text('[data-test-started-at]'),
 

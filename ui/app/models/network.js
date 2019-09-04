@@ -6,7 +6,7 @@ export default Fragment.extend({
   device: attr('string'),
   cidr: attr('string'),
   ip: attr('string'),
+  mode: attr('string'),
   mbits: attr('number'),
-  reservedPorts: array(),
-  dynamicPorts: array(),
+  ports: array(),
 });

@@ -19,8 +19,14 @@ module('Acceptance | allocation detail', function(hooks) {
     server.create('agent');
 
     node = server.create('node');
-    job = server.create('job', { groupsCount: 1, createAllocations: false });
-    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
+    job = server.create('job', {
+      groupsCount: 1,
+      withGroupServices: true,
+      createAllocations: false,
+    });
+    allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
+      clientStatus: 'running',
+    });
 
     // Make sure the node has an unhealthy driver
     node.update({
@@ -134,6 +140,21 @@ module('Acceptance | allocation detail', function(hooks) {
     assert.ok(Allocation.firstUnhealthyTask().hasUnhealthyDriver, 'Warning is shown');
   });
 
+  test('proxy task has a proxy tag', async function(assert) {
+    allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
+      clientStatus: 'running',
+    });
+
+    allocation.task_states.models.forEach(task => {
+      task.kind = 'connect-proxy:task';
+      task.save();
+    });
+
+    await Allocation.visit({ id: allocation.id });
+
+    assert.ok(Allocation.tasks[0].hasProxyTag);
+  });
+
   test('when there are no tasks, an empty state is shown', async function(assert) {
     // Make sure the allocation is pending in order to ensure there are no tasks
     allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'pending' });
@@ -144,6 +165,46 @@ module('Acceptance | allocation detail', function(hooks) {
 
   test('when the allocation has not been rescheduled, the reschedule events section is not rendered', async function(assert) {
     assert.notOk(Allocation.hasRescheduleEvents, 'Reschedule Events section exists');
+  });
+
+  test('ports are listed', async function(assert) {
+    const serverNetwork = allocation.allocatedResources.Shared.Networks[0];
+    const allServerPorts = serverNetwork.ReservedPorts.concat(serverNetwork.DynamicPorts);
+
+    allServerPorts.sortBy('Label').forEach((serverPort, index) => {
+      const renderedPort = Allocation.ports[index];
+
+      assert.equal(
+        renderedPort.dynamic,
+        serverNetwork.ReservedPorts.includes(serverPort) ? 'No' : 'Yes'
+      );
+      assert.equal(renderedPort.name, serverPort.Label);
+      assert.equal(renderedPort.address, `${serverNetwork.IP}:${serverPort.Value}`);
+      assert.equal(renderedPort.to, serverPort.To);
+    });
+  });
+
+  test('services are listed', async function(assert) {
+    const taskGroup = server.schema.taskGroups.findBy({ name: allocation.taskGroup });
+
+    assert.equal(Allocation.services.length, taskGroup.services.length);
+
+    taskGroup.services.models.sortBy('name').forEach((serverService, index) => {
+      const renderedService = Allocation.services[index];
+
+      assert.equal(renderedService.name, serverService.name);
+      assert.equal(renderedService.port, serverService.portLabel);
+      assert.equal(renderedService.tags, (serverService.tags || []).join(', '));
+
+      assert.equal(renderedService.connect, serverService.Connect ? 'Yes' : 'No');
+
+      const upstreams = serverService.Connect.SidecarService.Proxy.Upstreams;
+      const serverUpstreamsString = upstreams
+        .map(upstream => `${upstream.DestinationName}:${upstream.LocalBindPort}`)
+        .join(' ');
+
+      assert.equal(renderedService.upstreams, serverUpstreamsString);
+    });
   });
 
   test('when the allocation is not found, an error message is shown, but the URL persists', async function(assert) {
