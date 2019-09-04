@@ -59,14 +59,7 @@ export default Factory.extend({
           if (group.withRescheduling) {
             server.create('allocation', 'rescheduled', props);
           } else {
-            // FIXME for demonstration only
-            const allocation = server.create('allocation', 'withAllocatedResources', props);
-            const task = allocation.task_states.models[0];
-
-            if (task) {
-              task.kind = 'connect-proxy:task';
-              task.save();
-            }
+            server.create('allocation', props);
           }
         });
     }
