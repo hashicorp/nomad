@@ -142,9 +142,9 @@ func WithConfFile(fileName string) CNIOpt {
 	}
 }
 
-// WithConfList can be used to load network config list directly
+// WithConfListBytes can be used to load network config list directly
 // from byte
-func WithConfList(bytes []byte) CNIOpt {
+func WithConfListBytes(bytes []byte) CNIOpt {
 	return func(c *libcni) error {
 		confList, err := cnilibrary.ConfListFromBytes(bytes)
 		if err != nil {
