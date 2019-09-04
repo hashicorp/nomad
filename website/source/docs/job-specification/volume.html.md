@@ -20,8 +20,7 @@ description: |-
 </table>
 
 The "volume" stanza allows the group to specify that it requires a given volume
-from the cluster. Nomad will automatically handle ensuring that the volume is
-available and mounted into the task.
+from the cluster.
 
 The key of the stanza is the name of the volume as it will be exposed to task
 configuration.
