@@ -19,10 +19,11 @@ standard upgrade flow.
 
 ### Deployments
 
-Nomad 0.10 enables rolling upgrade deployments for jobs by default.
-Nomad adds a default update stanza to jobs without one.
+Nomad 0.10 enables rolling upgrade deployments for jobs by default,
+adding a default update stanza when you create and update jobs
+that do not already have an update stanza present.
 This does not affect existing jobs with an update stanza.
-In pre-0.10.0 releases, jobs without an update stanza would be deployed
+In pre-0.10.0 releases, jobs without an update stanza were deployed
 with destructive updates by default. To regain this behavior,
 see [`update stanza`][update-stanza].
 
