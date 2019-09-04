@@ -150,7 +150,7 @@ func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Al
 		return fmt.Errorf("failed to initialize table forwarding rules: %v", err)
 	}
 
-	if err := b.cni.Load(cni.WithConfListBytes([]byte(b.buildNomadNetConfig()))); err != nil {
+	if err := b.cni.Load(cni.WithConfListBytes(b.buildNomadNetConfig())); err != nil {
 		return err
 	}
 
