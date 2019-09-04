@@ -30,7 +30,7 @@ const (
 
 	// bridgeNetworkAllocIfPrefix is the prefix that is used for the interface
 	// name created inside of the alloc network which is connected to the bridge
-	bridgeNetworkAllocIfPrefix = "eth0"
+	bridgeNetworkAllocIfPrefix = "eth"
 
 	// defaultNomadAllocSubnet is the subnet to use for host local ip address
 	// allocation when not specified by the client
