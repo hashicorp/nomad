@@ -77,6 +77,9 @@ func TestServer(t testing.T, cb func(*Config)) *Server {
 	config.PluginLoader = catalog.TestPluginLoader(t)
 	config.PluginSingletonLoader = singleton.NewSingletonLoader(config.Logger, config.PluginLoader)
 
+	// Disable consul autojoining: tests typically join servers directly
+	config.ConsulConfig.ServerAutoJoin = &f
+
 	// Invoke the callback if any
 	if cb != nil {
 		cb(config)
