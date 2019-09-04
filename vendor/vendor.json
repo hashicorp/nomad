@@ -70,6 +70,7 @@
 		{"path":"github.com/containerd/console","checksumSHA1":"IGtuR58l2zmYRcNf8sPDlCSgovE=","origin":"github.com/opencontainers/runc/vendor/github.com/containerd/console","revision":"459bfaec1fc6c17d8bfb12d0a0f69e7e7271ed2a","revisionTime":"2018-08-23T14:46:37Z"},
 		{"path":"github.com/containerd/continuity/pathdriver","checksumSHA1":"GqIrOttKaO7k6HIaHQLPr3cY7rY=","origin":"github.com/docker/docker/vendor/github.com/containerd/continuity/pathdriver","revision":"320063a2ad06a1d8ada61c94c29dbe44e2d87473","revisionTime":"2018-08-16T08:14:46Z"},
 		{"path":"github.com/containerd/fifo","checksumSHA1":"Ur3lVmFp+HTGUzQU+/ZBolKe8FU=","revision":"3d5202aec260678c48179c56f40e6f38a095738c","revisionTime":"2018-03-07T16:51:37Z"},
+		{"path":"github.com/containerd/go-cni","checksumSHA1":"414xGcva33msbOXs7vUQ4ffeJek=","revision":"d20b7eebc7ee1339cb703c4c18be6fd3fa81ad8f","revisionTime":"2019-09-04T15:50:53Z"},
 		{"path":"github.com/containernetworking/cni/libcni","checksumSHA1":"3CsFN6YsShG9EU2oB9vJIqYTxq4=","revision":"dc953e2fd91f9bc624b03cf9ea3706796bfee920","revisionTime":"2019-06-12T15:24:20Z"},
 		{"path":"github.com/containernetworking/cni/pkg/invoke","checksumSHA1":"Xf2DxXUyjBO9u4LeyDzS38pdL+I=","revision":"dc953e2fd91f9bc624b03cf9ea3706796bfee920","revisionTime":"2019-06-12T15:24:20Z"},
 		{"path":"github.com/containernetworking/cni/pkg/types","checksumSHA1":"Dhi4+8X7U2oVzVkgxPrmLaN8qFI=","revision":"dc953e2fd91f9bc624b03cf9ea3706796bfee920","revisionTime":"2019-06-12T15:24:20Z"},

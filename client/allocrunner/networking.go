@@ -1,6 +1,8 @@
 package allocrunner
 
 import (
+	"context"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -8,8 +10,8 @@ import (
 // NetworkConfigurator sets up and tears down the interfaces, routes, firewall
 // rules, etc for the configured networking mode of the allocation.
 type NetworkConfigurator interface {
-	Setup(*structs.Allocation, *drivers.NetworkIsolationSpec) error
-	Teardown(*structs.Allocation, *drivers.NetworkIsolationSpec) error
+	Setup(context.Context, *structs.Allocation, *drivers.NetworkIsolationSpec) error
+	Teardown(context.Context, *structs.Allocation, *drivers.NetworkIsolationSpec) error
 }
 
 // hostNetworkConfigurator is a noop implementation of a NetworkConfigurator for
@@ -17,9 +19,9 @@ type NetworkConfigurator interface {
 // require further configuration
 type hostNetworkConfigurator struct{}
 
-func (h *hostNetworkConfigurator) Setup(*structs.Allocation, *drivers.NetworkIsolationSpec) error {
+func (h *hostNetworkConfigurator) Setup(context.Context, *structs.Allocation, *drivers.NetworkIsolationSpec) error {
 	return nil
 }
-func (h *hostNetworkConfigurator) Teardown(*structs.Allocation, *drivers.NetworkIsolationSpec) error {
+func (h *hostNetworkConfigurator) Teardown(context.Context, *structs.Allocation, *drivers.NetworkIsolationSpec) error {
 	return nil
 }

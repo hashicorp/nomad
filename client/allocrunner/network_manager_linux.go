@@ -1,7 +1,6 @@
 package allocrunner
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -122,18 +121,18 @@ func netModeToIsolationMode(netMode string) drivers.NetIsolationMode {
 	}
 }
 
-func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config *clientconfig.Config) NetworkConfigurator {
+func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config *clientconfig.Config) (NetworkConfigurator, error) {
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 
 	// Check if network stanza is given
 	if len(tg.Networks) == 0 {
-		return &hostNetworkConfigurator{}
+		return &hostNetworkConfigurator{}, nil
 	}
 
 	switch strings.ToLower(tg.Networks[0].Mode) {
 	case "bridge":
-		return newBridgeNetworkConfigurator(log, context.Background(), config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath)
+		return newBridgeNetworkConfigurator(log, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath)
 	default:
-		return &hostNetworkConfigurator{}
+		return &hostNetworkConfigurator{}, nil
 	}
 }
