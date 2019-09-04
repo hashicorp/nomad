@@ -19,13 +19,13 @@ standard upgrade flow.
 
 ### Deployments
 
-Nomad 0.10 enables rolling upgrade deployments for jobs by default,
-adding a default update stanza when you create and update jobs
-that do not already have an update stanza present.
-This does not affect existing jobs with an update stanza.
-In pre-0.10.0 releases, jobs without an update stanza were deployed
-with destructive updates by default. To regain this behavior,
-see [`update stanza`][update-stanza].
+Nomad 0.10 enables rolling deployments for service jobs by default
+and adds a default update stanza when a service job is created or updated.
+This does not affect jobs with an update stanza.
+In pre-0.10.0 releases, service jobs without an update stanza were deployed
+with destructive updates by default. To regain this behavior and
+disable deployments, set `max_parallel` to 0. 
+For more information, see [`update` stanza][update].
 
 ## Nomad 0.9.0
 
@@ -359,3 +359,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [preemption]: /docs/internals/scheduling/preemption.html
 [task-config]: /docs/job-specification/task.html#config
 [validate]: /docs/commands/job/validate.html
+[update]: /docs/job-specification/update.html
