@@ -4783,6 +4783,14 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 		tg.EphemeralDisk = DefaultEphemeralDisk()
 	}
 
+	for _, service := range tg.Services {
+		service.Canonicalize(job.Name, tg.Name, "group")
+	}
+
+	for _, network := range tg.Networks {
+		network.Canonicalize()
+	}
+
 	for _, task := range tg.Tasks {
 		task.Canonicalize(job, tg)
 	}
