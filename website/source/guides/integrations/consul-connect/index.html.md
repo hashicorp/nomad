@@ -52,9 +52,11 @@ managed by Nomad, and handles mTLS communication to the Redis container.
 
 ### Consul
 
-Connect integration with Nomad requires [Consul 1.6-beta1 or
-later.](https://releases.hashicorp.com/consul/1.6.0-beta1/) The
-Consul agent can be run in dev mode with the following command:
+Connect integration with Nomad requires [Consul 1.6 or
+later.](https://releases.hashicorp.com/consul/1.6.0/) The Consul agent can be
+run in dev mode with the following command:
+
+**Note**: for this demo to work, consul must be in your $PATH
 
 ```sh
 $ consul agent -dev 
@@ -67,15 +69,7 @@ connect to each other. The following steps show how to start a Nomad dev agent
 configured for Connect.
 
 ```sh
-$ go get -u github.com/hashicorp/go-sockaddr/cmd/sockaddr
-$ export DEFAULT_IFACE=$(sockaddr eval 'GetAllInterfaces | sort "default" | unique "name" | attr "name"')
-$ sudo nomad agent -dev -network-interface $DEFAULT_IFACE
-```
-
-Alternatively if you know the network interface Nomad should use:
-
-```sh
-$ sudo nomad agent -dev -network-interface eth0
+$ sudo nomad agent -dev-connect
 ```
 
 ### CNI Plugins
