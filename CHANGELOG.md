@@ -9,6 +9,7 @@ IMPROVEMENTS:
  * cli: Added `-dev-connect` parameter to support running in dev mode with Consul Connect [[GH-6126](https://github.com/hashicorp/nomad/issues/6126)]
  * metrics: Add job status (pending, running, dead) metrics [[GH-6003](https://github.com/hashicorp/nomad/issues/6003)]
  * ui: Added Consul Connect features [[GH-6108](https://github.com/hashicorp/nomad/pull/6108)]
+ * ui: Added allocation filesystem explorer [[GH-5871](https://github.com/hashicorp/nomad/pull/5871)]
  * ui: Added creation time to evaluations table [[GH-6050](https://github.com/hashicorp/nomad/pull/6050)]
 
 BUG FIXES:
