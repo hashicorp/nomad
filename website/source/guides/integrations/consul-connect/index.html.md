@@ -10,31 +10,34 @@ description: |-
 
 ~> **Note** This guide describes a new feature available in the [Nomad 0.10.0
    Connect Technology Preview release][download] of Nomad for [Hashiconf EU
-   2019][hashiconfeu]. This is not intended for production use and has many known
-   [limitations](#limitations).
+   2019][hashiconfeu]. This is not intended for production use and has many
+   known [limitations](#limitations).
 
 [download]: https://releases.hashicorp.com/nomad/0.10.0-connect1/
 [hashiconfeu]: https://hashiconfeu.hashicorp.com/schedule/service-mesh-with-consul-connect-and-nomad-0.10
 
-[Consul Connect](https://www.consul.io/docs/connect/index.html) provides service-to-service connection
-authorization and encryption using mutual Transport Layer Security (TLS). Applications can use sidecar proxies in a service mesh
-configuration to automatically establish TLS connections for inbound and outbound connections
-without being aware of Connect at all.
+[Consul Connect](https://www.consul.io/docs/connect/index.html) provides
+service-to-service connection authorization and encryption using mutual
+Transport Layer Security (TLS). Applications can use sidecar proxies in a
+service mesh configuration to automatically establish TLS connections for
+inbound and outbound connections without being aware of Connect at all.
 
 # Nomad with Consul Connect Integration
 
-Nomad integrates with Consul to provide secure service-to-service communication between
-Nomad jobs and task groups. In order to support Consul Connect, Nomad adds a new networking
-mode for jobs that enables tasks in the same task group to share their networking stack. With
-a few changes to the job specification, job authors can opt into Connect integration. When Connect
-is enabled, Nomad will launch a proxy alongside the application in the job file. The proxy (Envoy)
+Nomad integrates with Consul to provide secure service-to-service communication
+between Nomad jobs and task groups. In order to support Consul Connect, Nomad
+adds a new networking mode for jobs that enables tasks in the same task group to
+share their networking stack. With a few changes to the job specification, job
+authors can opt into Connect integration. When Connect is enabled, Nomad will
+launch a proxy alongside the application in the job file. The proxy (Envoy)
 provides secure communication with other applications in the cluster.
 
-Nomad job specification authors can use Nomad's Consul Connect integration to implement
-[service segmentation](https://www.consul.io/segmentation.html) in a
-microservice architecture running in public clouds without having to directly manage
-TLS certificates. This is transparent to job specification authors as security features
-in Connect continue to work even as the application scales up or down or gets rescheduled by Nomad.
+Nomad job specification authors can use Nomad's Consul Connect integration to
+implement [service segmentation](https://www.consul.io/segmentation.html) in a
+microservice architecture running in public clouds without having to directly
+manage TLS certificates. This is transparent to job specification authors as
+security features in Connect continue to work even as the application scales up
+or down or gets rescheduled by Nomad.
 
 # Nomad Consul Connect Example
 
