@@ -784,3 +784,23 @@ func TestEnvironment_Upstreams(t *testing.T) {
 	require.Equal(t, "127.0.0.1:1234", env["foo"])
 	require.Equal(t, "1234", env["bar"])
 }
+
+func TestEnvironment_SetPortMapEnvs(t *testing.T) {
+	envs := map[string]string{
+		"foo":            "bar",
+		"NOMAD_PORT_ssh": "2342",
+	}
+	ports := map[string]int{
+		"ssh":  22,
+		"http": 80,
+	}
+
+	envs = SetPortMapEnvs(envs, ports)
+
+	expected := map[string]string{
+		"foo":             "bar",
+		"NOMAD_PORT_ssh":  "22",
+		"NOMAD_PORT_http": "80",
+	}
+	require.Equal(t, expected, envs)
+}

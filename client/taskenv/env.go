@@ -786,9 +786,14 @@ func buildUpstreamsEnv(envMap map[string]string, upstreams []structs.ConsulUpstr
 	}
 }
 
-func WithPortMapEnvs(envs map[string]string, ports map[string]int) map[string]string {
+// SetPortMapEnvs sets the PortMap related environment variables on the map
+func SetPortMapEnvs(envs map[string]string, ports map[string]int) map[string]string {
+	if envs == nil {
+		envs = map[string]string{}
+	}
+
 	for portLabel, port := range ports {
-		portEnv := PortPrefix + portLabel
+		portEnv := helper.CleanEnvVar(PortPrefix+portLabel, '_')
 		envs[portEnv] = strconv.Itoa(port)
 	}
 	return envs
