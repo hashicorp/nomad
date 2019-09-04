@@ -263,11 +263,11 @@ func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 	// Join the servers to s1
 	TestJoin(t, s1, s2, s3)
 
-	waitForStableLeadership(t, servers)
+	leader := waitForStableLeadership(t, servers)
 
 	// Add s4 to peers directly
 	addr := fmt.Sprintf("127.0.0.1:%d", s4.config.RPCAddr.Port)
-	future := s1.raft.AddVoter(raft.ServerID(s4.config.NodeID), raft.ServerAddress(addr), 0, 0)
+	future := leader.raft.AddVoter(raft.ServerID(s4.config.NodeID), raft.ServerAddress(addr), 0, 0)
 	if err := future.Error(); err != nil {
 		t.Fatal(err)
 	}
