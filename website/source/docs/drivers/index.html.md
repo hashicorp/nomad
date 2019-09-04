@@ -32,8 +32,8 @@ authoring guide][plugin_guide].
 Task driver resource isolation is intended to provide a degree of separation of
 Nomad client CPU / memory / storage between tasks. Resource isolation
 effectiveness is dependent upon individual task driver implementations and
-underlying client operating systems. Task drivers do include various security-
-related controls, but the Nomad client to task interface should not be
+underlying client operating systems. Task drivers do include various
+security-related controls, but the Nomad client to task interface should not be
 considered a security boundary. See the [access control guide][acl_guide] for
 more information on how to protect Nomad cluster operations.
 
