@@ -728,3 +728,23 @@ func TestEnvironment_InterpolateEmptyOptionalMeta(t *testing.T) {
 	require.Equal("metaopt1val", env.ReplaceEnv("${NOMAD_META_metaopt1}"))
 	require.Empty(env.ReplaceEnv("${NOMAD_META_metaopt2}"))
 }
+
+func TestEnvironment_SetPortMapEnvs(t *testing.T) {
+	envs := map[string]string{
+		"foo":            "bar",
+		"NOMAD_PORT_ssh": "2342",
+	}
+	ports := map[string]int{
+		"ssh":  22,
+		"http": 80,
+	}
+
+	envs = SetPortMapEnvs(envs, ports)
+
+	expected := map[string]string{
+		"foo":             "bar",
+		"NOMAD_PORT_ssh":  "22",
+		"NOMAD_PORT_http": "80",
+	}
+	require.Equal(t, expected, envs)
+}

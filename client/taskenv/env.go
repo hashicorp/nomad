@@ -730,6 +730,19 @@ func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet
 	}
 }
 
+// SetPortMapEnvs sets the PortMap related environment variables on the map
+func SetPortMapEnvs(envs map[string]string, ports map[string]int) map[string]string {
+	if envs == nil {
+		envs = map[string]string{}
+	}
+
+	for portLabel, port := range ports {
+		portEnv := helper.CleanEnvVar(PortPrefix+portLabel, '_')
+		envs[portEnv] = strconv.Itoa(port)
+	}
+	return envs
+}
+
 // SetHostEnvvars adds the host environment variables to the tasks. The filter
 // parameter can be use to filter host environment from entering the tasks.
 func (b *Builder) SetHostEnvvars(filter []string) *Builder {
