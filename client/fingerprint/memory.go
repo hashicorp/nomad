@@ -45,6 +45,7 @@ func (f *MemoryFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 
 		memoryMB := totalMemory / bytesInMB
 
+		// COMPAT(0.10): Unused since 0.9.
 		resp.Resources = &structs.Resources{
 			MemoryMB: int(memoryMB),
 		}
