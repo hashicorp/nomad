@@ -655,6 +655,9 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (docker.CreateContainerOptions, error) {
 
+	// ensure that PortMap variables are populated early on
+	task.Env = taskenv.SetPortMapEnvs(task.Env, driverConfig.PortMap)
+
 	logger := d.logger.With("task_name", task.Name)
 	var c docker.CreateContainerOptions
 	if task.Resources == nil {

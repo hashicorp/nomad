@@ -1412,6 +1412,10 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
+	// Verify that the port environment variables are set
+	require.Contains(t, container.Config.Env, "NOMAD_PORT_main=8080")
+	require.Contains(t, container.Config.Env, "NOMAD_PORT_REDIS=6379")
+
 	// Verify that the correct ports are EXPOSED
 	expectedExposedPorts := map[docker.Port]struct{}{
 		docker.Port("8080/tcp"): {},
@@ -1435,6 +1439,41 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 		docker.Port("6379/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
 	}
 	require.Exactly(t, expectedPortBindings, container.HostConfig.PortBindings)
+}
+
+func TestDockerDriver_CreateContainerConfig_PortsMapping(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, port := dockerTask(t)
+	res := port[0]
+	dyn := port[1]
+	cfg.PortMap = map[string]int{
+		"main":  8080,
+		"REDIS": 6379,
+	}
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	require.Equal(t, "org/repo:0.1", c.Config.Image)
+	require.Contains(t, c.Config.Env, "NOMAD_PORT_main=8080")
+	require.Contains(t, c.Config.Env, "NOMAD_PORT_REDIS=6379")
+
+	// Verify that the correct ports are FORWARDED
+	hostIP := "127.0.0.1"
+	if runtime.GOOS == "windows" {
+		hostIP = ""
+	}
+	expectedPortBindings := map[docker.Port][]docker.PortBinding{
+		docker.Port("8080/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
+		docker.Port("8080/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
+		docker.Port("6379/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
+		docker.Port("6379/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
+	}
+	require.Exactly(t, expectedPortBindings, c.HostConfig.PortBindings)
+
 }
 
 func TestDockerDriver_CleanupContainer(t *testing.T) {
