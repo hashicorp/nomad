@@ -112,19 +112,7 @@ func (g *FileGetter) GetFile(dst string, u *url.URL) error {
 	}
 
 	// Copy
-	srcF, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer srcF.Close()
-
-	dstF, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer dstF.Close()
-
-	_, err = Copy(ctx, dstF, srcF)
+	_, err = copyFile(ctx, dst, path, 0666, g.client.umask())
 	return err
 }
 

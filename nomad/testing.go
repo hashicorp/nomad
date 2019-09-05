@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/version"
 )
 
 var (
@@ -41,7 +42,7 @@ func TestServer(t testing.T, cb func(*Config)) *Server {
 	// Setup the default settings
 	config := DefaultConfig()
 	config.Logger = testlog.HCLogger(t)
-	config.Build = "0.8.0+unittest"
+	config.Build = version.Version + "+unittest"
 	config.DevMode = true
 	nodeNum := atomic.AddUint32(&nodeNumber, 1)
 	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNum)
@@ -75,6 +76,9 @@ func TestServer(t testing.T, cb func(*Config)) *Server {
 	// Set the plugin loaders
 	config.PluginLoader = catalog.TestPluginLoader(t)
 	config.PluginSingletonLoader = singleton.NewSingletonLoader(config.Logger, config.PluginLoader)
+
+	// Disable consul autojoining: tests typically join servers directly
+	config.ConsulConfig.ServerAutoJoin = &f
 
 	// Invoke the callback if any
 	if cb != nil {

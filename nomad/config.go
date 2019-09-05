@@ -401,9 +401,9 @@ func DefaultConfig() *Config {
 	// Disable shutdown on removal
 	c.RaftConfig.ShutdownOnRemove = false
 
-	// Enable interoperability with new raft APIs, requires all servers
-	// to be on raft v1 or higher.
-	c.RaftConfig.ProtocolVersion = 2
+	// Default to Raft v3 to enable new Raft and autopilot features.
+	// Compatible with v2 servers.
+	c.RaftConfig.ProtocolVersion = 3
 
 	return c
 }

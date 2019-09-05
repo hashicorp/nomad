@@ -99,13 +99,20 @@ type NetworkResource struct {
 	MBits         *int
 	ReservedPorts []Port
 	DynamicPorts  []Port
-	Services      []*Service
 }
 
 func (n *NetworkResource) Canonicalize() {
 	if n.MBits == nil {
 		n.MBits = intToPtr(10)
 	}
+}
+
+func (n *NetworkResource) HasPorts() bool {
+	if n == nil {
+		return false
+	}
+
+	return len(n.ReservedPorts)+len(n.DynamicPorts) > 0
 }
 
 // NodeDeviceResource captures a set of devices sharing a common

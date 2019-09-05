@@ -47,6 +47,8 @@ var (
 		Config:  map[string]interface{}{},
 		Factory: func(l hclog.Logger) interface{} { return NewRawExecDriver(l) },
 	}
+
+	errDisabledDriver = fmt.Errorf("raw_exec is disabled")
 )
 
 // PluginLoader maps pre-0.9 client driver options to post-0.9 plugin options.
@@ -307,6 +309,10 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 }
 
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
+	if !d.config.Enabled {
+		return nil, nil, errDisabledDriver
+	}
+
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
 	}

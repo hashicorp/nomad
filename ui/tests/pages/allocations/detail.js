@@ -44,6 +44,7 @@ export default create({
     ports: text('[data-test-ports]'),
 
     hasUnhealthyDriver: isPresent('[data-test-icon="unhealthy-driver"]'),
+    hasProxyTag: isPresent('[data-test-proxy-tag]'),
 
     clickLink: clickable('[data-test-name] a'),
     clickRow: clickable('[data-test-name]'),
@@ -74,6 +75,21 @@ export default create({
 
   preempted: isPresent('[data-test-preemptions]'),
   ...allocations('[data-test-preemptions] [data-test-allocation]', 'preemptions'),
+
+  ports: collection('[data-test-allocation-port]', {
+    dynamic: text('[data-test-allocation-port-is-dynamic]'),
+    name: text('[data-test-allocation-port-name]'),
+    address: text('[data-test-allocation-port-address]'),
+    to: text('[data-test-allocation-port-to]'),
+  }),
+
+  services: collection('[data-test-service]', {
+    name: text('[data-test-service-name]'),
+    port: text('[data-test-service-port]'),
+    tags: text('[data-test-service-tags]'),
+    connect: text('[data-test-service-connect]'),
+    upstreams: text('[data-test-service-upstreams]'),
+  }),
 
   error: {
     isShown: isPresent('[data-test-error]'),

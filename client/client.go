@@ -14,11 +14,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-multierror"
+	hclog "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -1011,6 +1011,15 @@ func (c *Client) restoreState() error {
 	// Load each alloc back
 	for _, alloc := range allocs {
 
+		// COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
+		// See hasLocalState for details.  Skipping suspicious allocs
+		// now.  If allocs should be run, they will be started when the client
+		// gets allocs from servers.
+		if !c.hasLocalState(alloc) {
+			c.logger.Warn("found a alloc without any local state, skipping restore", "alloc_id", alloc.ID)
+			continue
+		}
+
 		//XXX On Restore we give up on watching previous allocs because
 		//    we need the local AllocRunners initialized first. We could
 		//    add a second loop to initialize just the alloc watcher.
@@ -1065,6 +1074,42 @@ func (c *Client) restoreState() error {
 	}
 	c.allocLock.Unlock()
 	return nil
+}
+
+// hasLocalState returns true if we have any other associated state
+// with alloc beyond the task itself
+//
+// Useful for detecting if a potentially completed alloc got resurrected
+// after AR was destroyed.  In such cases, re-running the alloc lead to
+// unexpected reruns and may lead to process and task exhaustion on node.
+//
+// The heuristic used here is an alloc is suspect if we see no other information
+// and no other task/status info is found.
+//
+// Also, an alloc without any client state will not be restored correctly; there will
+// be no tasks processes to reattach to, etc.  In such cases, client should
+// wait until it gets allocs from server to launch them.
+//
+// See:
+//  * https://github.com/hashicorp/nomad/pull/6207
+//  * https://github.com/hashicorp/nomad/issues/5984
+//
+// COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
+func (c *Client) hasLocalState(alloc *structs.Allocation) bool {
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		// corrupt alloc?!
+		return false
+	}
+
+	for _, task := range tg.Tasks {
+		ls, tr, _ := c.stateDB.GetTaskRunnerState(alloc.ID, task.Name)
+		if ls != nil || tr != nil {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c *Client) handleInvalidAllocs(alloc *structs.Allocation, err error) {
@@ -2565,12 +2610,12 @@ func (c *Client) emitStats() {
 }
 
 // setGaugeForMemoryStats proxies metrics for memory specific statistics
-func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *stats.HostStats) {
+func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
 	if !c.config.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "total"}, float32(hStats.Memory.Total), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "available"}, float32(hStats.Memory.Available), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "used"}, float32(hStats.Memory.Used), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "free"}, float32(hStats.Memory.Free), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "total"}, float32(hStats.Memory.Total), baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "available"}, float32(hStats.Memory.Available), baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "used"}, float32(hStats.Memory.Used), baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "free"}, float32(hStats.Memory.Free), baseLabels)
 	}
 
 	if c.config.BackwardsCompatibleMetrics {
@@ -2582,10 +2627,10 @@ func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *stats.HostStats) 
 }
 
 // setGaugeForCPUStats proxies metrics for CPU specific statistics
-func (c *Client) setGaugeForCPUStats(nodeID string, hStats *stats.HostStats) {
+func (c *Client) setGaugeForCPUStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
 	for _, cpu := range hStats.CPU {
 		if !c.config.DisableTaggedMetrics {
-			labels := append(c.baseLabels, metrics.Label{
+			labels := append(baseLabels, metrics.Label{
 				Name:  "cpu",
 				Value: cpu.CPU,
 			})
@@ -2606,10 +2651,10 @@ func (c *Client) setGaugeForCPUStats(nodeID string, hStats *stats.HostStats) {
 }
 
 // setGaugeForDiskStats proxies metrics for disk specific statistics
-func (c *Client) setGaugeForDiskStats(nodeID string, hStats *stats.HostStats) {
+func (c *Client) setGaugeForDiskStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
 	for _, disk := range hStats.DiskStats {
 		if !c.config.DisableTaggedMetrics {
-			labels := append(c.baseLabels, metrics.Label{
+			labels := append(baseLabels, metrics.Label{
 				Name:  "disk",
 				Value: disk.Device,
 			})
@@ -2709,9 +2754,9 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 }
 
 // No labels are required so we emit with only a key/value syntax
-func (c *Client) setGaugeForUptime(hStats *stats.HostStats) {
+func (c *Client) setGaugeForUptime(hStats *stats.HostStats, baseLabels []metrics.Label) {
 	if !c.config.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "uptime"}, float32(hStats.Uptime), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "uptime"}, float32(hStats.Uptime), baseLabels)
 	}
 	if c.config.BackwardsCompatibleMetrics {
 		metrics.SetGauge([]string{"client", "uptime"}, float32(hStats.Uptime))
@@ -2722,11 +2767,18 @@ func (c *Client) setGaugeForUptime(hStats *stats.HostStats) {
 func (c *Client) emitHostStats() {
 	nodeID := c.NodeID()
 	hStats := c.hostStatsCollector.Stats()
+	node := c.Node()
 
-	c.setGaugeForMemoryStats(nodeID, hStats)
-	c.setGaugeForUptime(hStats)
-	c.setGaugeForCPUStats(nodeID, hStats)
-	c.setGaugeForDiskStats(nodeID, hStats)
+	node.Canonicalize()
+	labels := append(c.baseLabels,
+		metrics.Label{Name: "node_status", Value: node.Status},
+		metrics.Label{Name: "node_scheduling_eligibility", Value: node.SchedulingEligibility},
+	)
+
+	c.setGaugeForMemoryStats(nodeID, hStats, labels)
+	c.setGaugeForUptime(hStats, labels)
+	c.setGaugeForCPUStats(nodeID, hStats, labels)
+	c.setGaugeForDiskStats(nodeID, hStats, labels)
 }
 
 // emitClientMetrics emits lower volume client metrics

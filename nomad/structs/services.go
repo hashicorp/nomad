@@ -19,6 +19,8 @@ import (
 )
 
 const (
+	EnvoyBootstrapPath = "${NOMAD_SECRETS_DIR}/envoy_bootstrap.json"
+
 	ServiceCheckHTTP   = "http"
 	ServiceCheckTCP    = "tcp"
 	ServiceCheckScript = "script"
@@ -601,6 +603,11 @@ type ConsulSidecarService struct {
 
 	// Proxy stanza defining the sidecar proxy configuration.
 	Proxy *ConsulProxy
+}
+
+// HasUpstreams checks if the sidecar service has any upstreams configured
+func (s *ConsulSidecarService) HasUpstreams() bool {
+	return s != nil && s.Proxy != nil && len(s.Proxy.Upstreams) > 0
 }
 
 // Copy the stanza recursively. Returns nil if nil.
