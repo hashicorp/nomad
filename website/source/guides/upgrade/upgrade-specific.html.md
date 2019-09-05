@@ -15,6 +15,35 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.10.0
+
+### Deployments
+
+Nomad 0.10 enables rolling deployments for service jobs by default
+and adds a default update stanza when a service job is created or updated.
+This does not affect jobs with an update stanza.
+
+In pre-0.10 releases, when updating a service job without an update stanza,
+all existing allocations are stopped while new allocations start up,
+and this may cause a service degradation or an outage.
+You can regain this behavior and disable deployments by setting `max_parallel` to 0.
+
+For more information, see [`update` stanza][update].
+
+### Raft 3
+Nomad 0.10 defaults to Raft 3 which includes [Autopilot](/guides/operations/autopilot.html), 
+operator-friendly automatic cluster management.
+Once all servers are upgraded and running with Raft protocol version 3, autopilot features are enabled.
+
+If existing servers are still on Raft protocol version 1,
+new servers will need [`raft_protocol`](/docs/configuration/server.html#raft_protocol)
+set to 2, in order to maintain backwards compatibility with
+the old servers during the upgrade.  After the servers have been migrated to
+version 0.10.0 with Raft protocol version 2, `raft_protocol` can be moved up to 3 and the servers restarted
+to match the default.
+
+For more information on upgrading Raft, see [Upgrading to Raft Protocol 3](/guides/upgrade/upgrade-specific.html#upgrading-to-raft-protocol-3).
+
 ## Nomad 0.9.0
 
 ### Preemption
@@ -142,7 +171,7 @@ Raft Protocol versions supported by each Nomad version:
     <td>1</td>
   </tr>
   <tr>
-    <td>0.8</td>
+    <td>0.8 and later</td>
     <td>1, 2, 3</td>
   </tr>
 </table>
@@ -347,3 +376,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [preemption]: /docs/internals/scheduling/preemption.html
 [task-config]: /docs/job-specification/task.html#config
 [validate]: /docs/commands/job/validate.html
+[update]: /docs/job-specification/update.html
