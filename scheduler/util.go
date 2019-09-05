@@ -840,6 +840,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 				DiskMB: int64(newTG.EphemeralDisk.SizeMB),
 				// Since this is an inplace update, we should copy network
 				// information from the original alloc. This is similar to
+				// how we copy network info for task level networks above.
 				Networks: existing.AllocatedResources.Shared.Networks,
 			},
 		}
