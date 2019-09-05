@@ -73,6 +73,9 @@ job "docs" {
   required by all tasks in this group. Overrides a `vault` block set at the
   `job` level.
 
+- `volume` <code>([Volume][]: nil)</code> - Specifies the volumes that are
+  required by tasks within the group.
+
 ## `group` Examples
 
 The following examples only show the `group` stanzas. Remember that the
@@ -134,3 +137,4 @@ group "example" {
 [reschedule]: /docs/job-specification/reschedule.html "Nomad reschedule Job Specification"
 [restart]: /docs/job-specification/restart.html "Nomad restart Job Specification"
 [vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"
+[volume]: /docs/job-specification/volume.html "Nomad volume Job Specification"
