@@ -320,7 +320,7 @@ module('Acceptance | proxy task detail', function(hooks) {
 
     const taskState = allocation.task_states.models[0];
     const task = server.schema.tasks.findBy({ name: taskState.name });
-    task.kind = 'connect-proxy:task';
+    task.update('kind', 'connect-proxy:task');
     task.save();
 
     await Task.visit({ id: allocation.id, name: taskState.name });

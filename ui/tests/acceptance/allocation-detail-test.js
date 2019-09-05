@@ -155,7 +155,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
     const taskState = allocation.task_states.models[0];
     const task = server.schema.tasks.findBy({ name: taskState.name });
-    task.kind = 'connect-proxy:task';
+    task.update('kind', 'connect-proxy:task');
     task.save();
 
     await Allocation.visit({ id: allocation.id });
