@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -17,16 +18,19 @@ import (
 
 func newScriptMock(hb heartbeater, exec interfaces.ScriptExecutor, logger hclog.Logger, interval, timeout time.Duration) *scriptCheck {
 	script := newScriptCheck(&scriptCheckConfig{
-		allocID:  "allocid",
-		taskName: "testtask",
-		agent:    hb,
-		service:  &structs.Service{Name: "xx"},
-		check:    &structs.ServiceCheck{},
+		allocID:   "allocid",
+		taskName:  "testtask",
+		serviceID: "serviceid",
+		check: &structs.ServiceCheck{
+			Interval: interval,
+			Timeout:  timeout,
+		},
+		agent:      hb,
+		driverExec: exec,
+		taskEnv:    &taskenv.TaskEnv{},
+		logger:     logger,
+		shutdownCh: nil,
 	})
-	script.exec = exec
-	script.logger = logger
-	script.Interval = interval
-	script.Timeout = timeout
 	script.callback = newScriptCheckCallback(script)
 	script.lastCheckOk = true
 	return script
