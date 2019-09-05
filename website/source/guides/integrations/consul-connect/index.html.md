@@ -48,7 +48,7 @@ Connect integration with Nomad requires [Consul 1.6 or
 later.](https://releases.hashicorp.com/consul/1.6.0/) The Consul agent can be
 run in dev mode with the following command:
 
-**Note**: for this demo to work, consul must be in your $PATH
+**Note**: for this demo to work, Consul must be in your $PATH
 
 ```sh
 $ consul agent -dev 
