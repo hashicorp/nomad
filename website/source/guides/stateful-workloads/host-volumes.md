@@ -98,7 +98,21 @@ Add the following to the `client` stanza of your Nomad configuration:
 ```
 
 Save this change, and then restart the Nomad service on this client to make the
-Host Volume active.
+Host Volume active. You can verify this with the `nomad node status` command as shown below (please make sure to substitute your own node ID):
+
+```shell
+$ nomad node status -short 1293
+ID           = 12937fa7
+Name         = ip-172-31-15-65
+Class        = <none>
+DC           = dc1
+Drain        = false
+Eligibility  = eligible
+Status       = ready
+Host Volumes = mysql
+Drivers      = docker,exec,java,mock_driver,raw_exec,rkt
+...
+```
 
 ### Step 3: Create the `mysql.nomad` Job File
 
