@@ -10,7 +10,7 @@ description: |-
 # Stateful Workloads
 
 Nomad allows a user to mount persistent data from local or remote storage volumes
-into task environments in a couple of ways—host volume mounts or Docker Volume
+into task environments in a couple of ways — host volume mounts or Docker Volume
 drivers.
 
 Nomad host volumes allow you to mount any directory on the Nomad client into an
