@@ -279,6 +279,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		dur, err := time.ParseDuration(gcInterval)
 		if err != nil {
 			return nil, err
+		} else if dur <= time.Duration(0) {
+			return nil, fmt.Errorf("job_gc_interval should be greater than 0s")
 		}
 		conf.JobGCInterval = dur
 	}
