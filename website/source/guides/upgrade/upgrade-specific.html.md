@@ -31,6 +31,14 @@ For more information, see [`update` stanza][update].
 Nomad 0.10 defaults to Raft 3 which includes [Autopilot](/guides/operations/autopilot.html), 
 operator-friendly automatic cluster management. To enable autopilot, all servers
 in a Nomad cluster must be running with Raft protocol version 3 or later.
+
+If existing servers are still on Raft 1, users will need to set the
+[`raft_protocol`](/docs/configuration/server.html#raft_protocol) option
+for new servers in their `server` stanza to 2, in order to maintain backwards compatibility with
+the old servers during the upgrade.  After the servers have been migrated to
+version 0.10.0 with Raft 2, `raft_protocol` can be moved up to 3 and the servers restarted
+to match the default.
+
 For more information on upgrading Raft, see [Upgrading to Raft Protocol 3](/guides/upgrade/upgrade-specific.html#upgrading-to-raft-protocol-3).
 
 ## Nomad 0.9.0
