@@ -66,7 +66,8 @@ workflows:
       - test-e2e:
           <<: *IGNORE_FOR_UI_BRANCHES
       - test-ui
-      - test-website
+      - test-website:
+          <<: *IGNORE_FOR_UI_BRANCHES
 
   website:
     jobs:
