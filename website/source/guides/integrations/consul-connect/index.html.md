@@ -48,7 +48,7 @@ Connect integration with Nomad requires [Consul 1.6 or
 later.](https://releases.hashicorp.com/consul/1.6.0/) The Consul agent can be
 run in dev mode with the following command:
 
-**Note**: for this demo to work, Consul must be in your $PATH
+**Note**: Nomad's Connect integration requires Consul in your `$PATH`
 
 ```sh
 $ consul agent -dev 
@@ -111,7 +111,7 @@ to Nomad by copying the HCL into a file named `connect.nomad` and running:
 
    group "dashboard" {
      network {
-       mode ="bridge"
+       mode = "bridge"
        port "http" {
          static = 9002
          to     = 9002
@@ -211,7 +211,7 @@ a host network interface. The `to = 9002` parameter forwards that host port to
 port 9002 inside the network namespace.
 
 This allows you to connect to the web frontend in a browser by visiting
-`http://<host_ip>:9002` as show below:
+http://127.0.0.1:9002 as show below:
 
 [![Count Dashboard][count-dashboard]][count-dashboard]
 
@@ -254,9 +254,11 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 
 ## Limitations
 
- - Consul Connect Native is not yet supported
- - Consul Connect HTTP and gRPC checks are not yet supported
- - Consul ACLs are not yet supported
+ - The `consul` binary must be present in Nomad's `$PATH` to run the Envoy
+   proxy sidecar on client nodes.
+ - Consul Connect Native is not yet supported.
+ - Consul Connect HTTP and gRPC checks are not yet supported.
+ - Consul ACLs are not yet supported.
  - Only the Docker, exec, and raw exec drivers support network namespaces and
    Connect.
 
