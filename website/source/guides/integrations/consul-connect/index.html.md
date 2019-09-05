@@ -261,6 +261,8 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
  - Consul ACLs are not yet supported.
  - Only the Docker, exec, and raw exec drivers support network namespaces and
    Connect.
+ - Variable interpolation for group services and checks are not yet supported.
+
 
 [count-dashboard]: /assets/images/count-dashboard.png
 [download]: https://releases.hashicorp.com/nomad/0.10.0-connect1/
