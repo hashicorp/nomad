@@ -27,6 +27,12 @@ with destructive updates by default. To regain this behavior and
 disable deployments, set `max_parallel` to 0. 
 For more information, see [`update` stanza][update].
 
+### Raft 3
+Nomad 0.10 defaults to Raft 3 which includes [Autopilot](/guides/operations/autopilot.html), 
+operator-friendly automatic cluster management. To enable autopilot, all servers
+in a Nomad cluster must be running with Raft protocol version 3 or later.
+For more information on upgrading Raft, see [Upgrading to Raft Protocol 3](/guides/upgrade/upgrade-specific.html#upgrading-to-raft-protocol-3).
+
 ## Nomad 0.9.0
 
 ### Preemption
@@ -154,7 +160,7 @@ Raft Protocol versions supported by each Nomad version:
     <td>1</td>
   </tr>
   <tr>
-    <td>0.8</td>
+    <td>0.8 and later</td>
     <td>1, 2, 3</td>
   </tr>
 </table>
