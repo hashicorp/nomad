@@ -822,7 +822,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 				networks = tr.Networks
 			}
 
-			// Add thhe networks back
+			// Add the networks back
 			resources.Networks = networks
 		}
 
@@ -837,8 +837,10 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks: option.TaskResources,
 			Shared: structs.AllocatedSharedResources{
-				DiskMB:   int64(newTG.EphemeralDisk.SizeMB),
-				Networks: newTG.Networks,
+				DiskMB: int64(newTG.EphemeralDisk.SizeMB),
+				// Since this is an inplace update, we should copy network
+				// information from the original alloc. This is similar to
+				Networks: existing.AllocatedResources.Shared.Networks,
 			},
 		}
 
