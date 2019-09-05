@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Stateful Workloads with Nomad Host Volumes"
-sidebar_current: "guides-stateful-workloads"
+sidebar_current: "guides-stateful-workloads-host-volumes"
 description: |-
   There are multiple approaches to deploying stateful applications in Nomad.
   This guide uses Nomad Host to Volumes deploy a MySQL database.
