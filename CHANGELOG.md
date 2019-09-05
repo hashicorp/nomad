@@ -20,7 +20,7 @@ IMPROVEMENTS:
  * cli: Added `-dev-connect` parameter to support running in dev mode with Consul Connect [[GH-6126](https://github.com/hashicorp/nomad/issues/6126)]
  * client: Upgraded `go-getter` to support GCP links [[GH-6215](https://github.com/hashicorp/nomad/pull/6215)]
  * client: Remove consul service stanza from `job init --short` jobspec [[GH-6179](https://github.com/hashicorp/nomad/issues/6179)]
- * drivers: Exposed namespace as NOMAD_NAMESPACE environment variable in running tasks [[GH-6192](https://github.com/hashicorp/nomad/pull/6192)]
+ * drivers: Exposed namespace as `NOMAD_NAMESPACE` environment variable in running tasks [[GH-6192](https://github.com/hashicorp/nomad/pull/6192)]
  * metrics: Added job status (pending, running, dead) metrics [[GH-6003](https://github.com/hashicorp/nomad/issues/6003)]
  * metrics: Added status and scheduling ability to client metrics [[GH-6130](https://github.com/hashicorp/nomad/issues/6130)]
  * server: Added an option to configure job GC interval [[GH-5978](https://github.com/hashicorp/nomad/issues/5978)]
