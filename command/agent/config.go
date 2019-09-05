@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"runtime"
@@ -704,6 +705,10 @@ func newDevModeConfig(devMode, connectMode bool) (*devModeConfig, error) {
 		if u.Uid != "0" {
 			return nil, fmt.Errorf(
 				"-dev-connect uses network namespaces and is only supported for root.")
+		}
+		// Ensure Consul is on PATH
+		if _, err := exec.LookPath("consul"); err != nil {
+			return nil, fmt.Errorf("-dev-connect requires a 'consul' binary in Nomad's $PATH")
 		}
 		mode.connectMode = true
 	}
