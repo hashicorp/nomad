@@ -4,6 +4,7 @@ import Fragment from 'ember-data-model-fragments/fragment';
 export default Fragment.extend({
   name: attr('string'),
   driver: attr('string'),
+  kind: attr('string'),
 
   reservedMemory: attr('number'),
   reservedCPU: attr('number'),
