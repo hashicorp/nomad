@@ -69,7 +69,7 @@ It is valid only within the context of a connect stanza.
 
 - `resources` <code>[resources][]</code> - Resources needed by this task.
 
-- `meta` `(map:nil )` - Arbitary metadata associated with this task that's opaque to Nomad.
+- `meta` `(map:nil )` - Arbitrary metadata associated with this task that's opaque to Nomad.
 
 - `logs` <code>([Logs][]: nil)</code> - Specifies logging configuration for the
   `stdout` and `stderr` of the task.
