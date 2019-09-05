@@ -211,7 +211,7 @@ a host network interface. The `to = 9002` parameter forwards that host port to
 port 9002 inside the network namespace.
 
 This allows you to connect to the web frontend in a browser by visiting
-http://<host ip>:9002 as show below:
+`http://<host_ip>:9002` as show below:
 
 [![Count Dashboard][count-dashboard]][count-dashboard]
 
