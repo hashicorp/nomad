@@ -9,7 +9,6 @@ export default Fragment.extend({
 
   name: attr('string'),
   state: attr('string'),
-  kind: attr('string'),
   startedAt: attr('date'),
   finishedAt: attr('date'),
   failed: attr('boolean'),
@@ -17,8 +16,8 @@ export default Fragment.extend({
   isActive: none('finishedAt'),
   isRunning: and('isActive', 'allocation.isRunning'),
 
-  isConnectProxy: computed('kind', function() {
-    return (this.kind || '').startsWith('connect-proxy:');
+  isConnectProxy: computed('task.kind', function() {
+    return (this.get('task.kind') || '').startsWith('connect-proxy:');
   }),
 
   task: computed('allocation.taskGroup.tasks.[]', function() {

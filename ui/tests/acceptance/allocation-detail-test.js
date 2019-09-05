@@ -1,7 +1,7 @@
 import { run } from '@ember/runloop';
 import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
-import { module, test } from 'qunit';
+import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
@@ -140,7 +140,7 @@ module('Acceptance | allocation detail', function(hooks) {
     assert.ok(Allocation.firstUnhealthyTask().hasUnhealthyDriver, 'Warning is shown');
   });
 
-  test('proxy task has a proxy tag', async function(assert) {
+  skip('proxy task has a proxy tag', async function(assert) {
     allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
       clientStatus: 'running',
     });
