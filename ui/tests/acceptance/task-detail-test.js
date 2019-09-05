@@ -1,5 +1,5 @@
 import { currentURL } from '@ember/test-helpers';
-import { module, test } from 'qunit';
+import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
@@ -326,7 +326,7 @@ module('Acceptance | proxy task detail', function(hooks) {
     await Task.visit({ id: allocation.id, name: taskState.name });
   });
 
-  test('a proxy tag is shown', async function(assert) {
+  skip('a proxy tag is shown', async function(assert) {
     assert.ok(Task.title.proxyTag.isPresent);
   });
 });
