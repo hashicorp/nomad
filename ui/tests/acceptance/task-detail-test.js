@@ -1,5 +1,5 @@
 import { currentURL } from '@ember/test-helpers';
-import { module, skip, test } from 'qunit';
+import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
@@ -317,15 +317,16 @@ module('Acceptance | proxy task detail', function(hooks) {
     server.create('node');
     server.create('job', { createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
-    task = allocation.task_states.models[0];
 
-    task.kind = 'connect-proxy:task';
+    const taskState = allocation.task_states.models[0];
+    const task = server.schema.tasks.findBy({ name: taskState.name });
+    task.update('kind', 'connect-proxy:task');
     task.save();
 
-    await Task.visit({ id: allocation.id, name: task.name });
+    await Task.visit({ id: allocation.id, name: taskState.name });
   });
 
-  skip('a proxy tag is shown', async function(assert) {
+  test('a proxy tag is shown', async function(assert) {
     assert.ok(Task.title.proxyTag.isPresent);
   });
 });
