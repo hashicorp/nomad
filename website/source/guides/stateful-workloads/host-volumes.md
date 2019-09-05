@@ -13,11 +13,26 @@ Nomad Host Volumes can manage storage for stateful workloads running inside your
 Nomad cluster. This guide walks you through deploying a MySQL workload to a node
 containing supporting storage.
 
+Nomad host volumes provide a more workload-agnostic way to specify resources,
+available for Nomad drivers like `exec`, `java`, and `docker`. See the
+[`host_volume` specification][host_volume spec] for more information about
+supported drivers.
+
+Nomad is also aware of host volumes during the scheduling process, enabling it
+to make scheduling decisions based on the availability of host volumes on a
+specific client.
+
+This can be contrasted with Nomad support for Docker volumes. Because Docker
+volumes are managed outside of Nomad and the Nomad scheduled is not aware of
+them, Docker volumes have to either be deployed to all clients or operators have
+to use an additional, manually-maintained constraint to inform the scheduler
+where they are present.
+
 ## Reference Material
 
-- [Nomad `host_volume` specification](/docs/configuration/client.html#host_volume-stanza)
-- [Nomad `volume` specification](/docs/job-specification/volume.html)
-- [Nomad `volume_mount` specification](/docs/job-specification/volume_mount.html)
+- [Nomad `host_volume` specification][host_volume spec]
+- [Nomad `volume` specification][volume spec]
+- [Nomad `volume_mount` specification][volume_mount spec]
 
 ## Estimated Time to Complete
 
@@ -26,7 +41,7 @@ containing supporting storage.
 ## Challenge
 
 Deploy a MySQL database that needs to be able to persist data without using
-Docker volumes.
+operator-configured Docker volumes.
 
 ## Solution
 
@@ -69,7 +84,7 @@ $ brew install mysql-client
 ### Step 1: Create a Directory to Use as a Mount Target
 
 On a Nomad client node in your cluster, create a directory that will be used for
-persisting the MySQL data.  For this example, let's create the directory
+persisting the MySQL data. For this example, let's create the directory
 `/opt/mysql/data`.
 
 ```bash
@@ -98,10 +113,12 @@ Add the following to the `client` stanza of your Nomad configuration:
 ```
 
 Save this change, and then restart the Nomad service on this client to make the
-Host Volume active. You can verify this with the `nomad node status` command as shown below (please make sure to substitute your own node ID):
+Host Volume active. While still on the client, you can easily verify that the
+host volume is configured by using the `nomad node status` command as shown
+below:
 
 ```shell
-$ nomad node status -short 1293
+$ nomad node status -short -self
 ID           = 12937fa7
 Name         = ip-172-31-15-65
 Class        = <none>
@@ -302,8 +319,11 @@ Verify no jobs are running in the cluster:
 $ nomad status
 No running jobs
 ```
-You can optionally stop the nomad service on whichever node you are on and move
-to another node to simulate a node failure.
+
+In more advanced cases, the directory backing the host volume could be a mounted
+network filesystem, like NFS, or cluster-aware filesystem, like glusterFS. This
+can enable more complex, automatic failure-recovery scenarios in the event of a
+node failure.
 
 ### Step 8: Re-deploy the Database
 
@@ -350,6 +370,9 @@ and restart the Nomad service on that client
 no longer require.
 
 
+[Prerequisite 1]: #prerequisite-1-install-the-mysql-client
+[host_volume spec]: /docs/configuration/client.html#host_volume-stanza
+[volume spec]: /docs/job-specification/volume.html
+[volume_mount spec]: /docs/job-specification/volume_mount.html
 [password-security]: https://dev.mysql.com/doc/refman/8.0/en/password-security.html
 [repo]: https://github.com/hashicorp/nomad/tree/master/terraform#provision-a-nomad-cluster-in-the-cloud
-[Prerequisite 1]: #prerequisite-1-install-the-mysql-client
