@@ -92,8 +92,8 @@ Add the following to the `client` stanza of your Nomad configuration:
 
 ```hcl
   host_volume "mysql" {
-    path="/data/mysql"
-    read_only="false"
+    path      = "/data/mysql"
+    read_only = false
   }
 ```
 
@@ -113,11 +113,13 @@ job "mysql-server" {
 
   group "mysql-server" {
     count = 1
-    volume "mysql" { 
-      type="host" 
-      config { 
-        source = "mysql" 
-      } 
+
+    volume "mysql" {
+      type = "host"
+
+      config {
+        source = "mysql"
+      }
     }
 
     restart {
@@ -129,9 +131,10 @@ job "mysql-server" {
 
     task "mysql-server" {
       driver = "docker"
+
       volume_mount {
-        volume="mysql"
-        destination="/var/lib/mysql"
+        volume      = "mysql"
+        destination = "/var/lib/mysql"
       }
 
       env = {
