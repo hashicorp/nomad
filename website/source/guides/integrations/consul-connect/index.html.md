@@ -8,50 +8,47 @@ description: |-
 
 # Consul Connect
 
-~> **Note** This guide describes a new feature available in the [Nomad 0.10.0
-   Connect Technology Preview release][download] of Nomad for [Hashiconf EU
-   2019][hashiconfeu]. This is not intended for production use and has many known
-   [limitations](#limitations).
-
-[download]: https://releases.hashicorp.com/nomad/0.10.0-connect1/
-[hashiconfeu]: https://hashiconfeu.hashicorp.com/schedule/service-mesh-with-consul-connect-and-nomad-0.10
-
-[Consul Connect](https://www.consul.io/docs/connect/index.html) provides service-to-service connection
-authorization and encryption using mutual Transport Layer Security (TLS). Applications can use sidecar proxies in a service mesh
-configuration to automatically establish TLS connections for inbound and outbound connections
-without being aware of Connect at all.
+[Consul Connect](https://www.consul.io/docs/connect/index.html) provides
+service-to-service connection authorization and encryption using mutual
+Transport Layer Security (TLS). Applications can use sidecar proxies in a
+service mesh configuration to automatically establish TLS connections for
+inbound and outbound connections without being aware of Connect at all.
 
 # Nomad with Consul Connect Integration
 
-Nomad integrates with Consul to provide secure service-to-service communication between
-Nomad jobs and task groups. In order to support Consul Connect, Nomad adds a new networking
-mode for jobs that enables tasks in the same task group to share their networking stack. With
-a few changes to the job specification, job authors can opt into Connect integration. When Connect
-is enabled, Nomad will launch a proxy alongside the application in the job file. The proxy (Envoy)
+Nomad integrates with Consul to provide secure service-to-service communication
+between Nomad jobs and task groups. In order to support Consul Connect, Nomad
+adds a new networking mode for jobs that enables tasks in the same task group to
+share their networking stack. With a few changes to the job specification, job
+authors can opt into Connect integration. When Connect is enabled, Nomad will
+launch a proxy alongside the application in the job file. The proxy (Envoy)
 provides secure communication with other applications in the cluster.
 
-Nomad job specification authors can use Nomad's Consul Connect integration to implement
-[service segmentation](https://www.consul.io/segmentation.html) in a
-microservice architecture running in public clouds without having to directly manage
-TLS certificates. This is transparent to job specification authors as security features
-in Connect continue to work even as the application scales up or down or gets rescheduled by Nomad.
+Nomad job specification authors can use Nomad's Consul Connect integration to
+implement [service segmentation](https://www.consul.io/segmentation.html) in a
+microservice architecture running in public clouds without having to directly
+manage TLS certificates. This is transparent to job specification authors as
+security features in Connect continue to work even as the application scales up
+or down or gets rescheduled by Nomad.
 
 # Nomad Consul Connect Example
 
 The following section walks through an example to enable secure communication
-between a web application and a Redis container. The web application and the
-Redis container are managed by Nomad. Nomad additionally configures Envoy
-proxies to run along side these applications. The web application is configured
-to connect to Redis via localhost and Redis's default port (6379). The proxy is
-managed by Nomad, and handles mTLS communication to the Redis container.
+between a web dashboard and a backend counting service. The web dashboard and
+the counting service are managed by Nomad. Nomad additionally configures Envoy
+proxies to run along side these applications. The dashboard is configured to
+connect to the counting service via localhost on port 9001. The proxy is managed
+by Nomad, and handles mTLS communication to the counting service.
 
 ## Prerequisites
 
 ### Consul
 
-Connect integration with Nomad requires [Consul 1.6-beta1 or
-later.](https://releases.hashicorp.com/consul/1.6.0-beta1/) The
-Consul agent can be run in dev mode with the following command:
+Connect integration with Nomad requires [Consul 1.6 or
+later.](https://releases.hashicorp.com/consul/1.6.0/) The Consul agent can be
+run in dev mode with the following command:
+
+**Note**: Nomad's Connect integration requires Consul in your `$PATH`
 
 ```sh
 $ consul agent -dev 
@@ -64,15 +61,7 @@ connect to each other. The following steps show how to start a Nomad dev agent
 configured for Connect.
 
 ```sh
-$ go get -u github.com/hashicorp/go-sockaddr/cmd/sockaddr
-$ export DEFAULT_IFACE=$(sockaddr eval 'GetAllInterfaces | sort "default" | unique "name" | attr "name"')
-$ sudo nomad agent -dev -network-interface $DEFAULT_IFACE
-```
-
-Alternatively if you know the network interface Nomad should use:
-
-```sh
-$ sudo nomad agent -dev -network-interface eth0
+$ sudo nomad agent -dev-connect
 ```
 
 ### CNI Plugins
@@ -91,7 +80,7 @@ $ sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 
 ## Run the Connect-enabled Services
 
-Once Nomad and Consul are running submit the following Connect-enabled services
+Once Nomad and Consul are running, submit the following Connect-enabled services
 to Nomad by copying the HCL into a file named `connect.nomad` and running:
 `nomad run connect.nomad`
 
@@ -122,7 +111,7 @@ to Nomad by copying the HCL into a file named `connect.nomad` and running:
 
    group "dashboard" {
      network {
-       mode ="bridge"
+       mode = "bridge"
        port "http" {
          static = 9002
          to     = 9002
@@ -222,7 +211,9 @@ a host network interface. The `to = 9002` parameter forwards that host port to
 port 9002 inside the network namespace.
 
 This allows you to connect to the web frontend in a browser by visiting
-`http://<host_ip>:9002`.
+`http://<host_ip>:9002` as show below:
+
+[![Count Dashboard][count-dashboard]][count-dashboard]
 
 The web frontend connects to the API service via Consul Connect:
 
@@ -263,13 +254,16 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 
 ## Limitations
 
-Prior to Nomad 0.10.0's final release, the Consul Connect integration has
-several limitations that have yet to be addressed:
-
- - Jobs with a `connect` stanza may not update properly. Workaround this by
-   stopping and starting Connect-enabled jobs.
+ - The `consul` binary must be present in Nomad's `$PATH` to run the Envoy
+   proxy sidecar on client nodes.
+ - Consul Connect Native is not yet supported.
+ - Consul Connect HTTP and gRPC checks are not yet supported.
+ - Consul ACLs are not yet supported.
  - Only the Docker, exec, and raw exec drivers support network namespaces and
    Connect.
- - Not all Connect configuration options in Consul are available in Nomad.
- - The Envoy proxy is not yet configurable and is hardcoded to use 100 MHz of
-   cpu and 300 MB of memory.
+ - Variable interpolation for group services and checks are not yet supported.
+
+
+[count-dashboard]: /assets/images/count-dashboard.png
+[download]: https://releases.hashicorp.com/nomad/0.10.0-connect1/
+[hashiconfeu]: https://hashiconfeu.hashicorp.com/schedule/service-mesh-with-consul-connect-and-nomad-0.10
