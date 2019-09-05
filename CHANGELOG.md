@@ -1,10 +1,15 @@
 ## 0.10.0 (Unreleased)
 
 FEATURES:
- * **Consul Connect**: seamless deployments of sidecar applications with secured service-to-service communication and bridge networking
- * **Network Namespaces**:  secure intra-task communication over loopback interface for tasks within a group.
- * **Host Volumes**: expanded support of stateful workloads through locally mounted storage volumes 
- * **UI Allocation File Explorer**: enhanced operability with a visual file system explorer for allocations
+ * **Consul Connect**: Nomad can register Consul Connect services and manage
+   running an Envoy proxy sidecar to provide secured service-to-service
+   communication.
+ * **Network Namespaces**: Task Groups may now define a shared network
+   namespace. Each allocation will receive its own network namespace and
+   loopback interface. Ports may be forwarded from the host into the network
+   namespace.
+ * **Host Volumes**: Nomad expanded support of stateful workloads through locally mounted storage volumes.
+ * **UI Allocation File Explorer**: Nomad UI enhanced operability with a visual file system explorer for allocations.
 
 IMPROVEMENTS:
  * core: Exposed network namespace as environment variable in allocation [[GH-6192](https://github.com/hashicorp/nomad/pull/6192)]
