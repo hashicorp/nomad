@@ -116,6 +116,7 @@ func (h *scriptCheckHook) Update(ctx context.Context, req *interfaces.TaskUpdate
 	if task == nil {
 		return fmt.Errorf("task %q not found in updated alloc", h.task.Name)
 	}
+	h.alloc = req.Alloc
 	h.task = task
 	h.taskEnv = req.TaskEnv
 
