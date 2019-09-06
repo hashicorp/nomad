@@ -8,6 +8,11 @@ apt-get install -y \
 	      silversearcher-ag \
 	      vim
 
+# Install Chrome for running tests (in headless mode)
+wget -qO- - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+echo "deb https://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list
+apt-get update
+apt-get install -y google-chrome-stable
 
 # Set hostname -> IP to make advertisement work as expected
 ip=$(ip route get 1 | awk '{print $NF; exit}')
