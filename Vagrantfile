@@ -5,6 +5,8 @@
 LINUX_BASE_BOX = "bento/ubuntu-16.04"
 FREEBSD_BASE_BOX = "freebsd/FreeBSD-11.2-STABLE"
 
+LINUX_IP_ADDRESS = "10.199.0.200"
+
 Vagrant.configure(2) do |config|
 	# Compilation and development boxes
 	config.vm.define "linux", autostart: true, primary: true do |vmCfg|
@@ -21,6 +23,10 @@ Vagrant.configure(2) do |config|
 		vmCfg.vm.provision "shell",
 			privileged: false,
 			path: './scripts/vagrant-linux-unpriv-bootstrap.sh'
+
+		vmCfg.vm.provider "virtualbox" do |_|
+			vmCfg.vm.network :private_network, ip: LINUX_IP_ADDRESS
+		end
 	end
 
 	config.vm.define "linux-ui", autostart: false, primary: false do |vmCfg|
