@@ -252,7 +252,6 @@ dev: vendorfmt changelogfmt ## Build for the current development platform
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-<<<<<<< HEAD
 		GO_TAGS="ent $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
@@ -350,6 +349,13 @@ clean: ## Remove build artifacts
 	@rm -rf "$(PROJECT_ROOT)/bin/"
 	@rm -rf "$(PROJECT_ROOT)/pkg/"
 	@rm -f "$(GOPATH)/bin/nomad"
+
+.PHONY: travis
+travis: ## Run Nomad test suites with output to prevent timeouts under Travis CI
+	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
+		make generate-structs; \
+	fi
+	@"$(PROJECT_ROOT)/scripts/travis.sh"
 
 .PHONY: testcluster
 testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if necessary.
