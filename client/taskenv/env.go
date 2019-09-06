@@ -57,6 +57,9 @@ const (
 	// Datacenter is the environment variable for passing the datacenter in which the alloc is running.
 	Datacenter = "NOMAD_DC"
 
+	// Namespace is the environment variable for passing the namespace in which the alloc is running.
+	Namespace = "NOMAD_NAMESPACE"
+
 	// Region is the environment variable for passing the region in which the alloc is running.
 	Region = "NOMAD_REGION"
 
@@ -82,6 +85,9 @@ const (
 
 	// MetaPrefix is the prefix for passing task meta data.
 	MetaPrefix = "NOMAD_META_"
+
+	// UpstreamPrefix is the prefix for passing upstream IP and ports to the alloc
+	UpstreamPrefix = "NOMAD_UPSTREAM_"
 
 	// VaultToken is the environment variable for passing the Vault token
 	VaultToken = "VAULT_TOKEN"
@@ -303,6 +309,7 @@ type Builder struct {
 	taskName         string
 	allocIndex       int
 	datacenter       string
+	namespace        string
 	region           string
 	allocId          string
 	allocName        string
@@ -337,6 +344,9 @@ type Builder struct {
 	// are set. While a bit round about, this enables us to return device hook
 	// environment variables without having to hardcode the name of the hook.
 	deviceHookName string
+
+	// upstreams from the group connect enabled services
+	upstreams []structs.ConsulUpstream
 
 	mu *sync.RWMutex
 }
@@ -407,6 +417,9 @@ func (b *Builder) Build() *TaskEnv {
 	if b.datacenter != "" {
 		envMap[Datacenter] = b.datacenter
 	}
+	if b.namespace != "" {
+		envMap[Namespace] = b.namespace
+	}
 	if b.region != "" {
 		envMap[Region] = b.region
 
@@ -421,6 +434,9 @@ func (b *Builder) Build() *TaskEnv {
 	for k, v := range b.otherPorts {
 		envMap[k] = v
 	}
+
+	// Build the Consul Connect upstream env vars
+	buildUpstreamsEnv(envMap, b.upstreams)
 
 	// Build the Vault Token
 	if b.injectVaultToken && b.vaultToken != "" {
@@ -559,6 +575,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 	b.groupName = alloc.TaskGroup
 	b.allocIndex = int(alloc.Index())
 	b.jobName = alloc.Job.Name
+	b.namespace = alloc.Namespace
 
 	// Set meta
 	combined := alloc.Job.CombinedTaskMeta(alloc.TaskGroup, b.taskName)
@@ -584,8 +601,10 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, k)] = v
 	}
 
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+
 	// COMPAT(0.11): Remove in 0.11
-	b.otherPorts = make(map[string]string, len(alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks)*2)
+	b.otherPorts = make(map[string]string, len(tg.Tasks)*2)
 	if alloc.AllocatedResources != nil {
 		// Populate task resources
 		if tr, ok := alloc.AllocatedResources.Tasks[b.taskName]; ok {
@@ -640,6 +659,17 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 			}
 		}
 	}
+
+	upstreams := []structs.ConsulUpstream{}
+	for _, svc := range tg.Services {
+		if svc.Connect.HasSidecar() && svc.Connect.SidecarService.HasUpstreams() {
+			upstreams = append(upstreams, svc.Connect.SidecarService.Proxy.Upstreams...)
+		}
+	}
+	if len(upstreams) > 0 {
+		b.SetUpstreams(upstreams)
+	}
+
 	return b
 }
 
@@ -728,6 +758,45 @@ func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet
 		// Default to host's
 		envMap[PortPrefix+p.Label] = portStr
 	}
+}
+
+// SetUpstreams defined by connect enabled group services
+func (b *Builder) SetUpstreams(upstreams []structs.ConsulUpstream) *Builder {
+	b.mu.Lock()
+	b.upstreams = upstreams
+	b.mu.Unlock()
+	return b
+}
+
+// buildUpstreamsEnv builds NOMAD_UPSTREAM_{IP,PORT,ADDR}_{destination} vars
+func buildUpstreamsEnv(envMap map[string]string, upstreams []structs.ConsulUpstream) {
+	// Proxy sidecars always bind to localhost
+	const ip = "127.0.0.1"
+	for _, u := range upstreams {
+		port := strconv.Itoa(u.LocalBindPort)
+		envMap[UpstreamPrefix+"IP_"+u.DestinationName] = ip
+		envMap[UpstreamPrefix+"PORT_"+u.DestinationName] = port
+		envMap[UpstreamPrefix+"ADDR_"+u.DestinationName] = net.JoinHostPort(ip, port)
+
+		// Also add cleaned version
+		cleanName := helper.CleanEnvVar(u.DestinationName, '_')
+		envMap[UpstreamPrefix+"ADDR_"+cleanName] = net.JoinHostPort(ip, port)
+		envMap[UpstreamPrefix+"IP_"+cleanName] = ip
+		envMap[UpstreamPrefix+"PORT_"+cleanName] = port
+	}
+}
+
+// SetPortMapEnvs sets the PortMap related environment variables on the map
+func SetPortMapEnvs(envs map[string]string, ports map[string]int) map[string]string {
+	if envs == nil {
+		envs = map[string]string{}
+	}
+
+	for portLabel, port := range ports {
+		portEnv := helper.CleanEnvVar(PortPrefix+portLabel, '_')
+		envs[portEnv] = strconv.Itoa(port)
+	}
+	return envs
 }
 
 // SetHostEnvvars adds the host environment variables to the tasks. The filter

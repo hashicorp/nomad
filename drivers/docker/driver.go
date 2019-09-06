@@ -266,7 +266,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	startAttempts := 0
 CREATE:
-	container, err := d.createContainer(client, containerCfg, &driverConfig)
+	container, err := d.createContainer(client, containerCfg, driverConfig.Image)
 	if err != nil {
 		d.logger.Error("failed to create container", "error", err)
 		return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("failed to create container: %v", err), err)
@@ -368,7 +368,7 @@ type createContainerClient interface {
 // createContainer creates the container given the passed configuration. It
 // attempts to handle any transient Docker errors.
 func (d *Driver) createContainer(client createContainerClient, config docker.CreateContainerOptions,
-	driverConfig *TaskConfig) (*docker.Container, error) {
+	image string) (*docker.Container, error) {
 	// Create a container
 	attempted := 0
 CREATE:
@@ -378,7 +378,7 @@ CREATE:
 	}
 
 	d.logger.Debug("failed to create container", "container_name",
-		config.Name, "image_name", driverConfig.Image, "image_id", config.Config.Image,
+		config.Name, "image_name", image, "image_id", config.Config.Image,
 		"attempt", attempted+1, "error", createErr)
 
 	// Volume management tools like Portworx may not have detached a volume
@@ -655,6 +655,9 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (docker.CreateContainerOptions, error) {
 
+	// ensure that PortMap variables are populated early on
+	task.Env = taskenv.SetPortMapEnvs(task.Env, driverConfig.PortMap)
+
 	logger := d.logger.With("task_name", task.Name)
 	var c docker.CreateContainerOptions
 	if task.Resources == nil {
@@ -869,11 +872,22 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	hostConfig.ReadonlyRootfs = driverConfig.ReadonlyRootfs
 
+	// set the docker network mode
 	hostConfig.NetworkMode = driverConfig.NetworkMode
+
+	// if the driver config does not specify a network mode then try to use the
+	// shared alloc network
 	if hostConfig.NetworkMode == "" {
-		// docker default
-		logger.Debug("networking mode not specified; using default", "network_mode", defaultNetworkMode)
-		hostConfig.NetworkMode = defaultNetworkMode
+		if task.NetworkIsolation != nil && task.NetworkIsolation.Path != "" {
+			// find the previously created parent container to join networks with
+			netMode := fmt.Sprintf("container:%s", task.NetworkIsolation.Labels[dockerNetSpecLabelKey])
+			logger.Debug("configuring network mode for task group", "network_mode", netMode)
+			hostConfig.NetworkMode = netMode
+		} else {
+			// docker default
+			logger.Debug("networking mode not specified; using default")
+			hostConfig.NetworkMode = "default"
+		}
 	}
 
 	// Setup port mapping and exposed ports
@@ -1312,7 +1326,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 	const execTerminatingTimeout = 3 * time.Second
 	start := time.Now()
 	var res *docker.ExecInspect
-	for res == nil || res.Running || time.Since(start) > execTerminatingTimeout {
+	for (res == nil || res.Running) && time.Since(start) <= execTerminatingTimeout {
 		res, err = client.InspectExec(exec.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to inspect exec result: %v", err)

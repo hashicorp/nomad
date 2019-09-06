@@ -611,6 +611,39 @@ func TestReconciler_Destructive(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 9), destructiveResultsToNames(r.destructiveUpdate))
 }
 
+// Tests the reconciler properly handles destructive upgrading allocations when max_parallel=0
+func TestReconciler_DestructiveMaxParallel(t *testing.T) {
+	job := mock.MaxParallelJob()
+
+	// Create 10 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		destructive:       10,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				DestructiveUpdate: 10,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 9), destructiveResultsToNames(r.destructiveUpdate))
+}
+
 // Tests the reconciler properly handles destructive upgrading allocations while
 // scaling up
 func TestReconciler_Destructive_ScaleUp(t *testing.T) {

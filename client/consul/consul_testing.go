@@ -7,6 +7,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/nomad/structs"
 	testing "github.com/mitchellh/go-testing-interface"
 )
 
@@ -14,17 +15,20 @@ import (
 type MockConsulOp struct {
 	Op      string // add, remove, or update
 	AllocID string
-	Task    string
+	Name    string // task or group name
 }
 
-func NewMockConsulOp(op, allocID, task string) MockConsulOp {
-	if op != "add" && op != "remove" && op != "update" && op != "alloc_registrations" {
+func NewMockConsulOp(op, allocID, name string) MockConsulOp {
+	switch op {
+	case "add", "remove", "update", "alloc_registrations",
+		"add_group", "remove_group", "update_group", "update_ttl":
+	default:
 		panic(fmt.Errorf("invalid consul op: %s", op))
 	}
 	return MockConsulOp{
 		Op:      op,
 		AllocID: allocID,
-		Task:    task,
+		Name:    name,
 	}
 }
 
@@ -48,6 +52,33 @@ func NewMockConsulServiceClient(t testing.T, logger log.Logger) *MockConsulServi
 		logger: logger,
 	}
 	return &m
+}
+
+func (m *MockConsulServiceClient) RegisterGroup(alloc *structs.Allocation) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	m.logger.Trace("RegisterGroup", "alloc_id", alloc.ID, "num_services", len(tg.Services))
+	m.ops = append(m.ops, NewMockConsulOp("add_group", alloc.ID, alloc.TaskGroup))
+	return nil
+}
+
+func (m *MockConsulServiceClient) UpdateGroup(_, alloc *structs.Allocation) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	m.logger.Trace("UpdateGroup", "alloc_id", alloc.ID, "num_services", len(tg.Services))
+	m.ops = append(m.ops, NewMockConsulOp("update_group", alloc.ID, alloc.TaskGroup))
+	return nil
+}
+
+func (m *MockConsulServiceClient) RemoveGroup(alloc *structs.Allocation) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	m.logger.Trace("RemoveGroup", "alloc_id", alloc.ID, "num_services", len(tg.Services))
+	m.ops = append(m.ops, NewMockConsulOp("remove_group", alloc.ID, alloc.TaskGroup))
+	return nil
 }
 
 func (m *MockConsulServiceClient) UpdateTask(old, newSvcs *consul.TaskServices) error {
@@ -90,6 +121,15 @@ func (m *MockConsulServiceClient) AllocRegistrations(allocID string) (*consul.Al
 	}
 
 	return nil, nil
+}
+
+func (m *MockConsulServiceClient) UpdateTTL(checkID, output, status string) error {
+	// TODO(tgross): this method is here so we can implement the
+	// interface but the locking we need for testing creates a lot
+	// of opportunities for deadlocks in testing that will never
+	// appear in live code.
+	m.logger.Trace("UpdateTTL", "check_id", checkID, "status", status)
+	return nil
 }
 
 func (m *MockConsulServiceClient) GetOps() []MockConsulOp {

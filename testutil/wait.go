@@ -92,6 +92,39 @@ func WaitForLeader(t testing.T, rpc rpcFn) {
 	})
 }
 
+// WaitForVotingMembers blocks until autopilot promotes all server peers
+// to be voting members.
+//
+// Useful for tests that change cluster topology (e.g. kill a node)
+// that should wait until cluster is stable.
+func WaitForVotingMembers(t testing.T, rpc rpcFn, nPeers int) {
+	WaitForResult(func() (bool, error) {
+		args := &structs.GenericRequest{}
+		args.AllowStale = true
+		args.Region = "global"
+		args.Namespace = structs.DefaultNamespace
+		resp := structs.RaftConfigurationResponse{}
+		err := rpc("Operator.RaftGetConfiguration", args, &resp)
+		if err != nil {
+			return false, fmt.Errorf("failed to query raft: %v", err)
+		}
+
+		if len(resp.Servers) != nPeers {
+			return false, fmt.Errorf("expected %d peers found %d", nPeers, len(resp.Servers))
+		}
+
+		for _, s := range resp.Servers {
+			if !s.Voter {
+				return false, fmt.Errorf("found nonvoting server: %v", s)
+			}
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("failed to wait until voting members: %v", err)
+	})
+}
+
 func RegisterJobWithToken(t testing.T, rpc rpcFn, job *structs.Job, token string) {
 	WaitForResult(func() (bool, error) {
 		args := &structs.JobRegisterRequest{}

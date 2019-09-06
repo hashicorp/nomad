@@ -63,6 +63,12 @@ data "aws_ami" "main" {
     name   = "name"
     values = ["nomad-e2e-*"]
   }
+
+  filter {
+    name   = "tag:OS"
+    values = ["Ubuntu"]
+  }
+
 }
 
 output "servers" {

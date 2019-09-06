@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/require"
 )
@@ -81,6 +82,9 @@ var basicConfig = &Config{
 		GCMaxAllocs:           50,
 		NoHostUUID:            helper.BoolToPtr(false),
 		DisableRemoteExec:     true,
+		HostVolumes: []*structs.ClientHostVolumeConfig{
+			{Name: "tmp", Path: "/tmp"},
+		},
 	},
 	Server: &ServerConfig{
 		Enabled:                true,
@@ -93,6 +97,7 @@ var basicConfig = &Config{
 		EnabledSchedulers:      []string{"test"},
 		NodeGCThreshold:        "12h",
 		EvalGCThreshold:        "12h",
+		JobGCInterval:          "3m",
 		JobGCThreshold:         "12h",
 		DeploymentGCThreshold:  "12h",
 		HeartbeatGrace:         30 * time.Second,

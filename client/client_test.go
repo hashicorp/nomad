@@ -10,10 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-memdb"
+	memdb "github.com/hashicorp/go-memdb"
+	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -27,7 +29,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/hashicorp/go-hclog"
+	hclog "github.com/hashicorp/go-hclog"
 	cstate "github.com/hashicorp/nomad/client/state"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/stretchr/testify/require"
@@ -1643,4 +1645,45 @@ func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
 		un := client.Node()
 		assert.EqualValues(t, n, un)
 	}
+}
+
+// COMPAT(0.12): remove once upgrading from 0.9.5 is no longer supported
+func TestClient_hasLocalState(t *testing.T) {
+	t.Parallel()
+
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
+
+	c.stateDB = state.NewMemDB(c.logger)
+
+	t.Run("plain alloc", func(t *testing.T) {
+		alloc := mock.BatchAlloc()
+		c.stateDB.PutAllocation(alloc)
+
+		require.False(t, c.hasLocalState(alloc))
+	})
+
+	t.Run("alloc with a task with local state", func(t *testing.T) {
+		alloc := mock.BatchAlloc()
+		taskName := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks[0].Name
+		ls := &trstate.LocalState{}
+
+		c.stateDB.PutAllocation(alloc)
+		c.stateDB.PutTaskRunnerLocalState(alloc.ID, taskName, ls)
+
+		require.True(t, c.hasLocalState(alloc))
+	})
+
+	t.Run("alloc with a task with task state", func(t *testing.T) {
+		alloc := mock.BatchAlloc()
+		taskName := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks[0].Name
+		ts := &structs.TaskState{
+			State: structs.TaskStateRunning,
+		}
+
+		c.stateDB.PutAllocation(alloc)
+		c.stateDB.PutTaskState(alloc.ID, taskName, ts)
+
+		require.True(t, c.hasLocalState(alloc))
+	})
 }

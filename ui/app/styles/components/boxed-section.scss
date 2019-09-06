@@ -18,6 +18,10 @@
     .pull-right {
       margin-left: auto;
     }
+
+    &.is-compact {
+      padding: 0.75em;
+    }
   }
 
   .boxed-section-head {

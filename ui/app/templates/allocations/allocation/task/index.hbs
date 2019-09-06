@@ -1,5 +1,5 @@
 {{title "Task " model.name}}
-{{partial "allocations/allocation/task/subnav"}}
+{{task-subnav task=model}}
 <section class="section">
   {{#if error}}
     <div data-test-inline-error class="notification is-danger">
@@ -17,7 +17,10 @@
 
   <h1 class="title" data-test-title>
     {{model.name}}
-    <span class="bumper-left tag {{model.stateClass}}" data-test-state>{{model.state}}</span>
+    {{#if model.isConnectProxy}}
+      {{proxy-tag class="bumper-left"}}
+    {{/if}}
+    <span class="{{unless model.isConnectProxy "bumper-left"}} tag {{model.stateClass}}" data-test-state>{{model.state}}</span>
     {{#if model.isRunning}}
       {{two-step-button
         data-test-restart
@@ -74,13 +77,13 @@
     </div>
   </div>
 
-  {{#if ports.length}}
+  {{#if network.ports.length}}
     <div class="boxed-section" data-test-task-addresses>
       <div class="boxed-section-head">
         Addresses
       </div>
       <div class="boxed-section-body is-full-bleed">
-        {{#list-table source=ports as |t|}}
+        {{#list-table source=network.ports as |t|}}
           {{#t.head}}
             <th class="is-1">Dynamic?</th>
             <th class="is-2">Name</th>

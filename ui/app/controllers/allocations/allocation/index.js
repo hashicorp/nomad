@@ -29,6 +29,12 @@ export default Controller.extend(Sortable, {
     return null;
   }),
 
+  network: alias('model.allocatedResources.networks.firstObject'),
+
+  services: computed('model.taskGroup.services.@each.name', function() {
+    return this.get('model.taskGroup.services').sortBy('name');
+  }),
+
   onDismiss() {
     this.set('error', null);
   },

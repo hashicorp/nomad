@@ -41,6 +41,10 @@
 
     + * {
       margin-top: 5em;
+
+      &.is-closer {
+        margin-top: calc(3.5em + 1px);
+      }
     }
 
     @media #{$mq-hidden-gutter} {

@@ -98,6 +98,9 @@ export default Factory.extend({
   // When true, allocations for this job will fail and reschedule, randomly succeeding or not
   withRescheduling: false,
 
+  // When true, task groups will have services
+  withGroupServices: false,
+
   // When true, only task groups and allocations are made
   shallow: false,
 
@@ -118,6 +121,7 @@ export default Factory.extend({
       job,
       createAllocations: job.createAllocations,
       withRescheduling: job.withRescheduling,
+      withServices: job.withGroupServices,
       shallow: job.shallow,
     });
 

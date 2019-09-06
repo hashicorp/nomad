@@ -341,7 +341,54 @@ func TestHTTP_FS_Cat(t *testing.T) {
 	})
 }
 
-func TestHTTP_FS_Stream(t *testing.T) {
+func TestHTTP_FS_Stream_NoFollow(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), nil)
+		addAllocToClient(s, a, terminalClientAlloc)
+
+		offset := 4
+		expectation := base64.StdEncoding.EncodeToString(
+			[]byte(defaultLoggerMockDriverStdout[len(defaultLoggerMockDriverStdout)-offset:]))
+		path := fmt.Sprintf("/v1/client/fs/stream/%s?path=alloc/logs/web.stdout.0&offset=%d&origin=end&follow=false",
+			a.ID, offset)
+
+		p, _ := io.Pipe()
+		req, err := http.NewRequest("GET", path, p)
+		require.Nil(err)
+		respW := testutil.NewResponseRecorder()
+		doneCh := make(chan struct{})
+		go func() {
+			_, err = s.Server.Stream(respW, req)
+			require.Nil(err)
+			close(doneCh)
+		}()
+
+		out := ""
+		testutil.WaitForResult(func() (bool, error) {
+			output, err := ioutil.ReadAll(respW)
+			if err != nil {
+				return false, err
+			}
+
+			out += string(output)
+			return strings.Contains(out, expectation), fmt.Errorf("%q doesn't contain %q", out, expectation)
+		}, func(err error) {
+			t.Fatal(err)
+		})
+
+		select {
+		case <-doneCh:
+		case <-time.After(1 * time.Second):
+			t.Fatal("should close but did not")
+		}
+
+		p.Close()
+	})
+}
+
+func TestHTTP_FS_Stream_Follow(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {

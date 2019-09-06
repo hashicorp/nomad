@@ -49,6 +49,7 @@ The following table summarizes the ACL Rules that are available for constructing
 | [node](#node-rules) | Node-level catalog operations                |
 | [operator](#operator-rules) | Cluster-level operations in the Operator API |
 | [quota](#quota-rules) | Quota specification related operations |
+| [host_volume](#host_volume-rules) | host_volume related operations |
 
 Constructing rules from these policies is covered in detail in the Rule Specification section below.
 
@@ -355,6 +356,46 @@ ACL policies and global ACL tokens. All other regions asynchronously replicate f
 region. When replication is interrupted, the existing data is used for request processing and may
 become stale. When the authoritative region is reachable, replication will resume and repair any
 inconsistency.
+
+### host_volume Rules
+
+The `host_volume` policy controls access to mounting and accessing host volumes.
+
+```
+host_volume "*" {
+  policy = "write"
+}
+
+host_volume "prod-*" {
+  policy = "deny"
+}
+
+host_volume "prod-ca-certificates" {
+  policy = "read"
+}
+```
+
+Host volume rules are keyed to the volume names that they apply to. As with
+namespaces, you may use wildcards to reuse the same configuration across a set
+of volumes. In addition to the coarse grained policy specification, the
+`host_volume` stanza allows setting a more fine grained list of capabilities.
+This includes:
+
+- `deny` - Do not allow a user to mount a volume in any way.
+- `mount-readonly` - Only allow the user to mount the volume as `readonly`
+- `mount-readwrite` - Allow the user to mount the volume as `readonly` or `readwrite` if the `host_volume` configuration allows it.
+
+The course grained policy permissions are shorthand for the fine grained capabilities:
+
+- `deny` policy - ["deny"]
+- `read` policy - ["mount-readonly"]
+- `write` policy - ["mount-readonly", "mount-readwrite"]
+
+When both the policy short hand and a capabilities list are provided, the capabilities are merged.
+
+**Note:** Host Volume policies are applied when attempting to _use_ a volume,
+however, if a user has access to the Node API, they will be able to see that a
+volume exists in the `nomad node status` output regardless of this configuration.
 
 ### Resetting ACL Bootstrap
 

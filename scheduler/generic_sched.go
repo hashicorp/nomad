@@ -489,6 +489,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 						DiskMB: int64(tg.EphemeralDisk.SizeMB),
 					},
 				}
+				if option.AllocResources != nil {
+					resources.Shared.Networks = option.AllocResources.Networks
+				}
 
 				// Create an allocation for this
 				alloc := &structs.Allocation{
@@ -506,8 +509,11 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					AllocatedResources: resources,
 					DesiredStatus:      structs.AllocDesiredStatusRun,
 					ClientStatus:       structs.AllocClientStatusPending,
+					// SharedResources is considered deprecated, will be removed in 0.11.
+					// It is only set for compat reasons.
 					SharedResources: &structs.Resources{
-						DiskMB: tg.EphemeralDisk.SizeMB,
+						DiskMB:   tg.EphemeralDisk.SizeMB,
+						Networks: resources.Shared.Networks,
 					},
 				}
 

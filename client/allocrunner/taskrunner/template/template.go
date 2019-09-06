@@ -508,8 +508,12 @@ func templateRunner(config *TaskTemplateManagerConfig) (
 		return nil, nil, err
 	}
 
-	// Set Nomad's environment variables
-	runner.Env = config.EnvBuilder.Build().All()
+	// Set Nomad's environment variables.
+	// consul-template falls back to the host process environment if a
+	// variable isn't explicitly set in the configuration, so we need
+	// to mask the environment out to ensure only the task env vars are
+	// available.
+	runner.Env = maskProcessEnv(config.EnvBuilder.Build().All())
 
 	// Build the lookup
 	idMap := runner.TemplateConfigMapping()
@@ -525,13 +529,27 @@ func templateRunner(config *TaskTemplateManagerConfig) (
 	return runner, lookup, nil
 }
 
+// maskProcessEnv masks away any environment variable not found in task env.
+// It manipulates the parameter directly and returns it without copying.
+func maskProcessEnv(env map[string]string) map[string]string {
+	procEnvs := os.Environ()
+	for _, e := range procEnvs {
+		ekv := strings.SplitN(e, "=", 2)
+		if _, ok := env[ekv[0]]; !ok {
+			env[ekv[0]] = ""
+		}
+	}
+
+	return env
+}
+
 // parseTemplateConfigs converts the tasks templates in the config into
 // consul-templates
-func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[ctconf.TemplateConfig]*structs.Template, error) {
+func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.TemplateConfig]*structs.Template, error) {
 	allowAbs := config.ClientConfig.ReadBoolDefault(hostSrcOption, true)
 	taskEnv := config.EnvBuilder.Build()
 
-	ctmpls := make(map[ctconf.TemplateConfig]*structs.Template, len(config.Templates))
+	ctmpls := make(map[*ctconf.TemplateConfig]*structs.Template, len(config.Templates))
 	for _, tmpl := range config.Templates {
 		var src, dest string
 		if tmpl.SourcePath != "" {
@@ -555,6 +573,10 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[ctconf.Templat
 		ct.Contents = &tmpl.EmbeddedTmpl
 		ct.LeftDelim = &tmpl.LeftDelim
 		ct.RightDelim = &tmpl.RightDelim
+		ct.FunctionBlacklist = config.ClientConfig.TemplateConfig.FunctionBlacklist
+		if !config.ClientConfig.TemplateConfig.DisableSandbox {
+			ct.SandboxPath = &config.TaskDir
+		}
 
 		// Set the permissions
 		if tmpl.Perms != "" {
@@ -567,7 +589,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[ctconf.Templat
 		}
 		ct.Finalize()
 
-		ctmpls[*ct] = tmpl
+		ctmpls[ct] = tmpl
 	}
 
 	return ctmpls, nil
@@ -576,7 +598,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[ctconf.Templat
 // newRunnerConfig returns a consul-template runner configuration, setting the
 // Vault and Consul configurations based on the clients configs.
 func newRunnerConfig(config *TaskTemplateManagerConfig,
-	templateMapping map[ctconf.TemplateConfig]*structs.Template) (*ctconf.Config, error) {
+	templateMapping map[*ctconf.TemplateConfig]*structs.Template) (*ctconf.Config, error) {
 
 	cc := config.ClientConfig
 	conf := ctconf.DefaultConfig()
@@ -585,7 +607,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	flat := ctconf.TemplateConfigs(make([]*ctconf.TemplateConfig, 0, len(templateMapping)))
 	for ctmpl := range templateMapping {
 		local := ctmpl
-		flat = append(flat, &local)
+		flat = append(flat, local)
 	}
 	conf.Templates = &flat
 

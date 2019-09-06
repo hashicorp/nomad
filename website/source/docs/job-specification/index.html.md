@@ -129,5 +129,20 @@ job "docs" {
 }
 ```
 
+Note that starting with Nomad 0.10, the `service` stanza can also be specified at the group level. This
+allows job specification authors to create and register services with Consul Connect support. A service
+stanza specified at the group level must include a [connect][] stanza, like the following snippet.
+
+```hcl
+service {
+       name = "count-api"
+       port = "9001"
+
+       connect {
+         sidecar_service {}
+       }
+     }
+```
 [hcl]: https://github.com/hashicorp/hcl "HashiCorp Configuration Language"
 [job]: /docs/job-specification/job.html "Nomad job Job Specification"
+[connect]: /docs/job-specification/connect.html "Connect Stanza Specification"

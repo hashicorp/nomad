@@ -1,5 +1,5 @@
 import { currentURL } from '@ember/test-helpers';
-import { module, test } from 'qunit';
+import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
@@ -23,7 +23,7 @@ module('Acceptance | task detail', function(hooks) {
   });
 
   test('/allocation/:id/:task_name should name the task and list high-level task information', async function(assert) {
-    assert.ok(Task.title.includes(task.name), 'Task name');
+    assert.ok(Task.title.text.includes(task.name), 'Task name');
     assert.ok(Task.state.includes(task.state), 'Task state');
 
     assert.ok(
@@ -305,5 +305,28 @@ module('Acceptance | task detail (not running)', function(hooks) {
   test('when the allocation for a task is not running, the resource utilization graphs are replaced by an empty message', async function(assert) {
     assert.equal(Task.resourceCharts.length, 0, 'No resource charts');
     assert.equal(Task.resourceEmptyMessage, "Task isn't running", 'Empty message is appropriate');
+  });
+});
+
+module('Acceptance | proxy task detail', function(hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(async function() {
+    server.create('agent');
+    server.create('node');
+    server.create('job', { createAllocations: false });
+    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
+
+    const taskState = allocation.task_states.models[0];
+    const task = server.schema.tasks.findBy({ name: taskState.name });
+    task.update('kind', 'connect-proxy:task');
+    task.save();
+
+    await Task.visit({ id: allocation.id, name: taskState.name });
+  });
+
+  skip('a proxy tag is shown', async function(assert) {
+    assert.ok(Task.title.proxyTag.isPresent);
   });
 });

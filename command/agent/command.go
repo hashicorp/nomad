@@ -15,14 +15,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/circonus"
 	"github.com/armon/go-metrics/datadog"
 	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-checkpoint"
-	"github.com/hashicorp/go-discover"
-	"github.com/hashicorp/go-hclog"
+	checkpoint "github.com/hashicorp/go-checkpoint"
+	discover "github.com/hashicorp/go-discover"
+	hclog "github.com/hashicorp/go-hclog"
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper"
@@ -56,7 +56,7 @@ type Command struct {
 }
 
 func (c *Command) readConfig() *Config {
-	var dev bool
+	var dev *devModeConfig
 	var configPath []string
 	var servers string
 	var meta []string
@@ -77,7 +77,10 @@ func (c *Command) readConfig() *Config {
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
 
 	// Role options
-	flags.BoolVar(&dev, "dev", false, "")
+	var devMode bool
+	var devConnectMode bool
+	flags.BoolVar(&devMode, "dev", false, "")
+	flags.BoolVar(&devConnectMode, "dev-connect", false, "")
 	flags.BoolVar(&cmdConfig.Server.Enabled, "server", false, "")
 	flags.BoolVar(&cmdConfig.Client.Enabled, "client", false, "")
 
@@ -203,9 +206,14 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Load the configuration
+	dev, err := newDevModeConfig(devMode, devConnectMode)
+	if err != nil {
+		c.Ui.Error(err.Error())
+		return nil
+	}
 	var config *Config
-	if dev {
-		config = DevConfig()
+	if dev != nil {
+		config = DevConfig(dev)
 	} else {
 		config = DefaultConfig()
 	}
@@ -480,6 +488,7 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 
 	return map[string]complete.Predictor{
 		"-dev":                           complete.PredictNothing,
+		"-dev-connect":                   complete.PredictNothing,
 		"-server":                        complete.PredictNothing,
 		"-client":                        complete.PredictNothing,
 		"-bootstrap-expect":              complete.PredictAnything,
@@ -1164,7 +1173,13 @@ General Options (clients and servers):
     Start the agent in development mode. This enables a pre-configured
     dual-role agent (client + server) which is useful for developing
     or testing Nomad. No other configuration is required to start the
-    agent in this mode.
+    agent in this mode, but you may pass an optional comma-separated
+    list of mode configurations:
+
+  -dev-connect
+	Start the agent in development mode, but bind to a public network
+	interface rather than localhost for using Consul Connect. This
+	mode is supported only on Linux as root.
 
 Server Options:
 
@@ -1188,7 +1203,7 @@ Server Options:
 
   -raft-protocol=<num>
     The Raft protocol version to use. Used for enabling certain Autopilot
-    features. Defaults to 2.
+    features. Defaults to 3.
 
   -retry-join=<address>
     Address of an agent to join at start time with retries enabled.
