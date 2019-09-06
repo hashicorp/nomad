@@ -6,7 +6,7 @@ GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
-GO_TAGS ?=
+GO_TAGS ?= codec_generated
 
 GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
 
@@ -251,11 +251,11 @@ dev: vendorfmt changelogfmt ## Build for the current development platform
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
 .PHONY: prerelease
-prerelease: GO_TAGS=ui release
+prerelease: GO_TAGS=ui codegen_generated release
 prerelease: generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
 
 .PHONY: release
-release: GO_TAGS=ui release
+release: GO_TAGS=ui codegen_generated release
 release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
@@ -282,6 +282,7 @@ test-nomad: dev ## Run Nomad test suites
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=15m \
+		-tags "$(GO_TAGS)" \
 		$(GOTEST_PKGS) $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
@@ -294,6 +295,7 @@ e2e-test: dev ## Run the Nomad e2e test suite
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=900s \
+		-tags "$(GO_TAGS)" \
 		github.com/hashicorp/nomad/e2e/vault/ \
 		-integration
 
