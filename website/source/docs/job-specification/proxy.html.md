@@ -18,9 +18,10 @@ description: |-
   </tr>
 </table>
 
-The `proxy` stanza allows configuring various options for
-the sidecar proxy managed by Nomad for Consul Connect integration.
-It is valid only within the context of a `sidecar_service` stanza.
+The `proxy` stanza allows configuring various options for the sidecar proxy
+managed by Nomad for [Consul
+Connect](/guides/integrations/consul-connect/index.html).  It is valid only
+within the context of a `sidecar_service` stanza.
 
 ```hcl
  job "countdash" {
@@ -52,9 +53,11 @@ It is valid only within the context of a `sidecar_service` stanza.
 ## `proxy` Parameters
 
 - `upstreams` <code>([upstreams][]: nil)</code> Used to configure details of each upstream service that
-  this  sidecar proxy communicates with.
-- `config` - (map: nil)</code> - Proxy configuration that's opaque to Nomad and passed directly to Consul.
-
+  this sidecar proxy communicates with.
+- `config` - (map: nil)</code> - Proxy configuration that's opaque to Nomad and
+  passed directly to Consul. See [Consul Connect's
+  documentation](https://www.consul.io/docs/connect/proxies/envoy.html#dynamic-configuration)
+  for details.
 
 ## `proxy` Examples
 
