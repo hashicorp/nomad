@@ -71,6 +71,8 @@ data "aws_ami" "main" {
 
 }
 
+data "aws_caller_identity" "current" {}
+
 output "servers" {
   value = "${aws_instance.server.*.public_ip}"
 }
