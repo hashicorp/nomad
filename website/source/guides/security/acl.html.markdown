@@ -378,12 +378,12 @@ host_volume "prod-ca-certificates" {
 Host volume rules are keyed to the volume names that they apply to. As with
 namespaces, you may use wildcards to reuse the same configuration across a set
 of volumes. In addition to the coarse grained policy specification, the
-host_volume stanza allows setting a more fine grained list of capabilities.
+`host_volume` stanza allows setting a more fine grained list of capabilities.
 This includes:
 
 - `deny` - Do not allow a user to mount a volume in any way.
 - `mount-readonly` - Only allow the user to mount the volume as `readonly`
-- `mount-readwrite` - Allow the user to mount the volume as `readonly` or `readwrite` if the host_volume configuration allows it.
+- `mount-readwrite` - Allow the user to mount the volume as `readonly` or `readwrite` if the `host_volume` configuration allows it.
 
 The course grained policy permissions are shorthand for the fine grained capabilities:
 
