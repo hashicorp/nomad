@@ -51,9 +51,6 @@ level.
 
 ## `connect` Parameters
 
-- `native` `(bool: false)` native should be set to true if a service implements Connect directly
-  and does not need a sidecar. This is not common.
-
 - `sidecar_service` - <code>([sidecar_service][]: nil)</code> - This is used to configure the sidecar
   service injected by Nomad for Consul Connect.
 
@@ -62,7 +59,9 @@ level.
 
 ## `connect` Examples
 
-The following example is a minimal connect stanza with defaults
+The following example is a minimal connect stanza with defaults and is
+sufficient to start an Envoy proxy sidecar for allowing incoming connections
+via Consul Connect.
 
 ```hcl
   connect {
@@ -70,7 +69,7 @@ The following example is a minimal connect stanza with defaults
   }
 ```
 
-The following example includes specifying upstreams.
+The following example includes specifying [`upstreams`][upstreams].
 
 ```hcl
   connect {
@@ -85,9 +84,10 @@ The following example includes specifying upstreams.
   }
  ```
 
-### Interpolation
+### Limitations
 
-TODO do we need this
+[Consul Connect Native services][native] and [Nomad variable
+interpolation][interpolation] are *not* supported in Nomad 0.10.0.
 
 [job]: /docs/job-specification/job.html "Nomad job Job Specification"
 [group]: /docs/job-specification/group.html "Nomad group Job Specification"
@@ -95,3 +95,5 @@ TODO do we need this
 [interpolation]: /docs/runtime/interpolation.html "Nomad interpolation"
 [sidecar_service]: /docs/job-specification/sidecar_service.html "Nomad sidecar service Specification"
 [sidecar_task]: /docs/job-specification/sidecar_task.html "Nomad sidecar task config Specification"
+[upstreams]: /docs/job-specification/upstreams.html "Nomad sidecar service upstreams Specification"
+[native]: https://www.consul.io/docs/connect/native.html

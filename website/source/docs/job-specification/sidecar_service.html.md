@@ -18,9 +18,10 @@ description: |-
   </tr>
 </table>
 
-The `sidecar_service` stanza allows configuring various options for
-the sidecar proxy managed by Nomad for Consul Connect integration.
-It is valid only within the context of a connect stanza.
+The `sidecar_service` stanza allows configuring various options for the sidecar
+proxy managed by Nomad for [Consul
+Connect](/guides/integrations/consul-connect/index.html) integration.  It is
+valid only within the context of a connect stanza.
 
 ```hcl
  job "countdash" {
