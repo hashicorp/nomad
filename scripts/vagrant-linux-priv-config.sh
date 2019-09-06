@@ -20,19 +20,12 @@ apt-get install -y \
 	libpcre3-dev \
 	linux-libc-dev:i386 \
 	pkg-config \
-	zip
-
-# Install Development utilities
-apt-get install -y \
+	zip \
 	curl \
-	default-jre \
-	htop \
 	jq \
-	qemu \
-	silversearcher-ag \
 	tree \
 	unzip \
-	vim
+	wget
 
 # Install ARM build utilities
 apt-get install -y \

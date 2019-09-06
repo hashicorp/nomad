@@ -2,14 +2,10 @@
 
 # Install Development utilities
 apt-get install -y \
-	      curl \
 	      default-jre \
 	      htop \
-	      jq \
 	      qemu \
 	      silversearcher-ag \
-	      tree \
-	      unzip \
 	      vim
 
 
