@@ -39,7 +39,7 @@ job "task_check" {
           type     = "script"
           interval = "2s"
           timeout  = "2s"
-          command  = "ls"
+          command  = "cat"
           args     = ["${NOMAD_TASK_DIR}/alive-2b"]
         }
       }
