@@ -262,6 +262,7 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
  - Only the Docker, exec, and raw exec drivers support network namespaces and
    Connect.
  - Variable interpolation for group services and checks are not yet supported.
+ - Consul Connect and network namespaces are only supported on Linux.
 
 
 [count-dashboard]: /assets/images/count-dashboard.png
