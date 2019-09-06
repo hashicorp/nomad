@@ -20,7 +20,6 @@ module('Unit | Adapter | Node', function(hooks) {
     this.server.create('allocation', { id: 'node-1-2', nodeId: 'node-1' });
     this.server.create('allocation', { id: 'node-2-1', nodeId: 'node-2' });
     this.server.create('allocation', { id: 'node-2-2', nodeId: 'node-2' });
-    this.server.logging = true;
   });
 
   hooks.afterEach(function() {

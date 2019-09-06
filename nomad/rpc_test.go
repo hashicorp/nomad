@@ -77,6 +77,47 @@ func TestRPC_forwardLeader(t *testing.T) {
 	}
 }
 
+func TestRPC_WaitForConsistentReads(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.RPCHoldTimeout = 20 * time.Millisecond
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	isLeader, _ := s1.getLeader()
+	require.True(t, isLeader)
+	require.True(t, s1.isReadyForConsistentReads())
+
+	s1.resetConsistentReadReady()
+	require.False(t, s1.isReadyForConsistentReads())
+
+	codec := rpcClient(t, s1)
+
+	get := &structs.JobListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: "default",
+		},
+	}
+
+	// check timeout while waiting for consistency
+	var resp structs.JobListResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), structs.ErrNotReadyForConsistentReads.Error())
+
+	// check we wait and block
+	go func() {
+		time.Sleep(5 * time.Millisecond)
+		s1.setConsistentReadReady()
+	}()
+
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp)
+	require.NoError(t, err)
+
+}
+
 func TestRPC_forwardRegion(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, nil)

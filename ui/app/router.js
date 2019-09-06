@@ -31,6 +31,8 @@ Router.map(function() {
     this.route('allocation', { path: '/:allocation_id' }, function() {
       this.route('task', { path: '/:name' }, function() {
         this.route('logs');
+        this.route('fs-root', { path: '/fs' });
+        this.route('fs', { path: '/fs/*path' });
       });
     });
   });

@@ -174,25 +174,7 @@ func TestLeader_PlanQueue_Reset(t *testing.T) {
 	servers := []*Server{s1, s2, s3}
 	TestJoin(t, s1, s2, s3)
 
-	for _, s := range servers {
-		testutil.WaitForResult(func() (bool, error) {
-			peers, _ := s.numPeers()
-			return peers == 3, nil
-		}, func(err error) {
-			t.Fatalf("should have 3 peers")
-		})
-	}
-
-	var leader *Server
-	for _, s := range servers {
-		if s.IsLeader() {
-			leader = s
-			break
-		}
-	}
-	if leader == nil {
-		t.Fatalf("Should have a leader")
-	}
+	leader := waitForStableLeadership(t, servers)
 
 	if !leader.planQueue.Enabled() {
 		t.Fatalf("should enable plan queue")
@@ -249,27 +231,8 @@ func TestLeader_EvalBroker_Reset(t *testing.T) {
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
 	TestJoin(t, s1, s2, s3)
-	testutil.WaitForLeader(t, s1.RPC)
 
-	for _, s := range servers {
-		testutil.WaitForResult(func() (bool, error) {
-			peers, _ := s.numPeers()
-			return peers == 3, nil
-		}, func(err error) {
-			t.Fatalf("should have 3 peers")
-		})
-	}
-
-	var leader *Server
-	for _, s := range servers {
-		if s.IsLeader() {
-			leader = s
-			break
-		}
-	}
-	if leader == nil {
-		t.Fatalf("Should have a leader")
-	}
+	leader := waitForStableLeadership(t, servers)
 
 	// Inject a pending eval
 	req := structs.EvalUpdateRequest{
@@ -326,27 +289,8 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 	defer s3.Shutdown()
 	servers := []*Server{s1, s2, s3}
 	TestJoin(t, s1, s2, s3)
-	testutil.WaitForLeader(t, s1.RPC)
 
-	for _, s := range servers {
-		testutil.WaitForResult(func() (bool, error) {
-			peers, _ := s.numPeers()
-			return peers == 3, nil
-		}, func(err error) {
-			t.Fatalf("should have 3 peers")
-		})
-	}
-
-	var leader *Server
-	for _, s := range servers {
-		if s.IsLeader() {
-			leader = s
-			break
-		}
-	}
-	if leader == nil {
-		t.Fatalf("Should have a leader")
-	}
+	leader := waitForStableLeadership(t, servers)
 
 	// Inject a periodic job, a parameterized periodic job and a non-periodic job
 	periodic := mock.PeriodicJob()
@@ -1126,6 +1070,25 @@ func TestLeader_RevokeLeadership_MultipleTimes(t *testing.T) {
 	require.Nil(t, s1.revokeLeadership())
 }
 
+func TestLeader_TransitionsUpdateConsistencyRead(t *testing.T) {
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	testutil.WaitForResult(func() (bool, error) {
+		return s1.isReadyForConsistentReads(), nil
+	}, func(err error) {
+		require.Fail(t, "should have finished establish leader loop")
+	})
+
+	require.Nil(t, s1.revokeLeadership())
+	require.False(t, s1.isReadyForConsistentReads())
+
+	ch := make(chan struct{})
+	require.Nil(t, s1.establishLeadership(ch))
+	require.True(t, s1.isReadyForConsistentReads())
+}
+
 // Test doing an inplace upgrade on a server from raft protocol 2 to 3
 // This verifies that removing the server and adding it back with a uuid works
 // even if the server's address stays the same.
@@ -1209,4 +1172,59 @@ func TestServer_ReconcileMember(t *testing.T) {
 	if got, want := ids, 3; got != want {
 		t.Fatalf("got %d server ids want %d", got, want)
 	}
+}
+
+// waitForStableLeadership waits until a leader is elected and all servers
+// get promoted as voting members, returns the leader
+func waitForStableLeadership(t *testing.T, servers []*Server) *Server {
+	nPeers := len(servers)
+
+	// wait for all servers to discover each other
+	for _, s := range servers {
+		testutil.WaitForResult(func() (bool, error) {
+			peers, _ := s.numPeers()
+			return peers == 3, fmt.Errorf("should find %d peers but found %d", nPeers, peers)
+		}, func(err error) {
+			require.NoError(t, err)
+		})
+	}
+
+	// wait for leader
+	var leader *Server
+	testutil.WaitForResult(func() (bool, error) {
+		for _, s := range servers {
+			if s.IsLeader() {
+				leader = s
+				return true, nil
+			}
+		}
+
+		return false, fmt.Errorf("no leader found")
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// wait for all servers get marked as voters
+	testutil.WaitForResult(func() (bool, error) {
+		future := leader.raft.GetConfiguration()
+		if err := future.Error(); err != nil {
+			return false, fmt.Errorf("failed to get raft config: %v", future.Error())
+		}
+		ss := future.Configuration().Servers
+		if len(ss) != len(servers) {
+			return false, fmt.Errorf("raft doesn't contain all servers.  Expected %d but found %d", len(servers), len(ss))
+		}
+
+		for _, s := range ss {
+			if s.Suffrage != raft.Voter {
+				return false, fmt.Errorf("configuration has non voting server: %v", s)
+			}
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	return leader
 }

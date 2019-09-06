@@ -63,6 +63,7 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 	}
 
 	// Create a new evaluation
+	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      job.Namespace,
@@ -72,6 +73,8 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 		JobID:          job.ID,
 		JobModifyIndex: index,
 		Status:         structs.EvalStatusPending,
+		CreateTime:     now,
+		ModifyTime:     now,
 	}
 	update := &structs.EvalUpdateRequest{
 		Evals: []*structs.Evaluation{eval},

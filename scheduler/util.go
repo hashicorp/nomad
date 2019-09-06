@@ -351,6 +351,11 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		return true
 	}
 
+	// Check that the network resources haven't changed
+	if networkUpdated(a.Networks, b.Networks) {
+		return true
+	}
+
 	// Check each task
 	for _, at := range a.Tasks {
 		bt := b.LookupTask(at.Name)
@@ -387,27 +392,34 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		}
 
 		// Inspect the network to see if the dynamic ports are different
-		if len(at.Resources.Networks) != len(bt.Resources.Networks) {
+		if networkUpdated(at.Resources.Networks, bt.Resources.Networks) {
 			return true
-		}
-		for idx := range at.Resources.Networks {
-			an := at.Resources.Networks[idx]
-			bn := bt.Resources.Networks[idx]
-
-			if an.MBits != bn.MBits {
-				return true
-			}
-
-			aPorts, bPorts := networkPortMap(an), networkPortMap(bn)
-			if !reflect.DeepEqual(aPorts, bPorts) {
-				return true
-			}
 		}
 
 		// Inspect the non-network resources
 		if ar, br := at.Resources, bt.Resources; ar.CPU != br.CPU {
 			return true
 		} else if ar.MemoryMB != br.MemoryMB {
+			return true
+		}
+	}
+	return false
+}
+
+func networkUpdated(netA, netB []*structs.NetworkResource) bool {
+	if len(netA) != len(netB) {
+		return true
+	}
+	for idx := range netA {
+		an := netA[idx]
+		bn := netB[idx]
+
+		if an.MBits != bn.MBits {
+			return true
+		}
+
+		aPorts, bPorts := networkPortMap(an), networkPortMap(bn)
+		if !reflect.DeepEqual(aPorts, bPorts) {
 			return true
 		}
 	}
@@ -810,7 +822,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 				networks = tr.Networks
 			}
 
-			// Add thhe networks back
+			// Add the networks back
 			resources.Networks = networks
 		}
 
@@ -826,8 +838,13 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 			Tasks: option.TaskResources,
 			Shared: structs.AllocatedSharedResources{
 				DiskMB: int64(newTG.EphemeralDisk.SizeMB),
+				// Since this is an inplace update, we should copy network
+				// information from the original alloc. This is similar to
+				// how we copy network info for task level networks above.
+				Networks: existing.AllocatedResources.Shared.Networks,
 			},
 		}
+
 		// Use metrics from existing alloc for in place upgrade
 		// This is because if the inplace upgrade succeeded, any scoring metadata from
 		// when it first went through the scheduler should still be preserved. Using scoring

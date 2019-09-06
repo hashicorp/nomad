@@ -89,6 +89,10 @@ client {
   gc_max_allocs            = 50
   no_host_uuid             = false
   disable_remote_exec      = true
+
+  host_volume "tmp" {
+    path = "/tmp"
+  }
 }
 
 server {
@@ -101,6 +105,7 @@ server {
   num_schedulers            = 2
   enabled_schedulers        = ["test"]
   node_gc_threshold         = "12h"
+  job_gc_interval           = "3m"
   job_gc_threshold          = "12h"
   eval_gc_threshold         = "12h"
   deployment_gc_threshold   = "12h"

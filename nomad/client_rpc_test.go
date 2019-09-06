@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/client"
@@ -254,7 +255,11 @@ func TestServerWithNodeConn_NoPathAndErr(t *testing.T) {
 	srv, err := s1.serverWithNodeConn(uuid.Generate(), s1.Region())
 	require.Nil(srv)
 	require.NotNil(err)
-	require.Contains(err.Error(), "failed querying")
+
+	// the exact error seems to be dependent on timing and raft protocol version
+	if !strings.Contains(err.Error(), "failed querying") && !strings.Contains(err.Error(), "No path to node") {
+		require.Contains(err.Error(), "failed querying")
+	}
 }
 
 func TestNodeStreamingRpc_badEndpoint(t *testing.T) {

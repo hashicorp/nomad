@@ -202,6 +202,9 @@ type TaskRunner struct {
 	// fails and the Run method should wait until serversContactedCh is
 	// closed.
 	waitOnServers bool
+
+	networkIsolationLock sync.Mutex
+	networkIsolationSpec *drivers.NetworkIsolationSpec
 }
 
 type Config struct {
@@ -895,6 +898,8 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	invocationid := uuid.Generate()[:8]
 	taskResources := tr.taskResources
 	env := tr.envBuilder.Build()
+	tr.networkIsolationLock.Lock()
+	defer tr.networkIsolationLock.Unlock()
 
 	return &drivers.TaskConfig{
 		ID:            fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
@@ -909,15 +914,16 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
 			},
 		},
-		Devices:    tr.hookResources.getDevices(),
-		Mounts:     tr.hookResources.getMounts(),
-		Env:        env.Map(),
-		DeviceEnv:  env.DeviceEnv(),
-		User:       task.User,
-		AllocDir:   tr.taskDir.AllocDir,
-		StdoutPath: tr.logmonHookConfig.stdoutFifo,
-		StderrPath: tr.logmonHookConfig.stderrFifo,
-		AllocID:    tr.allocID,
+		Devices:          tr.hookResources.getDevices(),
+		Mounts:           tr.hookResources.getMounts(),
+		Env:              env.Map(),
+		DeviceEnv:        env.DeviceEnv(),
+		User:             task.User,
+		AllocDir:         tr.taskDir.AllocDir,
+		StdoutPath:       tr.logmonHookConfig.stdoutFifo,
+		StderrPath:       tr.logmonHookConfig.stderrFifo,
+		AllocID:          tr.allocID,
+		NetworkIsolation: tr.networkIsolationSpec,
 	}
 }
 
@@ -1181,6 +1187,14 @@ func (tr *TaskRunner) Update(update *structs.Allocation) {
 	}
 }
 
+// SetNetworkIsolation is called by the PreRun allocation hook after configuring
+// the network isolation for the allocation
+func (tr *TaskRunner) SetNetworkIsolation(n *drivers.NetworkIsolationSpec) {
+	tr.networkIsolationLock.Lock()
+	tr.networkIsolationSpec = n
+	tr.networkIsolationLock.Unlock()
+}
+
 // triggerUpdate if there isn't already an update pending. Should be called
 // instead of calling updateHooks directly to serialize runs of update hooks.
 // TaskRunner state should be updated prior to triggering update hooks.
@@ -1347,7 +1361,12 @@ func appendTaskEvent(state *structs.TaskState, event *structs.TaskEvent, capacit
 }
 
 func (tr *TaskRunner) TaskExecHandler() drivermanager.TaskExecHandler {
-	return tr.getDriverHandle().ExecStreaming
+	// Check it is running
+	handle := tr.getDriverHandle()
+	if handle == nil {
+		return nil
+	}
+	return handle.ExecStreaming
 }
 
 func (tr *TaskRunner) DriverCapabilities() (*drivers.Capabilities, error) {

@@ -273,6 +273,16 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		diff.Objects = append(diff.Objects, uDiff)
 	}
 
+	// Network Resources diff
+	if nDiffs := networkResourceDiffs(tg.Networks, other.Networks, contextual); nDiffs != nil {
+		diff.Objects = append(diff.Objects, nDiffs...)
+	}
+
+	// Services diff
+	if sDiffs := serviceDiffs(tg.Services, other.Services, contextual); sDiffs != nil {
+		diff.Objects = append(diff.Objects, sDiffs...)
+	}
+
 	// Tasks diff
 	tasks, err := taskDiffs(tg.Tasks, other.Tasks, contextual)
 	if err != nil {
@@ -579,6 +589,11 @@ func serviceDiff(old, new *Service, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, cDiffs...)
 	}
 
+	// Consul Connect diffs
+	if conDiffs := connectDiffs(old.Connect, new.Connect, contextual); conDiffs != nil {
+		diff.Objects = append(diff.Objects, conDiffs)
+	}
+
 	return diff
 }
 
@@ -701,6 +716,163 @@ func checkRestartDiff(old, new *CheckRestart, contextual bool) *ObjectDiff {
 	}
 
 	diff.Fields = fieldDiffs(oldFlat, newFlat, contextual)
+	return diff
+}
+
+// connectDiffs returns the diff of two Consul connect objects. If contextual
+// diff is enabled, all fields will be returned, even if no diff occurred.
+func connectDiffs(old, new *ConsulConnect, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "ConsulConnect"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &ConsulConnect{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &ConsulConnect{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	sidecarSvcDiff := connectSidecarServiceDiff(
+		old.SidecarService, new.SidecarService, contextual)
+	if sidecarSvcDiff != nil {
+		diff.Objects = append(diff.Objects, sidecarSvcDiff)
+	}
+
+	sidecarTaskDiff := sidecarTaskDiff(old.SidecarTask, new.SidecarTask, contextual)
+	if sidecarTaskDiff != nil {
+		diff.Objects = append(diff.Objects, sidecarTaskDiff)
+	}
+
+	return diff
+}
+
+// connectSidecarServiceDiff returns the diff of two ConsulSidecarService objects.
+// If contextual diff is enabled, all fields will be returned, even if no diff occurred.
+func connectSidecarServiceDiff(old, new *ConsulSidecarService, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "SidecarService"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &ConsulSidecarService{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &ConsulSidecarService{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	consulProxyDiff := consulProxyDiff(old.Proxy, new.Proxy, contextual)
+	if consulProxyDiff != nil {
+		diff.Objects = append(diff.Objects, consulProxyDiff)
+	}
+
+	return diff
+}
+
+// sidecarTaskDiff returns the diff of two Task objects.
+// If contextual diff is enabled, all fields will be returned, even if no diff occurred.
+func sidecarTaskDiff(old, new *SidecarTask, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "SidecarTask"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &SidecarTask{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &SidecarTask{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, false)
+
+	// Config diff
+	if cDiff := configDiff(old.Config, new.Config, contextual); cDiff != nil {
+		diff.Objects = append(diff.Objects, cDiff)
+	}
+
+	// Resources diff
+	if rDiff := old.Resources.Diff(new.Resources, contextual); rDiff != nil {
+		diff.Objects = append(diff.Objects, rDiff)
+	}
+
+	// LogConfig diff
+	lDiff := primitiveObjectDiff(old.LogConfig, new.LogConfig, nil, "LogConfig", contextual)
+	if lDiff != nil {
+		diff.Objects = append(diff.Objects, lDiff)
+	}
+
+	return diff
+}
+
+// consulProxyDiff returns the diff of two ConsulProxy objects.
+// If contextual diff is enabled, all fields will be returned, even if no diff occurred.
+func consulProxyDiff(old, new *ConsulProxy, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "ConsulProxy"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &ConsulProxy{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &ConsulProxy{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	consulUpstreamsDiff := primitiveObjectSetDiff(
+		interfaceSlice(old.Upstreams),
+		interfaceSlice(new.Upstreams),
+		nil, "ConsulUpstreams", contextual)
+	if consulUpstreamsDiff != nil {
+		diff.Objects = append(diff.Objects, consulUpstreamsDiff...)
+	}
+
+	// Config diff
+	if cDiff := configDiff(old.Config, new.Config, contextual); cDiff != nil {
+		diff.Objects = append(diff.Objects, cDiff)
+	}
+
 	return diff
 }
 

@@ -2,7 +2,7 @@
 
 set -o errexit
 
-VERSION=1.0.0
+VERSION="1.6.0"
 OS="linux"
 if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
     OS="darwin"
@@ -15,7 +15,7 @@ function install_consul() {
 			return
 		fi
 	fi
-	
+
 	wget -q -O /tmp/consul.zip ${DOWNLOAD}
 
 	unzip -d /tmp /tmp/consul.zip

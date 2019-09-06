@@ -52,6 +52,7 @@ func getClient(src string, mode gg.ClientMode, dst string) *gg.Client {
 		Dst:     dst,
 		Mode:    mode,
 		Getters: getters,
+		Umask:   060000000,
 	}
 }
 

@@ -8,6 +8,7 @@ import queryString from 'query-string';
 import { task } from 'ember-concurrency';
 import StreamLogger from 'nomad-ui/utils/classes/stream-logger';
 import PollLogger from 'nomad-ui/utils/classes/poll-logger';
+import { decode } from 'nomad-ui/utils/stream-frames';
 import Anser from 'anser';
 
 const MAX_OUTPUT_LENGTH = 50000;
@@ -20,6 +21,7 @@ const Log = EmberObject.extend(Evented, {
 
   url: '',
   params: computed(() => ({})),
+  plainText: false,
   logFetch() {
     assert('Log objects need a logFetch method, which should have an interface like window.fetch');
   },
@@ -40,6 +42,7 @@ const Log = EmberObject.extend(Evented, {
   // the logPointer is pointed at head or tail
   output: computed('logPointer', 'head', 'tail', function() {
     let logs = this.logPointer === 'head' ? this.head : this.tail;
+    logs = logs.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     let colouredLogs = Anser.ansiToHtml(logs);
     return htmlSafe(colouredLogs);
   }),
@@ -72,16 +75,19 @@ const Log = EmberObject.extend(Evented, {
   gotoHead: task(function*() {
     const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
-      assign(this.params, {
-        plain: true,
-        origin: 'start',
-        offset: 0,
-      })
+      assign(
+        {
+          origin: 'start',
+          offset: 0,
+        },
+        this.params
+      )
     );
     const url = `${this.url}?${queryParams}`;
 
     this.stop();
-    let text = yield logFetch(url).then(res => res.text(), fetchFailure(url));
+    const response = yield logFetch(url).then(res => res.text(), fetchFailure(url));
+    let text = this.plainText ? response : decode(response).message;
 
     if (text && text.length > MAX_OUTPUT_LENGTH) {
       text = text.substr(0, MAX_OUTPUT_LENGTH);
@@ -94,16 +100,19 @@ const Log = EmberObject.extend(Evented, {
   gotoTail: task(function*() {
     const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
-      assign(this.params, {
-        plain: true,
-        origin: 'end',
-        offset: MAX_OUTPUT_LENGTH,
-      })
+      assign(
+        {
+          origin: 'end',
+          offset: MAX_OUTPUT_LENGTH,
+        },
+        this.params
+      )
     );
     const url = `${this.url}?${queryParams}`;
 
     this.stop();
-    let text = yield logFetch(url).then(res => res.text(), fetchFailure(url));
+    const response = yield logFetch(url).then(res => res.text(), fetchFailure(url));
+    let text = this.plainText ? response : decode(response).message;
 
     this.set('tail', text);
     this.set('logPointer', 'tail');

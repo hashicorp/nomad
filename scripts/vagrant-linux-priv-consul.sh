@@ -2,7 +2,7 @@
 
 set -o errexit
 
-VERSION=1.0.7
+VERSION="1.6.0"
 DOWNLOAD=https://releases.hashicorp.com/consul/${VERSION}/consul_${VERSION}_linux_amd64.zip
 
 function install_consul() {
@@ -11,7 +11,7 @@ function install_consul() {
 			return
 		fi
 	fi
-	
+
 	wget -q -O /tmp/consul.zip ${DOWNLOAD}
 
 	unzip -d /tmp /tmp/consul.zip
