@@ -32,15 +32,19 @@ var (
 
 type Invoker interface {
 	Command(string, ...string) ([]byte, error)
+	CommandWithContext(context.Context, string, ...string) ([]byte, error)
 }
 
 type Invoke struct{}
 
 func (i Invoke) Command(name string, arg ...string) ([]byte, error) {
-	ctxt, cancel := context.WithTimeout(context.Background(), Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	defer cancel()
+	return i.CommandWithContext(ctx, name, arg...)
+}
 
-	cmd := exec.CommandContext(ctxt, name, arg...)
+func (i Invoke) CommandWithContext(ctx context.Context, name string, arg ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, arg...)
 
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
@@ -82,6 +86,10 @@ func (i FakeInvoke) Command(name string, arg ...string) ([]byte, error) {
 		return ioutil.ReadFile(fpath)
 	}
 	return []byte{}, fmt.Errorf("could not find testdata: %s", fpath)
+}
+
+func (i FakeInvoke) CommandWithContext(ctx context.Context, name string, arg ...string) ([]byte, error) {
+	return i.Command(name, arg...)
 }
 
 var ErrNotImplementedError = errors.New("not implemented yet")
@@ -205,6 +213,12 @@ func ReadInts(filename string) ([]int64, error) {
 	return ret, nil
 }
 
+// Parse Hex to uint32 without error
+func HexToUint32(hex string) uint32 {
+	vv, _ := strconv.ParseUint(hex, 16, 32)
+	return uint32(vv)
+}
+
 // Parse to int32 without error
 func mustParseInt32(val string) int32 {
 	vv, _ := strconv.ParseInt(val, 10, 32)
@@ -320,47 +334,8 @@ func HostVar(combineWith ...string) string {
 	return GetEnv("HOST_VAR", "/var", combineWith...)
 }
 
-// https://gist.github.com/kylelemons/1525278
-func Pipeline(cmds ...*exec.Cmd) ([]byte, []byte, error) {
-	// Require at least one command
-	if len(cmds) < 1 {
-		return nil, nil, nil
-	}
-
-	// Collect the output from the command(s)
-	var output bytes.Buffer
-	var stderr bytes.Buffer
-
-	last := len(cmds) - 1
-	for i, cmd := range cmds[:last] {
-		var err error
-		// Connect each command's stdin to the previous command's stdout
-		if cmds[i+1].Stdin, err = cmd.StdoutPipe(); err != nil {
-			return nil, nil, err
-		}
-		// Connect each command's stderr to a buffer
-		cmd.Stderr = &stderr
-	}
-
-	// Connect the output and error for the last command
-	cmds[last].Stdout, cmds[last].Stderr = &output, &stderr
-
-	// Start each command
-	for _, cmd := range cmds {
-		if err := cmd.Start(); err != nil {
-			return output.Bytes(), stderr.Bytes(), err
-		}
-	}
-
-	// Wait for each command to complete
-	for _, cmd := range cmds {
-		if err := cmd.Wait(); err != nil {
-			return output.Bytes(), stderr.Bytes(), err
-		}
-	}
-
-	// Return the pipeline output and the collected standard error
-	return output.Bytes(), stderr.Bytes(), nil
+func HostRun(combineWith ...string) string {
+	return GetEnv("HOST_RUN", "/run", combineWith...)
 }
 
 // getSysctrlEnv sets LC_ALL=C in a list of env vars for use when running

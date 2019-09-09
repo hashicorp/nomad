@@ -87,6 +87,7 @@ type HostStatsCollector struct {
 // NewHostStatsCollector returns a HostStatsCollector. The allocDir is passed in
 // so that we can present the disk related statistics for the mountpoint where
 // the allocation directory lives
+// POI
 func NewHostStatsCollector(logger hclog.Logger, allocDir string, deviceStatsCollector DeviceStatsCollector) *HostStatsCollector {
 	logger = logger.Named("host_stats")
 	numCores := runtime.NumCPU()
@@ -117,21 +118,21 @@ func (h *HostStatsCollector) collectLocked() error {
 	// Determine up-time
 	uptime, err := host.Uptime()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to collect uptime: %v", err)
 	}
 	hs.Uptime = uptime
 
 	// Collect memory stats
 	mstats, err := h.collectMemoryStats()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to collect memory stats: %v", err)
 	}
 	hs.Memory = mstats
 
 	// Collect cpu stats
 	cpus, ticks, err := h.collectCPUStats()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to collect cpu stats: %v", err)
 	}
 	hs.CPU = cpus
 	hs.CPUTicksConsumed = ticks
@@ -139,7 +140,7 @@ func (h *HostStatsCollector) collectLocked() error {
 	// Collect disk stats
 	diskStats, err := h.collectDiskStats()
 	if err != nil {
-		return err
+		return fmt.Errorf("error collecting disk stats: %v", err)
 	}
 	hs.DiskStats = diskStats
 
@@ -270,7 +271,7 @@ func (h *HostCpuStatsCalculator) Calculate(times cpu.TimesStat) (idle float64, u
 	currentSystem := times.System
 	currentTotal := times.Total()
 	currentBusy := times.User + times.System + times.Nice + times.Iowait + times.Irq +
-		times.Softirq + times.Steal + times.Guest + times.GuestNice + times.Stolen
+		times.Softirq + times.Steal + times.Guest + times.GuestNice
 
 	deltaTotal := currentTotal - h.prevTotal
 	idle = ((currentIdle - h.prevIdle) / deltaTotal) * 100

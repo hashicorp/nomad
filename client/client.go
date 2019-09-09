@@ -423,7 +423,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		ParallelDestroys:    cfg.GCParallelDestroys,
 		ReservedDiskMB:      cfg.Node.Reserved.DiskMB,
 	}
-	c.garbageCollector = NewAllocGarbageCollector(c.logger, statsCollector, c, gcConfig)
+	c.garbageCollector = NewAllocGarbageCollector(c.logger, statsCollector, c, gcConfig) // POI
 	go c.garbageCollector.Run()
 
 	// Set the preconfigured list of static servers

@@ -55,3 +55,11 @@ func KernelVersion() (string, error) {
 func KernelVersionWithContext(ctx context.Context) (string, error) {
 	return "", common.ErrNotImplementedError
 }
+
+func PlatformInformation() (string, string, string, error) {
+	return PlatformInformationWithContext(context.Background())
+}
+
+func PlatformInformationWithContext(ctx context.Context) (string, string, string, error) {
+	return "", "", "", common.ErrNotImplementedError
+}

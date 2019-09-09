@@ -99,7 +99,7 @@ func SwapMemoryWithContext(ctx context.Context) (*SwapMemoryStat, error) {
 		return nil, err
 	}
 
-	out, err := invoke.Command(swapctl, "-sk")
+	out, err := invoke.CommandWithContext(ctx, swapctl, "-sk")
 	if err != nil {
 		return &SwapMemoryStat{}, nil
 	}
