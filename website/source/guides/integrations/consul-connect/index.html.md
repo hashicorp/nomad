@@ -8,6 +8,9 @@ description: |-
 
 # Consul Connect
 
+~> **Note** This guide describes a new feature available in the [Nomad 0.10.0
+   Beta release][download] of Nomad.
+
 [Consul Connect](https://www.consul.io/docs/connect/index.html) provides
 service-to-service connection authorization and encryption using mutual
 Transport Layer Security (TLS). Applications can use sidecar proxies in a
@@ -267,4 +270,3 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 
 [count-dashboard]: /assets/images/count-dashboard.png
 [download]: https://releases.hashicorp.com/nomad/0.10.0-beta1/
-[hashiconfeu]: https://hashiconfeu.hashicorp.com/schedule/service-mesh-with-consul-connect-and-nomad-0.10
