@@ -75,10 +75,12 @@ job "docs" {
   allocation and can be used to specify both dynamic ports and reserved ports.
 
 - `mode`  `(string: "host")- Mode of the network. The following modes are available:
-         - “none” - Task group will have an isolated network without any network interfaces.
-         - “bridge” - Task group will have an isolated network namespace with an interface that is bridged with the host
-         - “host” - Each task will join the host network namespace and a shared network namespace is not created.
-           This matches the current behavior in Nomad 0.9
+
+ - “none” - Task group will have an isolated network without any network interfaces.
+ - “bridge” - Task group will have an isolated network namespace with an interface
+           that is bridged with the host.
+ - “host” - Each task will join the host network namespace and a shared network
+           namespace is not created. This matches the current behavior in Nomad 0.9.
 
 ### `port` Parameters
 
