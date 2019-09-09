@@ -266,5 +266,5 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 
 
 [count-dashboard]: /assets/images/count-dashboard.png
-[download]: https://releases.hashicorp.com/nomad/0.10.0-connect1/
+[download]: https://releases.hashicorp.com/nomad/0.10.0-beta1/
 [hashiconfeu]: https://hashiconfeu.hashicorp.com/schedule/service-mesh-with-consul-connect-and-nomad-0.10
