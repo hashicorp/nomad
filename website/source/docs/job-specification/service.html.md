@@ -16,6 +16,11 @@ description: |-
       <code>job -> group -> task -> **service**</code>
     </td>
   </tr>
+  <th width="120">Placement</th>
+    <td>
+      <code>job -> group -> **service**</code>
+    </td>
+  </tr>
 </table>
 
 The `service` stanza instructs Nomad to register the task as a service using the
@@ -70,6 +75,9 @@ configuration to integrate Nomad with service discovery, please see the
 [Nomad service discovery documentation][service-discovery]. There are steps you
 must take to configure Nomad. Simply adding this configuration to your job file
 does not automatically enable service discovery.
+
+Nomad 0.10 also allows specifying the `service` stanza at the task group level.
+This enables services in the same task group to opt into [Consul Connect][] integration.
 
 ## `service` Parameters
 
@@ -628,3 +636,4 @@ system of a task for that driver.</small>
 [network]: /docs/job-specification/network.html "Nomad network Job Specification"
 [qemu]: /docs/drivers/qemu.html "Nomad qemu Driver"
 [restart_stanza]: /docs/job-specification/restart.html "restart stanza"
+[Connect]: /docs/job-specification/connect.html "Nomad Consul Connect Integration"
