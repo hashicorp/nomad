@@ -3,6 +3,7 @@ package consul
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -108,7 +109,7 @@ func (tc *ScriptChecksE2ETest) TestGroupScriptCheck(f *framework.F) {
 	requireDeregistered(require, consulClient, "group-service-2")
 	requireDeregistered(require, consulClient, "group-service-3")
 
-	// // Restore for next test
+	// Restore for next test
 	allocs = e2eutil.RegisterAndWaitForAllocs(f.T(),
 		nomadClient, "consul/input/checks_group.nomad", jobId)
 	require.Equal(2, len(allocs))
@@ -118,7 +119,9 @@ func (tc *ScriptChecksE2ETest) TestGroupScriptCheck(f *framework.F) {
 
 	// Crash a task: verify that checks become healthy again
 	_, _, err = exec(nomadClient, allocs, []string{"pkill", "sleep"})
-	require.NoError(err)
+	if err != nil && err.Error() != "plugin is shut down" {
+		require.FailNow("unexpected error: %v", err)
+	}
 	requireStatus(require, consulClient, "group-service-1", capi.HealthPassing)
 	requireStatus(require, consulClient, "group-service-2", capi.HealthWarning)
 	requireStatus(require, consulClient, "group-service-3", capi.HealthCritical)
@@ -173,7 +176,7 @@ func (tc *ScriptChecksE2ETest) TestTaskScriptCheck(f *framework.F) {
 	requireDeregistered(require, consulClient, "task-service-2")
 	requireDeregistered(require, consulClient, "task-service-3")
 
-	// // Restore for next test
+	// Restore for next test
 	allocs = e2eutil.RegisterAndWaitForAllocs(f.T(),
 		nomadClient, "consul/input/checks_task.nomad", jobId)
 	require.Equal(2, len(allocs))
@@ -183,7 +186,9 @@ func (tc *ScriptChecksE2ETest) TestTaskScriptCheck(f *framework.F) {
 
 	// Crash a task: verify that checks become healthy again
 	_, _, err = exec(nomadClient, allocs, []string{"pkill", "sleep"})
-	require.NoError(err)
+	if err != nil && err.Error() != "plugin is shut down" {
+		require.FailNow("unexpected error: %v", err)
+	}
 	requireStatus(require, consulClient, "task-service-1", capi.HealthPassing)
 	requireStatus(require, consulClient, "task-service-2", capi.HealthWarning)
 	requireStatus(require, consulClient, "task-service-3", capi.HealthCritical)
@@ -207,17 +212,27 @@ func exec(client *api.Client, allocs []*api.AllocationListStub, command []string
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
 
+	// we're getting a list of from the registration call here but
+	// one of them might be stopped or stopping, which will return
+	// an error if we try to exec into it.
+	var alloc *api.Allocation
+	for _, stub := range allocs {
+		if stub.DesiredStatus == "run" {
+			alloc = &api.Allocation{
+				ID:        stub.ID,
+				Namespace: stub.Namespace,
+				NodeID:    stub.NodeID,
+			}
+		}
+	}
 	var stdout, stderr bytes.Buffer
-
-	alloc := &api.Allocation{
-		ID:        allocs[0].ID,
-		Namespace: allocs[0].Namespace,
-		NodeID:    allocs[0].NodeID,
+	if alloc == nil {
+		return stdout, stderr, fmt.Errorf("no allocation ready for exec")
 	}
 	_, err := client.Allocations().Exec(ctx,
 		alloc, "test", false,
 		command,
-		os.Stdin, &stdout, &stderr, // os.Stdout, os.Stderr,
+		os.Stdin, &stdout, &stderr,
 		make(chan api.TerminalSize), nil)
 	return stdout, stderr, err
 }
