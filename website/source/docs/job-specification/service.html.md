@@ -217,7 +217,7 @@ scripts.
 - `protocol` `(string: "http")` - Specifies the protocol for the http-based
   health checks. Valid options are `http` and `https`.
 
-- `task` `(string: <required>)` - Specifices the task associated with this
+- `task` `(string: <required>)` - Specifies the task associated with this
   check. Scripts are executed within the task's environment, and
   `check_restart` stanzas will apply to the specified task. For `checks` on group
   level `services` only.
