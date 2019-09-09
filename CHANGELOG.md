@@ -1,8 +1,8 @@
 ## 0.10.0 (Unreleased)
 
 FEATURES:
- * **Consul Connect**: Nomad can register Consul Connect services and manage
-   running an Envoy proxy sidecar to provide secured service-to-service
+ * **Consul Connect**: Nomad may now register Consul Connect services and
+   manages an Envoy proxy sidecar to provide secured service-to-service
    communication.
  * **Network Namespaces**: Task Groups may now define a shared network
    namespace. Each allocation will receive its own network namespace and

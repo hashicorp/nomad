@@ -18,11 +18,10 @@ description: |-
   </tr>
 </table>
 
-The `service` stanza instructs Nomad to register the task as a service using the
-service discovery integration. This section of the documentation will discuss the
-configuration, but please also read the
-[Nomad service discovery documentation][service-discovery] for more detailed
-information about the integration.
+The `service` stanza instructs Nomad to register a service with Consul. This
+section of the documentation will discuss the configuration, but please also
+read the [Nomad service discovery documentation][service-discovery] for more
+detailed information about the integration.
 
 ```hcl
 job "docs" {
@@ -64,12 +63,9 @@ job "docs" {
 }
 ```
 
-This section of the documentation only covers the job file options for
-configuring service discovery. For more information on the setup and
-configuration to integrate Nomad with service discovery, please see the
-[Nomad service discovery documentation][service-discovery]. There are steps you
-must take to configure Nomad. Simply adding this configuration to your job file
-does not automatically enable service discovery.
+This section of the documentation only cover the job file fields and stanzas
+for service discovery. For more details on using Nomad with Consul please see
+the [Consul integration documentation][service-discovery].
 
 ## `service` Parameters
 
@@ -212,6 +208,11 @@ scripts.
 
 - `protocol` `(string: "http")` - Specifies the protocol for the http-based
   health checks. Valid options are `http` and `https`.
+
+- `task` `(string: <required>)` - Specifices the task associated with this
+  check. Scripts are executed within the task's environment, and
+  `check_restart` stanzas will apply to the specified task. For `checks` on group
+  level `services` only.
 
 - `timeout` `(string: <required>)` - Specifies how long Consul will wait for a
   health check query to succeed. This is specified using a label suffix like
@@ -613,7 +614,6 @@ job "example" {
 
 The `service` and `check` stanzas can both specify the port number to 
 advertise and check directly since Nomad isn't managing any port assignments.
-
 
 - - -
 
