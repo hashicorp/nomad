@@ -114,7 +114,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 
 		// Parse network
 		if o := listVal.Filter("network"); len(o.Items) > 0 {
-			networks, err := parseNetwork(o)
+			networks, err := ParseNetwork(o)
 			if err != nil {
 				return err
 			}

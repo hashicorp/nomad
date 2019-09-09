@@ -12,7 +12,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func parseNetwork(o *ast.ObjectList) (*api.NetworkResource, error) {
+func ParseNetwork(o *ast.ObjectList) (*api.NetworkResource, error) {
 	if len(o.Items) > 1 {
 		return nil, fmt.Errorf("only one 'network' resource allowed")
 	}
