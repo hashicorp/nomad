@@ -42,11 +42,11 @@ When ACL tokens are created, they can be optionally marked as `Global`. This cau
 
 The following table summarizes the ACL Rules that are available for constructing policy rules:
 
-| Policy     | Scope                                        |
+| Policy | Scope |
 | ---------- | -------------------------------------------- |
-| [namespace](#namespace-rules) | Job related operations by namespace          |
-| [agent](#agent-rules) | Utility operations in the Agent API          |
-| [node](#node-rules) | Node-level catalog operations                |
+| [namespace](#namespace-rules) | Job related operations by namespace |
+| [agent](#agent-rules) | Utility operations in the Agent API |
+| [node](#node-rules) | Node-level catalog operations |
 | [operator](#operator-rules) | Cluster-level operations in the Operator API |
 | [quota](#quota-rules) | Quota specification related operations |
 | [host_volume](#host_volume-rules) | host_volume related operations |
@@ -109,9 +109,7 @@ To enforce client endpoints, we need to enable ACLs on clients as well. This is 
 
 ### Set an Anonymous Policy (Optional)
 
-The ACL system uses a whitelist or default-deny model. This means by default no permissions are granted.
-For clients making requests without ACL tokens, we may want to grant some basic level of access. This is done by setting rules
-on the special "anonymous" policy. This policy is applied to any requests made without a token.
+The ACL system uses a whitelist or default-deny model. This means by default no permissions are granted. For clients making requests without ACL tokens, we may want to grant some basic level of access. This is done by setting rules on the special "anonymous" policy. This policy is applied to any requests made without a token.
 
 To permit anonymous users to read, we can setup the following policy:
 
@@ -150,9 +148,7 @@ $ curl https://localhost:4646/v1/jobs
 
 # Rule Specification
 
-A core part of the ACL system is the rule language which is used to describe the policy that must be enforced.
-We make use of the [HashiCorp Configuration Language (HCL)](https://github.com/hashicorp/hcl/) to specify rules.
-This language is human readable and interoperable with JSON making it easy to machine-generate. Policies can contain any number of rules.
+A core part of the ACL system is the rule language which is used to describe the policy that must be enforced. We make use of the [HashiCorp Configuration Language (HCL)](https://github.com/hashicorp/hcl/) to specify rules. This language is human readable and interoperable with JSON making it easy to machine-generate. Policies can contain any number of rules.
 
 Policies typically have several dispositions:
 
@@ -235,13 +231,16 @@ Namespace rules are keyed by the namespace name they apply to. When no namespace
 * `dispatch-job` - Allows jobs to be dispatched
 * `read-logs` - Allows the logs associated with a job to be viewed.
 * `read-fs` - Allows the filesystem of allocations associated to be viewed.
+* `alloc-exec` - Allows an operator to connect and run commands in running allocations.
+* `alloc-node-exec` - Allows an operator to connect and run commands in allocations running without filesystem isolation, for example, raw_exec jobs.
+* `alloc-lifecycle` - Allows an operator to stop individual allocations manually.
 * `sentinel-override` - Allows soft mandatory policies to be overridden.
 
 The coarse grained policy dispositions are shorthand for the fine grained capabilities:
 
 * `deny` policy - ["deny"]
 * `read` policy - ["list-jobs", "read-job"]
-* `write` policy - ["list-jobs", "read-job", "submit-job", "read-logs", "read-fs", "dispatch-job"]
+* `write` policy - ["list-jobs", "read-job", "submit-job", "dispatch-job", "read-logs", "read-fs", "alloc-exec", "alloc-lifecycle"]
 
 When both the policy short hand and a capabilities list are provided, the capabilities are merged:
 
@@ -254,7 +253,7 @@ namespace "default" {
 }
 ```
 
-Namespaces definitions may also include globs, allowing a single policy definition to apply to a set of namespaces. For example, the below policy allows read access to most production namespaces, but allows write access to the "production-api" namespace, and rejects any access to the "production-web" namespace.
+Namespace definitions may also include globs, allowing a single policy definition to apply to a set of namespaces. For example, the below policy allows read access to most production namespaces, but allows write access to the "production-api" namespace, and rejects any access to the "production-web" namespace.
 
 ```
 namespace "production-*" {
@@ -286,8 +285,7 @@ Will evaluate to deny for `production-web`, because it is 9 characters different
 
 ### Node Rules
 
-The `node` policy controls access to the [Node API](/api/nodes.html) such as listing nodes or triggering a node drain.
-Node rules are specified for all nodes using the `node` key:
+The `node` policy controls access to the [Node API](/api/nodes.html) such as listing nodes or triggering a node drain. Node rules are specified for all nodes using the `node` key:
 
 ```
 node {
@@ -299,8 +297,7 @@ There's only one node policy allowed per rule set, and its value is set to one o
 
 ### Agent Rules
 
-The `agent` policy controls access to the utility operations in the [Agent API](/api/agent.html), such as join and leave.
-Agent rules are specified for all agents using the `agent` key:
+The `agent` policy controls access to the utility operations in the [Agent API](/api/agent.html), such as join and leave. Agent rules are specified for all agents using the `agent` key:
 
 ```
 agent {
@@ -325,8 +322,7 @@ There's only one operator policy allowed per rule set, and its value is set to o
 
 ### Quota Rules
 
-The `quota` policy controls access to the quota specification operations in the [Quota API](/api/quotas.html), such as quota creation and deletion.
-Quota rules are specified for all quotas using the `quota` key:
+The `quota` policy controls access to the quota specification operations in the [Quota API](/api/quotas.html), such as quota creation and deletion. Quota rules are specified for all quotas using the `quota` key:
 
 ```
 quota {
@@ -340,22 +336,13 @@ There's only one quota policy allowed per rule set, and its value is set to one 
 
 ### Outages and Multi-Region Replication
 
-The ACL system takes some steps to ensure operation during outages. Clients nodes maintain a limited
-cache of ACL tokens and ACL policies that have recently or frequently been used, associated with a time-to-live (TTL).
+The ACL system takes some steps to ensure operation during outages. Clients nodes maintain a limited cache of ACL tokens and ACL policies that have recently or frequently been used, associated with a time-to-live (TTL).
 
-When the region servers are unavailable, the clients will automatically ignore the cache TTL,
-and extend the cache until the outage has recovered. For any policies or tokens that are not cached,
-they will be treated as missing and denied access until the outage has been resolved.
+When the region servers are unavailable, the clients will automatically ignore the cache TTL, and extend the cache until the outage has recovered. For any policies or tokens that are not cached, they will be treated as missing and denied access until the outage has been resolved.
 
-Nomad servers have all the policies and tokens locally and can continue serving requests even if
-quorum is lost. The tokens and policies may become stale during this period as data is not actively
-replicating, but will be automatically fixed when the outage has been resolved.
+Nomad servers have all the policies and tokens locally and can continue serving requests even if quorum is lost. The tokens and policies may become stale during this period as data is not actively replicating, but will be automatically fixed when the outage has been resolved.
 
-In a multi-region setup, there is a single authoritative region which is the source of truth for
-ACL policies and global ACL tokens. All other regions asynchronously replicate from the authoritative
-region. When replication is interrupted, the existing data is used for request processing and may
-become stale. When the authoritative region is reachable, replication will resume and repair any
-inconsistency.
+In a multi-region setup, there is a single authoritative region which is the source of truth for ACL policies and global ACL tokens. All other regions asynchronously replicate from the authoritative region. When replication is interrupted, the existing data is used for request processing and may become stale. When the authoritative region is reachable, replication will resume and repair any inconsistency.
 
 ### host_volume Rules
 
@@ -375,11 +362,7 @@ host_volume "prod-ca-certificates" {
 }
 ```
 
-Host volume rules are keyed to the volume names that they apply to. As with
-namespaces, you may use wildcards to reuse the same configuration across a set
-of volumes. In addition to the coarse grained policy specification, the
-`host_volume` stanza allows setting a more fine grained list of capabilities.
-This includes:
+Host volume rules are keyed to the volume names that they apply to. As with namespaces, you may use wildcards to reuse the same configuration across a set of volumes. In addition to the coarse grained policy specification, the `host_volume` stanza allows setting a more fine grained list of capabilities. This includes:
 
 - `deny` - Do not allow a user to mount a volume in any way.
 - `mount-readonly` - Only allow the user to mount the volume as `readonly`
@@ -393,14 +376,11 @@ The course grained policy permissions are shorthand for the fine grained capabil
 
 When both the policy short hand and a capabilities list are provided, the capabilities are merged.
 
-**Note:** Host Volume policies are applied when attempting to _use_ a volume,
-however, if a user has access to the Node API, they will be able to see that a
-volume exists in the `nomad node status` output regardless of this configuration.
+**Note:** Host Volume policies are applied when attempting to _use_ a volume, however, if a user has access to the Node API, they will be able to see that a volume exists in the `nomad node status` output regardless of this configuration.
 
 ### Resetting ACL Bootstrap
 
-If all management tokens are lost, it is possible to reset the ACL bootstrap so that it can be performed again.
-First, we need to determine the reset index, this can be done by calling the reset endpoint:
+If all management tokens are lost, it is possible to reset the ACL bootstrap so that it can be performed again. First, we need to determine the reset index, this can be done by calling the reset endpoint:
 
 ```
 $ nomad acl bootstrap
@@ -408,8 +388,7 @@ $ nomad acl bootstrap
 Error bootstrapping: Unexpected response code: 500 (ACL bootstrap already done (reset index: 7))
 ```
 
-Here we can see the `reset index`. To reset the ACL system, we create the
-`acl-bootstrap-reset` file in the data directory of the **leader** node:
+Here we can see the `reset index`. To reset the ACL system, we create the `acl-bootstrap-reset` file in the data directory of the **leader** node:
 
 ```
 $ echo 7 >> /nomad-data-dir/server/acl-bootstrap-reset
@@ -438,19 +417,13 @@ $ nomad acl bootstrap
 Error bootstrapping: Unexpected response code: 500 (Invalid bootstrap reset index (specified 7, reset index: 11))
 ```
 
-This is because the reset file is in place, but with the incorrect index.
-The reset file can be deleted, but Nomad will not reset the bootstrap until the index is corrected.
+This is because the reset file is in place, but with the incorrect index. The reset file can be deleted, but Nomad will not reset the bootstrap until the index is corrected.
 
 ## Vault Integration
-HashiCorp Vault has a secret backend for generating short-lived Nomad tokens. As Vault has a number of
-authentication backends, it could provide a workflow where a user or orchestration system authenticates
-using an pre-existing identity service (LDAP, Okta, Amazon IAM, etc.) in order to obtain a short-lived
-Nomad token.
 
-~> HashiCorp Vault is a standalone product with its own set of deployment and
-   configuration best practices. Please review [Vault's
-   documentation](https://www.vaultproject.io/docs/index.html) before deploying it
-   in production.
+HashiCorp Vault has a secret backend for generating short-lived Nomad tokens. As Vault has a number of authentication backends, it could provide a workflow where a user or orchestration system authenticates using an pre-existing identity service (LDAP, Okta, Amazon IAM, etc.) in order to obtain a short-lived Nomad token.
+
+~> HashiCorp Vault is a standalone product with its own set of deployment and configuration best practices. Please review [Vault's documentation](https://www.vaultproject.io/docs/index.html) before deploying it in production.
 
 For evaluation purposes, a Vault server in "dev" mode can be used.
 
@@ -488,15 +461,15 @@ Root Token: f84b587e-5882-bba1-a3f0-d1a3d90ca105
 ```
 
 ### Pre-requisites
+
 - Nomad ACL system bootstrapped.
-- A management token (the bootstrap token can be used, but for production
-  systems it's recommended to have a separate token)
+- A management token (You can use the bootstrap token; however, for production systems we recommended having an integration-specific token)
 - A set of policies created in Nomad
-- An unsealed Vault server (Vault running in `dev` mode is unsealed
-  automatically upon startup)
+- An unsealed Vault server (Vault running in `dev` mode is unsealed automatically upon startup)
   - Vault must be version 0.9.3 or later to have the Nomad plugin
 
 ### Configuration
+
 Mount the [`nomad`][nomad_backend] secret backend in Vault:
 
 ```
@@ -513,10 +486,7 @@ $ vault write nomad/config/access \
 Success! Data written to: nomad/config/access
 ```
 
-Vault secret backends have the concept of roles, which are configuration units that group one or more 
-Vault policies to a potential identity attribute, (e.g. LDAP Group membership). The name of the role 
-is specified on the path, while the mapping to policies is done by naming them in a comma separated list, 
-for example:
+Vault secret backends have the concept of roles, which are configuration units that group one or more Vault policies to a potential identity attribute, (e.g. LDAP Group membership). The name of the role is specified on the path, while the mapping to policies is done by naming them in a comma separated list, for example:
 
 ```
 $ vault write nomad/role/role-name policies=policyone,policytwo
@@ -530,8 +500,7 @@ $ vault write nomad/role/role-name type=management global=true
 Success! Data written to: nomad/role/role-name
 ```
 
-Create a Vault policy to allow different identities to get tokens associated with a particular
-role:
+Create a Vault policy to allow different identities to get tokens associated with a particular role:
 
 ```
 $ echo 'path "nomad/creds/role-name" {
@@ -540,9 +509,7 @@ $ echo 'path "nomad/creds/role-name" {
 Policy 'nomad-user-policy' written.
 ```
 
-If you have an existing authentication backend (like LDAP), follow the relevant instructions to create
-a role available on the [Authentication backends page](https://www.vaultproject.io/docs/auth/index.html).
-Otherwise, for testing purposes, a Vault token can be generated associated with the policy:
+If you have an existing authentication backend (like LDAP), follow the relevant instructions to create a role available on the [Authentication backends page](https://www.vaultproject.io/docs/auth/index.html). Otherwise, for testing purposes, a Vault token can be generated associated with the policy:
 
 ```
 $ vault token create -policy=nomad-user-policy
@@ -583,8 +550,7 @@ Create Index = 228
 Modify Index = 228
 ```
 
-Any user or process with access to Vault can now obtain short lived Nomad Tokens in order to
-carry out operations, thus centralising the access to Nomad tokens.
+Any user or process with access to Vault can now obtain short lived Nomad Tokens in order to carry out operations, thus centralizing the access to Nomad tokens.
 
 
 [nomad_backend]: https://www.vaultproject.io/docs/secrets/nomad/index.html
