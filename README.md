@@ -173,6 +173,12 @@ $ make bootstrap
 ...
 ```
 
+Nomad creates many file handles for communicating with tasks, log handlers, etc.
+In some development environments, particularly macOS, the default number of file
+descriptors is too small to run Nomad's test suite. You should set
+`ulimit -n 1024` or higher in your shell. This setting is scoped to your current
+shell and doesn't affect other running shells or future shells.
+
 Afterwards type `make test`. This will run the tests. If this exits with exit status 0,
 then everything is working!
 
