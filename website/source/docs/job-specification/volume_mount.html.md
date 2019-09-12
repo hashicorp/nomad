@@ -35,7 +35,7 @@ job "docs" {
 
     task "example" {
       volume_mount {
-        source = "certs"
+        volume      = "certs"
         destination = "/etc/ssl/certs"
       }
     }
@@ -49,7 +49,7 @@ updates to remove a volume that it depends on.
 
 ## `volume_mount` Parameters
 
-- `source` `(string: "")` - Specifies the group volume that the mount is going
+- `volume` `(string: "")` - Specifies the group volume that the mount is going
   to access.
 
 - `destination` `(string: "")` - Specifies where the volume should be mounted
