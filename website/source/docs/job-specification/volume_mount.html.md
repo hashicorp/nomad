@@ -18,8 +18,8 @@ description: |-
   </tr>
 </table>
 
-The "volume_mount" stanza allows the task to specify how a group
-[`volume`][volume] should be mounted into the task. 
+The `volume_mount` stanza allows the task to specify how a group
+[`volume`][volume] should be mounted into the task.
 
 ```hcl
 job "docs" {
@@ -56,7 +56,7 @@ updates to remove a volume that it depends on.
   inside the tasks container.
 
 - `read_only` `(bool: false)` - When a group volume is writeable, you may
-  specify that it is read_only on a per mount level using the `read_only` option
-  here.
+  specify that it is `read_only` on a per mount level using the `read_only`
+  option here.
 
 [volume]: /docs/job-specification/volume.html "Nomad volume Job Specification"
