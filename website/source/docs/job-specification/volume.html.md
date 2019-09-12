@@ -19,7 +19,7 @@ description: |-
   </tr>
 </table>
 
-The "volume" stanza allows the group to specify that it requires a given volume
+The `volume` stanza allows the group to specify that it requires a given volume
 from the cluster.
 
 The key of the stanza is the name of the volume as it will be exposed to task
@@ -29,7 +29,7 @@ configuration.
 job "docs" {
   group "example" {
     volume "certs" {
-      type = "host"
+      type      = "host"
       read_only = true
 
       config {
@@ -41,7 +41,7 @@ job "docs" {
 ```
 
 The Nomad server will ensure that the allocations are only scheduled on hosts
-that have a set of volumes that meet the criteria specified in the volume
+that have a set of volumes that meet the criteria specified in the `volume`
 stanzas.
 
 The Nomad client will make the volumes available to tasks according to the
