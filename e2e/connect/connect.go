@@ -27,6 +27,7 @@ func init() {
 		Consul:      true,
 		Cases: []framework.TestCase{
 			new(ConnectE2ETest),
+			new(ConnectClientStateE2ETest),
 		},
 	})
 }
