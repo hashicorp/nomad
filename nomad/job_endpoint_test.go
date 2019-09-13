@@ -285,10 +285,8 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 		tg := j.TaskGroups[0]
 		tg.Volumes = map[string]*structs.VolumeRequest{
 			"ca-certs": {
-				Type: structs.VolumeTypeHost,
-				Config: map[string]interface{}{
-					"source": "prod-ca-certs",
-				},
+				Type:     structs.VolumeTypeHost,
+				Source:   "prod-ca-certs",
 				ReadOnly: readonlyVolume,
 			},
 		}
