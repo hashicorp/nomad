@@ -9,6 +9,7 @@ export default ApplicationSerializer.extend({
     });
 
     hash.ReservedEphemeralDisk = hash.EphemeralDisk.SizeMB;
+    hash.Services = hash.Services || [];
 
     return this._super(typeHash, hash);
   },
