@@ -134,6 +134,21 @@ var (
 		Name:              pluginName,
 	}
 
+	danglingContainersBlock = hclspec.NewObject(map[string]*hclspec.Spec{
+		"enabled": hclspec.NewDefault(
+			hclspec.NewAttr("enabled", "bool", false),
+			hclspec.NewLiteral(`true`),
+		),
+		"period": hclspec.NewDefault(
+			hclspec.NewAttr("period", "string", false),
+			hclspec.NewLiteral(`"5m"`),
+		),
+		"creation_timeout": hclspec.NewDefault(
+			hclspec.NewAttr("creation_timeout", "string", false),
+			hclspec.NewLiteral(`"5m"`),
+		),
+	})
+
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
 	// and is used to parse the contents of the 'plugin "docker" {...}' block.
 	// Example:
@@ -194,6 +209,10 @@ var (
 			"container": hclspec.NewDefault(
 				hclspec.NewAttr("container", "bool", false),
 				hclspec.NewLiteral("true"),
+			),
+			"dangling_containers": hclspec.NewDefault(
+				hclspec.NewBlock("dangling_containers", false, danglingContainersBlock),
+				hclspec.NewLiteral("{}"),
 			),
 		})), hclspec.NewLiteral(`{
 			image = true
@@ -491,6 +510,16 @@ type DockerVolumeDriverConfig struct {
 	Options hclutils.MapStrStr `codec:"options"`
 }
 
+type ContainerGCConfig struct {
+	Enabled bool `codec:"enabled"`
+
+	PeriodStr string        `codec:"period"`
+	period    time.Duration `codec:"-"`
+
+	CreationTimeoutStr string        `codec:"creation_timeout"`
+	creationTimeout    time.Duration `codec:"-"`
+}
+
 type DriverConfig struct {
 	Endpoint        string       `codec:"endpoint"`
 	Auth            AuthConfig   `codec:"auth"`
@@ -519,6 +548,8 @@ type GCConfig struct {
 	ImageDelay         string        `codec:"image_delay"`
 	imageDelayDuration time.Duration `codec:"-"`
 	Container          bool          `codec:"container"`
+
+	DanglingContainers ContainerGCConfig `codec:"dangling_containers"`
 }
 
 type VolumeConfig struct {
@@ -551,6 +582,22 @@ func (d *Driver) SetConfig(c *base.Config) error {
 		d.config.GC.imageDelayDuration = dur
 	}
 
+	if len(d.config.GC.DanglingContainers.PeriodStr) > 0 {
+		dur, err := time.ParseDuration(d.config.GC.DanglingContainers.PeriodStr)
+		if err != nil {
+			return fmt.Errorf("failed to parse 'period' duration: %v", err)
+		}
+		d.config.GC.DanglingContainers.period = dur
+	}
+
+	if len(d.config.GC.DanglingContainers.CreationTimeoutStr) > 0 {
+		dur, err := time.ParseDuration(d.config.GC.DanglingContainers.CreationTimeoutStr)
+		if err != nil {
+			return fmt.Errorf("failed to parse 'container_delay' duration: %v", err)
+		}
+		d.config.GC.DanglingContainers.creationTimeout = dur
+	}
+
 	if c.AgentConfig != nil {
 		d.clientConfig = c.AgentConfig.Driver
 	}
@@ -567,6 +614,8 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	}
 
 	d.coordinator = newDockerCoordinator(coordinatorConfig)
+
+	go d.removeDanglingContainersGoroutine()
 
 	return nil
 }
