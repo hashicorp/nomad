@@ -2376,3 +2376,74 @@ func waitForExist(t *testing.T, client *docker.Client, containerID string) {
 		require.NoError(t, err)
 	})
 }
+
+// TestDockerDriver_CreationIdempotent asserts that createContainer and
+// and startContainers functions are idempotent, as we have some retry
+// logic there without ensureing we delete/destroy containers
+func TestDockerDriver_CreationIdempotent(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, _ := dockerTask(t)
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client := newTestDockerClient(t)
+	driver := dockerDriverHarness(t, nil)
+	cleanup := driver.MkAllocDir(task, true)
+	defer cleanup()
+
+	copyImage(t, task.TaskDir(), "busybox.tar")
+
+	d, ok := driver.Impl().(*Driver)
+	require.True(t, ok)
+
+	_, err := d.createImage(task, cfg, client)
+	require.NoError(t, err)
+
+	containerCfg, err := d.createContainerConfig(task, cfg, cfg.Image)
+	require.NoError(t, err)
+
+	c, err := d.createContainer(client, containerCfg, cfg.Image)
+	require.NoError(t, err)
+	defer client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:    c.ID,
+		Force: true,
+	})
+
+	// calling createContainer again creates a new one and remove old one
+	c2, err := d.createContainer(client, containerCfg, cfg.Image)
+	require.NoError(t, err)
+	defer client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:    c2.ID,
+		Force: true,
+	})
+
+	require.NotEqual(t, c.ID, c2.ID)
+	// old container was destroyed
+	{
+		_, err := client.InspectContainer(c.ID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), NoSuchContainerError)
+	}
+
+	// now start container twice
+	require.NoError(t, d.startContainer(c2))
+	require.NoError(t, d.startContainer(c2))
+
+	tu.WaitForResult(func() (bool, error) {
+		c, err := client.InspectContainer(c2.ID)
+		if err != nil {
+			return false, fmt.Errorf("failed to get container status: %v", err)
+		}
+
+		if !c.State.Running {
+			return false, fmt.Errorf("container is not running but %v", c.State)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+}

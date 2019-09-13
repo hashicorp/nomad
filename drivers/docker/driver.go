@@ -468,7 +468,7 @@ func (d *Driver) startContainer(c *docker.Container) error {
 	attempted := 0
 START:
 	startErr := client.StartContainer(c.ID, c.HostConfig)
-	if startErr == nil {
+	if startErr == nil || strings.Contains(startErr.Error(), "Container already running") {
 		return nil
 	}
 
