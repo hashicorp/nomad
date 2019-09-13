@@ -20,7 +20,17 @@ func (d *Driver) removeDanglingContainersGoroutine() {
 
 	succeeded := true
 
-	timer := time.NewTimer(period)
+	// ensure that we wait for at least a period or creation timeout
+	// for first container GC iteration
+	// The initial period is a grace period for restore allocation
+	// before a driver may kill containers launched by an earlier nomad
+	// process.
+	initialDelay := period
+	if d.config.GC.DanglingContainers.creationTimeout > initialDelay {
+		initialDelay = d.config.GC.DanglingContainers.creationTimeout
+	}
+
+	timer := time.NewTimer(initialDelay)
 	for {
 		select {
 		case <-timer.C:
