@@ -368,6 +368,14 @@ func TestTask_Artifact(t *testing.T) {
 	}
 }
 
+func TestTask_VolumeMount(t *testing.T) {
+	t.Parallel()
+	vm := &VolumeMount{}
+	vm.Canonicalize()
+	require.NotNil(t, vm.PropagationMode)
+	require.Equal(t, *vm.PropagationMode, "private")
+}
+
 // Ensures no regression on https://github.com/hashicorp/nomad/issues/3132
 func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 	// Job with an Empty() Update

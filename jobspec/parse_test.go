@@ -197,8 +197,8 @@ func TestParse(t *testing.T) {
 								},
 								VolumeMounts: []*api.VolumeMount{
 									{
-										Volume:      "foo",
-										Destination: "/mnt/foo",
+										Volume:      helper.StringToPtr("foo"),
+										Destination: helper.StringToPtr("/mnt/foo"),
 									},
 								},
 								Affinities: []*api.Affinity{
