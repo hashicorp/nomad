@@ -573,7 +573,15 @@ func (c *ServiceClient) sync() error {
 	// Add Nomad checks missing from Consul
 	for id, check := range c.checks {
 		if _, ok := consulChecks[id]; ok {
-			// Already in Consul; skipping
+			// Already in Consul
+			// Ensure linked script is running
+			if script, ok := c.scripts[id]; ok {
+				// If it's not running yet, start and store the handle
+				if _, running := c.runningScripts[id]; !running {
+					c.runningScripts[id] = script.run()
+				}
+			}
+			// Skip registration
 			continue
 		}
 
