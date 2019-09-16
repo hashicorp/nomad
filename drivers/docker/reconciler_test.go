@@ -111,8 +111,6 @@ func TestDanglingContainerRemoval(t *testing.T) {
 	err = client.StartContainer(c.ID, nil)
 	require.NoError(t, err)
 
-	time.Sleep(1 * time.Second)
-
 	dd := d.Impl().(*Driver)
 	trackedContainers := map[string]bool{handle.containerID: true}
 

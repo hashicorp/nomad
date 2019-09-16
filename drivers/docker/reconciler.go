@@ -70,7 +70,8 @@ func (d *Driver) removeDanglingContainersIteration() error {
 	return nil
 }
 
-// untrackedContainers returns the ids of containers that look
+// untrackedContainers returns the ids of containers that suspected
+// to have been started by Nomad but aren't tracked by this driver
 func (d *Driver) untrackedContainers(tracked map[string]bool, creationTimeout time.Duration) ([]string, error) {
 	result := []string{}
 
@@ -116,7 +117,7 @@ func (d *Driver) isNomadContainer(c docker.APIContainers) bool {
 	}
 
 	// double check before killing process
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(d.ctx, 20*time.Second)
 	defer cancel()
 
 	ci, err := client.InspectContainerWithContext(c.ID, ctx)
