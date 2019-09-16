@@ -49,7 +49,7 @@ The Nomad client will make the volumes available to tasks according to the
 - `type` `(string: "")` - Specifies the type of a given volume. Currently the
   only possible volume type is `"host"`.
 
-- `source` `(string: "")` - The name of the volume to request. When using
+- `source` `(string: <required>)` - The name of the volume to request. When using
   `host_volume`'s this should match the published name of the host volume.
 
 - `read_only` `(bool: false)` - Specifies that the group only requires read only
