@@ -4925,13 +4925,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			continue
 		}
 
-		cfg, err := ParseHostVolumeConfig(decl.Config)
-		if err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unparseable config: %v", name, err))
-			continue
-		}
-
-		if cfg.Source == "" {
+		if decl.Source == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has an empty source", name))
 		}
 	}

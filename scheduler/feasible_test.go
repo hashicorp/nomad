@@ -110,15 +110,15 @@ func TestHostVolumeChecker(t *testing.T) {
 	volumes := map[string]*structs.VolumeRequest{
 		"foo": {
 			Type:   "host",
-			Config: map[string]interface{}{"source": "foo"},
+			Source: "foo",
 		},
 		"bar": {
 			Type:   "host",
-			Config: map[string]interface{}{"source": "bar"},
+			Source: "bar",
 		},
 		"baz": {
 			Type:   "nothost",
-			Config: map[string]interface{}{"source": "baz"},
+			Source: "baz",
 		},
 	}
 
@@ -183,19 +183,15 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 
 	readwriteRequest := map[string]*structs.VolumeRequest{
 		"foo": {
-			Type: "host",
-			Config: map[string]interface{}{
-				"source": "foo",
-			},
+			Type:   "host",
+			Source: "foo",
 		},
 	}
 
 	readonlyRequest := map[string]*structs.VolumeRequest{
 		"foo": {
-			Type: "host",
-			Config: map[string]interface{}{
-				"source": "foo",
-			},
+			Type:     "host",
+			Source:   "foo",
 			ReadOnly: true,
 		},
 	}
