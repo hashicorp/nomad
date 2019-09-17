@@ -1279,11 +1279,13 @@ func (c *Client) setupNode() error {
 	if node.Name == "" {
 		node.Name, _ = os.Hostname()
 	}
-	// TODO(dani): Fingerprint these to handle volumes that don't exist/have bad perms.
 	if node.HostVolumes == nil {
 		if l := len(c.config.HostVolumes); l != 0 {
 			node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig, l)
 			for k, v := range c.config.HostVolumes {
+				if _, err := os.Stat(v.Path); err != nil {
+					return fmt.Errorf("failed to validate volume %s, err: %v", v.Name, err)
+				}
 				node.HostVolumes[k] = v.Copy()
 			}
 		}
