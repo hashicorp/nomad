@@ -63,7 +63,7 @@ resource "aws_instance" "server" {
       "sudo chmod 0755 /usr/local/bin/nomad",
       "sudo chown root:root /usr/local/bin/nomad",
       "sudo systemctl enable nomad.service",
-      "sudo systemctl start nomad.service"
+      "sudo systemctl start nomad.service",
     ]
 
     connection {
@@ -89,11 +89,11 @@ resource "aws_instance" "client" {
     User           = "${data.aws_caller_identity.current.arn}"
   }
 
-  ebs_block_device =  {
-    device_name                 = "/dev/xvdd"
-    volume_type                 = "gp2"
-    volume_size                 = "50"
-    delete_on_termination       = "true"
+  ebs_block_device = {
+    device_name           = "/dev/xvdd"
+    volume_type           = "gp2"
+    volume_size           = "50"
+    delete_on_termination = "true"
   }
 
   user_data            = "${element(data.template_file.user_data_client.*.rendered, count.index)}"
@@ -117,12 +117,22 @@ resource "aws_instance" "client" {
       "sudo cp /tmp/client.hcl /etc/nomad.d/nomad.hcl",
       "sudo chmod 0755 /usr/local/bin/nomad",
       "sudo chown root:root /usr/local/bin/nomad",
-			"sudo systemctl enable nomad.service",
+
+      # Setup Host Volumes
+      "sudo mkdir /tmp/data",
+
+      # Run Nomad Service
+      "sudo systemctl enable nomad.service",
+
       "sudo systemctl start nomad.service",
-			# Install CNI plugins
-			"sudo mkdir -p /opt/cni/bin",
-			"wget -q -O - https://github.com/containernetworking/plugins/releases/download/v0.8.2/cni-plugins-linux-amd64-v0.8.2.tgz | sudo tar -C /opt/cni/bin -xz",
+
+      # Install CNI plugins
+      "sudo mkdir -p /opt/cni/bin",
+
+      "wget -q -O - https://github.com/containernetworking/plugins/releases/download/v0.8.2/cni-plugins-linux-amd64-v0.8.2.tgz | sudo tar -C /opt/cni/bin -xz",
     ]
+
+    # Setup host volumes
 
     connection {
       user        = "ubuntu"
