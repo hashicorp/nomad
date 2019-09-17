@@ -9,6 +9,10 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	// These packages have init() funcs which check os.Args and drop directly
+	// into their command logic. This is because they are run as seperate
+	// processes along side of a task. By early importing them we can avoid
+	// additional code being imported and thus reserving memory
 	_ "github.com/hashicorp/nomad/client/logmon"
 	_ "github.com/hashicorp/nomad/drivers/docker/docklog"
 	_ "github.com/hashicorp/nomad/drivers/shared/executor"
