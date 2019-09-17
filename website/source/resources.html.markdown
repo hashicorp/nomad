@@ -5,7 +5,7 @@ description: |-
   Nomad is widely deployed across a range of enterprises and business verticals.
 ---
 
-<h1>Resources</h1>
+# Resources
 
 <p>
   Nomad is widely adopted and used in production by PagerDuty, Target, Citadel,
@@ -15,7 +15,7 @@ description: |-
   learning Nomad's real world use-cases, or integrating with third-party tools.
 </p>
 
-<h2>Community</h2>
+## Community
 
 <p>
   <strong>Discussion Forum</strong>
@@ -52,7 +52,7 @@ description: |-
   Please only use this to report bugs. For general help, please use our mailing list or Gitter.
 </p>
 
-<h2>Who Uses Nomad</h2>
+## Who Uses Nomad
 
 <ul>
   <li>CircleCI</li>
@@ -159,7 +159,7 @@ description: |-
 <br>
 <p>...and more!</p>
 
-<h2>Webinars</h2>
+## Webinars
 
 <ul>
   <li><a href="https://www.hashicorp.com/resources/solutions-engineering-hangout-microservices-with-nomad">Running Microservices with Nomad</a></li>
@@ -169,7 +169,7 @@ description: |-
   <li><a href="https://www.hashicorp.com/resources/machine-learning-workflows-hashicorp-nomad-apache-spark">Machine Learning Workflows with HashiCorp Nomad & Apache Spark</a></li>
 </ul>
 
-<h2>Integrations</h2>
+## Integrations
 
 <ul>
   <li><a href="https://github.com/jet/damon"><strong>Jet.com</strong> Damon</a> - A Program to Constrain Windows Executables under Nomad raw_exec</li>
@@ -186,7 +186,7 @@ description: |-
   <li><a href="https://github.com/ValFadeev/rundeck-nomad-plugin">Rundeck Plugin for Nomad</a> - A Rundeck Plugin for Running Jobs on a Nomad Cluster</li>
 </ul>
 
-<h2>Other</h2>
+## Other
 
 <ul>
   <li><a href="https://github.com/jippi/hashi-ui">hashi-ui</a> - Hashi-UI is a simple to deploy, web based UI for interacting with Nomad and Consul</li>

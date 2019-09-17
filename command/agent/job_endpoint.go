@@ -753,7 +753,7 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 				Name:     v.Name,
 				Type:     v.Type,
 				ReadOnly: v.ReadOnly,
-				Config:   v.Config,
+				Source:   v.Source,
 			}
 
 			tg.Volumes[k] = vol

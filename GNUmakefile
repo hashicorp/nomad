@@ -13,7 +13,7 @@ GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
 ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
 GOTEST_PKGS ?= "./..."
 else
-GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))$$")
+GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))(/.*)?$$")
 endif
 
 default: help
@@ -170,6 +170,7 @@ check: ## Lint the source code
 		--deadline 10m \
 		--vendor \
 		--exclude='.*\.generated\.go' \
+		--exclude='.*\.pb\.go' \
 		--exclude='.*bindata_assetfs\.go' \
 		--skip="ui/" \
 		--sort="path" \

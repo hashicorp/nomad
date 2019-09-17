@@ -1144,7 +1144,8 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, 
 	return reg, nil
 }
 
-// TODO(tgross): make sure this is properly nil-checked, etc.
+// UpdateTTL is used to update the TTL of a check. Typically this will only be
+// called to heartbeat script checks.
 func (c *ServiceClient) UpdateTTL(id, output, status string) error {
 	return c.client.UpdateTTL(id, output, status)
 }

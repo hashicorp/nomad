@@ -1,8 +1,8 @@
 ## 0.10.0 (Unreleased)
 
 FEATURES:
- * **Consul Connect**: Nomad can register Consul Connect services and manage
-   running an Envoy proxy sidecar to provide secured service-to-service
+ * **Consul Connect**: Nomad may now register Consul Connect services and
+   manages an Envoy proxy sidecar to provide secured service-to-service
    communication.
  * **Network Namespaces**: Task Groups may now define a shared network
    namespace. Each allocation will receive its own network namespace and
@@ -12,7 +12,6 @@ FEATURES:
  * **UI Allocation File Explorer**: Nomad UI enhanced operability with a visual file system explorer for allocations.
 
 IMPROVEMENTS:
- * core: Exposed network namespace as environment variable in allocation [[GH-6192](https://github.com/hashicorp/nomad/pull/6192)]
  * core: Enabled Autopilot nomad features and raft protocol version 3 by default [[GH-6250](https://github.com/hashicorp/nomad/issues/6250)]
  * core: Added rolling deployments for service jobs by default and max_parallel=0 disables deployments [[GH-6191](https://github.com/hashicorp/nomad/pull/6100)]
  * agent: Allowed the job GC interval to be configured [[GH-5978](https://github.com/hashicorp/nomad/issues/5978)]
@@ -21,6 +20,7 @@ IMPROVEMENTS:
  * cli: Added `-dev-connect` parameter to support running in dev mode with Consul Connect [[GH-6126](https://github.com/hashicorp/nomad/issues/6126)]
  * client: Upgraded `go-getter` to support GCP links [[GH-6215](https://github.com/hashicorp/nomad/pull/6215)]
  * client: Remove consul service stanza from `job init --short` jobspec [[GH-6179](https://github.com/hashicorp/nomad/issues/6179)]
+ * drivers: Exposed namespace as `NOMAD_NAMESPACE` environment variable in running tasks [[GH-6192](https://github.com/hashicorp/nomad/pull/6192)]
  * metrics: Added job status (pending, running, dead) metrics [[GH-6003](https://github.com/hashicorp/nomad/issues/6003)]
  * metrics: Added status and scheduling ability to client metrics [[GH-6130](https://github.com/hashicorp/nomad/issues/6130)]
  * server: Added an option to configure job GC interval [[GH-5978](https://github.com/hashicorp/nomad/issues/5978)]

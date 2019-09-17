@@ -23,7 +23,7 @@ Usage: nomad namespace <subcommand> [options] [args]
 
   Create or update a namespace:
 
-      $ nomad namespace apply <name> -description "My new namespace"
+      $ nomad namespace apply -description "My new namespace" <name> 
 
   List namespaces:
 

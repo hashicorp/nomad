@@ -37,6 +37,8 @@ resource "aws_instance" "server" {
   tags {
     Name           = "${local.random_name}-server-${count.index}"
     ConsulAutoJoin = "auto-join"
+    SHA            = "${var.nomad_sha}"
+    User           = "${data.aws_caller_identity.current.arn}"
   }
 
   user_data            = "${data.template_file.user_data_server.rendered}"
@@ -83,6 +85,8 @@ resource "aws_instance" "client" {
   tags {
     Name           = "${local.random_name}-client-${count.index}"
     ConsulAutoJoin = "auto-join"
+    SHA            = "${var.nomad_sha}"
+    User           = "${data.aws_caller_identity.current.arn}"
   }
 
   ebs_block_device =  {
@@ -126,4 +130,3 @@ resource "aws_instance" "client" {
     }
   }
 }
-

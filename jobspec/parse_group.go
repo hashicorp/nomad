@@ -293,7 +293,7 @@ func parseVolumes(out *map[string]*api.VolumeRequest, list *ast.ObjectList) erro
 			"type",
 			"read_only",
 			"hidden",
-			"config",
+			"source",
 		}
 		if err := helper.CheckHCLKeys(item.Val, valid); err != nil {
 			return err
@@ -303,22 +303,6 @@ func parseVolumes(out *map[string]*api.VolumeRequest, list *ast.ObjectList) erro
 		if err := hcl.DecodeObject(&m, item.Val); err != nil {
 			return err
 		}
-
-		// TODO(dani): this is gross but we don't have ObjectList.Filter here
-		var cfg map[string]interface{}
-		if cfgI, ok := m["config"]; ok {
-			cfgL, ok := cfgI.([]map[string]interface{})
-			if !ok {
-				return fmt.Errorf("Incorrect `config` type, expected map")
-			}
-
-			if len(cfgL) != 1 {
-				return fmt.Errorf("Expected single `config`, found %d", len(cfgL))
-			}
-
-			cfg = cfgL[0]
-		}
-		delete(m, "config")
 
 		var result api.VolumeRequest
 		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -333,8 +317,6 @@ func parseVolumes(out *map[string]*api.VolumeRequest, list *ast.ObjectList) erro
 		}
 
 		result.Name = n
-		result.Config = cfg
-
 		volumes[n] = &result
 	}
 

@@ -19,7 +19,7 @@ description: |-
   </tr>
 </table>
 
-The "volume" stanza allows the group to specify that it requires a given volume
+The `volume` stanza allows the group to specify that it requires a given volume
 from the cluster.
 
 The key of the stanza is the name of the volume as it will be exposed to task
@@ -29,19 +29,16 @@ configuration.
 job "docs" {
   group "example" {
     volume "certs" {
-      type = "host"
+      type      = "host"
+      source    = "ca-certificates"
       read_only = true
-
-      config {
-        source = "ca-certificates"
-      }
     }
   }
 }
 ```
 
 The Nomad server will ensure that the allocations are only scheduled on hosts
-that have a set of volumes that meet the criteria specified in the volume
+that have a set of volumes that meet the criteria specified in the `volume`
 stanzas.
 
 The Nomad client will make the volumes available to tasks according to the
@@ -52,14 +49,13 @@ The Nomad client will make the volumes available to tasks according to the
 - `type` `(string: "")` - Specifies the type of a given volume. Currently the
   only possible volume type is `"host"`.
 
+- `source` `(string: <required>)` - The name of the volume to request. When using
+  `host_volume`'s this should match the published name of the host volume.
+
 - `read_only` `(bool: false)` - Specifies that the group only requires read only
   access to a volume and is used as the default value for the `volume_mount ->
   read_only` configuration. This value is also used for validating `host_volume`
   ACLs and for scheduling when a matching `host_volume` requires `read_only`
   usage.
-
-- `config` `(json/hcl: nil)` - Specifies the configuration for the volume
-  provider. For a `host_volume`, the only key is `source`, which is the name of
-  the volume to request.
 
 [volume_mount]: /docs/job-specification/volume_mount.html "Nomad volume_mount Job Specification"

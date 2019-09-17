@@ -107,7 +107,7 @@ Add the following to the `client` stanza of your Nomad configuration:
 
 ```hcl
   host_volume "mysql" {
-    path      = "/data/mysql"
+    path      = "/opt/mysql/data"
     read_only = false
   }
 ```
@@ -147,10 +147,7 @@ job "mysql-server" {
 
     volume "mysql" {
       type = "host"
-
-      config {
-        source = "mysql"
-      }
+      source = "mysql" 
     }
 
     restart {
