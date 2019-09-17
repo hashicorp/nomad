@@ -9,8 +9,11 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	_ "github.com/hashicorp/nomad/client/logmon"
+	_ "github.com/hashicorp/nomad/drivers/docker/docklog"
+	_ "github.com/hashicorp/nomad/drivers/shared/executor"
+
 	"github.com/hashicorp/nomad/command"
-	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mattn/go-colorable"
 	"github.com/mitchellh/cli"
@@ -38,7 +41,7 @@ var (
 		"server-join",
 		"server-members",
 		"syslog",
-		docklog.PluginName,
+		"docker_logger",
 	}
 
 	// aliases is the list of aliases we want users to be aware of. We hide
