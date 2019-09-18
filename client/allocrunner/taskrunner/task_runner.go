@@ -1335,10 +1335,14 @@ func (tr *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
 
 	if ru.ResourceUsage.MemoryStats != nil {
 		tr.setGaugeForMemory(ru)
+	} else {
+		tr.logger.Debug("Skipping memory stats for allocation", "reason", "MemoryStats is nil")
 	}
 
 	if ru.ResourceUsage.CpuStats != nil {
 		tr.setGaugeForCPU(ru)
+	} else {
+		tr.logger.Debug("Skipping cpu stats for allocation", "reason", "CpuStats is nil")
 	}
 }
 
