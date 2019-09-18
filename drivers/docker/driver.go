@@ -41,6 +41,12 @@ var (
 	// running operations such as waiting on containers and collect stats
 	waitClient *docker.Client
 
+	dockerTransientErrs = []string{
+		"Client.Timeout exceeded while awaiting headers",
+		"EOF",
+		"API error (500)",
+	}
+
 	// recoverableErrTimeouts returns a recoverable error if the error was due
 	// to timeouts
 	recoverableErrTimeouts = func(err error) error {
@@ -449,13 +455,17 @@ CREATE:
 
 		if attempted < 5 {
 			attempted++
-			time.Sleep(1 * time.Second)
+			time.Sleep(nextBackoff(attempted))
 			goto CREATE
 		}
 	} else if strings.Contains(strings.ToLower(createErr.Error()), "no such image") {
 		// There is still a very small chance this is possible even with the
 		// coordinator so retry.
 		return nil, nstructs.NewRecoverableError(createErr, true)
+	} else if isDockerTransientError(createErr) && attempted < 5 {
+		attempted++
+		time.Sleep(nextBackoff(attempted))
+		goto CREATE
 	}
 
 	return nil, recoverableErrTimeouts(createErr)
@@ -468,23 +478,29 @@ func (d *Driver) startContainer(c *docker.Container) error {
 	attempted := 0
 START:
 	startErr := client.StartContainer(c.ID, c.HostConfig)
-	if startErr == nil {
+	if startErr == nil || strings.Contains(startErr.Error(), "Container already running") {
 		return nil
 	}
 
 	d.logger.Debug("failed to start container", "container_id", c.ID, "attempt", attempted+1, "error", startErr)
 
-	// If it is a 500 error it is likely we can retry and be successful
-	if strings.Contains(startErr.Error(), "API error (500)") {
+	if isDockerTransientError(startErr) {
 		if attempted < 5 {
 			attempted++
-			time.Sleep(1 * time.Second)
+			time.Sleep(nextBackoff(attempted))
 			goto START
 		}
 		return nstructs.NewRecoverableError(startErr, true)
 	}
 
 	return recoverableErrTimeouts(startErr)
+}
+
+// nextBackoff returns appropriate docker backoff durations after attempted attempts.
+func nextBackoff(attempted int) time.Duration {
+	// attempts in 200ms, 800ms, 3.2s, 12.8s, 51.2s
+	// TODO: add randomization factor and extract to a helper
+	return 1 << (2 * uint64(attempted)) * 50 * time.Millisecond
 }
 
 // createImage creates a docker image either by pulling it from a registry or by
@@ -1457,4 +1473,19 @@ func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
 
 func (d *Driver) Shutdown() {
 	d.signalShutdown()
+}
+
+func isDockerTransientError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errMsg := err.Error()
+	for _, te := range dockerTransientErrs {
+		if strings.Contains(errMsg, te) {
+			return true
+		}
+	}
+
+	return false
 }
