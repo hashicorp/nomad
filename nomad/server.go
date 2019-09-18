@@ -1106,8 +1106,8 @@ func (s *Server) setupRaft() error {
 	s.config.RaftConfig.Logger = logger
 	s.config.RaftConfig.LogOutput = nil
 
-	// Our version of Raft protocol requires the LocalID to match the network
-	// address of the transport.
+	// Our version of Raft protocol 2 requires the LocalID to match the network
+	// address of the transport. Raft protocol 3 uses permanent ids.
 	s.config.RaftConfig.LocalID = raft.ServerID(trans.LocalAddr())
 	if s.config.RaftConfig.ProtocolVersion >= 3 {
 		s.config.RaftConfig.LocalID = raft.ServerID(s.config.NodeID)
