@@ -89,10 +89,10 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 // defaultNetworkManager creates a network namespace for the alloc
 type defaultNetworkManager struct{}
 
-func (*defaultNetworkManager) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, error) {
+func (*defaultNetworkManager) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, bool, error) {
 	netns, err := nsutil.NewNS(allocID)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	spec := &drivers.NetworkIsolationSpec{
@@ -101,7 +101,7 @@ func (*defaultNetworkManager) CreateNetwork(allocID string) (*drivers.NetworkIso
 		Labels: make(map[string]string),
 	}
 
-	return spec, nil
+	return spec, true, nil
 }
 
 func (*defaultNetworkManager) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSpec) error {

@@ -83,7 +83,7 @@ type ExecOptions struct {
 // network namespace for which tasks can join. This only needs to be implemented
 // if the driver MUST create the network namespace
 type DriverNetworkManager interface {
-	CreateNetwork(allocID string) (*NetworkIsolationSpec, error)
+	CreateNetwork(allocID string) (*NetworkIsolationSpec, bool, error)
 	DestroyNetwork(allocID string, spec *NetworkIsolationSpec) error
 }
 

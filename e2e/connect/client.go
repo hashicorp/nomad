@@ -53,7 +53,7 @@ func (tc *ConnectClientStateE2ETest) TestClientRestart(f *framework.F) {
 		tc.jobIds = append(tc.jobIds, restartID)
 	}
 	if err != nil {
-		t.Skip("node cannot be restarted: %v", err)
+		t.Skip("node cannot be restarted", err)
 	}
 
 	e2eutil.RequireConsulStatus(require, consulClient,

@@ -405,60 +405,26 @@ CREATE:
 	// If the container already exists determine whether it's already
 	// running or if it's dead and needs to be recreated.
 	if strings.Contains(strings.ToLower(createErr.Error()), "container already exists") {
-		containers, err := client.ListContainers(docker.ListContainersOptions{
-			All: true,
-		})
+
+		container, err := d.containerByName(config.Name)
 		if err != nil {
-			d.logger.Error("failed to query list of containers matching name", "container_name", config.Name)
-			return nil, recoverableErrTimeouts(fmt.Errorf("Failed to query list of containers: %s", err))
+			return nil, err
+		}
+
+		if container != nil && container.State.Running {
+			return container, nil
 		}
 
 		// Delete matching containers
-		// Adding a / infront of the container name since Docker returns the
-		// container names with a / pre-pended to the Nomad generated container names
-		containerName := "/" + config.Name
-		d.logger.Debug("searching for container to purge", "container_name", containerName)
-		for _, shimContainer := range containers {
-			d.logger.Debug("listed container", "names", hclog.Fmt("%+v", shimContainer.Names))
-			found := false
-			for _, name := range shimContainer.Names {
-				if name == containerName {
-					d.logger.Debug("Found container", "containter_name", containerName, "container_id", shimContainer.ID)
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				continue
-			}
-
-			// Inspect the container and if the container isn't dead then return
-			// the container
-			container, err := client.InspectContainer(shimContainer.ID)
-			if err != nil {
-				err = fmt.Errorf("Failed to inspect container %s: %s", shimContainer.ID, err)
-
-				// This error is always recoverable as it could
-				// be caused by races between listing
-				// containers and this container being removed.
-				// See #2802
-				return nil, nstructs.NewRecoverableError(err, true)
-			}
-			if container != nil && container.State.Running {
-				return container, nil
-			}
-
-			err = client.RemoveContainer(docker.RemoveContainerOptions{
-				ID:    container.ID,
-				Force: true,
-			})
-			if err != nil {
-				d.logger.Error("failed to purge container", "container_id", container.ID)
-				return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
-			} else if err == nil {
-				d.logger.Info("purged container", "container_id", container.ID)
-			}
+		err = client.RemoveContainer(docker.RemoveContainerOptions{
+			ID:    container.ID,
+			Force: true,
+		})
+		if err != nil {
+			d.logger.Error("failed to purge container", "container_id", container.ID)
+			return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
+		} else {
+			d.logger.Info("purged container", "container_id", container.ID)
 		}
 
 		if attempted < 5 {
@@ -1080,6 +1046,59 @@ func (d *Driver) detectIP(c *docker.Container, driverConfig *TaskConfig) (string
 	}
 
 	return ip, auto
+}
+
+// containerByName finds a running container by name, and returns an error
+// if the container is dead or can't be found.
+func (d *Driver) containerByName(name string) (*docker.Container, error) {
+
+	client, _, err := d.dockerClients()
+	if err != nil {
+		return nil, err
+	}
+	containers, err := client.ListContainers(docker.ListContainersOptions{
+		All: true,
+	})
+	if err != nil {
+		d.logger.Error("failed to query list of containers matching name",
+			"container_name", name)
+		return nil, recoverableErrTimeouts(
+			fmt.Errorf("Failed to query list of containers: %s", err))
+	}
+
+	// container names with a / pre-pended to the Nomad generated container names
+	containerName := "/" + name
+	var (
+		shimContainer docker.APIContainers
+		found         bool
+	)
+OUTER:
+	for _, shimContainer = range containers {
+		d.logger.Trace("listed container", "names", hclog.Fmt("%+v", shimContainer.Names))
+		for _, name := range shimContainer.Names {
+			if name == containerName {
+				d.logger.Trace("Found container",
+					"container_name", containerName, "container_id", shimContainer.ID)
+				found = true
+				break OUTER
+			}
+		}
+	}
+	if !found {
+		return nil, nil
+	}
+
+	container, err := client.InspectContainer(shimContainer.ID)
+	if err != nil {
+		err = fmt.Errorf("Failed to inspect container %s: %s", shimContainer.ID, err)
+
+		// This error is always recoverable as it could
+		// be caused by races between listing
+		// containers and this container being removed.
+		// See #2802
+		return nil, nstructs.NewRecoverableError(err, true)
+	}
+	return container, nil
 }
 
 // validateCommand validates that the command only has a single value and
