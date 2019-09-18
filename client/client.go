@@ -2500,10 +2500,13 @@ func (c *Client) emitStats() {
 	for {
 		select {
 		case <-next.C:
+			start := time.Now()
 			err := c.hostStatsCollector.Collect()
 			next.Reset(c.config.StatsCollectionInterval)
+			end := time.Now()
+			duration := end.Sub(start)
 			if err != nil {
-				c.logger.Warn("error fetching host resource usage stats", "error", err)
+				c.logger.Warn("error fetching host resource usage stats", "error", err, "collection_duration", duration)
 				continue
 			}
 
