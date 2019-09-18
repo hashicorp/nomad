@@ -4,7 +4,7 @@ services:
 language: go
 
 go:
-  -  "1.x"
+  -  "1.11.x"
 
 addons:
   chrome: stable
