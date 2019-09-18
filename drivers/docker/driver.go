@@ -455,7 +455,7 @@ CREATE:
 
 		if attempted < 5 {
 			attempted++
-			time.Sleep(1 * time.Second)
+			time.Sleep(nextBackoff(attempted))
 			goto CREATE
 		}
 	} else if strings.Contains(strings.ToLower(createErr.Error()), "no such image") {
@@ -464,7 +464,7 @@ CREATE:
 		return nil, nstructs.NewRecoverableError(createErr, true)
 	} else if isDockerTransientError(createErr) && attempted < 5 {
 		attempted++
-		time.Sleep(1 * time.Second)
+		time.Sleep(nextBackoff(attempted))
 		goto CREATE
 	}
 
@@ -487,13 +487,20 @@ START:
 	if isDockerTransientError(startErr) {
 		if attempted < 5 {
 			attempted++
-			time.Sleep(1 * time.Second)
+			time.Sleep(nextBackoff(attempted))
 			goto START
 		}
 		return nstructs.NewRecoverableError(startErr, true)
 	}
 
 	return recoverableErrTimeouts(startErr)
+}
+
+// nextBackoff returns appropriate docker backoff durations after attempted attempts.
+func nextBackoff(attempted int) time.Duration {
+	// attempts in 200ms, 800ms, 3.2s, 12.8s, 51.2s
+	// TODO: add randomization factor and extract to a helper
+	return 1 << (2 * uint64(attempted)) * 50 * time.Millisecond
 }
 
 // createImage creates a docker image either by pulling it from a registry or by
