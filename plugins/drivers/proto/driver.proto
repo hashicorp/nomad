@@ -331,6 +331,11 @@ message CreateNetworkRequest {
 message CreateNetworkResponse {
 
     NetworkIsolationSpec isolation_spec = 1;
+
+    // created indicates that the network namespace is newly created
+    // as a result of this request. if false, the NetworkIsolationSpec
+    // value returned is an existing spec.
+    bool created = 2;
 }
 
 message DestroyNetworkRequest {

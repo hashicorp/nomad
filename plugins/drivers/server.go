@@ -387,13 +387,14 @@ func (b *driverPluginServer) CreateNetwork(ctx context.Context, req *proto.Creat
 		return nil, fmt.Errorf("CreateNetwork RPC not supported by driver")
 	}
 
-	spec, err := nm.CreateNetwork(req.AllocId)
+	spec, created, err := nm.CreateNetwork(req.AllocId)
 	if err != nil {
 		return nil, err
 	}
 
 	return &proto.CreateNetworkResponse{
 		IsolationSpec: NetworkIsolationSpecToProto(spec),
+		Created:       created,
 	}, nil
 
 }

@@ -465,17 +465,17 @@ func (d *driverPluginClient) ExecTaskStreamingRaw(ctx context.Context,
 	}
 }
 
-func (d *driverPluginClient) CreateNetwork(allocID string) (*NetworkIsolationSpec, error) {
+func (d *driverPluginClient) CreateNetwork(allocID string) (*NetworkIsolationSpec, bool, error) {
 	req := &proto.CreateNetworkRequest{
 		AllocId: allocID,
 	}
 
 	resp, err := d.client.CreateNetwork(d.doneCtx, req)
 	if err != nil {
-		return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
+		return nil, false, grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
-	return NetworkIsolationSpecFromProto(resp.IsolationSpec), nil
+	return NetworkIsolationSpecFromProto(resp.IsolationSpec), resp.Created, nil
 }
 
 func (d *driverPluginClient) DestroyNetwork(allocID string, spec *NetworkIsolationSpec) error {
