@@ -28,41 +28,6 @@ func (tc *ScriptChecksE2ETest) BeforeAll(f *framework.F) {
 	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 1)
 }
 
-// requireStatus asserts the aggregate health of the service converges to
-// the expected status
-func requireStatus(require *require.Assertions,
-	consulClient *capi.Client, serviceName, expectedStatus string) {
-	require.Eventually(func() bool {
-		_, status := serviceStatus(require, consulClient, serviceName)
-		return status == expectedStatus
-	}, 30*time.Second, time.Second, // needs a long time for killing tasks/clients
-		"timed out expecting %q to become %q",
-		serviceName, expectedStatus,
-	)
-}
-
-// serviceStatus gets the aggregate health of the service and returns
-// the []ServiceEntry for further checking
-func serviceStatus(require *require.Assertions,
-	consulClient *capi.Client, serviceName string) ([]*capi.ServiceEntry, string) {
-	services, _, err := consulClient.Health().Service(serviceName, "", false, nil)
-	require.NoError(err, "expected no error for %q, got %v", serviceName, err)
-	if len(services) > 0 {
-		return services, services[0].Checks.AggregatedStatus()
-	}
-	return nil, "(unknown status)"
-}
-
-// requireDeregistered asserts that the service eventually is deregistered from Consul
-func requireDeregistered(require *require.Assertions,
-	consulClient *capi.Client, serviceName string) {
-	require.Eventually(func() bool {
-		services, _, err := consulClient.Health().Service(serviceName, "", false, nil)
-		require.NoError(err, "expected no error for %q, got %v", serviceName, err)
-		return len(services) == 0
-	}, 5*time.Second, time.Second)
-}
-
 // TestGroupScriptCheck runs a job with a single task group with several services
 // and associated script checks. It updates, stops, etc. the job to verify
 // that script checks are re-registered as expected.
@@ -79,23 +44,23 @@ func (tc *ScriptChecksE2ETest) TestGroupScriptCheck(f *framework.F) {
 	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(),
 		nomadClient, "consul/input/checks_group.nomad", jobId)
 	require.Equal(1, len(allocs))
-	requireStatus(require, consulClient, "group-service-1", capi.HealthPassing)
-	requireStatus(require, consulClient, "group-service-2", capi.HealthWarning)
-	requireStatus(require, consulClient, "group-service-3", capi.HealthCritical)
+	e2eutil.RequireConsulStatus(require, consulClient, "group-service-1", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(require, consulClient, "group-service-2", capi.HealthWarning)
+	e2eutil.RequireConsulStatus(require, consulClient, "group-service-3", capi.HealthCritical)
 
 	// Check in warning state becomes healthy after check passes
 	_, _, err := exec(nomadClient, allocs,
 		[]string{"/bin/sh", "-c", "touch ${NOMAD_TASK_DIR}/alive-2b"})
 	require.NoError(err)
-	requireStatus(require, consulClient, "group-service-2", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(require, consulClient, "group-service-2", capi.HealthPassing)
 
 	// Job update: verify checks are re-registered in Consul
 	allocs = e2eutil.RegisterAndWaitForAllocs(f.T(),
 		nomadClient, "consul/input/checks_group_update.nomad", jobId)
 	require.Equal(1, len(allocs))
-	requireStatus(require, consulClient, "group-service-1", capi.HealthPassing)
-	requireStatus(require, consulClient, "group-service-2", capi.HealthPassing)
-	requireStatus(require, consulClient, "group-service-3", capi.HealthCritical)
+	e2eutil.RequireConsulStatus(require, consulClient, "group-service-1", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(require, consulClient, "group-service-2", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(require, consulClient, "group-service-3", capi.HealthCritical)
 
 	// Verify we don't have any linger script checks running on the client
 	out, _, err := exec(nomadClient, allocs, []string{"pgrep", "sleep"})
@@ -105,26 +70,26 @@ func (tc *ScriptChecksE2ETest) TestGroupScriptCheck(f *framework.F) {
 
 	// Clean job stop: verify that checks were deregistered in Consul
 	nomadClient.Jobs().Deregister(jobId, false, nil) // nomad job stop
-	requireDeregistered(require, consulClient, "group-service-1")
-	requireDeregistered(require, consulClient, "group-service-2")
-	requireDeregistered(require, consulClient, "group-service-3")
+	e2eutil.RequireConsulDeregistered(require, consulClient, "group-service-1")
+	e2eutil.RequireConsulDeregistered(require, consulClient, "group-service-2")
+	e2eutil.RequireConsulDeregistered(require, consulClient, "group-service-3")
 
 	// Restore for next test
 	allocs = e2eutil.RegisterAndWaitForAllocs(f.T(),
 		nomadClient, "consul/input/checks_group.nomad", jobId)
 	require.Equal(2, len(allocs))
-	requireStatus(require, consulClient, "group-service-1", capi.HealthPassing)
-	requireStatus(require, consulClient, "group-service-2", capi.HealthWarning)
-	requireStatus(require, consulClient, "group-service-3", capi.HealthCritical)
+	e2eutil.RequireConsulStatus(require, consulClient, "group-service-1", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(require, consulClient, "group-service-2", capi.HealthWarning)
+	e2eutil.RequireConsulStatus(require, consulClient, "group-service-3", capi.HealthCritical)
 
 	// Crash a task: verify that checks become healthy again
 	_, _, err = exec(nomadClient, allocs, []string{"pkill", "sleep"})
 	if err != nil && err.Error() != "plugin is shut down" {
 		require.FailNow("unexpected error: %v", err)
 	}
-	requireStatus(require, consulClient, "group-service-1", capi.HealthPassing)
-	requireStatus(require, consulClient, "group-service-2", capi.HealthWarning)
-	requireStatus(require, consulClient, "group-service-3", capi.HealthCritical)
+	e2eutil.RequireConsulStatus(require, consulClient, "group-service-1", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(require, consulClient, "group-service-2", capi.HealthWarning)
+	e2eutil.RequireConsulStatus(require, consulClient, "group-service-3", capi.HealthCritical)
 
 	// TODO(tgross) ...
 	// Restart client: verify that checks are re-registered
@@ -146,23 +111,23 @@ func (tc *ScriptChecksE2ETest) TestTaskScriptCheck(f *framework.F) {
 	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(),
 		nomadClient, "consul/input/checks_task.nomad", jobId)
 	require.Equal(1, len(allocs))
-	requireStatus(require, consulClient, "task-service-1", capi.HealthPassing)
-	requireStatus(require, consulClient, "task-service-2", capi.HealthWarning)
-	requireStatus(require, consulClient, "task-service-3", capi.HealthCritical)
+	e2eutil.RequireConsulStatus(require, consulClient, "task-service-1", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(require, consulClient, "task-service-2", capi.HealthWarning)
+	e2eutil.RequireConsulStatus(require, consulClient, "task-service-3", capi.HealthCritical)
 
 	// Check in warning state becomes healthy after check passes
 	_, _, err := exec(nomadClient, allocs,
 		[]string{"/bin/sh", "-c", "touch ${NOMAD_TASK_DIR}/alive-2b"})
 	require.NoError(err)
-	requireStatus(require, consulClient, "task-service-2", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(require, consulClient, "task-service-2", capi.HealthPassing)
 
 	// Job update: verify checks are re-registered in Consul
 	allocs = e2eutil.RegisterAndWaitForAllocs(f.T(),
 		nomadClient, "consul/input/checks_task_update.nomad", jobId)
 	require.Equal(1, len(allocs))
-	requireStatus(require, consulClient, "task-service-1", capi.HealthPassing)
-	requireStatus(require, consulClient, "task-service-2", capi.HealthPassing)
-	requireStatus(require, consulClient, "task-service-3", capi.HealthCritical)
+	e2eutil.RequireConsulStatus(require, consulClient, "task-service-1", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(require, consulClient, "task-service-2", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(require, consulClient, "task-service-3", capi.HealthCritical)
 
 	// Verify we don't have any linger script checks running on the client
 	out, _, err := exec(nomadClient, allocs, []string{"pgrep", "sleep"})
@@ -172,26 +137,26 @@ func (tc *ScriptChecksE2ETest) TestTaskScriptCheck(f *framework.F) {
 
 	// Clean job stop: verify that checks were deregistered in Consul
 	nomadClient.Jobs().Deregister(jobId, false, nil) // nomad job stop
-	requireDeregistered(require, consulClient, "task-service-1")
-	requireDeregistered(require, consulClient, "task-service-2")
-	requireDeregistered(require, consulClient, "task-service-3")
+	e2eutil.RequireConsulDeregistered(require, consulClient, "task-service-1")
+	e2eutil.RequireConsulDeregistered(require, consulClient, "task-service-2")
+	e2eutil.RequireConsulDeregistered(require, consulClient, "task-service-3")
 
 	// Restore for next test
 	allocs = e2eutil.RegisterAndWaitForAllocs(f.T(),
 		nomadClient, "consul/input/checks_task.nomad", jobId)
 	require.Equal(2, len(allocs))
-	requireStatus(require, consulClient, "task-service-1", capi.HealthPassing)
-	requireStatus(require, consulClient, "task-service-2", capi.HealthWarning)
-	requireStatus(require, consulClient, "task-service-3", capi.HealthCritical)
+	e2eutil.RequireConsulStatus(require, consulClient, "task-service-1", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(require, consulClient, "task-service-2", capi.HealthWarning)
+	e2eutil.RequireConsulStatus(require, consulClient, "task-service-3", capi.HealthCritical)
 
 	// Crash a task: verify that checks become healthy again
 	_, _, err = exec(nomadClient, allocs, []string{"pkill", "sleep"})
 	if err != nil && err.Error() != "plugin is shut down" {
 		require.FailNow("unexpected error: %v", err)
 	}
-	requireStatus(require, consulClient, "task-service-1", capi.HealthPassing)
-	requireStatus(require, consulClient, "task-service-2", capi.HealthWarning)
-	requireStatus(require, consulClient, "task-service-3", capi.HealthCritical)
+	e2eutil.RequireConsulStatus(require, consulClient, "task-service-1", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(require, consulClient, "task-service-2", capi.HealthWarning)
+	e2eutil.RequireConsulStatus(require, consulClient, "task-service-3", capi.HealthCritical)
 
 	// TODO(tgross) ...
 	// Restart client: verify that checks are re-registered
