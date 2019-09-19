@@ -157,6 +157,18 @@ func (s *sockProxy) run(alloc *structs.Allocation) error {
 	}
 
 	hostGRPCSockPath := filepath.Join(s.allocDir.AllocDir, allocdir.AllocGRPCSocket)
+
+	// if the socket already exists we'll try to remove it, but if not then any
+	// other errors will bubble up to the caller here or when we try to listen
+	_, err := os.Stat(hostGRPCSockPath)
+	if err == nil {
+		err := os.Remove(hostGRPCSockPath)
+		if err != nil {
+			return fmt.Errorf(
+				"unable to remove existing unix socket for Consul gRPC endpoint: %v", err)
+		}
+	}
+
 	listener, err := net.Listen("unix", hostGRPCSockPath)
 	if err != nil {
 		return fmt.Errorf("unable to create unix socket for Consul gRPC endpoint: %v", err)
