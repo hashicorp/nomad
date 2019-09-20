@@ -159,7 +159,7 @@ func authFromHelper(helperName string) authBackend {
 			default:
 				return nil, err
 			case *exec.ExitError:
-				return nil, fmt.Errorf("%s with input %q failed with stderr: %s", helper, repo, output)
+				return nil, fmt.Errorf("%s with input %q failed with stderr: %s", helper, repo, err.Error())
 			}
 		}
 
