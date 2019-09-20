@@ -74,7 +74,7 @@ job "docs" {
 - `port` <code>([Port](#port-parameters): nil)</code> - Specifies a TCP/UDP port
   allocation and can be used to specify both dynamic ports and reserved ports.
 
-- `mode`  `(string: "host")- Mode of the network. The following modes are available:
+- `mode`  `(string: "host")` - Mode of the network. The following modes are available:
 
  - “none” - Task group will have an isolated network without any network interfaces.
  - “bridge” - Task group will have an isolated network namespace with an interface

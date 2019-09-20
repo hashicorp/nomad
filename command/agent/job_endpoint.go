@@ -1068,7 +1068,9 @@ func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
 		if in.SidecarService.Proxy != nil {
 
 			out.SidecarService.Proxy = &structs.ConsulProxy{
-				Config: in.SidecarService.Proxy.Config,
+				LocalServiceAddress: in.SidecarService.Proxy.LocalServiceAddress,
+				LocalServicePort:    in.SidecarService.Proxy.LocalServicePort,
+				Config:              in.SidecarService.Proxy.Config,
 			}
 
 			upstreams := make([]structs.ConsulUpstream, len(in.SidecarService.Proxy.Upstreams))
