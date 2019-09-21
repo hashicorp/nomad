@@ -48,8 +48,8 @@ Documentation & Guides
 -------------------------------
 
 * [Installing Nomad for Production](https://www.nomadproject.io/guides/operations/deployment-guide.html)
-* [Advanced Job Scheduling on Nomad with Affinities](https://www.nomadproject.io/guides/advanced-scheduling/affinity.html)
-* [Increasing Nomad Fault Tolerance with Spread](https://www.nomadproject.io/guides/advanced-scheduling/spread.html)
+* [Advanced Job Scheduling on Nomad with Affinities](https://www.nomadproject.io/guides/operating-a-job/advanced-scheduling/affinity.html)
+* [Increasing Nomad Fault Tolerance with Spread](https://www.nomadproject.io/guides/operating-a-job/advanced-scheduling/spread.html)
 * [Load Balancing on Nomad with Fabio & Consul](https://www.nomadproject.io/guides/load-balancing/fabio.html)
 * [Deploying Stateful Workloads via Portworx](https://www.nomadproject.io/guides/stateful-workloads/portworx.html)
 * [Running Apache Spark on Nomad](https://www.nomadproject.io/guides/spark/spark.html)
