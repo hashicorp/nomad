@@ -87,6 +87,10 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 		self.Config.Vault.Token = "<redacted>"
 	}
 
+	if self.Config != nil && self.Config.ACL != nil && self.Config.ACL.ReplicationToken != "" {
+		self.Config.ACL.ReplicationToken = "<redacted>"
+	}
+
 	return self, nil
 }
 
