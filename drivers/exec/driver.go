@@ -74,6 +74,10 @@ var (
 		SendSignals: true,
 		Exec:        true,
 		FSIsolation: drivers.FSIsolationChroot,
+		NetIsolationModes: []drivers.NetIsolationMode{
+			drivers.NetIsolationModeHost,
+			drivers.NetIsolationModeGroup,
+		},
 	}
 )
 
