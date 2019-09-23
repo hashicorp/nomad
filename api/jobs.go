@@ -679,7 +679,6 @@ type Job struct {
 	CreateIndex       *uint64
 	ModifyIndex       *uint64
 	JobModifyIndex    *uint64
-	Timeout           *time.Duration
 }
 
 // IsPeriodic returns whether a job is periodic.
