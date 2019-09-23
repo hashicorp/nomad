@@ -511,6 +511,7 @@ MAIN:
 			if resultCh, err := handle.WaitCh(context.Background()); err != nil {
 				tr.logger.Error("wait task failed", "error", err)
 			} else {
+				timer := time.NewTimer(20 * time.Second)
 				select {
 				case <-tr.killCtx.Done():
 					// We can go through the normal should restart check since
@@ -519,6 +520,8 @@ MAIN:
 				case <-tr.shutdownCtx.Done():
 					// TaskRunner was told to exit immediately
 					return
+				case <-timer.C:
+					result = tr.handleKill()
 				case result = <-resultCh:
 				}
 
