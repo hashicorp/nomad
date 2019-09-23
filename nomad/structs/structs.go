@@ -5296,6 +5296,9 @@ type Task struct {
 	// killed and killing it.
 	KillTimeout time.Duration
 
+	// Timeout is the time between the task started to killing it
+	Timeout time.Duration
+
 	// LogConfig provides configuration for log rotation
 	LogConfig *LogConfig
 

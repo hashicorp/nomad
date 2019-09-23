@@ -802,6 +802,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Env = apiTask.Env
 	structsTask.Meta = apiTask.Meta
 	structsTask.KillTimeout = *apiTask.KillTimeout
+	structsTask.Timeout = *apiTask.Timeout
 	structsTask.ShutdownDelay = apiTask.ShutdownDelay
 	structsTask.KillSignal = apiTask.KillSignal
 	structsTask.Kind = structs.TaskKind(apiTask.Kind)

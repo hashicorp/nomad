@@ -599,7 +599,8 @@ type Task struct {
 	Resources       *Resources
 	Meta            map[string]string
 	KillTimeout     *time.Duration `mapstructure:"kill_timeout"`
-	LogConfig       *LogConfig     `mapstructure:"logs"`
+	Timeout         *time.Duration
+	LogConfig       *LogConfig `mapstructure:"logs"`
 	Artifacts       []*TaskArtifact
 	Vault           *Vault
 	Templates       []*Template
