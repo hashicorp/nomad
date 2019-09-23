@@ -1,12 +1,15 @@
 job "foo" {
   datacenters = ["dc1"]
+
   group "bar" {
     count = 3
+
     network {
       mode = "bridge"
+
       port "http" {
         static = 80
-        to = 8080
+        to     = 8080
       }
     }
 
@@ -19,15 +22,18 @@ job "foo" {
       connect {
         sidecar_service {
           proxy {
+            local_service_port = 8080
+
             upstreams {
               destination_name = "other-service"
               local_bind_port  = 4567
             }
           }
         }
+
         sidecar_task {
           resources {
-            cpu = 500
+            cpu    = 500
             memory = 1024
           }
 
@@ -42,13 +48,15 @@ job "foo" {
 
     task "bar" {
       driver = "raw_exec"
+
       config {
-         command = "bash"
-         args    = ["-c", "echo hi"]
+        command = "bash"
+        args    = ["-c", "echo hi"]
       }
+
       resources {
         network {
-            mbits = 10
+          mbits = 10
         }
       }
     }

@@ -315,6 +315,8 @@ func parseSidecarTask(item *ast.ObjectItem) (*api.SidecarTask, error) {
 
 func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 	valid := []string{
+		"local_service_address",
+		"local_service_port",
 		"upstreams",
 		"config",
 	}
