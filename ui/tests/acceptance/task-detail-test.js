@@ -328,7 +328,7 @@ module('Acceptance | proxy task detail', function(hooks) {
   });
 
   test('a proxy tag is shown', async function(assert) {
-    percySnapshot(assert);
     assert.ok(Task.title.proxyTag.isPresent);
+    percySnapshot(assert);
   });
 });

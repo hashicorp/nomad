@@ -161,8 +161,8 @@ module('Acceptance | allocation detail', function(hooks) {
 
     await Allocation.visit({ id: allocation.id });
 
-    percySnapshot(assert);
     assert.ok(Allocation.tasks[0].hasProxyTag);
+    percySnapshot(assert);
   });
 
   test('when there are no tasks, an empty state is shown', async function(assert) {
