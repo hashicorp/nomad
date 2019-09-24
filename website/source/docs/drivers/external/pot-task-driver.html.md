@@ -1,17 +1,17 @@
 ---
 layout: "docs"
-page_title: "Drivers: pot-task-driver"
-sidebar_current: "docs-drivers-community-pot-task-driver"
+page_title: "Drivers: pot"
+sidebar_current: "docs-drivers-community-pot"
 description: |-
   The Pot task driver is used to run pot (https://github.com/pizzamig/pot) containers using FreeBSD jails.
 ---
 
 # Pot task Driver
 
-Name: `pot-task-driver`
+Name: `pot`
 
 The Pot task driver provides an interface for using [pot][pot-github-repo] for dynamically running applications inside a FreeBSD Jail. 
-You can download the external pot-task-driver [here][pot-task-driver].
+You can download the external nomad-pot-driver [here][nomad-pot-driver].
 
 ## Task Configuration
 
@@ -50,7 +50,7 @@ The pot task driver supports the following parameters:
 
 * `tag` - Version of the image.
  
-* `commad` - Command that is going to be executed once the jail is started.
+* `command` - Command that is going to be executed once the jail is started.
 
 * `network_mode` - (Optional) Defines the network mode of the pot. Default: **"public-bridge"**
 
@@ -70,7 +70,7 @@ The pot task driver supports the following parameters:
 
 ## Client Requirements
 
-`pot-task-driver` requires the following:
+`pot Task Driver` requires the following:
 
 * 64-bit FreeBSD 12.0-RELEASE host .
 * The FreeBSD's Nomad binary (available as a package).
@@ -84,7 +84,7 @@ nomad_user="root"
 nomad_env="PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/sbin:/bin"
 ```
 
-[pot-task-driver]: https://github.com/trivago/pot-task-driver
+[nomad-pot-driver]: https://github.com/trivago/nomad-pot-driver
 [plugin_dir]: /docs/configuration/index.html#plugin_dir
 [pot-github-repo]: https://github.com/pizzamig/pot
 [pot-install-guide]: https://github.com/pizzamig/pot/blob/master/share/doc/pot/Installation.md
