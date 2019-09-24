@@ -4,7 +4,6 @@ import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
 import moment from 'moment';
-import { percySnapshot } from 'ember-percy';
 
 let allocation;
 let task;
@@ -329,6 +328,5 @@ module('Acceptance | proxy task detail', function(hooks) {
 
   test('a proxy tag is shown', async function(assert) {
     assert.ok(Task.title.proxyTag.isPresent);
-    percySnapshot(assert);
   });
 });

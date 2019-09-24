@@ -6,7 +6,6 @@ import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
-import { percySnapshot } from 'ember-percy';
 
 let job;
 let node;
@@ -162,7 +161,6 @@ module('Acceptance | allocation detail', function(hooks) {
     await Allocation.visit({ id: allocation.id });
 
     assert.ok(Allocation.tasks[0].hasProxyTag);
-    percySnapshot(assert);
   });
 
   test('when there are no tasks, an empty state is shown', async function(assert) {
