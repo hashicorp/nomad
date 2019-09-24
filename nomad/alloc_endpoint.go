@@ -230,8 +230,10 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 	if err != nil {
 		return err
 	}
-
 	if alloc == nil {
+		return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
+	}
+	if alloc.Namespace != args.Namespace {
 		return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
 	}
 

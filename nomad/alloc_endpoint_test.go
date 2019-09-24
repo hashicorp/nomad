@@ -580,10 +580,13 @@ func TestAllocEndpoint_Stop_ACL(t *testing.T) {
 	// Create the register request
 	alloc := mock.Alloc()
 	alloc2 := mock.Alloc()
+	alloc3 := mock.Alloc()
+	alloc3.Namespace = "not-default"
 	state := s1.fsm.State()
-	require.Nil(state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
-	require.Nil(state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
-	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc, alloc2}))
+	require.Nil(state.UpsertJobSummary(997, mock.JobSummary(alloc.JobID)))
+	require.Nil(state.UpsertJobSummary(998, mock.JobSummary(alloc2.JobID)))
+	require.Nil(state.UpsertJobSummary(999, mock.JobSummary(alloc3.JobID)))
+	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc, alloc2, alloc3}))
 
 	req := &structs.AllocStopRequest{
 		AllocID: alloc.ID,
@@ -611,6 +614,12 @@ func TestAllocEndpoint_Stop_ACL(t *testing.T) {
 	var resp3 structs.AllocStopResponse
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.Stop", req, &resp3))
 	require.NotZero(resp3.Index)
+
+	// Try with a mismatched namespace
+	req.WriteRequest.AuthToken = validToken.SecretID
+	req.AllocID = alloc3.ID
+	err = msgpackrpc.CallWithCodec(codec, "Alloc.Stop", req, &resp)
+	require.True(structs.IsErrUnknownAllocation(err), "expected alloc not found error, got: %v", err)
 
 	// Look up the allocations
 	out1, err := state.AllocByID(nil, alloc.ID)
