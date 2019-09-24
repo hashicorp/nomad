@@ -14,7 +14,8 @@ servers, monitoring the state of the Raft cluster, and stable server introductio
 
 To enable Autopilot features (with the exception of dead server cleanup),
 the `raft_protocol` setting in the [server stanza](/docs/configuration/server.html)
-must be set to 3 on all servers. In Nomad 0.8 and 0.9 this setting defaults to 2; in Nomad 0.10 it will default to 3.
+must be set to 3 on all servers. This setting defaults to 2; a cluster configured with protocol 2 can be upgraded
+to protocol 3 with a rolling update, provided time for membership to stabilize following each server update.
 For more information, see the [Version Upgrade section](/guides/upgrade/upgrade-specific.html#raft-protocol-version-compatibility)
 on Raft Protocol versions.
 
