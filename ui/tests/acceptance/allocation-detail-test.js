@@ -6,7 +6,6 @@ import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
-import { percySnapshot } from 'ember-percy';
 
 let job;
 let node;
@@ -162,7 +161,6 @@ module('Acceptance | allocation detail', function(hooks) {
 
     await Allocation.visit({ id: allocation.id });
 
-    percySnapshot(assert);
     assert.ok(Allocation.tasks[0].hasProxyTag);
   });
 
