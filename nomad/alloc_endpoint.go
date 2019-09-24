@@ -121,6 +121,9 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 			if err != nil {
 				return err
 			}
+			if out.Namespace != args.RequestNamespace() {
+				return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
+			}
 
 			// Setup the output
 			reply.Alloc = out

@@ -263,11 +263,15 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 
 	// Create the alloc
 	alloc := mock.Alloc()
-	allocs := []*structs.Allocation{alloc}
+	alloc2 := mock.Alloc()
+	alloc2.Namespace = "not-default"
+	allocs := []*structs.Allocation{alloc, alloc2}
 	summary := mock.JobSummary(alloc.JobID)
+	summary2 := mock.JobSummary(alloc2.JobID)
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
+	assert.Nil(state.UpsertJobSummary(998, summary), "UpsertJobSummary")
+	assert.Nil(state.UpsertJobSummary(999, summary2), "UpsertJobSummary")
 	assert.Nil(state.UpsertAllocs(1000, allocs), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
@@ -291,10 +295,20 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 	// Try with a valid ACL token
 	{
 		get.AuthToken = validToken.SecretID
+		get.AllocID = alloc.ID
 		var resp structs.SingleAllocResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp), "RPC")
 		assert.EqualValues(resp.Index, 1000, "resp.Index")
 		assert.Equal(alloc, resp.Alloc, "Returned alloc not equal")
+	}
+
+	// Try with a valid ACL token for the wrong namespace
+	{
+		get.AuthToken = validToken.SecretID
+		get.AllocID = alloc2.ID
+		var resp structs.SingleAllocResponse
+		err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp)
+		assert.True(structs.IsErrUnknownAllocation(err), "expected unknown allocation error")
 	}
 
 	// Try with a valid Node.SecretID
@@ -302,6 +316,7 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 		node := mock.Node()
 		assert.Nil(state.UpsertNode(1005, node))
 		get.AuthToken = node.SecretID
+		get.AllocID = alloc.ID
 		var resp structs.SingleAllocResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp), "RPC")
 		assert.EqualValues(resp.Index, 1000, "resp.Index")
@@ -311,6 +326,7 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 	// Try with a invalid token
 	{
 		get.AuthToken = invalidToken.SecretID
+		get.AllocID = alloc.ID
 		var resp structs.SingleAllocResponse
 		err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp)
 		assert.NotNil(err, "RPC")
@@ -320,6 +336,7 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 	// Try with a root token
 	{
 		get.AuthToken = root.SecretID
+		get.AllocID = alloc.ID
 		var resp structs.SingleAllocResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp), "RPC")
 		assert.EqualValues(resp.Index, 1000, "resp.Index")
