@@ -511,7 +511,7 @@ MAIN:
 			if resultCh, err := handle.WaitCh(context.Background()); err != nil {
 				tr.logger.Error("wait task failed", "error", err)
 			} else {
-				timer := time.NewTimer(20 * time.Second)
+				timer := time.NewTimer(tr.task.Timeout * time.Second)
 				select {
 				case <-tr.killCtx.Done():
 					// We can go through the normal should restart check since

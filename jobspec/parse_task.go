@@ -73,6 +73,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		"kill_signal",
 		"kind",
 		"volume_mount",
+		"timeout",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return nil, err

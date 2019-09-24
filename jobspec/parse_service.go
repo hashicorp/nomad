@@ -265,6 +265,7 @@ func parseSidecarTask(item *ast.ObjectItem) (*api.SidecarTask, error) {
 		"shutdown_delay",
 		"user",
 		"kill_signal",
+		"timeout",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return nil, err
