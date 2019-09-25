@@ -73,8 +73,13 @@ func Logger(t LogPrinter) *log.Logger {
 
 //HCLogger returns a new test hc-logger.
 func HCLogger(t LogPrinter) hclog.Logger {
+	level := hclog.Trace
+	envLogLevel := os.Getenv("NOMAD_TEST_LOG_LEVEL")
+	if envLogLevel != "" {
+		level = hclog.LevelFromString(envLogLevel)
+	}
 	opts := &hclog.LoggerOptions{
-		Level:           hclog.Trace,
+		Level:           level,
 		Output:          NewWriter(t),
 		IncludeLocation: true,
 	}

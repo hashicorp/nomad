@@ -52,9 +52,11 @@ job "docs" {
 
 ## `update` Parameters
 
-- `max_parallel` `(int: 0)` - Specifies the number of allocations within a task group that can be
+- `max_parallel` `(int: 1)` - Specifies the number of allocations within a task group that can be
   updated at the same time.  The task groups themselves are updated in parallel.
 
+  - `max_parallel = 0` - Specifies that the allocation should use forced updates instead of deployments
+  
 - `health_check` `(string: "checks")` - Specifies the mechanism in which
   allocations health is determined. The potential values are:
 

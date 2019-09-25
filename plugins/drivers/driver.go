@@ -109,8 +109,8 @@ func (DriverSignalTaskNotSupported) SignalTask(taskID, signal string) error {
 // DriverPlugin interface.
 type DriverExecTaskNotSupported struct{}
 
-func (_ DriverExecTaskNotSupported) ExecTask(taskID, signal string) error {
-	return fmt.Errorf("ExecTask is not supported by this driver")
+func (_ DriverExecTaskNotSupported) ExecTask(taskID string, cmd []string, timeout time.Duration) (*ExecTaskResult, error) {
+	return nil, fmt.Errorf("ExecTask is not supported by this driver")
 }
 
 type HealthState string

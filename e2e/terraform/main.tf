@@ -63,7 +63,15 @@ data "aws_ami" "main" {
     name   = "name"
     values = ["nomad-e2e-*"]
   }
+
+  filter {
+    name   = "tag:OS"
+    values = ["Ubuntu"]
+  }
+
 }
+
+data "aws_caller_identity" "current" {}
 
 output "servers" {
   value = "${aws_instance.server.*.public_ip}"

@@ -36,7 +36,7 @@ Deployments Options:
   -verbose
     Display full information.
 
-  -all-allocs
+  -all
     Display all deployments matching the job ID, including those 
     from an older instance of the job.
 `

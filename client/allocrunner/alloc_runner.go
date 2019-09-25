@@ -259,7 +259,7 @@ func (ar *allocRunner) Run() {
 			ar.logger.Error("prerun failed", "error", err)
 
 			for _, tr := range ar.tasks {
-				tr.MarkFailedDead(fmt.Sprintf("failed to setup runner: %v", err))
+				tr.MarkFailedDead(fmt.Sprintf("failed to setup alloc: %v", err))
 			}
 
 			goto POST
@@ -765,13 +765,14 @@ func (ar *allocRunner) destroyImpl() {
 	// state if Run() ran at all.
 	<-ar.taskStateUpdateHandlerCh
 
-	// Cleanup state db
+	// Mark alloc as destroyed
+	ar.destroyedLock.Lock()
+
+	// Cleanup state db; while holding the lock to avoid
+	// a race periodic PersistState that may resurrect the alloc
 	if err := ar.stateDB.DeleteAllocationBucket(ar.id); err != nil {
 		ar.logger.Warn("failed to delete allocation state", "error", err)
 	}
-
-	// Mark alloc as destroyed
-	ar.destroyedLock.Lock()
 
 	if !ar.shutdown {
 		ar.shutdown = true
@@ -782,6 +783,24 @@ func (ar *allocRunner) destroyImpl() {
 	close(ar.destroyCh)
 
 	ar.destroyedLock.Unlock()
+}
+
+func (ar *allocRunner) PersistState() error {
+	ar.destroyedLock.Lock()
+	defer ar.destroyedLock.Unlock()
+
+	if ar.destroyed {
+		err := ar.stateDB.DeleteAllocationBucket(ar.id)
+		if err != nil {
+			ar.logger.Warn("failed to delete allocation bucket", "error", err)
+		}
+		return nil
+	}
+
+	// TODO: consider persisting deployment state along with task status.
+	// While we study why only the alloc is persisted, I opted to maintain current
+	// behavior and not risk adding yet more IO calls unnecessarily.
+	return ar.stateDB.PutAllocation(ar.Alloc())
 }
 
 // Destroy the alloc runner by stopping it if it is still running and cleaning

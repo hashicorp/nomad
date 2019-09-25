@@ -115,7 +115,7 @@ func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 
 // SetVolumes takes the volumes required by a task group and updates the checker.
 func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
-	nm := make(map[string][]*structs.VolumeRequest)
+	lookupMap := make(map[string][]*structs.VolumeRequest)
 
 	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
 	// lookup performance. Also filter non-host volumes.
@@ -124,15 +124,9 @@ func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest
 			continue
 		}
 
-		cfg, err := structs.ParseHostVolumeConfig(req.Config)
-		if err != nil {
-			// Could not parse host volume config, skip the volume for now.
-			continue
-		}
-
-		nm[cfg.Source] = append(nm[cfg.Source], req)
+		lookupMap[req.Source] = append(lookupMap[req.Source], req)
 	}
-	h.volumes = nm
+	h.volumes = lookupMap
 }
 
 func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
@@ -158,9 +152,24 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 		return false
 	}
 
-	for source := range h.volumes {
-		if _, ok := n.HostVolumes[source]; !ok {
+	for source, requests := range h.volumes {
+		nodeVolume, ok := n.HostVolumes[source]
+		if !ok {
 			return false
+		}
+
+		// If the volume supports being mounted as ReadWrite, we do not need to
+		// do further validation for readonly placement.
+		if !nodeVolume.ReadOnly {
+			continue
+		}
+
+		// The Volume can only be mounted ReadOnly, validate that no requests for
+		// it are ReadWrite.
+		for _, req := range requests {
+			if !req.ReadOnly {
+				return false
+			}
 		}
 	}
 
@@ -212,7 +221,11 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 				return false
 			}
 
-			return driverInfo.Detected && driverInfo.Healthy
+			if driverInfo.Detected && driverInfo.Healthy {
+				continue
+			} else {
+				return false
+			}
 		}
 
 		value, ok := option.Attributes[driverStr]
@@ -230,6 +243,7 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 			return false
 		}
 	}
+
 	return true
 }
 

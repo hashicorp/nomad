@@ -641,7 +641,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 	// Update has been pushed into the task groups. stagger and max_parallel are
 	// preserved at the job level, but all other values are discarded. The job.Update
 	// api value is merged into TaskGroups already in api.Canonicalize
-	if job.Update != nil {
+	if job.Update != nil && job.Update.MaxParallel != nil && *job.Update.MaxParallel > 0 {
 		j.Update = structs.UpdateStrategy{}
 
 		if job.Update.Stagger != nil {
@@ -753,7 +753,7 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 				Name:     v.Name,
 				Type:     v.Type,
 				ReadOnly: v.ReadOnly,
-				Config:   v.Config,
+				Source:   v.Source,
 			}
 
 			tg.Volumes[k] = vol
@@ -1068,7 +1068,9 @@ func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
 		if in.SidecarService.Proxy != nil {
 
 			out.SidecarService.Proxy = &structs.ConsulProxy{
-				Config: in.SidecarService.Proxy.Config,
+				LocalServiceAddress: in.SidecarService.Proxy.LocalServiceAddress,
+				LocalServicePort:    in.SidecarService.Proxy.LocalServicePort,
+				Config:              in.SidecarService.Proxy.Config,
 			}
 
 			upstreams := make([]structs.ConsulUpstream, len(in.SidecarService.Proxy.Upstreams))

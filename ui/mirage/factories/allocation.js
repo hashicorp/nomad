@@ -3,6 +3,7 @@ import moment from 'moment';
 import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'faker';
 import { provide, pickOne } from '../utils';
+import { generateResources } from '../common';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
 const CLIENT_STATUSES = ['pending', 'running', 'complete', 'failed', 'lost'];
@@ -63,6 +64,14 @@ export default Factory.extend({
       );
 
       allocation.update({ taskResourceIds: resources.mapBy('id') });
+    },
+  }),
+
+  withAllocatedResources: trait({
+    allocatedResources: () => {
+      return {
+        Shared: generateResources({ networks: { minPorts: 2 } }),
+      };
     },
   }),
 

@@ -22,6 +22,9 @@ export default Factory.extend({
   // and reschedule, creating reschedule events.
   withRescheduling: false,
 
+  // Directive used to control whether the task group should have services.
+  withServices: false,
+
   // When true, only creates allocations
   shallow: false,
 
@@ -60,6 +63,16 @@ export default Factory.extend({
           } else {
             server.create('allocation', props);
           }
+        });
+    }
+
+    if (group.withServices) {
+      Array(faker.random.number({ min: 1, max: 3 }))
+        .fill(null)
+        .forEach(() => {
+          server.create('service', {
+            task_group: group,
+          });
         });
     }
   },

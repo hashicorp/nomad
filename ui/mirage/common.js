@@ -11,6 +11,8 @@ const IOPS_RESERVATIONS = [100000, 250000, 500000, 1000000, 10000000, 20000000];
 IOPS_RESERVATIONS.push(...Array(1000).fill(0));
 DISK_RESERVATIONS.push(...Array(500).fill(0));
 
+const NETWORK_MODES = ['bridge', 'host'];
+
 export const DATACENTERS = provide(
   15,
   (n, i) => `${faker.address.countryCode().toLowerCase()}${i}`
@@ -39,6 +41,7 @@ export function generateNetworks(options = {}) {
       CIDR: '',
       IP: faker.internet.ip(),
       MBits: 10,
+      Mode: faker.random.arrayElement(NETWORK_MODES),
       ReservedPorts: Array(
         faker.random.number({
           min: options.minPorts != null ? options.minPorts : 0,
@@ -49,6 +52,7 @@ export function generateNetworks(options = {}) {
         .map(() => ({
           Label: faker.hacker.noun(),
           Value: faker.random.number({ min: 5000, max: 60000 }),
+          To: faker.random.number({ min: 5000, max: 60000 }),
         })),
       DynamicPorts: Array(
         faker.random.number({
@@ -60,6 +64,7 @@ export function generateNetworks(options = {}) {
         .map(() => ({
           Label: faker.hacker.noun(),
           Value: faker.random.number({ min: 5000, max: 60000 }),
+          To: faker.random.number({ min: 5000, max: 60000 }),
         })),
     }));
 }

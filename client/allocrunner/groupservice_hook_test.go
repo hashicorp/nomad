@@ -45,30 +45,7 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 func TestGroupServiceHook_GroupServices(t *testing.T) {
 	t.Parallel()
 
-	alloc := mock.Alloc()
-	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
-		{
-			Mode: "bridge",
-			IP:   "10.0.0.1",
-			DynamicPorts: []structs.Port{
-				{
-					Label: "connect-proxy-testconnect",
-					Value: 9999,
-					To:    9998,
-				},
-			},
-		},
-	}
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	tg.Services = []*structs.Service{
-		{
-			Name:      "testconnect",
-			PortLabel: "9999",
-			Connect: &structs.ConsulConnect{
-				SidecarService: &structs.ConsulSidecarService{},
-			},
-		},
-	}
+	alloc := mock.ConnectAlloc()
 	logger := testlog.HCLogger(t)
 	consulClient := consul.NewMockConsulServiceClient(t, logger)
 

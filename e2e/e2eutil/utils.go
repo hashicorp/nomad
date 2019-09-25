@@ -62,18 +62,20 @@ func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile string, jobID
 	job.ID = helper.StringToPtr(jobID)
 
 	// Register job
+	var idx uint64
 	jobs := nomadClient.Jobs()
 	testutil.WaitForResult(func() (bool, error) {
-		resp, _, err := jobs.Register(job, nil)
+		resp, meta, err := jobs.Register(job, nil)
 		if err != nil {
 			return false, err
 		}
+		idx = meta.LastIndex
 		return resp.EvalID != "", fmt.Errorf("expected EvalID:%s", pretty.Sprint(resp))
 	}, func(err error) {
 		require.NoError(err)
 	})
 
-	allocs, _, _ := jobs.Allocations(jobID, false, nil)
+	allocs, _, _ := jobs.Allocations(jobID, false, &api.QueryOptions{WaitIndex: idx})
 	return allocs
 }
 

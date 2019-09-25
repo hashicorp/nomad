@@ -54,13 +54,15 @@ $ curl \
         "CreateIndex": 31,
         "Description": "Production API Servers",
         "ModifyIndex": 31,
-        "Name": "api-prod"
+        "Name": "api-prod",
+        "Quota": ""
     },
     {
         "CreateIndex": 5,
         "Description": "Default shared namespace",
         "ModifyIndex": 5,
-        "Name": "default"
+        "Name": "default",
+        "Quota": ""
     }
 ]
 ```
@@ -98,6 +100,7 @@ $ curl \
 {
     "CreateIndex": 31,
     "Description": "Production API Servers",
+    "Quota": "",
     "Hash": "N8WvePwqkp6J354eLJMKyhvsFdPELAos0VuBfMoVKoU=",
     "ModifyIndex": 31,
     "Name": "api-prod"
@@ -128,12 +131,15 @@ The table below shows this endpoint's support for
 - `Description` `(string: "")` - Specifies an optional human-readable
   description of the namespace.
 
+- `Quota` `(string: "")` - Specifies an quota to attach to the namespace.
+
 ### Sample Payload
 
 ```javascript
 {
   "Name": "api-prod",
-  "Description": "Production API Servers"
+  "Description": "Production API Servers",
+  "Quota": "prod-quota"
 }
 ```      
 

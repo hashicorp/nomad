@@ -110,15 +110,15 @@ func TestHostVolumeChecker(t *testing.T) {
 	volumes := map[string]*structs.VolumeRequest{
 		"foo": {
 			Type:   "host",
-			Config: map[string]interface{}{"source": "foo"},
+			Source: "foo",
 		},
 		"bar": {
 			Type:   "host",
-			Config: map[string]interface{}{"source": "bar"},
+			Source: "bar",
 		},
 		"baz": {
 			Type:   "nothost",
-			Config: map[string]interface{}{"source": "baz"},
+			Source: "baz",
 		},
 	}
 
@@ -163,13 +163,135 @@ func TestHostVolumeChecker(t *testing.T) {
 	}
 }
 
-func TestDriverChecker(t *testing.T) {
+func TestHostVolumeChecker_ReadOnly(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+
+	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {
+			ReadOnly: true,
+		},
+	}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {
+			ReadOnly: false,
+		},
+	}
+
+	readwriteRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:   "host",
+			Source: "foo",
+		},
+	}
+
+	readonlyRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:     "host",
+			Source:   "foo",
+			ReadOnly: true,
+		},
+	}
+
+	checker := NewHostVolumeChecker(ctx)
+	cases := []struct {
+		Node             *structs.Node
+		RequestedVolumes map[string]*structs.VolumeRequest
+		Result           bool
+	}{
+		{ // ReadWrite Request, ReadOnly Host
+			Node:             nodes[0],
+			RequestedVolumes: readwriteRequest,
+			Result:           false,
+		},
+		{ // ReadOnly Request, ReadOnly Host
+			Node:             nodes[0],
+			RequestedVolumes: readonlyRequest,
+			Result:           true,
+		},
+		{ // ReadOnly Request, ReadWrite Host
+			Node:             nodes[1],
+			RequestedVolumes: readonlyRequest,
+			Result:           true,
+		},
+		{ // ReadWrite Request, ReadWrite Host
+			Node:             nodes[1],
+			RequestedVolumes: readwriteRequest,
+			Result:           true,
+		},
+	}
+
+	for i, c := range cases {
+		checker.SetVolumes(c.RequestedVolumes)
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+}
+
+func TestDriverChecker_DriverInfo(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	nodes[0].Drivers["foo"] = &structs.DriverInfo{
+		Detected: true,
+		Healthy:  true,
+	}
+	nodes[1].Drivers["foo"] = &structs.DriverInfo{
+		Detected: true,
+		Healthy:  false,
+	}
+	nodes[2].Drivers["foo"] = &structs.DriverInfo{
+		Detected: false,
+		Healthy:  false,
+	}
+
+	drivers := map[string]struct{}{
+		"exec": {},
+		"foo":  {},
+	}
+	checker := NewDriverChecker(ctx, drivers)
+	cases := []struct {
+		Node   *structs.Node
+		Result bool
+	}{
+		{
+			Node:   nodes[0],
+			Result: true,
+		},
+		{
+			Node:   nodes[1],
+			Result: false,
+		},
+		{
+			Node:   nodes[2],
+			Result: false,
+		},
+	}
+
+	for i, c := range cases {
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+}
+func TestDriverChecker_Compatibility(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
+	}
+	for _, n := range nodes {
+		// force compatibility mode
+		n.Drivers = nil
 	}
 	nodes[0].Attributes["driver.foo"] = "1"
 	nodes[1].Attributes["driver.foo"] = "0"

@@ -22,19 +22,6 @@ job "example" {
           port  "db"  {}
         }
       }
-
-      service {
-        name = "redis-cache"
-        tags = ["global", "cache"]
-        port = "db"
-
-        check {
-          name     = "alive"
-          type     = "tcp"
-          interval = "10s"
-          timeout  = "2s"
-        }
-      }
     }
   }
 }

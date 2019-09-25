@@ -33,20 +33,14 @@ func (*volumeHook) Name() string {
 func validateHostVolumes(requestedByAlias map[string]*structs.VolumeRequest, clientVolumesByName map[string]*structs.ClientHostVolumeConfig) error {
 	var result error
 
-	for n, req := range requestedByAlias {
+	for _, req := range requestedByAlias {
 		if req.Type != structs.VolumeTypeHost {
 			continue
 		}
 
-		cfg, err := structs.ParseHostVolumeConfig(req.Config)
-		if err != nil {
-			result = multierror.Append(result, fmt.Errorf("failed to parse config for %s: %v", n, err))
-			continue
-		}
-
-		_, ok := clientVolumesByName[cfg.Source]
+		_, ok := clientVolumesByName[req.Source]
 		if !ok {
-			result = multierror.Append(result, fmt.Errorf("missing %s", cfg.Source))
+			result = multierror.Append(result, fmt.Errorf("missing %s", req.Source))
 		}
 	}
 
@@ -65,16 +59,11 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 			return nil, fmt.Errorf("No group volume declaration found named: %s", m.Volume)
 		}
 
-		cfg, err := structs.ParseHostVolumeConfig(req.Config)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse config for %s: %v", m.Volume, err)
-		}
-
-		hostVolume, ok := clientVolumesByName[cfg.Source]
+		hostVolume, ok := clientVolumesByName[req.Source]
 		if !ok {
 			// Should never happen, but unless the client volumes were mutated during
 			// the execution of this hook.
-			return nil, fmt.Errorf("No host volume named: %s", cfg.Source)
+			return nil, fmt.Errorf("No host volume named: %s", req.Source)
 		}
 
 		mcfg := &drivers.MountConfig{

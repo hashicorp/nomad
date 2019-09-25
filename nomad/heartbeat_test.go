@@ -221,28 +221,7 @@ func TestHeartbeat_Server_HeartbeatTTL_Failover(t *testing.T) {
 	servers := []*Server{s1, s2, s3}
 	TestJoin(t, s1, s2, s3)
 
-	testutil.WaitForResult(func() (bool, error) {
-		peers, _ := s1.numPeers()
-		return peers == 3, nil
-	}, func(err error) {
-		t.Fatalf("should have 3 peers")
-	})
-
-	// Find the leader
-	var leader *Server
-	for _, s := range servers {
-		// Check that s.heartbeatTimers is empty
-		if len(s.heartbeatTimers) != 0 {
-			t.Fatalf("should have no heartbeatTimers")
-		}
-		// Find the leader too
-		if s.IsLeader() {
-			leader = s
-		}
-	}
-	if leader == nil {
-		t.Fatalf("Should have a leader")
-	}
+	leader := waitForStableLeadership(t, servers)
 	codec := rpcClient(t, leader)
 
 	// Create the register request

@@ -13,7 +13,7 @@ GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
 ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
 GOTEST_PKGS ?= "./..."
 else
-GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))$$")
+GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))(/.*)?$$")
 endif
 
 default: help
@@ -170,6 +170,7 @@ check: ## Lint the source code
 		--deadline 10m \
 		--vendor \
 		--exclude='.*\.generated\.go' \
+		--exclude='.*\.pb\.go' \
 		--exclude='.*bindata_assetfs\.go' \
 		--skip="ui/" \
 		--sort="path" \
@@ -305,13 +306,6 @@ clean: ## Remove build artifacts
 	@rm -rf "$(PROJECT_ROOT)/pkg/"
 	@rm -f "$(GOPATH)/bin/nomad"
 
-.PHONY: travis
-travis: ## Run Nomad test suites with output to prevent timeouts under Travis CI
-	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
-		make generate-structs; \
-	fi
-	@"$(PROJECT_ROOT)/scripts/travis.sh"
-
 .PHONY: testcluster
 testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if necessary.
 	vagrant up nomad-server01 \
@@ -380,10 +374,3 @@ ui-screenshots:
 ui-screenshots-local:
 	@echo "==> Collecting UI screenshots (local)..."
 	@cd scripts/screenshots/src && SCREENSHOTS_DIR="../screenshots" node index.js
-
-.PHONY: ci-image
-ci-image: IMAGE_TAG=$(shell date +%Y%m%d)
-ci-image:
-	@echo "==> Building CI Image hashicorpnomad/ci-build-image:$(IMAGE_TAG)"
-	@docker build . -f Dockerfile.ci -t hashicorpnomad/ci-build-image:$(IMAGE_TAG)
-	@echo "To push the image, run 'docker push hashicorpnomad/ci-build-image:$(IMAGE_TAG)'"
