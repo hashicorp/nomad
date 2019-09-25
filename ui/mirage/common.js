@@ -41,7 +41,7 @@ export function generateNetworks(options = {}) {
       CIDR: '',
       IP: faker.internet.ip(),
       MBits: 10,
-      Mode: faker.random.arrayElement(NETWORK_MODES),
+      Mode: faker.helpers.randomize(NETWORK_MODES),
       ReservedPorts: Array(
         faker.random.number({
           min: options.minPorts != null ? options.minPorts : 0,
