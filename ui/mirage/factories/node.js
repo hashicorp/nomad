@@ -1,4 +1,5 @@
-import { Factory, faker, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'ember-cli-mirage';
+import faker from 'faker';
 import { provide } from '../utils';
 import { DATACENTERS, HOSTS, generateResources } from '../common';
 import moment from 'moment';
@@ -12,10 +13,10 @@ export default Factory.extend({
   id: i => (i / 100 >= 1 ? `${UUIDS[i]}-${i}` : UUIDS[i]),
   name: i => `nomad@${HOSTS[i % HOSTS.length]}`,
 
-  datacenter: faker.list.random(...DATACENTERS),
-  nodeClass: faker.list.random(...NODE_CLASSES),
+  datacenter: faker.helpers.randomize(DATACENTERS),
+  nodeClass: faker.helpers.randomize(NODE_CLASSES),
   drain: faker.random.boolean,
-  status: faker.list.random(...NODE_STATUSES),
+  status: faker.helpers.randomize(NODE_STATUSES),
   tls_enabled: faker.random.boolean,
   schedulingEligibility: () => (faker.random.boolean() ? 'eligible' : 'ineligible'),
 

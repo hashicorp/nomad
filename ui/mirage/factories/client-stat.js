@@ -1,4 +1,6 @@
-import { Factory, faker } from 'ember-cli-mirage';
+import { Factory } from 'ember-cli-mirage';
+
+import faker from 'faker';
 
 export default Factory.extend({
   allDirStats: () => ({
@@ -12,7 +14,7 @@ export default Factory.extend({
   }),
 
   CPU: () => [
-    Array(faker.list.random(1, 2, 4, 6, 8, 12, 16, 24, 32))
+    Array(faker.helpers.randomize(1, 2, 4, 6, 8, 12, 16, 24, 32))
       .fill(0)
       .map((cpu, index) => ({
         CPU: `cpu${index}`,

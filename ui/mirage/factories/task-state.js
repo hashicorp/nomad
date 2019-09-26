@@ -1,11 +1,12 @@
-import { Factory, faker } from 'ember-cli-mirage';
+import { Factory } from 'ember-cli-mirage';
+import faker from 'faker';
 
 const TASK_STATUSES = ['pending', 'running', 'finished', 'failed'];
 const REF_TIME = new Date();
 
 export default Factory.extend({
   name: () => '!!!this should be set by the allocation that owns this task state!!!',
-  state: faker.list.random(...TASK_STATUSES),
+  state: faker.helpers.randomize(TASK_STATUSES),
   kind: null,
   startedAt: faker.date.past(2 / 365, REF_TIME),
   finishedAt() {
