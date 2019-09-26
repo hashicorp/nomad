@@ -1,5 +1,4 @@
 import { Factory } from 'ember-cli-mirage';
-
 import faker from 'faker';
 
 const TASK_STATUSES = ['pending', 'running', 'finished', 'failed'];
