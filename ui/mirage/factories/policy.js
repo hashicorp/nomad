@@ -1,5 +1,4 @@
 import { Factory } from 'ember-cli-mirage';
-
 import faker from 'faker';
 
 export default Factory.extend({
@@ -7,7 +6,7 @@ export default Factory.extend({
   name() {
     return this.id;
   },
-  description: () => (faker.random.number(10) >= 2 ? faker.lorem.sentence() : null),
+  description: () => (Math.random() > 0.2 ? faker.lorem.sentence() : null),
   rules: `
 # Allow read only access to the default namespace
 namespace "default" {

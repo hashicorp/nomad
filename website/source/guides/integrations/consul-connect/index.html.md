@@ -54,7 +54,7 @@ run in dev mode with the following command:
 **Note**: Nomad's Connect integration requires Consul in your `$PATH`
 
 ```sh
-$ consul agent -dev 
+$ consul agent -dev
 ```
 
 ### Nomad
@@ -262,8 +262,8 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
  - Consul Connect Native is not yet supported.
  - Consul Connect HTTP and gRPC checks are not yet supported.
  - Consul ACLs are not yet supported.
- - Only the Docker, exec, and raw exec drivers support network namespaces and
-   Connect.
+ - Only the Docker, exec, raw exec, and java drivers support network namespaces
+   and Connect.
  - Variable interpolation for group services and checks are not yet supported.
  - Consul Connect and network namespaces are only supported on Linux.
 

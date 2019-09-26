@@ -1203,7 +1203,7 @@ Server Options:
 
   -raft-protocol=<num>
     The Raft protocol version to use. Used for enabling certain Autopilot
-    features. Defaults to 3.
+    features. Defaults to 2.
 
   -retry-join=<address>
     Address of an agent to join at start time with retries enabled.

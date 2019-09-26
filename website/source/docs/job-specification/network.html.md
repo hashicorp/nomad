@@ -78,7 +78,9 @@ job "docs" {
 
  - “none” - Task group will have an isolated network without any network interfaces.
  - “bridge” - Task group will have an isolated network namespace with an interface
-           that is bridged with the host.
+           that is bridged with the host. Note that bridge networking is only
+           currently supported for the `docker`, `exec`, `raw_exec`, and `java` task
+           drivers.
  - “host” - Each task will join the host network namespace and a shared network
            namespace is not created. This matches the current behavior in Nomad 0.9.
 
