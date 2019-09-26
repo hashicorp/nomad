@@ -1,7 +1,10 @@
 import faker from 'faker';
 import { provide } from './utils';
+import Ember from 'ember';
 
-faker.seed(1);
+if (!Ember.testing) {
+  faker.seed(1);
+}
 
 // Realistically, resource reservations have a low cardinality
 const CPU_RESERVATIONS = [250, 500, 1000, 2000, 2500, 4000];
