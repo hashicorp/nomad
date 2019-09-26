@@ -25,7 +25,8 @@ export default Factory.extend({
   priority: () => faker.random.number(100),
   all_at_once: faker.random.boolean,
   status: faker.helpers.randomize(JOB_STATUSES),
-  datacenters: faker.helpers.randomize(DATACENTERS, faker.random.number({ min: 1, max: 4 })),
+  datacenters: () =>
+    faker.helpers.shuffle(DATACENTERS).slice(0, faker.random.number({ min: 1, max: 4 })),
 
   childrenCount: () => faker.random.number({ min: 1, max: 2 }),
 
