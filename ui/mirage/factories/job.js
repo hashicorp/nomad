@@ -1,6 +1,6 @@
 import { assign } from '@ember/polyfills';
 import { Factory, trait } from 'ember-cli-mirage';
-import faker from 'faker';
+import faker from 'nomad-ui/mirage/faker';
 import { provide, provider, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
 

@@ -1,6 +1,6 @@
 import Ember from 'ember';
 import { Factory, trait } from 'ember-cli-mirage';
-import faker from 'faker';
+import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
 

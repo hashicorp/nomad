@@ -1,4 +1,4 @@
-import faker from 'faker';
+import faker from 'nomad-ui/mirage/faker';
 import { provide } from './utils';
 import Ember from 'ember';
 
