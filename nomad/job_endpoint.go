@@ -88,6 +88,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return fmt.Errorf("missing job for registration")
 	}
 
+	// defensive check; http layer and RPC requester should ensure namespaces are set consistently
+	if args.Namespace != args.Job.Namespace {
+		return fmt.Errorf("mismatched request namespace in request: %q, %q", args.Namespace, args.Job.Namespace)
+	}
+
 	// Run admission controllers
 	job, warnings, err := j.admissionControllers(args.Job)
 	if err != nil {
@@ -342,6 +347,11 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 // Validate validates a job
 func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
+
+	// defensive check; http layer and RPC requester should ensure namespaces are set consistently
+	if args.Namespace != args.Job.Namespace {
+		return fmt.Errorf("mismatched request namespace in request: %q, %q", args.Namespace, args.Job.Namespace)
+	}
 
 	job, mutateWarnings, err := j.admissionMutators(args.Job)
 	if err != nil {
