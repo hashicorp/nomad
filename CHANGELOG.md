@@ -12,7 +12,6 @@ FEATURES:
  * **UI Allocation File Explorer**: Nomad UI enhanced operability with a visual file system explorer for allocations.
 
 IMPROVEMENTS:
- * core: Enabled Autopilot nomad features and raft protocol version 3 by default [[GH-6250](https://github.com/hashicorp/nomad/issues/6250)]
  * core: Added rolling deployments for service jobs by default and max_parallel=0 disables deployments [[GH-6191](https://github.com/hashicorp/nomad/pull/6100)]
  * agent: Allowed the job GC interval to be configured [[GH-5978](https://github.com/hashicorp/nomad/issues/5978)]
  * agent: Added `log_level` to be reloaded on SIGHUP [[GH-5996](https://github.com/hashicorp/nomad/pull/5996)]
