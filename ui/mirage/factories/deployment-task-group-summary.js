@@ -7,8 +7,8 @@ const REF_TIME = new Date();
 export default Factory.extend({
   name: '',
 
-  autoRevert: () => Math.random() > 0.5,
-  promoted: () => Math.random() > 0.5,
+  autoRevert: () => faker.random.boolean(),
+  promoted: () => faker.random.boolean(),
 
   requiresPromotion: false,
 

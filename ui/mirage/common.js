@@ -21,7 +21,7 @@ export const DATACENTERS = provide(
 );
 
 export const HOSTS = provide(100, () => {
-  const ip = Math.random() > 0.5 ? faker.internet.ip() : `[${faker.internet.ipv6()}]`;
+  const ip = faker.random.boolean() ? faker.internet.ip() : `[${faker.internet.ipv6()}]`;
   return `${ip}:${faker.random.number({ min: 4000, max: 4999 })}`;
 });
 
