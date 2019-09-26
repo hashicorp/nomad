@@ -23,7 +23,7 @@ export default Factory.extend({
   region: () => 'global',
   type: () => faker.helpers.randomize(JOB_TYPES),
   priority: () => faker.random.number(100),
-  all_at_once: () => faker.random.boolean,
+  all_at_once: () => faker.random.boolean(),
   status: () => faker.helpers.randomize(JOB_STATUSES),
   datacenters: () =>
     faker.helpers.shuffle(DATACENTERS).slice(0, faker.random.number({ min: 1, max: 4 })),
