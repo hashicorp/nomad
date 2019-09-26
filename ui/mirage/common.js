@@ -1,6 +1,8 @@
 import faker from 'faker';
 import { provide } from './utils';
 
+faker.seed(1);
+
 // Realistically, resource reservations have a low cardinality
 const CPU_RESERVATIONS = [250, 500, 1000, 2000, 2500, 4000];
 const MEMORY_RESERVATIONS = [256, 512, 1024, 2048, 4096, 8192];
