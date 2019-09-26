@@ -344,17 +344,18 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:            absPath,
-		Args:           args,
-		Env:            cfg.EnvList(),
-		User:           user,
-		ResourceLimits: true,
-		Resources:      cfg.Resources,
-		TaskDir:        cfg.TaskDir().Dir,
-		StdoutPath:     cfg.StdoutPath,
-		StderrPath:     cfg.StderrPath,
-		Mounts:         cfg.Mounts,
-		Devices:        cfg.Devices,
+		Cmd:              absPath,
+		Args:             args,
+		Env:              cfg.EnvList(),
+		User:             user,
+		ResourceLimits:   true,
+		Resources:        cfg.Resources,
+		TaskDir:          cfg.TaskDir().Dir,
+		StdoutPath:       cfg.StdoutPath,
+		StderrPath:       cfg.StderrPath,
+		Mounts:           cfg.Mounts,
+		Devices:          cfg.Devices,
+		NetworkIsolation: cfg.NetworkIsolation,
 	}
 
 	ps, err := exec.Launch(execCmd)
