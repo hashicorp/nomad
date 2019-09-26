@@ -153,11 +153,10 @@ module('Acceptance | allocation detail', function(hooks) {
       jobId: job.id,
     });
 
-    allocation.task_states.models.forEach(taskState => {
-      const task = server.schema.tasks.findBy({ name: taskState.name });
-      task.update('kind', 'connect-proxy:task');
-      task.save();
-    });
+    const taskState = allocation.task_states.models.sortBy('name')[0];
+    const task = server.schema.tasks.findBy({ name: taskState.name });
+    task.update('kind', 'connect-proxy:task');
+    task.save();
 
     await Allocation.visit({ id: allocation.id });
 
