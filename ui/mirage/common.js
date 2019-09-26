@@ -3,7 +3,13 @@ import { provide } from './utils';
 import Ember from 'ember';
 
 if (!Ember.testing) {
-  faker.seed(1);
+  if (window.location.search.includes('faker-seed')) {
+    const params = new URLSearchParams(window.location.search);
+    const seed = parseInt(params.get('faker-seed'));
+    faker.seed(seed);
+  } else {
+    faker.seed(1);
+  }
 }
 
 // Realistically, resource reservations have a low cardinality
