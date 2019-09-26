@@ -9,4 +9,4 @@ if [ "$#" -ne 2 ]; then
 fi
 NOMAD_BINARY=$1
 NODE=$2
-( $NOMAD_BINARY agent -config=${NODE}.hcl 2>&1 | tee "/tmp/$NODE/log" ; echo "Exit code: $?" >> "/tmp/$NODE/log" ) &
+( $NOMAD_BINARY agent -config=${NODE}.hcl 2>&1 | tee -a "/tmp/$NODE/log" ; echo "Exit code: $?" >> "/tmp/$NODE/log" ) &
