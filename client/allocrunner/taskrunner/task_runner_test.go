@@ -1766,6 +1766,7 @@ func TestTaskRunner_Template_BlockingPreStart(t *testing.T) {
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
 	go tr.Run()
+	defer tr.Shutdown()
 
 	testutil.WaitForResult(func() (bool, error) {
 		ts := tr.TaskState()
@@ -1774,18 +1775,14 @@ func TestTaskRunner_Template_BlockingPreStart(t *testing.T) {
 			return false, fmt.Errorf("no events yet")
 		}
 
-		foundMissingVaultSecretEvent := false
 		for _, e := range ts.Events {
 			if e.Type == "Template" && strings.Contains(e.DisplayMessage, "vault.read(foo/secret)") {
-				foundMissingVaultSecretEvent = true
+				return true, nil
 			}
 		}
 
-		if !foundMissingVaultSecretEvent {
-			return false, fmt.Errorf("no missing vault secret template event yet: %#v", ts.Events)
-		}
+		return false, fmt.Errorf("no missing vault secret template event yet: %#v", ts.Events)
 
-		return true, nil
 	}, func(err error) {
 		require.NoError(t, err)
 	})
