@@ -67,6 +67,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return fmt.Errorf("missing job for registration")
 	}
 
+	// defensive check; http layer and RPC requester should ensure namespaces are set consistently
+	if args.RequestNamespace() != args.Job.Namespace {
+		return fmt.Errorf("mismatched request namespace in request: %q, %q", args.RequestNamespace(), args.Job.Namespace)
+	}
+
 	// Initialize the job fields (sets defaults and any necessary init work).
 	canonicalizeWarnings := args.Job.Canonicalize()
 
@@ -364,6 +369,11 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 // Validate validates a job
 func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
+
+	// defensive check; http layer and RPC requester should ensure namespaces are set consistently
+	if args.RequestNamespace() != args.Job.Namespace {
+		return fmt.Errorf("mismatched request namespace in request: %q, %q", args.RequestNamespace(), args.Job.Namespace)
+	}
 
 	// Check for read-job permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {

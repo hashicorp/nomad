@@ -160,8 +160,11 @@ func TestJobEndpoint_Register_InvalidNamespace(t *testing.T) {
 	job := mock.Job()
 	job.Namespace = "foo"
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Try without a token, expect failure

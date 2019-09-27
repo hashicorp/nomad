@@ -932,6 +932,7 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 	args := &structs.JobRegisterRequest{}
 	args.Job = job
 	args.WriteRequest.Region = "global"
+	args.Namespace = job.Namespace
 	var jobResp structs.JobRegisterResponse
 	require.NoError(s.RPC("Job.Register", args, &jobResp))
 
