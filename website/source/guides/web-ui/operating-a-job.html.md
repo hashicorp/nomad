@@ -77,7 +77,7 @@ rescheduled successor. Since Nomad handles all of this automatically, the Web UI
 explain the state of allocations through iconography and linking previous and next allocations in a
 reschedule chain.
 
-[![Allocation Reschedule Icon][img-alloc-reschedule-iconj]][img-alloc-reschedule-icon]
+[![Allocation Reschedule Icon][img-alloc-reschedule-icon]][img-alloc-reschedule-icon]
 
 [![Allocation Reschedule Details][img-alloc-reschedule-details]][img-alloc-reschedule-details]
 
