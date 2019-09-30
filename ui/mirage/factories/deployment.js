@@ -11,7 +11,7 @@ export default Factory.extend({
   jobId: null,
   versionNumber: null,
 
-  status: faker.helpers.randomize(DEPLOYMENT_STATUSES),
+  status: () => faker.helpers.randomize(DEPLOYMENT_STATUSES),
   statusDescription: () => faker.lorem.sentence(),
 
   notActive: trait({

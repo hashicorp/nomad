@@ -13,10 +13,10 @@ export default Factory.extend({
   id: i => (i / 100 >= 1 ? `${UUIDS[i]}-${i}` : UUIDS[i]),
   name: i => `nomad@${HOSTS[i % HOSTS.length]}`,
 
-  datacenter: faker.helpers.randomize(DATACENTERS),
-  nodeClass: faker.helpers.randomize(NODE_CLASSES),
+  datacenter: () => faker.helpers.randomize(DATACENTERS),
+  nodeClass: () => faker.helpers.randomize(NODE_CLASSES),
   drain: faker.random.boolean,
-  status: faker.helpers.randomize(NODE_STATUSES),
+  status: () => faker.helpers.randomize(NODE_STATUSES),
   tls_enabled: faker.random.boolean,
   schedulingEligibility: () => (faker.random.boolean() ? 'eligible' : 'ineligible'),
 
