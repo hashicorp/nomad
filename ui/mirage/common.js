@@ -1,16 +1,5 @@
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from './utils';
-import Ember from 'ember';
-
-if (!Ember.testing) {
-  if (window.location.search.includes('faker-seed')) {
-    const params = new URLSearchParams(window.location.search);
-    const seed = parseInt(params.get('faker-seed'));
-    faker.seed(seed);
-  } else {
-    faker.seed(1);
-  }
-}
 
 // Realistically, resource reservations have a low cardinality
 const CPU_RESERVATIONS = [250, 500, 1000, 2000, 2500, 4000];
