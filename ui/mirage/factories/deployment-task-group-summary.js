@@ -14,7 +14,7 @@ export default Factory.extend({
 
   requireProgressBy: () => faker.date.past(0.5 / 365, REF_TIME),
 
-  desiredTotal: faker.random.number({ min: 1, max: 10 }),
+  desiredTotal: () => faker.random.number({ min: 1, max: 10 }),
 
   desiredCanaries() {
     return faker.random.number(Math.floor(this.desiredTotal / 2));

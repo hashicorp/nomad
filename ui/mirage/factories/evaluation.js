@@ -47,9 +47,9 @@ export default Factory.extend({
 
   priority: () => faker.random.number(100),
 
-  type: faker.helpers.randomize(EVAL_TYPES),
-  triggeredBy: faker.helpers.randomize(EVAL_TRIGGERED_BY),
-  status: faker.helpers.randomize(EVAL_STATUSES),
+  type: () => faker.helpers.randomize(EVAL_TYPES),
+  triggeredBy: () => faker.helpers.randomize(EVAL_TRIGGERED_BY),
+  status: () => faker.helpers.randomize(EVAL_STATUSES),
   statusDescription: () => faker.lorem.sentence(),
 
   failedTGAllocs: null,

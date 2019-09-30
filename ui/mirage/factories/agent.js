@@ -10,8 +10,8 @@ export default Factory.extend({
   id: i => (i / 100 >= 1 ? `${UUIDS[i]}-${i}` : UUIDS[i]),
   name: () => `nomad@${faker.internet.ip()}`,
 
-  status: faker.helpers.randomize(AGENT_STATUSES),
-  serf_port: faker.random.number({ min: 4000, max: 4999 }),
+  status: () => faker.helpers.randomize(AGENT_STATUSES),
+  serf_port: () => faker.random.number({ min: 4000, max: 4999 }),
 
   address() {
     return this.name.split('@')[1];
