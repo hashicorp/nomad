@@ -18,6 +18,9 @@ import (
 type execHelper struct {
 	logger hclog.Logger
 
+	// networkSpec is the network isolation spec, set when platforms support network namespaces
+	networkSpec *drivers.NetworkIsolationSpec
+
 	// newTerminal function creates a tty appropriate for the command
 	// The returned pty end of tty function is to be called after process start.
 	newTerminal func() (pty func() (*os.File, error), tty *os.File, err error)
