@@ -54,7 +54,7 @@ const fileBodyMapping = {
 export default Factory.extend({
   id: i => i,
 
-  isDir: faker.random.boolean(),
+  isDir: faker.random.boolean,
 
   // Depth is used to recursively create nested directories.
   depth: 0,
