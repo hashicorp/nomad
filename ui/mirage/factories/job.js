@@ -52,7 +52,7 @@ export default Factory.extend({
     parameterizedDetails: () => ({
       MetaOptional: null,
       MetaRequired: null,
-      Payload: Math.random() > 0.5 ? 'required' : null,
+      Payload: faker.random.boolean() ? 'required' : null,
     }),
   }),
 
