@@ -174,6 +174,8 @@ func DestroyCgroup(groups *lconfigs.Cgroup, executorPid int) error {
 	return mErrs.ErrorOrNil()
 }
 
+// wrapNetns takes a given function and calls it inside the network namespace
+// given in the NetworkIsolationSpec
 func wrapNetns(f func() error, spec *drivers.NetworkIsolationSpec) error {
 	if spec != nil && spec.Path != "" {
 		// Get a handle to the target network namespace
