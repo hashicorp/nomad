@@ -86,8 +86,10 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_alloc"}, time.Now())
 
-	// Check namespace read-job permissions
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	// Check namespace read-job permissions before performing blocking query.
+	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadJob)
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		// If ResolveToken had an unexpected error return that
 		if err != structs.ErrTokenNotFound {
 			return err
@@ -107,7 +109,7 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 		if node == nil {
 			return structs.ErrTokenNotFound
 		}
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	} else if !allowNsOp(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -125,6 +127,11 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 			// Setup the output
 			reply.Alloc = out
 			if out != nil {
+				// Re-check namespace in case it differs from request.
+				if !allowNsOp(aclObj, out.Namespace) {
+					return structs.NewErrUnknownAllocation(args.AllocID)
+				}
+
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the allocs table
@@ -214,25 +221,18 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "stop"}, time.Now())
 
-	// Check that it is a management token.
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
-		return structs.ErrPermissionDenied
-	}
-
-	if args.AllocID == "" {
-		return fmt.Errorf("must provide an alloc id")
-	}
-
-	ws := memdb.NewWatchSet()
-	alloc, err := a.srv.State().AllocByID(ws, args.AllocID)
+	alloc, err := getAlloc(a.srv.State(), args.AllocID)
 	if err != nil {
 		return err
 	}
 
-	if alloc == nil {
-		return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
+	// Check for namespace alloc-lifecycle permissions.
+	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityAllocLifecycle)
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if !allowNsOp(aclObj, alloc.Namespace) {
+		return structs.ErrPermissionDenied
 	}
 
 	now := time.Now().UTC().UnixNano()

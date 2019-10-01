@@ -15,6 +15,7 @@ const (
 	errUnknownMethod       = "Unknown rpc method"
 	errUnknownNomadVersion = "Unable to determine Nomad version"
 	errNodeLacksRpc        = "Node does not support RPC; requires 0.8 or later"
+	errMissingAllocID      = "Missing allocation ID"
 
 	// Prefix based errors that are used to check if the error is of a given
 	// type. These errors should be created with the associated constructor.
@@ -34,6 +35,7 @@ var (
 	ErrUnknownMethod       = errors.New(errUnknownMethod)
 	ErrUnknownNomadVersion = errors.New(errUnknownNomadVersion)
 	ErrNodeLacksRpc        = errors.New(errNodeLacksRpc)
+	ErrMissingAllocID      = errors.New(errMissingAllocID)
 )
 
 // IsErrNoLeader returns whether the error is due to there being no leader.
