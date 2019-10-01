@@ -309,7 +309,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	e.childCmd.Env = e.commandCfg.Env
 
 	// Start the process
-	if err = wrapNetns(e.childCmd.Start, command.NetworkIsolation); err != nil {
+	if err = withNetworkIsolation(e.childCmd.Start, command.NetworkIsolation); err != nil {
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
 
@@ -342,7 +342,7 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 	cmd.Stdout = buf
 	cmd.Stderr = buf
 
-	if err := wrapNetns(cmd.Run, netSpec); err != nil {
+	if err := withNetworkIsolation(cmd.Run, netSpec); err != nil {
 		exitErr, ok := err.(*exec.ExitError)
 		if !ok {
 			// Non-exit error, return it and let the caller treat
@@ -401,7 +401,7 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			return nil
 		},
 		processStart: func() error {
-			return wrapNetns(cmd.Start, e.commandCfg.NetworkIsolation)
+			return withNetworkIsolation(cmd.Start, e.commandCfg.NetworkIsolation)
 		},
 		processWait: func() (*os.ProcessState, error) {
 			err := cmd.Wait()

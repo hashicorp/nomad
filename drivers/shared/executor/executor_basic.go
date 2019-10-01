@@ -25,6 +25,6 @@ func (e *UniversalExecutor) start(command *ExecCommand) error {
 	return e.childCmd.Start()
 }
 
-func wrapNetns(f func() error, _ *drivers.NetworkIsolationSpec) error {
+func withNetworkIsolation(f func() error, _ *drivers.NetworkIsolationSpec) error {
 	return f()
 }
