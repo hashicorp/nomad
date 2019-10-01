@@ -154,6 +154,9 @@ driver) but will be removed in a future release.
 - `template` <code>([Template](#template-parameters): nil)</code> - Specifies
   controls on the behavior of task [`template`](/docs/job-specification/template.html) stanzas.
 
+- `host_volume` <code>([host_volume](#host_volume-stanza): nil)</code> - Exposes
+  paths from the host as volumes that can be mounted into jobs.
+
 
 ### `chroot_env` Parameters
 
@@ -349,6 +352,31 @@ see the [drivers documentation](/docs/drivers/index.html).
   files on the client host via the `file` function. By default templates can
   access files only within the task directory.
 
+### `host_volume` Stanza
+
+The `host_volume` stanza is used to make volumes available to jobs.
+
+The key of the stanza corresponds to the name of the volume for use in the 
+`source` parameter of a `"host"` type [`volume`](/docs/job-specification/volume.html)
+and ACLs.
+
+```hcl
+client {
+  host_volume "ca-certificates" {
+    path = "/etc/ssl/certs"
+    read_only = true
+  }
+}
+```
+
+#### `host_volume` Parameters
+
+- `path` `(string: "", required)` - Specifies the path on the host that should
+  be used as the source when this volume is mounted into a task. The path must
+  exist on client startup.
+
+- `read_only` `(bool: false)` - Specifies whether the volume should only ever be
+  allowed to be mounted `read_only`, or if it should be writeable.
 
 ## `client` Examples
 

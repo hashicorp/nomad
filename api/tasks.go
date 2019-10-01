@@ -366,9 +366,8 @@ func (m *MigrateStrategy) Copy() *MigrateStrategy {
 type VolumeRequest struct {
 	Name     string
 	Type     string
+	Source   string
 	ReadOnly bool `mapstructure:"read_only"`
-
-	Config map[string]interface{}
 }
 
 // VolumeMount represents the relationship between a destination path in a task

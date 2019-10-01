@@ -1742,6 +1742,69 @@ func TestTaskRunner_Template_Artifact(t *testing.T) {
 	require.NoErrorf(t, err, "%v not rendered", f2)
 }
 
+// TestTaskRunner_Template_BlockingPreStart asserts that a template
+// that fails to render in PreStart can gracefully be shutdown by
+// either killCtx or shutdownCtx
+func TestTaskRunner_Template_BlockingPreStart(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Templates = []*structs.Template{
+		{
+			EmbeddedTmpl: `{{ with secret "foo/secret" }}{{ .Data.certificate }}{{ end }}`,
+			DestPath:     "local/test",
+			ChangeMode:   structs.TemplateChangeModeNoop,
+		},
+	}
+
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	go tr.Run()
+	defer tr.Shutdown()
+
+	testutil.WaitForResult(func() (bool, error) {
+		ts := tr.TaskState()
+
+		if len(ts.Events) == 0 {
+			return false, fmt.Errorf("no events yet")
+		}
+
+		for _, e := range ts.Events {
+			if e.Type == "Template" && strings.Contains(e.DisplayMessage, "vault.read(foo/secret)") {
+				return true, nil
+			}
+		}
+
+		return false, fmt.Errorf("no missing vault secret template event yet: %#v", ts.Events)
+
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	shutdown := func() <-chan bool {
+		finished := make(chan bool)
+		go func() {
+			tr.Shutdown()
+			finished <- true
+		}()
+
+		return finished
+	}
+
+	select {
+	case <-shutdown():
+		// it shut down like it should have
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "timeout shutting down task")
+	}
+}
+
 // TestTaskRunner_Template_NewVaultToken asserts that a new vault token is
 // created when rendering template and that it is revoked on alloc completion
 func TestTaskRunner_Template_NewVaultToken(t *testing.T) {

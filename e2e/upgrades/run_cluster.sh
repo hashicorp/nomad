@@ -5,6 +5,10 @@ if [ "$#" -ne 1 ]; then
     exit 255
 fi
 NOMAD_BINARY=$1
+
+# make sure the directories exist so tee can create logs in them
+mkdir -p /tmp/server{1,2,3} /tmp/client{1,2}
+
 # launch server 
 ( ${NOMAD_BINARY} agent -config=server1.hcl 2>&1 | tee "/tmp/server1/log" ; echo "Exit code: $?" >> "/tmp/server1/log" ) &
 

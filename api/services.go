@@ -165,8 +165,10 @@ type SidecarTask struct {
 
 // ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
 type ConsulProxy struct {
-	Upstreams []*ConsulUpstream
-	Config    map[string]interface{}
+	LocalServiceAddress string `mapstructure:"local_service_address"`
+	LocalServicePort    int    `mapstructure:"local_service_port"`
+	Upstreams           []*ConsulUpstream
+	Config              map[string]interface{}
 }
 
 // ConsulUpstream represents a Consul Connect upstream jobspec stanza.

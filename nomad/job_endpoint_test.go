@@ -285,10 +285,8 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 		tg := j.TaskGroups[0]
 		tg.Volumes = map[string]*structs.VolumeRequest{
 			"ca-certs": {
-				Type: structs.VolumeTypeHost,
-				Config: map[string]interface{}{
-					"source": "prod-ca-certs",
-				},
+				Type:     structs.VolumeTypeHost,
+				Source:   "prod-ca-certs",
 				ReadOnly: readonlyVolume,
 			},
 		}
@@ -365,8 +363,11 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			codec := rpcClient(t, s1)
 			req := &structs.JobRegisterRequest{
-				Job:          tt.Job,
-				WriteRequest: structs.WriteRequest{Region: "global"},
+				Job: tt.Job,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: tt.Job.Namespace,
+				},
 			}
 			req.AuthToken = tt.Token
 
@@ -409,8 +410,11 @@ func TestJobEndpoint_Register_InvalidNamespace(t *testing.T) {
 	job := mock.Job()
 	job.Namespace = "foo"
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Try without a token, expect failure

@@ -660,11 +660,17 @@ func TestEnvironment_AppendHostEnvvars(t *testing.T) {
 func TestEnvironment_DashesInTaskName(t *testing.T) {
 	a := mock.Alloc()
 	task := a.Job.TaskGroups[0].Tasks[0]
-	task.Env = map[string]string{"test-one-two": "three-four"}
+	task.Env = map[string]string{
+		"test-one-two":       "three-four",
+		"NOMAD_test_one_two": "three-five",
+	}
 	envMap := NewBuilder(mock.Node(), a, task, "global").Build().Map()
 
-	if envMap["test_one_two"] != "three-four" {
-		t.Fatalf("Expected test_one_two=three-four in TaskEnv; found:\n%#v", envMap)
+	if envMap["test-one-two"] != "three-four" {
+		t.Fatalf("Expected test-one-two=three-four in TaskEnv; found:\n%#v", envMap)
+	}
+	if envMap["NOMAD_test_one_two"] != "three-five" {
+		t.Fatalf("Expected NOMAD_test_one_two=three-five in TaskEnv; found:\n%#v", envMap)
 	}
 }
 
@@ -783,4 +789,24 @@ func TestEnvironment_Upstreams(t *testing.T) {
 	require.Equal(t, "5678", env["NOMAD_UPSTREAM_PORT_bar"])
 	require.Equal(t, "127.0.0.1:1234", env["foo"])
 	require.Equal(t, "1234", env["bar"])
+}
+
+func TestEnvironment_SetPortMapEnvs(t *testing.T) {
+	envs := map[string]string{
+		"foo":            "bar",
+		"NOMAD_PORT_ssh": "2342",
+	}
+	ports := map[string]int{
+		"ssh":  22,
+		"http": 80,
+	}
+
+	envs = SetPortMapEnvs(envs, ports)
+
+	expected := map[string]string{
+		"foo":             "bar",
+		"NOMAD_PORT_ssh":  "22",
+		"NOMAD_PORT_http": "80",
+	}
+	require.Equal(t, expected, envs)
 }

@@ -625,40 +625,41 @@ func TestConfig_Listener(t *testing.T) {
 
 func TestConfig_DevModeFlag(t *testing.T) {
 	cases := []struct {
-		flag        string
+		dev         bool
+		connect     bool
 		expected    *devModeConfig
 		expectedErr string
 	}{}
 	if runtime.GOOS != "linux" {
 		cases = []struct {
-			flag        string
+			dev         bool
+			connect     bool
 			expected    *devModeConfig
 			expectedErr string
 		}{
-			{"", nil, ""},
-			{"true", &devModeConfig{defaultMode: true, connectMode: false}, ""},
-			{"true,connect", nil, "-dev=connect is only supported on linux"},
-			{"connect", nil, "-dev=connect is only supported on linux"},
-			{"xxx", nil, "invalid -dev flag"},
+			{false, false, nil, ""},
+			{true, false, &devModeConfig{defaultMode: true, connectMode: false}, ""},
+			{true, true, nil, "-dev-connect is only supported on linux"},
+			{false, true, nil, "-dev-connect is only supported on linux"},
 		}
 	}
 	if runtime.GOOS == "linux" {
 		testutil.RequireRoot(t)
 		cases = []struct {
-			flag        string
+			dev         bool
+			connect     bool
 			expected    *devModeConfig
 			expectedErr string
 		}{
-			{"", nil, ""},
-			{"true", &devModeConfig{defaultMode: true, connectMode: false}, ""},
-			{"true,connect", &devModeConfig{defaultMode: true, connectMode: true}, ""},
-			{"connect", &devModeConfig{defaultMode: false, connectMode: true}, ""},
-			{"xxx", nil, "invalid -dev flag"},
+			{false, false, nil, ""},
+			{true, false, &devModeConfig{defaultMode: true, connectMode: false}, ""},
+			{true, true, &devModeConfig{defaultMode: true, connectMode: true}, ""},
+			{false, true, &devModeConfig{defaultMode: false, connectMode: true}, ""},
 		}
 	}
 	for _, c := range cases {
-		t.Run(c.flag, func(t *testing.T) {
-			mode, err := newDevModeConfig(c.flag)
+		t.Run("", func(t *testing.T) {
+			mode, err := newDevModeConfig(c.dev, c.connect)
 			if err != nil && c.expectedErr == "" {
 				t.Fatalf("unexpected error: %v", err)
 			}

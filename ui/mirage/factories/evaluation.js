@@ -1,5 +1,6 @@
 import Ember from 'ember';
-import { Factory, faker, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'ember-cli-mirage';
+import faker from 'faker';
 import { provide, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
 
@@ -46,9 +47,9 @@ export default Factory.extend({
 
   priority: () => faker.random.number(100),
 
-  type: faker.list.random(...EVAL_TYPES),
-  triggeredBy: faker.list.random(...EVAL_TRIGGERED_BY),
-  status: faker.list.random(...EVAL_STATUSES),
+  type: () => faker.helpers.randomize(EVAL_TYPES),
+  triggeredBy: () => faker.helpers.randomize(EVAL_TRIGGERED_BY),
+  status: () => faker.helpers.randomize(EVAL_STATUSES),
   statusDescription: () => faker.lorem.sentence(),
 
   failedTGAllocs: null,

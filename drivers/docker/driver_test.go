@@ -1412,6 +1412,10 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
+	// Verify that the port environment variables are set
+	require.Contains(t, container.Config.Env, "NOMAD_PORT_main=8080")
+	require.Contains(t, container.Config.Env, "NOMAD_PORT_REDIS=6379")
+
 	// Verify that the correct ports are EXPOSED
 	expectedExposedPorts := map[docker.Port]struct{}{
 		docker.Port("8080/tcp"): {},
@@ -1435,6 +1439,41 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 		docker.Port("6379/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
 	}
 	require.Exactly(t, expectedPortBindings, container.HostConfig.PortBindings)
+}
+
+func TestDockerDriver_CreateContainerConfig_PortsMapping(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, port := dockerTask(t)
+	res := port[0]
+	dyn := port[1]
+	cfg.PortMap = map[string]int{
+		"main":  8080,
+		"REDIS": 6379,
+	}
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	require.Equal(t, "org/repo:0.1", c.Config.Image)
+	require.Contains(t, c.Config.Env, "NOMAD_PORT_main=8080")
+	require.Contains(t, c.Config.Env, "NOMAD_PORT_REDIS=6379")
+
+	// Verify that the correct ports are FORWARDED
+	hostIP := "127.0.0.1"
+	if runtime.GOOS == "windows" {
+		hostIP = ""
+	}
+	expectedPortBindings := map[docker.Port][]docker.PortBinding{
+		docker.Port("8080/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
+		docker.Port("8080/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
+		docker.Port("6379/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
+		docker.Port("6379/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
+	}
+	require.Exactly(t, expectedPortBindings, c.HostConfig.PortBindings)
+
 }
 
 func TestDockerDriver_CleanupContainer(t *testing.T) {
@@ -2333,6 +2372,77 @@ func waitForExist(t *testing.T, client *docker.Client, containerID string) {
 		}
 
 		return container != nil, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+}
+
+// TestDockerDriver_CreationIdempotent asserts that createContainer and
+// and startContainers functions are idempotent, as we have some retry
+// logic there without ensureing we delete/destroy containers
+func TestDockerDriver_CreationIdempotent(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, _ := dockerTask(t)
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client := newTestDockerClient(t)
+	driver := dockerDriverHarness(t, nil)
+	cleanup := driver.MkAllocDir(task, true)
+	defer cleanup()
+
+	copyImage(t, task.TaskDir(), "busybox.tar")
+
+	d, ok := driver.Impl().(*Driver)
+	require.True(t, ok)
+
+	_, err := d.createImage(task, cfg, client)
+	require.NoError(t, err)
+
+	containerCfg, err := d.createContainerConfig(task, cfg, cfg.Image)
+	require.NoError(t, err)
+
+	c, err := d.createContainer(client, containerCfg, cfg.Image)
+	require.NoError(t, err)
+	defer client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:    c.ID,
+		Force: true,
+	})
+
+	// calling createContainer again creates a new one and remove old one
+	c2, err := d.createContainer(client, containerCfg, cfg.Image)
+	require.NoError(t, err)
+	defer client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:    c2.ID,
+		Force: true,
+	})
+
+	require.NotEqual(t, c.ID, c2.ID)
+	// old container was destroyed
+	{
+		_, err := client.InspectContainer(c.ID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), NoSuchContainerError)
+	}
+
+	// now start container twice
+	require.NoError(t, d.startContainer(c2))
+	require.NoError(t, d.startContainer(c2))
+
+	tu.WaitForResult(func() (bool, error) {
+		c, err := client.InspectContainer(c2.ID)
+		if err != nil {
+			return false, fmt.Errorf("failed to get container status: %v", err)
+		}
+
+		if !c.State.Running {
+			return false, fmt.Errorf("container is not running but %v", c.State)
+		}
+
+		return true, nil
 	}, func(err error) {
 		require.NoError(t, err)
 	})

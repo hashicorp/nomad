@@ -490,22 +490,19 @@ func (b *Builder) Build() *TaskEnv {
 	}
 
 	// Clean keys (see #2405)
+	prefixesToClean := [...]string{AddrPrefix, IpPrefix, PortPrefix, HostPortPrefix, MetaPrefix}
 	cleanedEnv := make(map[string]string, len(envMap))
 	for k, v := range envMap {
-		cleanedK := helper.CleanEnvVar(k, '_')
+		cleanedK := k
+		for i := range prefixesToClean {
+			if strings.HasPrefix(k, prefixesToClean[i]) {
+				cleanedK = helper.CleanEnvVar(k, '_')
+			}
+		}
 		cleanedEnv[cleanedK] = v
 	}
 
-	var cleanedDeviceEnvs map[string]string
-	if deviceEnvs != nil {
-		cleanedDeviceEnvs = make(map[string]string, len(deviceEnvs))
-		for k, v := range deviceEnvs {
-			cleanedK := helper.CleanEnvVar(k, '_')
-			cleanedDeviceEnvs[cleanedK] = v
-		}
-	}
-
-	return NewTaskEnv(cleanedEnv, cleanedDeviceEnvs, nodeAttrs)
+	return NewTaskEnv(cleanedEnv, deviceEnvs, nodeAttrs)
 }
 
 // Update task updates the environment based on a new alloc and task.
@@ -784,6 +781,19 @@ func buildUpstreamsEnv(envMap map[string]string, upstreams []structs.ConsulUpstr
 		envMap[UpstreamPrefix+"IP_"+cleanName] = ip
 		envMap[UpstreamPrefix+"PORT_"+cleanName] = port
 	}
+}
+
+// SetPortMapEnvs sets the PortMap related environment variables on the map
+func SetPortMapEnvs(envs map[string]string, ports map[string]int) map[string]string {
+	if envs == nil {
+		envs = map[string]string{}
+	}
+
+	for portLabel, port := range ports {
+		portEnv := helper.CleanEnvVar(PortPrefix+portLabel, '_')
+		envs[portEnv] = strconv.Itoa(port)
+	}
+	return envs
 }
 
 // SetHostEnvvars adds the host environment variables to the tasks. The filter

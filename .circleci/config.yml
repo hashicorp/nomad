@@ -41,6 +41,10 @@ workflows:
       - test-machine:
           name: "test-docker"
           test_packages: "./drivers/docker"
+          # docker is misbehaving in docker-machine-recent image
+          # and we get unexpected failures
+          # e.g. https://circleci.com/gh/hashicorp/nomad/3854
+          executor: go-machine
           <<: *IGNORE_FOR_UI_BRANCHES
       - test-machine:
           name: "test-exec"
@@ -50,14 +54,20 @@ workflows:
           name: "test-shared-exec"
           test_packages: "./drivers/shared/executor"
           <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-32bit"
+          # Currently we only explicitly test fingerprinting on 32bit
+          # architectures.
+          test_packages: "./client/fingerprint"
+          goarch: "386"
+          <<: *IGNORE_FOR_UI_BRANCHES
       - test-rkt:
           <<: *IGNORE_FOR_UI_BRANCHES
+      - test-e2e:
+          <<: *IGNORE_FOR_UI_BRANCHES
       - test-ui
-      # - build-deps-image:
-      #     context: dani-test
-      #     filters:
-      #       branches:
-      #         only: dani/circleci
+      - test-website:
+          <<: *IGNORE_FOR_UI_BRANCHES
 
   website:
     jobs:
@@ -70,7 +80,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: circleci/golang:1.12.9
+      - image: circleci/golang:1.12.10
   go-machine:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
@@ -102,8 +112,10 @@ jobs:
     steps:
       - checkout
       - install-protoc
+      - run: sudo apt-get update && sudo apt-get install shellcheck
       - run: make deps lint-deps
       - run: make check
+      - run: make checkscripts
 
   test-container:
     executor: go
@@ -114,11 +126,15 @@ jobs:
       exclude_packages:
         type: string
         default: ""
+      goarch:
+        type: string
+        default: "amd64"
     environment:
       <<: *COMMON_ENVS
       GOTEST_PKGS: "<< parameters.test_packages >>"
       GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
       GOPATH: /go
+      GOTESTARCH: "<< parameters.goarch >>"
     steps:
       - checkout
       - run: make deps
@@ -130,6 +146,24 @@ jobs:
           path: /tmp/test-reports
       - store_artifacts:
           path: /tmp/test-reports
+
+  test-e2e:
+    executor: go
+    environment:
+      <<: *COMMON_ENVS
+      GOPATH: /go
+    steps:
+      - checkout
+      - run: make deps
+      - run: make e2e-test
+
+  test-website:
+    executor: go-machine-recent
+    environment:
+      <<: *COMMON_ENVS
+    steps:
+      - checkout
+      - run: make test-website
 
   test-rkt:
     executor: go-machine-recent
@@ -158,7 +192,7 @@ jobs:
           path: /tmp/test-reports
 
   test-machine:
-    executor: go-machine
+    executor: "<< parameters.executor >>"
     parameters:
       test_packages:
         type: string
@@ -166,17 +200,33 @@ jobs:
       exclude_packages:
         type: string
         default: ""
+      executor:
+        type: string
+        default: "go-machine-recent"
+      goarch:
+        type: string
+        default: "amd64"
     environment:
       <<: *COMMON_ENVS
       GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
       GOTEST_PKGS: "<< parameters.test_packages >>"
       GOPATH: /home/circleci/go
+      GOTESTARCH: "<< parameters.goarch >>"
     steps:
       - checkout
       - install-golang
       - install-protoc
       - install-consul
       - install-vault
+      - run:
+          name: Install 32bit gcc libs
+          command: |
+            if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
+              sudo apt-get update
+              sudo apt-get install -y gcc-multilib
+            else
+              echo "Skipping 32bit lib installation while building for not 386"
+            fi
       - run: PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make bootstrap
       - run-tests
       - store_test_results:
@@ -249,7 +299,7 @@ commands:
     parameters:
       version:
         type: string
-        default: "1.12.9"
+        default: "1.12.10"
     steps:
       - run:
           name: install golang << parameters.version >>
@@ -303,6 +353,10 @@ commands:
               unset GOTEST_PKGS_EXCLUDE
             else
               unset GOTEST_PKGS
+            fi
+
+            if [ ! -z $GOTESTARCH ]; then
+              export GOARCH="$GOTESTARCH";
             fi
 
             mkdir -p /tmp/test-reports

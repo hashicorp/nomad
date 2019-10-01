@@ -23,7 +23,7 @@ var (
 	connectDriverConfig = map[string]interface{}{
 		"image": "${meta.connect.sidecar_image}",
 		"args": []interface{}{
-			"-c", "${NOMAD_TASK_DIR}/bootstrap.json",
+			"-c", structs.EnvoyBootstrapPath,
 			"-l", "${meta.connect.log_level}",
 		},
 	}
