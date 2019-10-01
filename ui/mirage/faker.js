@@ -2,8 +2,10 @@ import faker from 'faker';
 import Ember from 'ember';
 import config from 'nomad-ui/config/environment';
 
-if (config.environment !== 'test') {
-  if (window.location.search.includes('faker-seed')) {
+const searchIncludesSeed = window.location.search.includes('faker-seed');
+
+if (config.environment !== 'test' || searchIncludesSeed) {
+  if (searchIncludesSeed) {
     const params = new URLSearchParams(window.location.search);
     const seed = parseInt(params.get('faker-seed'));
     faker.seed(seed);
