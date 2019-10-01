@@ -15,7 +15,7 @@ module.exports = function(environment) {
     EmberENV: {
       FEATURES: {
         // Here you can enable experimental features on an ember canary build
-        // e.g. 'with-controller': true
+        // e.g. EMBER_NATIVE_DECORATOR_SUPPORT: true
         'ember-routing-router-service': true,
       },
       EXTEND_PROTOTYPES: {
