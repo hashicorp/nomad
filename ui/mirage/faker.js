@@ -1,5 +1,4 @@
 import faker from 'faker';
-import Ember from 'ember';
 import config from 'nomad-ui/config/environment';
 
 const searchIncludesSeed = window.location.search.includes('faker-seed');
