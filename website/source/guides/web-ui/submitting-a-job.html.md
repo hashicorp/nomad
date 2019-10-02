@@ -76,7 +76,7 @@ Upon submitting a job, you will be redirected to the Job Overview page for the j
 If this is a new job, the job will start in a queued state. If there are no placement failures,
 allocations for the job will naturally transition from a starting to a running or failed state.
 Nomad is quick to schedule allocations (i.e., find a client node to start the allocation on), but an
-allocation may sit in the starting state for awhile if it has to download
+allocation may sit in the starting state for a while if it has to download
 [source images](/docs/job-specification/task.html#task-examples) or
 [other artifacts](/docs/job-specification/artifact.html). It may also sit in a starting state if the
 task fails to start and requires retry attempts.
@@ -95,7 +95,7 @@ job and its allocations change.
 From the subnav on any job detail page, you can access the Job Definition page.
 
 The Job Definition page will show the job's underlying JSON representation. This can be useful for
-quickly verifying how the job was configuring. Many properties from the job configuration will also
+quickly verifying how the job was configured. Many properties from the job configuration will also
 be on the Job Overview page, but some deeper properties may only be available in the definition
 itself. It can also be convenient to see everything at once rather than traversing through task
 groups, allocations, and tasks.
@@ -108,7 +108,7 @@ From the subnav on any job detail page, you can access the Job Versions page.
 
 The Job Versions page will show a timeline view of every version of the job. Each version in the
 timeline includes the version number, the time the version was submitted, whether the version is/was
-stable, the number of changes, and the job diff itself.
+stable, the number of changes, and the job diff.
 
 Reviewing the job diffs version by version can be used to debug issues in a similar manner to `git log`.
 
@@ -154,9 +154,8 @@ monitor, but an experienced Nomad user can use evaluations to diagnose potential
 ## Access Control
 
 Depending on the size of your team and the details of your Nomad deployment, you may wish to control
-which features different internal users have access to.
-
-Nomad has an access control list system for doing just that.
+which features different internal users have access to. You can enforce this with Nomad's access
+control list system.
 
 By default, all features—read and write—are available to all users of the Web UI. Check out the
 [Securing the Web UI with ACLs](/guides/web-ui/securing.html) guide to learn how to prevent

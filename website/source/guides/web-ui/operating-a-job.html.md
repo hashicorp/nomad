@@ -10,7 +10,7 @@ description: |-
 
 The Web UI can be a powerful companion when monitoring and debugging jobs running in Nomad. The Web
 UI will list all jobs, link jobs to allocations, allocations to client nodes, client nodes to driver
-health, and much more. This creates a fluid exploratory experience.
+health, and much more.
 
 ## Reviewing All Jobs
 
@@ -65,8 +65,7 @@ Task events are listed on the Task Detail page and live-update as Nomad handles 
 ### Rescheduled Allocations
 
 Allocations will be placed on any client node that satisfies the constraints of the job definition.
-However, just because a node sounds like a good fit doesn't mean there isn't the possibility of
-unforeseen hostility, (e.g., corrupted `/bin`, no access to a container registry).
+There are events, however, that will cause Nomad to reschedule allocations, (e.g., node failures).
 
 Allocations can be configured [in the job definition to reschedule](/docs/job-specification/reschedule.html)
 to a different client node if the allocation ends in a failed status. This will happen after the
@@ -74,7 +73,7 @@ task has exhausted its [local restart attempts](/docs/job-specification/restart.
 
 The end result of this automatic procedure is a failed allocation and that failed allocation's
 rescheduled successor. Since Nomad handles all of this automatically, the Web UI makes sure to
-explain the state of allocations through iconography and linking previous and next allocations in a
+explain the state of allocations through icons and linking previous and next allocations in a
 reschedule chain.
 
 [![Allocation Reschedule Icon][img-alloc-reschedule-icon]][img-alloc-reschedule-icon]
@@ -113,7 +112,7 @@ A task will typically emit log information to `stdout` and `stderr`. Nomad captu
 exposes them through an API. The Web UI uses these APIs to offer `head`, `tail`, and streaming logs
 from the browser.
 
-The Web UI will first attempt to directly connecto to the client node the task is running on.
+The Web UI will first attempt to directly connect to the client node the task is running on.
 Typically, client nodes are not accessible from the public internet. If this is the case, the Web UI
 will fall back and proxy to the client node from the server node with no loss of functionality.
 
@@ -124,11 +123,7 @@ logs will still be followed using interval polling.
 
 ## Restarting or Stopping an Allocation or Task
 
-Ideally software always runs smoothly and as intended, but this isn't something we can count on.
-Sometimes tasks will have a memory leak, sometimes a node will have noisy neighbors, and sometimes
-we have no clue what's going so it's time to try turning it off and on again.
-
-For these times, Nomad allows for restarting and stopping individual allocations and tasks. When a
+Nomad allows for restarting and stopping individual allocations and tasks. When a
 task is restarted, Nomad will perform a local restart of the task. When an allocation is stopped,
 Nomad will mark the allocation as complete and perform a reschedule onto a different client node.
 
@@ -182,9 +177,8 @@ marking them as complete, and freeing up resources in the cluster.
 
 Depending on the size of your team and the details of your Nomad deployment, you may wish to control
 which features different internal users have access to. This includes differentiation between
-submitting jobs, restarting allocations, and viewing potentially sensitive logs.
-
-Nomad has an access control list system for doing just that.
+submitting jobs, restarting allocations, and viewing potentially sensitive logs. You can enforce
+this with Nomad's access control list system.
 
 By default, all features—read and write—are available to all users of the Web UI. Check out the
 [Securing the Web UI with ACLs](/guides/web-ui/securing.html) guide to learn how to prevent

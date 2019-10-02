@@ -8,7 +8,7 @@ description: |-
 
 # Inspecting the Cluster
 
-The Web UI can be a powerful tool for keeping tabs on the state of the Nomad cluster from an
+The Web UI can be a powerful tool for monitoring the state of the Nomad cluster from an
 operator's perspective. This includes showing all client nodes, showing driver health for client nodes,
 driver status, resource utilization, allocations by client node, and more.
 
@@ -110,11 +110,10 @@ details of how the drain is performed.
 
 ## Reviewing All Servers
 
-Where client nodes are used to run your jobs, server nodes are used to run Nomad and maintain
+Whereas client nodes are used to run your jobs, server nodes are used to run Nomad and maintain
 availability. From any page, the Servers List page can be accessed from the left-hand navbar.
 
-Here you can see every server node. This will be a small list—typically three, but maybe five or
-seven.
+Here you can see every server node. This will be a small list—[typically three or five](/docs/internals/consensus.html#deployment-table).
 
 [![Servers List][img-servers-list]][img-servers-list]
 
@@ -128,9 +127,8 @@ Clicking a server node on the Servers List will expand the tags table for the se
 
 Depending on the size of your team and the details of you Nomad deployment, you may wish to control
 which features different internal users have access to. This includes limiting who has access to see
-and manage client nodes and see and manage server nodes.
-
-Nomad has an access contro list system for doing just that.
+and manage client nodes and see and manage server nodes. You can enforce this with Nomad's access
+control list system.
 
 By default, all features—read and write—are available to all users of the Web UI. Check out the
 [Securing the Web UI with ACLs](/guides/web-ui/securing.html) guide to learn how to prevent
