@@ -80,6 +80,7 @@
     "ember-load-initializers": "^2.0.0",
     "ember-maybe-import-regenerator": "^0.1.6",
     "ember-moment": "^7.8.1",
+    "ember-overridable-computed": "^1.0.0",
     "ember-page-title": "^5.0.2",
     "ember-power-select": "^3.0.4",
     "ember-qunit": "^4.4.1",

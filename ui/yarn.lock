@@ -5642,6 +5642,13 @@ ember-native-dom-helpers@^0.5.3:
     broccoli-funnel "^1.1.0"
     ember-cli-babel "^6.6.0"
 
+ember-overridable-computed@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/ember-overridable-computed/-/ember-overridable-computed-1.0.0.tgz#4fb4a5acc9ec9ed7421586a5a8b4014f5bdb04f7"
+  integrity sha512-0uuJZDEpq0LzNGQAtAf1PhcFVbkaHKd5ilT81k1aU4ZgCo5cwkxU65R5evokweq2dQwIaGTSs0MndCG+qI8BXA==
+  dependencies:
+    ember-cli-babel "^7.7.3"
+
 ember-page-title@^5.0.2:
   version "5.0.2"
   resolved "https://registry.yarnpkg.com/ember-page-title/-/ember-page-title-5.0.2.tgz#ab5a60c16318ba7f5e66cd41f580c9831ce3b612"
