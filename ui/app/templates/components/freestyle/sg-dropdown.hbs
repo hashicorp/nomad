@@ -4,7 +4,7 @@
     selected=selectedOption
     searchField="name"
     searchEnabled=(gt options.length 10)
-    onchange=(action (mut selectedOption))
+    onChange=(action (mut selectedOption))
     as |option|}}
     {{option.name}}
   {{/power-select}}
@@ -22,7 +22,7 @@
         selected=selectedOption2
         searchField="name"
         searchEnabled=(gt options.length 10)
-        onchange=(action (mut selectedOption2))
+        onChange=(action (mut selectedOption2))
         as |option|}}
         {{option.name}}
       {{/power-select}}
@@ -42,7 +42,7 @@
         selected=selectedOption3
         searchField="name"
         searchEnabled=(gt manyOptions.length 10)
-        onchange=(action (mut selectedOption3))
+        onChange=(action (mut selectedOption3))
         as |option|}}
         {{option.name}}
       {{/power-select}}
