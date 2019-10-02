@@ -18,6 +18,8 @@ export default Service.extend({
   token: service(),
 
   init() {
+    this._super(...arguments);
+
     // The LRUMap limits the number of trackers tracked by making room for
     // new entries beyond the limit by removing the least recently used entry.
     registry = new LRUMap(MAX_STAT_TRACKERS);
