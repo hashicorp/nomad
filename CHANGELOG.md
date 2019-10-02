@@ -1,12 +1,24 @@
 ## 0.9.6 (Unreleased)
 
+SECURITY:
+
+ * core: Redacted replication token in agent/self API endpoint.  The replication token is a management token that can be used for further privilege escalation. CVE-2019-12741 [GH-????]
+ * core: Fixed a bug where an operator can schedule a `raw_exec` task even if driver is disabled on client. CVE-2019-15928 [[GH-6227](https://github.com/hashicorp/nomad/issues/6227)] [GH-???]
+ * enterprise/acl: Fix ACL access checks on allocation endpoints. Privileged API users may perform allocation lifecycle operations beyond the namespace they are authorized to. CVE-2019-16742 [GH-???]
+
+IMPROVEMENTS:
+
+ * client: Reduced memory footprint of nomad logging and executor processes [[GH-6341](https://github.com/hashicorp/nomad/issues/6341)]
+
 BUG FIXES:
 
  * core: Fixed a bug where scheduler may schedule an allocation on a node without required drivers [[GH-6227](https://github.com/hashicorp/nomad/issues/6227)]
- * client: Fixed a bug where completed allocations may re-run after client restart [[GH-6216](https://github.com/hashicorp/nomad/issues/6216)]
+ * client: Fixed a bug where completed allocations may re-run after client restart [[GH-6216](https://github.com/hashicorp/nomad/issues/6216)] [[GH-6207](https://github.com/hashicorp/nomad/issues/6207)]
+ * client: Fixed a panic that may occur when an `nomad alloc exec` is initiated while process is terminating [[GH-6065](https://github.com/hashicorp/nomad/issues/6065)]
  * devices: Fixed a bug causing CPU usage spike when a device is detected [[GH-6201](https://github.com/hashicorp/nomad/issues/6201)]
  * drivers: Fixed port mapping for docker and qemu drivers [[GH-6251](https://github.com/hashicorp/nomad/pull/6251)]
  * drivers/docker: Fixed a case where a `nomad alloc exec` would never time out [[GH-6144](https://github.com/hashicorp/nomad/pull/6144)]
+ * ui: Fixed a bug where allocation log viewer doesn't show all content. [[GH-6048](https://github.com/hashicorp/nomad/issues/6048)]
 
 ## 0.9.5 (21 August 2019)
 
