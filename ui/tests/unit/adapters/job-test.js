@@ -248,6 +248,8 @@ module('Unit | Adapter | Job', function(hooks) {
 
     await settled();
     this.subject().reloadRelationship(mockModel, 'summary', { watch: true });
+    await settled();
+
     assert.equal(
       pretender.handledRequests[1].url,
       '/v1/job/job-1/summary?index=2',
