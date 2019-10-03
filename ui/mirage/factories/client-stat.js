@@ -1,6 +1,6 @@
 import { Factory } from 'ember-cli-mirage';
 
-import faker from 'faker';
+import faker from 'nomad-ui/mirage/faker';
 
 export default Factory.extend({
   allDirStats: () => ({
