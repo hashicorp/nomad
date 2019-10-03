@@ -70,7 +70,7 @@ The default sidecar task is equivalent to:
 
      driver = "docker"
      config {
-       image = "${meta.connect.sidecar_image}
+       image = "${meta.connect.sidecar_image}"
        args  = [
          "-c",
          "${NOMAD_SECRETS_DIR}/envoy_bootstrap.json",
