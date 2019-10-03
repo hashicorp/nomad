@@ -109,8 +109,6 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 		if node == nil {
 			return structs.ErrTokenNotFound
 		}
-	} else if !allowNsOp(aclObj, args.RequestNamespace()) {
-		return structs.ErrPermissionDenied
 	}
 
 	// Setup the blocking query

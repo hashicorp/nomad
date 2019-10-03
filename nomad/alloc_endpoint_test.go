@@ -295,7 +295,7 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 			F: func(t *testing.T) {
 				var resp structs.SingleAllocResponse
 				err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", getReq(), &resp)
-				require.Equal(t, structs.ErrPermissionDenied.Error(), err.Error())
+				require.True(t, structs.IsErrUnknownAllocation(err), "expected unknown alloc but found: %v", err)
 			},
 		},
 
@@ -339,7 +339,7 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 				var resp structs.SingleAllocResponse
 				err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp)
 				require.NotNil(t, err, "RPC")
-				require.Equal(t, err.Error(), structs.ErrPermissionDenied.Error())
+				require.True(t, structs.IsErrUnknownAllocation(err), "expected unknown alloc but found: %v", err)
 			},
 		},
 
