@@ -931,7 +931,7 @@ func TestACLEndpoint_DeleteTokens_WithNonexistentToken(t *testing.T) {
 
 	assert.NotNil(err)
 	expectedError := fmt.Sprintf("Cannot delete nonexistent tokens: %s", nonexistentToken.AccessorID)
-	assert.Contains(expectedError, err.Error())
+	assert.Contains(err.Error(), expectedError)
 }
 
 func TestACLEndpoint_Bootstrap(t *testing.T) {

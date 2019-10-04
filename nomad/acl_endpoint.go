@@ -18,7 +18,7 @@ import (
 
 var (
 	// aclDisabled is returned when an ACL endpoint is hit but ACLs are not enabled
-	aclDisabled = fmt.Errorf("ACL support disabled")
+	aclDisabled = structs.NewErrRPCCoded(400, "ACL support disabled")
 )
 
 const (
@@ -55,13 +55,13 @@ func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *struct
 
 	// Validate non-zero set of policies
 	if len(args.Policies) == 0 {
-		return fmt.Errorf("must specify as least one policy")
+		return structs.NewErrRPCCoded(400, "must specify as least one policy")
 	}
 
 	// Validate each policy, compute hash
 	for idx, policy := range args.Policies {
 		if err := policy.Validate(); err != nil {
-			return fmt.Errorf("policy %d invalid: %v", idx, err)
+			return structs.NewErrRPCCodedf(404, "policy %d invalid: %v", idx, err)
 		}
 		policy.SetHash()
 	}
@@ -99,7 +99,7 @@ func (a *ACL) DeletePolicies(args *structs.ACLPolicyDeleteRequest, reply *struct
 
 	// Validate non-zero set of policies
 	if len(args.Names) == 0 {
-		return fmt.Errorf("must specify as least one policy")
+		return structs.NewErrRPCCoded(400, "must specify as least one policy")
 	}
 
 	// Update via Raft
@@ -370,9 +370,9 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 		// Check if there is a reset index specified
 		specifiedIndex := a.fileBootstrapResetIndex()
 		if specifiedIndex == 0 {
-			return fmt.Errorf("ACL bootstrap already done (reset index: %d)", resetIdx)
+			return structs.NewErrRPCCodedf(400, "ACL bootstrap already done (reset index: %d)", resetIdx)
 		} else if specifiedIndex != resetIdx {
-			return fmt.Errorf("Invalid bootstrap reset index (specified %d, reset index: %d)", specifiedIndex, resetIdx)
+			return structs.NewErrRPCCodedf(400, "Invalid bootstrap reset index (specified %d, reset index: %d)", specifiedIndex, resetIdx)
 		}
 
 		// Setup the reset index to allow bootstrapping again
@@ -404,7 +404,7 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 	}
 	out, err := state.ACLTokenByAccessorID(nil, args.Token.AccessorID)
 	if err != nil {
-		return fmt.Errorf("token lookup failed: %v", err)
+		return structs.NewErrRPCCodedf(400, "token lookup failed: %v", err)
 	}
 	reply.Tokens = append(reply.Tokens, out)
 
@@ -448,7 +448,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 
 	// Validate non-zero set of tokens
 	if len(args.Tokens) == 0 {
-		return fmt.Errorf("must specify as least one token")
+		return structs.NewErrRPCCoded(400, "must specify as least one token")
 	}
 
 	// Force the request to the authoritative region if we are creating global tokens
@@ -466,7 +466,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	// the entire request as a single batch.
 	if hasGlobal {
 		if !allGlobal {
-			return fmt.Errorf("cannot upsert mixed global and non-global tokens")
+			return structs.NewErrRPCCoded(400, "cannot upsert mixed global and non-global tokens")
 		}
 
 		// Force the request to the authoritative region if it has global
@@ -494,7 +494,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	// Validate each token
 	for idx, token := range args.Tokens {
 		if err := token.Validate(); err != nil {
-			return fmt.Errorf("token %d invalid: %v", idx, err)
+			return structs.NewErrRPCCodedf(400, "token %d invalid: %v", idx, err)
 		}
 
 		// Generate an accessor and secret ID if new
@@ -507,15 +507,15 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 			// Verify the token exists
 			out, err := state.ACLTokenByAccessorID(nil, token.AccessorID)
 			if err != nil {
-				return fmt.Errorf("token lookup failed: %v", err)
+				return structs.NewErrRPCCodedf(400, "token lookup failed: %v", err)
 			}
 			if out == nil {
-				return fmt.Errorf("cannot find token %s", token.AccessorID)
+				return structs.NewErrRPCCodedf(400, "cannot find token %s", token.AccessorID)
 			}
 
 			// Cannot toggle the "Global" mode
 			if token.Global != out.Global {
-				return fmt.Errorf("cannot toggle global mode of %s", token.AccessorID)
+				return structs.NewErrRPCCodedf(400, "cannot toggle global mode of %s", token.AccessorID)
 			}
 		}
 
@@ -538,7 +538,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	for _, token := range args.Tokens {
 		out, err := state.ACLTokenByAccessorID(nil, token.AccessorID)
 		if err != nil {
-			return fmt.Errorf("token lookup failed: %v", err)
+			return structs.NewErrRPCCodedf(400, "token lookup failed: %v", err)
 		}
 		reply.Tokens = append(reply.Tokens, out)
 	}
@@ -557,7 +557,7 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 
 	// Validate non-zero set of tokens
 	if len(args.AccessorIDs) == 0 {
-		return fmt.Errorf("must specify as least one token")
+		return structs.NewErrRPCCoded(400, "must specify as least one token")
 	}
 
 	if done, err := a.srv.forward("ACL.DeleteTokens", args, args, reply); done {
@@ -585,7 +585,7 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	for _, accessor := range args.AccessorIDs {
 		token, err := state.ACLTokenByAccessorID(nil, accessor)
 		if err != nil {
-			return fmt.Errorf("token lookup failed: %v", err)
+			return structs.NewErrRPCCodedf(400, "token lookup failed: %v", err)
 		}
 		if token == nil {
 			nonexistentTokens = append(nonexistentTokens, accessor)
@@ -599,14 +599,14 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	}
 
 	if len(nonexistentTokens) != 0 {
-		return fmt.Errorf("Cannot delete nonexistent tokens: %v", strings.Join(nonexistentTokens, ", "))
+		return structs.NewErrRPCCodedf(400, "Cannot delete nonexistent tokens: %v", strings.Join(nonexistentTokens, ", "))
 	}
 
 	// Disallow mixed requests with global and non-global tokens since we forward
 	// the entire request as a single batch.
 	if hasGlobal {
 		if !allGlobal {
-			return fmt.Errorf("cannot delete mixed global and non-global tokens")
+			return structs.NewErrRPCCoded(400, "cannot delete mixed global and non-global tokens")
 		}
 
 		// Force the request to the authoritative region if it has global
