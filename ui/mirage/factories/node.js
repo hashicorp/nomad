@@ -66,7 +66,11 @@ export default Factory.extend({
 
   drainStrategy: null,
 
-  drivers: makeDrivers,
+  drivers: () => makeDrivers(),
+
+  forceAllDrivers: trait({
+    drivers: () => makeDrivers(true),
+  }),
 
   resources: generateResources,
 
@@ -129,10 +133,10 @@ export default Factory.extend({
   },
 });
 
-function makeDrivers() {
+function makeDrivers(allDrivers = false) {
   const generate = name => {
-    const detected = faker.random.number(10) >= 3;
-    const healthy = detected && faker.random.number(10) >= 3;
+    const detected = allDrivers || faker.random.number(10) >= 3;
+    const healthy = (detected && allDrivers) || faker.random.number(10) >= 3;
     const attributes = {
       [`driver.${name}.version`]: '1.0.0',
       [`driver.${name}.status`]: 'awesome',
