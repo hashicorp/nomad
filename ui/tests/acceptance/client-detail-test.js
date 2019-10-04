@@ -2,6 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import formatDuration from 'nomad-ui/utils/format-duration';
@@ -37,6 +38,7 @@ module('Acceptance | client detail', function(hooks) {
 
   test('/clients/:id should have a breadcrumb trail linking back to clients', async function(assert) {
     await ClientDetail.visit({ id: node.id });
+    percySnapshot(assert);
 
     assert.equal(document.title, `Client ${node.name} - Nomad`);
 
@@ -380,6 +382,7 @@ module('Acceptance | client detail', function(hooks) {
     assert.ok(drivers.length > 0, 'Node has drivers');
 
     await ClientDetail.visit({ id: node.id });
+    percySnapshot(assert);
 
     drivers.forEach((driver, index) => {
       const driverHead = ClientDetail.driverHeads.objectAt(index);
@@ -428,6 +431,7 @@ module('Acceptance | client detail', function(hooks) {
       .sortBy('Name')[0];
 
     await ClientDetail.visit({ id: node.id });
+    percySnapshot(assert);
     const driverHead = ClientDetail.driverHeads.objectAt(0);
     const driverBody = ClientDetail.driverBodies.objectAt(0);
 
@@ -472,6 +476,7 @@ module('Acceptance | client detail', function(hooks) {
     });
 
     await ClientDetail.visit({ id: node.id });
+    percySnapshot(assert);
 
     assert.ok(
       ClientDetail.drain.deadline.includes(formatDuration(deadline)),
@@ -585,6 +590,7 @@ module('Acceptance | client detail (multi-namespace)', function(hooks) {
     window.localStorage.nomadActiveNamespace = 'other-namespace';
 
     await ClientDetail.visit({ id: node.id });
+    percySnapshot(assert);
 
     assert.equal(
       ClientDetail.allocations.length,

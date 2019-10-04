@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { selectChoose } from 'ember-power-select/test-support';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import moduleForJob from 'nomad-ui/tests/helpers/module-for-job';
@@ -74,6 +75,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
   test('when there are namespaces, the job detail page states the namespace for the job', async function(assert) {
     const namespace = server.db.namespaces.find(job.namespaceId);
     await JobDetail.visit({ id: job.id, namespace: namespace.name });
+    percySnapshot(assert);
 
     assert.ok(JobDetail.statFor('namespace').text, 'Namespace included in stats');
   });

@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
 import moment from 'moment';
@@ -32,6 +33,7 @@ module('Acceptance | task detail', function(hooks) {
     );
 
     assert.equal(document.title, `Task ${task.name} - Nomad`);
+    percySnapshot(assert);
   });
 
   test('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {

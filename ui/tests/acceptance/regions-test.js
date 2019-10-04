@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { selectChoose } from 'ember-power-select/test-support';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
@@ -77,6 +78,7 @@ module('Acceptance | regions (many)', function(hooks) {
 
   test('the region switcher is rendered in the nav bar and the region is in the page title', async function(assert) {
     await JobsList.visit();
+    percySnapshot(assert);
 
     assert.ok(PageLayout.navbar.regionSwitcher.isPresent, 'Region switcher is shown');
     assert.equal(document.title, 'Jobs - global - Nomad');

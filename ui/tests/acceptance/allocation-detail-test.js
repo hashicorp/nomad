@@ -3,6 +3,7 @@ import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
@@ -47,6 +48,7 @@ module('Acceptance | allocation detail', function(hooks) {
   });
 
   test('/allocation/:id should name the allocation and link to the corresponding job and node', async function(assert) {
+    percySnapshot(assert);
     assert.ok(Allocation.title.includes(allocation.name), 'Allocation name is in the heading');
     assert.equal(Allocation.details.job, job.name, 'Job name is in the subheading');
     assert.equal(
@@ -167,6 +169,7 @@ module('Acceptance | allocation detail', function(hooks) {
     // Make sure the allocation is pending in order to ensure there are no tasks
     allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'pending' });
     await Allocation.visit({ id: allocation.id });
+    percySnapshot(assert);
 
     assert.ok(Allocation.isEmpty, 'Task table empty state is shown');
   });
@@ -217,6 +220,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
   test('when the allocation is not found, an error message is shown, but the URL persists', async function(assert) {
     await Allocation.visit({ id: 'not-a-real-allocation' });
+    percySnapshot(assert);
 
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,
@@ -302,6 +306,7 @@ module('Acceptance | allocation detail (rescheduled)', function(hooks) {
 
   test('when the allocation has been rescheduled, the reschedule events section is rendered', async function(assert) {
     assert.ok(Allocation.hasRescheduleEvents, 'Reschedule Events section exists');
+    percySnapshot(assert);
   });
 });
 
@@ -326,6 +331,7 @@ module('Acceptance | allocation detail (not running)', function(hooks) {
       "Allocation isn't running",
       'Empty message is appropriate'
     );
+    percySnapshot(assert);
   });
 });
 
@@ -346,6 +352,7 @@ module('Acceptance | allocation detail (preemptions)', function(hooks) {
     const preempterClient = server.schema.find('node', preempter.nodeId);
 
     await Allocation.visit({ id: allocation.id });
+    percySnapshot(assert);
     assert.ok(Allocation.wasPreempted, 'Preempted allocation section is shown');
     assert.equal(Allocation.preempter.status, preempter.clientStatus, 'Preempter status matches');
     assert.equal(Allocation.preempter.name, preempter.name, 'Preempter name matches');
@@ -382,12 +389,14 @@ module('Acceptance | allocation detail (preemptions)', function(hooks) {
   test('shows a dedicated section to the allocations this allocation preempted', async function(assert) {
     allocation = server.create('allocation', 'preempter');
     await Allocation.visit({ id: allocation.id });
+    percySnapshot(assert);
     assert.ok(Allocation.preempted, 'The allocations this allocation preempted are shown');
   });
 
   test('each preempted allocation in the table lists basic allocation information', async function(assert) {
     allocation = server.create('allocation', 'preempter');
     await Allocation.visit({ id: allocation.id });
+    percySnapshot(assert);
 
     const preemption = allocation.preemptedAllocations
       .map(id => server.schema.find('allocation', id))
@@ -427,6 +436,7 @@ module('Acceptance | allocation detail (preemptions)', function(hooks) {
   test('when an allocation both preempted allocations and was preempted itself, both preemptions sections are shown', async function(assert) {
     allocation = server.create('allocation', 'preempter', 'preempted');
     await Allocation.visit({ id: allocation.id });
+    percySnapshot(assert);
     assert.ok(Allocation.preempted, 'The allocations this allocation preempted are shown');
     assert.ok(Allocation.wasPreempted, 'Preempted allocation section is shown');
   });

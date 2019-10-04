@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import Definition from 'nomad-ui/tests/pages/jobs/job/definition';
@@ -22,6 +23,7 @@ module('Acceptance | job definition', function(hooks) {
   test('visiting /jobs/:job_id/definition', async function(assert) {
     assert.equal(currentURL(), `/jobs/${job.id}/definition`);
     assert.equal(document.title, `Job ${job.name} definition - Nomad`);
+    percySnapshot(assert);
   });
 
   test('the job definition page contains a json viewer component', async function(assert) {
@@ -77,6 +79,7 @@ module('Acceptance | job definition', function(hooks) {
 
   test('when the job for the definition is not found, an error message is shown, but the URL persists', async function(assert) {
     await Definition.visit({ id: 'not-a-real-job' });
+    percySnapshot(assert);
 
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,

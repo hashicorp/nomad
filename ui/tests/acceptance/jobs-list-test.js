@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 
@@ -18,6 +19,7 @@ module('Acceptance | jobs list', function(hooks) {
 
     assert.equal(currentURL(), '/jobs');
     assert.equal(document.title, 'Jobs - Nomad');
+    percySnapshot(assert);
   });
 
   test('/jobs should list the first page of jobs sorted by modify index', async function(assert) {
@@ -69,6 +71,7 @@ module('Acceptance | jobs list', function(hooks) {
 
   test('when there are no jobs, there is an empty message', async function(assert) {
     await JobsList.visit();
+    percySnapshot(assert);
 
     assert.ok(JobsList.isEmpty, 'There is an empty message');
     assert.equal(JobsList.emptyState.headline, 'No Jobs', 'The message is appropriate');
@@ -251,6 +254,7 @@ module('Acceptance | jobs list', function(hooks) {
     server.createList('job', 2, { status: 'pending', createAllocations: false, childrenCount: 0 });
 
     await JobsList.visit();
+    percySnapshot(assert);
 
     await JobsList.facets.status.toggle();
     await JobsList.facets.status.options.objectAt(1).toggle();
@@ -263,6 +267,7 @@ module('Acceptance | jobs list', function(hooks) {
     server.create('job', { type: 'service', createAllocations: false });
 
     await JobsList.visit({ type: JSON.stringify(['batch']) });
+    percySnapshot(assert);
 
     assert.equal(JobsList.jobs.length, 1, 'Only one job shown due to query param');
   });

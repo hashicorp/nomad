@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import TaskGroup from 'nomad-ui/tests/pages/jobs/job/task-group';
@@ -87,6 +88,7 @@ module('Acceptance | task group detail', function(hooks) {
     );
 
     assert.equal(document.title, `Task group ${taskGroup.name} - Job ${job.name} - Nomad`);
+    percySnapshot(assert);
   });
 
   test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', async function(assert) {

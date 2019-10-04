@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Allocations from 'nomad-ui/tests/pages/jobs/job/allocations';
 
@@ -33,6 +34,7 @@ module('Acceptance | job allocations', function(hooks) {
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
     await Allocations.visit({ id: job.id });
+    percySnapshot(assert);
 
     assert.equal(
       Allocations.allocations.length,
@@ -91,6 +93,7 @@ module('Acceptance | job allocations', function(hooks) {
 
     await Allocations.visit({ id: job.id });
     await Allocations.search('^nothing will ever match this long regex$');
+    percySnapshot(assert);
 
     assert.equal(
       Allocations.emptyState.headline,
@@ -103,6 +106,7 @@ module('Acceptance | job allocations', function(hooks) {
 
   test('when the job for the allocations is not found, an error message is shown, but the URL persists', async function(assert) {
     await Allocations.visit({ id: 'not-a-real-job' });
+    percySnapshot(assert);
 
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,

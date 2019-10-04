@@ -2,6 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import moment from 'moment';
 import Deployments from 'nomad-ui/tests/pages/jobs/job/deployments';
@@ -35,6 +36,7 @@ module('Acceptance | job deployments', function(hooks) {
 
   test('/jobs/:id/deployments should list all job deployments', async function(assert) {
     await Deployments.visit({ id: job.id });
+    percySnapshot(assert);
 
     assert.ok(
       Deployments.deployments.length,
@@ -86,6 +88,7 @@ module('Acceptance | job deployments', function(hooks) {
     taskGroupSummary.save();
 
     await Deployments.visit({ id: job.id });
+    percySnapshot(assert);
 
     const deploymentRow = Deployments.deployments.objectAt(0);
     assert.ok(deploymentRow.promotionIsRequired, 'Requires Promotion badge found');
@@ -98,6 +101,7 @@ module('Acceptance | job deployments', function(hooks) {
     assert.notOk(deploymentRow.hasDetails, 'No deployment body');
 
     await deploymentRow.toggle();
+    percySnapshot(assert);
     assert.ok(deploymentRow.hasDetails, 'Deployment body found');
   });
 
@@ -162,6 +166,7 @@ module('Acceptance | job deployments', function(hooks) {
     );
 
     await deploymentRow.toggle();
+    percySnapshot(assert);
 
     assert.ok(deploymentRow.hasTaskGroups, 'Task groups found');
 

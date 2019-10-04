@@ -2,6 +2,7 @@ import { currentURL, visit } from '@ember/test-helpers';
 import { Promise } from 'rsvp';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import moment from 'moment';
 
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
@@ -66,6 +67,7 @@ module('Acceptance | task fs', function(hooks) {
   test('visiting /allocations/:allocation_id/:task_name/fs', async function(assert) {
     await FS.visit({ id: allocation.id, name: task.name });
     assert.equal(currentURL(), `/allocations/${allocation.id}/${task.name}/fs`, 'No redirect');
+    percySnapshot(assert);
   });
 
   test('when the task is not running, an empty state is shown', async function(assert) {
@@ -79,6 +81,7 @@ module('Acceptance | task fs', function(hooks) {
     });
 
     await FS.visit({ id: allocation.id, name: task.name });
+    percySnapshot(assert);
     assert.ok(FS.hasEmptyState, 'Non-running task has no files');
     assert.ok(
       FS.emptyState.headline.includes('Task is not Running'),
@@ -117,6 +120,7 @@ module('Acceptance | task fs', function(hooks) {
 
   test('navigating allocation filesystem', async function(assert) {
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/' });
+    percySnapshot(assert);
 
     const sortedFiles = fileSort('name', filesForPath(this.server.schema.allocFiles, '').models);
 
@@ -236,6 +240,7 @@ module('Acceptance | task fs', function(hooks) {
     });
 
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/' });
+    percySnapshot(assert);
 
     assert.deepEqual(FS.directoryEntryNames(), [
       'aaa-big-old-directory',
@@ -324,6 +329,7 @@ module('Acceptance | task fs', function(hooks) {
     const fileIndex = sortedFiles.indexOf(fileRecord);
 
     await FS.directoryEntries[fileIndex].visit();
+    percySnapshot(assert);
 
     assert.equal(FS.breadcrumbsText, `${task.name} ${fileRecord.name}`);
 
@@ -350,6 +356,7 @@ module('Acceptance | task fs', function(hooks) {
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/empty-directory' });
 
     assert.ok(FS.isEmptyDirectory);
+    percySnapshot(assert);
   });
 
   test('viewing paths that produce stat API errors', async function(assert) {
@@ -368,6 +375,7 @@ module('Acceptance | task fs', function(hooks) {
 
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/what-is-this' });
     assert.equal(FS.error.title, 'Error', 'other statuses are passed through');
+    percySnapshot(assert);
   });
 
   test('viewing paths that produce ls API errors', async function(assert) {

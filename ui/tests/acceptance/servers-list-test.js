@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { findLeader } from '../../mirage/config';
 import ServersList from 'nomad-ui/tests/pages/servers/list';
@@ -46,6 +47,7 @@ module('Acceptance | servers list', function(hooks) {
     const agent = server.db.agents[0];
 
     await ServersList.visit();
+    percySnapshot(assert);
 
     const agentRow = ServersList.servers.objectAt(0);
 

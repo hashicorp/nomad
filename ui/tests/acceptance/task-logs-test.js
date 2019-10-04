@@ -2,6 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import TaskLogs from 'nomad-ui/tests/pages/allocations/task/logs';
 
@@ -28,6 +29,7 @@ module('Acceptance | task logs', function(hooks) {
     assert.equal(currentURL(), `/allocations/${allocation.id}/${task.name}/logs`, 'No redirect');
     assert.ok(TaskLogs.hasTaskLog, 'Task log component found');
     assert.equal(document.title, `Task ${task.name} logs - Nomad`);
+    percySnapshot(assert);
   });
 
   test('the stdout log immediately starts streaming', async function(assert) {

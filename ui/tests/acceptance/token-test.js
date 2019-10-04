@@ -1,6 +1,7 @@
 import { find } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import Jobs from 'nomad-ui/tests/pages/jobs/list';
@@ -31,6 +32,7 @@ module('Acceptance | tokens', function(hooks) {
     const { secretId } = managementToken;
 
     await Tokens.visit();
+    percySnapshot(assert);
     assert.ok(window.localStorage.nomadTokenSecret == null, 'No token secret set');
     assert.equal(document.title, 'Tokens - Nomad');
 

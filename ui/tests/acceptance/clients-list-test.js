@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 
@@ -17,6 +18,7 @@ module('Acceptance | clients list', function(hooks) {
     server.createList('agent', 1);
 
     await ClientsList.visit();
+    percySnapshot(assert);
 
     assert.equal(ClientsList.nodes.length, pageSize);
     assert.ok(ClientsList.hasPagination, 'Pagination found on the page');
@@ -80,6 +82,7 @@ module('Acceptance | clients list', function(hooks) {
     });
 
     await ClientsList.visit();
+    percySnapshot(assert);
 
     ClientsList.nodes[0].state.as(readyClient => {
       assert.equal(readyClient.text, 'ready');
@@ -135,6 +138,7 @@ module('Acceptance | clients list', function(hooks) {
     server.pretender.get('/v1/nodes', () => [403, {}, null]);
 
     await ClientsList.visit();
+    percySnapshot(assert);
 
     assert.equal(ClientsList.error.title, 'Not Authorized');
 
@@ -219,6 +223,7 @@ module('Acceptance | clients list', function(hooks) {
     server.create('node', { nodeClass: 'wtf-tiny' });
 
     await ClientsList.visit({ class: JSON.stringify(['wtf-tiny']) });
+    percySnapshot(assert);
 
     assert.equal(ClientsList.nodes.length, 1, 'Only one client shown due to query param');
   });

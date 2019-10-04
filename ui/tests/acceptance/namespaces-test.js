@@ -1,5 +1,6 @@
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { selectChoose } from 'ember-power-select/test-support';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
@@ -45,6 +46,7 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
 
     assert.ok(JobsList.namespaceSwitcher.isPresent, 'Namespace switcher found');
     await JobsList.namespaceSwitcher.open();
+    percySnapshot(assert);
     // TODO this selector should be scoped to only the namespace switcher options,
     // but ember-wormhole makes that difficult.
     assert.equal(

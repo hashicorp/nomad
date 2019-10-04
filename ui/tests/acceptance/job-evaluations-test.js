@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Evaluations from 'nomad-ui/tests/pages/jobs/job/evaluations';
 
@@ -19,6 +20,7 @@ module('Acceptance | job evaluations', function(hooks) {
   });
 
   test('lists all evaluations for the job', async function(assert) {
+    percySnapshot(assert);
     assert.equal(Evaluations.evaluations.length, evaluations.length, 'All evaluations are listed');
 
     const sortedEvaluations = evaluations.sortBy('modifyIndex').reverse();

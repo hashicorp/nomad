@@ -1,6 +1,7 @@
 import { currentURL, visit } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
@@ -32,6 +33,7 @@ module('Acceptance | application errors ', function(hooks) {
     server.pretender.get(`/v1/job/${job.id}`, () => [403, {}, null]);
 
     await Job.visit({ id: job.id });
+    percySnapshot(assert);
 
     assert.ok(Job.error.isPresent, 'Error message is shown');
     assert.equal(Job.error.title, 'Not Authorized', 'Error message is for 403');

@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import ServerDetail from 'nomad-ui/tests/pages/servers/detail';
 
@@ -19,6 +20,7 @@ module('Acceptance | server detail', function(hooks) {
   test('visiting /servers/:server_name', async function(assert) {
     assert.equal(currentURL(), `/servers/${encodeURIComponent(agent.name)}`);
     assert.equal(document.title, `Server ${agent.name} - Nomad`);
+    percySnapshot(assert);
   });
 
   test('the server detail page should list all tags for the server', async function(assert) {

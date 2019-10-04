@@ -2,6 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { percySnapshot } from 'ember-percy';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import JobRun from 'nomad-ui/tests/pages/jobs/run';
@@ -52,6 +53,7 @@ module('Acceptance | job run', function(hooks) {
 
     assert.equal(currentURL(), '/jobs/run');
     assert.equal(document.title, 'Run a job - Nomad');
+    percySnapshot(assert);
   });
 
   test('when submitting a job, the site redirects to the new job overview page', async function(assert) {
