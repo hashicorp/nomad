@@ -1,4 +1,5 @@
 import config from 'nomad-ui/config/environment';
+import * as benchmarkScenarios from './benchmark-scenarios';
 
 const withNamespaces = getConfigValue('mirageWithNamespaces', false);
 const withTokens = getConfigValue('mirageWithTokens', true);
@@ -13,6 +14,7 @@ const allScenarios = {
   allNodeTypes,
   everyFeature,
   emptyCluster,
+  ...benchmarkScenarios,
 };
 
 const scenario = getConfigValue('mirageScenario', 'emptyCluster');
