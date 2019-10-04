@@ -1,6 +1,6 @@
 import Ember from 'ember';
 import { Factory, trait } from 'ember-cli-mirage';
-import faker from 'faker';
+import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
 
@@ -114,12 +114,12 @@ export function generateTaskGroupFailures() {
     NodesEvaluated: faker.random.number({ min: 1, max: 100 }),
     NodesExhausted: faker.random.number({ min: 1, max: 100 }),
 
-    NodesAvailable: Math.random() > 0.7 ? generateNodesAvailable() : null,
-    ClassFiltered: Math.random() > 0.7 ? generateClassFiltered() : null,
-    ConstraintFiltered: Math.random() > 0.7 ? generateConstraintFiltered() : null,
-    ClassExhausted: Math.random() > 0.7 ? generateClassExhausted() : null,
-    DimensionExhausted: Math.random() > 0.7 ? generateDimensionExhausted() : null,
-    QuotaExhausted: Math.random() > 0.7 ? generateQuotaExhausted() : null,
-    Scores: Math.random() > 0.7 ? generateScores() : null,
+    NodesAvailable: faker.random.number(10) >= 7 ? generateNodesAvailable() : null,
+    ClassFiltered: faker.random.number(10) >= 7 ? generateClassFiltered() : null,
+    ConstraintFiltered: faker.random.number(10) >= 7 ? generateConstraintFiltered() : null,
+    ClassExhausted: faker.random.number(10) >= 7 ? generateClassExhausted() : null,
+    DimensionExhausted: faker.random.number(10) >= 7 ? generateDimensionExhausted() : null,
+    QuotaExhausted: faker.random.number(10) >= 7 ? generateQuotaExhausted() : null,
+    Scores: faker.random.number(10) >= 7 ? generateScores() : null,
   };
 }

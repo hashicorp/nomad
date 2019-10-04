@@ -28,6 +28,8 @@ UI in development mode defaults to using fake generated data, but you can config
 
 You may need to reference the direct path to `ember`, typically in `./node_modules/.bin/ember`.
 
+The fake data in development is generated from a stable seed of 1. To generate different data, you can include a query parameter of `?faker-seed=2` or any other number in the URL. To turn off the seed and get different data with every load, use `?faker=seed=0`.
+
 ## Running / Development with Vagrant
 
 All necessary tools for UI development are installed as part of the Vagrantfile. This is primarily to make it easy to build the UI from source while working on Nomad. Due to the filesystem requirements of [Broccoli](http://broccolijs.com/) (which powers Ember CLI), it is strongly discouraged to use Vagrant for developing changes to the UI.
@@ -52,6 +54,7 @@ Nomad UI tests can be run independently of Nomad golang tests.
 
 You can use `--filter <test name>` to run a targetted set of tests, e.g. `ember test --filter 'allocation detail'`.
 
+In the test environment, the fake data is generated with a random seed. If you want stable data, you can set a seed while running the test server by appending `&faker-seed=1` (or any other non-zero number) to the URL.
 
 ### Linting
 

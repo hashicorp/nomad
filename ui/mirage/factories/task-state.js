@@ -1,5 +1,5 @@
 import { Factory } from 'ember-cli-mirage';
-import faker from 'faker';
+import faker from 'nomad-ui/mirage/faker';
 
 const TASK_STATUSES = ['pending', 'running', 'finished', 'failed'];
 const REF_TIME = new Date();

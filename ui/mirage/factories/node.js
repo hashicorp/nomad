@@ -1,5 +1,5 @@
 import { Factory, trait } from 'ember-cli-mirage';
-import faker from 'faker';
+import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
 import { DATACENTERS, HOSTS, generateResources } from '../common';
 import moment from 'moment';
@@ -131,8 +131,8 @@ export default Factory.extend({
 
 function makeDrivers() {
   const generate = name => {
-    const detected = Math.random() > 0.3;
-    const healthy = detected && Math.random() > 0.3;
+    const detected = faker.random.number(10) >= 3;
+    const healthy = detected && faker.random.number(10) >= 3;
     const attributes = {
       [`driver.${name}.version`]: '1.0.0',
       [`driver.${name}.status`]: 'awesome',
@@ -144,7 +144,7 @@ function makeDrivers() {
       Healthy: healthy,
       HealthDescription: healthy ? 'Driver is healthy' : 'Uh oh',
       UpdateTime: faker.date.past(5 / 365, REF_DATE),
-      Attributes: Math.random() > 0.3 && detected ? attributes : null,
+      Attributes: faker.random.number(10) >= 3 && detected ? attributes : null,
     };
   };
 

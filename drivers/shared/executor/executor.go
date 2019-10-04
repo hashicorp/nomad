@@ -309,7 +309,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	e.childCmd.Env = e.commandCfg.Env
 
 	// Start the process
-	if err = e.start(command); err != nil {
+	if err = withNetworkIsolation(e.childCmd.Start, command.NetworkIsolation); err != nil {
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
 
@@ -322,13 +322,14 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string) ([]byte, int, error) {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
-	return ExecScript(ctx, e.childCmd.Dir, e.commandCfg.Env, e.childCmd.SysProcAttr, name, args)
+	return ExecScript(ctx, e.childCmd.Dir, e.commandCfg.Env, e.childCmd.SysProcAttr, e.commandCfg.NetworkIsolation, name, args)
 }
 
 // ExecScript executes cmd with args and returns the output, exit code, and
 // error. Output is truncated to drivers/shared/structs.CheckBufSize
 func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.SysProcAttr,
-	name string, args []string) ([]byte, int, error) {
+	netSpec *drivers.NetworkIsolationSpec, name string, args []string) ([]byte, int, error) {
+
 	cmd := exec.CommandContext(ctx, name, args...)
 
 	// Copy runtime environment from the main command
@@ -341,7 +342,7 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 	cmd.Stdout = buf
 	cmd.Stderr = buf
 
-	if err := cmd.Run(); err != nil {
+	if err := withNetworkIsolation(cmd.Run, netSpec); err != nil {
 		exitErr, ok := err.(*exec.ExitError)
 		if !ok {
 			// Non-exit error, return it and let the caller treat
@@ -399,7 +400,9 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			cmd.Stderr = stderr
 			return nil
 		},
-		processStart: cmd.Start,
+		processStart: func() error {
+			return withNetworkIsolation(cmd.Start, e.commandCfg.NetworkIsolation)
+		},
 		processWait: func() (*os.ProcessState, error) {
 			err := cmd.Wait()
 			return cmd.ProcessState, err
