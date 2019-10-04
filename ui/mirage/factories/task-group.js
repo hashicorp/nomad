@@ -46,12 +46,16 @@ export default Factory.extend({
       Array(group.count)
         .fill(null)
         .forEach((_, i) => {
+          let rescheduleStatus = null;
+          if (group.withRescheduling) {
+            rescheduleStatus = faker.random.boolean() ? 'running' : 'failed';
+          }
           const props = {
             jobId: group.job.id,
             namespace: group.job.namespace,
             taskGroup: group.name,
             name: `${group.name}.[${i}]`,
-            rescheduleSuccess: group.withRescheduling ? faker.random.boolean() : null,
+            rescheduleStatus,
             rescheduleAttempts: group.withRescheduling
               ? faker.random.number({ min: 1, max: 5 })
               : 0,

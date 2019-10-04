@@ -29,7 +29,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
 
     this.server.create('allocation', 'rescheduled', {
       rescheduleAttempts: attempts,
-      rescheduleSuccess: true,
+      rescheduleStatus: 'running',
     });
 
     await this.store.findAll('allocation');
@@ -76,7 +76,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
 
     this.server.create('allocation', 'rescheduled', {
       rescheduleAttempts: attempts,
-      rescheduleSuccess: false,
+      rescheduleStatus: 'failed',
     });
 
     await this.store.findAll('allocation');
@@ -100,7 +100,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
 
     this.server.create('allocation', 'rescheduled', {
       rescheduleAttempts: attempts,
-      rescheduleSuccess: false,
+      rescheduleStatus: 'failed',
     });
 
     const lastAllocation = server.schema.allocations.findBy({ nextAllocation: undefined });
@@ -133,7 +133,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
 
     const originalAllocation = this.server.create('allocation', 'rescheduled', {
       rescheduleAttempts: attempts,
-      rescheduleSuccess: true,
+      rescheduleStatus: 'success',
     });
 
     await this.store.findAll('allocation');

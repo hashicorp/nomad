@@ -76,13 +76,13 @@ export default Factory.extend({
   }),
 
   rescheduleAttempts: 0,
-  rescheduleSuccess: false,
+  rescheduleStatus: 'failed',
 
   rescheduled: trait({
     // Create another allocation carrying the events of this as well as the reschduleSuccess state.
     // Pass along rescheduleAttempts after decrementing.
     // After rescheduleAttempts hits zero, a final allocation is made with no nextAllocation and
-    // a clientStatus of failed or running, depending on rescheduleSuccess
+    // a clientStatus based on rescheduleStatus
     afterCreate(allocation, server) {
       const attempts = allocation.rescheduleAttempts - 1;
       const previousEvents =
@@ -112,7 +112,7 @@ export default Factory.extend({
       if (attempts > 0) {
         nextAllocation = server.create('allocation', 'rescheduled', {
           rescheduleAttempts: Math.max(attempts, 0),
-          rescheduleSuccess: allocation.rescheduleSuccess,
+          rescheduleStatus: allocation.rescheduleStatus,
           previousAllocation: allocation.id,
           shallow: allocation.shallow,
           clientStatus: 'failed',
@@ -124,7 +124,7 @@ export default Factory.extend({
       } else {
         nextAllocation = server.create('allocation', {
           previousAllocation: allocation.id,
-          clientStatus: allocation.rescheduleSuccess ? 'running' : 'failed',
+          clientStatus: allocation.rescheduleStatus,
           shallow: allocation.shallow,
           rescheduleTracker,
         });
