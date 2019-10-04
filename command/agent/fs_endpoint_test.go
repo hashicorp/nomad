@@ -12,6 +12,7 @@ import (
 	"time"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -189,25 +190,26 @@ func TestHTTP_FS_Stream_MissingParams(t *testing.T) {
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/stream/", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW := httptest.NewRecorder()
 
 		_, err = s.Server.Stream(respW, req)
 		require.EqualError(err, allocIDNotPresentErr.Error())
 
 		req, err = http.NewRequest("GET", "/v1/client/fs/stream/foo", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW = httptest.NewRecorder()
 
 		_, err = s.Server.Stream(respW, req)
 		require.EqualError(err, fileNameNotPresentErr.Error())
 
 		req, err = http.NewRequest("GET", "/v1/client/fs/stream/foo?path=/path/to/file", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW = httptest.NewRecorder()
 
 		_, err = s.Server.Stream(respW, req)
-		require.Nil(err)
+		require.Error(err)
+		require.Contains(err.Error(), "alloc lookup failed")
 	})
 }
 
@@ -219,38 +221,39 @@ func TestHTTP_FS_Logs_MissingParams(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		// AllocID Not Present
 		req, err := http.NewRequest("GET", "/v1/client/fs/logs/", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW := httptest.NewRecorder()
 
 		s.Server.mux.ServeHTTP(respW, req)
 		require.Equal(respW.Body.String(), allocIDNotPresentErr.Error())
-		require.Equal(500, respW.Code) // 500 for backward compat
+		require.Equal(400, respW.Code)
 
 		// Task Not Present
 		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW = httptest.NewRecorder()
 
 		s.Server.mux.ServeHTTP(respW, req)
 		require.Equal(respW.Body.String(), taskNotPresentErr.Error())
-		require.Equal(500, respW.Code) // 500 for backward compat
+		require.Equal(400, respW.Code)
 
 		// Log Type Not Present
 		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo?task=foo", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW = httptest.NewRecorder()
 
 		s.Server.mux.ServeHTTP(respW, req)
 		require.Equal(respW.Body.String(), logTypeNotPresentErr.Error())
-		require.Equal(500, respW.Code) // 500 for backward compat
+		require.Equal(400, respW.Code)
 
-		// Ok
+		// case where all parameters are set but alloc isn't found
 		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo?task=foo&type=stdout", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW = httptest.NewRecorder()
 
 		s.Server.mux.ServeHTTP(respW, req)
-		require.Equal(200, respW.Code)
+		require.Equal(500, respW.Code)
+		require.Contains(respW.Body.String(), "alloc lookup failed")
 	})
 }
 
@@ -516,5 +519,26 @@ func TestHTTP_FS_Logs_Follow(t *testing.T) {
 		}
 
 		p.Close()
+	})
+}
+
+func TestHTTP_FS_Logs_PropagatesErrors(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=0&origin=end&plain=true",
+			uuid.Generate())
+
+		p, _ := io.Pipe()
+		defer p.Close()
+
+		req, err := http.NewRequest("GET", path, p)
+		require.NoError(t, err)
+		respW := testutil.NewResponseRecorder()
+
+		_, err = s.Server.Logs(respW, req)
+		require.Error(t, err)
+
+		_, ok := err.(HTTPCodedError)
+		require.Truef(t, ok, "expected a coded error but found: %#+v", err)
 	})
 }
