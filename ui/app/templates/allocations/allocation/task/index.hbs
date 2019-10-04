@@ -1,5 +1,5 @@
 {{title "Task " model.name}}
-{{task-subnav task=model}}
+<TaskSubnav @task={{model}} />
 <section class="section">
   {{#if error}}
     <div data-test-inline-error class="notification is-danger">
@@ -62,10 +62,10 @@
       {{#if model.isRunning}}
         <div class="columns">
           <div class="column">
-            {{primary-metric resource=model metric="cpu"}}
+            <PrimaryMetric @resource={{model}} @metric="cpu" />
           </div>
           <div class="column">
-            {{primary-metric resource=model metric="memory"}}
+            <PrimaryMetric @resource={{model}} @metric="memory" />
           </div>
         </div>
       {{else}}
@@ -83,13 +83,13 @@
         Addresses
       </div>
       <div class="boxed-section-body is-full-bleed">
-        {{#list-table source=network.ports as |t|}}
-          {{#t.head}}
+        <ListTable @source=network.ports as |t|>
+          <t.head>
             <th class="is-1">Dynamic?</th>
             <th class="is-2">Name</th>
             <th>Address</th>
-          {{/t.head}}
-          {{#t.body as |row|}}
+          </t.head>
+          <t.body as |row|>
             <tr data-test-task-address>
               <td data-test-task-address-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
               <td data-test-task-address-name>{{row.model.name}}</td>
@@ -99,8 +99,8 @@
                 </a>
               </td>
             </tr>
-          {{/t.body}}
-        {{/list-table}}
+          </t.body>
+        </ListTable>
       </div>
     </div>
   {{/if}}
@@ -110,13 +110,13 @@
       Recent Events
     </div>
     <div class="boxed-section-body is-full-bleed">
-      {{#list-table source=(reverse model.events) class="is-striped" as |t|}}
-        {{#t.head}}
+      <ListTable @source=(reverse model.events) class="is-striped" as |t|>
+        <t.head>
           <th class="is-3">Time</th>
           <th class="is-1">Type</th>
           <th>Description</th>
-        {{/t.head}}
-        {{#t.body as |row|}}
+        </t.head>
+        <t.body as |row|>
           <tr data-test-task-event>
             <td data-test-task-event-time>{{format-ts row.model.time}}</td>
             <td data-test-task-event-type>{{row.model.type}}</td>
@@ -128,8 +128,8 @@
               {{/if}}
             </td>
           </tr>
-        {{/t.body}}
-      {{/list-table}}
+        </t.body>
+      </ListTable>
     </div>
   </div>
 </section>

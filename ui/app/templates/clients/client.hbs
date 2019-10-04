@@ -5,7 +5,7 @@
     {{or model.name model.shortId}}
     <span class="tag is-hollow is-small no-text-transform">
       {{model.id}}
-      {{copy-button clipboardText=model.id}}
+      <CopyButton @clipboardText={{model.id}} />
     </span>
   </h1>
 
@@ -88,10 +88,10 @@
     <div class="boxed-section-body">
       <div class="columns">
         <div class="column">
-          {{primary-metric resource=model metric="cpu"}}
+          <PrimaryMetric @resource={{model}} @metric="cpu" />
         </div>
         <div class="column">
-          {{primary-metric resource=model metric="memory"}}
+          <PrimaryMetric @resource={{model}} @metric="memory" />
         </div>
       </div>
     </div>
@@ -110,53 +110,54 @@
           </button>
         {{/if}}
       </div>
-      {{search-box
-        searchTerm=(mut searchTerm)
-        onChange=(action resetPagination)
+      <SearchBox
+        @searchTerm={{mut searchTerm}}
+        @onChange={{action resetPagination}}
         placeholder="Search allocations..."
         class="is-inline pull-right"
-        inputClass="is-compact"}}
+        @inputClass="is-compact"
+      />
     </div>
     <div class="boxed-section-body is-full-bleed">
-      {{#list-pagination
-        source=sortedAllocations
-        size=pageSize
-        page=currentPage as |p|}}
-        {{#list-table
-          source=p.list
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          class="with-foot" as |t|}}
-          {{#t.head}}
+      <ListPagination
+        @source={{sortedAllocations}}
+        @size={{pageSize}}
+        @page={{currentPage}} as |p|>
+        <ListTable
+          @source={{p.list}}
+          @sortProperty={{sortProperty}}
+          @sortDescending={{sortDescending}}
+          class="with-foot" as |t|>
+          <t.head>
             <th class="is-narrow"></th>
-            {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
-            {{#t.sort-by prop="modifyIndex" title="Modify Index"}}Modified{{/t.sort-by}}
-            {{#t.sort-by prop="createIndex" title="Create Index"}}Created{{/t.sort-by}}
-            {{#t.sort-by prop="statusIndex"}}Status{{/t.sort-by}}
-            {{#t.sort-by prop="job.name"}}Job{{/t.sort-by}}
-            {{#t.sort-by prop="jobVersion"}}Version{{/t.sort-by}}
+            <t.sort-by @prop="shortId">ID</t.sort-by>
+            <t.sort-by @prop="modifyIndex" @title="Modify Index">Modified</t.sort-by>
+            <t.sort-by @prop="createIndex" @title="Create Index">Created</t.sort-by>
+            <t.sort-by @prop="statusIndex">Status</t.sort-by>
+            <t.sort-by @prop="job.name">Job</t.sort-by>
+            <t.sort-by @prop="jobVersion">Version</t.sort-by>
             <th>CPU</th>
             <th>Memory</th>
-          {{/t.head}}
-          {{#t.body as |row|}}
-            {{allocation-row
-              allocation=row.model
-              context="node"
-              onClick=(action "gotoAllocation" row.model)
-              data-test-allocation=row.model.id}}
-          {{/t.body}}
-        {{/list-table}}
+          </t.head>
+          <t.body as |row|>
+            <AllocationRow
+              @allocation={{row.model}}
+              @context="node"
+              @onClick={{action "gotoAllocation" row.model}}
+              data-test-allocation={{row.model.id}} />
+          </t.body>
+        </ListTable>
         <div class="table-foot">
           <nav class="pagination">
             <div class="pagination-numbers">
               {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
             </div>
-            {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
-            {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+            <p.prev class="pagination-previous"> &lt; </p.prev>
+            <p.next class="pagination-next"> &gt; </p.next>
             <ul class="pagination-list"></ul>
           </nav>
         </div>
-      {{/list-pagination}}
+      </ListPagination>
     </div>
   </div>
 
@@ -165,13 +166,19 @@
       Client Events
     </div>
     <div class="boxed-section-body is-full-bleed">
-      {{#list-table source=sortedEvents class="is-striped" as |t|}}
-        {{#t.head}}
-          <th class="is-2">Time</th>
-          <th class="is-2">Subsystem</th>
-          <th>Message</th>
-        {{/t.head}}
-        {{#t.body as |row|}}
+      <ListTable @source={{sortedEvents}} class="is-striped" as |t|>
+        <t.head>
+          <th class="is-2">
+            Time
+          </th>
+          <th class="is-2">
+            Subsystem
+          </th>
+          <th>
+            Message
+          </th>
+        </t.head>
+        <t.body as |row|>
           <tr data-test-client-event>
             <td data-test-client-event-time>{{format-ts row.model.time}}</td>
             <td data-test-client-event-subsystem>{{row.model.subsystem}}</td>
@@ -186,8 +193,8 @@
               {{/if}}
             </td>
           </tr>
-        {{/t.body}}
-      {{/list-table}}
+        </t.body>
+      </ListTable>
     </div>
   </div>
 
@@ -196,9 +203,9 @@
       Driver Status
     </div>
     <div class="boxed-section-body">
-      {{#list-accordion source=sortedDrivers key="name" as |a|}}
-        {{#a.head buttonLabel="details" isExpandable=a.item.detected}}
           <div class="columns inline-definitions {{unless a.item.detected "is-faded"}}">
+      <ListAccordion @source={{sortedDrivers}} @key="name" as |a|>
+        <a.head @buttonLabel="details" @isExpandable={{a.item.detected}}>
             <div class="column is-1">
               <span data-test-name>{{a.item.name}}</span>
             </div>
@@ -225,18 +232,19 @@
               </span>
             </div>
           </div>
-        {{/a.head}}
-        {{#a.body}}
           <p data-test-health-description class="message">{{a.item.healthDescription}}</p>
+        </a.head>
+        <a.body>
           <div data-test-driver-attributes class="boxed-section">
             <div class="boxed-section-head">
                {{capitalize a.item.name}} Attributes
             </div>
             {{#if a.item.attributes.attributesStructured}}
               <div class="boxed-section-body is-full-bleed">
-                {{attributes-table
-                  attributes=a.item.attributesShort
-                  class="attributes-table"}}
+                <AttributesTable
+                  @attributes={{a.item.attributesShort}}
+                  class="attributes-table"
+                />
               </div>
             {{else}}
               <div class="boxed-section-body">
@@ -246,8 +254,8 @@
               </div>
             {{/if}}
           </div>
-        {{/a.body}}
-      {{/list-accordion}}
+        </a.body>
+      </ListAccordion>
     </div>
   </div>
 
@@ -256,20 +264,22 @@
       Attributes
     </div>
     <div class="boxed-section-body is-full-bleed">
-      {{attributes-table
+      <AttributesTable
         data-test-attributes
-        attributes=model.attributes.attributesStructured
-        class="attributes-table"}}
+        @attributes={{model.attributes.attributesStructured}}
+        class="attributes-table"
+      />
     </div>
     <div class="boxed-section-head">
       Meta
     </div>
     {{#if model.meta.attributesStructured}}
       <div class="boxed-section-body is-full-bleed">
-        {{attributes-table
+        <AttributesTable
           data-test-meta
-          attributes=model.meta.attributesStructured
-          class="attributes-table"}}
+          @attributes={{model.meta.attributesStructured}}
+          class="attributes-table"
+        />
       </div>
     {{else}}
       <div class="boxed-section-body">

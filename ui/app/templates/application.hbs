@@ -1,4 +1,4 @@
-{{head-layout}}
+<HeadLayout />
 {{title (if system.shouldShowRegions (concat system.activeRegion " - ")) "Nomad" separator=" - "}}
 {{partial "svg-patterns"}}
 {{#unless error}}
@@ -33,8 +33,8 @@
       {{/if}}
     </div>
     <div class="error-links">
-      {{#link-to "jobs" data-test-error-jobs-link class="button is-white"}}Go to Jobs{{/link-to}}
-      {{#link-to "clients" data-test-error-clients-link class="button is-white"}}Go to Clients{{/link-to}}
+      <LinkTo @route="jobs" data-test-error-jobs-link class="button is-white">Go to Jobs</LinkTo>
+      <LinkTo @route="clients" data-test-error-clients-link class="button is-white">Go to Clients</LinkTo>
     </div>
   </div>
 {{/unless}}
