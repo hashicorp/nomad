@@ -82,6 +82,7 @@
     "ember-moment": "^7.8.1",
     "ember-overridable-computed": "^1.0.0",
     "ember-page-title": "^5.0.2",
+    "ember-percy": "^1.6.0",
     "ember-power-select": "^3.0.4",
     "ember-qunit": "^4.4.1",
     "ember-qunit-nice-errors": "^1.2.0",
