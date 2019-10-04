@@ -105,6 +105,9 @@ export default Factory.extend({
   // When true, only task groups and allocations are made
   shallow: false,
 
+  // A ratio of allocation statuses to be passed to job-summary. See the spec in the job-summary factory
+  ratio: '',
+
   afterCreate(job, server) {
     if (!job.namespaceId) {
       const namespace = server.db.namespaces.length ? pickOne(server.db.namespaces).id : null;
@@ -138,6 +141,7 @@ export default Factory.extend({
       job_id: job.id,
       JobID: job.id,
       namespace: job.namespace,
+      ratio: job.ratio,
     });
 
     job.update({
