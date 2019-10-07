@@ -20,7 +20,7 @@
 		{"path":"github.com/Microsoft/go-winio/pkg/guid","checksumSHA1":"/ykkyb7gmtZC68n7T24xwbmlCBc=","origin":"github.com/endocrimes/go-winio/pkg/guid","revision":"fb47a8b419480a700368c176bc1d5d7e3393b98d","revisionTime":"2019-06-20T17:03:19Z","version":"dani/safe-relisten","versionExact":"dani/safe-relisten"},
 		{"path":"github.com/NVIDIA/gpu-monitoring-tools","checksumSHA1":"kF1vk+8Xvb3nGBiw9+qbUc0SZ4M=","revision":"86f2a9fac6c5b597dc494420005144b8ef7ec9fb","revisionTime":"2018-08-29T22:20:09Z"},
 		{"path":"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml","checksumSHA1":"P8FATSSgpe5A17FyPrGpsX95Xw8=","revision":"86f2a9fac6c5b597dc494420005144b8ef7ec9fb","revisionTime":"2018-08-29T22:20:09Z"},
-		{"path":"github.com/NYTimes/gziphandler","checksumSHA1":"jktW57+vJsziNVPeXMCoujTzdW4=","revision":"97ae7fbaf81620fe97840685304a78a306a39c64","revisionTime":"2017-09-16T00:36:49Z"},
+		{"path":"github.com/NYTimes/gziphandler","checksumSHA1":"jktW57+vJsziNVPeXMCoujTzdW4=","revision":"dd0439581c7657cb652dfe5c71d7d48baf39541d","revisionTime":"2017-09-16T00:36:49Z"},
 		{"path":"github.com/Nvveen/Gotty","checksumSHA1":"Aqy8/FoAIidY/DeQ5oTYSZ4YFVc=","revision":"cd527374f1e5bff4938207604a14f2e38a9cf512","revisionTime":"2012-06-04T00:48:16Z"},
 		{"path":"github.com/StackExchange/wmi","checksumSHA1":"qtjd74+bErubh+qyv3s+lWmn9wc=","revision":"ea383cf3ba6ec950874b8486cd72356d007c768f","revisionTime":"2017-04-10T19:29:09Z"},
 		{"path":"github.com/agext/levenshtein","checksumSHA1":"jQh1fnoKPKMURvKkpdRjN695nAQ=","revision":"5f10fee965225ac1eecdc234c09daf5cd9e7f7b6","revisionTime":"2017-02-17T06:30:20Z"},
