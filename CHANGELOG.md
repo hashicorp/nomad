@@ -1,10 +1,10 @@
-## 0.9.6 (Unreleased)
+## 0.9.6 (October 7, 2019)
 
 SECURITY:
 
- * core: Redacted replication token in agent/self API endpoint.  The replication token is a management token that can be used for further privilege escalation. CVE-2019-12741 [GH-????]
- * core: Fixed a bug where a user may start raw_exec task on clients despite driver being disabled. CVE-2019-15928 [[GH-6227](https://github.com/hashicorp/nomad/issues/6227)] [GH-???]
- * enterprise/acl: Fix ACL access checks where users may query allocation information and perform lifecycle actions in namespaces they are not authorized to in Enterprise clusters. CVE-2019-16742 [GH-???]
+ * core: Redacted replication token in agent/self API endpoint.  The replication token is a management token that can be used for further privilege escalation. CVE-2019-12741 [[GH-6430](https://github.com/hashicorp/nomad/issues/6430)]
+ * core: Fixed a bug where a user may start raw_exec task on clients despite driver being disabled. CVE-2019-15928 [[GH-6227](https://github.com/hashicorp/nomad/issues/6227)] [[GH-6431](https://github.com/hashicorp/nomad/issues/6431)]
+ * enterprise/acl: Fix ACL access checks in Nomad Enterprise where users may query allocation information and perform lifecycle actions in namespaces they are not authorized to. CVE-2019-16742 [[GH-6432](https://github.com/hashicorp/nomad/issues/6432)]
 
 IMPROVEMENTS:
 
