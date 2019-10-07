@@ -3,7 +3,9 @@ package api
 import (
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
@@ -256,4 +258,28 @@ func TestAgent_Health(t *testing.T) {
 	health, err := a.Health()
 	assert.Nil(err)
 	assert.True(health.Server.Ok)
+}
+
+func TestAgent_Monitor(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	agent := c.Agent()
+
+	logCh, err := agent.Monitor("info", nil, nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Wait for the first log message and validate it
+	select {
+	case log := <-logCh:
+		// TODO: checkout why stub_asset.go help text returns here
+		if !strings.Contains(log, "[INFO ] nomad: raft: Initial configuration") {
+			t.Fatalf("bad: %q", log)
+		}
+	case <-time.After(1000 * time.Second):
+		t.Fatalf("failed to get a log message")
+	}
 }

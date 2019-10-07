@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -235,6 +236,55 @@ func (a *Agent) Health() (*AgentHealthResponse, error) {
 
 	// Return custom error when response is not expected JSON format
 	return nil, fmt.Errorf("unable to unmarshal response with status %d: %v", resp.StatusCode, err)
+}
+
+// Monitor returns a channel which will receive streaming logs from the agent
+// Providing a non-nil stopCh can be used to close the connection and stop log streaming
+func (a *Agent) Monitor(loglevel string, stopCh <-chan struct{}, q *QueryOptions) (chan string, error) {
+	r, err := a.client.newRequest("GET", "/v1/agent/monitor")
+	if err != nil {
+		return nil, err
+	}
+
+	r.setQueryOptions(q)
+	if loglevel != "" {
+		r.params.Add("loglevel", loglevel)
+	}
+
+	_, resp, err := requireOK(a.client.doRequest(r))
+	if err != nil {
+		return nil, err
+	}
+
+	logCh := make(chan string, 64)
+	go func() {
+		defer resp.Body.Close()
+
+		scanner := bufio.NewScanner(resp.Body)
+		for {
+			select {
+			case <-stopCh:
+				close(logCh)
+				return
+			default:
+			}
+			if scanner.Scan() {
+				// An empty string signals to the caller that
+				// the scan is done, so make sure we only emit
+				// that when the scanner says it's done, not if
+				// we happen to ingest an empty line.
+				if text := scanner.Text(); text != "" {
+					logCh <- text
+				} else {
+					logCh <- " "
+				}
+			} else {
+				logCh <- ""
+			}
+		}
+	}()
+
+	return logCh, nil
 }
 
 // joinResponse is used to decode the response we get while
