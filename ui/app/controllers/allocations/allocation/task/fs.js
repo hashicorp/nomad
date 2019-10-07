@@ -12,7 +12,7 @@ export default Controller.extend({
   sortDescending: false,
 
   path: null,
-  task: null,
+  taskModel: null,
   directoryEntries: null,
   isFile: null,
   stat: null,

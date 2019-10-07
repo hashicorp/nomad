@@ -1,15 +1,15 @@
-{{title pathWithLeadingSlash " -  Task " task.name " filesystem"}}
-<TaskSubnav @task={{task}} />
+{{title pathWithLeadingSlash " -  Task " taskModel.name " filesystem"}}
+<TaskSubnav @task={{taskModel}} />
 <section class="section is-closer {{if isFile "full-width-section"}}">
-  {{#if task.isRunning}}
+  {{#if taskModel.isRunning}}
     {{#if isFile}}
-      <TaskFile @allocation={{task.allocation}} @task={{task}} @file={{path}} @stat={{stat}} class="fs-explorer">
-        <FsBreadcrumbs @task={{task}} @path={{path}} />
+      <TaskFile @allocation={{taskModel.allocation}} @task={{taskModel}} @file={{path}} @stat={{stat}} class="fs-explorer">
+        <FsBreadcrumbs @task={{taskModel}} @path={{path}} />
       </TaskFile>
     {{else}}
       <div class="fs-explorer boxed-section">
         <div class="boxed-section-head">
-          <FsBreadcrumbs @task={{task}} @path={{path}} />
+          <FsBreadcrumbs @task={{taskModel}} @path={{path}} />
         </div>
         {{#if directoryEntries}}
           <ListTable
@@ -24,7 +24,7 @@
               <t.sort-by @prop="ModTime" class="has-text-right">Last Modified</t.sort-by>
             </t.head>
             <t.body as |row|>
-              <FsDirectoryEntry @path={{path}} @task={{task}} @entry={{row.model}} />
+              <FsDirectoryEntry @path={{path}} @task={{taskModel}} @entry={{row.model}} />
             </t.body>
           </ListTable>
         {{else}}

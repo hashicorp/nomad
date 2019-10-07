@@ -12,7 +12,7 @@ export default Route.extend({
     if (!task.isRunning) {
       return {
         path: decodedPath,
-        task,
+        taskModel: task,
       };
     }
 
@@ -21,14 +21,14 @@ export default Route.extend({
         if (statJson.IsDir) {
           return RSVP.hash({
             path: decodedPath,
-            task,
+            taskModel: task,
             directoryEntries: task.ls(pathWithTaskName).catch(notifyError(this)),
             isFile: false,
           });
         } else {
           return {
             path: decodedPath,
-            task,
+            taskModel: task,
             isFile: true,
             stat: statJson,
           };
@@ -37,8 +37,8 @@ export default Route.extend({
       .catch(notifyError(this));
   },
 
-  setupController(controller, { path, task, directoryEntries, isFile, stat } = {}) {
+  setupController(controller, { path, taskModel, directoryEntries, isFile, stat } = {}) {
     this._super(...arguments);
-    controller.setProperties({ path, task, directoryEntries, isFile, stat });
+    controller.setProperties({ path, taskModel, directoryEntries, isFile, stat });
   },
 });
