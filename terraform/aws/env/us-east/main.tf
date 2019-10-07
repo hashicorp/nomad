@@ -11,7 +11,8 @@ variable "region" {
   default     = "us-east-1"
 }
 
-variable "ami" {}
+variable "ami" {
+}
 
 variable "server_instance_type" {
   description = "The AWS instance type to use for servers."
@@ -42,10 +43,9 @@ variable "client_count" {
   default     = "4"
 }
 
-
 variable "retry_join" {
   description = "Used by Consul to automatically form a cluster."
-  type        = "map"
+  type        = map(string)
 
   default = {
     provider  = "aws"
@@ -60,30 +60,31 @@ variable "nomad_binary" {
 }
 
 provider "aws" {
-  region = "${var.region}"
+  region = var.region
 }
 
 module "hashistack" {
   source = "../../modules/hashistack"
 
-  name                   = "${var.name}"
-  region                 = "${var.region}"
-  ami                    = "${var.ami}"
-  server_instance_type   = "${var.server_instance_type}"
-  client_instance_type   = "${var.client_instance_type}"
-  key_name               = "${var.key_name}"
-  server_count           = "${var.server_count}"
-  client_count           = "${var.client_count}"
-  retry_join             = "${var.retry_join}"
-  nomad_binary           = "${var.nomad_binary}"
-  root_block_device_size = "${var.root_block_device_size}"
-  whitelist_ip           = "${var.whitelist_ip}"
+  name                   = var.name
+  region                 = var.region
+  ami                    = var.ami
+  server_instance_type   = var.server_instance_type
+  client_instance_type   = var.client_instance_type
+  key_name               = var.key_name
+  server_count           = var.server_count
+  client_count           = var.client_count
+  retry_join             = var.retry_join
+  nomad_binary           = var.nomad_binary
+  root_block_device_size = var.root_block_device_size
+  whitelist_ip           = var.whitelist_ip
 }
 
 output "IP_Addresses" {
   value = <<CONFIGURATION
 
 Client public IPs: ${join(", ", module.hashistack.client_public_ips)}
+
 Server public IPs: ${join(", ", module.hashistack.server_public_ips)}
 
 To connect, add your private key and SSH into any client or server with
@@ -110,4 +111,6 @@ Set the following for access from the Nomad CLI:
   export NOMAD_ADDR=http://${module.hashistack.server_lb_ip}:4646
 
 CONFIGURATION
+
 }
+
