@@ -203,9 +203,9 @@
       Driver Status
     </div>
     <div class="boxed-section-body">
-          <div class="columns inline-definitions {{unless a.item.detected "is-faded"}}">
       <ListAccordion @source={{sortedDrivers}} @key="name" as |a|>
         <a.head @buttonLabel="details" @isExpandable={{a.item.detected}}>
+          <div class="columns inline-definitions {{unless a.item.detected "is-faded"}}">
             <div class="column is-1">
               <span data-test-name>{{a.item.name}}</span>
             </div>
