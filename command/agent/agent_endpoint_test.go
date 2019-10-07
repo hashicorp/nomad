@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -249,11 +250,76 @@ func TestHTTP_AgentMembers_ACL(t *testing.T) {
 	})
 }
 
+func TestHTTP_AgentMonitor(t *testing.T) {
+	t.Parallel()
+
+	httpTest(t, nil, func(s *TestAgent) {
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?loglevel=unkown", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+
+			// Make the request
+			_, err = s.Server.AgentMonitor(resp, req)
+			if err.(HTTPCodedError).Code() != 400 {
+				t.Fatalf("expected 400 response, got: %v", resp.Code)
+			}
+		}
+
+		// check for a specific log
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?loglevel=warn", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+			defer resp.Close()
+
+			go func() {
+				s.Server.logger.Debug("log that should not be sent")
+				s.Server.logger.Warn("log that should be sent")
+				_, err = s.Server.AgentMonitor(resp, req)
+				require.NoError(t, err)
+			}()
+
+			testutil.WaitForResult(func() (bool, error) {
+				got := resp.Body.String()
+				want := "[WARN ] http: log that should be sent"
+				if strings.Contains(got, want) {
+					require.NotContains(t, resp.Body.String(), "[INFO ]")
+					return true, nil
+				}
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", got, want)
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+		}
+	})
+}
+
+type closableRecorder struct {
+	*httptest.ResponseRecorder
+	closer chan bool
+}
+
+func newClosableRecorder() *closableRecorder {
+	r := httptest.NewRecorder()
+	closer := make(chan bool)
+	return &closableRecorder{r, closer}
+}
+
+func (r *closableRecorder) Close() {
+	close(r.closer)
+}
+
+func (r *closableRecorder) CloseNotify() <-chan bool {
+	return r.closer
+}
+
 func TestHTTP_AgentForceLeave(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT", "/v1/agent/force-leave?node=foo", nil)
+		require.Nil(t, err)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

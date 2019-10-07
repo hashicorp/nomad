@@ -60,6 +60,8 @@ type TestAgent struct {
 	// to os.Stderr.
 	LogOutput io.Writer
 
+	logWriter *logWriter
+
 	// DataDir is the data directory which is used when Config.DataDir
 	// is not set. It is created automatically and removed when
 	// Shutdown() is called.
@@ -205,8 +207,12 @@ RETRY:
 }
 
 func (a *TestAgent) start() (*Agent, error) {
+	if a.logWriter == nil {
+		a.logWriter = NewLogWriter(512)
+	}
+
 	if a.LogOutput == nil {
-		a.LogOutput = testlog.NewWriter(a.T)
+		a.LogOutput = io.MultiWriter(testlog.NewWriter(a.T), a.logWriter)
 	}
 
 	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
@@ -223,7 +229,7 @@ func (a *TestAgent) start() (*Agent, error) {
 		JSONFormat: a.Config.LogJson,
 	})
 
-	agent, err := NewAgent(a.Config, logger, a.LogOutput, NewLogWriter(512), inm)
+	agent, err := NewAgent(a.Config, logger, a.LogOutput, a.logWriter, inm)
 	if err != nil {
 		return nil, err
 	}

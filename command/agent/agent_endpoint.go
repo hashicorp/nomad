@@ -167,7 +167,7 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 
 	// Create a level filter and flusher.
 	filter := LevelFilter()
-	filter.MinLevel = logutils.LogLevel(strings.ToUpper(logLevel))
+	filter.SetMinLevel(logutils.LogLevel(strings.ToUpper(logLevel)))
 
 	if !ValidateLevelFilter(filter.MinLevel, filter) {
 		return nil, CodedError(400, fmt.Sprintf("Unknown log level: %s", filter.MinLevel))
