@@ -223,7 +223,7 @@ func (a *TestAgent) start() (*Agent, error) {
 		JSONFormat: a.Config.LogJson,
 	})
 
-	agent, err := NewAgent(a.Config, logger, a.LogOutput, inm)
+	agent, err := NewAgent(a.Config, logger, a.LogOutput, NewLogWriter(512), inm)
 	if err != nil {
 		return nil, err
 	}

@@ -447,9 +447,9 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter,
 }
 
 // setupAgent is used to start the agent and various interfaces
-func (c *Command) setupAgent(config *Config, logger hclog.Logger, logOutput io.Writer, inmem *metrics.InmemSink) error {
+func (c *Command) setupAgent(config *Config, logger hclog.Logger, logOutput io.Writer, logWriter *logWriter, inmem *metrics.InmemSink) error {
 	c.Ui.Output("Starting Nomad agent...")
-	agent, err := NewAgent(config, logger, logOutput, inmem)
+	agent, err := NewAgent(config, logger, logOutput, logWriter, inmem)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error starting agent: %s", err))
 		return err
@@ -596,7 +596,7 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Setup the log outputs
-	logGate, _, logOutput := c.setupLoggers(config)
+	logGate, logWriter, logOutput := c.setupLoggers(config)
 	if logGate == nil {
 		return 1
 	}
@@ -629,7 +629,7 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Create the agent
-	if err := c.setupAgent(config, logger, logOutput, inmem); err != nil {
+	if err := c.setupAgent(config, logger, logOutput, logWriter, inmem); err != nil {
 		logGate.Flush()
 		return 1
 	}

@@ -56,6 +56,7 @@ type Agent struct {
 	logger     log.Logger
 	httpLogger log.Logger
 	logOutput  io.Writer
+	logWriter  *logWriter
 
 	// consulService is Nomad's custom Consul client for managing services
 	// and checks.
@@ -87,10 +88,11 @@ type Agent struct {
 }
 
 // NewAgent is used to create a new agent with the given configuration
-func NewAgent(config *Config, logger log.Logger, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
+func NewAgent(config *Config, logger log.Logger, logOutput io.Writer, logWriter *logWriter, inmem *metrics.InmemSink) (*Agent, error) {
 	a := &Agent{
 		config:     config,
 		logOutput:  logOutput,
+		logWriter:  logWriter,
 		shutdownCh: make(chan struct{}),
 		InmemSink:  inmem,
 	}
