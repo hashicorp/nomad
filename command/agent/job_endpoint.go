@@ -1062,6 +1062,7 @@ func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
 	if in.SidecarService != nil {
 
 		out.SidecarService = &structs.ConsulSidecarService{
+			Tags: helper.CopySliceString(in.SidecarService.Tags),
 			Port: in.SidecarService.Port,
 		}
 
