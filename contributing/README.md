@@ -3,8 +3,8 @@
 This directory contains some documentation about the Nomad codebase,
 aimed at readers who are interested in making code contributions.
 
-If you're looking for information on _using_ using, please instead refer
-to [the main Nomad website](https://nomadproject.io).
+If you're looking for information on _using_ Nomad, please instead refer
+to the [Nomad website](https://nomadproject.io).
 
 ## Architecture
 
@@ -38,3 +38,4 @@ developers and reviewers confidence that the proper changes have been made:
 
 * [New `jobspec` entry](checklist-jobspec.md)
 * [New CLI command](checklist-command.md)
+* [New RPC endpoint](checklist-rpc-endpoint.md)
