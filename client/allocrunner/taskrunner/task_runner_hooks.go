@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/LK4D4/joincontext"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
@@ -192,8 +193,11 @@ func (tr *TaskRunner) prestart() error {
 		}
 
 		// Run the prestart hook
+		// use a joint context to allow any blocking pre-start hooks
+		// to be canceled by either killCtx or shutdownCtx
+		joinedCtx, _ := joincontext.Join(tr.killCtx, tr.shutdownCtx)
 		var resp interfaces.TaskPrestartResponse
-		if err := pre.Prestart(tr.killCtx, &req, &resp); err != nil {
+		if err := pre.Prestart(joinedCtx, &req, &resp); err != nil {
 			tr.emitHookError(err, name)
 			return structs.WrapRecoverable(fmt.Sprintf("prestart hook %q failed: %v", name, err), err)
 		}
