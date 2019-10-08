@@ -67,29 +67,33 @@ export default Component.extend({
 
   fileUrl: computed(
     'allocation.id',
+    'allocation.namespace',
     'allocation.node.httpAddr',
     'fetchMode',
     'useServer',
     function() {
       const address = this.get('allocation.node.httpAddr');
-      const url = `/v1/client/fs/${this.fetchMode}/${this.allocation.id}`;
-      return this.useServer ? url : `//${address}${url}`;
+      const url = `/v1/client/fs/${this.fetchMode}QQQQ/${this.allocation.id}`;
+      const ns = this.get('allocation.namespace');
+      const nsQuery = (ns && ns !== 'default') ? `?namespace=${ns}` : '';
+      return this.useServer ? url : `//${address}${url}${nsQuery}`;
     }
   ),
 
   fileParams: computed('task.name', 'file', 'mode', function() {
     // The Log class handles encoding query params
     const path = `${this.task.name}/${this.file}`;
+    const namespace = this.allocation.namespace;
 
     switch (this.mode) {
       case 'head':
-        return { path, offset: 0, limit: 50000 };
+        return withNamespace({ path, offset: 0, limit: 50000 }, namespace);
       case 'tail':
-        return { path, offset: this.stat.Size - 50000, limit: 50000 };
+        return withNamespace({ path, offset: this.stat.Size - 50000, limit: 50000 }, namespace);
       case 'streaming':
-        return { path, offset: 50000, origin: 'end' };
+        return withNamespace({ path, offset: 50000, origin: 'end' }, namespace);
       default:
-        return { path };
+        return withNamespace({ path }, namespace);
     }
   }),
 

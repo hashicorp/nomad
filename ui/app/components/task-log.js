@@ -35,11 +35,12 @@ export default Component.extend({
     return this.useServer ? url : `//${address}${url}`;
   }),
 
-  logParams: computed('task', 'mode', function() {
-    return {
+  logParams: computed('allocation.namespace', 'task', 'mode', function() {
+    const params = {
       task: this.task,
       type: this.mode,
     };
+    return withNamespace(params, this.get('allocation.namespace'));
   }),
 
   logger: logger('logUrl', 'logParams', function logFetch() {
@@ -82,3 +83,10 @@ export default Component.extend({
     },
   },
 });
+
+function withNamespace(hash, namespace) {
+    if (namespace && namespace !== 'default') {
+        hash.namespace = namespace;
+    }
+    return hash;
+}

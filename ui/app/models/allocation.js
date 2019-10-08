@@ -23,6 +23,7 @@ export default Model.extend({
   job: belongsTo('job'),
   node: belongsTo('node'),
   name: attr('string'),
+  namespace: attr('string'),
   taskGroupName: attr('string'),
   resources: fragment('resources'),
   allocatedResources: fragment('resources'),

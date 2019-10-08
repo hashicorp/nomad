@@ -17,6 +17,7 @@ module('Unit | Util | AllocationStatsTracker', function() {
     assign(
       {
         id: 'some-identifier',
+        namespace: 'default',
         taskGroup: {
           reservedCPU: 200,
           reservedMemory: 512,
@@ -107,6 +108,17 @@ module('Unit | Util | AllocationStatsTracker', function() {
     assert.equal(
       tracker.get('url'),
       `/v1/client/allocation/${allocation.id}/stats`,
+      'Url is derived from the allocation id'
+    );
+  });
+
+  test('the url property is computed honors namespace', async function(assert) {
+    const allocation = MockAllocation({namespace: 'prod'});
+    const tracker = AllocationStatsTracker.create({ fetch, allocation });
+
+    assert.equal(
+      tracker.get('url'),
+      `/v1/client/allocation/${allocation.id}/stats?namespace=prod`,
       'Url is derived from the allocation id'
     );
   });

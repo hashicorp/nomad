@@ -17,7 +17,11 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
   allocation: null,
 
   url: computed('allocation', function() {
-    return `/v1/client/allocation/${this.get('allocation.id')}/stats`;
+    console.log("some text ", this.get('allocation'));
+    const ns = this.get('allocation.namespace');
+    const nsQuery = (ns && ns !== 'default') ? `?namespace=${ns}`: '';
+
+    return `/v1/client/allocation/${this.get('allocation.id')}/stats${nsQuery}`;
   }),
 
   append(frame) {
