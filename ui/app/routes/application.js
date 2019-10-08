@@ -26,7 +26,7 @@ export default Route.extend({
       promises => {
         if (!this.get('system.shouldShowRegions')) return promises;
 
-        const queryParam = transition.queryParams.region;
+        const queryParam = transition.to.queryParams.region;
         const defaultRegion = this.get('system.defaultRegion.region');
         const currentRegion = this.get('system.activeRegion') || defaultRegion;
 

@@ -86,6 +86,8 @@ rkt-*
 /ui/libpeerconnection.log
 /ui/npm-debug.log*
 /ui/testem.log
+/ui/.env*
+/ui/.pnp*
 .ignore
 
 # ember-try
