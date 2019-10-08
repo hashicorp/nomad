@@ -394,12 +394,12 @@ export default function() {
   this.get('/client/fs/readat/:allocation_id', clientAllocationReadAtHandler);
 
   this.get('/client/stats', function({ clientStats }, { queryParams }) {
-    const seed = Math.random();
-    if (seed > 0.8) {
+    const seed = faker.random.number(10);
+    if (seed >= 8) {
       const stats = clientStats.find(queryParams.node_id);
       stats.update({
         timestamp: Date.now() * 1000000,
-        CPUTicksConsumed: stats.CPUTicksConsumed + (Math.random() * 20 - 10),
+        CPUTicksConsumed: stats.CPUTicksConsumed + faker.random.number({ min: -10, max: 10 }),
       });
       return this.serialize(stats);
     } else {

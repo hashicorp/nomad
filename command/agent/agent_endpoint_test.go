@@ -22,45 +22,64 @@ import (
 
 func TestHTTP_AgentSelf(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/agent/self", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 		respW := httptest.NewRecorder()
 
 		// Make the request
 		obj, err := s.Server.AgentSelfRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 
 		// Check the job
 		self := obj.(agentSelf)
-		if self.Config == nil {
-			t.Fatalf("bad: %#v", self)
-		}
-		if len(self.Stats) == 0 {
-			t.Fatalf("bad: %#v", self)
-		}
+		require.NotNil(self.Config)
+		require.NotNil(self.Config.ACL)
+		require.NotEmpty(self.Stats)
 
 		// Check the Vault config
-		if self.Config.Vault.Token != "" {
-			t.Fatalf("bad: %#v", self)
-		}
+		require.Empty(self.Config.Vault.Token)
 
 		// Assign a Vault token and require it is redacted.
 		s.Config.Vault.Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
 		respW = httptest.NewRecorder()
 		obj, err = s.Server.AgentSelfRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 		self = obj.(agentSelf)
-		if self.Config.Vault.Token != "<redacted>" {
-			t.Fatalf("bad: %#v", self)
-		}
+		require.Equal("<redacted>", self.Config.Vault.Token)
+
+		// Assign a ReplicationToken token and require it is redacted.
+		s.Config.ACL.ReplicationToken = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
+		respW = httptest.NewRecorder()
+		obj, err = s.Server.AgentSelfRequest(respW, req)
+		require.NoError(err)
+		self = obj.(agentSelf)
+		require.Equal("<redacted>", self.Config.ACL.ReplicationToken)
+
+		// Check the Consul config
+		require.Empty(self.Config.Consul.Token)
+
+		// Assign a Consul token and require it is redacted.
+		s.Config.Consul.Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
+		respW = httptest.NewRecorder()
+		obj, err = s.Server.AgentSelfRequest(respW, req)
+		require.NoError(err)
+		self = obj.(agentSelf)
+		require.Equal("<redacted>", self.Config.Consul.Token)
+
+		// Check the Circonus config
+		require.Empty(self.Config.Telemetry.CirconusAPIToken)
+
+		// Assign a Consul token and require it is redacted.
+		s.Config.Telemetry.CirconusAPIToken = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
+		respW = httptest.NewRecorder()
+		obj, err = s.Server.AgentSelfRequest(respW, req)
+		require.NoError(err)
+		self = obj.(agentSelf)
+		require.Equal("<redacted>", self.Config.Telemetry.CirconusAPIToken)
 	})
 }
 

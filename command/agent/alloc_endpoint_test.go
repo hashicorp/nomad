@@ -346,7 +346,7 @@ func TestHTTP_AllocRestart_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err = s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with an invalid token and expect it to fail
@@ -360,7 +360,7 @@ func TestHTTP_AllocRestart_ACL(t *testing.T) {
 			setToken(req, token)
 			_, err = s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with a valid token
@@ -376,7 +376,7 @@ func TestHTTP_AllocRestart_ACL(t *testing.T) {
 			setToken(req, token)
 			_, err = s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.True(structs.IsErrUnknownAllocation(err))
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with a management token
@@ -523,7 +523,7 @@ func TestHTTP_AllocStats_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with an invalid token and expect failure
@@ -533,7 +533,7 @@ func TestHTTP_AllocStats_ACL(t *testing.T) {
 			setToken(req, token)
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with a valid token
@@ -545,7 +545,7 @@ func TestHTTP_AllocStats_ACL(t *testing.T) {
 			setToken(req, token)
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.True(structs.IsErrUnknownAllocation(err))
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with a management token
@@ -812,7 +812,7 @@ func TestHTTP_AllocGC_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with an invalid token and expect failure
@@ -822,7 +822,7 @@ func TestHTTP_AllocGC_ACL(t *testing.T) {
 			setToken(req, token)
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with a valid token
@@ -834,7 +834,7 @@ func TestHTTP_AllocGC_ACL(t *testing.T) {
 			setToken(req, token)
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.True(structs.IsErrUnknownAllocation(err))
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with a management token

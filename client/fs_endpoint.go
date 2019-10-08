@@ -99,10 +99,15 @@ func handleStreamResultError(err error, code *int64, encoder *codec.Encoder) {
 func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListResponse) error {
 	defer metrics.MeasureSince([]string{"client", "file_system", "list"}, time.Now())
 
-	// Check read permissions
+	alloc, err := f.c.GetAlloc(args.AllocID)
+	if err != nil {
+		return err
+	}
+
+	// Check namespace read-fs permission.
 	if aclObj, err := f.c.ResolveToken(args.QueryOptions.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadFS) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -123,10 +128,15 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatResponse) error {
 	defer metrics.MeasureSince([]string{"client", "file_system", "stat"}, time.Now())
 
-	// Check read permissions
+	alloc, err := f.c.GetAlloc(args.AllocID)
+	if err != nil {
+		return err
+	}
+
+	// Check namespace read-fs permission.
 	if aclObj, err := f.c.ResolveToken(args.QueryOptions.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadFS) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -159,20 +169,26 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 		return
 	}
 
+	if req.AllocID == "" {
+		handleStreamResultError(allocIDNotPresentErr, helper.Int64ToPtr(400), encoder)
+		return
+	}
+	alloc, err := f.c.GetAlloc(req.AllocID)
+	if err != nil {
+		handleStreamResultError(structs.NewErrUnknownAllocation(req.AllocID), helper.Int64ToPtr(404), encoder)
+		return
+	}
+
 	// Check read permissions
 	if aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
 		handleStreamResultError(err, helper.Int64ToPtr(403), encoder)
 		return
-	} else if aclObj != nil && !aclObj.AllowNsOp(req.Namespace, acl.NamespaceCapabilityReadFS) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
 		handleStreamResultError(structs.ErrPermissionDenied, helper.Int64ToPtr(403), encoder)
 		return
 	}
 
 	// Validate the arguments
-	if req.AllocID == "" {
-		handleStreamResultError(allocIDNotPresentErr, helper.Int64ToPtr(400), encoder)
-		return
-	}
 	if req.Path == "" {
 		handleStreamResultError(pathNotPresentErr, helper.Int64ToPtr(400), encoder)
 		return
@@ -332,13 +348,23 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		return
 	}
 
+	if req.AllocID == "" {
+		handleStreamResultError(allocIDNotPresentErr, helper.Int64ToPtr(400), encoder)
+		return
+	}
+	alloc, err := f.c.GetAlloc(req.AllocID)
+	if err != nil {
+		handleStreamResultError(structs.NewErrUnknownAllocation(req.AllocID), helper.Int64ToPtr(404), encoder)
+		return
+	}
+
 	// Check read permissions
 	if aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
 	} else if aclObj != nil {
-		readfs := aclObj.AllowNsOp(req.QueryOptions.Namespace, acl.NamespaceCapabilityReadFS)
-		logs := aclObj.AllowNsOp(req.QueryOptions.Namespace, acl.NamespaceCapabilityReadLogs)
+		readfs := aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS)
+		logs := aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadLogs)
 		if !readfs && !logs {
 			handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 			return
@@ -346,10 +372,6 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	}
 
 	// Validate the arguments
-	if req.AllocID == "" {
-		handleStreamResultError(allocIDNotPresentErr, helper.Int64ToPtr(400), encoder)
-		return
-	}
 	if req.Task == "" {
 		handleStreamResultError(taskNotPresentErr, helper.Int64ToPtr(400), encoder)
 		return
