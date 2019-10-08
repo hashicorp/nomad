@@ -78,9 +78,19 @@ func TestAllocations_Restart_ACL(t *testing.T) {
 	})
 	defer cleanup()
 
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, server.RPC, job, root.SecretID)[0]
+
 	// Try request without a token and expect failure
 	{
 		req := &nstructs.AllocRestartRequest{}
+		req.AllocID = alloc.ID
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Restart", &req, &resp)
 		require.NotNil(err)
@@ -91,6 +101,7 @@ func TestAllocations_Restart_ACL(t *testing.T) {
 	{
 		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "invalid", mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{}))
 		req := &nstructs.AllocRestartRequest{}
+		req.AllocID = alloc.ID
 		req.AuthToken = token.SecretID
 
 		var resp nstructs.GenericResponse
@@ -106,20 +117,27 @@ func TestAllocations_Restart_ACL(t *testing.T) {
 		token := mock.CreatePolicyAndToken(t, server.State(), 1007, "valid", policyHCL)
 		require.NotNil(token)
 		req := &nstructs.AllocRestartRequest{}
+		req.AllocID = alloc.ID
 		req.AuthToken = token.SecretID
 		req.Namespace = nstructs.DefaultNamespace
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Restart", &req, &resp)
-		require.True(nstructs.IsErrUnknownAllocation(err), "Expected unknown alloc, found: %v", err)
+		require.NoError(err)
+		//require.True(nstructs.IsErrUnknownAllocation(err), "Expected unknown alloc, found: %v", err)
 	}
 
 	// Try request with a management token
 	{
 		req := &nstructs.AllocRestartRequest{}
+		req.AllocID = alloc.ID
 		req.AuthToken = root.SecretID
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Restart", &req, &resp)
-		require.True(nstructs.IsErrUnknownAllocation(err), "Expected unknown alloc, found: %v", err)
+		// Depending on how quickly the alloc restarts there may be no
+		// error *or* a task not running error; either is fine.
+		if err != nil {
+			require.Contains(err.Error(), "Task not running", err)
+		}
 	}
 }
 
@@ -239,9 +257,19 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 	})
 	defer cleanup()
 
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, server.RPC, job, root.SecretID)[0]
+
 	// Try request without a token and expect failure
 	{
 		req := &nstructs.AllocSpecificRequest{}
+		req.AllocID = alloc.ID
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
 		require.NotNil(err)
@@ -252,6 +280,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 	{
 		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
 		req := &nstructs.AllocSpecificRequest{}
+		req.AllocID = alloc.ID
 		req.AuthToken = token.SecretID
 
 		var resp nstructs.GenericResponse
@@ -266,6 +295,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "test-valid",
 			mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 		req := &nstructs.AllocSpecificRequest{}
+		req.AllocID = alloc.ID
 		req.AuthToken = token.SecretID
 		req.Namespace = nstructs.DefaultNamespace
 
@@ -323,9 +353,19 @@ func TestAllocations_Signal_ACL(t *testing.T) {
 	})
 	defer cleanup()
 
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, server.RPC, job, root.SecretID)[0]
+
 	// Try request without a token and expect failure
 	{
 		req := &nstructs.AllocSignalRequest{}
+		req.AllocID = alloc.ID
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Signal", &req, &resp)
 		require.NotNil(err)
@@ -336,6 +376,7 @@ func TestAllocations_Signal_ACL(t *testing.T) {
 	{
 		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
 		req := &nstructs.AllocSignalRequest{}
+		req.AllocID = alloc.ID
 		req.AuthToken = token.SecretID
 
 		var resp nstructs.GenericResponse
@@ -350,22 +391,24 @@ func TestAllocations_Signal_ACL(t *testing.T) {
 		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "test-valid",
 			mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilityAllocLifecycle}))
 		req := &nstructs.AllocSignalRequest{}
+		req.AllocID = alloc.ID
 		req.AuthToken = token.SecretID
 		req.Namespace = nstructs.DefaultNamespace
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Signal", &req, &resp)
-		require.True(nstructs.IsErrUnknownAllocation(err))
+		require.NoError(err)
 	}
 
 	// Try request with a management token
 	{
 		req := &nstructs.AllocSignalRequest{}
+		req.AllocID = alloc.ID
 		req.AuthToken = root.SecretID
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Signal", &req, &resp)
-		require.True(nstructs.IsErrUnknownAllocation(err))
+		require.NoError(err)
 	}
 }
 
@@ -414,9 +457,19 @@ func TestAllocations_Stats_ACL(t *testing.T) {
 	})
 	defer cleanup()
 
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, server.RPC, job, root.SecretID)[0]
+
 	// Try request without a token and expect failure
 	{
 		req := &cstructs.AllocStatsRequest{}
+		req.AllocID = alloc.ID
 		var resp cstructs.AllocStatsResponse
 		err := client.ClientRPC("Allocations.Stats", &req, &resp)
 		require.NotNil(err)
@@ -427,6 +480,7 @@ func TestAllocations_Stats_ACL(t *testing.T) {
 	{
 		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
 		req := &cstructs.AllocStatsRequest{}
+		req.AllocID = alloc.ID
 		req.AuthToken = token.SecretID
 
 		var resp cstructs.AllocStatsResponse
@@ -441,22 +495,24 @@ func TestAllocations_Stats_ACL(t *testing.T) {
 		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "test-valid",
 			mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 		req := &cstructs.AllocStatsRequest{}
+		req.AllocID = alloc.ID
 		req.AuthToken = token.SecretID
 		req.Namespace = nstructs.DefaultNamespace
 
 		var resp cstructs.AllocStatsResponse
 		err := client.ClientRPC("Allocations.Stats", &req, &resp)
-		require.True(nstructs.IsErrUnknownAllocation(err))
+		require.NoError(err)
 	}
 
 	// Try request with a management token
 	{
 		req := &cstructs.AllocStatsRequest{}
+		req.AllocID = alloc.ID
 		req.AuthToken = root.SecretID
 
 		var resp cstructs.AllocStatsResponse
 		err := client.ClientRPC("Allocations.Stats", &req, &resp)
-		require.True(nstructs.IsErrUnknownAllocation(err))
+		require.NoError(err)
 	}
 }
 
@@ -677,7 +733,6 @@ func TestAlloc_ExecStreaming_DisableRemoteExec(t *testing.T) {
 
 func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
 
 	// Start a server and client
 	s, root := nomad.TestACLServer(t, nil)
@@ -698,6 +753,15 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 		[]string{acl.NamespaceCapabilityAllocExec, acl.NamespaceCapabilityReadFS})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, s.RPC, job, root.SecretID)[0]
+
 	cases := []struct {
 		Name          string
 		Token         string
@@ -711,12 +775,12 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			ExpectedError: "task not found",
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			ExpectedError: "task not found",
 		},
 	}
 
@@ -725,7 +789,7 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 
 			// Make the request
 			req := &cstructs.AllocExecRequest{
-				AllocID: uuid.Generate(),
+				AllocID: alloc.ID,
 				Task:    "testtask",
 				Tty:     true,
 				Cmd:     []string{"placeholder command"},
@@ -738,7 +802,7 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 
 			// Get the handler
 			handler, err := client.StreamingRpcHandler("Allocations.Exec")
-			require.Nil(err)
+			require.Nil(t, err)
 
 			// Create a pipe
 			p1, p2 := net.Pipe()
@@ -754,15 +818,15 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 
 			// Send the request
 			encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
-			require.Nil(encoder.Encode(req))
+			require.Nil(t, encoder.Encode(req))
 
 			select {
 			case <-time.After(3 * time.Second):
-				require.FailNow("timed out")
+				require.FailNow(t, "timed out")
 			case err := <-errCh:
-				require.Contains(err.Error(), c.ExpectedError)
+				require.Contains(t, err.Error(), c.ExpectedError)
 			case f := <-frames:
-				require.Fail("received unexpected frame", "frame: %#v", f)
+				require.Fail(t, "received unexpected frame", "frame: %#v", f)
 			}
 		})
 	}
