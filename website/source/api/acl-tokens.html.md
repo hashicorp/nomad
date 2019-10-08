@@ -73,7 +73,9 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `prefix` `(string: "")` - Specifies a string to filter ACL tokens based on an
-  accessor ID prefix. This is specified as a query string parameter.
+  accessor ID prefix. Because the value is decoded to bytes, the prefix must
+  have an even number of hexadecimal characters (0-9a-f). This is specified as
+  a query string parameter.
 
 ### Sample Request
 
