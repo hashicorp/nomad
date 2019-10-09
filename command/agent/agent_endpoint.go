@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
@@ -165,26 +165,25 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 		logLevel = "INFO"
 	}
 
-	// Create a level filter and flusher.
-	filter := LevelFilter()
-	filter.SetMinLevel(logutils.LogLevel(strings.ToUpper(logLevel)))
-
-	if !ValidateLevelFilter(filter.MinLevel, filter) {
-		return nil, CodedError(400, fmt.Sprintf("Unknown log level: %s", filter.MinLevel))
+	if log.LevelFromString(logLevel) == log.NoLevel {
+		return nil, CodedError(400, fmt.Sprintf("Unknown log level: %s", logLevel))
 	}
 
+	// Create flusher for streaming
 	flusher, ok := resp.(http.Flusher)
 	if !ok {
 		return nil, CodedError(400, "Streaming not supported")
 	}
 
-	handler := &httpLogHandler{
-		filter: filter,
-		logCh:  make(chan string, 512),
-		logger: s.agent.logger,
-	}
-	s.agent.logWriter.RegisterHandler(handler)
-	defer s.agent.logWriter.DeregisterHandler(handler)
+	streamWriter := newStreamWriter(512)
+
+	streamLog := log.New(&log.LoggerOptions{
+		Level:  log.LevelFromString(logLevel),
+		Output: streamWriter,
+	})
+	s.agent.logger.RegisterSink(streamLog)
+	defer s.agent.logger.DeregisterSink(streamLog)
+
 	notify := resp.(http.CloseNotifier).CloseNotify()
 
 	// Send header so client can start streaming body
@@ -198,40 +197,56 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	for {
 		select {
 		case <-notify:
-			s.agent.logWriter.DeregisterHandler(handler)
-			if handler.droppedCount > 0 {
-				s.agent.logger.Warn(fmt.Sprintf("agent: Dropped %d logs during monitor request", handler.droppedCount))
+			s.agent.logger.DeregisterSink(streamLog)
+			if streamWriter.droppedCount > 0 {
+				s.agent.logger.Warn(fmt.Sprintf("agent: Dropped %d logs during monitor request", streamWriter.droppedCount))
 			}
 			return nil, nil
-		case log := <-handler.logCh:
+		case log := <-streamWriter.logCh:
 			fmt.Fprintln(resp, log)
 			flusher.Flush()
 		}
 	}
 }
 
-type httpLogHandler struct {
-	filter       *logutils.LevelFilter
+type streamWriter struct {
+	sync.Mutex
+	logs         []string
 	logCh        chan string
-	logger       log.Logger
+	index        int
 	droppedCount int
 }
 
-func (h *httpLogHandler) HandleLog(log string) {
-	// Check the log level
-	if !h.filter.Check([]byte(log)) {
-		return
-	}
-
-	// Do a non-blocking send
-	select {
-	case h.logCh <- log:
-	default:
-		// Just increment a counter for dropped logs to this handler; we can't log now
-		// because the lock is already held by the LogWriter invoking this
-		h.droppedCount++
+func newStreamWriter(buf int) *streamWriter {
+	return &streamWriter{
+		logs:  make([]string, buf),
+		logCh: make(chan string, buf),
+		index: 0,
 	}
 }
+
+func (d *streamWriter) Write(p []byte) (n int, err error) {
+	d.Lock()
+	defer d.Unlock()
+
+	// Strip off newlines at the end if there are any since we store
+	// individual log lines in the agent.
+	n = len(p)
+	if p[n-1] == '\n' {
+		p = p[:n-1]
+	}
+
+	d.logs[d.index] = string(p)
+	d.index = (d.index + 1) % len(d.logs)
+
+	select {
+	case d.logCh <- string(p):
+	default:
+		d.droppedCount++
+	}
+	return
+}
+
 func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)

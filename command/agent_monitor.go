@@ -79,6 +79,10 @@ func (c *MonitorCommand) Run(args []string) int {
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 
 	select {
+	case <-eventDoneCh:
+		c.Ui.Error("Remote side ended the monitor! This usually means that the\n" +
+			"remote side has exited or crashed.")
+		return 1
 	case <-signalCh:
 		return 0
 	}

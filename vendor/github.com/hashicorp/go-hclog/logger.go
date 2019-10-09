@@ -136,6 +136,17 @@ type Logger interface {
 	StandardWriter(opts *StandardLoggerOptions) io.Writer
 }
 
+// MultiSinkLogger describes the interface that allows a logger to
+// write to multiple sub loggers which may be configured to have different
+// level and writer settings. This is useful for monitor commands to allow
+// for streaming of logs at a lower level than what is set for the parent logger
+type MultiSinkLogger interface {
+	Logger
+
+	RegisterSink(logger Logger)
+	DeregisterSink(logger Logger)
+}
+
 // StandardLoggerOptions can be used to configure a new standard logger.
 type StandardLoggerOptions struct {
 	// Indicate that some minimal parsing should be done on strings to try

@@ -60,8 +60,6 @@ type TestAgent struct {
 	// to os.Stderr.
 	LogOutput io.Writer
 
-	logWriter *logWriter
-
 	// DataDir is the data directory which is used when Config.DataDir
 	// is not set. It is created automatically and removed when
 	// Shutdown() is called.
@@ -207,12 +205,8 @@ RETRY:
 }
 
 func (a *TestAgent) start() (*Agent, error) {
-	if a.logWriter == nil {
-		a.logWriter = NewLogWriter(512)
-	}
-
 	if a.LogOutput == nil {
-		a.LogOutput = io.MultiWriter(testlog.NewWriter(a.T), a.logWriter)
+		a.LogOutput = io.MultiWriter(testlog.NewWriter(a.T))
 	}
 
 	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
@@ -222,14 +216,14 @@ func (a *TestAgent) start() (*Agent, error) {
 		return nil, fmt.Errorf("unable to set up in memory metrics needed for agent initialization")
 	}
 
-	logger := hclog.New(&hclog.LoggerOptions{
+	logger := hclog.NewMultiSink(&hclog.LoggerOptions{
 		Name:       "agent",
 		Level:      hclog.LevelFromString(a.Config.LogLevel),
 		Output:     a.LogOutput,
 		JSONFormat: a.Config.LogJson,
 	})
 
-	agent, err := NewAgent(a.Config, logger, a.LogOutput, a.logWriter, inm)
+	agent, err := NewAgent(a.Config, logger, a.LogOutput, inm)
 	if err != nil {
 		return nil, err
 	}
