@@ -13,7 +13,7 @@
     "lint:hbs": "ember-template-lint .",
     "lint:js": "eslint .",
     "start": "./node_modules/ember-cli/bin/ember server",
-    "build-storybook": "ember build & build-storybook -s dist",
+    "build-storybook": "ember build && build-storybook -s dist",
     "storybook": "ember serve & start-storybook -p 9001 -s dist --ci",
     "FIXME": "I have --ci because it was annoying for it to keep opening tabs, but maybe remove once I’m not restarting the server so much?",
     "test": "./node_modules/ember-cli/bin/ember test"
