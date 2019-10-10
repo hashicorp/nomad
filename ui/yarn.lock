@@ -1701,11 +1701,10 @@
     webpack-dev-middleware "^3.7.0"
     webpack-hot-middleware "^2.25.0"
 
-"@storybook/ember-cli-storybook@backspace/ember-cli-storybook#circleci":
+"@storybook/ember-cli-storybook@storybookjs/ember-cli-storybook#master":
   version "0.1.0"
-  resolved "https://codeload.github.com/backspace/ember-cli-storybook/tar.gz/ef8153cfdae44993fc3ef051ec44d856ed1581c0"
+  resolved "https://codeload.github.com/storybookjs/ember-cli-storybook/tar.gz/4b3cc72dc83bc238b6df2b6e55c7f771cf7f6050"
   dependencies:
-    "@storybook/ember" "^5.2.3"
     cheerio "^1.0.0-rc.2"
     ember-cli-babel "^7.1.2"
 
