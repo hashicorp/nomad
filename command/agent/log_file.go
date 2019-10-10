@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -104,6 +105,11 @@ func (l *logFile) pruneFiles() error {
 	if err != nil {
 		return err
 	}
+
+	// Stort the strings as filepath.Glob does not publicly guarantee that files
+	// are sorted, so here we add an extra defensive sort.
+	sort.Strings(matches)
+
 	// Prune if there are more files stored than the configured max
 	stale := len(matches) - l.MaxFiles
 	for i := 0; i < stale; i++ {

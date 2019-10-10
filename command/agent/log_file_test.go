@@ -140,7 +140,7 @@ func TestLogFile_deleteArchives(t *testing.T) {
 		}
 		contents := string(bytes)
 
-		require.NotEqual("[INFO] Hellow World", contents, "oldest log should have been deleted")
+		require.NotEqual("[INFO] Hello World", contents, "oldest log should have been deleted")
 	}
 }
 
