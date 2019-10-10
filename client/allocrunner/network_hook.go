@@ -61,7 +61,8 @@ func (h *networkHook) Prerun() error {
 		return nil
 	}
 
-	spec, err := h.manager.CreateNetwork(h.alloc.ID)
+	spec, created, err := h.manager.CreateNetwork(h.alloc.ID)
+
 	if err != nil {
 		return fmt.Errorf("failed to create network for alloc: %v", err)
 	}
@@ -71,8 +72,10 @@ func (h *networkHook) Prerun() error {
 		h.setter.SetNetworkIsolation(spec)
 	}
 
-	if err := h.networkConfigurator.Setup(context.TODO(), h.alloc, spec); err != nil {
-		return fmt.Errorf("failed to configure networking for alloc: %v", err)
+	if created {
+		if err := h.networkConfigurator.Setup(context.TODO(), h.alloc, spec); err != nil {
+			return fmt.Errorf("failed to configure networking for alloc: %v", err)
+		}
 	}
 	return nil
 }

@@ -163,7 +163,7 @@ func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Al
 		if _, err := b.cni.Setup(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc))); err != nil {
 			b.logger.Warn("failed to configure bridge network", "err", err, "attempt", attempt)
 			if attempt == retry {
-				return err
+				return fmt.Errorf("failed to configure bridge network: %v", err)
 			}
 			// Sleep for 1 second + jitter
 			time.Sleep(time.Second + (time.Duration(b.rand.Int63n(1000)) * time.Millisecond))

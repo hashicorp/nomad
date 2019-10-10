@@ -1,4 +1,5 @@
-import { Factory, faker } from 'ember-cli-mirage';
+import { Factory } from 'ember-cli-mirage';
+import faker from 'nomad-ui/mirage/faker';
 
 const DISK_RESERVATIONS = [200, 500, 1000, 2000, 5000, 10000, 100000];
 
@@ -8,7 +9,7 @@ export default Factory.extend({
 
   ephemeralDisk: () => ({
     Sticky: faker.random.boolean(),
-    SizeMB: faker.random.arrayElement(DISK_RESERVATIONS),
+    SizeMB: faker.helpers.randomize(DISK_RESERVATIONS),
     Migrate: faker.random.boolean(),
   }),
 

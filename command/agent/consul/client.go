@@ -1144,7 +1144,8 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, 
 	return reg, nil
 }
 
-// TODO(tgross): make sure this is properly nil-checked, etc.
+// UpdateTTL is used to update the TTL of a check. Typically this will only be
+// called to heartbeat script checks.
 func (c *ServiceClient) UpdateTTL(id, output, status string) error {
 	return c.client.UpdateTTL(id, output, status)
 }
@@ -1458,8 +1459,14 @@ func newConnect(serviceName string, nc *structs.ConsulConnect, networks structs.
 
 	// Bind to netns IP(s):port
 	proxyConfig := map[string]interface{}{}
-	if nc.SidecarService.Proxy != nil && nc.SidecarService.Proxy.Config != nil {
-		proxyConfig = nc.SidecarService.Proxy.Config
+	localServiceAddress := ""
+	localServicePort := 0
+	if nc.SidecarService.Proxy != nil {
+		localServiceAddress = nc.SidecarService.Proxy.LocalServiceAddress
+		localServicePort = nc.SidecarService.Proxy.LocalServicePort
+		if nc.SidecarService.Proxy.Config != nil {
+			proxyConfig = nc.SidecarService.Proxy.Config
+		}
 	}
 	proxyConfig["bind_address"] = "0.0.0.0"
 	proxyConfig["bind_port"] = port.To
@@ -1472,7 +1479,9 @@ func newConnect(serviceName string, nc *structs.ConsulConnect, networks structs.
 		// Automatically configure the proxy to bind to all addresses
 		// within the netns.
 		Proxy: &api.AgentServiceConnectProxyConfig{
-			Config: proxyConfig,
+			LocalServiceAddress: localServiceAddress,
+			LocalServicePort:    localServicePort,
+			Config:              proxyConfig,
 		},
 	}
 

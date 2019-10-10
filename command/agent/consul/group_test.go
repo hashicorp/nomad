@@ -65,7 +65,11 @@ func TestConsul_Connect(t *testing.T) {
 			Name:      "testconnect",
 			PortLabel: "9999",
 			Connect: &structs.ConsulConnect{
-				SidecarService: &structs.ConsulSidecarService{},
+				SidecarService: &structs.ConsulSidecarService{
+					Proxy: &structs.ConsulProxy{
+						LocalServicePort: 9000,
+					},
+				},
 			},
 		},
 	}
@@ -114,7 +118,7 @@ func TestConsul_Connect(t *testing.T) {
 		require.Equal(t, connectService.Proxy.DestinationServiceName, "testconnect")
 		require.Equal(t, connectService.Proxy.DestinationServiceID, serviceID)
 		require.Equal(t, connectService.Proxy.LocalServiceAddress, "127.0.0.1")
-		require.Equal(t, connectService.Proxy.LocalServicePort, 9999)
+		require.Equal(t, connectService.Proxy.LocalServicePort, 9000)
 		require.Equal(t, connectService.Proxy.Config, map[string]interface{}{
 			"bind_address": "0.0.0.0",
 			"bind_port":    float64(9998),

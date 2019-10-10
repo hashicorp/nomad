@@ -20,6 +20,10 @@ client {
     # Allow privileged docker jobs
     "docker.privileged.enabled" = "true"
   }
+
+  host_volume "shared_data" {
+    path = "/tmp/data"
+  }
 }
 
 consul {

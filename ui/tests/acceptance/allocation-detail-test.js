@@ -1,9 +1,9 @@
 import { run } from '@ember/runloop';
 import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
-import { module, skip, test } from 'qunit';
+import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
 
@@ -140,7 +140,7 @@ module('Acceptance | allocation detail', function(hooks) {
     assert.ok(Allocation.firstUnhealthyTask().hasUnhealthyDriver, 'Warning is shown');
   });
 
-  skip('proxy task has a proxy tag', async function(assert) {
+  test('proxy task has a proxy tag', async function(assert) {
     // Must create a new job as existing one has loaded and it contains the tasks
     job = server.create('job', {
       groupsCount: 1,
@@ -153,7 +153,7 @@ module('Acceptance | allocation detail', function(hooks) {
       jobId: job.id,
     });
 
-    const taskState = allocation.task_states.models[0];
+    const taskState = allocation.task_states.models.sortBy('name')[0];
     const task = server.schema.tasks.findBy({ name: taskState.name });
     task.update('kind', 'connect-proxy:task');
     task.save();

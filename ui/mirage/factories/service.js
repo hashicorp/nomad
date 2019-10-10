@@ -1,4 +1,5 @@
-import { Factory, faker } from 'ember-cli-mirage';
+import { Factory } from 'ember-cli-mirage';
+import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
 
 export default Factory.extend({

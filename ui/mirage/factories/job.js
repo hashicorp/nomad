@@ -1,5 +1,6 @@
 import { assign } from '@ember/polyfills';
-import { Factory, faker, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'ember-cli-mirage';
+import faker from 'nomad-ui/mirage/faker';
 import { provide, provider, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
 
@@ -9,7 +10,9 @@ const JOB_STATUSES = ['pending', 'running', 'dead'];
 
 export default Factory.extend({
   id: i =>
-    `${faker.list.random(...JOB_PREFIXES)()}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase(),
+    `${faker.helpers.randomize(
+      JOB_PREFIXES
+    )}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase(),
 
   name() {
     return this.id;
@@ -18,14 +21,12 @@ export default Factory.extend({
   groupsCount: () => faker.random.number({ min: 1, max: 2 }),
 
   region: () => 'global',
-  type: faker.list.random(...JOB_TYPES),
+  type: () => faker.helpers.randomize(JOB_TYPES),
   priority: () => faker.random.number(100),
   all_at_once: faker.random.boolean,
-  status: faker.list.random(...JOB_STATUSES),
-  datacenters: provider(
-    () => faker.random.number({ min: 1, max: 4 }),
-    faker.list.random(...DATACENTERS)
-  ),
+  status: () => faker.helpers.randomize(JOB_STATUSES),
+  datacenters: () =>
+    faker.helpers.shuffle(DATACENTERS).slice(0, faker.random.number({ min: 1, max: 4 })),
 
   childrenCount: () => faker.random.number({ min: 1, max: 2 }),
 
@@ -51,7 +52,7 @@ export default Factory.extend({
     parameterizedDetails: () => ({
       MetaOptional: null,
       MetaRequired: null,
-      Payload: Math.random() > 0.5 ? 'required' : null,
+      Payload: faker.random.boolean() ? 'required' : null,
     }),
   }),
 

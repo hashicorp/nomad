@@ -87,6 +87,18 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 		self.Config.Vault.Token = "<redacted>"
 	}
 
+	if self.Config != nil && self.Config.ACL != nil && self.Config.ACL.ReplicationToken != "" {
+		self.Config.ACL.ReplicationToken = "<redacted>"
+	}
+
+	if self.Config != nil && self.Config.Consul != nil && self.Config.Consul.Token != "" {
+		self.Config.Consul.Token = "<redacted>"
+	}
+
+	if self.Config != nil && self.Config.Telemetry != nil && self.Config.Telemetry.CirconusAPIToken != "" {
+		self.Config.Telemetry.CirconusAPIToken = "<redacted>"
+	}
+
 	return self, nil
 }
 

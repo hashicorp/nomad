@@ -48,8 +48,8 @@ Documentation & Guides
 -------------------------------
 
 * [Installing Nomad for Production](https://www.nomadproject.io/guides/operations/deployment-guide.html)
-* [Advanced Job Scheduling on Nomad with Affinities](https://www.nomadproject.io/guides/advanced-scheduling/affinity.html)
-* [Increasing Nomad Fault Tolerance with Spread](https://www.nomadproject.io/guides/advanced-scheduling/spread.html)
+* [Advanced Job Scheduling on Nomad with Affinities](https://www.nomadproject.io/guides/operating-a-job/advanced-scheduling/affinity.html)
+* [Increasing Nomad Fault Tolerance with Spread](https://www.nomadproject.io/guides/operating-a-job/advanced-scheduling/spread.html)
 * [Load Balancing on Nomad with Fabio & Consul](https://www.nomadproject.io/guides/load-balancing/fabio.html)
 * [Deploying Stateful Workloads via Portworx](https://www.nomadproject.io/guides/stateful-workloads/portworx.html)
 * [Running Apache Spark on Nomad](https://www.nomadproject.io/guides/spark/spark.html)
@@ -140,7 +140,7 @@ Who Uses Nomad
 Contributing to Nomad
 --------------------
 
-If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.12.9+ is *required*).
+If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.12.10+ is *required*).
 
 See the [`contributing`](contributing/) directory for more developer documentation.
 
@@ -172,6 +172,12 @@ your environment.
 $ make bootstrap
 ...
 ```
+
+Nomad creates many file handles for communicating with tasks, log handlers, etc.
+In some development environments, particularly macOS, the default number of file
+descriptors is too small to run Nomad's test suite. You should set
+`ulimit -n 1024` or higher in your shell. This setting is scoped to your current
+shell and doesn't affect other running shells or future shells.
 
 Afterwards type `make test`. This will run the tests. If this exits with exit status 0,
 then everything is working!

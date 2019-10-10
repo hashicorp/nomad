@@ -5,6 +5,8 @@
 LINUX_BASE_BOX = "bento/ubuntu-16.04"
 FREEBSD_BASE_BOX = "freebsd/FreeBSD-11.2-STABLE"
 
+LINUX_IP_ADDRESS = "10.199.0.200"
+
 Vagrant.configure(2) do |config|
 	# Compilation and development boxes
 	config.vm.define "linux", autostart: true, primary: true do |vmCfg|
@@ -21,6 +23,10 @@ Vagrant.configure(2) do |config|
 		vmCfg.vm.provision "shell",
 			privileged: false,
 			path: './scripts/vagrant-linux-unpriv-bootstrap.sh'
+
+		vmCfg.vm.provider "virtualbox" do |_|
+			vmCfg.vm.network :private_network, ip: LINUX_IP_ADDRESS
+		end
 	end
 
 	config.vm.define "linux-ui", autostart: false, primary: false do |vmCfg|
@@ -38,12 +44,13 @@ Vagrant.configure(2) do |config|
 			privileged: false,
 			path: './scripts/vagrant-linux-unpriv-bootstrap.sh'
 
-        # Expose the nomad api and ui to the host
-        vmCfg.vm.network "forwarded_port", guest: 4646, host: 4646, auto_correct: true
+		# Expose the nomad api and ui to the host
+		vmCfg.vm.network :forwarded_port, guest: 4646, host: 4646, auto_correct: true
+		vmCfg.vm.network :forwarded_port, guest: 8500, host: 8500, auto_correct: true
 
-        # Expose Ember ports to the host (one for the site, one for livereload)
-        vmCfg.vm.network :forwarded_port, guest: 4201, host: 4201, auto_correct: true
-        vmCfg.vm.network :forwarded_port, guest: 49153, host: 49153, auto_correct: true
+		# Expose Ember ports to the host (one for the site, one for livereload)
+		vmCfg.vm.network :forwarded_port, guest: 4201, host: 4201, auto_correct: true
+		vmCfg.vm.network :forwarded_port, guest: 49153, host: 49153, auto_correct: true
 	end
 
 	config.vm.define "freebsd", autostart: false, primary: false do |vmCfg|

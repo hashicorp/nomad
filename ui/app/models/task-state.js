@@ -20,7 +20,7 @@ export default Fragment.extend({
     return (this.get('task.kind') || '').startsWith('connect-proxy:');
   }),
 
-  task: computed('allocation.taskGroup.tasks.[]', function() {
+  task: computed('name', 'allocation.taskGroup.tasks.[]', function() {
     const tasks = this.get('allocation.taskGroup.tasks');
     return tasks && tasks.findBy('name', this.name);
   }),

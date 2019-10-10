@@ -66,7 +66,8 @@ workflows:
       - test-e2e:
           <<: *IGNORE_FOR_UI_BRANCHES
       - test-ui
-      - test-website
+      - test-website:
+          <<: *IGNORE_FOR_UI_BRANCHES
 
   website:
     jobs:
@@ -79,7 +80,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: circleci/golang:1.12.9
+      - image: circleci/golang:1.12.10
   go-machine:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
@@ -298,7 +299,7 @@ commands:
     parameters:
       version:
         type: string
-        default: "1.12.9"
+        default: "1.12.10"
     steps:
       - run:
           name: install golang << parameters.version >>

@@ -10,6 +10,7 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
@@ -173,19 +174,20 @@ func DestroyCgroup(groups *lconfigs.Cgroup, executorPid int) error {
 	return mErrs.ErrorOrNil()
 }
 
-func (e *UniversalExecutor) start(command *ExecCommand) error {
-	if command.NetworkIsolation != nil && command.NetworkIsolation.Path != "" {
+// withNetworkIsolation calls the passed function the network namespace `spec`
+func withNetworkIsolation(f func() error, spec *drivers.NetworkIsolationSpec) error {
+	if spec != nil && spec.Path != "" {
 		// Get a handle to the target network namespace
-		netns, err := ns.GetNS(command.NetworkIsolation.Path)
+		netns, err := ns.GetNS(spec.Path)
 		if err != nil {
 			return err
 		}
 
 		// Start the container in the network namespace
 		return netns.Do(func(ns.NetNS) error {
-			return e.childCmd.Start()
+			return f()
 		})
 	}
 
-	return e.childCmd.Start()
+	return f()
 }

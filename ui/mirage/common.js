@@ -1,4 +1,4 @@
-import { faker } from 'ember-cli-mirage';
+import faker from 'nomad-ui/mirage/faker';
 import { provide } from './utils';
 
 // Realistically, resource reservations have a low cardinality
@@ -19,16 +19,16 @@ export const DATACENTERS = provide(
 );
 
 export const HOSTS = provide(100, () => {
-  const ip = Math.random() > 0.5 ? faker.internet.ip() : `[${ipv6()}]`;
+  const ip = faker.random.boolean() ? faker.internet.ip() : `[${faker.internet.ipv6()}]`;
   return `${ip}:${faker.random.number({ min: 4000, max: 4999 })}`;
 });
 
 export function generateResources(options = {}) {
   return {
-    CPU: faker.random.arrayElement(CPU_RESERVATIONS),
-    MemoryMB: faker.random.arrayElement(MEMORY_RESERVATIONS),
-    DiskMB: faker.random.arrayElement(DISK_RESERVATIONS),
-    IOPS: faker.random.arrayElement(IOPS_RESERVATIONS),
+    CPU: faker.helpers.randomize(CPU_RESERVATIONS),
+    MemoryMB: faker.helpers.randomize(MEMORY_RESERVATIONS),
+    DiskMB: faker.helpers.randomize(DISK_RESERVATIONS),
+    IOPS: faker.helpers.randomize(IOPS_RESERVATIONS),
     Networks: generateNetworks(options.networks),
   };
 }
@@ -41,7 +41,7 @@ export function generateNetworks(options = {}) {
       CIDR: '',
       IP: faker.internet.ip(),
       MBits: 10,
-      Mode: faker.random.arrayElement(NETWORK_MODES),
+      Mode: faker.helpers.randomize(NETWORK_MODES),
       ReservedPorts: Array(
         faker.random.number({
           min: options.minPorts != null ? options.minPorts : 0,
@@ -67,18 +67,4 @@ export function generateNetworks(options = {}) {
           To: faker.random.number({ min: 5000, max: 60000 }),
         })),
     }));
-}
-
-// Faker v4.0 has a built-in ipv6 function. Once Mirage upgrades,
-// this code can be removed.
-function ipv6() {
-  const subnets = [];
-  for (var i = 0; i < 8; i++) {
-    var subnet = [];
-    for (var char = 0; char < 4; char++) {
-      subnet.push(faker.random.number(15).toString(16));
-    }
-    subnets.push(subnet.join(''));
-  }
-  return subnets.join(':');
 }

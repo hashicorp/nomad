@@ -1,7 +1,7 @@
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { faker } from 'ember-cli-mirage';
+import faker from 'nomad-ui/mirage/faker';
 import hbs from 'htmlbars-inline-precompile';
 
 module('Integration | Component | list table', function(hooks) {

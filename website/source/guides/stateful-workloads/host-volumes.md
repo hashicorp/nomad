@@ -28,13 +28,13 @@ them, Docker volumes have to either be deployed to all clients or operators have
 to use an additional, manually-maintained constraint to inform the scheduler
 where they are present.
 
-## Reference Material
+## Reference material
 
 - [Nomad `host_volume` specification][host_volume spec]
 - [Nomad `volume` specification][volume spec]
 - [Nomad `volume_mount` specification][volume_mount spec]
 
-## Estimated Time to Complete
+## Estimated time to complete
 
 20 minutes
 
@@ -66,22 +66,22 @@ Ensure it is installed on a node with access to port 3306 on your Nomad clients:
 Ubuntu:
 
 ```bash
-$ sudo apt install mysql-client
+sudo apt install mysql-client
 ```
 
 CentOS:
 
 ```bash
-$ sudo yum install mysql
+sudo yum install mysql
 ```
 
 macOS via Homebrew:
 
 ```bash
-$ brew install mysql-client
+brew install mysql-client
 ```
 
-### Step 1: Create a Directory to Use as a Mount Target
+### Step 1: Create a directory to use as a mount target
 
 On a Nomad client node in your cluster, create a directory that will be used for
 persisting the MySQL data. For this example, let's create the directory
@@ -98,8 +98,7 @@ run as the `root` user.
 sudo chown «Nomad user» /opt/mysql/data
 ```
 
-
-### Step 2: Configure the `mysql` Host Volume on the Client
+### Step 2: Configure the `mysql` host volume on the client
 
 Edit the Nomad configuration on this Nomad client to create the Host Volume.
 
@@ -131,7 +130,7 @@ Drivers      = docker,exec,java,mock_driver,raw_exec,rkt
 ...
 ```
 
-### Step 3: Create the `mysql.nomad` Job File
+### Step 3: Create the `mysql.nomad` job file
 
 We are now ready to deploy a MySQL database that can use Nomad Host Volumes for
 storage. Create a file called `mysql.nomad` and provide it the following
@@ -146,10 +145,11 @@ job "mysql-server" {
     count = 1
 
     volume "mysql" {
-      type = "host"
+      type      = "host"
+      read_only = false
 
       config {
-        source = "mysql"
+        source    = "mysql"
       }
     }
 
@@ -166,6 +166,7 @@ job "mysql-server" {
       volume_mount {
         volume      = "mysql"
         destination = "/var/lib/mysql"
+        read_only   = false
       }
 
       env = {
@@ -206,16 +207,27 @@ job "mysql-server" {
 }
 ```
 
-* The service name is `mysql-server` which we will use later to connect to the
+#### Notes about the above job specification
+
+- The service name is `mysql-server` which we will use later to connect to the
   database.
 
-### Step 4: Deploy the MySQL Database
+- The `read_only` argument is supplied on all of the volume-related stanzas in
+  to help highlight all of the places you would need to change to make a
+  read-only volume mount. Please see the [`host_volume`][host_volume spec],
+  [`volume`][volume spec], and [`volume_mount`][volume_mount spec] specifications
+  for more details.
+
+- For lower-memory instances, you might need to reduce the requested memory in
+  the resources stanza to harmonize with available resources in your cluster.
+
+### Step 4: Deploy the MySQL database
 
 Register the job file you created in the previous step with the following
 command:
 
 ```
-$ nomad run mysql.nomad 
+$ nomad run mysql.nomad
 ==> Monitoring evaluation "aa478d82"
     Evaluation triggered by job "mysql-server"
     Allocation "6c3b3703" created: node "be8aad4e", group "mysql-server"
@@ -234,7 +246,7 @@ Task Group    Queued  Starting  Running  Failed  Complete  Lost
 mysql-server  0       0         1        0       0         0
 ```
 
-### Step 5: Connect to MySQL 
+### Step 5: Connect to MySQL
 
 Using the mysql client (installed in [Prerequisite 1]), connect to the database
 and access the information:
@@ -242,6 +254,7 @@ and access the information:
 ```
 mysql -h mysql-server.service.consul -u web -p -D itemcollection
 ```
+
 The password for this demo database is `password`.
 
 ~> **Please Note:** This guide is for demo purposes and does not follow best
@@ -252,7 +265,7 @@ Consul is installed alongside Nomad in this cluster so we were able to
 connect using the `mysql-server` service name we registered with our task in
 our job file.
 
-### Step 6: Add Data to MySQL
+### Step 6: Add data to MySQL
 
 Once you are connected to the database, verify the table `items` exists:
 
@@ -293,6 +306,7 @@ Run the `INSERT INTO` command as many times as you like with different values.
 mysql> INSERT INTO items (name) VALUES ('hat');
 mysql> INSERT INTO items (name) VALUES ('keyboard');
 ```
+
 Once you you are done, type `exit` and return back to the Nomad client command
 line:
 
@@ -301,7 +315,7 @@ mysql> exit
 Bye
 ```
 
-### Step 7: Stop and Purge the Database Job
+### Step 7: Stop and purge the database job
 
 Run the following command to stop and purge the MySQL job from the cluster:
 
@@ -325,11 +339,10 @@ network filesystem, like NFS, or cluster-aware filesystem, like glusterFS. This
 can enable more complex, automatic failure-recovery scenarios in the event of a
 node failure.
 
-### Step 8: Re-deploy the Database
+### Step 8: Re-deploy the database
 
-Using the `mysql.nomad` job file from [Step
-3](#step-3-create-the-mysql-nomad-job-file), re-deploy the database to the Nomad
-cluster.
+Using the `mysql.nomad` job file from [Step 3], re-deploy the database to the
+Nomad cluster.
 
 ```
 ==> Monitoring evaluation "61b4f648"
@@ -339,7 +352,7 @@ cluster.
 ==> Evaluation "61b4f648" finished with status "complete"
 ```
 
-### Step 9: Verify Data
+### Step 9: Verify data
 
 Once you re-connect to MySQL, you should be able to see that the information you
 added prior to destroying the database is still present:
@@ -359,18 +372,20 @@ mysql> select * from items;
 6 rows in set (0.00 sec)
 ```
 
-### Step 10: Tidying Up
+### Step 10: Tidying up
 
 Once you have completed this guide, you should perform the following cleanup steps:
 
-* Stop and purge the `mysql-server` job.
-* Remove the `host_volume "mysql"` stanza from your Nomad client configuration
-and restart the Nomad service on that client
-* Remove the /opt/mysql/data folder and as much of the directory tree that you
-no longer require.
+- Stop and purge the `mysql-server` job.
 
+- Remove the `host_volume "mysql"` stanza from your Nomad client configuration
+  and restart the Nomad service on that client
+
+- Remove the /opt/mysql/data folder and as much of the directory tree that you
+  no longer require.
 
 [Prerequisite 1]: #prerequisite-1-install-the-mysql-client
+[Step 3]: #step-3-create-the-mysql-nomad-job-file
 [host_volume spec]: /docs/configuration/client.html#host_volume-stanza
 [volume spec]: /docs/job-specification/volume.html
 [volume_mount spec]: /docs/job-specification/volume_mount.html

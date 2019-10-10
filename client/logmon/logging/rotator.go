@@ -256,6 +256,7 @@ func (f *FileRotator) Close() error {
 		f.doneCh <- struct{}{}
 		close(f.purgeCh)
 		f.closed = true
+		f.currentFile.Close()
 	}
 
 	return nil

@@ -1,4 +1,5 @@
-import { Factory, faker, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'ember-cli-mirage';
+import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
 import { DATACENTERS, HOSTS, generateResources } from '../common';
 import moment from 'moment';
@@ -12,10 +13,10 @@ export default Factory.extend({
   id: i => (i / 100 >= 1 ? `${UUIDS[i]}-${i}` : UUIDS[i]),
   name: i => `nomad@${HOSTS[i % HOSTS.length]}`,
 
-  datacenter: faker.list.random(...DATACENTERS),
-  nodeClass: faker.list.random(...NODE_CLASSES),
+  datacenter: () => faker.helpers.randomize(DATACENTERS),
+  nodeClass: () => faker.helpers.randomize(NODE_CLASSES),
   drain: faker.random.boolean,
-  status: faker.list.random(...NODE_STATUSES),
+  status: () => faker.helpers.randomize(NODE_STATUSES),
   tls_enabled: faker.random.boolean,
   schedulingEligibility: () => (faker.random.boolean() ? 'eligible' : 'ineligible'),
 
@@ -130,8 +131,8 @@ export default Factory.extend({
 
 function makeDrivers() {
   const generate = name => {
-    const detected = Math.random() > 0.3;
-    const healthy = detected && Math.random() > 0.3;
+    const detected = faker.random.number(10) >= 3;
+    const healthy = detected && faker.random.number(10) >= 3;
     const attributes = {
       [`driver.${name}.version`]: '1.0.0',
       [`driver.${name}.status`]: 'awesome',
@@ -143,7 +144,7 @@ function makeDrivers() {
       Healthy: healthy,
       HealthDescription: healthy ? 'Driver is healthy' : 'Uh oh',
       UpdateTime: faker.date.past(5 / 365, REF_DATE),
-      Attributes: Math.random() > 0.3 && detected ? attributes : null,
+      Attributes: faker.random.number(10) >= 3 && detected ? attributes : null,
     };
   };
 

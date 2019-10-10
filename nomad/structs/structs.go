@@ -207,6 +207,13 @@ type QueryOptions struct {
 	Region string
 
 	// Namespace is the target namespace for the query.
+	//
+	// Since handlers do not have a default value set they should access
+	// the Namespace via the RequestNamespace method.
+	//
+	// Requests accessing specific namespaced objects must check ACLs
+	// against the namespace of the object, not the namespace in the
+	// request.
 	Namespace string
 
 	// If set, wait until query exceeds given index. Must be provided
@@ -233,6 +240,11 @@ func (q QueryOptions) RequestRegion() string {
 	return q.Region
 }
 
+// RequestNamespace returns the request's namespace or the default namespace if
+// no explicit namespace was sent.
+//
+// Requests accessing specific namespaced objects must check ACLs against the
+// namespace of the object, not the namespace in the request.
 func (q QueryOptions) RequestNamespace() string {
 	if q.Namespace == "" {
 		return DefaultNamespace
@@ -254,6 +266,13 @@ type WriteRequest struct {
 	Region string
 
 	// Namespace is the target namespace for the write.
+	//
+	// Since RPC handlers do not have a default value set they should
+	// access the Namespace via the RequestNamespace method.
+	//
+	// Requests accessing specific namespaced objects must check ACLs
+	// against the namespace of the object, not the namespace in the
+	// request.
 	Namespace string
 
 	// AuthToken is secret portion of the ACL token used for the request
@@ -267,6 +286,11 @@ func (w WriteRequest) RequestRegion() string {
 	return w.Region
 }
 
+// RequestNamespace returns the request's namespace or the default namespace if
+// no explicit namespace was sent.
+//
+// Requests accessing specific namespaced objects must check ACLs against the
+// namespace of the object, not the namespace in the request.
 func (w WriteRequest) RequestNamespace() string {
 	if w.Namespace == "" {
 		return DefaultNamespace
@@ -4925,13 +4949,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			continue
 		}
 
-		cfg, err := ParseHostVolumeConfig(decl.Config)
-		if err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unparseable config: %v", name, err))
-			continue
-		}
-
-		if cfg.Source == "" {
+		if decl.Source == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has an empty source", name))
 		}
 	}

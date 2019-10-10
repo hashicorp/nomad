@@ -775,6 +775,17 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 
 // ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
 type ConsulProxy struct {
+
+	// LocalServiceAddress is the address the local service binds to.
+	// Usually 127.0.0.1 it is useful to customize in clusters with mixed
+	// Connect and non-Connect services.
+	LocalServiceAddress string
+
+	// LocalServicePort is the port the local service binds to. Usually
+	// the same as the parent service's port, it is useful to customize
+	// in clusters with mixed Connect and non-Connect services
+	LocalServicePort int
+
 	// Upstreams configures the upstream services this service intends to
 	// connect to.
 	Upstreams []ConsulUpstream
@@ -791,6 +802,8 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 	}
 
 	newP := ConsulProxy{}
+	newP.LocalServiceAddress = p.LocalServiceAddress
+	newP.LocalServicePort = p.LocalServicePort
 
 	if n := len(p.Upstreams); n > 0 {
 		newP.Upstreams = make([]ConsulUpstream, n)
@@ -817,6 +830,12 @@ func (p *ConsulProxy) Equals(o *ConsulProxy) bool {
 		return p == o
 	}
 
+	if p.LocalServiceAddress != o.LocalServiceAddress {
+		return false
+	}
+	if p.LocalServicePort != o.LocalServicePort {
+		return false
+	}
 	if len(p.Upstreams) != len(o.Upstreams) {
 		return false
 	}
