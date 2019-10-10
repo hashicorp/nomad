@@ -121,7 +121,7 @@ func (l *logFile) pruneFiles() error {
 }
 
 // Write is used to implement io.Writer
-func (l *logFile) Write(b []byte) (n int, err error) {
+func (l *logFile) Write(b []byte) (int, error) {
 	// Filter out log entries that do not match log level criteria
 	if !l.logFilter.Check(b) {
 		return 0, nil
@@ -139,6 +139,8 @@ func (l *logFile) Write(b []byte) (n int, err error) {
 	if err := l.rotate(); err != nil {
 		return 0, err
 	}
-	l.BytesWritten += int64(len(b))
-	return l.FileInfo.Write(b)
+
+	n, err := l.FileInfo.Write(b)
+	l.BytesWritten += int64(n)
+	return n, err
 }
