@@ -52,7 +52,7 @@ cd "$DIR"
 if [ -z "$NOTAG" ]; then
   echo "==> Tagging..."
   git commit --allow-empty -a --gpg-sign=${gpg_signing_key} -m "Release v$VERSION"
-  git tag -a -m "Version $VERSION" -s -u ${gpg_signing_key} "v${VERSION}" master
+  git tag -a -m "Version $VERSION" -s -u ${gpg_signing_key} "v${VERSION}" HEAD
 fi
 
 # Zip all the files
