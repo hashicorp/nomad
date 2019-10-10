@@ -373,8 +373,8 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 	return true
 }
 
-// setupLoggers is used to setup the logGate, logWriter, and our logOutput
-func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter, io.Writer) {
+// setupLoggers is used to setup the logGate, and our logOutput
+func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) {
 	// Setup logging. First create the gated log writer, which will
 	// store logs until we're ready to show them. Then create the level
 	// filter, filtering logs of the specified level.
@@ -390,19 +390,18 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter,
 		c.Ui.Error(fmt.Sprintf(
 			"Invalid log level: %s. Valid log levels are: %v",
 			c.logFilter.MinLevel, c.logFilter.Levels))
-		return nil, nil, nil
+		return nil, nil
 	}
 
 	// Create a log writer, and wrap a logOutput around it
-	logWriter := NewLogWriter(512)
-	writers := []io.Writer{c.logFilter, logWriter}
+	writers := []io.Writer{c.logFilter}
 
 	// Check if syslog is enabled
 	if config.EnableSyslog {
 		l, err := gsyslog.NewLogger(gsyslog.LOG_NOTICE, config.SyslogFacility, "nomad")
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
-			return nil, nil, nil
+			return nil, nil
 		}
 		writers = append(writers, &SyslogWrapper{l, c.logFilter})
 	}
@@ -422,7 +421,7 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter,
 			duration, err := time.ParseDuration(config.LogRotateDuration)
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
-				return nil, nil, nil
+				return nil, nil
 			}
 			logRotateDuration = duration
 		} else {
@@ -444,7 +443,7 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter,
 
 	c.logOutput = io.MultiWriter(writers...)
 	log.SetOutput(c.logOutput)
-	return logGate, logWriter, c.logOutput
+	return logGate, c.logOutput
 }
 
 // setupAgent is used to start the agent and various interfaces
@@ -597,7 +596,7 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Setup the log outputs
-	logGate, _, logOutput := c.setupLoggers(config)
+	logGate, logOutput := c.setupLoggers(config)
 	if logGate == nil {
 		return 1
 	}

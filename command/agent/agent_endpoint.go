@@ -1,19 +1,25 @@
 package agent
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/docker/docker/pkg/ioutils"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/acl"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 	"github.com/mitchellh/copystructure"
+	"github.com/ugorji/go/codec"
 )
 
 type Member struct {
@@ -169,44 +175,144 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 		return nil, CodedError(400, fmt.Sprintf("Unknown log level: %s", logLevel))
 	}
 
-	// Create flusher for streaming
-	flusher, ok := resp.(http.Flusher)
-	if !ok {
-		return nil, CodedError(400, "Streaming not supported")
-	}
+	// START
 
-	streamWriter := newStreamWriter(512)
+	// Determine if we are targeting a server or client
+	nodeID := req.URL.Query().Get("nodeID")
+	if nodeID != "" {
 
-	streamLog := log.New(&log.LoggerOptions{
-		Level:  log.LevelFromString(logLevel),
-		Output: streamWriter,
-	})
-	s.agent.logger.RegisterSink(streamLog)
-	defer s.agent.logger.DeregisterSink(streamLog)
+		// Build the request and parse the ACL token
+		args := cstructs.MonitorRequest{
+			LogLevel: logLevel,
+			LogJSON:  false,
+		}
+		s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
-	notify := resp.(http.CloseNotifier).CloseNotify()
+		// Determine the handler to use
+		useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(nodeID)
 
-	// Send header so client can start streaming body
-	resp.WriteHeader(http.StatusOK)
+		// Make the RPC
+		var handler structs.StreamingRpcHandler
+		var handlerErr error
+		if useLocalClient {
+			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Client.Monitor")
+		} else if useClientRPC {
+			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Client.Monitor")
+		} else if useServerRPC {
+			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Client.Monitor")
+		} else {
+			handlerErr = CodedError(400, "No local Node and node_id not provided")
+		}
 
-	// 0 byte write is needed before the Flush call so that if we are using
-	// a gzip stream it will go ahead and write out the HTTP response header
-	resp.Write([]byte(""))
-	flusher.Flush()
+		if handlerErr != nil {
+			return nil, CodedError(500, handlerErr.Error())
+		}
+		httpPipe, handlerPipe := net.Pipe()
+		decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
+		encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
 
-	for {
-		select {
-		case <-notify:
-			s.agent.logger.DeregisterSink(streamLog)
-			if streamWriter.droppedCount > 0 {
-				s.agent.logger.Warn(fmt.Sprintf("agent: Dropped %d logs during monitor request", streamWriter.droppedCount))
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() {
+			<-ctx.Done()
+			httpPipe.Close()
+		}()
+
+		// Create an ouput that gets flushed on every write
+		output := ioutils.NewWriteFlusher(resp)
+
+		// Create a channel that decodes the results
+		errCh := make(chan HTTPCodedError, 2)
+
+		// stream the response
+		go func() {
+			defer cancel()
+
+			// Send the request
+			if err := encoder.Encode(args); err != nil {
+				errCh <- CodedError(500, err.Error())
+				return
 			}
-			return nil, nil
-		case log := <-streamWriter.logCh:
-			fmt.Fprintln(resp, log)
-			flusher.Flush()
+
+			for {
+				select {
+				case <-ctx.Done():
+					errCh <- nil
+					return
+				default:
+				}
+
+				var res cstructs.StreamErrWrapper
+				if err := decoder.Decode(&res); err != nil {
+					errCh <- CodedError(500, err.Error())
+					return
+				}
+				decoder.Reset(httpPipe)
+
+				if err := res.Error; err != nil {
+					if err.Code != nil {
+						errCh <- CodedError(int(*err.Code), err.Error())
+						return
+					}
+				}
+
+				if _, err := io.Copy(output, bytes.NewReader(res.Payload)); err != nil {
+					errCh <- CodedError(500, err.Error())
+					return
+				}
+			}
+		}()
+
+		handler(handlerPipe)
+		cancel()
+		codedErr := <-errCh
+
+		if codedErr != nil &&
+			(codedErr == io.EOF ||
+				strings.Contains(codedErr.Error(), "closed") ||
+				strings.Contains(codedErr.Error(), "EOF")) {
+			codedErr = nil
+		}
+		return nil, codedErr
+	} else {
+		// Create flusher for streaming
+		flusher, ok := resp.(http.Flusher)
+		if !ok {
+			return nil, CodedError(400, "Streaming not supported")
+		}
+
+		streamWriter := newStreamWriter(512)
+		streamLog := log.New(&log.LoggerOptions{
+			Level:  log.LevelFromString(logLevel),
+			Output: streamWriter,
+		})
+		s.agent.logger.RegisterSink(streamLog)
+		defer s.agent.logger.DeregisterSink(streamLog)
+
+		notify := resp.(http.CloseNotifier).CloseNotify()
+
+		// Send header so client can start streaming body
+		resp.WriteHeader(http.StatusOK)
+		// gziphanlder needs a byte to be written and flushed in order
+		// to tell gzip handler to ignore this response and not compress
+		resp.Write([]byte("\n"))
+		flusher.Flush()
+
+		for {
+			select {
+			case <-notify:
+				s.agent.logger.DeregisterSink(streamLog)
+				if streamWriter.droppedCount > 0 {
+					s.agent.logger.Warn(fmt.Sprintf("Dropped %d logs during monitor request", streamWriter.droppedCount))
+				}
+				return nil, nil
+			case log := <-streamWriter.logCh:
+				fmt.Fprintln(resp, log)
+				flusher.Flush()
+			}
 		}
 	}
+
+	return nil, nil
 }
 
 type streamWriter struct {

@@ -255,7 +255,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 
 	httpTest(t, nil, func(s *TestAgent) {
 		{
-			req, err := http.NewRequest("GET", "/v1/agent/monitor?loglevel=unkown", nil)
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?loglevel=unknown", nil)
 			require.Nil(t, err)
 			resp := newClosableRecorder()
 
@@ -269,6 +269,42 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 		// check for a specific log
 		{
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?loglevel=warn", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+			defer resp.Close()
+
+			go func() {
+				_, err = s.Server.AgentMonitor(resp, req)
+				require.NoError(t, err)
+			}()
+
+			// send the same log a few times until monitor sink is
+			// fully set up
+			maxLogAttempts := 10
+			tried := 0
+			testutil.WaitForResult(func() (bool, error) {
+				if tried < maxLogAttempts {
+					s.Server.logger.Debug("log that should not be sent")
+					s.Server.logger.Warn("log that should be sent")
+					tried++
+				}
+
+				got := resp.Body.String()
+				want := "[WARN]  http: log that should be sent"
+				if strings.Contains(got, want) {
+					require.NotContains(t, resp.Body.String(), "[DEBUG]")
+					return true, nil
+				}
+
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", got, want)
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+		}
+
+		// stream logs for a given node
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?loglevel=warn&nodeID="+s.client.NodeID(), nil)
 			require.Nil(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()

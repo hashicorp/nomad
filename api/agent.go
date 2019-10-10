@@ -240,7 +240,7 @@ func (a *Agent) Health() (*AgentHealthResponse, error) {
 
 // Monitor returns a channel which will receive streaming logs from the agent
 // Providing a non-nil stopCh can be used to close the connection and stop log streaming
-func (a *Agent) Monitor(loglevel string, stopCh <-chan struct{}, q *QueryOptions) (chan string, error) {
+func (a *Agent) Monitor(loglevel string, nodeID string, stopCh <-chan struct{}, q *QueryOptions) (chan string, error) {
 	r, err := a.client.newRequest("GET", "/v1/agent/monitor")
 	if err != nil {
 		return nil, err
@@ -249,6 +249,9 @@ func (a *Agent) Monitor(loglevel string, stopCh <-chan struct{}, q *QueryOptions
 	r.setQueryOptions(q)
 	if loglevel != "" {
 		r.params.Add("loglevel", loglevel)
+	}
+	if nodeID != "" {
+		r.params.Add("nodeID", nodeID)
 	}
 
 	_, resp, err := requireOK(a.client.doRequest(r))

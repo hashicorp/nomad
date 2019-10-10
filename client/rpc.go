@@ -23,6 +23,7 @@ type rpcEndpoints struct {
 	ClientStats *ClientStats
 	FileSystem  *FileSystem
 	Allocations *Allocations
+	Monitor     *Monitor
 }
 
 // ClientRPC is used to make a local, client only RPC call
@@ -218,6 +219,7 @@ func (c *Client) setupClientRpc() {
 	c.endpoints.ClientStats = &ClientStats{c}
 	c.endpoints.FileSystem = NewFileSystemEndpoint(c)
 	c.endpoints.Allocations = NewAllocationsEndpoint(c)
+	c.endpoints.Monitor = NewMonitorEndpoint(c)
 
 	// Create the RPC Server
 	c.rpcServer = rpc.NewServer()
@@ -234,6 +236,7 @@ func (c *Client) setupClientRpcServer(server *rpc.Server) {
 	server.Register(c.endpoints.ClientStats)
 	server.Register(c.endpoints.FileSystem)
 	server.Register(c.endpoints.Allocations)
+	server.Register(c.endpoints.Monitor)
 }
 
 // rpcConnListener is a long lived function that listens for new connections

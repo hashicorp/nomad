@@ -34,6 +34,16 @@ type ClientStatsResponse struct {
 	structs.QueryMeta
 }
 
+type MonitorRequest struct {
+	// LogLevel is the log level filter we want to stream logs on
+	LogLevel string
+
+	// LogJSON specifies if log format should be unstructured or json
+	LogJSON bool
+
+	structs.QueryOptions
+}
+
 // AllocFileInfo holds information about a file inside the AllocDir
 type AllocFileInfo struct {
 	Name        string
