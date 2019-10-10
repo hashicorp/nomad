@@ -8,8 +8,7 @@ description: |-
 
 # Consul Connect
 
-~> **Note** This guide describes a new feature available in the [Nomad 0.10.0
-   Beta release][download] of Nomad.
+~> **Note** This guide describes a new feature available in [Nomad 0.10.0][download].
 
 [Consul Connect](https://www.consul.io/docs/connect/index.html) provides
 service-to-service connection authorization and encryption using mutual
