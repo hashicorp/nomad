@@ -8974,12 +8974,7 @@ func (x codecSelfer102) decMapstringPtrtostructs_DriverInfo(v *map[string]*pkg4_
 				if yymv1 == nil {
 					yymv1 = new(pkg4_structs.DriverInfo)
 				}
-				if false {
-				} else if yyxt4 := z.Extension(z.I2Rtid(yymv1)); yyxt4 != nil {
-					z.DecExtension(yymv1, yyxt4)
-				} else {
-					z.DecFallback(yymv1, false)
-				}
+				yymv1.CodecDecodeSelf(d)
 			}
 
 			if yymdn1 {
