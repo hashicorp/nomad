@@ -25,8 +25,8 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-version"
+	multierror "github.com/hashicorp/go-multierror"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
@@ -4298,6 +4298,46 @@ func (d *DispatchPayloadConfig) Validate() error {
 	return nil
 }
 
+const (
+	TaskLifecycleRunLevelPrestart    = "prestart"
+	TaskLifecycleBlockUntilStarted   = "started"
+	TaskLifecycleBlockUntilCompleted = "completed"
+)
+
+type TaskLifecycleConfig struct {
+	RunLevel   string
+	BlockUntil string
+}
+
+func (d *TaskLifecycleConfig) Copy() *TaskLifecycleConfig {
+	if d == nil {
+		return nil
+	}
+	nd := new(TaskLifecycleConfig)
+	*nd = *d
+	return nd
+}
+
+func (d *TaskLifecycleConfig) Validate() error {
+	if d == nil {
+		return nil
+	}
+
+	switch d.RunLevel {
+	case TaskLifecycleRunLevelPrestart:
+	default:
+		return fmt.Errorf("invalid run_level: %v", d.RunLevel)
+	}
+
+	switch d.BlockUntil {
+	case TaskLifecycleBlockUntilStarted, TaskLifecycleBlockUntilCompleted:
+	default:
+		return fmt.Errorf("invalid block_until: %v", d.BlockUntil)
+	}
+
+	return nil
+}
+
 var (
 	// These default restart policies needs to be in sync with
 	// Canonicalize in api/tasks.go
@@ -5301,6 +5341,8 @@ type Task struct {
 	// DispatchPayload configures how the task retrieves its input from a dispatch
 	DispatchPayload *DispatchPayloadConfig
 
+	Lifecycle *TaskLifecycleConfig
+
 	// Meta is used to associate arbitrary metadata with this
 	// task. This is opaque to Nomad.
 	Meta map[string]string
@@ -5364,6 +5406,7 @@ func (t *Task) Copy() *Task {
 	nt.LogConfig = nt.LogConfig.Copy()
 	nt.Meta = helper.CopyMapStringString(nt.Meta)
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
+	nt.Lifecycle = nt.Lifecycle.Copy()
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
@@ -5541,6 +5584,14 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		if err := t.DispatchPayload.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Dispatch Payload validation failed: %v", err))
 		}
+	}
+
+	// Validate the Lifecycle block if there
+	if t.Lifecycle != nil {
+		if err := t.Lifecycle.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Lifecycle validation failed: %v", err))
+		}
+
 	}
 
 	// Validation for TaskKind field which is used for Consul Connect integration

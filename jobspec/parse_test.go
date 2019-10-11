@@ -333,7 +333,7 @@ func TestParse(t *testing.T) {
 								Driver: "docker",
 								User:   "",
 								Lifecycle: &api.TaskLifecycle{
-									Runlevel:   "prestart",
+									RunLevel:   "prestart",
 									BlockUntil: "completed",
 								},
 								Config: map[string]interface{}{

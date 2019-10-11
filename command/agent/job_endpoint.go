@@ -917,6 +917,13 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 			File: apiTask.DispatchPayload.File,
 		}
 	}
+
+	if apiTask.Lifecycle != nil {
+		structsTask.Lifecycle = &structs.TaskLifecycleConfig{
+			RunLevel:   apiTask.Lifecycle.RunLevel,
+			BlockUntil: apiTask.Lifecycle.BlockUntil,
+		}
+	}
 }
 
 func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
