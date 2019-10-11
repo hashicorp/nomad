@@ -128,7 +128,7 @@ periodic basis.
 The next step is to go to the
 [`-data-dir`](/docs/configuration/index.html#data_dir) of each Nomad
 server. Inside that directory, there will be a `raft/` sub-directory. We need to
-create a `raft/peers.json` file. The syntax will vary if using raft protocol version 2 or raft protocol version 3. 
+create a `raft/peers.json` file. The syntax will vary if using Raft protocol version 2 or Raft protocol version 3. 
 
 
 For Raft protocol version 2, peers.json should look something like: 
