@@ -13,8 +13,8 @@ job "consul_canary_test" {
       }
 
       service {
-        name = "canarytest"
-        tags = ["foo", "bar"]
+        name        = "canarytest"
+        tags        = ["foo", "bar"]
         canary_tags = ["foo", "canary"]
       }
     }

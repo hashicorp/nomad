@@ -6,9 +6,9 @@ job "nomadexec-docker" {
       driver = "docker"
 
       config {
-        image = "busybox:1.29.2"
+        image   = "busybox:1.29.2"
         command = "/bin/sleep"
-        args = ["1000"]
+        args    = ["1000"]
       }
 
       resources {

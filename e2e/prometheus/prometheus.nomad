@@ -1,15 +1,17 @@
 job "prometheus" {
   datacenters = ["dc1", "dc2"]
-  type = "service"
+  type        = "service"
 
   group "monitoring" {
     count = 1
+
     restart {
       attempts = 2
       interval = "30m"
-      delay = "15s"
-      mode = "fail"
+      delay    = "15s"
+      mode     = "fail"
     }
+
     ephemeral_disk {
       size = 300
     }
@@ -18,6 +20,7 @@ job "prometheus" {
       template {
         change_mode = "noop"
         destination = "local/prometheus.yml"
+
         data = <<EOH
 ---
 global:
@@ -43,26 +46,33 @@ scrape_configs:
       format: ['prometheus']
 EOH
       }
+
       driver = "docker"
+
       config {
         image = "prom/prometheus:latest"
+
         volumes = [
-          "local/prometheus.yml:/etc/prometheus/prometheus.yml"
+          "local/prometheus.yml:/etc/prometheus/prometheus.yml",
         ]
+
         port_map {
           prometheus_ui = 9090
         }
       }
+
       resources {
         network {
           mbits = 10
-          port "prometheus_ui" {}
+          port  "prometheus_ui"{}
         }
       }
+
       service {
         name = "prometheus"
         tags = ["urlprefix-/"]
         port = "prometheus_ui"
+
         check {
           name     = "prometheus_ui port alive"
           type     = "http"

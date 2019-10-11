@@ -7,7 +7,7 @@ job "sleep" {
 
       config {
         command = "sleep"
-        args = ["10000"]
+        args    = ["10000"]
       }
 
       resources {
@@ -17,4 +17,3 @@ job "sleep" {
     }
   }
 }
-
