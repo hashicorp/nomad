@@ -1,19 +1,23 @@
 job "foo" {
   datacenters = ["dc1"]
-  type = "batch"
+  type        = "batch"
+
   reschedule {
-    delay = "10s",
+    delay          = "10s"
     delay_function = "exponential"
-    max_delay="120s"
-    unlimited = true
+    max_delay      = "120s"
+    unlimited      = true
   }
+
   group "bar" {
     count = 3
+
     task "bar" {
       driver = "raw_exec"
+
       config {
-         command = "bash"
-         args    = ["-c", "echo hi"]
+        command = "bash"
+        args    = ["-c", "echo hi"]
       }
     }
   }

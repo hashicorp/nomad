@@ -147,6 +147,7 @@ deps:  ## Install build and development dependencies
 	go get -u github.com/a8m/tree/cmd/tree
 	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 	go get -u gotest.tools/gotestsum
+	go get -u github.com/fatih/hclfmt
 	@bash -C "$(PROJECT_ROOT)/scripts/install-codecgen.sh"
 	@bash -C "$(PROJECT_ROOT)/scripts/install-protoc-gen-go.sh"
 
@@ -224,21 +225,30 @@ generate-examples: command/job_init.bindata_assetfs.go
 command/job_init.bindata_assetfs.go: command/assets/*
 	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
+.PHONY: vendorfmt
 vendorfmt:
 	@echo "--> Formatting vendor/vendor.json"
 	test -x $(GOPATH)/bin/vendorfmt || go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 		vendorfmt
+
+.PHONY: changelogfmt
 changelogfmt:
 	@echo "--> Making [GH-xxxx] references clickable..."
 	@sed -E 's|([^\[])\[GH-([0-9]+)\]|\1[[GH-\2](https://github.com/hashicorp/nomad/issues/\2)]|g' CHANGELOG.md > changelog.tmp && mv changelog.tmp CHANGELOG.md
 
+## We skip the terraform directory as there are templated hcl configurations
+## that do not successfully compile without rendering
+.PHONY: hclfmt
+hclfmt:
+	@echo "--> Formatting HCL"
+	@find . -path ./terraform -prune -o -name 'upstart.nomad' -prune -o \( -name '*.nomad' -o -name '*.hcl' \) -exec hclfmt -w {} +
 
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
-dev: vendorfmt changelogfmt ## Build for the current development platform
+dev: vendorfmt changelogfmt hclfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad

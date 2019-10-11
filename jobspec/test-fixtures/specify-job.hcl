@@ -1,4 +1,4 @@
 job "default" {
-    id = "job1"
-    name = "My Job"
+  id   = "job1"
+  name = "My Job"
 }
