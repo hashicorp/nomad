@@ -87,7 +87,7 @@ $ curl \
 ```text
 $ curl \
     --request POST \
-    https://localhost:4646/v1/acl/bootstrap?prefix=3da2ed52
+    https://localhost:4646/v1/acl/tokens?prefix=3da2ed52
 ```
 
 ### Sample Response
