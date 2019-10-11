@@ -595,11 +595,17 @@ type DispatchPayloadConfig struct {
 	File string
 }
 
+type TaskLifecycle struct {
+	Runlevel   string `mapstructure:"run_level"`
+	BlockUntil string `mapstructure:"block_until"`
+}
+
 // Task is a single process in a task group.
 type Task struct {
 	Name            string
 	Driver          string
 	User            string
+	Lifecycle       *TaskLifecycle
 	Config          map[string]interface{}
 	Constraints     []*Constraint
 	Affinities      []*Affinity

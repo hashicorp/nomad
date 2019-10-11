@@ -332,6 +332,10 @@ func TestParse(t *testing.T) {
 								Name:   "storagelocker",
 								Driver: "docker",
 								User:   "",
+								Lifecycle: &api.TaskLifecycle{
+									Runlevel:   "prestart",
+									BlockUntil: "completed",
+								},
 								Config: map[string]interface{}{
 									"image": "hashicorp/storagelocker",
 								},

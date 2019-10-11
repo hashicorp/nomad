@@ -283,6 +283,11 @@ job "binstore-storagelocker" {
     task "storagelocker" {
       driver = "docker"
 
+      lifecycle {
+        run_level = "prestart"
+        block_until = "completed"
+      }
+
       config {
         image = "hashicorp/storagelocker"
       }
