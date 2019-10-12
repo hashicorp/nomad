@@ -1,3 +1,5 @@
+import faker from 'nomad-ui/mirage/faker';
+
 export function uxrTask0(server) {
   // !! Needs a corresponding job file
   server.createList('agent', 3);
@@ -146,4 +148,61 @@ export function uxrTask3a(server) {
     clientStatus: 'failed',
     jobVersion: 1,
   });
+}
+
+export function uxrTask4a(server) {
+  const [summary] = task4Macro(server, '5: Q 2 R 1 C 2');
+  summary.update({
+    desiredCanaries: 1,
+    desiredTotal: 3,
+    placedCanaries: [faker.random.uuid()],
+    placedAllocs: 1,
+    healthyAllocs: 0,
+  });
+}
+
+export function uxrTask4b(server) {
+  const [summary] = task4Macro(server, '5: Q 2 R 1 C 2');
+  summary.update({
+    desiredCanaries: 1,
+    desiredTotal: 3,
+    placedCanaries: [faker.random.uuid()],
+    placedAllocs: 1,
+    healthyAllocs: 1,
+  });
+}
+
+export function uxrTask4c(server) {
+  const [summary, deployment] = task4Macro(server, '5: R 3 C 2');
+  summary.update({
+    desiredCanaries: 1,
+    desiredTotal: 3,
+    placedCanaries: [faker.random.uuid()],
+    placedAllocs: 3,
+    healthyAllocs: 3,
+  });
+
+  deployment.update({ status: 'successful' });
+}
+
+function task4Macro(server, ratio) {
+  server.createList('agent', 3);
+  server.createList('node', 5, 'forceAllDrivers');
+
+  const job = server.create('job', {
+    ratio,
+    status: 'running',
+    type: 'service',
+    noFailedPlacements: true,
+    activeDeployment: true,
+  });
+
+  // Return the active deployment task group summary for manipulation
+  const deployment = server.schema.deployments.where({ jobId: job.id }).models[0];
+  return [
+    server.schema.deploymentTaskGroupSummaries.where({
+      deploymentId: deployment.id,
+    }).models[0],
+    deployment,
+  ];
 }
