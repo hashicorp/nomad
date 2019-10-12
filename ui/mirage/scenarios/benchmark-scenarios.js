@@ -120,3 +120,30 @@ export function uxrTask2c(server) {
     jobVersion: 1,
   });
 }
+export function uxrTask3a(server) {
+  // !! Needs logs to be mocked on the stderr tab
+  // No data path specified for data migration. Set the DATA_PATH env var.
+  //
+  // exit 1
+  server.createList('agent', 3);
+  server.createList('node', 5, 'forceAllDrivers');
+
+  server.createList('job', 3, { status: 'running', ratio: '10: R 1' });
+  server.create('job', { status: 'running', ratio: '10: R 1 C 2' });
+  server.create('job', { status: 'running', ratio: '10: S 1 R 2 C 2' });
+  server.create('job', {
+    id: 'data-migrate',
+    status: 'dead',
+    type: 'batch',
+    ratio: '1: F 1',
+    noFailedPlacements: true,
+    noDeployments: true,
+    createAllocations: false,
+  });
+
+  server.create('allocation', {
+    jobId: 'data-migrate',
+    clientStatus: 'failed',
+    jobVersion: 1,
+  });
+}
