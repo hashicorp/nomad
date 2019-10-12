@@ -39,3 +39,30 @@ export function uxrTask1a(server) {
     jobVersion: 1,
   });
 }
+
+export function uxrTask2(server) {
+  server.createList('agent', 3);
+  server.createList('node', 5, 'forceAllDrivers');
+
+  server.create('job', {
+    id: 'web-server',
+    status: 'running',
+    groupsCount: 1,
+    ratio: '3: R 1',
+    createAllocations: false,
+    noFailedPlacements: true,
+    noDeployments: true,
+  });
+
+  server.createList('allocation', 2, {
+    jobId: 'web-server',
+    clientStatus: 'running',
+    jobVersion: 1,
+  });
+
+  server.create('allocation', 'highUsage', {
+    jobId: 'web-server',
+    clientStatus: 'running',
+    jobVersion: 1,
+  });
+}
