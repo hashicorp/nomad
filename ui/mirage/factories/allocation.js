@@ -148,6 +148,21 @@ export default Factory.extend({
     },
   }),
 
+  highUsage: trait({
+    afterCreate(allocation, server) {
+      // Each allocation has a corresponding allocation stats running on some client.
+      // Create that record, even though it's not a relationship.
+      const states = server.db.taskStates.where({ allocationId: allocation.id });
+      const taskGroupIds = server.db.taskGroups.where({ jobId: allocation.jobId }).mapBy('id');
+      const tasks = server.db.tasks.filter(t => taskGroupIds.includes(t.taskGroupId));
+      server.create('client-allocation-stat', 'highUsage', {
+        id: allocation.id,
+        _taskNames: states.mapBy('name'),
+        _tasks: tasks,
+      });
+    },
+  }),
+
   afterCreate(allocation, server) {
     Ember.assert(
       '[Mirage] No jobs! make sure jobs are created before allocations',

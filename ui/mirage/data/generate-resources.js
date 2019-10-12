@@ -1,4 +1,4 @@
-export default function generateResources() {
+export default function generateResources(cpu, mem) {
   return {
     CpuStats: {
       Measured: ['Throttled Periods', 'Throttled Time', 'Percent'],
@@ -6,7 +6,7 @@ export default function generateResources() {
       SystemMode: 0,
       ThrottledPeriods: 0,
       ThrottledTime: 0,
-      TotalTicks: 300.256693934837093,
+      TotalTicks: cpu || 300.256693934837093,
       UserMode: 0,
     },
     MemoryStats: {
@@ -15,7 +15,7 @@ export default function generateResources() {
       KernelUsage: 0,
       MaxUsage: 4710400,
       Measured: ['RSS', 'Cache', 'Swap', 'Max Usage'],
-      RSS: 1486848009,
+      RSS: mem || 1486848009,
       Swap: 0,
     },
   };
