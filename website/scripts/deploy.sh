@@ -5,6 +5,7 @@ PROJECT="nomad"
 PROJECT_URL="www.nomadproject.io"
 FASTLY_SERVICE_ID="7GrxRJP3PVBuqQbyxYQ0MV"
 FASTLY_DICTIONARY_ID="4OEpQ4S6HbEu7wkfTvrWUG"
+REDIRECTS_FILE="./source/redirects.txt"
 
 # Ensure the proper AWS environment variables are set
 if [ -z "$AWS_ACCESS_KEY_ID" ]; then
@@ -95,7 +96,9 @@ if [ -z "$NO_UPLOAD" ]; then
 fi
 
 # Add redirects if they exist
-if [ -z "$NO_REDIRECTS" ] || [ ! test -f "./redirects.txt" ]; then
+# By default, the redirects file is in the source/ directory
+
+if [ -z "$NO_REDIRECTS" ] || [ ! test -f "$REDIRECTS_FILE" ]; then
   echo "Adding redirects..."
   fields=()
   while read -r line; do
@@ -105,7 +108,7 @@ if [ -z "$NO_REDIRECTS" ] || [ ! test -f "./redirects.txt" ]; then
     # Read fields
     IFS=" " read -ra parts <<<"$line"
     fields+=("${parts[@]}")
-  done < "./redirects.txt"
+  done < "$REDIRECTS_FILE"
 
   # Check we have pairs
   if [ $((${#fields[@]} % 2)) -ne 0 ]; then
