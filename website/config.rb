@@ -6,6 +6,9 @@ activate :hashicorp do |h|
   h.github_slug = "hashicorp/nomad"
 end
 
+# Netlify redirects/headers
+proxy '_redirects', 'redirects.txt', ignore: true
+
 helpers do
   # Returns a segment tracking ID such that local development is not
   # tracked to production systems.
