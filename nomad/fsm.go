@@ -251,6 +251,13 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applySchedulerConfigUpdate(buf[1:], log.Index)
 	case structs.NodeBatchDeregisterRequestType:
 		return n.applyDeregisterNodeBatch(buf[1:], log.Index)
+
+	case structs.CSIVolumeRegisterRequestType:
+		return n.applyCSIVolumeRegister(buf[1:], log.Index)
+	case structs.CSIVolumeDeregisterRequestType:
+		return n.applyCSIVolumeDeregister(buf[1:], log.Index)
+	case structs.CSIVolumeClaimRequestType:
+		return n.applyCSIVolumeClaim(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -1054,6 +1061,51 @@ func (n *nomadFSM) applySchedulerConfigUpdate(buf []byte, index uint64) interfac
 		return applied
 	}
 	return n.state.SchedulerSetConfig(index, &req.Config)
+}
+
+func (n *nomadFSM) applyCSIVolumeRegister(buf []byte, index uint64) interface{} {
+	var req structs.CSIVolumeRegisterRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_register"}, time.Now())
+
+	if err := n.state.CSIVolumeRegister(index, req.Volumes); err != nil {
+		n.logger.Error("CSIVolumeRegister failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyCSIVolumeDeregister(buf []byte, index uint64) interface{} {
+	var req structs.CSIVolumeDeregisterRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_deregister"}, time.Now())
+
+	if err := n.state.CSIVolumeDeregister(index, req.Namespace, req.VolumeIDs); err != nil {
+		n.logger.Error("CSIVolumeDeregister failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyCSIVolumeClaim(buf []byte, index uint64) interface{} {
+	var req structs.CSIVolumeClaimRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_claim"}, time.Now())
+
+	if err := n.state.CSIVolumeClaim(index, req.Namespace, req.VolumeID, req.Allocation, req.Claim); err != nil {
+		n.logger.Error("CSIVolumeClaim failed", "error", err)
+		return err
+	}
+
+	return nil
 }
 
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
