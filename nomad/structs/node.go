@@ -54,6 +54,14 @@ func (t *CSITopology) Copy() *CSITopology {
 	}
 }
 
+func (t *CSITopology) Equal(o *CSITopology) bool {
+	if t == nil || o == nil {
+		return t == o
+	}
+
+	return helper.CompareMapStringString(t.Segments, o.Segments)
+}
+
 // CSINodeInfo is the fingerprinted data from a CSI Plugin that is specific to
 // the Node API.
 type CSINodeInfo struct {
