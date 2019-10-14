@@ -86,6 +86,9 @@ const (
 	ClusterMetadataRequestType
 	ServiceIdentityAccessorRegisterRequestType
 	ServiceIdentityAccessorDeregisterRequestType
+	CSIVolumeRegisterRequestType
+	CSIVolumeDeregisterRequestType
+	CSIVolumeClaimRequestType
 )
 
 const (
