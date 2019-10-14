@@ -38,10 +38,11 @@ variable "nomad_sha" {
 }
 
 provider "aws" {
-  region = "${var.region}"
+  region = var.region
 }
 
-resource "random_pet" "e2e" {}
+resource "random_pet" "e2e" {
+}
 
 locals {
   random_name = "${var.name}-${random_pet.e2e.id}"
@@ -49,10 +50,10 @@ locals {
 
 # Generates keys to use for provisioning and access
 module "keys" {
-  name   = "${local.random_name}"
-  path   = "${path.root}/keys"
-  source = "mitchellh/dynamic-keys/aws"
-  version = "v1.0.0"
+  name    = local.random_name
+  path    = "${path.root}/keys"
+  source  = "mitchellh/dynamic-keys/aws"
+  version = "v2.0.0"
 }
 
 data "aws_ami" "main" {
@@ -68,17 +69,17 @@ data "aws_ami" "main" {
     name   = "tag:OS"
     values = ["Ubuntu"]
   }
-
 }
 
-data "aws_caller_identity" "current" {}
+data "aws_caller_identity" "current" {
+}
 
 output "servers" {
-  value = "${aws_instance.server.*.public_ip}"
+  value = aws_instance.server.*.public_ip
 }
 
 output "clients" {
-  value = "${aws_instance.client.*.public_ip}"
+  value = aws_instance.client.*.public_ip
 }
 
 output "message" {
@@ -87,8 +88,8 @@ Your cluster has been provisioned! - To prepare your environment, run the
 following:
 
 ```
-export NOMAD_ADDR=http://${aws_instance.client.0.public_ip}:4646
-export CONSUL_HTTP_ADDR=http://${aws_instance.client.0.public_ip}:8500
+export NOMAD_ADDR=http://${aws_instance.client[0].public_ip}:4646
+export CONSUL_HTTP_ADDR=http://${aws_instance.client[0].public_ip}:8500
 export NOMAD_E2E=1
 ```
 
@@ -100,7 +101,8 @@ go test -v ./e2e
 
 ssh into nodes with:
 ```
-ssh -i keys/${local.random_name}.pem ubuntu@${aws_instance.client.0.public_ip}
+ssh -i keys/${local.random_name}.pem ubuntu@${aws_instance.client[0].public_ip}
 ```
 EOM
+
 }
