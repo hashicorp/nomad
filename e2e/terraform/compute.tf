@@ -53,17 +53,9 @@ resource "aws_instance" "server" {
       private_key = "${module.keys.private_key_pem}"
     }
   }
-
   provisioner "remote-exec" {
     inline = [
-      "aws s3 cp s3://nomad-team-test-binary/builds-oss/${var.nomad_sha}.tar.gz nomad.tar.gz",
-      "sudo cp /ops/shared/config/nomad.service /etc/systemd/system/nomad.service",
-      "sudo tar -zxvf nomad.tar.gz -C /usr/local/bin/",
-      "sudo cp /tmp/server.hcl /etc/nomad.d/nomad.hcl",
-      "sudo chmod 0755 /usr/local/bin/nomad",
-      "sudo chown root:root /usr/local/bin/nomad",
-      "sudo systemctl enable nomad.service",
-      "sudo systemctl start nomad.service",
+      "/ops/shared/config/provision-server.sh ${var.nomad_sha}",
     ]
 
     connection {
@@ -111,28 +103,8 @@ resource "aws_instance" "client" {
 
   provisioner "remote-exec" {
     inline = [
-      "aws s3 cp s3://nomad-team-test-binary/builds-oss/${var.nomad_sha}.tar.gz nomad.tar.gz",
-      "sudo tar -zxvf nomad.tar.gz -C /usr/local/bin/",
-      "sudo cp /ops/shared/config/nomad.service /etc/systemd/system/nomad.service",
-      "sudo cp /tmp/client.hcl /etc/nomad.d/nomad.hcl",
-      "sudo chmod 0755 /usr/local/bin/nomad",
-      "sudo chown root:root /usr/local/bin/nomad",
-
-      # Setup Host Volumes
-      "sudo mkdir /tmp/data",
-
-      # Run Nomad Service
-      "sudo systemctl enable nomad.service",
-
-      "sudo systemctl start nomad.service",
-
-      # Install CNI plugins
-      "sudo mkdir -p /opt/cni/bin",
-
-      "wget -q -O - https://github.com/containernetworking/plugins/releases/download/v0.8.2/cni-plugins-linux-amd64-v0.8.2.tgz | sudo tar -C /opt/cni/bin -xz",
+      "/ops/shared/config/provision-client.sh ${var.nomad_sha}",
     ]
-
-    # Setup host volumes
 
     connection {
       user        = "ubuntu"
