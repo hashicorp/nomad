@@ -7,7 +7,7 @@ Prefer adding a new message to changing any existing RPC messages.
 * [ ] `Request` struct and `*RequestType` constant in
       `nomad/structs/structs.go`. Append the constant, old constant
       values must remain unchanged
-* [ ] In `nomad/fsm.go`, add a dispatch case to the switch statement in `Apply`
+* [ ] In `nomad/fsm.go`, add a dispatch case to the switch statement in `(n *nomadFSM) Apply`
   * `*nomadFSM` method to decode the request and call the state method
 * [ ] State method for modifying objects in a `Txn` in `nomad/state/state_store.go`
   * `nomad/state/state_store_test.go`
