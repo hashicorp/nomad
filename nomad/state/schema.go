@@ -47,6 +47,7 @@ func init() {
 		autopilotConfigTableSchema,
 		schedulerConfigTableSchema,
 		clusterMetaTableSchema,
+		csiVolumeTableSchema,
 	}...)
 }
 
@@ -673,6 +674,49 @@ func clusterMetaTableSchema() *memdb.TableSchema {
 				AllowMissing: false,
 				Unique:       true,
 				Indexer:      singletonRecord, // we store only 1 cluster metadata
+			},
+		},
+	}
+}
+
+func csiVolumeTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "csi_volumes",
+		Indexes: map[string]*memdb.IndexSchema{
+			// Primary index is used for volume upsert
+			// and simple direct lookup. ID is required to be
+			// unique.
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+
+				// Use a compound so (Namespace, ID) is unique
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
+				},
+			},
+			"driver": {
+				Name:         "driver",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "Driver",
+						},
+					},
+				},
 			},
 		},
 	}
