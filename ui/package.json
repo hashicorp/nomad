@@ -16,6 +16,7 @@
     "build-storybook": "ember build --environment=test && build-storybook -s dist",
     "storybook": "ember serve --environment=test & start-storybook -p 9001 -s dist --ci",
     "FIXME": "I have --ci because it was annoying for it to keep opening tabs, but maybe remove once I’m not restarting the server so much?",
+    "gen-story-md": "node .storybook/gen-story-md.js",
     "test": "./node_modules/ember-cli/bin/ember test"
   },
   "husky": {
@@ -105,6 +106,9 @@
     "query-string": "^5.0.0",
     "qunit-dom": "^0.9.0",
     "sass": "^1.17.3"
+  },
+  "optionalDependencies": {
+    "jsdoc-to-markdown": "^5.0.0"
   },
   "engines": {
     "node": "6.* || 8.* || >= 10.*"
