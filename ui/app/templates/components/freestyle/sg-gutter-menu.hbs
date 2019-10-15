@@ -37,7 +37,7 @@
                 {{#power-select
                   selected=(or selection "One")
                   options=(array "One" "Two" "Three")
-                  onchange=(action (mut selection))
+                  onChange=(action (mut selection))
                   as |option|}}
                   {{option}}
                 {{/power-select}}

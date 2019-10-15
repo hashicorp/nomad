@@ -1,7 +1,7 @@
 import { inject as service } from '@ember/service';
 import { next } from '@ember/runloop';
 import Route from '@ember/routing/route';
-import { AbortError } from 'ember-data/adapters/errors';
+import { AbortError } from '@ember-data/adapter/error';
 import RSVP from 'rsvp';
 
 export default Route.extend({

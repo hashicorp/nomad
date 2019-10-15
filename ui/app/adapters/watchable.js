@@ -3,7 +3,7 @@ import { assign } from '@ember/polyfills';
 import { inject as service } from '@ember/service';
 import queryString from 'query-string';
 import ApplicationAdapter from './application';
-import { AbortError } from 'ember-data/adapters/errors';
+import { AbortError } from '@ember-data/adapter/error';
 
 export default ApplicationAdapter.extend({
   watchList: service(),
