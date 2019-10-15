@@ -3,7 +3,6 @@ package agent
 import (
 	"encoding/base64"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -357,8 +356,7 @@ func TestHTTP_FS_Stream_NoFollow(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/stream/%s?path=alloc/logs/web.stdout.0&offset=%d&origin=end&follow=false",
 			a.ID, offset)
 
-		p, _ := io.Pipe()
-		req, err := http.NewRequest("GET", path, p)
+		req, err := http.NewRequest("GET", path, nil)
 		require.Nil(err)
 		respW := testutil.NewResponseRecorder()
 		doneCh := make(chan struct{})
@@ -386,8 +384,6 @@ func TestHTTP_FS_Stream_NoFollow(t *testing.T) {
 		case <-time.After(1 * time.Second):
 			t.Fatal("should close but did not")
 		}
-
-		p.Close()
 	})
 }
 
@@ -404,9 +400,7 @@ func TestHTTP_FS_Stream_Follow(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/stream/%s?path=alloc/logs/web.stdout.0&offset=%d&origin=end",
 			a.ID, offset)
 
-		p, _ := io.Pipe()
-
-		req, err := http.NewRequest("GET", path, p)
+		req, err := http.NewRequest("GET", path, nil)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
 		doneCh := make(chan struct{})
@@ -434,8 +428,6 @@ func TestHTTP_FS_Stream_Follow(t *testing.T) {
 			t.Fatal("shouldn't close")
 		case <-time.After(1 * time.Second):
 		}
-
-		p.Close()
 	})
 }
 
@@ -451,8 +443,7 @@ func TestHTTP_FS_Logs(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=%d&origin=end&plain=true",
 			a.ID, offset)
 
-		p, _ := io.Pipe()
-		req, err := http.NewRequest("GET", path, p)
+		req, err := http.NewRequest("GET", path, nil)
 		require.Nil(err)
 		respW := testutil.NewResponseRecorder()
 		go func() {
@@ -472,8 +463,6 @@ func TestHTTP_FS_Logs(t *testing.T) {
 		}, func(err error) {
 			t.Fatal(err)
 		})
-
-		p.Close()
 	})
 }
 
@@ -489,8 +478,7 @@ func TestHTTP_FS_Logs_Follow(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=%d&origin=end&plain=true&follow=true",
 			a.ID, offset)
 
-		p, _ := io.Pipe()
-		req, err := http.NewRequest("GET", path, p)
+		req, err := http.NewRequest("GET", path, nil)
 		require.Nil(err)
 		respW := testutil.NewResponseRecorder()
 		errCh := make(chan error)
@@ -517,8 +505,6 @@ func TestHTTP_FS_Logs_Follow(t *testing.T) {
 			t.Fatalf("shouldn't exit: %v", err)
 		case <-time.After(1 * time.Second):
 		}
-
-		p.Close()
 	})
 }
 
@@ -528,10 +514,7 @@ func TestHTTP_FS_Logs_PropagatesErrors(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=0&origin=end&plain=true",
 			uuid.Generate())
 
-		p, _ := io.Pipe()
-		defer p.Close()
-
-		req, err := http.NewRequest("GET", path, p)
+		req, err := http.NewRequest("GET", path, nil)
 		require.NoError(t, err)
 		respW := testutil.NewResponseRecorder()
 
