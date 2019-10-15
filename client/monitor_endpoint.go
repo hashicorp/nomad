@@ -23,13 +23,13 @@ type Monitor struct {
 
 func NewMonitorEndpoint(c *Client) *Monitor {
 	m := &Monitor{c: c}
-	m.c.streamingRpcs.Register("Client.Monitor", m.monitor)
+	m.c.streamingRpcs.Register("Agent.Monitor", m.monitor)
 	return m
 }
 
 func (m *Monitor) monitor(conn io.ReadWriteCloser) {
 	defer metrics.MeasureSince([]string{"client", "monitor", "monitor"}, time.Now())
-	// defer conn.Close()
+	defer conn.Close()
 
 	// Decode arguments
 	var req cstructs.MonitorRequest
@@ -61,8 +61,6 @@ func (m *Monitor) monitor(conn io.ReadWriteCloser) {
 		handleStreamResultError(errors.New("Unknown log level"), helper.Int64ToPtr(400), encoder)
 		return
 	}
-
-	// var buf bytes.Buffer
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -96,11 +94,12 @@ OUTER:
 		select {
 		case log := <-streamWriter.logCh:
 			var resp cstructs.StreamErrWrapper
+
+			resp.Payload = log
 			if err := encoder.Encode(resp); err != nil {
 				streamErr = err
 				break OUTER
 			}
-			resp.Payload = []byte(log)
 			encoder.Reset(conn)
 		case <-ctx.Done():
 			break OUTER
@@ -117,7 +116,7 @@ OUTER:
 type streamWriter struct {
 	sync.Mutex
 	logs         []string
-	logCh        chan string
+	logCh        chan []byte
 	index        int
 	droppedCount int
 }
@@ -125,7 +124,7 @@ type streamWriter struct {
 func newStreamWriter(buf int) *streamWriter {
 	return &streamWriter{
 		logs:  make([]string, buf),
-		logCh: make(chan string, buf),
+		logCh: make(chan []byte, buf),
 		index: 0,
 	}
 }
@@ -136,16 +135,16 @@ func (d *streamWriter) Write(p []byte) (n int, err error) {
 
 	// Strip off newlines at the end if there are any since we store
 	// individual log lines in the agent.
-	n = len(p)
-	if p[n-1] == '\n' {
-		p = p[:n-1]
-	}
+	// n = len(p)
+	// if p[n-1] == '\n' {
+	// 	p = p[:n-1]
+	// }
 
 	d.logs[d.index] = string(p)
 	d.index = (d.index + 1) % len(d.logs)
 
 	select {
-	case d.logCh <- string(p):
+	case d.logCh <- p:
 	default:
 		d.droppedCount++
 	}

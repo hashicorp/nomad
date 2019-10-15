@@ -195,11 +195,11 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 		var handler structs.StreamingRpcHandler
 		var handlerErr error
 		if useLocalClient {
-			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Client.Monitor")
+			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.Monitor")
 		} else if useClientRPC {
-			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Client.Monitor")
+			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Agent.Monitor")
 		} else if useServerRPC {
-			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Client.Monitor")
+			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.Monitor")
 		} else {
 			handlerErr = CodedError(400, "No local Node and node_id not provided")
 		}

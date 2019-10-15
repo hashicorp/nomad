@@ -236,7 +236,6 @@ func (c *Client) setupClientRpcServer(server *rpc.Server) {
 	server.Register(c.endpoints.ClientStats)
 	server.Register(c.endpoints.FileSystem)
 	server.Register(c.endpoints.Allocations)
-	server.Register(c.endpoints.Monitor)
 }
 
 // rpcConnListener is a long lived function that listens for new connections

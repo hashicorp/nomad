@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -318,21 +319,26 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 			// fully set up
 			maxLogAttempts := 10
 			tried := 0
+			out := ""
 			testutil.WaitForResult(func() (bool, error) {
 				if tried < maxLogAttempts {
 					s.Server.logger.Debug("log that should not be sent")
 					s.Server.logger.Warn("log that should be sent")
 					tried++
 				}
+				output, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					return false, err
+				}
 
-				got := resp.Body.String()
+				out += string(output)
 				want := "[WARN]  http: log that should be sent"
-				if strings.Contains(got, want) {
+				if strings.Contains(out, want) {
 					require.NotContains(t, resp.Body.String(), "[DEBUG]")
 					return true, nil
 				}
 
-				return false, fmt.Errorf("missing expected log, got: %v, want: %v", got, want)
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", out, want)
 			}, func(err error) {
 				require.Fail(t, err.Error())
 			})

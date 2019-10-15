@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -261,7 +262,7 @@ func TestAgent_Health(t *testing.T) {
 	assert.True(health.Server.Ok)
 }
 
-func TestAgent_Monitor(t *testing.T) {
+func TestAgent_MonitorServer(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -269,7 +270,40 @@ func TestAgent_Monitor(t *testing.T) {
 	agent := c.Agent()
 
 	doneCh := make(chan struct{})
-	logCh, err := agent.Monitor("debug", doneCh, nil)
+	logCh, err := agent.Monitor("debug", "", doneCh, nil)
+	defer close(doneCh)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// make a request to generate some logs
+	_, err = agent.Region()
+	require.NoError(t, err)
+
+	// Wait for the first log message and validate it
+	for {
+		select {
+		case log := <-logCh:
+			if log == " " {
+				return
+			}
+			require.Contains(t, log, "[DEBUG]")
+		case <-time.After(10 * time.Second):
+			require.Fail(t, "failed to get a log message")
+		}
+	}
+}
+func TestAgent_MonitorWithNode(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	agent := c.Agent()
+	id, _ := uuid.GenerateUUID()
+
+	doneCh := make(chan struct{})
+	// todo need to create or stub a nodeid?
+	logCh, err := agent.Monitor("debug", id, doneCh, nil)
 	defer close(doneCh)
 	if err != nil {
 		t.Fatalf("err: %v", err)
