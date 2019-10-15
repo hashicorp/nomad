@@ -1,4 +1,4 @@
-
+/* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
 import { storiesOf } from '@storybook/ember';
 import notes from './test.md';
@@ -6,7 +6,7 @@ import notes from './test.md';
 storiesOf('Test/', module)
   .addParameters({ options: { showPanel: false } })
   .add(
-    `Test`,
+    'Test',
     () => ({
       template: hbs`
       <h2>a story</h2>
@@ -14,7 +14,6 @@ storiesOf('Test/', module)
     `,
       context: {
         close: () => {
-          console.log('closing!');
         },
         message: 'Hello!',
       },
