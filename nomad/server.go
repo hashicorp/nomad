@@ -91,7 +91,7 @@ const (
 type Server struct {
 	config *Config
 
-	logger log.Logger
+	logger log.InterceptLogger
 
 	// Connection pool to other Nomad servers
 	connPool *pool.ConnPool
@@ -252,6 +252,7 @@ type endpoints struct {
 	// Client endpoints
 	ClientStats       *ClientStats
 	FileSystem        *FileSystem
+	Monitor           *Monitor
 	ClientAllocations *ClientAllocations
 }
 
@@ -290,7 +291,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 	}
 
 	// Create the logger
-	logger := config.Logger.ResetNamed("nomad")
+	logger := config.Logger.ResetNamedIntercept("nomad")
 
 	// Create the server
 	s := &Server{
@@ -1044,6 +1045,9 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		// Streaming endpoints
 		s.staticEndpoints.FileSystem = &FileSystem{srv: s, logger: s.logger.Named("client_fs")}
 		s.staticEndpoints.FileSystem.register()
+
+		s.staticEndpoints.Monitor = &Monitor{srv: s}
+		s.staticEndpoints.Monitor.register()
 	}
 
 	// Register the static handlers

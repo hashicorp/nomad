@@ -41,6 +41,9 @@ type MonitorRequest struct {
 	// LogJSON specifies if log format should be unstructured or json
 	LogJSON bool
 
+	// NodeID is the node we want to track the logs of
+	NodeID string
+
 	structs.QueryOptions
 }
 

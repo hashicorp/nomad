@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
-	"sync"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -62,39 +63,36 @@ func (m *Monitor) monitor(conn io.ReadWriteCloser) {
 		return
 	}
 
+	stopCh := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
+	defer close(stopCh)
 	defer cancel()
 
-	streamWriter := newStreamWriter(512)
-
-	streamLog := log.New(&log.LoggerOptions{
-		Level:  logLevel,
-		Output: streamWriter,
+	monitor := monitor.New(512, m.c.logger, &log.LoggerOptions{
+		Level:      logLevel,
+		JSONFormat: false,
 	})
-	m.c.logger.RegisterSink(streamLog)
-	defer m.c.logger.DeregisterSink(streamLog)
 
 	go func() {
-		for {
-			if _, err := conn.Read(nil); err != nil {
-				// One end of the pipe was explicitly closed, exit cleanly
-				cancel()
-				return
-			}
-			select {
-			case <-ctx.Done():
-				return
-			}
+		if _, err := conn.Read(nil); err != nil {
+			close(stopCh)
+			cancel()
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
 		}
 	}()
+
+	logCh := monitor.Start(stopCh)
 
 	var streamErr error
 OUTER:
 	for {
 		select {
-		case log := <-streamWriter.logCh:
+		case log := <-logCh:
 			var resp cstructs.StreamErrWrapper
-
 			resp.Payload = log
 			if err := encoder.Encode(resp); err != nil {
 				streamErr = err
@@ -107,46 +105,15 @@ OUTER:
 	}
 
 	if streamErr != nil {
-		handleStreamResultError(streamErr, helper.Int64ToPtr(500), encoder)
+		// Nothing to do as conn is closed
+		if streamErr == io.EOF || strings.Contains(streamErr.Error(), "closed") {
+			return
+		}
+
+		// Attempt to send the error
+		encoder.Encode(&cstructs.StreamErrWrapper{
+			Error: cstructs.NewRpcError(streamErr, helper.Int64ToPtr(500)),
+		})
 		return
 	}
-
-}
-
-type streamWriter struct {
-	sync.Mutex
-	logs         []string
-	logCh        chan []byte
-	index        int
-	droppedCount int
-}
-
-func newStreamWriter(buf int) *streamWriter {
-	return &streamWriter{
-		logs:  make([]string, buf),
-		logCh: make(chan []byte, buf),
-		index: 0,
-	}
-}
-
-func (d *streamWriter) Write(p []byte) (n int, err error) {
-	d.Lock()
-	defer d.Unlock()
-
-	// Strip off newlines at the end if there are any since we store
-	// individual log lines in the agent.
-	// n = len(p)
-	// if p[n-1] == '\n' {
-	// 	p = p[:n-1]
-	// }
-
-	d.logs[d.index] = string(p)
-	d.index = (d.index + 1) % len(d.logs)
-
-	select {
-	case d.logCh <- p:
-	default:
-		d.droppedCount++
-	}
-	return
 }

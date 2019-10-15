@@ -447,7 +447,7 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) 
 }
 
 // setupAgent is used to start the agent and various interfaces
-func (c *Command) setupAgent(config *Config, logger hclog.MultiSinkLogger, logOutput io.Writer, inmem *metrics.InmemSink) error {
+func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOutput io.Writer, inmem *metrics.InmemSink) error {
 	c.Ui.Output("Starting Nomad agent...")
 	agent, err := NewAgent(config, logger, logOutput, inmem)
 	if err != nil {
@@ -602,7 +602,7 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Create logger
-	logger := hclog.NewMultiSink(&hclog.LoggerOptions{
+	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
 		Name:       "agent",
 		Level:      hclog.LevelFromString(config.LogLevel),
 		Output:     logOutput,

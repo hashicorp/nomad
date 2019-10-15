@@ -72,7 +72,7 @@ func Logger(t LogPrinter) *log.Logger {
 }
 
 //HCLogger returns a new test hc-logger.
-func HCLogger(t LogPrinter) hclog.MultiSinkLogger {
+func HCLogger(t LogPrinter) hclog.InterceptLogger {
 	level := hclog.Trace
 	envLogLevel := os.Getenv("NOMAD_TEST_LOG_LEVEL")
 	if envLogLevel != "" {
@@ -83,7 +83,7 @@ func HCLogger(t LogPrinter) hclog.MultiSinkLogger {
 		Output:          NewWriter(t),
 		IncludeLocation: true,
 	}
-	return hclog.NewMultiSink(opts)
+	return hclog.NewInterceptLogger(opts)
 }
 
 type prefixStdout struct {

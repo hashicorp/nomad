@@ -39,7 +39,7 @@ job "redis" {
 
         network {
           mbits = 10
-          port  "db"  {}
+          port "db" {}
         }
       }
 

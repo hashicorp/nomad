@@ -106,8 +106,6 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	srv.registerHandlers(config.EnableDebug)
 
 	// Handle requests with gzip compression
-	// Use MinSize of 1 to allow a zero byte flush to return
-	// response header used for streaming
 	gzip, err := gziphandler.GzipHandlerWithOpts(gziphandler.MinSize(0))
 	if err != nil {
 		return nil, err
