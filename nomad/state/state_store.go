@@ -1506,6 +1506,142 @@ func (s *StateStore) JobSummaryByPrefix(ws memdb.WatchSet, namespace, id string)
 	return iter, nil
 }
 
+// CSIVolumeRegister adds a volume to the server store, iff it's not new
+func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolume) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for _, v := range volumes {
+		// Check for volume existence
+		_, obj, err := txn.FirstWatch("csi_volumes", "id", v.Namespace, v.ID)
+		if err != nil {
+			return fmt.Errorf("volume existence check: %v", err)
+		}
+		if obj != nil {
+			return fmt.Errorf("volume exists: %s", v.ID)
+		}
+
+		err = txn.Insert("csi_volumes", v)
+		if err != nil {
+			return fmt.Errorf("volume insert: %v", err)
+		}
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// CSIVolumeByID is used to lookup a single volume
+func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*structs.CSIVolume, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, obj, err := txn.FirstWatch("csi_volumes", "id", namespace, id)
+	if err != nil {
+		return nil, fmt.Errorf("volume lookup failed: %s %s %v", namespace, id, err)
+	}
+	ws.Add(watchCh)
+
+	if obj != nil {
+		v := obj.(*structs.CSIVolume)
+		return v, nil
+	}
+
+	return nil, nil
+}
+
+// CSIVolumes looks up the entire csi_volumes table
+func (s *StateStore) CSIVolumesByNS(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("csi_volumes", "id_prefix", namespace)
+	if err != nil {
+		return nil, fmt.Errorf("volume lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// CSIVolumes looks up the entire csi_volumes table
+func (s *StateStore) CSIVolumesByNSDriver(ws memdb.WatchSet, namespace, driver string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("csi_volumes", "driver", namespace, driver)
+	if err != nil {
+		return nil, fmt.Errorf("volume lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// CSIVolumes looks up the entire csi_volumes table
+func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("csi_volumes", "id")
+	if err != nil {
+		return nil, fmt.Errorf("volume lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// CSIVolumeClaim updates the volume's claim count and allocation list
+func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, alloc *structs.Allocation, claim structs.CSIVolumeClaimMode) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	row, err := txn.First("csi_volumes", "id", namespace, id)
+	if err != nil {
+		return fmt.Errorf("volume lookup failed: %s %s: %v", namespace, id, err)
+	}
+	if row == nil {
+		return fmt.Errorf("volume not found: %s %s", namespace, id)
+	}
+
+	volume, ok := row.(*structs.CSIVolume)
+	if !ok {
+		return fmt.Errorf("volume row conversion error")
+	}
+
+	if !volume.Claim(claim, alloc) {
+		return fmt.Errorf("volume max claim reached")
+	}
+
+	if err = txn.Insert("csi_volumes", volume); err != nil {
+		return fmt.Errorf("volume update failed: %s %s: %v", namespace, id, err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// CSIVolumeDeregister removes the volume from the server
+func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for _, id := range ids {
+		existing, err := txn.First("csi_volumes", "id", namespace, id)
+		if err != nil {
+			return fmt.Errorf("volume lookup failed: %s %s: %v", namespace, id, err)
+		}
+
+		if existing == nil {
+			return fmt.Errorf("volume not found: %s %s", namespace, id)
+		}
+
+		if err = txn.Delete("csi_volumes", existing); err != nil {
+			return fmt.Errorf("volume delete failed: %s %s: %v", namespace, id, err)
+		}
+	}
+
+	txn.Commit()
+	return nil
+}
+
 // UpsertPeriodicLaunch is used to register a launch or update it.
 func (s *StateStore) UpsertPeriodicLaunch(index uint64, launch *structs.PeriodicLaunch) error {
 	txn := s.db.Txn(true)
