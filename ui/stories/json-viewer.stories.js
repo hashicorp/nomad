@@ -2,6 +2,23 @@ import hbs from 'htmlbars-inline-precompile';
 import { storiesOf } from '@storybook/ember';
 import notes from './json-viewer.md';
 
+storiesOf('JsonViewer/', module)
+  .addParameters({ options: { showPanel: true } })
+  .add(`JsonViewer`, () => ({
+    template: hbs`
+      <h5 class="title is-5">JSON Viewer</h5>
+      {{json-viewer json=jsonSmall}}
+      <h6 class="title is-6">JSON Viewer for full document</h6>
+      {{json-viewer json=jsonLarge}}
+    `,
+    context: {
+      jsonLarge,
+      jsonSmall,
+    },
+  }),
+  {notes}
+);
+
 const jsonSmall = {
   "foo": "bar",
   "number": 123456789,
@@ -155,20 +172,3 @@ const jsonLarge = {
   "ModifyIndex": 27,
   "JobModifyIndex": 27
 };
-
-storiesOf('JsonViewer/', module)
-  .addParameters({ options: { showPanel: true } })
-  .add(`JsonViewer`, () => ({
-    template: hbs`
-      <h5 class="title is-5">JSON Viewer</h5>
-      {{json-viewer json=jsonSmall}}
-      <h6 class="title is-6">JSON Viewer for full document</h6>
-      {{json-viewer json=jsonLarge}}
-    `,
-    context: {
-      jsonLarge,
-      jsonSmall,
-    },
-  }),
-  {notes}
-);
