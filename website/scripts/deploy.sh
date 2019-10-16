@@ -159,11 +159,6 @@ if [ -z "$NO_REDIRECTS" ] || [ ! test -f "$REDIRECTS_FILE" ]; then
       echo "'$field' is > 256 characters!"
       exit 1
     fi
-
-    if [ "${field:0:1}" != "/" ]; then
-      echo "'$field' does not start with /!"
-      exit 1
-    fi
   done
 
   # Build the payload for single-request updates.
