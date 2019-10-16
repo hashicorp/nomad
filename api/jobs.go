@@ -1001,6 +1001,7 @@ type JobRegisterResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobModifyIndex  uint64
+	JobVersion      uint64
 
 	// Warnings contains any warnings about the given job. These may include
 	// deprecation warnings.

@@ -47,6 +47,10 @@ func TestJobEndpoint_Register(t *testing.T) {
 		t.Fatalf("bad index: %d", resp.Index)
 	}
 
+	if resp.JobVersion != 0 {
+		t.Fatalf("bad job version: %d", resp.JobVersion)
+	}
+
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
@@ -142,6 +146,7 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 	var resp structs.JobRegisterResponse
 	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
 	require.NotZero(resp.Index)
+	require.GreaterOrEqual(resp.JobVersion, uint64(0))
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
@@ -163,6 +168,8 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 	req.Job = out
 	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
 	require.NotZero(resp.Index)
+	require.GreaterOrEqual(resp.JobVersion, uint64(0))
+
 	// Check for the new node in the FSM
 	state = s1.fsm.State()
 	ws = memdb.NewWatchSet()
@@ -227,6 +234,7 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 	var resp structs.JobRegisterResponse
 	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
 	require.NotZero(resp.Index)
+	require.GreaterOrEqual(resp.JobVersion, uint64(0))
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
@@ -258,6 +266,8 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 	req.Job = out
 	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
 	require.NotZero(resp.Index)
+	require.GreaterOrEqual(resp.JobVersion, uint64(0))
+
 	// Check for the new node in the FSM
 	state = s1.fsm.State()
 	ws = memdb.NewWatchSet()

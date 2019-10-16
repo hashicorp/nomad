@@ -290,10 +290,22 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
+	// Lookup the job again to get it's version.
+	snap, err = j.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	currentJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
+	if err != nil {
+		return err
+	}
+
 	// Populate the reply with eval information
 	reply.EvalID = eval.ID
 	reply.EvalCreateIndex = evalIndex
 	reply.Index = evalIndex
+	reply.JobVersion = currentJob.Version
+
 	return nil
 }
 
