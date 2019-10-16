@@ -119,7 +119,7 @@ export default Factory.extend({
       id: node.httpAddr,
     });
 
-    const events = server.createList('node-event', faker.random.number({ min: 1, max: 10 }), {
+    const events = server.createList('node-event', faker.random.number({ min: 1, max: 3 }), {
       nodeId: node.id,
     });
 
