@@ -89,9 +89,9 @@ export function uxrTask2b(server) {
     jobVersion: 1,
   });
 
-  server.create('allocation', 'highUsage', {
+  server.create('allocation', {
     jobId: 'web-server',
-    clientStatus: 'starting',
+    clientStatus: 'pending',
     jobVersion: 1,
   });
 }
@@ -122,6 +122,34 @@ export function uxrTask2c(server) {
     jobVersion: 1,
   });
 }
+
+export function uxrTask2d(server) {
+  server.createList('agent', 3);
+  server.createList('node', 5, 'forceAllDrivers');
+
+  server.create('job', {
+    id: 'web-server',
+    status: 'running',
+    groupsCount: 1,
+    ratio: '3: R 1',
+    createAllocations: false,
+    noFailedPlacements: true,
+    noDeployments: true,
+  });
+
+  server.createList('allocation', 2, {
+    jobId: 'web-server',
+    clientStatus: 'running',
+    jobVersion: 1,
+  });
+
+  server.create('allocation', {
+    jobId: 'web-server',
+    clientStatus: 'complete',
+    jobVersion: 1,
+  });
+}
+
 export function uxrTask3a(server) {
   // !! Needs logs to be mocked on the stderr tab
   // No data path specified for data migration. Set the DATA_PATH env var.
