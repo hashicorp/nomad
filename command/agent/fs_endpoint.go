@@ -17,12 +17,12 @@ import (
 )
 
 var (
-	allocIDNotPresentErr  = fmt.Errorf("must provide a valid alloc id")
-	fileNameNotPresentErr = fmt.Errorf("must provide a file name")
-	taskNotPresentErr     = fmt.Errorf("must provide task name")
-	logTypeNotPresentErr  = fmt.Errorf("must provide log type (stdout/stderr)")
-	clientNotRunning      = fmt.Errorf("node is not running a Nomad Client")
-	invalidOrigin         = fmt.Errorf("origin must be start or end")
+	allocIDNotPresentErr  = CodedError(400, "must provide a valid alloc id")
+	fileNameNotPresentErr = CodedError(400, "must provide a file name")
+	taskNotPresentErr     = CodedError(400, "must provide task name")
+	logTypeNotPresentErr  = CodedError(400, "must provide log type (stdout/stderr)")
+	clientNotRunning      = CodedError(400, "node is not running a Nomad Client")
+	invalidOrigin         = CodedError(400, "origin must be start or end")
 )
 
 func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -273,13 +273,13 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 
 	if followStr := q.Get("follow"); followStr != "" {
 		if follow, err = strconv.ParseBool(followStr); err != nil {
-			return nil, fmt.Errorf("failed to parse follow field to boolean: %v", err)
+			return nil, CodedError(400, fmt.Sprintf("failed to parse follow field to boolean: %v", err))
 		}
 	}
 
 	if plainStr := q.Get("plain"); plainStr != "" {
 		if plain, err = strconv.ParseBool(plainStr); err != nil {
-			return nil, fmt.Errorf("failed to parse plain field to boolean: %v", err)
+			return nil, CodedError(400, fmt.Sprintf("failed to parse plain field to boolean: %v", err))
 		}
 	}
 
@@ -295,7 +295,7 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 	if offsetString != "" {
 		var err error
 		if offset, err = strconv.ParseInt(offsetString, 10, 64); err != nil {
-			return nil, fmt.Errorf("error parsing offset: %v", err)
+			return nil, CodedError(400, fmt.Sprintf("error parsing offset: %v", err))
 		}
 	}
 
@@ -388,10 +388,13 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 			decoder.Reset(httpPipe)
 
 			if err := res.Error; err != nil {
+				code := 500
 				if err.Code != nil {
-					errCh <- CodedError(int(*err.Code), err.Error())
-					return
+					code = int(*err.Code)
 				}
+
+				errCh <- CodedError(code, err.Error())
+				return
 			}
 
 			if _, err := io.Copy(output, bytes.NewReader(res.Payload)); err != nil {
