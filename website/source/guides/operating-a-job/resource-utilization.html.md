@@ -67,7 +67,7 @@ plenty of memory headroom. We can use this information to alter our job's
 resources to better reflect its actual needs:
 
 ```hcl
-resource {
+resources {
   cpu    = 200
   memory = 10
 }
