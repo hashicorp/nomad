@@ -813,6 +813,15 @@ func cmdDevices(devices []*drivers.DeviceConfig) ([]*lconfigs.Device, error) {
 	return r, nil
 }
 
+var userMountToUnixMount = map[string]int{
+	// Empty string maps to `rprivate` for backwards compatibility in restored
+	// older tasks, where mount propagation will not be present.
+	"":                                       unix.MS_PRIVATE | unix.MS_REC, // rprivate
+	structs.VolumeMountPropagationPrivate:    unix.MS_PRIVATE | unix.MS_REC, // rprivate
+	structs.VolumeMountPropagationHostToTask: unix.MS_SLAVE | unix.MS_REC,   // rslave
+	structs.VolumeMountPropagationBidirectional: unix.MS_SHARED | unix.MS_REC, // rshared
+}
+
 // cmdMounts converts a list of driver.MountConfigs into excutor.Mounts.
 func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
 	if len(mounts) == 0 {
@@ -826,11 +835,13 @@ func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
 		if m.Readonly {
 			flags |= unix.MS_RDONLY
 		}
+
 		r[i] = &lconfigs.Mount{
-			Source:      m.HostPath,
-			Destination: m.TaskPath,
-			Device:      "bind",
-			Flags:       flags,
+			Source:           m.HostPath,
+			Destination:      m.TaskPath,
+			Device:           "bind",
+			Flags:            flags,
+			PropagationFlags: []int{userMountToUnixMount[m.PropagationMode]},
 		}
 	}
 

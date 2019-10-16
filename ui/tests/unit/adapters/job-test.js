@@ -57,6 +57,7 @@ module('Unit | Adapter | Job', function(hooks) {
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
+    await settled();
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
       [`/v1/job/${jobName}`],
@@ -75,6 +76,7 @@ module('Unit | Adapter | Job', function(hooks) {
     const jobId = JSON.stringify([jobName, jobNamespace]);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
+    await settled();
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
@@ -94,6 +96,7 @@ module('Unit | Adapter | Job', function(hooks) {
     const jobId = JSON.stringify([jobName, jobNamespace]);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
+    await settled();
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
@@ -111,6 +114,7 @@ module('Unit | Adapter | Job', function(hooks) {
     const jobId = JSON.stringify([jobName, jobNamespace]);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
+    await settled();
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
@@ -126,6 +130,7 @@ module('Unit | Adapter | Job', function(hooks) {
     const jobId = JSON.stringify(['job-1', 'default']);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
+    await settled();
 
     assert.notOk(
       pretender.handledRequests.mapBy('requestHeaders').some(headers => headers['X-Nomad-Token']),
@@ -142,6 +147,7 @@ module('Unit | Adapter | Job', function(hooks) {
 
     this.subject().set('token.secret', secret);
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
+    await settled();
 
     assert.ok(
       pretender.handledRequests
@@ -242,6 +248,8 @@ module('Unit | Adapter | Job', function(hooks) {
 
     await settled();
     this.subject().reloadRelationship(mockModel, 'summary', { watch: true });
+    await settled();
+
     assert.equal(
       pretender.handledRequests[1].url,
       '/v1/job/job-1/summary?index=2',
@@ -377,6 +385,7 @@ module('Unit | Adapter | Job', function(hooks) {
     await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
     this.subject().findAll(null, { modelName: 'job' }, null);
+    await settled();
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
@@ -399,6 +408,7 @@ module('Unit | Adapter | Job', function(hooks) {
     await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
     this.subject().findAll(null, { modelName: 'job' }, null);
+    await settled();
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
@@ -420,6 +430,7 @@ module('Unit | Adapter | Job', function(hooks) {
     await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
     this.subject().findAll(null, { modelName: 'job' }, null);
+    await settled();
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),

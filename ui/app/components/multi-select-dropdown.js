@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 import { run } from '@ember/runloop';
 
 const TAB = 9;
@@ -11,8 +11,8 @@ const ARROW_DOWN = 40;
 export default Component.extend({
   classNames: ['dropdown'],
 
-  options: computed(() => []),
-  selection: computed(() => []),
+  options: overridable(() => []),
+  selection: overridable(() => []),
 
   onSelect() {},
 

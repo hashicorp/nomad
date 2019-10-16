@@ -31,9 +31,7 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `prefix` `(string: "")` - Specifies a string to filter ACL policies based on
-  a name prefix. Because the value is decoded to bytes, the prefix must have an
-  even number of hexadecimal characters (0-9a-f). This is specified as a query
-  string parameter.
+  a name prefix. This is specified as a query string parameter.
 
 ### Sample Request
 

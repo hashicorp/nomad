@@ -1,12 +1,13 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 import moment from 'moment';
 
 export default Component.extend({
   tagName: 'ol',
   classNames: ['timeline'],
 
-  deployments: computed(() => []),
+  deployments: overridable(() => []),
 
   sortedDeployments: computed('deployments.@each.versionSubmitTime', function() {
     return this.deployments
