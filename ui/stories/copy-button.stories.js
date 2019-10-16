@@ -9,6 +9,7 @@ storiesOf('CopyButton/', module)
   .addParameters({ options: { showPanel: true } })
   .add('CopyButton', () => ({
     template: hbs`
+      <h5 class="title is-5">Copy Button</h5>
       <span class="tag is-hollow is-small no-text-transform">
         e8c898a0-794b-9063-7a7f-bf0c4a405f83
         {{copy-button clipboardText="e8c898a0-794b-9063-7a7f-bf0c4a405f83"}}
