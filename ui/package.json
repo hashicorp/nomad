@@ -108,6 +108,7 @@
     "sass": "^1.17.3"
   },
   "optionalDependencies": {
+    "@storybook/addon-knobs": "^5.1.10",
     "@storybook/addon-notes": "^5.1.10",
     "@storybook/addons": "^5.1.10",
     "jsdoc-to-markdown": "^5.0.0"
