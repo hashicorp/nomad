@@ -324,3 +324,35 @@ export function uxrTask6a(server) {
     },
   });
 }
+
+export function uxrTask7a(server) {
+  server.createList('agent', 3);
+
+  const common = {
+    schedulingEligibility: 'eligible',
+    drain: false,
+    status: 'ready',
+    datacenter: 'us-west',
+  };
+
+  server.createList('node', 5, 'forceIPv4', 'forceAllDrivers', {
+    nodeClass: 't3.small',
+    ...common,
+  });
+  server.createList('node', 5, 'forceIPv4', 'forceAllDrivers', {
+    nodeClass: 't3.medium',
+    ...common,
+  });
+  server.createList('node', 3, 'forceIPv4', 'forceAllDrivers', {
+    nodeClass: 't3.xlarge',
+    ...common,
+  });
+  server.createList('node', 2, 'forceIPv4', 'forceAllDrivers', {
+    nodeClass: 'm5.12xlarge',
+    ...common,
+  });
+
+  server.create('job');
+
+  server.createList('allocation', 15, { shallow: true });
+}
