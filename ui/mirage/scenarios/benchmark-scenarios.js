@@ -36,7 +36,7 @@ export function uxrTask1a(server) {
 
   server.create('allocation', 'rescheduled', {
     jobId: 'web-server',
-    clientStatus: 'completed',
+    clientStatus: 'complete',
     rescheduleStatus: 'starting',
     jobVersion: 1,
   });
@@ -205,4 +205,122 @@ function task4Macro(server, ratio) {
     }).models[0],
     deployment,
   ];
+}
+
+export function uxrTask6a(server) {
+  server.createList('agent', 3);
+  server.createList('node', 5, 'forceAllDrivers');
+
+  server.create('job', { status: 'running', ratio: '2: R 1 C 1' });
+  server.create('job', { status: 'running', ratio: '8: S 1 R 6 C 1 F 1' });
+  server.createList('job', 3, { status: 'running', ratio: '8: R 1' });
+
+  const job = server.create('job', {
+    id: 'jupyter-worker',
+    ratio: '6: R 1 C 1',
+    status: 'running',
+    type: 'service',
+    noFailedPlacements: true,
+    noDeployments: true,
+    createAllocations: false,
+  });
+
+  server.createList('allocation', 3, {
+    jobId: 'jupyter-worker',
+    clientStatus: 'running',
+    version: 2,
+  });
+
+  server.createList('allocation', 3, {
+    jobId: 'jupyter-worker',
+    clientStatus: 'complete',
+    version: 1,
+  });
+
+  server.create('job-version', {
+    job,
+    version: 1,
+    noActiveDeployment: true,
+    diff: null,
+  });
+
+  server.create('job-version', {
+    job,
+    version: 2,
+    noActiveDeployment: true,
+    diff: {
+      Fields: null,
+      ID: 'jupyter-worker',
+      Objects: null,
+      TaskGroups: [
+        {
+          Fields: null,
+          Name: 'jupyter-worker',
+          Objects: null,
+          Tasks: [
+            {
+              Annotations: null,
+              Fields: null,
+              Name: 'jupyter-worker',
+              Objects: [
+                {
+                  Fields: [
+                    {
+                      Annotations: null,
+                      Name: 'image',
+                      New: 'corpindustriesltd/jupyter-worker:1.1.0',
+                      Old: 'corpindustriesltd/jupyter-worker:1.0.5',
+                      Type: 'Edited',
+                    },
+                  ],
+                  Name: 'Config',
+                  Objects: null,
+                  Type: 'Edited',
+                },
+                {
+                  Fields: [
+                    {
+                      Annotations: null,
+                      Name: 'CPU',
+                      New: '500',
+                      Old: '500',
+                      Type: 'None',
+                    },
+                    {
+                      Annotations: null,
+                      Name: 'DiskMB',
+                      New: '0',
+                      Old: '0',
+                      Type: 'None',
+                    },
+                    {
+                      Annotations: null,
+                      Name: 'IOPS',
+                      New: '0',
+                      Old: '0',
+                      Type: 'None',
+                    },
+                    {
+                      Annotations: null,
+                      Name: 'MemoryMB',
+                      New: '512',
+                      Old: '256',
+                      Type: 'Edited',
+                    },
+                  ],
+                  Name: 'Resources',
+                  Objects: null,
+                  Type: 'Edited',
+                },
+              ],
+              Type: 'Edited',
+            },
+          ],
+          Type: 'Edited',
+          Updates: null,
+        },
+      ],
+      Type: 'Edited',
+    },
+  });
 }
