@@ -15,7 +15,7 @@ The `CopyButton` shows a button that copies a string to the clipboard upon click
 
 **See**
 
-- [Uses of CopyButton](https://github.com/hashicorp/nomad/search?l=Handlebars&q=CopyButton+OR+copy-button)
-- [CopyButton Source Code](https://github.com/hashicorp/nomad/blob/master/ui/app/components/copy-button.js)
+- [uses of CopyButton](https://github.com/hashicorp/nomad/search?l=Handlebars&q=CopyButton+OR+copy-button)
+- [CopyButton source](https://github.com/hashicorp/nomad/blob/master/ui/app/components/copy-button.js)
 
 ---

@@ -17,7 +17,7 @@
 
 **See**
 
-- [Uses of JsonViewer](https://github.com/hashicorp/nomad/search?l=Handlebars&q=JsonViewer+OR+json-viewer)
-- [JsonViewer Source Code](https://github.com/hashicorp/nomad/blob/master/ui/app/components/json-viewer.js)
+- [uses of JsonViewer](https://github.com/hashicorp/nomad/search?l=Handlebars&q=JsonViewer+OR+json-viewer)
+- [JsonViewer source](https://github.com/hashicorp/nomad/blob/master/ui/app/components/json-viewer.js)
 
 ---

@@ -31,8 +31,8 @@ const pageBreakIndex = md.lastIndexOf('---'); //this is our last page break
 
 const seeLinks = `**See**
 
-- [Uses of ${component}](https://github.com/hashicorp/nomad/search?l=Handlebars&q=${component}+OR+${name})
-- [${component} Source Code](https://github.com/hashicorp/nomad/blob/master/ui/${inputFile})
+- [uses of ${component}](https://github.com/hashicorp/nomad/search?l=Handlebars&q=${component}+OR+${name})
+- [${component} source](https://github.com/hashicorp/nomad/blob/master/ui/${inputFile})
 
 `;
 const generatedWarning = `<!--THIS FILE IS AUTO GENERATED. This file is generated from JSDoc comments in ${inputFile}. To make changes, first edit that file and run "yarn gen-story-md ${name}" to re-generate the content.-->
