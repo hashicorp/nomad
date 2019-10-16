@@ -3,13 +3,12 @@ import { task, timeout } from 'ember-concurrency';
 
 /**
  * @module CopyButton
- * The `CopyButton` is SOMETHING
+ * The `CopyButton` shows a button that copies a string to the clipboard upon click. It shows a temporary tooltip upon success or a permanent one upon failure.
  *
- * @example ```js
- * // a comment?
- *   {{copy-button clipboardText='the text ya'}}```
+ * @example
+ * {{copy-button clipboardText='the text to copy'}}```
  *
- * @param [clipboardText=null] {String} - The text to copy to the clipboard.
+ * @param clipboardText {String} - text to copy to the clipboard
  *
  */
 export default Component.extend({

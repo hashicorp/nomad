@@ -1,19 +1,17 @@
 <!--THIS FILE IS AUTO GENERATED. This file is generated from JSDoc comments in app/components/copy-button.js. To make changes, first edit that file and run "yarn gen-story-md copy-button" to re-generate the content.-->
 
 ## CopyButton
-The `CopyButton` is SOMETHING
+The `CopyButton` shows a button that copies a string to the clipboard upon click. It shows a temporary tooltip upon success or a permanent one upon failure.
 
 **Params**
 
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| [clipboardText] | <code>String</code> | <code></code> | The text to copy to the clipboard. |
+| Param | Type | Description |
+| --- | --- | --- |
+| clipboardText | <code>String</code> | text to copy to the clipboard |
 
 **Example**
   
-```js
-// a comment?
-  {{copy-button clipboardText='the text ya'}}```
+{{copy-button clipboardText='the text to copy'}}```
 
 **See**
 
