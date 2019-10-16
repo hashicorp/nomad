@@ -36,6 +36,14 @@
 # - Items are case-sensitive (please use all lowercase)
 #
 
+# Nomad Learn Redirects
+/intro/getting-started/install.html     https://learn.hashicorp.com/nomad/getting-started/install
+/intro/getting-started/running.html     https://learn.hashicorp.com/nomad/getting-started/running
+/intro/getting-started/jobs.html        https://learn.hashicorp.com/nomad/getting-started/jobs
+/intro/getting-started/cluster.html     https://learn.hashicorp.com/nomad/getting-started/cluster
+/intro/getting-started/ui.html          https://learn.hashicorp.com/nomad/getting-started/ui
+/intro/getting-started/next-steps.html  https://learn.hashicorp.com/nomad/getting-started/next-steps
+
 # Website
 /community.html                               /resources.html
 
