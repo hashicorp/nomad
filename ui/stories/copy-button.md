@@ -17,7 +17,7 @@ The `CopyButton` is SOMETHING
 
 **See**
 
-- [Uses of CopyButton](https://github.com/hashicorp/vault/search?l=Handlebars&q=CopyButton+OR+copy-button)
-- [CopyButton Source Code](https://github.com/hashicorp/vault/blob/master/ui/app/components/copy-button.js)
+- [Uses of CopyButton](https://github.com/hashicorp/nomad/search?l=Handlebars&q=CopyButton+OR+copy-button)
+- [CopyButton Source Code](https://github.com/hashicorp/nomad/blob/master/ui/app/components/copy-button.js)
 
 ---
