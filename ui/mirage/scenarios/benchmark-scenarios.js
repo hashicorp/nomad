@@ -375,7 +375,7 @@ export function uxrTask7a(server) {
     nodeClass: 't3.xlarge',
     ...common,
   });
-  server.createList('node', 2, 'forceIPv4', 'forceAllDrivers', {
+  server.createList('node', 1, 'forceIPv4', 'forceAllDrivers', {
     nodeClass: 'm5.12xlarge',
     ...common,
   });
