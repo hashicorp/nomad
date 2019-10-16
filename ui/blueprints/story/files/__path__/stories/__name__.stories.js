@@ -8,8 +8,8 @@ storiesOf('<%= classifiedModuleName %>/', module)
   .add(`<%= classifiedModuleName %>`, () => ({
     template: hbs`
       <h5 class="title is-5"><%= header %></h5>
-      <<%= classifiedModuleName %>/>
-    `, // FIXME the above should be curly invocation for now…???
+      {{<%= dasherizedModuleName %>}}
+    `,
     context: {},
   }),
   {notes}
