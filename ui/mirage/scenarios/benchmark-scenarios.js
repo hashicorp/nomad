@@ -375,7 +375,8 @@ export function uxrTask7a(server) {
     nodeClass: 't3.xlarge',
     ...common,
   });
-  server.createList('node', 1, 'forceIPv4', 'forceAllDrivers', {
+
+  const xlarge = server.create('node', 'forceIPv4', 'forceAllDrivers', {
     nodeClass: 'm5.12xlarge',
     ...common,
   });
@@ -383,4 +384,7 @@ export function uxrTask7a(server) {
   server.create('job');
 
   server.createList('allocation', 15, { shallow: true });
+  server.createList('allocation', 8, {
+    nodeId: xlarge.id,
+  });
 }
