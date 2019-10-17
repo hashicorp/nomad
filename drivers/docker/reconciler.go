@@ -149,7 +149,7 @@ func (r *containerReconciler) untrackedContainers(tracked map[string]bool, cutof
 }
 
 func isNomadContainer(c docker.APIContainers) bool {
-	if _, ok := c.Labels["com.hashicorp.nomad.alloc_id"]; ok {
+	if _, ok := c.Labels[dockerLabelAllocID]; ok {
 		return true
 	}
 

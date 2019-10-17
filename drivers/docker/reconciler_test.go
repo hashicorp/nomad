@@ -63,7 +63,7 @@ func TestDanglingContainerRemoval(t *testing.T) {
 	defer cleanup()
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	c, err := client.CreateContainer(docker.CreateContainerOptions{
+	nonNomadContainer, err := client.CreateContainer(docker.CreateContainerOptions{
 		Name: "mytest-image-" + uuid.Generate(),
 		Config: &docker.Config{
 			Image: cfg.Image,
@@ -72,11 +72,30 @@ func TestDanglingContainerRemoval(t *testing.T) {
 	})
 	require.NoError(t, err)
 	defer client.RemoveContainer(docker.RemoveContainerOptions{
-		ID:    c.ID,
+		ID:    nonNomadContainer.ID,
 		Force: true,
 	})
 
-	err = client.StartContainer(c.ID, nil)
+	err = client.StartContainer(nonNomadContainer.ID, nil)
+	require.NoError(t, err)
+
+	untrackedNomadContainer, err := client.CreateContainer(docker.CreateContainerOptions{
+		Name: "mytest-image-" + uuid.Generate(),
+		Config: &docker.Config{
+			Image: cfg.Image,
+			Cmd:   append([]string{cfg.Command}, cfg.Args...),
+			Labels: map[string]string{
+				dockerLabelAllocID: uuid.Generate(),
+			},
+		},
+	})
+	require.NoError(t, err)
+	defer client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:    untrackedNomadContainer.ID,
+		Force: true,
+	})
+
+	err = client.StartContainer(untrackedNomadContainer.ID, nil)
 	require.NoError(t, err)
 
 	dd := d.Impl().(*Driver)
@@ -86,41 +105,49 @@ func TestDanglingContainerRemoval(t *testing.T) {
 
 	tf := reconciler.trackedContainers()
 	require.Contains(t, tf, handle.containerID)
-	require.NotContains(t, tf, c.ID)
+	require.NotContains(t, tf, untrackedNomadContainer)
+	require.NotContains(t, tf, nonNomadContainer.ID)
 
 	// assert tracked containers should never be untracked
 	untracked, err := reconciler.untrackedContainers(trackedContainers, time.Now())
 	require.NoError(t, err)
 	require.NotContains(t, untracked, handle.containerID)
-	require.NotContains(t, untracked, c.ID)
+	require.NotContains(t, untracked, nonNomadContainer.ID)
+	require.Contains(t, untracked, untrackedNomadContainer.ID)
 
 	// assert we recognize nomad containers with appropriate cutoff
 	untracked, err = reconciler.untrackedContainers(map[string]bool{}, time.Now())
 	require.NoError(t, err)
 	require.Contains(t, untracked, handle.containerID)
-	require.NotContains(t, untracked, c.ID)
+	require.Contains(t, untracked, untrackedNomadContainer.ID)
+	require.NotContains(t, untracked, nonNomadContainer.ID)
 
 	// but ignore if creation happened before cutoff
 	untracked, err = reconciler.untrackedContainers(map[string]bool{}, time.Now().Add(-1*time.Minute))
 	require.NoError(t, err)
 	require.NotContains(t, untracked, handle.containerID)
-	require.NotContains(t, untracked, c.ID)
+	require.NotContains(t, untracked, untrackedNomadContainer.ID)
+	require.NotContains(t, untracked, nonNomadContainer.ID)
 
 	// a full integration tests to assert that containers are removed
 	prestineDriver := dockerDriverHarness(t, nil).Impl().(*Driver)
 	prestineDriver.config.GC.DanglingContainers = ContainerGCConfig{
 		Enabled:       true,
 		period:        1 * time.Second,
-		CreationGrace: 1 * time.Second,
+		CreationGrace: 0 * time.Second,
 	}
 	nReconciler := newReconciler(prestineDriver)
 
 	require.NoError(t, nReconciler.removeDanglingContainersIteration())
 
-	_, err = client.InspectContainer(c.ID)
+	_, err = client.InspectContainer(nonNomadContainer.ID)
 	require.NoError(t, err)
 
 	_, err = client.InspectContainer(handle.containerID)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), NoSuchContainerError)
+
+	_, err = client.InspectContainer(untrackedNomadContainer.ID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), NoSuchContainerError)
 }
@@ -130,55 +157,46 @@ func TestDanglingContainerRemoval(t *testing.T) {
 func TestDanglingContainerRemoval_Stopped(t *testing.T) {
 	testutil.DockerCompatible(t)
 
-	task, cfg, _ := dockerTask(t)
-	task.Resources.NomadResources.Networks = nil
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	_, cfg, _ := dockerTask(t)
 
-	// Start two containers: one nomad container, and one stopped container
-	// that acts like a nomad one
-	client, d, handle, cleanup := dockerSetup(t, task)
-	defer cleanup()
-	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
-
-	inspected, err := client.InspectContainer(handle.containerID)
-	require.NoError(t, err)
-
-	stoppedC, err := client.CreateContainer(docker.CreateContainerOptions{
-		Name:       "mytest-image-" + uuid.Generate(),
-		Config:     inspected.Config,
-		HostConfig: inspected.HostConfig,
+	client := newTestDockerClient(t)
+	container, err := client.CreateContainer(docker.CreateContainerOptions{
+		Name: "mytest-image-" + uuid.Generate(),
+		Config: &docker.Config{
+			Image: cfg.Image,
+			Cmd:   append([]string{cfg.Command}, cfg.Args...),
+			Labels: map[string]string{
+				dockerLabelAllocID: uuid.Generate(),
+			},
+		},
 	})
 	require.NoError(t, err)
 	defer client.RemoveContainer(docker.RemoveContainerOptions{
-		ID:    stoppedC.ID,
+		ID:    container.ID,
 		Force: true,
 	})
 
-	err = client.StartContainer(stoppedC.ID, nil)
+	err = client.StartContainer(container.ID, nil)
 	require.NoError(t, err)
 
-	err = client.StopContainer(stoppedC.ID, 60)
+	err = client.StopContainer(container.ID, 60)
 	require.NoError(t, err)
 
-	dd := d.Impl().(*Driver)
+	dd := dockerDriverHarness(t, nil).Impl().(*Driver)
 	reconciler := newReconciler(dd)
-	trackedContainers := map[string]bool{handle.containerID: true}
 
 	// assert nomad container is tracked, and we ignore stopped one
 	tf := reconciler.trackedContainers()
-	require.Contains(t, tf, handle.containerID)
-	require.NotContains(t, tf, stoppedC.ID)
+	require.NotContains(t, tf, container.ID)
 
-	untracked, err := reconciler.untrackedContainers(trackedContainers, time.Now())
+	untracked, err := reconciler.untrackedContainers(map[string]bool{}, time.Now())
 	require.NoError(t, err)
-	require.NotContains(t, untracked, handle.containerID)
-	require.NotContains(t, untracked, stoppedC.ID)
+	require.NotContains(t, untracked, container.ID)
 
 	// if we start container again, it'll be marked as untracked
-	require.NoError(t, client.StartContainer(stoppedC.ID, nil))
+	require.NoError(t, client.StartContainer(container.ID, nil))
 
-	untracked, err = reconciler.untrackedContainers(trackedContainers, time.Now())
+	untracked, err = reconciler.untrackedContainers(map[string]bool{}, time.Now())
 	require.NoError(t, err)
-	require.NotContains(t, untracked, handle.containerID)
-	require.Contains(t, untracked, stoppedC.ID)
+	require.Contains(t, untracked, container.ID)
 }
