@@ -1,5 +1,5 @@
 data "template_file" "user_data_server" {
-  template = file("${path.root}/user-data-server.sh")
+  template = file("${path.root}/shared/user-data-server.sh")
 
   vars = {
     server_count = var.server_count
@@ -9,7 +9,7 @@ data "template_file" "user_data_server" {
 }
 
 data "template_file" "user_data_client" {
-  template = file("${path.root}/user-data-client.sh")
+  template = file("${path.root}/shared/user-data-client.sh")
   count    = var.client_count
 
   vars = {
