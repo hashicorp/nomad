@@ -4,8 +4,8 @@
   "data_dir": "/opt/consul/data",
   "bind_addr": "0.0.0.0",
   "client_addr": "0.0.0.0",
-  "advertise_addr": "IP_ADDRESS",
-  "retry_join": ["RETRY_JOIN"],
+  "advertise_addr": "{{ GetPrivateIP }}",
+  "retry_join": ["provider=aws tag_key=ConsulAutoJoin tag_value=auto-join"],
   "connect": {
     "enabled": true
   },

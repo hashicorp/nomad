@@ -2,9 +2,9 @@
 
 set -e
 
+cfg=/opt/shared
 CONFIGDIR=/opt/shared/config
 
-CONSULCONFIGDIR=/etc/consul.d
 VAULTCONFIGDIR=/etc/vault.d
 NOMADCONFIGDIR=/etc/nomad.d
 HADOOP_VERSION=hadoop-2.7.6
@@ -19,17 +19,14 @@ IP_ADDRESS="$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ pri
 DOCKER_BRIDGE_IP_ADDRESS=(`ifconfig docker0 2>/dev/null|awk '/inet addr:/ {print $2}'|sed 's/addr://'`)
 CLOUD=$1
 SERVER_COUNT=$2
-RETRY_JOIN=$3
 
 # Consul
-sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/consul.json
-sed -i "s/SERVER_COUNT/$SERVER_COUNT/g" $CONFIGDIR/consul.json
-sed -i "s/RETRY_JOIN/$RETRY_JOIN/g" $CONFIGDIR/consul.json
-sudo cp $CONFIGDIR/consul.json $CONSULCONFIGDIR
-sudo cp $CONFIGDIR/consul_$CLOUD.service /etc/systemd/system/consul.service
-
+sed "s/SERVER_COUNT/${SERVER_COUNT}/g" \
+    "$cfg/consul/consul_server_${CLOUD}.json" > /etc/consul.d/consul.json
+sudo cp "$cfg/consul/consul_${CLOUD}.service" /etc/systemd/system/consul.service
 sudo systemctl enable consul.service
-sudo systemctl start  consul.service
+sudo systemctl start consul.service
+
 sleep 10
 export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500
 export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
