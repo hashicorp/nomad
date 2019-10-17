@@ -2,7 +2,7 @@
 
 set -e
 
-CONFIGDIR=/ops/shared/config
+CONFIGDIR=/opt/shared/config
 
 CONSULCONFIGDIR=/etc/consul.d
 NOMADCONFIGDIR=/etc/nomad.d
@@ -43,7 +43,7 @@ sudo mv /etc/resolv.conf.new /etc/resolv.conf
 sudo cp $CONFIGDIR/core-site.xml $HADOOPCONFIGDIR
 
 # Move examples directory to $HOME
-sudo mv /ops/examples /home/$HOME_DIR
+sudo mv /opt/shared/examples /home/$HOME_DIR
 sudo chown -R $HOME_DIR:$HOME_DIR /home/$HOME_DIR/examples
 sudo chmod -R 775 /home/$HOME_DIR/examples
 

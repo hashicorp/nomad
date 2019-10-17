@@ -26,6 +26,6 @@ wget -q -O - \
     | sudo tar -C /opt/cni/bin -xz
 
 # enable as a systemd service
-sudo cp /ops/shared/config/nomad.service /etc/systemd/system/nomad.service
+sudo cp /opt/shared/config/nomad.service /etc/systemd/system/nomad.service
 sudo systemctl enable nomad.service
 sudo systemctl start nomad.service

@@ -5,9 +5,7 @@ set -e
 # Disable interactive apt prompts
 export DEBIAN_FRONTEND=noninteractive
 
-cd /ops
-
-CONFIGDIR=/ops/shared/config
+cd /opt
 
 CONSULVERSION=1.6.0
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
@@ -126,9 +124,12 @@ sudo apt-get install -y openjdk-8-jdk
 JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
 
 # Spark
-sudo wget -P /ops/examples/spark https://nomad-spark.s3.amazonaws.com/spark-2.2.0-bin-nomad-0.7.0.tgz
-sudo tar -xvf /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0.tgz --directory /ops/examples/spark
-sudo mv /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0 /usr/local/bin/spark
+sudo mkdir -p /opt/shared/examples
+sudo wget -P /opt/shared/examples/spark \
+     https://nomad-spark.s3.amazonaws.com/spark-2.2.0-bin-nomad-0.7.0.tgz
+sudo tar -xvf /opt/shared/examples/spark/spark-2.2.0-bin-nomad-0.7.0.tgz \
+     --directory /opt/shared/examples/spark
+sudo mv /opt/shared/examples/spark/spark-2.2.0-bin-nomad-0.7.0 /usr/local/bin/spark
 sudo chown -R root:root /usr/local/bin/spark
 
 # Hadoop (to enable the HDFS CLI)

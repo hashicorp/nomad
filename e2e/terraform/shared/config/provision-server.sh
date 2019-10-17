@@ -17,6 +17,6 @@ sudo chown root:root /usr/local/bin/nomad
 sudo cp /tmp/server.hcl /etc/nomad.d/nomad.hcl
 
 # enable as a systemd service
-sudo cp /ops/shared/config/nomad.service /etc/systemd/system/nomad.service
+sudo cp /opt/shared/config/nomad.service /etc/systemd/system/nomad.service
 sudo systemctl enable nomad.service
 sudo systemctl start nomad.service
