@@ -1,4 +1,4 @@
-
+/* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
 import { storiesOf } from '@storybook/ember';
 <%= importMD %>
