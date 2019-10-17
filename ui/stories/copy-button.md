@@ -17,7 +17,7 @@
 
 **See**
 
-- [uses of CopyButton](https://github.com/hashicorp/nomad/search?l=Handlebars&q=CopyButton+OR+copy-button)
-- [CopyButton source](https://github.com/hashicorp/nomad/blob/master/ui/app/components/copy-button.js)
+- [uses of `CopyButton`](https://github.com/hashicorp/nomad/search?l=Handlebars&q=CopyButton+OR+copy-button)
+- [`CopyButton` source](https://github.com/hashicorp/nomad/blob/master/ui/app/components/copy-button.js)
 
 ---
