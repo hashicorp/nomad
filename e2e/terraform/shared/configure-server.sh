@@ -32,12 +32,11 @@ export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500
 export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
 
 # Vault
-sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/vault.hcl
-sudo cp $CONFIGDIR/vault.hcl $VAULTCONFIGDIR
-sudo cp $CONFIGDIR/vault.service /etc/systemd/system/vault.service
+sudo cp "$cfg/vault/vault.hcl" /etc/vault.d/vault.hcl
+sudo cp "$cfg/vault/vault.service" /etc/systemd/system/vault.service
 
 sudo systemctl enable vault.service
-sudo systemctl start  vault.service
+sudo systemctl start vault.service
 
 export NOMAD_ADDR=http://$IP_ADDRESS:4646
 
