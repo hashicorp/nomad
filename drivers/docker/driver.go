@@ -66,6 +66,13 @@ var (
 	nvidiaVisibleDevices = "NVIDIA_VISIBLE_DEVICES"
 )
 
+const (
+	dockerLabelTaskID   = "com.hashicorp.nomad.task_id"
+	dockerLabelTaskName = "com.hashicorp.nomad.task_name"
+	dockerLabelAllocID  = "com.hashicorp.nomad.alloc_id"
+	dockerLabelJobName  = "com.hashicorp.nomad.job_name"
+)
+
 type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
@@ -981,8 +988,18 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	if len(driverConfig.Labels) > 0 {
 		config.Labels = driverConfig.Labels
-		logger.Debug("applied labels on the container", "labels", config.Labels)
 	}
+
+	config.Labels = map[string]string{
+		dockerLabelTaskID:   task.ID,
+		dockerLabelTaskName: task.Name,
+		dockerLabelAllocID:  task.AllocID,
+		dockerLabelJobName:  task.JobName,
+	}
+	for k, v := range driverConfig.Labels {
+		config.Labels[k] = v
+	}
+	logger.Debug("applied labels on the container", "labels", config.Labels)
 
 	config.Env = task.EnvList()
 
