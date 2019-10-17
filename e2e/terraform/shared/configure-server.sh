@@ -51,7 +51,7 @@ cat /etc/resolv.conf | sudo tee --append /etc/resolv.conf.new
 sudo mv /etc/resolv.conf.new /etc/resolv.conf
 
 # Hadoop
-sudo cp $CONFIGDIR/core-site.xml $HADOOPCONFIGDIR
+sudo cp "$cfg/spark/core-site.xml" $HADOOPCONFIGDIR
 
 # Move examples directory to $HOME
 sudo mv /opt/shared/examples /home/$HOME_DIR
