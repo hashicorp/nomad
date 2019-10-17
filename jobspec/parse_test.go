@@ -943,6 +943,7 @@ func TestParse(t *testing.T) {
 								PortLabel:  "1234",
 								Connect: &api.ConsulConnect{
 									SidecarService: &api.ConsulSidecarService{
+										Tags: []string{"side1", "side2"},
 										Proxy: &api.ConsulProxy{
 											Upstreams: []*api.ConsulUpstream{
 												{
