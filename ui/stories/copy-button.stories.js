@@ -14,7 +14,7 @@ storiesOf('CopyButton/', module)
       <h5 class="title is-5">Copy Button</h5>
       <span class="tag is-hollow is-small no-text-transform">
         {{clipboardText}}
-        {{copy-button clipboardText=clipboardText}}
+        <CopyButton @clipboardText={{clipboardText}} />
       </span>
     `,
     context: {

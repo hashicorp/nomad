@@ -6,7 +6,7 @@ import { computed } from '@ember/object';
  * `JsonViewer` renders JSON with syntax highlighting.
  *
  * @example
- * {{json-viewer json=someJson}}
+ * <JsonViewer @json={{someJson}} />
  *
  * @param json {Object} - the JSON to render
  *

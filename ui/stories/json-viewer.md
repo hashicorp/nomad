@@ -12,7 +12,7 @@
 **Example**
   
 ```js
-{{json-viewer json=someJson}}
+<JsonViewer @json={{someJson}} />
 ```
 
 **See**

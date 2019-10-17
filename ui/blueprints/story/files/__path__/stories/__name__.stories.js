@@ -8,7 +8,7 @@ storiesOf('<%= classifiedModuleName %>/', module)
   .add(`<%= classifiedModuleName %>`, () => ({
     template: hbs`
       <h5 class="title is-5"><%= header %></h5>
-      {{<%= dasherizedModuleName %>}}
+      <<%= classifiedModuleName %>/>
     `,
     context: {},
   }),

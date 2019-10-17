@@ -12,7 +12,7 @@ The `CopyButton` shows a button that copies a string to the clipboard upon click
 **Example**
   
 ```js
-{{copy-button clipboardText='the text to copy'}}
+<CopyButton @clipboardText='the text to copy' />
 ```
 
 **See**
