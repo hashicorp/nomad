@@ -1,3 +1,8 @@
+## 0.10.1 (Unreleased)
+
+IMPROVEMENTS:
+ * client: Enable setting tags on Consul Connect sidecar service
+
 ## 0.10.0 (Unreleased)
 
 FEATURES:
