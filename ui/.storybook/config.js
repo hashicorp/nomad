@@ -1,8 +1,10 @@
 /* eslint-env node */
 import { addDecorator, addParameters, configure } from '@storybook/ember';
+import { INITIAL_VIEWPORTS } from '@storybook/addon-viewport';
 import theme from './theme.js';
 
 addParameters({
+  viewport: { viewports: INITIAL_VIEWPORTS },
   options: { theme },
 });
 
