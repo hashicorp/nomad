@@ -1,5 +1,10 @@
 /* eslint-env node */
-import { addDecorator, configure } from '@storybook/ember';
+import { addDecorator, addParameters, configure } from '@storybook/ember';
+import theme from './theme.js';
+
+addParameters({
+  options: { theme },
+});
 
 addDecorator(storyFn => {
   const { template, context } = storyFn();
