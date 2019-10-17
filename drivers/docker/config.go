@@ -143,9 +143,13 @@ var (
 			hclspec.NewAttr("period", "string", false),
 			hclspec.NewLiteral(`"5m"`),
 		),
-		"creation_timeout": hclspec.NewDefault(
-			hclspec.NewAttr("creation_timeout", "string", false),
+		"creation_grace": hclspec.NewDefault(
+			hclspec.NewAttr("creation_grace", "string", false),
 			hclspec.NewLiteral(`"5m"`),
+		),
+		"dry_run": hclspec.NewDefault(
+			hclspec.NewAttr("dry_run", "bool", false),
+			hclspec.NewLiteral(`false`),
 		),
 	})
 
@@ -510,14 +514,26 @@ type DockerVolumeDriverConfig struct {
 	Options hclutils.MapStrStr `codec:"options"`
 }
 
+// ContainerGCConfig controls the behavior of the GC reconciler to detects
+// dangling nomad containers that aren't tracked due to docker/nomad bugs
 type ContainerGCConfig struct {
+	// Enabled controls whether container reconciler is enabled
 	Enabled bool `codec:"enabled"`
 
+	// DryRun indicates that reconciler should log unexpectedly running containers
+	// if found without actually killing them
+	DryRun bool `codec:"dry_run"`
+
+	// PeriodStr controls the frequency of scanning containers
 	PeriodStr string        `codec:"period"`
 	period    time.Duration `codec:"-"`
 
-	CreationTimeoutStr string        `codec:"creation_timeout"`
-	creationTimeout    time.Duration `codec:"-"`
+	// CreationGraceStr is the duration allowed for a newly created container
+	// to live without being registered as a running task in nomad.
+	// A container is treated as leaked if it lived more than grace duration
+	// and haven't been registered in tasks.
+	CreationGraceStr string        `codec:"creation_grace"`
+	CreationGrace    time.Duration `codec:"-"`
 }
 
 type DriverConfig struct {
@@ -565,6 +581,8 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
+const danglingContainersCreationGraceMinimum = 1 * time.Minute
+
 func (d *Driver) SetConfig(c *base.Config) error {
 	var config DriverConfig
 	if len(c.PluginConfig) != 0 {
@@ -590,12 +608,15 @@ func (d *Driver) SetConfig(c *base.Config) error {
 		d.config.GC.DanglingContainers.period = dur
 	}
 
-	if len(d.config.GC.DanglingContainers.CreationTimeoutStr) > 0 {
-		dur, err := time.ParseDuration(d.config.GC.DanglingContainers.CreationTimeoutStr)
+	if len(d.config.GC.DanglingContainers.CreationGraceStr) > 0 {
+		dur, err := time.ParseDuration(d.config.GC.DanglingContainers.CreationGraceStr)
 		if err != nil {
-			return fmt.Errorf("failed to parse 'container_delay' duration: %v", err)
+			return fmt.Errorf("failed to parse 'creation_grace' duration: %v", err)
 		}
-		d.config.GC.DanglingContainers.creationTimeout = dur
+		if dur < danglingContainersCreationGraceMinimum {
+			return fmt.Errorf("creation_grace is less than minimum, %v", danglingContainersCreationGraceMinimum)
+		}
+		d.config.GC.DanglingContainers.CreationGrace = dur
 	}
 
 	if c.AgentConfig != nil {
@@ -615,7 +636,8 @@ func (d *Driver) SetConfig(c *base.Config) error {
 
 	d.coordinator = newDockerCoordinator(coordinatorConfig)
 
-	go d.removeDanglingContainersGoroutine()
+	reconciler := newReconciler(d)
+	reconciler.Start()
 
 	return nil
 }

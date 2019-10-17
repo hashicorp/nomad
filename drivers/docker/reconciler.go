@@ -4,21 +4,55 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strings"
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	hclog "github.com/hashicorp/go-hclog"
 )
 
-func (d *Driver) removeDanglingContainersGoroutine() {
-	if !d.config.GC.DanglingContainers.Enabled {
-		d.logger.Debug("skipping dangling containers handling; is disabled")
+// containerReconciler detects and kills unexpectedly running containers.
+//
+// Due to Docker architecture and network based communication, it is
+// possible for Docker to start a container successfully, but have the
+// creation API call fail with a network error.  containerReconciler
+// scans for these untracked containers and kill them.
+type containerReconciler struct {
+	ctx    context.Context
+	config *ContainerGCConfig
+	client *docker.Client
+	logger hclog.Logger
+
+	isDriverHealthy   func() bool
+	trackedContainers func() map[string]bool
+	isNomadContainer  func(c docker.APIContainers) bool
+}
+
+func newReconciler(d *Driver) *containerReconciler {
+	return &containerReconciler{
+		ctx:    d.ctx,
+		config: &d.config.GC.DanglingContainers,
+		client: client,
+		logger: d.logger,
+
+		isDriverHealthy:   func() bool { return d.previouslyDetected() && d.fingerprintSuccessful() },
+		trackedContainers: d.trackedContainers,
+		isNomadContainer:  isNomadContainer,
+	}
+}
+
+func (r *containerReconciler) Start() {
+	if !r.config.Enabled {
+		r.logger.Debug("skipping dangling containers handling; is disabled")
 		return
 	}
 
-	period := d.config.GC.DanglingContainers.period
+	go r.removeDanglingContainersGoroutine()
+}
 
-	succeeded := true
+func (r *containerReconciler) removeDanglingContainersGoroutine() {
+	period := r.config.period
+
+	lastIterSucceeded := true
 
 	// ensure that we wait for at least a period or creation timeout
 	// for first container GC iteration
@@ -26,44 +60,55 @@ func (d *Driver) removeDanglingContainersGoroutine() {
 	// before a driver may kill containers launched by an earlier nomad
 	// process.
 	initialDelay := period
-	if d.config.GC.DanglingContainers.creationTimeout > initialDelay {
-		initialDelay = d.config.GC.DanglingContainers.creationTimeout
+	if r.config.CreationGrace > initialDelay {
+		initialDelay = r.config.CreationGrace
 	}
 
 	timer := time.NewTimer(initialDelay)
 	for {
 		select {
 		case <-timer.C:
-			if d.previouslyDetected() && d.fingerprintSuccessful() {
-				err := d.removeDanglingContainersIteration()
-				if err != nil && succeeded {
-					d.logger.Warn("failed to remove dangling containers", "error", err)
+			if r.isDriverHealthy() {
+				err := r.removeDanglingContainersIteration()
+				if err != nil && lastIterSucceeded {
+					r.logger.Warn("failed to remove dangling containers", "error", err)
 				}
-				succeeded = (err == nil)
+				lastIterSucceeded = (err == nil)
 			}
 
 			timer.Reset(period)
-		case <-d.ctx.Done():
+		case <-r.ctx.Done():
 			return
 		}
 	}
 }
 
-func (d *Driver) removeDanglingContainersIteration() error {
-	tracked := d.trackedContainers()
-	untracked, err := d.untrackedContainers(tracked, d.config.GC.DanglingContainers.creationTimeout)
+func (r *containerReconciler) removeDanglingContainersIteration() error {
+	cutoff := time.Now().Add(-r.config.CreationGrace)
+	tracked := r.trackedContainers()
+	untracked, err := r.untrackedContainers(tracked, cutoff)
 	if err != nil {
 		return fmt.Errorf("failed to find untracked containers: %v", err)
 	}
 
+	if len(untracked) == 0 {
+		return nil
+	}
+
+	if r.config.DryRun {
+		r.logger.Info("detected untracked containers", "container_ids", untracked)
+		return nil
+	}
+
 	for _, id := range untracked {
-		d.logger.Info("removing untracked container", "container_id", id)
 		err := client.RemoveContainer(docker.RemoveContainerOptions{
 			ID:    id,
 			Force: true,
 		})
 		if err != nil {
-			d.logger.Warn("failed to remove untracked container", "container_id", id, "error", err)
+			r.logger.Warn("failed to remove untracked container", "container_id", id, "error", err)
+		} else {
+			r.logger.Info("removed untracked container", "container_id", id)
 		}
 	}
 
@@ -72,15 +117,17 @@ func (d *Driver) removeDanglingContainersIteration() error {
 
 // untrackedContainers returns the ids of containers that suspected
 // to have been started by Nomad but aren't tracked by this driver
-func (d *Driver) untrackedContainers(tracked map[string]bool, creationTimeout time.Duration) ([]string, error) {
+func (r *containerReconciler) untrackedContainers(tracked map[string]bool, cutoffTime time.Time) ([]string, error) {
 	result := []string{}
 
-	cc, err := client.ListContainers(docker.ListContainersOptions{})
+	cc, err := client.ListContainers(docker.ListContainersOptions{
+		All: false, // only reconcile running containers
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list containers: %v", err)
 	}
 
-	cutoff := time.Now().Add(-creationTimeout).Unix()
+	cutoff := cutoffTime.Unix()
 
 	for _, c := range cc {
 		if tracked[c.ID] {
@@ -91,7 +138,7 @@ func (d *Driver) untrackedContainers(tracked map[string]bool, creationTimeout ti
 			continue
 		}
 
-		if !d.isNomadContainer(c) {
+		if !r.isNomadContainer(c) {
 			continue
 		}
 
@@ -101,13 +148,13 @@ func (d *Driver) untrackedContainers(tracked map[string]bool, creationTimeout ti
 	return result, nil
 }
 
-func (d *Driver) isNomadContainer(c docker.APIContainers) bool {
+func isNomadContainer(c docker.APIContainers) bool {
 	if _, ok := c.Labels["com.hashicorp.nomad.alloc_id"]; ok {
 		return true
 	}
 
 	// pre-0.10 containers aren't tagged or labeled in any way,
-	// so use cheap heauristic based on mount paths
+	// so use cheap heuristic based on mount paths
 	// before inspecting container details
 	if !hasMount(c, "/alloc") ||
 		!hasMount(c, "/local") ||
@@ -116,18 +163,7 @@ func (d *Driver) isNomadContainer(c docker.APIContainers) bool {
 		return false
 	}
 
-	// double check before killing process
-	ctx, cancel := context.WithTimeout(d.ctx, 20*time.Second)
-	defer cancel()
-
-	ci, err := client.InspectContainerWithContext(c.ID, ctx)
-	if err != nil {
-		return false
-	}
-
-	env := ci.Config.Env
-	return hasEnvVar(env, "NOMAD_ALLOC_ID") &&
-		hasEnvVar(env, "NOMAD_GROUP_NAME")
+	return true
 }
 
 func hasMount(c docker.APIContainers, p string) bool {
@@ -145,16 +181,6 @@ var nomadContainerNamePattern = regexp.MustCompile(`\/.*-[0-9a-f]{8}-[0-9a-f]{4}
 func hasNomadName(c docker.APIContainers) bool {
 	for _, n := range c.Names {
 		if nomadContainerNamePattern.MatchString(n) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func hasEnvVar(vars []string, key string) bool {
-	for _, v := range vars {
-		if strings.HasPrefix(v, key+"=") {
 			return true
 		}
 	}
