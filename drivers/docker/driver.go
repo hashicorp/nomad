@@ -67,10 +67,7 @@ var (
 )
 
 const (
-	dockerLabelTaskID   = "com.hashicorp.nomad.task_id"
-	dockerLabelTaskName = "com.hashicorp.nomad.task_name"
-	dockerLabelAllocID  = "com.hashicorp.nomad.alloc_id"
-	dockerLabelJobName  = "com.hashicorp.nomad.job_name"
+	dockerLabelAllocID = "com.hashicorp.nomad.alloc_id"
 )
 
 type Driver struct {
@@ -992,15 +989,12 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		config.Labels = driverConfig.Labels
 	}
 
-	config.Labels = map[string]string{
-		dockerLabelTaskID:   task.ID,
-		dockerLabelTaskName: task.Name,
-		dockerLabelAllocID:  task.AllocID,
-		dockerLabelJobName:  task.JobName,
-	}
+	labels := make(map[string]string, len(driverConfig.Labels)+1)
 	for k, v := range driverConfig.Labels {
-		config.Labels[k] = v
+		labels[k] = v
 	}
+	labels[dockerLabelAllocID] = task.AllocID
+	config.Labels = labels
 	logger.Debug("applied labels on the container", "labels", config.Labels)
 
 	config.Env = task.EnvList()
