@@ -1,6 +1,11 @@
 #!/bin/bash
+# installs the desired Nomad build and configures machine as a Nomad client
+set -o errexit
+set -o nounset
 
-set -e
+cloud=$1
+nomad_sha=$2
+index=$3
 
 cfg=/opt/shared
 
@@ -8,17 +13,12 @@ HADOOP_VERSION=hadoop-2.7.6
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu
 
-# Wait for network
-sleep 15
-
-# IP_ADDRESS=$(curl http://instance-data/latest/meta-data/local-ipv4)
 IP_ADDRESS="$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
 DOCKER_BRIDGE_IP_ADDRESS=(`ifconfig docker0 2>/dev/null|awk '/inet addr:/ {print $2}'|sed 's/addr://'`)
-CLOUD=$1
 
 # Consul
-sudo cp "$cfg/consul/consul_client_${CLOUD}.json" /etc/consul.d/consul.json
-sudo cp "$cfg/consul/consul_${CLOUD}.service" /etc/systemd/system/consul.service
+sudo cp "$cfg/consul/consul_client_${cloud}.json" /etc/consul.d/consul.json
+sudo cp "$cfg/consul/consul_${cloud}.service" /etc/systemd/system/consul.service
 sudo systemctl enable consul.service
 sudo systemctl start  consul.service
 sleep 10
@@ -47,3 +47,31 @@ echo "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre"  | sudo tee --appe
 
 # Update PATH
 echo "export PATH=$PATH:/usr/local/bin/spark/bin:/usr/local/$HADOOP_VERSION/bin" | sudo tee --append /home/$HOME_DIR/.bashrc
+
+# Nomad
+
+# download
+aws s3 cp s3://nomad-team-test-binary/builds-oss/${nomad_sha}.tar.gz nomad.tar.gz
+
+# unpack and install
+sudo tar -zxvf nomad.tar.gz -C /usr/local/bin/
+sudo chmod 0755 /usr/local/bin/nomad
+sudo chown root:root /usr/local/bin/nomad
+
+# install config file
+sudo cp /opt/shared/nomad/client.hcl /etc/nomad.d/
+sudo cp "/opt/shared/nomad/client-$index.hcl" /etc/nomad.d/
+
+# Setup Host Volumes
+sudo mkdir /tmp/data
+
+# Install CNI plugins
+sudo mkdir -p /opt/cni/bin
+wget -q -O - \
+     https://github.com/containernetworking/plugins/releases/download/v0.8.2/cni-plugins-linux-amd64-v0.8.2.tgz \
+    | sudo tar -C /opt/cni/bin -xz
+
+# enable as a systemd service
+sudo cp /opt/shared/config/nomad.service /etc/systemd/system/nomad.service
+sudo systemctl enable nomad.service
+sudo systemctl start nomad.service

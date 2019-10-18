@@ -1,21 +1,3 @@
-data "template_file" "user_data_server" {
-  template = file("${path.root}/shared/user-data-server.sh")
-
-  vars = {
-    server_count = var.server_count
-    region       = var.region
-  }
-}
-
-data "template_file" "user_data_client" {
-  template = file("${path.root}/shared/user-data-client.sh")
-  count    = var.client_count
-
-  vars = {
-    region     = var.region
-  }
-}
-
 resource "aws_instance" "server" {
   ami                    = data.aws_ami.main.image_id
   instance_type          = var.instance_type
@@ -31,7 +13,6 @@ resource "aws_instance" "server" {
     User           = data.aws_caller_identity.current.arn
   }
 
-  user_data            = data.template_file.user_data_server.rendered
   iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 
   # copy up all provisioning scripts and configs
@@ -49,7 +30,7 @@ resource "aws_instance" "server" {
 
   provisioner "remote-exec" {
     inline = [
-      "/opt/shared/config/provision-server.sh ${var.nomad_sha} ${var.server_count}",
+      "/opt/shared/config/provision-server.sh aws ${var.nomad_sha} ${var.server_count}",
     ]
 
     connection {
@@ -84,7 +65,6 @@ resource "aws_instance" "client" {
     delete_on_termination = "true"
   }
 
-  user_data            = element(data.template_file.user_data_client.*.rendered, count.index)
   iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 
   # copy up all provisioning scripts and configs
@@ -102,7 +82,7 @@ resource "aws_instance" "client" {
 
   provisioner "remote-exec" {
     inline = [
-      "/opt/shared/config/provision-client.sh ${var.nomad_sha} ${count.index}",
+      "/opt/shared/config/provision-client.sh aws ${var.nomad_sha} ${count.index}",
     ]
 
     connection {
