@@ -30,7 +30,7 @@ resource "aws_instance" "server" {
 
   provisioner "remote-exec" {
     inline = [
-      "/opt/shared/config/provision-server.sh aws ${var.nomad_sha} ${var.server_count}",
+      "/opt/shared/configure-server.sh aws ${var.nomad_sha} ${var.server_count}",
     ]
 
     connection {
@@ -82,7 +82,7 @@ resource "aws_instance" "client" {
 
   provisioner "remote-exec" {
     inline = [
-      "/opt/shared/config/provision-client.sh aws ${var.nomad_sha} ${count.index}",
+      "/opt/shared/configure-client.sh aws ${var.nomad_sha} ${count.index}",
     ]
 
     connection {
