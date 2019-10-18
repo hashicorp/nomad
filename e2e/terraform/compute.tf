@@ -134,9 +134,9 @@ resource "aws_instance" "client_windows" {
     destination = "/opt/shared"
 
     connection {
-      host        = coalesce(self.public_ip, self.private_ip)
-      type        = "winrm"
-      user        = "Administrator"
+      host     = coalesce(self.public_ip, self.private_ip)
+      type     = "winrm"
+      user     = "Administrator"
       password = "${random_password.windows_admin_password.result}"
     }
   }
@@ -151,9 +151,9 @@ EOS
     ]
 
     connection {
-      host        = coalesce(self.public_ip, self.private_ip)
-      type        = "winrm"
-      user        = "Administrator"
+      host     = coalesce(self.public_ip, self.private_ip)
+      type     = "winrm"
+      user     = "Administrator"
       password = "${random_password.windows_admin_password.result}"
     }
   }
