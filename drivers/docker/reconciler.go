@@ -106,10 +106,13 @@ func (r *containerReconciler) removeDanglingContainersIteration() error {
 	}
 
 	for _, id := range untracked {
+		ctx, cancel := r.dockerAPIQueryContext()
 		err := client.RemoveContainer(docker.RemoveContainerOptions{
-			ID:    id,
-			Force: true,
+			Context: ctx,
+			ID:      id,
+			Force:   true,
 		})
+		cancel()
 		if err != nil {
 			r.logger.Warn("failed to remove untracked container", "container_id", id, "error", err)
 		} else {
@@ -125,8 +128,12 @@ func (r *containerReconciler) removeDanglingContainersIteration() error {
 func (r *containerReconciler) untrackedContainers(tracked map[string]bool, cutoffTime time.Time) ([]string, error) {
 	result := []string{}
 
+	ctx, cancel := r.dockerAPIQueryContext()
+	defer cancel()
+
 	cc, err := client.ListContainers(docker.ListContainersOptions{
-		All: false, // only reconcile running containers
+		Context: ctx,
+		All:     false, // only reconcile running containers
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list containers: %v", err)
@@ -151,6 +158,21 @@ func (r *containerReconciler) untrackedContainers(tracked map[string]bool, cutof
 	}
 
 	return result, nil
+}
+
+// dockerAPIQueryTimeout returns a context for docker API response with an appropriate timeout
+// to protect against wedged locked-up API call.
+//
+// We'll try hitting Docker API on subsequent iteration.
+func (r *containerReconciler) dockerAPIQueryContext() (context.Context, context.CancelFunc) {
+	// use a reasoanble floor to avoid very small limit
+	timeout := 30 * time.Second
+
+	if timeout < r.config.period {
+		timeout = r.config.period
+	}
+
+	return context.WithTimeout(context.Background(), timeout)
 }
 
 func isNomadContainer(c docker.APIContainers) bool {
