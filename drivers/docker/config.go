@@ -216,11 +216,20 @@ var (
 			),
 			"dangling_containers": hclspec.NewDefault(
 				hclspec.NewBlock("dangling_containers", false, danglingContainersBlock),
-				hclspec.NewLiteral("{}"),
+				hclspec.NewLiteral(`{
+					enabled = true
+					period = "5m"
+					creation_grace = "5m"
+				}`),
 			),
 		})), hclspec.NewLiteral(`{
 			image = true
 			container = true
+			dangling_containers = {
+				enabled = true
+				period = "5m"
+				creation_grace = "5m"
+			}
 		}`)),
 
 		// docker volume options
