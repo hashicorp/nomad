@@ -1,4 +1,3 @@
-
 $RunningAsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 if (!$RunningAsAdmin) {
   Write-Error "Must be executed in Administrator level shell."
@@ -29,4 +28,3 @@ if ($service.State -eq "Running") {
 }
 
 Write-Output "Automatic Windows Updates disabled."
-

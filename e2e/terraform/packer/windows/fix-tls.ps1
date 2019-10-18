@@ -1,5 +1,5 @@
 # This script hardens TLS configuration by disabling weak and broken protocols
-# and enabling useful protocols like TLS 1.1 and 1.1.
+# and enabling useful protocols like TLS 1.1 and 1.2.
 
 $RunningAsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 if (!$RunningAsAdmin) {
@@ -147,3 +147,5 @@ Foreach ($keyExchange in $strongKeyExchanges) {
 # Set cipher order
 $cipherOrderString = [string]::join(',', $cipherOrder)
 New-ItemProperty -path 'HKLM:\SOFTWARE\Policies\Microsoft\Cryptography\Configuration\SSL\00010002' -name 'Functions' -value $cipherOrderString -PropertyType 'String' -Force | Out-Null
+
+Write-Output "TLS hardened."
