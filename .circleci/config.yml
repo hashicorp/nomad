@@ -78,7 +78,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: circleci/golang:1.12.10
+      - image: golang:1.12.12
   go-machine:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
@@ -271,7 +271,7 @@ commands:
     parameters:
       version:
         type: string
-        default: "1.12.10"
+        default: "1.12.12"
     steps:
       - run:
           name: install golang << parameters.version >>
