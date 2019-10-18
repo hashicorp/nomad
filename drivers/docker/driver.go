@@ -66,6 +66,10 @@ var (
 	nvidiaVisibleDevices = "NVIDIA_VISIBLE_DEVICES"
 )
 
+const (
+	dockerLabelAllocID = "com.hashicorp.nomad.alloc_id"
+)
+
 type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
@@ -108,6 +112,8 @@ type Driver struct {
 	// for use during fingerprinting.
 	detected     bool
 	detectedLock sync.RWMutex
+
+	reconciler *containerReconciler
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
@@ -309,6 +315,10 @@ CREATE:
 		// the container is started
 		runningContainer, err := client.InspectContainer(container.ID)
 		if err != nil {
+			client.RemoveContainer(docker.RemoveContainerOptions{
+				ID:    container.ID,
+				Force: true,
+			})
 			msg := "failed to inspect started container"
 			d.logger.Error(msg, "error", err)
 			client.RemoveContainer(docker.RemoveContainerOptions{
@@ -977,8 +987,15 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	if len(driverConfig.Labels) > 0 {
 		config.Labels = driverConfig.Labels
-		logger.Debug("applied labels on the container", "labels", config.Labels)
 	}
+
+	labels := make(map[string]string, len(driverConfig.Labels)+1)
+	for k, v := range driverConfig.Labels {
+		labels[k] = v
+	}
+	labels[dockerLabelAllocID] = task.AllocID
+	config.Labels = labels
+	logger.Debug("applied labels on the container", "labels", config.Labels)
 
 	config.Env = task.EnvList()
 
