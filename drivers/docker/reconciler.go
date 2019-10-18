@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"sync"
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
@@ -25,6 +26,8 @@ type containerReconciler struct {
 	isDriverHealthy   func() bool
 	trackedContainers func() map[string]bool
 	isNomadContainer  func(c docker.APIContainers) bool
+
+	once sync.Once
 }
 
 func newReconciler(d *Driver) *containerReconciler {
@@ -46,7 +49,9 @@ func (r *containerReconciler) Start() {
 		return
 	}
 
-	go r.removeDanglingContainersGoroutine()
+	r.once.Do(func() {
+		go r.removeDanglingContainersGoroutine()
+	})
 }
 
 func (r *containerReconciler) removeDanglingContainersGoroutine() {

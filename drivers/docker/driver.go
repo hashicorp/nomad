@@ -115,6 +115,8 @@ type Driver struct {
 	// for use during fingerprinting.
 	detected     bool
 	detectedLock sync.RWMutex
+
+	reconciler *containerReconciler
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin

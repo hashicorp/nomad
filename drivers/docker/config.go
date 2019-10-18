@@ -636,8 +636,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 
 	d.coordinator = newDockerCoordinator(coordinatorConfig)
 
-	reconciler := newReconciler(d)
-	reconciler.Start()
+	d.reconciler = newReconciler(d)
 
 	return nil
 }
