@@ -4,6 +4,7 @@ set -o errexit
 set -o nounset
 
 nomad_sha=$1
+index=$2
 
 # download
 aws s3 cp s3://nomad-team-test-binary/builds-oss/${nomad_sha}.tar.gz nomad.tar.gz
@@ -14,7 +15,8 @@ sudo chmod 0755 /usr/local/bin/nomad
 sudo chown root:root /usr/local/bin/nomad
 
 # install config file
-sudo cp /tmp/client.hcl /etc/nomad.d/nomad.hcl
+sudo cp /opt/shared/nomad/client.hcl /etc/nomad.d/
+sudo cp /opt/shared/nomad/client-$index.hcl /etc/nomad.d/
 
 # Setup Host Volumes
 sudo mkdir /tmp/data

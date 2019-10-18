@@ -3,9 +3,7 @@
 set -e
 
 cfg=/opt/shared
-CONFIGDIR=/opt/shared/config
 
-NOMADCONFIGDIR=/etc/nomad.d
 HADOOP_VERSION=hadoop-2.7.6
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu

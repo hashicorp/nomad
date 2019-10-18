@@ -8,11 +8,6 @@ variable "region" {
   default     = "us-east-1"
 }
 
-variable "indexed" {
-  description = "Different configurations per client/server"
-  default     = true
-}
-
 variable "instance_type" {
   description = "The AWS instance type to use for both clients and servers."
   default     = "t2.medium"

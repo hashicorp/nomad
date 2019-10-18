@@ -16,14 +16,6 @@ data "template_file" "user_data_client" {
   }
 }
 
-data "template_file" "nomad_client_config" {
-  template = file("${path.root}/configs/client.hcl")
-}
-
-data "template_file" "nomad_server_config" {
-  template = "}"
-}
-
 resource "aws_instance" "server" {
   ami                    = data.aws_ami.main.image_id
   instance_type          = var.instance_type
@@ -55,22 +47,9 @@ resource "aws_instance" "server" {
     }
   }
 
-  provisioner "file" {
-    content = file(
-      "${path.root}/configs/${var.indexed == false ? "server.hcl" : "indexed/server-${count.index}.hcl"}",
-    )
-    destination = "/tmp/server.hcl"
-
-    connection {
-      host        = coalesce(self.public_ip, self.private_ip)
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = module.keys.private_key_pem
-    }
-  }
   provisioner "remote-exec" {
     inline = [
-      "/opt/shared/config/provision-server.sh ${var.nomad_sha}",
+      "/opt/shared/config/provision-server.sh ${var.nomad_sha} ${var.server_count}",
     ]
 
     connection {
@@ -121,23 +100,9 @@ resource "aws_instance" "client" {
     }
   }
 
-  provisioner "file" {
-    content = file(
-      "${path.root}/configs/${var.indexed == false ? "client.hcl" : "indexed/client-${count.index}.hcl"}",
-    )
-    destination = "/tmp/client.hcl"
-
-    connection {
-      host        = coalesce(self.public_ip, self.private_ip)
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = module.keys.private_key_pem
-    }
-  }
-
   provisioner "remote-exec" {
     inline = [
-      "/opt/shared/config/provision-client.sh ${var.nomad_sha}",
+      "/opt/shared/config/provision-client.sh ${var.nomad_sha} ${count.index}",
     ]
 
     connection {

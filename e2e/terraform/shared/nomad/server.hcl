@@ -6,20 +6,10 @@ data_dir = "/opt/nomad/data"
 
 bind_addr = "0.0.0.0"
 
-datacenter = "dc2"
-
-# Enable the client
-client {
-  enabled = true
-
-  options {
-    "driver.raw_exec.enable"    = "1"
-    "docker.privileged.enabled" = "true"
-  }
-
-  meta {
-    "rack" = "r2"
-  }
+# Enable the server
+server {
+  enabled          = true
+  bootstrap_expect = SERVER_COUNT
 }
 
 consul {
@@ -27,8 +17,11 @@ consul {
 }
 
 vault {
-  enabled = true
-  address = "http://active.vault.service.consul:8200"
+  enabled          = false
+  address          = "http://active.vault.service.consul:8200"
+  task_token_ttl   = "1h"
+  create_from_role = "nomad-cluster"
+  token            = ""
 }
 
 telemetry {
