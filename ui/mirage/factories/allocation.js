@@ -130,7 +130,10 @@ export default Factory.extend({
         });
       }
 
-      allocation.update({ nextAllocation: nextAllocation.id, clientStatus: 'failed' });
+      allocation.update({ nextAllocation: nextAllocation.id });
+      if (allocation.status === 'running' || allocation.status === 'pending') {
+        allocation.update({ clientStatus: 'failed' });
+      }
     },
   }),
 

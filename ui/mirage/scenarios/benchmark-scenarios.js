@@ -143,10 +143,11 @@ export function uxrTask2d(server) {
     jobVersion: 1,
   });
 
-  server.create('allocation', {
+  server.create('allocation', 'rescheduled', {
     jobId: 'web-server',
     clientStatus: 'complete',
     jobVersion: 1,
+    rescheduleStatus: 'pending',
   });
 }
 
