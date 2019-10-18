@@ -109,8 +109,8 @@ jobs:
       GOPATH: /go
     steps:
       - checkout
+      - run: apt-get update; apt-get install -y shellcheck sudo unzip
       - install-protoc
-      - run: sudo apt-get update && sudo apt-get install shellcheck
       - run: make deps lint-deps
       - run: make check
       - run: make checkscripts
@@ -135,6 +135,7 @@ jobs:
       GOTESTARCH: "<< parameters.goarch >>"
     steps:
       - checkout
+      - run: apt-get update; apt-get install -y shellcheck sudo unzip
       - run: make deps
       - install-protoc
       - install-consul
