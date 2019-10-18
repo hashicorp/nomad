@@ -35,6 +35,10 @@ sudo apt-get install -y python-setuptools
 sudo easy_install pip
 sudo pip install numpy
 
+# sockaddr
+aws s3 cp "s3://nomad-team-test-binary/tools/sockaddr_linux_amd64" sockaddr
+sudo mv sockaddr /usr/local/bin
+
 # Disable the firewall
 
 sudo ufw disable || echo "ufw not installed"
