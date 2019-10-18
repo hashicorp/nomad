@@ -8,8 +8,10 @@ bind_addr = "0.0.0.0"
 
 # Enable the server
 server {
-  enabled          = true
-  bootstrap_expect = SERVER_COUNT
+  enabled = true
+
+  # this will get replaced by configure-server.sh
+  bootstrap_expect = 3 # SERVER_COUNT
 }
 
 consul {

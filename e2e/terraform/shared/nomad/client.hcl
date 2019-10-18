@@ -15,7 +15,7 @@ client {
     "user.blacklist" = ""
 
     # Allow rawexec jobs
-    "driver.raw_exec.enable"    = "1"
+    "driver.raw_exec.enable" = "1"
 
     # Allow privileged docker jobs
     "docker.privileged.enabled" = "true"

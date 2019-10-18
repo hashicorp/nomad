@@ -67,7 +67,7 @@ sudo chmod 0755 /usr/local/bin/nomad
 sudo chown root:root /usr/local/bin/nomad
 
 # install config file
-sed "s/SERVER_COUNT/${server_count}/g" \
+sed "s/3 # SERVER_COUNT/${server_count}/g" \
     "/opt/shared/nomad/server.hcl" > /etc/nomad.d/nomad.hcl
 
 # enable as a systemd service
