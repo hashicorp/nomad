@@ -36,16 +36,17 @@ sudo easy_install pip
 sudo pip install numpy
 
 # sockaddr
-aws s3 cp "s3://nomad-team-test-binary/tools/sockaddr_linux_amd64" sockaddr
-sudo mv sockaddr /usr/local/bin
+aws s3 cp "s3://nomad-team-test-binary/tools/sockaddr_linux_amd64" /tmp/sockaddr
+sudo mv /tmp/sockaddr /usr/local/bin
+sudo chmod 0755 /usr/local/bin/sockaddr
 
 # Disable the firewall
 
 sudo ufw disable || echo "ufw not installed"
 
 echo "Install Consul"
-curl -L $CONSULDOWNLOAD > consul.zip
-sudo unzip consul.zip -d /usr/local/bin
+curl -L $CONSULDOWNLOAD > /tmp/consul.zip
+sudo unzip /tmp/consul.zip -d /usr/local/bin
 sudo chmod 0755 /usr/local/bin/consul
 sudo chown root:root /usr/local/bin/consul
 
@@ -56,8 +57,8 @@ sudo mkdir -p $CONSULDIR
 sudo chmod 755 $CONSULDIR
 
 echo "Install Vault"
-curl -L $VAULTDOWNLOAD > vault.zip
-sudo unzip vault.zip -d /usr/local/bin
+curl -L $VAULTDOWNLOAD > /tmp/vault.zip
+sudo unzip /tmp/vault.zip -d /usr/local/bin
 sudo chmod 0755 /usr/local/bin/vault
 sudo chown root:root /usr/local/bin/vault
 
@@ -68,8 +69,8 @@ sudo mkdir -p $VAULTDIR
 sudo chmod 755 $VAULTDIR
 
 echo "Install Nomad"
-curl -L $NOMADDOWNLOAD > nomad.zip
-sudo unzip nomad.zip -d /usr/local/bin
+curl -L $NOMADDOWNLOAD > /tmp/nomad.zip
+sudo unzip /tmp/nomad.zip -d /usr/local/bin
 sudo chmod 0755 /usr/local/bin/nomad
 sudo chown root:root /usr/local/bin/nomad
 
