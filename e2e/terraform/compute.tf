@@ -57,8 +57,23 @@ resource "aws_instance" "server" {
       private_key = module.keys.private_key_pem
     }
   }
+
+  # copy up all provisioning scripts and configs
+  provisioner "file" {
+    source      = "shared/"
+    destination = "/ops/shared"
+
+    connection {
+      host        = coalesce(self.public_ip, self.private_ip)
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = module.keys.private_key_pem
+    }
+  }
+
   provisioner "remote-exec" {
     inline = [
+      "chmod +x /ops/shared/config/provision-server.sh",
       "/ops/shared/config/provision-server.sh ${var.nomad_sha}",
     ]
 
@@ -111,8 +126,22 @@ resource "aws_instance" "client" {
     }
   }
 
+  # copy up all provisioning scripts and configs
+  provisioner "file" {
+    source      = "shared/"
+    destination = "/ops/shared"
+
+    connection {
+      host        = coalesce(self.public_ip, self.private_ip)
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = module.keys.private_key_pem
+    }
+  }
+
   provisioner "remote-exec" {
     inline = [
+      "chmod +x /ops/shared/config/provision-client.sh",
       "/ops/shared/config/provision-client.sh ${var.nomad_sha}",
     ]
 
@@ -124,4 +153,3 @@ resource "aws_instance" "client" {
     }
   }
 }
-
