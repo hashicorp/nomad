@@ -17,8 +17,8 @@ resource "aws_instance" "server" {
 
   # copy up all provisioning scripts and configs
   provisioner "file" {
-    source      = "shared"
-    destination = "/opt"
+    source      = "shared/"
+    destination = "/opt/shared"
 
     connection {
       host        = coalesce(self.public_ip, self.private_ip)
@@ -30,6 +30,7 @@ resource "aws_instance" "server" {
 
   provisioner "remote-exec" {
     inline = [
+      "chmod +x /opt/shared/configure-server.sh",
       "/opt/shared/configure-server.sh aws ${var.nomad_sha} ${var.server_count}",
     ]
 
@@ -69,8 +70,8 @@ resource "aws_instance" "client" {
 
   # copy up all provisioning scripts and configs
   provisioner "file" {
-    source      = "shared"
-    destination = "/opt"
+    source      = "shared/"
+    destination = "/opt/shared"
 
     connection {
       host        = coalesce(self.public_ip, self.private_ip)
@@ -82,6 +83,7 @@ resource "aws_instance" "client" {
 
   provisioner "remote-exec" {
     inline = [
+      "chmod +x /opt/shared/configure-client.sh",
       "/opt/shared/configure-client.sh aws ${var.nomad_sha} ${count.index}",
     ]
 

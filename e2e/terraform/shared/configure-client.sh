@@ -7,6 +7,12 @@ cloud=$1
 nomad_sha=$2
 index=$3
 
+echo <<EOF
+cloud: $cloud
+nomad_sh: $nomad_sha
+index: $3
+EOF
+
 cfg=/opt/shared
 home_dir=/home/ubuntu
 
@@ -36,14 +42,14 @@ sleep 10
 # ------------------------
 # Hadoop/Spark
 
-hadoop_version=hadoop-2.7.6
+hadoop_version=hadoop-2.7.7
 
 # Hadoop config file to enable HDFS CLI
 sudo cp "$cfg/spark/core-site.xml" "/usr/local/$hadoop_version/etc/hadoop"
 
 # Move examples directory to $HOME
 sudo mv /opt/shared/examples "$home_dir"
-sudo chown -R "$home_dir:$home_dir" "$home_dir/examples"
+sudo chown -R ubuntu:ubuntu "$home_dir/examples"
 sudo chmod -R 775 "$home_dir/examples"
 
 # ------------------------
@@ -71,7 +77,7 @@ wget -q -O - \
     | sudo tar -C /opt/cni/bin -xz
 
 # enable as a systemd service
-sudo cp /opt/shared/config/nomad.service /etc/systemd/system/nomad.service
+sudo cp /opt/shared/nomad/nomad.service /etc/systemd/system/nomad.service
 sudo systemctl enable nomad.service
 sudo systemctl start nomad.service
 

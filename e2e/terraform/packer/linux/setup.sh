@@ -25,6 +25,10 @@ NOMADDIR=/opt/nomad
 
 HADOOP_VERSION=2.7.7
 
+# Target for runtime configuration uploads
+sudo mkdir -p /opt/shared
+sudo chown -R ubuntu:ubuntu /opt/shared
+
 # Dependencies
 sudo apt-get install -y software-properties-common
 sudo apt-get update
