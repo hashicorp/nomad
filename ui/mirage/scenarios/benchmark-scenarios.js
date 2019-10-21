@@ -382,10 +382,11 @@ export function uxrTask7a(server) {
     ...common,
   });
 
-  server.create('job');
+  server.createList('job', 5);
 
-  server.createList('allocation', 15, { shallow: true });
+  server.createList('allocation', 15, { shallow: true, clientStatus: 'running' });
   server.createList('allocation', 8, {
     nodeId: xlarge.id,
+    clientStatus: 'running',
   });
 }
