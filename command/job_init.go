@@ -19,7 +19,6 @@ const (
 // liking, like vagrant init
 type JobInitCommand struct {
 	Meta
-	length int
 }
 
 func (c *JobInitCommand) Help() string {
