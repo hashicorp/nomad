@@ -7,27 +7,38 @@ description: >
 ---
 
 # Command: job init
+
 **Alias: `nomad init`**
 
 The `job init` command creates an example [job specification][jobspec] in the
 current directory that demonstrates some common configurations for tasks, task
 groups, runtime constraints, and resource allocation.
 
-Please refer to the [jobspec][] and [drivers](/docs/drivers/index.html)
-pages to learn how to customize the template.
+## Usage
+
+```plaintext
+nomad job init [options] [filename]
+```
+
+You may optionally supply a filename for the example job to be written to. The
+default filename for the generated file is "example.nomad".
+
+Please refer to the [jobspec] and [drivers] pages to learn how to customize the
+template.
 
 ## Init Options
 
- * `-short`: If set, a minimal jobspec without comments is emitted.
- * `-connect`: If set, the jobspec includes Consul Connect integration.
+ - `-short`: If set, a minimal jobspec without comments is emitted.
+ - `-connect`: If set, the jobspec includes Consul Connect integration.
 
 ## Examples
 
 Generate an example job file:
 
-```text
+```plaintext
 $ nomad job init
 Example job file written to example.nomad
 ```
 
 [jobspec]: /docs/job-specification/index.html "Nomad Job Specification"
+[drivers]: /docs/drivers/index.html "Nomad Task Drivers documentation"
