@@ -307,6 +307,12 @@ func (i *instanceManager) fingerprint() {
 				continue
 			}
 
+			// avoid fingerprinting again if ctx and fpChan both close
+			if i.ctx.Err() != nil {
+				cancel()
+				return
+			}
+
 			// if the channel is closed attempt to open a new one
 			newFpChan, newCancel, err := i.dispenseFingerprintCh()
 			if err != nil {
