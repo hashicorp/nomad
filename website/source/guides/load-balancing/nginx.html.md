@@ -23,7 +23,7 @@ application.
 ## Reference Material
 
 - [Nginx][nginx]
-- [Load Balancing Strategies for Consul](https://www.hashicorp.com/blog/configuring-third-party-loadbalancers-with-consul-nginx-haproxy-f5/)
+- [Load Balancing Strategies for Consul][lb-strategies]
 
 ## Estimated Time to Complete
 
@@ -36,7 +36,7 @@ environment with Consul installed. You can use this [repo][terraform-repo] to
 easily provision a sandbox environment. This guide will assume a cluster with
 one server node and three client nodes.
 
--> **Please Note:** This guide is for demo purposes and is only using a single
+-> **Note:** This guide is for demo purposes and is only using a single
 server node. In a production cluster, 3 or 5 server nodes are recommended.
 
 ## Steps
@@ -86,6 +86,7 @@ job "demo-webapp" {
   }
 }
 ```
+
 Note that this job deploys 3 instances of our demo web application which we will
 load balance with Nginx in the next few steps.
 
@@ -169,6 +170,7 @@ EOF
   }
 }
 ```
+
 - We are using Nomad's [template][template-stanza] to populate the load balancer
   configuration for Nginx. The underlying tool being used is [Consul
   Template][consul-template]. You can use Consul Template's documentation to
@@ -212,6 +214,7 @@ $ curl nginx.service.consul:8080
 </body>
 </html>
 ```
+
 Note that your request has been forwarded to one of the several deployed
 instances of the demo web application (which is spread across 3 Nomad clients).
 The output shows the IP address of the host it is deployed on. If you repeat
@@ -220,7 +223,9 @@ your requests, you will see that the IP address changes.
 [consul-template]: https://github.com/hashicorp/consul-template#consul-template
 [consul-temp-syntax]: https://github.com/hashicorp/consul-template#service
 [inline]: /docs/job-specification/template.html#inline-template
+[lb-strategies]: https://www.hashicorp.com/blog/configuring-third-party-loadbalancers-with-consul-nginx-haproxy-f5/
 [nginx]: https://www.nginx.com/
 [remote-template]: /docs/job-specification/template.html#remote-template
 [template-stanza]: /docs/job-specification/template.html
 [terraform-repo]: https://github.com/hashicorp/nomad/tree/master/terraform#provision-a-nomad-cluster-in-the-cloud
+
