@@ -559,6 +559,30 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"csi-plugin.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("binstore-storagelocker"),
+				Name: helper.StringToPtr("binstore-storagelocker"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("binsl"),
+						Tasks: []*api.Task{
+							{
+								Name:   "binstore",
+								Driver: "docker",
+								CSIPluginConfig: &api.TaskCSIPluginConfig{
+									PluginID:       "org.hashicorp.csi",
+									PluginType:     api.CSIPluginTypeMonolith,
+									PluginMountDir: "/csi/test",
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
 			"service-check-initial-status.hcl",
 			&api.Job{
 				ID:   helper.StringToPtr("check_initial_status"),
