@@ -52,11 +52,9 @@ valid only within the context of a connect stanza.
 
 ## `sidecar_service` Parameters
 
-- `tags` <code>(array<string>: nil)</code> - Custom Consul service tags for the sidecar service.
+- `port` `(string: )` Port label for sidecar service.
 
-- `port` `(string: )` - Port label for sidecar service.
-
-- `proxy` <code>([proxy][]: nil)</code> - This is used to configure the sidecar proxy service.
+- `proxy` - <code>([proxy][]: nil)</code> - This is used to configure the sidecar proxy service.
 
 
 ## `sidecar_service` Examples
