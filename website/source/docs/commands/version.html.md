@@ -13,7 +13,7 @@ including the release version and the exact revision.
 
 ## Usage
 
-```
+```plaintext
 nomad version
 ```
 
@@ -25,7 +25,7 @@ end, indicating that local, uncommitted changes were detected at build time.
 
 ## Examples
 
-```
+```shell
 $ nomad version
 Nomad v0.0.0-615-gcf3c6aa-dev (cf3c6aa8a75a689987b689d75ae2ba73458465cb+CHANGES)
 ```

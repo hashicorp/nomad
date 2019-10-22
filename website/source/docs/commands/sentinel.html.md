@@ -20,10 +20,10 @@ Usage: `nomad sentinel <subcommand> [options]`
 Run `nomad sentinel <subcommand> -h` for help on that subcommand. The following
 subcommands are available:
 
-* [`sentinel apply`][apply] - Create a new or update existing Sentinel policies
-* [`sentinel delete`][delete] - Delete an existing Sentinel policies
-* [`sentinel list`][list] - Display all Sentinel policies
-* [`sentinel read`][read] - Inspects an existing Sentinel policies
+- [`sentinel apply`][apply] - Create a new or update existing Sentinel policies
+- [`sentinel delete`][delete] - Delete an existing Sentinel policies
+- [`sentinel list`][list] - Display all Sentinel policies
+- [`sentinel read`][read] - Inspects an existing Sentinel policies
 
 [delete]: /docs/commands/sentinel/delete.html
 [list]: /docs/commands/sentinel/list.html

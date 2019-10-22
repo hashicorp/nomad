@@ -10,7 +10,7 @@ description: >
 # Nomad Commands (CLI)
 
 Nomad is controlled via a very easy to use command-line interface (CLI).
-Nomad is only a single command-line application: `nomad`, which 
+Nomad is only a single command-line application: `nomad`, which
 takes a subcommand such as "agent" or "status". The complete list of
 subcommands is in the navigation to the left.
 
@@ -25,17 +25,17 @@ with the `-h` argument.
 Each command has been conveniently documented on this website. Links to each
 command can be found on the left.
 
-### Autocomplete
+## Autocomplete
 
 Nomad's CLI supports command autocomplete. Autocomplete can be installed or
 uninstalled by running the following on bash or zsh shells:
 
-```
+```shell
 $ nomad -autocomplete-install
 $ nomad -autocomplete-uninstall
 ```
 
-### Command Contexts
+## Command Contexts
 
 Nomad's CLI commands have implied contexts in their naming convention. Because
 the CLI is most commonly used to manipulate or query jobs, you can assume that
@@ -55,7 +55,7 @@ local machine does not have a running Nomad agent. To do so, set the
 `NOMAD_ADDR` environment variable or use the `-address=<addr>` flag when running
 commands.
 
-```
+```shell
 $ NOMAD_ADDR=https://remote-address:4646 nomad status
 $ nomad status -address=https://remote-address:4646
 ```

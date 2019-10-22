@@ -14,7 +14,7 @@ output.
 
 ## Usage
 
-```
+```plaintext
 nomad node status [options] [node]
 ```
 
@@ -26,7 +26,7 @@ If there is an exact match based on the provided node ID or prefix, then that
 particular node will be queried, and detailed information will be displayed,
 including resource usage statistics. Otherwise, a list of matching nodes and
 information will be displayed. If running the command on a Nomad Client, the
--self flag is useful to quickly access the status of the local node.
+`-self` flag is useful to quickly access the status of the local node.
 
 ## General Options
 
@@ -34,27 +34,26 @@ information will be displayed. If running the command on a Nomad Client, the
 
 ## Status Options
 
-* `-self`: Query the status of the local node.
+- `-self`: Query the status of the local node.
 
-* `-stats`: Display detailed resource usage statistics.
+- `-stats`: Display detailed resource usage statistics.
 
-* `-allocs`: When a specific node is not being queried, shows the number of
+- `-allocs`: When a specific node is not being queried, shows the number of
   running allocations per node.
 
-* `-short`: Display short output. Used only when querying a single node.
+- `-short`: Display short output. Used only when querying a single node.
 
-* `-verbose`: Show full information.
+- `-verbose`: Show full information.
 
-* `-json` : Output the node in its JSON format.
+- `-json` : Output the node in its JSON format.
 
-* `-t` : Format and display node using a Go template.
-
+- `-t` : Format and display node using a Go template.
 
 ## Examples
 
 List view:
 
-```
+```shell
 $ nomad node status
 ID        DC   Name   Class   Drain  Eligibility  Status
 a72dfba2  dc1  node1  <none>  false  eligible     ready
@@ -63,7 +62,7 @@ a72dfba2  dc1  node1  <none>  false  eligible     ready
 
 List view, with running allocations:
 
-```
+```shell
 $ nomad node status -allocs
 ID        DC   Name   Class   Drain  Eligibility  Status  Running Allocs
 4d2ba53b  dc1  node1  <none>  false  eligible     ready   1
@@ -72,7 +71,7 @@ ID        DC   Name   Class   Drain  Eligibility  Status  Running Allocs
 
 Single-node view in short mode:
 
-```
+```shell
 $ nomad node status -short 1f3f03ea
 ID     = c754da1f
 Name   = nomad
@@ -89,7 +88,7 @@ ID        Eval ID   Job ID   Task Group  Desired Status  Client Status
 
 Full output for a single node:
 
-```
+```shell
 $ nomad node status 1f3f03ea
 ID     = c754da1f
 Name    = nomad-server01
@@ -132,7 +131,7 @@ ID        Eval ID   Job ID   Task Group  Desired Status  Client Status
 
 Using `-self` when on a Nomad Client:
 
-```
+```shell
 $ nomad node status -self
 ID     = c754da1f
 Name   = nomad-client01
@@ -190,14 +189,19 @@ Client Status represents the emergent state of the allocation and include
 the following:
 
 - *pending*: The allocation is pending and will be running
+
 - *running*: The allocation is currently running
+
 - *complete*: The allocation was running and completed successfully
+
 - *failed*: The allocation was running and completed with a non-zero exit code
-- *lost*: The node that was running the allocation has failed or has been partitioned
+
+- *lost*: The node that was running the allocation has failed or has been
+  partitioned
 
 Using `-stats` to see detailed to resource usage information on the node:
 
-```
+```shell
 $ nomad node status -stats c754da1f
 ID     = c754da1f
 Name   = nomad-client01
@@ -278,7 +282,7 @@ ed3665f5  8bf94335  example  cache       run             running
 
 To view verbose information about the node:
 
-```
+```shell
 $ nomad node status -verbose c754da1f
 ID     = c754da1f-6337-b86d-47dc-2ef4c71aca14
 Name   = nomad

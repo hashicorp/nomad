@@ -3,7 +3,8 @@ layout: "docs"
 page_title: "Commands: server force-leave"
 sidebar_current: "docs-commands-server-force-leave"
 description: >
-  The server force-leave command is used to force a server into the "left" state.
+  The server force-leave command is used to force a server into the "left"
+  state.
 ---
 
 # Command: server force-leave
@@ -15,7 +16,7 @@ eventually rejoin the cluster again.
 
 ## Usage
 
-```
+```plaintext
 nomad server force-leave [options] <node>
 ```
 
@@ -30,6 +31,6 @@ to enter the "left" state.
 
 Force-leave the server "node1":
 
-```
+```shell
 $ nomad server force-leave node1
 ```

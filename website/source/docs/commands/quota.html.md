@@ -20,12 +20,12 @@ Usage: `nomad quota <subcommand> [options]`
 Run `nomad quota <subcommand> -h` for help on that subcommand. The following
 subcommands are available:
 
-* [`quota apply`][quotaapply] - Create or update a quota specification
-* [`quota delete`][quotadelete] - Delete a quota specification
-* [`quota init`][quotainit] - Create an example quota specification file
-* [`quota inspect`][quotainspect] - Inspect a quota specification
-* [`quota list`][quotalist] - List quota specifications
-* [`quota status`][quotastatus] - Display a quota's status and current usage
+- [`quota apply`][quotaapply] - Create or update a quota specification
+- [`quota delete`][quotadelete] - Delete a quota specification
+- [`quota init`][quotainit] - Create an example quota specification file
+- [`quota inspect`][quotainspect] - Inspect a quota specification
+- [`quota list`][quotalist] - List quota specifications
+- [`quota status`][quotastatus] - Display a quota's status and current usage
 
 [quotaapply]: /docs/commands/quota/apply.html
 [quotadelete]: /docs/commands/quota/delete.html

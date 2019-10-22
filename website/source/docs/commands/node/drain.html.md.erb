@@ -25,15 +25,14 @@ eligibility -disable` on all of their node IDs, and then run `node drain
 -enable`. This will ensure allocations drained from the first node are not
 placed on another node about to be drained.
 
-The [node status](/docs/commands/node/status.html) command compliments this
-nicely by providing the current drain status of a given node.
+The [node status] command compliments this nicely by providing the current drain
+status of a given node.
 
-See the [Workload Migration guide](/guides/operations/node-draining.html) for detailed
-examples of node draining.
+See the [Workload Migration guide] for detailed examples of node draining.
 
 ## Usage
 
-```
+```plaintext
 nomad node drain [options] <node>
 ```
 
@@ -51,30 +50,40 @@ operation is desired.
 
 ## Drain Options
 
-* `-enable`: Enable node drain mode.
-* `-disable`: Disable node drain mode.
-* `-deadline`: Set the deadline by which all allocations must be moved off the
+- `-enable`: Enable node drain mode.
+
+- `-disable`: Disable node drain mode.
+
+- `-deadline`: Set the deadline by which all allocations must be moved off the
   node. Remaining allocations after the deadline are force removed from the
   node. Defaults to 1 hour.
-* `-detach`: Return immediately instead of entering monitor mode.
-* `-monitor`: Enter monitor mode directly without modifying the drain status.
-* `-force`: Force remove allocations off the node immediately.
-* `-no-deadline`: No deadline allows the allocations to drain off the node
+
+- `-detach`: Return immediately instead of entering monitor mode.
+
+- `-monitor`: Enter monitor mode directly without modifying the drain status.
+
+- `-force`: Force remove allocations off the node immediately.
+
+- `-no-deadline`: No deadline allows the allocations to drain off the node
   without being force stopped after a certain deadline.
-* `-ignore-system`: Ignore system allows the drain to complete without stopping
+
+- `-ignore-system`: Ignore system allows the drain to complete without stopping
   system job allocations. By default system jobs are stopped last.
-* `-keep-ineligible`: Keep ineligible will maintain the node's scheduling
+
+- `-keep-ineligible`: Keep ineligible will maintain the node's scheduling
   ineligibility even if the drain is being disabled. This is useful when an
   existing drain is being cancelled but additional scheduling on the node is not
   desired.
-* `-self`: Drain the local node.
-* `-yes`: Automatic yes to prompts.
+
+- `-self`: Drain the local node.
+
+- `-yes`: Automatic yes to prompts.
 
 ## Examples
 
 Enable drain mode on node with ID prefix "4d2ba53b":
 
-```
+```shell
 $ nomad node drain -enable f4e8a9e5
 Are you sure you want to enable drain mode for node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e"? [y/N] y
 2018-03-30T23:13:16Z: Ctrl-C to stop monitoring: will not cancel the node drain
@@ -94,14 +103,14 @@ Are you sure you want to enable drain mode for node "f4e8a9e5-30d8-3536-1e6f-cda
 
 Enable drain mode on the local node:
 
-```
+```shell
 $ nomad node drain -enable -self
 ...
 ```
 
 Enable drain mode but do not stop system jobs:
 
-```
+```shell
 $ nomad node drain -enable -ignore-system 4d2ba53b
 ...
 ```
@@ -110,14 +119,14 @@ Disable drain mode but keep the node ineligible for scheduling. Useful for
 inspecting the current state of a misbehaving node without Nomad trying to
 start or migrate allocations:
 
-```
+```shell
 $ nomad node drain -disable -keep-ineligible 4d2ba53b
 ...
 ```
 
 Enable drain mode and detach from monitoring, then reattach later:
 
-```
+```shell
 $ nomad node drain -enable -detach -self
 ...
 $ nomad node drain -self -monitor
@@ -126,3 +135,5 @@ $ nomad node drain -self -monitor
 
 [eligibility]: /docs/commands/node/eligibility.html
 [migrate]: /docs/job-specification/migrate.html
+[node status]: /docs/commands/node/status.html
+[Workload Migration guide]: /guides/operations/node-draining.html

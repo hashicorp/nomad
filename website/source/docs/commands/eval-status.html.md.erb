@@ -20,7 +20,7 @@ evaluation reaches a terminal state.
 
 ## Usage
 
-```
+```plaintext
 nomad eval status [options] <evaluation>
 ```
 
@@ -44,19 +44,16 @@ indicated by exit code 1.
 
 ## Eval Status Options
 
-* `-monitor`: Monitor an outstanding evaluation
-
-* `-verbose`: Show full information.
-
-* `-json` : Output the evaluation in its JSON format.
-
-* `-t` : Format and display evaluation using a Go template.
+- `-monitor`: Monitor an outstanding evaluation
+- `-verbose`: Show full information.
+- `-json` : Output the evaluation in its JSON format.
+- `-t` : Format and display evaluation using a Go template.
 
 ## Examples
 
 Show the status of an evaluation that has placement failures
 
-```
+```shell
 $ nomad eval status 2ae0e6a5
 ID                 = 2ae0e6a5
 Status             = complete
@@ -78,7 +75,7 @@ Evaluation "67493a64" waiting for additional capacity to place remainder
 
 Monitor an existing evaluation
 
-```
+```shell
 $ nomad eval status -monitor 8262bc83
 ==> Monitoring evaluation "8262bc83"
     Allocation "bd6bd0de" created: node "6f299da5", group "group1"
