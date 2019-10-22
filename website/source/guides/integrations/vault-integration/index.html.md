@@ -183,7 +183,7 @@ You will generate the actual token in the next few steps.
 ### Step 5: Create a Token Role
 
 At this point, you must create a Vault token role that Nomad can use. The token
-role allows you to limit what Vault policies are are accessible by jobs
+role allows you to limit what Vault policies are accessible by jobs
 submitted to Nomad. We will use the following token role:
 
 ```json

@@ -8,5 +8,6 @@ self.deprecationWorkflow.config = {
     // Only used in ivy-codemirror.
     // PR open: https://github.com/IvyApp/ivy-codemirror/pull/40/files
     { handler: 'log', matchId: 'ember-component.send-action' },
+    { handler: 'log', matchId: 'ember-test-helpers.rendering-context.jquery-element' },
   ],
 };

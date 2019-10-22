@@ -1,6 +1,7 @@
 import { assert } from '@ember/debug';
 import Mixin from '@ember/object/mixin';
 import { computed } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 import { assign } from '@ember/polyfills';
 import queryString from 'query-string';
 
@@ -8,7 +9,7 @@ const MAX_OUTPUT_LENGTH = 50000;
 
 export default Mixin.create({
   url: '',
-  params: computed(() => ({})),
+  params: overridable(() => ({})),
   logFetch() {
     assert('Loggers need a logFetch method, which should have an interface like window.fetch');
   },
@@ -22,7 +23,7 @@ export default Mixin.create({
       : { origin: 'end', offset: MAX_OUTPUT_LENGTH };
   }),
 
-  additionalParams: computed(() => ({})),
+  additionalParams: overridable(() => ({})),
 
   fullUrl: computed('url', 'params', 'offsetParams', 'additionalParams', function() {
     const queryParams = queryString.stringify(

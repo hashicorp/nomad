@@ -7,21 +7,22 @@ job "deployment_auto.nomad" {
     update {
       max_parallel = 3
       auto_promote = true
-      canary = 2
+      canary       = 2
     }
 
     task "one" {
       driver = "raw_exec"
 
       config {
-	command = "/bin/sleep"
-	# change args to update the job, the only changes
-	args = ["1000000"]
+        command = "/bin/sleep"
+
+        # change args to update the job, the only changes
+        args = ["1000000"]
       }
 
       resources {
-	cpu    = 20
-	memory = 20
+        cpu    = 20
+        memory = 20
       }
     }
   }
@@ -30,9 +31,9 @@ job "deployment_auto.nomad" {
     count = 3
 
     update {
-      max_parallel = 2
-      auto_promote = true
-      canary = 2
+      max_parallel     = 2
+      auto_promote     = true
+      canary           = 2
       min_healthy_time = "2s"
     }
 
@@ -40,14 +41,15 @@ job "deployment_auto.nomad" {
       driver = "raw_exec"
 
       config {
-	command = "/bin/sleep"
-	# change args to update the job, the only changes
-	args = ["2000000"]
+        command = "/bin/sleep"
+
+        # change args to update the job, the only changes
+        args = ["2000000"]
       }
 
       resources {
-	cpu    = 20
-	memory = 20
+        cpu    = 20
+        memory = 20
       }
     }
   }

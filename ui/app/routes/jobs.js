@@ -22,7 +22,7 @@ export default Route.extend(WithForbiddenState, {
 
   beforeModel(transition) {
     return this.get('system.namespaces').then(namespaces => {
-      const queryParam = transition.queryParams.namespace;
+      const queryParam = transition.to.queryParams.namespace;
       this.set('system.activeNamespace', queryParam || 'default');
 
       return namespaces;
@@ -30,9 +30,7 @@ export default Route.extend(WithForbiddenState, {
   },
 
   model() {
-    return this.store
-      .findAll('job', { reload: true })
-      .catch(notifyForbidden(this));
+    return this.store.findAll('job', { reload: true }).catch(notifyForbidden(this));
   },
 
   actions: {

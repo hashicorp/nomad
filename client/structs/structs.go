@@ -1,6 +1,6 @@
 package structs
 
-//go:generate codecgen -d 102 -o structs.generated.go structs.go
+//go:generate codecgen -d 102 -t codec_generated -o structs.generated.go structs.go
 
 import (
 	"errors"

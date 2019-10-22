@@ -8,8 +8,7 @@ description: |-
 
 # Consul Connect
 
-~> **Note** This guide describes a new feature available in the [Nomad 0.10.0
-   Beta release][download] of Nomad.
+~> **Note** This guide describes a new feature available in [Nomad 0.10.0][download].
 
 [Consul Connect](https://www.consul.io/docs/connect/index.html) provides
 service-to-service connection authorization and encryption using mutual
@@ -57,6 +56,40 @@ run in dev mode with the following command:
 $ consul agent -dev
 ```
 
+To use Connect on a non-dev Consul agent, you will minimally need to enable the
+GRPC port and set `connect` to enabled by adding some additional information to
+your Consul client configurations, depending on format.
+
+For HCL configurations:
+
+```hcl
+# ...
+
+ports {
+  "grpc" = 8502
+}
+
+connect {
+  enabled = true
+}
+```
+
+For JSON configurations:
+
+```javascript
+{
+  // ...
+  "ports": {
+    "grpc": 8502
+  },
+  "connect": {
+     "enabled": true
+  }
+}
+```
+
+
+
 ### Nomad
 
 Nomad must schedule onto a routable interface in order for the proxies to
@@ -88,66 +121,71 @@ to Nomad by copying the HCL into a file named `connect.nomad` and running:
 `nomad run connect.nomad`
 
 ```hcl
- job "countdash" {
-   datacenters = ["dc1"]
-   group "api" {
-     network {
-       mode = "bridge"
-     }
+job "countdash" {
+  datacenters = ["dc1"]
 
-     service {
-       name = "count-api"
-       port = "9001"
+  group "api" {
+    network {
+      mode = "bridge"
+    }
 
-       connect {
-         sidecar_service {}
-       }
-     }
+    service {
+      name = "count-api"
+      port = "9001"
 
-     task "web" {
-       driver = "docker"
-       config {
-         image = "hashicorpnomad/counter-api:v1"
-       }
-     }
-   }
+      connect {
+        sidecar_service {}
+      }
+    }
 
-   group "dashboard" {
-     network {
-       mode = "bridge"
-       port "http" {
-         static = 9002
-         to     = 9002
-       }
-     }
+    task "web" {
+      driver = "docker"
 
-     service {
-       name = "count-dashboard"
-       port = "9002"
+      config {
+        image = "hashicorpnomad/counter-api:v1"
+      }
+    }
+  }
 
-       connect {
-         sidecar_service {
-           proxy {
-             upstreams {
-               destination_name = "count-api"
-               local_bind_port = 8080
-             }
-           }
-         }
-       }
-     }
+  group "dashboard" {
+    network {
+      mode = "bridge"
 
-     task "dashboard" {
-       driver = "docker"
-       env {
-         COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"
-       }
-       config {
-         image = "hashicorpnomad/counter-dashboard:v1"
-       }
-     }
-   }
- }
+      port "http" {
+        static = 9002
+        to     = 9002
+      }
+    }
+
+    service {
+      name = "count-dashboard"
+      port = "9002"
+
+      connect {
+        sidecar_service {
+          proxy {
+            upstreams {
+              destination_name = "count-api"
+              local_bind_port  = 8080
+            }
+          }
+        }
+      }
+    }
+
+    task "dashboard" {
+      driver = "docker"
+
+      env {
+        COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"
+      }
+
+      config {
+        image = "hashicorpnomad/counter-dashboard:v1"
+      }
+    }
+  }
+}
 ```
 
 The job contains two task groups: an API service and a web frontend.
@@ -157,33 +195,35 @@ The job contains two task groups: an API service and a web frontend.
 The API service is defined as a task group with a bridge network:
 
 ```hcl
-   group "api" {
-     network {
-       mode = "bridge"
-     }
+  group "api" {
+    network {
+      mode = "bridge"
+    }
 
-     ...
-   }
+    # ...
+  }
 ```
 
 Since the API service is only accessible via Consul Connect, it does not define
 any ports in its network. The service stanza enables Connect:
 
 ```hcl
-   group "api" {
-     ...
+  group "api" {
 
-     service {
-       name = "count-api"
-       port = "9001"
+    # ...
 
-       connect {
-         sidecar_service {}
-       }
-     }
+    service {
+      name = "count-api"
+      port = "9001"
 
-     ...
-   }
+      connect {
+        sidecar_service {}
+      }
+    }
+
+    # ...
+
+  }
 ```
 
 The `port` in the service stanza is the port the API service listens on. The
@@ -196,17 +236,19 @@ The web frontend is defined as a task group with a bridge network and a static
 forwarded port:
 
 ```hcl
-   group "dashboard" {
-     network {
-       mode ="bridge"
-       port "http" {
-         static = 9002
-         to     = 9002
-       }
-     }
+  group "dashboard" {
+    network {
+      mode = "bridge"
 
-     ...
-   }
+      port "http" {
+        static = 9002
+        to     = 9002
+      }
+    }
+
+    # ...
+
+  }
 ```
 
 The `static = 9002` parameter requests the Nomad scheduler reserve port 9002 on
@@ -221,21 +263,21 @@ This allows you to connect to the web frontend in a browser by visiting
 The web frontend connects to the API service via Consul Connect:
 
 ```hcl
-     service {
-       name = "count-dashboard"
-       port = "9002"
+    service {
+      name = "count-dashboard"
+      port = "9002"
 
-       connect {
-         sidecar_service {
-           proxy {
-             upstreams {
-               destination_name = "count-api"
-               local_bind_port = 8080
-             }
-           }
-         }
-       }
-     }
+      connect {
+        sidecar_service {
+          proxy {
+            upstreams {
+              destination_name = "count-api"
+              local_bind_port  = 8080
+            }
+          }
+        }
+      }
+    }
 ```
 
 The `upstreams` stanza defines the remote service to access (`count-api`) and
@@ -245,9 +287,9 @@ The web frontend is configured to communicate with the API service with an
 environment variable:
 
 ```hcl
-       env {
-         COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"
-       }
+      env {
+        COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"
+      }
 ```
 
 The web frontend is configured via the `$COUNTING_SERVICE_URL`, so you must
@@ -262,7 +304,7 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
  - Consul Connect Native is not yet supported.
  - Consul Connect HTTP and gRPC checks are not yet supported.
  - Consul ACLs are not yet supported.
- - Only the Docker, exec, raw exec, and java drivers support network namespaces
+ - Only the Docker, exec, raw_exec, and java drivers support network namespaces
    and Connect.
  - Variable interpolation for group services and checks are not yet supported.
  - Consul Connect and network namespaces are only supported on Linux.

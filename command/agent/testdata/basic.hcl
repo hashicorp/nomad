@@ -13,6 +13,8 @@ log_level = "ERR"
 
 log_json = true
 
+log_file = "/var/log/nomad.log"
+
 bind_addr = "192.168.0.1"
 
 enable_debug = true

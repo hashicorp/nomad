@@ -812,9 +812,10 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 		structsTask.VolumeMounts = make([]*structs.VolumeMount, l)
 		for i, mount := range apiTask.VolumeMounts {
 			structsTask.VolumeMounts[i] = &structs.VolumeMount{
-				Volume:      mount.Volume,
-				Destination: mount.Destination,
-				ReadOnly:    mount.ReadOnly,
+				Volume:          *mount.Volume,
+				Destination:     *mount.Destination,
+				ReadOnly:        *mount.ReadOnly,
+				PropagationMode: *mount.PropagationMode,
 			}
 		}
 	}
@@ -1062,6 +1063,7 @@ func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
 	if in.SidecarService != nil {
 
 		out.SidecarService = &structs.ConsulSidecarService{
+			Tags: helper.CopySliceString(in.SidecarService.Tags),
 			Port: in.SidecarService.Port,
 		}
 

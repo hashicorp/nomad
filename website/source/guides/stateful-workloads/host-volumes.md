@@ -147,10 +147,7 @@ job "mysql-server" {
     volume "mysql" {
       type      = "host"
       read_only = false
-
-      config {
-        source    = "mysql"
-      }
+      source    = "mysql"
     }
 
     restart {

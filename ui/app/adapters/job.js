@@ -78,7 +78,7 @@ export default Watchable.extend({
   },
 
   plan(job) {
-    const jobId = job.get('id');
+    const jobId = job.get('id') || job.get('_idBeforeSaving');
     const store = this.store;
     const url = addToPath(this.urlForFindRecord(jobId, 'job'), '/plan');
 
@@ -105,7 +105,8 @@ export default Watchable.extend({
   },
 
   update(job) {
-    return this.ajax(this.urlForUpdateRecord(job.get('id'), 'job'), 'POST', {
+    const jobId = job.get('id') || job.get('_idBeforeSaving');
+    return this.ajax(this.urlForUpdateRecord(jobId, 'job'), 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),
       },

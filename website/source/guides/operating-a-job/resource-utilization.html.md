@@ -64,10 +64,10 @@ Time         Type      Description
 
 Here we can see that we are near the limit of our configured CPU but we have
 plenty of memory headroom. We can use this information to alter our job's
-resources to better reflect is actually needs:
+resources to better reflect its actual needs:
 
 ```hcl
-resource {
+resources {
   cpu    = 200
   memory = 10
 }
