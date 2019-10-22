@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
@@ -134,6 +135,10 @@ type allocRunner struct {
 	// prevAllocMigrator allows the migration of a previous allocations alloc dir.
 	prevAllocMigrator allocwatcher.PrevAllocMigrator
 
+	// dynamicRegistry contains all locally registered dynamic plugins (e.g csi
+	// plugins).
+	dynamicRegistry dynamicplugins.Registry
+
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
 	devicemanager devicemanager.Manager
@@ -178,6 +183,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		deviceStatsReporter:      config.DeviceStatsReporter,
 		prevAllocWatcher:         config.PrevAllocWatcher,
 		prevAllocMigrator:        config.PrevAllocMigrator,
+		dynamicRegistry:          config.DynamicRegistry,
 		devicemanager:            config.DeviceManager,
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
@@ -218,6 +224,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			Logger:               ar.logger,
 			StateDB:              ar.stateDB,
 			StateUpdater:         ar,
+			DynamicRegistry:      ar.dynamicRegistry,
 			Consul:               ar.consulClient,
 			ConsulSI:             ar.sidsClient,
 			Vault:                ar.vaultClient,
