@@ -8,7 +8,7 @@ description: |-
 
 # Consul Connect
 
-~> **Note:** This guide requires Nomad 0.10.0 or later and Consul 1.3.0 or
+~> **Note:** This guide requires Nomad 0.10.0 or later and Consul 1.6.0 or
   later.
 
 [Consul Connect](https://www.consul.io/docs/connect/index.html) provides
