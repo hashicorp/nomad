@@ -1,0 +1,72 @@
+.g-alert{
+  display:inline-flex;
+  align-items:flex-start;
+  background-color: white;
+}
+.g-alert:hover{
+  opacity:0.8;
+}
+.g-alert.dark span, .g-alert.dark p{
+  color:#0f1013;
+}
+
+.g-alert.nomad-green span{
+    border-color:#00bc7f;
+}
+.g-alert.nomad-green svg line{
+        stroke:#00bc7f;
+      }
+.g-alert.nomad-green svg path{
+        fill:#00bc7f;
+      }
+
+.g-alert span{
+    font-size: 16px;
+    background-color: white;
+    text-transform:uppercase;
+    padding:3px 10px;
+    border:1px solid #1563ff;
+    border-radius:3px;
+    font-weight:600;
+    font-size:1.25rem;
+    line-height:16px;
+    margin-right:12px;
+    color:black;
+    white-space:nowrap;
+    vertical-align: middle;
+  }
+.g-alert p{
+    font-size: 16px;
+    background-color: white;
+    color:black;
+    font-size:16px;
+    line-height:23px;
+    margin:0;
+    vertical-align: middle;
+  }
+.g-alert svg{
+    margin-left:12px
+  }
+.g-alert svg line{
+      stroke:#1563ff;
+    }
+.g-alert svg path{
+      fill:#1563ff;
+    }
+
+.g-alert-banner{
+  background:linear-gradient(90deg, #1563ff 1.56%, #08368b 100%);
+  color:#ffffff;
+  display:none;
+  font-weight:600;
+  overflow:hidden;
+  position:relative;
+  transition:height 0.3s ease-out
+}
+
+.g-alert-banner.nomad{
+    background:linear-gradient(90deg, #00bc7f 1.56%, #005738 100%)
+  }
+.g-alert-banner.nomad svg path{
+  stroke:#6bd8b4;
+}
