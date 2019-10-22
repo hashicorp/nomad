@@ -198,7 +198,63 @@ $ nomad run nginx.nomad
 ==> Evaluation "45da5a89" finished with status "complete"
 ```
 
-### Step 5: Make a Request to the Load Balancer
+### Step 5: Verify Load Balancer Configuration
+
+Consul Template supports [blocking queries][ct-blocking-queries]. This means
+your NGINX deployment (which is using the [template][template-stanza] stanza)
+will be notified immediately when a change in the health of one of the service
+endpoints occurs and will re-render a new load balancer configuration file that
+only includes healthy service instances.
+
+You can use the [alloc fs][alloc-fs] command on your NGINX allocation to read
+the rendered load balancer configuration file.
+
+First, obtain the allocation ID of your NGINX deployment (output below is
+abbreviated):
+
+```shell
+$ nomad status nginx
+ID            = nginx
+Name          = nginx
+...
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+nginx       0       0         1        0       0         0
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created     Modified
+76692834  f5fdf017  nginx       0        run      running  17m40s ago  17m25s ago
+```
+
+* Keep in mind your allocation ID will be different.
+
+Next, use the `alloc fs` command to read the load balancer config:
+
+```shell
+$ nomad alloc fs 766 nginx/local/load-balancer.conf
+upstream backend {
+
+  server 172.31.48.118:31250;
+
+  server 172.31.52.52:23049;
+
+  server 172.31.52.7:20548;
+
+}
+
+server {
+   listen 80;
+
+   location / {
+      proxy_pass http://backend;
+   }
+}
+```
+
+At this point, you can change the count of your `demo-webapp` job and repeat the
+previous command to verify the load balancer config is dynamically changing.
+
+### Step 6: Make a Request to the Load Balancer
 
 If you query the NGINX load balancer, you should be able to see a response similar to the one shown below:
 
@@ -220,8 +276,10 @@ instances of the demo web application (which is spread across 3 Nomad clients).
 The output shows the IP address of the host it is deployed on. If you repeat
 your requests, you will see that the IP address changes.
 
+[alloc-fs]: /docs/commands/alloc/fs.html
 [consul-template]: https://github.com/hashicorp/consul-template#consul-template
 [consul-temp-syntax]: https://github.com/hashicorp/consul-template#service
+[ct-blocking-queries]: https://github.com/hashicorp/consul-template#key
 [inline]: /docs/job-specification/template.html#inline-template
 [lb-strategies]: https://www.hashicorp.com/blog/configuring-third-party-loadbalancers-with-consul-nginx-haproxy-f5/
 [nginx]: https://www.nginx.com/
