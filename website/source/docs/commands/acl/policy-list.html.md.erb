@@ -12,25 +12,24 @@ The `acl policy list` command is used to list available ACL policies.
 
 ## Usage
 
-```
+```plaintext
 nomad acl policy list
 ```
 
 ## General Options
 
 <%= partial "docs/commands/_general_options" %>
-#
+
 ## List Options
 
-* `-json` : Output the policies in their JSON format.
-
-* `-t` : Format and display the policies using a Go template.
+- `-json` : Output the policies in their JSON format.
+- `-t` : Format and display the policies using a Go template.
 
 ## Examples
 
 List all ACL policies:
 
-```
+```shell
 $ nomad acl policy list
 Name      Description
 policy-1  The first policy

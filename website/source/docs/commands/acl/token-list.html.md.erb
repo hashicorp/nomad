@@ -12,25 +12,24 @@ The `acl token list` command is used to list existing ACL tokens.
 
 ## Usage
 
-```
+```plaintext
 nomad acl token list
 ```
 
 ## General Options
 
 <%= partial "docs/commands/_general_options" %>
-#
+
 ## List Options
 
-* `-json` : Output the tokens in their JSON format.
-
-* `-t` : Format and display the tokens using a Go template.
+- `-json` : Output the tokens in their JSON format.
+- `-t` : Format and display the tokens using a Go template.
 
 ## Examples
 
 List all ACL tokens:
 
-```
+```shell
 $ nomad acl token list
 Name             Type        Global  Accessor ID
 Bootstrap Token  management  true    32b61154-47f1-3694-1430-a5544bafcd3e

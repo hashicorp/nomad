@@ -28,7 +28,7 @@ without the risk of additional work being assigned to it.
 
 ## Usage
 
-```
+```plaintext
 nomad node eligibility [options] <node>
 ```
 
@@ -46,26 +46,25 @@ operation is desired.
 
 ## Drain Options
 
-* `-enable`: Enable scheduling eligbility.
-* `-disable`: Disable scheduling eligibility.
-* `-self`: Set eligibility for the local node.
-* `-yes`: Automatic yes to prompts.
+- `-enable`: Enable scheduling eligibility.
+- `-disable`: Disable scheduling eligibility.
+- `-self`: Set eligibility for the local node.
+- `-yes`: Automatic yes to prompts.
 
 ## Examples
 
 Enable scheduling eligibility on node with ID prefix "574545c5":
 
-```
+```shell
 $ nomad node eligibility -enable 574545c5
 Node "574545c5-c2d7-e352-d505-5e2cb9fe169f" scheduling eligibility set: eligible for scheduling
 ```
 
 Disable scheduling eligibility on the local node:
 
-```
+```shell
 $ nomad node eligibility -disable -self
 Node "574545c5-c2d7-e352-d505-5e2cb9fe169f" scheduling eligibility set: ineligible for scheduling
 ```
-
 
 [drain]: /docs/commands/node/drain.html

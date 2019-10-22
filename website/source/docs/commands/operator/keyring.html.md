@@ -24,34 +24,36 @@ All variations of the `keyring` command return 0 if all nodes reply and there
 are no errors. If any node fails to reply or reports failure, the exit code
 will be 1.
 
-
 ## Usage
 
-Usage: `nomad operator keyring [options]`
+```plaintext
+nomad operator keyring [options]
+```
 
 Only one actionable argument may be specified per run, including `-list`,
 `-install`, `-remove`, and `-use`.
 
 The list of available flags are:
 
-* `-list` - List all keys currently in use within the cluster.
+- `-list` - List all keys currently in use within the cluster.
 
-* `-install` - Install a new encryption key. This will broadcast the new key to
+- `-install` - Install a new encryption key. This will broadcast the new key to
   all members in the cluster.
 
-* `-use` - Change the primary encryption key, which is used to encrypt messages.
+- `-use` - Change the primary encryption key, which is used to encrypt messages.
   The key must already be installed before this operation can succeed.
 
-* `-remove` - Remove the given key from the cluster. This operation may only be
+- `-remove` - Remove the given key from the cluster. This operation may only be
   performed on keys which are not currently the primary key.
 
 ## Output
 
-The output of the `nomad operator keyring -list` command consolidates information from
-all the Nomad servers from all datacenters and regions to provide a simple and
-easy to understand view of the cluster. 
+The output of the `nomad operator keyring -list` command consolidates
+information from all the Nomad servers from all datacenters and regions to
+provide a simple and easy to understand view of the cluster.
 
-```
+```shell
+$ nomad operator keyring -list
 ==> Gathering installed encryption keys...
 Key
 PGm64/neoebUBqYR/lZTbA==

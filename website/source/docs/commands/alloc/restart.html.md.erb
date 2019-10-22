@@ -13,7 +13,7 @@ an entire allocation or individual task.
 
 ## Usage
 
-```
+```plaintext
 nomad alloc restart [options] <allocation> <task>
 ```
 
@@ -27,11 +27,11 @@ is optional and if omitted every task in the allocation will be restarted.
 
 ## Restart Options
 
-* `-verbose`: Display verbose output.
+- `-verbose`: Display verbose output.
 
 ## Examples
 
-```
+```shell
 $ nomad alloc restart eb17e557
 
 $ nomad alloc restart eb17e557 foo
@@ -39,4 +39,3 @@ Could not find task named: foo, found:
 * test
 <blocking>
 ```
-

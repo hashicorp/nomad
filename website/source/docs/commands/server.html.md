@@ -7,7 +7,7 @@ description: >
 ---
 
 # Command: server
- 
+
 Command: `nomad server`
 
 The `server` command is used to interact with servers.
@@ -19,9 +19,9 @@ Usage: `nomad server <subcommand> [options]`
 Run `nomad server <subcommand> -h` for help on that subcommand. The following
 subcommands are available:
 
-* [`server force-leave`][force-leave] - Force a server into the 'left' state
-* [`server join`][join] - Join server nodes together
-* [`server members`][members] - Display a list of known servers and their status
+- [`server force-leave`][force-leave] - Force a server into the 'left' state
+- [`server join`][join] - Join server nodes together
+- [`server members`][members] - Display a list of known servers and their status
 
 [force-leave]: /docs/commands/server/force-leave.html "Force a server into the 'left' state"
 [join]: /docs/commands/server/join.html "Join server nodes together"
