@@ -1,28 +1,28 @@
 ---
 layout: "guides"
-page_title: "Load Balancing with Nginx"
+page_title: "Load Balancing with NGINX"
 sidebar_current: "guides-load-balancing-nginx"
 description: |-
   There are multiple approaches to load balancing within a Nomad cluster.
-  One approach involves using [Nginx][nginx]. Nginx works well with Nomad's
+  One approach involves using [NGINX][nginx]. NGINX works well with Nomad's
   template stanza to allow for dynamic updates to its load balancing
   configuration.
 ---
 
-# Load Balancing with Fabio
+# Load Balancing with NGINX
 
 You can use Nomad's [template stanza][template-stanza] to configure
-[Nginx][nginx] so that it can dynamically update its load balancer configuration
+[NGINX][nginx] so that it can dynamically update its load balancer configuration
 to scale along with your services.
 
-The main use case for Nginx in this scenario is to distribute incoming HTTP(S)
+The main use case for NGINX in this scenario is to distribute incoming HTTP(S)
 and TCP requests from the internet to frontend services that can handle these
 requests. This guide will show you one such example using a demo web
 application.
 
 ## Reference Material
 
-- [Nginx][nginx]
+- [NGINX][nginx]
 - [Load Balancing Strategies for Consul][lb-strategies]
 
 ## Estimated Time to Complete
@@ -88,7 +88,7 @@ job "demo-webapp" {
 ```
 
 Note that this job deploys 3 instances of our demo web application which we will
-load balance with Nginx in the next few steps.
+load balance with NGINX in the next few steps.
 
 ### Step 2: Deploy the Demo Web App
 
@@ -105,9 +105,9 @@ $ nomad run webapp.nomad
 ==> Evaluation "ea1e8528" finished with status "complete"
 ```
 
-### Step 3: Create a Job for Nginx
+### Step 3: Create a Job for NGINX
 
-Create a job for Nginx and name it `nginx.nomad`. This will be our load balancer
+Create a job for NGINX and name it `nginx.nomad`. This will be our load balancer
 that will balance requests to the deployed instances of our web application.
 
 ```hcl
@@ -172,7 +172,7 @@ EOF
 ```
 
 - We are using Nomad's [template][template-stanza] to populate the load balancer
-  configuration for Nginx. The underlying tool being used is [Consul
+  configuration for NGINX. The underlying tool being used is [Consul
   Template][consul-template]. You can use Consul Template's documentation to
   learn more about the [syntax][consul-temp-syntax] needed to interact with
   Consul. In this case, we are going to query the address and port of our demo
@@ -185,9 +185,9 @@ EOF
   stanza][remote-template] to download an input template from a remote source
   such as an S3 bucket.
 
-### Step 4: Run the Nginx Job
+### Step 4: Run the NGINX Job
 
-We can now register our Nginx job:
+We can now register our NGINX job:
 
 ```shell
 $ nomad run nginx.nomad 
@@ -200,7 +200,7 @@ $ nomad run nginx.nomad
 
 ### Step 5: Make a Request to the Load Balancer
 
-If you query the Nginx load balancer, you should be able to see a response similar to the one shown below:
+If you query the NGINX load balancer, you should be able to see a response similar to the one shown below:
 
 ```shell
 $ curl nginx.service.consul:8080
