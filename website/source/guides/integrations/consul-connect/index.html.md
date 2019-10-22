@@ -8,7 +8,8 @@ description: |-
 
 # Consul Connect
 
-~> **Note** This guide describes a new feature available in [Nomad 0.10.0][download].
+~> **Note:** This guide requires Nomad 0.10.0 or later and Consul 1.3.0 or
+  later.
 
 [Consul Connect](https://www.consul.io/docs/connect/index.html) provides
 service-to-service connection authorization and encryption using mutual
@@ -311,4 +312,3 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 
 
 [count-dashboard]: /assets/images/count-dashboard.png
-[download]: https://releases.hashicorp.com/nomad/0.10.0-beta1/

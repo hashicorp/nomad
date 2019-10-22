@@ -9,6 +9,8 @@ description: |-
 
 # Stateful Workloads with Nomad Host Volumes
 
+~> **Note:** This guide requires Nomad 0.10.0 or later.
+
 Nomad Host Volumes can manage storage for stateful workloads running inside your
 Nomad cluster. This guide walks you through deploying a MySQL workload to a node
 containing supporting storage.
