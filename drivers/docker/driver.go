@@ -738,7 +738,11 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	if runtime.GOOS == "windows" {
 		hostConfig.MemorySwap = 0
 	} else {
+		// disable swapping
+		var swappiness int64 = 0
+
 		hostConfig.MemorySwap = task.Resources.LinuxResources.MemoryLimitBytes // MemorySwap is memory + swap.
+		hostConfig.MemorySwappiness = &swappiness
 	}
 
 	loggingDriver := driverConfig.Logging.Type
