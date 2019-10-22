@@ -61,7 +61,7 @@ job "demo-webapp" {
       driver = "docker"
 
       config {
-        image = "hashicorp/demo-webapp:v1"
+        image = "hashicorp/demo-webapp-lb-guide"
       }
 
       resources {
@@ -234,11 +234,11 @@ Next, use the `alloc fs` command to read the load balancer config:
 $ nomad alloc fs 766 nginx/local/load-balancer.conf
 upstream backend {
 
-  server 172.31.48.118:31250;
+  server 172.31.48.118:21354;
 
-  server 172.31.52.52:23049;
+  server 172.31.52.52:25958;
 
-  server 172.31.52.7:20548;
+  server 172.31.52.7:29728;
 
 }
 
@@ -260,15 +260,7 @@ If you query the NGINX load balancer, you should be able to see a response simil
 
 ```shell
 $ curl nginx.service.consul:8080
-<!DOCTYPE html>
-<html>
-<body>
-
-<h1 style="color:red;">Welcome! This is <i>version 1</i> of your application!</h1>
-<h1 style="color:red;">You are on node 172.31.48.118</h1>
-
-</body>
-</html>
+Welcome! You are on node 172.31.48.118:21354
 ```
 
 Note that your request has been forwarded to one of the several deployed
