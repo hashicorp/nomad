@@ -18,7 +18,7 @@ import (
 )
 
 // ErrCannotParseDockercfg is the error returned by NewAuthConfigurations when the dockercfg cannot be parsed.
-var ErrCannotParseDockercfg = errors.New("Failed to read authentication from dockercfg")
+var ErrCannotParseDockercfg = errors.New("failed to read authentication from dockercfg")
 
 // AuthConfiguration represents authentication options to use in the PushImage
 // method. It represents the authentication in the Docker index server.
@@ -108,7 +108,7 @@ func cfgPaths(dockerConfigEnv string, homeEnv string) []string {
 // - $HOME/.docker/config.json
 // - $HOME/.dockercfg
 func NewAuthConfigurationsFromDockerCfg() (*AuthConfigurations, error) {
-	err := fmt.Errorf("No docker configuration found")
+	err := fmt.Errorf("no docker configuration found")
 	var auths *AuthConfigurations
 
 	pathsToTry := cfgPaths(os.Getenv("DOCKER_CONFIG"), os.Getenv("HOME"))

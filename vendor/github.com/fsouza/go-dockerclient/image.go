@@ -444,15 +444,10 @@ func (c *Client) ImportImage(opts ImportImageOptions) error {
 // For more details about the Docker building process, see
 // https://goo.gl/4nYHwV.
 type BuildImageOptions struct {
+	Context             context.Context
 	Name                string             `qs:"t"`
 	Dockerfile          string             `qs:"dockerfile"`
-	NoCache             bool               `qs:"nocache"`
 	CacheFrom           []string           `qs:"-"`
-	SuppressOutput      bool               `qs:"q"`
-	Pull                bool               `qs:"pull"`
-	RmTmpContainer      bool               `qs:"rm"`
-	ForceRmTmpContainer bool               `qs:"forcerm"`
-	RawJSONStream       bool               `qs:"-"`
 	Memory              int64              `qs:"memory"`
 	Memswap             int64              `qs:"memswap"`
 	CPUShares           int64              `qs:"cpushares"`
@@ -473,7 +468,12 @@ type BuildImageOptions struct {
 	CgroupParent        string             `qs:"cgroupparent"`
 	SecurityOpt         []string           `qs:"securityopt"`
 	Target              string             `gs:"target"`
-	Context             context.Context
+	NoCache             bool               `qs:"nocache"`
+	SuppressOutput      bool               `qs:"q"`
+	Pull                bool               `qs:"pull"`
+	RmTmpContainer      bool               `qs:"rm"`
+	ForceRmTmpContainer bool               `qs:"forcerm"`
+	RawJSONStream       bool               `qs:"-"`
 }
 
 // BuildArg represents arguments that can be passed to the image when building
@@ -587,7 +587,6 @@ func (c *Client) TagImage(name string, opts TagImageOptions) error {
 	resp, err := c.do("POST", "/images/"+name+"/tag?"+queryString(&opts), doOptions{
 		context: opts.Context,
 	})
-
 	if err != nil {
 		return err
 	}
