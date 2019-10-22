@@ -73,7 +73,8 @@ for service discovery. For more details on using Nomad with Consul please see
 the [Consul integration documentation][service-discovery].
 
 Nomad 0.10 also allows specifying the `service` stanza at the task group level.
-This enables services in the same task group to opt into [Consul Connect][] integration.
+This enables services in the same task group to opt into [Consul
+Connect][connect] integration.
 
 ## `service` Parameters
 
@@ -81,6 +82,9 @@ This enables services in the same task group to opt into [Consul Connect][] inte
   check associated with the service. This can be specified multiple times to
   define multiple checks for the service. At this time, Nomad supports the
   `grpc`, `http`, `script`<sup><small>1</small></sup>, and `tcp` checks.
+
+- `connect` - Configures the [Consul Connect][connect] integration. Only
+  available on group services.
 
 - `name` `(string: "<job>-<group>-<task>")` - Specifies the name this service
   will be advertised as in Consul.  If not supplied, this will default to the
@@ -636,4 +640,4 @@ system of a task for that driver.</small>
 [network]: /docs/job-specification/network.html "Nomad network Job Specification"
 [qemu]: /docs/drivers/qemu.html "Nomad qemu Driver"
 [restart_stanza]: /docs/job-specification/restart.html "restart stanza"
-[Connect]: /docs/job-specification/connect.html "Nomad Consul Connect Integration"
+[connect]: /docs/job-specification/connect.html "Nomad Consul Connect Integration"
