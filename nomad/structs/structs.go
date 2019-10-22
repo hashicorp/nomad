@@ -5337,6 +5337,9 @@ type Task struct {
 	// Used internally to manage tasks according to their TaskKind. Initial use case
 	// is for Consul Connect
 	Kind TaskKind
+
+	// CSIPluginConfig is used to configure the plugin supervisor for the task.
+	CSIPluginConfig *TaskCSIPluginConfig
 }
 
 func (t *Task) Copy() *Task {
@@ -5563,6 +5566,19 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		if !MountPropagationModeIsValid(vm.PropagationMode) {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) has an invalid propagation mode: \"%s\"", idx, vm.PropagationMode))
 		}
+	}
+
+	// Validate CSI Plugin Config
+	if t.CSIPluginConfig != nil {
+		if t.CSIPluginConfig.PluginID == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig must have a non-empty PluginID"))
+		}
+
+		if !CSIPluginTypeIsValid(t.CSIPluginConfig.PluginType) {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig PluginType must be one of 'node', 'controller', or 'monolith', got: \"%s\"", t.CSIPluginConfig.PluginType))
+		}
+
+		// TODO: Investigate validation of the PluginMountDir. Not much we can do apart from check IsAbs until after we understand its execution environment though :(
 	}
 
 	return mErr.ErrorOrNil()

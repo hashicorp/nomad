@@ -1665,6 +1665,55 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 	}
 }
 
+func TestTask_Validate_CSIPluginConfig(t *testing.T) {
+	table := []struct {
+		name        string
+		pc          *TaskCSIPluginConfig
+		expectedErr string
+	}{
+		{
+			name: "no errors when not specified",
+			pc:   nil,
+		},
+		{
+			name:        "requires non-empty plugin id",
+			pc:          &TaskCSIPluginConfig{},
+			expectedErr: "CSIPluginConfig must have a non-empty PluginID",
+		},
+		{
+			name: "requires valid plugin type",
+			pc: &TaskCSIPluginConfig{
+				PluginID:   "com.hashicorp.csi",
+				PluginType: "nonsense",
+			},
+			expectedErr: "CSIPluginConfig PluginType must be one of 'node', 'controller', or 'monolith', got: \"nonsense\"",
+		},
+	}
+
+	for _, tt := range table {
+		t.Run(tt.name, func(t *testing.T) {
+			task := &Task{
+				CSIPluginConfig: tt.pc,
+			}
+			ephemeralDisk := &EphemeralDisk{
+				SizeMB: 1,
+			}
+
+			err := task.Validate(ephemeralDisk, JobTypeService, nil)
+			mErr := err.(*multierror.Error)
+			if tt.expectedErr != "" {
+				if !strings.Contains(mErr.Errors[4].Error(), tt.expectedErr) {
+					t.Fatalf("err: %s", err)
+				}
+			} else {
+				if len(mErr.Errors) != 4 {
+					t.Fatalf("unexpected err: %s", mErr.Errors[4])
+				}
+			}
+		})
+	}
+}
+
 func TestTask_Validate_Template(t *testing.T) {
 
 	bad := &Template{}
