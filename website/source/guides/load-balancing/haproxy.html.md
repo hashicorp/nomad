@@ -139,6 +139,9 @@ job "haproxy" {
 
       template {
         data = <<EOF
+defaults
+   mode http
+
 frontend stats
    bind *:1936
    stats uri /
@@ -223,7 +226,18 @@ $ nomad run haproxy.nomad
 ==> Evaluation "937b1a2d" finished with status "complete"
 ```
 
-### Step 5: Make a Request to the Load Balancer
+### Step 5: Check the HAProxy Statistics Page
+
+You can visit the statistics and monitoring page for HAProxy at
+http://`<Your-HAProxy-IP-address>:1936`. You can use this page to verify your
+settings and for basic monitoring.
+
+[![Home Page][haproxy_ui]][haproxy_ui]
+
+Notice there are 10 pre-provisioned load balancer backend slots for your service
+but that only three of them are being used.
+
+### Step 6: Make a Request to the Load Balancer
 
 If you query the HAProxy load balancer, you should be able to see a response
 similar to the one shown below:
@@ -238,11 +252,10 @@ instances of the demo web application (which is spread across 3 Nomad clients).
 The output shows the IP address of the host it is deployed on. If you repeat
 your requests, you will see that the IP address changes.
 
-[alloc-fs]: /docs/commands/alloc/fs.html
 [consul-template]: https://github.com/hashicorp/consul-template#consul-template
 [consul-temp-syntax]: https://github.com/hashicorp/consul-template#service
-[ct-blocking-queries]: https://github.com/hashicorp/consul-template#key
 [haproxy]: http://www.haproxy.org/
+[haproxy_ui]: /assets/images/haproxy_ui.png
 [inline]: /docs/job-specification/template.html#inline-template
 [lb-strategies]: https://www.hashicorp.com/blog/configuring-third-party-loadbalancers-with-consul-nginx-haproxy-f5/
 [remote-template]: /docs/job-specification/template.html#remote-template
