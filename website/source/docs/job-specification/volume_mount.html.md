@@ -27,10 +27,7 @@ job "docs" {
     volume "certs" {
       type = "host"
       read_only = true
-
-      config {
-        source = "ca-certificates"
-      }
+      source = "ca-certificates"
     }
 
     task "example" {
