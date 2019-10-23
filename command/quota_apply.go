@@ -279,18 +279,17 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 
 	// Find the network ObjectList, parse it
 	nw := listVal.Filter("network")
-	if len(nw.Items) < 1 {
-		return nil
-	}
-	rl, err := jobspec.ParseNetwork(nw)
-	if err != nil {
-		return multierror.Prefix(err, "resources ->")
-	}
-	if rl != nil {
-		if rl.Mode != "" || rl.HasPorts() {
-			return fmt.Errorf("resources -> network only allows mbits")
+	if len(nw.Items) > 0 {
+		rl, err := jobspec.ParseNetwork(nw)
+		if err != nil {
+			return multierror.Prefix(err, "resources ->")
 		}
-		result.Networks = []*api.NetworkResource{rl}
+		if rl != nil {
+			if rl.Mode != "" || rl.HasPorts() {
+				return fmt.Errorf("resources -> network only allows mbits")
+			}
+			result.Networks = []*api.NetworkResource{rl}
+		}
 	}
 
 	return nil
