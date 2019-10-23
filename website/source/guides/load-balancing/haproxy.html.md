@@ -151,7 +151,7 @@ frontend http_front
 
 backend http_back
     balance roundrobin
-    server-template mywebapp 10 _demo-webapp._tcp.service.consul resolvers consul    resolve-opts allow-dup-ip resolve-prefer ipv4 check
+    server-template mywebapp 10 _demo-webapp._tcp.service.consul resolvers consul resolve-opts allow-dup-ip resolve-prefer ipv4 check
 
 resolvers consul
   nameserver consul 127.0.0.1:53
