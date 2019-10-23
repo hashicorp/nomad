@@ -1,6 +1,11 @@
 import Component from '@ember/component';
 import { computed, get } from '@ember/object';
 
+/**
+ * @module ListAccordion
+ * `ListAccordion` TODO
+ *
+ */
 export default Component.extend({
   classNames: ['accordion'],
 
