@@ -240,7 +240,8 @@ but that only three of them are being used.
 ### Step 6: Make a Request to the Load Balancer
 
 If you query the HAProxy load balancer, you should be able to see a response
-similar to the one shown below:
+similar to the one shown below (keep in mind you need to run this command from a
+node inside your cluster):
 
 ```shell
 $ curl haproxy.service.consul:8080
@@ -251,6 +252,12 @@ Note that your request has been forwarded to one of the several deployed
 instances of the demo web application (which is spread across 3 Nomad clients).
 The output shows the IP address of the host it is deployed on. If you repeat
 your requests, you will see that the IP address changes.
+
+* Note: if you would like to access HAProxy from outside your cluster, you
+  should set up a load balancer in your environment that maps to an active port
+  `8080` on your clients (or whichever port you have configured for HAProxy to
+  listen on). You can then send your requests directly to your external load
+  balancer.
 
 [consul-template]: https://github.com/hashicorp/consul-template#consul-template
 [consul-temp-syntax]: https://github.com/hashicorp/consul-template#service
