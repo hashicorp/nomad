@@ -12,7 +12,7 @@ storiesOf('JsonViewer/', module)
       <h5 class="title is-5">JSON Viewer</h5>
       <p>Known intermittent issue in current Storybook implementation: no content rendered until window resize?!</p>
       <JsonViewer @json={{jsonSmall}} />
-      <h6 class="title is-6">JSON Viewer for full document</h6>
+      <h6 class="title is-6 with-headroom">JSON Viewer for full document</h6>
       <JsonViewer @json={{jsonLarge}} />
     `,
       context: {
