@@ -102,46 +102,41 @@ func TestQuotaApplyCommand_Good_JSON(t *testing.T) {
 
 func TestQuotaApplyNetwork(t *testing.T) {
 	t.Parallel()
-	// srv, _, _ := testServer(t, true, nil)
-	// defer srv.Shutdown()
 
 	type example struct {
-		q *api.QuotaSpec
-		e string
+		hcl string
+		q   *api.QuotaSpec
+		e   string
 	}
 
-	intPtr := func(x int) *int {
-		return &x
-	}
+	mbits := 20
 
-	cases := map[string]example{
-		`limit {region = "global", region_limit {network {mbits = 20}}}`: {
-			&api.QuotaSpec{
-				Limits: []*api.QuotaLimit{{
-					Region: "global",
-					RegionLimit: &api.Resources{
-						Networks: []*api.NetworkResource{{
-							MBits: intPtr(20),
-						}},
-					},
-				}},
-			},
-			"",
+	cases := []example{{
+		hcl: `limit {region = "global", region_limit {network {mbits = 20}}}`,
+		q: &api.QuotaSpec{
+			Limits: []*api.QuotaLimit{{
+				Region: "global",
+				RegionLimit: &api.Resources{
+					Networks: []*api.NetworkResource{{
+						MBits: &mbits,
+					}},
+				},
+			}},
 		},
-		`limit {region = "global", region_limit {network { mbits = 20, device = "eth0"}}}`: {
-			nil,
-			"1 error(s) occurred:\n\n* limit -> region_limit -> resources -> network -> invalid key: device",
-		},
-	}
+		e: "",
+	}, {
+		hcl: `limit {region = "global", region_limit {network { mbits = 20, device = "eth0"}}}`,
+		q:   nil,
+		e:   "1 error(s) occurred:\n\n* limit -> region_limit -> resources -> network -> invalid key: device",
+	}}
 
-	for hcl, expected := range cases {
-		q, e := parseQuotaSpec([]byte(hcl))
-		s := ""
-		if e != nil {
-			s = e.Error()
-		}
-
-		require.Equal(t, expected.q, q)
-		require.Equal(t, expected.e, s)
+	for _, c := range cases {
+		t.Run(c.hcl, func(t *testing.T) {
+			q, e := parseQuotaSpec([]byte(c.hcl))
+			require.Equal(t, c.q, q)
+			if c.e != "" {
+				require.EqualError(t, e, c.e)
+			}
+		})
 	}
 }
