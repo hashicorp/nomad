@@ -38,11 +38,12 @@ level.
          sidecar_service {}
        }
      }
+
      task "web" {
-         driver = "docker"
-         config {
-           image = "test/test:v1"
-         }
+       driver = "docker"
+       config {
+         image = "test/test:v1"
+       }
      }
    }
  }
