@@ -103,15 +103,13 @@ func TestQuotaApplyCommand_Good_JSON(t *testing.T) {
 func TestQuotaApplyNetwork(t *testing.T) {
 	t.Parallel()
 
-	type example struct {
+	mbits := 20
+
+	cases := []struct {
 		hcl string
 		q   *api.QuotaSpec
 		e   string
-	}
-
-	mbits := 20
-
-	cases := []example{{
+	}{{
 		hcl: `limit {region = "global", region_limit {network {mbits = 20}}}`,
 		q: &api.QuotaSpec{
 			Limits: []*api.QuotaLimit{{
