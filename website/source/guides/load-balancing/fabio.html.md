@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Load Balancing with Nomad"
-sidebar_current: "guides-load-balancing"
+sidebar_current: "guides-load-balancing-fabio"
 description: |-
   There are multiple approaches to load balancing within a Nomad cluster.
   One approach involves using [fabio][fabio]. Fabio integrates natively
