@@ -235,7 +235,7 @@ settings and for basic monitoring.
 [![Home Page][haproxy_ui]][haproxy_ui]
 
 Notice there are 10 pre-provisioned load balancer backend slots for your service
-but that only three of them are being used.
+but that only three of them are being used, corresponding to the three allocations in the current job.
 
 ### Step 6: Make a Request to the Load Balancer
 
