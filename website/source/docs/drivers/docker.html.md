@@ -413,6 +413,8 @@ The `docker` driver supports the following configuration in the job spec.  Only
 * `pids_limit` - (Optional) An integer value that specifies the pid limit for
   the container. Defaults to unlimited.
 
+Additionally, docker driver supports customization of the container user through task [`user` option](/docs/job-specification/task.html#user).
+
 ### Container Name
 
 Nomad creates a container after pulling an image. Containers are named

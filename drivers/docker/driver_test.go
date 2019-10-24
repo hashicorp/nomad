@@ -1009,6 +1009,23 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 	require.Equal(t, containerName, c.Name)
 }
 
+func TestDockerDriver_CreateContainerConfig_User(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, _ := dockerTask(t)
+	task.User = "random-user-1"
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	require.Equal(t, task.User, c.Config.User)
+}
+
 func TestDockerDriver_CreateContainerConfig_Labels(t *testing.T) {
 	t.Parallel()
 
