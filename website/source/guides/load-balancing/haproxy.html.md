@@ -36,8 +36,9 @@ environment with Consul installed. You can use this [repo][terraform-repo] to
 easily provision a sandbox environment. This guide will assume a cluster with
 one server node and three client nodes.
 
--> **Note:** This guide is for demo purposes and is only using a single
--> **Note:** This guide is for demo purposes and only assumes a single server node. Please consult the [reference architecture](/guides/install/production/reference-architecture.html#high-availability) for production configuration.
+-> **Note:** This guide is for demo purposes and only assumes a single server
+node. Please consult the [reference architecture][reference-arch] for production
+configuration.
 
 ## Steps
 
@@ -129,7 +130,8 @@ job "haproxy" {
         network_mode = "host"
 
         port_map {
-          http = 8080
+          http       = 8080
+          haproxy_ui = 1936
         }
 
         volumes = [
@@ -180,6 +182,10 @@ EOF
           port "http" {
             static = 8080
           }
+
+          port "haproxy_ui" {
+            static = 1936
+          }
         }
       }
     }
@@ -190,9 +196,8 @@ EOF
 Take note of the following key points from the HAProxy configuration we have
 defined:
 
-- The `backend http_back` stanza in the HAProxy config includes two main
-  settings: `balance type` and `server-template`. The `balance type` is round
-  robin and will load balance across the available service in order.
+- The `balance type` under the `backend http_back` stanza in the HAProxy config
+  is round robin and will load balance across the available service in order.
 - The `server-template` option allows Consul service registrations to configure
   HAProxy's backend server pool. Because of this, you do not need to explicitly
   add your backend servers' IP addresses. We have specified a server-template
@@ -265,6 +270,7 @@ your requests, you will see that the IP address changes.
 [haproxy_ui]: /assets/images/haproxy_ui.png
 [inline]: /docs/job-specification/template.html#inline-template
 [lb-strategies]: https://www.hashicorp.com/blog/configuring-third-party-loadbalancers-with-consul-nginx-haproxy-f5/
+[reference-arch]: /guides/install/production/reference-architecture.html#high-availability
 [remote-template]: /docs/job-specification/template.html#remote-template
 [server-template]: https://www.haproxy.com/blog/whats-new-haproxy-1-8/#server-template-configuration-directive
 [template-stanza]: /docs/job-specification/template.html
