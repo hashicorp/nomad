@@ -213,7 +213,7 @@ Additionally, keep in mind the following points from the Nomad job spec:
   allow us to query `haproxy.service.consul:8080` from anywhere inside our cluster
   so we can reach our web application.
 - Please note that although we have defined the template [inline][inline], we
-  can use the template stanza [in conjunction with the artifact
+  could alternatively use the template stanza [in conjunction with the artifact
   stanza][remote-template] to download an input template from a remote source
   such as an S3 bucket.
 
