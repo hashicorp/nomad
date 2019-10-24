@@ -7,7 +7,7 @@ import productMetadata from '../app/utils/styleguide/product-metadata';
 storiesOf('ListAccordion/', module)
   .addParameters({ options: { showPanel: true } })
   .add(
-    `ListAccordion`,
+    `Accordion`,
     () => ({
       template: hbs`
       <h5 class="title is-5">Accordion</h5>
@@ -26,8 +26,18 @@ storiesOf('ListAccordion/', module)
           <p><a href="{{ac.item.link}}">Learn more...</a></p>
         </ac.body>
       </ListAccordion>
-
-      <h6 class="title is-6 with-headroom">Accordion, One Item</h6>
+          `,
+      context: {
+        products: productMetadata,
+      },
+    }),
+    { notes }
+  )
+  .add(
+    `Accordion, One Item`,
+    () => ({
+      template: hbs`
+      <h5 class="title is-5">Accordion, One Item</h5>
       <ListAccordion @source={{take 1 products}} @key="name" as |a|>
         <a.head @buttonLabel="details">
           <div class="columns inline-definitions">
@@ -43,8 +53,18 @@ storiesOf('ListAccordion/', module)
           <p><a href="{{a.item.link}}">Learn more...</a></p>
         </a.body>
       </ListAccordion>
-
-      <h6 class="title is-6 with-headroom">Accordion, Not Expandable</h6>
+          `,
+      context: {
+        products: productMetadata,
+      },
+    }),
+    { notes }
+  )
+  .add(
+    `Accordion, Not Expandable`,
+    () => ({
+      template: hbs`
+      <h5 class="title is-5">Accordion, Not Expandable</h5>
       <ListAccordion @source={{products}} @key="name" as |a|>
         <a.head @buttonLabel="details" @isExpandable={{eq a.item.lang "golang"}}>
           <div class="columns inline-definitions">
