@@ -78,7 +78,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: circleci/golang:1.12.10
+      - image: golang:1.12.12
   go-machine:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
@@ -109,8 +109,8 @@ jobs:
       GOPATH: /go
     steps:
       - checkout
+      - run: apt-get update; apt-get install -y shellcheck sudo unzip
       - install-protoc
-      - run: sudo apt-get update && sudo apt-get install shellcheck
       - run: make deps lint-deps
       - run: make check
       - run: make checkscripts
@@ -135,6 +135,7 @@ jobs:
       GOTESTARCH: "<< parameters.goarch >>"
     steps:
       - checkout
+      - run: apt-get update; apt-get install -y shellcheck sudo unzip
       - run: make deps
       - install-protoc
       - install-consul
@@ -152,8 +153,20 @@ jobs:
       GOPATH: /go
     steps:
       - checkout
-      - run: make deps
-      - run: make e2e-test
+      - run: apt-get update; apt-get install -y sudo unzip
+      # e2e tests require privileged mount/umount permissions when running as root
+      # TODO: switch to using machine executor and run as root to test e2e path
+      - run:
+          name: prepare non-root user
+          command: |
+            groupadd --gid 3434 circleci
+            useradd --uid 3434 --gid circleci --shell /bin/bash --create-home circleci
+            echo 'circleci ALL=NOPASSWD: ALL' >> /etc/sudoers.d/50-circleci
+            echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep
+            chown -R circleci:circleci /go
+
+      - run: sudo -E -H -u circleci PATH=${PATH} make deps
+      - run: sudo -E -H -u circleci PATH=${PATH} make e2e-test
 
   test-website:
     executor: go-machine-recent
@@ -271,7 +284,7 @@ commands:
     parameters:
       version:
         type: string
-        default: "1.12.10"
+        default: "1.12.12"
     steps:
       - run:
           name: install golang << parameters.version >>

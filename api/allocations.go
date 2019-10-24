@@ -210,12 +210,7 @@ func (a *Allocations) Exec(ctx context.Context,
 
 func (a *Allocations) execFrames(ctx context.Context, alloc *Allocation, task string, tty bool, command []string,
 	errCh chan<- error, q *QueryOptions) (sendFn func(*ExecStreamingInput) error, output <-chan *ExecStreamingOutput) {
-
-	nodeClient, err := a.client.GetNodeClientWithTimeout(alloc.NodeID, ClientConnTimeout, q)
-	if err != nil {
-		errCh <- err
-		return nil, nil
-	}
+	nodeClient, _ := a.client.GetNodeClientWithTimeout(alloc.NodeID, ClientConnTimeout, q)
 
 	if q == nil {
 		q = &QueryOptions{}
@@ -236,15 +231,17 @@ func (a *Allocations) execFrames(ctx context.Context, alloc *Allocation, task st
 
 	reqPath := fmt.Sprintf("/v1/client/allocation/%s/exec", alloc.ID)
 
-	conn, _, err := nodeClient.websocket(reqPath, q)
-	if err != nil {
-		// There was an error talking directly to the client. Non-network
-		// errors are fatal, but network errors can attempt to route via RPC.
-		if _, ok := err.(net.Error); !ok {
+	var conn *websocket.Conn
+
+	if nodeClient != nil {
+		conn, _, err = nodeClient.websocket(reqPath, q)
+		if _, ok := err.(net.Error); err != nil && !ok {
 			errCh <- err
 			return nil, nil
 		}
+	}
 
+	if conn == nil {
 		conn, _, err = a.client.websocket(reqPath, q)
 		if err != nil {
 			errCh <- err

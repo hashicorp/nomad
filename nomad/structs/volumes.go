@@ -4,6 +4,21 @@ const (
 	VolumeTypeHost = "host"
 )
 
+const (
+	VolumeMountPropagationPrivate       = "private"
+	VolumeMountPropagationHostToTask    = "host-to-task"
+	VolumeMountPropagationBidirectional = "bidirectional"
+)
+
+func MountPropagationModeIsValid(propagationMode string) bool {
+	switch propagationMode {
+	case "", VolumeMountPropagationPrivate, VolumeMountPropagationHostToTask, VolumeMountPropagationBidirectional:
+		return true
+	default:
+		return false
+	}
+}
+
 // ClientHostVolumeConfig is used to configure access to host paths on a Nomad Client
 type ClientHostVolumeConfig struct {
 	Name     string `hcl:",key"`
@@ -103,9 +118,10 @@ func CopyMapVolumeRequest(s map[string]*VolumeRequest) map[string]*VolumeRequest
 // VolumeMount represents the relationship between a destination path in a task
 // and the task group volume that should be mounted there.
 type VolumeMount struct {
-	Volume      string
-	Destination string
-	ReadOnly    bool
+	Volume          string
+	Destination     string
+	ReadOnly        bool
+	PropagationMode string
 }
 
 func (v *VolumeMount) Copy() *VolumeMount {

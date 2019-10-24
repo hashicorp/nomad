@@ -391,28 +391,58 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter,
 		return nil, nil, nil
 	}
 
+	// Create a log writer, and wrap a logOutput around it
+	logWriter := NewLogWriter(512)
+	writers := []io.Writer{c.logFilter, logWriter}
+
 	// Check if syslog is enabled
-	var syslog io.Writer
 	if config.EnableSyslog {
 		l, err := gsyslog.NewLogger(gsyslog.LOG_NOTICE, config.SyslogFacility, "nomad")
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
 			return nil, nil, nil
 		}
-		syslog = &SyslogWrapper{l, c.logFilter}
+		writers = append(writers, &SyslogWrapper{l, c.logFilter})
 	}
 
-	// Create a log writer, and wrap a logOutput around it
-	logWriter := NewLogWriter(512)
-	var logOutput io.Writer
-	if syslog != nil {
-		logOutput = io.MultiWriter(c.logFilter, logWriter, syslog)
-	} else {
-		logOutput = io.MultiWriter(c.logFilter, logWriter)
+	// Check if file logging is enabled
+	if config.LogFile != "" {
+		dir, fileName := filepath.Split(config.LogFile)
+
+		// if a path is provided, but has no filename, then a default is used.
+		if fileName == "" {
+			fileName = "nomad.log"
+		}
+
+		// Try to enter the user specified log rotation duration first
+		var logRotateDuration time.Duration
+		if config.LogRotateDuration != "" {
+			duration, err := time.ParseDuration(config.LogRotateDuration)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
+				return nil, nil, nil
+			}
+			logRotateDuration = duration
+		} else {
+			// Default to 24 hrs if no rotation period is specified
+			logRotateDuration = 24 * time.Hour
+		}
+
+		logFile := &logFile{
+			logFilter: c.logFilter,
+			fileName:  fileName,
+			logPath:   dir,
+			duration:  logRotateDuration,
+			MaxBytes:  config.LogRotateBytes,
+			MaxFiles:  config.LogRotateMaxFiles,
+		}
+
+		writers = append(writers, logFile)
 	}
-	c.logOutput = logOutput
-	log.SetOutput(logOutput)
-	return logGate, logWriter, logOutput
+
+	c.logOutput = io.MultiWriter(writers...)
+	log.SetOutput(c.logOutput)
+	return logGate, logWriter, c.logOutput
 }
 
 // setupAgent is used to start the agent and various interfaces

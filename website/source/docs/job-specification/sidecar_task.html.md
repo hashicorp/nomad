@@ -96,8 +96,9 @@ The default sidecar task is equivalent to:
 The `meta.connect.sidecar_image` and `meta.connect.log_level` are [*client*
 configurable][nodemeta] variables with the following defaults:
 
-- `sidecar_image` - `"envoyproxy/envoy:v1.11.1"` - The official upstream Envoy Docker image.
-- `sidecar_log_level` - `"info"` - Debug is useful for debugging Connect related issues.
+- `sidecar_image` - `"envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09"` - The official upstream Envoy Docker image.
+- `sidecar_log_level` - `"info"` - Envoy sidecar log level. "`debug`" is useful
+  for debugging Connect related issues.
 
 ## `sidecar_task` Parameters
 - `name` `(string: "connect-proxy-<service>")` - Name of the task. Defaults to

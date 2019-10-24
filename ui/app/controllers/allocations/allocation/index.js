@@ -1,6 +1,7 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { computed, observer } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 import Sortable from 'nomad-ui/mixins/sortable';
@@ -24,7 +25,7 @@ export default Controller.extend(Sortable, {
   // Set in the route
   preempter: null,
 
-  error: computed(() => {
+  error: overridable(() => {
     // { title, description }
     return null;
   }),

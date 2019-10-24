@@ -234,7 +234,7 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 	}
 
 	basic := []string{
-		fmt.Sprintf("ID|%s", limit(alloc.ID, uuidLength)),
+		fmt.Sprintf("ID|%s", alloc.ID),
 		fmt.Sprintf("Eval ID|%s", limit(alloc.EvalID, uuidLength)),
 		fmt.Sprintf("Name|%s", alloc.Name),
 		fmt.Sprintf("Node ID|%s", limit(alloc.NodeID, uuidLength)),

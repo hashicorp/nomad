@@ -34,6 +34,7 @@ func TestConsulConnect_CopyEquals(t *testing.T) {
 
 	c := &ConsulConnect{
 		SidecarService: &ConsulSidecarService{
+			Tags: []string{"tag1", "tag2"},
 			Port: "9001",
 			Proxy: &ConsulProxy{
 				LocalServiceAddress: "127.0.0.1",

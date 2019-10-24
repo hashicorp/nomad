@@ -6,7 +6,7 @@ GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
-GO_TAGS ?=
+GO_TAGS ?= codegen_generated
 
 GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
 
@@ -147,6 +147,7 @@ deps:  ## Install build and development dependencies
 	go get -u github.com/a8m/tree/cmd/tree
 	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 	go get -u gotest.tools/gotestsum
+	go get -u github.com/fatih/hclfmt
 	@bash -C "$(PROJECT_ROOT)/scripts/install-codecgen.sh"
 	@bash -C "$(PROJECT_ROOT)/scripts/install-protoc-gen-go.sh"
 
@@ -224,21 +225,30 @@ generate-examples: command/job_init.bindata_assetfs.go
 command/job_init.bindata_assetfs.go: command/assets/*
 	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
+.PHONY: vendorfmt
 vendorfmt:
 	@echo "--> Formatting vendor/vendor.json"
 	test -x $(GOPATH)/bin/vendorfmt || go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 		vendorfmt
+
+.PHONY: changelogfmt
 changelogfmt:
 	@echo "--> Making [GH-xxxx] references clickable..."
 	@sed -E 's|([^\[])\[GH-([0-9]+)\]|\1[[GH-\2](https://github.com/hashicorp/nomad/issues/\2)]|g' CHANGELOG.md > changelog.tmp && mv changelog.tmp CHANGELOG.md
 
+## We skip the terraform directory as there are templated hcl configurations
+## that do not successfully compile without rendering
+.PHONY: hclfmt
+hclfmt:
+	@echo "--> Formatting HCL"
+	@find . -path ./terraform -prune -o -name 'upstart.nomad' -prune -o \( -name '*.nomad' -o -name '*.hcl' \) -exec hclfmt -w {} +
 
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
-dev: vendorfmt changelogfmt ## Build for the current development platform
+dev: vendorfmt changelogfmt hclfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad
@@ -252,11 +262,11 @@ dev: vendorfmt changelogfmt ## Build for the current development platform
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
 .PHONY: prerelease
-prerelease: GO_TAGS=ui release
+prerelease: GO_TAGS=ui codegen_generated release
 prerelease: generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
 
 .PHONY: release
-release: GO_TAGS=ui release
+release: GO_TAGS=ui codegen_generated release
 release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
@@ -283,6 +293,7 @@ test-nomad: dev ## Run Nomad test suites
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=15m \
+		-tags "$(GO_TAGS)" \
 		$(GOTEST_PKGS) $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
@@ -295,6 +306,7 @@ e2e-test: dev ## Run the Nomad e2e test suite
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=900s \
+		-tags "$(GO_TAGS)" \
 		github.com/hashicorp/nomad/e2e/vault/ \
 		-integration
 
