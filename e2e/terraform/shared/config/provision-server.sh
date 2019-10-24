@@ -12,12 +12,8 @@ HADOOP_VERSION=hadoop-2.7.7
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu
 
-# Wait for network
-sleep 15
-
-# IP_ADDRESS=$(curl http://instance-data/latest/meta-data/local-ipv4)
-IP_ADDRESS="$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
-DOCKER_BRIDGE_IP_ADDRESS=(`ifconfig docker0 2>/dev/null|awk '/inet addr:/ {print $2}'|sed 's/addr://'`)
+IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetPrivateIP')
+DOCKER_BRIDGE_IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetInterfaceIP "docker0"')
 
 CLOUD="$1"
 SERVER_COUNT="$2"
@@ -25,7 +21,6 @@ RETRY_JOIN="$3"
 nomad_sha="$4"
 
 # Consul
-sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/consul.json
 sed -i "s/SERVER_COUNT/$SERVER_COUNT/g" $CONFIGDIR/consul.json
 sed -i "s/RETRY_JOIN/$RETRY_JOIN/g" $CONFIGDIR/consul.json
 sudo cp $CONFIGDIR/consul.json $CONSULCONFIGDIR
@@ -38,7 +33,6 @@ export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500
 export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
 
 # Vault
-sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/vault.hcl
 sudo cp $CONFIGDIR/vault.hcl $VAULTCONFIGDIR
 sudo cp $CONFIGDIR/vault.service /etc/systemd/system/vault.service
 
