@@ -4,6 +4,11 @@ import { equal } from '@ember/object/computed';
 import { task, waitForEvent } from 'ember-concurrency';
 import RSVP from 'rsvp';
 
+/**
+ * @module TwoStepButton
+ * `TwoStepButton` TODO
+ *
+ */
 export default Component.extend({
   classNames: ['two-step-button'],
 
