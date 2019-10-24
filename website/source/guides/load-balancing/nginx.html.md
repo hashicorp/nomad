@@ -36,14 +36,15 @@ environment with Consul installed. You can use this [repo][terraform-repo] to
 easily provision a sandbox environment. This guide will assume a cluster with
 one server node and three client nodes.
 
--> **Note:** This guide is for demo purposes and is only using a single
-server node. In a production cluster, 3 or 5 server nodes are recommended.
+-> **Note:** This guide is for demo purposes and only assumes a single server
+node. Please consult the [reference architecture][reference-arch] for production
+configuration.
 
 ## Steps
 
 ### Step 1: Create a Job for Demo Web App
 
-Create a job for a demo web application and name the file 'webapp.nomad'
+Create a job for a demo web application and name the file 'webapp.nomad':
 
 ```hcl
 job "demo-webapp" {
@@ -260,8 +261,8 @@ previous command to verify the load balancer config is dynamically changing.
 ### Step 6: Make a Request to the Load Balancer
 
 If you query the NGINX load balancer, you should be able to see a response
-similar to the one shown below (keep in mind you need to run this command from a
-node inside your cluster):
+similar to the one shown below (this command should be run from a node inside
+your cluster):
 
 ```shell
 $ curl nginx.service.consul:8080
@@ -273,10 +274,10 @@ instances of the demo web application (which is spread across 3 Nomad clients).
 The output shows the IP address of the host it is deployed on. If you repeat
 your requests, you will see that the IP address changes.
 
-* Note: if you would like to access NGINX from outside your cluster, you should
-  set up a load balancer in your environment that maps to an active port `8080`
-  on your clients (or whichever port you have configured for NGINX to listen
-  on). You can then send your requests directly to your external load balancer.
+* Note: if you would like to access NGINX from outside your cluster, you can set
+  up a load balancer in your environment that maps to an active port `8080` on
+  your clients (or whichever port you have configured for NGINX to listen on).
+  You can then send your requests directly to your external load balancer.
 
 [alloc-fs]: /docs/commands/alloc/fs.html
 [consul-template]: https://github.com/hashicorp/consul-template#consul-template
@@ -285,6 +286,7 @@ your requests, you will see that the IP address changes.
 [inline]: /docs/job-specification/template.html#inline-template
 [lb-strategies]: https://www.hashicorp.com/blog/configuring-third-party-loadbalancers-with-consul-nginx-haproxy-f5/
 [nginx]: https://www.nginx.com/
+[reference-arch]: /guides/install/production/reference-architecture.html#high-availability
 [remote-template]: /docs/job-specification/template.html#remote-template
 [template-stanza]: /docs/job-specification/template.html
 [terraform-repo]: https://github.com/hashicorp/nomad/tree/master/terraform#provision-a-nomad-cluster-in-the-cloud
