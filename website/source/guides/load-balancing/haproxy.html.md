@@ -204,7 +204,7 @@ defined:
   named mywebapp. The template name is not tied to the service name which is
   registered in Consul.
 - `_demo-webapp._tcp.service.consul` allows HAProxy to use the DNS SRV record for
-  the backend service demo-webapp.service.consul to discover the available
+  the backend service `demo-webapp.service.consul` to discover the available
   instances of the service.
 
 Additionally, keep in mind the following points from the Nomad job spec:
