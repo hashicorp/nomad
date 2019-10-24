@@ -160,35 +160,6 @@ module('Integration | Component | list pagination', function(hooks) {
     );
   });
 
-  // when there are no items in source
-  test('when there are no items in source', async function(assert) {
-    this.set('source', []);
-    await render(hbs`
-      {{#list-pagination source=source as |p|}}
-        <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
-        {{#p.first}}<span class="first">first</span>{{/p.first}}
-        {{#p.prev}}<span class="prev">prev</span>{{/p.prev}}
-        {{#each p.pageLinks as |link|}}
-          <span class="link page-{{link.pageNumber}}">{{link.pageNumber}}</span>
-        {{/each}}
-        {{#p.next}}<span class="next">next</span>{{/p.next}}
-        {{#p.last}}<span class="last">last</span>{{/p.last}}
-
-        {{#each p.list as |item|}}
-          <div class="item">{{item}}</div>
-        {{/each}}
-      {{else}}
-        <div class="empty-state">Empty State</div>
-      {{/list-pagination}}
-    `);
-
-    assert.ok(
-      !findAll('.page-info, .first, .prev, .link, .next, .last, .item').length,
-      'Nothing in the yield renders'
-    );
-    assert.ok(findAll('.empty-state').length, 'Empty state is rendered');
-  });
-
   // when there is less pages than the total spread amount
   test('when there is less pages than the total spread amount', async function(assert) {
     this.setProperties({

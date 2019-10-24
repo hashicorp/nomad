@@ -52,40 +52,42 @@
         </div>
       {{/if}}
     </div>
-    {{#list-pagination
-      source=sortedJobs
-      size=pageSize
-      page=currentPage as |p|}}
-      {{#list-table
-        source=p.list
-        sortProperty=sortProperty
-        sortDescending=sortDescending
-        class="with-foot" as |t|}}
-        {{#t.head}}
-          {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
-          {{#t.sort-by prop="status"}}Status{{/t.sort-by}}
-          {{#t.sort-by prop="type"}}Type{{/t.sort-by}}
-          {{#t.sort-by prop="priority"}}Priority{{/t.sort-by}}
-          <th>Groups</th>
-          <th class="is-3">Summary</th>
-        {{/t.head}}
-        {{#t.body key="model.id" as |row|}}
-          {{job-row data-test-job-row=row.model.plainId job=row.model onClick=(action "gotoJob" row.model)}}
-        {{/t.body}}
-      {{/list-table}}
-      <div class="table-foot">
-        <nav class="pagination">
-          <div class="pagination-numbers">
-            {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedJobs.length}}
-            {{#if searchTerm}}
-              <em>({{dec sortedJobs.length filteredJobs.length}} hidden by search term)</em>
-            {{/if}}
-          </div>
-          {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
-          {{#p.next class="pagination-next"}} &gt; {{/p.next}}
-          <ul class="pagination-list"></ul>
-        </nav>
-      </div>
+    {{#if sortedJobs}}
+      {{#list-pagination
+        source=sortedJobs
+        size=pageSize
+        page=currentPage as |p|}}
+        {{#list-table
+          source=p.list
+          sortProperty=sortProperty
+          sortDescending=sortDescending
+          class="with-foot" as |t|}}
+          {{#t.head}}
+            {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+            {{#t.sort-by prop="status"}}Status{{/t.sort-by}}
+            {{#t.sort-by prop="type"}}Type{{/t.sort-by}}
+            {{#t.sort-by prop="priority"}}Priority{{/t.sort-by}}
+            <th>Groups</th>
+            <th class="is-3">Summary</th>
+          {{/t.head}}
+          {{#t.body key="model.id" as |row|}}
+            {{job-row data-test-job-row=row.model.plainId job=row.model onClick=(action "gotoJob" row.model)}}
+          {{/t.body}}
+        {{/list-table}}
+        <div class="table-foot">
+          <nav class="pagination">
+            <div class="pagination-numbers">
+              {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedJobs.length}}
+              {{#if searchTerm}}
+                <em>({{dec sortedJobs.length filteredJobs.length}} hidden by search term)</em>
+              {{/if}}
+            </div>
+            {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
+            {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+            <ul class="pagination-list"></ul>
+          </nav>
+        </div>
+      {{/list-pagination}}
     {{else}}
       <div data-test-empty-jobs-list class="empty-message">
         {{#if (eq visibleJobs.length 0)}}
@@ -103,6 +105,6 @@
           <p class="empty-message-body">No jobs match the term <strong>{{searchTerm}}</strong></p>
         {{/if}}
       </div>
-    {{/list-pagination}}
+    {{/if}}
   {{/if}}
 </section>

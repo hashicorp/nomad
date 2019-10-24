@@ -423,3 +423,63 @@ config {
 
 	require.EqualValues(t, expected, tc)
 }
+
+// TestConfig_DriverConfig_DanglingContainers asserts that dangling_containers is parsed
+// and populated with defaults as expected
+func TestConfig_DriverConfig_DanglingContainers(t *testing.T) {
+	cases := []struct {
+		name     string
+		config   string
+		expected ContainerGCConfig
+	}{
+		{
+			name:     "pure default",
+			config:   `{}`,
+			expected: ContainerGCConfig{Enabled: true, PeriodStr: "5m", CreationGraceStr: "5m"},
+		},
+		{
+			name:     "partial gc",
+			config:   `{ gc { } }`,
+			expected: ContainerGCConfig{Enabled: true, PeriodStr: "5m", CreationGraceStr: "5m"},
+		},
+		{
+			name:     "partial gc",
+			config:   `{ gc { dangling_containers { } } }`,
+			expected: ContainerGCConfig{Enabled: true, PeriodStr: "5m", CreationGraceStr: "5m"},
+		},
+		{
+			name:     "partial dangling_containers",
+			config:   `{ gc { dangling_containers { enabled = false } } }`,
+			expected: ContainerGCConfig{Enabled: false, PeriodStr: "5m", CreationGraceStr: "5m"},
+		},
+		{
+			name:     "incomplete dangling_containers 2",
+			config:   `{ gc { dangling_containers { period = "10m" } } }`,
+			expected: ContainerGCConfig{Enabled: true, PeriodStr: "10m", CreationGraceStr: "5m"},
+		},
+		{
+			name: "full default",
+			config: `{ gc { dangling_containers {
+			     enabled = false
+			     dry_run = true
+			     period = "10m"
+			     creation_grace = "20m"
+			}}}`,
+			expected: ContainerGCConfig{
+				Enabled:          false,
+				DryRun:           true,
+				PeriodStr:        "10m",
+				CreationGraceStr: "20m",
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+			require.EqualValues(t, c.expected, tc.GC.DanglingContainers)
+
+		})
+	}
+}
