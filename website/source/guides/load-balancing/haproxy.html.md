@@ -240,7 +240,7 @@ but that only three of them are being used, corresponding to the three allocatio
 ### Step 6: Make a Request to the Load Balancer
 
 If you query the HAProxy load balancer, you should be able to see a response
-similar to the one shown below (keep in mind you need to run this command from a
+similar to the one shown below (this command should be run from a
 node inside your cluster):
 
 ```shell
