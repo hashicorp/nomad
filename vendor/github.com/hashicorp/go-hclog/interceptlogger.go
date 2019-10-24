@@ -1,6 +1,8 @@
 package hclog
 
 import (
+	"io"
+	"log"
 	"sync"
 	"sync/atomic"
 )
@@ -192,4 +194,23 @@ func (i *interceptLogger) DeregisterSink(sink SinkAdapter) {
 	delete(i.Sinks, sink)
 
 	atomic.AddInt32(i.sinkCount, -1)
+}
+
+// Create a *log.Logger that will send it's data through this Logger. This
+// allows packages that expect to be using the standard library to log to
+// actually use this logger, which will also send to any registered sinks.
+func (l *interceptLogger) StandardLoggerIntercept(opts *StandardLoggerOptions) *log.Logger {
+	if opts == nil {
+		opts = &StandardLoggerOptions{}
+	}
+
+	return log.New(l.StandardWriterIntercept(opts), "", 0)
+}
+
+func (l *interceptLogger) StandardWriterIntercept(opts *StandardLoggerOptions) io.Writer {
+	return &stdlogAdapter{
+		log:         l,
+		inferLevels: opts.InferLevels,
+		forceLevel:  opts.ForceLevel,
+	}
 }

@@ -198,14 +198,19 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	// Make the RPC
 	var handler structs.StreamingRpcHandler
 	var handlerErr error
-	if useLocalClient {
-		handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.Monitor")
-	} else if useClientRPC {
-		handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Agent.Monitor")
-	} else if useServerRPC {
-		handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.Monitor")
+	if nodeID != "" {
+		if useLocalClient {
+			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.Monitor")
+		} else if useClientRPC {
+			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Agent.Monitor")
+		} else if useServerRPC {
+			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.Monitor")
+		} else {
+			handlerErr = CodedError(400, "No local Node and node_id not provided")
+		}
 	} else {
-		handlerErr = CodedError(400, "No local Node and node_id not provided")
+		// No node id we want to monitor this server
+		handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.Monitor")
 	}
 
 	if handlerErr != nil {

@@ -262,7 +262,7 @@ func TestAgent_Health(t *testing.T) {
 	assert.True(health.Server.Ok)
 }
 
-func TestAgent_MonitorServer(t *testing.T) {
+func TestAgent_Monitor(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -275,6 +275,7 @@ func TestAgent_MonitorServer(t *testing.T) {
 			"log-level": "debug",
 		},
 	}
+
 	logCh, err := agent.Monitor(doneCh, q)
 	defer close(doneCh)
 	if err != nil {

@@ -209,7 +209,7 @@
 		{"path":"github.com/hashicorp/go-envparse","checksumSHA1":"FKmqR4DC3nCXtnT9pe02z5CLNWo=","revision":"310ca1881b22af3522e3a8638c0b426629886196","revisionTime":"2018-01-19T21:58:41Z"},
 		{"path":"github.com/hashicorp/go-getter","checksumSHA1":"d4brua17AGQqMNtngK4xKOUwboY=","revision":"f5101da0117392c6e7960c934f05a2fd689a5b5f","revisionTime":"2019-08-22T19:45:07Z"},
 		{"path":"github.com/hashicorp/go-getter/helper/url","checksumSHA1":"9J+kDr29yDrwsdu2ULzewmqGjpA=","revision":"b345bfcec894fb7ff3fdf9b21baf2f56ea423d98","revisionTime":"2018-04-10T17:49:45Z"},
-		{"path":"github.com/hashicorp/go-hclog","checksumSHA1":"+gkR2S9qSVVy3gor4p0Z86RMgZI=","revision":"2bec91ee9db63c8546a105f89da3eb63037c5e6c","revisionTime":"2019-10-18T20:14:58Z","version":"f-multi-sink","versionExact":"f-multi-sink"},
+		{"path":"github.com/hashicorp/go-hclog","checksumSHA1":"t9zfE6XfBVzoruZdfV3vDPtoIa8=","revision":"8a936e0aa8de099a865e59f9a20744221f93b469","revisionTime":"2019-10-24T20:40:26Z","version":"f-multi-sink","versionExact":"f-multi-sink"},
 		{"path":"github.com/hashicorp/go-immutable-radix","checksumSHA1":"Cas2nprG6pWzf05A2F/OlnjUu2Y=","revision":"8aac2701530899b64bdea735a1de8da899815220","revisionTime":"2017-07-25T22:12:15Z"},
 		{"path":"github.com/hashicorp/go-memdb","checksumSHA1":"FMAvwDar2bQyYAW4XMFhAt0J5xA=","revision":"20ff6434c1cc49b80963d45bf5c6aa89c78d8d57","revisionTime":"2017-08-31T20:15:40Z"},
 		{"path":"github.com/hashicorp/go-msgpack/codec","checksumSHA1":"CKGYNUDKre3Z2g4hHNVfp5nTcfA=","revision":"23165f7bc3c2dda1891434ebb9da1511a7bafc1c","revisionTime":"2019-09-27T12:33:13Z","version":"upstream-08f7b40","versionExact":"upstream-08f7b40"},

@@ -126,6 +126,7 @@ type Logger interface {
 	// Indicate if ERROR logs would be emitted. This and the other Is* guards
 	IsError() bool
 
+	// ImpliedArgs returns With key/value pairs
 	ImpliedArgs() []interface{}
 
 	// Creates a sublogger that will always have the given key/value pairs
@@ -224,6 +225,12 @@ type InterceptLogger interface {
 	// This sets the name of the logger to the value directly, unlike Named which honor
 	// the current name as well.
 	ResetNamedIntercept(name string) InterceptLogger
+
+	// Return a value that conforms to the stdlib log.Logger interface
+	StandardLoggerIntercept(opts *StandardLoggerOptions) *log.Logger
+
+	// Return a value that conforms to io.Writer, which can be passed into log.SetOutput()
+	StandardWriterIntercept(opts *StandardLoggerOptions) io.Writer
 }
 
 // SinkAdapter describes the interface that must be implemented

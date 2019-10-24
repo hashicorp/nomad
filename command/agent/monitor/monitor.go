@@ -57,6 +57,9 @@ func (d *Monitor) Start(stopCh <-chan struct{}) <-chan []byte {
 // Write attemps to send latest log to logCh
 // it drops the log if channel is unavailable to receive
 func (d *Monitor) Write(p []byte) (n int, err error) {
+	d.Lock()
+	defer d.Unlock()
+
 	bytes := make([]byte, len(p))
 	copy(bytes, p)
 

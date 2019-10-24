@@ -1276,7 +1276,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	if s.config.UpgradeVersion != "" {
 		conf.Tags[AutopilotVersionTag] = s.config.UpgradeVersion
 	}
-	logger := s.logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true})
+	logger := s.logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true})
 	conf.MemberlistConfig.Logger = logger
 	conf.Logger = logger
 	conf.MemberlistConfig.LogOutput = nil
