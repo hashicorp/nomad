@@ -31,7 +31,7 @@ resource "aws_instance" "server" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /ops/shared/config/provision-server.sh",
-      "/ops/shared/config/provision-server.sh aws ${var.server_count} '${var.retry_join}' '${var.nomad_sha}' '${var.indexed == false ? "server.hcl" : "indexed/server-${count.index}.hcl"}'",
+      "/ops/shared/config/provision-server.sh aws ${var.server_count} '${var.nomad_sha}' '${var.indexed == false ? "server.hcl" : "indexed/server-${count.index}.hcl"}'",
     ]
 
     connection {
@@ -84,7 +84,7 @@ resource "aws_instance" "client" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /ops/shared/config/provision-client.sh",
-      "/ops/shared/config/provision-client.sh aws '${var.retry_join}' '${var.nomad_sha}' '${var.indexed == false ? "client.hcl" : "indexed/client-${count.index}.hcl"}'",
+      "/ops/shared/config/provision-client.sh aws '${var.nomad_sha}' '${var.indexed == false ? "client.hcl" : "indexed/client-${count.index}.hcl"}'",
     ]
 
     connection {

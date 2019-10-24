@@ -5,7 +5,6 @@ set -o nounset
 
 CONFIGDIR=/ops/shared/config
 
-CONSULCONFIGDIR=/etc/consul.d
 HADOOP_VERSION=hadoop-2.7.7
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu
@@ -15,15 +14,18 @@ DOCKER_BRIDGE_IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetInterfaceIP "docker0
 
 CLOUD="$1"
 SERVER_COUNT="$2"
-RETRY_JOIN="$3"
-NOMAD_SHA="$4"
-NOMAD_CONFIG="$5"
+NOMAD_SHA="$3"
+NOMAD_CONFIG="$4"
 
 # Consul
-sed -i "s/SERVER_COUNT/$SERVER_COUNT/g" $CONFIGDIR/consul.json
-sed -i "s/RETRY_JOIN/$RETRY_JOIN/g" $CONFIGDIR/consul.json
-sudo cp $CONFIGDIR/consul.json $CONSULCONFIGDIR
-sudo cp $CONFIGDIR/consul_$CLOUD.service /etc/systemd/system/consul.service
+CONSUL_SRC=/ops/shared/consul
+CONSUL_DEST=/etc/consul.d
+
+sed "s/SERVER_COUNT/$SERVER_COUNT/g" "$CONSUL_SRC/server.json" > /tmp/server.json
+sudo mv /tmp/server.json "$CONSUL_DEST/server.json"
+sudo cp "$CONSUL_SRC/base.json" "$CONSUL_DEST/"
+sudo cp "$CONSUL_SRC/retry_$CLOUD.json" "$CONSUL_DEST/"
+sudo cp "$CONSUL_SRC/consul_$CLOUD.service" /etc/systemd/system/consul.service
 
 sudo systemctl enable consul.service
 sudo systemctl start  consul.service
@@ -72,6 +74,7 @@ echo "export PATH=$PATH:/usr/local/bin/spark/bin:/usr/local/$HADOOP_VERSION/bin"
 
 NOMAD_SRC=/ops/shared/nomad
 NOMAD_DEST=/etc/nomad.d
+NOMAD_CONFIG_FILENAME=$(basename "$NOMAD_CONFIG")
 
 # download
 aws s3 cp "s3://nomad-team-test-binary/builds-oss/nomad_linux_amd64_${NOMAD_SHA}.tar.gz" nomad.tar.gz
@@ -83,8 +86,9 @@ sudo chown root:root /usr/local/bin/nomad
 
 sudo cp "$NOMAD_SRC/base.hcl" "$NOMAD_DEST/"
 
-sed "s/3 # SERVER_COUNT/$SERVER_COUNT/g" "$NOMAD_SRC/$NOMAD_CONFIG" > "/tmp/$NOMAD_CONFIG"
-sudo mv "/tmp/$NOMAD_CONFIG" "$NOMAD_DEST/$NOMAD_CONFIG"
+sed "s/3 # SERVER_COUNT/$SERVER_COUNT/g" "$NOMAD_SRC/$NOMAD_CONFIG" \
+    > "/tmp/$NOMAD_CONFIG_FILENAME"
+sudo mv "/tmp/$NOMAD_CONFIG_FILENAME" "$NOMAD_DEST/$NOMAD_CONFIG_FILENAME"
 
 # enable as a systemd service
 sudo cp "$NOMAD_SRC/nomad.service" /etc/systemd/system/nomad.service
