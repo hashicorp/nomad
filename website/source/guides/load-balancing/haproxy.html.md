@@ -15,7 +15,7 @@ and TCP requests from the internet to frontend services that can handle these
 requests. This guide will show you one such example using a demo web
 application.
 
-HAProxy version 1.8+ (LTS) includes server-template[server-template] which lets
+HAProxy version 1.8+ (LTS) includes the [server-template] directive, which lets
 users specify placeholder backend servers to populate HAProxy’s load balancing
 pools. Server-template can use Consul as one of these backend servers,
 requesting SRV records from Consul DNS.
