@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 )
 
@@ -46,10 +48,13 @@ func (c *MonitorCommand) Run(args []string) int {
 
 	var logLevel string
 	var nodeID string
+	var logJSON bool
+
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&logLevel, "log-level", "", "")
 	flags.StringVar(&nodeID, "node-id", "", "")
+	flags.BoolVar(&logJSON, "log-json", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -62,8 +67,17 @@ func (c *MonitorCommand) Run(args []string) int {
 		return 1
 	}
 
+	params := map[string]string{
+		"log-level": logLevel,
+		"node-id":   nodeID,
+		"log-json":  strconv.FormatBool(logJSON),
+	}
+
+	query := &api.QueryOptions{
+		Params: params,
+	}
 	eventDoneCh := make(chan struct{})
-	logCh, err := client.Agent().Monitor(logLevel, nodeID, eventDoneCh, nil)
+	logCh, err := client.Agent().Monitor(eventDoneCh, query)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error starting monitor: %s", err))
 		c.Ui.Error(commandErrorText(c))

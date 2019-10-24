@@ -41,6 +41,9 @@ func (d *Monitor) Start(stopCh <-chan struct{}) <-chan []byte {
 			case log := <-d.logCh:
 				logCh <- log
 			case <-stopCh:
+				d.Lock()
+				defer d.Unlock()
+
 				d.logger.DeregisterSink(d.sink)
 				close(d.logCh)
 				return

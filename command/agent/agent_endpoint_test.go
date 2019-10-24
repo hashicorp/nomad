@@ -256,7 +256,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 
 	httpTest(t, nil, func(s *TestAgent) {
 		{
-			req, err := http.NewRequest("GET", "/v1/agent/monitor?loglevel=unknown", nil)
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log-level=unknown", nil)
 			require.Nil(t, err)
 			resp := newClosableRecorder()
 
@@ -269,7 +269,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 
 		// check for a specific log
 		{
-			req, err := http.NewRequest("GET", "/v1/agent/monitor?loglevel=warn", nil)
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log-level=warn", nil)
 			require.Nil(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()
@@ -305,7 +305,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 
 		// stream logs for a given node
 		{
-			req, err := http.NewRequest("GET", "/v1/agent/monitor?loglevel=warn&nodeID="+s.client.NodeID(), nil)
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log-level=warn&node-id="+s.client.NodeID(), nil)
 			require.Nil(t, err)
 			resp := newClosableRecorder()
 			defer resp.Close()

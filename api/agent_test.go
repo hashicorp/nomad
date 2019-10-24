@@ -270,7 +270,12 @@ func TestAgent_MonitorServer(t *testing.T) {
 	agent := c.Agent()
 
 	doneCh := make(chan struct{})
-	logCh, err := agent.Monitor("debug", "", doneCh, nil)
+	q := &QueryOptions{
+		Params: map[string]string{
+			"log-level": "debug",
+		},
+	}
+	logCh, err := agent.Monitor(doneCh, q)
 	defer close(doneCh)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -301,9 +306,16 @@ func TestAgent_MonitorWithNode(t *testing.T) {
 	agent := c.Agent()
 	id, _ := uuid.GenerateUUID()
 
+	q := &QueryOptions{
+		Params: map[string]string{
+			"log-level": "debug",
+			"node-id":   id,
+		},
+	}
+
 	doneCh := make(chan struct{})
 	// todo need to create or stub a nodeid?
-	logCh, err := agent.Monitor("debug", id, doneCh, nil)
+	logCh, err := agent.Monitor(doneCh, q)
 	defer close(doneCh)
 	if err != nil {
 		t.Fatalf("err: %v", err)

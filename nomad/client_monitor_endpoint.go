@@ -137,7 +137,7 @@ func (m *Monitor) monitor(conn io.ReadWriteCloser) {
 
 	monitor := monitor.New(512, m.srv.logger, &log.LoggerOptions{
 		Level:      logLevel,
-		JSONFormat: false,
+		JSONFormat: args.LogJSON,
 	})
 
 	go func() {

@@ -33,29 +33,29 @@ func (m *Monitor) monitor(conn io.ReadWriteCloser) {
 	defer conn.Close()
 
 	// Decode arguments
-	var req cstructs.MonitorRequest
+	var args cstructs.MonitorRequest
 	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
-	if err := decoder.Decode(&req); err != nil {
+	if err := decoder.Decode(&args); err != nil {
 		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
 		return
 	}
 
 	// Check acl
-	if aclObj, err := m.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
+	if aclObj, err := m.c.ResolveToken(args.QueryOptions.AuthToken); err != nil {
 		handleStreamResultError(err, helper.Int64ToPtr(403), encoder)
 		return
-	} else if aclObj != nil && !aclObj.AllowNsOp(req.Namespace, acl.NamespaceCapabilityReadFS) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadFS) {
 		handleStreamResultError(structs.ErrPermissionDenied, helper.Int64ToPtr(403), encoder)
 		return
 	}
 
 	var logLevel log.Level
-	if req.LogLevel == "" {
+	if args.LogLevel == "" {
 		logLevel = log.LevelFromString("INFO")
 	} else {
-		logLevel = log.LevelFromString(req.LogLevel)
+		logLevel = log.LevelFromString(args.LogLevel)
 	}
 
 	if logLevel == log.NoLevel {
@@ -69,13 +69,13 @@ func (m *Monitor) monitor(conn io.ReadWriteCloser) {
 	defer cancel()
 
 	monitor := monitor.New(512, m.c.logger, &log.LoggerOptions{
+		JSONFormat: args.LogJSON,
 		Level:      logLevel,
-		JSONFormat: false,
 	})
 
 	go func() {
 		if _, err := conn.Read(nil); err != nil {
-			close(stopCh)
+			// One end of the pipe explicitly closed, exit
 			cancel()
 			return
 		}

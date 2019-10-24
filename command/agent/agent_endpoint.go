@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker/pkg/ioutils"
@@ -165,7 +166,7 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	// Get the provided loglevel.
-	logLevel := req.URL.Query().Get("loglevel")
+	logLevel := req.URL.Query().Get("log-level")
 	if logLevel == "" {
 		logLevel = "INFO"
 	}
@@ -175,13 +176,19 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	// Determine if we are targeting a server or client
-	nodeID := req.URL.Query().Get("nodeID")
+	nodeID := req.URL.Query().Get("node-id")
+
+	logJSONStr := req.URL.Query().Get("log-json")
+	logJSON, err := strconv.ParseBool(logJSONStr)
+	if err != nil {
+		logJSON = false
+	}
 
 	// Build the request and parse the ACL token
 	args := cstructs.MonitorRequest{
 		NodeID:   nodeID,
 		LogLevel: logLevel,
-		LogJSON:  false,
+		LogJSON:  logJSON,
 	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
@@ -208,7 +215,7 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(req.Context())
 	go func() {
 		<-ctx.Done()
 		httpPipe.Close()
