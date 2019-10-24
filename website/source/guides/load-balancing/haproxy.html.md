@@ -254,7 +254,7 @@ The output shows the IP address of the host it is deployed on. If you repeat
 your requests, you will see that the IP address changes.
 
 * Note: if you would like to access HAProxy from outside your cluster, you
-  should set up a load balancer in your environment that maps to an active port
+  can set up a load balancer in your environment that maps to an active port
   `8080` on your clients (or whichever port you have configured for HAProxy to
   listen on). You can then send your requests directly to your external load
   balancer.
