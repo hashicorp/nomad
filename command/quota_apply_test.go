@@ -1,5 +1,3 @@
-// +build ent
-
 package command
 
 import (
@@ -108,7 +106,7 @@ func TestQuotaApplyNetwork(t *testing.T) {
 	cases := []struct {
 		hcl string
 		q   *api.QuotaSpec
-		e   string
+		err string
 	}{{
 		hcl: `limit {region = "global", region_limit {network {mbits = 20}}}`,
 		q: &api.QuotaSpec{
@@ -121,19 +119,19 @@ func TestQuotaApplyNetwork(t *testing.T) {
 				},
 			}},
 		},
-		e: "",
+		err: "",
 	}, {
 		hcl: `limit {region = "global", region_limit {network { mbits = 20, device = "eth0"}}}`,
 		q:   nil,
-		e:   "1 error(s) occurred:\n\n* limit -> region_limit -> resources -> network -> invalid key: device",
+		err: "1 error(s) occurred:\n\n* limit -> region_limit -> resources -> network -> invalid key: device",
 	}}
 
 	for _, c := range cases {
 		t.Run(c.hcl, func(t *testing.T) {
-			q, e := parseQuotaSpec([]byte(c.hcl))
+			q, err := parseQuotaSpec([]byte(c.hcl))
 			require.Equal(t, c.q, q)
-			if c.e != "" {
-				require.EqualError(t, e, c.e)
+			if c.err != "" {
+				require.EqualError(t, err, c.err)
 			}
 		})
 	}
