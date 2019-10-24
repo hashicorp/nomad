@@ -37,7 +37,7 @@ easily provision a sandbox environment. This guide will assume a cluster with
 one server node and three client nodes.
 
 -> **Note:** This guide is for demo purposes and is only using a single
-server node. In a production cluster, 3 or 5 server nodes are recommended.
+-> **Note:** This guide is for demo purposes and only assumes a single server node. Please consult the [reference architecture](/guides/install/production/reference-architecture.html#high-availability) for production configuration.
 
 ## Steps
 
