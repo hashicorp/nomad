@@ -229,7 +229,7 @@ $ nomad run haproxy.nomad
 ### Step 5: Check the HAProxy Statistics Page
 
 You can visit the statistics and monitoring page for HAProxy at
-http://`<Your-HAProxy-IP-address>:1936`. You can use this page to verify your
+`http://<Your-HAProxy-IP-address>:1936`. You can use this page to verify your
 settings and for basic monitoring.
 
 [![Home Page][haproxy_ui]][haproxy_ui]
