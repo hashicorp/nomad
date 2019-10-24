@@ -8,8 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestQuotaApplyCommand_Implements(t *testing.T) {
@@ -96,4 +98,43 @@ func TestQuotaApplyCommand_Good_JSON(t *testing.T) {
 	quotas, _, err := client.Quotas().List(nil)
 	assert.Nil(t, err)
 	assert.Len(t, quotas, 1)
+}
+
+func TestQuotaApplyNetwork(t *testing.T) {
+	t.Parallel()
+
+	mbits := 20
+
+	cases := []struct {
+		hcl string
+		q   *api.QuotaSpec
+		err string
+	}{{
+		hcl: `limit {region = "global", region_limit {network {mbits = 20}}}`,
+		q: &api.QuotaSpec{
+			Limits: []*api.QuotaLimit{{
+				Region: "global",
+				RegionLimit: &api.Resources{
+					Networks: []*api.NetworkResource{{
+						MBits: &mbits,
+					}},
+				},
+			}},
+		},
+		err: "",
+	}, {
+		hcl: `limit {region = "global", region_limit {network { mbits = 20, device = "eth0"}}}`,
+		q:   nil,
+		err: "1 error(s) occurred:\n\n* limit -> region_limit -> resources -> network -> invalid key: device",
+	}}
+
+	for _, c := range cases {
+		t.Run(c.hcl, func(t *testing.T) {
+			q, err := parseQuotaSpec([]byte(c.hcl))
+			require.Equal(t, c.q, q)
+			if c.err != "" {
+				require.EqualError(t, err, c.err)
+			}
+		})
+	}
 }
