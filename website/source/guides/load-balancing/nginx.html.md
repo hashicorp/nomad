@@ -279,7 +279,6 @@ your requests, you will see that the IP address changes.
   your clients (or whichever port you have configured for NGINX to listen on).
   You can then send your requests directly to your external load balancer.
 
-
 [alloc-fs]: /docs/commands/alloc/fs.html
 [consul-template]: https://github.com/hashicorp/consul-template#consul-template
 [consul-temp-syntax]: https://github.com/hashicorp/consul-template#service
