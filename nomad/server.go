@@ -1106,7 +1106,7 @@ func (s *Server) setupRaft() error {
 	s.raftTransport = trans
 
 	// Make sure we set the Logger.
-	logger := s.logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true})
+	logger := s.logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true})
 	s.config.RaftConfig.Logger = logger
 	s.config.RaftConfig.LogOutput = nil
 
