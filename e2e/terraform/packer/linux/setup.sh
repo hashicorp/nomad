@@ -5,9 +5,10 @@ set -e
 # Disable interactive apt prompts
 export DEBIAN_FRONTEND=noninteractive
 
-cd /ops
+sudo mkdir -p /ops/shared
+sudo chown -R ubuntu:ubuntu /ops/shared
 
-CONFIGDIR=/ops/shared/config
+cd /ops
 
 CONSULVERSION=1.6.0
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
@@ -42,8 +43,8 @@ sudo pip install numpy
 sudo ufw disable || echo "ufw not installed"
 
 echo "Install Consul"
-curl -L $CONSULDOWNLOAD > consul.zip
-sudo unzip consul.zip -d /usr/local/bin
+curl -L -o /tmp/consul.zip $CONSULDOWNLOAD
+sudo unzip /tmp/consul.zip -d /usr/local/bin
 sudo chmod 0755 /usr/local/bin/consul
 sudo chown root:root /usr/local/bin/consul
 
@@ -54,8 +55,8 @@ sudo mkdir -p $CONSULDIR
 sudo chmod 755 $CONSULDIR
 
 echo "Install Vault"
-curl -L $VAULTDOWNLOAD > vault.zip
-sudo unzip vault.zip -d /usr/local/bin
+curl -L -o /tmp/vault.zip $VAULTDOWNLOAD
+sudo unzip /tmp/vault.zip -d /usr/local/bin
 sudo chmod 0755 /usr/local/bin/vault
 sudo chown root:root /usr/local/bin/vault
 
@@ -66,8 +67,8 @@ sudo mkdir -p $VAULTDIR
 sudo chmod 755 $VAULTDIR
 
 echo "Install Nomad"
-curl -L $NOMADDOWNLOAD > nomad.zip
-sudo unzip nomad.zip -d /usr/local/bin
+curl -L -o /tmp/nomad.zip $NOMADDOWNLOAD
+sudo unzip /tmp/nomad.zip -d /usr/local/bin
 sudo chmod 0755 /usr/local/bin/nomad
 sudo chown root:root /usr/local/bin/nomad
 

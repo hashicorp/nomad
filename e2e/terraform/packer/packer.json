@@ -1,0 +1,24 @@
+{
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "region": "us-east-1",
+      "source_ami": "ami-80861296",
+      "instance_type": "t2.medium",
+      "ssh_username": "ubuntu",
+      "ami_name": "nomad-e2e-{{timestamp}}",
+      "ami_groups": [
+        "all"
+      ],
+      "tags": {
+        "OS": "Ubuntu"
+      }
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "script": "./linux/setup.sh"
+    }
+  ]
+}
