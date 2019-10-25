@@ -6079,6 +6079,12 @@ const (
 	// TaskRestoreFailed indicates Nomad was unable to reattach to a
 	// restored task.
 	TaskRestoreFailed = "Failed Restoring Task"
+
+	// TaskPluginUnhealthy indicates that a plugin managed by Nomad became unhealthy
+	TaskPluginUnhealthy = "Plugin became unhealthy"
+
+	// TaskPluginHealthy indicates that a plugin managed by Nomad became healthy
+	TaskPluginHealthy = "Plugin became healthy"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
