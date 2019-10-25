@@ -11,19 +11,14 @@ HADOOP_VERSION=hadoop-2.7.7
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu
 
-# Wait for network
-sleep 15
-
-# IP_ADDRESS=$(curl http://instance-data/latest/meta-data/local-ipv4)
-IP_ADDRESS="$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
-DOCKER_BRIDGE_IP_ADDRESS=(`ifconfig docker0 2>/dev/null|awk '/inet addr:/ {print $2}'|sed 's/addr://'`)
+IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetPrivateIP')
+DOCKER_BRIDGE_IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetInterfaceIP "docker0"')
 
 CLOUD="$1"
 RETRY_JOIN="$2"
 nomad_sha="$3"
 
 # Consul
-sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/consul_client.json
 sed -i "s/RETRY_JOIN/$RETRY_JOIN/g" $CONFIGDIR/consul_client.json
 sudo cp $CONFIGDIR/consul_client.json $CONSULCONFIGDIR/consul.json
 sudo cp $CONFIGDIR/consul_$CLOUD.service /etc/systemd/system/consul.service
