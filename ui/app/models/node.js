@@ -81,4 +81,12 @@ export default Model.extend({
     if (!this.isEligible) return RSVP.resolve();
     return this.store.adapterFor('node').setIneligible(this);
   },
+
+  drain(drainSpec) {
+    return this.store.adapterFor('node').drain(this, drainSpec);
+  },
+
+  forceDrain(drainSpec) {
+    return this.store.adapterFor('node').forceDrain(this, drainSpec);
+  },
 });
