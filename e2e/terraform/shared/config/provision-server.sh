@@ -6,7 +6,6 @@ set -o nounset
 CONFIGDIR=/ops/shared/config
 
 CONSULCONFIGDIR=/etc/consul.d
-VAULTCONFIGDIR=/etc/vault.d
 NOMADCONFIGDIR=/etc/nomad.d
 HADOOP_VERSION=hadoop-2.7.7
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
@@ -33,8 +32,11 @@ export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500
 export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
 
 # Vault
-sudo cp $CONFIGDIR/vault.hcl $VAULTCONFIGDIR
-sudo cp $CONFIGDIR/vault.service /etc/systemd/system/vault.service
+VAULT_SRC=/ops/shared/vault
+VAULT_DEST=/etc/vault.d
+
+sudo cp "$VAULT_SRC/vault.hcl" "$VAULT_DEST"
+sudo cp "$VAULT_SRC/vault.service" /etc/systemd/system/vault.service
 
 sudo systemctl enable vault.service
 sudo systemctl start  vault.service

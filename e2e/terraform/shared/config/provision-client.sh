@@ -46,7 +46,6 @@ sudo chown -R $HOME_DIR:$HOME_DIR /home/$HOME_DIR/examples
 sudo chmod -R 775 /home/$HOME_DIR/examples
 
 # Set env vars for tool CLIs
-echo "export VAULT_ADDR=http://$IP_ADDRESS:8200" | sudo tee --append /home/$HOME_DIR/.bashrc
 echo "export NOMAD_ADDR=http://$IP_ADDRESS:4646" | sudo tee --append /home/$HOME_DIR/.bashrc
 echo "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre"  | sudo tee --append /home/$HOME_DIR/.bashrc
 
