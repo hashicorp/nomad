@@ -129,11 +129,6 @@ job "haproxy" {
         image        = "haproxy:2.0"
         network_mode = "host"
 
-        port_map {
-          http       = 8080
-          haproxy_ui = 1936
-        }
-
         volumes = [
           "local/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg",
         ]
@@ -169,7 +164,13 @@ EOF
 
       service {
         name = "haproxy"
-        port = "http"
+        check {
+          name     = "alive"
+          type     = "tcp"
+          port     = "http"
+          interval = "10s"
+          timeout  = "2s"
+        }
       }
 
       resources {
