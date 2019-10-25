@@ -130,6 +130,7 @@ The next step is to go to the
 server. Inside that directory, there will be a `raft/` sub-directory. We need to
 create a `raft/peers.json` file. The syntax will vary if using Raft protocol version 2 or Raft protocol version 3. 
 
+Run `nomad server members` to see if using protocol version 2 or version 3
 
 For Raft protocol version 2, peers.json should look something like: 
 
