@@ -211,6 +211,10 @@ export default function() {
     return this.serialize(nodes.find({ id: params.id }));
   });
 
+  this.post('/node/:id/drain', function({ nodes }, { params }) {
+    return this.serialize(nodes.find({ id: params.id }));
+  });
+
   this.get('/allocations');
 
   this.get('/allocation/:id');
