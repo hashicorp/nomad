@@ -135,11 +135,6 @@ job "traefik" {
         image        = "traefik:1.7"
         network_mode = "host"
 
-        port_map {
-          http = 8080
-          api  = 8081
-        }
-
         volumes = [
           "local/traefik.toml:/etc/traefik/traefik.toml",
         ]
@@ -191,8 +186,6 @@ EOF
 
       service {
         name = "traefik"
-        port = "http"
-
         check {
           name     = "alive"
           type     = "tcp"
