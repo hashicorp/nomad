@@ -19,4 +19,29 @@ export default Watchable.extend({
       },
     });
   },
+
+  // Force: -1s deadline
+  // No Deadline: 0 deadline
+  drain(node, drainSpec) {
+    const url = addToPath(this.urlForFindRecord(node.id, 'node'), '/drain');
+    return this.ajax(url, 'POST', {
+      data: Object.assign(
+        {
+          NodeID: node.id,
+          Deadline: 0,
+          IgnoreSystemJobs: true,
+        },
+        drainSpec
+      ),
+    });
+  },
+
+  forceDrain(node, drainSpec) {
+    return this.drain(
+      node,
+      Object.assign({}, drainSpec, {
+        Deadline: -1000 * 1000000,
+      })
+    );
+  },
 });
