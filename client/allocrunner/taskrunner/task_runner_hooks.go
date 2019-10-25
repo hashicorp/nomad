@@ -70,6 +70,11 @@ func (tr *TaskRunner) initHooks() {
 		newEnvoyBootstrapHook(alloc, tr.clientConfig.ConsulConfig.Addr, hookLogger),
 	}
 
+	// If the task has a CSI stanza, add the hook.
+	if task.CSIPluginConfig != nil {
+		tr.runnerHooks = append(tr.runnerHooks, newCSIPluginSupervisorHook("/tmp/csiroot", tr, tr, hookLogger))
+	}
+
 	// If Vault is enabled, add the hook
 	if task.Vault != nil {
 		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(&vaultHookConfig{
