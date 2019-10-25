@@ -133,6 +133,7 @@ func (m *Monitor) monitor(conn io.ReadWriteCloser) {
 	// NodeID was empty, so monitor this current server
 	stopCh := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
+	defer close(stopCh)
 	defer cancel()
 
 	monitor := monitor.New(512, m.srv.logger, &log.LoggerOptions{
@@ -142,7 +143,7 @@ func (m *Monitor) monitor(conn io.ReadWriteCloser) {
 
 	go func() {
 		if _, err := conn.Read(nil); err != nil {
-			close(stopCh)
+			// One end of the pipe closed, exit
 			cancel()
 			return
 		}

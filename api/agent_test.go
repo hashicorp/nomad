@@ -1,14 +1,16 @@
 package api
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 
-	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -262,17 +264,47 @@ func TestAgent_Health(t *testing.T) {
 	assert.True(health.Server.Ok)
 }
 
-func TestAgent_Monitor(t *testing.T) {
+func TestAgent_MonitorWithNode(t *testing.T) {
 	t.Parallel()
-	c, s := makeClient(t, nil, nil)
+	rpcPort := 0
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		rpcPort = c.Ports.RPC
+		c.Client = &testutil.ClientConfig{
+			Enabled: true,
+		}
+	})
 	defer s.Stop()
 
+	require.NoError(t, c.Agent().SetServers([]string{fmt.Sprintf("127.0.0.1:%d", rpcPort)}))
+
 	agent := c.Agent()
+
+	index := uint64(0)
+	var node *NodeListStub
+	// grab a node
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, qm, err := c.Nodes().List(&QueryOptions{WaitIndex: index})
+		if err != nil {
+			return false, err
+		}
+		index = qm.LastIndex
+		if len(nodes) != 1 {
+			return false, fmt.Errorf("expected 1 node but found: %s", pretty.Sprint(nodes))
+		}
+		if nodes[0].Status != "ready" {
+			return false, fmt.Errorf("node not ready: %s", nodes[0].Status)
+		}
+		node = nodes[0]
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 
 	doneCh := make(chan struct{})
 	q := &QueryOptions{
 		Params: map[string]string{
 			"log-level": "debug",
+			"node-id":   node.ID,
 		},
 	}
 
@@ -283,34 +315,32 @@ func TestAgent_Monitor(t *testing.T) {
 	}
 
 	// make a request to generate some logs
-	_, err = agent.Region()
+	_, err = agent.NodeName()
 	require.NoError(t, err)
 
-	// Wait for the first log message and validate it
+	// Wait for a log message
+OUTER:
 	for {
 		select {
 		case log := <-logCh:
-			if log == " " {
-				return
+			if strings.Contains(log, "[DEBUG]") {
+				break OUTER
 			}
-			require.Contains(t, log, "[DEBUG]")
-		case <-time.After(10 * time.Second):
-			require.Fail(t, "failed to get a log message")
+		case <-time.After(2 * time.Second):
+			require.Fail(t, "failed to get a DEBUG log message")
 		}
 	}
 }
-func TestAgent_MonitorWithNode(t *testing.T) {
+func TestAgent_Monitor(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
 	agent := c.Agent()
-	id, _ := uuid.GenerateUUID()
 
 	q := &QueryOptions{
 		Params: map[string]string{
 			"log-level": "debug",
-			"node-id":   id,
 		},
 	}
 
@@ -326,16 +356,16 @@ func TestAgent_MonitorWithNode(t *testing.T) {
 	_, err = agent.Region()
 	require.NoError(t, err)
 
-	// Wait for the first log message and validate it
+	// Wait for a log message
+OUTER:
 	for {
 		select {
 		case log := <-logCh:
-			if log == " " {
-				return
+			if strings.Contains(log, "[DEBUG]") {
+				break OUTER
 			}
-			require.Contains(t, log, "[DEBUG]")
-		case <-time.After(10 * time.Second):
-			require.Fail(t, "failed to get a log message")
+		case <-time.After(2 * time.Second):
+			require.Fail(t, "failed to get a DEBUG log message")
 		}
 	}
 }
