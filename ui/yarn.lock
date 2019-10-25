@@ -3918,10 +3918,10 @@ code-point-at@^1.0.0:
   resolved "https://registry.yarnpkg.com/code-point-at/-/code-point-at-1.1.0.tgz#0d070b4d043a5bea33a2f1a40e2edb3d9a4ccf77"
   integrity sha1-DQcLTQQ6W+ozovGkDi7bPZpMz3c=
 
-codemirror@~5.15.0:
-  version "5.15.2"
-  resolved "https://registry.yarnpkg.com/codemirror/-/codemirror-5.15.2.tgz#58b3dc732c6d10d7aae806f4c7cdd56a9b87fe8f"
-  integrity sha1-WLPccyxtENeq6Ab0x83VapuH/o8=
+codemirror@^5.47.0:
+  version "5.49.2"
+  resolved "https://registry.yarnpkg.com/codemirror/-/codemirror-5.49.2.tgz#c84fdaf11b19803f828b0c67060c7bc6d154ccad"
+  integrity sha512-dwJ2HRPHm8w51WB5YTF9J7m6Z5dtkqbU9ntMZ1dqXyFB9IpjoUFDj80ahRVEoVanfIp6pfASJbOlbWdEf8FOzQ==
 
 collection-visit@^1.0.0:
   version "1.0.0"
@@ -4868,7 +4868,7 @@ ember-cli-babel-plugin-helpers@^1.0.0, ember-cli-babel-plugin-helpers@^1.1.0:
   resolved "https://registry.yarnpkg.com/ember-cli-babel-plugin-helpers/-/ember-cli-babel-plugin-helpers-1.1.0.tgz#de3baedd093163b6c2461f95964888c1676325ac"
   integrity sha512-Zr4my8Xn+CzO0gIuFNXji0eTRml5AxZUTDQz/wsNJ5AJAtyFWCY4QtKdoELNNbiCVGt1lq5yLiwTm4scGKu6xA==
 
-ember-cli-babel@^6.0.0, ember-cli-babel@^6.0.0-beta.4, ember-cli-babel@^6.0.0-beta.7, ember-cli-babel@^6.11.0, ember-cli-babel@^6.16.0, ember-cli-babel@^6.18.0, ember-cli-babel@^6.3.0, ember-cli-babel@^6.6.0, ember-cli-babel@^6.7.2, ember-cli-babel@^6.8.0, ember-cli-babel@^6.8.1, ember-cli-babel@^6.8.2, ember-cli-babel@^6.9.0:
+ember-cli-babel@^6.0.0-beta.4, ember-cli-babel@^6.0.0-beta.7, ember-cli-babel@^6.11.0, ember-cli-babel@^6.16.0, ember-cli-babel@^6.18.0, ember-cli-babel@^6.3.0, ember-cli-babel@^6.6.0, ember-cli-babel@^6.7.2, ember-cli-babel@^6.8.0, ember-cli-babel@^6.8.1, ember-cli-babel@^6.8.2, ember-cli-babel@^6.9.0:
   version "6.18.0"
   resolved "https://registry.yarnpkg.com/ember-cli-babel/-/ember-cli-babel-6.18.0.tgz#3f6435fd275172edeff2b634ee7b29ce74318957"
   integrity sha512-7ceC8joNYxY2wES16iIBlbPSxwKDBhYwC8drU3ZEvuPDMwVv1KzxCNu1fvxyFEBWhwaRNTUxSCsEVoTd9nosGA==
@@ -7917,13 +7917,12 @@ isurl@^1.0.0-alpha5:
     has-to-string-tag-x "^1.2.0"
     is-object "^1.0.1"
 
-ivy-codemirror@^2.1.0:
+ivy-codemirror@IvyApp/ivy-codemirror#c3b7f49f8e6492878619f8055695581240cce21a:
   version "2.1.0"
-  resolved "https://registry.yarnpkg.com/ivy-codemirror/-/ivy-codemirror-2.1.0.tgz#c06f1606c375610bf62b007a21a9e63f5854175e"
-  integrity sha1-wG8WBsN1YQv2KwB6IanmP1hUF14=
+  resolved "https://codeload.github.com/IvyApp/ivy-codemirror/tar.gz/c3b7f49f8e6492878619f8055695581240cce21a"
   dependencies:
-    codemirror "~5.15.0"
-    ember-cli-babel "^6.0.0"
+    codemirror "^5.47.0"
+    ember-cli-babel "^7.7.3"
     ember-cli-node-assets "^0.2.2"
 
 jquery-deferred@^0.3.0:
