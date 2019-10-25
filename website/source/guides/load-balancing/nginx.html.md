@@ -44,7 +44,7 @@ configuration.
 
 ### Step 1: Create a Job for Demo Web App
 
-Create a job for a demo web application and name the file 'webapp.nomad':
+Create a job for a demo web application and name the file `webapp.nomad`:
 
 ```hcl
 job "demo-webapp" {
