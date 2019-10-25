@@ -279,8 +279,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 				require.NoError(t, err)
 			}()
 
-			// send the same log a few times until monitor sink is
-			// fully set up
+			// send the same log until monitor sink is set up
 			maxLogAttempts := 10
 			tried := 0
 			testutil.WaitForResult(func() (bool, error) {
@@ -315,8 +314,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 				require.NoError(t, err)
 			}()
 
-			// send the same log a few times until monitor sink is
-			// fully set up
+			// send the same log until monitor sink is set up
 			maxLogAttempts := 10
 			tried := 0
 			out := ""
@@ -370,7 +368,6 @@ func TestHTTP_AgentForceLeave(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT", "/v1/agent/force-leave?node=foo", nil)
-		require.Nil(t, err)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

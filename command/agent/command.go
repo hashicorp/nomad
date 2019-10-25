@@ -382,7 +382,6 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) 
 		Writer: &cli.UiWriter{Ui: c.Ui},
 	}
 
-	// TODO can this be killed
 	c.logFilter = LevelFilter()
 	c.logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
 	c.logFilter.Writer = logGate

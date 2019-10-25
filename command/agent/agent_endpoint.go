@@ -192,13 +192,12 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
-	// Determine the handler to use
-	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(nodeID)
-
 	// Make the RPC
 	var handler structs.StreamingRpcHandler
 	var handlerErr error
 	if nodeID != "" {
+		// Determine the handler to use
+		useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(nodeID)
 		if useLocalClient {
 			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.Monitor")
 		} else if useClientRPC {
@@ -229,10 +228,10 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	// Create an ouput that gets flushed on every write
 	output := ioutils.NewWriteFlusher(resp)
 
-	// Create a channel that decodes the results
+	// create an error channel to handle errors
 	errCh := make(chan HTTPCodedError, 2)
 
-	// stream the response
+	// stream response
 	go func() {
 		defer cancel()
 

@@ -206,7 +206,7 @@ RETRY:
 
 func (a *TestAgent) start() (*Agent, error) {
 	if a.LogOutput == nil {
-		a.LogOutput = io.MultiWriter(testlog.NewWriter(a.T))
+		a.LogOutput = testlog.NewWriter(a.T)
 	}
 
 	inm := metrics.NewInmemSink(10*time.Second, time.Minute)

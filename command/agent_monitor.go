@@ -28,7 +28,19 @@ Usage: nomad monitor [options]
 
 General Options:
 
-  ` + generalOptionsUsage()
+	` + generalOptionsUsage() + `
+	
+Monitor Specific Options:
+
+  -log-level <level>
+    Sets the log level to monitor (default: INFO)
+
+  -node-id <node-id>
+    Sets the specific node to monitor
+
+  -log-json <true|false>
+    Sets log output to JSON format
+  `
 	return strings.TrimSpace(helpText)
 }
 
