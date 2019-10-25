@@ -807,6 +807,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Kind = structs.TaskKind(apiTask.Kind)
 	structsTask.Constraints = ApiConstraintsToStructs(apiTask.Constraints)
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
+	structsTask.CSIPluginConfig = ApiCSIPluginConfigToStructsCSIPluginConfig(apiTask.CSIPluginConfig)
 
 	if l := len(apiTask.VolumeMounts); l != 0 {
 		structsTask.VolumeMounts = make([]*structs.VolumeMount, l)
@@ -917,6 +918,18 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 			File: apiTask.DispatchPayload.File,
 		}
 	}
+}
+
+func ApiCSIPluginConfigToStructsCSIPluginConfig(apiConfig *api.TaskCSIPluginConfig) *structs.TaskCSIPluginConfig {
+	if apiConfig == nil {
+		return nil
+	}
+
+	sc := &structs.TaskCSIPluginConfig{}
+	sc.PluginID = apiConfig.PluginID
+	sc.PluginType = structs.CSIPluginType(apiConfig.PluginType)
+	sc.PluginMountDir = apiConfig.PluginMountDir
+	return sc
 }
 
 func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
