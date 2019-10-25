@@ -72,7 +72,7 @@ func newGrpcConn(addr string) (*grpc.ClientConn, error) {
 		addr,
 		grpc.WithInsecure(),
 		grpc.WithDialer(func(target string, timeout time.Duration) (net.Conn, error) {
-			return net.Dial("unix", target)
+			return net.DialTimeout("unix", target, timeout)
 		}),
 	)
 
