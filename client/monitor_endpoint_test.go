@@ -86,7 +86,6 @@ OUTER:
 			if msg.Error != nil {
 				t.Fatalf("Got error: %v", msg.Error.Error())
 			}
-
 			received += string(msg.Payload)
 			if strings.Contains(received, expected) {
 				require.Nil(p2.Close())
@@ -105,11 +104,16 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
+	c, cleanup := TestClient(t, func(c *config.Config) {
+		c.ACLEnabled = true
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+	})
+	defer cleanup()
+
+	policyBad := mock.NodePolicy(acl.PolicyDeny)
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
-	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, "",
-		[]string{acl.NamespaceCapabilityReadLogs, acl.NamespaceCapabilityReadFS})
+	policyGood := mock.AgentPolicy(acl.PolicyRead)
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid", policyGood)
 
 	cases := []struct {
@@ -145,7 +149,7 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 				},
 			}
 
-			handler, err := s.StreamingRpcHandler("Agent.Monitor")
+			handler, err := c.StreamingRpcHandler("Agent.Monitor")
 			require.Nil(err)
 
 			// create pipe

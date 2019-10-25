@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -43,10 +42,10 @@ func (m *Monitor) monitor(conn io.ReadWriteCloser) {
 	}
 
 	// Check acl
-	if aclObj, err := m.c.ResolveToken(args.QueryOptions.AuthToken); err != nil {
+	if aclObj, err := m.c.ResolveToken(args.AuthToken); err != nil {
 		handleStreamResultError(err, helper.Int64ToPtr(403), encoder)
 		return
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadFS) {
+	} else if aclObj != nil && !aclObj.AllowAgentRead() {
 		handleStreamResultError(structs.ErrPermissionDenied, helper.Int64ToPtr(403), encoder)
 		return
 	}

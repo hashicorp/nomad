@@ -202,8 +202,7 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
-	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, "",
-		[]string{acl.NamespaceCapabilityReadLogs, acl.NamespaceCapabilityReadFS})
+	policyGood := mock.AgentPolicy(acl.PolicyRead)
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid", policyGood)
 
 	cases := []struct {

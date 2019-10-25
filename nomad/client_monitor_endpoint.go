@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/helper"
@@ -43,8 +42,8 @@ func (m *Monitor) monitor(conn io.ReadWriteCloser) {
 	if aclObj, err := m.srv.ResolveToken(args.AuthToken); err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadFS) {
-		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
+	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+		handleStreamResultError(structs.ErrPermissionDenied, helper.Int64ToPtr(403), encoder)
 		return
 	}
 
