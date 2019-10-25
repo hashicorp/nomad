@@ -345,7 +345,6 @@ func TestAgent_Monitor(t *testing.T) {
 	}
 
 	doneCh := make(chan struct{})
-	// todo need to create or stub a nodeid?
 	logCh, err := agent.Monitor(doneCh, q)
 	defer close(doneCh)
 	if err != nil {
