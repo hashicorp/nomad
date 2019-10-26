@@ -17,7 +17,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-var reDynamicPorts = regexp.MustCompile("^[a-zA-Z0-9_]+$")
+var reDynamicPorts = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
 var errPortLabel = fmt.Errorf("Port label does not conform to naming requirements %s", reDynamicPorts.String())
 
 // Parse parses the job spec from the given io.Reader.
