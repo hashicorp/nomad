@@ -53,21 +53,23 @@ func (j *Job) admissionMutators(job *structs.Job) (_ *structs.Job, warnings []er
 
 // admissionValidators returns a slice of validation warnings and a multierror
 // of validation failures.
-func (j *Job) admissionValidators(origJob *structs.Job) (warnings []error, err error) {
+func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
 	// ensure job is not mutated
 	job := origJob.Copy()
 
-	var w []error
-	errs := new(multierror.Error)
+	var warnings []error
+	var errs error
+
 	for _, validator := range j.validators {
-		w, err = validator.Validate(job)
+		w, err := validator.Validate(job)
 		j.logger.Trace("job validate results", "validator", validator.Name(), "warnings", w, "error", err)
 		if err != nil {
-			multierror.Append(errs, err)
+			errs = multierror.Append(errs, err)
 		}
 		warnings = append(warnings, w...)
 	}
-	return warnings, err
+
+	return warnings, errs
 
 }
 
