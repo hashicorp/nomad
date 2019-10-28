@@ -93,9 +93,7 @@ func (*csiPluginSupervisorHook) Name() string {
 // plugin on the filesystem.
 func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	// TODO: Figure out correct mode
-	err := os.MkdirAll(h.mountPoint, 0750)
-	if err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(h.mountPoint, 0750); err != nil && !os.IsExist(err) {
 		return fmt.Errorf("failed to create mount point: %v", err)
 	}
 
