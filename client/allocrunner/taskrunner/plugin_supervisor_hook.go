@@ -11,6 +11,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/client/pluginregistry"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -186,6 +187,21 @@ WAITFORREADY:
 	}
 
 	// Step 2: Register the plugin with the catalog.
+	info := &pluginregistry.PluginInfo{
+		Type:    "csi",
+		Name:    h.task.CSIPluginConfig.PluginID,
+		Version: "1.0.0",
+		ConnectionInfo: &pluginregistry.PluginConnectionInfo{
+			SocketPath: socketPath,
+		},
+	}
+	if err := h.runner.pluginRegistry.RegisterPlugin(info); err != nil {
+		h.logger.Error("CSI Plugin registration failed", "error", err)
+		event := structs.NewTaskEvent(structs.TaskPluginUnhealthy)
+		event.SetMessage(fmt.Sprintf("failed to register plugin: %s, reason: %v", h.task.CSIPluginConfig.PluginID, err))
+		h.eventEmitter.EmitEvent(event)
+		return
+	}
 
 	// Step 3: Start the lightweight supervisor loop.
 	t.Reset(0)
