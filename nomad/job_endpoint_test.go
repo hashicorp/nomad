@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -4319,6 +4320,97 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 	if !constraints[0].Equal(vaultConstraint) {
 		t.Fatalf("Expected implicit vault constraint")
 	}
+}
+
+func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
+	t.Parallel()
+
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	validateJob := func(j *structs.Job) error {
+		req := &structs.JobRegisterRequest{
+			Job: j,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: j.Namespace,
+			},
+		}
+		var resp structs.JobValidateResponse
+		if err := msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &resp); err != nil {
+			return err
+		}
+
+		if resp.Error != "" {
+			return errors.New(resp.Error)
+		}
+
+		if len(resp.ValidationErrors) != 0 {
+			return errors.New(strings.Join(resp.ValidationErrors, ","))
+		}
+
+		if resp.Warnings != "" {
+			return errors.New(resp.Warnings)
+		}
+
+		return nil
+	}
+
+	tgServices := []*structs.Service{
+		{
+			Name:      "count-api",
+			PortLabel: "9001",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+			},
+		},
+	}
+
+	t.Run("plain job", func(t *testing.T) {
+		j := mock.Job()
+		require.NoError(t, validateJob(j))
+	})
+	t.Run("valid consul connect", func(t *testing.T) {
+		j := mock.Job()
+
+		tg := j.TaskGroups[0]
+		tg.Services = tgServices
+		tg.Networks = structs.Networks{
+			{Mode: "bridge"},
+		}
+
+		err := validateJob(j)
+		require.NoError(t, err)
+	})
+
+	t.Run("consul connect but missing network", func(t *testing.T) {
+		j := mock.Job()
+
+		tg := j.TaskGroups[0]
+		tg.Services = tgServices
+
+		err := validateJob(j)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `Consul Connect sidecars require exactly 1 network`)
+	})
+
+	t.Run("consul connect but non bridge network", func(t *testing.T) {
+		j := mock.Job()
+
+		tg := j.TaskGroups[0]
+		tg.Services = tgServices
+
+		tg.Networks = structs.Networks{
+			{Mode: "host"},
+		}
+
+		err := validateJob(j)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `Consul Connect sidecar requires bridge network, found "host" in group "web"`)
+	})
+
 }
 
 func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {

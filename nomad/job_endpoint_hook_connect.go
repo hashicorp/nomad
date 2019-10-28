@@ -50,6 +50,15 @@ func (jobConnectHook) Name() string {
 
 func (jobConnectHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []error, err error) {
 	for _, g := range job.TaskGroups {
+		// TG isn't validated yet, but validation
+		// may depend on mutation results.
+		// Do basic validation here and skip mutation,
+		// so Validate can return a meaningful error
+		// messages
+		if len(g.Networks) == 0 {
+			continue
+		}
+
 		if err := groupConnectHook(g); err != nil {
 			return nil, nil, err
 		}
