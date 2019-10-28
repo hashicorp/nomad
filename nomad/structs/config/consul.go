@@ -7,6 +7,7 @@ import (
 
 	consul "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/sensitive"
 )
 
 // ConsulConfig contains the configuration information necessary to
@@ -70,10 +71,10 @@ type ConsulConfig struct {
 
 	// Token is used to provide a per-request ACL token. This options overrides
 	// the agent's default token
-	Token string `hcl:"token"`
+	Token sensitive.Sensitive `hcl:"token"`
 
 	// Auth is the information to use for http access to Consul agent
-	Auth string `hcl:"auth"`
+	Auth sensitive.Sensitive `hcl:"auth"`
 
 	// EnableSSL sets the transport scheme to talk to the Consul agent as https
 	//
@@ -216,7 +217,7 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 		config.Address = c.Addr
 	}
 	if c.Token != "" {
-		config.Token = c.Token
+		config.Token = c.Token.Plaintext()
 	}
 	if c.Timeout != 0 {
 		// Create a custom Client to set the timeout
@@ -226,14 +227,14 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 		config.HttpClient.Timeout = c.Timeout
 		config.HttpClient.Transport = config.Transport
 	}
-	if c.Auth != "" {
+	if auth := c.Auth.Plaintext(); auth != "" {
 		var username, password string
-		if strings.Contains(c.Auth, ":") {
-			split := strings.SplitN(c.Auth, ":", 2)
+		if strings.Contains(auth, ":") {
+			split := strings.SplitN(auth, ":", 2)
 			username = split[0]
 			password = split[1]
 		} else {
-			username = c.Auth
+			username = auth
 		}
 
 		config.HttpAuth = &consul.HttpBasicAuth{

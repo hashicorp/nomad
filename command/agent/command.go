@@ -119,7 +119,8 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
 
 	// Consul options
-	flags.StringVar(&cmdConfig.Consul.Auth, "consul-auth", "", "")
+	var consulAuth, consulToken string
+	flags.StringVar(&consulAuth, "consul-auth", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
 		cmdConfig.Consul.AutoAdvertise = &b
 		return nil
@@ -149,7 +150,7 @@ func (c *Command) readConfig() *Config {
 		cmdConfig.Consul.EnableSSL = &b
 		return nil
 	}), "consul-ssl", "")
-	flags.StringVar(&cmdConfig.Consul.Token, "consul-token", "", "")
+	flags.StringVar(&consulToken, "consul-token", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
 		cmdConfig.Consul.VerifySSL = &b
 		return nil
@@ -195,6 +196,12 @@ func (c *Command) readConfig() *Config {
 
 	if vaultToken != "" {
 		cmdConfig.Vault.Token = sensitive.Sensitive(vaultToken)
+	}
+	if consulAuth != "" {
+		cmdConfig.Consul.Auth = sensitive.Sensitive(consulAuth)
+	}
+	if consulToken != "" {
+		cmdConfig.Consul.Token = sensitive.Sensitive(consulToken)
 	}
 
 	// Parse the meta flags.

@@ -68,7 +68,7 @@ func TestHTTP_AgentSelf(t *testing.T) {
 		obj, err = s.Server.AgentSelfRequest(respW, req)
 		require.NoError(err)
 		self = obj.(agentSelf)
-		require.Equal("<redacted>", self.Config.Consul.Token)
+		require.Equal("<redacted>", self.Config.Consul.Token.Plaintext())
 
 		// Check the Circonus config
 		require.Empty(self.Config.Telemetry.CirconusAPIToken)

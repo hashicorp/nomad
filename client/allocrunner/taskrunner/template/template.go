@@ -631,7 +631,8 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	// Setup the Consul config
 	if cc.ConsulConfig != nil {
 		conf.Consul.Address = &cc.ConsulConfig.Addr
-		conf.Consul.Token = &cc.ConsulConfig.Token
+		token := cc.ConsulConfig.Token.Plaintext()
+		conf.Consul.Token = &token
 
 		if cc.ConsulConfig.EnableSSL != nil && *cc.ConsulConfig.EnableSSL {
 			verify := cc.ConsulConfig.VerifySSL != nil && *cc.ConsulConfig.VerifySSL
@@ -644,8 +645,8 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			}
 		}
 
-		if cc.ConsulConfig.Auth != "" {
-			parts := strings.SplitN(cc.ConsulConfig.Auth, ":", 2)
+		if auth := cc.ConsulConfig.Auth.Plaintext(); auth != "" {
+			parts := strings.SplitN(auth, ":", 2)
 			if len(parts) != 2 {
 				return nil, fmt.Errorf("Failed to parse Consul Auth config")
 			}
