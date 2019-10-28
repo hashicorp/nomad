@@ -6,7 +6,6 @@ set -o nounset
 CONFIGDIR=/ops/shared/config
 
 CONSULCONFIGDIR=/etc/consul.d
-NOMADCONFIGDIR=/etc/nomad.d
 HADOOP_VERSION=hadoop-2.7.7
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu
@@ -17,7 +16,8 @@ DOCKER_BRIDGE_IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetInterfaceIP "docker0
 CLOUD="$1"
 SERVER_COUNT="$2"
 RETRY_JOIN="$3"
-nomad_sha="$4"
+NOMAD_SHA="$4"
+NOMAD_CONFIG="$5"
 
 # Consul
 sed -i "s/SERVER_COUNT/$SERVER_COUNT/g" $CONFIGDIR/consul.json
@@ -40,8 +40,6 @@ sudo cp "$VAULT_SRC/vault.service" /etc/systemd/system/vault.service
 
 sudo systemctl enable vault.service
 sudo systemctl start  vault.service
-
-export NOMAD_ADDR=http://$IP_ADDRESS:4646
 
 # Add hostname to /etc/hosts
 echo "127.0.0.1 $(hostname)" | sudo tee --append /etc/hosts
@@ -70,18 +68,25 @@ echo "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre"  | sudo tee --appe
 # Update PATH
 echo "export PATH=$PATH:/usr/local/bin/spark/bin:/usr/local/$HADOOP_VERSION/bin" | sudo tee --append /home/$HOME_DIR/.bashrc
 
+# Nomad
+
+NOMAD_SRC=/ops/shared/nomad
+NOMAD_DEST=/etc/nomad.d
+
 # download
-aws s3 cp s3://nomad-team-test-binary/builds-oss/${nomad_sha}.tar.gz nomad.tar.gz
+aws s3 cp "s3://nomad-team-test-binary/builds-oss/nomad_linux_amd64_${NOMAD_SHA}.tar.gz" nomad.tar.gz
 
 # unpack and install
 sudo tar -zxvf nomad.tar.gz -C /usr/local/bin/
 sudo chmod 0755 /usr/local/bin/nomad
 sudo chown root:root /usr/local/bin/nomad
 
-# install config file
-sudo cp /tmp/server.hcl /etc/nomad.d/nomad.hcl
+sudo cp "$NOMAD_SRC/base.hcl" "$NOMAD_DEST/"
+
+sed "s/3 # SERVER_COUNT/$SERVER_COUNT/g" "$NOMAD_SRC/$NOMAD_CONFIG" > "/tmp/$NOMAD_CONFIG"
+sudo mv "/tmp/$NOMAD_CONFIG" "$NOMAD_DEST/$NOMAD_CONFIG"
 
 # enable as a systemd service
-sudo cp /ops/shared/config/nomad.service /etc/systemd/system/nomad.service
+sudo cp "$NOMAD_SRC/nomad.service" /etc/systemd/system/nomad.service
 sudo systemctl enable nomad.service
 sudo systemctl start nomad.service

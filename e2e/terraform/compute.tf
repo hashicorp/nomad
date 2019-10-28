@@ -28,24 +28,10 @@ resource "aws_instance" "server" {
     }
   }
 
-  provisioner "file" {
-    content = file(
-      "${path.root}/configs/${var.indexed == false ? "server.hcl" : "indexed/server-${count.index}.hcl"}",
-    )
-    destination = "/tmp/server.hcl"
-
-    connection {
-      host        = coalesce(self.public_ip, self.private_ip)
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = module.keys.private_key_pem
-    }
-  }
-
   provisioner "remote-exec" {
     inline = [
       "chmod +x /ops/shared/config/provision-server.sh",
-      "/ops/shared/config/provision-server.sh aws ${var.server_count} '${var.retry_join}' ${var.nomad_sha}",
+      "/ops/shared/config/provision-server.sh aws ${var.server_count} '${var.retry_join}' '${var.nomad_sha}' '${var.indexed == false ? "server.hcl" : "indexed/server-${count.index}.hcl"}'",
     ]
 
     connection {
@@ -95,24 +81,10 @@ resource "aws_instance" "client" {
     }
   }
 
-  provisioner "file" {
-    content = file(
-      "${path.root}/configs/${var.indexed == false ? "client.hcl" : "indexed/client-${count.index}.hcl"}",
-    )
-    destination = "/tmp/client.hcl"
-
-    connection {
-      host        = coalesce(self.public_ip, self.private_ip)
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = module.keys.private_key_pem
-    }
-  }
-
   provisioner "remote-exec" {
     inline = [
       "chmod +x /ops/shared/config/provision-client.sh",
-      "/ops/shared/config/provision-client.sh aws '${var.retry_join}' ${var.nomad_sha}",
+      "/ops/shared/config/provision-client.sh aws '${var.retry_join}' '${var.nomad_sha}' '${var.indexed == false ? "client.hcl" : "indexed/client-${count.index}.hcl"}'",
     ]
 
     connection {
