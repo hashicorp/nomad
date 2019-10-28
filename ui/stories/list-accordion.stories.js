@@ -34,10 +34,10 @@ storiesOf('ListAccordion/', module)
     { notes }
   )
   .add(
-    `Accordion, One Item`,
+    `Accordion, one item`,
     () => ({
       template: hbs`
-      <h5 class="title is-5">Accordion, One Item</h5>
+      <h5 class="title is-5">Accordion, one item</h5>
       <ListAccordion @source={{take 1 products}} @key="name" as |a|>
         <a.head @buttonLabel="details">
           <div class="columns inline-definitions">
@@ -61,10 +61,10 @@ storiesOf('ListAccordion/', module)
     { notes }
   )
   .add(
-    `Accordion, Not Expandable`,
+    `Accordion, not expandable`,
     () => ({
       template: hbs`
-      <h5 class="title is-5">Accordion, Not Expandable</h5>
+      <h5 class="title is-5">Accordion, not expandable</h5>
       <ListAccordion @source={{products}} @key="name" as |a|>
         <a.head @buttonLabel="details" @isExpandable={{eq a.item.lang "golang"}}>
           <div class="columns inline-definitions">
