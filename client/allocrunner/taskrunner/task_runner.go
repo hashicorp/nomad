@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/pluginregistry"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -190,6 +191,10 @@ type TaskRunner struct {
 	// handlers
 	driverManager drivermanager.Manager
 
+	// pluginRegistry is the pluginregistry dynamic plugins should be registered
+	// with.
+	pluginRegistry pluginregistry.Registry
+
 	// maxEvents is the capacity of the TaskEvents on the TaskState.
 	// Defaults to defaultMaxEvents but overrideable for testing.
 	maxEvents int
@@ -214,6 +219,10 @@ type Config struct {
 	Task         *structs.Task
 	TaskDir      *allocdir.TaskDir
 	Logger       log.Logger
+
+	// PluginRegistry is the pluginregistry dynamic plugins should be registered
+	// with.
+	PluginRegistry pluginregistry.Registry
 
 	// Vault is the client to use to derive and renew Vault tokens
 	Vault vaultclient.VaultClient
@@ -270,6 +279,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		taskName:            config.Task.Name,
 		taskLeader:          config.Task.Leader,
 		envBuilder:          envBuilder,
+		pluginRegistry:      config.PluginRegistry,
 		consulClient:        config.Consul,
 		vaultClient:         config.Vault,
 		state:               tstate,
