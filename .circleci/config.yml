@@ -298,7 +298,7 @@ commands:
     parameters:
       version:
         type: string
-        default: 1.0.0
+        default: 1.2.3
     steps:
       - run:
           name: Install Vault << parameters.version >>
