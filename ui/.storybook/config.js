@@ -23,6 +23,8 @@ addDecorator(storyFn => {
   Object.assign(element.style, styles.style);
 
   const innerElement = document.createElement('div');
+  // FIXME rename?
+  innerElement.setAttribute('id', 'styleguide');
   const wormhole = document.createElement('div');
   wormhole.setAttribute('id', 'ember-basic-dropdown-wormhole');
   innerElement.appendChild(wormhole);
