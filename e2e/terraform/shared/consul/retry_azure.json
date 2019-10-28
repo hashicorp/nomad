@@ -1,0 +1,3 @@
+{
+  "retry_join": ["provider=azure tag_key=ConsulAutoJoin tag_value=auto-join"]
+}
