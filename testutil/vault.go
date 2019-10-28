@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -69,7 +70,7 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 			Client:    client,
 			Config: &config.VaultConfig{
 				Enabled: &enable,
-				Token:   token,
+				Token:   sensitive.Sensitive(token),
 				Addr:    http,
 			},
 		}
@@ -157,7 +158,7 @@ func NewTestVaultDelayed(t testing.T) *TestVault {
 		Client:    client,
 		Config: &config.VaultConfig{
 			Enabled: &enable,
-			Token:   token,
+			Token:   sensitive.Sensitive(token),
 			Addr:    http,
 		},
 	}

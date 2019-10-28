@@ -45,7 +45,7 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 	num := 5
 	tokens := make([]string, num)
 	for i := 0; i < num; i++ {
-		c.client.SetToken(v.Config.Token)
+		c.client.SetToken(v.Config.Token.Plaintext())
 
 		if err := c.client.SetAddress(v.Config.Addr); err != nil {
 			t.Fatal(err)
@@ -251,7 +251,7 @@ func TestVaultClient_RenewNonRenewableLease(t *testing.T) {
 		Renewable:   new(bool),
 	}
 
-	c.client.SetToken(v.Config.Token)
+	c.client.SetToken(v.Config.Token.Plaintext())
 
 	if err := c.client.SetAddress(v.Config.Addr); err != nil {
 		t.Fatal(err)
@@ -293,7 +293,7 @@ func TestVaultClient_RenewNonexistentLease(t *testing.T) {
 	// Sleep a little while to ensure that the renewal loop is active
 	time.Sleep(time.Duration(testutil.TestMultiplier()) * time.Second)
 
-	c.client.SetToken(v.Config.Token)
+	c.client.SetToken(v.Config.Token.Plaintext())
 
 	if err := c.client.SetAddress(v.Config.Addr); err != nil {
 		t.Fatal(err)

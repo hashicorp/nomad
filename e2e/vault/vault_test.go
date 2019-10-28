@@ -15,10 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-version"
+	version "github.com/hashicorp/go-version"
 
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -207,7 +208,7 @@ func testVaultCompatibility(t *testing.T, vault string, version string) {
 			c.Vault = &config.VaultConfig{}
 		}
 		c.Vault.Enabled = helper.BoolToPtr(true)
-		c.Vault.Token = token
+		c.Vault.Token = sensitive.Sensitive(token)
 		c.Vault.Role = "nomad-cluster"
 		c.Vault.AllowUnauthenticated = helper.BoolToPtr(true)
 		c.Vault.Addr = v.HTTPAddr

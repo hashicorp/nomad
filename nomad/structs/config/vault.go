@@ -3,6 +3,7 @@ package config
 import (
 	"time"
 
+	"github.com/hashicorp/nomad/helper/sensitive"
 	vault "github.com/hashicorp/vault/api"
 )
 
@@ -28,7 +29,7 @@ type VaultConfig struct {
 	// Token is the Vault token given to Nomad such that it can
 	// derive child tokens. Nomad will renew this token at half its lease
 	// lifetime.
-	Token string `hcl:"token"`
+	Token sensitive.Sensitive `hcl:"token"`
 
 	// Role sets the role in which to create tokens from. The Token given to
 	// Nomad does not have to be created from this role but must have "update"

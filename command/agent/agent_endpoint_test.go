@@ -49,7 +49,7 @@ func TestHTTP_AgentSelf(t *testing.T) {
 		obj, err = s.Server.AgentSelfRequest(respW, req)
 		require.NoError(err)
 		self = obj.(agentSelf)
-		require.Equal("<redacted>", self.Config.Vault.Token)
+		require.Equal("<redacted>", self.Config.Vault.Token.Plaintext())
 
 		// Assign a ReplicationToken token and require it is redacted.
 		s.Config.ACL.ReplicationToken = "badc0deb-adc0-deba-dc0d-ebadc0debadc"

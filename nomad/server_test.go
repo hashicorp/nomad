@@ -10,6 +10,7 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -221,7 +222,7 @@ func TestServer_Reload_Vault(t *testing.T) {
 	tr := true
 	config := DefaultConfig()
 	config.VaultConfig.Enabled = &tr
-	config.VaultConfig.Token = uuid.Generate()
+	config.VaultConfig.Token = sensitive.Sensitive(uuid.Generate())
 
 	if err := s1.Reload(config); err != nil {
 		t.Fatalf("Reload failed: %v", err)

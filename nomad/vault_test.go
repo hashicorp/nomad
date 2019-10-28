@@ -17,6 +17,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -72,7 +73,7 @@ path "secret/*" {
 
 // defaultTestVaultWhitelistRoleAndToken creates a test Vault role and returns a token
 // created in that role
-func defaultTestVaultWhitelistRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
+func defaultTestVaultWhitelistRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) sensitive.Sensitive {
 	vaultPolicies := map[string]string{
 		"nomad-role-create":     nomadRoleCreatePolicy,
 		"nomad-role-management": nomadRoleManagementPolicy,
@@ -86,7 +87,7 @@ func defaultTestVaultWhitelistRoleAndToken(v *testutil.TestVault, t *testing.T, 
 
 // defaultTestVaultBlacklistRoleAndToken creates a test Vault role using
 // disallowed_policies and returns a token created in that role
-func defaultTestVaultBlacklistRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
+func defaultTestVaultBlacklistRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) sensitive.Sensitive {
 	vaultPolicies := map[string]string{
 		"nomad-role-create":     nomadRoleCreatePolicy,
 		"nomad-role-management": nomadRoleManagementPolicy,
@@ -113,14 +114,14 @@ func defaultTestVaultBlacklistRoleAndToken(v *testutil.TestVault, t *testing.T, 
 		t.Fatalf("bad secret response: %+v", s)
 	}
 
-	return s.Auth.ClientToken
+	return sensitive.Sensitive(s.Auth.ClientToken)
 }
 
 // testVaultRoleAndToken writes the vaultPolicies to vault and then creates a
 // test role with the passed data. After that it derives a token from the role
 // with the tokenPolicies
 func testVaultRoleAndToken(v *testutil.TestVault, t *testing.T, vaultPolicies map[string]string,
-	data map[string]interface{}, tokenPolicies []string) string {
+	data map[string]interface{}, tokenPolicies []string) sensitive.Sensitive {
 	// Write the policies
 	sys := v.Client.Sys()
 	for p, data := range vaultPolicies {
@@ -148,7 +149,7 @@ func testVaultRoleAndToken(v *testutil.TestVault, t *testing.T, vaultPolicies ma
 		t.Fatalf("bad secret response: %+v", s)
 	}
 
-	return s.Auth.ClientToken
+	return sensitive.Sensitive(s.Auth.ClientToken)
 }
 
 func TestVaultClient_BadConfig(t *testing.T) {
@@ -428,7 +429,7 @@ func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {
 	defer v.Stop()
 
 	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
-	v.Config.Token = v.RootToken
+	v.Config.Token = sensitive.Sensitive(v.RootToken)
 	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
 	v.Config.Role = "test-nonexistent"
@@ -695,7 +696,7 @@ func TestVaultClient_RenewalLoop(t *testing.T) {
 
 	// Get the current TTL
 	a := v.Client.Auth().Token()
-	s2, err := a.Lookup(v.Config.Token)
+	s2, err := a.Lookup(v.Config.Token.Plaintext())
 	if err != nil {
 		t.Fatalf("failed to lookup token: %v", err)
 	}
@@ -728,7 +729,7 @@ func TestVaultClientRenewUpdatesExpiration(t *testing.T) {
 
 	// Get the current TTL
 	a := v.Client.Auth().Token()
-	s2, err := a.Lookup(v.Config.Token)
+	s2, err := a.Lookup(v.Config.Token.Plaintext())
 	if err != nil {
 		t.Fatalf("failed to lookup token: %v", err)
 	}
@@ -804,7 +805,7 @@ func TestVaultClient_LoopsUntilCannotRenew(t *testing.T) {
 
 	// Get the current TTL
 	a := v.Client.Auth().Token()
-	s2, err := a.Lookup(v.Config.Token)
+	s2, err := a.Lookup(v.Config.Token.Plaintext())
 	if err != nil {
 		t.Fatalf("failed to lookup token: %v", err)
 	}
@@ -850,7 +851,7 @@ func TestVaultClient_LookupToken_Invalid(t *testing.T) {
 	conf := &config.VaultConfig{
 		Enabled: &tr,
 		Addr:    "http://foobar:12345",
-		Token:   uuid.Generate(),
+		Token:   sensitive.Sensitive(uuid.Generate()),
 	}
 
 	// Enable vault but use a bad address so it never establishes a conn
@@ -884,7 +885,7 @@ func TestVaultClient_LookupToken_Root(t *testing.T) {
 	waitForConnection(client, t)
 
 	// Lookup ourselves
-	s, err := client.LookupToken(context.Background(), v.Config.Token)
+	s, err := client.LookupToken(context.Background(), v.Config.Token.Plaintext())
 	if err != nil {
 		t.Fatalf("self lookup failed: %v", err)
 	}
@@ -949,7 +950,7 @@ func TestVaultClient_LookupToken_Role(t *testing.T) {
 	waitForConnection(client, t)
 
 	// Lookup ourselves
-	s, err := client.LookupToken(context.Background(), v.Config.Token)
+	s, err := client.LookupToken(context.Background(), v.Config.Token.Plaintext())
 	if err != nil {
 		t.Fatalf("self lookup failed: %v", err)
 	}
@@ -1021,7 +1022,7 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 	for i := 0; i < numRequests; i++ {
 		go func() {
 			// Lookup ourselves
-			_, err := client.LookupToken(ctx, v.Config.Token)
+			_, err := client.LookupToken(ctx, v.Config.Token.Plaintext())
 			if err != nil {
 				if err == context.Canceled {
 					cancels += 1
@@ -1335,7 +1336,7 @@ func TestVaultClient_CreateToken_Prestart(t *testing.T) {
 	t.Parallel()
 	vconfig := &config.VaultConfig{
 		Enabled: helper.BoolToPtr(true),
-		Token:   uuid.Generate(),
+		Token:   sensitive.Sensitive(uuid.Generate()),
 		Addr:    "http://127.0.0.1:0",
 	}
 
@@ -1368,7 +1369,7 @@ func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 	t.Parallel()
 	vconfig := &config.VaultConfig{
 		Enabled: helper.BoolToPtr(true),
-		Token:   uuid.Generate(),
+		Token:   sensitive.Sensitive(uuid.Generate()),
 		Addr:    "http://127.0.0.1:0",
 	}
 	logger := testlog.HCLogger(t)

@@ -29,6 +29,7 @@ import (
 	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/helper/logging"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
@@ -164,7 +165,8 @@ func (c *Command) readConfig() *Config {
 		cmdConfig.Vault.AllowUnauthenticated = &b
 		return nil
 	}), "vault-allow-unauthenticated", "")
-	flags.StringVar(&cmdConfig.Vault.Token, "vault-token", "", "")
+	var vaultToken string
+	flags.StringVar(&vaultToken, "vault-token", "", "")
 	flags.StringVar(&cmdConfig.Vault.Addr, "vault-address", "", "")
 	flags.StringVar(&cmdConfig.Vault.Namespace, "vault-namespace", "", "")
 	flags.StringVar(&cmdConfig.Vault.Role, "vault-create-from-role", "", "")
@@ -189,6 +191,10 @@ func (c *Command) readConfig() *Config {
 	// Split the servers.
 	if servers != "" {
 		cmdConfig.Client.Servers = strings.Split(servers, ",")
+	}
+
+	if vaultToken != "" {
+		cmdConfig.Vault.Token = sensitive.Sensitive(vaultToken)
 	}
 
 	// Parse the meta flags.
@@ -264,7 +270,7 @@ func (c *Command) readConfig() *Config {
 
 	// Check to see if we should read the Vault token from the environment
 	if config.Vault.Token == "" {
-		config.Vault.Token = os.Getenv("VAULT_TOKEN")
+		config.Vault.Token = sensitive.Sensitive(os.Getenv("VAULT_TOKEN"))
 	}
 
 	// Check to see if we should read the Vault namespace from the environment
