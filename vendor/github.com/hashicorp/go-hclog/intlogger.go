@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -167,6 +168,8 @@ func trimCallerPath(path string) string {
 	return path[idx+1:]
 }
 
+var logImplFile = regexp.MustCompile(`github.com/hashicorp/go-hclog/.+logger.go$`)
+
 // Non-JSON logging format function
 func (l *intLogger) log(t time.Time, name string, level Level, msg string, args ...interface{}) {
 	l.writer.WriteString(t.Format(l.timeFormat))
@@ -179,8 +182,18 @@ func (l *intLogger) log(t time.Time, name string, level Level, msg string, args 
 		l.writer.WriteString("[?????]")
 	}
 
+	offset := 3
 	if l.caller {
-		if _, file, line, ok := runtime.Caller(3); ok {
+		// Check if the caller is inside our package and inside
+		// a logger implementation file
+		if _, file, _, ok := runtime.Caller(3); ok {
+			match := logImplFile.MatchString(file)
+			if match {
+				offset = 4
+			}
+		}
+
+		if _, file, line, ok := runtime.Caller(offset); ok {
 			l.writer.WriteByte(' ')
 			l.writer.WriteString(trimCallerPath(file))
 			l.writer.WriteByte(':')

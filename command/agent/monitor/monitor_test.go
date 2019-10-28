@@ -54,9 +54,9 @@ func TestMonitor_DroppedMessages(t *testing.T) {
 
 	m.Start(doneCh)
 
-	for i := 0; i <= 6; i++ {
+	for i := 0; i <= 9; i++ {
 		logger.Debug("test message")
 	}
 
-	assert.Equal(t, 1, m.droppedCount)
+	assert.Greater(t, m.droppedCount, 0)
 }

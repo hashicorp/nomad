@@ -66,8 +66,6 @@ func (d *Monitor) Write(p []byte) (n int, err error) {
 	select {
 	case d.logCh <- bytes:
 	default:
-		d.Lock()
-		defer d.Unlock()
 		d.droppedCount++
 		if d.droppedCount > 10 {
 			d.logger.Warn("Monitor dropped %d logs during monitor request", d.droppedCount)

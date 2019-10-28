@@ -6,10 +6,6 @@ response body, for clients which support it. Although it's usually simpler to
 leave that to a reverse proxy (like nginx or Varnish), this package is useful
 when that's undesirable.
 
-## Install
-```bash
-go get -u github.com/NYTimes/gziphandler
-```
 
 ## Usage
 
@@ -52,5 +48,5 @@ The docs can be found at [godoc.org][docs], as usual.
 
 
 
-[docs]:     https://godoc.org/github.com/NYTimes/gziphandler
-[license]:  https://github.com/NYTimes/gziphandler/blob/master/LICENSE
+[docs]:     https://godoc.org/github.com/nytimes/gziphandler
+[license]:  https://github.com/nytimes/gziphandler/blob/master/LICENSE.md
