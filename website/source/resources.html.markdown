@@ -134,10 +134,6 @@ description: |-
     <ul>
       <li><a href="https://www.hashicorp.com/resources/elsevier-nomad-container-framework-demo">Eslevier’s Container Framework with Nomad, Terraform, and Consul</a></li>
     </ul>
-  <li>Palantir</li>
-    <ul>
-      <li><a href="https://www.hashicorp.com/resources/enterprise-security-hashicorp-stack">Enterprise Security at Palantir with the HashiCorp stack</a></li>
-    </ul>
   <li>Graymeta</li>
     <ul>
       <li><a href="https://www.hashicorp.com/resources/backend-batch-processing-nomad">Backend Batch Processing At Scale with Nomad</a></li>
