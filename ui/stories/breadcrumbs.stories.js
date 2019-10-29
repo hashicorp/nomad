@@ -25,12 +25,12 @@ export const Standard = () => {
     </div>
     <p class='annotation'>Breadcrumbs are only ever used in the secondary nav of the primary header.</p>
     `,
-  }
+  };
 };
 
 export const Single = () => {
   return {
-template: hbs`
+    template: hbs`
       <h5 class="title is-5">Single breadcrumb</h5>
       <div class="navbar is-secondary">
         <div class="navbar-item"></div>
@@ -42,5 +42,5 @@ template: hbs`
       </div>
       <p class='annotation'>Breadcrumbs are given a lot of emphasis and often double as a page title. Since they are also global state, they are important for helping a user keep their bearings.</p>
   `,
-  }
+  };
 };

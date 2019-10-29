@@ -153,29 +153,28 @@ export default {
     notes,
     options: {
       showPanel: false,
-    }
-  }
+    },
+  },
 };
 
 export const JsonViewer = () => {
   return {
-      template: hbs`
+    template: hbs`
       <h5 class="title is-5">JSON Viewer</h5>
       <p>Known intermittent issue in current Storybook implementation: no content rendered until window resize?!</p>
       <JsonViewer @json={{jsonSmall}} />
     `,
-      context
-    }
+    context,
   };
+};
 
-  export const FullDocument = () => {
-    return {
-
-      template: hbs`
+export const FullDocument = () => {
+  return {
+    template: hbs`
       <h5 class="title is-5">JSON Viewer for full document</h5>
       <p>Known intermittent issue in current Storybook implementation: no content rendered until window resize?!</p>
       <JsonViewer @json={{jsonLarge}} />
     `,
-      context
-    }
+    context,
   };
+};

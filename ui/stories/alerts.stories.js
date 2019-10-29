@@ -15,7 +15,7 @@ export const Alerts = () => {
       </div>
       <p>Alerts use Bulma's notification component.</p>
       `,
-  }
+  };
 };
 
 export const Colors = () => {
@@ -44,12 +44,12 @@ export const Colors = () => {
 
       <p>Alerts are always paired with an emotive color. If there is no emotive association with the content of the alert, then an alert is the wrong component to use.</p>
       `,
-  }
+  };
 };
 
 export const Dismissal = () => {
   return {
-  template: hbs`
+    template: hbs`
     <h5 class="title is-5">Alert dismissal</h5>
     <div class="notification is-info">
       <div class="columns">
@@ -99,5 +99,5 @@ export const Dismissal = () => {
       </div>
     </div>
     `,
-  }
+  };
 };

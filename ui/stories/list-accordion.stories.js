@@ -6,13 +6,13 @@ import productMetadata from '../app/utils/styleguide/product-metadata';
 export default {
   title: 'ListAccordion',
   parameters: {
-    notes
-  }
+    notes,
+  },
 };
 
 export const Accordion = () => {
   return {
-      template: hbs`
+    template: hbs`
       <h5 class="title is-5">Accordion</h5>
       <ListAccordion @source={{products}} @key="name" as |ac|>
         <ac.head @buttonLabel="details">
@@ -30,14 +30,14 @@ export const Accordion = () => {
         </ac.body>
       </ListAccordion>
           `,
-      context: {
-        products: productMetadata,
-      },
-    }
+    context: {
+      products: productMetadata,
+    },
   };
+};
 
-  export const OneItem = () => {
-    return {
+export const OneItem = () => {
+  return {
     template: hbs`
       <h5 class="title is-5">Accordion, one item</h5>
       <ListAccordion @source={{take 1 products}} @key="name" as |a|>
@@ -56,15 +56,15 @@ export const Accordion = () => {
         </a.body>
       </ListAccordion>
           `,
-      context: {
-        products: productMetadata,
-      },
-    }
+    context: {
+      products: productMetadata,
+    },
   };
+};
 
-  export const NotExpandable = () => {
-    return {
-      template: hbs`
+export const NotExpandable = () => {
+  return {
+    template: hbs`
       <h5 class="title is-5">Accordion, not expandable</h5>
       <ListAccordion @source={{products}} @key="name" as |a|>
         <a.head @buttonLabel="details" @isExpandable={{eq a.item.lang "golang"}}>
@@ -82,8 +82,8 @@ export const Accordion = () => {
         </a.body>
       </ListAccordion>
           `,
-      context: {
-        products: productMetadata,
-      },
-    }
+    context: {
+      products: productMetadata,
+    },
   };
+};

@@ -8,8 +8,8 @@ export default {
   title: 'CopyButton',
   decorators: [withKnobs],
   parameters: {
-    notes
-  }
+    notes,
+  },
 };
 
 export const CopyButton = () => {
@@ -24,7 +24,7 @@ export const CopyButton = () => {
     context: {
       clipboardText: text('Clipboard Text', 'e8c898a0-794b-9063-7a7f-bf0c4a405f83'),
     },
-  }
+  };
 };
 
 CopyButton.story = {

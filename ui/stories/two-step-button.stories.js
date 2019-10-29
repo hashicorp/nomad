@@ -5,8 +5,8 @@ import notes from './two-step-button.md';
 export default {
   title: 'TwoStepButton',
   parameters: {
-    notes
-  }
+    notes,
+  },
 };
 
 export const TwoStepButton = () => {
@@ -21,12 +21,11 @@ export const TwoStepButton = () => {
         @confirmationMessage="Wait, really? Like...seriously?"
       />
       `,
-  }
   };
+};
 
-  export const InTitle = () => {
-    return {
-
+export const InTitle = () => {
+  return {
     template: hbs`
       <h5 class="title is-5">Two Step Button in title</h5>
       <br><br>
@@ -40,12 +39,12 @@ export const TwoStepButton = () => {
         />
       </h1>
           `,
-    }
   };
+};
 
-  export const LoadingState = () => {
-    return {
-  template: hbs`
+export const LoadingState = () => {
+  return {
+    template: hbs`
     <h5 class="title is-5">Two Step Button loading state</h5>
     <br><br>
     <h1 class="title">
@@ -61,5 +60,5 @@ export const TwoStepButton = () => {
     </h1>
     <p class='annotation'>  <strong>Note:</strong> the <code>state</code> property is internal state and only used here to bypass the idle state for demonstration purposes.</p>
     `,
-    }
   };
+};

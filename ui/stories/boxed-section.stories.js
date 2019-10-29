@@ -25,7 +25,7 @@ export const BoxedSection = () => {
     </div>
     `,
     context: contextFactory('something'),
-  }
+  };
 };
 
 export const RightHandDetails = () => {
@@ -47,12 +47,12 @@ export const RightHandDetails = () => {
       </div>
   `,
     context: contextFactory('something'),
-  }
+  };
 };
 
 export const TitleDecoration = () => {
   return {
-  template: hbs`
+    template: hbs`
     <h5 class="title is-5">Boxed section with title decoration</h5>
     <div class="boxed-section {{variant}}">
       <div class="boxed-section-head">
@@ -68,13 +68,13 @@ export const TitleDecoration = () => {
       </div>
     </div>
 `,
-  context: contextFactory(),
-}
+    context: contextFactory(),
+  };
 };
 
 export const Foot = () => {
   return {
-  template: hbs`
+    template: hbs`
     <h5 class="title is-5">Boxed section with foot</h5>
     <div class="boxed-section {{variant}}">
       <div class="boxed-section-head">
@@ -93,13 +93,13 @@ export const Foot = () => {
       </div>
     </div>
 `,
-  context: contextFactory(),
-}
+    context: contextFactory(),
+  };
 };
 
 export const LargeHeader = () => {
   return {
-  template: hbs`
+    template: hbs`
     <h5 class="title is-5">Boxed section with large header</h5>
     <div class="boxed-section {{variant}}">
       <div class="boxed-section-head">
@@ -120,13 +120,13 @@ export const LargeHeader = () => {
       </div>
     </div>
 `,
-  context: contextFactory(),
-}
+    context: contextFactory(),
+  };
 };
 
 export const DarkBody = () => {
   return {
-  template: hbs`
+    template: hbs`
     <h5 class="title is-5">Boxed section with dark body</h5>
     <div class="boxed-section {{variant.slug}}">
       <div class="boxed-section-head">
@@ -141,19 +141,26 @@ export const DarkBody = () => {
       </div>
     </div>
 `,
-  context: contextFactory(),
-}
+    context: contextFactory(),
+  };
 };
 
 // FIXME when this was just a const, it caused no knobs to display…?
 function contextFactory() {
-  return   {variant: optionsKnob('Variant', {
-    Normal: '',
-    Info: 'is-info',
-    Warning: 'is-warning',
-    Danger: 'is-danger',
-  }, '', {
-    display: 'inline-radio',
-  }, 'variant-id')
+  return {
+    variant: optionsKnob(
+      'Variant',
+      {
+        Normal: '',
+        Info: 'is-info',
+        Warning: 'is-warning',
+        Danger: 'is-danger',
+      },
+      '',
+      {
+        display: 'inline-radio',
+      },
+      'variant-id'
+    ),
   };
 }
