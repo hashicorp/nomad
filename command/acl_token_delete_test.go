@@ -46,7 +46,7 @@ func TestACLTokenDeleteCommand_ViaEnvVariable(t *testing.T) {
 
 	// Delete a token using a valid management token set via an environment
 	// variable
-	os.Setenv("NOMAD_TOKEN", token.SecretID)
+	os.Setenv("NOMAD_TOKEN", token.SecretID.Plaintext())
 	code = cmd.Run([]string{"-address=" + url, mockToken.AccessorID})
 	assert.Equal(0, code)
 

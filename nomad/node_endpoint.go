@@ -16,6 +16,7 @@ import (
 	vapi "github.com/hashicorp/vault/api"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -952,7 +953,7 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 			}
 
 			reply.Allocs = make(map[string]uint64)
-			reply.MigrateTokens = make(map[string]string)
+			reply.MigrateTokens = make(map[string]sensitive.Sensitive)
 
 			// preferTableIndex is used to determine whether we should build the
 			// response index based on the full table indexes versus the modify

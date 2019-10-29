@@ -11,6 +11,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -194,7 +195,7 @@ func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 	}
 
 	// Update the nodes SecretID
-	node.SecretID = uuid.Generate()
+	node.SecretID = sensitive.Sensitive(uuid.Generate())
 	err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
 	if err == nil || !strings.Contains(err.Error(), "Not registering") {
 		t.Fatalf("Expecting error regarding mismatching secret id: %v", err)
@@ -2776,7 +2777,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 
 	req := &structs.DeriveVaultTokenRequest{
 		NodeID:   node.ID,
-		SecretID: uuid.Generate(),
+		SecretID: sensitive.Sensitive(uuid.Generate()),
 		AllocID:  alloc.ID,
 		Tasks:    tasks,
 		QueryOptions: structs.QueryOptions{

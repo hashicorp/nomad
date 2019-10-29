@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -264,7 +265,7 @@ type Config struct {
 
 	// ReplicationToken is the ACL Token Secret ID used to fetch from
 	// the Authoritative Region.
-	ReplicationToken string
+	ReplicationToken sensitive.Sensitive
 
 	// SentinelGCInterval is the interval that we GC unused policies.
 	SentinelGCInterval time.Duration

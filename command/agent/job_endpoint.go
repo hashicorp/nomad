@@ -9,6 +9,7 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -410,7 +411,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		PolicyOverride: args.PolicyOverride,
 		WriteRequest: structs.WriteRequest{
 			Region:    sJob.Region,
-			AuthToken: args.WriteRequest.SecretID,
+			AuthToken: sensitive.Sensitive(args.WriteRequest.SecretID),
 		},
 	}
 	// parseWriteRequest overrides Namespace, Region and AuthToken

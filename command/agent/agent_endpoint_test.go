@@ -57,7 +57,7 @@ func TestHTTP_AgentSelf(t *testing.T) {
 		obj, err = s.Server.AgentSelfRequest(respW, req)
 		require.NoError(err)
 		self = obj.(agentSelf)
-		require.Equal("<redacted>", self.Config.ACL.ReplicationToken)
+		require.Equal("<redacted>", self.Config.ACL.ReplicationToken.Plaintext())
 
 		// Check the Consul config
 		require.Empty(self.Config.Consul.Token)

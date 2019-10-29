@@ -13,6 +13,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -341,25 +342,25 @@ func CompileACLObject(cache *lru.TwoQueueCache, policies []*ACLPolicy) (*acl.ACL
 
 // GenerateMigrateToken will create a token for a client to access an
 // authenticated volume of another client to migrate data for sticky volumes.
-func GenerateMigrateToken(allocID, nodeSecretID string) (string, error) {
+func GenerateMigrateToken(allocID string, nodeSecretID sensitive.Sensitive) (sensitive.Sensitive, error) {
 	h, err := blake2b.New512([]byte(nodeSecretID))
 	if err != nil {
 		return "", err
 	}
 	h.Write([]byte(allocID))
-	return base64.URLEncoding.EncodeToString(h.Sum(nil)), nil
+	return sensitive.Sensitive(base64.URLEncoding.EncodeToString(h.Sum(nil))), nil
 }
 
 // CompareMigrateToken returns true if two migration tokens can be computed and
 // are equal.
-func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
+func CompareMigrateToken(allocID string, nodeSecretID, otherMigrateToken sensitive.Sensitive) bool {
 	h, err := blake2b.New512([]byte(nodeSecretID))
 	if err != nil {
 		return false
 	}
 	h.Write([]byte(allocID))
 
-	otherBytes, err := base64.URLEncoding.DecodeString(otherMigrateToken)
+	otherBytes, err := base64.URLEncoding.DecodeString(otherMigrateToken.Plaintext())
 	if err != nil {
 		return false
 	}

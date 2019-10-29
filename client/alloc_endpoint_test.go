@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -764,7 +765,7 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 
 	cases := []struct {
 		Name          string
-		Token         string
+		Token         sensitive.Sensitive
 		ExpectedError string
 	}{
 		{
@@ -897,7 +898,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 
 	cases := []struct {
 		Name          string
-		Token         string
+		Token         sensitive.Sensitive
 		ExpectedError string
 	}{
 		{
@@ -1046,7 +1047,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 
 	cases := []struct {
 		Name          string
-		Token         string
+		Token         sensitive.Sensitive
 		ExpectedError string
 	}{
 		{
@@ -1190,7 +1191,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 
 	cases := []struct {
 		Name          string
-		Token         string
+		Token         sensitive.Sensitive
 		ExpectedError string
 	}{
 		{

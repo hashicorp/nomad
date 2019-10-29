@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -12,7 +13,7 @@ import (
 func Node() *structs.Node {
 	node := &structs.Node{
 		ID:         uuid.Generate(),
-		SecretID:   uuid.Generate(),
+		SecretID:   sensitive.Sensitive(uuid.Generate()),
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Drivers: map[string]*structs.DriverInfo{
@@ -874,7 +875,7 @@ func ACLPolicy() *structs.ACLPolicy {
 func ACLToken() *structs.ACLToken {
 	tk := &structs.ACLToken{
 		AccessorID:  uuid.Generate(),
-		SecretID:    uuid.Generate(),
+		SecretID:    sensitive.Sensitive(uuid.Generate()),
 		Name:        "my cool token " + uuid.Generate(),
 		Type:        "client",
 		Policies:    []string{"foo", "bar"},
@@ -890,7 +891,7 @@ func ACLToken() *structs.ACLToken {
 func ACLManagementToken() *structs.ACLToken {
 	return &structs.ACLToken{
 		AccessorID:  uuid.Generate(),
-		SecretID:    uuid.Generate(),
+		SecretID:    sensitive.Sensitive(uuid.Generate()),
 		Name:        "management " + uuid.Generate(),
 		Type:        "management",
 		Global:      true,

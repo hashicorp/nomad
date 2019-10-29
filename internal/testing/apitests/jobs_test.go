@@ -56,7 +56,7 @@ func TestJobs_Summary_WithACL(t *testing.T) {
 	invalidToken := mock.ACLToken()
 
 	// Registering with an invalid  token should fail
-	c.SetSecretID(invalidToken.SecretID)
+	c.SetSecretID(invalidToken.SecretID.Plaintext())
 	job := testJob()
 	_, _, err := jobs.Register(job, nil)
 	assert.NotNil(err)
@@ -70,7 +70,7 @@ func TestJobs_Summary_WithACL(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Query the job summary with an invalid token should fail
-	c.SetSecretID(invalidToken.SecretID)
+	c.SetSecretID(invalidToken.SecretID.Plaintext())
 	result, _, err := jobs.Summary(*job.ID, nil)
 	assert.NotNil(err)
 

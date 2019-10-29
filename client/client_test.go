@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -970,7 +971,7 @@ func TestClient_ValidateMigrateToken_InvalidToken(t *testing.T) {
 	assert.Equal(c.ValidateMigrateToken("", ""), false)
 
 	alloc := mock.Alloc()
-	assert.Equal(c.ValidateMigrateToken(alloc.ID, alloc.ID), false)
+	assert.Equal(c.ValidateMigrateToken(alloc.ID, sensitive.Sensitive(alloc.ID)), false)
 	assert.Equal(c.ValidateMigrateToken(alloc.ID, ""), false)
 }
 

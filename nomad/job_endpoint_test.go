@@ -12,6 +12,7 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -319,7 +320,7 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 	cases := []struct {
 		Name        string
 		Job         *structs.Job
-		Token       string
+		Token       sensitive.Sensitive
 		ErrExpected bool
 	}{
 		{

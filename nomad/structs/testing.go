@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -36,7 +37,7 @@ func NodeResourcesToAllocatedResources(n *NodeResources) *AllocatedResources {
 func MockNode() *Node {
 	node := &Node{
 		ID:         uuid.Generate(),
-		SecretID:   uuid.Generate(),
+		SecretID:   sensitive.Sensitive(uuid.Generate()),
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{

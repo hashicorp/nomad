@@ -25,11 +25,12 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-version"
+	multierror "github.com/hashicorp/go-multierror"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -231,7 +232,7 @@ type QueryOptions struct {
 	Prefix string
 
 	// AuthToken is secret portion of the ACL token used for the request
-	AuthToken string
+	AuthToken sensitive.Sensitive
 
 	InternalRpcInfo
 }
@@ -276,7 +277,7 @@ type WriteRequest struct {
 	Namespace string
 
 	// AuthToken is secret portion of the ACL token used for the request
-	AuthToken string
+	AuthToken sensitive.Sensitive
 
 	InternalRpcInfo
 }
@@ -450,7 +451,7 @@ type NodeEvaluateRequest struct {
 // NodeSpecificRequest is used when we just need to specify a target node
 type NodeSpecificRequest struct {
 	NodeID   string
-	SecretID string
+	SecretID sensitive.Sensitive
 	QueryOptions
 }
 
@@ -835,7 +836,7 @@ type ServerMember struct {
 // following tasks in the given allocation
 type DeriveVaultTokenRequest struct {
 	NodeID   string
-	SecretID string
+	SecretID sensitive.Sensitive
 	AllocID  string
 	Tasks    []string
 	QueryOptions
@@ -1098,7 +1099,7 @@ type NodeClientAllocsResponse struct {
 
 	// MigrateTokens are used when ACLs are enabled to allow cross node,
 	// authenticated access to sticky volumes
-	MigrateTokens map[string]string
+	MigrateTokens map[string]sensitive.Sensitive
 
 	QueryMeta
 }
@@ -1510,7 +1511,7 @@ type Node struct {
 	// SecretID is an ID that is only known by the Node and the set of Servers.
 	// It is not accessible via the API and is used to authenticate nodes
 	// conducting privileged activities.
-	SecretID string
+	SecretID sensitive.Sensitive
 
 	// Datacenter for this node
 	Datacenter string
@@ -8431,7 +8432,7 @@ type Evaluation struct {
 	// LeaderACL provides the ACL token to when issuing RPCs back to the
 	// leader. This will be a valid management token as long as the leader is
 	// active. This should not ever be exposed via the API.
-	LeaderACL string
+	LeaderACL sensitive.Sensitive
 
 	// SnapshotIndex is the Raft index of the snapshot used to process the
 	// evaluation. The index will either be set when it has gone through the
@@ -9159,12 +9160,12 @@ type ACLPolicyUpsertRequest struct {
 
 // ACLToken represents a client token which is used to Authenticate
 type ACLToken struct {
-	AccessorID  string   // Public Accessor ID (UUID)
-	SecretID    string   // Secret ID, private (UUID)
-	Name        string   // Human friendly name
-	Type        string   // Client or Management
-	Policies    []string // Policies this token ties to
-	Global      bool     // Global or Region local
+	AccessorID  string              // Public Accessor ID (UUID)
+	SecretID    sensitive.Sensitive // Secret ID, private (UUID)
+	Name        string              // Human friendly name
+	Type        string              // Client or Management
+	Policies    []string            // Policies this token ties to
+	Global      bool                // Global or Region local
 	Hash        []byte
 	CreateTime  time.Time // Time of creation
 	CreateIndex uint64
@@ -9314,7 +9315,7 @@ type ACLTokenSetResponse struct {
 
 // ResolveACLTokenRequest is used to resolve a specific token
 type ResolveACLTokenRequest struct {
-	SecretID string
+	SecretID sensitive.Sensitive
 	QueryOptions
 }
 

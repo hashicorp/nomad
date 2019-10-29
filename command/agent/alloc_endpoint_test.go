@@ -603,7 +603,7 @@ func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 		req, err = http.NewRequest("GET", url, nil)
 		require.Nil(err)
 
-		req.Header.Set("X-Nomad-Token", validMigrateToken)
+		req.Header.Set("X-Nomad-Token", validMigrateToken.Plaintext())
 
 		// Make the unauthorized request
 		respW = httptest.NewRecorder()

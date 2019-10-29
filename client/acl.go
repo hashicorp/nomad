@@ -6,6 +6,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -69,12 +70,12 @@ func (c *cachedACLValue) Age() time.Duration {
 
 // ResolveToken is used to translate an ACL Token Secret ID into
 // an ACL object, nil if ACLs are disabled, or an error.
-func (c *Client) ResolveToken(secretID string) (*acl.ACL, error) {
+func (c *Client) ResolveToken(secretID sensitive.Sensitive) (*acl.ACL, error) {
 	a, _, err := c.resolveTokenAndACL(secretID)
 	return a, err
 }
 
-func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.ACLToken, error) {
+func (c *Client) resolveTokenAndACL(secretID sensitive.Sensitive) (*acl.ACL, *structs.ACLToken, error) {
 	// Fast-path if ACLs are disabled
 	if !c.config.ACLEnabled {
 		return nil, nil, nil
@@ -112,7 +113,7 @@ func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.ACLToke
 // resolveTokenValue is used to translate a secret ID into an ACL token with caching
 // We use a local cache up to the TTL limit, and then resolve via a server. If we cannot
 // reach a server, but have a cached value we extend the TTL to gracefully handle outages.
-func (c *Client) resolveTokenValue(secretID string) (*structs.ACLToken, error) {
+func (c *Client) resolveTokenValue(secretID sensitive.Sensitive) (*structs.ACLToken, error) {
 	// Hot-path the anonymous token
 	if secretID == "" {
 		return structs.AnonymousACLToken, nil
@@ -158,7 +159,7 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.ACLToken, error) {
 // We cache the policies locally, and fault them from a server as necessary. Policies
 // are cached for a TTL, and then refreshed. If a server cannot be reached, the cache TTL
 // will be ignored to gracefully handle outages.
-func (c *Client) resolvePolicies(secretID string, policies []string) ([]*structs.ACLPolicy, error) {
+func (c *Client) resolvePolicies(secretID sensitive.Sensitive, policies []string) ([]*structs.ACLPolicy, error) {
 	var out []*structs.ACLPolicy
 	var expired []*structs.ACLPolicy
 	var missing []string

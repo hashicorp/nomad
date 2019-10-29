@@ -12,6 +12,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -956,10 +957,10 @@ func (s *StateStore) NodesByIDPrefix(ws memdb.WatchSet, nodeID string) (memdb.Re
 }
 
 // NodeBySecretID is used to lookup a node by SecretID
-func (s *StateStore) NodeBySecretID(ws memdb.WatchSet, secretID string) (*structs.Node, error) {
+func (s *StateStore) NodeBySecretID(ws memdb.WatchSet, secretID sensitive.Sensitive) (*structs.Node, error) {
 	txn := s.db.Txn(false)
 
-	watchCh, existing, err := txn.FirstWatch("nodes", "secret_id", secretID)
+	watchCh, existing, err := txn.FirstWatch("nodes", "secret_id", secretID.Plaintext())
 	if err != nil {
 		return nil, fmt.Errorf("node lookup by SecretID failed: %v", err)
 	}
@@ -3784,10 +3785,10 @@ func (s *StateStore) ACLTokenByAccessorID(ws memdb.WatchSet, id string) (*struct
 }
 
 // ACLTokenBySecretID is used to lookup a token by secret ID
-func (s *StateStore) ACLTokenBySecretID(ws memdb.WatchSet, secretID string) (*structs.ACLToken, error) {
+func (s *StateStore) ACLTokenBySecretID(ws memdb.WatchSet, secretID sensitive.Sensitive) (*structs.ACLToken, error) {
 	txn := s.db.Txn(false)
 
-	watchCh, existing, err := txn.FirstWatch("acl_token", "secret", secretID)
+	watchCh, existing, err := txn.FirstWatch("acl_token", "secret", secretID.Plaintext())
 	if err != nil {
 		return nil, fmt.Errorf("acl token lookup failed: %v", err)
 	}

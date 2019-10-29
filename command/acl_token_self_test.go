@@ -40,12 +40,12 @@ func TestACLTokenSelfCommand_ViaEnvVar(t *testing.T) {
 	// Attempt to fetch info on a token without providing a valid management
 	// token
 	invalidToken := mock.ACLToken()
-	os.Setenv("NOMAD_TOKEN", invalidToken.SecretID)
+	os.Setenv("NOMAD_TOKEN", invalidToken.SecretID.Plaintext())
 	code := cmd.Run([]string{"-address=" + url})
 	assert.Equal(1, code)
 
 	// Fetch info on a token with a valid token
-	os.Setenv("NOMAD_TOKEN", mockToken.SecretID)
+	os.Setenv("NOMAD_TOKEN", mockToken.SecretID.Plaintext())
 	code = cmd.Run([]string{"-address=" + url})
 	assert.Equal(0, code)
 

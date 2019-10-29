@@ -47,7 +47,7 @@ func TestACLPolicyApplyCommand(t *testing.T) {
 	assert.Equal(1, code)
 
 	// Apply a policy with a valid management token
-	os.Setenv("NOMAD_TOKEN", token.SecretID)
+	os.Setenv("NOMAD_TOKEN", token.SecretID.Plaintext())
 	code = cmd.Run([]string{"-address=" + url, "test-policy", f.Name()})
 	assert.Equal(0, code)
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 	"github.com/mitchellh/copystructure"
@@ -48,7 +49,7 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	var secret string
+	var secret sensitive.Sensitive
 	s.parseToken(req, &secret)
 
 	var aclObj *acl.ACL
@@ -154,7 +155,7 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 		return nil, CodedError(501, ErrInvalidMethod)
 	}
 
-	var secret string
+	var secret sensitive.Sensitive
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions
@@ -195,7 +196,7 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 		return nil, CodedError(501, ErrInvalidMethod)
 	}
 
-	var secret string
+	var secret sensitive.Sensitive
 	s.parseToken(req, &secret)
 
 	// Check agent read permissions
@@ -222,7 +223,7 @@ func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) 
 		return nil, CodedError(400, "missing server address")
 	}
 
-	var secret string
+	var secret sensitive.Sensitive
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions
@@ -249,7 +250,7 @@ func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http
 		return nil, CodedError(501, ErrInvalidMethod)
 	}
 
-	var secret string
+	var secret sensitive.Sensitive
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions

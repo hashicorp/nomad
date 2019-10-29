@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -161,7 +162,7 @@ func TestClient_ACL_ResolveToken(t *testing.T) {
 	}
 
 	// Test bad token
-	out4, err := c1.ResolveToken(uuid.Generate())
+	out4, err := c1.ResolveToken(sensitive.Sensitive(uuid.Generate()))
 	assert.Equal(t, structs.ErrTokenNotFound, err)
 	assert.Nil(t, out4)
 }

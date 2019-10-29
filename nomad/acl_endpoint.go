@@ -11,6 +11,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -382,7 +383,7 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 	// Create a new global management token, override any parameter
 	args.Token = &structs.ACLToken{
 		AccessorID: uuid.Generate(),
-		SecretID:   uuid.Generate(),
+		SecretID:   sensitive.Sensitive(uuid.Generate()),
 		Name:       "Bootstrap Token",
 		Type:       structs.ACLManagementToken,
 		Global:     true,
@@ -500,7 +501,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 		// Generate an accessor and secret ID if new
 		if token.AccessorID == "" {
 			token.AccessorID = uuid.Generate()
-			token.SecretID = uuid.Generate()
+			token.SecretID = sensitive.Sensitive(uuid.Generate())
 			token.CreateTime = time.Now().UTC()
 
 		} else {

@@ -8,6 +8,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -160,7 +161,7 @@ OUTER:
 }
 
 // jobReap contacts the leader and issues a reap on the passed jobs
-func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
+func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL sensitive.Sensitive) error {
 	// Call to the leader to issue the reap
 	for _, req := range c.partitionJobReap(jobs, leaderACL) {
 		var resp structs.JobBatchDeregisterResponse
@@ -176,7 +177,7 @@ func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
 // partitionJobReap returns a list of JobBatchDeregisterRequests to make,
 // ensuring a single request does not contain too many jobs. This is necessary
 // to ensure that the Raft transaction does not become too large.
-func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) []*structs.JobBatchDeregisterRequest {
+func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL sensitive.Sensitive) []*structs.JobBatchDeregisterRequest {
 	option := &structs.JobDeregisterOptions{Purge: true}
 	var requests []*structs.JobBatchDeregisterRequest
 	submittedJobs := 0

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -129,7 +130,7 @@ func TestClientFS_List_ACL(t *testing.T) {
 
 	cases := []struct {
 		Name          string
-		Token         string
+		Token         sensitive.Sensitive
 		ExpectedError string
 	}{
 		{
@@ -403,7 +404,7 @@ func TestClientFS_Stat_ACL(t *testing.T) {
 
 	cases := []struct {
 		Name          string
-		Token         string
+		Token         sensitive.Sensitive
 		ExpectedError string
 	}{
 		{
@@ -633,7 +634,7 @@ func TestClientFS_Streaming_ACL(t *testing.T) {
 
 	cases := []struct {
 		Name          string
-		Token         string
+		Token         sensitive.Sensitive
 		ExpectedError string
 	}{
 		{
@@ -1460,7 +1461,7 @@ func TestClientFS_Logs_ACL(t *testing.T) {
 
 	cases := []struct {
 		Name          string
-		Token         string
+		Token         sensitive.Sensitive
 		ExpectedError string
 	}{
 		{

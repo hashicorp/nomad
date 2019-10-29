@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -145,7 +146,7 @@ func TestFS_Stat_ACL(t *testing.T) {
 
 	cases := []struct {
 		Name          string
-		Token         string
+		Token         sensitive.Sensitive
 		ExpectedError string
 	}{
 		{
@@ -278,7 +279,7 @@ func TestFS_List_ACL(t *testing.T) {
 
 	cases := []struct {
 		Name          string
-		Token         string
+		Token         sensitive.Sensitive
 		ExpectedError string
 	}{
 		{
@@ -428,7 +429,7 @@ func TestFS_Stream_ACL(t *testing.T) {
 
 	cases := []struct {
 		Name          string
-		Token         string
+		Token         sensitive.Sensitive
 		ExpectedError string
 	}{
 		{
@@ -1057,7 +1058,7 @@ func TestFS_Logs_ACL(t *testing.T) {
 
 	cases := []struct {
 		Name          string
-		Token         string
+		Token         sensitive.Sensitive
 		ExpectedError string
 	}{
 		{

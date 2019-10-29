@@ -10,6 +10,7 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -1140,7 +1141,7 @@ func TestACLEndpoint_ResolveToken(t *testing.T) {
 	assert.Equal(t, token, resp.Token)
 
 	// Lookup non-existing token
-	get.SecretID = uuid.Generate()
+	get.SecretID = sensitive.Sensitive(uuid.Generate())
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.ResolveToken", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}

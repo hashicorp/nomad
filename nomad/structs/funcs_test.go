@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -742,10 +743,10 @@ func TestCompileACLObject(t *testing.T) {
 func TestGenerateMigrateToken(t *testing.T) {
 	assert := assert.New(t)
 	allocID := uuid.Generate()
-	nodeSecret := uuid.Generate()
+	nodeSecret := sensitive.Sensitive(uuid.Generate())
 	token, err := GenerateMigrateToken(allocID, nodeSecret)
 	assert.Nil(err)
-	_, err = base64.URLEncoding.DecodeString(token)
+	_, err = base64.URLEncoding.DecodeString(token.Plaintext())
 	assert.Nil(err)
 
 	assert.True(CompareMigrateToken(allocID, nodeSecret, token))

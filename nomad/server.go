@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -213,7 +214,7 @@ type Server struct {
 
 	// leaderAcl is the management ACL token that is valid when resolved by the
 	// current leader.
-	leaderAcl     string
+	leaderAcl     sensitive.Sensitive
 	leaderAclLock sync.Mutex
 
 	// statsFetcher is used by autopilot to check the status of the other
@@ -1390,14 +1391,14 @@ func (s *Server) State() *state.StateStore {
 }
 
 // setLeaderAcl stores the given ACL token as the current leader's ACL token.
-func (s *Server) setLeaderAcl(token string) {
+func (s *Server) setLeaderAcl(token sensitive.Sensitive) {
 	s.leaderAclLock.Lock()
 	s.leaderAcl = token
 	s.leaderAclLock.Unlock()
 }
 
 // getLeaderAcl retrieves the leader's ACL token
-func (s *Server) getLeaderAcl() string {
+func (s *Server) getLeaderAcl() sensitive.Sensitive {
 	s.leaderAclLock.Lock()
 	defer s.leaderAclLock.Unlock()
 	return s.leaderAcl
@@ -1510,7 +1511,7 @@ func (s *Server) GetConfig() *Config {
 
 // ReplicationToken returns the token used for replication. We use a method to support
 // dynamic reloading of this value later.
-func (s *Server) ReplicationToken() string {
+func (s *Server) ReplicationToken() sensitive.Sensitive {
 	return s.config.ReplicationToken
 }
 

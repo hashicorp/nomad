@@ -17,6 +17,7 @@ import (
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/websocket"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/rs/cors"
@@ -447,9 +448,9 @@ func parseNamespace(req *http.Request, n *string) {
 }
 
 // parseToken is used to parse the X-Nomad-Token param
-func (s *HTTPServer) parseToken(req *http.Request, token *string) {
+func (s *HTTPServer) parseToken(req *http.Request, token *sensitive.Sensitive) {
 	if other := req.Header.Get("X-Nomad-Token"); other != "" {
-		*token = other
+		*token = sensitive.Sensitive(other)
 		return
 	}
 }

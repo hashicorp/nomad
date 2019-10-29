@@ -281,7 +281,7 @@ func TestJobStatusCommand_WithAccessPolicy(t *testing.T) {
 	assert.NotNil(token, "failed to bootstrap ACL token")
 
 	// Wait for client ready
-	client.SetSecretID(token.SecretID)
+	client.SetSecretID(token.SecretID.Plaintext())
 	testutil.WaitForResult(func() (bool, error) {
 		nodes, _, err := client.Nodes().List(nil)
 		if err != nil {
@@ -307,23 +307,23 @@ func TestJobStatusCommand_WithAccessPolicy(t *testing.T) {
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// registering a job without a token fails
-	client.SetSecretID(invalidToken.SecretID)
+	client.SetSecretID(invalidToken.SecretID.Plaintext())
 	resp, _, err := client.Jobs().Register(j, nil)
 	assert.NotNil(err)
 
 	// registering a job with a valid token succeeds
-	client.SetSecretID(token.SecretID)
+	client.SetSecretID(token.SecretID.Plaintext())
 	resp, _, err = client.Jobs().Register(j, nil)
 	assert.Nil(err)
 	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
 	assert.Equal(0, code)
 
 	// Request Job List without providing a valid token
-	code = cmd.Run([]string{"-address=" + url, "-token=" + invalidToken.SecretID, "-short"})
+	code = cmd.Run([]string{"-address=" + url, "-token=" + invalidToken.SecretID.Plaintext(), "-short"})
 	assert.Equal(1, code)
 
 	// Request Job List with a valid token
-	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-short"})
+	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID.Plaintext(), "-short"})
 	assert.Equal(0, code)
 
 	out := ui.OutputWriter.String()

@@ -6,13 +6,14 @@ import (
 	metrics "github.com/armon/go-metrics"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // ResolveToken is used to translate an ACL Token Secret ID into
 // an ACL object, nil if ACLs are disabled, or an error.
-func (s *Server) ResolveToken(secretID string) (*acl.ACL, error) {
+func (s *Server) ResolveToken(secretID sensitive.Sensitive) (*acl.ACL, error) {
 	// Fast-path if ACLs are disabled
 	if !s.config.ACLEnabled {
 		return nil, nil
@@ -38,7 +39,7 @@ func (s *Server) ResolveToken(secretID string) (*acl.ACL, error) {
 // resolveTokenFromSnapshotCache is used to resolve an ACL object from a snapshot of state,
 // using a cache to avoid parsing and ACL construction when possible. It is split from resolveToken
 // to simplify testing.
-func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueueCache, secretID string) (*acl.ACL, error) {
+func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueueCache, secretID sensitive.Sensitive) (*acl.ACL, error) {
 	// Lookup the ACL Token
 	var token *structs.ACLToken
 	var err error

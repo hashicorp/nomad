@@ -33,7 +33,7 @@ func TestACLTokenCreateCommand(t *testing.T) {
 	assert.Equal(1, code)
 
 	// Request to create a new token with a valid management token
-	os.Setenv("NOMAD_TOKEN", token.SecretID)
+	os.Setenv("NOMAD_TOKEN", token.SecretID.Plaintext())
 	code = cmd.Run([]string{"-address=" + url, "-policy=foo", "-type=client"})
 	assert.Equal(0, code)
 

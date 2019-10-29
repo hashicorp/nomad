@@ -182,8 +182,9 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Vault.TLSServerName, "vault-tls-server-name", "", "")
 
 	// ACL options
+	var replicationToken string
 	flags.BoolVar(&cmdConfig.ACL.Enabled, "acl-enabled", false, "")
-	flags.StringVar(&cmdConfig.ACL.ReplicationToken, "acl-replication-token", "", "")
+	flags.StringVar(&replicationToken, "acl-replication-token", "", "")
 
 	if err := flags.Parse(c.args); err != nil {
 		return nil
@@ -202,6 +203,9 @@ func (c *Command) readConfig() *Config {
 	}
 	if consulToken != "" {
 		cmdConfig.Consul.Token = sensitive.Sensitive(consulToken)
+	}
+	if replicationToken != "" {
+		cmdConfig.ACL.ReplicationToken = sensitive.Sensitive(replicationToken)
 	}
 
 	// Parse the meta flags.

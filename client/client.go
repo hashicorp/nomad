@@ -38,6 +38,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -646,7 +647,7 @@ func (c *Client) NodeID() string {
 }
 
 // secretNodeID returns the secret node ID for the given client
-func (c *Client) secretNodeID() string {
+func (c *Client) secretNodeID() sensitive.Sensitive {
 	return c.config.Node.SecretID
 }
 
@@ -881,7 +882,7 @@ func (c *Client) computeAllocatedDeviceGroupStats(devices []*structs.AllocatedDe
 // ValidateMigrateToken verifies that a token is for a specific client and
 // allocation, and has been created by a trusted party that has privileged
 // knowledge of the client's secret identifier
-func (c *Client) ValidateMigrateToken(allocID, migrateToken string) bool {
+func (c *Client) ValidateMigrateToken(allocID string, migrateToken sensitive.Sensitive) bool {
 	if !c.config.ACLEnabled {
 		return true
 	}
@@ -1185,7 +1186,7 @@ func (c *Client) NumAllocs() int {
 // nodeID restores, or generates if necessary, a unique node ID and SecretID.
 // The node ID is, if available, a persistent unique ID.  The secret ID is a
 // high-entropy random UUID.
-func (c *Client) nodeID() (id, secret string, err error) {
+func (c *Client) nodeID() (id string, secret sensitive.Sensitive, err error) {
 	var hostID string
 	hostInfo, err := host.Info()
 	if !c.config.NoHostUUID && err == nil {
@@ -1202,7 +1203,7 @@ func (c *Client) nodeID() (id, secret string, err error) {
 
 	// Do not persist in dev mode
 	if c.config.DevMode {
-		return hostID, uuid.Generate(), nil
+		return hostID, sensitive.Sensitive(uuid.Generate()), nil
 	}
 
 	// Attempt to read existing ID
@@ -1232,10 +1233,10 @@ func (c *Client) nodeID() (id, secret string, err error) {
 	}
 
 	if len(secretBuf) != 0 {
-		secret = string(secretBuf)
+		secret = sensitive.Sensitive(string(secretBuf))
 	} else {
 		// Generate new ID
-		secret = uuid.Generate()
+		secret = sensitive.Sensitive(uuid.Generate())
 
 		// Persist the ID
 		if err := ioutil.WriteFile(secretPath, []byte(secret), 0700); err != nil {
@@ -1866,7 +1867,7 @@ type allocUpdates struct {
 
 	// migrateTokens are a list of tokens necessary for when clients pull data
 	// from authorized volumes
-	migrateTokens map[string]string
+	migrateTokens map[string]sensitive.Sensitive
 }
 
 // watchAllocations is used to scan for updates to allocations
@@ -2243,7 +2244,7 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 }
 
 // addAlloc is invoked when we should add an allocation
-func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error {
+func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken sensitive.Sensitive) error {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
 

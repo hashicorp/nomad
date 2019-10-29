@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -89,7 +90,7 @@ type Config struct {
 
 	// MigrateToken is used to migrate remote alloc dirs when ACLs are
 	// enabled.
-	MigrateToken string
+	MigrateToken sensitive.Sensitive
 
 	Logger hclog.Logger
 }
@@ -338,7 +339,7 @@ type remotePrevAlloc struct {
 
 	// migrateToken allows a client to migrate data in an ACL-protected remote
 	// volume
-	migrateToken string
+	migrateToken sensitive.Sensitive
 }
 
 // IsWaiting returns true if there's a concurrent call inside Wait
@@ -529,7 +530,7 @@ func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) 
 	}
 
 	url := fmt.Sprintf("/v1/client/allocation/%v/snapshot", p.prevAllocID)
-	qo := &nomadapi.QueryOptions{AuthToken: p.migrateToken}
+	qo := &nomadapi.QueryOptions{AuthToken: p.migrateToken.Plaintext()}
 	resp, err := apiClient.Raw().Response(url, qo)
 	if err != nil {
 		prevAllocDir.Destroy()

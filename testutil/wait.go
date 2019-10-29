@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
 	testing "github.com/mitchellh/go-testing-interface"
@@ -127,7 +128,7 @@ func WaitForVotingMembers(t testing.T, rpc rpcFn, nPeers int) {
 }
 
 // RegisterJobWithToken registers a job and uses the job's Region and Namespace.
-func RegisterJobWithToken(t testing.T, rpc rpcFn, job *structs.Job, token string) {
+func RegisterJobWithToken(t testing.T, rpc rpcFn, job *structs.Job, token sensitive.Sensitive) {
 	WaitForResult(func() (bool, error) {
 		args := &structs.JobRegisterRequest{}
 		args.Job = job
@@ -148,7 +149,7 @@ func RegisterJob(t testing.T, rpc rpcFn, job *structs.Job) {
 	RegisterJobWithToken(t, rpc, job, "")
 }
 
-func WaitForRunningWithToken(t testing.T, rpc rpcFn, job *structs.Job, token string) []*structs.AllocListStub {
+func WaitForRunningWithToken(t testing.T, rpc rpcFn, job *structs.Job, token sensitive.Sensitive) []*structs.AllocListStub {
 	RegisterJobWithToken(t, rpc, job, token)
 
 	var resp structs.JobAllocationsResponse

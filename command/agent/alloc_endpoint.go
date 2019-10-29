@@ -13,6 +13,7 @@ import (
 	"github.com/golang/snappy"
 	"github.com/gorilla/websocket"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/ugorji/go/codec"
@@ -315,7 +316,7 @@ func (s *HTTPServer) allocSignal(allocID string, resp http.ResponseWriter, req *
 }
 
 func (s *HTTPServer) allocSnapshot(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	var secret string
+	var secret sensitive.Sensitive
 	s.parseToken(req, &secret)
 	if !s.agent.Client().ValidateMigrateToken(allocID, secret) {
 		return nil, structs.ErrPermissionDenied

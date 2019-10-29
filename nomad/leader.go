@@ -17,6 +17,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -182,7 +183,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Generate a leader ACL token. This will allow the leader to issue work
 	// that requires a valid ACL token.
-	s.setLeaderAcl(uuid.Generate())
+	s.setLeaderAcl(sensitive.Sensitive(uuid.Generate()))
 
 	// Disable workers to free half the cores for use in the plan queue and
 	// evaluation broker

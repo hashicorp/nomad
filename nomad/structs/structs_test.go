@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
@@ -4516,7 +4517,7 @@ func TestNode_Copy(t *testing.T) {
 
 	node := &Node{
 		ID:         uuid.Generate(),
-		SecretID:   uuid.Generate(),
+		SecretID:   sensitive.Sensitive(uuid.Generate()),
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{

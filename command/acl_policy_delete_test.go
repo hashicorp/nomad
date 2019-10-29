@@ -42,12 +42,12 @@ func TestACLPolicyDeleteCommand(t *testing.T) {
 
 	// Delete the policy without a valid token fails
 	invalidToken := mock.ACLToken()
-	os.Setenv("NOMAD_TOKEN", invalidToken.SecretID)
+	os.Setenv("NOMAD_TOKEN", invalidToken.SecretID.Plaintext())
 	code := cmd.Run([]string{"-address=" + url, policy.Name})
 	assert.Equal(1, code)
 
 	// Delete the policy with a valid management token
-	os.Setenv("NOMAD_TOKEN", token.SecretID)
+	os.Setenv("NOMAD_TOKEN", token.SecretID.Plaintext())
 	code = cmd.Run([]string{"-address=" + url, policy.Name})
 	assert.Equal(0, code)
 

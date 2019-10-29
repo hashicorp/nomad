@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/sensitive"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -397,7 +398,7 @@ func TestParseToken(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	var token string
+	var token sensitive.Sensitive
 	s.Server.parseToken(req, &token)
 	if token != "foobar" {
 		t.Fatalf("bad %s", token)
@@ -677,7 +678,7 @@ func httpACLTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 }
 
 func setToken(req *http.Request, token *structs.ACLToken) {
-	req.Header.Set("X-Nomad-Token", token.SecretID)
+	req.Header.Set("X-Nomad-Token", token.SecretID.Plaintext())
 }
 
 func encodeReq(obj interface{}) io.ReadCloser {
