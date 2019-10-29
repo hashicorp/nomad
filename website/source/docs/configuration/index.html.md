@@ -79,7 +79,7 @@ testing.
 
 ## General Parameters
 
-- `acl` <code>([ACL][acl]: nil)</code> - Specifies configuration which is specific to ACLs.
+- `acl` `([ACL][acl]: nil)` - Specifies configuration which is specific to ACLs.
 
 - `addresses` `(Addresses: see below)` - Specifies the bind address for
   individual network services. Any values configured in this stanza take
@@ -130,9 +130,10 @@ testing.
   Dev mode (`-dev`) defaults to localhost.
   The value supports [go-sockaddr/template format][go-sockaddr/template].
 
-- `client` <code>([Client][client]: nil)</code> - Specifies configuration which is specific to the Nomad client.
+- `client` `([Client][client]: nil)` - Specifies configuration which is specific
+  to the Nomad client.
 
-- `consul` <code>([Consul][consul]: nil)</code> - Specifies configuration for
+- `consul` `([Consul][consul]: nil)` - Specifies configuration for
   connecting to Consul.
 
 - `datacenter` `(string: "dc1")` - Specifies the data center of the local agent.
@@ -143,13 +144,16 @@ testing.
   allocation data as well as cluster information. Server nodes use this
   directory to store cluster state, including the replicated log and snapshot
   data. This must be specified as an absolute path.
-  
-      ~> **WARNING**: This directory **must not** be set to a directory that is [included in the chroot](/docs/drivers/exec.html#chroot) if you use the [`exec`](/docs/drivers/exec.html) driver.
+
+    ~> **WARNING**: This directory **must not** be set to a directory that is
+    [included in the chroot](/docs/drivers/exec.html#chroot) if you use the
+    [`exec`](/docs/drivers/exec.html) driver.
 
 - `disable_anonymous_signature` `(bool: false)` - Specifies if Nomad should
   provide an anonymous signature for de-duplication with the update check.
 
-- `disable_update_check` `(bool: false)` - Specifies if Nomad should not check for updates and security bulletins.
+- `disable_update_check` `(bool: false)` - Specifies if Nomad should not check
+  for updates and security bulletins.
 
 - `enable_debug` `(bool: false)` - Specifies if the debugging HTTP endpoints
   should be enabled. These endpoints can be used with profiling tools to dump
@@ -179,6 +183,22 @@ testing.
 
 - `log_json` `(bool: false)` - Output logs in a JSON format.
 
+- `log_file` `(string: "")` - Specifies the path for logging. If the path
+  does not includes a filename, the filename defaults to "nomad-{timestamp}.log".
+  This setting can be combined with `log_rotate_bytes` and `log_rotate_duration`
+  for a fine-grained log rotation control.
+
+- `log_rotate_bytes` `(int: 0)` - Specifies the number of bytes that should be
+  written to a log before it needs to be rotated. Unless specified, there is no
+  limit to the number of bytes that can be written to a log file.
+
+- `log_rotate_duration` `(duration: "24h")` - Specifies the maximum duration a
+  log should be written to before it needs to be rotated. Must be a duration
+  value such as 30s.
+
+- `log_rotate_max_files` `(int: 0)` - Specifies the maximum number of older log
+  file archives to keep. If 0 no files are ever deleted.
+
 - `name` `(string: [hostname])` - Specifies the name of the local node. This
   value is used to identify individual agents. When specified on a server, the
   name must be unique within the region.
@@ -188,7 +208,7 @@ testing.
   [data_dir](#data_dir) suffixed with "plugins", like `"/opt/nomad/plugins"`.
   This must be an absolute path.
 
-- `plugin` <code>([Plugin][plugin]: nil)</code> - Specifies configuration for a
+- `plugin` `([Plugin][plugin]: nil)` - Specifies configuration for a
   specific plugin. The plugin stanza may be repeated, once for each plugin being
   configured. The key of the stanza is the plugin's executable name relative to
   the [plugin_dir](#plugin_dir).
@@ -221,15 +241,18 @@ testing.
   with potentially multiple zones, which map to [datacenters](#datacenter) such
   as `us-west` and `us-east`.
 
-- `sentinel` <code>([Sentinel][sentinel]: nil)</code> - Specifies configuration for Sentinel policies.
+- `sentinel` `([Sentinel][sentinel]: nil)` - Specifies configuration for Sentinel
+  policies.
 
-- `server` <code>([Server][server]: nil)</code> - Specifies configuration which is specific to the Nomad server.
+- `server` `([Server][server]: nil)` - Specifies configuration which is specific
+  to the Nomad server.
 
-- `syslog_facility` `(string: "LOCAL0")` - Specifies the syslog facility to write to. This has no effect unless `enable_syslog` is true.
+- `syslog_facility` `(string: "LOCAL0")` - Specifies the syslog facility to
+  write to. This has no effect unless `enable_syslog` is true.
 
-- `tls` <code>([TLS][tls]: nil)</code> - Specifies configuration for TLS.
+- `tls` `([TLS][tls]: nil)` - Specifies configuration for TLS.
 
-- `vault` <code>([Vault][vault]: nil)</code> - Specifies configuration for
+- `vault` `([Vault][vault]: nil)` - Specifies configuration for
   connecting to Vault.
 
 ## Examples
