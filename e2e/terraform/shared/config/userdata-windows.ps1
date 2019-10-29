@@ -1,12 +1,30 @@
 <powershell>
-# Note this file will be used as a Terraform template_file so we
-# need to escape the variable names.
 
 # Bring ebs volume online with read-write access
-Get-Disk | Where-Object IsOffline -Eq $$True | Set-Disk -IsOffline $$False
-Get-Disk | Where-Object isReadOnly -Eq $$True | Set-Disk -IsReadOnly $$False
+Get-Disk | Where-Object IsOffline -Eq $True | Set-Disk -IsOffline $False
+Get-Disk | Where-Object isReadOnly -Eq $True | Set-Disk -IsReadOnly $False
 
-# Set Administrator password
-$$admin = [adsi]("WinNT://./administrator, user")
-$$admin.psbase.invoke("SetPassword", "{{admin_password}}")
+md "C:\Users\Administrator\.ssh\"
+
+$myKey = "C:\Users\Administrator\.ssh\authorized_keys"
+$adminKey = "C:\ProgramData\ssh\administrators_authorized_keys"
+
+Invoke-RestMethod `
+  -Uri "http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key" `
+  -Outfile $myKey
+
+cp $myKey $adminKey
+
+icacls $adminKey /reset
+icacls $adminKey /inheritance:r
+icacls $adminKey /grant BUILTIN\Administrators:`(F`)
+icacls $adminKey /grant SYSTEM:`(F`)
+
+$archiveFile = "C:\ops\windows_configs.zip"
+while (!(Test-Path $archiveFile)) { Start-Sleep 10 }
+
+Expand-Archive $archiveFile "C:\ops\shared"
+
+& C:\ops\shared\config\provision-windows-client.ps1 --cloud aws --sha ${nomad_sha} --index 1
+
 </powershell>

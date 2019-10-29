@@ -40,7 +40,8 @@
         "windows/install-nuget.ps1",
         "windows/install-tools.ps1",
         "windows/install-docker.ps1",
-        "windows/setup-directories.ps1"
+        "windows/setup-directories.ps1",
+        "windows/install-openssh.ps1"
       ]
     },
     {
@@ -54,6 +55,14 @@
         "windows/install-consul.ps1",
         "windows/install-vault.ps1",
         "windows/install-nomad.ps1"
+      ]
+    },
+    {
+      "type": "powershell",
+      "inline": [
+        "C:\\ProgramData\\Amazon\\EC2-Windows\\Launch\\Scripts\\SendWindowsIsReady.ps1 -Schedule",
+        "C:\\ProgramData\\Amazon\\EC2-Windows\\Launch\\Scripts\\InitializeInstance.ps1 -Schedule",
+        "C:\\ProgramData\\Amazon\\EC2-Windows\\Launch\\Scripts\\SysprepInstance.ps1 -NoShutdown"
       ]
     }
   ]

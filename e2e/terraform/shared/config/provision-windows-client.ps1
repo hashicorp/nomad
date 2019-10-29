@@ -1,4 +1,7 @@
-param([string]$cloud="aws", [string]$nomad_sha="", [string]$index=0)
+param([string]$cloud="aws", [string]$nomad_sha="")
+
+# TODO: index is currently unused
+#[string]$index=0)
 
 # Consul
 
@@ -7,15 +10,19 @@ sc.exe create "Consul" binPath= "C:\opt\consul.exe" agent -config-dir "C:\opt\co
 sc.exe start "Consul"
 
 # Vault
-
-cp "C:\ops\shared\vault\vault.hcl" C:\opt\vault.d\vault.hcl
-sc.exe create "Vault" binPath= "C:\opt\vault.exe" agent -config-dir "C:\opt\vault.d" start= auto
-sc.exe start "Vault"
+# TODO(tgross): we don't need Vault for clients
+# cp "C:\ops\shared\vault\vault.hcl" C:\opt\vault.d\vault.hcl
+# sc.exe create "Vault" binPath= "C:\opt\vault.exe" agent -config-dir "C:\opt\vault.d" start= auto
 
 # Nomad
 
 md C:\opt\nomad
-aws s3 cp "s3://nomad-team-test-binary/builds-oss/nomad_windows_amd64_${nomad_sha}.tar.gz" "nomad.tar.gz"
+
+Read-S3Object `
+  -BucketName nomad-team-test-binary `
+  -Key "builds-oss/nomad_windows_amd64_$nomad_sha.tar.gz" `
+  -File .\nomad.tar.gz
+rm C:\opt\nomad.exe
 Expand-Archive .\nomad.tar.gz C:\opt\nomad.exe
 
 # install config file

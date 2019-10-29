@@ -98,8 +98,14 @@ resource "aws_instance" "client" {
 data "template_file" "user_data_client_windows" {
   template = file("${path.root}/shared/config/userdata-windows.ps1")
   vars = {
-    admin_password = random_password.windows_admin_password.result
+    nomad_sha = var.nomad_sha
   }
+}
+
+data "archive_file" "windows_configs" {
+  type        = "zip"
+  source_dir  = "./shared"
+  output_path = "./windows_configs.zip"
 }
 
 resource "aws_instance" "client_windows" {
@@ -124,37 +130,35 @@ resource "aws_instance" "client_windows" {
     delete_on_termination = "true"
   }
 
-  # We need this userdata script because without it there's no
-  # admin password for the winrm provisoner connection.
+  # We need this userdata script because Windows machines don't
+  # configure ssh with cloud-init by default.
   user_data = data.template_file.user_data_client_windows.rendered
 
-  # copy up all provisioning scripts and configs
+  # Note:
+  # we're copying up all the provisioning scripts and configs as
+  # a zipped bundle because TF's file provisioner dies in the middle
+  # of pushing up multiple files (whereas 'scp -r' works fine).
+  #
+  # We're also running all the provisioning scripts inside the
+  # userdata by polling for the zip file to show up. (Gross!)
+  # This is because remote-exec provisioners are failing on Windows
+  # with the same symptoms as:
+  # https://github.com/hashicorp/terraform/issues/17728
+  #
+  # If we can't fix this, it'll prevent us from having multiple
+  # Windows clients running until TF supports count interpolation
+  # in the template_file, which is planned for a later 0.12 release
+  #
   provisioner "file" {
-    source      = "shared/"
-    destination = "/ops/shared"
+    source      = "./windows_configs.zip"
+    destination = "C:/ops/windows_configs.zip"
 
     connection {
-      host     = coalesce(self.public_ip, self.private_ip)
-      type     = "winrm"
-      user     = "Administrator"
-      password = "${random_password.windows_admin_password.result}"
-    }
-  }
-
-  provisioner "remote-exec" {
-    inline = [<<-EOS
-/ops/shared/config/provision-windows-client.ps1 \
-    --cloud aws \
-    --sha ${var.nomad_sha} \
-    --index ${count.index}
-EOS
-    ]
-
-    connection {
-      host     = coalesce(self.public_ip, self.private_ip)
-      type     = "winrm"
-      user     = "Administrator"
-      password = "${random_password.windows_admin_password.result}"
+      host        = coalesce(self.public_ip, self.private_ip)
+      type        = "ssh"
+      user        = "Administrator"
+      private_key = module.keys.private_key_pem
+      timeout     = "10m"
     }
   }
 
