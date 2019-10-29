@@ -25,7 +25,7 @@
     }
   },
   "lint-staged": {
-    "{app,tests,config,lib,mirage}/**/*.js": [
+    "{app,tests,config,lib,mirage,stories}/**/*.js": [
       "prettier --write",
       "git add"
     ],
