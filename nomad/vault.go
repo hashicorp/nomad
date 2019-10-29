@@ -1012,7 +1012,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		validationErr = fmt.Errorf("Vault returned WrapInfo without WrappedAccessor. Secret warnings: %v", secret.Warnings)
 	}
 	if validationErr != nil {
-		v.logger.Warn("ailed to CreateToken", "error", err)
+		v.logger.Warn("failed to CreateToken", "error", validationErr)
 		return nil, structs.NewRecoverableError(validationErr, true)
 	}
 
