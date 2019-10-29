@@ -1,4 +1,5 @@
-'use strict';
+/* eslint-disable node/no-extraneous-require */
+// FIXME how to avoid this?
 const getPathOption = require('ember-cli-get-component-path-option');
 const stringUtil = require('ember-cli-string-utils');
 const path = require('path');
