@@ -559,7 +559,7 @@ type Telemetry struct {
 	// CirconusAPIToken is a valid API Token used to create/manage check. If provided,
 	// metric management is enabled.
 	// Default: none
-	CirconusAPIToken string `hcl:"circonus_api_token"`
+	CirconusAPIToken sensitive.Sensitive `hcl:"circonus_api_token"`
 	// CirconusAPIApp is an app name associated with API token.
 	// Default: "nomad"
 	CirconusAPIApp string `hcl:"circonus_api_app"`

@@ -1030,7 +1030,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	if telConfig.CirconusAPIToken != "" || telConfig.CirconusCheckSubmissionURL != "" {
 		cfg := &circonus.Config{}
 		cfg.Interval = telConfig.CirconusSubmissionInterval
-		cfg.CheckManager.API.TokenKey = telConfig.CirconusAPIToken
+		cfg.CheckManager.API.TokenKey = telConfig.CirconusAPIToken.Plaintext()
 		cfg.CheckManager.API.TokenApp = telConfig.CirconusAPIApp
 		cfg.CheckManager.API.URL = telConfig.CirconusAPIURL
 		cfg.CheckManager.Check.SubmissionURL = telConfig.CirconusCheckSubmissionURL
