@@ -1,10 +1,12 @@
 /* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
-import { storiesOf } from '@storybook/ember';
 
-storiesOf('Alerts/', module)
-  .addParameters({ options: { showPanel: true } })
-  .add(`Alert`, () => ({
+export default {
+  title: 'Alerts',
+};
+
+export const Alerts = () => {
+  return {
     template: hbs`
       <h5 class="title is-5">Alert</h5>
       <div class="notification is-info">
@@ -13,10 +15,11 @@ storiesOf('Alerts/', module)
       </div>
       <p>Alerts use Bulma's notification component.</p>
       `,
-    context: {},
-  }),
-  {})
-  .add(`Alert colors`, () => ({
+  }
+};
+
+export const Colors = () => {
+  return {
     template: hbs`
       <h5 class="title is-5">Alert colors</h5>
       <div class="notification is-info">
@@ -41,11 +44,11 @@ storiesOf('Alerts/', module)
 
       <p>Alerts are always paired with an emotive color. If there is no emotive association with the content of the alert, then an alert is the wrong component to use.</p>
       `,
-    context: {},
-  }),
-  {}
-)
-.add(`Alert dismissal`, () => ({
+  }
+};
+
+export const Dismissal = () => {
+  return {
   template: hbs`
     <h5 class="title is-5">Alert dismissal</h5>
     <div class="notification is-info">
@@ -96,7 +99,5 @@ storiesOf('Alerts/', module)
       </div>
     </div>
     `,
-  context: {},
-}),
-{}
-);
+  }
+};

@@ -1,6 +1,5 @@
 /* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
-import { storiesOf } from '@storybook/ember';
 import notes from './json-viewer.md';
 
 const context = {
@@ -148,29 +147,35 @@ const context = {
   },
 };
 
-storiesOf('JsonViewer/', module)
-  .addParameters({ options: { showPanel: false } })
-  .add(
-    'JsonViewer',
-    () => ({
+export default {
+  title: 'JsonViewer',
+  parameters: {
+    notes,
+    options: {
+      showPanel: false,
+    }
+  }
+};
+
+export const JsonViewer = () => {
+  return {
       template: hbs`
       <h5 class="title is-5">JSON Viewer</h5>
       <p>Known intermittent issue in current Storybook implementation: no content rendered until window resize?!</p>
       <JsonViewer @json={{jsonSmall}} />
     `,
       context
-    }),
-    { notes }
-  )
-  .add(
-    'JsonViewer full document',
-    () => ({
+    }
+  };
+
+  export const FullDocument = () => {
+    return {
+
       template: hbs`
       <h5 class="title is-5">JSON Viewer for full document</h5>
       <p>Known intermittent issue in current Storybook implementation: no content rendered until window resize?!</p>
       <JsonViewer @json={{jsonLarge}} />
     `,
       context
-    }),
-    { notes }
-  );
+    }
+  };

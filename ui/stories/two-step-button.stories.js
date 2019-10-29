@@ -1,11 +1,16 @@
 /* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
-import { storiesOf } from '@storybook/ember';
 import notes from './two-step-button.md';
 
-storiesOf('TwoStepButton/', module)
-  .addParameters({ options: { showPanel: true } })
-  .add(`TwoStepButton`, () => ({
+export default {
+  title: 'TwoStepButton',
+  parameters: {
+    notes
+  }
+};
+
+export const TwoStepButton = () => {
+  return {
     template: hbs`
       <h5 class="title is-5">Two Step Button</h5>
       <br><br>
@@ -16,10 +21,12 @@ storiesOf('TwoStepButton/', module)
         @confirmationMessage="Wait, really? Like...seriously?"
       />
       `,
-    context: {},
-  }),
-  {notes})
-  .add(`TwoStepButton in title`, () => ({
+  }
+  };
+
+  export const InTitle = () => {
+    return {
+
     template: hbs`
       <h5 class="title is-5">Two Step Button in title</h5>
       <br><br>
@@ -33,11 +40,11 @@ storiesOf('TwoStepButton/', module)
         />
       </h1>
           `,
-    context: {},
-  }),
-  {notes}
-)
-.add(`TwoStepButton loading state`, () => ({
+    }
+  };
+
+  export const LoadingState = () => {
+    return {
   template: hbs`
     <h5 class="title is-5">Two Step Button loading state</h5>
     <br><br>
@@ -54,7 +61,5 @@ storiesOf('TwoStepButton/', module)
     </h1>
     <p class='annotation'>  <strong>Note:</strong> the <code>state</code> property is internal state and only used here to bypass the idle state for demonstration purposes.</p>
     `,
-  context: {},
-}),
-{notes}
-);
+    }
+  };

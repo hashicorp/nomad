@@ -1,12 +1,14 @@
 /* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
-import { storiesOf } from '@storybook/ember';
 import { withKnobs, optionsKnob } from '@storybook/addon-knobs';
 
-storiesOf('Boxed section/', module)
-  .addParameters({ options: { showPanel: true } })
-  .addDecorator(withKnobs())
-  .add(`Boxed section`, () => ({
+export default {
+  title: 'Boxed Section',
+  decorators: [withKnobs],
+};
+
+export const BoxedSection = () => {
+  return {
     template: hbs`
     <h5 class="title is-5">Boxed section</h5>
     <div class="boxed-section {{variant}}">
@@ -23,9 +25,11 @@ storiesOf('Boxed section/', module)
     </div>
     `,
     context: contextFactory('something'),
-  }),
-  {})
-  .add(`Boxed section with right hand details`, () => ({
+  }
+};
+
+export const RightHandDetails = () => {
+  return {
     template: hbs`
       <h5 class="title is-5">Boxed section with right hand details</h5>
       <div class="boxed-section {{variant}}">
@@ -43,10 +47,11 @@ storiesOf('Boxed section/', module)
       </div>
   `,
     context: contextFactory('something'),
-  }),
-  {}
-)
-.add(`Boxed section with title decoration`, () => ({
+  }
+};
+
+export const TitleDecoration = () => {
+  return {
   template: hbs`
     <h5 class="title is-5">Boxed section with title decoration</h5>
     <div class="boxed-section {{variant}}">
@@ -64,10 +69,11 @@ storiesOf('Boxed section/', module)
     </div>
 `,
   context: contextFactory(),
-}),
-{}
-)
-.add(`Boxed section with foot`, () => ({
+}
+};
+
+export const Foot = () => {
+  return {
   template: hbs`
     <h5 class="title is-5">Boxed section with foot</h5>
     <div class="boxed-section {{variant}}">
@@ -88,10 +94,11 @@ storiesOf('Boxed section/', module)
     </div>
 `,
   context: contextFactory(),
-}),
-{}
-)
-.add(`Boxed section with large header`, () => ({
+}
+};
+
+export const LargeHeader = () => {
+  return {
   template: hbs`
     <h5 class="title is-5">Boxed section with large header</h5>
     <div class="boxed-section {{variant}}">
@@ -114,10 +121,11 @@ storiesOf('Boxed section/', module)
     </div>
 `,
   context: contextFactory(),
-}),
-{}
-)
-.add(`Boxed section with dark body`, () => ({
+}
+};
+
+export const DarkBody = () => {
+  return {
   template: hbs`
     <h5 class="title is-5">Boxed section with dark body</h5>
     <div class="boxed-section {{variant.slug}}">
@@ -134,9 +142,8 @@ storiesOf('Boxed section/', module)
     </div>
 `,
   context: contextFactory(),
-}),
-{}
-);
+}
+};
 
 // FIXME when this was just a const, it caused no knobs to display…?
 function contextFactory() {

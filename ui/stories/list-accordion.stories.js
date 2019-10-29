@@ -1,14 +1,17 @@
 /* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
-import { storiesOf } from '@storybook/ember';
 import notes from './list-accordion.md';
 import productMetadata from '../app/utils/styleguide/product-metadata';
 
-storiesOf('ListAccordion/', module)
-  .addParameters({ options: { showPanel: true } })
-  .add(
-    `Accordion`,
-    () => ({
+export default {
+  title: 'ListAccordion',
+  parameters: {
+    notes
+  }
+};
+
+export const Accordion = () => {
+  return {
       template: hbs`
       <h5 class="title is-5">Accordion</h5>
       <ListAccordion @source={{products}} @key="name" as |ac|>
@@ -30,13 +33,12 @@ storiesOf('ListAccordion/', module)
       context: {
         products: productMetadata,
       },
-    }),
-    { notes }
-  )
-  .add(
-    `Accordion, one item`,
-    () => ({
-      template: hbs`
+    }
+  };
+
+  export const OneItem = () => {
+    return {
+    template: hbs`
       <h5 class="title is-5">Accordion, one item</h5>
       <ListAccordion @source={{take 1 products}} @key="name" as |a|>
         <a.head @buttonLabel="details">
@@ -57,12 +59,11 @@ storiesOf('ListAccordion/', module)
       context: {
         products: productMetadata,
       },
-    }),
-    { notes }
-  )
-  .add(
-    `Accordion, not expandable`,
-    () => ({
+    }
+  };
+
+  export const NotExpandable = () => {
+    return {
       template: hbs`
       <h5 class="title is-5">Accordion, not expandable</h5>
       <ListAccordion @source={{products}} @key="name" as |a|>
@@ -84,6 +85,5 @@ storiesOf('ListAccordion/', module)
       context: {
         products: productMetadata,
       },
-    }),
-    { notes }
-  );
+    }
+  };
