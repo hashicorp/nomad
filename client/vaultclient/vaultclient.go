@@ -45,14 +45,6 @@ type VaultClient interface {
 	// StopRenewToken removes the token from the min-heap, stopping its
 	// renewal.
 	StopRenewToken(string) error
-
-	// RenewLease renews a vault secret's lease and adds the lease
-	// identifier to the min-heap for periodic renewal.
-	RenewLease(string, int) (<-chan error, error)
-
-	// StopRenewLease removes a secret's lease ID from the min-heap,
-	// stopping its renewal.
-	StopRenewLease(string) error
 }
 
 // Implementation of VaultClient interface to interact with vault and perform
@@ -325,44 +317,6 @@ func (c *vaultClient) RenewToken(token string, increment int) (<-chan error, err
 	return errCh, nil
 }
 
-// RenewLease renews the supplied lease identifier for a supplied duration (in
-// seconds) and adds it to the min-heap so that it gets renewed periodically by
-// the renewal loop. Any error returned during renewal will be written to a
-// buffered channel and the channel is returned instead of an actual error.
-// This helps the caller be notified of a renewal failure asynchronously for
-// appropriate actions to be taken. The caller of this function need not have
-// to close the error channel.
-func (c *vaultClient) RenewLease(leaseId string, increment int) (<-chan error, error) {
-	if leaseId == "" {
-		err := fmt.Errorf("missing lease ID")
-		return nil, err
-	}
-
-	if increment < 1 {
-		err := fmt.Errorf("increment cannot be less than 1")
-		return nil, err
-	}
-
-	// Create a buffered error channel
-	errCh := make(chan error, 1)
-
-	// Create a renewal request using the supplied lease and duration
-	renewalReq := &vaultClientRenewalRequest{
-		errCh:     errCh,
-		id:        leaseId,
-		increment: increment,
-	}
-
-	// Renew the secret and send any error to the dedicated error channel
-	if err := c.renew(renewalReq); err != nil {
-		c.logger.Error("error during renewal of lease", "error", err)
-		metrics.IncrCounter([]string{"client", "vault", "renew_lease_error"}, 1)
-		return nil, err
-	}
-
-	return errCh, nil
-}
-
 // renew is a common method to handle renewal of both tokens and secret leases.
 // It invokes a token renewal or a secret's lease renewal. If renewal is
 // successful, min-heap is updated based on the duration after which it needs
@@ -556,12 +510,6 @@ func (c *vaultClient) run() {
 // token.
 func (c *vaultClient) StopRenewToken(token string) error {
 	return c.stopRenew(token)
-}
-
-// StopRenewLease removes the item from the heap which represents the given
-// lease identifier.
-func (c *vaultClient) StopRenewLease(leaseId string) error {
-	return c.stopRenew(leaseId)
 }
 
 // stopRenew removes the given identifier from the heap and signals the renewal
