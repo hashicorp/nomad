@@ -20,11 +20,11 @@ Usage: `nomad namespace <subcommand> [options]`
 Run `nomad namespace <subcommand> -h` for help on that subcommand. The following
 subcommands are available:
 
-* [`namespace apply`][apply] - Create or update a namespace
-* [`namespace delete`][delete] - Delete a namespace
-* [`namespace inspect`][inspect] - Inspect a namespace
-* [`namespace list`][list] - List available namespaces
-* [`namespace status`][status] - Display a namespace's status
+- [`namespace apply`][apply] - Create or update a namespace
+- [`namespace delete`][delete] - Delete a namespace
+- [`namespace inspect`][inspect] - Inspect a namespace
+- [`namespace list`][list] - List available namespaces
+- [`namespace status`][status] - Display a namespace's status
 
 [apply]: /docs/commands/namespace/apply.html "Create or update a namespace"
 [delete]: /docs/commands/namespace/delete.html "Delete a namespace"

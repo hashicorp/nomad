@@ -7,7 +7,7 @@ description: >
 ---
 
 # Command: deployment
- 
+
 The `deployment` command is used to interact with deployments.
 
 ## Usage
@@ -17,12 +17,12 @@ Usage: `nomad deployment <subcommand> [options]`
 Run `nomad deployment <subcommand> -h` for help on that subcommand. The following
 subcommands are available:
 
-* [`deployment fail`][fail] - Manually fail a deployment
-* [`deployment list`][list] - List all deployments
-* [`deployment pause`][pause] - Pause a deployment
-* [`deployment promote`][promote] - Promote canaries in a deployment
-* [`deployment resume`][resume] - Resume a paused deployment
-* [`deployment status`][status] - Display the status of a deployment
+- [`deployment fail`][fail] - Manually fail a deployment
+- [`deployment list`][list] - List all deployments
+- [`deployment pause`][pause] - Pause a deployment
+- [`deployment promote`][promote] - Promote canaries in a deployment
+- [`deployment resume`][resume] - Resume a paused deployment
+- [`deployment status`][status] - Display the status of a deployment
 
 [fail]: /docs/commands/deployment/fail.html "Manually fail a deployment"
 [list]: /docs/commands/deployment/list.html "List all deployments"

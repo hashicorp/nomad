@@ -7,7 +7,7 @@ description: >
 ---
 
 # Command: job
- 
+
 The `job` command is used to interact with jobs.
 
 ## Usage
@@ -17,13 +17,13 @@ Usage: `nomad job <subcommand> [options]`
 Run `nomad job <subcommand> -h` for help on that subcommand. The following
 subcommands are available:
 
-* [`job deployments`][deployments] - List deployments for a job
-* [`job dispatch`][dispatch] - Dispatch an instance of a parameterized job
-* [`job eval`][eval] - Force an evaluation for a job
-* [`job history`][history] - Display all tracked versions of a job
-* [`job promote`][promote] - Promote a job's canaries
-* [`job revert`][revert] - Revert to a prior version of the job
-* [`job status`][status] - Display status information about a job
+- [`job deployments`][deployments] - List deployments for a job
+- [`job dispatch`][dispatch] - Dispatch an instance of a parameterized job
+- [`job eval`][eval] - Force an evaluation for a job
+- [`job history`][history] - Display all tracked versions of a job
+- [`job promote`][promote] - Promote a job's canaries
+- [`job revert`][revert] - Revert to a prior version of the job
+- [`job status`][status] - Display status information about a job
 
 [deployments]: /docs/commands/job/deployments.html "List deployments for a job"
 [dispatch]: /docs/commands/job/dispatch.html "Dispatch an instance of a parameterized job"
