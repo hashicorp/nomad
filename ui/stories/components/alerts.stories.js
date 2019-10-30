@@ -2,7 +2,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Alerts',
+  title: 'Components|Alerts',
 };
 
 export const Alerts = () => {

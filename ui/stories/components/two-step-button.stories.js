@@ -3,7 +3,7 @@ import hbs from 'htmlbars-inline-precompile';
 import notes from './two-step-button.md';
 
 export default {
-  title: 'TwoStepButton',
+  title: 'Components|TwoStepButton',
   parameters: {
     notes,
   },

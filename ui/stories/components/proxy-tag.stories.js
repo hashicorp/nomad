@@ -3,7 +3,7 @@ import hbs from 'htmlbars-inline-precompile';
 import notes from './proxy-tag.md';
 
 export default {
-  title: 'ProxyTag',
+  title: 'Components|ProxyTag',
   parameters: {
     notes,
   },

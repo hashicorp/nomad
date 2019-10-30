@@ -1,10 +1,10 @@
 /* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
 import notes from './list-accordion.md';
-import productMetadata from '../app/utils/styleguide/product-metadata';
+import productMetadata from '../../app/utils/styleguide/product-metadata';
 
 export default {
-  title: 'ListAccordion',
+  title: 'Components|ListAccordion',
   parameters: {
     notes,
   },

@@ -2,7 +2,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Breadcrumbs',
+  title: 'Components|Breadcrumbs',
 };
 
 export const Standard = () => {
