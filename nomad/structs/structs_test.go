@@ -2565,6 +2565,51 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 
 }
 
+func TestJob_CombinedTaskMeta(t *testing.T) {
+	j := &Job{
+		Meta: map[string]string{
+			"job_test":   "job",
+			"group_test": "job",
+			"task_test":  "job",
+		},
+		TaskGroups: []*TaskGroup{
+			{
+				Name: "group",
+				Meta: map[string]string{
+					"group_test": "group",
+					"task_test":  "group",
+				},
+				Tasks: []*Task{
+					{
+						Name: "task",
+						Meta: map[string]string{
+							"task_test": "task",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	require := require.New(t)
+	require.EqualValues(map[string]string{
+		"job_test":   "job",
+		"group_test": "group",
+		"task_test":  "task",
+	}, j.CombinedTaskMeta("group", "task"))
+	require.EqualValues(map[string]string{
+		"job_test":   "job",
+		"group_test": "group",
+		"task_test":  "group",
+	}, j.CombinedTaskMeta("group", ""))
+	require.EqualValues(map[string]string{
+		"job_test":   "job",
+		"group_test": "job",
+		"task_test":  "job",
+	}, j.CombinedTaskMeta("", "task"))
+
+}
+
 func TestPeriodicConfig_EnabledInvalid(t *testing.T) {
 	// Create a config that is enabled but with no interval specified.
 	p := &PeriodicConfig{Enabled: true}

@@ -3626,15 +3626,16 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 func (j *Job) CombinedTaskMeta(groupName, taskName string) map[string]string {
 	group := j.LookupTaskGroup(groupName)
 	if group == nil {
-		return nil
+		return j.Meta
 	}
+
+	var meta map[string]string
 
 	task := group.LookupTask(taskName)
-	if task == nil {
-		return nil
+	if task != nil {
+		meta = helper.CopyMapStringString(task.Meta)
 	}
 
-	meta := helper.CopyMapStringString(task.Meta)
 	if meta == nil {
 		meta = make(map[string]string, len(group.Meta)+len(j.Meta))
 	}

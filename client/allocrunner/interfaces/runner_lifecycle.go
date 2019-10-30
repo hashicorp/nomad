@@ -44,6 +44,7 @@ type RunnerUpdateHook interface {
 
 type RunnerUpdateRequest struct {
 	Alloc *structs.Allocation
+	Node  *structs.Node
 }
 
 // ShutdownHook may be implemented by AllocRunner or TaskRunner hooks and will

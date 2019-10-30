@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/hcl2/gohcl"
 	"github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/hcl2/hcl/hclsyntax"
@@ -831,4 +832,18 @@ func TestEnvironment_SetPortMapEnvs(t *testing.T) {
 		"NOMAD_PORT_http": "80",
 	}
 	require.Equal(t, expected, envs)
+}
+
+func TestEnvironment_TasklessBuilder(t *testing.T) {
+	node := mock.Node()
+	alloc := mock.Alloc()
+	alloc.Job.Meta["jobt"] = "foo"
+	alloc.Job.TaskGroups[0].Meta["groupt"] = "bar"
+	require := require.New(t)
+	var taskEnv *TaskEnv
+	require.NotPanics(func() {
+		taskEnv = NewBuilder(node, alloc, nil, "global").SetAllocDir("/tmp/alloc").Build()
+	})
+
+	spew.Dump(taskEnv.All())
 }

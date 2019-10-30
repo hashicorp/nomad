@@ -675,11 +675,11 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 // serviceRegs creates service registrations, check registrations, and script
 // checks from a service. It returns a service registration object with the
 // service and check IDs populated.
-func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, task *TaskServices) (
+func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, task *WorkloadServices) (
 	*ServiceRegistration, error) {
 
 	// Get the services ID
-	id := MakeTaskServiceID(task.AllocID, task.Name, service)
+	id := MakeTaskServiceID(task.AllocID, task.Name(), service)
 	sreg := &ServiceRegistration{
 		serviceID: id,
 		checkIDs:  make(map[string]struct{}, len(service.Checks)),
@@ -747,7 +747,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 // checkRegs registers the checks for the given service and returns the
 // registered check ids.
 func (c *ServiceClient) checkRegs(ops *operations, serviceID string, service *structs.Service,
-	task *TaskServices) ([]string, error) {
+	task *WorkloadServices) ([]string, error) {
 
 	// Fast path
 	numChecks := len(service.Checks)
@@ -796,132 +796,13 @@ func (c *ServiceClient) checkRegs(ops *operations, serviceID string, service *st
 	return checkIDs, nil
 }
 
-//TODO(schmichael) remove
-type noopRestarter struct{}
-
-func (noopRestarter) Restart(context.Context, *structs.TaskEvent, bool) error { return nil }
-
-// makeAllocTaskServices creates a TaskServices struct for a group service.
-//
-//TODO(schmichael) rename TaskServices and refactor this into a New method
-func makeAllocTaskServices(alloc *structs.Allocation, tg *structs.TaskGroup) (*TaskServices, error) {
-	//COMPAT(0.11) AllocatedResources is only nil when upgrading directly
-	//             from 0.8.
-	if alloc.AllocatedResources == nil || len(alloc.AllocatedResources.Shared.Networks) == 0 {
-		return nil, fmt.Errorf("unable to register a group service without a group network")
-	}
-
-	//TODO(schmichael) only support one network for now
-	net := alloc.AllocatedResources.Shared.Networks[0]
-
-	ts := &TaskServices{
-		AllocID:  alloc.ID,
-		Name:     "group-" + alloc.TaskGroup,
-		Services: tg.Services,
-		Networks: alloc.AllocatedResources.Shared.Networks,
-
-		//TODO(schmichael) there's probably a better way than hacking driver network
-		DriverNetwork: &drivers.DriverNetwork{
-			AutoAdvertise: true,
-			IP:            net.IP,
-			// Copy PortLabels from group network
-			PortMap: net.PortLabels(),
-		},
-
-		// unsupported for group services
-		Restarter:  noopRestarter{},
-		DriverExec: nil,
-	}
-
-	if alloc.DeploymentStatus != nil {
-		ts.Canary = alloc.DeploymentStatus.Canary
-	}
-
-	return ts, nil
-}
-
-// RegisterGroup services with Consul. Adds all task group-level service
-// entries and checks to Consul.
-func (c *ServiceClient) RegisterGroup(alloc *structs.Allocation) error {
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	if tg == nil {
-		return fmt.Errorf("task group %q not in allocation", alloc.TaskGroup)
-	}
-
-	if len(tg.Services) == 0 {
-		// noop
-		return nil
-	}
-
-	ts, err := makeAllocTaskServices(alloc, tg)
-	if err != nil {
-		return err
-	}
-
-	return c.RegisterTask(ts)
-}
-
-// UpdateGroup services with Consul. Updates all task group-level service
-// entries and checks to Consul.
-func (c *ServiceClient) UpdateGroup(oldAlloc, newAlloc *structs.Allocation) error {
-	oldTG := oldAlloc.Job.LookupTaskGroup(oldAlloc.TaskGroup)
-	if oldTG == nil {
-		return fmt.Errorf("task group %q not in old allocation", oldAlloc.TaskGroup)
-	}
-
-	if len(oldTG.Services) == 0 {
-		// No old group services, simply add new group services
-		return c.RegisterGroup(newAlloc)
-	}
-
-	oldServices, err := makeAllocTaskServices(oldAlloc, oldTG)
-	if err != nil {
-		return err
-	}
-
-	newTG := newAlloc.Job.LookupTaskGroup(newAlloc.TaskGroup)
-	if newTG == nil {
-		return fmt.Errorf("task group %q not in new allocation", newAlloc.TaskGroup)
-	}
-
-	newServices, err := makeAllocTaskServices(newAlloc, newTG)
-	if err != nil {
-		return err
-	}
-
-	return c.UpdateTask(oldServices, newServices)
-}
-
-// RemoveGroup services with Consul. Removes all task group-level service
-// entries and checks from Consul.
-func (c *ServiceClient) RemoveGroup(alloc *structs.Allocation) error {
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	if tg == nil {
-		return fmt.Errorf("task group %q not in allocation", alloc.TaskGroup)
-	}
-
-	if len(tg.Services) == 0 {
-		// noop
-		return nil
-	}
-	ts, err := makeAllocTaskServices(alloc, tg)
-	if err != nil {
-		return err
-	}
-
-	c.RemoveTask(ts)
-
-	return nil
-}
-
-// RegisterTask with Consul. Adds all service entries and checks to Consul. If
-// exec is nil and a script check exists an error is returned.
+// RegisterWorkload with Consul. Adds all service entries and checks to Consul.
 //
 // If the service IP is set it used as the address in the service registration.
 // Checks will always use the IP from the Task struct (host's IP).
 //
 // Actual communication with Consul is done asynchronously (see Run).
-func (c *ServiceClient) RegisterTask(task *TaskServices) error {
+func (c *ServiceClient) RegisterWorkload(task *WorkloadServices) error {
 	// Fast path
 	numServices := len(task.Services)
 	if numServices == 0 {
@@ -941,29 +822,29 @@ func (c *ServiceClient) RegisterTask(task *TaskServices) error {
 	}
 
 	// Add the task to the allocation's registration
-	c.addTaskRegistration(task.AllocID, task.Name, t)
+	c.addTaskRegistration(task.AllocID, task.Name(), t)
 
 	c.commit(ops)
 
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
 	for _, service := range task.Services {
-		serviceID := MakeTaskServiceID(task.AllocID, task.Name, service)
+		serviceID := MakeTaskServiceID(task.AllocID, task.Name(), service)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := MakeCheckID(serviceID, check)
-				c.checkWatcher.Watch(task.AllocID, task.Name, checkID, check, task.Restarter)
+				c.checkWatcher.Watch(task.AllocID, task.Name(), checkID, check, task.Restarter)
 			}
 		}
 	}
 	return nil
 }
 
-// UpdateTask in Consul. Does not alter the service if only checks have
+// UpdateWorkload in Consul. Does not alter the service if only checks have
 // changed.
 //
 // DriverNetwork must not change between invocations for the same allocation.
-func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
+func (c *ServiceClient) UpdateWorkload(old, newTask *WorkloadServices) error {
 	ops := &operations{}
 
 	taskReg := new(TaskRegistration)
@@ -971,11 +852,11 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 
 	existingIDs := make(map[string]*structs.Service, len(old.Services))
 	for _, s := range old.Services {
-		existingIDs[MakeTaskServiceID(old.AllocID, old.Name, s)] = s
+		existingIDs[MakeTaskServiceID(old.AllocID, old.Name(), s)] = s
 	}
 	newIDs := make(map[string]*structs.Service, len(newTask.Services))
 	for _, s := range newTask.Services {
-		newIDs[MakeTaskServiceID(newTask.AllocID, newTask.Name, s)] = s
+		newIDs[MakeTaskServiceID(newTask.AllocID, newTask.Name(), s)] = s
 	}
 
 	// Loop over existing Service IDs to see if they have been removed
@@ -997,8 +878,8 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 			continue
 		}
 
-		oldHash := existingSvc.Hash(old.AllocID, old.Name, old.Canary)
-		newHash := newSvc.Hash(newTask.AllocID, newTask.Name, newTask.Canary)
+		oldHash := existingSvc.Hash(old.AllocID, old.Name(), old.Canary)
+		newHash := newSvc.Hash(newTask.AllocID, newTask.Name(), newTask.Canary)
 		if oldHash == newHash {
 			// Service exists and hasn't changed, don't re-add it later
 			delete(newIDs, existingID)
@@ -1039,7 +920,7 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 
 			// Update all watched checks as CheckRestart fields aren't part of ID
 			if check.TriggersRestarts() {
-				c.checkWatcher.Watch(newTask.AllocID, newTask.Name, checkID, check, newTask.Restarter)
+				c.checkWatcher.Watch(newTask.AllocID, newTask.Name(), checkID, check, newTask.Restarter)
 			}
 		}
 
@@ -1065,32 +946,32 @@ func (c *ServiceClient) UpdateTask(old, newTask *TaskServices) error {
 	}
 
 	// Add the task to the allocation's registration
-	c.addTaskRegistration(newTask.AllocID, newTask.Name, taskReg)
+	c.addTaskRegistration(newTask.AllocID, newTask.Name(), taskReg)
 
 	c.commit(ops)
 
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
 	for _, service := range newIDs {
-		serviceID := MakeTaskServiceID(newTask.AllocID, newTask.Name, service)
+		serviceID := MakeTaskServiceID(newTask.AllocID, newTask.Name(), service)
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := MakeCheckID(serviceID, check)
-				c.checkWatcher.Watch(newTask.AllocID, newTask.Name, checkID, check, newTask.Restarter)
+				c.checkWatcher.Watch(newTask.AllocID, newTask.Name(), checkID, check, newTask.Restarter)
 			}
 		}
 	}
 	return nil
 }
 
-// RemoveTask from Consul. Removes all service entries and checks.
+// RemoveWorkload from Consul. Removes all service entries and checks.
 //
 // Actual communication with Consul is done asynchronously (see Run).
-func (c *ServiceClient) RemoveTask(task *TaskServices) {
+func (c *ServiceClient) RemoveWorkload(task *WorkloadServices) {
 	ops := operations{}
 
 	for _, service := range task.Services {
-		id := MakeTaskServiceID(task.AllocID, task.Name, service)
+		id := MakeTaskServiceID(task.AllocID, task.Name(), service)
 		ops.deregServices = append(ops.deregServices, id)
 
 		for _, check := range service.Checks {
@@ -1104,7 +985,7 @@ func (c *ServiceClient) RemoveTask(task *TaskServices) {
 	}
 
 	// Remove the task from the alloc's registrations
-	c.removeTaskRegistration(task.AllocID, task.Name)
+	c.removeTaskRegistration(task.AllocID, task.Name())
 
 	// Now add them to the deregistration fields; main Run loop will update
 	c.commit(&ops)
