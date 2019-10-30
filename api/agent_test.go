@@ -264,6 +264,9 @@ func TestAgent_Health(t *testing.T) {
 	assert.True(health.Server.Ok)
 }
 
+// TestAgent_MonitorWithNode tests the Monitor endpoint
+// passing in a log level and node ie, which tests monitor
+// functionality for a specific client node
 func TestAgent_MonitorWithNode(t *testing.T) {
 	t.Parallel()
 	rpcPort := 0
@@ -309,10 +312,8 @@ func TestAgent_MonitorWithNode(t *testing.T) {
 	}
 
 	logCh, err := agent.Monitor(doneCh, q)
+	require.NoError(t, err)
 	defer close(doneCh)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
 
 	// make a request to generate some logs
 	_, err = agent.NodeName()
@@ -331,6 +332,10 @@ OUTER:
 		}
 	}
 }
+
+// TestAgent_Monitor tests the Monitor endpoint
+// passing in only a log level, which tests the servers
+// monitor functionality
 func TestAgent_Monitor(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)
@@ -346,10 +351,8 @@ func TestAgent_Monitor(t *testing.T) {
 
 	doneCh := make(chan struct{})
 	logCh, err := agent.Monitor(doneCh, q)
+	require.NoError(t, err)
 	defer close(doneCh)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
 
 	// make a request to generate some logs
 	_, err = agent.Region()

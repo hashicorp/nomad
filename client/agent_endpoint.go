@@ -17,17 +17,17 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
-type Monitor struct {
+type Agent struct {
 	c *Client
 }
 
-func NewMonitorEndpoint(c *Client) *Monitor {
-	m := &Monitor{c: c}
+func NewMonitorEndpoint(c *Client) *Agent {
+	m := &Agent{c: c}
 	m.c.streamingRpcs.Register("Agent.Monitor", m.monitor)
 	return m
 }
 
-func (m *Monitor) monitor(conn io.ReadWriteCloser) {
+func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	defer metrics.MeasureSince([]string{"client", "monitor", "monitor"}, time.Now())
 	defer conn.Close()
 

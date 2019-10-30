@@ -252,7 +252,7 @@ type endpoints struct {
 	// Client endpoints
 	ClientStats       *ClientStats
 	FileSystem        *FileSystem
-	Monitor           *Monitor
+	Agent             *Agent
 	ClientAllocations *ClientAllocations
 }
 
@@ -1046,8 +1046,8 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.FileSystem = &FileSystem{srv: s, logger: s.logger.Named("client_fs")}
 		s.staticEndpoints.FileSystem.register()
 
-		s.staticEndpoints.Monitor = &Monitor{srv: s}
-		s.staticEndpoints.Monitor.register()
+		s.staticEndpoints.Agent = &Agent{srv: s}
+		s.staticEndpoints.Agent.register()
 	}
 
 	// Register the static handlers

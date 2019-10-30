@@ -17,15 +17,15 @@ import (
 	"github.com/ugorji/go/codec"
 )
 
-type Monitor struct {
+type Agent struct {
 	srv *Server
 }
 
-func (m *Monitor) register() {
+func (m *Agent) register() {
 	m.srv.streamingRpcs.Register("Agent.Monitor", m.monitor)
 }
 
-func (m *Monitor) monitor(conn io.ReadWriteCloser) {
+func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	defer conn.Close()
 
 	// Decode args

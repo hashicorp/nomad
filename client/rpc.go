@@ -23,7 +23,7 @@ type rpcEndpoints struct {
 	ClientStats *ClientStats
 	FileSystem  *FileSystem
 	Allocations *Allocations
-	Monitor     *Monitor
+	Monitor     *Agent
 }
 
 // ClientRPC is used to make a local, client only RPC call
