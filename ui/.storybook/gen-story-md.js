@@ -16,6 +16,8 @@ const inputFile = addonOrEngine
   : `app/components/${name}.js`;
 const outputFile = addonOrEngine ? `lib/${addonOrEngine}/stories/${name}.md` : `stories/components/${name}.md`;
 
+// FIXME can probably remove addon-related code?
+
 const component = name
   .split('-')
   .map(word => word.charAt(0).toUpperCase() + word.slice(1))
