@@ -145,8 +145,10 @@ module('Unit | Adapter | Node', function(hooks) {
       JSON.parse(request.requestBody),
       {
         NodeID: node.id,
-        Deadline: 0,
-        IgnoreSystemJobs: true,
+        DrainSpec: {
+          Deadline: 0,
+          IgnoreSystemJobs: true,
+        },
       },
       'POST request is made with the default body arguments'
     );
@@ -164,8 +166,10 @@ module('Unit | Adapter | Node', function(hooks) {
       JSON.parse(request.requestBody),
       {
         NodeID: node.id,
-        Deadline: spec.Deadline,
-        IgnoreSystemJobs: spec.IgnoreSystemJobs,
+        DrainSpec: {
+          Deadline: spec.Deadline,
+          IgnoreSystemJobs: spec.IgnoreSystemJobs,
+        },
       },
       'POST request is made with the drain spec as body arguments'
     );
@@ -184,8 +188,10 @@ module('Unit | Adapter | Node', function(hooks) {
       JSON.parse(request.requestBody),
       {
         NodeID: node.id,
-        Deadline: -1000000000,
-        IgnoreSystemJobs: true,
+        DrainSpec: {
+          Deadline: -1000000000,
+          IgnoreSystemJobs: true,
+        },
       },
       'POST request is made with the default body arguments'
     );
@@ -205,8 +211,10 @@ module('Unit | Adapter | Node', function(hooks) {
       JSON.parse(request.requestBody),
       {
         NodeID: node.id,
-        Deadline: -1000000000,
-        IgnoreSystemJobs: spec.IgnoreSystemJobs,
+        DrainSpec: {
+          Deadline: -1000000000,
+          IgnoreSystemJobs: spec.IgnoreSystemJobs,
+        },
       },
       'POST request is made with the drain spec, except deadline is not overridden'
     );

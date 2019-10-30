@@ -25,14 +25,16 @@ export default Watchable.extend({
   drain(node, drainSpec) {
     const url = addToPath(this.urlForFindRecord(node.id, 'node'), '/drain');
     return this.ajax(url, 'POST', {
-      data: Object.assign(
-        {
-          NodeID: node.id,
-          Deadline: 0,
-          IgnoreSystemJobs: true,
-        },
-        drainSpec
-      ),
+      data: {
+        NodeID: node.id,
+        DrainSpec: Object.assign(
+          {
+            Deadline: 0,
+            IgnoreSystemJobs: true,
+          },
+          drainSpec
+        ),
+      },
     });
   },
 
@@ -43,5 +45,15 @@ export default Watchable.extend({
         Deadline: -1000 * 1000000,
       })
     );
+  },
+
+  cancelDrain(node) {
+    const url = addToPath(this.urlForFindRecord(node.id, 'node'), '/drain');
+    return this.ajax(url, 'POST', {
+      data: {
+        NodeID: node.id,
+        DrainSpec: null,
+      },
+    });
   },
 });
