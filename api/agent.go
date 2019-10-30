@@ -255,26 +255,25 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (chan string, e
 	logCh := make(chan string, 64)
 	go func() {
 		defer resp.Body.Close()
-
+		defer close(logCh)
 		scanner := bufio.NewScanner(resp.Body)
+
+	LOOP:
 		for {
 			select {
 			case <-stopCh:
 				return
 			default:
 			}
+
 			if scanner.Scan() {
-				// An empty string signals to the caller that
-				// the scan is done, so make sure we only emit
-				// that when the scanner says it's done, not if
-				// we happen to ingest an empty line.
 				if text := scanner.Text(); text != "" {
 					logCh <- text
 				} else {
 					logCh <- " "
 				}
 			} else {
-				logCh <- ""
+				break LOOP
 			}
 		}
 	}()

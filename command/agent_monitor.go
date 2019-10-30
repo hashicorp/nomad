@@ -101,8 +101,8 @@ func (c *MonitorCommand) Run(args []string) int {
 	OUTER:
 		for {
 			select {
-			case log := <-logCh:
-				if log == "" {
+			case log, ok := <-logCh:
+				if !ok {
 					break OUTER
 				}
 				c.Ui.Output(log)
