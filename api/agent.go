@@ -238,9 +238,13 @@ func (a *Agent) Health() (*AgentHealthResponse, error) {
 	return nil, fmt.Errorf("unable to unmarshal response with status %d: %v", resp.StatusCode, err)
 }
 
+type MonitorFrame struct {
+	Data []byte `json:",omitempty"`
+}
+
 // Monitor returns a channel which will receive streaming logs from the agent
 // Providing a non-nil stopCh can be used to close the connection and stop log streaming
-func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (chan string, error) {
+func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *MonitorFrame, error) {
 	r, err := a.client.newRequest("GET", "/v1/agent/monitor")
 	if err != nil {
 		return nil, err
@@ -252,10 +256,10 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (chan string, e
 		return nil, err
 	}
 
-	logCh := make(chan string, 64)
+	frames := make(chan *MonitorFrame, 10)
 	go func() {
 		defer resp.Body.Close()
-		defer close(logCh)
+		defer close(frames)
 		scanner := bufio.NewScanner(resp.Body)
 
 	LOOP:
@@ -267,10 +271,12 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (chan string, e
 			}
 
 			if scanner.Scan() {
-				if text := scanner.Text(); text != "" {
-					logCh <- text
+				var frame MonitorFrame
+				if bytes := scanner.Bytes(); len(bytes) > 0 {
+					frame.Data = bytes
+					frames <- &frame
 				} else {
-					logCh <- " "
+					frames <- &frame
 				}
 			} else {
 				break LOOP
@@ -278,7 +284,7 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (chan string, e
 		}
 	}()
 
-	return logCh, nil
+	return frames, nil
 }
 
 // joinResponse is used to decode the response we get while

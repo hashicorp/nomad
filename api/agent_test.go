@@ -324,7 +324,7 @@ OUTER:
 	for {
 		select {
 		case log := <-logCh:
-			if strings.Contains(log, "[DEBUG]") {
+			if strings.Contains(string(log.Data), "[DEBUG]") {
 				break OUTER
 			}
 		case <-time.After(2 * time.Second):
@@ -363,7 +363,7 @@ OUTER:
 	for {
 		select {
 		case log := <-logCh:
-			if strings.Contains(log, "[DEBUG]") {
+			if strings.Contains(string(log.Data), "[DEBUG]") {
 				break OUTER
 			}
 		case <-time.After(2 * time.Second):

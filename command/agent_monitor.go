@@ -89,7 +89,7 @@ func (c *MonitorCommand) Run(args []string) int {
 		Params: params,
 	}
 	eventDoneCh := make(chan struct{})
-	logCh, err := client.Agent().Monitor(eventDoneCh, query)
+	frames, err := client.Agent().Monitor(eventDoneCh, query)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error starting monitor: %s", err))
 		c.Ui.Error(commandErrorText(c))
@@ -101,11 +101,11 @@ func (c *MonitorCommand) Run(args []string) int {
 	OUTER:
 		for {
 			select {
-			case log, ok := <-logCh:
+			case frame, ok := <-frames:
 				if !ok {
 					break OUTER
 				}
-				c.Ui.Output(log)
+				c.Ui.Output(string(frame.Data))
 			}
 		}
 
