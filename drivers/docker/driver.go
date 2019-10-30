@@ -912,7 +912,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	// Setup port mapping and exposed ports
 	if len(task.Resources.NomadResources.Networks) == 0 {
-		logger.Debug("no network interfaces are available")
 		if len(driverConfig.PortMap) > 0 {
 			return c, fmt.Errorf("Trying to map ports but no network interface is available")
 		}
