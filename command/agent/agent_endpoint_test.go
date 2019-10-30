@@ -255,6 +255,20 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Parallel()
 
 	httpTest(t, nil, func(s *TestAgent) {
+		// invalid log_json
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_json=no", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+
+			// Make the request
+			_, err = s.Server.AgentMonitor(resp, req)
+			if err.(HTTPCodedError).Code() != 400 {
+				t.Fatalf("expected 400 response, got: %v", resp.Code)
+			}
+		}
+
+		// unknown log_level
 		{
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=unknown", nil)
 			require.Nil(t, err)

@@ -1,10 +1,10 @@
 package monitor
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
@@ -38,6 +38,7 @@ func TestMonitor_Start(t *testing.T) {
 	logger.Debug("test log")
 }
 
+// Ensure number of dropped messages are logged
 func TestMonitor_DroppedMessages(t *testing.T) {
 	t.Parallel()
 
@@ -48,15 +49,39 @@ func TestMonitor_DroppedMessages(t *testing.T) {
 	m := New(5, logger, &log.LoggerOptions{
 		Level: log.Debug,
 	})
+	m.droppedDuration = 5 * time.Millisecond
 
 	doneCh := make(chan struct{})
 	defer close(doneCh)
 
-	m.Start(doneCh)
+	logCh := m.Start(doneCh)
 
-	for i := 0; i <= 9; i++ {
-		logger.Debug("test message")
+	for i := 0; i <= 100; i++ {
+		logger.Debug(fmt.Sprintf("test message %d", i))
 	}
 
-	assert.Greater(t, m.droppedCount, 0)
+	received := ""
+
+	passed := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case recv := <-logCh:
+				received += string(recv)
+				if strings.Contains(received, "[WARN] Monitor dropped 90 logs during monitor request") {
+					close(passed)
+				}
+			}
+		}
+	}()
+
+TEST:
+	for {
+		select {
+		case <-passed:
+			break TEST
+		case <-time.After(1 * time.Second):
+			require.Fail(t, "expected to see warn dropped messages")
+		}
+	}
 }

@@ -178,10 +178,14 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	// Determine if we are targeting a server or client
 	nodeID := req.URL.Query().Get("node_id")
 
+	logJSON := false
 	logJSONStr := req.URL.Query().Get("log_json")
-	logJSON, err := strconv.ParseBool(logJSONStr)
-	if err != nil {
-		logJSON = false
+	if logJSONStr != "" {
+		parsed, err := strconv.ParseBool(logJSONStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown option for log json: %v", err))
+		}
+		logJSON = parsed
 	}
 
 	// Build the request and parse the ACL token
