@@ -77,6 +77,27 @@ $ spark-submit --class org.apache.spark.examples.SparkPi \
     10
 ```
 
+## Referencing local files
+
+`spark-submit` allows you to reference files and extra JARs using the `--files`
+and `--jars` options. These files can be read from a local path in a Nomad
+client by using the `local://` prefix and they will be automatically
+distributed by the `driver` task to `executors`.
+
+In order for this flow to work, the files must exist in the Nomad client that
+will be responsible for running the `driver` task and, due to Nomad's
+[resource isolation](/docs/drivers/exec.html#resource-isolation) mechanism, the
+path to the files must be in the [`chroot` directories list](/docs/drivers/exec.html#chroot).
+
+In [client mode](#client-mode) this means that the files must exist in the node
+running the `spark-submit` command. In [cluster mode](#cluster-mode) there's
+currently no way to guarantee where the `driver` task will be allocated, so you
+might see some allocation failures until Nomad schedules this task in a
+client that can access these files. You can mitigate this by using [constraints](/docs/job-specification/constraint.html)
+and [meta tags](/docs/configuration/client.html#meta) in a [custom job template](/guides/analytical-workloads/spark/customizing.html#using-a-custom-job-template)
+to specify which clients have the files.
+
+
 ## Next Steps
 
 Learn how to [customize applications](/guides/analytical-workloads/spark/customizing.html).
