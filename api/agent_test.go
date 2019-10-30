@@ -306,8 +306,8 @@ func TestAgent_MonitorWithNode(t *testing.T) {
 	doneCh := make(chan struct{})
 	q := &QueryOptions{
 		Params: map[string]string{
-			"log-level": "debug",
-			"node-id":   node.ID,
+			"log_level": "debug",
+			"node_id":   node.ID,
 		},
 	}
 
@@ -345,7 +345,7 @@ func TestAgent_Monitor(t *testing.T) {
 
 	q := &QueryOptions{
 		Params: map[string]string{
-			"log-level": "debug",
+			"log_level": "debug",
 		},
 	}
 

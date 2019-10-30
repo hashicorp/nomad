@@ -166,7 +166,7 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	// Get the provided loglevel.
-	logLevel := req.URL.Query().Get("log-level")
+	logLevel := req.URL.Query().Get("log_level")
 	if logLevel == "" {
 		logLevel = "INFO"
 	}
@@ -176,9 +176,9 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	// Determine if we are targeting a server or client
-	nodeID := req.URL.Query().Get("node-id")
+	nodeID := req.URL.Query().Get("node_id")
 
-	logJSONStr := req.URL.Query().Get("log-json")
+	logJSONStr := req.URL.Query().Get("log_json")
 	logJSON, err := strconv.ParseBool(logJSONStr)
 	if err != nil {
 		logJSON = false

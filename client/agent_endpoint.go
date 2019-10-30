@@ -21,7 +21,7 @@ type Agent struct {
 	c *Client
 }
 
-func NewMonitorEndpoint(c *Client) *Agent {
+func NewAgentEndpoint(c *Client) *Agent {
 	m := &Agent{c: c}
 	m.c.streamingRpcs.Register("Agent.Monitor", m.monitor)
 	return m
@@ -50,11 +50,9 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 		return
 	}
 
-	var logLevel log.Level
+	logLevel := log.LevelFromString(args.LogLevel)
 	if args.LogLevel == "" {
 		logLevel = log.LevelFromString("INFO")
-	} else {
-		logLevel = log.LevelFromString(args.LogLevel)
 	}
 
 	if logLevel == log.NoLevel {

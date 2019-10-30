@@ -80,9 +80,9 @@ func (c *MonitorCommand) Run(args []string) int {
 	}
 
 	params := map[string]string{
-		"log-level": logLevel,
-		"node-id":   nodeID,
-		"log-json":  strconv.FormatBool(logJSON),
+		"log_level": logLevel,
+		"node_id":   nodeID,
+		"log_json":  strconv.FormatBool(logJSON),
 	}
 
 	query := &api.QueryOptions{

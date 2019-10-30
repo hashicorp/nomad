@@ -47,11 +47,9 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 		return
 	}
 
-	var logLevel log.Level
+	logLevel := log.LevelFromString(args.LogLevel)
 	if args.LogLevel == "" {
 		logLevel = log.LevelFromString("INFO")
-	} else {
-		logLevel = log.LevelFromString(args.LogLevel)
 	}
 
 	if logLevel == log.NoLevel {
