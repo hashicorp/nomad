@@ -14,7 +14,7 @@ const addonOrEngine = args[1];
 const inputFile = addonOrEngine
   ? `lib/${addonOrEngine}/addon/components/${name}.js`
   : `app/components/${name}.js`;
-const outputFile = addonOrEngine ? `lib/${addonOrEngine}/stories/${name}.md` : `stories/${name}.md`;
+const outputFile = addonOrEngine ? `lib/${addonOrEngine}/stories/${name}.md` : `stories/components/${name}.md`;
 
 const component = name
   .split('-')
