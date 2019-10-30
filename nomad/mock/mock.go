@@ -199,6 +199,22 @@ func Job() *structs.Job {
 					Delay:         5 * time.Second,
 					DelayFunction: "constant",
 				},
+				Networks: []*structs.NetworkResource{
+					{
+						Mode: "host",
+						DynamicPorts: []structs.Port{
+							{Label: "https"},
+						},
+					},
+				},
+				Services: []*structs.Service{
+					{
+						Name:      "frontend-secure",
+						PortLabel: "https",
+						Tags:      []string{"pci:${meta.pci-dss}"},
+						Meta:      map[string]string{"alloc_id": "${NOMAD_ALLOC_ID}"},
+					},
+				},
 				Migrate: structs.DefaultMigrateStrategy(),
 				Tasks: []*structs.Task{
 					{

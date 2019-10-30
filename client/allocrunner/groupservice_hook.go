@@ -24,11 +24,10 @@ type groupServiceHook struct {
 	logger log.Logger
 
 	// The following fields may be updated
-	driverNet *drivers.DriverNetwork
-	canary    bool
-	services  []*structs.Service
-	networks  structs.Networks
-	taskEnv   *taskenv.TaskEnv
+	canary   bool
+	services []*structs.Service
+	networks structs.Networks
+	taskEnv  *taskenv.TaskEnv
 
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
@@ -55,16 +54,6 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 	h.services = cfg.alloc.Job.LookupTaskGroup(h.group).Services
 	h.networks = cfg.alloc.AllocatedResources.Shared.Networks
 
-	//TODO(schmichael) only support one network for now
-	net := cfg.alloc.AllocatedResources.Shared.Networks[0]
-	//TODO(schmichael) there's probably a better way than hacking driver network
-	h.driverNet = &drivers.DriverNetwork{
-		AutoAdvertise: true,
-		IP:            net.IP,
-		// Copy PortLabels from group network
-		PortMap: net.PortLabels(),
-	}
-
 	if cfg.alloc.DeploymentStatus != nil {
 		h.canary = cfg.alloc.DeploymentStatus.Canary
 	}
@@ -82,6 +71,11 @@ func (h *groupServiceHook) Prerun() error {
 		h.prerun = true
 		h.mu.Unlock()
 	}()
+
+	if len(h.services) == 0 {
+		return nil
+	}
+
 	services := h.getWorkloadServices()
 	return h.consulClient.RegisterWorkload(services)
 }
@@ -127,16 +121,33 @@ func (h *groupServiceHook) Postrun() error {
 	return nil
 }
 
+func (h *groupServiceHook) driverNet() *drivers.DriverNetwork {
+	if len(h.networks) == 0 {
+		return nil
+	}
+
+	//TODO(schmichael) only support one network for now
+	net := h.networks[0]
+	//TODO(schmichael) there's probably a better way than hacking driver network
+	return &drivers.DriverNetwork{
+		AutoAdvertise: true,
+		IP:            net.IP,
+		// Copy PortLabels from group network
+		PortMap: net.PortLabels(),
+	}
+}
+
 // deregister services from Consul.
 func (h *groupServiceHook) deregister() {
-	workloadServices := h.getWorkloadServices()
-	h.consulClient.RemoveWorkload(workloadServices)
+	if len(h.services) > 0 {
+		workloadServices := h.getWorkloadServices()
+		h.consulClient.RemoveWorkload(workloadServices)
 
-	// Canary flag may be getting flipped when the alloc is being
-	// destroyed, so remove both variations of the service
-	workloadServices.Canary = !workloadServices.Canary
-	h.consulClient.RemoveWorkload(workloadServices)
-
+		// Canary flag may be getting flipped when the alloc is being
+		// destroyed, so remove both variations of the service
+		workloadServices.Canary = !workloadServices.Canary
+		h.consulClient.RemoveWorkload(workloadServices)
+	}
 }
 func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 	// Interpolate with the task's environment
@@ -148,7 +159,7 @@ func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 		Group:         h.group,
 		Restarter:     h.restarter,
 		Services:      interpolatedServices,
-		DriverNetwork: h.driverNet,
+		DriverNetwork: h.driverNet(),
 		Networks:      h.networks,
 		Canary:        h.canary,
 	}
