@@ -234,6 +234,9 @@
 /guides/operations/upgrade/index.html             /guides/upgrade/index.html
 /guides/operations/upgrade/upgrade-specific.html  /guides/upgrade/upgrade-specific.html
 
+# Multi-part UI guides
+/guides/ui.html /guides/web-ui/index.html
+
 # Enterprise
 
 # Reorganized Enterprise into single pager
