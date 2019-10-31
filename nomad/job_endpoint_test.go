@@ -2117,6 +2117,7 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	// Create and register a job
 	job := mock.Job()
 	err := state.UpsertJob(100, job)
+	require.Nil(err)
 
 	// Deregister and purge
 	req := &structs.JobDeregisterRequest{
