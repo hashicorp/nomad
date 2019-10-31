@@ -113,9 +113,11 @@ func NewAgent(config *Config, logger log.Logger, logOutput io.Writer, inmem *met
 	if err := a.setupServer(); err != nil {
 		return nil, err
 	}
+
 	if err := a.setupClient(); err != nil {
 		return nil, err
 	}
+
 	if a.client == nil && a.server == nil {
 		return nil, fmt.Errorf("must have at least client or server mode enabled")
 	}

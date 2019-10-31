@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -24,6 +25,7 @@ import (
 	discover "github.com/hashicorp/go-discover"
 	hclog "github.com/hashicorp/go-hclog"
 	gsyslog "github.com/hashicorp/go-syslog"
+	hcver "github.com/hashicorp/go-version"
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper"
 	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
@@ -35,8 +37,20 @@ import (
 	"github.com/posener/complete"
 )
 
-// gracefulTimeout controls how long we wait before forcefully terminating
-const gracefulTimeout = 5 * time.Second
+const (
+	// gracefulTimeout controls how long we wait before forcefully
+	// terminating.
+	gracefulTimeout = 5 * time.Second
+
+	// agentMetaFile is the name of the file that contains agent metadata
+	// such as Nomad version.
+	agentMetaFile = "nomad.meta.json"
+)
+
+type agentMeta struct {
+	NomadVersion        string `json:"nomad_version"`
+	NomadInitialVersion string `json:"nomad_initial_version"`
+}
 
 // Command is a Command implementation that runs a Nomad agent.
 // The command will not end unless a shutdown message is sent on the
@@ -116,6 +130,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.BoolVar(&cmdConfig.LogJson, "log-json", false, "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
+	flags.BoolVar(&cmdConfig.SkipVersionCheck, "skip-version-check", false, "")
 
 	// Consul options
 	flags.StringVar(&cmdConfig.Consul.Auth, "consul-auth", "", "")
@@ -625,6 +640,17 @@ func (c *Command) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing telemetry: %s", err))
 		return 1
+	}
+
+	// Version check/persistence
+	if config.SkipVersionCheck {
+		c.Ui.Info("Skipping Nomad agent version check")
+	} else {
+		if err := c.handleAgentVersion(config.DataDir); err != nil {
+			c.Ui.Error(fmt.Sprintf("Error performing version check: %s", err))
+			c.Ui.Info("To startup anyway skip version check with -skip-version-check")
+			return 1
+		}
 	}
 
 	// Create the agent
@@ -1138,6 +1164,53 @@ func (c *Command) getAdvertiseAddrSynopsis() string {
 	return b.String()
 }
 
+func (c *Command) handleAgentVersion(dataDir string) error {
+	fn := filepath.Join(dataDir, agentMetaFile)
+
+	f, err := os.Open(fn)
+	if os.IsNotExist(err) {
+		return createAgentVersion(fn)
+	} else if err != nil {
+		return err
+	}
+
+	defer f.Close()
+
+	meta := agentMeta{}
+	if err := json.NewDecoder(f).Decode(&meta); err != nil {
+		return err
+	}
+
+	curVer, err := hcver.NewVersion(version.GetVersion())
+	if err != nil {
+		return fmt.Errorf("error parsing current version: %s", err)
+	}
+
+	lastVer, err := hcver.NewVersion(meta.NomadVersion)
+	if err != nil {
+		return fmt.Errorf("error parsing last version: %s", err)
+	}
+
+	if curVer.Equal(lastVer) {
+		// Versions are the same, no more checks needed
+		return nil
+	}
+
+	// Prevent accidentally downgrading from enterprise to OSS
+	if lastVer.Enterprise && !curVer.Enterprise {
+		return fmt.Errorf("downgrading from enterprise (%s) to open source (%s) is unsupported",
+			lastVer.Enterprise, curVer.Enterprise)
+	}
+
+	curParts := curVer.Segments()
+	lastParts := lastVer.Segments()
+
+	// Prevent accidentally downgrading major versions
+	if curParts[0] > lastParts[0] {
+		return fmt.Errorf("downgrading major versions (%s -> %s) is unsupported", curVer, lastVer)
+	}
+}
+
 func (c *Command) Synopsis() string {
 	return "Runs a Nomad agent"
 }
@@ -1207,9 +1280,14 @@ General Options (clients and servers):
     list of mode configurations:
 
   -dev-connect
-	Start the agent in development mode, but bind to a public network
-	interface rather than localhost for using Consul Connect. This
-	mode is supported only on Linux as root.
+    Start the agent in development mode, but bind to a public network
+    interface rather than localhost for using Consul Connect. This
+    mode is supported only on Linux as root.
+
+  -skip-version-check
+    Skip the Nomad version check at startup. The check protects against
+    unsafe upgrades. Skipping it may cause unrecoverable errors. See
+    https://www.nomadproject.io/guides/upgrade/index.html for details.
 
 Server Options:
 

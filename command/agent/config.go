@@ -168,6 +168,9 @@ type Config struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// SkipVersionCheck skips the agent version check
+	SkipVersionCheck bool `hcl:"skip_version_check"`
 }
 
 // ClientConfig is configuration specific to the client mode

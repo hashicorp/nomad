@@ -5,6 +5,14 @@ import (
 	"fmt"
 )
 
+const (
+	// EntModifier is the metadata suffix appended to enterprise builds.
+	EntModifier = "ent"
+
+	// ProModifier is the metadata suffix appended to pro builds.
+	ProModifier = "pro"
+)
+
 var (
 	// The git commit that was compiled. This will be filled in by the compiler.
 	GitCommit   string
@@ -28,6 +36,7 @@ type VersionInfo struct {
 	Version           string
 	VersionPrerelease string
 	VersionMetadata   string
+	Enterprise        bool
 }
 
 func GetVersion() *VersionInfo {
@@ -46,6 +55,7 @@ func GetVersion() *VersionInfo {
 		Version:           ver,
 		VersionPrerelease: rel,
 		VersionMetadata:   md,
+		Enterprise:        VersionMetadata == EntModifier || VersionMetadata == ProModifier,
 	}
 }
 
