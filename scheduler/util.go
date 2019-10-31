@@ -838,11 +838,17 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 			Tasks: option.TaskResources,
 			Shared: structs.AllocatedSharedResources{
 				DiskMB: int64(newTG.EphemeralDisk.SizeMB),
-				// Since this is an inplace update, we should copy network
-				// information from the original alloc. This is similar to
-				// how we copy network info for task level networks above.
-				Networks: existing.AllocatedResources.Shared.Networks,
 			},
+		}
+
+		// Since this is an inplace update, we should copy network
+		// information from the original alloc. This is similar to how
+		// we copy network info for task level networks above.
+		//
+		// existing.AllocatedResources is nil on Allocations created by
+		// Nomad v0.8 or earlier.
+		if existing.AllocatedResources != nil {
+			newAlloc.AllocatedResources.Shared.Networks = existing.AllocatedResources.Shared.Networks
 		}
 
 		// Use metrics from existing alloc for in place upgrade
