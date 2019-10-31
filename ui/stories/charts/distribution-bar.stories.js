@@ -121,3 +121,33 @@ export const SingleBar = () => {
     },
   };
 };
+
+export const Jumbo = () => {
+  return {
+    template: hbs`
+      <h5 class="title is-5">Jumbo Distribution Bar</h5>
+      <DistributionBar @data={{distributionBarData}} @class="split-view" as |chart|>
+        <ol class="legend">
+          {{#each chart.data as |datum index|}}
+            <li class="{{datum.className}} {{if (eq datum.index chart.activeDatum.index) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
+              <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
+              <span class="value" data-test-legend-value="{{datum.className}}">{{datum.value}}</span>
+              <span class="label">
+                {{datum.label}}
+              </span>
+            </li>
+          {{/each}}
+        </ol>
+      </DistributionBar>
+      <p class='annotation'>A variation of the Distribution Bar component for when the distribution bar is the central component of the page. It's a larger format that requires no interaction to see the data labels and values.</p>
+    `,
+    context: {
+      distributionBarData: [
+        { label: 'one', value: 10 },
+        { label: 'two', value: 20 },
+        { label: 'three', value: 0 },
+        { label: 'four', value: 35 },
+      ],
+    },
+  };
+};
