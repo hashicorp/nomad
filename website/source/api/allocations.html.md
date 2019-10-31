@@ -694,3 +694,74 @@ $ curl -X POST -d '{"Task": "redis" }' \
 ```json
 {}
 ```
+
+## Exec Allocation
+
+This endpoint enables executing a command inside the isolation container where an allocation is running.
+
+| Method | Path                       | Produces                   |
+| ------ | -------------------------- | -------------------------- |
+| `WebSocket` | `/v1/client/allocation/:alloc_id/exec` | websocket json streams |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required         |
+| ---------------- | -------------------- |
+| `NO`            | `namespace:alloc-exec` (and `namespace:alloc-node-exec` if target task uses raw_exec driver) |
+
+### Parameters
+
+- `:alloc_id` `(string: <required>)`- Specifies the UUID of the allocation. This
+  must be the full UUID, not the short 8-character one. This is specified as
+  part of the path.
+- `command` `(string: <required>)` - Specifies the command to be executed.  This
+  must be a json-encoded array of command to be executed, e.g. `["echo", "hi""]`
+  or `["/bin/bash"]`. This is specified as url query paramter.
+- `task` `(string: <required>)` - Specifies the task name, as a url query parameter.
+- `tty` `(bool: false)` - Specifies whether a TTY is allocated for this task, as
+  a url query parameter.
+
+### Request Frames
+
+Request frames represent process `stdin` stream as well as TTY resize events.  The following are valid format
+
+```
+# sending stdin data
+{"stdin": {"data": "...base64 encoded string of bytes ..."}}
+
+# indicating stdin is closed
+{"stdin": {"close": true}}
+
+# indicating that TTY was resized
+{"tty_size": {"height": <character>, "width": <characters>}}
+
+# basic application-level heartbeat
+{}
+```
+
+### Response Frames
+
+Response frames represent process `stdout`, `stderr` output, as well as exit code:
+
+```
+# transferring stdout data
+{"stdout" {"data": "...base64 encoded string of bytes ..."}}
+
+# signaling that host closed stdout
+{"stdout" {"close": true}}
+
+# transferring stderr data
+{"stderr" {"data": "...base64 encoded string of bytes ..."}}
+
+# signaling that host closed stderr
+{"stderr" {"close": true}}
+
+# signaling process exited
+{"exited": true, "result": {"exit_code": <exit_code_int>}}
+
+# basic application-level heartbeat
+{}
+
+```
