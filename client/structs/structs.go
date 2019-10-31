@@ -44,6 +44,9 @@ type MonitorRequest struct {
 	// NodeID is the node we want to track the logs of
 	NodeID string
 
+	// PlainText disables base64 encoding.
+	PlainText bool
+
 	structs.QueryOptions
 }
 

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -244,25 +243,28 @@ type MonitorFrame struct {
 
 // Monitor returns a channel which will receive streaming logs from the agent
 // Providing a non-nil stopCh can be used to close the connection and stop log streaming
-func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *MonitorFrame, error) {
+func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
+
+	errCh := make(chan error, 1)
 	r, err := a.client.newRequest("GET", "/v1/agent/monitor")
 	if err != nil {
-		return nil, err
+		errCh <- err
+		return nil, errCh
 	}
 
 	r.setQueryOptions(q)
 	_, resp, err := requireOK(a.client.doRequest(r))
 	if err != nil {
-		return nil, err
+		errCh <- err
+		return nil, errCh
 	}
 
-	frames := make(chan *MonitorFrame, 10)
+	frames := make(chan *StreamFrame, 10)
 	go func() {
 		defer resp.Body.Close()
-		defer close(frames)
-		scanner := bufio.NewScanner(resp.Body)
 
-	LOOP:
+		dec := json.NewDecoder(resp.Body)
+
 		for {
 			select {
 			case <-stopCh:
@@ -270,17 +272,20 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *Monito
 			default:
 			}
 
-			if scanner.Scan() {
-				var frame MonitorFrame
-				if bytes := scanner.Bytes(); len(bytes) > 0 {
-					frame.Data = bytes
-					frames <- &frame
-				} else {
-					frames <- &frame
-				}
-			} else {
-				break LOOP
+			// Decode the next frame
+			var frame StreamFrame
+			if err := dec.Decode(&frame); err != nil {
+				close(frames)
+				errCh <- err
+				return
 			}
+
+			// Discard heartbeat frame
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			frames <- &frame
 		}
 	}()
 

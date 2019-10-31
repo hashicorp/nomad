@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -10,11 +11,13 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/config"
+	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/ugorji/go/codec"
 )
@@ -71,7 +74,7 @@ func TestMonitor_Monitor(t *testing.T) {
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
 	require.Nil(encoder.Encode(req))
 
-	timeout := time.After(1 * time.Second)
+	timeout := time.After(5 * time.Second)
 	expected := "[DEBUG]"
 	received := ""
 
@@ -86,7 +89,12 @@ OUTER:
 			if msg.Error != nil {
 				t.Fatalf("Got error: %v", msg.Error.Error())
 			}
-			received += string(msg.Payload)
+
+			var frame sframer.StreamFrame
+			err := json.Unmarshal(msg.Payload, &frame)
+			assert.NoError(t, err)
+
+			received += string(frame.Data)
 			if strings.Contains(received, expected) {
 				require.Nil(p2.Close())
 				break OUTER

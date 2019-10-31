@@ -2,11 +2,13 @@ package command
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
@@ -88,38 +90,39 @@ func (c *MonitorCommand) Run(args []string) int {
 	query := &api.QueryOptions{
 		Params: params,
 	}
+
 	eventDoneCh := make(chan struct{})
-	frames, err := client.Agent().Monitor(eventDoneCh, query)
-	if err != nil {
+	frames, errCh := client.Agent().Monitor(eventDoneCh, query)
+	select {
+	case err := <-errCh:
 		c.Ui.Error(fmt.Sprintf("Error starting monitor: %s", err))
 		c.Ui.Error(commandErrorText(c))
 		return 1
+	default:
 	}
 
-	go func() {
-		defer close(eventDoneCh)
-	OUTER:
-		for {
-			select {
-			case frame, ok := <-frames:
-				if !ok {
-					break OUTER
-				}
-				c.Ui.Output(string(frame.Data))
-			}
-		}
+	// Create a reader
+	var r io.ReadCloser
+	frameReader := api.NewFrameReader(frames, errCh, eventDoneCh)
+	frameReader.SetUnblockTime(500 * time.Millisecond)
+	r = frameReader
 
-	}()
+	defer r.Close()
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 
-	select {
-	case <-eventDoneCh:
-		c.Ui.Error("Remote side ended the monitor! This usually means that the\n" +
-			"remote side has exited or crashed.")
+	go func() {
+		<-signalCh
+		// End the streaming
+		r.Close()
+	}()
+
+	_, err = io.Copy(os.Stdout, r)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("error monitoring logs: %s", err))
 		return 1
-	case <-signalCh:
-		return 0
 	}
+
+	return 0
 }
