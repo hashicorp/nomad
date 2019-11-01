@@ -41,4 +41,8 @@ addDecorator(storyFn => {
   };
 });
 
-configure(require.context('../stories', true, /\.stories\.js$/), module);
+configure([
+  require.context('../stories/theme', true, /\.stories\.js$/),
+  require.context('../stories/components', true, /\.stories\.js$/),
+  require.context('../stories/charts', true, /\.stories\.js$/),
+], module);
