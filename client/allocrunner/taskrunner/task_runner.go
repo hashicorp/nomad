@@ -301,7 +301,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		}
 		tr.taskResources = tres
 	} else {
-		// COMPAT(0.10): Upgrade from old resources to new resources
+		// COMPAT(0.11): Upgrade from 0.8 resources to 0.9+ resources
 		// Grab the old task resources
 		oldTr, ok := tr.alloc.TaskResources[tr.taskName]
 		if !ok {

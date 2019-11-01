@@ -127,3 +127,84 @@ func TestConsul_Connect(t *testing.T) {
 		time.Sleep(interval >> 2)
 	}
 }
+
+// TestConsul_Update08Alloc asserts that adding group services to a previously
+// 0.8 alloc works.
+//
+// COMPAT(0.11) Only valid for upgrades from 0.8.
+func TestConsul_Update08Alloc(t *testing.T) {
+	// Create an embedded Consul server
+	testconsul, err := testutil.NewTestServerConfig(func(c *testutil.TestServerConfig) {
+		// If -v wasn't specified squelch consul logging
+		if !testing.Verbose() {
+			c.Stdout = ioutil.Discard
+			c.Stderr = ioutil.Discard
+		}
+	})
+	if err != nil {
+		t.Fatalf("error starting test consul server: %v", err)
+	}
+	defer testconsul.Stop()
+
+	consulConfig := consulapi.DefaultConfig()
+	consulConfig.Address = testconsul.HTTPAddr
+	consulClient, err := consulapi.NewClient(consulConfig)
+	require.NoError(t, err)
+	serviceClient := NewServiceClient(consulClient.Agent(), testlog.HCLogger(t), true)
+
+	// Lower periodicInterval to ensure periodic syncing doesn't improperly
+	// remove Connect services.
+	const interval = 50 * time.Millisecond
+	serviceClient.periodicInterval = interval
+
+	// Disable deregistration probation to test syncing
+	serviceClient.deregisterProbationExpiry = time.Time{}
+
+	go serviceClient.Run()
+	defer serviceClient.Shutdown()
+
+	// Create new 0.10-style alloc
+	alloc := mock.Alloc()
+	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
+		{
+			Mode: "bridge",
+			IP:   "10.0.0.1",
+			DynamicPorts: []structs.Port{
+				{
+					Label: "connect-proxy-testconnect",
+					Value: 9999,
+					To:    9998,
+				},
+			},
+		},
+	}
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	tg.Services = []*structs.Service{
+		{
+			Name:      "testconnect",
+			PortLabel: "9999",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{
+					Proxy: &structs.ConsulProxy{
+						LocalServicePort: 9000,
+					},
+				},
+			},
+		},
+	}
+
+	// Create old 0.8-style alloc from new alloc
+	oldAlloc := alloc.Copy()
+	oldAlloc.AllocatedResources = nil
+	oldAlloc.Job.LookupTaskGroup(alloc.TaskGroup).Services = nil
+
+	// Expect new services to get registered
+	require.NoError(t, serviceClient.UpdateGroup(oldAlloc, alloc))
+
+	// Assert the group and sidecar services are registered
+	require.Eventually(t, func() bool {
+		services, err := consulClient.Agent().Services()
+		require.NoError(t, err)
+		return len(services) == 2
+	}, 3*time.Second, 100*time.Millisecond)
+}
