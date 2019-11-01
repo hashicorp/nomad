@@ -805,7 +805,9 @@ func (noopRestarter) Restart(context.Context, *structs.TaskEvent, bool) error { 
 //
 //TODO(schmichael) rename TaskServices and refactor this into a New method
 func makeAllocTaskServices(alloc *structs.Allocation, tg *structs.TaskGroup) (*TaskServices, error) {
-	if n := len(alloc.AllocatedResources.Shared.Networks); n == 0 {
+	//COMPAT(0.11) AllocatedResources is only nil when upgrading directly
+	//             from 0.8.
+	if alloc.AllocatedResources == nil || len(alloc.AllocatedResources.Shared.Networks) == 0 {
 		return nil, fmt.Errorf("unable to register a group service without a group network")
 	}
 
@@ -865,6 +867,11 @@ func (c *ServiceClient) UpdateGroup(oldAlloc, newAlloc *structs.Allocation) erro
 	oldTG := oldAlloc.Job.LookupTaskGroup(oldAlloc.TaskGroup)
 	if oldTG == nil {
 		return fmt.Errorf("task group %q not in old allocation", oldAlloc.TaskGroup)
+	}
+
+	if len(oldTG.Services) == 0 {
+		// No old group services, simply add new group services
+		return c.RegisterGroup(newAlloc)
 	}
 
 	oldServices, err := makeAllocTaskServices(oldAlloc, oldTG)
