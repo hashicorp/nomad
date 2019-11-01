@@ -85,7 +85,7 @@ SEND_BATCH:
 	close(c.fpInitialized)
 }
 
-// updateNodeFromCSI recieves a CSIInfo struct for the plugin and updates the
+// updateNodeFromCSI receives a CSIInfo struct for the plugin and updates the
 // node accordingly
 func (c *Client) updateNodeFromCSI(name string, info *structs.CSIInfo) {
 	c.configLock.Lock()
@@ -312,7 +312,7 @@ func newBatchNodeUpdates(
 // updateNodeFromCSI implements csimanager.UpdateNodeCSIInfoFunc and is used in
 // the csi manager to send csi fingerprints to the server. Currently it registers
 // all plugins as both controller and node plugins.
-// TODO: seperate node and controller plugin handling.
+// TODO: separate node and controller plugin handling.
 func (b *batchNodeUpdates) updateNodeFromCSI(plugin string, info *structs.CSIInfo) {
 	b.csiMu.Lock()
 	defer b.csiMu.Unlock()
