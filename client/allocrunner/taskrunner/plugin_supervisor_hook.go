@@ -58,11 +58,6 @@ var _ interfaces.TaskPoststartHook = &csiPluginSupervisorHook{}
 // with the catalog and to ensure any mounts are cleaned up.
 var _ interfaces.TaskStopHook = &csiPluginSupervisorHook{}
 
-// pluginStartTimeout is the amount of time after a plugin task has started that
-// nomad will wait for the plugin to start responding correctly before returning
-// an error.
-const pluginStartTimeout = 2 * time.Minute
-
 func newCSIPluginSupervisorHook(csiRootDir string, eventEmitter ti.EventEmitter, runner *TaskRunner, logger hclog.Logger) *csiPluginSupervisorHook {
 	task := runner.Task()
 	pluginRoot := filepath.Join(csiRootDir, string(task.CSIPluginConfig.PluginType), task.CSIPluginConfig.PluginID)
@@ -136,10 +131,10 @@ func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.Tas
 // The supervisor works by:
 // - Initially waiting for the plugin to become available. This loop is expensive
 //   and may do things like create new gRPC Clients on every iteration.
-// - After recieving an initial healthy status, it will inform the plugin catalog
+// - After receiving an initial healthy status, it will inform the plugin catalog
 //   of the plugin, registering it with the plugins fingerprinted capabilities.
 // - We then perform a more lightweight check, simply probing the plugin on a less
-//   frequent interval to ensure it is still alive, emiting task events when this
+//   frequent interval to ensure it is still alive, emitting task events when this
 //   status changes.
 //
 // Deeper fingerprinting of the plugin is not yet implemented, but may happen here
