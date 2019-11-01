@@ -71,7 +71,7 @@ func (c *csiManager) Run() {
 }
 
 func (c *csiManager) runLoop() {
-	// TODO: Subscribe to the events channel from the registry to recieve dynamic
+	// TODO: Subscribe to the events channel from the registry to receive dynamic
 	//       updates without a full resync
 	timer := time.NewTimer(0)
 	for {
