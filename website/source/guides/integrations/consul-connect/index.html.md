@@ -115,6 +115,27 @@ $ sudo mkdir -p /opt/cni/bin
 $ sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
 
+Ensure the your Linux operating system distribution has been configured to allow
+container traffic through the bridge network to be routed via iptables. These
+tunables can be set as follows:
+
+```
+$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-arptables
+$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
+$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
+```
+
+To preserve these settings on startup of a client node, add a file including the
+following to `/etc/sysctl.d/` or remove the file your Linux distribution puts in
+that directory.
+
+```
+net.bridge.bridge-nf-call-arptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+```
+
+
 ## Run the Connect-enabled Services
 
 Once Nomad and Consul are running, submit the following Connect-enabled services
