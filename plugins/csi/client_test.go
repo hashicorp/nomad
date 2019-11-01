@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestClient() (*fake.IdentityClient, Client) {
+func newTestClient() (*fake.IdentityClient, CSIPlugin) {
 	ic := &fake.IdentityClient{}
 	client := &client{
 		identityClient: ic,
