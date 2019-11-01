@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -40,6 +41,22 @@ SEND_BATCH:
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
 
+	// csi updates
+	var csiChanged bool
+	c.batchNodeUpdates.batchCSIUpdates(func(name string, info *structs.CSIInfo) {
+		if c.updateNodeFromCSILocked(name, info) {
+			c.config.Node.CSIControllerPlugins[name] = info
+			if c.config.Node.CSIControllerPlugins[name].UpdateTime.IsZero() {
+				c.config.Node.CSIControllerPlugins[name].UpdateTime = time.Now()
+			}
+			c.config.Node.CSINodePlugins[name] = info
+			if c.config.Node.CSINodePlugins[name].UpdateTime.IsZero() {
+				c.config.Node.CSINodePlugins[name].UpdateTime = time.Now()
+			}
+			csiChanged = true
+		}
+	})
+
 	// driver node updates
 	var driverChanged bool
 	c.batchNodeUpdates.batchDriverUpdates(func(driver string, info *structs.DriverInfo) {
@@ -61,11 +78,91 @@ SEND_BATCH:
 	})
 
 	// only update the node if changes occurred
-	if driverChanged || devicesChanged {
+	if driverChanged || devicesChanged || csiChanged {
 		c.updateNodeLocked()
 	}
 
 	close(c.fpInitialized)
+}
+
+// updateNodeFromCSI recieves a CSIInfo struct for the plugin and updates the
+// node accordingly
+func (c *Client) updateNodeFromCSI(name string, info *structs.CSIInfo) {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	if c.updateNodeFromCSILocked(name, info) {
+		if info.UpdateTime.IsZero() {
+			info.UpdateTime = time.Now()
+		}
+
+		c.config.Node.CSIControllerPlugins[name] = info.Copy()
+		c.config.Node.CSINodePlugins[name] = info.Copy()
+		c.updateNodeLocked()
+	}
+}
+
+// updateNodeFromCSILocked makes the changes to the node from a csi update
+// but does not send the update to the server. c.configLock must be held before
+// calling this func
+func (c *Client) updateNodeFromCSILocked(name string, info *structs.CSIInfo) bool {
+	var changed bool
+
+	oldController, hadController := c.config.Node.CSIControllerPlugins[name]
+	if !hadController {
+		// If the controller info has not yet been set, do that here
+		changed = true
+		c.config.Node.CSIControllerPlugins[name] = info
+	} else {
+		// The controller info has already been set, fix it up
+		if !oldController.IsEqual(info) {
+			c.config.Node.CSIControllerPlugins[name] = info
+			changed = true
+		}
+
+		// If health state has changed, trigger node event
+		if oldController.Healthy != info.Healthy || oldController.HealthDescription != info.HealthDescription {
+			changed = true
+			if info.HealthDescription != "" {
+				event := &structs.NodeEvent{
+					Subsystem: "CSI",
+					Message:   info.HealthDescription,
+					Timestamp: time.Now(),
+					Details:   map[string]string{"plugin": name},
+				}
+				c.triggerNodeEvent(event)
+			}
+		}
+	}
+
+	oldNode, hadNode := c.config.Node.CSINodePlugins[name]
+	if !hadNode {
+		// If the Node info has not yet been set, do that here
+		changed = true
+		c.config.Node.CSINodePlugins[name] = info
+	} else {
+		// The node info has already been set, fix it up
+		if !oldNode.IsEqual(info) {
+			c.config.Node.CSINodePlugins[name] = info
+			changed = true
+		}
+
+		// If health state has changed, trigger node event
+		if oldNode.Healthy != info.Healthy || oldNode.HealthDescription != info.HealthDescription {
+			changed = true
+			if info.HealthDescription != "" {
+				event := &structs.NodeEvent{
+					Subsystem: "CSI",
+					Message:   info.HealthDescription,
+					Timestamp: time.Now(),
+					Details:   map[string]string{"plugin": name},
+				}
+				c.triggerNodeEvent(event)
+			}
+		}
+	}
+
+	return changed
 }
 
 // updateNodeFromDriver receives a DriverInfo struct for the driver and updates
@@ -187,18 +284,64 @@ type batchNodeUpdates struct {
 	devicesBatched bool
 	devicesCB      devicemanager.UpdateNodeDevicesFn
 	devicesMu      sync.Mutex
+
+	// access to csi fields must hold csiMu lock
+	csiNodePlugins       map[string]*structs.CSIInfo
+	csiControllerPlugins map[string]*structs.CSIInfo
+	csiBatched           bool
+	csiCB                csimanager.UpdateNodeCSIInfoFunc
+	csiMu                sync.Mutex
 }
 
 func newBatchNodeUpdates(
 	driverCB drivermanager.UpdateNodeDriverInfoFn,
-	devicesCB devicemanager.UpdateNodeDevicesFn) *batchNodeUpdates {
+	devicesCB devicemanager.UpdateNodeDevicesFn,
+	csiCB csimanager.UpdateNodeCSIInfoFunc) *batchNodeUpdates {
 
 	return &batchNodeUpdates{
-		drivers:   make(map[string]*structs.DriverInfo),
-		driverCB:  driverCB,
-		devices:   []*structs.NodeDeviceResource{},
-		devicesCB: devicesCB,
+		drivers:              make(map[string]*structs.DriverInfo),
+		driverCB:             driverCB,
+		devices:              []*structs.NodeDeviceResource{},
+		devicesCB:            devicesCB,
+		csiNodePlugins:       make(map[string]*structs.CSIInfo),
+		csiControllerPlugins: make(map[string]*structs.CSIInfo),
+		csiCB:                csiCB,
 	}
+}
+
+// updateNodeFromCSI implements csimanager.UpdateNodeCSIInfoFunc and is used in
+// the csi manager to send csi fingerprints to the server. Currently it registers
+// all plugins as both controller and node plugins.
+// TODO: seperate node and controller plugin handling.
+func (b *batchNodeUpdates) updateNodeFromCSI(plugin string, info *structs.CSIInfo) {
+	b.csiMu.Lock()
+	defer b.csiMu.Unlock()
+	if b.csiBatched {
+		b.csiCB(plugin, info)
+		return
+	}
+
+	b.csiNodePlugins[plugin] = info
+	b.csiControllerPlugins[plugin] = info
+}
+
+// batchCSIUpdates sends all of the batched CSI updates by calling f  for each
+// plugin batched
+func (b *batchNodeUpdates) batchCSIUpdates(f csimanager.UpdateNodeCSIInfoFunc) error {
+	b.csiMu.Lock()
+	defer b.csiMu.Unlock()
+	if b.csiBatched {
+		return fmt.Errorf("csi updates already batched")
+	}
+
+	b.csiBatched = true
+	for plugin, info := range b.csiNodePlugins {
+		f(plugin, info)
+	}
+	for plugin, info := range b.csiControllerPlugins {
+		f(plugin, info)
+	}
+	return nil
 }
 
 // updateNodeFromDriver implements drivermanager.UpdateNodeDriverInfoFn and is

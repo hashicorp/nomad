@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/pluginmanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/pluginregistry"
 	"github.com/hashicorp/nomad/client/servers"
@@ -256,6 +257,9 @@ type Client struct {
 	// pluginManagers is the set of PluginManagers registered by the client
 	pluginManagers *pluginmanager.PluginGroup
 
+	// csimanager is responsible for managing csi plugins.
+	csimanager pluginmanager.PluginManager
+
 	// devicemanger is responsible for managing device plugins.
 	devicemanager devicemanager.Manager
 
@@ -343,6 +347,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.batchNodeUpdates = newBatchNodeUpdates(
 		c.updateNodeFromDriver,
 		c.updateNodeFromDevices,
+		c.updateNodeFromCSI,
 	)
 
 	// Initialize the server manager
@@ -389,6 +394,16 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Build the white/blacklists of drivers.
 	allowlistDrivers := cfg.ReadStringListToMap("driver.whitelist")
 	blocklistDrivers := cfg.ReadStringListToMap("driver.blacklist")
+
+	// Setup the csi manager
+	csiConfig := &csimanager.Config{
+		Logger:                c.logger,
+		PluginRegistry:        c.pluginRegistry,
+		UpdateNodeCSIInfoFunc: c.batchNodeUpdates.updateNodeFromCSI,
+	}
+	csiManager := csimanager.New(csiConfig)
+	c.csimanager = csiManager
+	c.pluginManagers.RegisterAndRun(csiManager)
 
 	// Setup the driver manager
 	driverConfig := &drivermanager.Config{
@@ -1281,6 +1296,12 @@ func (c *Client) setupNode() error {
 	}
 	if node.Drivers == nil {
 		node.Drivers = make(map[string]*structs.DriverInfo)
+	}
+	if node.CSIControllerPlugins == nil {
+		node.CSIControllerPlugins = make(map[string]*structs.CSIInfo)
+	}
+	if node.CSINodePlugins == nil {
+		node.CSINodePlugins = make(map[string]*structs.CSIInfo)
 	}
 	if node.Meta == nil {
 		node.Meta = make(map[string]string)
