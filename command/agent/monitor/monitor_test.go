@@ -82,7 +82,7 @@ TEST:
 		select {
 		case <-passed:
 			break TEST
-		case <-time.After(1 * time.Second):
+		case <-time.After(2 * time.Second):
 			require.Fail(t, "expected to see warn dropped messages")
 		}
 	}

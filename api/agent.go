@@ -237,10 +237,6 @@ func (a *Agent) Health() (*AgentHealthResponse, error) {
 	return nil, fmt.Errorf("unable to unmarshal response with status %d: %v", resp.StatusCode, err)
 }
 
-type MonitorFrame struct {
-	Data []byte `json:",omitempty"`
-}
-
 // Monitor returns a channel which will receive streaming logs from the agent
 // Providing a non-nil stopCh can be used to close the connection and stop log streaming
 func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
