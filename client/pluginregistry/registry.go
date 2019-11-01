@@ -17,6 +17,8 @@ type Registry interface {
 	DispensePlugin(ptype, name string) (interface{}, error)
 
 	PluginsUpdatedCh(ctx context.Context, ptype string) <-chan *PluginUpdateEvent
+
+	Shutdown()
 }
 
 type PluginDispenser func(info *PluginInfo) (interface{}, error)
@@ -164,7 +166,21 @@ func (d *dynamicRegistry) DeregisterPlugin(ptype, name string) error {
 }
 
 func (d *dynamicRegistry) ListPlugins(ptype string) []*PluginInfo {
-	return nil
+	d.pluginsLock.RLock()
+	defer d.pluginsLock.RUnlock()
+
+	pmap, ok := d.plugins[ptype]
+	if !ok {
+		return nil
+	}
+
+	plugins := make([]*PluginInfo, 0, len(pmap))
+
+	for _, info := range pmap {
+		plugins = append(plugins, info)
+	}
+
+	return plugins
 }
 
 func (d *dynamicRegistry) DispensePlugin(ptype string, name string) (interface{}, error) {
@@ -207,6 +223,8 @@ func (d *dynamicRegistry) PluginsUpdatedCh(ctx context.Context, ptype string) <-
 	ch := b.subscribe()
 	go func() {
 		select {
+		case <-b.shutdownCh:
+			return
 		case <-ctx.Done():
 			b.unsubscribe(ch)
 		}
@@ -215,9 +233,16 @@ func (d *dynamicRegistry) PluginsUpdatedCh(ctx context.Context, ptype string) <-
 	return ch
 }
 
+func (d *dynamicRegistry) Shutdown() {
+	for _, b := range d.broadcasters {
+		b.shutdown()
+	}
+}
+
 type pluginEventBroadcaster struct {
-	stopCh    chan struct{}
-	publishCh chan *PluginUpdateEvent
+	stopCh     chan struct{}
+	shutdownCh chan struct{}
+	publishCh  chan *PluginUpdateEvent
 
 	subscriptions     map[chan *PluginUpdateEvent]struct{}
 	subscriptionsLock sync.RWMutex
@@ -226,6 +251,7 @@ type pluginEventBroadcaster struct {
 func newPluginEventBroadcaster() *pluginEventBroadcaster {
 	b := &pluginEventBroadcaster{
 		stopCh:        make(chan struct{}),
+		shutdownCh:    make(chan struct{}),
 		publishCh:     make(chan *PluginUpdateEvent, 1),
 		subscriptions: make(map[chan *PluginUpdateEvent]struct{}),
 	}
@@ -237,12 +263,7 @@ func (p *pluginEventBroadcaster) run() {
 	for {
 		select {
 		case <-p.stopCh:
-			p.subscriptionsLock.Lock()
-			for sub := range p.subscriptions {
-				delete(p.subscriptions, sub)
-				close(sub)
-			}
-			p.subscriptionsLock.Unlock()
+			close(p.shutdownCh)
 			return
 		case msg := <-p.publishCh:
 			p.subscriptionsLock.RLock()
@@ -253,6 +274,20 @@ func (p *pluginEventBroadcaster) run() {
 			p.subscriptionsLock.RUnlock()
 		}
 	}
+}
+
+func (p *pluginEventBroadcaster) shutdown() {
+	close(p.stopCh)
+
+	// Wait for loop to exit before closing subscriptions
+	<-p.shutdownCh
+
+	p.subscriptionsLock.Lock()
+	for sub := range p.subscriptions {
+		delete(p.subscriptions, sub)
+		close(sub)
+	}
+	p.subscriptionsLock.Unlock()
 }
 
 func (p *pluginEventBroadcaster) broadcast(e *PluginUpdateEvent) {
@@ -272,6 +307,9 @@ func (p *pluginEventBroadcaster) unsubscribe(ch chan *PluginUpdateEvent) {
 	p.subscriptionsLock.Lock()
 	defer p.subscriptionsLock.Unlock()
 
-	delete(p.subscriptions, ch)
-	close(ch)
+	_, ok := p.subscriptions[ch]
+	if ok {
+		delete(p.subscriptions, ch)
+		close(ch)
+	}
 }
