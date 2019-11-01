@@ -59,7 +59,7 @@ export const HighLowComparison = () => {
       data: EmberObject.extend({
         timerTicks: 0,
 
-        startTimer: function() {
+        startTimer: on('init', function() {
           this.set(
             'timer',
             setInterval(() => {
@@ -78,7 +78,7 @@ export const HighLowComparison = () => {
               );
             }, 1000)
           );
-        }.on('init'),
+        }),
 
         appendTSValue(array, value, maxLength = 300) {
           array.addObject({
