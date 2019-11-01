@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bytes"
 	"fmt"
 	"reflect"
 	"sort"
@@ -320,7 +319,6 @@ func TestAgent_MonitorWithNode(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait for a log message
-	var result bytes.Buffer
 OUTER:
 	for {
 		select {

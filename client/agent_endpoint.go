@@ -29,10 +29,6 @@ func NewAgentEndpoint(c *Client) *Agent {
 	return m
 }
 
-type monitorFrame struct {
-	Data []byte `json:",omitempty"`
-}
-
 func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	defer metrics.MeasureSince([]string{"client", "monitor", "monitor"}, time.Now())
 	defer conn.Close()

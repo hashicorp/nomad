@@ -74,6 +74,13 @@ func (c *MonitorCommand) Run(args []string) int {
 		return 1
 	}
 
+	args = flags.Args()
+	if l := len(args); l != 0 {
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
