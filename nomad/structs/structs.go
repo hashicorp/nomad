@@ -1603,6 +1603,11 @@ type Node struct {
 	// Drivers is a map of driver names to current driver information
 	Drivers map[string]*DriverInfo
 
+	// CSIControllerPlugins is a map of plugin names to current CSI Plugin info
+	CSIControllerPlugins map[string]*CSIInfo
+	// CSINodePlugins is a map of plugin names to current CSI Plugin info
+	CSINodePlugins map[string]*CSIInfo
+
 	// HostVolumes is a map of host volume names to their configuration
 	HostVolumes map[string]*ClientHostVolumeConfig
 
@@ -1649,6 +1654,8 @@ func (n *Node) Copy() *Node {
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	nn.Events = copyNodeEvents(n.Events)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
+	nn.CSIControllerPlugins = copyNodeCSI(nn.CSIControllerPlugins)
+	nn.CSINodePlugins = copyNodeCSI(nn.CSINodePlugins)
 	nn.Drivers = copyNodeDrivers(n.Drivers)
 	nn.HostVolumes = copyNodeHostVolumes(n.HostVolumes)
 	return nn
@@ -1665,6 +1672,21 @@ func copyNodeEvents(events []*NodeEvent) []*NodeEvent {
 	for i, event := range events {
 		c[i] = event.Copy()
 	}
+	return c
+}
+
+// copyNodeCSI is a helper to copy a map of CSIInfo
+func copyNodeCSI(plugins map[string]*CSIInfo) map[string]*CSIInfo {
+	l := len(plugins)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]*CSIInfo, l)
+	for plugin, info := range plugins {
+		c[plugin] = info.Copy()
+	}
+
 	return c
 }
 
