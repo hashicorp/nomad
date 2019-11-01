@@ -1,10 +1,44 @@
 package structs
 
 import (
+	"reflect"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
 )
+
+// CSIInfo is the current state of a single CSI Plugin. This is updated regularly
+// as plugin health changes on the node.
+type CSIInfo struct {
+	PluginID          string
+	Healthy           bool
+	HealthDescription string
+	UpdateTime        time.Time
+
+	// CSI Specific metadata
+	Topology map[string]string
+	NodeID   string
+}
+
+func (c *CSIInfo) Copy() *CSIInfo {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(CSIInfo)
+	*nc = *c
+	nc.Topology = helper.CopyMapStringString(c.Topology)
+
+	return nc
+}
+
+func (c *CSIInfo) IsEqual(o *CSIInfo) bool {
+	nc := *c
+	nc.UpdateTime = time.Time{}
+	no := *o
+	no.UpdateTime = time.Time{}
+	return reflect.DeepEqual(nc, no)
+}
 
 // DriverInfo is the current state of a single driver. This is updated
 // regularly as driver health changes on the node.
