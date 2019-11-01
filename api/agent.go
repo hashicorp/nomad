@@ -289,7 +289,7 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *Stream
 		}
 	}()
 
-	return frames, nil
+	return frames, errCh
 }
 
 // joinResponse is used to decode the response we get while

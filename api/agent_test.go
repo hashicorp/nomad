@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"sort"
@@ -311,22 +312,24 @@ func TestAgent_MonitorWithNode(t *testing.T) {
 		},
 	}
 
-	logCh, err := agent.Monitor(doneCh, q)
-	require.NoError(t, err)
+	frames, errCh := agent.Monitor(doneCh, q)
 	defer close(doneCh)
 
 	// make a request to generate some logs
-	_, err = agent.NodeName()
+	_, err := agent.NodeName()
 	require.NoError(t, err)
 
 	// Wait for a log message
+	var result bytes.Buffer
 OUTER:
 	for {
 		select {
-		case log := <-logCh:
-			if strings.Contains(string(log.Data), "[DEBUG]") {
+		case f := <-frames:
+			if strings.Contains(string(f.Data), "[DEBUG]") {
 				break OUTER
 			}
+		case err := <-errCh:
+			t.Errorf("Error: %v", err)
 		case <-time.After(2 * time.Second):
 			require.Fail(t, "failed to get a DEBUG log message")
 		}
@@ -350,22 +353,26 @@ func TestAgent_Monitor(t *testing.T) {
 	}
 
 	doneCh := make(chan struct{})
-	logCh, err := agent.Monitor(doneCh, q)
-	require.NoError(t, err)
+	frames, errCh := agent.Monitor(doneCh, q)
 	defer close(doneCh)
 
 	// make a request to generate some logs
-	_, err = agent.Region()
+	_, err := agent.Region()
 	require.NoError(t, err)
 
 	// Wait for a log message
 OUTER:
 	for {
 		select {
-		case log := <-logCh:
+		case log := <-frames:
+			if log == nil {
+				continue
+			}
 			if strings.Contains(string(log.Data), "[DEBUG]") {
 				break OUTER
 			}
+		case err := <-errCh:
+			t.Fatalf("error: %v", err)
 		case <-time.After(2 * time.Second):
 			require.Fail(t, "failed to get a DEBUG log message")
 		}

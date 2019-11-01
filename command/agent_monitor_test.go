@@ -14,6 +14,8 @@ func TestMonitorCommand_Implements(t *testing.T) {
 
 func TestMonitorCommand_Fails(t *testing.T) {
 	t.Parallel()
+	srv, _, _ := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &MonitorCommand{Meta: Meta{Ui: ui}}

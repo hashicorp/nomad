@@ -1,14 +1,17 @@
 package nomad
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"strings"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/helper"
@@ -138,9 +141,20 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 		JSONFormat: args.LogJSON,
 	})
 
+	frames := make(chan *sframer.StreamFrame, 32)
+	errCh := make(chan error)
+	var buf bytes.Buffer
+	frameCodec := codec.NewEncoder(&buf, structs.JsonHandle)
+
+	// framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 64*1024)
+	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
+	framer.Run()
+	defer framer.Destroy()
+
+	// goroutine to detect remote side closing
 	go func() {
 		if _, err := conn.Read(nil); err != nil {
-			// One end of the pipe closed, exit
+			// One end of the pipe explicitly closed, exit
 			cancel()
 			return
 		}
@@ -151,14 +165,59 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	}()
 
 	logCh := monitor.Start(stopCh)
+	initialOffset := int64(0)
+
+	// receive logs and build frames
+	go func() {
+		defer framer.Destroy()
+	LOOP:
+		for {
+			select {
+			case log := <-logCh:
+				if err := framer.Send("", "log", log, initialOffset); err != nil {
+					select {
+					case errCh <- err:
+					case <-ctx.Done():
+					}
+					break LOOP
+				}
+			case <-ctx.Done():
+				break LOOP
+			}
+		}
+	}()
 
 	var streamErr error
 OUTER:
 	for {
 		select {
-		case log := <-logCh:
+		case frame, ok := <-frames:
+			if !ok {
+				// frame may have been closed when an error
+				// occurred. Check once more for an error.
+				select {
+				case streamErr = <-errCh:
+					// There was a pending error!
+				default:
+					// No error, continue on
+				}
+
+				break OUTER
+			}
+
 			var resp cstructs.StreamErrWrapper
-			resp.Payload = log
+			if args.PlainText {
+				resp.Payload = frame.Data
+			} else {
+				if err := frameCodec.Encode(frame); err != nil {
+					streamErr = err
+					break OUTER
+				}
+
+				resp.Payload = buf.Bytes()
+				buf.Reset()
+			}
+
 			if err := encoder.Encode(resp); err != nil {
 				streamErr = err
 				break OUTER
@@ -174,11 +233,5 @@ OUTER:
 		if streamErr == io.EOF || strings.Contains(streamErr.Error(), "closed") {
 			return
 		}
-
-		// Attempt to send the error
-		encoder.Encode(&cstructs.StreamErrWrapper{
-			Error: cstructs.NewRpcError(streamErr, helper.Int64ToPtr(500)),
-		})
-		return
 	}
 }

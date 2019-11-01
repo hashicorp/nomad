@@ -298,15 +298,13 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 			tried := 0
 			testutil.WaitForResult(func() (bool, error) {
 				if tried < maxLogAttempts {
-					s.Server.logger.Debug("log that should not be sent")
 					s.Server.logger.Warn("log that should be sent")
 					tried++
 				}
 
 				got := resp.Body.String()
-				want := "[WARN]  http: log that should be sent"
+				want := `{"Data":"`
 				if strings.Contains(got, want) {
-					require.NotContains(t, resp.Body.String(), "[DEBUG]")
 					return true, nil
 				}
 
@@ -344,9 +342,8 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 				}
 
 				out += string(output)
-				want := "[WARN]  http: log that should be sent"
+				want := `{"Data":"`
 				if strings.Contains(out, want) {
-					require.NotContains(t, resp.Body.String(), "[DEBUG]")
 					return true, nil
 				}
 
