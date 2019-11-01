@@ -1,6 +1,9 @@
 /* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
 
+import EmberObject, { computed } from '@ember/object';
+import { on } from '@ember/object/evented';
+
 export default {
   title: 'Charts|Distribution Bar',
 };
@@ -80,10 +83,10 @@ export const LiveUpdating = () => {
       </div>
       `,
     context: {
-      controller: Ember.Object.extend({
+      controller: EmberObject.extend({
         timerTicks: 0,
 
-        startTimer: Ember.on('init', function() {
+        startTimer: on('init', function() {
           this.set(
             'timer',
             setInterval(() => {
@@ -96,7 +99,7 @@ export const LiveUpdating = () => {
           clearInterval(this.timer);
         },
 
-        distributionBarDataRotating: Ember.computed('timerTicks', () => {
+        distributionBarDataRotating: computed('timerTicks', () => {
           return [
             { label: 'one', value: Math.round(Math.random() * 50) },
             { label: 'two', value: Math.round(Math.random() * 50) },

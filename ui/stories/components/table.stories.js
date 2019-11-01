@@ -2,6 +2,8 @@
 import hbs from 'htmlbars-inline-precompile';
 import productMetadata from '../../app/utils/styleguide/product-metadata';
 
+import EmberObject, { computed } from '@ember/object';
+
 export default {
   title: 'Components|Table',
 };
@@ -167,10 +169,10 @@ export const Search = () => {
       <p class='annotation'>Tables compose with boxed-section and boxed-section composes with search box.</p>
         `,
     context: {
-      controller: Ember.Object.extend({
+      controller: EmberObject.extend({
         searchTerm: '',
 
-        filteredShortList: Ember.computed('searchTerm', function() {
+        filteredShortList: computed('searchTerm', function() {
           const term = this.searchTerm.toLowerCase();
           return productMetadata.filter(product => product.name.toLowerCase().includes(term));
         }),
@@ -202,11 +204,11 @@ export const SortableColumns = () => {
       <p class='annotation'>This leaves the component stateless, relying on data to be passed down and sending actions back up via the router (via link-to).</p>
             `,
     context: {
-      controller: Ember.Object.extend({
+      controller: EmberObject.extend({
         sortProperty: 'name',
         sortDescending: false,
 
-        sortedShortList: Ember.computed('sortProperty', 'sortDescending', function() {
+        sortedShortList: computed('sortProperty', 'sortDescending', function() {
           const sorted = productMetadata.sortBy(this.sortProperty);
           return this.sortDescending ? sorted.reverse() : sorted;
         }),
@@ -238,11 +240,11 @@ export const MultiRow = () => {
       <p class='annotation'>The list-table component attempts to be as flexible as possible. For this reason, <code>t.body</code> does not provide the typical <code>tr</code> element. It's sometimes desired to have multiple elements per record.</p>
         `,
     context: {
-      controller: Ember.Object.extend({
+      controller: EmberObject.extend({
         sortProperty: 'name',
         sortDescending: false,
 
-        sortedShortList: Ember.computed('sortProperty', 'sortDescending', function() {
+        sortedShortList: computed('sortProperty', 'sortDescending', function() {
           const sorted = productMetadata.sortBy(this.sortProperty);
           return this.sortDescending ? sorted.reverse() : sorted;
         }),
