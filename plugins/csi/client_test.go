@@ -49,7 +49,7 @@ func TestClient_RPC_PluginProbe(t *testing.T) {
 		},
 		{
 			/* When a SP does not return a ready value, a CO MAY treat this as ready.
-			   We do so becuase example plugins rely on this behaviour. We may
+			   We do so because example plugins rely on this behaviour. We may
 				 re-evaluate this decision in the future. */
 			Name: "returns true for ready when the provider returns a nil wrapper",
 			ProbeResponse: &csipbv1.ProbeResponse{
@@ -92,7 +92,7 @@ func TestClient_RPC_PluginInfo(t *testing.T) {
 			ExpectedErr: fmt.Errorf("some grpc error"),
 		},
 		{
-			Name: "returns an error if we recieve an empty `name`",
+			Name: "returns an error if we receive an empty `name`",
 			InfoResponse: &csipbv1.GetPluginInfoResponse{
 				Name: "",
 			},
