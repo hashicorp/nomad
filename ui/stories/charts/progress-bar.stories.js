@@ -3,7 +3,6 @@ import hbs from 'htmlbars-inline-precompile';
 
 import EmberObject, { computed } from '@ember/object';
 import { on } from '@ember/object/evented';
-import moment from 'moment';
 
 export default {
   title: 'Charts|Progress Bar',
@@ -100,7 +99,7 @@ export const LiveUpdates = () => {
         </p>
       `,
     context: {
-      data: Ember.Object.extend({
+      data: EmberObject.extend({
         timerTicks: 0,
 
         startTimer: on('init', function() {

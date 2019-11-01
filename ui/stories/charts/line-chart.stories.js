@@ -1,7 +1,7 @@
 /* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
 
-import EmberObject, { computed } from '@ember/object';
+import EmberObject from '@ember/object';
 import { on } from '@ember/object/evented';
 import moment from 'moment';
 
