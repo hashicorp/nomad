@@ -138,7 +138,7 @@ Who Uses Nomad
 Contributing to Nomad
 --------------------
 
-If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.12.12+ is *required*, and `gcc-go` is not supported).
+If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.12.13+ is *required*, and `gcc-go` is not supported).
 
 See the [`contributing`](contributing/) directory for more developer documentation.
 
