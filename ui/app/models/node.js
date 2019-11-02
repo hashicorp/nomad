@@ -74,11 +74,15 @@ export default Model.extend({
 
   setEligible() {
     if (this.isEligible) return RSVP.resolve();
+    // Optimistically update schedulingEligibility for immediate feedback
+    this.set('schedulingEligibility', 'eligible');
     return this.store.adapterFor('node').setEligible(this);
   },
 
   setIneligible() {
     if (!this.isEligible) return RSVP.resolve();
+    // Optimistically update schedulingEligibility for immediate feedback
+    this.set('schedulingEligibility', 'ineligible');
     return this.store.adapterFor('node').setIneligible(this);
   },
 
