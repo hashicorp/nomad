@@ -11,7 +11,12 @@
         {{or model.name model.shortId}}
       </h1>
       <p>
-        <label><input type="checkbox" /> Eligible</label>
+        <label>
+          <input type="checkbox" /> Eligible
+          <span class="tooltip" aria-label="Only eligible nodes can receive allocations">
+            {{x-icon "info-circle-outline" class="is-faded"}}
+          </span>
+        </label>
         <span class="tag is-hollow is-small no-text-transform">
           {{model.id}}
           {{copy-button clipboardText=model.id}}
