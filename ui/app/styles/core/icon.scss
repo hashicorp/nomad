@@ -30,6 +30,7 @@ $icon-dimensions-large: 2rem;
 
   &.is-faded {
     fill: $grey-light;
+    color: $grey-light;
   }
 
   @each $name, $pair in $colors {
