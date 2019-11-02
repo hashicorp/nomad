@@ -1,5 +1,11 @@
 {{title "Client " (or model.name model.shortId)}}
 <section class="section">
+  {{#if eligibilityError}}
+    <div data-test-eiligibility-error class="notification is-danger">
+      <h3 class="title is-4" data-test-eiligibility-error-title>Eligibility Error</h3>
+      <p data-test-eligibility-error-message>{{eligibilityError}}</p>
+    </div>
+  {{/if}}
   <div class="toolbar">
     <div class="toolbar-item is-top-aligned is-minimum">
       <span class="title">
@@ -12,8 +18,13 @@
       </h1>
       <p>
         <label>
-          <input type="checkbox" /> Eligible
-          <span class="tooltip" aria-label="Only eligible nodes can receive allocations">
+          <input
+            type="checkbox"
+            checked={{model.isEligible}}
+            disabled={{setEligibility.isRunning}}
+            onchange={{perform setEligibility (not model.isEligible)}}
+          /> Eligible
+          <span class="tooltip" aria-label="Only eligible clients can receive allocations">
             {{x-icon "info-circle-outline" class="is-faded"}}
           </span>
         </label>
