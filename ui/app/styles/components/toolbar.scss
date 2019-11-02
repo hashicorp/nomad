@@ -15,9 +15,17 @@ $spacing: 1.5em;
     align-self: center;
     flex-grow: 1;
 
+    &.is-minimum {
+      flex-grow: 0;
+    }
+
     &.is-right-aligned {
       flex-grow: 0;
       margin-left: auto;
+    }
+
+    &.is-top-aligned {
+      align-self: auto;
     }
 
     &.is-mobile-full-width {
