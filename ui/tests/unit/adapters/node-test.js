@@ -219,6 +219,25 @@ module('Unit | Adapter | Node', function(hooks) {
       'POST request is made with the drain spec, except deadline is not overridden'
     );
   });
+
+  test('cancelDrain makes the correct POST request to /:node_id/drain', async function(assert) {
+    const { pretender } = this.server;
+    const node = await run(() => this.store.findRecord('node', 'node-1'));
+
+    await this.subject().cancelDrain(node);
+
+    const request = pretender.handledRequests.lastObject;
+    assert.equal(request.url, `/v1/node/${node.id}/drain`, 'Request was made to /:node_id/drain');
+    assert.equal(request.method, 'POST', 'Request was made with the POST method');
+    assert.deepEqual(
+      JSON.parse(request.requestBody),
+      {
+        NodeID: node.id,
+        DrainSpec: null,
+      },
+      'POST request is made with a null drain spec'
+    );
+  });
 });
 
 // Using fetchLink on a model's hasMany relationship exercises the adapter's
