@@ -1,13 +1,27 @@
 {{title "Client " (or model.name model.shortId)}}
 <section class="section">
-  <h1 data-test-title class="title">
-    <span data-test-node-status="{{model.compositeStatus}}" class="node-status-light {{model.compositeStatus}}"></span>
-    {{or model.name model.shortId}}
-    <span class="tag is-hollow is-small no-text-transform">
-      {{model.id}}
-      {{copy-button clipboardText=model.id}}
-    </span>
-  </h1>
+  <div class="toolbar">
+    <div class="toolbar-item is-top-aligned is-minimum">
+      <span class="title">
+        <span data-test-node-status="{{model.compositeStatus}}" class="node-status-light {{model.compositeStatus}}"></span>
+      </span>
+    </div>
+    <div class="toolbar-item">
+      <h1 data-test-title class="title with-subheading">
+        {{or model.name model.shortId}}
+      </h1>
+      <p>
+        <label><input type="checkbox" /> Eligible</label>
+        <span class="tag is-hollow is-small no-text-transform">
+          {{model.id}}
+          {{copy-button clipboardText=model.id}}
+        </span>
+      </p>
+    </div>
+    <div class="toolbar-item is-right-aligned is-top-aligned">
+      <button class="button is-primary">Drain</button>
+    </div>
+  </div>
 
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
