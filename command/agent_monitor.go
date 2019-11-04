@@ -22,8 +22,7 @@ func (c *MonitorCommand) Help() string {
 	helpText := `
 Usage: nomad monitor [options]
 
-	Shows recent log messages of a nomad agent, and attaches to the agent,
-	outputting log messagse as they occur in real time. The monitor lets you
+	Stream log messages of a nomad agent. The monitor command lets you
 	listen for log levels that may be filtered out of the Nomad agent. For
 	example your agent may only be logging at INFO level, but with the monitor
 	command you can set -log-level DEBUG
@@ -47,7 +46,7 @@ Monitor Specific Options:
 }
 
 func (c *MonitorCommand) Synopsis() string {
-	return "stream logs from a nomad agent"
+	return "stream logs from a Nomad agent"
 }
 
 func (c *MonitorCommand) Name() string { return "monitor" }
@@ -68,7 +67,7 @@ func (c *MonitorCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&logLevel, "log-level", "", "")
 	flags.StringVar(&nodeID, "node-id", "", "")
-	flags.BoolVar(&logJSON, "log-json", false, "")
+	flags.BoolVar(&logJSON, "json", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
