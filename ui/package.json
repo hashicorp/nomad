@@ -117,7 +117,8 @@
     "@storybook/addon-knobs": "^5.1.10",
     "@storybook/addon-storysource": "^5.1.10",
     "@storybook/addon-viewport": "^5.1.10",
-    "@storybook/addons": "^5.1.10"
+    "@storybook/addons": "^5.1.10",
+    "babel-loader": "^8.0.6"
   },
   "engines": {
     "node": "8.* || >= 10.*"
@@ -129,7 +130,6 @@
     ]
   },
   "dependencies": {
-    "babel-loader": "^8.0.6",
     "lru_map": "^0.3.3"
   },
   "resolutions": {
