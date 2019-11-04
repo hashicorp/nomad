@@ -1,5 +1,8 @@
 ## 0.10.2 (Unreleased)
 
+FEATURES:
+ * core: Add `nomad monitor` command to stream logs at a specified level for debugging [[GH-6499](https://github.com/hashicorp/nomad/issues/6499)]
+
 IMPROVEMENTS:
  * client: Enable setting tags on Consul Connect sidecar service
 
