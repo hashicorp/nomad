@@ -39,7 +39,7 @@ Monitor Specific Options:
   -node-id <node-id>
     Sets the specific node to monitor
 
-  -log-json <true|false>
+  -json
     Sets log output to JSON format
   `
 	return strings.TrimSpace(helpText)

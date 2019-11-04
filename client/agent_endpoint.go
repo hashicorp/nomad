@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/command/agent/monitor"
@@ -159,9 +158,7 @@ OUTER:
 	}
 
 	if streamErr != nil {
-		// Nothing to do as conn is closed
-		if streamErr == io.EOF || strings.Contains(streamErr.Error(), "closed") {
-			return
-		}
+		handleStreamResultError(streamErr, helper.Int64ToPtr(500), encoder)
+		return
 	}
 }
