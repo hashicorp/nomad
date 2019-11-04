@@ -1,5 +1,3 @@
-/* eslint-env node */
-// FIXME Vault has an entry in .eslintignore to skip Storybook altogether…???
 import hbs from 'htmlbars-inline-precompile';
 import { withKnobs, text } from '@storybook/addon-knobs';
 

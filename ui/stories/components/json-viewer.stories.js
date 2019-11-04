@@ -1,4 +1,3 @@
-/* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
 
 const context = {

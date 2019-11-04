@@ -1,4 +1,3 @@
-/* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
 import { withKnobs, optionsKnob } from '@storybook/addon-knobs';
 

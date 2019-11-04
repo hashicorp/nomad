@@ -1,4 +1,3 @@
-/* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
 import productMetadata from '../../app/utils/styleguide/product-metadata';
 
