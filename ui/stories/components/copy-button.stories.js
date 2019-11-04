@@ -5,7 +5,7 @@ import { withKnobs, text } from '@storybook/addon-knobs';
 import notes from './copy-button.md';
 
 export default {
-  title: 'Components|CopyButton',
+  title: 'Components|Copy Button',
   decorators: [withKnobs],
   parameters: {
     notes,
