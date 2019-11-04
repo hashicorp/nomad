@@ -70,7 +70,7 @@ func TestMonitor_DroppedMessages(t *testing.T) {
 			select {
 			case recv := <-logCh:
 				received += string(recv)
-				if strings.Contains(received, "[WARN] Monitor dropped 90 logs during monitor request") {
+				if strings.Contains(received, "[WARN] Monitor dropped") {
 					close(passed)
 				}
 			}
@@ -82,7 +82,7 @@ TEST:
 		select {
 		case <-passed:
 			break TEST
-		case <-time.After(3 * time.Second):
+		case <-time.After(2 * time.Second):
 			require.Fail(t, "expected to see warn dropped messages")
 		}
 	}
