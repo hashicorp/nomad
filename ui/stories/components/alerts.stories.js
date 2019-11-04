@@ -5,10 +5,10 @@ export default {
   title: 'Components|Alerts',
 };
 
-export const Alerts = () => {
+export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Alert</h5>
+      <h5 class="title is-5">Standard Alert</h5>
       <div class="notification is-info">
         <h3 class="title is-4">This is an alert</h3>
         <p>Alerts are used for both situational and reactionary information.</p>

@@ -5,10 +5,10 @@ export default {
   title: 'Components|Search Box',
 };
 
-export const Basic = () => {
+export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Basic Search Basic</h5>
+      <h5 class="title is-5">Search Box</h5>
       <SearchBox
         @searchTerm={{mut searchTerm1}}
         @placeholder="Search things..." />

@@ -15,10 +15,10 @@ const options1 = [
 
 const selection1 = ['option-2', 'option-4', 'option-5'];
 
-export const Basic = () => {
+export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Basic Multi-Select Dropdown</h5>
+      <h5 class="title is-5">Multi-Select Dropdown</h5>
       <MultiSelectDropdown
         @label="Example Dropdown"
         @options={{options1}}

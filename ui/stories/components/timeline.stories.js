@@ -6,10 +6,10 @@ export default {
   title: 'Components|Timeline',
 };
 
-export const Simple = () => {
+export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Simple Timeline</h5>
+      <h5 class="title is-5">Timeline</h5>
       <ol class="timeline">
         <li class="timeline-note">
           {{format-date yesterday}}

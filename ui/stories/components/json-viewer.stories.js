@@ -157,7 +157,7 @@ export default {
   },
 };
 
-export const JsonViewer = () => {
+export const Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">JSON Viewer</h5>

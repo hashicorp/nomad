@@ -10,7 +10,7 @@ export default {
   },
 };
 
-export const Accordion = () => {
+export const Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Accordion</h5>

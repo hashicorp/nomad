@@ -14,10 +14,10 @@ const options = [
   { name: 'Vault' },
 ];
 
-export const Simple = () => {
+export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Simple Dropdown</h5>
+      <h5 class="title is-5">Dropdown</h5>
       <PowerSelect @options={{options}} @selected={{selectedOption}} @searchField="name" @searchEnabled={{gt options.length 10}} @onChange={{action (mut selectedOption)}} as |option|>
         {{option.name}}
       </PowerSelect>

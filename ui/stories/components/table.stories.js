@@ -103,7 +103,7 @@ const longList = [
   { city: 'Arlington', growth: 0.133, population: '379577', rank: '50', state: 'Texas' },
 ];
 
-export const Basic = () => {
+export const Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Table</h5>

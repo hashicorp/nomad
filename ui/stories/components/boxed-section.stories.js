@@ -7,7 +7,7 @@ export default {
   decorators: [withKnobs],
 };
 
-export const BoxedSection = () => {
+export const Standard = () => {
   return {
     template: hbs`
     <h5 class="title is-5">Boxed section</h5>

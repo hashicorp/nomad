@@ -5,7 +5,7 @@ export default {
   title: 'Components|Metrics',
 };
 
-export const Metrics = () => {
+export const Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Metrics</h5>

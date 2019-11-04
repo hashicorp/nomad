@@ -5,10 +5,10 @@ export default {
   title: 'Components|Inline Definitions',
 };
 
-export const Basic = () => {
+export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Basic Inline Definitions</h5>
+      <h5 class="title is-5">Inline Definitions</h5>
       <div class="boxed-section is-small">
         <div class="boxed-section-body inline-definitions">
           <span class="label">Some Label</span>

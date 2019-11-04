@@ -36,7 +36,7 @@ const data2 = [
 export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Standard Line Chart</h5>
+      <h5 class="title is-5">Line Chart</h5>
       <div class="block" style="height:100px; width: 400px;">
         <LineChart @data={{lineChartData}} @xProp="year" @yProp="value" @chartClass="is-primary" />
       </div>

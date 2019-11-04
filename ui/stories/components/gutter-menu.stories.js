@@ -5,7 +5,7 @@ export default {
   title: 'Components|Gutter Menu',
 };
 
-export const GutterMenu = () => {
+export const Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Gutter Menu</h5>

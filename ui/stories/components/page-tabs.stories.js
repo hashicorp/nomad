@@ -5,7 +5,7 @@ export default {
   title: 'Components|Page Tabs',
 };
 
-export const Tabs = () => {
+export const Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Page Tabs</h5>

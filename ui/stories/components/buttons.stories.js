@@ -8,7 +8,7 @@ export default {
 export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Standard Buttons</h5>
+      <h5 class="title is-5">Buttons</h5>
       <div class="block">
         <a class="button">Button</a>
         <a class="button is-white">White</a>

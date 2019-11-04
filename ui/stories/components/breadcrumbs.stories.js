@@ -8,7 +8,7 @@ export default {
 export const Standard = () => {
   return {
     template: hbs`
-    <h5 class="title is-5">Standard breadcrumbs</h5>
+    <h5 class="title is-5">Breadcrumbs</h5>
       <div class="navbar is-secondary">
       <div class="navbar-item"></div>
       <nav class="breadcrumb is-large">

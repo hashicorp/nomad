@@ -5,7 +5,7 @@ export default {
   title: 'Components|Page Title',
 };
 
-export const Basic = () => {
+export const Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Page Title</h5>

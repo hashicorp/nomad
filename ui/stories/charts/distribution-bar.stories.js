@@ -11,7 +11,7 @@ export default {
 export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Standard Distribution Bar</h5>
+      <h5 class="title is-5">Distribution Bar</h5>
       <div class="block" style="height:50px; width:200px;">
         <DistributionBar @data={{distributionBarData}} />
       </div>
