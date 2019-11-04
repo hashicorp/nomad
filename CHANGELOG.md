@@ -3,6 +3,10 @@
 IMPROVEMENTS:
  * client: Enable setting tags on Consul Connect sidecar service
 
+BUG FIXES:
+
+ * cli: Make scoring column orders consistent `nomad alloc status` [[GH-6609](https://github.com/hashicorp/nomad/issues/6609)]
+
 ## 0.10.0 (October 22, 2019)
 
 FEATURES:
