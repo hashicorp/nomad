@@ -148,7 +148,7 @@ const context = {
 };
 
 export default {
-  title: 'Components|JsonViewer',
+  title: 'Components|JSON Viewer',
   parameters: {
     notes,
     options: {

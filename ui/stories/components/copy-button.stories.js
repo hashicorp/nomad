@@ -26,7 +26,3 @@ export const CopyButton = () => {
     },
   };
 };
-
-CopyButton.story = {
-  name: 'CopyButton',
-};

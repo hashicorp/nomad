@@ -4,7 +4,7 @@ import notes from './list-accordion.md';
 import productMetadata from '../../app/utils/styleguide/product-metadata';
 
 export default {
-  title: 'Components|ListAccordion',
+  title: 'Components|Accordion',
   parameters: {
     notes,
   },
