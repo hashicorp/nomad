@@ -10,7 +10,9 @@ export default Component.extend({
   deployments: overridable(() => []),
 
   sortedDeployments: computed('deployments.@each.versionSubmitTime', function() {
-    return this.deployments.sortBy('versionSubmitTime').reverse();
+    return this.deployments
+      .sortBy('versionSubmitTime')
+      .reverse();
   }),
 
   annotatedDeployments: computed('sortedDeployments.@each.version', function() {
