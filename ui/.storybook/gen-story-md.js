@@ -8,8 +8,16 @@ const jsdoc2md = require('jsdoc-to-markdown');
 var args = process.argv.slice(2);
 const name = args[0];
 
+const chartComponentNames = [
+  'distribution-bar',
+  'line-chart',
+  'stats-time-series'
+];
+
+const outputDirectory = chartComponentNames.includes(name) ? 'charts' : 'components';
+
 const inputFile = `app/components/${name}.js`;
-const outputFile = `stories/components/${name}.md`;
+const outputFile = `stories/${outputDirectory}/${name}.md`;
 
 const component = name
   .split('-')
