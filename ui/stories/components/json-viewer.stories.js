@@ -1,6 +1,5 @@
 /* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
-import notes from './json-viewer.md';
 
 const context = {
   jsonSmall: {
@@ -150,7 +149,6 @@ const context = {
 export default {
   title: 'Components|JSON Viewer',
   parameters: {
-    notes,
     options: {
       showPanel: false,
     },

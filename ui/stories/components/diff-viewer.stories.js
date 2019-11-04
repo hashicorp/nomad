@@ -1,12 +1,8 @@
 /* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
-import notes from './job-diff.md';
 
 export default {
   title: 'Components|Diff Viewer',
-  parameters: {
-    notes,
-  },
 };
 
 export const DiffViewerWithInsertions = () => {

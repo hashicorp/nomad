@@ -2,14 +2,10 @@
 // FIXME Vault has an entry in .eslintignore to skip Storybook altogether…???
 import hbs from 'htmlbars-inline-precompile';
 import { withKnobs, text } from '@storybook/addon-knobs';
-import notes from './copy-button.md';
 
 export default {
   title: 'Components|Copy Button',
   decorators: [withKnobs],
-  parameters: {
-    notes,
-  },
 };
 
 export const CopyButton = () => {

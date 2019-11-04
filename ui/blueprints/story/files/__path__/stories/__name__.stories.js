@@ -1,12 +1,8 @@
 /* eslint-env node */
 import hbs from 'htmlbars-inline-precompile';
-<%= importMD %>
 
 export default {
   title: '<%= classifiedModuleName %>',
-  parameters: {
-    notes
-  }
 };
 
 export const <%= classifiedModuleName %> = () => {

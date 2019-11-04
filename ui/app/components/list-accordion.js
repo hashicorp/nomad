@@ -2,11 +2,6 @@ import Component from '@ember/component';
 import { computed, get } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
 
-/**
- * @module ListAccordion
- * `ListAccordion` TODO
- *
- */
 export default Component.extend({
   classNames: ['accordion'],
 
