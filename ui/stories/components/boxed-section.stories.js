@@ -23,7 +23,7 @@ export const Standard = () => {
       </div>
     </div>
     `,
-    context: contextFactory('something'),
+    context: contextFactory(),
   };
 };
 
@@ -45,7 +45,7 @@ export const RightHandDetails = () => {
         </div>
       </div>
   `,
-    context: contextFactory('something'),
+    context: contextFactory(),
   };
 };
 
@@ -127,7 +127,7 @@ export const DarkBody = () => {
   return {
     template: hbs`
     <h5 class="title is-5">Boxed section with dark body</h5>
-    <div class="boxed-section {{variant.slug}}">
+    <div class="boxed-section {{variant}}">
       <div class="boxed-section-head">
         Boxed Section With Dark Body
       </div>
@@ -144,7 +144,6 @@ export const DarkBody = () => {
   };
 };
 
-// FIXME when this was just a const, it caused no knobs to display…?
 function contextFactory() {
   return {
     variant: optionsKnob(
