@@ -1,4 +1,4 @@
-## 0.10.1 (Unreleased)
+## 0.10.2 (Unreleased)
 
 IMPROVEMENTS:
  * client: Enable setting tags on Consul Connect sidecar service
@@ -6,6 +6,17 @@ IMPROVEMENTS:
 BUG FIXES:
 
  * cli: Make scoring column orders consistent `nomad alloc status` [[GH-6609](https://github.com/hashicorp/nomad/issues/6609)]
+ 
+## 0.10.1 (November 4, 2019)
+
+BUG FIXES:
+
+ * core: Fixed server panic when upgrading from 0.8 -> 0.10 and performing an
+   inplace update of an allocation. [[GH-6541](https://github.com/hashicorp/nomad/issues/6541)]
+ * api: Fixed panic when submitting Connect-enabled job without using a bridge
+   network [[GH-6575](https://github.com/hashicorp/nomad/issues/6575)]
+ * client: Fixed client panic when upgrading from 0.8 -> 0.10 and performing an
+   inplace update of an allocation. [[GH-6605](https://github.com/hashicorp/nomad/issues/6605)]
 
 ## 0.10.0 (October 22, 2019)
 
