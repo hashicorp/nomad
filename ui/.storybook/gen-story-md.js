@@ -2,21 +2,14 @@
 /* eslint-disable */
 // run this script via yarn in the ui directory:
 // yarn gen-story-md some-component
-//
-// or if the story is for a component in an in-repo-addon or an engine:
-// yarn gen-story-md some-component name-of-engine
 
 const fs = require('fs');
 const jsdoc2md = require('jsdoc-to-markdown');
 var args = process.argv.slice(2);
 const name = args[0];
-const addonOrEngine = args[1];
-const inputFile = addonOrEngine
-  ? `lib/${addonOrEngine}/addon/components/${name}.js`
-  : `app/components/${name}.js`;
-const outputFile = addonOrEngine ? `lib/${addonOrEngine}/stories/${name}.md` : `stories/components/${name}.md`;
 
-// FIXME can probably remove addon-related code?
+const inputFile = `app/components/${name}.js`;
+const outputFile = `stories/components/${name}.md`;
 
 const component = name
   .split('-')
