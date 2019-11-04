@@ -10,13 +10,12 @@ export const Standard = () => {
       <h5 class="title is-5">Page tabs</h5>
       <div class="tabs">
         <ul>
-          <li><a href="#">Overview</a></li>
-          <li><a href="#" class="is-active">Definition</a></li>
-          <li><a href="#">Versions</a></li>
-          <li><a href="#">Deployments</a></li>
+          <li><a href="#" target="_self">Overview</a></li>
+          <li><a href="#" class="is-active" target="_self">Definition</a></li>
+          <li><a href="#" target="_self">Versions</a></li>
+          <li><a href="#" target="_self">Deployments</a></li>
         </ul>
       </div>
-      <!-- FIXME clicking navigates to the iframe! -->
           `,
   };
 };
@@ -27,7 +26,7 @@ export const Single = () => {
       <h5 class="title is-5">Single page tab</h5>
       <div class="tabs">
         <ul>
-          <li><a href="#" class="is-active">Overview</a></li>
+          <li><a href="#" class="is-active" target="_self">Overview</a></li>
         </ul>
       </div>
           `,
