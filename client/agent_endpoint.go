@@ -77,7 +77,6 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	var buf bytes.Buffer
 	frameCodec := codec.NewEncoder(&buf, structs.JsonHandle)
 
-	// framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 64*1024)
 	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
 	framer.Run()
 	defer framer.Destroy()
