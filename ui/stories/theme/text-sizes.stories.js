@@ -7,7 +7,7 @@ export default {
 export const TextSizing = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Text Sizing</h5>
+      <h5 class="title is-5">Text sizing</h5>
       <div class="block">
         <h1 class="title">Large Title</h1>
         <p>Some prose to follow the large title. Not necessarily meant for reading.</p>

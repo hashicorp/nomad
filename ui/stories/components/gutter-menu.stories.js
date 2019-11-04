@@ -8,7 +8,7 @@ export default {
 export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Gutter Menu</h5>
+      <h5 class="title is-5">Gutter menu</h5>
       <div class="columns">
         <div class="column is-4">
           <div class="gutter">
@@ -40,7 +40,7 @@ export const Standard = () => {
 export const RichComponents = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Gutter Navigation With Rich Components</h5>
+      <h5 class="title is-5">Gutter navigation with rich components</h5>
       <div class="columns">
         <div class="column is-4">
           <div class="gutter">
@@ -80,7 +80,7 @@ export const RichComponents = () => {
 export const ManyItems = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Hypothetical Gutter Navigation With Many Items</h5>
+      <h5 class="title is-5">Hypothetical gutter navigation with many items</h5>
       <div class="columns">
         <div class="column is-4">
           <div class="gutter">
@@ -127,7 +127,7 @@ export const ManyItems = () => {
 export const IconItems = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Hypothetical Gutter Navigation With Icon Items</h5>
+      <h5 class="title is-5">Hypothetical gutter navigation with icon items</h5>
       <div class="columns">
         <div class="column is-4">
           <div class="gutter">
@@ -160,7 +160,7 @@ export const IconItems = () => {
 export const Global = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Global Gutter Navigation</h5>
+      <h5 class="title is-5">Global gutter navigation</h5>
       <div class="columns">
         <div class="column is-4">
           <GutterMenu>

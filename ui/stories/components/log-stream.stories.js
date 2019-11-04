@@ -8,7 +8,7 @@ export default {
 export const LogStream = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Log Stream</h5>
+      <h5 class="title is-5">Log stream</h5>
       <div class="boxed-section">
         <div class="boxed-section-head">
           <span>

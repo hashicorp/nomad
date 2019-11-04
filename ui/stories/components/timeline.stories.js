@@ -52,7 +52,7 @@ export const Standard = () => {
 export const Detailed = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Detailed Timeline</h5>
+      <h5 class="title is-5">Detailed timeline</h5>
       <ol class="timeline">
         <li class="timeline-note">
           {{format-date today}}
@@ -117,7 +117,7 @@ export const Detailed = () => {
 export const Toggling = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Toggling Timeline Objects</h5>
+      <h5 class="title is-5">Toggling timeline objects</h5>
       <ol class="timeline">
         <li class="timeline-note">
           {{format-date today}}
@@ -180,7 +180,7 @@ export const Toggling = () => {
 export const Emphasizing = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Emphasizing Timeline Objects</h5>
+      <h5 class="title is-5">Emphasizing timeline objects</h5>
       <ol class="timeline">
         <li class="timeline-note">
           {{format-date today}}

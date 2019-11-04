@@ -43,7 +43,7 @@ export const Standard = () => {
 export const HighLowComparison = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Stats Time Series High/Low Comparison</h5>
+      <h5 class="title is-5">Stats Time Series high/low comparison</h5>
       <div class="columns">
         <div class="block column" style="height:200px; width:400px">
           <StatsTimeSeries @data={{data.metricsHigh}} @chartClass="is-info" />

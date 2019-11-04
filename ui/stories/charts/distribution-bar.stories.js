@@ -30,7 +30,7 @@ export const Standard = () => {
 export const WithClasses = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Distribution Bar With Classes</h5>
+      <h5 class="title is-5">Distribution Bar with classes</h5>
       <div class="block" style="height:50px; width:200px;">
         <DistributionBar @data={{distributionBarDataWithClasses}} />
       </div>
@@ -49,7 +49,7 @@ export const WithClasses = () => {
 export const Flexibility = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Distribution Bar Flexibility</h5>
+      <h5 class="title is-5">Distribution Bar flexibility</h5>
       <div class="block" style="height:10px; width:600px;">
         <DistributionBar @data={{distributionBarData}} />
       </div>
@@ -71,7 +71,7 @@ export const Flexibility = () => {
 export const LiveUpdating = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Live Updating Distribution Bar</h5>
+      <h5 class="title is-5">Live-updating Distribution Bar</h5>
       <div class="block" style="height:50px; width:600px;">
         <DistributionBar @data={{controller.distributionBarDataRotating}} />
       </div>
@@ -114,7 +114,7 @@ export const LiveUpdating = () => {
 export const SingleBar = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Distribution Bar Single Bar</h5>
+      <h5 class="title is-5">Distribution Bar with single bar</h5>
       <div class="block" style="height:50px; width:600px;">
         <DistributionBar @data={{distributionBarDatum}} />
       </div>

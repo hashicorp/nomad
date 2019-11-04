@@ -8,7 +8,7 @@ export default {
 export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Page Title</h5>
+      <h5 class="title is-5">Page title</h5>
       <div class="mock-spacing">
         <h1 class="title">This is the Page Title</h1>
       </div>
@@ -20,7 +20,7 @@ export const Standard = () => {
 export const AfterElements = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Page Title With After Elements</h5>
+      <h5 class="title is-5">Page title with after elements</h5>
       <div class="mock-spacing">
         <h1 class="title">
           This is the Page Title
@@ -36,7 +36,7 @@ export const AfterElements = () => {
 export const StatusLight = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Page Title With Status Light</h5>
+      <h5 class="title is-5">Page title with status light</h5>
       <div class="mock-spacing">
         <h1 class="title">
           <span class="node-status-light initializing"></span>
@@ -53,7 +53,7 @@ export const StatusLight = () => {
 export const Actions = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">PageTitleWithActions</h5>
+      <h5 class="title is-5">Page title with actions</h5>
       <div class="mock-spacing">
         <h1 class="title">
           <span class="node-status-light initializing"></span>

@@ -12,7 +12,7 @@ export default {
 export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Two Step Button</h5>
+      <h5 class="title is-5">Two-Step Button</h5>
       <br><br>
       <TwoStepButton
         @idleText="Scary Action"
@@ -27,7 +27,7 @@ export const Standard = () => {
 export const InTitle = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Two Step Button in title</h5>
+      <h5 class="title is-5">Two-Step Button in title</h5>
       <br><br>
       <h1 class="title">
         This is a page title
@@ -45,7 +45,7 @@ export const InTitle = () => {
 export const LoadingState = () => {
   return {
     template: hbs`
-    <h5 class="title is-5">Two Step Button loading state</h5>
+    <h5 class="title is-5">Two-Step Button loading state</h5>
     <br><br>
     <h1 class="title">
       This is a page title

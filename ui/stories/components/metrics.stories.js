@@ -23,7 +23,7 @@ export const Standard = () => {
 export const Groups = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Metric Groups</h5>
+      <h5 class="title is-5">Metric groups</h5>
       <div class="metric-group">
         <div class="metric">
           <h3 class="label">Label</h3>
@@ -57,7 +57,7 @@ export const Groups = () => {
 export const Colors = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Metric Colors</h5>
+      <h5 class="title is-5">Metric colors</h5>
       <div class="metric-group">
         <div class="metric is-info">
           <h3 class="label">Info</h3>
@@ -108,7 +108,7 @@ export const Colors = () => {
 export const States = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Metric States</h5>
+      <h5 class="title is-5">Metric states</h5>
       <div class="metric-group">
         <div class="metric is-primary is-faded">
           <h3 class="label">One</h3>

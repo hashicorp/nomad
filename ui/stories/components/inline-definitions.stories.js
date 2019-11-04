@@ -8,7 +8,7 @@ export default {
 export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Inline Definitions</h5>
+      <h5 class="title is-5">Inline definitions</h5>
       <div class="boxed-section is-small">
         <div class="boxed-section-body inline-definitions">
           <span class="label">Some Label</span>
@@ -34,7 +34,7 @@ export const Standard = () => {
 export const Variants = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Inline Definitions Variants</h5>
+      <h5 class="title is-5">Inline definitions variants</h5>
       <div class="boxed-section is-small is-success">
         <div class="boxed-section-body inline-definitions">
           <span class="label">Success Label</span>

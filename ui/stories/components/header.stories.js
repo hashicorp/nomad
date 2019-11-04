@@ -8,7 +8,7 @@ export default {
 export const Header = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Global Header</h5>
+      <h5 class="title is-5">Global header</h5>
       <nav class="navbar is-primary">
         <div class="navbar-brand">
           <span class="gutter-toggle" aria-label="menu">

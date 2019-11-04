@@ -31,7 +31,7 @@ export const Standard = () => {
 export const Outline = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Outline Buttons</h5>
+      <h5 class="title is-5">Outline buttons</h5>
       <div class="block">
         <a class="button is-outlined">Outlined</a>
         <a class="button is-primary is-outlined">Primary</a>
@@ -47,7 +47,7 @@ export const Outline = () => {
 export const Hollow = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Hollow Buttons</h5>
+      <h5 class="title is-5">Hollow buttons</h5>
       <div class="block" style="background:#25BA81; padding:30px">
         <a class="button is-primary is-inverted is-outlined">Primary</a>
         <a class="button is-info is-inverted is-outlined">Info</a>
@@ -62,7 +62,7 @@ export const Hollow = () => {
 export const Sizes = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Button Sizes</h5>
+      <h5 class="title is-5">Button sizes</h5>
       <div class="block">
         <a class="button is-small">Small</a>
         <a class="button">Normal</a>

@@ -8,7 +8,7 @@ export default {
 export const Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Page Tabs</h5>
+      <h5 class="title is-5">Page tabs</h5>
       <div class="tabs">
         <ul>
           <li><a href="#">Overview</a></li>
@@ -25,7 +25,7 @@ export const Standard = () => {
 export const Single = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Single Page Tab</h5>
+      <h5 class="title is-5">Single page tab</h5>
       <div class="tabs">
         <ul>
           <li><a href="#" class="is-active">Overview</a></li>

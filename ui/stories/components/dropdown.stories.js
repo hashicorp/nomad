@@ -51,7 +51,7 @@ export const Resized = () => {
 export const Search = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Dropdown With Search</h5>
+      <h5 class="title is-5">Dropdown with search</h5>
       <div class="columns">
         <div class="column is-3">
           <PowerSelect @options={{manyOptions}} @selected={{selectedOption3}} @searchField="name" @searchEnabled={{gt manyOptions.length 10}} @onChange={{action (mut selectedOption3)}} as |option|>

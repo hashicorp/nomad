@@ -36,7 +36,7 @@ export const Standard = () => {
 export const RightAligned = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Multi-Select Dropdown Right-Aligned</h5>
+      <h5 class="title is-5">Multi-Select Dropdown right-aligned</h5>
       <div style="display:flex; justify-content:flex-end">
         <MultiSelectDropdown
           @label="Example right-aligned Dropdown"
@@ -55,7 +55,7 @@ export const RightAligned = () => {
 export const ManyOptions = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Multi-Select Dropdown With Many Options</h5>
+      <h5 class="title is-5">Multi-Select Dropdown with many options</h5>
       <MultiSelectDropdown
         @label="Lots of options in here"
         @options={{optionsMany}}
@@ -80,7 +80,7 @@ export const ManyOptions = () => {
 export const Bar = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Multi-Select Dropdown Bar</h5>
+      <h5 class="title is-5">Multi-Select Dropdown bar</h5>
       <div class="button-bar">
         <MultiSelectDropdown
           @label="Datacenter"

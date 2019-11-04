@@ -27,7 +27,7 @@ export const Standard = () => {
 export const Colors = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Progress Bar Colors</h5>
+      <h5 class="title is-5">Progress Bar colors</h5>
       <div class="columns">
         <div class="column">
           <div class="inline-chart tooltip" role="tooltip" aria-label="5 / 15">
@@ -77,7 +77,7 @@ export const Colors = () => {
 export const LiveUpdates = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Progress Bar Live Updates</h5>
+      <h5 class="title is-5">Progress Bar with live updates</h5>
       <div class="columns">
         <div class="column is-one-third">
           <div class="inline-chart tooltip" role="tooltip" aria-label="{{data.numerator}} / {{data.denominator}}">

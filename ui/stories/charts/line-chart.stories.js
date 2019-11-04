@@ -54,7 +54,7 @@ export const Standard = () => {
 export const FluidWidth = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Fluid Width Line Chart</h5>
+      <h5 class="title is-5">Fluid-width Line Chart</h5>
       <div class="block" style="height:250px;">
         <LineChart @data={{lineChartData}} @xProp="year" @yProp="value" @chartClass="is-danger" />
       </div>
@@ -73,7 +73,7 @@ export const FluidWidth = () => {
 export const LiveData = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Live Data Line Chart</h5>
+      <h5 class="title is-5">Live data Line Chart</h5>
       <div class="block" style="height:250px">
         <LineChart @data={{controller.lineChartLive}} @xProp="ts" @yProp="val" @timeseries={{true}} @chartClass="is-primary" @xFormat={{controller.secondsFormat}} />
       </div>
@@ -112,7 +112,7 @@ export const LiveData = () => {
 export const Gaps = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Line Chart Data With Gaps</h5>
+      <h5 class="title is-5">Line Chart data with gaps</h5>
       <div class="block" style="height:250px">
         <LineChart @data={{lineChartGapData}} @xProp="year" @yProp="value" @chartClass="is-primary" />
       </div>

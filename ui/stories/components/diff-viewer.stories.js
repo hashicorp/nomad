@@ -12,7 +12,7 @@ export default {
 export const DiffViewerWithInsertions = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Diff Viewer With Insertions</h5>
+      <h5 class="title is-5">Diff Viewer with insertions</h5>
       <div class="boxed-section">
         <div class="boxed-section-body is-dark">
           {{job-diff diff=insertionsOnly}}
@@ -33,7 +33,7 @@ export const DiffViewerWithInsertions = () => {
 export const DiffViewerWithDeletions = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Diff Viewer With Deletions</h5>
+      <h5 class="title is-5">Diff Viewer with deletions</h5>
       <div class="boxed-section">
         <div class="boxed-section-body is-dark">
           {{job-diff diff=deletionsOnly}}
@@ -66,7 +66,7 @@ export const DiffViewerWithDeletions = () => {
 export const DiffViewerWithEdits = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Diff Viewer With Edits</h5>
+      <h5 class="title is-5">Diff Viewer with edits</h5>
       <div class="boxed-section">
         <div class="boxed-section-body is-dark">
           {{job-diff diff=editsOnly}}
@@ -100,7 +100,7 @@ export const DiffViewerWithEdits = () => {
 export const DiffViewerWithManyChanges = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Diff Viewer With Many Changes</h5>
+      <h5 class="title is-5">Diff Viewer with many changes</h5>
       <div class="boxed-section">
         <div class="boxed-section-body is-dark">
           {{job-diff diff=largeDiff}}

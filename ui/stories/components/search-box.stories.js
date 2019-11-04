@@ -21,7 +21,7 @@ export const Standard = () => {
 export const Compact = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Search Box Compact</h5>
+      <h5 class="title is-5">Compact Search Box</h5>
       <SearchBox
         @searchTerm={{mut searchTerm2}}
         @placeholder="Search things..."

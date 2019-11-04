@@ -132,7 +132,7 @@ export const Standard = () => {
 export const Search = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Table Search</h5>
+      <h5 class="title is-5">Table search</h5>
       <div class="boxed-section">
         <div class="boxed-section-head">
           Table Name
@@ -185,7 +185,7 @@ export const SortableColumns = () => {
   return {
     // FIXME sorting doesn’t work?!
     template: hbs`
-      <h5 class="title is-5">Table Sortable Columns</h5>
+      <h5 class="title is-5">Table with sortable columns</h5>
       <ListTable @source={{controller.sortedShortList}} @sortProperty={{controller.sortProperty}} @sortDescending={{controller.sortDescending}} as |t|>
         <t.head>
           <t.sort-by @prop="name">Name</t.sort-by>
@@ -221,7 +221,7 @@ export const MultiRow = () => {
   return {
     // FIXME sorting also broken
     template: hbs`
-      <h5 class="title is-5">Table Multi-Row</h5>
+      <h5 class="title is-5">Multi-row Table</h5>
       <ListTable @source={{controller.sortedShortList}} @sortProperty={{controller.sortProperty}} @sortDescending={{controller.sortDescending}} @class="is-striped" as |t|>
         <t.head>
           <t.sort-by @prop="name">Name</t.sort-by>
@@ -257,7 +257,7 @@ export const Pagination = () => {
   return {
     // FIXME changing pages is also broken 😢
     template: hbs`
-      <h5 class="title is-5">Table Pagination</h5>
+      <h5 class="title is-5">Table pagination</h5>
       <ListPagination @source={{longList}} @size={{5}} @page={{currentPage}} as |p|>
         <ListTable @source={{p.list}} @class="with-foot" as |t|>
           <t.head>
@@ -303,7 +303,7 @@ export const Pagination = () => {
 export const RowLinks = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Table Row Links</h5>
+      <h5 class="title is-5">Table row links</h5>
       <ListTable @source={{shortList}} as |t|>
         <t.head>
           <th>Name</th>
@@ -337,7 +337,7 @@ export const RowLinks = () => {
 export const CellLinks = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Table Cell Links</h5>
+      <h5 class="title is-5">Table cell links</h5>
       <ListTable @source={{shortList}} as |t|>
         <t.head>
           <th>Name</th>
@@ -363,7 +363,7 @@ export const CellLinks = () => {
 export const CellDecorations = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Table Cell Decorations</h5>
+      <h5 class="title is-5">Table cell decorations</h5>
       <ListTable @source={{shortList}} as |t|>
         <t.head>
           <th>Name</th>
@@ -395,7 +395,7 @@ export const CellIcons = () => {
   return {
     // FIXME pagination also broken
     template: hbs`
-      <h5 class="title is-5">Table Cell Icons</h5>
+      <h5 class="title is-5">Table cell icons</h5>
       <ListPagination @source={{longList}} @size={{5}} @page={{currentPage}} as |p|>
       <ListTable @source={{p.list}} @class="with-foot" as |t|>
         <t.head>
