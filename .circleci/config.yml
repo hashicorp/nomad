@@ -61,8 +61,6 @@ workflows:
           test_packages: "./client/fingerprint"
           goarch: "386"
           <<: *IGNORE_FOR_UI_BRANCHES
-      - test-rkt:
-          <<: *IGNORE_FOR_UI_BRANCHES
       - test-e2e:
           <<: *IGNORE_FOR_UI_BRANCHES
       - test-ui
@@ -177,32 +175,6 @@ jobs:
     steps:
       - checkout
       - run: make test-website
-
-  test-rkt:
-    executor: go-machine-recent
-    environment:
-      <<: *COMMON_ENVS
-      GOTEST_PKGS: "./drivers/rkt"
-      GOPATH: /home/circleci/go
-      RKT_VERSION: 1.29.0
-    steps:
-      - checkout
-      - install-golang
-      - install-protoc
-      - run:
-          name: install rkt
-          command: |
-            gpg --recv-key 18AD5014C99EF7E3BA5F6CE950BDD3E0FC8A365E
-            wget https://github.com/rkt/rkt/releases/download/v$RKT_VERSION/rkt_$RKT_VERSION-1_amd64.deb
-            wget https://github.com/rkt/rkt/releases/download/v$RKT_VERSION/rkt_$RKT_VERSION-1_amd64.deb.asc
-            gpg --verify rkt_$RKT_VERSION-1_amd64.deb.asc
-            sudo dpkg -i rkt_$RKT_VERSION-1_amd64.deb
-      - run: PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make bootstrap
-      - run-tests
-      - store_test_results:
-          path: /tmp/test-reports
-      - store_artifacts:
-          path: /tmp/test-reports
 
   test-machine:
     executor: "<< parameters.executor >>"
@@ -326,7 +298,7 @@ commands:
     parameters:
       version:
         type: string
-        default: 1.0.0
+        default: 1.2.3
     steps:
       - run:
           name: Install Vault << parameters.version >>

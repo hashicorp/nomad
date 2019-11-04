@@ -12,7 +12,7 @@ The `status` command displays the status output for any Nomad resource.
 
 ## Usage
 
-```
+```plaintext
 nomad status [options] <identifier>
 ```
 
@@ -31,7 +31,7 @@ for backwards compatibility and should not be relied on.
 
 Display the status of a job:
 
-```
+```shell
 $ nomad status example
 ID            = example
 Name          = example
@@ -63,7 +63,7 @@ e1d14a39  f9dabe93  cache       0        run      running  08/28/17 23:01:39 UTC
 
 Display the status of an allocation:
 
-```
+```shell
 $ nomad status e1d14a39
 ID                  = e1d14a39
 Eval ID             = cc882755
@@ -99,7 +99,7 @@ Time                   Type        Description
 
 Display the status of a deployment:
 
-```
+```shell
 $ nomad status f5506391
 ID          = f5506391
 Job ID      = example
@@ -114,7 +114,7 @@ cache       1        1       1        0
 
 Display the status of a node:
 
-```
+```shell
 $ nomad status f9dabe93
 ID      = f9dabe93
 Name    = nomad-server01

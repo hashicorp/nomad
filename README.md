@@ -107,7 +107,7 @@ Who Uses Nomad
   * [Nomad at Target:  Scaling Microservices Across Public and Private Clouds](https://www.hashicorp.com/resources/nomad-scaling-target-microservices-across-cloud)
   * [Playing with Nomad from HashiCorp](https://danielparker.me/nomad/hashicorp/schedulers/nomad/)
 * Trivago
-  * [Maybe You Don’t Need Kubernetes](https://matthias-endler.de/2019/maybe-you-dont-need-kubernetes/)
+  * [Maybe You Don’t Need Kubernetes](https://endler.dev/2019/maybe-you-dont-need-kubernetes/)
   * [Nomad - Our Experiences and Best Practices](https://tech.trivago.com/2019/01/25/nomad-our-experiences-and-best-practices/)
 * Roblox
   * [How Roblox runs a platform for 70 million gamers on HashiCorp Nomad](https://portworx.com/architects-corner-roblox-runs-platform-70-million-gamers-hashicorp-nomad/)
@@ -123,8 +123,6 @@ Who Uses Nomad
   * [Tech at N26 - The Bank in the Cloud](https://medium.com/insiden26/tech-at-n26-the-bank-in-the-cloud-e5ff818b528b)
 * Elsevier
   * [Eslevier’s Container Framework with Nomad, Terraform, and Consul](https://www.hashicorp.com/resources/elsevier-nomad-container-framework-demo)
-* Palantir
-  * [Enterprise Security at Palantir with the HashiCorp stack](https://www.hashicorp.com/resources/enterprise-security-hashicorp-stack)
 * Graymeta
   * [Backend Batch Processing At Scale with Nomad](https://www.hashicorp.com/resources/backend-batch-processing-nomad)
 * NIH NCBI

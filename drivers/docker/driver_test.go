@@ -905,7 +905,8 @@ func TestDockerDriver_Labels(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	require.Equal(t, 2, len(container.Config.Labels))
+	// expect to see 1 additional standard labels
+	require.Equal(t, len(cfg.Labels)+1, len(container.Config.Labels))
 	for k, v := range cfg.Labels {
 		require.Equal(t, v, container.Config.Labels[k])
 	}
@@ -1006,6 +1007,56 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 	// Container name should be /<task_name>-<alloc_id> for backward compat
 	containerName := fmt.Sprintf("%s-%s", strings.Replace(task.Name, "/", "_", -1), task.AllocID)
 	require.Equal(t, containerName, c.Name)
+}
+
+func TestDockerDriver_CreateContainerConfig_User(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, _ := dockerTask(t)
+	task.User = "random-user-1"
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	require.Equal(t, task.User, c.Config.User)
+}
+
+func TestDockerDriver_CreateContainerConfig_Labels(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, _ := dockerTask(t)
+	task.AllocID = uuid.Generate()
+	task.JobName = "redis-demo-job"
+
+	cfg.Labels = map[string]string{
+		"user_label": "user_value",
+
+		// com.hashicorp.nomad. labels are reserved and
+		// cannot be overridden
+		"com.hashicorp.nomad.alloc_id": "bad_value",
+	}
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	expectedLabels := map[string]string{
+		// user provided labels
+		"user_label": "user_value",
+		// default labels
+		"com.hashicorp.nomad.alloc_id": task.AllocID,
+	}
+
+	require.Equal(t, expectedLabels, c.Config.Labels)
 }
 
 func TestDockerDriver_CreateContainerConfig_Logging(t *testing.T) {

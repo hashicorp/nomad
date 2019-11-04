@@ -82,13 +82,15 @@ export default Component.extend(WindowResizable, {
     });
 
     // Follow the log if the scroll position is near the bottom of the cli window
-    this.logger.on('tick', () => {
-      run.scheduleOnce('afterRender', () => this.synchronizeScrollPosition());
-    });
+    this.logger.on('tick', this, 'scheduleScrollSynchronization');
 
     yield this.logger.startStreaming();
-    this.logger.off('tick');
+    this.logger.off('tick', this, 'scheduleScrollSynchronization');
   }),
+
+  scheduleScrollSynchronization() {
+    run.scheduleOnce('afterRender', () => this.synchronizeScrollPosition());
+  },
 
   willDestroy() {
     this.logger.stop();

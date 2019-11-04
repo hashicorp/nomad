@@ -1,5 +1,7 @@
 #inner {
-  p, li, .alert {
+  p,
+  li,
+  .alert {
     font-size: $font-size;
     font-family: $font-family-open-sans;
     font-weight: $font-weight-reg;
@@ -52,9 +54,9 @@
   img {
     display: block;
     margin: 25px auto;
-    max-width: 650px;
+    max-width: 95%;
     height: auto;
-    width: 90%;
+    width: auto;
   }
 
   h1,
@@ -76,7 +78,7 @@
   h2 > code,
   h3 > code,
   h4 > code,
-  h5 > code
+  h5 > code,
   h6 > code,
   li code,
   table code,

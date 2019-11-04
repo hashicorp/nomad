@@ -110,6 +110,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
 			return structs.ErrPermissionDenied
 		}
+
 		// Validate Volume Permsissions
 		for _, tg := range args.Job.TaskGroups {
 			for _, vol := range tg.Volumes {
@@ -127,6 +128,16 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 					}
 				} else {
 					if !aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadWrite) {
+						return structs.ErrPermissionDenied
+					}
+				}
+			}
+
+			for _, t := range tg.Tasks {
+				for _, vm := range t.VolumeMounts {
+					vol := tg.Volumes[vm.Volume]
+					if vm.PropagationMode == structs.VolumeMountPropagationBidirectional &&
+						!aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadWrite) {
 						return structs.ErrPermissionDenied
 					}
 				}

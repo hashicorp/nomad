@@ -1,11 +1,12 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { on } from '@ember/object/evented';
 import d3TimeFormat from 'd3-time-format';
 
 export default Component.extend({
   timerTicks: 0,
 
-  startTimer: function() {
+  startTimer: on('init', function() {
     this.set(
       'timer',
       setInterval(() => {
@@ -18,7 +19,7 @@ export default Component.extend({
         }
       }, 500)
     );
-  }.on('init'),
+  }),
 
   willDestroy() {
     clearInterval(this.timer);

@@ -43,7 +43,7 @@ configuration, Nomad will automatically connect and configure with Consul.
 
 An important requirement is that each Nomad agent talks to a unique Consul
 agent. Nomad agents should be configured to talk to Consul agents and not
-Consul servers. If you are observing flapping services, you may have have
+Consul servers. If you are observing flapping services, you may have 
 multiple Nomad agents talking to the same Consul agent. As such avoid
 configuring Nomad to talk to Consul via DNS such as consul.service.consul
 

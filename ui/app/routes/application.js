@@ -1,7 +1,7 @@
 import { inject as service } from '@ember/service';
 import { next } from '@ember/runloop';
 import Route from '@ember/routing/route';
-import { AbortError } from 'ember-data/adapters/errors';
+import { AbortError } from '@ember-data/adapter/error';
 import RSVP from 'rsvp';
 
 export default Route.extend({
@@ -26,7 +26,7 @@ export default Route.extend({
       promises => {
         if (!this.get('system.shouldShowRegions')) return promises;
 
-        const queryParam = transition.queryParams.region;
+        const queryParam = transition.to.queryParams.region;
         const defaultRegion = this.get('system.defaultRegion.region');
         const currentRegion = this.get('system.activeRegion') || defaultRegion;
 

@@ -1480,6 +1480,7 @@ func newConnect(serviceName string, nc *structs.ConsulConnect, networks structs.
 
 	// Advertise host IP:port
 	cc.SidecarService = &api.AgentServiceRegistration{
+		Tags:    helper.CopySliceString(nc.SidecarService.Tags),
 		Address: net.IP,
 		Port:    port.Value,
 

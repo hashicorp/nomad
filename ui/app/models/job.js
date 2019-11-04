@@ -144,9 +144,7 @@ export default Model.extend({
   }),
 
   hasBlockedEvaluation: computed('evaluations.@each.isBlocked', function() {
-    return this.evaluations
-      .toArray()
-      .some(evaluation => evaluation.get('isBlocked'));
+    return this.evaluations.toArray().some(evaluation => evaluation.get('isBlocked'));
   }),
 
   hasPlacementFailures: and('latestFailureEvaluation', 'hasBlockedEvaluation'),
@@ -246,7 +244,7 @@ export default Model.extend({
     const id = payload.Name;
 
     this.set('plainId', id);
-    this.set('id', JSON.stringify([id, namespace]));
+    this.set('_idBeforeSaving', JSON.stringify([id, namespace]));
 
     const namespaceRecord = this.store.peekRecord('namespace', namespace);
     if (namespaceRecord) {

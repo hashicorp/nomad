@@ -15,12 +15,12 @@ roll back to a stable version.
 
 ## Usage
 
-```
+```plaintext
 nomad deployment fail [options] <deployment id>
 ```
 
 The `deployment fail` command requires a single argument, a deployment ID or
-prefix. 
+prefix.
 
 ## General Options
 
@@ -28,17 +28,17 @@ prefix.
 
 ## Fail Options
 
-* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+- `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
-  [eval status](/docs/commands/eval-status.html) command.
+  [eval status] command.
 
-* `-verbose`: Show full information.
+- `-verbose`: Show full information.
 
 ## Examples
 
 Manually mark an ongoing deployment as failed:
 
-```
+```shell
 $ nomad deployment fail 8990cfbc
 Deployment "8990cfbc-28c0-cb28-ca31-856cf691b987" failed
 
@@ -59,3 +59,5 @@ Deployed
 Task Group  Desired  Placed  Healthy  Unhealthy
 cache       3        2       1        0
 ```
+
+[eval status]: /docs/commands/eval-status.html

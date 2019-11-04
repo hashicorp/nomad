@@ -21,6 +21,8 @@ job "foo" {
 
       connect {
         sidecar_service {
+          tags = ["side1", "side2"]
+
           proxy {
             local_service_port = 8080
 

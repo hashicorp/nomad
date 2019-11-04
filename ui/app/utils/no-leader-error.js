@@ -1,4 +1,4 @@
-import { AdapterError } from 'ember-data/adapters/errors';
+import AdapterError from '@ember-data/adapter/error';
 
 export const NO_LEADER = 'No cluster leader';
 
