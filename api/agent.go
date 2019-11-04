@@ -263,6 +263,7 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *Stream
 		for {
 			select {
 			case <-stopCh:
+				close(frames)
 				return
 			default:
 			}

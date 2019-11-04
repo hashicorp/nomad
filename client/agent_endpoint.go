@@ -30,7 +30,7 @@ func NewAgentEndpoint(c *Client) *Agent {
 }
 
 func (m *Agent) monitor(conn io.ReadWriteCloser) {
-	defer metrics.MeasureSince([]string{"client", "monitor", "monitor"}, time.Now())
+	defer metrics.MeasureSince([]string{"client", "agent", "monitor"}, time.Now())
 	defer conn.Close()
 
 	// Decode arguments
