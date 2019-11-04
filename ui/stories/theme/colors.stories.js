@@ -7,7 +7,6 @@ export default {
 export const Colors = () => {
   return {
     template: hbs`
-      {{!-- FIXME replace with a non-Freestyle solution? --}}
       <FreestylePalette @colorPalette={{nomadTheme}} @title="Nomad Theme" @description="Accent and neutrals." />
 
       <FreestylePalette @colorPalette={{productColors}} @title="Product Colors" @description="Colors from other HashiCorp products. Often borrowed for alternative accents and color schemes." />

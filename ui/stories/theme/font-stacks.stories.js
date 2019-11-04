@@ -11,7 +11,6 @@ export const FontStacks = () => {
 
       {{#each fontFamilies as |fontFamily|}}
         <h6 class="title is-6 with-headroom">{{fontFamily}}</h6>
-        {{!- FIXME replace with a non-Freestyle solution? --}}
         <FreestyleTypeface @fontFamily={{fontFamily}} />
 
       {{/each}}
