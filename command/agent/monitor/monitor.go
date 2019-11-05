@@ -81,29 +81,32 @@ func (d *monitor) Start() <-chan []byte {
 	d.logger.RegisterSink(d.sink)
 
 	streamCh := make(chan []byte, d.bufSize)
+
+	// run a go routine that listens for streamed
+	// log messages and sends them to streamCh
 	go func() {
-		defer close(streamCh)
+		defer func() {
+			d.logger.DeregisterSink(d.sink)
+			close(streamCh)
+		}()
+
 		for {
 			select {
 			case log := <-d.logCh:
 				select {
 				case <-d.doneCh:
-					d.logger.DeregisterSink(d.sink)
-					close(d.logCh)
 					return
 				case streamCh <- log:
 				}
 			case <-d.doneCh:
-				d.Lock()
-				defer d.Unlock()
-
-				d.logger.DeregisterSink(d.sink)
-				close(d.logCh)
 				return
 			}
 		}
 	}()
 
+	// run a go routine that periodically checks for
+	// dropped messages and makes room on the logCh
+	// to add a dropped message count warning
 	go func() {
 		// loop and check for dropped messages
 	LOOP:
