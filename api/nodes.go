@@ -335,7 +335,7 @@ func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys
 
 		// Exit if all allocs are terminal
 		if runningAllocs == 0 {
-			msg := Messagef(MonitorMsgLevelInfo, "All allocations on node %q have stopped.", nodeID)
+			msg := Messagef(MonitorMsgLevelInfo, "All allocations on node %q have stopped", nodeID)
 			select {
 			case allocCh <- msg:
 			case <-ctx.Done():
