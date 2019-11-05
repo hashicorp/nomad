@@ -24,7 +24,7 @@ export const Standard = () => {
           <p><a href="{{ac.item.link}}">Learn more...</a></p>
         </ac.body>
       </ListAccordion>
-          `,
+      `,
     context: {
       products: productMetadata,
     },
@@ -50,7 +50,7 @@ export const OneItem = () => {
           <p><a href="{{a.item.link}}">Learn more...</a></p>
         </a.body>
       </ListAccordion>
-          `,
+      `,
     context: {
       products: productMetadata,
     },
@@ -76,7 +76,7 @@ export const NotExpandable = () => {
           <p><a href="{{a.item.link}}">Learn more...</a></p>
         </a.body>
       </ListAccordion>
-          `,
+      `,
     context: {
       products: productMetadata,
     },

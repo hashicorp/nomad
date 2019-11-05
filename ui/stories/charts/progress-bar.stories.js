@@ -19,7 +19,7 @@ export const Standard = () => {
           0.33
         </progress>
       </div>
-        `,
+      `,
   };
 };
 
@@ -69,7 +69,7 @@ export const Colors = () => {
           </div>
         </div>
       </div>
-        `,
+      `,
   };
 };
 

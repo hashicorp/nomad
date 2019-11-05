@@ -14,7 +14,7 @@ export const CopyButton = () => {
         {{clipboardText}}
         <CopyButton @clipboardText={{clipboardText}} />
       </span>
-    `,
+      `,
     context: {
       clipboardText: text('Clipboard Text', 'e8c898a0-794b-9063-7a7f-bf0c4a405f83'),
     },

@@ -18,7 +18,7 @@ export const Standard = () => {
       {{#if delayedTruth.complete}}
         <JsonViewer @json={{jsonSmall}} />
       {{/if}}
-    `,
+      `,
     context: {
       delayedTruth: DelayedTruth.create(),
       jsonSmall: {
@@ -46,7 +46,7 @@ export const FullDocument = () => {
       {{#if delayedTruth.complete}}
         <JsonViewer @json={{jsonLarge}} />
       {{/if}}
-    `,
+      `,
     context: {
       delayedTruth: DelayedTruth.create(),
       jsonLarge: {

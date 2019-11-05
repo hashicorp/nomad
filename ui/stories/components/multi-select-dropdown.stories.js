@@ -24,7 +24,7 @@ export const Standard = () => {
         @selection={{selection1}}
         @onSelect={{action (mut selection1)}} />
       <p class='annotation'>A wrapper around basic-dropdown for creating a list of checkboxes and tracking the state thereof.</p>
-        `,
+      `,
     context: {
       options1,
       selection1,
@@ -43,7 +43,7 @@ export const RightAligned = () => {
           @selection={{selection1}}
           @onSelect={{action (mut selection1)}} />
       </div>
-        `,
+      `,
     context: {
       options1,
       selection1,
@@ -66,7 +66,7 @@ export const ManyOptions = () => {
         can become an adventure of scrolling up and down. Also since the selection isn't pinned, this component can't support search, since search would
         entirely mask the selection.
       </p>
-        `,
+      `,
     context: {
       optionsMany: Array(100)
         .fill(null)
@@ -97,11 +97,11 @@ export const Bar = () => {
           @selection={{selectionStatus}}
           @onSelect={{action (mut selectionStatus)}} />
       </div>
-        <p class='annotation'>
-          Since this is a core component for faceted search, it makes sense to construct an arrangement of multi-select dropdowns.
-          Do this by wrapping all the options in a <code>.button-bar</code> container.
-        </p>
-        `,
+      <p class='annotation'>
+        Since this is a core component for faceted search, it makes sense to construct an arrangement of multi-select dropdowns.
+        Do this by wrapping all the options in a <code>.button-bar</code> container.
+      </p>
+      `,
     context: {
       optionsDatacenter: [
         { key: 'pdx-1', label: 'pdx-1' },

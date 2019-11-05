@@ -32,7 +32,7 @@ export const Standard = () => {
           </div>
         </div>
       </div>
-        `,
+      `,
   };
 };
 
@@ -72,7 +72,7 @@ export const RichComponents = () => {
         </div>
       </div>
       <p class='annotation'>In order to keep the gutter navigation streamlined and easy to navigation, rich components should be avoided when possible. When not possible, they should be kept near the top.</p>
-        `,
+      `,
   };
 };
 
@@ -119,7 +119,7 @@ export const ManyItems = () => {
         </div>
       </div>
       <p class='annotation'>There will only ever be one gutter menu in the Nomad UI, but it helps to imagine a situation where there are many navigation items in the gutter.</p>
-        `,
+      `,
   };
 };
 
@@ -152,7 +152,7 @@ export const IconItems = () => {
         </div>
       </div>
       <p class='annotation'>In the future, the gutter menu may have icons.</p>
-        `,
+      `,
   };
 };
 
@@ -169,6 +169,6 @@ export const Global = () => {
       </div>
       <p class='annotation'>Since there will only ever be one gutter menu in the UI, it makes sense to express the menu as a singleton component. This is what that singleton component looks like.</p>
       <p class='annotation'><strong>Note:</strong> Normally the gutter menu is rendered within a page layout and is fixed position. The columns shown in this example are only to imitate the actual width without applying fixed positioning.</p>
-        `,
+      `,
   };
 };

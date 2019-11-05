@@ -15,7 +15,7 @@ export const Standard = () => {
         </div>
       </div>
       <p class='annotation'>Metrics are a way to show simple values (generally numbers). Labels are smaller than numbers to put emphasis on the data.</p>
-        `,
+      `,
   };
 };
 
@@ -49,7 +49,7 @@ export const Groups = () => {
         </div>
       </div>
       <p class='annotation'>Related metrics should be lumped together in metric groups. All metrics have to be in a metric group. By putting multiple metrics in a single group, they will be visually lumped together.</p>
-        `,
+      `,
   };
 };
 
@@ -100,7 +100,7 @@ export const Colors = () => {
       </div>
       <p class='annotation'>All color-modifiers work for metrics, but some work better than others.</p>
       <p class='annotation'>Emotive colors work well and are put to use when applicable. Other colors have worse support and less utility.</p>
-        `,
+      `,
   };
 };
 
@@ -138,6 +138,6 @@ export const States = () => {
         </div>
       </div>
       <p class='annotation'>Metrics have a disabled state. This is used when a metric is non-existent or irrelevant. It's just as important to show the lack of value as it is to show a value, so simply not rendering non-existent or irrelevant metrics would be worse.</p>
-        `,
+      `,
   };
 };

@@ -21,7 +21,7 @@ export const Standard = () => {
         {{option.name}}
       </PowerSelect>
       <p class='annotation'>Power Select currently fulfills all of Nomad's dropdown needs out of the box.</p>
-        `,
+      `,
     context: {
       options,
     },
@@ -59,7 +59,7 @@ export const Search = () => {
         </div>
       </div>
       <p class='annotation'>Whether or not the dropdown has a search box is configurable. Typically the default is to show a search once a dropdown has more than 10 options.</p>
-          `,
+      `,
     context: {
       manyOptions: [
         'One',

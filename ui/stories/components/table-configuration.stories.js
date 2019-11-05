@@ -9,7 +9,7 @@ export const TableConfiguration = () => {
     template: hbs`
       <h5 class="title is-5">Table, configuration</h5>
       <AttributesTable @attributes={{attributes}} @class="attributes-table" />
-    `,
+      `,
     context: {
       attributes: {
         key: 'val',

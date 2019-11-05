@@ -167,7 +167,7 @@ export const Toggling = () => {
           </div>
         </li>
       </ol>
-        <p class='annotation'></p>
+      <p class='annotation'></p>
       `,
     context: {
       yesterday: moment().subtract(1, 'd'),

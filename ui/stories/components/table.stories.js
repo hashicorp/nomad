@@ -151,7 +151,7 @@ export const Standard = () => {
         </t.body>
       </ListTable>
       <p class='annotation'>Tables have airy designs with a minimal amount of borders. This maximizes their utility.</p>
-        `,
+      `,
     context: {
       shortList: productMetadata,
     },
@@ -196,7 +196,7 @@ export const Search = () => {
         </div>
       </div>
       <p class='annotation'>Tables compose with boxed-section and boxed-section composes with search box.</p>
-        `,
+      `,
     context: {
       controller: EmberObject.extend({
         searchTerm: '',
@@ -230,7 +230,7 @@ export const SortableColumns = () => {
       </ListTable>
       <p class='annotation'>The list-table component provides a <code>sort-by</code> contextual component for building <code>link-to</code> components with the appropriate query params.</p>
       <p class='annotation'>This leaves the component stateless, relying on data to be passed down and sending actions back up via the router (via link-to).</p>
-            `,
+      `,
     context: {
       injectRoutedController: injectRoutedController(
         Controller.extend({
@@ -268,7 +268,7 @@ export const MultiRow = () => {
         </t.body>
       </ListTable>
       <p class='annotation'>The list-table component attempts to be as flexible as possible. For this reason, <code>t.body</code> does not provide the typical <code>tr</code> element. It's sometimes desired to have multiple elements per record.</p>
-        `,
+      `,
     context: {
       injectRoutedController: injectRoutedController(
         Controller.extend({
@@ -324,7 +324,7 @@ export const Pagination = () => {
       <p class='annotation'>Pagination works like sorting: using <code>link-to</code>s to set a query param.</p>
       <p class='annotation'>Pagination, like Table, is a minimal design. Only a next and previous button are available. The current place in the set of pages is tracked by showing which slice of items is currently shown.</p>
       <p class='annotation'>The pagination component exposes first and last components (for jumping to the beginning and end of a list) as well as pageLinks for generating links around the current page.</p>
-    `,
+      `,
     context: {
       injectRoutedController: injectRoutedController(
         Controller.extend({
@@ -364,7 +364,7 @@ export const RowLinks = () => {
           <li>The full row should transition to the destination on click. This is to improve the usability of a table by creating a larger click area.</li>
         </ol>
       </p>
-    `,
+      `,
     context: {
       shortList: productMetadata,
     },
@@ -389,8 +389,8 @@ export const CellLinks = () => {
           </tr>
         </t.body>
       </ListTable>
-        <p class='annotation'>Links in table cells are just links.</p>
-    `,
+      <p class='annotation'>Links in table cells are just links.</p>
+      `,
     context: {
       shortList: productMetadata,
     },
@@ -421,7 +421,7 @@ export const CellDecorations = () => {
         </t.body>
       </ListTable>
       <p class='annotation'>Small icons and accents of color make tables easier to scan.</p>
-    `,
+      `,
     context: {
       shortList: productMetadata,
     },
@@ -433,43 +433,43 @@ export const CellIcons = () => {
     template: hbs`
       <h5 class="title is-5">Table cell icons</h5>
       <ListPagination @source={{longList}} @size={{5}} @page={{controller.currentPage}} as |p|>
-      <ListTable @source={{p.list}} @class="with-foot" as |t|>
-        <t.head>
-          <th class="is-narrow"></th>
-          <th class="is-1">Rank</th>
-          <th>City</th>
-          <th>State</th>
-          <th>Population</th>
-          <th>Growth</th>
-        </t.head>
-        <t.body @key="model.rank" as |row|>
-          <tr>
-            <td class="is-narrow">
-              {{#if (lt row.model.growth 0)}}
-                {{x-icon "warning" class="is-warning"}}
-              {{/if}}
-            </td>
-            <td>{{row.model.rank}}</td>
-            <td>{{row.model.city}}</td>
-            <td>{{row.model.state}}</td>
-            <td>{{row.model.population}}</td>
-            <td>{{format-percentage row.model.growth total=1}}</td>
-          </tr>
-        </t.body>
-      </ListTable>
-      <div class="table-foot">
-        <nav class="pagination">
-          <span class="bumper-left">U.S. City population and growth from 2000-2013. Cities with negative growth denoted.</span>
-          <div class="pagination-numbers">
-            {{p.startsAt}}&ndash;{{p.endsAt}} of {{longList.length}}
-          </div>
-            <p.prev @class="pagination-previous"> &lt; </p.prev>
-            <p.next @class="pagination-next"> &gt; </p.next>
-            <ul class="pagination-list"></ul>
-        </nav>
-      </div>
-    </ListPagination>
-    `,
+        <ListTable @source={{p.list}} @class="with-foot" as |t|>
+          <t.head>
+            <th class="is-narrow"></th>
+            <th class="is-1">Rank</th>
+            <th>City</th>
+            <th>State</th>
+            <th>Population</th>
+            <th>Growth</th>
+          </t.head>
+          <t.body @key="model.rank" as |row|>
+            <tr>
+              <td class="is-narrow">
+                {{#if (lt row.model.growth 0)}}
+                  {{x-icon "warning" class="is-warning"}}
+                {{/if}}
+              </td>
+              <td>{{row.model.rank}}</td>
+              <td>{{row.model.city}}</td>
+              <td>{{row.model.state}}</td>
+              <td>{{row.model.population}}</td>
+              <td>{{format-percentage row.model.growth total=1}}</td>
+            </tr>
+          </t.body>
+        </ListTable>
+        <div class="table-foot">
+          <nav class="pagination">
+            <span class="bumper-left">U.S. City population and growth from 2000-2013. Cities with negative growth denoted.</span>
+            <div class="pagination-numbers">
+              {{p.startsAt}}&ndash;{{p.endsAt}} of {{longList.length}}
+            </div>
+              <p.prev @class="pagination-previous"> &lt; </p.prev>
+              <p.next @class="pagination-next"> &gt; </p.next>
+              <ul class="pagination-list"></ul>
+          </nav>
+        </div>
+      </ListPagination>
+      `,
     context: {
       injectRoutedController: injectRoutedController(
         Controller.extend({

@@ -20,6 +20,6 @@ export const TextSizing = () => {
         <h3 class="title is-5">Small Title</h3>
         <p>Some prose to follow the large title. Not necessarily meant for reading.</p>
       </div>
-    `,
+      `,
   };
 };

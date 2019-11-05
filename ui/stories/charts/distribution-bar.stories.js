@@ -160,7 +160,7 @@ export const Jumbo = () => {
         </DistributionBar>
       {{/if}}
       <p class='annotation'>A variation of the Distribution Bar component for when the distribution bar is the central component of the page. It's a larger format that requires no interaction to see the data labels and values.</p>
-    `,
+      `,
     context: {
       delayedTruth: DelayedTruth.create(),
       distributionBarData: [

@@ -16,7 +16,7 @@ export const Standard = () => {
           <li><a href="#" target="_self">Deployments</a></li>
         </ul>
       </div>
-          `,
+      `,
   };
 };
 
@@ -29,6 +29,6 @@ export const Single = () => {
           <li><a href="#" class="is-active" target="_self">Overview</a></li>
         </ul>
       </div>
-          `,
+      `,
   };
 };

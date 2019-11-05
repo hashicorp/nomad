@@ -13,7 +13,7 @@ export const Standard = () => {
         @placeholder="Search things..." />
       <p class='annotation'>The search box component is a thin wrapper around a simple input. Although the searchTerm passed to it is a mutable reference, internally search term is debounced. This is to prevent potentially expensive code that depends on searchTerm from recomputing many times as a user types.</p>
       <p class='annotation'>There is no form of the search box component that defers updating the searchTerm reference until the user manually clicks a "Search" button. This can be achieved by placing a button next to the search bar component and using it to perform search, but search should be automatic whenever possible.</p>
-              `,
+      `,
   };
 };
 
@@ -26,6 +26,6 @@ export const Compact = () => {
         @placeholder="Search things..."
         @inputClass="is-compact" />
       <p class='annotation'>Search box provides an inputClass property to control the inner input. This is nice for fitting the search box into smaller spaces, such as boxed-section heads.</p>
-        `,
+      `,
   };
 };
