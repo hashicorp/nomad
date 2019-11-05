@@ -3,9 +3,39 @@ import productMetadata from '../../app/utils/styleguide/product-metadata';
 
 import EmberObject, { computed } from '@ember/object';
 
+import { getOwner } from '@ember/application';
+import { on } from '@ember/object/evented';
+import Controller from '@ember/controller';
+
 export default {
   title: 'Components|Table',
 };
+
+/**
+ * The Ember integration for Storybook renders a container component with no routing,
+ * which means things that need query parameters, like sorting and pagination, won’t work.
+
+ * This initialiser turns on routing and accepts a controller definition that gets wired up
+ * to a generated `storybook` route. The controller is attached to the Storybook component
+ * as the `controller` property so its query parameters are accessible from the template.
+ */
+function injectRoutedController(controllerClass) {
+  return on('init', function() {
+    const container = getOwner(this);
+    container.register('controller:storybook', controllerClass);
+
+    const routerFactory = container.factoryFor('router:main');
+    routerFactory.class.map(function() {
+      this.route('storybook');
+    });
+
+    const router = container.lookup('router:main');
+    router.initialURL = 'storybook';
+    router.startRouting(true);
+
+    this.set('controller', container.lookup('controller:storybook'));
+  });
+}
 
 const longList = [
   { city: 'New York', growth: 0.048, population: '8405837', rank: '1', state: 'New York' },
@@ -182,10 +212,9 @@ export const Search = () => {
 
 export const SortableColumns = () => {
   return {
-    // FIXME sorting doesn’t work?!
     template: hbs`
       <h5 class="title is-5">Table with sortable columns</h5>
-      <ListTable @source={{controller.sortedShortList}} @sortProperty={{controller.sortProperty}} @sortDescending={{controller.sortDescending}} as |t|>
+      <ListTable @source={{sortedShortList}} @sortProperty={{controller.sortProperty}} @sortDescending={{controller.sortDescending}} as |t|>
         <t.head>
           <t.sort-by @prop="name">Name</t.sort-by>
           <t.sort-by @prop="lang" @class="is-2">Language</t.sort-by>
@@ -203,25 +232,27 @@ export const SortableColumns = () => {
       <p class='annotation'>This leaves the component stateless, relying on data to be passed down and sending actions back up via the router (via link-to).</p>
             `,
     context: {
-      controller: EmberObject.extend({
-        sortProperty: 'name',
-        sortDescending: false,
+      injectRoutedController: injectRoutedController(
+        Controller.extend({
+          queryParams: ['sortProperty', 'sortDescending'],
+          sortProperty: 'name',
+          sortDescending: false,
+        })
+      ),
 
-        sortedShortList: computed('sortProperty', 'sortDescending', function() {
-          const sorted = productMetadata.sortBy(this.sortProperty);
-          return this.sortDescending ? sorted.reverse() : sorted;
-        }),
-      }).create(),
+      sortedShortList: computed('controller.sortProperty', 'controller.sortDescending', function() {
+        const sorted = productMetadata.sortBy(this.get('controller.sortProperty') || 'name');
+        return this.get('controller.sortDescending') ? sorted.reverse() : sorted;
+      }),
     },
   };
 };
 
 export const MultiRow = () => {
   return {
-    // FIXME sorting also broken
     template: hbs`
       <h5 class="title is-5">Multi-row Table</h5>
-      <ListTable @source={{controller.sortedShortList}} @sortProperty={{controller.sortProperty}} @sortDescending={{controller.sortDescending}} @class="is-striped" as |t|>
+      <ListTable @source={{sortedShortList}} @sortProperty={{controller.sortProperty}} @sortDescending={{controller.sortDescending}} @class="is-striped" as |t|>
         <t.head>
           <t.sort-by @prop="name">Name</t.sort-by>
           <t.sort-by @prop="lang">Language</t.sort-by>
@@ -239,25 +270,27 @@ export const MultiRow = () => {
       <p class='annotation'>The list-table component attempts to be as flexible as possible. For this reason, <code>t.body</code> does not provide the typical <code>tr</code> element. It's sometimes desired to have multiple elements per record.</p>
         `,
     context: {
-      controller: EmberObject.extend({
-        sortProperty: 'name',
-        sortDescending: false,
+      injectRoutedController: injectRoutedController(
+        Controller.extend({
+          queryParams: ['sortProperty', 'sortDescending'],
+          sortProperty: 'name',
+          sortDescending: false,
+        })
+      ),
 
-        sortedShortList: computed('sortProperty', 'sortDescending', function() {
-          const sorted = productMetadata.sortBy(this.sortProperty);
-          return this.sortDescending ? sorted.reverse() : sorted;
-        }),
-      }).create(),
+      sortedShortList: computed('controller.sortProperty', 'controller.sortDescending', function() {
+        const sorted = productMetadata.sortBy(this.get('controller.sortProperty') || 'name');
+        return this.get('controller.sortDescending') ? sorted.reverse() : sorted;
+      }),
     },
   };
 };
 
 export const Pagination = () => {
   return {
-    // FIXME changing pages is also broken 😢
     template: hbs`
       <h5 class="title is-5">Table pagination</h5>
-      <ListPagination @source={{longList}} @size={{5}} @page={{currentPage}} as |p|>
+      <ListPagination @source={{longList}} @size={{5}} @page={{controller.currentPage}} as |p|>
         <ListTable @source={{p.list}} @class="with-foot" as |t|>
           <t.head>
             <th class="is-1">Rank</th>
@@ -293,7 +326,12 @@ export const Pagination = () => {
       <p class='annotation'>The pagination component exposes first and last components (for jumping to the beginning and end of a list) as well as pageLinks for generating links around the current page.</p>
     `,
     context: {
-      currentPage: 1,
+      injectRoutedController: injectRoutedController(
+        Controller.extend({
+          queryParams: ['currentPage'],
+          currentPage: 1,
+        })
+      ),
       longList,
     },
   };
@@ -392,10 +430,9 @@ export const CellDecorations = () => {
 
 export const CellIcons = () => {
   return {
-    // FIXME pagination also broken
     template: hbs`
       <h5 class="title is-5">Table cell icons</h5>
-      <ListPagination @source={{longList}} @size={{5}} @page={{currentPage}} as |p|>
+      <ListPagination @source={{longList}} @size={{5}} @page={{controller.currentPage}} as |p|>
       <ListTable @source={{p.list}} @class="with-foot" as |t|>
         <t.head>
           <th class="is-narrow"></th>
@@ -434,7 +471,12 @@ export const CellIcons = () => {
     </ListPagination>
     `,
     context: {
-      currentPage: 1,
+      injectRoutedController: injectRoutedController(
+        Controller.extend({
+          queryParams: ['currentPage'],
+          currentPage: 1,
+        })
+      ),
       longList,
     },
   };
