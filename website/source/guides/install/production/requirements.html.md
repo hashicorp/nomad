@@ -87,3 +87,23 @@ $ cat /proc/sys/net/ipv4/ip_local_port_range
 32768   60999
 $ echo "49152 65535" > /proc/sys/net/ipv4/ip_local_port_range
 ```
+
+## Bridge Networking and `iptables`
+
+Nomad's task group networks and Consul Connect integration use bridge networking and iptables to send traffic between containers. The Linux kernel bridge module has three "tunables" that control whether traffic crossing the bridge are processed by iptables. Some operating systems (RedHat, CentOS, and Fedora in particular) configure these tunables to optimize for VM workloads where iptables rules might not be correctly configured for guest traffic.
+
+These tunables can be set to allow iptables processing for the bridge network as follows:
+
+```
+$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-arptables
+$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
+$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
+```
+
+To preserve these settings on startup of a client node, add a file including the following to `/etc/sysctl.d/` or remove the file your Linux distribution puts in that directory.
+
+```
+net.bridge.bridge-nf-call-arptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+```
