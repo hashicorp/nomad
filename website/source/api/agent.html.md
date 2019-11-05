@@ -519,9 +519,11 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `log-level` `(string: "info")` - Specifies a text string containing a log level
-  to filter on, such as `info`.
+  to filter on, such as `info`. Possible values include `trace`, `debug`,
+  `info`, `warn`, `error`
 
-- `json` `(bool: false)` - Specifies if the log format for streamed logs should be JSON.
+- `json` `(bool: false)` - Specifies if the log format for streamed logs 
+  should be JSON.
 
 - `node-id` `(string: "a57b2adb-1a30-2dda-8df0-25abb0881952")` - Specifies a text
   string containing a node-id to target for streaming.
