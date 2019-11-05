@@ -188,12 +188,24 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 		logJSON = parsed
 	}
 
+	plainText := false
+	plainTextStr := req.URL.Query().Get("plain")
+	if plainTextStr != "" {
+		parsed, err := strconv.ParseBool(plainTextStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown option for plain: %v", err))
+		}
+		plainText = parsed
+	}
+
 	// Build the request and parse the ACL token
 	args := cstructs.MonitorRequest{
-		NodeID:   nodeID,
-		LogLevel: logLevel,
-		LogJSON:  logJSON,
+		NodeID:    nodeID,
+		LogLevel:  logLevel,
+		LogJSON:   logJSON,
+		PlainText: plainText,
 	}
+
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
 	// Make the RPC

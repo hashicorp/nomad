@@ -314,6 +314,39 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 			})
 		}
 
+		// plain param set to true
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=debug&plain=true", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+			defer resp.Close()
+
+			go func() {
+				_, err = s.Server.AgentMonitor(resp, req)
+				require.NoError(t, err)
+			}()
+
+			// send the same log until monitor sink is set up
+			maxLogAttempts := 10
+			tried := 0
+			testutil.WaitForResult(func() (bool, error) {
+				if tried < maxLogAttempts {
+					s.Server.logger.Debug("log that should be sent")
+					tried++
+				}
+
+				got := resp.Body.String()
+				want := `[DEBUG] http: log that should be sent`
+				if strings.Contains(got, want) {
+					return true, nil
+				}
+
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", got, want)
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+		}
+
 		// stream logs for a given node
 		{
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn&node_id="+s.client.NodeID(), nil)
