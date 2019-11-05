@@ -11,15 +11,32 @@ import (
 // Monitor provides a mechanism to stream logs using go-hclog
 // InterceptLogger and SinkAdapter. It allows streaming of logs
 // at a different log level than what is set on the logger.
-type Monitor struct {
-	// sync.Mutex protects droppedCount and logCh
+type Monitor interface {
+	// Start returns a channel of log messages which are sent
+	// ever time a log message occurs
+	Start() <-chan []byte
+
+	// Stop de-registers the sink from the InterceptLogger
+	// and closes the log channels
+	Stop()
+}
+
+// monitor implements the Monitor interface
+type monitor struct {
+	// protects droppedCount and logCh
 	sync.Mutex
 
 	sink log.SinkAdapter
 
 	// logger is the logger we will be monitoring
 	logger log.InterceptLogger
-	logCh  chan []byte
+
+	// logCh is a buffered chan where we send logs when streaming
+	logCh chan []byte
+
+	// doneCh coordinates the shutdown of logCh
+	doneCh chan struct{}
+
 	// droppedCount is the current count of messages
 	// that were dropped from the logCh buffer.
 	// only access under lock
@@ -33,10 +50,15 @@ type Monitor struct {
 
 // New creates a new Monitor. Start must be called in order to actually start
 // streaming logs
-func New(buf int, logger log.InterceptLogger, opts *log.LoggerOptions) *Monitor {
-	sw := &Monitor{
+func New(buf int, logger log.InterceptLogger, opts *log.LoggerOptions) Monitor {
+	return new(buf, logger, opts)
+}
+
+func new(buf int, logger log.InterceptLogger, opts *log.LoggerOptions) *monitor {
+	sw := &monitor{
 		logger:          logger,
 		logCh:           make(chan []byte, buf),
+		doneCh:          make(chan struct{}, 1),
 		bufSize:         buf,
 		droppedDuration: 3 * time.Second,
 	}
@@ -48,10 +70,14 @@ func New(buf int, logger log.InterceptLogger, opts *log.LoggerOptions) *Monitor 
 	return sw
 }
 
+// Stop stops the monitoring process
+func (d *monitor) Stop() {
+	close(d.doneCh)
+}
+
 // Start registers a sink on the monitor's logger and starts sending
-// received log messages over the returned channel. A non-nil
-// stopCh can be used to de-register the sink and stop log streaming
-func (d *Monitor) Start(stopCh <-chan struct{}) <-chan []byte {
+// received log messages over the returned channel.
+func (d *monitor) Start() <-chan []byte {
 	d.logger.RegisterSink(d.sink)
 
 	streamCh := make(chan []byte, d.bufSize)
@@ -61,13 +87,13 @@ func (d *Monitor) Start(stopCh <-chan struct{}) <-chan []byte {
 			select {
 			case log := <-d.logCh:
 				select {
-				case <-stopCh:
+				case <-d.doneCh:
 					d.logger.DeregisterSink(d.sink)
 					close(d.logCh)
 					return
 				case streamCh <- log:
 				}
-			case <-stopCh:
+			case <-d.doneCh:
 				d.Lock()
 				defer d.Unlock()
 
@@ -83,7 +109,7 @@ func (d *Monitor) Start(stopCh <-chan struct{}) <-chan []byte {
 	LOOP:
 		for {
 			select {
-			case <-stopCh:
+			case <-d.doneCh:
 				break LOOP
 			case <-time.After(d.droppedDuration):
 				d.Lock()
@@ -92,6 +118,8 @@ func (d *Monitor) Start(stopCh <-chan struct{}) <-chan []byte {
 				if d.droppedCount > 0 {
 					dropped := fmt.Sprintf("[WARN] Monitor dropped %d logs during monitor request\n", d.droppedCount)
 					select {
+					case <-d.doneCh:
+						break LOOP
 					// Try sending dropped message count to logCh in case
 					// there is room in the buffer now.
 					case d.logCh <- []byte(dropped):
@@ -107,6 +135,7 @@ func (d *Monitor) Start(stopCh <-chan struct{}) <-chan []byte {
 					}
 					d.droppedCount = 0
 				}
+				// unlock after handling dropped message
 				d.Unlock()
 			}
 		}
@@ -117,9 +146,16 @@ func (d *Monitor) Start(stopCh <-chan struct{}) <-chan []byte {
 
 // Write attempts to send latest log to logCh
 // it drops the log if channel is unavailable to receive
-func (d *Monitor) Write(p []byte) (n int, err error) {
+func (d *monitor) Write(p []byte) (n int, err error) {
 	d.Lock()
 	defer d.Unlock()
+
+	// ensure logCh is still open
+	select {
+	case <-d.doneCh:
+		return
+	default:
+	}
 
 	bytes := make([]byte, len(p))
 	copy(bytes, p)

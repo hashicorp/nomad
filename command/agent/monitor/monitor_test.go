@@ -21,9 +21,8 @@ func TestMonitor_Start(t *testing.T) {
 		Level: log.Debug,
 	})
 
-	closeCh := make(chan struct{})
-
-	logCh := m.Start(closeCh)
+	logCh := m.Start()
+	defer m.Stop()
 
 	go func() {
 		logger.Debug("test log")
@@ -49,7 +48,7 @@ func TestMonitor_DroppedMessages(t *testing.T) {
 		Level: log.Warn,
 	})
 
-	m := New(5, logger, &log.LoggerOptions{
+	m := new(5, logger, &log.LoggerOptions{
 		Level: log.Debug,
 	})
 	m.droppedDuration = 5 * time.Millisecond
@@ -57,7 +56,7 @@ func TestMonitor_DroppedMessages(t *testing.T) {
 	doneCh := make(chan struct{})
 	defer close(doneCh)
 
-	logCh := m.Start(doneCh)
+	logCh := m.Start()
 
 	for i := 0; i <= 100; i++ {
 		logger.Debug(fmt.Sprintf("test message %d", i))

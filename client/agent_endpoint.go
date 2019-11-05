@@ -61,9 +61,7 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 		return
 	}
 
-	stopCh := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
-	defer close(stopCh)
 	defer cancel()
 
 	monitor := monitor.New(512, m.c.logger, &log.LoggerOptions{
@@ -93,7 +91,8 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 		}
 	}()
 
-	logCh := monitor.Start(stopCh)
+	logCh := monitor.Start()
+	defer monitor.Stop()
 	initialOffset := int64(0)
 
 	// receive logs and build frames
