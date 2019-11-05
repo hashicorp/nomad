@@ -1,5 +1,5 @@
 ---
-layout: "docs"
+layout: "guides"
 page_title: "Nomad as a Windows Service"
 sidebar_current: "guides-install-windows-service"
 description: |-
@@ -17,7 +17,7 @@ to register the Nomad application with the Windows Service Control Manager using
 
 ## Register Nomad with Windows
 
-Download the Nomad binary for your architecture.
+[Download] the Nomad binary for your architecture.
 
 Use the [`sc.exe`] command to create a Service named "Nomad". The binPath
 argument should include the fully qualified path to the Nomad executable and any
@@ -72,4 +72,5 @@ The service automatically starts up during/after boot, so you don't need to
 launch Nomad from the command-line again.
 
 [`sc.exe`]: https://msdn.microsoft.com/en-us/library/windows/desktop/ms682107(v=vs.85).aspx
+[Download]: /downloads.html
 [logging]: /docs/configuration/index.html#log_file

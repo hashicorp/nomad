@@ -79,7 +79,7 @@ testing.
 
 ## General Parameters
 
-- `acl` `([ACL][acl]: nil)` - Specifies configuration which is specific to ACLs.
+- `acl` `(`[`ACL`]`: nil)` - Specifies configuration which is specific to ACLs.
 
 - `addresses` `(Addresses: see below)` - Specifies the bind address for
   individual network services. Any values configured in this stanza take
@@ -130,10 +130,10 @@ testing.
   Dev mode (`-dev`) defaults to localhost.
   The value supports [go-sockaddr/template format][go-sockaddr/template].
 
-- `client` `([Client][client]: nil)` - Specifies configuration which is specific
+- `client` `(`[`Client`]`: nil)` - Specifies configuration which is specific
   to the Nomad client.
 
-- `consul` `([Consul][consul]: nil)` - Specifies configuration for
+- `consul` `(`[`Consul`]`: nil)` - Specifies configuration for
   connecting to Consul.
 
 - `datacenter` `(string: "dc1")` - Specifies the data center of the local agent.
@@ -208,7 +208,7 @@ testing.
   [data_dir](#data_dir) suffixed with "plugins", like `"/opt/nomad/plugins"`.
   This must be an absolute path.
 
-- `plugin` `([Plugin][plugin]: nil)` - Specifies configuration for a
+- `plugin` `(`[`Plugin`]`: nil)` - Specifies configuration for a
   specific plugin. The plugin stanza may be repeated, once for each plugin being
   configured. The key of the stanza is the plugin's executable name relative to
   the [plugin_dir](#plugin_dir).
@@ -241,18 +241,18 @@ testing.
   with potentially multiple zones, which map to [datacenters](#datacenter) such
   as `us-west` and `us-east`.
 
-- `sentinel` `([Sentinel][sentinel]: nil)` - Specifies configuration for Sentinel
+- `sentinel` `(`[`Sentinel`]`: nil)` - Specifies configuration for Sentinel
   policies.
 
-- `server` `([Server][server]: nil)` - Specifies configuration which is specific
+- `server` `(`[`Server`]`: nil)` - Specifies configuration which is specific
   to the Nomad server.
 
 - `syslog_facility` `(string: "LOCAL0")` - Specifies the syslog facility to
   write to. This has no effect unless `enable_syslog` is true.
 
-- `tls` `([TLS][tls]: nil)` - Specifies configuration for TLS.
+- `tls` `(`[`TLS`]`: nil)` - Specifies configuration for TLS.
 
-- `vault` `([Vault][vault]: nil)` - Specifies configuration for
+- `vault` `(`[`Vault`]`: nil)` - Specifies configuration for
   connecting to Vault.
 
 ## Examples
@@ -277,13 +277,13 @@ http_api_response_headers {
 }
 ```
 
-[hcl]: https://github.com/hashicorp/hcl "HashiCorp Configuration Language"
+[`ACL`]: /docs/configuration/acl.html "Nomad Agent ACL Configuration"
+[`Client`]: /docs/configuration/client.html "Nomad Agent client Configuration"
+[`Consul`]: /docs/configuration/consul.html "Nomad Agent consul Configuration"
+[`Plugin`]: /docs/configuration/plugin.html "Nomad Agent Plugin Configuration"
+[`Sentinel`]: /docs/configuration/sentinel.html "Nomad Agent sentinel Configuration"
+[`Server`]: /docs/configuration/server.html "Nomad Agent server Configuration"
+[`TLS`]: /docs/configuration/tls.html "Nomad Agent tls Configuration"
+[`Vault`]: /docs/configuration/vault.html "Nomad Agent vault Configuration"
 [go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
-[consul]: /docs/configuration/consul.html "Nomad Agent consul Configuration"
-[vault]: /docs/configuration/vault.html "Nomad Agent vault Configuration"
-[tls]: /docs/configuration/tls.html "Nomad Agent tls Configuration"
-[client]: /docs/configuration/client.html "Nomad Agent client Configuration"
-[sentinel]: /docs/configuration/sentinel.html "Nomad Agent sentinel Configuration"
-[server]: /docs/configuration/server.html "Nomad Agent server Configuration"
-[acl]: /docs/configuration/acl.html "Nomad Agent ACL Configuration"
-[plugin]: /docs/configuration/plugin.html "Nomad Agent Plugin Configuration"
+[hcl]: https://github.com/hashicorp/hcl "HashiCorp Configuration Language"
