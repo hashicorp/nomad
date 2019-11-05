@@ -91,7 +91,7 @@ const (
 type Server struct {
 	config *Config
 
-	logger log.Logger
+	logger log.InterceptLogger
 
 	// Connection pool to other Nomad servers
 	connPool *pool.ConnPool
@@ -252,6 +252,7 @@ type endpoints struct {
 	// Client endpoints
 	ClientStats       *ClientStats
 	FileSystem        *FileSystem
+	Agent             *Agent
 	ClientAllocations *ClientAllocations
 }
 
@@ -290,7 +291,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 	}
 
 	// Create the logger
-	logger := config.Logger.ResetNamed("nomad")
+	logger := config.Logger.ResetNamedIntercept("nomad")
 
 	// Create the server
 	s := &Server{
@@ -1044,6 +1045,9 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		// Streaming endpoints
 		s.staticEndpoints.FileSystem = &FileSystem{srv: s, logger: s.logger.Named("client_fs")}
 		s.staticEndpoints.FileSystem.register()
+
+		s.staticEndpoints.Agent = &Agent{srv: s}
+		s.staticEndpoints.Agent.register()
 	}
 
 	// Register the static handlers
@@ -1102,7 +1106,7 @@ func (s *Server) setupRaft() error {
 	s.raftTransport = trans
 
 	// Make sure we set the Logger.
-	logger := s.logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true})
+	logger := s.logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true})
 	s.config.RaftConfig.Logger = logger
 	s.config.RaftConfig.LogOutput = nil
 
@@ -1272,7 +1276,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	if s.config.UpgradeVersion != "" {
 		conf.Tags[AutopilotVersionTag] = s.config.UpgradeVersion
 	}
-	logger := s.logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true})
+	logger := s.logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true})
 	conf.MemberlistConfig.Logger = logger
 	conf.Logger = logger
 	conf.MemberlistConfig.LogOutput = nil

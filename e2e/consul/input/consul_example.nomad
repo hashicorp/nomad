@@ -49,7 +49,7 @@ job "consul-example" {
 
         network {
           mbits = 10
-          port  "db"  {}
+          port "db" {}
         }
       }
 

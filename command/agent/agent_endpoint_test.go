@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -247,6 +249,162 @@ func TestHTTP_AgentMembers_ACL(t *testing.T) {
 			require.Len(members.Members, 1)
 		}
 	})
+}
+
+func TestHTTP_AgentMonitor(t *testing.T) {
+	t.Parallel()
+
+	httpTest(t, nil, func(s *TestAgent) {
+		// invalid log_json
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_json=no", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+
+			// Make the request
+			_, err = s.Server.AgentMonitor(resp, req)
+			if err.(HTTPCodedError).Code() != 400 {
+				t.Fatalf("expected 400 response, got: %v", resp.Code)
+			}
+		}
+
+		// unknown log_level
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=unknown", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+
+			// Make the request
+			_, err = s.Server.AgentMonitor(resp, req)
+			if err.(HTTPCodedError).Code() != 400 {
+				t.Fatalf("expected 400 response, got: %v", resp.Code)
+			}
+		}
+
+		// check for a specific log
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+			defer resp.Close()
+
+			go func() {
+				_, err = s.Server.AgentMonitor(resp, req)
+				require.NoError(t, err)
+			}()
+
+			// send the same log until monitor sink is set up
+			maxLogAttempts := 10
+			tried := 0
+			testutil.WaitForResult(func() (bool, error) {
+				if tried < maxLogAttempts {
+					s.Server.logger.Warn("log that should be sent")
+					tried++
+				}
+
+				got := resp.Body.String()
+				want := `{"Data":"`
+				if strings.Contains(got, want) {
+					return true, nil
+				}
+
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", got, want)
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+		}
+
+		// plain param set to true
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=debug&plain=true", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+			defer resp.Close()
+
+			go func() {
+				_, err = s.Server.AgentMonitor(resp, req)
+				require.NoError(t, err)
+			}()
+
+			// send the same log until monitor sink is set up
+			maxLogAttempts := 10
+			tried := 0
+			testutil.WaitForResult(func() (bool, error) {
+				if tried < maxLogAttempts {
+					s.Server.logger.Debug("log that should be sent")
+					tried++
+				}
+
+				got := resp.Body.String()
+				want := `[DEBUG] http: log that should be sent`
+				if strings.Contains(got, want) {
+					return true, nil
+				}
+
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", got, want)
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+		}
+
+		// stream logs for a given node
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn&node_id="+s.client.NodeID(), nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+			defer resp.Close()
+
+			go func() {
+				_, err = s.Server.AgentMonitor(resp, req)
+				require.NoError(t, err)
+			}()
+
+			// send the same log until monitor sink is set up
+			maxLogAttempts := 10
+			tried := 0
+			out := ""
+			testutil.WaitForResult(func() (bool, error) {
+				if tried < maxLogAttempts {
+					s.Server.logger.Debug("log that should not be sent")
+					s.Server.logger.Warn("log that should be sent")
+					tried++
+				}
+				output, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					return false, err
+				}
+
+				out += string(output)
+				want := `{"Data":"`
+				if strings.Contains(out, want) {
+					return true, nil
+				}
+
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", out, want)
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+		}
+	})
+}
+
+type closableRecorder struct {
+	*httptest.ResponseRecorder
+	closer chan bool
+}
+
+func newClosableRecorder() *closableRecorder {
+	r := httptest.NewRecorder()
+	closer := make(chan bool)
+	return &closableRecorder{r, closer}
+}
+
+func (r *closableRecorder) Close() {
+	close(r.closer)
+}
+
+func (r *closableRecorder) CloseNotify() <-chan bool {
+	return r.closer
 }
 
 func TestHTTP_AgentForceLeave(t *testing.T) {

@@ -64,7 +64,7 @@ EOH
       resources {
         network {
           mbits = 10
-          port  "prometheus_ui"{}
+          port "prometheus_ui" {}
         }
       }
 

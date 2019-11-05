@@ -53,7 +53,7 @@ type Agent struct {
 	config     *Config
 	configLock sync.Mutex
 
-	logger     log.Logger
+	logger     log.InterceptLogger
 	httpLogger log.Logger
 	logOutput  io.Writer
 
@@ -87,7 +87,7 @@ type Agent struct {
 }
 
 // NewAgent is used to create a new agent with the given configuration
-func NewAgent(config *Config, logger log.Logger, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
+func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
 	a := &Agent{
 		config:     config,
 		logOutput:  logOutput,
