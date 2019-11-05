@@ -4,6 +4,8 @@ import EmberObject, { computed } from '@ember/object';
 import { on } from '@ember/object/evented';
 import moment from 'moment';
 
+import DelayedArray from '../delayed-array';
+
 export default {
   title: 'Charts|Stats Time Series',
 };
@@ -18,11 +20,13 @@ export const Standard = () => {
     template: hbs`
       <h5 class="title is-5">Stats Time Series</h5>
       <div class="block" style="height:100px; width: 400px;">
-        <StatsTimeSeries @data={{staticMetrics}} @chartClass="is-primary" />
+        {{#if staticMetrics}}
+          <StatsTimeSeries @data={{staticMetrics}} @chartClass="is-primary" />
+        {{/if}}
       </div>
       `,
     context: {
-      staticMetrics: [
+      staticMetrics: DelayedArray.create([
         { timestamp: ts(20), value: 0.5 },
         { timestamp: ts(18), value: 0.5 },
         { timestamp: ts(16), value: 0.4 },
@@ -34,7 +38,7 @@ export const Standard = () => {
         { timestamp: ts(4), value: 0.5 },
         { timestamp: ts(2), value: 0.6 },
         { timestamp: ts(0), value: 0.6 },
-      ],
+      ]),
     },
   };
 };
@@ -45,10 +49,14 @@ export const HighLowComparison = () => {
       <h5 class="title is-5">Stats Time Series high/low comparison</h5>
       <div class="columns">
         <div class="block column" style="height:200px; width:400px">
-          <StatsTimeSeries @data={{data.metricsHigh}} @chartClass="is-info" />
+          {{#if data.metricsHigh}}
+            <StatsTimeSeries @data={{data.metricsHigh}} @chartClass="is-info" />
+          {{/if}}
         </div>
         <div class="block column" style="height:200px; width:400px">
-          <StatsTimeSeries @data={{data.metricsLow}} @chartClass="is-info" />
+          {{#if data.metricsLow}}
+            <StatsTimeSeries @data={{data.metricsLow}} @chartClass="is-info" />
+          {{/if}}
         </div>
       </div>
       <p class='annotation'>Line charts, and therefore stats time series charts, use a constant linear gradient with a height equal to the canvas. This makes the color intensity of the gradient at values consistent across charts as long as those charts have the same y-axis domain.</p>

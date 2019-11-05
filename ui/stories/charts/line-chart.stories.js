@@ -4,6 +4,8 @@ import EmberObject from '@ember/object';
 import { on } from '@ember/object/evented';
 import moment from 'moment';
 
+import DelayedArray from '../delayed-array';
+
 export default {
   title: 'Charts|Line Chart',
 };
@@ -37,15 +39,19 @@ export const Standard = () => {
     template: hbs`
       <h5 class="title is-5">Line Chart</h5>
       <div class="block" style="height:100px; width: 400px;">
-        <LineChart @data={{lineChartData}} @xProp="year" @yProp="value" @chartClass="is-primary" />
+        {{#if lineChartData}}
+          <LineChart @data={{lineChartData}} @xProp="year" @yProp="value" @chartClass="is-primary" />
+        {{/if}}
       </div>
       <div class="block" style="height:100px; width: 400px;">
-        <LineChart @data={{lineChartMild}} @xProp="year" @yProp="value" @chartClass="is-info" />
+        {{#if lineChartMild}}
+          <LineChart @data={{lineChartMild}} @xProp="year" @yProp="value" @chartClass="is-info" />
+        {{/if}}
       </div>
       `,
     context: {
-      lineChartData: data1,
-      lineChartMild: data2,
+      lineChartData: DelayedArray.create(data1),
+      lineChartMild: DelayedArray.create(data2),
     },
   };
 };
@@ -55,16 +61,20 @@ export const FluidWidth = () => {
     template: hbs`
       <h5 class="title is-5">Fluid-width Line Chart</h5>
       <div class="block" style="height:250px;">
-        <LineChart @data={{lineChartData}} @xProp="year" @yProp="value" @chartClass="is-danger" />
+        {{#if lineChartData}}
+          <LineChart @data={{lineChartData}} @xProp="year" @yProp="value" @chartClass="is-danger" />
+        {{/if}}
       </div>
       <div class="block" style="height:250px;">
-        <LineChart @data={{lineChartMild}} @xProp="year" @yProp="value" @chartClass="is-warning" />
+        {{#if lineChartMild}}
+          <LineChart @data={{lineChartMild}} @xProp="year" @yProp="value" @chartClass="is-warning" />
+        {{/if}}
       </div>
       <p class='annotation'>A line chart will assume the width of its container. This includes the dimensions of the axes, which are calculated based on real DOM measurements. This requires a two-pass render: first the axes are placed with their real domains (in order to capture width and height of tick labels), second the axes are adjusted to make sure both the x and y axes are within the height and width bounds of the container.</p>
       `,
     context: {
-      lineChartData: data1,
-      lineChartMild: data2,
+      lineChartData: DelayedArray.create(data1),
+      lineChartMild: DelayedArray.create(data2),
     },
   };
 };
@@ -74,7 +84,9 @@ export const LiveData = () => {
     template: hbs`
       <h5 class="title is-5">Live data Line Chart</h5>
       <div class="block" style="height:250px">
-        <LineChart @data={{controller.lineChartLive}} @xProp="ts" @yProp="val" @timeseries={{true}} @chartClass="is-primary" @xFormat={{controller.secondsFormat}} />
+        {{#if controller.lineChartLive}}
+          <LineChart @data={{controller.lineChartLive}} @xProp="ts" @yProp="val" @timeseries={{true}} @chartClass="is-primary" @xFormat={{controller.secondsFormat}} />
+        {{/if}}
       </div>
       `,
     context: {
@@ -113,11 +125,13 @@ export const Gaps = () => {
     template: hbs`
       <h5 class="title is-5">Line Chart data with gaps</h5>
       <div class="block" style="height:250px">
-        <LineChart @data={{lineChartGapData}} @xProp="year" @yProp="value" @chartClass="is-primary" />
+        {{#if lineChartGapData}}
+          <LineChart @data={{lineChartGapData}} @xProp="year" @yProp="value" @chartClass="is-primary" />
+        {{/if}}
       </div>
       `,
     context: {
-      lineChartGapData: [
+      lineChartGapData: DelayedArray.create([
         { year: 2010, value: 10 },
         { year: 2011, value: 10 },
         { year: 2012, value: null },
@@ -127,7 +141,7 @@ export const Gaps = () => {
         { year: 2016, value: null },
         { year: 2017, value: 210 },
         { year: 2018, value: 340 },
-      ],
+      ]),
     },
   };
 };
