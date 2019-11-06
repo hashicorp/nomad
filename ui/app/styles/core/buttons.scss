@@ -5,6 +5,7 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
   box-shadow: $button-box-shadow-standard;
   border: 1px solid transparent;
   text-decoration: none;
+  line-height: 1;
 
   &:hover,
   &.is-hovered {
