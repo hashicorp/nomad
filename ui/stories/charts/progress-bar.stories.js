@@ -90,12 +90,12 @@ export const LiveUpdates = () => {
         </div>
       </div>
       <p class='annotation'>
-      <div class="boxed-section">
-        <div class="boxed-section-body is-dark">
-          <JsonViewer @json={{data.liveDetails}} />
+        <div class="boxed-section">
+          <div class="boxed-section-body is-dark">
+            <JsonViewer @json={{data.liveDetails}} />
+          </div>
         </div>
-      </div>
-        </p>
+      </p>
       `,
     context: {
       data: EmberObject.extend({
