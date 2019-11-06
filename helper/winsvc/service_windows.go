@@ -24,8 +24,6 @@ func init() {
 
 func (serviceWindows) Execute(args []string, r <-chan wsvc.ChangeRequest, s chan<- wsvc.Status) (svcSpecificEC bool, exitCode uint32) {
 	const accCommands = wsvc.AcceptStop | wsvc.AcceptShutdown
-	s <- wsvc.Status{State: wsvc.StartPending}
-
 	s <- wsvc.Status{State: wsvc.Running, Accepts: accCommands}
 	for {
 		c := <-r
