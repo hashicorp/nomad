@@ -1,11 +1,16 @@
 .ember-power-select-trigger,
 .dropdown-trigger {
   position: relative;
-  padding: 0.3em 16px 0.3em 0.3em;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375em 16px 0.375em 0.3em;
+  line-height: 1;
   border-radius: $radius;
   box-shadow: $button-box-shadow-standard;
   background: $white-bis;
   border: 1px solid $grey-light;
+  height: 2.25em;
+  font-size: 1rem;
   outline: none;
   cursor: pointer;
 
