@@ -35,7 +35,39 @@
       </p>
     </div>
     <div class="toolbar-item is-right-aligned is-top-aligned">
-      <button class="button is-primary">Drain</button>
+      {{#popover-menu label="Drain"}}
+        <form class="form is-small">
+          <h4 class="group-heading">Drain Options</h4>
+          <div class="field">
+            <label class="label">
+              <input type="checkbox"> Deadline
+              <span class="tooltip multiline" aria-label="The amount of time a drain must complete within.">
+                {{x-icon "info-circle-outline" class="is-faded"}}
+              </span>
+            </label>
+          </div>
+          <div class="field">
+            <label class="label">
+              <input type="checkbox"> Force Drain
+              <span class="tooltip multiline" aria-label="Immediately remove allocations from the client.">
+                {{x-icon "info-circle-outline" class="is-faded"}}
+              </span>
+            </label>
+          </div>
+          <div class="field">
+            <label class="label">
+              <input type="checkbox"> Drain System Jobs
+              <span class="tooltip multiline" aria-label="Stop allocations for system jobs.">
+                {{x-icon "info-circle-outline" class="is-faded"}}
+              </span>
+            </label>
+          </div>
+          <div class="popover-actions">
+            <button class="popover-action is-primary">Drain</button>
+            <button class="popover-action">Cancel</button>
+          </div>
+        </form>
+      {{/popover-menu}}
     </div>
   </div>
 
