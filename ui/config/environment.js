@@ -10,7 +10,7 @@ module.exports = function(environment) {
   var ENV = {
     modulePrefix: 'nomad-ui',
     environment: environment,
-    rootURL: '/', // FIXME
+    rootURL: '/ui',
     locationType: 'auto',
     EmberENV: {
       FEATURES: {
