@@ -21,26 +21,19 @@
       }
 
 .g-alert span{
-    font-size: 16px;
     background-color: white;
     text-transform:uppercase;
     padding:3px 10px;
     border:1px solid #1563ff;
     border-radius:3px;
-    font-weight:600;
-    font-size:1.25rem;
-    line-height:16px;
     margin-right:12px;
     color:black;
     white-space:nowrap;
     vertical-align: middle;
   }
 .g-alert p{
-    font-size: 16px;
     background-color: white;
     color:black;
-    font-size:16px;
-    line-height:23px;
     margin:0;
     vertical-align: middle;
   }
@@ -58,7 +51,6 @@
   background:linear-gradient(90deg, #1563ff 1.56%, #08368b 100%);
   color:#ffffff;
   display:none;
-  font-weight:600;
   overflow:hidden;
   position:relative;
   transition:height 0.3s ease-out
