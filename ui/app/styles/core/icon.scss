@@ -12,8 +12,12 @@ $icon-dimensions-large: 2rem;
   width: $icon-dimensions;
   fill: $text;
 
-  &.is-small,
   &.is-text {
+    width: 1.2em;
+    height: 1.2em;
+  }
+
+  &.is-small {
     height: $icon-dimensions-small;
     width: $icon-dimensions-small;
   }
