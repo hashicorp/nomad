@@ -1,0 +1,12 @@
+<BasicDropdown
+  @horizontalPosition="right"
+  @onOpen={{action (queue (action (mut isOpen) true) (action capture))}}
+  @onClose={{action (mut isOpen) false}} as |dd|
+>
+  <dd.Trigger data-test-popover-trigger class="popover-trigger button is-primary" {{on "keydown" (action "openOnArrowDown" dd)}}>
+    {{label}} {{x-icon "chevron-down" class="is-text"}}
+  </dd.Trigger>
+  <dd.Content class="popover-content">
+    {{yield}}
+  </dd.Content>
+</BasicDropdown>
