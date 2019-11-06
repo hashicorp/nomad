@@ -88,7 +88,7 @@ export const Foot = () => {
         </div>
         <div class="boxed-section-foot">
           <span>Left-aligned message</span>
-          <a href="#" class="pull-right">Toggle or other action</a>
+          <a href="#" class="pull-right" target="_self">Toggle or other action</a>
         </div>
       </div>
       `,

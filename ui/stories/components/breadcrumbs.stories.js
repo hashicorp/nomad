@@ -12,13 +12,13 @@ export const Standard = () => {
         <div class="navbar-item"></div>
         <nav class="breadcrumb is-large">
           <li>
-            <a href="#">Topic</a>
+            <a href="#" target="_self">Topic</a>
           </li>
           <li>
-            <a href="#">Sub-topic</a>
+            <a href="#" target="_self">Sub-topic</a>
           </li>
           <li class="is-active">
-            <a href="#">Active Topic</a>
+            <a href="#" target="_self">Active Topic</a>
           </li>
         </nav>
       </div>
@@ -35,7 +35,7 @@ export const Single = () => {
         <div class="navbar-item"></div>
         <nav class="breadcrumb is-large">
           <li>
-            <a href="#">Topic</a>
+            <a href="#" target="_self">Topic</a>
           </li>
         </nav>
       </div>
