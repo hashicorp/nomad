@@ -110,26 +110,6 @@ export const HighLowComparison = () => {
           return [];
         }),
 
-        staticMetrics: computed(() => {
-          const ts = offset =>
-            moment()
-              .subtract(offset, 'm')
-              .toDate();
-          return [
-            { timestamp: ts(20), value: 0.5 },
-            { timestamp: ts(18), value: 0.5 },
-            { timestamp: ts(16), value: 0.4 },
-            { timestamp: ts(14), value: 0.3 },
-            { timestamp: ts(12), value: 0.9 },
-            { timestamp: ts(10), value: 0.3 },
-            { timestamp: ts(8), value: 0.3 },
-            { timestamp: ts(6), value: 0.4 },
-            { timestamp: ts(4), value: 0.5 },
-            { timestamp: ts(2), value: 0.6 },
-            { timestamp: ts(0), value: 0.6 },
-          ];
-        }),
-
         secondsFormat() {
           return date => moment(date).format('HH:mm:ss');
         },
