@@ -57,3 +57,8 @@
   opacity: 1;
   top: -20%;
 }
+
+.tooltip.multiline::after {
+  width: 200px;
+  white-space: normal;
+}
