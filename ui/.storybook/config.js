@@ -5,7 +5,10 @@ import theme from './theme.js';
 
 addParameters({
   viewport: { viewports: INITIAL_VIEWPORTS },
-  options: { theme },
+  options: {
+    showPanel: true,
+    theme
+  },
 });
 
 addDecorator(storyFn => {
