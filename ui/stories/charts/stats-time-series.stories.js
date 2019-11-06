@@ -27,17 +27,17 @@ export const Standard = () => {
       `,
     context: {
       staticMetrics: DelayedArray.create([
-        { timestamp: ts(20), value: 0.5 },
-        { timestamp: ts(18), value: 0.5 },
-        { timestamp: ts(16), value: 0.4 },
-        { timestamp: ts(14), value: 0.3 },
-        { timestamp: ts(12), value: 0.9 },
-        { timestamp: ts(10), value: 0.3 },
-        { timestamp: ts(8), value: 0.3 },
-        { timestamp: ts(6), value: 0.4 },
-        { timestamp: ts(4), value: 0.5 },
-        { timestamp: ts(2), value: 0.6 },
-        { timestamp: ts(0), value: 0.6 },
+        { timestamp: ts(20), percent: 0.5 },
+        { timestamp: ts(18), percent: 0.5 },
+        { timestamp: ts(16), percent: 0.4 },
+        { timestamp: ts(14), percent: 0.3 },
+        { timestamp: ts(12), percent: 0.9 },
+        { timestamp: ts(10), percent: 0.3 },
+        { timestamp: ts(8), percent: 0.3 },
+        { timestamp: ts(6), percent: 0.4 },
+        { timestamp: ts(4), percent: 0.5 },
+        { timestamp: ts(2), percent: 0.6 },
+        { timestamp: ts(0), percent: 0.6 },
       ]),
     },
   };
@@ -71,14 +71,14 @@ export const HighLowComparison = () => {
             'timer',
             setInterval(() => {
               const metricsHigh = this.metricsHigh;
-              const prev = metricsHigh.length ? metricsHigh[metricsHigh.length - 1].value : 0.9;
+              const prev = metricsHigh.length ? metricsHigh[metricsHigh.length - 1].percent : 0.9;
               this.appendTSValue(
                 metricsHigh,
                 Math.min(Math.max(prev + Math.random() * 0.05 - 0.025, 0.5), 1)
               );
 
               const metricsLow = this.metricsLow;
-              const prev2 = metricsLow.length ? metricsLow[metricsLow.length - 1].value : 0.1;
+              const prev2 = metricsLow.length ? metricsLow[metricsLow.length - 1].percent : 0.1;
               this.appendTSValue(
                 metricsLow,
                 Math.min(Math.max(prev2 + Math.random() * 0.05 - 0.025, 0), 0.5)
@@ -87,10 +87,10 @@ export const HighLowComparison = () => {
           );
         }),
 
-        appendTSValue(array, value, maxLength = 300) {
+        appendTSValue(array, percent, maxLength = 300) {
           array.addObject({
             timestamp: Date.now(),
-            value,
+            percent,
           });
 
           if (array.length > maxLength) {
