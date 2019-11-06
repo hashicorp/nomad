@@ -240,6 +240,7 @@ type endpoints struct {
 	Eval       *Eval
 	Plan       *Plan
 	Alloc      *Alloc
+	CSIVolume  *CSIVolume
 	Deployment *Deployment
 	Region     *Region
 	Search     *Search
@@ -1027,6 +1028,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.Eval = &Eval{srv: s, logger: s.logger.Named("eval")}
 		s.staticEndpoints.Job = NewJobEndpoints(s)
 		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")} // Add but don't register
+		s.staticEndpoints.CSIVolume = &CSIVolume{srv: s, logger: s.logger.Named("csi_volume")}
 		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
 		s.staticEndpoints.Operator = &Operator{srv: s, logger: s.logger.Named("operator")}
 		s.staticEndpoints.Periodic = &Periodic{srv: s, logger: s.logger.Named("periodic")}
@@ -1055,6 +1057,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.Alloc)
 	server.Register(s.staticEndpoints.Eval)
 	server.Register(s.staticEndpoints.Job)
+	server.Register(s.staticEndpoints.CSIVolume)
 	server.Register(s.staticEndpoints.Deployment)
 	server.Register(s.staticEndpoints.Operator)
 	server.Register(s.staticEndpoints.Periodic)
