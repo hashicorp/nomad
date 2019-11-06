@@ -13,6 +13,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	// Cannot run as a service when running interactively
 	if interactive {
 		return
 	}
@@ -32,8 +33,8 @@ func (serviceWindows) Execute(args []string, r <-chan wsvc.ChangeRequest, s chan
 		case wsvc.Interrogate:
 			s <- c.CurrentStatus
 		case wsvc.Stop, wsvc.Shutdown:
-			chanGraceExit <- 1
 			s <- wsvc.Status{State: wsvc.StopPending}
+			chanGraceExit <- 1
 			return false, 0
 		}
 	}
