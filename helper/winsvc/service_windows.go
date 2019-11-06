@@ -1,6 +1,6 @@
 //+build windows
 
-package service_os
+package winsvc
 
 import (
 	wsvc "golang.org/x/sys/windows/svc"

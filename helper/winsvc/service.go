@@ -1,4 +1,4 @@
-package service_os
+package winsvc
 
 var chanGraceExit = make(chan int)
 
