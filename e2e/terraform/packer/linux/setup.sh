@@ -10,7 +10,7 @@ sudo chown -R ubuntu:ubuntu /ops/shared
 
 cd /ops
 
-CONSULVERSION=1.6.0
+CONSULVERSION=1.6.1
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
