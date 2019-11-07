@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -1252,22 +1253,35 @@ func TestEvalBroker_EnqueueAll_Dequeue_Fair(t *testing.T) {
 	b.SetEnabled(true)
 
 	// Start with a blocked dequeue
-	outCh := make(chan *structs.Evaluation, 1)
+	outCh := make(chan *structs.Evaluation)
+	errCh := make(chan error)
 	go func() {
+		defer close(errCh)
+		defer close(outCh)
 		start := time.Now()
 		out, _, err := b.Dequeue(defaultSched, time.Second)
-		end := time.Now()
-		outCh <- out
 		if err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
+			return
 		}
+		end := time.Now()
 		if d := end.Sub(start); d < 5*time.Millisecond {
-			t.Fatalf("bad: %v", d)
+			errCh <- fmt.Errorf("test broker dequeue duration too fast: %v", d)
+			return
 		}
+		outCh <- out
 	}()
 
-	// Wait for a bit
-	time.Sleep(5 * time.Millisecond)
+	// Wait for a bit, or t.Fatal if an error has already happened in
+	// the goroutine
+	select {
+	case <-time.After(5 * time.Millisecond):
+		// no errors yet, soldier on
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("error from anonymous goroutine before enqueue: %v", err)
+		}
+	}
 
 	// Enqueue
 	evals := make(map[*structs.Evaluation]string, 8)
@@ -1284,10 +1298,14 @@ func TestEvalBroker_EnqueueAll_Dequeue_Fair(t *testing.T) {
 	select {
 	case out := <-outCh:
 		if out.Priority != expectedPriority {
-			t.Fatalf("bad: %v", out)
+			pretty, _ := json.MarshalIndent(out, "", "\t")
+			t.Logf("bad priority on *structs.Evaluation: %s", string(pretty))
+			t.Fatalf("priority wanted:%d, priority got:%d", expectedPriority, out.Priority)
 		}
+	case err := <-errCh:
+		t.Fatalf("error from anonymous goroutine after enqueue: %v", err)
 	case <-time.After(time.Second):
-		t.Fatalf("timeout")
+		t.Fatalf("timeout waiting for dequeue result")
 	}
 }
 
