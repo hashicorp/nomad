@@ -59,9 +59,11 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 		return
 	}
 
-	// Targeting a client so forward the request
+	// Targeting a node, forward request to node
 	if args.NodeID != "" {
 		m.forwardMonitor(conn, args, encoder, decoder)
+		// forwarded request has ended, return
+		return
 	}
 
 	// NodeID was empty, so monitor this current server
