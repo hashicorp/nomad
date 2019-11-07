@@ -742,7 +742,16 @@ func (c *Client) websocket(endpoint string, q *QueryOptions) (*websocket.Conn, *
 	// check resp status code, as it's more informative than handshake error we get from ws library
 	if resp != nil && resp.StatusCode != 101 {
 		var buf bytes.Buffer
-		io.Copy(&buf, resp.Body)
+
+		if resp.Header.Get("Content-Encoding") == "gzip" {
+			greader, err := gzip.NewReader(resp.Body)
+			if err != nil {
+				return nil, nil, fmt.Errorf("Unexpected response code: %d", resp.StatusCode)
+			}
+			io.Copy(&buf, greader)
+		} else {
+			io.Copy(&buf, resp.Body)
+		}
 		resp.Body.Close()
 
 		return nil, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, buf.Bytes())

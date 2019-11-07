@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+	"os"
 	"reflect"
 	"sort"
 	"testing"
@@ -245,6 +247,58 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		})
 	}
 
+}
+
+// TestAllocations_ExecErrors ensures errors are properly formatted
+func TestAllocations_ExecErrors(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Allocations()
+
+	job := &Job{
+		Name:      stringToPtr("foo"),
+		Namespace: stringToPtr(DefaultNamespace),
+		ID:        stringToPtr("bar"),
+		ParentID:  stringToPtr("lol"),
+		TaskGroups: []*TaskGroup{
+			{
+				Name: stringToPtr("bar"),
+				Tasks: []*Task{
+					{
+						Name: "task1",
+					},
+				},
+			},
+		},
+	}
+	job.Canonicalize()
+
+	uuidGen := func() string {
+		ret, err := uuid.GenerateUUID()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ret
+	}
+
+	alloc := &Allocation{
+		ID:        "",
+		Namespace: DefaultNamespace,
+		EvalID:    uuidGen(),
+		Name:      "foo-bar[1]",
+		NodeID:    uuidGen(),
+		TaskGroup: *job.TaskGroups[0].Name,
+		JobID:     *job.ID,
+		Job:       job,
+	}
+	// Querying when no allocs exist returns nothing
+	sizeCh := make(chan TerminalSize, 1)
+
+	// make a request that will result in an error
+	// ensure the error is what we expect
+	_, err := a.Exec(context.Background(), alloc, "bar", false, []string{"command"}, os.Stdin, os.Stdout, os.Stderr, sizeCh, nil)
+	require.Contains(t, err.Error(), "Unexpected response code: 301")
+	require.Contains(t, err.Error(), "Moved Permanently")
 }
 
 func TestAllocations_ShouldMigrate(t *testing.T) {
