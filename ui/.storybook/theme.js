@@ -1,31 +1,34 @@
 import { create } from '@storybook/theming';
 
-// Fonts and colors are from Vault’s _colors.scss and _bulma_variables.scss.
+// From Bulma
+const blackBis = 'hsl(0, 0%, 7%)';
+const greyLight = 'hsl(0, 0%, 71%)';
 
-const uiGray300 = '#BAC1CC';
-const uiGray900 = '#1f2124';
-const blue500 = '#1563ff';
+// From product-colors.scss
+const packerBlue = '#1563ff';
 
 export default create({
   base: 'light',
 
-  colorPrimary: uiGray900,
-  colorSecondary: blue500,
+  colorPrimary: blackBis,
+  colorSecondary: packerBlue,
 
   // UI
-  appBorderColor: uiGray300,
+  appBorderColor: greyLight,
 
   // Typography
-  fontBase: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-  fontCode: '"SFMono-Regular", Consolas, monospace',
+  // From variables.scss
+  fontBase: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif",
+  // From Bulma
+  fontCode: 'monospace',
 
   // Text colors
-  textColor: uiGray900,
+  textColor: blackBis,
 
   // Toolbar default and active colors
-  barTextColor: uiGray300,
+  barTextColor: greyLight,
   barSelectedColor: 'white',
-  barBg: uiGray900,
+  barBg: blackBis,
 
   brandTitle: 'Nomad Storybook',
   brandUrl: 'https://www.nomadproject.io/',
