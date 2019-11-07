@@ -542,6 +542,7 @@ func (d *Driver) ExecTaskStreamingRaw(ctx context.Context,
 	taskID string,
 	command []string,
 	tty bool,
+	envs []string,
 	stream drivers.ExecTaskStream) error {
 
 	if len(command) == 0 {
@@ -552,5 +553,5 @@ func (d *Driver) ExecTaskStreamingRaw(ctx context.Context,
 		return drivers.ErrTaskNotFound
 	}
 
-	return handle.exec.ExecStreaming(ctx, command, tty, stream)
+	return handle.exec.ExecStreaming(ctx, command, tty, envs, stream)
 }

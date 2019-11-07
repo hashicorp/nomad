@@ -175,6 +175,9 @@ type AllocExecRequest struct {
 	// Cmd is the command to be executed
 	Cmd []string
 
+	// Envs is the environment variables to be set
+	Envs []string
+
 	structs.QueryOptions
 }
 

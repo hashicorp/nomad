@@ -68,10 +68,11 @@ func (h *DriverHandle) Exec(timeout time.Duration, cmd string, args []string) ([
 func (h *DriverHandle) ExecStreaming(ctx context.Context,
 	command []string,
 	tty bool,
+	env []string,
 	stream drivers.ExecTaskStream) error {
 
 	if impl, ok := h.driver.(drivers.ExecTaskStreamingRawDriver); ok {
-		return impl.ExecTaskStreamingRaw(ctx, h.taskID, command, tty, stream)
+		return impl.ExecTaskStreamingRaw(ctx, h.taskID, command, tty, env, stream)
 	}
 
 	d, ok := h.driver.(drivers.ExecTaskStreamingDriver)
@@ -80,7 +81,7 @@ func (h *DriverHandle) ExecStreaming(ctx context.Context,
 	}
 
 	execOpts, doneCh := drivers.StreamToExecOptions(
-		ctx, command, tty, stream)
+		ctx, command, tty, env, stream)
 
 	result, err := d.ExecTaskStreaming(ctx, h.taskID, execOpts)
 	if err != nil {

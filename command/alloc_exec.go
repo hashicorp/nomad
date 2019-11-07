@@ -219,7 +219,11 @@ func (l *AllocExecCommand) Run(args []string) int {
 		stdin = bytes.NewReader(nil)
 	}
 
-	code, err := l.execImpl(client, alloc, task, ttyOpt, command, escapeChar, stdin, l.Stdout, l.Stderr)
+	var envs []string
+	if ttyOpt {
+		envs = []string{"TERM=" + os.Getenv("TERM")}
+	}
+	code, err := l.execImpl(client, alloc, task, ttyOpt, command, envs, escapeChar, stdin, l.Stdout, l.Stderr)
 	if err != nil {
 		l.Ui.Error(fmt.Sprintf("failed to exec into task: %v", err))
 		return 1
@@ -230,7 +234,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 // execImpl invokes the Alloc Exec api call, it also prepares and restores terminal states as necessary.
 func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, tty bool,
-	command []string, escapeChar string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
+	command, envs []string, escapeChar string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
 
 	sizeCh := make(chan api.TerminalSize, 1)
 
@@ -289,7 +293,7 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 	}()
 
 	return client.Allocations().Exec(ctx,
-		alloc, task, tty, command, stdin, stdout, stderr, sizeCh, nil)
+		alloc, task, tty, command, envs, stdin, stdout, stderr, sizeCh, nil)
 }
 
 func isStdinTty() bool {

@@ -87,6 +87,7 @@ func (tc *NomadExecE2ETest) TestExecBasicResponses(f *framework.F) {
 			exitCode, err := tc.Nomad().Allocations().Exec(ctx,
 				&tc.alloc, "task", c.Tty,
 				[]string{"/bin/sh", "-c", c.Command},
+				c.Env,
 				stdin, &stdout, &stderr,
 				resizeCh, nil)
 

@@ -169,5 +169,5 @@ func (s *grpcExecutorServer) ExecStreaming(server proto.Executor_ExecStreamingSe
 
 	return s.impl.ExecStreaming(server.Context(),
 		msg.Setup.Command, msg.Setup.Tty,
-		server)
+		msg.Setup.Env, server)
 }

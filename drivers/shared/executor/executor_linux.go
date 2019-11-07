@@ -502,13 +502,13 @@ func (l *LibcontainerExecutor) newTerminalSocket() (pty func() (*os.File, error)
 
 }
 
-func (l *LibcontainerExecutor) ExecStreaming(ctx context.Context, cmd []string, tty bool,
+func (l *LibcontainerExecutor) ExecStreaming(ctx context.Context, cmd []string, tty bool, env []string,
 	stream drivers.ExecTaskStream) error {
 
 	// the task process will be started by the container
 	process := &libcontainer.Process{
 		Args: cmd,
-		Env:  l.userProc.Env,
+		Env:  mergeEnvVars(l.userProc.Env, env),
 		User: l.userProc.User,
 		Init: false,
 		Cwd:  "/",

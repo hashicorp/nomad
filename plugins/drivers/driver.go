@@ -75,6 +75,8 @@ type ExecOptions struct {
 	Stdout io.WriteCloser
 	Stderr io.WriteCloser
 
+	Env []string
+
 	// terminal size channel
 	ResizeCh <-chan TerminalSize
 }
@@ -505,6 +507,7 @@ type ExecTaskStreamingRawDriver interface {
 		taskID string,
 		command []string,
 		tty bool,
+		env []string,
 		stream ExecTaskStream) error
 }
 

@@ -302,6 +302,7 @@ message ExecTaskStreamingRequest {
         string task_id = 1;
         repeated string command = 2;
         bool tty = 3;
+        repeated string env = 4;
     }
 
     message TerminalSize {

@@ -283,7 +283,7 @@ func TestAllocations_ExecErrors(t *testing.T) {
 
 	// make a request that will result in an error
 	// ensure the error is what we expect
-	exitCode, err := a.Exec(context.Background(), alloc, "bar", false, []string{"command"}, os.Stdin, os.Stdout, os.Stderr, sizeCh, nil)
+	exitCode, err := a.Exec(context.Background(), alloc, "bar", false, []string{"command"}, nil, os.Stdin, os.Stdout, os.Stderr, sizeCh, nil)
 
 	require.Equal(t, exitCode, -2)
 	require.Equal(t, err.Error(), fmt.Sprintf("Unknown allocation \"%s\"", allocID))

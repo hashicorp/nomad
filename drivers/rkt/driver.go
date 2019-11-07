@@ -897,6 +897,7 @@ func (d *Driver) ExecTaskStreamingRaw(ctx context.Context,
 	taskID string,
 	command []string,
 	tty bool,
+	envs []string,
 	stream drivers.ExecTaskStream) error {
 
 	if len(command) == 0 {
@@ -910,7 +911,7 @@ func (d *Driver) ExecTaskStreamingRaw(ctx context.Context,
 	enterCmd := []string{rktCmd, "enter", handle.uuid, handle.env.ReplaceEnv(command[0])}
 	enterCmd = append(enterCmd, handle.env.ParseAndReplace(command[1:])...)
 
-	return handle.exec.ExecStreaming(ctx, enterCmd, tty, stream)
+	return handle.exec.ExecStreaming(ctx, enterCmd, tty, envs, stream)
 }
 
 // GetAbsolutePath returns the absolute path of the passed binary by resolving

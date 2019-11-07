@@ -34,6 +34,7 @@ func ExecTaskStreamingConformanceTests(t *testing.T, driver *DriverHarness, task
 var ExecTaskStreamingBasicCases = []struct {
 	Name     string
 	Command  string
+	Env      []string
 	Tty      bool
 	Stdin    string
 	Stdout   interface{}
@@ -78,6 +79,14 @@ var ExecTaskStreamingBasicCases = []struct {
 		Stdout:   "from main\nfrom background\n",
 		ExitCode: 0,
 	},
+	{
+		Name:     "notty: passed env vars",
+		Command:  "echo $EXEC_VAR",
+		Env:      []string{"EXEC_VAR=EXEC_VAL"},
+		Tty:      false,
+		Stdout:   "EXEC_VAL\n",
+		ExitCode: 0,
+	},
 
 	// TTY cases - difference is new lines add `\r` and child process waiting is different
 	{
@@ -118,13 +127,21 @@ var ExecTaskStreamingBasicCases = []struct {
 		Stdout:   "from main\r\n",
 		ExitCode: 0,
 	},
+	{
+		Name:     "tty: passed env vars",
+		Command:  "echo $EXEC_VAR",
+		Env:      []string{"EXEC_VAR=EXEC_VAL"},
+		Tty:      true,
+		Stdout:   "EXEC_VAL\r\n",
+		ExitCode: 0,
+	},
 }
 
 func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID string) {
 	for _, c := range ExecTaskStreamingBasicCases {
 		t.Run("basic: "+c.Name, func(t *testing.T) {
 
-			result := execTask(t, driver, taskID, c.Command, c.Tty, c.Stdin)
+			result := execTask(t, driver, taskID, c.Command, c.Env, c.Tty, c.Stdin)
 
 			require.Equal(t, c.ExitCode, result.exitCode)
 
@@ -168,7 +185,7 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 		// write to a file and check it presence in host
 		w := execTask(t, driver, taskID,
 			fmt.Sprintf(`FILE=$(mktemp); echo "$FILE"; echo %q >> "${FILE}"`, text),
-			false, "")
+			nil, false, "")
 		require.Zero(t, w.exitCode)
 
 		tempfile := strings.TrimSpace(w.stdout)
@@ -191,14 +208,14 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 		// read should succeed from task again
 		r := execTask(t, driver, taskID,
 			fmt.Sprintf("cat %q", tempfile),
-			false, "")
+			nil, false, "")
 		require.Zero(t, r.exitCode)
 		require.Equal(t, text, strings.TrimSpace(r.stdout))
 
 		// we always run in a cgroup - testing freezer cgroup
 		r = execTask(t, driver, taskID,
 			fmt.Sprintf("cat /proc/self/cgroup"),
-			false, "")
+			nil, false, "")
 		require.Zero(t, r.exitCode)
 
 		if !strings.Contains(r.stdout, ":freezer:/nomad") && !strings.Contains(r.stdout, "freezer:/docker") {
@@ -208,7 +225,7 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 	})
 }
 
-func execTask(t *testing.T, driver *DriverHarness, taskID string, cmd string, tty bool, stdin string) execResult {
+func execTask(t *testing.T, driver *DriverHarness, taskID string, cmd string, env []string, tty bool, stdin string) execResult {
 	stream := newTestExecStream(t, tty, stdin)
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), 30*time.Second)
@@ -221,10 +238,10 @@ func execTask(t *testing.T, driver *DriverHarness, taskID string, cmd string, tt
 	if raw, ok := driver.impl.(drivers.ExecTaskStreamingRawDriver); ok {
 		isRaw = true
 		err := raw.ExecTaskStreamingRaw(ctx, taskID,
-			command, tty, stream)
+			command, tty, env, stream)
 		require.NoError(t, err)
 	} else if d, ok := driver.impl.(drivers.ExecTaskStreamingDriver); ok {
-		execOpts, errCh := drivers.StreamToExecOptions(ctx, command, tty, stream)
+		execOpts, errCh := drivers.StreamToExecOptions(ctx, command, tty, env, stream)
 
 		r, err := d.ExecTaskStreaming(ctx, taskID, execOpts)
 		require.NoError(t, err)

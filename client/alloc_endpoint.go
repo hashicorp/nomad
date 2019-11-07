@@ -263,7 +263,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 		return helper.Int64ToPtr(404), fmt.Errorf("task %q is not running.", req.Task)
 	}
 
-	err = h(ctx, req.Cmd, req.Tty, newExecStream(decoder, encoder))
+	err = h(ctx, req.Cmd, req.Tty, req.Envs, newExecStream(decoder, encoder))
 	if err != nil {
 		code := helper.Int64ToPtr(500)
 		return code, err

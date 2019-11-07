@@ -285,3 +285,14 @@ func isClosedError(err error) bool {
 		err == io.ErrClosedPipe ||
 		isUnixEIOErr(err)
 }
+
+func mergeEnvVars(a, b []string) []string {
+	if len(b) == 0 {
+		return a
+	}
+
+	r := make([]string, 0, len(a)+len(b))
+	r = append(r, a...)
+	r = append(r, b...)
+	return r
+}

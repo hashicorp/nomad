@@ -188,9 +188,10 @@ func (c *grpcExecutorClient) Exec(deadline time.Time, cmd string, args []string)
 func (d *grpcExecutorClient) ExecStreaming(ctx context.Context,
 	command []string,
 	tty bool,
+	envs []string,
 	execStream drivers.ExecTaskStream) error {
 
-	err := d.execStreaming(ctx, command, tty, execStream)
+	err := d.execStreaming(ctx, command, tty, envs, execStream)
 	if err != nil {
 		return grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
@@ -198,8 +199,7 @@ func (d *grpcExecutorClient) ExecStreaming(ctx context.Context,
 }
 
 func (d *grpcExecutorClient) execStreaming(ctx context.Context,
-	command []string,
-	tty bool,
+	command []string, tty bool, env []string,
 	execStream drivers.ExecTaskStream) error {
 
 	stream, err := d.client.ExecStreaming(ctx)
@@ -211,6 +211,7 @@ func (d *grpcExecutorClient) execStreaming(ctx context.Context,
 		Setup: &dproto.ExecTaskStreamingRequest_Setup{
 			Command: command,
 			Tty:     tty,
+			Env:     env,
 		},
 	})
 	if err != nil {

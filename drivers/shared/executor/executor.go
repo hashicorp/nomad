@@ -80,7 +80,7 @@ type Executor interface {
 	Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error)
 
 	ExecStreaming(ctx context.Context, cmd []string, tty bool,
-		stream drivers.ExecTaskStream) error
+		env []string, stream drivers.ExecTaskStream) error
 }
 
 // ExecCommand holds the user command, args, and other isolation related
@@ -364,7 +364,7 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 }
 
 func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string, tty bool,
-	stream drivers.ExecTaskStream) error {
+	env []string, stream drivers.ExecTaskStream) error {
 
 	if len(command) == 0 {
 		return fmt.Errorf("command is required")
@@ -373,7 +373,7 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 
 	cmd.Dir = "/"
-	cmd.Env = e.childCmd.Env
+	cmd.Env = mergeEnvVars(e.childCmd.Env, env)
 
 	execHelper := &execHelper{
 		logger: e.logger,

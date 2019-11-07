@@ -15,6 +15,7 @@ func StreamToExecOptions(
 	ctx context.Context,
 	command []string,
 	tty bool,
+	env []string,
 	stream ExecTaskStream) (*ExecOptions, <-chan error) {
 
 	inReader, inWriter := io.Pipe()
@@ -161,6 +162,7 @@ func StreamToExecOptions(
 	return &ExecOptions{
 		Command: command,
 		Tty:     tty,
+		Env:     env,
 
 		Stdin:  inReader,
 		Stdout: outWriter,

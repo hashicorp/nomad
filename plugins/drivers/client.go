@@ -405,6 +405,7 @@ func (d *driverPluginClient) ExecTaskStreamingRaw(ctx context.Context,
 	taskID string,
 	command []string,
 	tty bool,
+	env []string,
 	execStream ExecTaskStream) error {
 
 	stream, err := d.client.ExecTaskStreaming(ctx)
@@ -417,6 +418,7 @@ func (d *driverPluginClient) ExecTaskStreamingRaw(ctx context.Context,
 			TaskId:  taskID,
 			Command: command,
 			Tty:     tty,
+			Env:     env,
 		},
 	})
 	if err != nil {

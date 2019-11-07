@@ -1357,6 +1357,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 		AttachStderr: true,
 		Tty:          opts.Tty,
 		Cmd:          opts.Command,
+		Env:          opts.Env,
 		Container:    h.containerID,
 		Context:      ctx,
 	}

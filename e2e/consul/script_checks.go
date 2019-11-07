@@ -196,7 +196,7 @@ func exec(client *api.Client, allocs []*api.AllocationListStub, command []string
 	}
 	_, err := client.Allocations().Exec(ctx,
 		alloc, "test", false,
-		command,
+		command, nil,
 		os.Stdin, &stdout, &stderr,
 		make(chan api.TerminalSize), nil)
 	return stdout, stderr, err

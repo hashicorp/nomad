@@ -373,8 +373,15 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 	var command []string
 	err := json.Unmarshal([]byte(cmdJsonStr), &command)
 	if err != nil {
-		// this shouldn't happen, []string is always be serializable to json
-		return nil, fmt.Errorf("failed to marshal command into json: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal command from json: %v", err)
+	}
+
+	var envs []string
+	if envsJsonStr := req.URL.Query().Get("envs"); envsJsonStr != "" {
+		err = json.Unmarshal([]byte(envsJsonStr), &envs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal envs from json: %v", err)
+		}
 	}
 
 	ttyB := false
@@ -390,6 +397,7 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 		Task:    task,
 		Cmd:     command,
 		Tty:     ttyB,
+		Envs:    envs,
 	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 

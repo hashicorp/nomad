@@ -296,7 +296,7 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 	if impl, ok := b.impl.(ExecTaskStreamingRawDriver); ok {
 		return impl.ExecTaskStreamingRaw(server.Context(),
 			msg.Setup.TaskId, msg.Setup.Command, msg.Setup.Tty,
-			server)
+			msg.Setup.Env, server)
 	}
 
 	d, ok := b.impl.(ExecTaskStreamingDriver)
@@ -306,7 +306,7 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 
 	execOpts, errCh := StreamToExecOptions(server.Context(),
 		msg.Setup.Command, msg.Setup.Tty,
-		server)
+		msg.Setup.Env, server)
 
 	result, err := d.ExecTaskStreaming(server.Context(),
 		msg.Setup.TaskId, execOpts)

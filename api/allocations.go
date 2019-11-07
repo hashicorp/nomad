@@ -84,7 +84,7 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 //
 // The call blocks until command terminates (or an error occurs), and returns the exit code.
 func (a *Allocations) Exec(ctx context.Context,
-	alloc *Allocation, task string, tty bool, command []string,
+	alloc *Allocation, task string, tty bool, command, envs []string,
 	stdin io.Reader, stdout, stderr io.Writer,
 	terminalSizeCh <-chan TerminalSize, q *QueryOptions) (exitCode int, err error) {
 
@@ -93,7 +93,7 @@ func (a *Allocations) Exec(ctx context.Context,
 
 	errCh := make(chan error, 4)
 
-	sender, output := a.execFrames(ctx, alloc, task, tty, command, errCh, q)
+	sender, output := a.execFrames(ctx, alloc, task, tty, command, envs, errCh, q)
 
 	select {
 	case err := <-errCh:
@@ -208,7 +208,8 @@ func (a *Allocations) Exec(ctx context.Context,
 	}
 }
 
-func (a *Allocations) execFrames(ctx context.Context, alloc *Allocation, task string, tty bool, command []string,
+func (a *Allocations) execFrames(ctx context.Context, alloc *Allocation, task string, tty bool,
+	command []string, envs []string,
 	errCh chan<- error, q *QueryOptions) (sendFn func(*ExecStreamingInput) error, output <-chan *ExecStreamingOutput) {
 	nodeClient, _ := a.client.GetNodeClientWithTimeout(alloc.NodeID, ClientConnTimeout, q)
 
@@ -228,6 +229,16 @@ func (a *Allocations) execFrames(ctx context.Context, alloc *Allocation, task st
 	q.Params["tty"] = strconv.FormatBool(tty)
 	q.Params["task"] = task
 	q.Params["command"] = string(commandBytes)
+
+	if len(envs) != 0 {
+		envsBytes, err := json.Marshal(envs)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to marshal envs: %s", err)
+			return nil, nil
+		}
+
+		q.Params["envs"] = string(envsBytes)
+	}
 
 	reqPath := fmt.Sprintf("/v1/client/allocation/%s/exec", alloc.ID)
 
