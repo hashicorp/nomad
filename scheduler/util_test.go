@@ -527,6 +527,24 @@ func TestTasksUpdated(t *testing.T) {
 		t.Fatalf("bad")
 	}
 
+	j11d1 := mock.Job()
+	j11d1.TaskGroups[0].Tasks[0].Resources.Devices = structs.ResourceDevices{
+		&structs.RequestedDevice{
+			Name:  "gpu",
+			Count: 1,
+		},
+	}
+	j11d2 := mock.Job()
+	j11d2.TaskGroups[0].Tasks[0].Resources.Devices = structs.ResourceDevices{
+		&structs.RequestedDevice{
+			Name:  "gpu",
+			Count: 2,
+		},
+	}
+	if !tasksUpdated(j11d1, j11d2, name) {
+		t.Fatalf("bad")
+	}
+
 	j12 := mock.Job()
 	j12.TaskGroups[0].Tasks[0].Resources.Networks[0].MBits = 100
 	if !tasksUpdated(j1, j12, name) {
