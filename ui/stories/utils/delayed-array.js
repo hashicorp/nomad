@@ -2,6 +2,12 @@ import { A } from '@ember/array';
 import ArrayProxy from '@ember/array/proxy';
 import { next } from '@ember/runloop';
 
+/**
+ * This is an array whose content is empty until the next
+ * tick, which fixes Storybook race condition rendering
+ * problems.
+ */
+
 export default ArrayProxy.extend({
   init(array) {
     this.set('content', A([]));
