@@ -133,8 +133,5 @@
   },
   "dependencies": {
     "lru_map": "^0.3.3"
-  },
-  "resolutions": {
-    "ember-cli/portfinder": "1.0.21"
   }
 }
