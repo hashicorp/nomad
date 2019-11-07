@@ -14,32 +14,31 @@ addParameters({
 addDecorator(storyFn => {
   const { template, context } = storyFn();
 
-  // This adds styling to the Canvas tab.
-  const styles = {
-    style: {
-      margin: '20px',
-    },
+  // This is applied to a wrapper element just inside .ember-application
+  const wrapperElementStyle = {
+    margin: '20px',
   };
 
-  // Create a div to wrap the Canvas tab with the applied styles.
-  const element = document.createElement('div');
-  Object.assign(element.style, styles.style);
+  const applicationWrapperElement = document.createElement('div');
+  Object.assign(applicationWrapperElement.style, wrapperElementStyle);
 
-  const innerElement = document.createElement('div');
-  innerElement.setAttribute('id', 'storybook');
+  const storybookElement = document.createElement('div');
+  storybookElement.setAttribute('id', 'storybook');
+
   const wormhole = document.createElement('div');
   wormhole.setAttribute('id', 'ember-basic-dropdown-wormhole');
-  innerElement.appendChild(wormhole);
 
-  element.appendChild(innerElement);
-  innerElement.appendTo = function appendTo(el) {
-    el.appendChild(element);
+  storybookElement.appendChild(wormhole);
+
+  applicationWrapperElement.appendChild(storybookElement);
+  storybookElement.appendTo = function appendTo(el) {
+    el.appendChild(applicationWrapperElement);
   };
 
   return {
     template,
     context,
-    element: innerElement,
+    element: storybookElement,
   };
 });
 
