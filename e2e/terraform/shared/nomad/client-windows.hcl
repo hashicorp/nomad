@@ -2,7 +2,7 @@ enable_debug = true
 
 log_level = "debug"
 
-data_dir = "C:\opt\nomad\data"
+data_dir = "C:\\opt\\nomad\\data"
 
 bind_addr = "0.0.0.0"
 
@@ -12,7 +12,7 @@ client {
 
   options {
     # Allow rawexec jobs
-    "driver.raw_exec.enable"    = "1"
+    "driver.raw_exec.enable" = "1"
   }
 }
 
