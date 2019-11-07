@@ -43,6 +43,7 @@ addDecorator(storyFn => {
   };
 });
 
+// The order of import controls the sorting in the sidebar
 configure([
   require.context('../stories/theme', true, /\.stories\.js$/),
   require.context('../stories/components', true, /\.stories\.js$/),
