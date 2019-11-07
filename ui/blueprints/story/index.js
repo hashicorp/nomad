@@ -8,7 +8,7 @@ module.exports = {
   fileMapTokens: function() {
     let { project } = this;
     return {
-      __path__: function(options) {
+      __path__: function() {
         return path.relative(project.root, project.root);
       },
       __markdownname__: function(options) {
