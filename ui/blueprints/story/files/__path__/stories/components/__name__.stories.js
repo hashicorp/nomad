@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: '<%= classifiedModuleName %>',
+  title: 'Components|<%= classifiedModuleName %>',
 };
 
 export const <%= classifiedModuleName %> = () => {
