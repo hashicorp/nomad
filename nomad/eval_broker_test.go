@@ -1000,13 +1000,16 @@ func TestEvalBroker_PauseResumeNackTimeout(t *testing.T) {
 	// Pause in 20 milliseconds
 	time.Sleep(20 * time.Millisecond)
 	if err := b.PauseNackTimeout(out.ID, token); err != nil {
-		t.Fatalf("err: %v", err)
+		t.Fatalf("pause nack timeout error: %v", err)
 	}
 
+	errCh := make(chan error)
 	go func() {
+		defer close(errCh)
 		time.Sleep(20 * time.Millisecond)
 		if err := b.ResumeNackTimeout(out.ID, token); err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
+			return
 		}
 	}()
 
@@ -1014,15 +1017,24 @@ func TestEvalBroker_PauseResumeNackTimeout(t *testing.T) {
 	out, _, err = b.Dequeue(defaultSched, time.Second)
 	end := time.Now()
 	if err != nil {
-		t.Fatalf("err: %v", err)
+		t.Fatalf("dequeue error: %v", err)
 	}
 	if out != eval {
-		t.Fatalf("bad: %v", out)
+		prettyExp, _ := json.MarshalIndent(eval, "", "\t")
+		prettyGot, _ := json.MarshalIndent(out, "", "\t")
+		t.Fatalf("dequeue result expected:\n%s\ngot:\n%s",
+			string(prettyExp), string(prettyGot))
 	}
 
 	// Check the nack timer
 	if diff := end.Sub(start); diff < 95*time.Millisecond {
-		t.Fatalf("bad: %#v", diff)
+		t.Fatalf("deqeue happened too fast: %#v", diff)
+	}
+
+	// check the result of ResumeNackTimeout
+	err = <-errCh
+	if err != nil {
+		t.Fatalf("resume nack timeout error:%s", err)
 	}
 }
 
