@@ -9,6 +9,7 @@ IMPROVEMENTS:
 BUG FIXES:
 
  * cli: Make scoring column orders consistent `nomad alloc status` [[GH-6609](https://github.com/hashicorp/nomad/issues/6609)]
+ * scheduler: Changes to devices in resource stanza should cause rescheduling [[GH-6644](https://github.com/hashicorp/nomad/issues/6644)]
  
 ## 0.10.1 (November 4, 2019)
 
