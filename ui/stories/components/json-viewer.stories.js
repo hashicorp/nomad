@@ -4,11 +4,6 @@ import DelayedTruth from '../delayed-truth';
 
 export default {
   title: 'Components|JSON Viewer',
-  parameters: {
-    options: {
-      showPanel: false,
-    },
-  },
 };
 
 export const Standard = () => {
