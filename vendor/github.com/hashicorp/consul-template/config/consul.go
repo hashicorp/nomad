@@ -20,17 +20,19 @@ type ConsulConfig struct {
 
 	// Token is the token to communicate with Consul securely.
 	Token *string
+
+	// Transport configures the low-level network connection details.
+	Transport *TransportConfig `mapstructure:"transport"`
 }
 
 // DefaultConsulConfig returns a configuration that is populated with the
 // default values.
 func DefaultConsulConfig() *ConsulConfig {
 	return &ConsulConfig{
-		Address: stringFromEnv("CONSUL_HTTP_ADDR"),
-		Auth:    DefaultAuthConfig(),
-		Retry:   DefaultRetryConfig(),
-		SSL:     DefaultSSLConfig(),
-		Token:   stringFromEnv("CONSUL_TOKEN", "CONSUL_HTTP_TOKEN"),
+		Auth:      DefaultAuthConfig(),
+		Retry:     DefaultRetryConfig(),
+		SSL:       DefaultSSLConfig(),
+		Transport: DefaultTransportConfig(),
 	}
 }
 
@@ -57,6 +59,10 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 	}
 
 	o.Token = c.Token
+
+	if c.Transport != nil {
+		o.Transport = c.Transport.Copy()
+	}
 
 	return &o
 }
@@ -99,13 +105,19 @@ func (c *ConsulConfig) Merge(o *ConsulConfig) *ConsulConfig {
 		r.Token = o.Token
 	}
 
+	if o.Transport != nil {
+		r.Transport = r.Transport.Merge(o.Transport)
+	}
+
 	return r
 }
 
 // Finalize ensures there no nil pointers.
 func (c *ConsulConfig) Finalize() {
 	if c.Address == nil {
-		c.Address = String("")
+		c.Address = stringFromEnv([]string{
+			"CONSUL_HTTP_ADDR",
+		}, "")
 	}
 
 	if c.Auth == nil {
@@ -124,8 +136,16 @@ func (c *ConsulConfig) Finalize() {
 	c.SSL.Finalize()
 
 	if c.Token == nil {
-		c.Token = String("")
+		c.Token = stringFromEnv([]string{
+			"CONSUL_TOKEN",
+			"CONSUL_HTTP_TOKEN",
+		}, "")
 	}
+
+	if c.Transport == nil {
+		c.Transport = DefaultTransportConfig()
+	}
+	c.Transport.Finalize()
 }
 
 // GoString defines the printable version of this struct.
@@ -139,12 +159,14 @@ func (c *ConsulConfig) GoString() string {
 		"Auth:%#v, "+
 		"Retry:%#v, "+
 		"SSL:%#v, "+
-		"Token:%t"+
+		"Token:%t, "+
+		"Transport:%#v"+
 		"}",
 		StringGoString(c.Address),
 		c.Auth,
 		c.Retry,
 		c.SSL,
 		StringPresent(c.Token),
+		c.Transport,
 	)
 }

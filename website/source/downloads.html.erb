@@ -28,6 +28,11 @@ description: |-
         which has been signed using <a href="https://www.hashicorp.com/security.html" target="_blank" rel="nofollow noopener noreferrer">HashiCorp's GPG key</a>.
         You can also <a href="https://releases.hashicorp.com/nomad/" target="_blank" rel="nofollow noopener noreferrer">download older versions of Nomad</a> from the releases service.
       </p>
+
+      <p>
+        Nomad works with many popular distributions including Amazon Linux 2, Ubuntu, and RHEL 7/8, CentOS 7/8.
+      </p>
+
       <p>
       Check out the <a href="https://github.com/hashicorp/nomad/blob/v<%= latest_version %>/CHANGELOG.md">v<%= latest_version %> CHANGELOG</a> for information on the latest release.
       </p>
@@ -40,7 +45,7 @@ description: |-
       <div class="col-md-12 download">
         <div class="icon pull-left"><%= system_icon(os) %></div>
         <div class="details">
-          <h2 class="os-name"><%= pretty_os(os) %></h2>
+          <h2 class="os-name g-type-display-4"><%= pretty_os(os) %></h2>
           <ul>
             <% arches.each do |arch, url| %>
               <li><a href="<%= url %>"><%= pretty_arch(arch) %></a></li>
@@ -53,9 +58,9 @@ description: |-
   <% end %>
 
   <div class="row">
-    <div class="col-md-12 poweredby">
+    <div class="poweredby">
       <a href="https://www.fastly.com?utm_source=hashicorp" target="_blank" rel="nofollow noopener noreferrer">
-        <%= image_tag "fastly_logo.png" %>
+        <%= inline_svg "fastly.svg", height: 50 %>
       </a>
     </div>
   </div>

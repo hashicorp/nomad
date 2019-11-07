@@ -65,7 +65,7 @@ func MustInit() {
 
 	// Slow-path
 	m.Lock()
-	defer m.Lock()
+	defer m.Unlock()
 
 	if err := cryptoSeed(); err != nil {
 		panic(fmt.Sprintf("Unable to seed the random number generator: %v", err))

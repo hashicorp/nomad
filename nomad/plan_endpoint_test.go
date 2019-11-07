@@ -4,14 +4,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
 
 func TestPlanEndpoint_Submit(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()
@@ -34,6 +35,7 @@ func TestPlanEndpoint_Submit(t *testing.T) {
 	plan := mock.Plan()
 	plan.EvalID = eval1.ID
 	plan.EvalToken = token
+	plan.Job = mock.Job()
 	req := &structs.PlanRequest{
 		Plan:         plan,
 		WriteRequest: structs.WriteRequest{Region: "global"},

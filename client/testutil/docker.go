@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"runtime"
 	"testing"
 
 	docker "github.com/fsouza/go-dockerclient"
@@ -11,7 +12,12 @@ import (
 func DockerIsConnected(t *testing.T) bool {
 	// We have docker on travis so we should try to test
 	if testutil.IsTravis() {
-		return true
+		// Travis supports Docker on Linux only; MacOS setup does not support Docker
+		return runtime.GOOS == "linux"
+	}
+
+	if testutil.IsAppVeyor() {
+		return runtime.GOOS == "windows"
 	}
 
 	client, err := docker.NewClientFromEnv()
@@ -29,4 +35,11 @@ func DockerIsConnected(t *testing.T) bool {
 
 	t.Logf("Successfully connected to docker daemon running version %s", env.Get("Version"))
 	return true
+}
+
+// DockerCompatible skips tests if docker is not present
+func DockerCompatible(t *testing.T) {
+	if !DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
 }

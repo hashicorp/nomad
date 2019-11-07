@@ -1,0 +1,42 @@
+{{#if job.latestDeployment}}
+  <div class="boxed-section {{if job.latestDeployment.isRunning "is-info"}}" data-test-active-deployment>
+    <div class="boxed-section-head">
+      <div class="boxed-section-row">
+        {{if job.latestDeployment.isRunning "Active" "Latest"}} Deployment
+        <span class="badge is-white {{if job.latestDeployment.isRunning "is-subtle"}} bumper-left" data-test-active-deployment-stat="id">{{job.latestDeployment.shortId}}</span>
+        {{#if job.latestDeployment.version.submitTime}}
+          <span class="pull-right submit-time tooltip" data-test-active-deployment-stat="submit-time" aria-label="{{format-ts job.latestDeployment.version.submitTime}}">
+            {{moment-from-now job.latestDeployment.version.submitTime}}
+          </span>
+        {{/if}}
+      </div>
+      <div class="boxed-section-row">
+        <span class="tag is-outlined {{job.latestDeployment.statusClass}}" data-test-deployment-status="{{job.latestDeployment.statusClass}}">
+          {{job.latestDeployment.status}}
+        </span>
+        {{#if job.latestDeployment.requiresPromotion}}
+          <button
+            data-test-promote-canary
+            type="button"
+            class="button is-warning is-small pull-right {{if promote.isRunning "is-loading"}}"
+            disabled={{promote.isRunning}}
+            onclick={{perform promote}}>Promote Canary</button>
+        {{/if}}
+      </div>
+    </div>
+    <div class="boxed-section-body with-foot">
+      {{#job-deployment-details deployment=job.latestDeployment as |d|}}
+        {{d.metrics}}
+        {{#if isShowingDeploymentDetails}}
+          {{d.taskGroups}}
+          {{d.allocations}}
+        {{/if}}
+      {{/job-deployment-details}}
+    </div>
+    <div class="boxed-section-foot">
+      <a class="pull-right" {{action (toggle "isShowingDeploymentDetails" this)}} data-test-deployment-toggle-details>
+        {{if isShowingDeploymentDetails "Hide" "Show"}} deployment task groups and allocations
+      </a>
+    </div>
+  </div>
+{{/if}}

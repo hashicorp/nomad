@@ -1,0 +1,28 @@
+.inline-definitions {
+  .label {
+    text-transform: uppercase;
+    display: inline;
+    color: darken($grey-blue, 20%);
+    margin-right: 2rem;
+    font-size: inherit;
+    font-weight: $weight-semibold;
+  }
+
+  .pair {
+    margin-right: 2em;
+
+    .term {
+      font-weight: $weight-semibold;
+      margin-right: 0.5em;
+    }
+
+    &.is-faded {
+      color: darken($grey-blue, 20%);
+    }
+
+    .has-emphasis {
+      color: $text;
+      font-weight: $weight-semibold;
+    }
+  }
+}

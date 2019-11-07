@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -8,14 +9,20 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJobEndpoint_Register(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -25,8 +32,11 @@ func TestJobEndpoint_Register(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -41,7 +51,7 @@ func TestJobEndpoint_Register(t *testing.T) {
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -87,39 +97,349 @@ func TestJobEndpoint_Register(t *testing.T) {
 	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
 	}
+	if eval.CreateTime == 0 {
+		t.Fatalf("eval CreateTime is unset: %#v", eval)
+	}
+	if eval.ModifyTime == 0 {
+		t.Fatalf("eval ModifyTime is unset: %#v", eval)
+	}
 }
 
-func TestJobEndpoint_Register_InvalidDriverConfig(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+func TestJobEndpoint_Register_Connect(t *testing.T) {
+	require := require.New(t)
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// Create the register request with a job containing an invalid driver
-	// config
+	// Create the register request
 	job := mock.Job()
-	job.TaskGroups[0].Tasks[0].Config["foo"] = 1
+	job.TaskGroups[0].Networks = structs.Networks{
+		{
+			Mode: "bridge",
+		},
+	}
+	job.TaskGroups[0].Services = []*structs.Service{
+		{
+			Name:      "backend",
+			PortLabel: "8080",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+			},
+		},
+	}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
 	var resp structs.JobRegisterResponse
-	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil {
-		t.Fatalf("expected a validation error")
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// Check that the sidecar task was injected
+	require.Len(out.TaskGroups[0].Tasks, 2)
+	sidecarTask := out.TaskGroups[0].Tasks[1]
+	require.Equal("connect-proxy-backend", sidecarTask.Name)
+	require.Equal("connect-proxy:backend", string(sidecarTask.Kind))
+	require.Equal("connect-proxy-backend", out.TaskGroups[0].Networks[0].DynamicPorts[0].Label)
+
+	// Check that round tripping the job doesn't change the sidecarTask
+	out.Meta["test"] = "abc"
+	req.Job = out
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+	// Check for the new node in the FSM
+	state = s1.fsm.State()
+	ws = memdb.NewWatchSet()
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	require.Len(out.TaskGroups[0].Tasks, 2)
+	require.Exactly(sidecarTask, out.TaskGroups[0].Tasks[1])
+
+}
+
+func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
+	require := require.New(t)
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.TaskGroups[0].Networks = structs.Networks{
+		{
+			Mode: "bridge",
+		},
+	}
+	job.TaskGroups[0].Services = []*structs.Service{
+		{
+			Name:      "backend",
+			PortLabel: "8080",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+				SidecarTask: &structs.SidecarTask{
+					Meta: map[string]string{
+						"source": "test",
+					},
+					Resources: &structs.Resources{
+						CPU: 500,
+					},
+					Config: map[string]interface{}{
+						"labels": map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+		},
+	}
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
-	if !strings.Contains(err.Error(), "-> config:") {
-		t.Fatalf("expected a driver config validation error but got: %v", err)
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// Check that the sidecar task was injected
+	require.Len(out.TaskGroups[0].Tasks, 2)
+	sidecarTask := out.TaskGroups[0].Tasks[1]
+	require.Equal("connect-proxy-backend", sidecarTask.Name)
+	require.Equal("connect-proxy:backend", string(sidecarTask.Kind))
+	require.Equal("connect-proxy-backend", out.TaskGroups[0].Networks[0].DynamicPorts[0].Label)
+
+	// Check that the correct fields were overridden from the sidecar_task stanza
+	require.Equal("test", sidecarTask.Meta["source"])
+	require.Equal(500, sidecarTask.Resources.CPU)
+	require.Equal(connectSidecarResources().MemoryMB, sidecarTask.Resources.MemoryMB)
+	cfg := connectDriverConfig
+	cfg["labels"] = map[string]interface{}{
+		"foo": "bar",
+	}
+	require.Equal(cfg, sidecarTask.Config)
+
+	// Check that round tripping the job doesn't change the sidecarTask
+	out.Meta["test"] = "abc"
+	req.Job = out
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(resp.Index)
+	// Check for the new node in the FSM
+	state = s1.fsm.State()
+	ws = memdb.NewWatchSet()
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	require.Len(out.TaskGroups[0].Tasks, 2)
+	require.Exactly(sidecarTask, out.TaskGroups[0].Tasks[1])
+
+}
+
+func TestJobEndpoint_Register_ACL(t *testing.T) {
+	t.Parallel()
+
+	s1, root := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	newVolumeJob := func(readonlyVolume bool) *structs.Job {
+		j := mock.Job()
+		tg := j.TaskGroups[0]
+		tg.Volumes = map[string]*structs.VolumeRequest{
+			"ca-certs": {
+				Type:     structs.VolumeTypeHost,
+				Source:   "prod-ca-certs",
+				ReadOnly: readonlyVolume,
+			},
+		}
+
+		tg.Tasks[0].VolumeMounts = []*structs.VolumeMount{
+			{
+				Volume:      "ca-certs",
+				Destination: "/etc/ca-certificates",
+				// Task readonly does not effect acls
+				ReadOnly: true,
+			},
+		}
+
+		return j
+	}
+
+	submitJobPolicy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob, acl.NamespaceCapabilitySubmitJob})
+
+	submitJobToken := mock.CreatePolicyAndToken(t, s1.State(), 1001, "test-submit-job", submitJobPolicy)
+
+	volumesPolicyReadWrite := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadWrite})
+
+	submitJobWithVolumesReadWriteToken := mock.CreatePolicyAndToken(t, s1.State(), 1002, "test-submit-volumes", submitJobPolicy+"\n"+volumesPolicyReadWrite)
+
+	volumesPolicyReadOnly := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadOnly})
+
+	submitJobWithVolumesReadOnlyToken := mock.CreatePolicyAndToken(t, s1.State(), 1003, "test-submit-volumes-readonly", submitJobPolicy+"\n"+volumesPolicyReadOnly)
+
+	cases := []struct {
+		Name        string
+		Job         *structs.Job
+		Token       string
+		ErrExpected bool
+	}{
+		{
+			Name:        "without a token",
+			Job:         mock.Job(),
+			Token:       "",
+			ErrExpected: true,
+		},
+		{
+			Name:        "with a token",
+			Job:         mock.Job(),
+			Token:       root.SecretID,
+			ErrExpected: false,
+		},
+		{
+			Name:        "with a token that can submit a job, but not use a required volume",
+			Job:         newVolumeJob(false),
+			Token:       submitJobToken.SecretID,
+			ErrExpected: true,
+		},
+		{
+			Name:        "with a token that can submit a job, and use all required volumes",
+			Job:         newVolumeJob(false),
+			Token:       submitJobWithVolumesReadWriteToken.SecretID,
+			ErrExpected: false,
+		},
+		{
+			Name:        "with a token that can submit a job, but only has readonly access",
+			Job:         newVolumeJob(false),
+			Token:       submitJobWithVolumesReadOnlyToken.SecretID,
+			ErrExpected: true,
+		},
+		{
+			Name:        "with a token that can submit a job, and readonly volume access is enough",
+			Job:         newVolumeJob(true),
+			Token:       submitJobWithVolumesReadOnlyToken.SecretID,
+			ErrExpected: false,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.Name, func(t *testing.T) {
+			codec := rpcClient(t, s1)
+			req := &structs.JobRegisterRequest{
+				Job: tt.Job,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: tt.Job.Namespace,
+				},
+			}
+			req.AuthToken = tt.Token
+
+			// Try without a token, expect failure
+			var resp structs.JobRegisterResponse
+			err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+
+			// If we expected an error, then the job should _not_ be registered.
+			if tt.ErrExpected {
+				require.Error(t, err, "expected error")
+				return
+			}
+
+			if !tt.ErrExpected {
+				require.NoError(t, err, "unexpected error")
+			}
+
+			require.NotEqual(t, 0, resp.Index)
+
+			state := s1.fsm.State()
+			ws := memdb.NewWatchSet()
+			out, err := state.JobByID(ws, tt.Job.Namespace, tt.Job.ID)
+			require.NoError(t, err)
+			require.NotNil(t, out)
+			require.Equal(t, tt.Job.TaskGroups, out.TaskGroups)
+		})
+	}
+}
+
+func TestJobEndpoint_Register_InvalidNamespace(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.Namespace = "foo"
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Try without a token, expect failure
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	if err == nil || !strings.Contains(err.Error(), "nonexistent namespace") {
+		t.Fatalf("expected namespace error: %v", err)
+	}
+
+	// Check for the job in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out != nil {
+		t.Fatalf("expected no job")
 	}
 }
 
 func TestJobEndpoint_Register_Payload(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -131,8 +451,11 @@ func TestJobEndpoint_Register_Payload(t *testing.T) {
 	job := mock.Job()
 	job.Payload = []byte{0x1}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -148,7 +471,8 @@ func TestJobEndpoint_Register_Payload(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Existing(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -158,8 +482,11 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -188,7 +515,7 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -199,6 +526,9 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 		t.Fatalf("index mis-match")
 	}
 	if out.Priority != 100 {
+		t.Fatalf("expected update")
+	}
+	if out.Version != 1 {
 		t.Fatalf("expected update")
 	}
 
@@ -232,10 +562,39 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
 	}
+	if eval.CreateTime == 0 {
+		t.Fatalf("eval CreateTime is unset: %#v", eval)
+	}
+	if eval.ModifyTime == 0 {
+		t.Fatalf("eval ModifyTime is unset: %#v", eval)
+	}
+
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Check to ensure the job version didn't get bumped because we submitted
+	// the same job
+	state = s1.fsm.State()
+	ws = memdb.NewWatchSet()
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if out.Version != 1 {
+		t.Fatalf("expected no update; got %v; diff %v", out.Version, pretty.Diff(job2, out))
+	}
 }
 
 func TestJobEndpoint_Register_Periodic(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -245,8 +604,11 @@ func TestJobEndpoint_Register_Periodic(t *testing.T) {
 	// Create the register request for a periodic job.
 	job := mock.PeriodicJob()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -261,7 +623,7 @@ func TestJobEndpoint_Register_Periodic(t *testing.T) {
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -283,7 +645,8 @@ func TestJobEndpoint_Register_Periodic(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -291,12 +654,14 @@ func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request for a parameterized job.
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
+	job := mock.BatchJob()
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -311,7 +676,7 @@ func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
 	// Check for the job in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -326,8 +691,36 @@ func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_Dispatched(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request with a job with 'Dispatch' set to true
+	job := mock.Job()
+	job.Dispatched = true
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	require.Error(err)
+	require.Contains(err.Error(), "job can't be submitted with 'Dispatched'")
+}
 func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -340,7 +733,10 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 		Job:            job,
 		EnforceIndex:   true,
 		JobModifyIndex: 100, // Not registered yet so not possible
-		WriteRequest:   structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -355,7 +751,10 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 		Job:            job,
 		EnforceIndex:   true,
 		JobModifyIndex: 0,
-		WriteRequest:   structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -371,7 +770,7 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -387,7 +786,10 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 		Job:            job,
 		EnforceIndex:   true,
 		JobModifyIndex: 0,
-		WriteRequest:   structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -401,7 +803,10 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 		Job:            job,
 		EnforceIndex:   true,
 		JobModifyIndex: curIndex - 1,
-		WriteRequest:   structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -416,7 +821,10 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 		Job:            job,
 		EnforceIndex:   true,
 		JobModifyIndex: curIndex,
-		WriteRequest:   structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -427,7 +835,7 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 		t.Fatalf("bad index: %d", resp.Index)
 	}
 
-	out, err = state.JobByID(ws, job.ID)
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -440,7 +848,8 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 		f := false
 		c.VaultConfig.Enabled = &f
@@ -456,8 +865,11 @@ func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -469,7 +881,8 @@ func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -491,8 +904,11 @@ func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -505,7 +921,7 @@ func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 	// Check for the job in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -518,7 +934,8 @@ func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -541,8 +958,11 @@ func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -554,7 +974,8 @@ func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -574,19 +995,19 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	// not and one that returns an error
 	policy := "foo"
 
-	badToken := structs.GenerateUUID()
+	badToken := uuid.Generate()
 	badPolicies := []string{"a", "b", "c"}
 	tvc.SetLookupTokenAllowedPolicies(badToken, badPolicies)
 
-	goodToken := structs.GenerateUUID()
+	goodToken := uuid.Generate()
 	goodPolicies := []string{"foo", "bar", "baz"}
 	tvc.SetLookupTokenAllowedPolicies(goodToken, goodPolicies)
 
-	rootToken := structs.GenerateUUID()
+	rootToken := uuid.Generate()
 	rootPolicies := []string{"root"}
 	tvc.SetLookupTokenAllowedPolicies(rootToken, rootPolicies)
 
-	errToken := structs.GenerateUUID()
+	errToken := uuid.Generate()
 	expectedErr := fmt.Errorf("return errors from vault")
 	tvc.SetLookupTokenError(errToken, expectedErr)
 
@@ -599,8 +1020,11 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -629,7 +1053,7 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	// Check for the job in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -662,8 +1086,11 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 	req = &structs.JobRegisterRequest{
-		Job:          job2,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job2,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -672,7 +1099,7 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	}
 
 	// Check for the job in the FSM
-	out, err = state.JobByID(ws, job2.ID)
+	out, err = state.JobByID(ws, job2.Namespace, job2.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -687,8 +1114,584 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Revert(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the initial register request
+	job := mock.Job()
+	job.Priority = 100
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Reregister again to get another version
+	job2 := job.Copy()
+	job2.Priority = 1
+	req = &structs.JobRegisterRequest{
+		Job: job2,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Create revert request and enforcing it be at an incorrect version
+	revertReq := &structs.JobRevertRequest{
+		JobID:               job.ID,
+		JobVersion:          0,
+		EnforcePriorVersion: helper.Uint64ToPtr(10),
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	err := msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
+	if err == nil || !strings.Contains(err.Error(), "enforcing version 10") {
+		t.Fatalf("expected enforcement error")
+	}
+
+	// Create revert request and enforcing it be at the current version
+	revertReq = &structs.JobRevertRequest{
+		JobID:      job.ID,
+		JobVersion: 1,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
+	if err == nil || !strings.Contains(err.Error(), "current version") {
+		t.Fatalf("expected current version err: %v", err)
+	}
+
+	// Create revert request and enforcing it be at version 1
+	revertReq = &structs.JobRevertRequest{
+		JobID:               job.ID,
+		JobVersion:          0,
+		EnforcePriorVersion: helper.Uint64ToPtr(1),
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+	if resp.EvalID == "" || resp.EvalCreateIndex == 0 {
+		t.Fatalf("bad created eval: %+v", resp)
+	}
+	if resp.JobModifyIndex == 0 {
+		t.Fatalf("bad job modify index: %d", resp.JobModifyIndex)
+	}
+
+	// Create revert request and don't enforce. We are at version 2 but it is
+	// the same as version 0
+	revertReq = &structs.JobRevertRequest{
+		JobID:      job.ID,
+		JobVersion: 0,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+	if resp.EvalID == "" || resp.EvalCreateIndex == 0 {
+		t.Fatalf("bad created eval: %+v", resp)
+	}
+	if resp.JobModifyIndex == 0 {
+		t.Fatalf("bad job modify index: %d", resp.JobModifyIndex)
+	}
+
+	// Check that the job is at the correct version and that the eval was
+	// created
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if out.Priority != job.Priority {
+		t.Fatalf("priority mis-match")
+	}
+	if out.Version != 2 {
+		t.Fatalf("got version %d; want %d", out.Version, 2)
+	}
+
+	eout, err := state.EvalByID(ws, resp.EvalID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if eout == nil {
+		t.Fatalf("expected eval")
+	}
+	if eout.JobID != job.ID {
+		t.Fatalf("job id mis-match")
+	}
+
+	versions, err := state.JobVersionsByID(ws, job.Namespace, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(versions) != 3 {
+		t.Fatalf("got %d versions; want %d", len(versions), 3)
+	}
+}
+
+func TestJobEndpoint_Revert_Vault_NoToken(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Enable vault
+	tr, f := true, false
+	s1.config.VaultConfig.Enabled = &tr
+	s1.config.VaultConfig.AllowUnauthenticated = &f
+
+	// Replace the Vault Client on the server
+	tvc := &TestVaultClient{}
+	s1.vault = tvc
+
+	// Add three tokens: one that allows the requesting policy, one that does
+	// not and one that returns an error
+	policy := "foo"
+
+	goodToken := uuid.Generate()
+	goodPolicies := []string{"foo", "bar", "baz"}
+	tvc.SetLookupTokenAllowedPolicies(goodToken, goodPolicies)
+
+	// Create the initial register request
+	job := mock.Job()
+	job.VaultToken = goodToken
+	job.Priority = 100
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Policies:   []string{policy},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Reregister again to get another version
+	job2 := job.Copy()
+	job2.Priority = 1
+	req = &structs.JobRegisterRequest{
+		Job: job2,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	revertReq := &structs.JobRevertRequest{
+		JobID:      job.ID,
+		JobVersion: 1,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	err := msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
+	if err == nil || !strings.Contains(err.Error(), "current version") {
+		t.Fatalf("expected current version err: %v", err)
+	}
+
+	// Create revert request and enforcing it be at version 1
+	revertReq = &structs.JobRevertRequest{
+		JobID:               job.ID,
+		JobVersion:          0,
+		EnforcePriorVersion: helper.Uint64ToPtr(1),
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
+	if err == nil || !strings.Contains(err.Error(), "missing Vault Token") {
+		t.Fatalf("expected Vault not enabled error: %v", err)
+	}
+}
+
+// TestJobEndpoint_Revert_Vault_Policies asserts that job revert uses the
+// revert request's Vault token when authorizing policies.
+func TestJobEndpoint_Revert_Vault_Policies(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Enable vault
+	tr, f := true, false
+	s1.config.VaultConfig.Enabled = &tr
+	s1.config.VaultConfig.AllowUnauthenticated = &f
+
+	// Replace the Vault Client on the server
+	tvc := &TestVaultClient{}
+	s1.vault = tvc
+
+	// Add three tokens: one that allows the requesting policy, one that does
+	// not and one that returns an error
+	policy := "foo"
+
+	badToken := uuid.Generate()
+	badPolicies := []string{"a", "b", "c"}
+	tvc.SetLookupTokenAllowedPolicies(badToken, badPolicies)
+
+	registerGoodToken := uuid.Generate()
+	goodPolicies := []string{"foo", "bar", "baz"}
+	tvc.SetLookupTokenAllowedPolicies(registerGoodToken, goodPolicies)
+
+	revertGoodToken := uuid.Generate()
+	revertGoodPolicies := []string{"foo", "bar_revert", "baz_revert"}
+	tvc.SetLookupTokenAllowedPolicies(revertGoodToken, revertGoodPolicies)
+
+	rootToken := uuid.Generate()
+	rootPolicies := []string{"root"}
+	tvc.SetLookupTokenAllowedPolicies(rootToken, rootPolicies)
+
+	errToken := uuid.Generate()
+	expectedErr := fmt.Errorf("return errors from vault")
+	tvc.SetLookupTokenError(errToken, expectedErr)
+
+	// Create the initial register request
+	job := mock.Job()
+	job.VaultToken = registerGoodToken
+	job.Priority = 100
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Policies:   []string{policy},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Reregister again to get another version
+	job2 := job.Copy()
+	job2.Priority = 1
+	req = &structs.JobRegisterRequest{
+		Job: job2,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create the revert request with the bad Vault token
+	revertReq := &structs.JobRevertRequest{
+		JobID:      job.ID,
+		JobVersion: 0,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+		VaultToken: badToken,
+	}
+
+	// Fetch the response
+	err := msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
+	if err == nil || !strings.Contains(err.Error(),
+		"doesn't allow access to the following policies: "+policy) {
+		t.Fatalf("expected permission denied error: %v", err)
+	}
+
+	// Use the err token
+	revertReq.VaultToken = errToken
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
+	if err == nil || !strings.Contains(err.Error(), expectedErr.Error()) {
+		t.Fatalf("expected permission denied error: %v", err)
+	}
+
+	// Use a good token
+	revertReq.VaultToken = revertGoodToken
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+}
+
+func TestJobEndpoint_Revert_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	state := s1.fsm.State()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the jobs
+	job := mock.Job()
+	err := state.UpsertJob(300, job)
+	require.Nil(err)
+
+	job2 := job.Copy()
+	job2.Priority = 1
+	err = state.UpsertJob(400, job2)
+	require.Nil(err)
+
+	// Create revert request and enforcing it be at the current version
+	revertReq := &structs.JobRevertRequest{
+		JobID:      job.ID,
+		JobVersion: 0,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Attempt to fetch the response without a valid token
+	var resp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	revertReq.AuthToken = invalidToken.SecretID
+	var invalidResp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &invalidResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Fetch the response with a valid management token
+	revertReq.AuthToken = root.SecretID
+	var validResp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp)
+	require.Nil(err)
+
+	// Try with a valid non-management token
+	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+
+	revertReq.AuthToken = validToken.SecretID
+	var validResp2 structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Revert", revertReq, &validResp2)
+	require.Nil(err)
+}
+
+func TestJobEndpoint_Stable(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the initial register request
+	job := mock.Job()
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Create stability request
+	stableReq := &structs.JobStabilityRequest{
+		JobID:      job.ID,
+		JobVersion: 0,
+		Stable:     true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var stableResp structs.JobStabilityResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &stableResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if stableResp.Index == 0 {
+		t.Fatalf("bad index: %d", resp.Index)
+	}
+
+	// Check that the job is marked stable
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected job")
+	}
+	if !out.Stable {
+		t.Fatalf("Job is not marked stable")
+	}
+}
+
+func TestJobEndpoint_Stable_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	state := s1.fsm.State()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register the job
+	job := mock.Job()
+	err := state.UpsertJob(1000, job)
+	require.Nil(err)
+
+	// Create stability request
+	stableReq := &structs.JobStabilityRequest{
+		JobID:      job.ID,
+		JobVersion: 0,
+		Stable:     true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Attempt to fetch the token without a token
+	var stableResp structs.JobStabilityResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &stableResp)
+	require.NotNil(err)
+	require.Contains("Permission denied", err.Error())
+
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	stableReq.AuthToken = invalidToken.SecretID
+	var invalidStableResp structs.JobStabilityResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &invalidStableResp)
+	require.NotNil(err)
+	require.Contains("Permission denied", err.Error())
+
+	// Attempt to fetch with a management token
+	stableReq.AuthToken = root.SecretID
+	var validStableResp structs.JobStabilityResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &validStableResp)
+	require.Nil(err)
+
+	// Attempt to fetch with a valid token
+	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+
+	stableReq.AuthToken = validToken.SecretID
+	var validStableResp2 structs.JobStabilityResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Stable", stableReq, &validStableResp2)
+	require.Nil(err)
+
+	// Check that the job is marked stable
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	require.Nil(err)
+	require.NotNil(job)
+	require.Equal(true, out.Stable)
+}
+
 func TestJobEndpoint_Evaluate(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -698,8 +1701,11 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -713,8 +1719,11 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 
 	// Force a re-evaluation
 	reEval := &structs.JobEvaluateRequest{
-		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -757,10 +1766,168 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
 	}
+	if eval.CreateTime == 0 {
+		t.Fatalf("eval CreateTime is unset: %#v", eval)
+	}
+	if eval.ModifyTime == 0 {
+		t.Fatalf("eval ModifyTime is unset: %#v", eval)
+	}
+}
+
+func TestJobEndpoint_ForceRescheduleEvaluate(t *testing.T) {
+	require := require.New(t)
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	require.Nil(err)
+	require.NotEqual(0, resp.Index)
+
+	state := s1.fsm.State()
+	job, err = state.JobByID(nil, structs.DefaultNamespace, job.ID)
+	require.Nil(err)
+
+	// Create a failed alloc
+	alloc := mock.Alloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.TaskGroup = job.TaskGroups[0].Name
+	alloc.Namespace = job.Namespace
+	alloc.ClientStatus = structs.AllocClientStatusFailed
+	err = s1.State().UpsertAllocs(resp.Index+1, []*structs.Allocation{alloc})
+	require.Nil(err)
+
+	// Force a re-evaluation
+	reEval := &structs.JobEvaluateRequest{
+		JobID:       job.ID,
+		EvalOptions: structs.EvalOptions{ForceReschedule: true},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &resp)
+	require.Nil(err)
+	require.NotEqual(0, resp.Index)
+
+	// Lookup the evaluation
+	ws := memdb.NewWatchSet()
+	eval, err := state.EvalByID(ws, resp.EvalID)
+	require.Nil(err)
+	require.NotNil(eval)
+	require.Equal(eval.CreateIndex, resp.EvalCreateIndex)
+	require.Equal(eval.Priority, job.Priority)
+	require.Equal(eval.Type, job.Type)
+	require.Equal(eval.TriggeredBy, structs.EvalTriggerJobRegister)
+	require.Equal(eval.JobID, job.ID)
+	require.Equal(eval.JobModifyIndex, resp.JobModifyIndex)
+	require.Equal(eval.Status, structs.EvalStatusPending)
+	require.NotZero(eval.CreateTime)
+	require.NotZero(eval.ModifyTime)
+
+	// Lookup the alloc, verify DesiredTransition ForceReschedule
+	alloc, err = state.AllocByID(ws, alloc.ID)
+	require.NotNil(alloc)
+	require.Nil(err)
+	require.True(*alloc.DesiredTransition.ForceReschedule)
+}
+
+func TestJobEndpoint_Evaluate_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create the job
+	job := mock.Job()
+	err := state.UpsertJob(300, job)
+	require.Nil(err)
+
+	// Force a re-evaluation
+	reEval := &structs.JobEvaluateRequest{
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Attempt to fetch the response without a token
+	var resp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	reEval.AuthToken = invalidToken.SecretID
+	var invalidResp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &invalidResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Fetch the response with a valid management token
+	reEval.AuthToken = root.SecretID
+	var validResp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &validResp)
+	require.Nil(err)
+
+	// Fetch the response with a valid token
+	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	reEval.AuthToken = validToken.SecretID
+	var validResp2 structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluate", reEval, &validResp2)
+	require.Nil(err)
+
+	// Lookup the evaluation
+	ws := memdb.NewWatchSet()
+	eval, err := state.EvalByID(ws, validResp2.EvalID)
+	require.Nil(err)
+	require.NotNil(eval)
+
+	require.Equal(eval.CreateIndex, validResp2.EvalCreateIndex)
+	require.Equal(eval.Priority, job.Priority)
+	require.Equal(eval.Type, job.Type)
+	require.Equal(eval.TriggeredBy, structs.EvalTriggerJobRegister)
+	require.Equal(eval.JobID, job.ID)
+	require.Equal(eval.JobModifyIndex, validResp2.JobModifyIndex)
+	require.Equal(eval.Status, structs.EvalStatusPending)
+	require.NotZero(eval.CreateTime)
+	require.NotZero(eval.ModifyTime)
 }
 
 func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -770,8 +1937,11 @@ func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
 	// Create the register request
 	job := mock.PeriodicJob()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -785,8 +1955,11 @@ func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
 
 	// Force a re-evaluation
 	reEval := &structs.JobEvaluateRequest{
-		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -796,7 +1969,8 @@ func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
 }
 
 func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -804,12 +1978,14 @@ func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
+	job := mock.BatchJob()
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -823,8 +1999,11 @@ func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
 
 	// Force a re-evaluation
 	reEval := &structs.JobEvaluateRequest{
-		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -834,84 +2013,180 @@ func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
 }
 
 func TestJobEndpoint_Deregister(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// Create the register request
+	// Create the register requests
 	job := mock.Job()
 	reg := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
 	var resp structs.JobRegisterResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp))
 
-	// Deregister
+	// Deregister but don't purge
 	dereg := &structs.JobDeregisterRequest{
-		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		Purge: false,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var resp2 structs.JobDeregisterResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp2.Index == 0 {
-		t.Fatalf("bad index: %d", resp2.Index)
-	}
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2))
+	require.NotZero(resp2.Index)
 
-	// Check for the node in the FSM
-	ws := memdb.NewWatchSet()
+	// Check for the job in the FSM
 	state := s1.fsm.State()
-	out, err := state.JobByID(ws, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out != nil {
-		t.Fatalf("unexpected job")
-	}
+	out, err := state.JobByID(nil, job.Namespace, job.ID)
+	require.Nil(err)
+	require.NotNil(out)
+	require.True(out.Stop)
 
 	// Lookup the evaluation
-	eval, err := state.EvalByID(ws, resp2.EvalID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if eval == nil {
-		t.Fatalf("expected eval")
-	}
-	if eval.CreateIndex != resp2.EvalCreateIndex {
-		t.Fatalf("index mis-match")
-	}
+	eval, err := state.EvalByID(nil, resp2.EvalID)
+	require.Nil(err)
+	require.NotNil(eval)
+	require.EqualValues(resp2.EvalCreateIndex, eval.CreateIndex)
+	require.Equal(job.Priority, eval.Priority)
+	require.Equal(job.Type, eval.Type)
+	require.Equal(structs.EvalTriggerJobDeregister, eval.TriggeredBy)
+	require.Equal(job.ID, eval.JobID)
+	require.Equal(structs.EvalStatusPending, eval.Status)
+	require.NotZero(eval.CreateTime)
+	require.NotZero(eval.ModifyTime)
 
-	if eval.Priority != structs.JobDefaultPriority {
-		t.Fatalf("bad: %#v", eval)
+	// Deregister and purge
+	dereg2 := &structs.JobDeregisterRequest{
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
-	if eval.Type != structs.JobTypeService {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.TriggeredBy != structs.EvalTriggerJobDeregister {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.JobID != job.ID {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.JobModifyIndex != resp2.JobModifyIndex {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.Status != structs.EvalStatusPending {
-		t.Fatalf("bad: %#v", eval)
-	}
+	var resp3 structs.JobDeregisterResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg2, &resp3))
+	require.NotZero(resp3.Index)
+
+	// Check for the job in the FSM
+	out, err = state.JobByID(nil, job.Namespace, job.ID)
+	require.Nil(err)
+	require.Nil(out)
+
+	// Lookup the evaluation
+	eval, err = state.EvalByID(nil, resp3.EvalID)
+	require.Nil(err)
+	require.NotNil(eval)
+
+	require.EqualValues(resp3.EvalCreateIndex, eval.CreateIndex)
+	require.Equal(job.Priority, eval.Priority)
+	require.Equal(job.Type, eval.Type)
+	require.Equal(structs.EvalTriggerJobDeregister, eval.TriggeredBy)
+	require.Equal(job.ID, eval.JobID)
+	require.Equal(structs.EvalStatusPending, eval.Status)
+	require.NotZero(eval.CreateTime)
+	require.NotZero(eval.ModifyTime)
 }
 
-func TestJobEndpoint_Deregister_NonExistent(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+func TestJobEndpoint_Deregister_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create and register a job
+	job := mock.Job()
+	err := state.UpsertJob(100, job)
+	require.Nil(err)
+
+	// Deregister and purge
+	req := &structs.JobDeregisterRequest{
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Expect failure for request without a token
+	var resp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	req.AuthToken = invalidToken.SecretID
+
+	var invalidResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &invalidResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Expect success with a valid management token
+	req.AuthToken = root.SecretID
+
+	var validResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect success with a valid token
+	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	req.AuthToken = validToken.SecretID
+
+	var validResp2 structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp2)
+	require.Nil(err)
+	require.NotEqual(validResp2.Index, 0)
+
+	// Check for the job in the FSM
+	out, err := state.JobByID(nil, job.Namespace, job.ID)
+	require.Nil(err)
+	require.Nil(out)
+
+	// Lookup the evaluation
+	eval, err := state.EvalByID(nil, validResp2.EvalID)
+	require.Nil(err)
+	require.NotNil(eval, nil)
+
+	require.Equal(eval.CreateIndex, validResp2.EvalCreateIndex)
+	require.Equal(eval.Priority, structs.JobDefaultPriority)
+	require.Equal(eval.Type, structs.JobTypeService)
+	require.Equal(eval.TriggeredBy, structs.EvalTriggerJobDeregister)
+	require.Equal(eval.JobID, job.ID)
+	require.Equal(eval.JobModifyIndex, validResp2.JobModifyIndex)
+	require.Equal(eval.Status, structs.EvalStatusPending)
+	require.NotZero(eval.CreateTime)
+	require.NotZero(eval.ModifyTime)
+}
+
+func TestJobEndpoint_Deregister_Nonexistent(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -921,8 +2196,11 @@ func TestJobEndpoint_Deregister_NonExistent(t *testing.T) {
 	// Deregister
 	jobID := "foo"
 	dereg := &structs.JobDeregisterRequest{
-		JobID:        jobID,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: jobID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
 	}
 	var resp2 structs.JobDeregisterResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2); err != nil {
@@ -964,10 +2242,17 @@ func TestJobEndpoint_Deregister_NonExistent(t *testing.T) {
 	if eval.Status != structs.EvalStatusPending {
 		t.Fatalf("bad: %#v", eval)
 	}
+	if eval.CreateTime == 0 {
+		t.Fatalf("eval CreateTime is unset: %#v", eval)
+	}
+	if eval.ModifyTime == 0 {
+		t.Fatalf("eval ModifyTime is unset: %#v", eval)
+	}
 }
 
 func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -977,8 +2262,11 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 	// Create the register request
 	job := mock.PeriodicJob()
 	reg := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -989,8 +2277,12 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 
 	// Deregister
 	dereg := &structs.JobDeregisterRequest{
-		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var resp2 structs.JobDeregisterResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2); err != nil {
@@ -1003,7 +2295,7 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1017,7 +2309,8 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 }
 
 func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -1025,12 +2318,14 @@ func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	job := mock.Job()
-	job.Type = structs.JobTypeBatch
+	job := mock.BatchJob()
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	reg := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1041,8 +2336,12 @@ func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 
 	// Deregister
 	dereg := &structs.JobDeregisterRequest{
-		JobID:        job.ID,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var resp2 structs.JobDeregisterResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2); err != nil {
@@ -1055,7 +2354,7 @@ func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1068,8 +2367,170 @@ func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_BatchDeregister(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register requests
+	job := mock.Job()
+	reg := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp))
+
+	job2 := mock.Job()
+	job2.Priority = 1
+	reg2 := &structs.JobRegisterRequest{
+		Job: job2,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job2.Namespace,
+		},
+	}
+
+	// Fetch the response
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", reg2, &resp))
+
+	// Deregister
+	dereg := &structs.JobBatchDeregisterRequest{
+		Jobs: map[structs.NamespacedID]*structs.JobDeregisterOptions{
+			{
+				ID:        job.ID,
+				Namespace: job.Namespace,
+			}: {},
+			{
+				ID:        job2.ID,
+				Namespace: job2.Namespace,
+			}: {
+				Purge: true,
+			},
+		},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp2 structs.JobBatchDeregisterResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.BatchDeregister", dereg, &resp2))
+	require.NotZero(resp2.Index)
+
+	// Check for the job in the FSM
+	state := s1.fsm.State()
+	out, err := state.JobByID(nil, job.Namespace, job.ID)
+	require.Nil(err)
+	require.NotNil(out)
+	require.True(out.Stop)
+
+	out, err = state.JobByID(nil, job2.Namespace, job2.ID)
+	require.Nil(err)
+	require.Nil(out)
+
+	// Lookup the evaluation
+	for jobNS, eval := range resp2.JobEvals {
+		expectedJob := job
+		if jobNS.ID != job.ID {
+			expectedJob = job2
+		}
+
+		eval, err := state.EvalByID(nil, eval)
+		require.Nil(err)
+		require.NotNil(eval)
+		require.EqualValues(resp2.Index, eval.CreateIndex)
+		require.Equal(expectedJob.Priority, eval.Priority)
+		require.Equal(expectedJob.Type, eval.Type)
+		require.Equal(structs.EvalTriggerJobDeregister, eval.TriggeredBy)
+		require.Equal(expectedJob.ID, eval.JobID)
+		require.Equal(structs.EvalStatusPending, eval.Status)
+		require.NotZero(eval.CreateTime)
+		require.NotZero(eval.ModifyTime)
+	}
+}
+
+func TestJobEndpoint_BatchDeregister_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create and register a job
+	job, job2 := mock.Job(), mock.Job()
+	require.Nil(state.UpsertJob(100, job))
+	require.Nil(state.UpsertJob(101, job2))
+
+	// Deregister
+	req := &structs.JobBatchDeregisterRequest{
+		Jobs: map[structs.NamespacedID]*structs.JobDeregisterOptions{
+			{
+				ID:        job.ID,
+				Namespace: job.Namespace,
+			}: {},
+			{
+				ID:        job2.ID,
+				Namespace: job2.Namespace,
+			}: {},
+		},
+		WriteRequest: structs.WriteRequest{
+			Region: "global",
+		},
+	}
+
+	// Expect failure for request without a token
+	var resp structs.JobBatchDeregisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.BatchDeregister", req, &resp)
+	require.NotNil(err)
+	require.True(structs.IsErrPermissionDenied(err))
+
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	req.AuthToken = invalidToken.SecretID
+
+	var invalidResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.BatchDeregister", req, &invalidResp)
+	require.NotNil(err)
+	require.True(structs.IsErrPermissionDenied(err))
+
+	// Expect success with a valid management token
+	req.AuthToken = root.SecretID
+
+	var validResp structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.BatchDeregister", req, &validResp)
+	require.Nil(err)
+	require.NotEqual(validResp.Index, 0)
+
+	// Expect success with a valid token
+	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+	req.AuthToken = validToken.SecretID
+
+	var validResp2 structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.BatchDeregister", req, &validResp2)
+	require.Nil(err)
+	require.NotEqual(validResp2.Index, 0)
+}
+
 func TestJobEndpoint_GetJob(t *testing.T) {
-	s1 := testServer(t, nil)
+	t.Parallel()
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1077,8 +2538,11 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	reg := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1092,8 +2556,11 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 
 	// Lookup the job
 	get := &structs.JobSpecificRequest{
-		JobID:        job.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var resp2 structs.SingleJobResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &resp2); err != nil {
@@ -1117,6 +2584,10 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 		}
 	}
 
+	// Clear the submit times
+	j.SubmitTime = 0
+	resp2.Job.SubmitTime = 0
+
 	if !reflect.DeepEqual(j, resp2.Job) {
 		t.Fatalf("bad: %#v %#v", job, resp2.Job)
 	}
@@ -1134,152 +2605,67 @@ func TestJobEndpoint_GetJob(t *testing.T) {
 	}
 }
 
-func TestJobEndpoint_GetJobSummary(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
-		c.NumSchedulers = 0 // Prevent automatic dequeue
-	})
+func TestJobEndpoint_GetJob_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
 
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create the register request
-	job := mock.Job()
-	reg := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
-	}
-
-	// Fetch the response
-	var resp structs.JobRegisterResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	job.CreateIndex = resp.JobModifyIndex
-	job.ModifyIndex = resp.JobModifyIndex
-	job.JobModifyIndex = resp.JobModifyIndex
-
-	// Lookup the job summary
-	get := &structs.JobSummaryRequest{
-		JobID:        job.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
-	}
-	var resp2 structs.JobSummaryResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", get, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp2.Index != resp.JobModifyIndex {
-		t.Fatalf("Bad index: %d %d", resp2.Index, resp.Index)
-	}
-
-	expectedJobSummary := structs.JobSummary{
-		JobID: job.ID,
-		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{},
-		},
-		Children:    new(structs.JobChildrenSummary),
-		CreateIndex: job.CreateIndex,
-		ModifyIndex: job.CreateIndex,
-	}
-
-	if !reflect.DeepEqual(resp2.JobSummary, &expectedJobSummary) {
-		t.Fatalf("exptected: %v, actual: %v", expectedJobSummary, resp2.JobSummary)
-	}
-}
-
-func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
-	s1 := testServer(t, nil)
-	defer s1.Shutdown()
 	state := s1.fsm.State()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
 
-	// Create a job and insert it
-	job1 := mock.Job()
-	time.AfterFunc(200*time.Millisecond, func() {
-		if err := state.UpsertJob(100, job1); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	})
+	// Create the job
+	job := mock.Job()
+	err := state.UpsertJob(1000, job)
+	require.Nil(err)
 
-	// Ensure the job summary request gets fired
-	req := &structs.JobSummaryRequest{
-		JobID: job1.ID,
+	// Lookup the job
+	get := &structs.JobSpecificRequest{
+		JobID: job.ID,
 		QueryOptions: structs.QueryOptions{
-			Region:        "global",
-			MinQueryIndex: 50,
+			Region:    "global",
+			Namespace: job.Namespace,
 		},
 	}
-	var resp structs.JobSummaryResponse
-	start := time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
-	}
 
-	// Upsert an allocation for the job which should trigger the watch.
-	time.AfterFunc(200*time.Millisecond, func() {
-		alloc := mock.Alloc()
-		alloc.JobID = job1.ID
-		alloc.Job = job1
-		if err := state.UpsertAllocs(200, []*structs.Allocation{alloc}); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	})
-	req = &structs.JobSummaryRequest{
-		JobID: job1.ID,
-		QueryOptions: structs.QueryOptions{
-			Region:        "global",
-			MinQueryIndex: 199,
-		},
-	}
-	start = time.Now()
-	var resp1 structs.JobSummaryResponse
-	start = time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp1); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	// Looking up the job without a token should fail
+	var resp structs.SingleJobResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
 
-	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
-	}
-	if resp1.Index != 200 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 200)
-	}
-	if resp1.JobSummary == nil {
-		t.Fatalf("bad: %#v", resp)
-	}
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 
-	// Job delete fires watches
-	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.DeleteJob(300, job1.ID); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	})
+	get.AuthToken = invalidToken.SecretID
+	var invalidResp structs.SingleJobResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &invalidResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
 
-	req.QueryOptions.MinQueryIndex = 250
-	start = time.Now()
+	// Looking up the job with a management token should succeed
+	get.AuthToken = root.SecretID
+	var validResp structs.SingleJobResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &validResp)
+	require.Nil(err)
+	require.Equal(job.ID, validResp.Job.ID)
 
-	var resp2 structs.SingleJobResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	// Looking up the job with a valid token should succeed
+	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
-	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
-	}
-	if resp2.Index != 300 {
-		t.Fatalf("Bad index: %d %d", resp2.Index, 300)
-	}
-	if resp2.Job != nil {
-		t.Fatalf("bad: %#v", resp2.Job)
-	}
+	get.AuthToken = validToken.SecretID
+	var validResp2 structs.SingleJobResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.GetJob", get, &validResp2)
+	require.Nil(err)
+	require.Equal(job.ID, validResp2.Job.ID)
 }
 
 func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
-	s1 := testServer(t, nil)
+	t.Parallel()
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -1307,6 +2693,7 @@ func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
 		JobID: job2.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     job2.Namespace,
 			MinQueryIndex: 150,
 		},
 	}
@@ -1328,7 +2715,7 @@ func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
 
 	// Job delete fires watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.DeleteJob(300, job2.ID); err != nil {
+		if err := state.DeleteJob(300, job2.Namespace, job2.ID); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1352,8 +2739,570 @@ func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_GetJobVersions(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.Priority = 88
+	reg := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Register the job again to create another version
+	job.Priority = 100
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup the job
+	get := &structs.JobVersionsRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var versionsResp structs.JobVersionsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &versionsResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if versionsResp.Index != resp.JobModifyIndex {
+		t.Fatalf("Bad index: %d %d", versionsResp.Index, resp.Index)
+	}
+
+	// Make sure there are two job versions
+	versions := versionsResp.Versions
+	if l := len(versions); l != 2 {
+		t.Fatalf("Got %d versions; want 2", l)
+	}
+
+	if v := versions[0]; v.Priority != 100 || v.ID != job.ID || v.Version != 1 {
+		t.Fatalf("bad: %+v", v)
+	}
+	if v := versions[1]; v.Priority != 88 || v.ID != job.ID || v.Version != 0 {
+		t.Fatalf("bad: %+v", v)
+	}
+
+	// Lookup non-existing job
+	get.JobID = "foobarbaz"
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &versionsResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if versionsResp.Index != resp.JobModifyIndex {
+		t.Fatalf("Bad index: %d %d", versionsResp.Index, resp.Index)
+	}
+	if l := len(versionsResp.Versions); l != 0 {
+		t.Fatalf("unexpected versions: %d", l)
+	}
+}
+
+func TestJobEndpoint_GetJobVersions_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create two versions of a job with different priorities
+	job := mock.Job()
+	job.Priority = 88
+	err := state.UpsertJob(10, job)
+	require.Nil(err)
+
+	job.Priority = 100
+	err = state.UpsertJob(100, job)
+	require.Nil(err)
+
+	// Lookup the job
+	get := &structs.JobVersionsRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Attempt to fetch without a token should fail
+	var resp structs.JobVersionsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get.AuthToken = invalidToken.SecretID
+	var invalidResp structs.JobVersionsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &invalidResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Expect success for request with a valid management token
+	get.AuthToken = root.SecretID
+	var validResp structs.JobVersionsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &validResp)
+	require.Nil(err)
+
+	// Expect success for request with a valid token
+	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get.AuthToken = validToken.SecretID
+	var validResp2 structs.JobVersionsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &validResp2)
+	require.Nil(err)
+
+	// Make sure there are two job versions
+	versions := validResp2.Versions
+	require.Equal(2, len(versions))
+	require.Equal(versions[0].ID, job.ID)
+	require.Equal(versions[1].ID, job.ID)
+}
+
+func TestJobEndpoint_GetJobVersions_Diff(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.Priority = 88
+	reg := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Register the job again to create another version
+	job.Priority = 90
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Register the job again to create another version
+	job.Priority = 100
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup the job
+	get := &structs.JobVersionsRequest{
+		JobID: job.ID,
+		Diffs: true,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var versionsResp structs.JobVersionsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", get, &versionsResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if versionsResp.Index != resp.JobModifyIndex {
+		t.Fatalf("Bad index: %d %d", versionsResp.Index, resp.Index)
+	}
+
+	// Make sure there are two job versions
+	versions := versionsResp.Versions
+	if l := len(versions); l != 3 {
+		t.Fatalf("Got %d versions; want 3", l)
+	}
+
+	if v := versions[0]; v.Priority != 100 || v.ID != job.ID || v.Version != 2 {
+		t.Fatalf("bad: %+v", v)
+	}
+	if v := versions[1]; v.Priority != 90 || v.ID != job.ID || v.Version != 1 {
+		t.Fatalf("bad: %+v", v)
+	}
+	if v := versions[2]; v.Priority != 88 || v.ID != job.ID || v.Version != 0 {
+		t.Fatalf("bad: %+v", v)
+	}
+
+	// Ensure we got diffs
+	diffs := versionsResp.Diffs
+	if l := len(diffs); l != 2 {
+		t.Fatalf("Got %d diffs; want 2", l)
+	}
+	d1 := diffs[0]
+	if len(d1.Fields) != 1 {
+		t.Fatalf("Got too many diffs: %#v", d1)
+	}
+	if d1.Fields[0].Name != "Priority" {
+		t.Fatalf("Got wrong field: %#v", d1)
+	}
+	if d1.Fields[0].Old != "90" && d1.Fields[0].New != "100" {
+		t.Fatalf("Got wrong field values: %#v", d1)
+	}
+	d2 := diffs[1]
+	if len(d2.Fields) != 1 {
+		t.Fatalf("Got too many diffs: %#v", d2)
+	}
+	if d2.Fields[0].Name != "Priority" {
+		t.Fatalf("Got wrong field: %#v", d2)
+	}
+	if d2.Fields[0].Old != "88" && d1.Fields[0].New != "90" {
+		t.Fatalf("Got wrong field values: %#v", d2)
+	}
+}
+
+func TestJobEndpoint_GetJobVersions_Blocking(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the jobs
+	job1 := mock.Job()
+	job2 := mock.Job()
+	job3 := mock.Job()
+	job3.ID = job2.ID
+	job3.Priority = 1
+
+	// Upsert a job we are not interested in first.
+	time.AfterFunc(100*time.Millisecond, func() {
+		if err := state.UpsertJob(100, job1); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Upsert another job later which should trigger the watch.
+	time.AfterFunc(200*time.Millisecond, func() {
+		if err := state.UpsertJob(200, job2); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req := &structs.JobVersionsRequest{
+		JobID: job2.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			Namespace:     job2.Namespace,
+			MinQueryIndex: 150,
+		},
+	}
+	start := time.Now()
+	var resp structs.JobVersionsResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
+	}
+	if len(resp.Versions) != 1 || resp.Versions[0].ID != job2.ID {
+		t.Fatalf("bad: %#v", resp.Versions)
+	}
+
+	// Upsert the job again which should trigger the watch.
+	time.AfterFunc(100*time.Millisecond, func() {
+		if err := state.UpsertJob(300, job3); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req2 := &structs.JobVersionsRequest{
+		JobID: job3.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			Namespace:     job3.Namespace,
+			MinQueryIndex: 250,
+		},
+	}
+	var resp2 structs.JobVersionsResponse
+	start = time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Job.GetJobVersions", req2, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp2.Index != 300 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 300)
+	}
+	if len(resp2.Versions) != 2 {
+		t.Fatalf("bad: %#v", resp2.Versions)
+	}
+}
+
+func TestJobEndpoint_GetJobSummary(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	reg := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	job.CreateIndex = resp.JobModifyIndex
+	job.ModifyIndex = resp.JobModifyIndex
+	job.JobModifyIndex = resp.JobModifyIndex
+
+	// Lookup the job summary
+	get := &structs.JobSummaryRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp2 structs.JobSummaryResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp2.Index != resp.JobModifyIndex {
+		t.Fatalf("Bad index: %d %d", resp2.Index, resp.Index)
+	}
+
+	expectedJobSummary := structs.JobSummary{
+		JobID:     job.ID,
+		Namespace: job.Namespace,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": {},
+		},
+		Children:    new(structs.JobChildrenSummary),
+		CreateIndex: job.CreateIndex,
+		ModifyIndex: job.CreateIndex,
+	}
+
+	if !reflect.DeepEqual(resp2.JobSummary, &expectedJobSummary) {
+		t.Fatalf("expected: %v, actual: %v", expectedJobSummary, resp2.JobSummary)
+	}
+}
+
+func TestJobEndpoint_Summary_ACL(t *testing.T) {
+	require := require.New(t)
+	t.Parallel()
+
+	srv, root := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer srv.Shutdown()
+	codec := rpcClient(t, srv)
+	testutil.WaitForLeader(t, srv.RPC)
+
+	// Create the job
+	job := mock.Job()
+	reg := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	reg.AuthToken = root.SecretID
+
+	var err error
+
+	// Register the job with a valid token
+	var regResp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &regResp)
+	require.Nil(err)
+
+	job.CreateIndex = regResp.JobModifyIndex
+	job.ModifyIndex = regResp.JobModifyIndex
+	job.JobModifyIndex = regResp.JobModifyIndex
+
+	req := &structs.JobSummaryRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Expect failure for request without a token
+	var resp structs.JobSummaryResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp)
+	require.NotNil(err)
+
+	expectedJobSummary := &structs.JobSummary{
+		JobID:     job.ID,
+		Namespace: job.Namespace,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": {},
+		},
+		Children:    new(structs.JobChildrenSummary),
+		CreateIndex: job.CreateIndex,
+		ModifyIndex: job.ModifyIndex,
+	}
+
+	// Expect success when using a management token
+	req.AuthToken = root.SecretID
+	var mgmtResp structs.JobSummaryResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &mgmtResp)
+	require.Nil(err)
+	require.Equal(expectedJobSummary, mgmtResp.JobSummary)
+
+	// Create the namespace policy and tokens
+	state := srv.fsm.State()
+
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	req.AuthToken = invalidToken.SecretID
+	var invalidResp structs.JobSummaryResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &invalidResp)
+	require.NotNil(err)
+
+	// Try with a valid token
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	req.AuthToken = validToken.SecretID
+	var authResp structs.JobSummaryResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &authResp)
+	require.Nil(err)
+	require.Equal(expectedJobSummary, authResp.JobSummary)
+}
+
+func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a job and insert it
+	job1 := mock.Job()
+	time.AfterFunc(200*time.Millisecond, func() {
+		if err := state.UpsertJob(100, job1); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	// Ensure the job summary request gets fired
+	req := &structs.JobSummaryRequest{
+		JobID: job1.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			Namespace:     job1.Namespace,
+			MinQueryIndex: 50,
+		},
+	}
+	var resp structs.JobSummaryResponse
+	start := time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+
+	// Upsert an allocation for the job which should trigger the watch.
+	time.AfterFunc(200*time.Millisecond, func() {
+		alloc := mock.Alloc()
+		alloc.JobID = job1.ID
+		alloc.Job = job1
+		if err := state.UpsertAllocs(200, []*structs.Allocation{alloc}); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+	req = &structs.JobSummaryRequest{
+		JobID: job1.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			Namespace:     job1.Namespace,
+			MinQueryIndex: 199,
+		},
+	}
+	start = time.Now()
+	var resp1 structs.JobSummaryResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp1); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+	if resp1.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
+	}
+	if resp1.JobSummary == nil {
+		t.Fatalf("bad: %#v", resp)
+	}
+
+	// Job delete fires watches
+	time.AfterFunc(100*time.Millisecond, func() {
+		if err := state.DeleteJob(300, job1.Namespace, job1.ID); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	req.QueryOptions.MinQueryIndex = 250
+	start = time.Now()
+
+	var resp2 structs.SingleJobResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Summary", req, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+	if resp2.Index != 300 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 300)
+	}
+	if resp2.Job != nil {
+		t.Fatalf("bad: %#v", resp2.Job)
+	}
+}
+
 func TestJobEndpoint_ListJobs(t *testing.T) {
-	s1 := testServer(t, nil)
+	t.Parallel()
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1368,7 +3317,10 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 
 	// Lookup the jobs
 	get := &structs.JobListRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 	var resp2 structs.JobListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp2); err != nil {
@@ -1387,7 +3339,11 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 
 	// Lookup the jobs by prefix
 	get = &structs.JobListRequest{
-		QueryOptions: structs.QueryOptions{Region: "global", Prefix: resp2.Jobs[0].ID[:4]},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+			Prefix:    resp2.Jobs[0].ID[:4],
+		},
 	}
 	var resp3 structs.JobListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp3); err != nil {
@@ -1405,8 +3361,69 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_ListJobs_WithACL(t *testing.T) {
+	require := require.New(t)
+	t.Parallel()
+
+	srv, root := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer srv.Shutdown()
+	codec := rpcClient(t, srv)
+	testutil.WaitForLeader(t, srv.RPC)
+	state := srv.fsm.State()
+
+	var err error
+
+	// Create the register request
+	job := mock.Job()
+	err = state.UpsertJob(1000, job)
+	require.Nil(err)
+
+	req := &structs.JobListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Expect failure for request without a token
+	var resp structs.JobListResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", req, &resp)
+	require.NotNil(err)
+
+	// Expect success for request with a management token
+	var mgmtResp structs.JobListResponse
+	req.AuthToken = root.SecretID
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", req, &mgmtResp)
+	require.Nil(err)
+	require.Equal(1, len(mgmtResp.Jobs))
+	require.Equal(job.ID, mgmtResp.Jobs[0].ID)
+
+	// Expect failure for request with a token that has incorrect permissions
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	req.AuthToken = invalidToken.SecretID
+	var invalidResp structs.JobListResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", req, &invalidResp)
+	require.NotNil(err)
+
+	// Try with a valid token with correct permissions
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	var validResp structs.JobListResponse
+	req.AuthToken = validToken.SecretID
+
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", req, &validResp)
+	require.Nil(err)
+	require.Equal(1, len(validResp.Jobs))
+	require.Equal(job.ID, validResp.Jobs[0].ID)
+}
+
 func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
-	s1 := testServer(t, nil)
+	t.Parallel()
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -1425,6 +3442,7 @@ func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 	req := &structs.JobListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     job.Namespace,
 			MinQueryIndex: 50,
 		},
 	}
@@ -1446,7 +3464,7 @@ func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 
 	// Job deletion triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.DeleteJob(200, job.ID); err != nil {
+		if err := state.DeleteJob(200, job.Namespace, job.ID); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1470,7 +3488,8 @@ func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 }
 
 func TestJobEndpoint_Allocations(t *testing.T) {
-	s1 := testServer(t, nil)
+	t.Parallel()
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1490,8 +3509,11 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
-		JobID:        alloc1.JobID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		JobID: alloc1.JobID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: alloc1.Job.Namespace,
+		},
 	}
 	var resp2 structs.JobAllocationsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &resp2); err != nil {
@@ -1506,8 +3528,72 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Allocations_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create allocations for a job
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc2.JobID = alloc1.JobID
+	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
+	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
+	err := state.UpsertAllocs(1000,
+		[]*structs.Allocation{alloc1, alloc2})
+	require.Nil(err)
+
+	// Look up allocations for that job
+	get := &structs.JobSpecificRequest{
+		JobID: alloc1.JobID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: alloc1.Job.Namespace,
+		},
+	}
+
+	// Attempt to fetch the response without a token should fail
+	var resp structs.JobAllocationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token should fail
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get.AuthToken = invalidToken.SecretID
+	var invalidResp structs.JobAllocationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &invalidResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with valid management token should succeed
+	get.AuthToken = root.SecretID
+	var validResp structs.JobAllocationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &validResp)
+	require.Nil(err)
+
+	// Attempt to fetch the response with valid management token should succeed
+	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get.AuthToken = validToken.SecretID
+	var validResp2 structs.JobAllocationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &validResp2)
+	require.Nil(err)
+
+	require.Equal(2, len(validResp2.Allocations))
+}
+
 func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
-	s1 := testServer(t, nil)
+	t.Parallel()
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1541,6 +3627,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 		JobID: "job1",
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     alloc1.Job.Namespace,
 			MinQueryIndex: 150,
 		},
 	}
@@ -1562,7 +3649,8 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 }
 
 func TestJobEndpoint_Evaluations(t *testing.T) {
-	s1 := testServer(t, nil)
+	t.Parallel()
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1580,8 +3668,11 @@ func TestJobEndpoint_Evaluations(t *testing.T) {
 
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
-		JobID:        eval1.JobID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		JobID: eval1.JobID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: eval1.Namespace,
+		},
 	}
 	var resp2 structs.JobEvaluationsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &resp2); err != nil {
@@ -1596,8 +3687,70 @@ func TestJobEndpoint_Evaluations(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Evaluations_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create evaluations for the same job
+	eval1 := mock.Eval()
+	eval2 := mock.Eval()
+	eval2.JobID = eval1.JobID
+	err := state.UpsertEvals(1000,
+		[]*structs.Evaluation{eval1, eval2})
+	require.Nil(err)
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: eval1.JobID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: eval1.Namespace,
+		},
+	}
+
+	// Attempt to fetch without providing a token
+	var resp structs.JobEvaluationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get.AuthToken = invalidToken.SecretID
+	var invalidResp structs.JobEvaluationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &invalidResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch with valid management token should succeed
+	get.AuthToken = root.SecretID
+	var validResp structs.JobEvaluationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &validResp)
+	require.Nil(err)
+	require.Equal(2, len(validResp.Evaluations))
+
+	// Attempt to fetch with valid token should succeed
+	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get.AuthToken = validToken.SecretID
+	var validResp2 structs.JobEvaluationsResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Evaluations", get, &validResp2)
+	require.Nil(err)
+	require.Equal(2, len(validResp2.Evaluations))
+}
+
 func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
-	s1 := testServer(t, nil)
+	t.Parallel()
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1629,6 +3782,7 @@ func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
 		JobID: "job1",
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace:     eval1.Namespace,
 			MinQueryIndex: 150,
 		},
 	}
@@ -1649,8 +3803,342 @@ func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Deployments(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+	require := require.New(t)
+
+	// Create the register request
+	j := mock.Job()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	d1.JobID = j.ID
+	d2.JobID = j.ID
+	require.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	d1.JobCreateIndex = j.CreateIndex
+	d2.JobCreateIndex = j.CreateIndex
+
+	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+	require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: j.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: j.Namespace,
+		},
+	}
+	var resp structs.DeploymentListResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &resp), "RPC")
+	require.EqualValues(1002, resp.Index, "response index")
+	require.Len(resp.Deployments, 2, "deployments for job")
+}
+
+func TestJobEndpoint_Deployments_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create a job and corresponding deployments
+	j := mock.Job()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	d1.JobID = j.ID
+	d2.JobID = j.ID
+	require.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	d1.JobCreateIndex = j.CreateIndex
+	d2.JobCreateIndex = j.CreateIndex
+	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+	require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: j.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: j.Namespace,
+		},
+	}
+	// Lookup with no token should fail
+	var resp structs.DeploymentListResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get.AuthToken = invalidToken.SecretID
+	var invalidResp structs.DeploymentListResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &invalidResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Lookup with valid management token should succeed
+	get.AuthToken = root.SecretID
+	var validResp structs.DeploymentListResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &validResp), "RPC")
+	require.EqualValues(1002, validResp.Index, "response index")
+	require.Len(validResp.Deployments, 2, "deployments for job")
+
+	// Lookup with valid token should succeed
+	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get.AuthToken = validToken.SecretID
+	var validResp2 structs.DeploymentListResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &validResp2), "RPC")
+	require.EqualValues(1002, validResp2.Index, "response index")
+	require.Len(validResp2.Deployments, 2, "deployments for job")
+}
+
+func TestJobEndpoint_Deployments_Blocking(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+	require := require.New(t)
+
+	// Create the register request
+	j := mock.Job()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	d2.JobID = j.ID
+	require.Nil(state.UpsertJob(50, j), "UpsertJob")
+	d2.JobCreateIndex = j.CreateIndex
+	// First upsert an unrelated eval
+	time.AfterFunc(100*time.Millisecond, func() {
+		require.Nil(state.UpsertDeployment(100, d1), "UpsertDeployment")
+	})
+
+	// Upsert an eval for the job we are interested in later
+	time.AfterFunc(200*time.Millisecond, func() {
+		require.Nil(state.UpsertDeployment(200, d2), "UpsertDeployment")
+	})
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: d2.JobID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			Namespace:     d2.Namespace,
+			MinQueryIndex: 150,
+		},
+	}
+	var resp structs.DeploymentListResponse
+	start := time.Now()
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deployments", get, &resp), "RPC")
+	require.EqualValues(200, resp.Index, "response index")
+	require.Len(resp.Deployments, 1, "deployments for job")
+	require.Equal(d2.ID, resp.Deployments[0].ID, "returned deployment")
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+}
+
+func TestJobEndpoint_LatestDeployment(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+	require := require.New(t)
+
+	// Create the register request
+	j := mock.Job()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	d1.JobID = j.ID
+	d2.JobID = j.ID
+	d2.CreateIndex = d1.CreateIndex + 100
+	d2.ModifyIndex = d2.CreateIndex + 100
+	require.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	d1.JobCreateIndex = j.CreateIndex
+	d2.JobCreateIndex = j.CreateIndex
+	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+	require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: j.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: j.Namespace,
+		},
+	}
+	var resp structs.SingleDeploymentResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &resp), "RPC")
+	require.EqualValues(1002, resp.Index, "response index")
+	require.NotNil(resp.Deployment, "want a deployment")
+	require.Equal(d2.ID, resp.Deployment.ID, "latest deployment for job")
+}
+
+func TestJobEndpoint_LatestDeployment_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create a job and deployments
+	j := mock.Job()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	d1.JobID = j.ID
+	d2.JobID = j.ID
+	d2.CreateIndex = d1.CreateIndex + 100
+	d2.ModifyIndex = d2.CreateIndex + 100
+	require.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	d1.JobCreateIndex = j.CreateIndex
+	d2.JobCreateIndex = j.CreateIndex
+	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+	require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: j.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: j.Namespace,
+		},
+	}
+
+	// Attempt to fetch the response without a token should fail
+	var resp structs.SingleDeploymentResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token should fail
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get.AuthToken = invalidToken.SecretID
+	var invalidResp structs.SingleDeploymentResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &invalidResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Fetching latest deployment with a valid management token should succeed
+	get.AuthToken = root.SecretID
+	var validResp structs.SingleDeploymentResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &validResp), "RPC")
+	require.EqualValues(1002, validResp.Index, "response index")
+	require.NotNil(validResp.Deployment, "want a deployment")
+	require.Equal(d2.ID, validResp.Deployment.ID, "latest deployment for job")
+
+	// Fetching latest deployment with a valid token should succeed
+	validToken := mock.CreatePolicyAndToken(t, state, 1004, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	get.AuthToken = validToken.SecretID
+	var validResp2 structs.SingleDeploymentResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &validResp2), "RPC")
+	require.EqualValues(1002, validResp2.Index, "response index")
+	require.NotNil(validResp2.Deployment, "want a deployment")
+	require.Equal(d2.ID, validResp2.Deployment.ID, "latest deployment for job")
+}
+
+func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+	require := require.New(t)
+
+	// Create the register request
+	j := mock.Job()
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	d2.JobID = j.ID
+	require.Nil(state.UpsertJob(50, j), "UpsertJob")
+	d2.JobCreateIndex = j.CreateIndex
+
+	// First upsert an unrelated eval
+	time.AfterFunc(100*time.Millisecond, func() {
+		require.Nil(state.UpsertDeployment(100, d1), "UpsertDeployment")
+	})
+
+	// Upsert an eval for the job we are interested in later
+	time.AfterFunc(200*time.Millisecond, func() {
+		require.Nil(state.UpsertDeployment(200, d2), "UpsertDeployment")
+	})
+
+	// Lookup the jobs
+	get := &structs.JobSpecificRequest{
+		JobID: d2.JobID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			Namespace:     d2.Namespace,
+			MinQueryIndex: 150,
+		},
+	}
+	var resp structs.SingleDeploymentResponse
+	start := time.Now()
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.LatestDeployment", get, &resp), "RPC")
+	require.EqualValues(200, resp.Index, "response index")
+	require.NotNil(resp.Deployment, "deployment for job")
+	require.Equal(d2.ID, resp.Deployment.ID, "returned deployment")
+	if elapsed := time.Since(start); elapsed < 200*time.Millisecond {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+}
+
+func TestJobEndpoint_Plan_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a plan request
+	job := mock.Job()
+	planReq := &structs.JobPlanRequest{
+		Job:  job,
+		Diff: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Try without a token, expect failure
+	var planResp structs.JobPlanResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp); err == nil {
+		t.Fatalf("expected error")
+	}
+
+	// Try with a token
+	planReq.AuthToken = root.SecretID
+	if err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+}
+
 func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -1660,8 +4148,11 @@ func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1675,9 +4166,12 @@ func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
 
 	// Create a plan request
 	planReq := &structs.JobPlanRequest{
-		Job:          job,
-		Diff:         true,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job:  job,
+		Diff: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1702,7 +4196,8 @@ func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
 }
 
 func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -1712,8 +4207,11 @@ func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1727,9 +4225,12 @@ func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 
 	// Create a plan request
 	planReq := &structs.JobPlanRequest{
-		Job:          job,
-		Diff:         false,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job:  job,
+		Diff: false,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1754,7 +4255,8 @@ func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 }
 
 func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -1771,7 +4273,7 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 	s1.vault = tvc
 
 	policy := "foo"
-	goodToken := structs.GenerateUUID()
+	goodToken := uuid.Generate()
 	goodPolicies := []string{"foo", "bar", "baz"}
 	tvc.SetLookupTokenAllowedPolicies(goodToken, goodPolicies)
 
@@ -1783,8 +4285,11 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1796,7 +4301,7 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 	// Check for the job in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1818,8 +4323,100 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
+	t.Parallel()
+
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	validateJob := func(j *structs.Job) error {
+		req := &structs.JobRegisterRequest{
+			Job: j,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: j.Namespace,
+			},
+		}
+		var resp structs.JobValidateResponse
+		if err := msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &resp); err != nil {
+			return err
+		}
+
+		if resp.Error != "" {
+			return errors.New(resp.Error)
+		}
+
+		if len(resp.ValidationErrors) != 0 {
+			return errors.New(strings.Join(resp.ValidationErrors, ","))
+		}
+
+		if resp.Warnings != "" {
+			return errors.New(resp.Warnings)
+		}
+
+		return nil
+	}
+
+	tgServices := []*structs.Service{
+		{
+			Name:      "count-api",
+			PortLabel: "9001",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+			},
+		},
+	}
+
+	t.Run("plain job", func(t *testing.T) {
+		j := mock.Job()
+		require.NoError(t, validateJob(j))
+	})
+	t.Run("valid consul connect", func(t *testing.T) {
+		j := mock.Job()
+
+		tg := j.TaskGroups[0]
+		tg.Services = tgServices
+		tg.Networks = structs.Networks{
+			{Mode: "bridge"},
+		}
+
+		err := validateJob(j)
+		require.NoError(t, err)
+	})
+
+	t.Run("consul connect but missing network", func(t *testing.T) {
+		j := mock.Job()
+
+		tg := j.TaskGroups[0]
+		tg.Services = tgServices
+
+		err := validateJob(j)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `Consul Connect sidecars require exactly 1 network`)
+	})
+
+	t.Run("consul connect but non bridge network", func(t *testing.T) {
+		j := mock.Job()
+
+		tg := j.TaskGroups[0]
+		tg.Services = tgServices
+
+		tg.Networks = structs.Networks{
+			{Mode: "host"},
+		}
+
+		err := validateJob(j)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `Consul Connect sidecar requires bridge network, found "host" in group "web"`)
+	})
+
+}
+
 func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -1829,18 +4426,28 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 	// Create the register request with a job asking for a template that sends a
 	// signal
 	job := mock.Job()
-	signal := "SIGUSR1"
+	signal1 := "SIGUSR1"
+	signal2 := "SIGHUP"
 	job.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
-		&structs.Template{
+		{
 			SourcePath:   "foo",
 			DestPath:     "bar",
 			ChangeMode:   structs.TemplateChangeModeSignal,
-			ChangeSignal: signal,
+			ChangeSignal: signal1,
+		},
+		{
+			SourcePath:   "foo",
+			DestPath:     "baz",
+			ChangeMode:   structs.TemplateChangeModeSignal,
+			ChangeSignal: signal2,
 		},
 	}
 	req := &structs.JobRegisterRequest{
-		Job:          job,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
 	// Fetch the response
@@ -1852,7 +4459,7 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 	// Check for the job in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.ID)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1869,74 +4476,212 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 		t.Fatalf("Expected an implicit constraint")
 	}
 
-	sigConstraint := getSignalConstraint([]string{signal})
+	sigConstraint := getSignalConstraint([]string{signal1, signal2})
+	if !strings.HasPrefix(sigConstraint.RTarget, "SIGHUP") {
+		t.Fatalf("signals not sorted: %v", sigConstraint.RTarget)
+	}
 
 	if !constraints[0].Equal(sigConstraint) {
 		t.Fatalf("Expected implicit vault constraint")
 	}
 }
 
-func TestJobEndpoint_ValidateJob_InvalidDriverConf(t *testing.T) {
-	// Create a mock job with an invalid config
-	job := mock.Job()
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"foo": "bar",
+func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	old := mock.Job()
+	new := mock.Job()
+
+	if err := validateJobUpdate(old, new); err != nil {
+		t.Errorf("expected update to be valid but got: %v", err)
 	}
 
-	if err := validateJob(job); err == nil || !strings.Contains(err.Error(), "-> config") {
-		t.Fatalf("Expected config error; got %v", err)
+	new.Type = "batch"
+	if err := validateJobUpdate(old, new); err == nil {
+		t.Errorf("expected err when setting new job to a different type")
+	} else {
+		t.Log(err)
 	}
+
+	new = mock.Job()
+	new.Periodic = &structs.PeriodicConfig{Enabled: true}
+	if err := validateJobUpdate(old, new); err == nil {
+		t.Errorf("expected err when setting new job to periodic")
+	} else {
+		t.Log(err)
+	}
+
+	new = mock.Job()
+	new.ParameterizedJob = &structs.ParameterizedJobConfig{}
+	if err := validateJobUpdate(old, new); err == nil {
+		t.Errorf("expected err when setting new job to parameterized")
+	} else {
+		t.Log(err)
+	}
+
+	new = mock.Job()
+	new.Dispatched = true
+	require.Error(validateJobUpdate(old, new),
+		"expected err when setting new job to dispatched")
+	require.Error(validateJobUpdate(nil, new),
+		"expected err when setting new job to dispatched")
+	require.Error(validateJobUpdate(new, old),
+		"expected err when setting dispatched to false")
+	require.NoError(validateJobUpdate(nil, old))
 }
 
-func TestJobEndpoint_ValidateJob_InvalidSignals(t *testing.T) {
-	// Create a mock job that wants to send a signal to a driver that can't
+func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
 	job := mock.Job()
-	job.TaskGroups[0].Tasks[0].Driver = "qemu"
-	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
-		Policies:     []string{"foo"},
-		ChangeMode:   structs.VaultChangeModeSignal,
-		ChangeSignal: "SIGUSR1",
+
+	req := &structs.JobValidateRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
 
-	if err := validateJob(job); err == nil || !strings.Contains(err.Error(), "support sending signals") {
-		t.Fatalf("Expected signal feasibility error; got %v", err)
+	// Attempt to update without providing a valid token
+	var resp structs.JobValidateResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &resp)
+	require.NotNil(err)
+
+	// Update with a valid token
+	req.AuthToken = root.SecretID
+	var validResp structs.JobValidateResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &validResp)
+	require.Nil(err)
+
+	require.Equal("", validResp.Error)
+	require.Equal("", validResp.Warnings)
+}
+
+func TestJobEndpoint_Dispatch_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create a parameterized job
+	job := mock.BatchJob()
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
+	err := state.UpsertJob(400, job)
+	require.Nil(err)
+
+	req := &structs.JobDispatchRequest{
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
 	}
+
+	// Attempt to fetch the response without a token should fail
+	var resp structs.JobDispatchResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Dispatch", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Attempt to fetch the response with an invalid token should fail
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	req.AuthToken = invalidToken.SecretID
+
+	var invalidResp structs.JobDispatchResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Dispatch", req, &invalidResp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Dispatch with a valid management token should succeed
+	req.AuthToken = root.SecretID
+
+	var validResp structs.JobDispatchResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Dispatch", req, &validResp)
+	require.Nil(err)
+	require.NotNil(validResp.EvalID)
+	require.NotNil(validResp.DispatchedJobID)
+	require.NotEqual(validResp.DispatchedJobID, "")
+
+	// Dispatch with a valid token should succeed
+	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDispatchJob}))
+	req.AuthToken = validToken.SecretID
+
+	var validResp2 structs.JobDispatchResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Dispatch", req, &validResp2)
+	require.Nil(err)
+	require.NotNil(validResp2.EvalID)
+	require.NotNil(validResp2.DispatchedJobID)
+	require.NotEqual(validResp2.DispatchedJobID, "")
+
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, validResp2.DispatchedJobID)
+	require.Nil(err)
+	require.NotNil(out)
+	require.Equal(out.ParentID, job.ID)
+
+	// Look up the evaluation
+	eval, err := state.EvalByID(ws, validResp2.EvalID)
+	require.Nil(err)
+	require.NotNil(eval)
+	require.Equal(eval.CreateIndex, validResp2.EvalCreateIndex)
 }
 
 func TestJobEndpoint_Dispatch(t *testing.T) {
+	t.Parallel()
 
 	// No requirements
-	d1 := mock.Job()
-	d1.Type = structs.JobTypeBatch
+	d1 := mock.BatchJob()
 	d1.ParameterizedJob = &structs.ParameterizedJobConfig{}
 
 	// Require input data
-	d2 := mock.Job()
-	d2.Type = structs.JobTypeBatch
+	d2 := mock.BatchJob()
 	d2.ParameterizedJob = &structs.ParameterizedJobConfig{
 		Payload: structs.DispatchPayloadRequired,
 	}
 
 	// Disallow input data
-	d3 := mock.Job()
-	d3.Type = structs.JobTypeBatch
+	d3 := mock.BatchJob()
 	d3.ParameterizedJob = &structs.ParameterizedJobConfig{
 		Payload: structs.DispatchPayloadForbidden,
 	}
 
 	// Require meta
-	d4 := mock.Job()
-	d4.Type = structs.JobTypeBatch
+	d4 := mock.BatchJob()
 	d4.ParameterizedJob = &structs.ParameterizedJobConfig{
 		MetaRequired: []string{"foo", "bar"},
 	}
 
 	// Optional meta
-	d5 := mock.Job()
-	d5.Type = structs.JobTypeBatch
+	d5 := mock.BatchJob()
 	d5.ParameterizedJob = &structs.ParameterizedJobConfig{
 		MetaOptional: []string{"foo", "bar"},
 	}
+
+	// Periodic dispatch job
+	d6 := mock.PeriodicJob()
+	d6.ParameterizedJob = &structs.ParameterizedJobConfig{}
+
+	d7 := mock.BatchJob()
+	d7.ParameterizedJob = &structs.ParameterizedJobConfig{}
+	d7.Stop = true
 
 	reqNoInputNoMeta := &structs.JobDispatchRequest{}
 	reqInputDataNoMeta := &structs.JobDispatchRequest{
@@ -1971,6 +4716,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 		name             string
 		parameterizedJob *structs.Job
 		dispatchReq      *structs.JobDispatchRequest
+		noEval           bool
 		err              bool
 		errStr           string
 	}
@@ -2052,11 +4798,24 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			err:              true,
 			errStr:           "Payload exceeds maximum size",
 		},
+		{
+			name:             "periodic job dispatched, ensure no eval",
+			parameterizedJob: d6,
+			dispatchReq:      reqNoInputNoMeta,
+			noEval:           true,
+		},
+		{
+			name:             "periodic job stopped, ensure error",
+			parameterizedJob: d7,
+			dispatchReq:      reqNoInputNoMeta,
+			err:              true,
+			errStr:           "stopped",
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			s1 := testServer(t, func(c *Config) {
+			s1 := TestServer(t, func(c *Config) {
 				c.NumSchedulers = 0 // Prevent automatic dequeue
 			})
 			defer s1.Shutdown()
@@ -2065,8 +4824,11 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 
 			// Create the register request
 			regReq := &structs.JobRegisterRequest{
-				Job:          tc.parameterizedJob,
-				WriteRequest: structs.WriteRequest{Region: "global"},
+				Job: tc.parameterizedJob,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: tc.parameterizedJob.Namespace,
+				},
 			}
 
 			// Fetch the response
@@ -2077,7 +4839,10 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 
 			// Now try to dispatch
 			tc.dispatchReq.JobID = tc.parameterizedJob.ID
-			tc.dispatchReq.WriteRequest = structs.WriteRequest{Region: "global"}
+			tc.dispatchReq.WriteRequest = structs.WriteRequest{
+				Region:    "global",
+				Namespace: tc.parameterizedJob.Namespace,
+			}
 
 			var dispatchResp structs.JobDispatchResponse
 			dispatchErr := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", tc.dispatchReq, &dispatchResp)
@@ -2088,13 +4853,24 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 				}
 
 				// Check that we got an eval and job id back
-				if dispatchResp.EvalID == "" || dispatchResp.DispatchedJobID == "" {
+				switch dispatchResp.EvalID {
+				case "":
+					if !tc.noEval {
+						t.Fatalf("Bad response")
+					}
+				default:
+					if tc.noEval {
+						t.Fatalf("Got eval %q", dispatchResp.EvalID)
+					}
+				}
+
+				if dispatchResp.DispatchedJobID == "" {
 					t.Fatalf("Bad response")
 				}
 
 				state := s1.fsm.State()
 				ws := memdb.NewWatchSet()
-				out, err := state.JobByID(ws, dispatchResp.DispatchedJobID)
+				out, err := state.JobByID(ws, tc.parameterizedJob.Namespace, dispatchResp.DispatchedJobID)
 				if err != nil {
 					t.Fatalf("err: %v", err)
 				}
@@ -2107,12 +4883,26 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 				if out.ParentID != tc.parameterizedJob.ID {
 					t.Fatalf("bad parent ID")
 				}
+				if !out.Dispatched {
+					t.Fatal("expected dispatched job")
+				}
+				if out.IsParameterized() {
+					t.Fatal("dispatched job should not be parameterized")
+				}
+				if out.ParameterizedJob == nil {
+					t.Fatal("parameter job config should exist")
+				}
+
+				if tc.noEval {
+					return
+				}
 
 				// Lookup the evaluation
 				eval, err := state.EvalByID(ws, dispatchResp.EvalID)
 				if err != nil {
 					t.Fatalf("err: %v", err)
 				}
+
 				if eval == nil {
 					t.Fatalf("expected eval")
 				}

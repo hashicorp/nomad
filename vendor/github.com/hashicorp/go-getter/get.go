@@ -18,6 +18,8 @@ import (
 	"os/exec"
 	"regexp"
 	"syscall"
+
+	cleanhttp "github.com/hashicorp/go-cleanhttp"
 )
 
 // Getter defines the interface that schemes must implement to download
@@ -39,6 +41,11 @@ type Getter interface {
 	// ClientMode returns the mode based on the given URL. This is used to
 	// allow clients to let the getters decide which mode to use.
 	ClientMode(*url.URL) (ClientMode, error)
+
+	// SetClient allows a getter to know it's client
+	// in order to access client's Get functions or
+	// progress tracking.
+	SetClient(*Client)
 }
 
 // Getters is the mapping of scheme to the Getter implementation that will
@@ -49,12 +56,18 @@ var Getters map[string]Getter
 // syntax is schema::url, example: git::https://foo.com
 var forcedRegexp = regexp.MustCompile(`^([A-Za-z0-9]+)::(.+)$`)
 
+// httpClient is the default client to be used by HttpGetters.
+var httpClient = cleanhttp.DefaultClient()
+
 func init() {
-	httpGetter := &HttpGetter{Netrc: true}
+	httpGetter := &HttpGetter{
+		Netrc: true,
+	}
 
 	Getters = map[string]Getter{
 		"file":  new(FileGetter),
 		"git":   new(GitGetter),
+		"gcs":   new(GCSGetter),
 		"hg":    new(HgGetter),
 		"s3":    new(S3Getter),
 		"http":  httpGetter,
@@ -67,12 +80,12 @@ func init() {
 //
 // src is a URL, whereas dst is always just a file path to a folder. This
 // folder doesn't need to exist. It will be created if it doesn't exist.
-func Get(dst, src string) error {
+func Get(dst, src string, opts ...ClientOption) error {
 	return (&Client{
 		Src:     src,
 		Dst:     dst,
 		Dir:     true,
-		Getters: Getters,
+		Options: opts,
 	}).Get()
 }
 
@@ -82,23 +95,23 @@ func Get(dst, src string) error {
 // dst must be a directory. If src is a file, it will be downloaded
 // into dst with the basename of the URL. If src is a directory or
 // archive, it will be unpacked directly into dst.
-func GetAny(dst, src string) error {
+func GetAny(dst, src string, opts ...ClientOption) error {
 	return (&Client{
 		Src:     src,
 		Dst:     dst,
 		Mode:    ClientModeAny,
-		Getters: Getters,
+		Options: opts,
 	}).Get()
 }
 
 // GetFile downloads the file specified by src into the path specified by
 // dst.
-func GetFile(dst, src string) error {
+func GetFile(dst, src string, opts ...ClientOption) error {
 	return (&Client{
 		Src:     src,
 		Dst:     dst,
 		Dir:     false,
-		Getters: Getters,
+		Options: opts,
 	}).Get()
 }
 

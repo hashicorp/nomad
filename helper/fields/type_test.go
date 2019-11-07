@@ -24,7 +24,7 @@ func TestFieldTypeString(t *testing.T) {
 	}
 
 	if s := TypeInvalid.String(); s != "unknown type" {
-		t.Fatalf("bad: expected 'unkown type' got: %v", s)
+		t.Fatalf("bad: expected 'unknown type' got: %v", s)
 	}
 }
 

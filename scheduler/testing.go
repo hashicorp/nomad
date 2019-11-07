@@ -2,12 +2,13 @@ package scheduler
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"sync"
-	"testing"
+	"time"
 
-	memdb "github.com/hashicorp/go-memdb"
+	testing "github.com/mitchellh/go-testing-interface"
+
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -39,6 +40,7 @@ func (r *RejectPlan) ReblockEval(*structs.Evaluation) error {
 // store copy and provides the planner interface. It can be extended for various
 // testing uses or for invoking the scheduler without side effects.
 type Harness struct {
+	t     testing.T
 	State *state.StateStore
 
 	Planner  Planner
@@ -51,16 +53,15 @@ type Harness struct {
 
 	nextIndex     uint64
 	nextIndexLock sync.Mutex
+
+	optimizePlan bool
 }
 
 // NewHarness is used to make a new testing harness
-func NewHarness(t *testing.T) *Harness {
-	state, err := state.NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
+func NewHarness(t testing.T) *Harness {
+	state := state.TestStateStore(t)
 	h := &Harness{
+		t:         t,
 		State:     state,
 		nextIndex: 1,
 	}
@@ -69,8 +70,9 @@ func NewHarness(t *testing.T) *Harness {
 
 // NewHarnessWithState creates a new harness with the given state for testing
 // purposes.
-func NewHarnessWithState(t *testing.T, state *state.StateStore) *Harness {
+func NewHarnessWithState(t testing.T, state *state.StateStore) *Harness {
 	return &Harness{
+		t:         t,
 		State:     state,
 		nextIndex: 1,
 	}
@@ -97,31 +99,94 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	result := new(structs.PlanResult)
 	result.NodeUpdate = plan.NodeUpdate
 	result.NodeAllocation = plan.NodeAllocation
+	result.NodePreemptions = plan.NodePreemptions
 	result.AllocIndex = index
 
 	// Flatten evicts and allocs
-	var allocs []*structs.Allocation
-	for _, updateList := range plan.NodeUpdate {
-		allocs = append(allocs, updateList...)
-	}
+	now := time.Now().UTC().UnixNano()
+
+	allocsUpdated := make([]*structs.Allocation, 0, len(result.NodeAllocation))
 	for _, allocList := range plan.NodeAllocation {
-		allocs = append(allocs, allocList...)
+		allocsUpdated = append(allocsUpdated, allocList...)
+	}
+	updateCreateTimestamp(allocsUpdated, now)
+
+	// Setup the update request
+	req := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			Job: plan.Job,
+		},
+		Deployment:        plan.Deployment,
+		DeploymentUpdates: plan.DeploymentUpdates,
+		EvalID:            plan.EvalID,
 	}
 
-	// Attach the plan to all the allocations. It is pulled out in the
-	// payload to avoid the redundancy of encoding, but should be denormalized
-	// prior to being inserted into MemDB.
-	if j := plan.Job; j != nil {
-		for _, alloc := range allocs {
-			if alloc.Job == nil {
-				alloc.Job = j
+	if h.optimizePlan {
+		stoppedAllocDiffs := make([]*structs.AllocationDiff, 0, len(result.NodeUpdate))
+		for _, updateList := range plan.NodeUpdate {
+			for _, stoppedAlloc := range updateList {
+				stoppedAllocDiffs = append(stoppedAllocDiffs, stoppedAlloc.AllocationDiff())
 			}
 		}
+		req.AllocsStopped = stoppedAllocDiffs
+
+		req.AllocsUpdated = allocsUpdated
+
+		preemptedAllocDiffs := make([]*structs.AllocationDiff, 0, len(result.NodePreemptions))
+		for _, preemptions := range plan.NodePreemptions {
+			for _, preemptedAlloc := range preemptions {
+				allocDiff := preemptedAlloc.AllocationDiff()
+				allocDiff.ModifyTime = now
+				preemptedAllocDiffs = append(preemptedAllocDiffs, allocDiff)
+			}
+		}
+		req.AllocsPreempted = preemptedAllocDiffs
+	} else {
+		// COMPAT 0.11: Handles unoptimized log format
+		var allocs []*structs.Allocation
+
+		allocsStopped := make([]*structs.Allocation, 0, len(result.NodeUpdate))
+		for _, updateList := range plan.NodeUpdate {
+			allocsStopped = append(allocsStopped, updateList...)
+		}
+		allocs = append(allocs, allocsStopped...)
+
+		allocs = append(allocs, allocsUpdated...)
+		updateCreateTimestamp(allocs, now)
+
+		req.Alloc = allocs
+
+		// Set modify time for preempted allocs and flatten them
+		var preemptedAllocs []*structs.Allocation
+		for _, preemptions := range result.NodePreemptions {
+			for _, alloc := range preemptions {
+				alloc.ModifyTime = now
+				preemptedAllocs = append(preemptedAllocs, alloc)
+			}
+		}
+
+		req.NodePreemptions = preemptedAllocs
 	}
 
 	// Apply the full plan
-	err := h.State.UpsertAllocs(index, allocs)
+	err := h.State.UpsertPlanResults(index, &req)
 	return result, nil, err
+}
+
+// OptimizePlan is a function used only for Harness to help set the optimzePlan field,
+// since Harness doesn't have access to a Server object
+func (h *Harness) OptimizePlan(optimize bool) {
+	h.optimizePlan = optimize
+}
+
+func updateCreateTimestamp(allocations []*structs.Allocation, now int64) {
+	// Set the time the alloc was applied for the first time. This can be used
+	// to approximate the scheduling time.
+	for _, alloc := range allocations {
+		if alloc.CreateTime == 0 {
+			alloc.CreateTime = now
+		}
+	}
 }
 
 func (h *Harness) UpdateEval(eval *structs.Evaluation) error {
@@ -195,7 +260,7 @@ func (h *Harness) Snapshot() State {
 // Scheduler is used to return a new scheduler from
 // a snapshot of current state using the harness for planning.
 func (h *Harness) Scheduler(factory Factory) Scheduler {
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := testlog.HCLogger(h.t)
 	return factory(logger, h.Snapshot(), h)
 }
 
@@ -206,7 +271,7 @@ func (h *Harness) Process(factory Factory, eval *structs.Evaluation) error {
 	return sched.Process(eval)
 }
 
-func (h *Harness) AssertEvalStatus(t *testing.T, state string) {
+func (h *Harness) AssertEvalStatus(t testing.T, state string) {
 	if len(h.Evals) != 1 {
 		t.Fatalf("bad: %#v", h.Evals)
 	}

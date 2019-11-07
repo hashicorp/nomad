@@ -1,0 +1,58 @@
+{
+  "variables": {
+    "azure_client_id": "{{ env `ARM_CLIENT_ID` }}",
+    "azure_client_secret": "{{ env `ARM_CLIENT_SECRET` }}",
+    "azure_subscription_id": "{{ env `ARM_SUBSCRIPTION_ID` }}",
+    "azure_resource_group": "{{ env `AZURE_RESOURCE_GROUP` }}"
+  },
+  "builders": [
+  {
+    "type": "azure-arm",
+    "client_id": "{{ user `azure_client_id` }}",
+    "client_secret": "{{ user `azure_client_secret` }}",
+    "subscription_id": "{{ user `azure_subscription_id` }}",
+    "managed_image_resource_group_name": "{{ user `azure_resource_group` }}",
+    "location": "East US",
+    "image_publisher": "Canonical",
+    "image_offer": "UbuntuServer",
+    "image_sku": "16.04-LTS",
+    "os_type": "Linux",
+    "ssh_username": "packer",
+    "managed_image_name": "hashistack",
+    "azure_tags": {
+      "Product": "Hashistack"
+    }
+  }],
+  "provisioners":  [
+  {
+    "type": "shell",
+    "inline": [
+      "sudo mkdir /ops",
+      "sudo chmod 777 /ops"
+    ]
+  },
+  {
+    "type": "file",
+    "source": "../shared",
+    "destination": "/ops"
+  },
+  {
+    "type": "file",
+    "source": "../examples",
+    "destination": "/ops"
+  },
+  {
+    "type": "shell",
+    "script": "../shared/scripts/setup.sh"
+  },
+  {
+    "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E sh '{{ .Path }}'",
+    "inline": [
+      "apt-get update -qq -y",
+      "apt-get upgrade -qq -y",
+      "/usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync"
+    ],
+    "inline_shebang": "/bin/sh -x",
+    "type": "shell"
+  }]
+}

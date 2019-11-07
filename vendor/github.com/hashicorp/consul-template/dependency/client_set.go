@@ -4,11 +4,12 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/go-cleanhttp"
 	rootcerts "github.com/hashicorp/go-rootcerts"
 	vaultapi "github.com/hashicorp/vault/api"
 )
@@ -24,8 +25,8 @@ type ClientSet struct {
 
 // consulClient is a wrapper around a real Consul API client.
 type consulClient struct {
-	client     *consulapi.Client
-	httpClient *http.Client
+	client    *consulapi.Client
+	transport *http.Transport
 }
 
 // vaultClient is a wrapper around a real Vault API client.
@@ -48,11 +49,20 @@ type CreateConsulClientInput struct {
 	SSLCACert    string
 	SSLCAPath    string
 	ServerName   string
+
+	TransportDialKeepAlive       time.Duration
+	TransportDialTimeout         time.Duration
+	TransportDisableKeepAlives   bool
+	TransportIdleConnTimeout     time.Duration
+	TransportMaxIdleConns        int
+	TransportMaxIdleConnsPerHost int
+	TransportTLSHandshakeTimeout time.Duration
 }
 
 // CreateVaultClientInput is used as input to the CreateVaultClient function.
 type CreateVaultClientInput struct {
 	Address     string
+	Namespace   string
 	Token       string
 	UnwrapToken bool
 	SSLEnabled  bool
@@ -62,6 +72,14 @@ type CreateVaultClientInput struct {
 	SSLCACert   string
 	SSLCAPath   string
 	ServerName  string
+
+	TransportDialKeepAlive       time.Duration
+	TransportDialTimeout         time.Duration
+	TransportDisableKeepAlives   bool
+	TransportIdleConnTimeout     time.Duration
+	TransportMaxIdleConns        int
+	TransportMaxIdleConnsPerHost int
+	TransportTLSHandshakeTimeout time.Duration
 }
 
 // NewClientSet creates a new client set that is ready to accept clients.
@@ -89,7 +107,18 @@ func (c *ClientSet) CreateConsulClient(i *CreateConsulClientInput) error {
 	}
 
 	// This transport will attempt to keep connections open to the Consul server.
-	transport := cleanhttp.DefaultPooledTransport()
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout:   i.TransportDialTimeout,
+			KeepAlive: i.TransportDialKeepAlive,
+		}).Dial,
+		DisableKeepAlives:   i.TransportDisableKeepAlives,
+		MaxIdleConns:        i.TransportMaxIdleConns,
+		IdleConnTimeout:     i.TransportIdleConnTimeout,
+		MaxIdleConnsPerHost: i.TransportMaxIdleConnsPerHost,
+		TLSHandshakeTimeout: i.TransportTLSHandshakeTimeout,
+	}
 
 	// Configure SSL
 	if i.SSLEnabled {
@@ -141,7 +170,7 @@ func (c *ClientSet) CreateConsulClient(i *CreateConsulClientInput) error {
 	}
 
 	// Setup the new transport
-	consulConfig.HttpClient.Transport = transport
+	consulConfig.Transport = transport
 
 	// Create the API client
 	client, err := consulapi.NewClient(consulConfig)
@@ -152,8 +181,8 @@ func (c *ClientSet) CreateConsulClient(i *CreateConsulClientInput) error {
 	// Save the data on ourselves
 	c.Lock()
 	c.consul = &consulClient{
-		client:     client,
-		httpClient: consulConfig.HttpClient,
+		client:    client,
+		transport: transport,
 	}
 	c.Unlock()
 
@@ -168,7 +197,18 @@ func (c *ClientSet) CreateVaultClient(i *CreateVaultClientInput) error {
 	}
 
 	// This transport will attempt to keep connections open to the Vault server.
-	transport := cleanhttp.DefaultPooledTransport()
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout:   i.TransportDialTimeout,
+			KeepAlive: i.TransportDialKeepAlive,
+		}).Dial,
+		DisableKeepAlives:   i.TransportDisableKeepAlives,
+		MaxIdleConns:        i.TransportMaxIdleConns,
+		IdleConnTimeout:     i.TransportIdleConnTimeout,
+		MaxIdleConnsPerHost: i.TransportMaxIdleConnsPerHost,
+		TLSHandshakeTimeout: i.TransportTLSHandshakeTimeout,
+	}
 
 	// Configure SSL
 	if i.SSLEnabled {
@@ -226,6 +266,11 @@ func (c *ClientSet) CreateVaultClient(i *CreateVaultClientInput) error {
 		return fmt.Errorf("client set: vault: %s", err)
 	}
 
+	// Set the namespace if given.
+	if i.Namespace != "" {
+		client.SetNamespace(i.Namespace)
+	}
+
 	// Set the token if given
 	if i.Token != "" {
 		client.SetToken(i.Token)
@@ -271,7 +316,7 @@ func (c *ClientSet) Consul() *consulapi.Client {
 	return c.consul.client
 }
 
-// Vault returns the Consul client for this set.
+// Vault returns the Vault client for this set.
 func (c *ClientSet) Vault() *vaultapi.Client {
 	c.RLock()
 	defer c.RUnlock()
@@ -284,7 +329,7 @@ func (c *ClientSet) Stop() {
 	defer c.Unlock()
 
 	if c.consul != nil {
-		c.consul.httpClient.Transport.(*http.Transport).CloseIdleConnections()
+		c.consul.transport.CloseIdleConnections()
 	}
 
 	if c.vault != nil {

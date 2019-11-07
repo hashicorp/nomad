@@ -3,38 +3,41 @@ package api
 import (
 	"reflect"
 	"testing"
-
-	"github.com/hashicorp/nomad/helper"
 )
 
 func TestCompose(t *testing.T) {
+	t.Parallel()
 	// Compose a task
 	task := NewTask("task1", "exec").
 		SetConfig("foo", "bar").
 		SetMeta("foo", "bar").
 		Constrain(NewConstraint("kernel.name", "=", "linux")).
 		Require(&Resources{
-			CPU:      helper.IntToPtr(1250),
-			MemoryMB: helper.IntToPtr(1024),
-			DiskMB:   helper.IntToPtr(2048),
-			IOPS:     helper.IntToPtr(500),
+			CPU:      intToPtr(1250),
+			MemoryMB: intToPtr(1024),
+			DiskMB:   intToPtr(2048),
 			Networks: []*NetworkResource{
-				&NetworkResource{
+				{
 					CIDR:          "0.0.0.0/0",
-					MBits:         helper.IntToPtr(100),
-					ReservedPorts: []Port{{"", 80}, {"", 443}},
+					MBits:         intToPtr(100),
+					ReservedPorts: []Port{{"", 80, 0}, {"", 443, 0}},
 				},
 			},
 		})
 
 	// Compose a task group
+
+	st1 := NewSpreadTarget("dc1", 80)
+	st2 := NewSpreadTarget("dc2", 20)
 	grp := NewTaskGroup("grp1", 2).
 		Constrain(NewConstraint("kernel.name", "=", "linux")).
+		AddAffinity(NewAffinity("${node.class}", "=", "large", 50)).
+		AddSpread(NewSpread("${node.datacenter}", 30, []*SpreadTarget{st1, st2})).
 		SetMeta("foo", "bar").
 		AddTask(task)
 
 	// Compose a job
-	job := NewServiceJob("job1", "myjob", "region1", 2).
+	job := NewServiceJob("job1", "myjob", "global", 2).
 		SetMeta("foo", "bar").
 		AddDatacenter("dc1").
 		Constrain(NewConstraint("kernel.name", "=", "linux")).
@@ -42,11 +45,11 @@ func TestCompose(t *testing.T) {
 
 	// Check that the composed result looks correct
 	expect := &Job{
-		Region:   helper.StringToPtr("region1"),
-		ID:       helper.StringToPtr("job1"),
-		Name:     helper.StringToPtr("myjob"),
-		Type:     helper.StringToPtr(JobTypeService),
-		Priority: helper.IntToPtr(2),
+		Region:   stringToPtr("global"),
+		ID:       stringToPtr("job1"),
+		Name:     stringToPtr("myjob"),
+		Type:     stringToPtr(JobTypeService),
+		Priority: intToPtr(2),
 		Datacenters: []string{
 			"dc1",
 		},
@@ -54,45 +57,68 @@ func TestCompose(t *testing.T) {
 			"foo": "bar",
 		},
 		Constraints: []*Constraint{
-			&Constraint{
+			{
 				LTarget: "kernel.name",
 				RTarget: "linux",
 				Operand: "=",
 			},
 		},
 		TaskGroups: []*TaskGroup{
-			&TaskGroup{
-				Name:  helper.StringToPtr("grp1"),
-				Count: helper.IntToPtr(2),
+			{
+				Name:  stringToPtr("grp1"),
+				Count: intToPtr(2),
 				Constraints: []*Constraint{
-					&Constraint{
+					{
 						LTarget: "kernel.name",
 						RTarget: "linux",
 						Operand: "=",
 					},
 				},
+				Affinities: []*Affinity{
+					{
+						LTarget: "${node.class}",
+						RTarget: "large",
+						Operand: "=",
+						Weight:  int8ToPtr(50),
+					},
+				},
+				Spreads: []*Spread{
+					{
+						Attribute: "${node.datacenter}",
+						Weight:    int8ToPtr(30),
+						SpreadTarget: []*SpreadTarget{
+							{
+								Value:   "dc1",
+								Percent: 80,
+							},
+							{
+								Value:   "dc2",
+								Percent: 20,
+							},
+						},
+					},
+				},
 				Tasks: []*Task{
-					&Task{
+					{
 						Name:   "task1",
 						Driver: "exec",
 						Resources: &Resources{
-							CPU:      helper.IntToPtr(1250),
-							MemoryMB: helper.IntToPtr(1024),
-							DiskMB:   helper.IntToPtr(2048),
-							IOPS:     helper.IntToPtr(500),
+							CPU:      intToPtr(1250),
+							MemoryMB: intToPtr(1024),
+							DiskMB:   intToPtr(2048),
 							Networks: []*NetworkResource{
-								&NetworkResource{
+								{
 									CIDR:  "0.0.0.0/0",
-									MBits: helper.IntToPtr(100),
+									MBits: intToPtr(100),
 									ReservedPorts: []Port{
-										{"", 80},
-										{"", 443},
+										{"", 80, 0},
+										{"", 443, 0},
 									},
 								},
 							},
 						},
 						Constraints: []*Constraint{
-							&Constraint{
+							{
 								LTarget: "kernel.name",
 								RTarget: "linux",
 								Operand: "=",

@@ -2,15 +2,18 @@ package nomad
 
 import (
 	"bytes"
-	"reflect"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
 )
 
 func TestTimeTable(t *testing.T) {
+	t.Parallel()
 	tt := NewTimeTable(time.Second, time.Minute)
 
 	index := tt.NearestIndex(time.Now())
@@ -87,6 +90,7 @@ func TestTimeTable(t *testing.T) {
 }
 
 func TestTimeTable_SerializeDeserialize(t *testing.T) {
+	t.Parallel()
 	tt := NewTimeTable(time.Second, time.Minute)
 
 	// Witness some data
@@ -120,12 +124,15 @@ func TestTimeTable_SerializeDeserialize(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !reflect.DeepEqual(tt.table, tt2.table) {
-		t.Fatalf("bad: %#v %#v", tt, tt2)
+	o := cmp.AllowUnexported(TimeTable{})
+	o2 := cmpopts.IgnoreTypes(sync.RWMutex{})
+	if !cmp.Equal(tt.table, tt2.table, o, o2) {
+		t.Fatalf("bad: %s", cmp.Diff(tt, tt2, o, o2))
 	}
 }
 
 func TestTimeTable_Overflow(t *testing.T) {
+	t.Parallel()
 	tt := NewTimeTable(time.Second, 3*time.Second)
 
 	// Witness some data

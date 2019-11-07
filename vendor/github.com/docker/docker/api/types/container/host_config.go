@@ -1,4 +1,4 @@
-package container
+package container // import "github.com/docker/docker/api/types/container"
 
 import (
 	"strings"
@@ -10,9 +10,6 @@ import (
 	"github.com/docker/go-units"
 )
 
-// NetworkMode represents the container network stack.
-type NetworkMode string
-
 // Isolation represents the isolation technology of a container. The supported
 // values are platform specific
 type Isolation string
@@ -23,45 +20,112 @@ func (i Isolation) IsDefault() bool {
 	return strings.ToLower(string(i)) == "default" || string(i) == ""
 }
 
+// IsHyperV indicates the use of a Hyper-V partition for isolation
+func (i Isolation) IsHyperV() bool {
+	return strings.ToLower(string(i)) == "hyperv"
+}
+
+// IsProcess indicates the use of process isolation
+func (i Isolation) IsProcess() bool {
+	return strings.ToLower(string(i)) == "process"
+}
+
+const (
+	// IsolationEmpty is unspecified (same behavior as default)
+	IsolationEmpty = Isolation("")
+	// IsolationDefault is the default isolation mode on current daemon
+	IsolationDefault = Isolation("default")
+	// IsolationProcess is process isolation mode
+	IsolationProcess = Isolation("process")
+	// IsolationHyperV is HyperV isolation mode
+	IsolationHyperV = Isolation("hyperv")
+)
+
 // IpcMode represents the container ipc stack.
 type IpcMode string
 
-// IsPrivate indicates whether the container uses its private ipc stack.
+// IsPrivate indicates whether the container uses its own private ipc namespace which can not be shared.
 func (n IpcMode) IsPrivate() bool {
-	return !(n.IsHost() || n.IsContainer())
+	return n == "private"
 }
 
-// IsHost indicates whether the container uses the host's ipc stack.
+// IsHost indicates whether the container shares the host's ipc namespace.
 func (n IpcMode) IsHost() bool {
 	return n == "host"
 }
 
-// IsContainer indicates whether the container uses a container's ipc stack.
+// IsShareable indicates whether the container's ipc namespace can be shared with another container.
+func (n IpcMode) IsShareable() bool {
+	return n == "shareable"
+}
+
+// IsContainer indicates whether the container uses another container's ipc namespace.
 func (n IpcMode) IsContainer() bool {
 	parts := strings.SplitN(string(n), ":", 2)
 	return len(parts) > 1 && parts[0] == "container"
 }
 
-// Valid indicates whether the ipc stack is valid.
+// IsNone indicates whether container IpcMode is set to "none".
+func (n IpcMode) IsNone() bool {
+	return n == "none"
+}
+
+// IsEmpty indicates whether container IpcMode is empty
+func (n IpcMode) IsEmpty() bool {
+	return n == ""
+}
+
+// Valid indicates whether the ipc mode is valid.
 func (n IpcMode) Valid() bool {
-	parts := strings.Split(string(n), ":")
-	switch mode := parts[0]; mode {
-	case "", "host":
-	case "container":
-		if len(parts) != 2 || parts[1] == "" {
-			return false
-		}
-	default:
-		return false
-	}
-	return true
+	return n.IsEmpty() || n.IsNone() || n.IsPrivate() || n.IsHost() || n.IsShareable() || n.IsContainer()
 }
 
 // Container returns the name of the container ipc stack is going to be used.
 func (n IpcMode) Container() string {
 	parts := strings.SplitN(string(n), ":", 2)
+	if len(parts) > 1 && parts[0] == "container" {
+		return parts[1]
+	}
+	return ""
+}
+
+// NetworkMode represents the container network stack.
+type NetworkMode string
+
+// IsNone indicates whether container isn't using a network stack.
+func (n NetworkMode) IsNone() bool {
+	return n == "none"
+}
+
+// IsDefault indicates whether container uses the default network stack.
+func (n NetworkMode) IsDefault() bool {
+	return n == "default"
+}
+
+// IsPrivate indicates whether container uses its private network stack.
+func (n NetworkMode) IsPrivate() bool {
+	return !(n.IsHost() || n.IsContainer())
+}
+
+// IsContainer indicates whether container uses a container network stack.
+func (n NetworkMode) IsContainer() bool {
+	parts := strings.SplitN(string(n), ":", 2)
+	return len(parts) > 1 && parts[0] == "container"
+}
+
+// ConnectedContainer is the id of the container which network this container is connected to.
+func (n NetworkMode) ConnectedContainer() string {
+	parts := strings.SplitN(string(n), ":", 2)
 	if len(parts) > 1 {
 		return parts[1]
+	}
+	return ""
+}
+
+//UserDefined indicates user-created network
+func (n NetworkMode) UserDefined() string {
+	if n.IsUserDefined() {
+		return string(n)
 	}
 	return ""
 }
@@ -265,6 +329,7 @@ type Resources struct {
 	DeviceCgroupRules    []string        // List of rule to be added to the device cgroup
 	DiskQuota            int64           // Disk limit (in bytes)
 	KernelMemory         int64           // Kernel memory limit (in bytes)
+	KernelMemoryTCP      int64           // Hard limit for kernel TCP buffer memory (in bytes)
 	MemoryReservation    int64           // Memory soft limit (in bytes)
 	MemorySwap           int64           // Total memory usage (memory + swap); set `-1` to enable unlimited swap
 	MemorySwappiness     *int64          // Tuning container memory swappiness behaviour
@@ -337,9 +402,12 @@ type HostConfig struct {
 	// Mounts specs used by the container
 	Mounts []mount.Mount `json:",omitempty"`
 
+	// MaskedPaths is the list of paths to be masked inside the container (this overrides the default set of paths)
+	MaskedPaths []string
+
+	// ReadonlyPaths is the list of paths to be set as read-only inside the container (this overrides the default set of paths)
+	ReadonlyPaths []string
+
 	// Run a custom init inside the container, if null, use the daemon's configured settings
 	Init *bool `json:",omitempty"`
-
-	// Custom init path
-	InitPath string `json:",omitempty"`
 }

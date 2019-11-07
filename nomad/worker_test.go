@@ -1,18 +1,22 @@
 package nomad
 
 import (
-	"log"
+	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	memdb "github.com/hashicorp/go-memdb"
+	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
+	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 type NoopScheduler struct {
@@ -34,7 +38,7 @@ func (n *NoopScheduler) Process(eval *structs.Evaluation) error {
 }
 
 func init() {
-	scheduler.BuiltinSchedulers["noop"] = func(logger *log.Logger, s scheduler.State, p scheduler.Planner) scheduler.Scheduler {
+	scheduler.BuiltinSchedulers["noop"] = func(logger log.Logger, s scheduler.State, p scheduler.Planner) scheduler.Scheduler {
 		n := &NoopScheduler{
 			state:   s,
 			planner: p,
@@ -44,7 +48,8 @@ func init() {
 }
 
 func TestWorker_dequeueEvaluation(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
@@ -59,12 +64,15 @@ func TestWorker_dequeueEvaluation(t *testing.T) {
 	w := &Worker{srv: s1, logger: s1.logger}
 
 	// Attempt dequeue
-	eval, token, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
+	eval, token, waitIndex, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
 	if shutdown {
 		t.Fatalf("should not shutdown")
 	}
 	if token == "" {
 		t.Fatalf("should get token")
+	}
+	if waitIndex != eval1.ModifyIndex {
+		t.Fatalf("bad wait index; got %d; want %d", waitIndex, eval1.ModifyIndex)
 	}
 
 	// Ensure we get a sane eval
@@ -73,8 +81,79 @@ func TestWorker_dequeueEvaluation(t *testing.T) {
 	}
 }
 
+// Test that the worker picks up the correct wait index when there are multiple
+// evals for the same job.
+func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the evaluation
+	eval1 := mock.Eval()
+	eval2 := mock.Eval()
+	eval2.JobID = eval1.JobID
+
+	// Insert the evals into the state store
+	if err := s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1, eval2}); err != nil {
+		t.Fatal(err)
+	}
+
+	s1.evalBroker.Enqueue(eval1)
+	s1.evalBroker.Enqueue(eval2)
+
+	// Create a worker
+	w := &Worker{srv: s1, logger: s1.logger}
+
+	// Attempt dequeue
+	eval, token, waitIndex, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
+	if shutdown {
+		t.Fatalf("should not shutdown")
+	}
+	if token == "" {
+		t.Fatalf("should get token")
+	}
+	if waitIndex != eval1.ModifyIndex {
+		t.Fatalf("bad wait index; got %d; want %d", waitIndex, eval1.ModifyIndex)
+	}
+
+	// Ensure we get a sane eval
+	if !reflect.DeepEqual(eval, eval1) {
+		t.Fatalf("bad: %#v %#v", eval, eval1)
+	}
+
+	// Update the modify index of the first eval
+	if err := s1.fsm.State().UpsertEvals(2000, []*structs.Evaluation{eval1}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Send the Ack
+	w.sendAck(eval1.ID, token, true)
+
+	// Attempt second dequeue
+	eval, token, waitIndex, shutdown = w.dequeueEvaluation(10 * time.Millisecond)
+	if shutdown {
+		t.Fatalf("should not shutdown")
+	}
+	if token == "" {
+		t.Fatalf("should get token")
+	}
+	if waitIndex != 2000 {
+		t.Fatalf("bad wait index; got %d; want 2000", eval2.ModifyIndex)
+	}
+
+	// Ensure we get a sane eval
+	if !reflect.DeepEqual(eval, eval2) {
+		t.Fatalf("bad: %#v %#v", eval, eval2)
+	}
+}
+
 func TestWorker_dequeueEvaluation_paused(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
@@ -99,7 +178,7 @@ func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 
 	// Attempt dequeue
 	start := time.Now()
-	eval, token, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
+	eval, token, waitIndex, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
 	if diff := time.Since(start); diff < 100*time.Millisecond {
 		t.Fatalf("should have paused: %v", diff)
 	}
@@ -109,6 +188,9 @@ func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 	if token == "" {
 		t.Fatalf("should get token")
 	}
+	if waitIndex != eval1.ModifyIndex {
+		t.Fatalf("bad wait index; got %d; want %d", waitIndex, eval1.ModifyIndex)
+	}
 
 	// Ensure we get a sane eval
 	if !reflect.DeepEqual(eval, eval1) {
@@ -117,7 +199,8 @@ func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 }
 
 func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
@@ -133,7 +216,7 @@ func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
 	}()
 
 	// Attempt dequeue
-	eval, _, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
+	eval, _, _, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
 	if !shutdown {
 		t.Fatalf("should not shutdown")
 	}
@@ -145,7 +228,8 @@ func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
 }
 
 func TestWorker_sendAck(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
@@ -160,7 +244,7 @@ func TestWorker_sendAck(t *testing.T) {
 	w := &Worker{srv: s1, logger: s1.logger}
 
 	// Attempt dequeue
-	eval, token, _ := w.dequeueEvaluation(10 * time.Millisecond)
+	eval, token, _, _ := w.dequeueEvaluation(10 * time.Millisecond)
 
 	// Check the depth is 0, 1 unacked
 	stats := s1.evalBroker.Stats()
@@ -178,7 +262,7 @@ func TestWorker_sendAck(t *testing.T) {
 	}
 
 	// Attempt dequeue
-	eval, token, _ = w.dequeueEvaluation(10 * time.Millisecond)
+	eval, token, _, _ = w.dequeueEvaluation(10 * time.Millisecond)
 
 	// Send the Ack
 	w.sendAck(eval.ID, token, true)
@@ -191,7 +275,8 @@ func TestWorker_sendAck(t *testing.T) {
 }
 
 func TestWorker_waitForIndex(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
@@ -202,30 +287,34 @@ func TestWorker_waitForIndex(t *testing.T) {
 	index := s1.raft.AppliedIndex()
 
 	// Cause an increment
+	errCh := make(chan error, 1)
 	go func() {
 		time.Sleep(10 * time.Millisecond)
 		n := mock.Node()
-		if err := s1.fsm.state.UpsertNode(index+1, n); err != nil {
-			t.Fatalf("failed to upsert node: %v", err)
-		}
+		errCh <- s1.fsm.state.UpsertNode(index+1, n)
 	}()
 
 	// Wait for a future index
 	w := &Worker{srv: s1, logger: s1.logger}
-	err := w.waitForIndex(index+1, time.Second)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	snap, err := w.snapshotMinIndex(index+1, time.Second)
+	require.NoError(t, err)
+	require.NotNil(t, snap)
+
+	// No error from upserting
+	require.NoError(t, <-errCh)
 
 	// Cause a timeout
-	err = w.waitForIndex(index+100, 10*time.Millisecond)
-	if err == nil || !strings.Contains(err.Error(), "timeout") {
-		t.Fatalf("err: %v", err)
-	}
+	waitIndex := index + 100
+	timeout := 10 * time.Millisecond
+	snap, err = w.snapshotMinIndex(index+100, timeout)
+	require.Nil(t, snap)
+	require.EqualError(t, err,
+		fmt.Sprintf("timed out after %s waiting for index=%d", timeout, waitIndex))
 }
 
 func TestWorker_invokeScheduler(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
@@ -235,14 +324,16 @@ func TestWorker_invokeScheduler(t *testing.T) {
 	eval := mock.Eval()
 	eval.Type = "noop"
 
-	err := w.invokeScheduler(eval, structs.GenerateUUID())
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	snap, err := s1.fsm.state.Snapshot()
+	require.NoError(t, err)
+
+	err = w.invokeScheduler(snap, eval, uuid.Generate())
+	require.NoError(t, err)
 }
 
 func TestWorker_SubmitPlan(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
@@ -253,8 +344,11 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	node := mock.Node()
 	testRegisterNode(t, s1, node)
 
+	job := mock.Job()
 	eval1 := mock.Eval()
-	s1.fsm.State().UpsertJobSummary(1000, mock.JobSummary(eval1.JobID))
+	eval1.JobID = job.ID
+	s1.fsm.State().UpsertJob(1000, job)
+	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
 
 	// Create the register request
 	s1.evalBroker.Enqueue(eval1)
@@ -269,11 +363,11 @@ func TestWorker_SubmitPlan(t *testing.T) {
 
 	// Create an allocation plan
 	alloc := mock.Alloc()
-	s1.fsm.State().UpsertJobSummary(1200, mock.JobSummary(alloc.JobID))
 	plan := &structs.Plan{
+		Job:    job,
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc},
+			node.ID: {alloc},
 		},
 	}
 
@@ -302,8 +396,60 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	}
 }
 
+func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+		c.Build = "0.9.2"
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register node
+	node := mock.Node()
+	testRegisterNode(t, s1, node)
+
+	job := mock.Job()
+	eval1 := mock.Eval()
+	eval1.JobID = job.ID
+	s1.fsm.State().UpsertJob(0, job)
+	s1.fsm.State().UpsertEvals(0, []*structs.Evaluation{eval1})
+
+	stoppedAlloc := mock.Alloc()
+	preemptedAlloc := mock.Alloc()
+	s1.fsm.State().UpsertAllocs(5, []*structs.Allocation{stoppedAlloc, preemptedAlloc})
+
+	// Create an allocation plan
+	plan := &structs.Plan{
+		Job:             job,
+		EvalID:          eval1.ID,
+		NodeUpdate:      make(map[string][]*structs.Allocation),
+		NodePreemptions: make(map[string][]*structs.Allocation),
+	}
+	desiredDescription := "desired desc"
+	plan.AppendStoppedAlloc(stoppedAlloc, desiredDescription, structs.AllocClientStatusLost)
+	preemptingAllocID := uuid.Generate()
+	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
+
+	// Attempt to submit a plan
+	w := &Worker{srv: s1, logger: s1.logger}
+	w.SubmitPlan(plan)
+
+	assert.Equal(t, &structs.Allocation{
+		ID:                    preemptedAlloc.ID,
+		PreemptedByAllocation: preemptingAllocID,
+	}, plan.NodePreemptions[preemptedAlloc.NodeID][0])
+	assert.Equal(t, &structs.Allocation{
+		ID:                 stoppedAlloc.ID,
+		DesiredDescription: desiredDescription,
+		ClientStatus:       structs.AllocClientStatusLost,
+	}, plan.NodeUpdate[stoppedAlloc.NodeID][0])
+}
+
 func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
@@ -314,8 +460,13 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	node := mock.Node()
 	testRegisterNode(t, s1, node)
 
+	// Create the job
+	job := mock.Job()
+	s1.fsm.State().UpsertJob(1000, job)
+
 	// Create the register request
 	eval1 := mock.Eval()
+	eval1.JobID = job.ID
 	s1.evalBroker.Enqueue(eval1)
 
 	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
@@ -330,9 +481,10 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	node2 := mock.Node()
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
+		Job:    job,
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
-			node2.ID: []*structs.Allocation{alloc},
+			node2.ID: {alloc},
 		},
 	}
 
@@ -366,7 +518,8 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 }
 
 func TestWorker_UpdateEval(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
@@ -412,7 +565,8 @@ func TestWorker_UpdateEval(t *testing.T) {
 }
 
 func TestWorker_CreateEval(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
@@ -459,7 +613,8 @@ func TestWorker_CreateEval(t *testing.T) {
 }
 
 func TestWorker_ReblockEval(t *testing.T) {
-	s1 := testServer(t, func(c *Config) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})

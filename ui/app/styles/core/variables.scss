@@ -1,0 +1,45 @@
+$orange: #fa8e23;
+$green: #2eb039;
+$blue: $vagrant-blue;
+$purple: $terraform-purple;
+$red: #c84034;
+$grey-blue: #bbc4d1;
+
+$primary: $nomad-green;
+$warning: $orange;
+$warning-invert: $white;
+$danger: $red;
+$info: $blue;
+$dark: #234;
+$dark-2: darken($dark, 5%);
+$dark-3: darken($dark, 10%);
+
+$radius: 2px;
+
+$body-size: 14px;
+$title-size: 1.75rem;
+$size-5: 1.15rem;
+$size-4: 1.3rem;
+$size-7: 0.85rem;
+
+$title-weight: $weight-semibold;
+
+$family-sans-serif: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu,
+  Cantarell, 'Helvetica Neue', sans-serif;
+
+$text: $black;
+
+$header-height: 112px;
+$gutter-width: 250px;
+
+$icon-dimensions: 1.25rem;
+$icon-dimensions-small: 1rem;
+$icon-dimensions-medium: 1.5rem;
+$icon-dimensions-large: 2.5rem;
+
+$breadcrumb-item-color: $white;
+$breadcrumb-item-hover-color: $white;
+$breadcrumb-item-active-color: $white;
+$breadcrumb-item-separator-color: $primary;
+
+$mq-hidden-gutter: 'only screen and (max-width : 960px)';

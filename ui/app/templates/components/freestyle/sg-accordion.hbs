@@ -1,0 +1,53 @@
+{{#freestyle-usage "accordion" title="Accordion"}}
+  {{#list-accordion source=products key="name" as |ac|}}
+    {{#ac.head buttonLabel="details"}}
+      <div class="columns inline-definitions">
+        <div class="column is-1">{{ac.item.name}}</div>
+        <div class="column is-1">
+          <span class="bumper-left badge is-light">{{ac.item.lang}}</span>
+        </div>
+      </div>
+    {{/ac.head}}
+    {{#ac.body}}
+      <h1 class="title is-4">{{ac.item.name}}</h1>
+      <p>{{ac.item.desc}}</p>
+      <p><a href="{{ac.item.link}}">Learn more...</a></p>
+    {{/ac.body}}
+  {{/list-accordion}}
+{{/freestyle-usage}}
+
+{{#freestyle-usage "accordion-single" title="Accordion, One Item"}}
+  {{#list-accordion source=(take 1 products) key="name" as |a|}}
+    {{#a.head buttonLabel="details"}}
+      <div class="columns inline-definitions">
+        <div class="column is-1">{{a.item.name}}</div>
+        <div class="column is-1">
+          <span class="bumper-left badge is-light">{{a.item.lang}}</span>
+        </div>
+      </div>
+    {{/a.head}}
+    {{#a.body}}
+      <h1 class="title is-4">{{a.item.name}}</h1>
+      <p>{{a.item.desc}}</p>
+      <p><a href="{{a.item.link}}">Learn more...</a></p>
+    {{/a.body}}
+  {{/list-accordion}}
+{{/freestyle-usage}}
+
+{{#freestyle-usage "accordion-not-expandable" title="Accordion, Not Expandable"}}
+  {{#list-accordion source=products key="name" as |a|}}
+    {{#a.head buttonLabel="details" isExpandable=(eq a.item.lang "golang")}}
+      <div class="columns inline-definitions">
+        <div class="column is-1">{{a.item.name}}</div>
+        <div class="column is-1">
+          <span class="bumper-left badge is-light">{{a.item.lang}}</span>
+        </div>
+      </div>
+    {{/a.head}}
+    {{#a.body}}
+      <h1 class="title is-4">{{a.item.name}}</h1>
+      <p>{{a.item.desc}}</p>
+      <p><a href="{{a.item.link}}">Learn more...</a></p>
+    {{/a.body}}
+  {{/list-accordion}}
+{{/freestyle-usage}}

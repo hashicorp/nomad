@@ -1,0 +1,135 @@
+{{title "Task " model.name}}
+{{task-subnav task=model}}
+<section class="section">
+  {{#if error}}
+    <div data-test-inline-error class="notification is-danger">
+      <div class="columns">
+        <div class="column">
+          <h3 data-test-inline-error-title class="title is-4">{{error.title}}</h3>
+          <p data-test-inline-error-body>{{error.description}}</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button data-test-inline-error-close class="button is-danger" onclick={{action onDismiss}}>Okay</button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+
+  <h1 class="title" data-test-title>
+    {{model.name}}
+    {{#if model.isConnectProxy}}
+      {{proxy-tag class="bumper-left"}}
+    {{/if}}
+    <span class="{{unless model.isConnectProxy "bumper-left"}} tag {{model.stateClass}}" data-test-state>{{model.state}}</span>
+    {{#if model.isRunning}}
+      {{two-step-button
+        data-test-restart
+        idleText="Restart"
+        cancelText="Cancel"
+        confirmText="Yes, Restart"
+        confirmationMessage="Are you sure? This will restart the task in-place."
+        awaitingConfirmation=restartTask.isRunning
+        disabled=restartTask.isRunning
+        onConfirm=(perform restartTask)}}
+    {{/if}}
+  </h1>
+
+  <div class="boxed-section is-small">
+    <div class="boxed-section-body inline-definitions">
+      <span class="label">Task Details</span>
+      <span class="pair" data-test-started-at>
+        <span class="term">Started At</span>
+        {{format-ts model.startedAt}}
+      </span>
+      {{#if model.finishedAt}}
+        <span class="pair">
+          <span class="term">Finished At</span>
+          {{format-ts model.finishedAt}}
+        </span>
+      {{/if}}
+      <span class="pair">
+        <span class="term">Driver</span>
+        {{model.task.driver}}
+      </span>
+    </div>
+  </div>
+
+  <div class="boxed-section">
+    <div class="boxed-section-head is-hollow">
+      Resource Utilization
+    </div>
+    <div class="boxed-section-body">
+      {{#if model.isRunning}}
+        <div class="columns">
+          <div class="column">
+            {{primary-metric resource=model metric="cpu"}}
+          </div>
+          <div class="column">
+            {{primary-metric resource=model metric="memory"}}
+          </div>
+        </div>
+      {{else}}
+        <div data-test-resource-error class="empty-message">
+          <h3 data-test-resource-error-headline class="empty-message-headline">Task isn't running</h3>
+          <p class="empty-message-body">Only running tasks utilize resources.</p>
+        </div>
+      {{/if}}
+    </div>
+  </div>
+
+  {{#if network.ports.length}}
+    <div class="boxed-section" data-test-task-addresses>
+      <div class="boxed-section-head">
+        Addresses
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-table source=network.ports as |t|}}
+          {{#t.head}}
+            <th class="is-1">Dynamic?</th>
+            <th class="is-2">Name</th>
+            <th>Address</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            <tr data-test-task-address>
+              <td data-test-task-address-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
+              <td data-test-task-address-name>{{row.model.name}}</td>
+              <td data-test-task-address-address>
+                <a href="http://{{network.ip}}:{{row.model.port}}" target="_blank" rel="noopener noreferrer">
+                  {{network.ip}}:{{row.model.port}}
+                </a>
+              </td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+      </div>
+    </div>
+  {{/if}}
+
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Recent Events
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      {{#list-table source=(reverse model.events) class="is-striped" as |t|}}
+        {{#t.head}}
+          <th class="is-3">Time</th>
+          <th class="is-1">Type</th>
+          <th>Description</th>
+        {{/t.head}}
+        {{#t.body as |row|}}
+          <tr data-test-task-event>
+            <td data-test-task-event-time>{{format-ts row.model.time}}</td>
+            <td data-test-task-event-type>{{row.model.type}}</td>
+            <td data-test-task-event-message>
+              {{#if row.model.message}}
+                {{row.model.message}}
+              {{else}}
+                <em>No message</em>
+              {{/if}}
+            </td>
+          </tr>
+        {{/t.body}}
+      {{/list-table}}
+    </div>
+  </div>
+</section>

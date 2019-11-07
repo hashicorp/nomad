@@ -1,4 +1,4 @@
-package opts
+package opts // import "github.com/docker/docker/opts"
 
 // TODO Windows. Identify bug in GOLang 1.5.1+ and/or Windows Server 2016 TP5.
 // @jhowardmsft, @swernli.
@@ -52,5 +52,5 @@ package opts
 // to the delay if a user were to do 'docker run -H=tcp://localhost:2375...'
 // explicitly.
 
-// DefaultHTTPHost Default HTTP Host used if only port is provided to -H flag e.g. docker daemon -H tcp://:8080
+// DefaultHTTPHost Default HTTP Host used if only port is provided to -H flag e.g. dockerd -H tcp://:8080
 const DefaultHTTPHost = "127.0.0.1"

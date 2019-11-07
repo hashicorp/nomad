@@ -89,9 +89,9 @@ func (d *decoder) decode(name string, node ast.Node, result reflect.Value) error
 	switch k.Kind() {
 	case reflect.Bool:
 		return d.decodeBool(name, node, result)
-	case reflect.Float64:
+	case reflect.Float32, reflect.Float64:
 		return d.decodeFloat(name, node, result)
-	case reflect.Int:
+	case reflect.Int, reflect.Int32, reflect.Int64:
 		return d.decodeInt(name, node, result)
 	case reflect.Interface:
 		// When we see an interface, we make our own thing
@@ -117,10 +117,17 @@ func (d *decoder) decode(name string, node ast.Node, result reflect.Value) error
 func (d *decoder) decodeBool(name string, node ast.Node, result reflect.Value) error {
 	switch n := node.(type) {
 	case *ast.LiteralType:
-		if n.Token.Type == token.BOOL {
-			v, err := strconv.ParseBool(n.Token.Text)
-			if err != nil {
-				return err
+		switch n.Token.Type {
+		case token.BOOL, token.STRING, token.NUMBER:
+			var v bool
+			s := strings.ToLower(strings.Replace(n.Token.Text, "\"", "", -1))
+			switch s {
+			case "1", "true":
+				v = true
+			case "0", "false":
+				v = false
+			default:
+				return fmt.Errorf("decodeBool: Unknown value for boolean: %s", n.Token.Text)
 			}
 
 			result.Set(reflect.ValueOf(v))
@@ -137,13 +144,13 @@ func (d *decoder) decodeBool(name string, node ast.Node, result reflect.Value) e
 func (d *decoder) decodeFloat(name string, node ast.Node, result reflect.Value) error {
 	switch n := node.(type) {
 	case *ast.LiteralType:
-		if n.Token.Type == token.FLOAT {
+		if n.Token.Type == token.FLOAT || n.Token.Type == token.NUMBER {
 			v, err := strconv.ParseFloat(n.Token.Text, 64)
 			if err != nil {
 				return err
 			}
 
-			result.Set(reflect.ValueOf(v))
+			result.Set(reflect.ValueOf(v).Convert(result.Type()))
 			return nil
 		}
 	}
@@ -164,7 +171,11 @@ func (d *decoder) decodeInt(name string, node ast.Node, result reflect.Value) er
 				return err
 			}
 
-			result.Set(reflect.ValueOf(int(v)))
+			if result.Kind() == reflect.Interface {
+				result.Set(reflect.ValueOf(int(v)))
+			} else {
+				result.SetInt(v)
+			}
 			return nil
 		case token.STRING:
 			v, err := strconv.ParseInt(n.Token.Value().(string), 0, 0)
@@ -172,7 +183,11 @@ func (d *decoder) decodeInt(name string, node ast.Node, result reflect.Value) er
 				return err
 			}
 
-			result.Set(reflect.ValueOf(int(v)))
+			if result.Kind() == reflect.Interface {
+				result.Set(reflect.ValueOf(int(v)))
+			} else {
+				result.SetInt(v)
+			}
 			return nil
 		}
 	}
@@ -389,6 +404,11 @@ func (d *decoder) decodeMap(name string, node ast.Node, result reflect.Value) er
 }
 
 func (d *decoder) decodePtr(name string, node ast.Node, result reflect.Value) error {
+	// if pointer is not nil, decode into existing value
+	if !result.IsNil() {
+		return d.decode(name, node, result.Elem())
+	}
+
 	// Create an element of the concrete (non pointer) type and decode
 	// into that. Then set the value of the pointer to this type.
 	resultType := result.Type()
@@ -497,7 +517,7 @@ func expandObject(node ast.Node, result reflect.Value) ast.Node {
 	// we need to un-flatten the ast enough to decode
 	newNode := &ast.ObjectItem{
 		Keys: []*ast.ObjectKey{
-			&ast.ObjectKey{
+			{
 				Token: keyToken,
 			},
 		},
@@ -515,7 +535,7 @@ func (d *decoder) decodeString(name string, node ast.Node, result reflect.Value)
 	switch n := node.(type) {
 	case *ast.LiteralType:
 		switch n.Token.Type {
-		case token.NUMBER:
+		case token.NUMBER, token.FLOAT, token.BOOL:
 			result.Set(reflect.ValueOf(n.Token.Text).Convert(result.Type()))
 			return nil
 		case token.STRING, token.HEREDOC:
@@ -565,7 +585,11 @@ func (d *decoder) decodeStruct(name string, node ast.Node, result reflect.Value)
 
 	// Compile the list of all the fields that we're going to be decoding
 	// from all the structs.
-	fields := make(map[*reflect.StructField]reflect.Value)
+	type field struct {
+		field reflect.StructField
+		val   reflect.Value
+	}
+	fields := []field{}
 	for len(structs) > 0 {
 		structVal := structs[0]
 		structs = structs[1:]
@@ -608,34 +632,44 @@ func (d *decoder) decodeStruct(name string, node ast.Node, result reflect.Value)
 			}
 
 			// Normal struct field, store it away
-			fields[&fieldType] = structVal.Field(i)
+			fields = append(fields, field{fieldType, structVal.Field(i)})
 		}
 	}
 
-	usedKeys := make(map[string]struct{})
 	decodedFields := make([]string, 0, len(fields))
 	decodedFieldsVal := make([]reflect.Value, 0)
 	unusedKeysVal := make([]reflect.Value, 0)
-	for fieldType, field := range fields {
-		if !field.IsValid() {
+
+	// fill unusedNodeKeys with keys from the AST
+	// a slice because we have to do equals case fold to match Filter
+	unusedNodeKeys := make([]string, 0)
+	for _, item := range list.Items {
+		for _, k := range item.Keys {
+			unusedNodeKeys = append(unusedNodeKeys, k.Token.Value().(string))
+		}
+	}
+
+	for _, f := range fields {
+		field, fieldValue := f.field, f.val
+		if !fieldValue.IsValid() {
 			// This should never happen
 			panic("field is not valid")
 		}
 
 		// If we can't set the field, then it is unexported or something,
 		// and we just continue onwards.
-		if !field.CanSet() {
+		if !fieldValue.CanSet() {
 			continue
 		}
 
-		fieldName := fieldType.Name
+		fieldName := field.Name
 
-		tagValue := fieldType.Tag.Get(tagName)
+		tagValue := field.Tag.Get(tagName)
 		tagParts := strings.SplitN(tagValue, ",", 2)
 		if len(tagParts) >= 2 {
 			switch tagParts[1] {
 			case "decodedFields":
-				decodedFieldsVal = append(decodedFieldsVal, field)
+				decodedFieldsVal = append(decodedFieldsVal, fieldValue)
 				continue
 			case "key":
 				if item == nil {
@@ -646,10 +680,10 @@ func (d *decoder) decodeStruct(name string, node ast.Node, result reflect.Value)
 					}
 				}
 
-				field.SetString(item.Keys[0].Token.Value().(string))
+				fieldValue.SetString(item.Keys[0].Token.Value().(string))
 				continue
 			case "unusedKeys":
-				unusedKeysVal = append(unusedKeysVal, field)
+				unusedKeysVal = append(unusedKeysVal, fieldValue)
 				continue
 			}
 		}
@@ -669,14 +703,14 @@ func (d *decoder) decodeStruct(name string, node ast.Node, result reflect.Value)
 			continue
 		}
 
-		// Track the used key
-		usedKeys[fieldName] = struct{}{}
+		// Track the used keys
+		unusedNodeKeys = removeCaseFold(unusedNodeKeys, fieldName)
 
 		// Create the field name and decode. We range over the elements
 		// because we actually want the value.
 		fieldName = fmt.Sprintf("%s.%s", name, fieldName)
 		if len(prefixMatches.Items) > 0 {
-			if err := d.decode(fieldName, prefixMatches, field); err != nil {
+			if err := d.decode(fieldName, prefixMatches, fieldValue); err != nil {
 				return err
 			}
 		}
@@ -686,12 +720,12 @@ func (d *decoder) decodeStruct(name string, node ast.Node, result reflect.Value)
 				decodeNode = &ast.ObjectList{Items: ot.List.Items}
 			}
 
-			if err := d.decode(fieldName, decodeNode, field); err != nil {
+			if err := d.decode(fieldName, decodeNode, fieldValue); err != nil {
 				return err
 			}
 		}
 
-		decodedFields = append(decodedFields, fieldType.Name)
+		decodedFields = append(decodedFields, field.Name)
 	}
 
 	if len(decodedFieldsVal) > 0 {
@@ -700,6 +734,14 @@ func (d *decoder) decodeStruct(name string, node ast.Node, result reflect.Value)
 
 		for _, v := range decodedFieldsVal {
 			v.Set(reflect.ValueOf(decodedFields))
+		}
+	}
+
+	if len(unusedNodeKeys) > 0 {
+		// like decodedFields, populated the unusedKeys field(s)
+		sort.Strings(unusedNodeKeys)
+		for _, v := range unusedKeysVal {
+			v.Set(reflect.ValueOf(unusedNodeKeys))
 		}
 	}
 
@@ -713,4 +755,13 @@ func findNodeType() reflect.Type {
 	}
 	value := reflect.ValueOf(nodeContainer).FieldByName("Node")
 	return value.Type()
+}
+
+func removeCaseFold(xs []string, y string) []string {
+	for i, x := range xs {
+		if strings.EqualFold(x, y) {
+			return append(xs[:i], xs[i+1:]...)
+		}
+	}
+	return xs
 }

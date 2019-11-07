@@ -1,26 +1,19 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
-	"os"
-	"path/filepath"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type allocTuple struct {
-	exist, updated *structs.Allocation
-}
-
 // diffResult is used to return the sets that result from a diff
 type diffResult struct {
 	added   []*structs.Allocation
-	removed []*structs.Allocation
-	updated []allocTuple
-	ignore  []*structs.Allocation
+	removed []string
+	updated []*structs.Allocation
+	ignore  []string
 }
 
 func (d *diffResult) GoString() string {
@@ -30,38 +23,34 @@ func (d *diffResult) GoString() string {
 
 // diffAllocs is used to diff the existing and updated allocations
 // to see what has happened.
-func diffAllocs(existing []*structs.Allocation, allocs *allocUpdates) *diffResult {
+func diffAllocs(existing map[string]uint64, allocs *allocUpdates) *diffResult {
 	// Scan the existing allocations
 	result := &diffResult{}
-	existIdx := make(map[string]struct{})
-	for _, exist := range existing {
-		// Mark this as existing
-		existIdx[exist.ID] = struct{}{}
-
+	for existID, existIndex := range existing {
 		// Check if the alloc was updated or filtered because an update wasn't
 		// needed.
-		alloc, pulled := allocs.pulled[exist.ID]
-		_, filtered := allocs.filtered[exist.ID]
+		alloc, pulled := allocs.pulled[existID]
+		_, filtered := allocs.filtered[existID]
 
 		// If not updated or filtered, removed
-		if !pulled && !filtered {
-			result.removed = append(result.removed, exist)
+		if !pulled && !filtered && allocs.index > existIndex {
+			result.removed = append(result.removed, existID)
 			continue
 		}
 
 		// Check for an update
-		if pulled && alloc.AllocModifyIndex > exist.AllocModifyIndex {
-			result.updated = append(result.updated, allocTuple{exist, alloc})
+		if pulled && alloc.AllocModifyIndex > existIndex {
+			result.updated = append(result.updated, alloc)
 			continue
 		}
 
 		// Ignore this
-		result.ignore = append(result.ignore, exist)
+		result.ignore = append(result.ignore, existID)
 	}
 
 	// Scan the updated allocations for any that are new
 	for id, pulled := range allocs.pulled {
-		if _, ok := existIdx[id]; !ok {
+		if _, ok := existing[id]; !ok {
 			result.added = append(result.added, pulled)
 		}
 	}
@@ -76,43 +65,12 @@ func shuffleStrings(list []string) {
 	}
 }
 
-// persistState is used to help with saving state
-func persistState(path string, data interface{}) error {
-	buf, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("failed to encode state: %v", err)
+// stoppedTimer returns a timer that's stopped and wouldn't fire until
+// it's reset
+func stoppedTimer() *time.Timer {
+	timer := time.NewTimer(0)
+	if !timer.Stop() {
+		<-timer.C
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return fmt.Errorf("failed to make dirs for %s: %v", path, err)
-	}
-	tmpPath := path + ".tmp"
-	if err := ioutil.WriteFile(tmpPath, buf, 0600); err != nil {
-		return fmt.Errorf("failed to save state to tmp: %v", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("failed to rename tmp to path: %v", err)
-	}
-
-	// Sanity check since users have reported empty state files on disk
-	if stat, err := os.Stat(path); err != nil {
-		return fmt.Errorf("unable to stat state file %s: %v", path, err)
-	} else if stat.Size() == 0 {
-		return fmt.Errorf("persisted invalid state file %s; see https://github.com/hashicorp/nomad/issues/1367", path)
-	}
-	return nil
-}
-
-// restoreState is used to read back in the persisted state
-func restoreState(path string, data interface{}) error {
-	buf, err := ioutil.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("failed to read state: %v", err)
-	}
-	if err := json.Unmarshal(buf, data); err != nil {
-		return fmt.Errorf("failed to decode state: %v", err)
-	}
-	return nil
+	return timer
 }

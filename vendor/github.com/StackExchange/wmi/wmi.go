@@ -72,7 +72,10 @@ func QueryNamespace(query string, dst interface{}, namespace string) error {
 //
 // Query is a wrapper around DefaultClient.Query.
 func Query(query string, dst interface{}, connectServerArgs ...interface{}) error {
-	return DefaultClient.Query(query, dst, connectServerArgs...)
+	if DefaultClient.SWbemServicesClient == nil {
+		return DefaultClient.Query(query, dst, connectServerArgs...)
+	}
+	return DefaultClient.SWbemServicesClient.Query(query, dst, connectServerArgs...)
 }
 
 // A Client is an WMI query client.
@@ -99,6 +102,11 @@ type Client struct {
 	// Setting this to true allows custom queries to be used with full
 	// struct definitions instead of having to define multiple structs.
 	AllowMissingFields bool
+
+	// SWbemServiceClient is an optional SWbemServices object that can be
+	// initialized and then reused across multiple queries. If it is null
+	// then the method will initialize a new temporary client each time.
+	SWbemServicesClient *SWbemServices
 }
 
 // DefaultClient is the default Client and is used by Query, QueryNamespace
@@ -362,6 +370,21 @@ func (c *Client) loadEntity(dst interface{}, src *ole.IDispatch) (errFieldMismat
 				}
 			}
 		default:
+			// Only support []string slices for now
+			if f.Kind() == reflect.Slice && f.Type().Elem().Kind() == reflect.String {
+				safeArray := prop.ToArray()
+				if safeArray != nil {
+					arr := safeArray.ToValueArray()
+					fArr := reflect.MakeSlice(f.Type(), len(arr), len(arr))
+					for i, v := range arr {
+						s := fArr.Index(i)
+						s.SetString(v.(string))
+					}
+					f.Set(fArr)
+					break
+				}
+			}
+
 			typeof := reflect.TypeOf(val)
 			if typeof == nil && (isPtr || c.NonePtrZero) {
 				if (isPtr && c.PtrNil) || (!isPtr && c.NonePtrZero) {

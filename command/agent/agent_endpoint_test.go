@@ -4,42 +4,146 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTP_AgentSelf(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	require := require.New(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/agent/self", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 		respW := httptest.NewRecorder()
 
 		// Make the request
 		obj, err := s.Server.AgentSelfRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 
 		// Check the job
 		self := obj.(agentSelf)
-		if self.Config == nil {
-			t.Fatalf("bad: %#v", self)
+		require.NotNil(self.Config)
+		require.NotNil(self.Config.ACL)
+		require.NotEmpty(self.Stats)
+
+		// Check the Vault config
+		require.Empty(self.Config.Vault.Token)
+
+		// Assign a Vault token and require it is redacted.
+		s.Config.Vault.Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
+		respW = httptest.NewRecorder()
+		obj, err = s.Server.AgentSelfRequest(respW, req)
+		require.NoError(err)
+		self = obj.(agentSelf)
+		require.Equal("<redacted>", self.Config.Vault.Token)
+
+		// Assign a ReplicationToken token and require it is redacted.
+		s.Config.ACL.ReplicationToken = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
+		respW = httptest.NewRecorder()
+		obj, err = s.Server.AgentSelfRequest(respW, req)
+		require.NoError(err)
+		self = obj.(agentSelf)
+		require.Equal("<redacted>", self.Config.ACL.ReplicationToken)
+
+		// Check the Consul config
+		require.Empty(self.Config.Consul.Token)
+
+		// Assign a Consul token and require it is redacted.
+		s.Config.Consul.Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
+		respW = httptest.NewRecorder()
+		obj, err = s.Server.AgentSelfRequest(respW, req)
+		require.NoError(err)
+		self = obj.(agentSelf)
+		require.Equal("<redacted>", self.Config.Consul.Token)
+
+		// Check the Circonus config
+		require.Empty(self.Config.Telemetry.CirconusAPIToken)
+
+		// Assign a Consul token and require it is redacted.
+		s.Config.Telemetry.CirconusAPIToken = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
+		respW = httptest.NewRecorder()
+		obj, err = s.Server.AgentSelfRequest(respW, req)
+		require.NoError(err)
+		self = obj.(agentSelf)
+		require.Equal("<redacted>", self.Config.Telemetry.CirconusAPIToken)
+	})
+}
+
+func TestHTTP_AgentSelf_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/agent/self", nil)
+		require.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.AgentSelfRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 		}
-		if len(self.Stats) == 0 {
-			t.Fatalf("bad: %#v", self)
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.AgentSelfRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
+			setToken(req, token)
+			obj, err := s.Server.AgentSelfRequest(respW, req)
+			require.Nil(err)
+
+			self := obj.(agentSelf)
+			require.NotNil(self.Config)
+			require.NotNil(self.Stats)
+		}
+
+		// Try request with a root token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			obj, err := s.Server.AgentSelfRequest(respW, req)
+			require.Nil(err)
+
+			self := obj.(agentSelf)
+			require.NotNil(self.Config)
+			require.NotNil(self.Stats)
 		}
 	})
 }
 
 func TestHTTP_AgentJoin(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Determine the join address
 		member := s.Agent.Server().LocalMember()
 		addr := fmt.Sprintf("%s:%d", member.Addr, member.Port)
@@ -70,7 +174,8 @@ func TestHTTP_AgentJoin(t *testing.T) {
 }
 
 func TestHTTP_AgentMembers(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/agent/members", nil)
 		if err != nil {
@@ -92,8 +197,219 @@ func TestHTTP_AgentMembers(t *testing.T) {
 	})
 }
 
+func TestHTTP_AgentMembers_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/agent/members", nil)
+		require.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.AgentMembersRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.AgentPolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.AgentMembersRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.NodePolicy(acl.PolicyRead))
+			setToken(req, token)
+			obj, err := s.Server.AgentMembersRequest(respW, req)
+			require.Nil(err)
+
+			members := obj.(structs.ServerMembersResponse)
+			require.Len(members.Members, 1)
+		}
+
+		// Try request with a root token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			obj, err := s.Server.AgentMembersRequest(respW, req)
+			require.Nil(err)
+
+			members := obj.(structs.ServerMembersResponse)
+			require.Len(members.Members, 1)
+		}
+	})
+}
+
+func TestHTTP_AgentMonitor(t *testing.T) {
+	t.Parallel()
+
+	httpTest(t, nil, func(s *TestAgent) {
+		// invalid log_json
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_json=no", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+
+			// Make the request
+			_, err = s.Server.AgentMonitor(resp, req)
+			if err.(HTTPCodedError).Code() != 400 {
+				t.Fatalf("expected 400 response, got: %v", resp.Code)
+			}
+		}
+
+		// unknown log_level
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=unknown", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+
+			// Make the request
+			_, err = s.Server.AgentMonitor(resp, req)
+			if err.(HTTPCodedError).Code() != 400 {
+				t.Fatalf("expected 400 response, got: %v", resp.Code)
+			}
+		}
+
+		// check for a specific log
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+			defer resp.Close()
+
+			go func() {
+				_, err = s.Server.AgentMonitor(resp, req)
+				require.NoError(t, err)
+			}()
+
+			// send the same log until monitor sink is set up
+			maxLogAttempts := 10
+			tried := 0
+			testutil.WaitForResult(func() (bool, error) {
+				if tried < maxLogAttempts {
+					s.Server.logger.Warn("log that should be sent")
+					tried++
+				}
+
+				got := resp.Body.String()
+				want := `{"Data":"`
+				if strings.Contains(got, want) {
+					return true, nil
+				}
+
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", got, want)
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+		}
+
+		// plain param set to true
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=debug&plain=true", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+			defer resp.Close()
+
+			go func() {
+				_, err = s.Server.AgentMonitor(resp, req)
+				require.NoError(t, err)
+			}()
+
+			// send the same log until monitor sink is set up
+			maxLogAttempts := 10
+			tried := 0
+			testutil.WaitForResult(func() (bool, error) {
+				if tried < maxLogAttempts {
+					s.Server.logger.Debug("log that should be sent")
+					tried++
+				}
+
+				got := resp.Body.String()
+				want := `[DEBUG] http: log that should be sent`
+				if strings.Contains(got, want) {
+					return true, nil
+				}
+
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", got, want)
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+		}
+
+		// stream logs for a given node
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn&node_id="+s.client.NodeID(), nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+			defer resp.Close()
+
+			go func() {
+				_, err = s.Server.AgentMonitor(resp, req)
+				require.NoError(t, err)
+			}()
+
+			// send the same log until monitor sink is set up
+			maxLogAttempts := 10
+			tried := 0
+			out := ""
+			testutil.WaitForResult(func() (bool, error) {
+				if tried < maxLogAttempts {
+					s.Server.logger.Debug("log that should not be sent")
+					s.Server.logger.Warn("log that should be sent")
+					tried++
+				}
+				output, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					return false, err
+				}
+
+				out += string(output)
+				want := `{"Data":"`
+				if strings.Contains(out, want) {
+					return true, nil
+				}
+
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", out, want)
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+		}
+	})
+}
+
+type closableRecorder struct {
+	*httptest.ResponseRecorder
+	closer chan bool
+}
+
+func newClosableRecorder() *closableRecorder {
+	r := httptest.NewRecorder()
+	closer := make(chan bool)
+	return &closableRecorder{r, closer}
+}
+
+func (r *closableRecorder) Close() {
+	close(r.closer)
+}
+
+func (r *closableRecorder) CloseNotify() <-chan bool {
+	return r.closer
+}
+
 func TestHTTP_AgentForceLeave(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT", "/v1/agent/force-leave?node=foo", nil)
 		if err != nil {
@@ -109,85 +425,263 @@ func TestHTTP_AgentForceLeave(t *testing.T) {
 	})
 }
 
-func TestHTTP_AgentSetServers(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
-		// Establish a baseline number of servers
-		req, err := http.NewRequest("GET", "/v1/agent/servers", nil)
-		if err != nil {
-			t.Fatalf("err: %s", err)
+func TestHTTP_AgentForceLeave_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/agent/force-leave?node=foo", nil)
+		require.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.AgentForceLeaveRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 		}
-		respW := httptest.NewRecorder()
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyRead))
+			setToken(req, token)
+			_, err := s.Server.AgentForceLeaveRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.AgentForceLeaveRequest(respW, req)
+			require.Nil(err)
+			require.Equal(http.StatusOK, respW.Code)
+		}
+
+		// Try request with a root token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			_, err := s.Server.AgentForceLeaveRequest(respW, req)
+			require.Nil(err)
+			require.Equal(http.StatusOK, respW.Code)
+		}
+	})
+}
+
+func TestHTTP_AgentSetServers(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		addr := s.Config.AdvertiseAddrs.RPC
+		testutil.WaitForResult(func() (bool, error) {
+			conn, err := net.DialTimeout("tcp", addr, 100*time.Millisecond)
+			if err != nil {
+				return false, err
+			}
+			defer conn.Close()
+
+			// Write the Consul RPC byte to set the mode
+			if _, err := conn.Write([]byte{byte(pool.RpcNomad)}); err != nil {
+				return false, err
+			}
+
+			codec := pool.NewClientCodec(conn)
+			args := &structs.GenericRequest{}
+			var leader string
+			err = msgpackrpc.CallWithCodec(codec, "Status.Leader", args, &leader)
+			return leader != "", err
+		}, func(err error) {
+			t.Fatalf("failed to find leader: %v", err)
+		})
 
 		// Create the request
-		req, err = http.NewRequest("PUT", "/v1/agent/servers", nil)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+		req, err := http.NewRequest("PUT", "/v1/agent/servers", nil)
+		require.Nil(err)
 
 		// Send the request
-		respW = httptest.NewRecorder()
+		respW := httptest.NewRecorder()
 		_, err = s.Server.AgentServersRequest(respW, req)
-		if err == nil || !strings.Contains(err.Error(), "missing server address") {
-			t.Fatalf("expected missing servers error, got: %#v", err)
-		}
+		require.NotNil(err)
+		require.Contains(err.Error(), "missing server address")
 
 		// Create a valid request
 		req, err = http.NewRequest("PUT", "/v1/agent/servers?address=127.0.0.1%3A4647&address=127.0.0.2%3A4647&address=127.0.0.3%3A4647", nil)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+		require.Nil(err)
 
-		// Send the request
+		// Send the request which should fail
 		respW = httptest.NewRecorder()
 		_, err = s.Server.AgentServersRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+		require.NotNil(err)
 
 		// Retrieve the servers again
 		req, err = http.NewRequest("GET", "/v1/agent/servers", nil)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+		require.Nil(err)
 		respW = httptest.NewRecorder()
 
 		// Make the request and check the result
-		expected := map[string]bool{
-			"127.0.0.1:4647": true,
-			"127.0.0.2:4647": true,
-			"127.0.0.3:4647": true,
+		expected := []string{
+			s.GetConfig().AdvertiseAddrs.RPC,
 		}
 		out, err := s.Server.AgentServersRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+		require.Nil(err)
 		servers := out.([]string)
-		if n := len(servers); n != len(expected) {
-			t.Fatalf("expected %d servers, got: %d: %v", len(expected), n, servers)
-		}
-		received := make(map[string]bool, len(servers))
-		for _, server := range servers {
-			received[server] = true
-		}
-		foundCount := 0
-		for k, _ := range received {
-			_, found := expected[k]
-			if found {
-				foundCount++
+		require.Len(servers, len(expected))
+		require.Equal(expected, servers)
+	})
+}
+
+func TestHTTP_AgentSetServers_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+		addr := s.Config.AdvertiseAddrs.RPC
+		testutil.WaitForResult(func() (bool, error) {
+			conn, err := net.DialTimeout("tcp", addr, 100*time.Millisecond)
+			if err != nil {
+				return false, err
 			}
+			defer conn.Close()
+
+			// Write the Consul RPC byte to set the mode
+			if _, err := conn.Write([]byte{byte(pool.RpcNomad)}); err != nil {
+				return false, err
+			}
+
+			codec := pool.NewClientCodec(conn)
+			args := &structs.GenericRequest{}
+			var leader string
+			err = msgpackrpc.CallWithCodec(codec, "Status.Leader", args, &leader)
+			return leader != "", err
+		}, func(err error) {
+			t.Fatalf("failed to find leader: %v", err)
+		})
+
+		// Make the HTTP request
+		path := fmt.Sprintf("/v1/agent/servers?address=%s", url.QueryEscape(s.GetConfig().AdvertiseAddrs.RPC))
+		req, err := http.NewRequest("PUT", path, nil)
+		require.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.AgentServersRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 		}
-		if foundCount != len(expected) {
-			t.Fatalf("bad servers result")
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyRead))
+			setToken(req, token)
+			_, err := s.Server.AgentServersRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.AgentServersRequest(respW, req)
+			require.Nil(err)
+			require.Equal(http.StatusOK, respW.Code)
+		}
+
+		// Try request with a root token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			_, err := s.Server.AgentServersRequest(respW, req)
+			require.Nil(err)
+			require.Equal(http.StatusOK, respW.Code)
+		}
+	})
+}
+
+func TestHTTP_AgentListServers_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Create list request
+		req, err := http.NewRequest("GET", "/v1/agent/servers", nil)
+		require.Nil(err)
+
+		expected := []string{
+			s.GetConfig().AdvertiseAddrs.RPC,
+		}
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.AgentServersRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyRead))
+			setToken(req, token)
+			_, err := s.Server.AgentServersRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Wait for client to have a server
+		testutil.WaitForResult(func() (bool, error) {
+			return len(s.client.GetServers()) != 0, fmt.Errorf("no servers")
+		}, func(err error) {
+			t.Fatal(err)
+		})
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyRead))
+			setToken(req, token)
+			out, err := s.Server.AgentServersRequest(respW, req)
+			require.Nil(err)
+			servers := out.([]string)
+			require.Len(servers, len(expected))
+			require.Equal(expected, servers)
+		}
+
+		// Try request with a root token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			out, err := s.Server.AgentServersRequest(respW, req)
+			require.Nil(err)
+			servers := out.([]string)
+			require.Len(servers, len(expected))
+			require.Equal(expected, servers)
 		}
 	})
 }
 
 func TestHTTP_AgentListKeys(t *testing.T) {
+	t.Parallel()
+
 	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
 
 	httpTest(t, func(c *Config) {
 		c.Server.EncryptKey = key1
-	}, func(s *TestServer) {
+	}, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/agent/keyring/list", nil)
 		if err != nil {
 			t.Fatalf("err: %s", err)
@@ -195,23 +689,81 @@ func TestHTTP_AgentListKeys(t *testing.T) {
 		respW := httptest.NewRecorder()
 
 		out, err := s.Server.KeyringOperationRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+		require.Nil(t, err)
 		kresp := out.(structs.KeyringResponse)
-		if len(kresp.Keys) != 1 {
-			t.Fatalf("bad: %v", kresp)
+		require.Len(t, kresp.Keys, 1)
+	})
+}
+
+func TestHTTP_AgentListKeys_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
+
+	cb := func(c *Config) {
+		c.Server.EncryptKey = key1
+	}
+
+	httpACLTest(t, cb, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/agent/keyring/list", nil)
+		require.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.KeyringOperationRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.AgentPolicy(acl.PolicyRead))
+			setToken(req, token)
+			_, err := s.Server.KeyringOperationRequest(respW, req)
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
+			setToken(req, token)
+			out, err := s.Server.KeyringOperationRequest(respW, req)
+			require.Nil(err)
+			kresp := out.(structs.KeyringResponse)
+			require.Len(kresp.Keys, 1)
+			require.Contains(kresp.Keys, key1)
+		}
+
+		// Try request with a root token
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			out, err := s.Server.KeyringOperationRequest(respW, req)
+			require.Nil(err)
+			kresp := out.(structs.KeyringResponse)
+			require.Len(kresp.Keys, 1)
+			require.Contains(kresp.Keys, key1)
 		}
 	})
 }
 
 func TestHTTP_AgentInstallKey(t *testing.T) {
+	t.Parallel()
+
 	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
 	key2 := "wH1Bn9hlJ0emgWB1JttVRA=="
 
 	httpTest(t, func(c *Config) {
 		c.Server.EncryptKey = key1
-	}, func(s *TestServer) {
+	}, func(s *TestAgent) {
 		b, err := json.Marshal(&structs.KeyringRequest{Key: key2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -244,12 +796,14 @@ func TestHTTP_AgentInstallKey(t *testing.T) {
 }
 
 func TestHTTP_AgentRemoveKey(t *testing.T) {
+	t.Parallel()
+
 	key1 := "HS5lJ+XuTlYKWaeGYyG+/A=="
 	key2 := "wH1Bn9hlJ0emgWB1JttVRA=="
 
 	httpTest(t, func(c *Config) {
 		c.Server.EncryptKey = key1
-	}, func(s *TestServer) {
+	}, func(s *TestAgent) {
 		b, err := json.Marshal(&structs.KeyringRequest{Key: key2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -286,6 +840,172 @@ func TestHTTP_AgentRemoveKey(t *testing.T) {
 		kresp := out.(structs.KeyringResponse)
 		if len(kresp.Keys) != 1 {
 			t.Fatalf("bad: %v", kresp)
+		}
+	})
+}
+
+func TestHTTP_AgentHealth_Ok(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Enable ACLs to ensure they're not enforced
+	httpACLTest(t, nil, func(s *TestAgent) {
+		// No ?type=
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health", nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			require.Nil(err)
+			require.Equal(http.StatusOK, respW.Code)
+			require.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			require.NotNil(health.Client)
+			require.True(health.Client.Ok)
+			require.Equal("ok", health.Client.Message)
+			require.NotNil(health.Server)
+			require.True(health.Server.Ok)
+			require.Equal("ok", health.Server.Message)
+		}
+
+		// type=client
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health?type=client", nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			require.Nil(err)
+			require.Equal(http.StatusOK, respW.Code)
+			require.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			require.NotNil(health.Client)
+			require.True(health.Client.Ok)
+			require.Equal("ok", health.Client.Message)
+			require.Nil(health.Server)
+		}
+
+		// type=server
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health?type=server", nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			require.Nil(err)
+			require.Equal(http.StatusOK, respW.Code)
+			require.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			require.NotNil(health.Server)
+			require.True(health.Server.Ok)
+			require.Equal("ok", health.Server.Message)
+			require.Nil(health.Client)
+		}
+
+		// type=client&type=server
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health?type=client&type=server", nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			require.Nil(err)
+			require.Equal(http.StatusOK, respW.Code)
+			require.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			require.NotNil(health.Client)
+			require.True(health.Client.Ok)
+			require.Equal("ok", health.Client.Message)
+			require.NotNil(health.Server)
+			require.True(health.Server.Ok)
+			require.Equal("ok", health.Server.Message)
+		}
+	})
+}
+
+func TestHTTP_AgentHealth_BadServer(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Enable ACLs to ensure they're not enforced
+	httpACLTest(t, nil, func(s *TestAgent) {
+
+		// Set s.Agent.server=nil to make server unhealthy if requested
+		s.Agent.server = nil
+
+		// No ?type= means server is just skipped
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health", nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			require.Nil(err)
+			require.Equal(http.StatusOK, respW.Code)
+			require.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			require.NotNil(health.Client)
+			require.True(health.Client.Ok)
+			require.Equal("ok", health.Client.Message)
+			require.Nil(health.Server)
+		}
+
+		// type=server means server is considered unhealthy
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health?type=server", nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.HealthRequest(respW, req)
+			require.NotNil(err)
+			httpErr, ok := err.(HTTPCodedError)
+			require.True(ok)
+			require.Equal(500, httpErr.Code())
+			require.Equal(`{"server":{"ok":false,"message":"server not enabled"}}`, err.Error())
+		}
+	})
+}
+
+func TestHTTP_AgentHealth_BadClient(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Enable ACLs to ensure they're not enforced
+	httpACLTest(t, nil, func(s *TestAgent) {
+
+		// Set s.Agent.client=nil to make server unhealthy if requested
+		s.Agent.client = nil
+
+		// No ?type= means client is just skipped
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health", nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			healthI, err := s.Server.HealthRequest(respW, req)
+			require.Nil(err)
+			require.Equal(http.StatusOK, respW.Code)
+			require.NotNil(healthI)
+			health := healthI.(*healthResponse)
+			require.NotNil(health.Server)
+			require.True(health.Server.Ok)
+			require.Equal("ok", health.Server.Message)
+			require.Nil(health.Client)
+		}
+
+		// type=client means client is considered unhealthy
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/health?type=client", nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.HealthRequest(respW, req)
+			require.NotNil(err)
+			httpErr, ok := err.(HTTPCodedError)
+			require.True(ok)
+			require.Equal(500, httpErr.Code())
+			require.Equal(`{"client":{"ok":false,"message":"client not enabled"}}`, err.Error())
 		}
 	})
 }

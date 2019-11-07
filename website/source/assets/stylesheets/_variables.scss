@@ -1,79 +1,98 @@
-//
-// Variables
-// --------------------------------------------------
+// Colors
+$white: #ffffff;
+$black: #000000;
+$gray: #1d1e23;
+$gray-light: #cccccc;
 
-
-// Global values
-// --------------------------------------------------
-
-$header-height:         90px;
-$btn-border-radius:     4px;
-$el-border-radius:      6px;
-// colors
-// -------------------------
-
-$white:                 #fff;
-$black:                 #000;
-$gray:                  #929199;
-$light-gray:            #C2C1C7;
-$faint-gray:            #E3E3EA;
-$green:                 #56cdad;
-$green-dark:            #449b82;
-$green-light:           #9bdb9c;
-$green-faint:           #E3F5E3;
-$blue-dark:             #4e5859;
-$blue-light:            #89999A;
-$blue:                  #00BFE0;
-$blue-faint:            #E0E8E8;
-$light-black:           #242424;
-$orange:                #e78c5b;
-$gray-dark:             #3B4142; //#4e5859;
-$gray:                  #777;
-$gray-light:            #939393;
-$gray-lighter:          #979797;
-$red:                   #dd4e58;
-$red-dark:              #c5454e;
-$purple:                #822ff7;
-$light-purple:          #f7f3f9;
-$btn-color:             #4592C5;
-
-
-// Scaffolding
-// -------------------------
-$body-bg:               #fff;
-$text-color:            $gray;
-
-// Links
-// -------------------------
-$link-color:            $red-dark;
-$link-hover-color:      darken($link-color, 15%);
+$vagrant-l3: #eff5ff;
+$vagrant-l2: #d0e0ff;
+$vagrant-l1: #66a2ff;
+$vagrant: #1563ff;
+$vagrant-d1: #0d44cc;
+$vagrant-d2: #08368b;
+$packer-l3: #ebf8ff;
+$packer-l2: #bfe8fe;
+$packer-l1: #6bceff;
+$packer: #00acff;
+$packer-d1: #0074ba;
+$packer-d2: #005283;
+$nomad-l3: #ebfdf7;
+$nomad-l2: #c1f1e0;
+$nomad-l1: #6bd8b4;
+$nomad-on-dark: #00bc7f;
+$nomad: #00bc7f;
+$nomad-d1: #007854;
+$nomad-d2: #004c3a;
+$terraform-l3: #f5f3ff;
+$terraform-l2: #ddd6fa;
+$terraform-l1: #a28ce8;
+$terraform-on-dark: #7c65ef;
+$terraform: #623ce4;
+$terraform-d1: #3c2aa8;
+$terraform-d2: #2a1c73;
+$consul-l3: #fff2f8;
+$consul-l2: #f8d9e7;
+$consul-l1: #e07eac;
+$consul-on-dark: #e03a89;
+$consul: #ca2171;
+$consul-d1: #8e134a;
+$consul-d2: #650d34;
+$vault-l3: #f7f7f9;
+$vault-l2: #dcdde0;
+$vault-l1: #bdbec2;
+$vault: #4c4c53;
+$vault-d1: #323339;
+$vault-d2: #1d1e23;
 
 // Typography
-// -------------------------
-$font-family-open-sans: 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-$font-family-klavika:   'klavika-web', 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-$font-weight-xl:        300;
-$font-weight-reg:       400;
-$font-weight-sb:        600;
-$font-weight-xb:        700;
-$font-size-xl:          44px;
-$font-size-l:           36px;
-$font-size-m:           28px;
-$font-size-reg:         16px;
+$font-size-default: 16px;
+$font-weight-light: 300;
+$font-weight-book: $font-weight-light;
+$font-weight-reg: 400;
+$font-weight-medium: 500;
+$font-weight-semi-bold: 600;
+$font-weight-bold: 700;
+$font-display: "gilmer-web", "Gilmer", Geneva, Tahoma, Helvetica, Verdana,
+  sans-serif;
+$font-body: "metro-web", "Metro", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+$font-monospace: "dejavu-sans-mono-web", monospace;
 
-$text-shadow:           1px 1px 1px #000;
-$shadow:                $text-shadow;
+// Body
+$body-font-color: $gray;
+$body-link-color: $nomad;
 
+// Home
+$home-header-background-color: transparent;
+$home-header-link-color: $gray;
+$home-header-link-color-hover: $black;
 
-//margin + padding
-$xsmall-pad:            20px;
-$small-pad:             30px;
-$med-pad:               70px;
-$large-pad:             120px;
-$xl-pad:                150px;
+// Sidebar
+$sidebar-background-color: $white;
+$sidebar-font-size: $font-size-default - 2;
+$sidebar-link-color: $body-font-color;
+$sidebar-link-color-hover: $black;
+$sidebar-link-color-active: $body-link-color;
+$sidebar-font-family: $font-body;
+$sidebar-font-weight: $font-weight-reg;
 
-$light-outline:         #f7f7f7;
+// Header
+$header-background-color: $nomad;
+$header-font-size: $font-size-default - 2;
+$header-height: 92px;
+$header-link-color: rgba($white, 0.85);
+$header-link-color-hover: $white;
 
-//
-$easeInOutBack:         cubic-bezier(0.68, -0.55, 0.265, 1.55);
-$easeOutBack:           cubic-bezier(0.175, 0.885, 0.32, 1.275);
+// Footer
+$footer-font-size: $font-size-default - 2;
+$footer-link-color: $body-font-color;
+$footer-link-color-hover: $black;
+
+// Button
+$button-background: $white;
+$button-font-color: $black;
+$button-font-family: $font-display;
+$button-font-size: 0.938rem;
+$button-font-weight: $font-weight-bold;
+$button-primary-background: $nomad;
+$button-primary-font-color: $white;

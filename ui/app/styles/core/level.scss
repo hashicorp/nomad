@@ -1,0 +1,11 @@
+.level {
+  .level-item {
+    &.is-pulled-right {
+      justify-content: flex-end;
+    }
+
+    &.is-pulled-left {
+      justify-content: flex-start;
+    }
+  }
+}

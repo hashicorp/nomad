@@ -91,14 +91,11 @@ job "binstore-storagelocker" {
             static = 3
           }
 
-          port "http" {
-          }
+          port "http" {}
 
-          port "https" {
-          }
+          port "https" {}
 
-          port "admin" {
-          }
+          port "admin" {}
         }
       }
 
@@ -115,7 +112,6 @@ job "binstore-storagelocker" {
       resources {
         cpu    = 500
         memory = 128
-        iops   = 30
       }
 
       constraint {

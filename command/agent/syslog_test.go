@@ -5,11 +5,12 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/hashicorp/go-syslog"
+	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
 )
 
 func TestSyslogFilter(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("Syslog not supported on Windows")
 	}

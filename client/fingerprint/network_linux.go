@@ -16,14 +16,14 @@ func (f *NetworkFingerprint) linkSpeedSys(device string) int {
 	// Read contents of the device/speed file
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
-		f.logger.Printf("[DEBUG] fingerprint.network: Unable to read link speed from %s", path)
+		f.logger.Debug("unable to read link speed", "path", path)
 		return 0
 	}
 
 	lines := strings.Split(string(content), "\n")
 	mbs, err := strconv.Atoi(lines[0])
 	if err != nil || mbs <= 0 {
-		f.logger.Printf("[DEBUG] fingerprint.network: Unable to parse link speed from %s", path)
+		f.logger.Debug("unable to parse link speed", "path", path)
 		return 0
 	}
 
@@ -50,7 +50,7 @@ func (f *NetworkFingerprint) linkSpeed(device string) int {
 func (f *NetworkFingerprint) linkSpeedEthtool(path, device string) int {
 	outBytes, err := exec.Command(path, device).Output()
 	if err != nil {
-		f.logger.Printf("[WARN] fingerprint.network: Error calling ethtool (%s %s): %v", path, device, err)
+		f.logger.Warn("error calling ethtool", "error", err, "path", path, "device", device)
 		return 0
 	}
 
@@ -59,7 +59,7 @@ func (f *NetworkFingerprint) linkSpeedEthtool(path, device string) int {
 	m := re.FindString(output)
 	if m == "" {
 		// no matches found, output may be in a different format
-		f.logger.Printf("[WARN] fingerprint.network: Unable to parse Speed in output of '%s %s'", path, device)
+		f.logger.Warn("unable to parse speed", "path", path, "device", device)
 		return 0
 	}
 
@@ -70,7 +70,7 @@ func (f *NetworkFingerprint) linkSpeedEthtool(path, device string) int {
 	// convert to Mb/s
 	mbs, err := strconv.Atoi(raw)
 	if err != nil || mbs <= 0 {
-		f.logger.Printf("[WARN] fingerprint.network: Unable to parse Mb/s in output of '%s %s'", path, device)
+		f.logger.Warn("unable to parse Mb/s", "path", path, "device", device)
 		return 0
 	}
 

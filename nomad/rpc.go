@@ -1,7 +1,10 @@
 package nomad
 
 import (
+	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -10,23 +13,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/lib"
+	golog "log"
+
+	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+
+	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/yamux"
-)
-
-type RPCType byte
-
-const (
-	rpcNomad     RPCType = 0x01
-	rpcRaft              = 0x02
-	rpcMultiplex         = 0x03
-	rpcTLS               = 0x04
+	"github.com/ugorji/go/codec"
 )
 
 const (
@@ -36,12 +35,6 @@ const (
 	// defaultQueryTime is the amount of time we block waiting for a change
 	// if no time is specified. Previously we would wait the maxQueryTime.
 	defaultQueryTime = 300 * time.Second
-
-	// jitterFraction is a the limit to the amount of jitter we apply
-	// to a user specified MaxQueryTime. We divide the specified time by
-	// the fraction. So 16 == 6.25% limit of jitter. This jitter is also
-	// applied to RPCHoldTimeout.
-	jitterFraction = 16
 
 	// Warn if the Raft command is larger than this.
 	// If it's over 1MB something is probably being abusive.
@@ -54,79 +47,184 @@ const (
 	enqueueLimit = 30 * time.Second
 )
 
-// NewClientCodec returns a new rpc.ClientCodec to be used to make RPC calls to
-// the Nomad Server.
-func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
-	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.HashiMsgpackHandle)
+type rpcHandler struct {
+	*Server
+	logger   log.Logger
+	gologger *golog.Logger
 }
 
-// NewServerCodec returns a new rpc.ServerCodec to be used by the Nomad Server
-// to handle rpcs.
-func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
-	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.HashiMsgpackHandle)
+func newRpcHandler(s *Server) *rpcHandler {
+	logger := s.logger.NamedIntercept("rpc")
+	return &rpcHandler{
+		Server:   s,
+		logger:   logger,
+		gologger: logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true}),
+	}
+}
+
+// RPCContext provides metadata about the RPC connection.
+type RPCContext struct {
+	// Conn exposes the raw connection.
+	Conn net.Conn
+
+	// Session exposes the multiplexed connection session.
+	Session *yamux.Session
+
+	// TLS marks whether the RPC is over a TLS based connection
+	TLS bool
+
+	// VerifiedChains is is the Verified certificates presented by the incoming
+	// connection.
+	VerifiedChains [][]*x509.Certificate
+
+	// NodeID marks the NodeID that initiated the connection.
+	NodeID string
 }
 
 // listen is used to listen for incoming RPC connections
-func (s *Server) listen() {
+func (r *rpcHandler) listen(ctx context.Context) {
+	defer close(r.listenerCh)
+
+	var acceptLoopDelay time.Duration
 	for {
-		// Accept a connection
-		conn, err := s.rpcListener.Accept()
-		if err != nil {
-			if s.shutdown {
-				return
-			}
-			s.logger.Printf("[ERR] nomad.rpc: failed to accept RPC conn: %v", err)
-			continue
+		select {
+		case <-ctx.Done():
+			r.logger.Info("closing server RPC connection")
+			return
+		default:
 		}
 
-		go s.handleConn(conn, false)
+		// Accept a connection
+		conn, err := r.rpcListener.Accept()
+		if err != nil {
+			if r.shutdown {
+				return
+			}
+			r.handleAcceptErr(ctx, err, &acceptLoopDelay)
+			continue
+		}
+		// No error, reset loop delay
+		acceptLoopDelay = 0
+
+		go r.handleConn(ctx, conn, &RPCContext{Conn: conn})
 		metrics.IncrCounter([]string{"nomad", "rpc", "accept_conn"}, 1)
+	}
+}
+
+// handleAcceptErr sleeps to avoid spamming the log,
+// with a maximum delay according to whether or not the error is temporary
+func (r *rpcHandler) handleAcceptErr(ctx context.Context, err error, loopDelay *time.Duration) {
+	const baseDelay = 5 * time.Millisecond
+	const maxDelayPerm = 5 * time.Second
+	const maxDelayTemp = 1 * time.Second
+
+	if *loopDelay == 0 {
+		*loopDelay = baseDelay
+	} else {
+		*loopDelay *= 2
+	}
+
+	temporaryError := false
+	if ne, ok := err.(net.Error); ok && ne.Temporary() {
+		temporaryError = true
+	}
+
+	if temporaryError && *loopDelay > maxDelayTemp {
+		*loopDelay = maxDelayTemp
+	} else if *loopDelay > maxDelayPerm {
+		*loopDelay = maxDelayPerm
+	}
+
+	r.logger.Error("failed to accept RPC conn", "error", err, "delay", *loopDelay)
+
+	select {
+	case <-ctx.Done():
+	case <-time.After(*loopDelay):
 	}
 }
 
 // handleConn is used to determine if this is a Raft or
 // Nomad type RPC connection and invoke the correct handler
-func (s *Server) handleConn(conn net.Conn, isTLS bool) {
+func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCContext) {
 	// Read a single byte
 	buf := make([]byte, 1)
 	if _, err := conn.Read(buf); err != nil {
 		if err != io.EOF {
-			s.logger.Printf("[ERR] nomad.rpc: failed to read byte: %v", err)
+			r.logger.Error("failed to read first RPC byte", "error", err)
 		}
 		conn.Close()
 		return
 	}
 
-	// Enforce TLS if VerifyIncoming is set
-	if s.config.RequireTLS && !isTLS && RPCType(buf[0]) != rpcTLS {
-		s.logger.Printf("[WARN] nomad.rpc: Non-TLS connection attempted with RequireTLS set")
-		conn.Close()
-		return
-	}
-
-	// Switch on the byte
-	switch RPCType(buf[0]) {
-	case rpcNomad:
-		s.handleNomadConn(conn)
-
-	case rpcRaft:
-		metrics.IncrCounter([]string{"nomad", "rpc", "raft_handoff"}, 1)
-		s.raftLayer.Handoff(conn)
-
-	case rpcMultiplex:
-		s.handleMultiplex(conn)
-
-	case rpcTLS:
-		if s.rpcTLS == nil {
-			s.logger.Printf("[WARN] nomad.rpc: TLS connection attempted, server not configured for TLS")
+	// Enforce TLS if EnableRPC is set
+	if r.config.TLSConfig.EnableRPC && !rpcCtx.TLS && pool.RPCType(buf[0]) != pool.RpcTLS {
+		if !r.config.TLSConfig.RPCUpgradeMode {
+			r.logger.Warn("non-TLS connection attempted with RequireTLS set", "remote_addr", conn.RemoteAddr())
 			conn.Close()
 			return
 		}
-		conn = tls.Server(conn, s.rpcTLS)
-		s.handleConn(conn, true)
+	}
+
+	// Switch on the byte
+	switch pool.RPCType(buf[0]) {
+	case pool.RpcNomad:
+		// Create an RPC Server and handle the request
+		server := rpc.NewServer()
+		r.setupRpcServer(server, rpcCtx)
+		r.handleNomadConn(ctx, conn, server)
+
+		// Remove any potential mapping between a NodeID to this connection and
+		// close the underlying connection.
+		r.removeNodeConn(rpcCtx)
+
+	case pool.RpcRaft:
+		metrics.IncrCounter([]string{"nomad", "rpc", "raft_handoff"}, 1)
+		r.raftLayer.Handoff(ctx, conn)
+
+	case pool.RpcMultiplex:
+		r.handleMultiplex(ctx, conn, rpcCtx)
+
+	case pool.RpcTLS:
+		if r.rpcTLS == nil {
+			r.logger.Warn("TLS connection attempted, server not configured for TLS")
+			conn.Close()
+			return
+		}
+		conn = tls.Server(conn, r.rpcTLS)
+
+		// Force a handshake so we can get information about the TLS connection
+		// state.
+		tlsConn, ok := conn.(*tls.Conn)
+		if !ok {
+			r.logger.Error("expected TLS connection", "got", log.Fmt("%T", conn))
+			conn.Close()
+			return
+		}
+
+		if err := tlsConn.Handshake(); err != nil {
+			r.logger.Warn("failed TLS handshake", "remote_addr", tlsConn.RemoteAddr(), "error", err)
+			conn.Close()
+			return
+		}
+
+		// Update the connection context with the fact that the connection is
+		// using TLS
+		rpcCtx.TLS = true
+
+		// Store the verified chains so they can be inspected later.
+		state := tlsConn.ConnectionState()
+		rpcCtx.VerifiedChains = state.VerifiedChains
+
+		r.handleConn(ctx, conn, rpcCtx)
+
+	case pool.RpcStreaming:
+		r.handleStreamingConn(conn)
+
+	case pool.RpcMultiplexV2:
+		r.handleMultiplexV2(ctx, conn, rpcCtx)
 
 	default:
-		s.logger.Printf("[ERR] nomad.rpc: unrecognized RPC byte: %v", buf[0])
+		r.logger.Error("unrecognized RPC byte", "byte", buf[0])
 		conn.Close()
 		return
 	}
@@ -134,37 +232,64 @@ func (s *Server) handleConn(conn net.Conn, isTLS bool) {
 
 // handleMultiplex is used to multiplex a single incoming connection
 // using the Yamux multiplexer
-func (s *Server) handleMultiplex(conn net.Conn) {
-	defer conn.Close()
+func (r *rpcHandler) handleMultiplex(ctx context.Context, conn net.Conn, rpcCtx *RPCContext) {
+	defer func() {
+		// Remove any potential mapping between a NodeID to this connection and
+		// close the underlying connection.
+		r.removeNodeConn(rpcCtx)
+		conn.Close()
+	}()
+
 	conf := yamux.DefaultConfig()
-	conf.LogOutput = s.config.LogOutput
-	server, _ := yamux.Server(conn, conf)
+	conf.LogOutput = nil
+	conf.Logger = r.gologger
+	server, err := yamux.Server(conn, conf)
+	if err != nil {
+		r.logger.Error("multiplex failed to create yamux server", "error", err)
+		return
+	}
+
+	// Update the context to store the yamux session
+	rpcCtx.Session = server
+
+	// Create the RPC server for this connection
+	rpcServer := rpc.NewServer()
+	r.setupRpcServer(rpcServer, rpcCtx)
+
 	for {
+		// stop handling connections if context was cancelled
+		if ctx.Err() != nil {
+			return
+		}
+
 		sub, err := server.Accept()
 		if err != nil {
 			if err != io.EOF {
-				s.logger.Printf("[ERR] nomad.rpc: multiplex conn accept failed: %v", err)
+				r.logger.Error("multiplex conn accept failed", "error", err)
 			}
 			return
 		}
-		go s.handleNomadConn(sub)
+		go r.handleNomadConn(ctx, sub, rpcServer)
 	}
 }
 
 // handleNomadConn is used to service a single Nomad RPC connection
-func (s *Server) handleNomadConn(conn net.Conn) {
+func (r *rpcHandler) handleNomadConn(ctx context.Context, conn net.Conn, server *rpc.Server) {
 	defer conn.Close()
-	rpcCodec := NewServerCodec(conn)
+	rpcCodec := pool.NewServerCodec(conn)
 	for {
 		select {
-		case <-s.shutdownCh:
+		case <-ctx.Done():
+			r.logger.Info("closing server RPC connection")
+			return
+		case <-r.shutdownCh:
 			return
 		default:
 		}
 
-		if err := s.rpcServer.ServeRequest(rpcCodec); err != nil {
+		if err := server.ServeRequest(rpcCodec); err != nil {
 			if err != io.EOF && !strings.Contains(err.Error(), "closed") {
-				s.logger.Printf("[ERR] nomad.rpc: RPC error: %v (%v)", err, conn)
+				r.logger.Error("RPC error", "error", err, "connection", conn)
 				metrics.IncrCounter([]string{"nomad", "rpc", "request_error"}, 1)
 			}
 			return
@@ -173,9 +298,115 @@ func (s *Server) handleNomadConn(conn net.Conn) {
 	}
 }
 
+// handleStreamingConn is used to handle a single Streaming Nomad RPC connection.
+func (r *rpcHandler) handleStreamingConn(conn net.Conn) {
+	defer conn.Close()
+
+	// Decode the header
+	var header structs.StreamingRpcHeader
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	if err := decoder.Decode(&header); err != nil {
+		if err != io.EOF && !strings.Contains(err.Error(), "closed") {
+			r.logger.Error("streaming RPC error", "error", err, "connection", conn)
+			metrics.IncrCounter([]string{"nomad", "streaming_rpc", "request_error"}, 1)
+		}
+
+		return
+	}
+
+	ack := structs.StreamingRpcAck{}
+	handler, err := r.streamingRpcs.GetHandler(header.Method)
+	if err != nil {
+		r.logger.Error("streaming RPC error", "error", err, "connection", conn)
+		metrics.IncrCounter([]string{"nomad", "streaming_rpc", "request_error"}, 1)
+		ack.Error = err.Error()
+	}
+
+	// Send the acknowledgement
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+	if err := encoder.Encode(ack); err != nil {
+		conn.Close()
+		return
+	}
+
+	if ack.Error != "" {
+		return
+	}
+
+	// Invoke the handler
+	metrics.IncrCounter([]string{"nomad", "streaming_rpc", "request"}, 1)
+	handler(conn)
+}
+
+// handleMultiplexV2 is used to multiplex a single incoming connection
+// using the Yamux multiplexer. Version 2 handling allows a single connection to
+// switch streams between regulars RPCs and Streaming RPCs.
+func (r *rpcHandler) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCtx *RPCContext) {
+	defer func() {
+		// Remove any potential mapping between a NodeID to this connection and
+		// close the underlying connection.
+		r.removeNodeConn(rpcCtx)
+		conn.Close()
+	}()
+
+	conf := yamux.DefaultConfig()
+	conf.LogOutput = nil
+	conf.Logger = r.gologger
+	server, err := yamux.Server(conn, conf)
+	if err != nil {
+		r.logger.Error("multiplex_v2 failed to create yamux server", "error", err)
+		return
+	}
+
+	// Update the context to store the yamux session
+	rpcCtx.Session = server
+
+	// Create the RPC server for this connection
+	rpcServer := rpc.NewServer()
+	r.setupRpcServer(rpcServer, rpcCtx)
+
+	for {
+		// stop handling connections if context was cancelled
+		if ctx.Err() != nil {
+			return
+		}
+
+		// Accept a new stream
+		sub, err := server.Accept()
+		if err != nil {
+			if err != io.EOF {
+				r.logger.Error("multiplex_v2 conn accept failed", "error", err)
+			}
+			return
+		}
+
+		// Read a single byte
+		buf := make([]byte, 1)
+		if _, err := sub.Read(buf); err != nil {
+			if err != io.EOF {
+				r.logger.Error("multiplex_v2 failed to read first byte", "error", err)
+			}
+			return
+		}
+
+		// Determine which handler to use
+		switch pool.RPCType(buf[0]) {
+		case pool.RpcNomad:
+			go r.handleNomadConn(ctx, sub, rpcServer)
+		case pool.RpcStreaming:
+			go r.handleStreamingConn(sub)
+
+		default:
+			r.logger.Error("multiplex_v2 unrecognized first RPC byte", "byte", buf[0])
+			return
+		}
+	}
+
+}
+
 // forward is used to forward to a remote region or to forward to the local leader
 // Returns a bool of if forwarding was performed, as well as any error
-func (s *Server) forward(method string, info structs.RPCInfo, args interface{}, reply interface{}) (bool, error) {
+func (r *rpcHandler) forward(method string, info structs.RPCInfo, args interface{}, reply interface{}) (bool, error) {
 	var firstCheck time.Time
 
 	region := info.RequestRegion()
@@ -184,8 +415,10 @@ func (s *Server) forward(method string, info structs.RPCInfo, args interface{}, 
 	}
 
 	// Handle region forwarding
-	if region != s.config.Region {
-		err := s.forwardRegion(region, method, args, reply)
+	if region != r.config.Region {
+		// Mark that we are forwarding the RPC
+		info.SetForwarded()
+		err := r.forwardRegion(region, method, args, reply)
 		return true, err
 	}
 
@@ -196,16 +429,18 @@ func (s *Server) forward(method string, info structs.RPCInfo, args interface{}, 
 
 CHECK_LEADER:
 	// Find the leader
-	isLeader, remoteServer := s.getLeader()
+	isLeader, remoteServer := r.getLeader()
 
 	// Handle the case we are the leader
-	if isLeader {
+	if isLeader && r.Server.isReadyForConsistentReads() {
 		return false, nil
 	}
 
 	// Handle the case of a known leader
 	if remoteServer != nil {
-		err := s.forwardLeader(remoteServer, method, args, reply)
+		// Mark that we are forwarding the RPC
+		info.SetForwarded()
+		err := r.forwardLeader(remoteServer, method, args, reply)
 		return true, err
 	}
 
@@ -213,16 +448,20 @@ CHECK_LEADER:
 	if firstCheck.IsZero() {
 		firstCheck = time.Now()
 	}
-	if time.Now().Sub(firstCheck) < s.config.RPCHoldTimeout {
-		jitter := lib.RandomStagger(s.config.RPCHoldTimeout / jitterFraction)
+	if time.Now().Sub(firstCheck) < r.config.RPCHoldTimeout {
+		jitter := lib.RandomStagger(r.config.RPCHoldTimeout / structs.JitterFraction)
 		select {
 		case <-time.After(jitter):
 			goto CHECK_LEADER
-		case <-s.shutdownCh:
+		case <-r.shutdownCh:
 		}
 	}
 
-	// No leader found and hold time exceeded
+	// hold time exceeeded without being ready to respond
+	if isLeader {
+		return true, structs.ErrNotReadyForConsistentReads
+	}
+
 	return true, structs.ErrNoLeader
 }
 
@@ -251,34 +490,119 @@ func (s *Server) getLeader() (bool, *serverParts) {
 }
 
 // forwardLeader is used to forward an RPC call to the leader, or fail if no leader
-func (s *Server) forwardLeader(server *serverParts, method string, args interface{}, reply interface{}) error {
+func (r *rpcHandler) forwardLeader(server *serverParts, method string, args interface{}, reply interface{}) error {
 	// Handle a missing server
 	if server == nil {
 		return structs.ErrNoLeader
 	}
-	return s.connPool.RPC(s.config.Region, server.Addr, server.MajorVersion, method, args, reply)
+	return r.connPool.RPC(r.config.Region, server.Addr, server.MajorVersion, method, args, reply)
+}
+
+// forwardServer is used to forward an RPC call to a particular server
+func (r *rpcHandler) forwardServer(server *serverParts, method string, args interface{}, reply interface{}) error {
+	// Handle a missing server
+	if server == nil {
+		return errors.New("must be given a valid server address")
+	}
+	return r.connPool.RPC(r.config.Region, server.Addr, server.MajorVersion, method, args, reply)
 }
 
 // forwardRegion is used to forward an RPC call to a remote region, or fail if no servers
-func (s *Server) forwardRegion(region, method string, args interface{}, reply interface{}) error {
+func (r *rpcHandler) forwardRegion(region, method string, args interface{}, reply interface{}) error {
 	// Bail if we can't find any servers
-	s.peerLock.RLock()
-	servers := s.peers[region]
+	r.peerLock.RLock()
+	servers := r.peers[region]
 	if len(servers) == 0 {
-		s.peerLock.RUnlock()
-		s.logger.Printf("[WARN] nomad.rpc: RPC request for region '%s', no path found",
-			region)
+		r.peerLock.RUnlock()
+		r.logger.Warn("no path found to region", "region", region)
 		return structs.ErrNoRegionPath
 	}
 
 	// Select a random addr
 	offset := rand.Intn(len(servers))
 	server := servers[offset]
-	s.peerLock.RUnlock()
+	r.peerLock.RUnlock()
 
 	// Forward to remote Nomad
 	metrics.IncrCounter([]string{"nomad", "rpc", "cross-region", region}, 1)
-	return s.connPool.RPC(region, server.Addr, server.MajorVersion, method, args, reply)
+	return r.connPool.RPC(region, server.Addr, server.MajorVersion, method, args, reply)
+}
+
+// streamingRpc creates a connection to the given server and conducts the
+// initial handshake, returning the connection or an error. It is the callers
+// responsibility to close the connection if there is no returned error.
+func (r *rpcHandler) streamingRpc(server *serverParts, method string) (net.Conn, error) {
+	// Try to dial the server
+	conn, err := net.DialTimeout("tcp", server.Addr.String(), 10*time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cast to TCPConn
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		tcp.SetKeepAlive(true)
+		tcp.SetNoDelay(true)
+	}
+
+	return r.streamingRpcImpl(conn, server.Region, method)
+}
+
+// streamingRpcImpl takes a pre-established connection to a server and conducts
+// the handshake to establish a streaming RPC for the given method. If an error
+// is returned, the underlying connection has been closed. Otherwise it is
+// assumed that the connection has been hijacked by the RPC method.
+func (r *rpcHandler) streamingRpcImpl(conn net.Conn, region, method string) (net.Conn, error) {
+	// Check if TLS is enabled
+	r.tlsWrapLock.RLock()
+	tlsWrap := r.tlsWrap
+	r.tlsWrapLock.RUnlock()
+
+	if tlsWrap != nil {
+		// Switch the connection into TLS mode
+		if _, err := conn.Write([]byte{byte(pool.RpcTLS)}); err != nil {
+			conn.Close()
+			return nil, err
+		}
+
+		// Wrap the connection in a TLS client
+		tlsConn, err := tlsWrap(region, conn)
+		if err != nil {
+			conn.Close()
+			return nil, err
+		}
+		conn = tlsConn
+	}
+
+	// Write the multiplex byte to set the mode
+	if _, err := conn.Write([]byte{byte(pool.RpcStreaming)}); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	// Send the header
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	header := structs.StreamingRpcHeader{
+		Method: method,
+	}
+	if err := encoder.Encode(header); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	// Wait for the acknowledgement
+	var ack structs.StreamingRpcAck
+	if err := decoder.Decode(&ack); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	if ack.Error != "" {
+		conn.Close()
+		return nil, errors.New(ack.Error)
+	}
+
+	return conn, nil
 }
 
 // raftApplyFuture is used to encode a message, run it through raft, and return the Raft future.
@@ -290,12 +614,15 @@ func (s *Server) raftApplyFuture(t structs.MessageType, msg interface{}) (raft.A
 
 	// Warn if the command is very large
 	if n := len(buf); n > raftWarnSize {
-		s.logger.Printf("[WARN] nomad: Attempting to apply large raft entry (type %d) (%d bytes)", t, n)
+		s.logger.Warn("attempting to apply large raft entry", "raft_type", t, "bytes", n)
 	}
 
 	future := s.raft.Apply(buf, enqueueLimit)
 	return future, nil
 }
+
+// raftApplyFn is the function signature for applying a msg to Raft
+type raftApplyFn func(t structs.MessageType, msg interface{}) (interface{}, uint64, error)
 
 // raftApply is used to encode a message, run it through raft, and return
 // the FSM response along with any errors
@@ -311,13 +638,13 @@ func (s *Server) raftApply(t structs.MessageType, msg interface{}) (interface{},
 }
 
 // setQueryMeta is used to populate the QueryMeta data for an RPC call
-func (s *Server) setQueryMeta(m *structs.QueryMeta) {
-	if s.IsLeader() {
+func (r *rpcHandler) setQueryMeta(m *structs.QueryMeta) {
+	if r.IsLeader() {
 		m.LastContact = 0
 		m.KnownLeader = true
 	} else {
-		m.LastContact = time.Now().Sub(s.raft.LastContact())
-		m.KnownLeader = (s.raft.Leader() != "")
+		m.LastContact = time.Now().Sub(r.raft.LastContact())
+		m.KnownLeader = (r.raft.Leader() != "")
 	}
 }
 
@@ -337,8 +664,9 @@ type blockingOptions struct {
 
 // blockingRPC is used for queries that need to wait for a
 // minimum index. This is used to block and wait for changes.
-func (s *Server) blockingRPC(opts *blockingOptions) error {
-	var timeout *time.Timer
+func (r *rpcHandler) blockingRPC(opts *blockingOptions) error {
+	ctx := context.Background()
+	var cancel context.CancelFunc
 	var state *state.StateStore
 
 	// Fast path non-blocking
@@ -354,15 +682,15 @@ func (s *Server) blockingRPC(opts *blockingOptions) error {
 	}
 
 	// Apply a small amount of jitter to the request
-	opts.queryOpts.MaxQueryTime += lib.RandomStagger(opts.queryOpts.MaxQueryTime / jitterFraction)
+	opts.queryOpts.MaxQueryTime += lib.RandomStagger(opts.queryOpts.MaxQueryTime / structs.JitterFraction)
 
 	// Setup a query timeout
-	timeout = time.NewTimer(opts.queryOpts.MaxQueryTime)
-	defer timeout.Stop()
+	ctx, cancel = context.WithTimeout(context.Background(), opts.queryOpts.MaxQueryTime)
+	defer cancel()
 
 RUN_QUERY:
 	// Update the query meta data
-	s.setQueryMeta(opts.queryMeta)
+	r.setQueryMeta(opts.queryMeta)
 
 	// Increment the rpc query counter
 	metrics.IncrCounter([]string{"nomad", "rpc", "query"}, 1)
@@ -370,7 +698,7 @@ RUN_QUERY:
 	// We capture the state store and its abandon channel but pass a snapshot to
 	// the blocking query function. We operate on the snapshot to allow separate
 	// calls to the state store not all wrapped within the same transaction.
-	state = s.fsm.State()
+	state = r.fsm.State()
 	abandonCh := state.AbandonCh()
 	snap, _ := state.Snapshot()
 	stateSnap := &snap.StateStore
@@ -390,7 +718,7 @@ RUN_QUERY:
 
 	// Check for minimum query time
 	if err == nil && opts.queryOpts.MinQueryIndex > 0 && opts.queryMeta.Index <= opts.queryOpts.MinQueryIndex {
-		if expired := ws.Watch(timeout.C); !expired {
+		if err := ws.WatchCtx(ctx); err == nil {
 			goto RUN_QUERY
 		}
 	}

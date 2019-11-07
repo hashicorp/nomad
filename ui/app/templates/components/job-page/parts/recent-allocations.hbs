@@ -1,0 +1,46 @@
+<div class="boxed-section">
+  <div class="boxed-section-head">
+    Recent Allocations
+  </div>
+  <div class="boxed-section-body {{if job.allocations.length "is-full-bleed"}}">
+    {{#if job.allocations.length}}
+      {{#list-table
+        source=sortedAllocations
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        class="with-foot" as |t|}}
+        {{#t.head}}
+          <th class="is-narrow"></th>
+          <th>ID</th>
+          <th>Task Group</th>
+          <th>Created</th>
+          <th>Modified</th>
+          <th>Status</th>
+          <th>Version</th>
+          <th>Client</th>
+          <th>CPU</th>
+          <th>Memory</th>
+        {{/t.head}}
+        {{#t.body as |row|}}
+          {{allocation-row
+            data-test-allocation=row.model.id
+            allocation=row.model
+            context="job"
+            onClick=(action "gotoAllocation" row.model)}}
+        {{/t.body}}
+      {{/list-table}}
+    {{else}}
+      <div class="empty-message" data-test-empty-recent-allocations>
+        <h3 class="empty-message-headline" data-test-empty-recent-allocations-headline>No Allocations</h3>
+        <p class="empty-message-body" data-test-empty-recent-allocations-message>No allocations have been placed.</p>
+      </div>
+    {{/if}}
+  </div>
+  {{#if job.allocations.length}}
+    <div class="boxed-section-foot">
+      <p class="pull-right" data-test-view-all-allocations>{{#link-to "jobs.job.allocations" job}}
+        View all {{job.allocations.length}} {{pluralize "allocation" job.allocations.length}}
+      {{/link-to}}</p>
+    </div>
+  {{/if}}
+</div>

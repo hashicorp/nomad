@@ -1,0 +1,349 @@
+version: 2.1
+
+references:
+  common_envs: &COMMON_ENVS
+    GOMAXPROCS: 1
+    NOMAD_SLOW_TEST: 1
+    GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+  ignore_for_ui_branches: &IGNORE_FOR_UI_BRANCHES
+    filters:
+      branches:
+        ignore: /^.-ui\b.*/
+
+
+workflows:
+  build-test:
+    jobs:
+      - lint-go:
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-client"
+          test_packages: "./client/..."
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-nomad"
+          test_packages: "./nomad/..."
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          # API Tests run in a VM rather than container due to the FS tests
+          # requiring `mount` priviliges.
+          name: "test-api"
+          test_packages: "./api/..."
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-container:
+          name: "test-devices"
+          test_packages: "./devices/..."
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-other"
+          exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/rkt|./drivers/shared/executor|./nomad|./devices"
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-docker"
+          test_packages: "./drivers/docker"
+          # docker is misbehaving in docker-machine-recent image
+          # and we get unexpected failures
+          # e.g. https://circleci.com/gh/hashicorp/nomad/3854
+          executor: go-machine
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-exec"
+          test_packages: "./drivers/exec"
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-shared-exec"
+          test_packages: "./drivers/shared/executor"
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-machine:
+          name: "test-32bit"
+          # Currently we only explicitly test fingerprinting on 32bit
+          # architectures.
+          test_packages: "./client/fingerprint"
+          goarch: "386"
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-e2e:
+          <<: *IGNORE_FOR_UI_BRANCHES
+      - test-ui
+      - test-website:
+          <<: *IGNORE_FOR_UI_BRANCHES
+
+  website:
+    jobs:
+      - build-website:
+          context: static-sites
+          filters:
+            branches:
+              only: stable-website
+executors:
+  go:
+    working_directory: /go/src/github.com/hashicorp/nomad
+    docker:
+      - image: golang:1.12.12
+  go-machine:
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    machine:
+      image: circleci/classic:201808-01
+  docker-builder:
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    machine: true # TODO: Find latest docker image id
+
+  # uses a more recent image with unattended upgrades disabled properly
+  # but seems to break docker builds
+  go-machine-recent:
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    machine:
+      image: ubuntu-1604:201903-01
+
+jobs:
+  build-deps-image:
+    executor: docker-builder
+    steps:
+      - checkout
+      - run: docker build -t hashicorpnomad/ci-build-image:$CIRCLE_SHA1 . -f ./Dockerfile.ci
+      - run: docker push hashicorpnomad/ci-build-image:$CIRCLE_SHA1
+
+  lint-go:
+    executor: go
+    environment:
+      <<: *COMMON_ENVS
+      GOPATH: /go
+    steps:
+      - checkout
+      - run: apt-get update; apt-get install -y shellcheck sudo unzip
+      - install-protoc
+      - run: make deps lint-deps
+      - run: make check
+      - run: make checkscripts
+
+  test-container:
+    executor: go
+    parameters:
+      test_packages:
+        type: string
+        default: ""
+      exclude_packages:
+        type: string
+        default: ""
+      goarch:
+        type: string
+        default: "amd64"
+    environment:
+      <<: *COMMON_ENVS
+      GOTEST_PKGS: "<< parameters.test_packages >>"
+      GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
+      GOPATH: /go
+      GOTESTARCH: "<< parameters.goarch >>"
+    steps:
+      - checkout
+      - run: apt-get update; apt-get install -y shellcheck sudo unzip
+      - run: make deps
+      - install-protoc
+      - install-consul
+      - install-vault
+      - run-tests
+      - store_test_results:
+          path: /tmp/test-reports
+      - store_artifacts:
+          path: /tmp/test-reports
+
+  test-e2e:
+    executor: go
+    environment:
+      <<: *COMMON_ENVS
+      GOPATH: /go
+    steps:
+      - checkout
+      - run: apt-get update; apt-get install -y sudo unzip
+      # e2e tests require privileged mount/umount permissions when running as root
+      # TODO: switch to using machine executor and run as root to test e2e path
+      - run:
+          name: prepare non-root user
+          command: |
+            groupadd --gid 3434 circleci
+            useradd --uid 3434 --gid circleci --shell /bin/bash --create-home circleci
+            echo 'circleci ALL=NOPASSWD: ALL' >> /etc/sudoers.d/50-circleci
+            echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep
+            chown -R circleci:circleci /go
+
+      - run: sudo -E -H -u circleci PATH=${PATH} make deps
+      - run: sudo -E -H -u circleci PATH=${PATH} make e2e-test
+
+  test-website:
+    executor: go-machine-recent
+    environment:
+      <<: *COMMON_ENVS
+    steps:
+      - checkout
+      - run: make test-website
+
+  test-machine:
+    executor: "<< parameters.executor >>"
+    parameters:
+      test_packages:
+        type: string
+        default: ""
+      exclude_packages:
+        type: string
+        default: ""
+      executor:
+        type: string
+        default: "go-machine-recent"
+      goarch:
+        type: string
+        default: "amd64"
+    environment:
+      <<: *COMMON_ENVS
+      GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
+      GOTEST_PKGS: "<< parameters.test_packages >>"
+      GOPATH: /home/circleci/go
+      GOTESTARCH: "<< parameters.goarch >>"
+    steps:
+      - checkout
+      - install-golang
+      - install-protoc
+      - install-consul
+      - install-vault
+      - run:
+          name: Install 32bit gcc libs
+          command: |
+            if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
+              sudo apt-get update
+              sudo apt-get install -y gcc-multilib
+            else
+              echo "Skipping 32bit lib installation while building for not 386"
+            fi
+      - run: PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make bootstrap
+      - run-tests
+      - store_test_results:
+          path: /tmp/test-reports
+      - store_artifacts:
+          path: /tmp/test-reports
+  test-ui:
+    docker:
+      - image: circleci/node:10-browsers
+        environment:
+          # See https://git.io/vdao3 for details.
+          JOBS: 2
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-deps-{{ checksum "ui/yarn.lock" }}
+            - v1-deps-
+      - run:
+          name: yarn install
+          command: cd ui && yarn install
+      - save_cache:
+          key: v1-deps-{{ checksum "ui/yarn.lock" }}
+          paths:
+            - ./ui/node_modules
+      - run:
+          name: lint:js
+          command: cd ui && yarn run lint:js
+      - run:
+          name: lint:hbs
+          command: cd ui && yarn run lint:hbs
+      - run:
+          name: Ember tests
+          command: cd ui && yarn test
+
+  build-website:
+    # setting the working_directory along with the checkout path allows us to not have
+    # to cd into the website/ directory for commands
+    working_directory: ~/project/website
+    docker:
+      - image: hashicorp/middleman-hashicorp:0.3.35
+    steps:
+      - checkout:
+          path: ~/project
+
+      # restores gem cache
+      - restore_cache:
+          key: static-site-gems-v1-{{ checksum "Gemfile.lock" }}
+
+      - run:
+          name: install gems
+          command: bundle check || bundle install --path vendor/bundle --retry=3
+
+      # saves gem cache if we have changed the Gemfile
+      - save_cache:
+          key: static-site-gems-v1-{{ checksum "Gemfile.lock" }}
+          paths:
+            - ~/project/website/vendor/bundle
+
+      - run:
+          name: middleman build
+          command: bundle exec middleman build
+
+      - run:
+          name: website deploy
+          command: ./scripts/deploy.sh
+
+commands:
+  install-golang:
+    parameters:
+      version:
+        type: string
+        default: "1.12.12"
+    steps:
+      - run:
+          name: install golang << parameters.version >>
+          command: |
+            sudo rm -rf /usr/local/go
+            wget -q -O /tmp/golang.tar.gz https://dl.google.com/go/go<< parameters.version >>.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+
+  install-vault:
+    parameters:
+      version:
+        type: string
+        default: 1.2.3
+    steps:
+      - run:
+          name: Install Vault << parameters.version >>
+          command: |
+            wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/<< parameters.version >>/vault_<< parameters.version>>_linux_amd64.zip
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+
+  install-consul:
+    parameters:
+      version:
+        type: string
+        default: 1.6.0-rc1
+    steps:
+      - run:
+          name: Install Consul << parameters.version >>
+          command: |
+            wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/<< parameters.version >>/consul_<< parameters.version >>_linux_amd64.zip
+            sudo unzip -d /usr/local/bin /tmp/consul.zip
+            rm -rf /tmp/consul*
+
+  install-protoc:
+    steps:
+      - run:
+          name: install protoc
+          command: |
+            sudo rm -rf /usr/bin/protoc
+            sudo ./scripts/vagrant-linux-priv-protoc.sh
+
+  run-tests:
+    steps:
+      - run:
+          name: Running Nomad Tests
+          command: |
+            if [ -z $GOTEST_PKGS_EXCLUDE ];
+            then
+              unset GOTEST_PKGS_EXCLUDE
+            else
+              unset GOTEST_PKGS
+            fi
+
+            if [ ! -z $GOTESTARCH ]; then
+              export GOARCH="$GOTESTARCH";
+            fi
+
+            mkdir -p /tmp/test-reports
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad

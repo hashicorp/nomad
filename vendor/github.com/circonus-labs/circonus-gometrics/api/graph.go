@@ -37,13 +37,13 @@ type GraphAccessKey struct {
 
 // GraphComposite defines a composite
 type GraphComposite struct {
-	Axis          string  `json:"axis,omitempty"`           // string
-	Color         string  `json:"color,omitempty"`          // string
-	DataFormula   *string `json:"data_formula,omitempty"`   // string or null
-	Hidden        bool    `json:"hidden,omitempty"`         // boolean
-	LegendFormula *string `json:"legend_formula,omitempty"` // string or null
-	Name          string  `json:"name,omitempty"`           // string
-	Stack         *uint   `json:"stack,omitempty"`          // uint or null
+	Axis          string  `json:"axis"`           // string
+	Color         string  `json:"color"`          // string
+	DataFormula   *string `json:"data_formula"`   // string or null
+	Hidden        bool    `json:"hidden"`         // boolean
+	LegendFormula *string `json:"legend_formula"` // string or null
+	Name          string  `json:"name"`           // string
+	Stack         *uint   `json:"stack"`          // uint or null
 }
 
 // GraphDatapoint defines a datapoint
@@ -65,17 +65,18 @@ type GraphDatapoint struct {
 
 // GraphGuide defines a guide
 type GraphGuide struct {
-	Color         string  `json:"color,omitempty"`          // string
-	DataFormula   *string `json:"data_formula,omitempty"`   // string or null
-	Hidden        bool    `json:"hidden,omitempty"`         // boolean
-	LegendFormula *string `json:"legend_formula,omitempty"` // string or null
-	Name          string  `json:"name,omitempty"`           // string
+	Color         string  `json:"color"`          // string
+	DataFormula   *string `json:"data_formula"`   // string or null
+	Hidden        bool    `json:"hidden"`         // boolean
+	LegendFormula *string `json:"legend_formula"` // string or null
+	Name          string  `json:"name"`           // string
 }
 
 // GraphMetricCluster defines a metric cluster
 type GraphMetricCluster struct {
 	AggregateFunc string  `json:"aggregate_function,omitempty"` // string
 	Axis          string  `json:"axis,omitempty"`               // string
+	Color         *string `json:"color,omitempty"`              // string
 	DataFormula   *string `json:"data_formula"`                 // string or null
 	Hidden        bool    `json:"hidden"`                       // boolean
 	LegendFormula *string `json:"legend_formula"`               // string or null
@@ -142,7 +143,7 @@ type Graph struct {
 	Datapoints     []GraphDatapoint            `json:"datapoints,omitempt"`                  // [] len >= 0
 	Description    string                      `json:"description,omitempty"`                // string
 	Guides         []GraphGuide                `json:"guides,omitempty"`                     // [] len >= 0
-	LineStyle      string                      `json:"line_style,omitempty"`                 // string
+	LineStyle      *string                     `json:"line_style"`                           // string or null
 	LogLeftY       *int                        `json:"logarithmic_left_y,string,omitempty"`  // int encoded as string or null BUG doc: number (not string)
 	LogRightY      *int                        `json:"logarithmic_right_y,string,omitempty"` // int encoded as string or null BUG doc: number (not string)
 	MaxLeftY       *float64                    `json:"max_left_y,string,omitempty"`          // float64 encoded as string or null BUG doc: number (not string)
@@ -152,7 +153,7 @@ type Graph struct {
 	MinRightY      *float64                    `json:"min_right_y,string,omitempty"`         // float64 encoded as string or null BUG doc: number (not string)
 	Notes          *string                     `json:"notes,omitempty"`                      // string or null
 	OverlaySets    *map[string]GraphOverlaySet `json:"overlay_sets,omitempty"`               // GroupOverLaySets or null
-	Style          string                      `json:"style,omitempty"`                      // string
+	Style          *string                     `json:"style"`                                // string or null
 	Tags           []string                    `json:"tags,omitempty"`                       // [] len >= 0
 	Title          string                      `json:"title,omitempty"`                      // string
 }

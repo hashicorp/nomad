@@ -25,9 +25,12 @@ func init() {
 
 // Node is a node entry in Consul
 type Node struct {
+	ID              string
 	Node            string
 	Address         string
+	Datacenter      string
 	TaggedAddresses map[string]string
+	Meta            map[string]string
 }
 
 // CatalogNodesQuery is the representation of all registered nodes in Consul.
@@ -81,12 +84,19 @@ func (d *CatalogNodesQuery) Fetch(clients *ClientSet, opts *QueryOptions) (inter
 	nodes := make([]*Node, 0, len(n))
 	for _, node := range n {
 		nodes = append(nodes, &Node{
+			ID:              node.ID,
 			Node:            node.Node,
 			Address:         node.Address,
+			Datacenter:      node.Datacenter,
 			TaggedAddresses: node.TaggedAddresses,
+			Meta:            node.Meta,
 		})
 	}
-	sort.Stable(ByNode(nodes))
+
+	// Sort unless the user explicitly asked for nearness
+	if d.near == "" {
+		sort.Stable(ByNode(nodes))
+	}
 
 	rm := &ResponseMetadata{
 		LastIndex:   qm.LastIndex,

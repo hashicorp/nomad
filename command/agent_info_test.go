@@ -8,12 +8,14 @@ import (
 )
 
 func TestAgentInfoCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &AgentInfoCommand{}
 }
 
 func TestAgentInfoCommand_Run(t *testing.T) {
-	srv, _, url := testServer(t, nil)
-	defer srv.Stop()
+	t.Parallel()
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
@@ -25,6 +27,7 @@ func TestAgentInfoCommand_Run(t *testing.T) {
 }
 
 func TestAgentInfoCommand_Fails(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
 
@@ -32,7 +35,7 @@ func TestAgentInfoCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, cmd.Help()) {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
 		t.Fatalf("expected help output, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()

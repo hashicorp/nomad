@@ -41,6 +41,19 @@ type Template struct {
 
 	// hexMD5 stores the hex version of the MD5
 	hexMD5 string
+
+	// errMissingKey causes the template processing to exit immediately if a map
+	// is indexed with a key that does not exist.
+	errMissingKey bool
+
+	// functionBlacklist are functions not permitted to be executed
+	// when we render this template
+	functionBlacklist []string
+
+	// sandboxPath adds a prefix to any path provided to the `file` function
+	// and causes an error if a relative path tries to traverse outside that
+	// prefix.
+	sandboxPath string
 }
 
 // NewTemplateInput is used as input when creating the template.
@@ -51,9 +64,22 @@ type NewTemplateInput struct {
 	// Contents are the raw template contents.
 	Contents string
 
+	// ErrMissingKey causes the template parser to exit immediately with an error
+	// when a map is indexed with a key that does not exist.
+	ErrMissingKey bool
+
 	// LeftDelim and RightDelim are the template delimiters.
 	LeftDelim  string
 	RightDelim string
+
+	// FunctionBlacklist are functions not permitted to be executed
+	// when we render this template
+	FunctionBlacklist []string
+
+	// SandboxPath adds a prefix to any path provided to the `file` function
+	// and causes an error if a relative path tries to traverse outside that
+	// prefix.
+	SandboxPath string
 }
 
 // NewTemplate creates and parses a new Consul Template template at the given
@@ -77,6 +103,9 @@ func NewTemplate(i *NewTemplateInput) (*Template, error) {
 	t.contents = i.Contents
 	t.leftDelim = i.LeftDelim
 	t.rightDelim = i.RightDelim
+	t.errMissingKey = i.ErrMissingKey
+	t.functionBlacklist = i.FunctionBlacklist
+	t.sandboxPath = i.SandboxPath
 
 	if i.Source != "" {
 		contents, err := ioutil.ReadFile(i.Source)
@@ -144,13 +173,22 @@ func (t *Template) Execute(i *ExecuteInput) (*ExecuteResult, error) {
 
 	tmpl := template.New("")
 	tmpl.Delims(t.leftDelim, t.rightDelim)
+
 	tmpl.Funcs(funcMap(&funcMapInput{
-		t:       tmpl,
-		brain:   i.Brain,
-		env:     i.Env,
-		used:    &used,
-		missing: &missing,
+		t:                 tmpl,
+		brain:             i.Brain,
+		env:               i.Env,
+		used:              &used,
+		missing:           &missing,
+		functionBlacklist: t.functionBlacklist,
+		sandboxPath:       t.sandboxPath,
 	}))
+
+	if t.errMissingKey {
+		tmpl.Option("missingkey=error")
+	} else {
+		tmpl.Option("missingkey=zero")
+	}
 
 	tmpl, err := tmpl.Parse(t.contents)
 	if err != nil {
@@ -172,22 +210,23 @@ func (t *Template) Execute(i *ExecuteInput) (*ExecuteResult, error) {
 
 // funcMapInput is input to the funcMap, which builds the template functions.
 type funcMapInput struct {
-	t       *template.Template
-	brain   *Brain
-	env     []string
-	used    *dep.Set
-	missing *dep.Set
+	t                 *template.Template
+	brain             *Brain
+	env               []string
+	functionBlacklist []string
+	sandboxPath       string
+	used              *dep.Set
+	missing           *dep.Set
 }
 
 // funcMap is the map of template functions to their respective functions.
 func funcMap(i *funcMapInput) template.FuncMap {
 	var scratch Scratch
 
-	return template.FuncMap{
+	r := template.FuncMap{
 		// API functions
 		"datacenters":  datacentersFunc(i.brain, i.used, i.missing),
-		"env":          envFunc(i.brain, i.used, i.missing, i.env),
-		"file":         fileFunc(i.brain, i.used, i.missing),
+		"file":         fileFunc(i.brain, i.used, i.missing, i.sandboxPath),
 		"key":          keyFunc(i.brain, i.used, i.missing),
 		"keyExists":    keyExistsFunc(i.brain, i.used, i.missing),
 		"keyOrDefault": keyWithDefaultFunc(i.brain, i.used, i.missing),
@@ -215,9 +254,11 @@ func funcMap(i *funcMapInput) template.FuncMap {
 		"containsAny":     containsSomeFunc(false, false),
 		"containsNone":    containsSomeFunc(true, false),
 		"containsNotAll":  containsSomeFunc(false, true),
+		"env":             envFunc(i.env),
 		"executeTemplate": executeTemplateFunc(i.t),
 		"explode":         explode,
 		"in":              in,
+		"indent":          indent,
 		"loop":            loop,
 		"join":            join,
 		"trimSpace":       trimSpace,
@@ -245,8 +286,14 @@ func funcMap(i *funcMapInput) template.FuncMap {
 		"subtract": subtract,
 		"multiply": multiply,
 		"divide":   divide,
-
-		// Deprecated functions
-		"key_or_default": keyWithDefaultFunc(i.brain, i.used, i.missing),
+		"modulo":   modulo,
 	}
+
+	for _, bf := range i.functionBlacklist {
+		if _, ok := r[bf]; ok {
+			r[bf] = blacklisted
+		}
+	}
+
+	return r
 }

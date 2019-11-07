@@ -12,7 +12,7 @@ const (
 	MinDynamicPort = 20000
 
 	// MaxDynamicPort is the largest dynamic port generated
-	MaxDynamicPort = 60000
+	MaxDynamicPort = 32000
 
 	// maxRandPortAttempts is the maximum number of attempt
 	// to assign a random port
@@ -70,22 +70,36 @@ func (idx *NetworkIndex) Overcommitted() bool {
 // SetNode is used to setup the available network resources. Returns
 // true if there is a collision
 func (idx *NetworkIndex) SetNode(node *Node) (collide bool) {
+
+	// COMPAT(0.11): Remove in 0.11
+	// Grab the network resources, handling both new and old
+	var networks []*NetworkResource
+	if node.NodeResources != nil && len(node.NodeResources.Networks) != 0 {
+		networks = node.NodeResources.Networks
+	} else if node.Resources != nil {
+		networks = node.Resources.Networks
+	}
+
 	// Add the available CIDR blocks
-	for _, n := range node.Resources.Networks {
+	for _, n := range networks {
 		if n.Device != "" {
 			idx.AvailNetworks = append(idx.AvailNetworks, n)
 			idx.AvailBandwidth[n.Device] = n.MBits
 		}
 	}
 
-	// Add the reserved resources
-	if r := node.Reserved; r != nil {
-		for _, n := range r.Networks {
+	// COMPAT(0.11): Remove in 0.11
+	// Handle reserving ports, handling both new and old
+	if node.ReservedResources != nil && node.ReservedResources.Networks.ReservedHostPorts != "" {
+		collide = idx.AddReservedPortRange(node.ReservedResources.Networks.ReservedHostPorts)
+	} else if node.Reserved != nil {
+		for _, n := range node.Reserved.Networks {
 			if idx.AddReserved(n) {
 				collide = true
 			}
 		}
 	}
+
 	return
 }
 
@@ -93,13 +107,40 @@ func (idx *NetworkIndex) SetNode(node *Node) (collide bool) {
 // true if there is a collision
 func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool) {
 	for _, alloc := range allocs {
-		for _, task := range alloc.TaskResources {
-			if len(task.Networks) == 0 {
-				continue
+		// Do not consider the resource impact of terminal allocations
+		if alloc.TerminalStatus() {
+			continue
+		}
+
+		if alloc.AllocatedResources != nil {
+			// Add network resources that are at the task group level
+			if len(alloc.AllocatedResources.Shared.Networks) > 0 {
+				for _, network := range alloc.AllocatedResources.Shared.Networks {
+					if idx.AddReserved(network) {
+						collide = true
+					}
+				}
 			}
-			n := task.Networks[0]
-			if idx.AddReserved(n) {
-				collide = true
+
+			for _, task := range alloc.AllocatedResources.Tasks {
+				if len(task.Networks) == 0 {
+					continue
+				}
+				n := task.Networks[0]
+				if idx.AddReserved(n) {
+					collide = true
+				}
+			}
+		} else {
+			// COMPAT(0.11): Remove in 0.11
+			for _, task := range alloc.TaskResources {
+				if len(task.Networks) == 0 {
+					continue
+				}
+				n := task.Networks[0]
+				if idx.AddReserved(n) {
+					collide = true
+				}
 			}
 		}
 	}
@@ -139,6 +180,49 @@ func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool) {
 
 	// Add the bandwidth
 	idx.UsedBandwidth[n.Device] += n.MBits
+	return
+}
+
+// AddReservedPortRange marks the ports given as reserved on all network
+// interfaces. The port format is comma delimited, with spans given as n1-n2
+// (80,100-200,205)
+func (idx *NetworkIndex) AddReservedPortRange(ports string) (collide bool) {
+	// Convert the ports into a slice of ints
+	resPorts, err := ParsePortRanges(ports)
+	if err != nil {
+		return
+	}
+
+	// Ensure we create a bitmap for each available network
+	for _, n := range idx.AvailNetworks {
+		used := idx.UsedPorts[n.IP]
+		if used == nil {
+			// Try to get a bitmap from the pool, else create
+			raw := bitmapPool.Get()
+			if raw != nil {
+				used = raw.(Bitmap)
+				used.Clear()
+			} else {
+				used, _ = NewBitmap(maxValidPort)
+			}
+			idx.UsedPorts[n.IP] = used
+		}
+	}
+
+	for _, used := range idx.UsedPorts {
+		for _, port := range resPorts {
+			// Guard against invalid port
+			if port < 0 || port >= maxValidPort {
+				return true
+			}
+			if used.Check(uint(port)) {
+				collide = true
+			} else {
+				used.Set(uint(port))
+			}
+		}
+	}
+
 	return
 }
 
@@ -202,6 +286,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 
 		// Create the offer
 		offer := &NetworkResource{
+			Mode:          ask.Mode,
 			Device:        n.Device,
 			IP:            ipStr,
 			MBits:         ask.MBits,
@@ -228,6 +313,12 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 	BUILD_OFFER:
 		for i, port := range dynPorts {
 			offer.DynamicPorts[i].Value = port
+
+			// This syntax allows you to set the mapped to port to the same port
+			// allocated by the scheduler on the host.
+			if offer.DynamicPorts[i].To == -1 {
+				offer.DynamicPorts[i].To = port
+			}
 		}
 
 		// Stop, we have an offer!

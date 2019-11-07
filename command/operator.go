@@ -18,7 +18,7 @@ Usage: nomad operator <subcommand> [options]
   the Raft subsystem. NOTE: Use this command with extreme caution, as improper
   use could lead to a Nomad outage and even loss of data.
 
-  Run nomad operator <subcommand> with no arguments for help on that subcommand.
+  Please see the individual subcommand help for detailed usage information.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -26,6 +26,8 @@ Usage: nomad operator <subcommand> [options]
 func (f *OperatorCommand) Synopsis() string {
 	return "Provides cluster-level tools for Nomad operators"
 }
+
+func (f *OperatorCommand) Name() string { return "operator" }
 
 func (f *OperatorCommand) Run(args []string) int {
 	return cli.RunResultHelp

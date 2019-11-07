@@ -1,0 +1,19 @@
+.cli-window {
+  background: transparent;
+  color: $white;
+
+  height: 500px;
+  overflow: auto;
+
+  code {
+    height: 100%;
+  }
+
+  .is-light {
+    color: $text;
+  }
+
+  &.is-elastic {
+    height: auto;
+  }
+}

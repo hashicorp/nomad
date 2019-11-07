@@ -1,21 +1,23 @@
 package agent
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
 )
 
 func TestCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &Command{}
 }
 
 func TestCommand_Args(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -45,16 +47,29 @@ func TestCommand_Args(t *testing.T) {
 		},
 		{
 			[]string{"-client", "-alloc-dir="},
-			"Must specify both the state and alloc dir if data-dir is omitted.",
+			"Must specify the state, alloc dir, and plugin dir if data-dir is omitted.",
+		},
+		{
+			[]string{"-client", "-data-dir=" + tmpDir, "-meta=invalid..key=inaccessible-value"},
+			"Invalid Client.Meta key: invalid..key",
+		},
+		{
+			[]string{"-client", "-data-dir=" + tmpDir, "-meta=.invalid=inaccessible-value"},
+			"Invalid Client.Meta key: .invalid",
+		},
+		{
+			[]string{"-client", "-data-dir=" + tmpDir, "-meta=invalid.=inaccessible-value"},
+			"Invalid Client.Meta key: invalid.",
 		},
 	}
 	for _, tc := range tcases {
-		// Make a new command. We pre-emptively close the shutdownCh
+		// Make a new command. We preemptively close the shutdownCh
 		// so that the command exits immediately instead of blocking.
 		ui := new(cli.MockUi)
 		shutdownCh := make(chan struct{})
 		close(shutdownCh)
 		cmd := &Command{
+			Version:    version.GetVersion(),
 			Ui:         ui,
 			ShutdownCh: shutdownCh,
 		}
@@ -75,54 +90,55 @@ func TestCommand_Args(t *testing.T) {
 	}
 }
 
-func TestRetryJoin(t *testing.T) {
-	dir, agent := makeAgent(t, nil)
-	defer os.RemoveAll(dir)
-	defer agent.Shutdown()
+func TestCommand_MetaConfigValidation(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "nomad")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.RemoveAll(tmpDir)
 
-	doneCh := make(chan struct{})
-	shutdownCh := make(chan struct{})
+	tcases := []string{
+		"foo..invalid",
+		".invalid",
+		"invalid.",
+	}
+	for _, tc := range tcases {
+		configFile := filepath.Join(tmpDir, "conf1.hcl")
+		err = ioutil.WriteFile(configFile, []byte(`client{
+			enabled = true
+			meta = {
+				"valid" = "yes"
+				"`+tc+`" = "kaboom!"
+				"nested.var" = "is nested"
+				"deeply.nested.var" = "is deeply nested"
+			}
+    	}`), 0600)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
 
-	defer func() {
+		// Make a new command. We preemptively close the shutdownCh
+		// so that the command exits immediately instead of blocking.
+		ui := new(cli.MockUi)
+		shutdownCh := make(chan struct{})
 		close(shutdownCh)
-		<-doneCh
-	}()
-
-	cmd := &Command{
-		ShutdownCh: shutdownCh,
-		Ui: &cli.BasicUi{
-			Reader:      os.Stdin,
-			Writer:      os.Stdout,
-			ErrorWriter: os.Stderr,
-		},
-	}
-
-	serfAddr := fmt.Sprintf(
-		"%s:%d",
-		agent.config.BindAddr,
-		agent.config.Ports.Serf)
-
-	args := []string{
-		"-dev",
-		"-node", fmt.Sprintf(`"Node %d"`, getPort()),
-		"-retry-join", serfAddr,
-		"-retry-interval", "1s",
-	}
-
-	go func() {
-		if code := cmd.Run(args); code != 0 {
-			t.Logf("bad: %d", code)
+		cmd := &Command{
+			Version:    version.GetVersion(),
+			Ui:         ui,
+			ShutdownCh: shutdownCh,
 		}
-		close(doneCh)
-	}()
 
-	testutil.WaitForResult(func() (bool, error) {
-		mem := agent.server.Members()
-		if len(mem) != 2 {
-			return false, fmt.Errorf("bad :%#v", mem)
+		// To prevent test failures on hosts whose hostname resolves to
+		// a loopback address, we must append a bind address
+		args := []string{"-client", "-data-dir=" + tmpDir, "-config=" + configFile, "-bind=169.254.0.1"}
+		if code := cmd.Run(args); code != 1 {
+			t.Fatalf("args: %v\nexit: %d\n", args, code)
 		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf(err.Error())
-	})
+
+		expect := "Invalid Client.Meta key: " + tc
+		out := ui.ErrorWriter.String()
+		if !strings.Contains(out, expect) {
+			t.Fatalf("expect to find %q\n\n%s", expect, out)
+		}
+	}
 }

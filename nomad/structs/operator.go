@@ -1,6 +1,8 @@
 package structs
 
 import (
+	"time"
+
 	"github.com/hashicorp/raft"
 )
 
@@ -26,9 +28,12 @@ type RaftServer struct {
 	// it's a non-voting server, which will be added in a future release of
 	// Nomad.
 	Voter bool
+
+	// RaftProtocol is the version of the Raft protocol spoken by this server.
+	RaftProtocol string
 }
 
-// RaftConfigrationResponse is returned when querying for the current Raft
+// RaftConfigurationResponse is returned when querying for the current Raft
 // configuration.
 type RaftConfigurationResponse struct {
 	// Servers has the list of servers in the Raft configuration.
@@ -45,5 +50,126 @@ type RaftPeerByAddressRequest struct {
 	Address raft.ServerAddress
 
 	// WriteRequest holds the Region for this request.
+	WriteRequest
+}
+
+// RaftPeerByIDRequest is used by the Operator endpoint to apply a Raft
+// operation on a specific Raft peer by ID.
+type RaftPeerByIDRequest struct {
+	// ID is the peer ID to remove.
+	ID raft.ServerID
+
+	// WriteRequest holds the Region for this request.
+	WriteRequest
+}
+
+// AutopilotSetConfigRequest is used by the Operator endpoint to update the
+// current Autopilot configuration of the cluster.
+type AutopilotSetConfigRequest struct {
+	// Datacenter is the target this request is intended for.
+	Datacenter string
+
+	// Config is the new Autopilot configuration to use.
+	Config AutopilotConfig
+
+	// CAS controls whether to use check-and-set semantics for this request.
+	CAS bool
+
+	// WriteRequest holds the ACL token to go along with this request.
+	WriteRequest
+}
+
+// RequestDatacenter returns the datacenter for a given request.
+func (op *AutopilotSetConfigRequest) RequestDatacenter() string {
+	return op.Datacenter
+}
+
+// AutopilotConfig is the internal config for the Autopilot mechanism.
+type AutopilotConfig struct {
+	// CleanupDeadServers controls whether to remove dead servers when a new
+	// server is added to the Raft peers.
+	CleanupDeadServers bool
+
+	// ServerStabilizationTime is the minimum amount of time a server must be
+	// in a stable, healthy state before it can be added to the cluster. Only
+	// applicable with Raft protocol version 3 or higher.
+	ServerStabilizationTime time.Duration
+
+	// LastContactThreshold is the limit on the amount of time a server can go
+	// without leader contact before being considered unhealthy.
+	LastContactThreshold time.Duration
+
+	// MaxTrailingLogs is the amount of entries in the Raft Log that a server can
+	// be behind before being considered unhealthy.
+	MaxTrailingLogs uint64
+
+	// (Enterprise-only) EnableRedundancyZones specifies whether to enable redundancy zones.
+	EnableRedundancyZones bool
+
+	// (Enterprise-only) DisableUpgradeMigration will disable Autopilot's upgrade migration
+	// strategy of waiting until enough newer-versioned servers have been added to the
+	// cluster before promoting them to voters.
+	DisableUpgradeMigration bool
+
+	// (Enterprise-only) EnableCustomUpgrades specifies whether to enable using custom
+	// upgrade versions when performing migrations.
+	EnableCustomUpgrades bool
+
+	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// SchedulerConfiguration is the config for controlling scheduler behavior
+type SchedulerConfiguration struct {
+	// PreemptionConfig specifies whether to enable eviction of lower
+	// priority jobs to place higher priority jobs.
+	PreemptionConfig PreemptionConfig
+
+	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// SchedulerConfigurationResponse is the response object that wraps SchedulerConfiguration
+type SchedulerConfigurationResponse struct {
+	// SchedulerConfig contains scheduler config options
+	SchedulerConfig *SchedulerConfiguration
+
+	QueryMeta
+}
+
+// SchedulerSetConfigurationResponse is the response object used
+// when updating scheduler configuration
+type SchedulerSetConfigurationResponse struct {
+	// Updated returns whether the config was actually updated
+	// Only set when the request uses CAS
+	Updated bool
+
+	WriteMeta
+}
+
+// PreemptionConfig specifies whether preemption is enabled based on scheduler type
+type PreemptionConfig struct {
+	// SystemSchedulerEnabled specifies if preemption is enabled for system jobs
+	SystemSchedulerEnabled bool
+
+	// BatchSchedulerEnabled specifies if preemption is enabled for batch jobs
+	BatchSchedulerEnabled bool
+
+	// ServiceSchedulerEnabled specifies if preemption is enabled for service jobs
+	ServiceSchedulerEnabled bool
+}
+
+// SchedulerSetConfigRequest is used by the Operator endpoint to update the
+// current Scheduler configuration of the cluster.
+type SchedulerSetConfigRequest struct {
+	// Config is the new Scheduler configuration to use.
+	Config SchedulerConfiguration
+
+	// CAS controls whether to use check-and-set semantics for this request.
+	CAS bool
+
+	// WriteRequest holds the ACL token to go along with this request.
 	WriteRequest
 }

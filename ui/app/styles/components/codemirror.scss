@@ -1,0 +1,131 @@
+$dark-bright: lighten($dark, 15%);
+
+.CodeMirror {
+  height: auto;
+}
+
+.CodeMirror-scroll {
+  min-height: 500px;
+}
+
+.cm-s-hashi,
+.cm-s-hashi-read-only {
+  &.CodeMirror {
+    background-color: $dark-3;
+    color: $grey-blue;
+    border: none;
+    font-family: $family-monospace;
+    -webkit-font-smoothing: auto;
+    line-height: 1.4;
+  }
+
+  .CodeMirror-gutters {
+    background-color: $dark-2;
+    border: none;
+  }
+
+  .CodeMirror-cursor {
+    border-left: solid thin $white-ter;
+  }
+
+  .CodeMirror-linenumber {
+    color: $dark-bright;
+  }
+
+  &.CodeMirror-focused div.CodeMirror-selected {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .CodeMirror-line::selection,
+  .CodeMirror-line > span::selection,
+  .CodeMirror-line > span > span::selection {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  span.cm-comment {
+    color: $grey;
+  }
+
+  span.cm-string,
+  span.cm-string-2 {
+    color: $nomad-green;
+  }
+
+  span.cm-number {
+    color: $serf-red;
+  }
+
+  span.cm-variable {
+    color: $packer-blue;
+  }
+
+  span.cm-variable-2 {
+    color: $packer-blue;
+  }
+
+  span.cm-def {
+    color: $nomad-green;
+  }
+
+  span.cm-operator {
+    color: $grey;
+  }
+  span.cm-keyword {
+    color: $yellow;
+  }
+
+  span.cm-atom {
+    color: $terraform-purple-bright;
+  }
+
+  span.cm-meta {
+    color: $nomad-green;
+  }
+
+  span.cm-tag {
+    color: $nomad-green;
+  }
+
+  span.cm-attribute {
+    color: $consul-pink;
+  }
+
+  span.cm-qualifier {
+    color: $consul-pink;
+  }
+
+  span.cm-property {
+    color: $nomad-green;
+  }
+
+  span.cm-variable-3 {
+    color: $consul-pink;
+  }
+
+  span.cm-builtin {
+    color: $consul-pink;
+  }
+
+  .CodeMirror-activeline-background {
+    background: $black-ter;
+  }
+
+  .CodeMirror-matchingbracket {
+    text-decoration: underline;
+    color: $white;
+  }
+}
+
+.cm-s-auto-height.CodeMirror {
+  height: auto;
+}
+
+.cm-s-hashi-read-only {
+  &.CodeMirror {
+    background-color: $dark-2;
+  }
+
+  .CodeMirror-gutters {
+    background-color: $dark-2;
+  }
+}

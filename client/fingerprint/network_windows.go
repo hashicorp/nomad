@@ -14,7 +14,7 @@ func (f *NetworkFingerprint) linkSpeed(device string) int {
 	outBytes, err := exec.Command(path, command).Output()
 
 	if err != nil {
-		f.logger.Printf("[WARN] fingerprint.network: Error calling %s (%s): %v", path, command, err)
+		f.logger.Warn("failed to detect link speed", "path", path, "command", command, "error", err)
 		return 0
 	}
 
@@ -26,14 +26,14 @@ func (f *NetworkFingerprint) linkSpeed(device string) int {
 func (f *NetworkFingerprint) parseLinkSpeed(commandOutput string) int {
 	args := strings.Split(commandOutput, " ")
 	if len(args) != 2 {
-		f.logger.Printf("[WARN] fingerprint.network: Couldn't split LinkSpeed (%s)", commandOutput)
+		f.logger.Warn("couldn't split LinkSpeed output", "output", commandOutput)
 		return 0
 	}
 
 	unit := strings.Replace(args[1], "\r\n", "", -1)
 	value, err := strconv.Atoi(args[0])
 	if err != nil {
-		f.logger.Printf("[WARN] fingerprint.network: Unable to parse LinkSpeed value (%s)", commandOutput)
+		f.logger.Warn("unable to parse LinkSpeed value", "value", commandOutput)
 		return 0
 	}
 

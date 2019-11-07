@@ -1,5 +1,6 @@
 job "binstore-storagelocker" {
   region      = "fooregion"
+  namespace   = "foonamespace"
   type        = "batch"
   priority    = 52
   all_at_once = true
@@ -15,9 +16,36 @@ job "binstore-storagelocker" {
     value     = "windows"
   }
 
+  affinity {
+    attribute = "${meta.team}"
+    value     = "mobile"
+    operator  = "="
+    weight    = 50
+  }
+
+  spread {
+    attribute = "${meta.rack}"
+    weight    = 100
+
+    target "r1" {
+      percent = 40
+    }
+
+    target "r2" {
+      percent = 60
+    }
+  }
+
   update {
-    stagger      = "60s"
-    max_parallel = 2
+    stagger           = "60s"
+    max_parallel      = 2
+    health_check      = "manual"
+    min_healthy_time  = "10s"
+    healthy_deadline  = "10m"
+    progress_deadline = "10m"
+    auto_revert       = true
+    auto_promote      = true
+    canary            = 1
   }
 
   task "outside" {
@@ -35,6 +63,10 @@ job "binstore-storagelocker" {
   group "binsl" {
     count = 5
 
+    volume "foo" {
+      type = "host"
+    }
+
     restart {
       attempts = 5
       interval = "10m"
@@ -42,15 +74,70 @@ job "binstore-storagelocker" {
       mode     = "delay"
     }
 
+    reschedule {
+      attempts = 5
+      interval = "12h"
+    }
+
     ephemeral_disk {
-        sticky = true
-        size = 150
+      sticky = true
+      size   = 150
+    }
+
+    update {
+      max_parallel      = 3
+      health_check      = "checks"
+      min_healthy_time  = "1s"
+      healthy_deadline  = "1m"
+      progress_deadline = "1m"
+      auto_revert       = false
+      auto_promote      = false
+      canary            = 2
+    }
+
+    migrate {
+      max_parallel     = 2
+      health_check     = "task_states"
+      min_healthy_time = "11s"
+      healthy_deadline = "11m"
+    }
+
+    affinity {
+      attribute = "${node.datacenter}"
+      value     = "dc2"
+      operator  = "="
+      weight    = 100
+    }
+
+    spread {
+      attribute = "${node.datacenter}"
+      weight    = 50
+
+      target "dc1" {
+        percent = 50
+      }
+
+      target "dc2" {
+        percent = 25
+      }
+
+      target "dc3" {
+        percent = 25
+      }
     }
 
     task "binstore" {
       driver = "docker"
       user   = "bob"
       leader = true
+      kind   = "connect-proxy:test"
+
+      affinity {
+        attribute = "${meta.foo}"
+        value     = "a,b,c"
+        operator  = "set_contains"
+        weight    = 25
+      }
 
       config {
         image = "hashicorp/binstore"
@@ -58,6 +145,11 @@ job "binstore-storagelocker" {
         labels {
           FOO = "bar"
         }
+      }
+
+      volume_mount {
+        volume      = "foo"
+        destination = "/mnt/foo"
       }
 
       logs {
@@ -71,15 +163,24 @@ job "binstore-storagelocker" {
       }
 
       service {
-        tags = ["foo", "bar"]
-        port = "http"
+        tags        = ["foo", "bar"]
+        canary_tags = ["canary", "bam"]
+        port        = "http"
 
         check {
-          name     = "check-name"
-          type     = "tcp"
-          interval = "10s"
-          timeout  = "2s"
-          port     = "admin"
+          name         = "check-name"
+          type         = "tcp"
+          interval     = "10s"
+          timeout      = "2s"
+          port         = "admin"
+          grpc_service = "foo.Bar"
+          grpc_use_tls = true
+
+          check_restart {
+            limit           = 3
+            grace           = "10s"
+            ignore_warnings = true
+          }
         }
       }
 
@@ -102,18 +203,35 @@ job "binstore-storagelocker" {
             static = 3
           }
 
-          port "http" {
+          port "http" {}
+
+          port "https" {}
+
+          port "admin" {}
+        }
+
+        device "nvidia/gpu" {
+          count = 10
+
+          constraint {
+            attribute = "${device.attr.memory}"
+            value     = "2GB"
+            operator  = ">"
           }
 
-          port "https" {
-          }
-
-          port "admin" {
+          affinity {
+            attribute = "${device.model}"
+            value     = "1080ti"
+            weight    = 50
           }
         }
+
+        device "intel/gpu" {}
       }
 
       kill_timeout = "22s"
+
+      shutdown_delay = "11s"
 
       artifact {
         source = "http://foo.com/artifact"
@@ -124,8 +242,9 @@ job "binstore-storagelocker" {
       }
 
       artifact {
-        source = "http://bar.com/artifact"
+        source      = "http://bar.com/artifact"
         destination = "test/foo/"
+        mode        = "file"
 
         options {
           checksum = "md5:ff1cc0d3432dad54d607c1505fb7245c"
@@ -137,18 +256,20 @@ job "binstore-storagelocker" {
       }
 
       template {
-        source = "foo"
-        destination = "foo"
-        change_mode = "foo"
+        source        = "foo"
+        destination   = "foo"
+        change_mode   = "foo"
         change_signal = "foo"
-        splay = "10s"
+        splay         = "10s"
+        env           = true
+        vault_grace   = "33s"
       }
 
       template {
-        source = "bar"
-        destination = "bar"
-        perms = "777"
-        left_delimiter = "--"
+        source          = "bar"
+        destination     = "bar"
+        perms           = "777"
+        left_delimiter  = "--"
         right_delimiter = "__"
       }
     }
@@ -163,7 +284,6 @@ job "binstore-storagelocker" {
       resources {
         cpu    = 500
         memory = 128
-        iops   = 30
       }
 
       constraint {
@@ -172,9 +292,9 @@ job "binstore-storagelocker" {
       }
 
       vault {
-        policies = ["foo", "bar"]
-        env = false
-        change_mode = "signal"
+        policies      = ["foo", "bar"]
+        env           = false
+        change_mode   = "signal"
         change_signal = "SIGUSR1"
       }
     }

@@ -1,0 +1,33 @@
+{{#freestyle-usage "diff-viewer-insertions" title="Diff Viewer with Insertions"}}
+  <div class="boxed-section">
+    <div class="boxed-section-body is-dark">
+      {{job-diff diff=insertionsOnly}}
+    </div>
+  </div>
+{{/freestyle-usage}}
+{{#freestyle-usage "diff-viewer-deletion" title="Diff Viewer with Deletions"}}
+  <div class="boxed-section">
+    <div class="boxed-section-body is-dark">
+      {{job-diff diff=deletionsOnly}}
+    </div>
+  </div>
+{{/freestyle-usage}}
+{{#freestyle-usage "diff-viewer-insertions-verbose" title="Diff Viewer with Edits"}}
+  <div class="boxed-section">
+    <div class="boxed-section-body is-dark">
+      {{job-diff diff=editsOnly}}
+    </div>
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-annotation}}
+  Often times a diff will only have a couple lines. Minor tweaks to a job spec result in small diffs.
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "diff-viewer-large" title="Diff Viewer with Many Changes"}}
+  <div class="boxed-section">
+    <div class="boxed-section-body is-dark">
+      {{job-diff diff=largeDiff}}
+    </div>
+  </div>
+{{/freestyle-usage}}

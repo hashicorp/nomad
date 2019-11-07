@@ -1,0 +1,44 @@
+.notification {
+  padding: 0.5rem 1rem;
+  border: 1px solid $grey-blue;
+
+  &.is-pending {
+    background: $grey-blue;
+    color: findColorInvert(darken($grey-blue, 10%));
+    border-color: $grey-blue;
+  }
+
+  &.is-running {
+    background: lighten($blue, 40%);
+    color: $blue;
+    border-color: $blue;
+  }
+
+  &.is-error {
+    background: lighten($danger, 40%);
+    color: $danger;
+    border-color: $danger;
+  }
+
+  &.is-cancelled {
+    background: lighten($orange, 40%);
+    color: $orange;
+    border-color: $orange;
+  }
+
+  @each $name, $pair in $colors {
+    $color: nth($pair, 1);
+
+    &.is-#{$name} {
+      background: lighten($color, 40%);
+      color: $color;
+      border-color: $color;
+    }
+  }
+
+  &.is-light {
+    background: lighten($white-ter, 5%);
+    color: darken($grey-blue, 20%);
+    border-color: $grey-blue;
+  }
+}

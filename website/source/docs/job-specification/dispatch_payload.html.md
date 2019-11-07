@@ -18,7 +18,7 @@ description: |-
   </tr>
 </table>
 
-The `dispatch_payload` stanza is used in conjuction with a [`paramterized`][parameterized] job
+The `dispatch_payload` stanza is used in conjunction with a [`parameterized`][parameterized] job
 that expects a payload. When the job is dispatched with a payload, the payload
 will be made available to any task that has a `dispatch_payload` stanza. The
 payload will be written to the configured file before the task is started. This

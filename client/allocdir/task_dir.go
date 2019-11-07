@@ -3,16 +3,18 @@ package allocdir
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	hclog "github.com/hashicorp/go-hclog"
 )
 
 // TaskDir contains all of the paths relevant to a task. All paths are on the
 // host system so drivers should mount/link into task containers as necessary.
 type TaskDir struct {
+	// AllocDir is the path to the alloc directory on the host
+	AllocDir string
+
 	// Dir is the path to Task directory on the host
 	Dir string
 
@@ -37,16 +39,20 @@ type TaskDir struct {
 	// <task_dir>/secrets/
 	SecretsDir string
 
-	logger *log.Logger
+	logger hclog.Logger
 }
 
 // newTaskDir creates a TaskDir struct with paths set. Call Build() to
 // create paths on disk.
 //
 // Call AllocDir.NewTaskDir to create new TaskDirs
-func newTaskDir(logger *log.Logger, allocDir, taskName string) *TaskDir {
+func newTaskDir(logger hclog.Logger, allocDir, taskName string) *TaskDir {
 	taskDir := filepath.Join(allocDir, taskName)
+
+	logger = logger.Named("task_dir").With("task_name", taskName)
+
 	return &TaskDir{
+		AllocDir:       allocDir,
 		Dir:            taskDir,
 		SharedAllocDir: filepath.Join(allocDir, SharedAllocName),
 		LogDir:         filepath.Join(allocDir, SharedAllocName, LogDirName),
@@ -57,16 +63,24 @@ func newTaskDir(logger *log.Logger, allocDir, taskName string) *TaskDir {
 	}
 }
 
+// Copy a TaskDir. Panics if TaskDir is nil as TaskDirs should never be nil.
+func (t *TaskDir) Copy() *TaskDir {
+	// No nested structures other than the logger which is safe to share,
+	// so just copy the struct
+	tcopy := *t
+	return &tcopy
+}
+
 // Build default directories and permissions in a task directory. chrootCreated
 // allows skipping chroot creation if the caller knows it has already been
 // done.
-func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstructs.FSIsolation) error {
+func (t *TaskDir) Build(createChroot bool, chroot map[string]string) error {
 	if err := os.MkdirAll(t.Dir, 0777); err != nil {
 		return err
 	}
 
 	// Make the task directory have non-root permissions.
-	if err := dropDirPermissions(t.Dir); err != nil {
+	if err := dropDirPermissions(t.Dir, os.ModePerm); err != nil {
 		return err
 	}
 
@@ -75,18 +89,18 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 		return err
 	}
 
-	if err := dropDirPermissions(t.LocalDir); err != nil {
+	if err := dropDirPermissions(t.LocalDir, os.ModePerm); err != nil {
 		return err
 	}
 
 	// Create the directories that should be in every task.
-	for _, dir := range TaskDirs {
+	for dir, perms := range TaskDirs {
 		absdir := filepath.Join(t.Dir, dir)
-		if err := os.MkdirAll(absdir, 0777); err != nil {
+		if err := os.MkdirAll(absdir, perms); err != nil {
 			return err
 		}
 
-		if err := dropDirPermissions(absdir); err != nil {
+		if err := dropDirPermissions(absdir, perms); err != nil {
 			return err
 		}
 	}
@@ -95,7 +109,7 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 	// Image based isolation will bind the shared alloc dir in the driver.
 	// If there's no isolation the task will use the host path to the
 	// shared alloc dir.
-	if fsi == cstructs.FSIsolationChroot {
+	if createChroot {
 		// If the path doesn't exist OR it exists and is empty, link it
 		empty, _ := pathEmpty(t.SharedTaskDir)
 		if !pathExists(t.SharedTaskDir) || empty {
@@ -110,13 +124,13 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 		return err
 	}
 
-	if err := dropDirPermissions(t.SecretsDir); err != nil {
+	if err := dropDirPermissions(t.SecretsDir, os.ModePerm); err != nil {
 		return err
 	}
 
 	// Build chroot if chroot filesystem isolation is going to be used
-	if fsi == cstructs.FSIsolationChroot {
-		if err := t.buildChroot(chrootCreated, chroot); err != nil {
+	if createChroot {
+		if err := t.buildChroot(chroot); err != nil {
 			return err
 		}
 	}
@@ -127,23 +141,9 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 // buildChroot takes a mapping of absolute directory or file paths on the host
 // to their intended, relative location within the task directory. This
 // attempts hardlink and then defaults to copying. If the path exists on the
-// host and can't be embedded an error is returned. If chrootCreated is true
-// skip expensive embedding operations and only ephemeral operations (eg
-// mounting /dev) are done.
-func (t *TaskDir) buildChroot(chrootCreated bool, entries map[string]string) error {
-	if !chrootCreated {
-		// Link/copy chroot entries
-		if err := t.embedDirs(entries); err != nil {
-			return err
-		}
-	}
-
-	// Mount special dirs
-	if err := t.mountSpecialDirs(); err != nil {
-		return err
-	}
-
-	return nil
+// host and can't be embedded an error is returned.
+func (t *TaskDir) buildChroot(entries map[string]string) error {
+	return t.embedDirs(entries)
 }
 
 func (t *TaskDir) embedDirs(entries map[string]string) error {
@@ -163,7 +163,8 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 
 			// Copy the file.
 			taskEntry := filepath.Join(t.Dir, dest)
-			if err := linkOrCopy(source, taskEntry, s.Mode().Perm()); err != nil {
+			uid, gid := getOwner(s)
+			if err := linkOrCopy(source, taskEntry, uid, gid, s.Mode().Perm()); err != nil {
 				return err
 			}
 
@@ -217,7 +218,8 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 				continue
 			}
 
-			if err := linkOrCopy(hostEntry, taskEntry, entry.Mode().Perm()); err != nil {
+			uid, gid := getOwner(entry)
+			if err := linkOrCopy(hostEntry, taskEntry, uid, gid, entry.Mode().Perm()); err != nil {
 				return err
 			}
 		}

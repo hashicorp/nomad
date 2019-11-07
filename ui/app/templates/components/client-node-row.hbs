@@ -1,0 +1,29 @@
+<td data-test-icon class="is-narrow">
+  {{#if node.unhealthyDrivers.length}}
+    <span class="tooltip text-center" role="tooltip" aria-label="Client has unhealthy drivers">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
+  {{/if}}
+</td>
+<td data-test-client-id>{{#link-to "clients.client" node.id class="is-primary"}}{{node.shortId}}{{/link-to}}</td>
+<td data-test-client-name class="is-200px is-truncatable" title="{{node.name}}">{{node.name}}</td>
+<td data-test-client-state>
+  <span class="tooltip" aria-label="{{node.status}} / {{if node.isDraining "draining" "not draining"}} / {{if node.isEligible "eligible" "not eligible"}}">
+    {{#if node.isDraining}}
+      <span class="status-text is-info">draining</span>
+    {{else if (not node.isEligible)}}
+      <span class="status-text is-warning">ineligible</span>
+    {{else}}
+      {{node.status}}
+    {{/if}}
+  </span>
+</td>
+<td data-test-client-address>{{node.httpAddr}}</td>
+<td data-test-client-datacenter>{{node.datacenter}}</td>
+<td data-test-client-allocations>
+  {{#if node.allocations.isPending}}
+    ...
+  {{else}}
+    {{node.allocations.length}}
+  {{/if}}
+</td>

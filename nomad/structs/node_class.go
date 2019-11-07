@@ -27,7 +27,7 @@ func IsUniqueNamespace(key string) bool {
 // ComputeClass computes a derived class for the node based on its attributes.
 // ComputedClass is a unique id that identifies nodes with a common set of
 // attributes and capabilities. Thus, when calculating a node's computed class
-// we avoid including any uniquely identifing fields.
+// we avoid including any uniquely identifying fields.
 func (n *Node) ComputeClass() error {
 	hash, err := hashstructure.Hash(n, nil)
 	if err != nil {
@@ -42,7 +42,7 @@ func (n *Node) ComputeClass() error {
 // included in the computed node class.
 func (n Node) HashInclude(field string, v interface{}) (bool, error) {
 	switch field {
-	case "Datacenter", "Attributes", "Meta", "NodeClass":
+	case "Datacenter", "Attributes", "Meta", "NodeClass", "NodeResources":
 		return true, nil
 	default:
 		return false, nil
@@ -59,6 +59,44 @@ func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
 
 	switch field {
 	case "Meta", "Attributes":
+		return !IsUniqueNamespace(key), nil
+	default:
+		return false, fmt.Errorf("unexpected map field: %v", field)
+	}
+}
+
+// HashInclude is used to blacklist uniquely identifying node fields from being
+// included in the computed node class.
+func (n NodeResources) HashInclude(field string, v interface{}) (bool, error) {
+	switch field {
+	case "Devices":
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+// HashInclude is used to blacklist uniquely identifying node fields from being
+// included in the computed node class.
+func (n NodeDeviceResource) HashInclude(field string, v interface{}) (bool, error) {
+	switch field {
+	case "Vendor", "Type", "Name", "Attributes":
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+// HashIncludeMap is used to blacklist uniquely identifying node map keys from being
+// included in the computed node class.
+func (n NodeDeviceResource) HashIncludeMap(field string, k, v interface{}) (bool, error) {
+	key, ok := k.(string)
+	if !ok {
+		return false, fmt.Errorf("map key %v not a string", k)
+	}
+
+	switch field {
+	case "Attributes":
 		return !IsUniqueNamespace(key), nil
 	default:
 		return false, fmt.Errorf("unexpected map field: %v", field)

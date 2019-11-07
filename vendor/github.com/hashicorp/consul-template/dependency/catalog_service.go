@@ -15,7 +15,7 @@ var (
 	_ Dependency = (*CatalogServiceQuery)(nil)
 
 	// CatalogServiceQueryRe is the regular expression to use.
-	CatalogServiceQueryRe = regexp.MustCompile(`\A` + tagRe + nameRe + dcRe + nearRe + `\z`)
+	CatalogServiceQueryRe = regexp.MustCompile(`\A` + tagRe + serviceNameRe + dcRe + nearRe + `\z`)
 )
 
 func init() {
@@ -24,13 +24,17 @@ func init() {
 
 // CatalogService is a catalog entry in Consul.
 type CatalogService struct {
+	ID              string
 	Node            string
 	Address         string
+	Datacenter      string
 	TaggedAddresses map[string]string
+	NodeMeta        map[string]string
 	ServiceID       string
 	ServiceName     string
 	ServiceAddress  string
 	ServiceTags     ServiceTags
+	ServiceMeta     map[string]string
 	ServicePort     int
 }
 
@@ -96,13 +100,17 @@ func (d *CatalogServiceQuery) Fetch(clients *ClientSet, opts *QueryOptions) (int
 	var list []*CatalogService
 	for _, s := range entries {
 		list = append(list, &CatalogService{
+			ID:              s.ID,
 			Node:            s.Node,
 			Address:         s.Address,
+			Datacenter:      s.Datacenter,
 			TaggedAddresses: s.TaggedAddresses,
+			NodeMeta:        s.NodeMeta,
 			ServiceID:       s.ServiceID,
 			ServiceName:     s.ServiceName,
 			ServiceAddress:  s.ServiceAddress,
 			ServiceTags:     ServiceTags(deepCopyAndSortTags(s.ServiceTags)),
+			ServiceMeta:     s.ServiceMeta,
 			ServicePort:     s.ServicePort,
 		})
 	}

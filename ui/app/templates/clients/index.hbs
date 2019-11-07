@@ -1,0 +1,91 @@
+{{title "Clients"}}
+<section class="section">
+  {{#if isForbidden}}
+    {{partial "partials/forbidden-message"}}
+  {{else}}
+    <div class="toolbar">
+      <div class="toolbar-item">
+        {{#if nodes.length}}
+          {{search-box
+            searchTerm=(mut searchTerm)
+            onChange=(action resetPagination)
+            placeholder="Search clients..."}}
+        {{/if}}
+      </div>
+      <div class="toolbar-item is-right-aligned is-mobile-full-width">
+        <div class="button-bar">
+          {{multi-select-dropdown
+            data-test-class-facet
+            label="Class"
+            options=optionsClass
+            selection=selectionClass
+            onSelect=(action setFacetQueryParam "qpClass")}}
+          {{multi-select-dropdown
+            data-test-state-facet
+            label="State"
+            options=optionsState
+            selection=selectionState
+            onSelect=(action setFacetQueryParam "qpState")}}
+          {{multi-select-dropdown
+            data-test-datacenter-facet
+            label="Datacenter"
+            options=optionsDatacenter
+            selection=selectionDatacenter
+            onSelect=(action setFacetQueryParam "qpDatacenter")}}
+        </div>
+      </div>
+    </div>
+    {{#if sortedNodes}}
+      {{#list-pagination
+        source=sortedNodes
+        size=pageSize
+        page=currentPage as |p|}}
+        {{#list-table
+          source=p.list
+          sortProperty=sortProperty
+          sortDescending=sortDescending
+          class="with-foot" as |t|}}
+          {{#t.head}}
+            <th class="is-narrow"></th>
+            {{#t.sort-by prop="id"}}ID{{/t.sort-by}}
+            {{#t.sort-by class="is-200px is-truncatable" prop="name"}}Name{{/t.sort-by}}
+            {{#t.sort-by prop="status"}}State{{/t.sort-by}}
+            <th>Address</th>
+            {{#t.sort-by prop="datacenter"}}Datacenter{{/t.sort-by}}
+            <th># Allocs</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            {{client-node-row data-test-client-node-row node=row.model onClick=(action "gotoNode" row.model)}}
+          {{/t.body}}
+        {{/list-table}}
+        <div class="table-foot">
+          <nav class="pagination" data-test-pagination>
+            <div class="pagination-numbers">
+              {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedNodes.length}}
+            </div>
+            {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
+            {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+            <ul class="pagination-list"></ul>
+          </nav>
+        </div>
+      {{/list-pagination}}
+    {{else}}
+      <div class="empty-message" data-test-empty-clients-list>
+        {{#if (eq nodes.length 0)}}
+          <h3 class="empty-message-headline" data-test-empty-clients-list-headline>No Clients</h3>
+          <p class="empty-message-body">
+            The cluster currently has no client nodes.
+          </p>
+        {{else if (eq filteredNodes.length 0)}}
+          <h3 data-test-empty-clients-list-headline class="empty-message-headline">No Matches</h3>
+          <p class="empty-message-body">
+            No clients match your current filter selection.
+          </p>
+        {{else if searchTerm}}
+          <h3 class="empty-message-headline" data-test-empty-clients-list-headline>No Matches</h3>
+          <p class="empty-message-body">No clients match the term <strong>{{searchTerm}}</strong></p>
+        {{/if}}
+      </div>
+    {{/if}}
+  {{/if}}
+</section>

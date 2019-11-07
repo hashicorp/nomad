@@ -1,10 +1,51 @@
 package structs
 
 import (
-	crand "crypto/rand"
+	"crypto/subtle"
+	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"math"
+	"sort"
+	"strconv"
+	"strings"
+
+	multierror "github.com/hashicorp/go-multierror"
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/nomad/acl"
+	"golang.org/x/crypto/blake2b"
 )
+
+// MergeMultierrorWarnings takes job warnings and canonicalize warnings and
+// merges them into a returnable string. Both the errors may be nil.
+func MergeMultierrorWarnings(warnings ...error) string {
+	var warningMsg multierror.Error
+	for _, warn := range warnings {
+		if warn != nil {
+			multierror.Append(&warningMsg, warn)
+		}
+	}
+
+	if len(warningMsg.Errors) == 0 {
+		return ""
+	}
+
+	// Set the formatter
+	warningMsg.ErrorFormat = warningsFormatter
+	return warningMsg.Error()
+}
+
+// warningsFormatter is used to format job warnings
+func warningsFormatter(es []error) string {
+	points := make([]string, len(es))
+	for i, err := range es {
+		points[i] = fmt.Sprintf("* %s", err)
+	}
+
+	return fmt.Sprintf(
+		"%d warning(s):\n\n%s",
+		len(es), strings.Join(points, "\n"))
+}
 
 // RemoveAllocs is used to remove any allocs with the given IDs
 // from the list of allocations
@@ -56,46 +97,28 @@ func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allo
 // AllocsFit checks if a given set of allocations will fit on a node.
 // The netIdx can optionally be provided if its already been computed.
 // If the netIdx is provided, it is assumed that the client has already
-// ensured there are no collisions.
-func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, string, *Resources, error) {
+// ensured there are no collisions. If checkDevices is set to true, we check if
+// there is a device oversubscription.
+func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevices bool) (bool, string, *ComparableResources, error) {
 	// Compute the utilization from zero
-	used := new(Resources)
+	used := new(ComparableResources)
 
 	// Add the reserved resources of the node
-	if node.Reserved != nil {
-		if err := used.Add(node.Reserved); err != nil {
-			return false, "", nil, err
-		}
-	}
+	used.Add(node.ComparableReservedResources())
 
 	// For each alloc, add the resources
 	for _, alloc := range allocs {
-		if alloc.Resources != nil {
-			if err := used.Add(alloc.Resources); err != nil {
-				return false, "", nil, err
-			}
-		} else if alloc.TaskResources != nil {
-
-			// Adding the shared resource asks for the allocation to the used
-			// resources
-			if err := used.Add(alloc.SharedResources); err != nil {
-				return false, "", nil, err
-			}
-			// Allocations within the plan have the combined resources stripped
-			// to save space, so sum up the individual task resources.
-			for _, taskResource := range alloc.TaskResources {
-				if err := used.Add(taskResource); err != nil {
-					return false, "", nil, err
-				}
-			}
-		} else {
-			return false, "", nil, fmt.Errorf("allocation %q has no resources set", alloc.ID)
+		// Do not consider the resource impact of terminal allocations
+		if alloc.TerminalStatus() {
+			continue
 		}
+
+		used.Add(alloc.ComparableResources())
 	}
 
 	// Check that the node resources are a super set of those
 	// that are being allocated
-	if superset, dimension := node.Resources.Superset(used); !superset {
+	if superset, dimension := node.ComparableResources().Superset(used); !superset {
 		return false, dimension, used, nil
 	}
 
@@ -113,6 +136,14 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, st
 		return false, "bandwidth exceeded", used, nil
 	}
 
+	// Check devices
+	if checkDevices {
+		accounter := NewDeviceAccounter(node)
+		if accounter.AddAllocs(allocs) {
+			return false, "device oversubscribed", used, nil
+		}
+	}
+
 	// Allocations fit!
 	return true, "", used, nil
 }
@@ -120,20 +151,22 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, st
 // ScoreFit is used to score the fit based on the Google work published here:
 // http://www.columbia.edu/~cs2035/courses/ieor4405.S13/datacenter_scheduling.ppt
 // This is equivalent to their BestFit v3
-func ScoreFit(node *Node, util *Resources) float64 {
+func ScoreFit(node *Node, util *ComparableResources) float64 {
+	// COMPAT(0.11): Remove in 0.11
+	reserved := node.ComparableReservedResources()
+	res := node.ComparableResources()
+
 	// Determine the node availability
-	nodeCpu := float64(node.Resources.CPU)
-	if node.Reserved != nil {
-		nodeCpu -= float64(node.Reserved.CPU)
-	}
-	nodeMem := float64(node.Resources.MemoryMB)
-	if node.Reserved != nil {
-		nodeMem -= float64(node.Reserved.MemoryMB)
+	nodeCpu := float64(res.Flattened.Cpu.CpuShares)
+	nodeMem := float64(res.Flattened.Memory.MemoryMB)
+	if reserved != nil {
+		nodeCpu -= float64(reserved.Flattened.Cpu.CpuShares)
+		nodeMem -= float64(reserved.Flattened.Memory.MemoryMB)
 	}
 
 	// Compute the free percentage
-	freePctCpu := 1 - (float64(util.CPU) / nodeCpu)
-	freePctRam := 1 - (float64(util.MemoryMB) / nodeMem)
+	freePctCpu := 1 - (float64(util.Flattened.Cpu.CpuShares) / nodeCpu)
+	freePctRam := 1 - (float64(util.Flattened.Memory.MemoryMB) / nodeMem)
 
 	// Total will be "maximized" the smaller the value is.
 	// At 100% utilization, the total is 2, while at 0% util it is 20.
@@ -154,21 +187,6 @@ func ScoreFit(node *Node, util *Resources) float64 {
 	return score
 }
 
-// GenerateUUID is used to generate a random UUID
-func GenerateUUID() string {
-	buf := make([]byte, 16)
-	if _, err := crand.Read(buf); err != nil {
-		panic(fmt.Errorf("failed to read random bytes: %v", err))
-	}
-
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%12x",
-		buf[0:4],
-		buf[4:6],
-		buf[6:8],
-		buf[8:10],
-		buf[10:16])
-}
-
 func CopySliceConstraints(s []*Constraint) []*Constraint {
 	l := len(s)
 	if l == 0 {
@@ -176,6 +194,58 @@ func CopySliceConstraints(s []*Constraint) []*Constraint {
 	}
 
 	c := make([]*Constraint, l)
+	for i, v := range s {
+		c[i] = v.Copy()
+	}
+	return c
+}
+
+func CopySliceAffinities(s []*Affinity) []*Affinity {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*Affinity, l)
+	for i, v := range s {
+		c[i] = v.Copy()
+	}
+	return c
+}
+
+func CopySliceSpreads(s []*Spread) []*Spread {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*Spread, l)
+	for i, v := range s {
+		c[i] = v.Copy()
+	}
+	return c
+}
+
+func CopySliceSpreadTarget(s []*SpreadTarget) []*SpreadTarget {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*SpreadTarget, l)
+	for i, v := range s {
+		c[i] = v.Copy()
+	}
+	return c
+}
+
+func CopySliceNodeScoreMeta(s []*NodeScoreMeta) []*NodeScoreMeta {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*NodeScoreMeta, l)
 	for i, v := range s {
 		c[i] = v.Copy()
 	}
@@ -200,4 +270,162 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 		flattened = append(flattened, p)
 	}
 	return flattened
+}
+
+// DenormalizeAllocationJobs is used to attach a job to all allocations that are
+// non-terminal and do not have a job already. This is useful in cases where the
+// job is normalized.
+func DenormalizeAllocationJobs(job *Job, allocs []*Allocation) {
+	if job != nil {
+		for _, alloc := range allocs {
+			if alloc.Job == nil && !alloc.TerminalStatus() {
+				alloc.Job = job
+			}
+		}
+	}
+}
+
+// AllocName returns the name of the allocation given the input.
+func AllocName(job, group string, idx uint) string {
+	return fmt.Sprintf("%s.%s[%d]", job, group, idx)
+}
+
+// ACLPolicyListHash returns a consistent hash for a set of policies.
+func ACLPolicyListHash(policies []*ACLPolicy) string {
+	cacheKeyHash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+	for _, policy := range policies {
+		cacheKeyHash.Write([]byte(policy.Name))
+		binary.Write(cacheKeyHash, binary.BigEndian, policy.ModifyIndex)
+	}
+	cacheKey := string(cacheKeyHash.Sum(nil))
+	return cacheKey
+}
+
+// CompileACLObject compiles a set of ACL policies into an ACL object with a cache
+func CompileACLObject(cache *lru.TwoQueueCache, policies []*ACLPolicy) (*acl.ACL, error) {
+	// Sort the policies to ensure consistent ordering
+	sort.Slice(policies, func(i, j int) bool {
+		return policies[i].Name < policies[j].Name
+	})
+
+	// Determine the cache key
+	cacheKey := ACLPolicyListHash(policies)
+	aclRaw, ok := cache.Get(cacheKey)
+	if ok {
+		return aclRaw.(*acl.ACL), nil
+	}
+
+	// Parse the policies
+	parsed := make([]*acl.Policy, 0, len(policies))
+	for _, policy := range policies {
+		p, err := acl.Parse(policy.Rules)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse %q: %v", policy.Name, err)
+		}
+		parsed = append(parsed, p)
+	}
+
+	// Create the ACL object
+	aclObj, err := acl.NewACL(false, parsed)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct ACL: %v", err)
+	}
+
+	// Update the cache
+	cache.Add(cacheKey, aclObj)
+	return aclObj, nil
+}
+
+// GenerateMigrateToken will create a token for a client to access an
+// authenticated volume of another client to migrate data for sticky volumes.
+func GenerateMigrateToken(allocID, nodeSecretID string) (string, error) {
+	h, err := blake2b.New512([]byte(nodeSecretID))
+	if err != nil {
+		return "", err
+	}
+	h.Write([]byte(allocID))
+	return base64.URLEncoding.EncodeToString(h.Sum(nil)), nil
+}
+
+// CompareMigrateToken returns true if two migration tokens can be computed and
+// are equal.
+func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
+	h, err := blake2b.New512([]byte(nodeSecretID))
+	if err != nil {
+		return false
+	}
+	h.Write([]byte(allocID))
+
+	otherBytes, err := base64.URLEncoding.DecodeString(otherMigrateToken)
+	if err != nil {
+		return false
+	}
+	return subtle.ConstantTimeCompare(h.Sum(nil), otherBytes) == 1
+}
+
+// ParsePortRanges parses the passed port range string and returns a list of the
+// ports. The specification is a comma separated list of either port numbers or
+// port ranges. A port number is a single integer and a port range is two
+// integers separated by a hyphen. As an example the following spec would
+// convert to: ParsePortRanges("10,12-14,16") -> []uint64{10, 12, 13, 14, 16}
+func ParsePortRanges(spec string) ([]uint64, error) {
+	parts := strings.Split(spec, ",")
+
+	// Hot path the empty case
+	if len(parts) == 1 && parts[0] == "" {
+		return nil, nil
+	}
+
+	ports := make(map[uint64]struct{})
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		rangeParts := strings.Split(part, "-")
+		l := len(rangeParts)
+		switch l {
+		case 1:
+			if val := rangeParts[0]; val == "" {
+				return nil, fmt.Errorf("can't specify empty port")
+			} else {
+				port, err := strconv.ParseUint(val, 10, 0)
+				if err != nil {
+					return nil, err
+				}
+				ports[port] = struct{}{}
+			}
+		case 2:
+			// We are parsing a range
+			start, err := strconv.ParseUint(rangeParts[0], 10, 0)
+			if err != nil {
+				return nil, err
+			}
+
+			end, err := strconv.ParseUint(rangeParts[1], 10, 0)
+			if err != nil {
+				return nil, err
+			}
+
+			if end < start {
+				return nil, fmt.Errorf("invalid range: starting value (%v) less than ending (%v) value", end, start)
+			}
+
+			for i := start; i <= end; i++ {
+				ports[i] = struct{}{}
+			}
+		default:
+			return nil, fmt.Errorf("can only parse single port numbers or port ranges (ex. 80,100-120,150)")
+		}
+	}
+
+	var results []uint64
+	for port := range ports {
+		results = append(results, port)
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i] < results[j]
+	})
+	return results, nil
 }

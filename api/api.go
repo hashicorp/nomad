@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,15 +15,26 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-cleanhttp"
+	"github.com/gorilla/websocket"
+	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	rootcerts "github.com/hashicorp/go-rootcerts"
 )
 
-// QueryOptions are used to parameterize a query
+var (
+	// ClientConnTimeout is the timeout applied when attempting to contact a
+	// client directly before switching to a connection through the Nomad
+	// server.
+	ClientConnTimeout = 1 * time.Second
+)
+
+// QueryOptions are used to parametrize a query
 type QueryOptions struct {
 	// Providing a datacenter overwrites the region provided
 	// by the Config
 	Region string
+
+	// Namespace is the target namespace for the query.
+	Namespace string
 
 	// AllowStale allows any Nomad server (non-leader) to service
 	// a read. This allows for lower latency and higher throughput
@@ -41,13 +53,22 @@ type QueryOptions struct {
 
 	// Set HTTP parameters on the query.
 	Params map[string]string
+
+	// AuthToken is the secret ID of an ACL token
+	AuthToken string
 }
 
-// WriteOptions are used to parameterize a write
+// WriteOptions are used to parametrize a write
 type WriteOptions struct {
 	// Providing a datacenter overwrites the region provided
 	// by the Config
 	Region string
+
+	// Namespace is the target namespace for the write.
+	Namespace string
+
+	// AuthToken is the secret ID of an ACL token
+	AuthToken string
 }
 
 // QueryMeta is used to return meta data about a query
@@ -94,8 +115,16 @@ type Config struct {
 	// Region to use. If not provided, the default agent region is used.
 	Region string
 
-	// HttpClient is the client to use. Default will be
-	// used if not provided.
+	// SecretID to use. This can be overwritten per request.
+	SecretID string
+
+	// Namespace to use. If not provided the default namespace is used.
+	Namespace string
+
+	// HttpClient is the client to use. Default will be used if not provided.
+	//
+	// If set, it expected to be configured for tls already, and TLSConfig is ignored.
+	// You may use ConfigureTLS() function to aid with initialization.
 	HttpClient *http.Client
 
 	// HttpAuth is the auth info to use for http access.
@@ -106,23 +135,33 @@ type Config struct {
 	WaitTime time.Duration
 
 	// TLSConfig provides the various TLS related configurations for the http
-	// client
+	// client.
+	//
+	// TLSConfig is ignored if HttpClient is set.
 	TLSConfig *TLSConfig
 }
 
-// CopyConfig copies the configuration with a new address
-func (c *Config) CopyConfig(address string, tlsEnabled bool) *Config {
+// ClientConfig copies the configuration with a new client address, region, and
+// whether the client has TLS enabled.
+func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 	scheme := "http"
 	if tlsEnabled {
 		scheme = "https"
 	}
 	config := &Config{
 		Address:    fmt.Sprintf("%s://%s", scheme, address),
-		Region:     c.Region,
+		Region:     region,
+		Namespace:  c.Namespace,
 		HttpClient: c.HttpClient,
+		SecretID:   c.SecretID,
 		HttpAuth:   c.HttpAuth,
 		WaitTime:   c.WaitTime,
-		TLSConfig:  c.TLSConfig,
+		TLSConfig:  c.TLSConfig.Copy(),
+	}
+
+	// Update the tls server name for connecting to a client
+	if tlsEnabled && config.TLSConfig != nil {
+		config.TLSConfig.TLSServerName = fmt.Sprintf("client.%s.nomad", region)
 	}
 
 	return config
@@ -153,21 +192,41 @@ type TLSConfig struct {
 	Insecure bool
 }
 
-// DefaultConfig returns a default configuration for the client
-func DefaultConfig() *Config {
-	config := &Config{
-		Address:    "http://127.0.0.1:4646",
-		HttpClient: cleanhttp.DefaultClient(),
-		TLSConfig:  &TLSConfig{},
+func (t *TLSConfig) Copy() *TLSConfig {
+	if t == nil {
+		return nil
 	}
-	transport := config.HttpClient.Transport.(*http.Transport)
+
+	nt := new(TLSConfig)
+	*nt = *t
+	return nt
+}
+
+func defaultHttpClient() *http.Client {
+	httpClient := cleanhttp.DefaultClient()
+	transport := httpClient.Transport.(*http.Transport)
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.TLSClientConfig = &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}
 
+	return httpClient
+}
+
+// DefaultConfig returns a default configuration for the client
+func DefaultConfig() *Config {
+	config := &Config{
+		Address:   "http://127.0.0.1:4646",
+		TLSConfig: &TLSConfig{},
+	}
 	if addr := os.Getenv("NOMAD_ADDR"); addr != "" {
 		config.Address = addr
+	}
+	if v := os.Getenv("NOMAD_REGION"); v != "" {
+		config.Region = v
+	}
+	if v := os.Getenv("NOMAD_NAMESPACE"); v != "" {
+		config.Namespace = v
 	}
 	if auth := os.Getenv("NOMAD_HTTP_AUTH"); auth != "" {
 		var username, password string
@@ -203,47 +262,103 @@ func DefaultConfig() *Config {
 			config.TLSConfig.Insecure = insecure
 		}
 	}
-
+	if v := os.Getenv("NOMAD_TOKEN"); v != "" {
+		config.SecretID = v
+	}
 	return config
 }
 
+// cloneWithTimeout returns a cloned httpClient with set timeout if positive;
+// otherwise, returns the same client
+func cloneWithTimeout(httpClient *http.Client, t time.Duration) (*http.Client, error) {
+	if httpClient == nil {
+		return nil, fmt.Errorf("nil HTTP client")
+	} else if httpClient.Transport == nil {
+		return nil, fmt.Errorf("nil HTTP client transport")
+	}
+
+	if t.Nanoseconds() < 0 {
+		return httpClient, nil
+	}
+
+	tr, ok := httpClient.Transport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf("unexpected HTTP transport: %T", httpClient.Transport)
+	}
+
+	// copy all public fields, to avoid copying transient state and locks
+	ntr := &http.Transport{
+		Proxy:                  tr.Proxy,
+		DialContext:            tr.DialContext,
+		Dial:                   tr.Dial,
+		DialTLS:                tr.DialTLS,
+		TLSClientConfig:        tr.TLSClientConfig,
+		TLSHandshakeTimeout:    tr.TLSHandshakeTimeout,
+		DisableKeepAlives:      tr.DisableKeepAlives,
+		DisableCompression:     tr.DisableCompression,
+		MaxIdleConns:           tr.MaxIdleConns,
+		MaxIdleConnsPerHost:    tr.MaxIdleConnsPerHost,
+		MaxConnsPerHost:        tr.MaxConnsPerHost,
+		IdleConnTimeout:        tr.IdleConnTimeout,
+		ResponseHeaderTimeout:  tr.ResponseHeaderTimeout,
+		ExpectContinueTimeout:  tr.ExpectContinueTimeout,
+		TLSNextProto:           tr.TLSNextProto,
+		ProxyConnectHeader:     tr.ProxyConnectHeader,
+		MaxResponseHeaderBytes: tr.MaxResponseHeaderBytes,
+	}
+
+	// apply timeout
+	ntr.DialContext = (&net.Dialer{
+		Timeout:   t,
+		KeepAlive: 30 * time.Second,
+	}).DialContext
+
+	// clone http client with new transport
+	nc := *httpClient
+	nc.Transport = ntr
+	return &nc, nil
+}
+
 // ConfigureTLS applies a set of TLS configurations to the the HTTP client.
-func (c *Config) ConfigureTLS() error {
-	if c.HttpClient == nil {
+func ConfigureTLS(httpClient *http.Client, tlsConfig *TLSConfig) error {
+	if tlsConfig == nil {
+		return nil
+	}
+	if httpClient == nil {
 		return fmt.Errorf("config HTTP Client must be set")
 	}
 
 	var clientCert tls.Certificate
 	foundClientCert := false
-	if c.TLSConfig.ClientCert != "" || c.TLSConfig.ClientKey != "" {
-		if c.TLSConfig.ClientCert != "" && c.TLSConfig.ClientKey != "" {
+	if tlsConfig.ClientCert != "" || tlsConfig.ClientKey != "" {
+		if tlsConfig.ClientCert != "" && tlsConfig.ClientKey != "" {
 			var err error
-			clientCert, err = tls.LoadX509KeyPair(c.TLSConfig.ClientCert, c.TLSConfig.ClientKey)
+			clientCert, err = tls.LoadX509KeyPair(tlsConfig.ClientCert, tlsConfig.ClientKey)
 			if err != nil {
 				return err
 			}
 			foundClientCert = true
-		} else if c.TLSConfig.ClientCert != "" || c.TLSConfig.ClientKey != "" {
+		} else {
 			return fmt.Errorf("Both client cert and client key must be provided")
 		}
 	}
 
-	clientTLSConfig := c.HttpClient.Transport.(*http.Transport).TLSClientConfig
+	clientTLSConfig := httpClient.Transport.(*http.Transport).TLSClientConfig
 	rootConfig := &rootcerts.Config{
-		CAFile: c.TLSConfig.CACert,
-		CAPath: c.TLSConfig.CAPath,
+		CAFile: tlsConfig.CACert,
+		CAPath: tlsConfig.CAPath,
 	}
 	if err := rootcerts.ConfigureTLS(clientTLSConfig, rootConfig); err != nil {
 		return err
 	}
 
-	clientTLSConfig.InsecureSkipVerify = c.TLSConfig.Insecure
+	clientTLSConfig.InsecureSkipVerify = tlsConfig.Insecure
 
 	if foundClientCert {
 		clientTLSConfig.Certificates = []tls.Certificate{clientCert}
 	}
-	if c.TLSConfig.TLSServerName != "" {
-		clientTLSConfig.ServerName = c.TLSConfig.TLSServerName
+	if tlsConfig.TLSServerName != "" {
+		clientTLSConfig.ServerName = tlsConfig.TLSServerName
 	}
 
 	return nil
@@ -251,7 +366,8 @@ func (c *Config) ConfigureTLS() error {
 
 // Client provides a client to the Nomad API
 type Client struct {
-	config Config
+	httpClient *http.Client
+	config     Config
 }
 
 // NewClient returns a new client
@@ -265,24 +381,99 @@ func NewClient(config *Config) (*Client, error) {
 		return nil, fmt.Errorf("invalid address '%s': %v", config.Address, err)
 	}
 
-	if config.HttpClient == nil {
-		config.HttpClient = defConfig.HttpClient
-	}
-
-	// Configure the TLS cofigurations
-	if err := config.ConfigureTLS(); err != nil {
-		return nil, err
+	httpClient := config.HttpClient
+	if httpClient == nil {
+		httpClient = defaultHttpClient()
+		if err := ConfigureTLS(httpClient, config.TLSConfig); err != nil {
+			return nil, err
+		}
 	}
 
 	client := &Client{
-		config: *config,
+		config:     *config,
+		httpClient: httpClient,
 	}
 	return client, nil
+}
+
+// Address return the address of the Nomad agent
+func (c *Client) Address() string {
+	return c.config.Address
 }
 
 // SetRegion sets the region to forward API requests to.
 func (c *Client) SetRegion(region string) {
 	c.config.Region = region
+}
+
+// SetNamespace sets the namespace to forward API requests to.
+func (c *Client) SetNamespace(namespace string) {
+	c.config.Namespace = namespace
+}
+
+// GetNodeClient returns a new Client that will dial the specified node. If the
+// QueryOptions is set, its region will be used.
+func (c *Client) GetNodeClient(nodeID string, q *QueryOptions) (*Client, error) {
+	return c.getNodeClientImpl(nodeID, -1, q, c.Nodes().Info)
+}
+
+// GetNodeClientWithTimeout returns a new Client that will dial the specified
+// node using the specified timeout. If the QueryOptions is set, its region will
+// be used.
+func (c *Client) GetNodeClientWithTimeout(
+	nodeID string, timeout time.Duration, q *QueryOptions) (*Client, error) {
+	return c.getNodeClientImpl(nodeID, timeout, q, c.Nodes().Info)
+}
+
+// nodeLookup is the definition of a function used to lookup a node. This is
+// largely used to mock the lookup in tests.
+type nodeLookup func(nodeID string, q *QueryOptions) (*Node, *QueryMeta, error)
+
+// getNodeClientImpl is the implementation of creating a API client for
+// contacting a node. It takes a function to lookup the node such that it can be
+// mocked during tests.
+func (c *Client) getNodeClientImpl(nodeID string, timeout time.Duration, q *QueryOptions, lookup nodeLookup) (*Client, error) {
+	node, _, err := lookup(nodeID, q)
+	if err != nil {
+		return nil, err
+	}
+	if node.Status == "down" {
+		return nil, NodeDownErr
+	}
+	if node.HTTPAddr == "" {
+		return nil, fmt.Errorf("http addr of node %q (%s) is not advertised", node.Name, nodeID)
+	}
+
+	var region string
+	switch {
+	case q != nil && q.Region != "":
+		// Prefer the region set in the query parameter
+		region = q.Region
+	case c.config.Region != "":
+		// If the client is configured for a particular region use that
+		region = c.config.Region
+	default:
+		// No region information is given so use GlobalRegion as the default.
+		region = GlobalRegion
+	}
+
+	// Get an API client for the node
+	conf := c.config.ClientConfig(region, node.HTTPAddr, node.TLSEnabled)
+
+	// set timeout - preserve old behavior where errors are ignored and use untimed one
+	httpClient, err := cloneWithTimeout(c.httpClient, timeout)
+	// on error, fallback to using current http client
+	if err != nil {
+		httpClient = c.httpClient
+	}
+	conf.HttpClient = httpClient
+
+	return NewClient(conf)
+}
+
+// SetSecretID sets the ACL token secret for API requests.
+func (c *Client) SetSecretID(secretID string) {
+	c.config.SecretID = secretID
 }
 
 // request is used to help build up a request
@@ -291,6 +482,7 @@ type request struct {
 	method string
 	url    *url.URL
 	params url.Values
+	token  string
 	body   io.Reader
 	obj    interface{}
 }
@@ -303,6 +495,12 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	}
 	if q.Region != "" {
 		r.params.Set("region", q.Region)
+	}
+	if q.Namespace != "" {
+		r.params.Set("namespace", q.Namespace)
+	}
+	if q.AuthToken != "" {
+		r.token = q.AuthToken
 	}
 	if q.AllowStale {
 		r.params.Set("stale", "")
@@ -334,6 +532,12 @@ func (r *request) setWriteOptions(q *WriteOptions) {
 	}
 	if q.Region != "" {
 		r.params.Set("region", q.Region)
+	}
+	if q.Namespace != "" {
+		r.params.Set("namespace", q.Namespace)
+	}
+	if q.AuthToken != "" {
+		r.token = q.AuthToken
 	}
 }
 
@@ -367,6 +571,10 @@ func (r *request) toHTTP() (*http.Request, error) {
 	}
 
 	req.Header.Add("Accept-Encoding", "gzip")
+	if r.token != "" {
+		req.Header.Set("X-Nomad-Token", r.token)
+	}
+
 	req.URL.Host = r.url.Host
 	req.URL.Scheme = r.url.Scheme
 	req.Host = r.url.Host
@@ -395,8 +603,14 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 	if c.config.Region != "" {
 		r.params.Set("region", c.config.Region)
 	}
+	if c.config.Namespace != "" {
+		r.params.Set("namespace", c.config.Namespace)
+	}
 	if c.config.WaitTime != 0 {
 		r.params.Set("wait", durToMsec(r.config.WaitTime))
+	}
+	if c.config.SecretID != "" {
+		r.token = r.config.SecretID
 	}
 
 	// Add in the query parameters, if any
@@ -436,7 +650,7 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 		return 0, nil, err
 	}
 	start := time.Now()
-	resp, err := c.config.HttpClient.Do(req)
+	resp, err := c.httpClient.Do(req)
 	diff := time.Now().Sub(start)
 
 	// If the response is compressed, we swap the body's reader.
@@ -480,7 +694,64 @@ func (c *Client) rawQuery(endpoint string, q *QueryOptions) (io.ReadCloser, erro
 	return resp.Body, nil
 }
 
-// Query is used to do a GET request against an endpoint
+// websocket makes a websocket request to the specific endpoint
+func (c *Client) websocket(endpoint string, q *QueryOptions) (*websocket.Conn, *http.Response, error) {
+
+	transport, ok := c.httpClient.Transport.(*http.Transport)
+	if !ok {
+		return nil, nil, fmt.Errorf("unsupported transport")
+	}
+	dialer := websocket.Dialer{
+		ReadBufferSize:   4096,
+		WriteBufferSize:  4096,
+		HandshakeTimeout: c.httpClient.Timeout,
+
+		// values to inherit from http client configuration
+		NetDial:         transport.Dial,
+		NetDialContext:  transport.DialContext,
+		Proxy:           transport.Proxy,
+		TLSClientConfig: transport.TLSClientConfig,
+	}
+
+	// build request object for header and parameters
+	r, err := c.newRequest("GET", endpoint)
+	if err != nil {
+		return nil, nil, err
+	}
+	r.setQueryOptions(q)
+
+	rhttp, err := r.toHTTP()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// convert scheme
+	wsScheme := ""
+	switch rhttp.URL.Scheme {
+	case "http":
+		wsScheme = "ws"
+	case "https":
+		wsScheme = "wss"
+	default:
+		return nil, nil, fmt.Errorf("unsupported scheme: %v", rhttp.URL.Scheme)
+	}
+	rhttp.URL.Scheme = wsScheme
+
+	conn, resp, err := dialer.Dial(rhttp.URL.String(), rhttp.Header)
+
+	// check resp status code, as it's more informative than handshake error we get from ws library
+	if resp != nil && resp.StatusCode != 101 {
+		var buf bytes.Buffer
+		io.Copy(&buf, resp.Body)
+		resp.Body.Close()
+
+		return nil, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, buf.Bytes())
+	}
+
+	return conn, resp, err
+}
+
+// query is used to do a GET request against an endpoint
 // and deserialize the response into an interface using
 // standard Nomad conventions.
 func (c *Client) query(endpoint string, out interface{}, q *QueryOptions) (*QueryMeta, error) {
@@ -489,6 +760,32 @@ func (c *Client) query(endpoint string, out interface{}, q *QueryOptions) (*Quer
 		return nil, err
 	}
 	r.setQueryOptions(q)
+	rtt, resp, err := requireOK(c.doRequest(r))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	qm := &QueryMeta{}
+	parseQueryMeta(resp, qm)
+	qm.RequestTime = rtt
+
+	if err := decodeBody(resp, out); err != nil {
+		return nil, err
+	}
+	return qm, nil
+}
+
+// putQuery is used to do a PUT request when doing a read against an endpoint
+// and deserialize the response into an interface using standard Nomad
+// conventions.
+func (c *Client) putQuery(endpoint string, in, out interface{}, q *QueryOptions) (*QueryMeta, error) {
+	r, err := c.newRequest("PUT", endpoint)
+	if err != nil {
+		return nil, err
+	}
+	r.setQueryOptions(q)
+	r.obj = in
 	rtt, resp, err := requireOK(c.doRequest(r))
 	if err != nil {
 		return nil, err

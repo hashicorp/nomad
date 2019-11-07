@@ -1,0 +1,26 @@
+syntax = "proto3";
+package hashicorp.nomad.drivers.docker.docklog.proto;
+option go_package = "proto";
+
+service DockerLogger {
+    rpc Start(StartRequest) returns (StartResponse) {}
+    rpc Stop(StopRequest) returns (StopResponse) {}
+}
+
+message StartRequest {
+    string endpoint = 1;
+    string container_id = 2;
+    string stdout_fifo = 3;
+    string stderr_fifo = 4;
+    string tls_cert = 5;
+    string tls_key = 6;
+    string tls_ca = 7;
+    bool tty = 8;
+}
+
+message StartResponse {
+}
+
+message StopRequest {}
+
+message StopResponse {}

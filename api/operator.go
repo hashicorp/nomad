@@ -1,5 +1,7 @@
 package api
 
+import "strconv"
+
 // Operator can be used to perform low-level operator tasks for Nomad.
 type Operator struct {
 	c *Client
@@ -32,9 +34,12 @@ type RaftServer struct {
 	// it's a non-voting server, which will be added in a future release of
 	// Nomad.
 	Voter bool
+
+	// RaftProtocol is the version of the Raft protocol spoken by this server.
+	RaftProtocol string
 }
 
-// RaftConfigration is returned when querying for the current Raft configuration.
+// RaftConfiguration is returned when querying for the current Raft configuration.
 type RaftConfiguration struct {
 	// Servers has the list of servers in the Raft configuration.
 	Servers []*RaftServer
@@ -73,9 +78,7 @@ func (op *Operator) RaftRemovePeerByAddress(address string, q *WriteOptions) err
 	}
 	r.setWriteOptions(q)
 
-	// TODO (alexdadgar) Currently we made address a query parameter. Once
-	// IDs are in place this will be DELETE /v1/operator/raft/peer/<id>.
-	r.params.Set("address", string(address))
+	r.params.Set("address", address)
 
 	_, resp, err := requireOK(op.c.doRequest(r))
 	if err != nil {
@@ -84,4 +87,92 @@ func (op *Operator) RaftRemovePeerByAddress(address string, q *WriteOptions) err
 
 	resp.Body.Close()
 	return nil
+}
+
+// RaftRemovePeerByID is used to kick a stale peer (one that is in the Raft
+// quorum but no longer known to Serf or the catalog) by ID.
+func (op *Operator) RaftRemovePeerByID(id string, q *WriteOptions) error {
+	r, err := op.c.newRequest("DELETE", "/v1/operator/raft/peer")
+	if err != nil {
+		return err
+	}
+	r.setWriteOptions(q)
+
+	r.params.Set("id", id)
+
+	_, resp, err := requireOK(op.c.doRequest(r))
+	if err != nil {
+		return err
+	}
+
+	resp.Body.Close()
+	return nil
+}
+
+type SchedulerConfiguration struct {
+	// PreemptionConfig specifies whether to enable eviction of lower
+	// priority jobs to place higher priority jobs.
+	PreemptionConfig PreemptionConfig
+
+	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// SchedulerConfigurationResponse is the response object that wraps SchedulerConfiguration
+type SchedulerConfigurationResponse struct {
+	// SchedulerConfig contains scheduler config options
+	SchedulerConfig *SchedulerConfiguration
+
+	QueryMeta
+}
+
+// SchedulerSetConfigurationResponse is the response object used
+// when updating scheduler configuration
+type SchedulerSetConfigurationResponse struct {
+	// Updated returns whether the config was actually updated
+	// Only set when the request uses CAS
+	Updated bool
+
+	WriteMeta
+}
+
+// PreemptionConfig specifies whether preemption is enabled based on scheduler type
+type PreemptionConfig struct {
+	SystemSchedulerEnabled  bool
+	BatchSchedulerEnabled   bool
+	ServiceSchedulerEnabled bool
+}
+
+// SchedulerGetConfiguration is used to query the current Scheduler configuration.
+func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfigurationResponse, *QueryMeta, error) {
+	var resp SchedulerConfigurationResponse
+	qm, err := op.c.query("/v1/operator/scheduler/configuration", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
+// SchedulerSetConfiguration is used to set the current Scheduler configuration.
+func (op *Operator) SchedulerSetConfiguration(conf *SchedulerConfiguration, q *WriteOptions) (*SchedulerSetConfigurationResponse, *WriteMeta, error) {
+	var out SchedulerSetConfigurationResponse
+	wm, err := op.c.write("/v1/operator/scheduler/configuration", conf, &out, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &out, wm, nil
+}
+
+// SchedulerCASConfiguration is used to perform a Check-And-Set update on the
+// Scheduler configuration. The ModifyIndex value will be respected. Returns
+// true on success or false on failures.
+func (op *Operator) SchedulerCASConfiguration(conf *SchedulerConfiguration, q *WriteOptions) (*SchedulerSetConfigurationResponse, *WriteMeta, error) {
+	var out SchedulerSetConfigurationResponse
+	wm, err := op.c.write("/v1/operator/scheduler/configuration?cas="+strconv.FormatUint(conf.ModifyIndex, 10), conf, &out, q)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &out, wm, nil
 }

@@ -1,14 +1,22 @@
 package api
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
+	"time"
 
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/nomad/api/internal/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAgent_Self(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -22,7 +30,7 @@ func TestAgent_Self(t *testing.T) {
 	}
 
 	// Check that we got a valid response
-	if name, ok := res["member"]["Name"]; !ok || name == "" {
+	if res.Member.Name == "" {
 		t.Fatalf("bad member name in response: %#v", res)
 	}
 
@@ -33,6 +41,7 @@ func TestAgent_Self(t *testing.T) {
 }
 
 func TestAgent_NodeName(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
@@ -48,6 +57,7 @@ func TestAgent_NodeName(t *testing.T) {
 }
 
 func TestAgent_Datacenter(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
@@ -63,6 +73,7 @@ func TestAgent_Datacenter(t *testing.T) {
 }
 
 func TestAgent_Join(t *testing.T) {
+	t.Parallel()
 	c1, s1 := makeClient(t, nil, nil)
 	defer s1.Stop()
 	a1 := c1.Agent()
@@ -72,7 +83,7 @@ func TestAgent_Join(t *testing.T) {
 	})
 	defer s2.Stop()
 
-	// Attempting to join a non-existent host returns error
+	// Attempting to join a nonexistent host returns error
 	n, err := a1.Join("nope")
 	if err == nil {
 		t.Fatalf("expected error, got nothing")
@@ -92,6 +103,7 @@ func TestAgent_Join(t *testing.T) {
 }
 
 func TestAgent_Members(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
@@ -112,11 +124,12 @@ func TestAgent_Members(t *testing.T) {
 }
 
 func TestAgent_ForceLeave(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
 
-	// Force-leave on a non-existent node does not error
+	// Force-leave on a nonexistent node does not error
 	if err := a.ForceLeave("nope"); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -129,111 +142,237 @@ func (a *AgentMember) String() string {
 }
 
 func TestAgents_Sort(t *testing.T) {
+	t.Parallel()
 	var sortTests = []struct {
 		in  []*AgentMember
 		out []*AgentMember
 	}{
 		{
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-2.vac.us-east",
+				{Name: "nomad-2.vac.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "us-east-1c"}},
-				&AgentMember{Name: "nomad-1.global",
+				{Name: "nomad-1.global",
 					Tags: map[string]string{"region": "global", "dc": "dc1"}},
-				&AgentMember{Name: "nomad-1.vac.us-east",
+				{Name: "nomad-1.vac.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "us-east-1c"}},
 			},
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-1.global",
+				{Name: "nomad-1.global",
 					Tags: map[string]string{"region": "global", "dc": "dc1"}},
-				&AgentMember{Name: "nomad-1.vac.us-east",
+				{Name: "nomad-1.vac.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "us-east-1c"}},
-				&AgentMember{Name: "nomad-2.vac.us-east",
+				{Name: "nomad-2.vac.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "us-east-1c"}},
 			},
 		},
 		{
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-02.tam.us-east",
+				{Name: "nomad-02.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
-				&AgentMember{Name: "nomad-02.pal.us-west",
+				{Name: "nomad-02.pal.us-west",
 					Tags: map[string]string{"region": "us-west", "dc": "palo_alto"}},
-				&AgentMember{Name: "nomad-01.pal.us-west",
+				{Name: "nomad-01.pal.us-west",
 					Tags: map[string]string{"region": "us-west", "dc": "palo_alto"}},
-				&AgentMember{Name: "nomad-01.tam.us-east",
+				{Name: "nomad-01.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
 			},
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-01.tam.us-east",
+				{Name: "nomad-01.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
-				&AgentMember{Name: "nomad-02.tam.us-east",
+				{Name: "nomad-02.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
-				&AgentMember{Name: "nomad-01.pal.us-west",
+				{Name: "nomad-01.pal.us-west",
 					Tags: map[string]string{"region": "us-west", "dc": "palo_alto"}},
-				&AgentMember{Name: "nomad-02.pal.us-west",
+				{Name: "nomad-02.pal.us-west",
 					Tags: map[string]string{"region": "us-west", "dc": "palo_alto"}},
 			},
 		},
 		{
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-02.tam.us-east",
+				{Name: "nomad-02.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
-				&AgentMember{Name: "nomad-02.ams.europe",
+				{Name: "nomad-02.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-01.tam.us-east",
+				{Name: "nomad-01.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
-				&AgentMember{Name: "nomad-01.ams.europe",
+				{Name: "nomad-01.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
 			},
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-01.ams.europe",
+				{Name: "nomad-01.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-02.ams.europe",
+				{Name: "nomad-02.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-01.tam.us-east",
+				{Name: "nomad-01.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
-				&AgentMember{Name: "nomad-02.tam.us-east",
+				{Name: "nomad-02.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
 			},
 		},
 		{
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-02.ber.europe",
+				{Name: "nomad-02.ber.europe",
 					Tags: map[string]string{"region": "europe", "dc": "berlin"}},
-				&AgentMember{Name: "nomad-02.ams.europe",
+				{Name: "nomad-02.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-01.ams.europe",
+				{Name: "nomad-01.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-01.ber.europe",
+				{Name: "nomad-01.ber.europe",
 					Tags: map[string]string{"region": "europe", "dc": "berlin"}},
 			},
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-01.ams.europe",
+				{Name: "nomad-01.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-02.ams.europe",
+				{Name: "nomad-02.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-01.ber.europe",
+				{Name: "nomad-01.ber.europe",
 					Tags: map[string]string{"region": "europe", "dc": "berlin"}},
-				&AgentMember{Name: "nomad-02.ber.europe",
+				{Name: "nomad-02.ber.europe",
 					Tags: map[string]string{"region": "europe", "dc": "berlin"}},
 			},
 		},
 		{
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-1.global"},
-				&AgentMember{Name: "nomad-3.global"},
-				&AgentMember{Name: "nomad-2.global"},
+				{Name: "nomad-1.global"},
+				{Name: "nomad-3.global"},
+				{Name: "nomad-2.global"},
 			},
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-1.global"},
-				&AgentMember{Name: "nomad-2.global"},
-				&AgentMember{Name: "nomad-3.global"},
+				{Name: "nomad-1.global"},
+				{Name: "nomad-2.global"},
+				{Name: "nomad-3.global"},
 			},
 		},
 	}
 	for _, tt := range sortTests {
 		sort.Sort(AgentMembersNameSort(tt.in))
 		if !reflect.DeepEqual(tt.in, tt.out) {
-			t.Errorf("\necpected: %s\nget     : %s", tt.in, tt.out)
+			t.Errorf("\nexpected: %s\nget     : %s", tt.in, tt.out)
+		}
+	}
+}
+
+func TestAgent_Health(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	health, err := a.Health()
+	assert.Nil(err)
+	assert.True(health.Server.Ok)
+}
+
+// TestAgent_MonitorWithNode tests the Monitor endpoint
+// passing in a log level and node ie, which tests monitor
+// functionality for a specific client node
+func TestAgent_MonitorWithNode(t *testing.T) {
+	t.Parallel()
+	rpcPort := 0
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		rpcPort = c.Ports.RPC
+		c.Client = &testutil.ClientConfig{
+			Enabled: true,
+		}
+	})
+	defer s.Stop()
+
+	require.NoError(t, c.Agent().SetServers([]string{fmt.Sprintf("127.0.0.1:%d", rpcPort)}))
+
+	agent := c.Agent()
+
+	index := uint64(0)
+	var node *NodeListStub
+	// grab a node
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, qm, err := c.Nodes().List(&QueryOptions{WaitIndex: index})
+		if err != nil {
+			return false, err
+		}
+		index = qm.LastIndex
+		if len(nodes) != 1 {
+			return false, fmt.Errorf("expected 1 node but found: %s", pretty.Sprint(nodes))
+		}
+		if nodes[0].Status != "ready" {
+			return false, fmt.Errorf("node not ready: %s", nodes[0].Status)
+		}
+		node = nodes[0]
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	doneCh := make(chan struct{})
+	q := &QueryOptions{
+		Params: map[string]string{
+			"log_level": "debug",
+			"node_id":   node.ID,
+		},
+	}
+
+	frames, errCh := agent.Monitor(doneCh, q)
+	defer close(doneCh)
+
+	// make a request to generate some logs
+	_, err := agent.NodeName()
+	require.NoError(t, err)
+
+	// Wait for a log message
+OUTER:
+	for {
+		select {
+		case f := <-frames:
+			if strings.Contains(string(f.Data), "[DEBUG]") {
+				break OUTER
+			}
+		case err := <-errCh:
+			t.Errorf("Error: %v", err)
+		case <-time.After(2 * time.Second):
+			require.Fail(t, "failed to get a DEBUG log message")
+		}
+	}
+}
+
+// TestAgent_Monitor tests the Monitor endpoint
+// passing in only a log level, which tests the servers
+// monitor functionality
+func TestAgent_Monitor(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	agent := c.Agent()
+
+	q := &QueryOptions{
+		Params: map[string]string{
+			"log_level": "debug",
+		},
+	}
+
+	doneCh := make(chan struct{})
+	frames, errCh := agent.Monitor(doneCh, q)
+	defer close(doneCh)
+
+	// make a request to generate some logs
+	_, err := agent.Region()
+	require.NoError(t, err)
+
+	// Wait for a log message
+OUTER:
+	for {
+		select {
+		case log := <-frames:
+			if log == nil {
+				continue
+			}
+			if strings.Contains(string(log.Data), "[DEBUG]") {
+				break OUTER
+			}
+		case err := <-errCh:
+			t.Fatalf("error: %v", err)
+		case <-time.After(2 * time.Second):
+			require.Fail(t, "failed to get a DEBUG log message")
 		}
 	}
 }

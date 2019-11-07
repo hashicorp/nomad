@@ -1,1336 +1,527 @@
 package agent
 
 import (
-	"bytes"
+	"encoding/base64"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"log"
-	"math"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"reflect"
-	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/client/allocdir"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/ugorji/go/codec"
+	"github.com/stretchr/testify/require"
 )
 
-func TestAllocDirFS_List_MissingParams(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
-		req, err := http.NewRequest("GET", "/v1/client/fs/ls/", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		respW := httptest.NewRecorder()
+const (
+	defaultLoggerMockDriverStdout = "Hello from the other side"
+)
 
-		_, err = s.Server.DirectoryListRequest(respW, req)
-		if err != allocIDNotPresentErr {
-			t.Fatalf("expected err: %v, actual: %v", allocIDNotPresentErr, err)
+var (
+	defaultLoggerMockDriver = map[string]interface{}{
+		"run_for":       "2s",
+		"stdout_string": defaultLoggerMockDriverStdout,
+	}
+)
+
+type clientAllocWaiter int
+
+const (
+	noWaitClientAlloc clientAllocWaiter = iota
+	runningClientAlloc
+	terminalClientAlloc
+)
+
+func addAllocToClient(agent *TestAgent, alloc *structs.Allocation, wait clientAllocWaiter) {
+	require := require.New(agent.T)
+
+	// Wait for the client to connect
+	testutil.WaitForResult(func() (bool, error) {
+		node, err := agent.server.State().NodeByID(nil, agent.client.NodeID())
+		if err != nil {
+			return false, err
 		}
+		if node == nil {
+			return false, fmt.Errorf("unknown node")
+		}
+
+		return node.Status == structs.NodeStatusReady, fmt.Errorf("bad node status")
+	}, func(err error) {
+		agent.T.Fatal(err)
+	})
+
+	// Upsert the allocation
+	state := agent.server.State()
+	require.Nil(state.UpsertJob(999, alloc.Job))
+	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{alloc}))
+
+	if wait == noWaitClientAlloc {
+		return
+	}
+
+	// Wait for the client to run the allocation
+	testutil.WaitForResult(func() (bool, error) {
+		alloc, err := state.AllocByID(nil, alloc.ID)
+		if err != nil {
+			return false, err
+		}
+		if alloc == nil {
+			return false, fmt.Errorf("unknown alloc")
+		}
+
+		expectation := alloc.ClientStatus == structs.AllocClientStatusComplete ||
+			alloc.ClientStatus == structs.AllocClientStatusFailed
+		if wait == runningClientAlloc {
+			expectation = expectation || alloc.ClientStatus == structs.AllocClientStatusRunning
+		}
+
+		if !expectation {
+			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
+		}
+
+		return true, nil
+	}, func(err error) {
+		agent.T.Fatal(err)
 	})
 }
 
-func TestAllocDirFS_Stat_MissingParams(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+// mockFSAlloc returns a suitable mock alloc for testing the fs system. If
+// config isn't provided, the defaultLoggerMockDriver config is used.
+func mockFSAlloc(nodeID string, config map[string]interface{}) *structs.Allocation {
+	a := mock.Alloc()
+	a.NodeID = nodeID
+	a.Job.Type = structs.JobTypeBatch
+	a.Job.TaskGroups[0].Count = 1
+	a.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+
+	if config != nil {
+		a.Job.TaskGroups[0].Tasks[0].Config = config
+	} else {
+		a.Job.TaskGroups[0].Tasks[0].Config = defaultLoggerMockDriver
+	}
+
+	return a
+}
+
+func TestHTTP_FS_List_MissingParams(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		req, err := http.NewRequest("GET", "/v1/client/fs/ls/", nil)
+		require.Nil(err)
+		respW := httptest.NewRecorder()
+		_, err = s.Server.DirectoryListRequest(respW, req)
+		require.EqualError(err, allocIDNotPresentErr.Error())
+	})
+}
+
+func TestHTTP_FS_Stat_MissingParams(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/stat/", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.Nil(err)
 		respW := httptest.NewRecorder()
 
 		_, err = s.Server.FileStatRequest(respW, req)
-		if err != allocIDNotPresentErr {
-			t.Fatalf("expected err: %v, actual: %v", allocIDNotPresentErr, err)
-		}
+		require.EqualError(err, allocIDNotPresentErr.Error())
 
 		req, err = http.NewRequest("GET", "/v1/client/fs/stat/foo", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.Nil(err)
 		respW = httptest.NewRecorder()
 
 		_, err = s.Server.FileStatRequest(respW, req)
-		if err != fileNameNotPresentErr {
-			t.Fatalf("expected err: %v, actual: %v", allocIDNotPresentErr, err)
-		}
-
+		require.EqualError(err, fileNameNotPresentErr.Error())
 	})
 }
 
-func TestAllocDirFS_ReadAt_MissingParams(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+func TestHTTP_FS_ReadAt_MissingParams(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/readat/", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		respW := httptest.NewRecorder()
+		require.NoError(err)
 
-		_, err = s.Server.FileReadAtRequest(respW, req)
-		if err == nil {
-			t.Fatal("expected error")
-		}
+		_, err = s.Server.FileReadAtRequest(httptest.NewRecorder(), req)
+		require.Error(err)
 
 		req, err = http.NewRequest("GET", "/v1/client/fs/readat/foo", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		respW = httptest.NewRecorder()
+		require.NoError(err)
 
-		_, err = s.Server.FileReadAtRequest(respW, req)
-		if err == nil {
-			t.Fatal("expected error")
-		}
+		_, err = s.Server.FileReadAtRequest(httptest.NewRecorder(), req)
+		require.Error(err)
 
 		req, err = http.NewRequest("GET", "/v1/client/fs/readat/foo?path=/path/to/file", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		respW = httptest.NewRecorder()
+		require.NoError(err)
 
-		_, err = s.Server.FileReadAtRequest(respW, req)
-		if err == nil {
-			t.Fatal("expected error")
-		}
+		_, err = s.Server.FileReadAtRequest(httptest.NewRecorder(), req)
+		require.Error(err)
 	})
 }
 
-type WriteCloseChecker struct {
-	io.WriteCloser
-	Closed bool
+func TestHTTP_FS_Cat_MissingParams(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		req, err := http.NewRequest("GET", "/v1/client/fs/cat/", nil)
+		require.Nil(err)
+		respW := httptest.NewRecorder()
+
+		_, err = s.Server.FileCatRequest(respW, req)
+		require.EqualError(err, allocIDNotPresentErr.Error())
+
+		req, err = http.NewRequest("GET", "/v1/client/fs/stat/foo", nil)
+		require.Nil(err)
+		respW = httptest.NewRecorder()
+
+		_, err = s.Server.FileCatRequest(respW, req)
+		require.EqualError(err, fileNameNotPresentErr.Error())
+	})
 }
 
-func (w *WriteCloseChecker) Close() error {
-	w.Closed = true
-	return w.WriteCloser.Close()
-}
-
-// This test checks, that even if the frame size has not been hit, a flush will
-// periodically occur.
-func TestStreamFramer_Flush(t *testing.T) {
-	// Create the stream framer
-	r, w := io.Pipe()
-	wrappedW := &WriteCloseChecker{WriteCloser: w}
-	hRate, bWindow := 100*time.Millisecond, 100*time.Millisecond
-	sf := NewStreamFramer(wrappedW, false, hRate, bWindow, 100)
-	sf.Run()
-
-	// Create a decoder
-	dec := codec.NewDecoder(r, jsonHandle)
-
-	f := "foo"
-	fe := "bar"
-	d := []byte{0xa}
-	o := int64(10)
-
-	// Start the reader
-	resultCh := make(chan struct{})
-	go func() {
-		for {
-			var frame StreamFrame
-			if err := dec.Decode(&frame); err != nil {
-				t.Fatalf("failed to decode")
-			}
-
-			if frame.IsHeartbeat() {
-				continue
-			}
-
-			if reflect.DeepEqual(frame.Data, d) && frame.Offset == o && frame.File == f && frame.FileEvent == fe {
-				resultCh <- struct{}{}
-				return
-			}
-
-		}
-	}()
-
-	// Write only 1 byte so we do not hit the frame size
-	if err := sf.Send(f, fe, d, o); err != nil {
-		t.Fatalf("Send() failed %v", err)
-	}
-
-	select {
-	case <-resultCh:
-	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * bWindow):
-		t.Fatalf("failed to flush")
-	}
-
-	// Close the reader and wait. This should cause the runner to exit
-	if err := r.Close(); err != nil {
-		t.Fatalf("failed to close reader")
-	}
-
-	select {
-	case <-sf.ExitCh():
-	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * hRate):
-		t.Fatalf("exit channel should close")
-	}
-
-	sf.Destroy()
-	if !wrappedW.Closed {
-		t.Fatalf("writer not closed")
-	}
-}
-
-// This test checks that frames will be batched till the frame size is hit (in
-// the case that is before the flush).
-func TestStreamFramer_Batch(t *testing.T) {
-	// Create the stream framer
-	r, w := io.Pipe()
-	wrappedW := &WriteCloseChecker{WriteCloser: w}
-	// Ensure the batch window doesn't get hit
-	hRate, bWindow := 100*time.Millisecond, 500*time.Millisecond
-	sf := NewStreamFramer(wrappedW, false, hRate, bWindow, 3)
-	sf.Run()
-
-	// Create a decoder
-	dec := codec.NewDecoder(r, jsonHandle)
-
-	f := "foo"
-	fe := "bar"
-	d := []byte{0xa, 0xb, 0xc}
-	o := int64(10)
-
-	// Start the reader
-	resultCh := make(chan struct{})
-	go func() {
-		for {
-			var frame StreamFrame
-			if err := dec.Decode(&frame); err != nil {
-				t.Fatalf("failed to decode")
-			}
-
-			if frame.IsHeartbeat() {
-				continue
-			}
-
-			if reflect.DeepEqual(frame.Data, d) && frame.Offset == o && frame.File == f && frame.FileEvent == fe {
-				resultCh <- struct{}{}
-				return
-			}
-		}
-	}()
-
-	// Write only 1 byte so we do not hit the frame size
-	if err := sf.Send(f, fe, d[:1], o); err != nil {
-		t.Fatalf("Send() failed %v", err)
-	}
-
-	// Ensure we didn't get any data
-	select {
-	case <-resultCh:
-		t.Fatalf("Got data before frame size reached")
-	case <-time.After(bWindow / 2):
-	}
-
-	// Write the rest so we hit the frame size
-	if err := sf.Send(f, fe, d[1:], o); err != nil {
-		t.Fatalf("Send() failed %v", err)
-	}
-
-	// Ensure we get data
-	select {
-	case <-resultCh:
-	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * bWindow):
-		t.Fatalf("Did not receive data after batch size reached")
-	}
-
-	// Close the reader and wait. This should cause the runner to exit
-	if err := r.Close(); err != nil {
-		t.Fatalf("failed to close reader")
-	}
-
-	select {
-	case <-sf.ExitCh():
-	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * hRate):
-		t.Fatalf("exit channel should close")
-	}
-
-	sf.Destroy()
-	if !wrappedW.Closed {
-		t.Fatalf("writer not closed")
-	}
-}
-
-func TestStreamFramer_Heartbeat(t *testing.T) {
-	// Create the stream framer
-	r, w := io.Pipe()
-	wrappedW := &WriteCloseChecker{WriteCloser: w}
-	hRate, bWindow := 100*time.Millisecond, 100*time.Millisecond
-	sf := NewStreamFramer(wrappedW, false, hRate, bWindow, 100)
-	sf.Run()
-
-	// Create a decoder
-	dec := codec.NewDecoder(r, jsonHandle)
-
-	// Start the reader
-	resultCh := make(chan struct{})
-	go func() {
-		for {
-			var frame StreamFrame
-			if err := dec.Decode(&frame); err != nil {
-				t.Fatalf("failed to decode")
-			}
-
-			if frame.IsHeartbeat() {
-				resultCh <- struct{}{}
-				return
-			}
-		}
-	}()
-
-	select {
-	case <-resultCh:
-	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * hRate):
-		t.Fatalf("failed to heartbeat")
-	}
-
-	// Close the reader and wait. This should cause the runner to exit
-	if err := r.Close(); err != nil {
-		t.Fatalf("failed to close reader")
-	}
-
-	select {
-	case <-sf.ExitCh():
-	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * hRate):
-		t.Fatalf("exit channel should close")
-	}
-
-	sf.Destroy()
-	if !wrappedW.Closed {
-		t.Fatalf("writer not closed")
-	}
-}
-
-// This test checks that frames are received in order
-func TestStreamFramer_Order(t *testing.T) {
-	// Create the stream framer
-	r, w := io.Pipe()
-	wrappedW := &WriteCloseChecker{WriteCloser: w}
-	// Ensure the batch window doesn't get hit
-	hRate, bWindow := 100*time.Millisecond, 10*time.Millisecond
-	sf := NewStreamFramer(wrappedW, false, hRate, bWindow, 10)
-	sf.Run()
-
-	// Create a decoder
-	dec := codec.NewDecoder(r, jsonHandle)
-
-	files := []string{"1", "2", "3", "4", "5"}
-	input := bytes.NewBuffer(make([]byte, 0, 100000))
-	for i := 0; i <= 1000; i++ {
-		str := strconv.Itoa(i) + ","
-		input.WriteString(str)
-	}
-
-	expected := bytes.NewBuffer(make([]byte, 0, 100000))
-	for _, _ = range files {
-		expected.Write(input.Bytes())
-	}
-	receivedBuf := bytes.NewBuffer(make([]byte, 0, 100000))
-
-	// Start the reader
-	resultCh := make(chan struct{})
-	go func() {
-		for {
-			var frame StreamFrame
-			if err := dec.Decode(&frame); err != nil {
-				t.Fatalf("failed to decode")
-			}
-
-			if frame.IsHeartbeat() {
-				continue
-			}
-
-			receivedBuf.Write(frame.Data)
-
-			if reflect.DeepEqual(expected, receivedBuf) {
-				resultCh <- struct{}{}
-				return
-			}
-		}
-	}()
-
-	// Send the data
-	b := input.Bytes()
-	shards := 10
-	each := len(b) / shards
-	for _, f := range files {
-		for i := 0; i < shards; i++ {
-			l, r := each*i, each*(i+1)
-			if i == shards-1 {
-				r = len(b)
-			}
-
-			if err := sf.Send(f, "", b[l:r], 0); err != nil {
-				t.Fatalf("Send() failed %v", err)
-			}
-		}
-	}
-
-	// Ensure we get data
-	select {
-	case <-resultCh:
-	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * bWindow):
-		if reflect.DeepEqual(expected, receivedBuf) {
-			got := receivedBuf.String()
-			want := expected.String()
-			t.Fatalf("Got %v; want %v", got, want)
-		}
-	}
-
-	// Close the reader and wait. This should cause the runner to exit
-	if err := r.Close(); err != nil {
-		t.Fatalf("failed to close reader")
-	}
-
-	select {
-	case <-sf.ExitCh():
-	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * hRate):
-		t.Fatalf("exit channel should close")
-	}
-
-	sf.Destroy()
-	if !wrappedW.Closed {
-		t.Fatalf("writer not closed")
-	}
-}
-
-// This test checks that frames are received in order
-func TestStreamFramer_Order_PlainText(t *testing.T) {
-	// Create the stream framer
-	r, w := io.Pipe()
-	wrappedW := &WriteCloseChecker{WriteCloser: w}
-	// Ensure the batch window doesn't get hit
-	hRate, bWindow := 100*time.Millisecond, 10*time.Millisecond
-	sf := NewStreamFramer(wrappedW, true, hRate, bWindow, 10)
-	sf.Run()
-
-	files := []string{"1", "2", "3", "4", "5"}
-	input := bytes.NewBuffer(make([]byte, 0, 100000))
-	for i := 0; i <= 1000; i++ {
-		str := strconv.Itoa(i) + ","
-		input.WriteString(str)
-	}
-
-	expected := bytes.NewBuffer(make([]byte, 0, 100000))
-	for _, _ = range files {
-		expected.Write(input.Bytes())
-	}
-	receivedBuf := bytes.NewBuffer(make([]byte, 0, 100000))
-
-	// Start the reader
-	resultCh := make(chan struct{})
-	go func() {
-	OUTER:
-		for {
-			if _, err := receivedBuf.ReadFrom(r); err != nil {
-				if strings.Contains(err.Error(), "closed pipe") {
-					resultCh <- struct{}{}
-					return
-				}
-				t.Fatalf("bad read: %v", err)
-			}
-
-			if expected.Len() != receivedBuf.Len() {
-				continue
-			}
-			expectedBytes := expected.Bytes()
-			actualBytes := receivedBuf.Bytes()
-			for i, e := range expectedBytes {
-				if a := actualBytes[i]; a != e {
-					continue OUTER
-				}
-			}
-			resultCh <- struct{}{}
-			return
-
-		}
-	}()
-
-	// Send the data
-	b := input.Bytes()
-	shards := 10
-	each := len(b) / shards
-	for _, f := range files {
-		for i := 0; i < shards; i++ {
-			l, r := each*i, each*(i+1)
-			if i == shards-1 {
-				r = len(b)
-			}
-
-			if err := sf.Send(f, "", b[l:r], 0); err != nil {
-				t.Fatalf("Send() failed %v", err)
-			}
-		}
-	}
-
-	// Ensure we get data
-	select {
-	case <-resultCh:
-	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * bWindow):
-		if expected.Len() != receivedBuf.Len() {
-			t.Fatalf("Got %v; want %v", expected.Len(), receivedBuf.Len())
-		}
-		expectedBytes := expected.Bytes()
-		actualBytes := receivedBuf.Bytes()
-		for i, e := range expectedBytes {
-			if a := actualBytes[i]; a != e {
-				t.Fatalf("Index %d; Got %q; want %q", i, a, e)
-			}
-		}
-	}
-
-	// Close the reader and wait. This should cause the runner to exit
-	if err := r.Close(); err != nil {
-		t.Fatalf("failed to close reader")
-	}
-
-	sf.Destroy()
-	if !wrappedW.Closed {
-		t.Fatalf("writer not closed")
-	}
-}
-
-func TestHTTP_Stream_MissingParams(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+func TestHTTP_FS_Stream_MissingParams(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/stream/", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 		respW := httptest.NewRecorder()
 
 		_, err = s.Server.Stream(respW, req)
-		if err == nil {
-			t.Fatal("expected error")
-		}
+		require.EqualError(err, allocIDNotPresentErr.Error())
 
 		req, err = http.NewRequest("GET", "/v1/client/fs/stream/foo", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 		respW = httptest.NewRecorder()
 
 		_, err = s.Server.Stream(respW, req)
-		if err == nil {
-			t.Fatal("expected error")
-		}
+		require.EqualError(err, fileNameNotPresentErr.Error())
 
 		req, err = http.NewRequest("GET", "/v1/client/fs/stream/foo?path=/path/to/file", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 		respW = httptest.NewRecorder()
 
 		_, err = s.Server.Stream(respW, req)
-		if err == nil {
-			t.Fatal("expected error")
-		}
+		require.Error(err)
+		require.Contains(err.Error(), "alloc lookup failed")
 	})
 }
 
-// tempAllocDir returns a new alloc dir that is rooted in a temp dir. The caller
-// should destroy the temp dir.
-func tempAllocDir(t testing.TB) *allocdir.AllocDir {
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("TempDir() failed: %v", err)
-	}
+// TestHTTP_FS_Logs_MissingParams asserts proper error codes and messages are
+// returned for incorrect parameters (eg missing tasks).
+func TestHTTP_FS_Logs_MissingParams(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		// AllocID Not Present
+		req, err := http.NewRequest("GET", "/v1/client/fs/logs/", nil)
+		require.NoError(err)
+		respW := httptest.NewRecorder()
 
-	if err := os.Chmod(dir, 0777); err != nil {
-		t.Fatalf("failed to chmod dir: %v", err)
-	}
+		s.Server.mux.ServeHTTP(respW, req)
+		require.Equal(respW.Body.String(), allocIDNotPresentErr.Error())
+		require.Equal(400, respW.Code)
 
-	return allocdir.NewAllocDir(log.New(os.Stderr, "", log.LstdFlags), dir)
-}
+		// Task Not Present
+		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo", nil)
+		require.NoError(err)
+		respW = httptest.NewRecorder()
 
-type nopWriteCloser struct {
-	io.Writer
-}
+		s.Server.mux.ServeHTTP(respW, req)
+		require.Equal(respW.Body.String(), taskNotPresentErr.Error())
+		require.Equal(400, respW.Code)
 
-func (n nopWriteCloser) Close() error {
-	return nil
-}
+		// Log Type Not Present
+		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo?task=foo", nil)
+		require.NoError(err)
+		respW = httptest.NewRecorder()
 
-func TestHTTP_Stream_NoFile(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
-		// Get a temp alloc dir
-		ad := tempAllocDir(t)
-		defer os.RemoveAll(ad.AllocDir)
+		s.Server.mux.ServeHTTP(respW, req)
+		require.Equal(respW.Body.String(), logTypeNotPresentErr.Error())
+		require.Equal(400, respW.Code)
 
-		framer := NewStreamFramer(nopWriteCloser{ioutil.Discard}, false, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
-		framer.Run()
-		defer framer.Destroy()
+		// case where all parameters are set but alloc isn't found
+		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo?task=foo&type=stdout", nil)
+		require.NoError(err)
+		respW = httptest.NewRecorder()
 
-		if err := s.Server.stream(0, "foo", ad, framer, nil); err == nil {
-			t.Fatalf("expected an error when streaming unknown file")
-		}
+		s.Server.mux.ServeHTTP(respW, req)
+		require.Equal(500, respW.Code)
+		require.Contains(respW.Body.String(), "alloc lookup failed")
 	})
 }
 
-func TestHTTP_Stream_Modify(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
-		// Get a temp alloc dir
-		ad := tempAllocDir(t)
-		defer os.RemoveAll(ad.AllocDir)
+func TestHTTP_FS_List(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), nil)
+		addAllocToClient(s, a, terminalClientAlloc)
 
-		// Create a file in the temp dir
-		streamFile := "stream_file"
-		f, err := os.Create(filepath.Join(ad.AllocDir, streamFile))
-		if err != nil {
-			t.Fatalf("Failed to create file: %v", err)
-		}
-		defer f.Close()
+		req, err := http.NewRequest("GET", "/v1/client/fs/ls/"+a.ID, nil)
+		require.Nil(err)
+		respW := httptest.NewRecorder()
+		raw, err := s.Server.DirectoryListRequest(respW, req)
+		require.Nil(err)
 
-		// Create a decoder
-		r, w := io.Pipe()
-		defer r.Close()
-		defer w.Close()
-		dec := codec.NewDecoder(r, jsonHandle)
-
-		data := []byte("helloworld")
-
-		// Start the reader
-		resultCh := make(chan struct{})
-		go func() {
-			var collected []byte
-			for {
-				var frame StreamFrame
-				if err := dec.Decode(&frame); err != nil {
-					t.Fatalf("failed to decode: %v", err)
-				}
-
-				if frame.IsHeartbeat() {
-					continue
-				}
-
-				collected = append(collected, frame.Data...)
-				if reflect.DeepEqual(data, collected) {
-					resultCh <- struct{}{}
-					return
-				}
-			}
-		}()
-
-		// Write a few bytes
-		if _, err := f.Write(data[:3]); err != nil {
-			t.Fatalf("write failed: %v", err)
-		}
-
-		framer := NewStreamFramer(w, false, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
-		framer.Run()
-		defer framer.Destroy()
-
-		// Start streaming
-		go func() {
-			if err := s.Server.stream(0, streamFile, ad, framer, nil); err != nil {
-				t.Fatalf("stream() failed: %v", err)
-			}
-		}()
-
-		// Sleep a little before writing more. This lets us check if the watch
-		// is working.
-		time.Sleep(1 * time.Duration(testutil.TestMultiplier()) * time.Second)
-		if _, err := f.Write(data[3:]); err != nil {
-			t.Fatalf("write failed: %v", err)
-		}
-
-		select {
-		case <-resultCh:
-		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
-			t.Fatalf("failed to send new data")
-		}
+		files, ok := raw.([]*cstructs.AllocFileInfo)
+		require.True(ok)
+		require.NotEmpty(files)
+		require.True(files[0].IsDir)
 	})
 }
 
-func TestHTTP_Stream_Truncate(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
-		// Get a temp alloc dir
-		ad := tempAllocDir(t)
-		defer os.RemoveAll(ad.AllocDir)
+func TestHTTP_FS_Stat(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), nil)
+		addAllocToClient(s, a, terminalClientAlloc)
 
-		// Create a file in the temp dir
-		streamFile := "stream_file"
-		streamFilePath := filepath.Join(ad.AllocDir, streamFile)
-		f, err := os.Create(streamFilePath)
-		if err != nil {
-			t.Fatalf("Failed to create file: %v", err)
-		}
-		defer f.Close()
+		path := fmt.Sprintf("/v1/client/fs/stat/%s?path=alloc/", a.ID)
+		req, err := http.NewRequest("GET", path, nil)
+		require.Nil(err)
+		respW := httptest.NewRecorder()
+		raw, err := s.Server.FileStatRequest(respW, req)
+		require.Nil(err)
 
-		// Create a decoder
-		r, w := io.Pipe()
-		defer r.Close()
-		defer w.Close()
-		dec := codec.NewDecoder(r, jsonHandle)
-
-		data := []byte("helloworld")
-
-		// Start the reader
-		truncateCh := make(chan struct{})
-		dataPostTruncCh := make(chan struct{})
-		go func() {
-			var collected []byte
-			for {
-				var frame StreamFrame
-				if err := dec.Decode(&frame); err != nil {
-					t.Fatalf("failed to decode: %v", err)
-				}
-
-				if frame.IsHeartbeat() {
-					continue
-				}
-
-				if frame.FileEvent == truncateEvent {
-					close(truncateCh)
-				}
-
-				collected = append(collected, frame.Data...)
-				if reflect.DeepEqual(data, collected) {
-					close(dataPostTruncCh)
-					return
-				}
-			}
-		}()
-
-		// Write a few bytes
-		if _, err := f.Write(data[:3]); err != nil {
-			t.Fatalf("write failed: %v", err)
-		}
-
-		framer := NewStreamFramer(w, false, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
-		framer.Run()
-		defer framer.Destroy()
-
-		// Start streaming
-		go func() {
-			if err := s.Server.stream(0, streamFile, ad, framer, nil); err != nil {
-				t.Fatalf("stream() failed: %v", err)
-			}
-		}()
-
-		// Sleep a little before truncating. This lets us check if the watch
-		// is working.
-		time.Sleep(1 * time.Duration(testutil.TestMultiplier()) * time.Second)
-		if err := f.Truncate(0); err != nil {
-			t.Fatalf("truncate failed: %v", err)
-		}
-		if err := f.Sync(); err != nil {
-			t.Fatalf("sync failed: %v", err)
-		}
-		if err := f.Close(); err != nil {
-			t.Fatalf("failed to close file: %v", err)
-		}
-
-		f2, err := os.OpenFile(streamFilePath, os.O_RDWR, 0)
-		if err != nil {
-			t.Fatalf("failed to reopen file: %v", err)
-		}
-		defer f2.Close()
-		if _, err := f2.Write(data[3:5]); err != nil {
-			t.Fatalf("write failed: %v", err)
-		}
-
-		select {
-		case <-truncateCh:
-		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
-			t.Fatalf("did not receive truncate")
-		}
-
-		// Sleep a little before writing more. This lets us check if the watch
-		// is working.
-		time.Sleep(1 * time.Duration(testutil.TestMultiplier()) * time.Second)
-		if _, err := f2.Write(data[5:]); err != nil {
-			t.Fatalf("write failed: %v", err)
-		}
-
-		select {
-		case <-dataPostTruncCh:
-		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
-			t.Fatalf("did not receive post truncate data")
-		}
+		info, ok := raw.(*cstructs.AllocFileInfo)
+		require.True(ok)
+		require.NotNil(info)
+		require.True(info.IsDir)
 	})
 }
 
-func TestHTTP_Stream_Delete(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
-		// Get a temp alloc dir
-		ad := tempAllocDir(t)
-		defer os.RemoveAll(ad.AllocDir)
+func TestHTTP_FS_ReadAt(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), nil)
+		addAllocToClient(s, a, terminalClientAlloc)
 
-		// Create a file in the temp dir
-		streamFile := "stream_file"
-		streamFilePath := filepath.Join(ad.AllocDir, streamFile)
-		f, err := os.Create(streamFilePath)
-		if err != nil {
-			t.Fatalf("Failed to create file: %v", err)
-		}
-		defer f.Close()
+		offset := 1
+		limit := 3
+		expectation := defaultLoggerMockDriverStdout[offset : offset+limit]
+		path := fmt.Sprintf("/v1/client/fs/readat/%s?path=alloc/logs/web.stdout.0&offset=%d&limit=%d",
+			a.ID, offset, limit)
 
-		// Create a decoder
-		r, w := io.Pipe()
-		wrappedW := &WriteCloseChecker{WriteCloser: w}
-		defer r.Close()
-		defer w.Close()
-		dec := codec.NewDecoder(r, jsonHandle)
+		req, err := http.NewRequest("GET", path, nil)
+		require.Nil(err)
+		respW := httptest.NewRecorder()
+		_, err = s.Server.FileReadAtRequest(respW, req)
+		require.Nil(err)
 
-		data := []byte("helloworld")
+		output, err := ioutil.ReadAll(respW.Result().Body)
+		require.Nil(err)
+		require.EqualValues(expectation, output)
+	})
+}
 
-		// Start the reader
-		deleteCh := make(chan struct{})
+func TestHTTP_FS_Cat(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), nil)
+		addAllocToClient(s, a, terminalClientAlloc)
+
+		path := fmt.Sprintf("/v1/client/fs/cat/%s?path=alloc/logs/web.stdout.0", a.ID)
+
+		req, err := http.NewRequest("GET", path, nil)
+		require.Nil(err)
+		respW := httptest.NewRecorder()
+		_, err = s.Server.FileCatRequest(respW, req)
+		require.Nil(err)
+
+		output, err := ioutil.ReadAll(respW.Result().Body)
+		require.Nil(err)
+		require.EqualValues(defaultLoggerMockDriverStdout, output)
+	})
+}
+
+func TestHTTP_FS_Stream_NoFollow(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), nil)
+		addAllocToClient(s, a, terminalClientAlloc)
+
+		offset := 4
+		expectation := base64.StdEncoding.EncodeToString(
+			[]byte(defaultLoggerMockDriverStdout[len(defaultLoggerMockDriverStdout)-offset:]))
+		path := fmt.Sprintf("/v1/client/fs/stream/%s?path=alloc/logs/web.stdout.0&offset=%d&origin=end&follow=false",
+			a.ID, offset)
+
+		req, err := http.NewRequest("GET", path, nil)
+		require.Nil(err)
+		respW := testutil.NewResponseRecorder()
+		doneCh := make(chan struct{})
 		go func() {
-			for {
-				var frame StreamFrame
-				if err := dec.Decode(&frame); err != nil {
-					t.Fatalf("failed to decode: %v", err)
-				}
-
-				if frame.IsHeartbeat() {
-					continue
-				}
-
-				if frame.FileEvent == deleteEvent {
-					close(deleteCh)
-					return
-				}
-			}
+			_, err = s.Server.Stream(respW, req)
+			require.Nil(err)
+			close(doneCh)
 		}()
 
-		// Write a few bytes
-		if _, err := f.Write(data[:3]); err != nil {
-			t.Fatalf("write failed: %v", err)
-		}
-
-		framer := NewStreamFramer(wrappedW, false, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
-		framer.Run()
-
-		// Start streaming
-		go func() {
-			if err := s.Server.stream(0, streamFile, ad, framer, nil); err != nil {
-				t.Fatalf("stream() failed: %v", err)
-			}
-		}()
-
-		// Sleep a little before deleting. This lets us check if the watch
-		// is working.
-		time.Sleep(1 * time.Duration(testutil.TestMultiplier()) * time.Second)
-		if err := os.Remove(streamFilePath); err != nil {
-			t.Fatalf("delete failed: %v", err)
-		}
-
-		select {
-		case <-deleteCh:
-		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
-			t.Fatalf("did not receive delete")
-		}
-
-		framer.Destroy()
+		out := ""
 		testutil.WaitForResult(func() (bool, error) {
-			return wrappedW.Closed, nil
-		}, func(err error) {
-			t.Fatalf("connection not closed")
-		})
-
-	})
-}
-
-func TestHTTP_Logs_NoFollow(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
-		// Get a temp alloc dir and create the log dir
-		ad := tempAllocDir(t)
-		defer os.RemoveAll(ad.AllocDir)
-
-		logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
-		if err := os.MkdirAll(logDir, 0777); err != nil {
-			t.Fatalf("Failed to make log dir: %v", err)
-		}
-
-		// Create a series of log files in the temp dir
-		task := "foo"
-		logType := "stdout"
-		expected := []byte("012")
-		for i := 0; i < 3; i++ {
-			logFile := fmt.Sprintf("%s.%s.%d", task, logType, i)
-			logFilePath := filepath.Join(logDir, logFile)
-			err := ioutil.WriteFile(logFilePath, expected[i:i+1], 777)
+			output, err := ioutil.ReadAll(respW)
 			if err != nil {
-				t.Fatalf("Failed to create file: %v", err)
+				return false, err
 			}
-		}
 
-		// Create a decoder
-		r, w := io.Pipe()
-		wrappedW := &WriteCloseChecker{WriteCloser: w}
-		defer r.Close()
-		defer w.Close()
-		dec := codec.NewDecoder(r, jsonHandle)
-
-		var received []byte
-
-		// Start the reader
-		resultCh := make(chan struct{})
-		go func() {
-			for {
-				var frame StreamFrame
-				if err := dec.Decode(&frame); err != nil {
-					if err == io.EOF {
-						t.Logf("EOF")
-						return
-					}
-
-					t.Fatalf("failed to decode: %v", err)
-				}
-
-				if frame.IsHeartbeat() {
-					continue
-				}
-
-				received = append(received, frame.Data...)
-				if reflect.DeepEqual(received, expected) {
-					close(resultCh)
-					return
-				}
-			}
-		}()
-
-		// Start streaming logs
-		go func() {
-			if err := s.Server.logs(false, false, 0, OriginStart, task, logType, ad, wrappedW); err != nil {
-				t.Fatalf("logs() failed: %v", err)
-			}
-		}()
-
-		select {
-		case <-resultCh:
-		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
-			t.Fatalf("did not receive data: got %q", string(received))
-		}
-
-		testutil.WaitForResult(func() (bool, error) {
-			return wrappedW.Closed, nil
+			out += string(output)
+			return strings.Contains(out, expectation), fmt.Errorf("%q doesn't contain %q", out, expectation)
 		}, func(err error) {
-			t.Fatalf("connection not closed")
+			t.Fatal(err)
 		})
 
+		select {
+		case <-doneCh:
+		case <-time.After(1 * time.Second):
+			t.Fatal("should close but did not")
+		}
 	})
 }
 
-func TestHTTP_Logs_Follow(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
-		// Get a temp alloc dir and create the log dir
-		ad := tempAllocDir(t)
-		defer os.RemoveAll(ad.AllocDir)
+func TestHTTP_FS_Stream_Follow(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), nil)
+		addAllocToClient(s, a, terminalClientAlloc)
 
-		logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
-		if err := os.MkdirAll(logDir, 0777); err != nil {
-			t.Fatalf("Failed to make log dir: %v", err)
-		}
+		offset := 4
+		expectation := base64.StdEncoding.EncodeToString(
+			[]byte(defaultLoggerMockDriverStdout[len(defaultLoggerMockDriverStdout)-offset:]))
+		path := fmt.Sprintf("/v1/client/fs/stream/%s?path=alloc/logs/web.stdout.0&offset=%d&origin=end",
+			a.ID, offset)
 
-		// Create a series of log files in the temp dir
-		task := "foo"
-		logType := "stdout"
-		expected := []byte("012345")
-		initialWrites := 3
+		req, err := http.NewRequest("GET", path, nil)
+		require.Nil(err)
+		respW := httptest.NewRecorder()
+		doneCh := make(chan struct{})
+		go func() {
+			_, err = s.Server.Stream(respW, req)
+			require.Nil(err)
+			close(doneCh)
+		}()
 
-		writeToFile := func(index int, data []byte) {
-			logFile := fmt.Sprintf("%s.%s.%d", task, logType, index)
-			logFilePath := filepath.Join(logDir, logFile)
-			err := ioutil.WriteFile(logFilePath, data, 777)
+		out := ""
+		testutil.WaitForResult(func() (bool, error) {
+			output, err := ioutil.ReadAll(respW.Body)
 			if err != nil {
-				t.Fatalf("Failed to create file: %v", err)
+				return false, err
 			}
-		}
-		for i := 0; i < initialWrites; i++ {
-			writeToFile(i, expected[i:i+1])
-		}
 
-		// Create a decoder
-		r, w := io.Pipe()
-		wrappedW := &WriteCloseChecker{WriteCloser: w}
-		defer r.Close()
-		defer w.Close()
-		dec := codec.NewDecoder(r, jsonHandle)
-
-		var received []byte
-
-		// Start the reader
-		firstResultCh := make(chan struct{})
-		fullResultCh := make(chan struct{})
-		go func() {
-			for {
-				var frame StreamFrame
-				if err := dec.Decode(&frame); err != nil {
-					if err == io.EOF {
-						t.Logf("EOF")
-						return
-					}
-
-					t.Fatalf("failed to decode: %v", err)
-				}
-
-				if frame.IsHeartbeat() {
-					continue
-				}
-
-				received = append(received, frame.Data...)
-				if reflect.DeepEqual(received, expected[:initialWrites]) {
-					close(firstResultCh)
-				} else if reflect.DeepEqual(received, expected) {
-					close(fullResultCh)
-					return
-				}
-			}
-		}()
-
-		// Start streaming logs
-		go func() {
-			if err := s.Server.logs(true, false, 0, OriginStart, task, logType, ad, wrappedW); err != nil {
-				t.Fatalf("logs() failed: %v", err)
-			}
-		}()
-
-		select {
-		case <-firstResultCh:
-		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
-			t.Fatalf("did not receive data: got %q", string(received))
-		}
-
-		// We got the first chunk of data, write out the rest to the next file
-		// at an index much ahead to check that it is following and detecting
-		// skips
-		skipTo := initialWrites + 10
-		writeToFile(skipTo, expected[initialWrites:])
-
-		select {
-		case <-fullResultCh:
-		case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
-			t.Fatalf("did not receive data: got %q", string(received))
-		}
-
-		// Close the reader
-		r.Close()
-
-		testutil.WaitForResult(func() (bool, error) {
-			return wrappedW.Closed, nil
+			out += string(output)
+			return strings.Contains(out, expectation), fmt.Errorf("%q doesn't contain %q", out, expectation)
 		}, func(err error) {
-			t.Fatalf("connection not closed")
+			t.Fatal(err)
+		})
+
+		select {
+		case <-doneCh:
+			t.Fatal("shouldn't close")
+		case <-time.After(1 * time.Second):
+		}
+	})
+}
+
+func TestHTTP_FS_Logs(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), nil)
+		addAllocToClient(s, a, terminalClientAlloc)
+
+		offset := 4
+		expectation := defaultLoggerMockDriverStdout[len(defaultLoggerMockDriverStdout)-offset:]
+		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=%d&origin=end&plain=true",
+			a.ID, offset)
+
+		req, err := http.NewRequest("GET", path, nil)
+		require.Nil(err)
+		respW := testutil.NewResponseRecorder()
+		go func() {
+			_, err = s.Server.Logs(respW, req)
+			require.Nil(err)
+		}()
+
+		out := ""
+		testutil.WaitForResult(func() (bool, error) {
+			output, err := ioutil.ReadAll(respW)
+			if err != nil {
+				return false, err
+			}
+
+			out += string(output)
+			return out == expectation, fmt.Errorf("%q != %q", out, expectation)
+		}, func(err error) {
+			t.Fatal(err)
 		})
 	})
 }
 
-func BenchmarkHTTP_Logs_Follow(t *testing.B) {
-	runtime.MemProfileRate = 1
+func TestHTTP_FS_Logs_Follow(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), nil)
+		addAllocToClient(s, a, terminalClientAlloc)
 
-	s := makeHTTPServer(t, nil)
-	defer s.Cleanup()
-	testutil.WaitForLeader(t, s.Agent.RPC)
+		offset := 4
+		expectation := defaultLoggerMockDriverStdout[len(defaultLoggerMockDriverStdout)-offset:]
+		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=%d&origin=end&plain=true&follow=true",
+			a.ID, offset)
 
-	// Get a temp alloc dir and create the log dir
-	ad := tempAllocDir(t)
-	s.Agent.logger.Printf("ALEX: LOG DIR: %q", ad.SharedDir)
-	//defer os.RemoveAll(ad.AllocDir)
-
-	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
-	if err := os.MkdirAll(logDir, 0777); err != nil {
-		t.Fatalf("Failed to make log dir: %v", err)
-	}
-
-	// Create a series of log files in the temp dir
-	task := "foo"
-	logType := "stdout"
-	expected := make([]byte, 1024*1024*100)
-	initialWrites := 3
-
-	writeToFile := func(index int, data []byte) {
-		logFile := fmt.Sprintf("%s.%s.%d", task, logType, index)
-		logFilePath := filepath.Join(logDir, logFile)
-		err := ioutil.WriteFile(logFilePath, data, 777)
-		if err != nil {
-			t.Fatalf("Failed to create file: %v", err)
-		}
-	}
-
-	part := (len(expected) / 3) - 50
-	goodEnough := (8 * len(expected)) / 10
-	for i := 0; i < initialWrites; i++ {
-		writeToFile(i, expected[i*part:(i+1)*part])
-	}
-
-	t.ResetTimer()
-	for i := 0; i < t.N; i++ {
-		s.Agent.logger.Printf("BENCHMARK %d", i)
-
-		// Create a decoder
-		r, w := io.Pipe()
-		wrappedW := &WriteCloseChecker{WriteCloser: w}
-		defer r.Close()
-		defer w.Close()
-		dec := codec.NewDecoder(r, jsonHandle)
-
-		var received []byte
-
-		// Start the reader
-		fullResultCh := make(chan struct{})
+		req, err := http.NewRequest("GET", path, nil)
+		require.Nil(err)
+		respW := testutil.NewResponseRecorder()
+		errCh := make(chan error)
 		go func() {
-			for {
-				var frame StreamFrame
-				if err := dec.Decode(&frame); err != nil {
-					if err == io.EOF {
-						t.Logf("EOF")
-						return
-					}
-
-					t.Fatalf("failed to decode: %v", err)
-				}
-
-				if frame.IsHeartbeat() {
-					continue
-				}
-
-				received = append(received, frame.Data...)
-				if len(received) > goodEnough {
-					close(fullResultCh)
-					return
-				}
-			}
+			_, err := s.Server.Logs(respW, req)
+			errCh <- err
 		}()
 
-		// Start streaming logs
-		go func() {
-			if err := s.Server.logs(true, false, 0, OriginStart, task, logType, ad, wrappedW); err != nil {
-				t.Fatalf("logs() failed: %v", err)
+		out := ""
+		testutil.WaitForResult(func() (bool, error) {
+			output, err := ioutil.ReadAll(respW)
+			if err != nil {
+				return false, err
 			}
-		}()
+
+			out += string(output)
+			return out == expectation, fmt.Errorf("%q != %q", out, expectation)
+		}, func(err error) {
+			t.Fatal(err)
+		})
 
 		select {
-		case <-fullResultCh:
-		case <-time.After(time.Duration(60 * time.Second)):
-			t.Fatalf("did not receive data: %d < %d", len(received), goodEnough)
+		case err := <-errCh:
+			t.Fatalf("shouldn't exit: %v", err)
+		case <-time.After(1 * time.Second):
 		}
-
-		s.Agent.logger.Printf("ALEX: CLOSING")
-
-		// Close the reader
-		r.Close()
-		s.Agent.logger.Printf("ALEX: CLOSED")
-
-		s.Agent.logger.Printf("ALEX: WAITING FOR WRITER TO CLOSE")
-		testutil.WaitForResult(func() (bool, error) {
-			return wrappedW.Closed, nil
-		}, func(err error) {
-			t.Fatalf("connection not closed")
-		})
-		s.Agent.logger.Printf("ALEX: WRITER CLOSED")
-	}
+	})
 }
 
-func TestLogs_findClosest(t *testing.T) {
-	task := "foo"
-	entries := []*allocdir.AllocFileInfo{
-		{
-			Name: "foo.stdout.0",
-			Size: 100,
-		},
-		{
-			Name: "foo.stdout.1",
-			Size: 100,
-		},
-		{
-			Name: "foo.stdout.2",
-			Size: 100,
-		},
-		{
-			Name: "foo.stdout.3",
-			Size: 100,
-		},
-		{
-			Name: "foo.stderr.0",
-			Size: 100,
-		},
-		{
-			Name: "foo.stderr.1",
-			Size: 100,
-		},
-		{
-			Name: "foo.stderr.2",
-			Size: 100,
-		},
-	}
+func TestHTTP_FS_Logs_PropagatesErrors(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=0&origin=end&plain=true",
+			uuid.Generate())
 
-	cases := []struct {
-		Entries        []*allocdir.AllocFileInfo
-		DesiredIdx     int64
-		DesiredOffset  int64
-		Task           string
-		LogType        string
-		ExpectedFile   string
-		ExpectedIdx    int64
-		ExpectedOffset int64
-		Error          bool
-	}{
-		// Test error cases
-		{
-			Entries:    nil,
-			DesiredIdx: 0,
-			Task:       task,
-			LogType:    "stdout",
-			Error:      true,
-		},
-		{
-			Entries:    entries[0:3],
-			DesiredIdx: 0,
-			Task:       task,
-			LogType:    "stderr",
-			Error:      true,
-		},
+		req, err := http.NewRequest("GET", path, nil)
+		require.NoError(t, err)
+		respW := testutil.NewResponseRecorder()
 
-		// Test begining cases
-		{
-			Entries:      entries,
-			DesiredIdx:   0,
-			Task:         task,
-			LogType:      "stdout",
-			ExpectedFile: entries[0].Name,
-			ExpectedIdx:  0,
-		},
-		{
-			// Desired offset should be ignored at edges
-			Entries:        entries,
-			DesiredIdx:     0,
-			DesiredOffset:  -100,
-			Task:           task,
-			LogType:        "stdout",
-			ExpectedFile:   entries[0].Name,
-			ExpectedIdx:    0,
-			ExpectedOffset: 0,
-		},
-		{
-			// Desired offset should be ignored at edges
-			Entries:        entries,
-			DesiredIdx:     1,
-			DesiredOffset:  -1000,
-			Task:           task,
-			LogType:        "stdout",
-			ExpectedFile:   entries[0].Name,
-			ExpectedIdx:    0,
-			ExpectedOffset: 0,
-		},
-		{
-			Entries:      entries,
-			DesiredIdx:   0,
-			Task:         task,
-			LogType:      "stderr",
-			ExpectedFile: entries[4].Name,
-			ExpectedIdx:  0,
-		},
-		{
-			Entries:      entries,
-			DesiredIdx:   0,
-			Task:         task,
-			LogType:      "stdout",
-			ExpectedFile: entries[0].Name,
-			ExpectedIdx:  0,
-		},
+		_, err = s.Server.Logs(respW, req)
+		require.Error(t, err)
 
-		// Test middle cases
-		{
-			Entries:      entries,
-			DesiredIdx:   1,
-			Task:         task,
-			LogType:      "stdout",
-			ExpectedFile: entries[1].Name,
-			ExpectedIdx:  1,
-		},
-		{
-			Entries:        entries,
-			DesiredIdx:     1,
-			DesiredOffset:  10,
-			Task:           task,
-			LogType:        "stdout",
-			ExpectedFile:   entries[1].Name,
-			ExpectedIdx:    1,
-			ExpectedOffset: 10,
-		},
-		{
-			Entries:        entries,
-			DesiredIdx:     1,
-			DesiredOffset:  110,
-			Task:           task,
-			LogType:        "stdout",
-			ExpectedFile:   entries[2].Name,
-			ExpectedIdx:    2,
-			ExpectedOffset: 10,
-		},
-		{
-			Entries:      entries,
-			DesiredIdx:   1,
-			Task:         task,
-			LogType:      "stderr",
-			ExpectedFile: entries[5].Name,
-			ExpectedIdx:  1,
-		},
-		// Test end cases
-		{
-			Entries:      entries,
-			DesiredIdx:   math.MaxInt64,
-			Task:         task,
-			LogType:      "stdout",
-			ExpectedFile: entries[3].Name,
-			ExpectedIdx:  3,
-		},
-		{
-			Entries:        entries,
-			DesiredIdx:     math.MaxInt64,
-			DesiredOffset:  math.MaxInt64,
-			Task:           task,
-			LogType:        "stdout",
-			ExpectedFile:   entries[3].Name,
-			ExpectedIdx:    3,
-			ExpectedOffset: 100,
-		},
-		{
-			Entries:        entries,
-			DesiredIdx:     math.MaxInt64,
-			DesiredOffset:  -10,
-			Task:           task,
-			LogType:        "stdout",
-			ExpectedFile:   entries[3].Name,
-			ExpectedIdx:    3,
-			ExpectedOffset: 90,
-		},
-		{
-			Entries:      entries,
-			DesiredIdx:   math.MaxInt64,
-			Task:         task,
-			LogType:      "stderr",
-			ExpectedFile: entries[6].Name,
-			ExpectedIdx:  2,
-		},
-	}
-
-	for i, c := range cases {
-		entry, idx, offset, err := findClosest(c.Entries, c.DesiredIdx, c.DesiredOffset, c.Task, c.LogType)
-		if err != nil {
-			if !c.Error {
-				t.Fatalf("case %d: Unexpected error: %v", i, err)
-			}
-			continue
-		}
-
-		if entry.Name != c.ExpectedFile {
-			t.Fatalf("case %d: Got file %q; want %q", i, entry.Name, c.ExpectedFile)
-		}
-		if idx != c.ExpectedIdx {
-			t.Fatalf("case %d: Got index %d; want %d", i, idx, c.ExpectedIdx)
-		}
-		if offset != c.ExpectedOffset {
-			t.Fatalf("case %d: Got offset %d; want %d", i, offset, c.ExpectedOffset)
-		}
-	}
+		_, ok := err.(HTTPCodedError)
+		require.Truef(t, ok, "expected a coded error but found: %#+v", err)
+	})
 }

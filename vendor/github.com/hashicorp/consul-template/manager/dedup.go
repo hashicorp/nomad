@@ -3,7 +3,6 @@ package manager
 import (
 	"bytes"
 	"compress/lzw"
-	"crypto/md5"
 	"encoding/gob"
 	"fmt"
 	"log"
@@ -11,13 +10,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mitchellh/hashstructure"
+
 	"github.com/hashicorp/consul-template/config"
 	dep "github.com/hashicorp/consul-template/dependency"
 	"github.com/hashicorp/consul-template/template"
+	"github.com/hashicorp/consul-template/version"
 	consulapi "github.com/hashicorp/consul/api"
 )
 
-const (
+var (
 	// sessionCreateRetry is the amount of time we wait
 	// to recreate a session when lost.
 	sessionCreateRetry = 15 * time.Second
@@ -28,14 +30,28 @@ const (
 	// listRetry is the interval on which we retry listing a data path
 	listRetry = 10 * time.Second
 
-	// templateDataFlag is added as a flag to the shared data values
-	// so that we can use it as a sanity check
-	templateDataFlag = 0x22b9a127a2c03520
+	// timeout passed through to consul api client Lock
+	// here to override in testing (see ./dedup_test.go)
+	lockWaitTime = 15 * time.Second
 )
 
-// templateData is GOB encoded share the depdency values
+const (
+	templateNoDataStr = "__NO_DATA__"
+)
+
+// templateData is GOB encoded share the dependency values
 type templateData struct {
+	// Version is the version of Consul Template which created this template data.
+	// This is important because users may be running multiple versions of CT
+	// with the same templates. This provides a nicer upgrade path.
+	Version string
+
+	// Data is the actual template data.
 	Data map[string]interface{}
+}
+
+func templateNoData() []byte {
+	return []byte(templateNoDataStr)
 }
 
 // DedupManager is used to de-duplicate which instance of Consul-Template
@@ -60,10 +76,10 @@ type DedupManager struct {
 	// config is the deduplicate configuration
 	config *config.DedupConfig
 
-	// clients is used to access the underlying clinets
+	// clients is used to access the underlying clients
 	clients *dep.ClientSet
 
-	// Brain is where we inject udpates
+	// Brain is where we inject updates
 	brain *template.Brain
 
 	// templates is the set of templates we are trying to dedup
@@ -74,7 +90,7 @@ type DedupManager struct {
 	leaderLock sync.RWMutex
 
 	// lastWrite tracks the hash of the data paths
-	lastWrite     map[*template.Template][]byte
+	lastWrite     map[*template.Template]uint64
 	lastWriteLock sync.RWMutex
 
 	// updateCh is used to indicate an update watched data
@@ -96,7 +112,7 @@ func NewDedupManager(config *config.DedupConfig, clients *dep.ClientSet, brain *
 		brain:     brain,
 		templates: templates,
 		leader:    make(map[*template.Template]<-chan struct{}),
-		lastWrite: make(map[*template.Template][]byte),
+		lastWrite: make(map[*template.Template]uint64),
 		updateCh:  make(chan struct{}, 1),
 		stopCh:    make(chan struct{}),
 	}
@@ -140,9 +156,10 @@ START:
 	sessionCh := make(chan struct{})
 	ttl := fmt.Sprintf("%.6fs", float64(*d.config.TTL)/float64(time.Second))
 	se := &consulapi.SessionEntry{
-		Name:     "Consul-Template de-duplication",
-		Behavior: "delete",
-		TTL:      ttl,
+		Name:      "Consul-Template de-duplication",
+		Behavior:  "delete",
+		TTL:       ttl,
+		LockDelay: 1 * time.Millisecond,
 	}
 	id, _, err := session.Create(se, nil)
 	if err != nil {
@@ -160,9 +177,9 @@ START:
 	// Renew our session periodically
 	if err := session.RenewPeriodic("15s", id, nil, d.stopCh); err != nil {
 		log.Printf("[ERR] (dedup) failed to renew session: %v", err)
-		d.wg.Wait()
 	}
 	close(sessionCh)
+	d.wg.Wait()
 
 WAIT:
 	select {
@@ -197,7 +214,8 @@ func (d *DedupManager) UpdateDeps(t *template.Template, deps []dep.Dependency) e
 
 	// Package up the dependency data
 	td := templateData{
-		Data: make(map[string]interface{}),
+		Version: version.Version,
+		Data:    make(map[string]interface{}),
 	}
 	for _, dp := range deps {
 		// Skip any dependencies that can't be shared
@@ -212,6 +230,23 @@ func (d *DedupManager) UpdateDeps(t *template.Template, deps []dep.Dependency) e
 		}
 	}
 
+	// Compute stable hash of the data. Note we don't compute this over the actual
+	// encoded value since gob encoding does not guarantee stable ordering for
+	// maps so spuriously returns a different hash most times. See
+	// https://github.com/hashicorp/consul-template/issues/1099.
+	hash, err := hashstructure.Hash(td, nil)
+	if err != nil {
+		return fmt.Errorf("calculating hash failed: %v", err)
+	}
+	d.lastWriteLock.RLock()
+	existing, ok := d.lastWrite[t]
+	d.lastWriteLock.RUnlock()
+	if ok && existing == hash {
+		log.Printf("[INFO] (dedup) de-duplicate data '%s' already current",
+			dataPath)
+		return nil
+	}
+
 	// Encode via GOB and LZW compress
 	var buf bytes.Buffer
 	compress := lzw.NewWriter(&buf, lzw.LSB, 8)
@@ -221,22 +256,11 @@ func (d *DedupManager) UpdateDeps(t *template.Template, deps []dep.Dependency) e
 	}
 	compress.Close()
 
-	// Compute MD5 of the buffer
-	hash := md5.Sum(buf.Bytes())
-	d.lastWriteLock.RLock()
-	existing, ok := d.lastWrite[t]
-	d.lastWriteLock.RUnlock()
-	if ok && bytes.Equal(existing, hash[:]) {
-		log.Printf("[INFO] (dedup) de-duplicate data '%s' already current",
-			dataPath)
-		return nil
-	}
-
 	// Write the KV update
 	kvPair := consulapi.KVPair{
 		Key:   dataPath,
 		Value: buf.Bytes(),
-		Flags: templateDataFlag,
+		Flags: consulapi.LockFlagValue,
 	}
 	client := d.clients.Consul()
 	if _, err := client.KV().Put(&kvPair, nil); err != nil {
@@ -244,12 +268,12 @@ func (d *DedupManager) UpdateDeps(t *template.Template, deps []dep.Dependency) e
 	}
 	log.Printf("[INFO] (dedup) updated de-duplicate data '%s'", dataPath)
 	d.lastWriteLock.Lock()
-	d.lastWrite[t] = hash[:]
+	d.lastWrite[t] = hash
 	d.lastWriteLock.Unlock()
 	return nil
 }
 
-// UpdateCh returns a channel to watch for depedency updates
+// UpdateCh returns a channel to watch for dependency updates
 func (d *DedupManager) UpdateCh() <-chan struct{} {
 	return d.updateCh
 }
@@ -295,6 +319,9 @@ func (d *DedupManager) watchTemplate(client *consulapi.Client, t *template.Templ
 		WaitTime:   60 * time.Second,
 	}
 
+	var lastData []byte
+	var lastIndex uint64
+
 START:
 	// Stop listening if we're stopped
 	select {
@@ -330,6 +357,13 @@ START:
 	}
 	opts.WaitIndex = meta.LastIndex
 
+	// Stop listening if we're stopped
+	select {
+	case <-d.stopCh:
+		return
+	default:
+	}
+
 	// If we've exceeded the maximum staleness, retry without stale
 	if allowStale && meta.LastContact > *d.config.MaxStale {
 		allowStale = false
@@ -342,12 +376,27 @@ START:
 		allowStale = true
 	}
 
-	// Stop listening if we're stopped
-	select {
-	case <-d.stopCh:
-		return
-	default:
+	if meta.LastIndex == lastIndex {
+		log.Printf("[TRACE] (dedup) %s no new data (index was the same)", path)
+		goto START
 	}
+
+	if meta.LastIndex < lastIndex {
+		log.Printf("[TRACE] (dedup) %s had a lower index, resetting", path)
+		lastIndex = 0
+		goto START
+	}
+	lastIndex = meta.LastIndex
+
+	var data []byte
+	if pair != nil {
+		data = pair.Value
+	}
+	if bytes.Equal(lastData, data) {
+		log.Printf("[TRACE] (dedup) %s no new data (contents were the same)", path)
+		goto START
+	}
+	lastData = data
 
 	// If we are current the leader, wait for leadership lost
 	d.leaderLock.RLock()
@@ -363,7 +412,7 @@ START:
 	}
 
 	// Parse the data file
-	if pair != nil && pair.Flags == templateDataFlag {
+	if pair != nil && pair.Flags == consulapi.LockFlagValue && !bytes.Equal(pair.Value, templateNoData()) {
 		d.parseData(pair.Key, pair.Value)
 	}
 	goto START
@@ -384,6 +433,11 @@ func (d *DedupManager) parseData(path string, raw []byte) {
 			path, err)
 		return
 	}
+	if td.Version != version.Version {
+		log.Printf("[WARN] (dedup) created with different version (%s vs %s)",
+			td.Version, version.Version)
+		return
+	}
 	log.Printf("[INFO] (dedup) loading %d dependencies from '%s'",
 		len(td.Data), path)
 
@@ -401,47 +455,58 @@ func (d *DedupManager) parseData(path string, raw []byte) {
 
 func (d *DedupManager) attemptLock(client *consulapi.Client, session string, sessionCh chan struct{}, t *template.Template) {
 	defer d.wg.Done()
-START:
-	log.Printf("[INFO] (dedup) attempting lock for template hash %s", t.ID())
-	basePath := path.Join(*d.config.Prefix, t.ID())
-	lopts := &consulapi.LockOptions{
-		Key:              path.Join(basePath, "lock"),
-		Session:          session,
-		MonitorRetries:   3,
-		MonitorRetryTime: 3 * time.Second,
-	}
-	lock, err := client.LockOpts(lopts)
-	if err != nil {
-		log.Printf("[ERR] (dedup) failed to create lock '%s': %v",
-			lopts.Key, err)
-		return
-	}
+	for {
+		log.Printf("[INFO] (dedup) attempting lock for template hash %s", t.ID())
+		basePath := path.Join(*d.config.Prefix, t.ID())
+		lopts := &consulapi.LockOptions{
+			Key:              path.Join(basePath, "data"),
+			Value:            templateNoData(),
+			Session:          session,
+			MonitorRetries:   3,
+			MonitorRetryTime: 3 * time.Second,
+			LockWaitTime:     lockWaitTime,
+		}
+		lock, err := client.LockOpts(lopts)
+		if err != nil {
+			log.Printf("[ERR] (dedup) failed to create lock '%s': %v",
+				lopts.Key, err)
+			return
+		}
 
-	var retryCh <-chan time.Time
-	leaderCh, err := lock.Lock(sessionCh)
-	if err != nil {
-		log.Printf("[ERR] (dedup) failed to acquire lock '%s': %v",
-			lopts.Key, err)
-		retryCh = time.After(lockRetry)
-	} else {
-		log.Printf("[INFO] (dedup) acquired lock '%s'", lopts.Key)
-		d.setLeader(t, leaderCh)
-	}
+		var retryCh <-chan time.Time
+		leaderCh, err := lock.Lock(sessionCh)
+		if err != nil {
+			log.Printf("[ERR] (dedup) failed to acquire lock '%s': %v",
+				lopts.Key, err)
+			retryCh = time.After(lockRetry)
+		} else {
+			log.Printf("[INFO] (dedup) acquired lock '%s'", lopts.Key)
+			d.setLeader(t, leaderCh)
+		}
 
-	select {
-	case <-retryCh:
-		retryCh = nil
-		goto START
-	case <-leaderCh:
-		log.Printf("[WARN] (dedup) lost lock ownership '%s'", lopts.Key)
-		d.setLeader(t, nil)
-		goto START
-	case <-sessionCh:
-		log.Printf("[INFO] (dedup) releasing lock '%s'", lopts.Key)
-		d.setLeader(t, nil)
-		lock.Unlock()
-	case <-d.stopCh:
-		log.Printf("[INFO] (dedup) releasing lock '%s'", lopts.Key)
-		lock.Unlock()
+		select {
+		case <-retryCh:
+			retryCh = nil
+			continue
+		case <-leaderCh:
+			log.Printf("[WARN] (dedup) lost lock ownership '%s'", lopts.Key)
+			d.setLeader(t, nil)
+			continue
+		case <-sessionCh:
+			log.Printf("[INFO] (dedup) releasing session '%s'", lopts.Key)
+			d.setLeader(t, nil)
+			_, err = client.Session().Destroy(session, nil)
+			if err != nil {
+				log.Printf("[ERROR] (dedup) failed destroying session '%s', %s", session, err)
+			}
+			return
+		case <-d.stopCh:
+			log.Printf("[INFO] (dedup) releasing lock '%s'", lopts.Key)
+			_, err = client.Session().Destroy(session, nil)
+			if err != nil {
+				log.Printf("[ERROR] (dedup) failed destroying session '%s', %s", session, err)
+			}
+			return
+		}
 	}
 }

@@ -6,7 +6,10 @@ package api
 
 import (
 	"bytes"
+	"context"
 	crand "crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -14,10 +17,10 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -49,6 +52,9 @@ type TokenKeyType string
 // TokenAppType - Circonus API Token app name
 type TokenAppType string
 
+// TokenAccountIDType - Circonus API Token account id
+type TokenAccountIDType string
+
 // CIDType Circonus object cid
 type CIDType *string
 
@@ -69,11 +75,25 @@ type TagType []string
 
 // Config options for Circonus API
 type Config struct {
-	URL      string
+	// URL defines the API URL - default https://api.circonus.com/v2/
+	URL string
+
+	// TokenKey defines the key to use when communicating with the API
 	TokenKey string
+
+	// TokenApp defines the app to use when communicating with the API
 	TokenApp string
-	Log      *log.Logger
-	Debug    bool
+
+	TokenAccountID string
+
+	// CACert deprecating, use TLSConfig instead
+	CACert *x509.CertPool
+
+	// TLSConfig defines a custom tls configuration to use when communicating with the API
+	TLSConfig *tls.Config
+
+	Log   *log.Logger
+	Debug bool
 }
 
 // API Circonus API
@@ -81,6 +101,9 @@ type API struct {
 	apiURL                  *url.URL
 	key                     TokenKeyType
 	app                     TokenAppType
+	accountID               TokenAccountIDType
+	caCert                  *x509.CertPool
+	tlsConfig               *tls.Config
 	Debug                   bool
 	Log                     *log.Logger
 	useExponentialBackoff   bool
@@ -114,6 +137,8 @@ func New(ac *Config) (*API, error) {
 		app = defaultAPIApp
 	}
 
+	acctID := TokenAccountIDType(ac.TokenAccountID)
+
 	au := string(ac.URL)
 	if au == "" {
 		au = defaultAPIURL
@@ -132,11 +157,14 @@ func New(ac *Config) (*API, error) {
 	}
 
 	a := &API{
-		apiURL: apiURL,
-		key:    key,
-		app:    app,
-		Debug:  ac.Debug,
-		Log:    ac.Log,
+		apiURL:    apiURL,
+		key:       key,
+		app:       app,
+		accountID: acctID,
+		caCert:    ac.CACert,
+		tlsConfig: ac.TLSConfig,
+		Debug:     ac.Debug,
+		Log:       ac.Log,
 		useExponentialBackoff: false,
 	}
 
@@ -213,7 +241,7 @@ func (a *API) apiRequest(reqMethod string, reqPath string, data []byte) ([]byte,
 			if !a.useExponentialBackoff {
 				break
 			}
-			if matched, _ := regexp.MatchString("code 403", err.Error()); matched {
+			if strings.Contains(err.Error(), "code 403") {
 				break
 			}
 		}
@@ -245,14 +273,18 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 		reqURL += "/"
 	}
 	if len(reqPath) >= 3 && reqPath[:3] == "/v2" {
-		reqURL += reqPath[3:len(reqPath)]
+		reqURL += reqPath[3:]
 	} else {
 		reqURL += reqPath
 	}
 
 	// keep last HTTP error in the event of retry failure
 	var lastHTTPError error
-	retryPolicy := func(resp *http.Response, err error) (bool, error) {
+	retryPolicy := func(ctx context.Context, resp *http.Response, err error) (bool, error) {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return false, ctxErr
+		}
+
 		if err != nil {
 			lastHTTPError = err
 			return true, err
@@ -285,8 +317,44 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("X-Circonus-Auth-Token", string(a.key))
 	req.Header.Add("X-Circonus-App-Name", string(a.app))
+	if string(a.accountID) != "" {
+		req.Header.Add("X-Circonus-Account-ID", string(a.accountID))
+	}
 
 	client := retryablehttp.NewClient()
+	if a.apiURL.Scheme == "https" {
+		var tlscfg *tls.Config
+		if a.tlsConfig != nil { // preference full custom tls config
+			tlscfg = a.tlsConfig
+		} else if a.caCert != nil {
+			tlscfg = &tls.Config{RootCAs: a.caCert}
+		}
+		client.HTTPClient.Transport = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout: 10 * time.Second,
+			TLSClientConfig:     tlscfg,
+			DisableKeepAlives:   true,
+			MaxIdleConnsPerHost: -1,
+			DisableCompression:  true,
+		}
+	} else {
+		client.HTTPClient.Transport = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout: 10 * time.Second,
+			DisableKeepAlives:   true,
+			MaxIdleConnsPerHost: -1,
+			DisableCompression:  true,
+		}
+	}
+
 	a.useExponentialBackoffmu.Lock()
 	eb := a.useExponentialBackoff
 	a.useExponentialBackoffmu.Unlock()

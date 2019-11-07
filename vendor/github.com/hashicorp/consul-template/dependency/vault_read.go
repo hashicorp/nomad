@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/vault/api"
 	"github.com/pkg/errors"
 )
 
@@ -19,8 +20,14 @@ var (
 type VaultReadQuery struct {
 	stopCh chan struct{}
 
-	path   string
-	secret *Secret
+	rawPath     string
+	queryValues url.Values
+	secret      *Secret
+	isKVv2      *bool
+	secretPath  string
+
+	// vaultSecret is the actual Vault secret which we are renewing
+	vaultSecret *api.Secret
 }
 
 // NewVaultReadQuery creates a new datacenter dependency.
@@ -31,9 +38,15 @@ func NewVaultReadQuery(s string) (*VaultReadQuery, error) {
 		return nil, fmt.Errorf("vault.read: invalid format: %q", s)
 	}
 
+	secretURL, err := url.Parse(s)
+	if err != nil {
+		return nil, err
+	}
+
 	return &VaultReadQuery{
-		stopCh: make(chan struct{}, 1),
-		path:   s,
+		stopCh:      make(chan struct{}, 1),
+		rawPath:     secretURL.Path,
+		queryValues: secretURL.Query(),
 	}, nil
 }
 
@@ -47,82 +60,64 @@ func (d *VaultReadQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interfac
 
 	opts = opts.Merge(&QueryOptions{})
 
-	// If this is not the first query and we have a lease duration, sleep until we
-	// try to renew.
-	if opts.WaitIndex != 0 && d.secret != nil && d.secret.LeaseDuration != 0 {
-		dur := time.Duration(d.secret.LeaseDuration/2.0) * time.Second
-		if dur == 0 {
-			dur = VaultDefaultLeaseDuration
-		}
+	if d.secret != nil {
+		if vaultSecretRenewable(d.secret) {
+			log.Printf("[TRACE] %s: starting renewer", d)
 
-		log.Printf("[TRACE] %s: long polling for %s", d, dur)
-
-		select {
-		case <-d.stopCh:
-			return nil, nil, ErrStopped
-		case <-time.After(dur):
-		}
-	}
-
-	// Attempt to renew the secret. If we do not have a secret or if that secret
-	// is not renewable, we will attempt a (re-)read later.
-	if d.secret != nil && d.secret.LeaseID != "" && d.secret.Renewable {
-		log.Printf("[TRACE] %s: PUT %s", d, &url.URL{
-			Path:     "/v1/sys/renew/" + d.secret.LeaseID,
-			RawQuery: opts.String(),
-		})
-
-		renewal, err := clients.Vault().Sys().Renew(d.secret.LeaseID, 0)
-		if err == nil {
-			log.Printf("[TRACE] %s: successfully renewed %s", d, d.secret.LeaseID)
-
-			secret := &Secret{
-				RequestID:     renewal.RequestID,
-				LeaseID:       renewal.LeaseID,
-				LeaseDuration: d.secret.LeaseDuration,
-				Renewable:     renewal.Renewable,
-				Data:          d.secret.Data,
+			renewer, err := clients.Vault().NewRenewer(&api.RenewerInput{
+				Grace:  opts.VaultGrace,
+				Secret: d.vaultSecret,
+			})
+			if err != nil {
+				return nil, nil, errors.Wrap(err, d.String())
 			}
-			d.secret = secret
+			go renewer.Renew()
+			defer renewer.Stop()
 
-			return respWithMetadata(secret)
+		RENEW:
+			for {
+				select {
+				case err := <-renewer.DoneCh():
+					if err != nil {
+						log.Printf("[WARN] %s: failed to renew: %s", d, err)
+					}
+					log.Printf("[WARN] %s: renewer returned (maybe the lease expired)", d)
+					break RENEW
+				case renewal := <-renewer.RenewCh():
+					log.Printf("[TRACE] %s: successfully renewed", d)
+					printVaultWarnings(d, renewal.Secret.Warnings)
+					updateSecret(d.secret, renewal.Secret)
+				case <-d.stopCh:
+					return nil, nil, ErrStopped
+				}
+			}
+		} else {
+			// The secret isn't renewable, probably the generic secret backend.
+			dur := vaultRenewDuration(d.secret)
+			log.Printf("[TRACE] %s: secret is not renewable, sleeping for %s", d, dur)
+			select {
+			case <-time.After(dur):
+				// The lease is almost expired, it's time to request a new one.
+			case <-d.stopCh:
+				return nil, nil, ErrStopped
+			}
 		}
-
-		// The renewal failed for some reason.
-		log.Printf("[WARN] %s: failed to renew %s: %s", d, d.secret.LeaseID, err)
 	}
 
-	// If we got this far, we either didn't have a secret to renew, the secret was
-	// not renewable, or the renewal failed, so attempt a fresh read.
-	log.Printf("[TRACE] %s: GET %s", d, &url.URL{
-		Path:     "/v1/" + d.path,
-		RawQuery: opts.String(),
-	})
-	vaultSecret, err := clients.Vault().Logical().Read(d.path)
+	// We don't have a secret, or the prior renewal failed
+	vaultSecret, err := d.readSecret(clients, opts)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, d.String())
 	}
 
-	// The secret could be nil if it does not exist.
-	if vaultSecret == nil {
-		return nil, nil, fmt.Errorf("%s: no secret exists at %s", d, d.path)
-	}
+	// Print any warnings
+	printVaultWarnings(d, vaultSecret.Warnings)
 
-	// Print any warnings.
-	for _, w := range vaultSecret.Warnings {
-		log.Printf("[WARN] %s: %s", d, w)
-	}
+	// Create the cloned secret which will be exposed to the template.
+	d.vaultSecret = vaultSecret
+	d.secret = transformSecret(vaultSecret)
 
-	// Create our cloned secret.
-	secret := &Secret{
-		LeaseID:       vaultSecret.LeaseID,
-		LeaseDuration: leaseDurationOrDefault(vaultSecret.LeaseDuration),
-		Renewable:     vaultSecret.Renewable,
-		Data:          vaultSecret.Data,
-	}
-	d.secret = secret
-
-	return respWithMetadata(secret)
+	return respWithMetadata(d.secret)
 }
 
 // CanShare returns if this dependency is shareable.
@@ -137,10 +132,43 @@ func (d *VaultReadQuery) Stop() {
 
 // String returns the human-friendly version of this dependency.
 func (d *VaultReadQuery) String() string {
-	return fmt.Sprintf("vault.read(%s)", d.path)
+	return fmt.Sprintf("vault.read(%s)", d.rawPath)
 }
 
 // Type returns the type of this dependency.
 func (d *VaultReadQuery) Type() Type {
 	return TypeVault
+}
+
+func (d *VaultReadQuery) readSecret(clients *ClientSet, opts *QueryOptions) (*api.Secret, error) {
+	vaultClient := clients.Vault()
+
+	// Check whether this secret refers to a KV v2 entry if we haven't yet.
+	if d.isKVv2 == nil {
+		mountPath, isKVv2, err := isKVv2(vaultClient, d.rawPath)
+		if err != nil {
+			log.Printf("[WARN] %s: failed to check if %s is KVv2, assume not: %s", d, d.rawPath, err)
+			isKVv2 = false
+			d.secretPath = d.rawPath
+		} else if isKVv2 {
+			d.secretPath = addPrefixToVKVPath(d.rawPath, mountPath, "data")
+		} else {
+			d.secretPath = d.rawPath
+		}
+		d.isKVv2 = &isKVv2
+	}
+
+	queryString := d.queryValues.Encode()
+	log.Printf("[TRACE] %s: GET %s", d, &url.URL{
+		Path:     "/v1/" + d.secretPath,
+		RawQuery: queryString,
+	})
+	vaultSecret, err := vaultClient.Logical().ReadWithData(d.secretPath, d.queryValues)
+	if err != nil {
+		return nil, errors.Wrap(err, d.String())
+	}
+	if vaultSecret == nil {
+		return nil, fmt.Errorf("no secret exists at %s", d.secretPath)
+	}
+	return vaultSecret, nil
 }

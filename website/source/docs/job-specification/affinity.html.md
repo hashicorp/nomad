@@ -1,0 +1,283 @@
+---
+layout: "docs"
+page_title: "affinity Stanza - Job Specification"
+sidebar_current: "docs-job-specification-affinity"
+description: |-
+  The "affinity" stanza allows restricting the set of eligible nodes.
+  Affinities may filter on attributes or metadata. Additionally affinities may
+  be specified at the job, group, or task levels for ultimate flexibility.
+---
+
+# `affinity` Stanza
+
+<table class="table table-bordered table-striped">
+  <tr>
+    <th width="120">Placement</th>
+    <td>
+      <code>job -> **affinity**</code>
+      <br>
+      <code>job -> group -> **affinity**</code>
+      <br>
+      <code>job -> group -> task -> **affinity**</code>
+    </td>
+  </tr>
+</table>
+
+The `affinity` stanza allows operators to express placement preference for a set of nodes. Affinities may
+be expressed on [attributes][interpolation] or [client metadata][client-meta].
+Additionally affinities may be specified at the [job][job], [group][group], or
+[task][task] levels for ultimate flexibility.
+
+```hcl
+job "docs" {
+  # Prefer nodes in the us-west1 datacenter
+  affinity {
+    attribute = "${node.datacenter}"
+    value     = "us-west1"
+    weight    = 100
+  }
+
+  group "example" {
+    # Prefer the "r1" rack
+    affinity {
+      attribute  = "${meta.rack}"
+      value     = "r1"
+      weight    = 50
+    }
+
+    task "server" {
+      # Prefer nodes where "my_custom_value" is greater than 5
+      affinity {
+        attribute = "${meta.my_custom_value}"
+        operator  = ">"
+        value     = "3"
+        weight    = 50
+      }
+    }
+  }
+}
+```
+
+Affinities apply to task groups but may be specified within job and task stanzas as well.
+Job affinities apply to all groups within the job. Task affinities apply to the whole task group
+that the task is a part of.
+
+Nomad will use affinities when computing scores for placement. Nodes that match affinities will
+have their scores boosted. Affinity scores are combined with other scoring factors such as bin packing.
+Operators can use weights to express relative preference across multiple affinities. If no nodes match a given affinity,
+placement is still successful. This is different from [constraints][constraint] where placement is
+restricted only to nodes that meet the constraint's criteria.
+
+## `affinity` Parameters
+
+- `attribute` `(string: "")` - Specifies the name or reference of the attribute
+  to examine for the affinity. This can be any of the [Nomad interpolated
+  values](/docs/runtime/interpolation.html#interpreted_node_vars).
+
+- `operator` `(string: "=")` - Specifies the comparison operator. The ordering is
+  compared lexically. Possible values include:
+
+    ```text
+    =
+    !=
+    >
+    >=
+    <
+    <=
+    regexp
+    set_contains_all
+    set_contains_any
+    version
+    ```
+
+    For a detailed explanation of these values and their behavior, please see
+    the [operator values section](#operator-values).
+
+- `value` `(string: "")` - Specifies the value to compare the attribute against
+  using the specified operation. This can be a literal value, another attribute,
+  or any [Nomad interpolated
+  values](/docs/runtime/interpolation.html#interpreted_node_vars).
+
+- `weight` `(integer: 50)` - Specifies a weight for the affinity. The weight is used
+  during scoring and must be an integer between -100 to 100. Negative weights act as
+  anti affinities, causing nodes that match them to be scored lower. Weights can be used
+  when there is more than one affinity to express relative preference across them.
+
+### `operator` Values
+
+This section details the specific values for the "operator" parameter in the
+Nomad job specification for affinities. The operator is always specified as a
+string, but the string can take on different values which change the behavior of
+the overall affinity evaluation.
+
+```hcl
+affinity {
+  operator = "..."
+}
+```
+
+- `"regexp"` - Specifies a regular expression affinity against the attribute.
+  The syntax of the regular expressions accepted is the same general syntax used
+  by Perl, Python, and many other languages. More precisely, it is the syntax
+  accepted by RE2 and described at in the [Google RE2
+  syntax](https://golang.org/s/re2syntax).
+
+    ```hcl
+    affinity {
+      attribute = "..."
+      operator  = "regexp"
+      value     = "[a-z0-9]"
+      weight    = 50
+    }
+    ```
+
+- `"set_contains_all"` - Specifies a contains affinity against the attribute. The
+  attribute and the list being checked are split using commas. This will check
+  that the given attribute contains **all** of the specified elements.
+
+    ```hcl
+    affinity {
+      attribute = "..."
+      operator  = "set_contains"
+      value     = "a,b,c"
+      weight    = 50
+    }
+    ```
+- `"set_contains"`  - Same as `set_contains_all`
+
+- `"set_contains_any"` - Specifies a contains affinity against the attribute. The
+  attribute and the list being checked are split using commas. This will check
+  that the given attribute contains **any** of the specified elements.
+
+    ```hcl
+    affinity {
+      attribute = "..."
+      operator  = "set_contains"
+      value     = "a,b,c"
+      weight    = 50
+    }
+    ```
+
+- `"version"` - Specifies a version affinity against the attribute. This
+  supports a comma-separated list of values, including the pessimistic
+  operator. For more examples please see the [go-version
+  repository](https://github.com/hashicorp/go-version) for more specific
+  examples.
+
+    ```hcl
+    affinity {
+      attribute = "..."
+      operator  = "version"
+      value     = ">= 0.1.0, < 0.2"
+      weight    = 50
+    }
+    ```
+
+## `affinity` Examples
+
+The following examples only show the `affinity` stanzas. Remember that the
+`affinity` stanza is only valid in the placements listed above.
+
+### Kernel Data
+
+This example adds a preference for running on nodes which have a kernel version
+higher than "3.19".
+
+```hcl
+affinity {
+  attribute = "${attr.kernel.version}"
+  operator  = "version"
+  value     = "> 3.19"
+  weight    = 50
+}
+```
+
+### Operating Systems
+
+This example adds a preference to running on nodes that are running Ubuntu
+14.04
+
+```hcl
+affinity {
+  attribute = "${attr.os.name}"
+  value     = "ubuntu"
+  weight    = 50
+}
+
+affinity {
+  attribute = "${attr.os.version}"
+  value     = "14.04"
+  weight    = 100
+}
+```
+
+### Meta Data
+
+The following example adds a preference to running on nodes with specific rack metadata
+
+```hcl
+affinity {
+  attribute = "${meta.rack}"
+  value     = "rack1"
+  weight    = 50
+}
+```
+
+The following example adds a preference to running on nodes in a specific datacenter.
+
+```hcl
+affinity {
+  attribute = "${node.datacenter}"
+  value     = "us-west1"
+  weight    = 50
+}
+```
+
+### Cloud Metadata
+
+When possible, Nomad populates node attributes from the cloud environment. These
+values are accessible as filters in affinities. This example adds a preference to run this
+task on nodes that are memory-optimized on AWS.
+
+```hcl
+affinity {
+  attribute = "${attr.platform.aws.instance-type}"
+  value     = "m4.xlarge"
+  weight    = 50
+}
+```
+
+[job]: /docs/job-specification/job.html "Nomad job Job Specification"
+[group]: /docs/job-specification/group.html "Nomad group Job Specification"
+[client-meta]: /docs/configuration/client.html#meta "Nomad meta Job Specification"
+[task]: /docs/job-specification/task.html "Nomad task Job Specification"
+[interpolation]: /docs/runtime/interpolation.html "Nomad interpolation"
+[node-variables]: /docs/runtime/interpolation.html#node-variables- "Nomad interpolation-Node variables"
+[constraint]: /docs/job-specification/constraint.html "Nomad Constraint job Specification"
+
+### Placement Details
+Operators can run `nomad alloc status -verbose` to get more detailed information on various
+factors, including affinities that affect the final placement.
+
+#### Example Placement Metadata
+The following is a snippet from the CLI output of `nomad alloc status -verbose <alloc-id>` showing scoring metadata.
+
+```
+Placement Metrics
+Node                                  binpack  job-anti-affinity  node-reschedule-penalty  node-affinity  final score
+30bd48cc-d760-1096-9bab-13caac424af5  0.225    -0.6               0                        1              0.208
+f2aa8b59-96b8-202f-2258-d98c93e360ab  0.225    -0.6               0                        1              0.208
+86df0f74-15cc-3a0e-23f0-ad7306131e0d  0.0806   0                  0                        0              0.0806
+7d6c2e9e-b080-5995-8b9d-ef1695458b52  0.0806   0                  0                        0              0.0806
+```
+
+The placement score is affected by the following factors.
+
+- `bin-packing` - Scores nodes according to how well they fit requirements. Optimizes for using minimal number of nodes.
+- `job-anti-affinity` - A penalty added for additional instances of the same job on a node, used to avoid having too many instances
+  of a job on the same node.
+- `node-reschedule-penalty` - Used when the job is being rescheduled. Nomad adds a penalty to avoid placing the job on a node where
+  it has failed to run before.
+- `node-affinity` - Used when the criteria specified in the `affinity` stanza matches the node.
+
+

@@ -14,8 +14,8 @@ have at least one server, though a cluster of 3 or 5 servers is recommended.
 A single server deployment is _**highly**_ discouraged as data loss is inevitable
 in a failure scenario.
 
-All other agents run in client mode. A client is a very lightweight
-process that registers the host machine, performs heartbeating, and runs any tasks
+All other agents run in client mode. A Nomad client is a very lightweight
+process that registers the host machine, performs heartbeating, and runs the tasks
 that are assigned to it by the servers. The agent must be run on every node that
 is part of the cluster so that the servers can assign work to those machines.
 
@@ -26,13 +26,12 @@ is used to quickly start an agent that is acting as a client and server to test
 job configurations or prototype interactions. It should _**not**_ be used in
 production as it does not persist state.
 
-```
-vagrant@nomad:~$ sudo nomad agent -dev
+```text
+$ sudo nomad agent -dev
 
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
 
-                 Atlas: <disabled>
                 Client: true
              Log Level: DEBUG
                 Region: global (DC: dc1)
@@ -75,16 +74,13 @@ certain task drivers will not be available.
 
 ## Cluster Nodes
 
-If you run [`nomad node-status`](/docs/commands/node-status.html) in another terminal, you
-can see the registered nodes of the Nomad cluster:
+If you run [`nomad node status`](/docs/commands/node/status.html) in another
+terminal, you can see the registered nodes of the Nomad cluster:
 
 ```text
-$ vagrant ssh
-...
-
-$ nomad node-status
-ID        Datacenter  Name   Class   Drain  Status
-171a583b  dc1         nomad  <none>  false  ready
+$ nomad node status
+ID        DC   Name   Class   Drain  Eligibility  Status
+171a583b  dc1  nomad  <none>  false  eligible     ready
 ```
 
 The output shows our Node ID, which is a randomly generated UUID,
@@ -95,12 +91,12 @@ currently off.
 The agent is also running in server mode, which means it is part of
 the [gossip protocol](/docs/internals/gossip.html) used to connect all
 the server instances together. We can view the members of the gossip
-ring using the [`server-members`](/docs/commands/server-members.html) command:
+ring using the [`server members`](/docs/commands/server/members.html) command:
 
 ```text
-$ nomad server-members
+$ nomad server members
 Name          Address    Port  Status  Leader  Protocol  Build  Datacenter  Region
-nomad.global  127.0.0.1  4648  alive   true    2         0.4.1  dc1         global
+nomad.global  127.0.0.1  4648  alive   true    2         0.7.0  dc1         global
 ```
 
 The output shows our own agent, the address it is running on, its
@@ -111,7 +107,7 @@ Additional metadata can be viewed by providing the `-detailed` flag.
 
 You can use `Ctrl-C` (the interrupt signal) to halt the agent.
 By default, all signals will cause the agent to forcefully shutdown.
-The agent [can be configured](/docs/agent/configuration/index.html) to
+The agent [can be configured](/docs/configuration/index.html#leave_on_terminate) to
 gracefully leave on either the interrupt or terminate signals.
 
 After interrupting the agent, you should see it leave the cluster
@@ -135,11 +131,14 @@ replication continues to be attempted until the node recovers. Nomad will
 automatically try to reconnect to _failed_ nodes, allowing it to recover from
 certain network conditions, while _left_ nodes are no longer contacted.
 
-If an agent is operating as a server, a graceful leave is important to avoid
-causing a potential availability outage affecting the
-[consensus protocol](/docs/internals/consensus.html). If a server does
-forcefully exit and will not be returning into service, the
-[`server-force-leave` command](/docs/commands/server-force-leave.html) should
+If an agent is operating as a server, [`leave_on_terminate`](/docs/configuration/index.html#leave_on_terminate) should only
+be set if the server will never rejoin the cluster again. The default value of `false` for `leave_on_terminate` and `leave_on_interrupt`
+work well for most scenarios. If Nomad servers are part of an auto scaling group where new servers are brought up to replace
+failed servers, using graceful leave avoids causing a potential availability outage affecting the [consensus protocol](/docs/internals/consensus.html).
+As of Nomad 0.8, Nomad includes Autopilot which automatically removes failed or dead servers. This allows the operator to skip setting `leave_on_terminate`.
+
+If a server does forcefully exit and will not be returning into service, the
+[`server force-leave` command](/docs/commands/server/force-leave.html) should
 be used to force the server from a _failed_ to a _left_ state.
 
 ## Next Steps

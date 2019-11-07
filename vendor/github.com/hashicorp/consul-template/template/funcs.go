@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -14,7 +16,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/burntsushi/toml"
+	"github.com/BurntSushi/toml"
 	dep "github.com/hashicorp/consul-template/dependency"
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
@@ -25,11 +27,22 @@ import (
 var now = func() time.Time { return time.Now().UTC() }
 
 // datacentersFunc returns or accumulates datacenter dependencies.
-func datacentersFunc(b *Brain, used, missing *dep.Set) func() ([]string, error) {
-	return func() ([]string, error) {
+func datacentersFunc(b *Brain, used, missing *dep.Set) func(ignore ...bool) ([]string, error) {
+	return func(i ...bool) ([]string, error) {
 		result := []string{}
 
-		d, err := dep.NewCatalogDatacentersQuery()
+		var ignore bool
+		switch len(i) {
+		case 0:
+			ignore = false
+		case 1:
+			ignore = i[0]
+		default:
+			return result, fmt.Errorf("datacenters: wrong number of arguments, expected 0 or 1"+
+				", but got %d", len(i))
+		}
+
+		d, err := dep.NewCatalogDatacentersQuery(ignore)
 		if err != nil {
 			return result, err
 		}
@@ -49,34 +62,16 @@ func datacentersFunc(b *Brain, used, missing *dep.Set) func() ([]string, error) 
 // envFunc returns a function which checks the value of an environment variable.
 // Invokers can specify their own environment, which takes precedences over any
 // real environment variables
-func envFunc(b *Brain, used, missing *dep.Set, overrides []string) func(string) (string, error) {
+func envFunc(env []string) func(string) (string, error) {
 	return func(s string) (string, error) {
-		var result string
-
-		d, err := dep.NewEnvQuery(s)
-		if err != nil {
-			return result, err
-		}
-
-		used.Add(d)
-
-		// Overrides lookup - we have to do this after adding the dependency,
-		// otherwise dedupe sharing won't work.
-		for _, e := range overrides {
+		for _, e := range env {
 			split := strings.SplitN(e, "=", 2)
 			k, v := split[0], split[1]
 			if k == s {
 				return v, nil
 			}
 		}
-
-		if value, ok := b.Recall(d); ok {
-			return value.(string), nil
-		}
-
-		missing.Add(d)
-
-		return result, nil
+		return os.Getenv(s), nil
 	}
 }
 
@@ -104,12 +99,15 @@ func executeTemplateFunc(t *template.Template) func(string, ...interface{}) (str
 }
 
 // fileFunc returns or accumulates file dependencies.
-func fileFunc(b *Brain, used, missing *dep.Set) func(string) (string, error) {
+func fileFunc(b *Brain, used, missing *dep.Set, sandboxPath string) func(string) (string, error) {
 	return func(s string) (string, error) {
 		if len(s) == 0 {
 			return "", nil
 		}
-
+		err := pathInSandbox(sandboxPath, s)
+		if err != nil {
+			return "", err
+		}
 		d, err := dep.NewFileQuery(s)
 		if err != nil {
 			return "", err
@@ -369,7 +367,7 @@ func serviceFunc(b *Brain, used, missing *dep.Set) func(...string) ([]*dep.Healt
 			return result, nil
 		}
 
-		d, err := dep.NewHealthServiceQuery(strings.Join(s, ""))
+		d, err := dep.NewHealthServiceQuery(strings.Join(s, "|"))
 		if err != nil {
 			return nil, err
 		}
@@ -661,6 +659,28 @@ func in(l, v interface{}) (bool, error) {
 	return false, nil
 }
 
+// Indent prefixes each line of a string with the specified number of spaces
+func indent(spaces int, s string) (string, error) {
+	if spaces < 0 {
+		return "", fmt.Errorf("indent value must be a positive integer")
+	}
+	var output, prefix []byte
+	var sp bool
+	var size int
+	prefix = []byte(strings.Repeat(" ", spaces))
+	sp = true
+	for _, c := range []byte(s) {
+		if sp && c != '\n' {
+			output = append(output, prefix...)
+			size += spaces
+		}
+		output = append(output, c)
+		sp = c == '\n'
+		size++
+	}
+	return string(output[:size]), nil
+}
+
 // loop accepts varying parameters and differs its behavior. If given one
 // parameter, loop will return a goroutine that begins at 0 and loops until the
 // given int, increasing the index by 1 each iteration. If given two parameters,
@@ -816,7 +836,7 @@ func plugin(name string, args ...string) (string, error) {
 			}
 		}
 		<-done // Allow the goroutine to exit
-		return "", fmt.Errorf("exec %q: did not finishin 30s", name)
+		return "", fmt.Errorf("exec %q: did not finish in 30s", name)
 	case err := <-done:
 		if err != nil {
 			return "", fmt.Errorf("exec %q: %s\n\nstdout:\n\n%s\n\nstderr:\n\n%s",
@@ -1110,4 +1130,57 @@ func divide(b, a interface{}) (interface{}, error) {
 	default:
 		return nil, fmt.Errorf("divide: unknown type for %q (%T)", av, a)
 	}
+}
+
+// modulo returns the modulo of b from a.
+func modulo(b, a interface{}) (interface{}, error) {
+	av := reflect.ValueOf(a)
+	bv := reflect.ValueOf(b)
+
+	switch av.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			return av.Int() % bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			return av.Int() % int64(bv.Uint()), nil
+		default:
+			return nil, fmt.Errorf("modulo: unknown type for %q (%T)", bv, b)
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			return int64(av.Uint()) % bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			return av.Uint() % bv.Uint(), nil
+		default:
+			return nil, fmt.Errorf("modulo: unknown type for %q (%T)", bv, b)
+		}
+	default:
+		return nil, fmt.Errorf("modulo: unknown type for %q (%T)", av, a)
+	}
+}
+
+// blacklisted always returns an error, to be used in place of blacklisted template functions
+func blacklisted(...string) (string, error) {
+	return "", errors.New("function is disabled")
+}
+
+// pathInSandbox returns an error if the provided path doesn't fall within the
+// sandbox or if the file can't be evaluated (missing, invalid symlink, etc.)
+func pathInSandbox(sandbox, path string) error {
+	if sandbox != "" {
+		s, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return err
+		}
+		s, err = filepath.Rel(sandbox, s)
+		if err != nil {
+			return err
+		}
+		if strings.HasPrefix(s, "..") {
+			return fmt.Errorf("'%s' is outside of sandbox", path)
+		}
+	}
+	return nil
 }

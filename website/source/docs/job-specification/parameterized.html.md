@@ -26,13 +26,13 @@ stanza is added to a job, the job acts as a function to the cluster as a whole.
 
 The `parameterized` stanza allows job operators to configure a job that carries
 out a particular action, define its resource requirements and configure how
-inputs and configuration are retreived by the tasks within the job.
+inputs and configuration are retrieved by the tasks within the job.
 
 To invoke a parameterized job, [`nomad job
 dispatch`][dispatch command] or the equivalent HTTP APIs are
 used. When dispatching against a parameterized job, an opaque payload and
 metadata may be injected into the job. These inputs to the parameterized job act
-like arguments to a function. The job consumes them to change it's behavior,
+like arguments to a function. The job consumes them to change its behavior,
 without exposing the implementation details to the caller.
 
 To that end, tasks within the job can add a
@@ -147,7 +147,7 @@ job "email-blast" {
       config {
         command = "emailer"
 
-        # The campagain ID is interpolated and injected into the task's
+        # The campaign ID is interpolated and injected into the task's
         # arguments
         args = ["-campaign=${NOMAD_META_CAMPAIGN_ID}"]
       }
@@ -157,7 +157,7 @@ job "email-blast" {
 ```
 
 [batch-type]: /docs/job-specification/job.html#type "Batch scheduler type"
-[dispatch command]: /docs/commands/job-dispatch.html "Nomad Job Dispatch Command"
+[dispatch command]: /docs/commands/job/dispatch.html "Nomad Job Dispatch Command"
 [resources]: /docs/job-specification/resources.html "Nomad resources Job Specification"
 [interpolation]: /docs/runtime/interpolation.html "Nomad Runtime Interpolation"
 [dispatch_payload]: /docs/job-specification/dispatch_payload.html "Nomad dispatch_payload Job Specification"

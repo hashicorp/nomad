@@ -4,20 +4,21 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
 
 func TestRegionList(t *testing.T) {
+	t.Parallel()
 	// Make the servers
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.Region = "region1"
 	})
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
-	s2 := testServer(t, func(c *Config) {
+	s2 := TestServer(t, func(c *Config) {
 		c.Region = "region2"
 	})
 	defer s2.Shutdown()

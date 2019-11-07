@@ -1,0 +1,11 @@
+{{#global-header
+  class="page-header"
+  onHamburgerClick=(action (mut isGutterOpen) true)}}
+  {{app-breadcrumbs}}
+{{/global-header}}
+{{#gutter-menu
+  class="page-body"
+  isOpen=isGutterOpen
+  onHamburgerClick=(action (mut isGutterOpen) false)}}
+  {{yield}}
+{{/gutter-menu}}

@@ -1,12 +1,12 @@
 package client
 
+/*
+TODO(clientv2)
 import (
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -32,7 +32,7 @@ func TestDiffAllocs(t *testing.T) {
 			alloc4.ID:  alloc4,
 		},
 		filtered: map[string]struct{}{
-			alloc1.ID: struct{}{},
+			alloc1.ID: {},
 		},
 	}
 
@@ -60,7 +60,7 @@ func TestShuffleStrings(t *testing.T) {
 	// Generate input
 	inp := make([]string, 10)
 	for idx := range inp {
-		inp[idx] = structs.GenerateUUID()
+		inp[idx] = uuid.Generate()
 	}
 
 	// Copy the input
@@ -75,42 +75,4 @@ func TestShuffleStrings(t *testing.T) {
 		t.Fatalf("shuffle failed")
 	}
 }
-
-func TestPersistRestoreState(t *testing.T) {
-	t.Parallel()
-	dir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.RemoveAll(dir)
-
-	// Use a state path inside a non-existent directory. This
-	// verifies that the directory is created properly.
-	statePath := filepath.Join(dir, "subdir", "test-persist")
-
-	type stateTest struct {
-		Foo int
-		Bar string
-		Baz bool
-	}
-	state := stateTest{
-		Foo: 42,
-		Bar: "the quick brown fox",
-		Baz: true,
-	}
-
-	err = persistState(statePath, &state)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	var out stateTest
-	err = restoreState(statePath, &out)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(state, out) {
-		t.Fatalf("bad: %#v %#v", state, out)
-	}
-}
+*/

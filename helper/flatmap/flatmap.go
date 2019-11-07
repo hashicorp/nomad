@@ -113,23 +113,17 @@ func flatten(prefix string, v reflect.Value, primitiveOnly, enteredStruct bool, 
 // getSubPrefix takes the current prefix and the next subfield and returns an
 // appropriate prefix.
 func getSubPrefix(curPrefix, subField string) string {
-	newPrefix := ""
 	if curPrefix != "" {
-		newPrefix = fmt.Sprintf("%s.%s", curPrefix, subField)
-	} else {
-		newPrefix = fmt.Sprintf("%s", subField)
+		return fmt.Sprintf("%s.%s", curPrefix, subField)
 	}
-	return newPrefix
+	return fmt.Sprintf("%s", subField)
 }
 
 // getSubKeyPrefix takes the current prefix and the next subfield and returns an
 // appropriate prefix for a map field.
 func getSubKeyPrefix(curPrefix, subField string) string {
-	newPrefix := ""
 	if curPrefix != "" {
-		newPrefix = fmt.Sprintf("%s[%s]", curPrefix, subField)
-	} else {
-		newPrefix = fmt.Sprintf("%s", subField)
+		return fmt.Sprintf("%s[%s]", curPrefix, subField)
 	}
-	return newPrefix
+	return fmt.Sprintf("%s", subField)
 }

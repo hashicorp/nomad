@@ -1,0 +1,183 @@
+{{#freestyle-collection defaultKey="Normal" as |collection|}}
+  {{#collection.variant key="Normal"}}
+    {{#freestyle-usage "boxed-section-normal-normal" title="Normal Boxed Section"}}
+      <div class="boxed-section">
+        <div class="boxed-section-head">
+          Normal Boxed Section
+        </div>
+        <div class="boxed-section-body">
+          <div class="mock-content">
+            <div class="mock-image"></div>
+            <div class="mock-copy"></div>
+            <div class="mock-copy"></div>
+          </div>
+        </div>
+      </div>
+    {{/freestyle-usage}}
+  {{/collection.variant}}
+  {{#collection.variant key="Info"}}
+    {{#freestyle-usage "boxed-section-normal-info" title="Info Boxed Section"}}
+      <div class="boxed-section is-info">
+        <div class="boxed-section-head">
+          Normal Boxed Section
+        </div>
+        <div class="boxed-section-body">
+          <div class="mock-content">
+            <div class="mock-image"></div>
+            <div class="mock-copy"></div>
+            <div class="mock-copy"></div>
+          </div>
+        </div>
+      </div>
+    {{/freestyle-usage}}
+  {{/collection.variant}}
+  {{#collection.variant key="Warning"}}
+    {{#freestyle-usage "boxed-section-normal-warning" title="Warning Boxed Section"}}
+      <div class="boxed-section is-warning">
+        <div class="boxed-section-head">
+          Normal Boxed Section
+        </div>
+        <div class="boxed-section-body">
+          <div class="mock-content">
+            <div class="mock-image"></div>
+            <div class="mock-copy"></div>
+            <div class="mock-copy"></div>
+          </div>
+        </div>
+      </div>
+    {{/freestyle-usage}}
+  {{/collection.variant}}
+  {{#collection.variant key="Danger"}}
+    {{#freestyle-usage "boxed-section-normal-danger" title="Danger Boxed Section"}}
+      <div class="boxed-section is-danger">
+        <div class="boxed-section-head">
+          Normal Boxed Section
+        </div>
+        <div class="boxed-section-body">
+          <div class="mock-content">
+            <div class="mock-image"></div>
+            <div class="mock-copy"></div>
+            <div class="mock-copy"></div>
+          </div>
+        </div>
+      </div>
+    {{/freestyle-usage}}
+  {{/collection.variant}}
+{{/freestyle-collection}}
+
+{{#freestyle-collection defaultKey="Normal" as |collection|}}
+  {{#each variants as |variant|}}
+    {{#collection.variant key=variant.key}}
+      {{#freestyle-usage "boxed-section-right-hand-normal" title=(concat variant.title "Normal Boxed Section With Right Hand Details")}}
+        <div class="boxed-section {{variant.slug}}">
+          <div class="boxed-section-head">
+            Boxed Section With Right Hand Details
+            <span class="pull-right">{{now interval=1000}}</span>
+          </div>
+          <div class="boxed-section-body">
+            <div class="mock-content">
+              <div class="mock-image"></div>
+              <div class="mock-copy"></div>
+              <div class="mock-copy"></div>
+            </div>
+          </div>
+        </div>
+      {{/freestyle-usage}}
+    {{/collection.variant}}
+  {{/each}}
+{{/freestyle-collection}}
+
+{{#freestyle-collection defaultKey="Normal" as |collection|}}
+  {{#each variants as |variant|}}
+    {{#collection.variant key=variant.key}}
+      {{#freestyle-usage "boxed-section-left-badge-normal" title=(concat variant.title " Normal Boxed Section With Title Decoration")}}
+        <div class="boxed-section {{variant.slug}}">
+          <div class="boxed-section-head">
+            Boxed Section With Title Decoration
+            <span class="badge is-white">7</span>
+          </div>
+          <div class="boxed-section-body">
+            <div class="mock-content">
+              <div class="mock-image"></div>
+              <div class="mock-copy"></div>
+              <div class="mock-copy"></div>
+            </div>
+          </div>
+        </div>
+      {{/freestyle-usage}}
+    {{/collection.variant}}
+  {{/each}}
+{{/freestyle-collection}}
+
+{{#freestyle-collection defaultKey="Normal" as |collection|}}
+  {{#each variants as |variant|}}
+    {{#collection.variant key=variant.key}}
+      {{#freestyle-usage "boxed-section-with-foot-normal" title=(concat variant.title " Boxed Section With Foot")}}
+        <div class="boxed-section {{variant.slug}}">
+          <div class="boxed-section-head">
+            Boxed Section With Large Header
+          </div>
+          <div class="boxed-section-body with-foot">
+            <div class="mock-content">
+              <div class="mock-image"></div>
+              <div class="mock-copy"></div>
+              <div class="mock-copy"></div>
+            </div>
+          </div>
+          <div class="boxed-section-foot">
+            <span>Left-aligned message</span>
+            <a href="#" class="pull-right">Toggle or other action</a>
+          </div>
+        </div>
+      {{/freestyle-usage}}
+    {{/collection.variant}}
+  {{/each}}
+{{/freestyle-collection}}
+
+{{#freestyle-collection defaultKey="Normal" as |collection|}}
+  {{#each variants as |variant|}}
+    {{#collection.variant key=variant.key}}
+      {{#freestyle-usage "boxed-section-with-large-header" title=(concat variant.title " Boxed Section With Large Header")}}
+        <div class="boxed-section {{variant.slug}}">
+          <div class="boxed-section-head">
+            <div class="boxed-section-row">
+              Boxed Section With Large Header
+              <span class="badge is-white is-subtle bumper-left">Status</span>
+            </div>
+            <div class="boxed-section-row">
+              <span class="tag is-outlined">A tag that goes on a second line because it's rather long</span>
+            </div>
+          </div>
+          <div class="boxed-section-body">
+            <div class="mock-content">
+              <div class="mock-image"></div>
+              <div class="mock-copy"></div>
+              <div class="mock-copy"></div>
+            </div>
+          </div>
+        </div>
+      {{/freestyle-usage}}
+    {{/collection.variant}}
+  {{/each}}
+{{/freestyle-collection}}
+
+{{#freestyle-collection defaultKey="Normal" as |collection|}}
+  {{#each variants as |variant|}}
+    {{#collection.variant key=variant.key}}
+      {{#freestyle-usage "boxed-section-with-dark-body" title=(concat variant.title " Boxed Section With Dark Body")}}
+        <div class="boxed-section {{variant.slug}}">
+          <div class="boxed-section-head">
+            Boxed Section With Dark Body
+          </div>
+          <div class="boxed-section-body is-dark">
+            <div class="mock-content">
+              <div class="mock-image"></div>
+              <div class="mock-copy"></div>
+              <div class="mock-copy"></div>
+            </div>
+          </div>
+        </div>
+      {{/freestyle-usage}}
+    {{/collection.variant}}
+  {{/each}}
+{{/freestyle-collection}}

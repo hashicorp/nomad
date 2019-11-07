@@ -1,0 +1,33 @@
+$size: 0.75em;
+
+.node-status-light {
+  display: inline-block;
+  height: $size;
+  width: $size;
+  border-radius: $size / 2;
+  vertical-align: middle;
+
+  background: $black;
+
+  &.ready {
+    background: $primary;
+  }
+
+  &.down {
+    background: $danger;
+  }
+
+  &.initializing {
+    background: repeating-linear-gradient(
+      -45deg,
+      $grey-lighter,
+      $grey-lighter 3px,
+      darken($grey-lighter, 25%) 3px,
+      darken($grey-lighter, 25%) 6px
+    );
+  }
+
+  &.ineligible {
+    background: $warning;
+  }
+}

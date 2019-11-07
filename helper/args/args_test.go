@@ -75,3 +75,32 @@ func TestArgs_ReplaceEnv_Chained(t *testing.T) {
 		t.Fatalf("ReplaceEnv(%v, %v) returned %#v; want %#v", input, envVars, act, exp)
 	}
 }
+
+func TestArgs_ContainsEnv(t *testing.T) {
+	positiveCases := []string{
+		"test-${env_var}",
+	}
+	for _, c := range positiveCases {
+		t.Run(fmt.Sprintf("positive case: %v", c), func(t *testing.T) {
+			if !ContainsEnv(c) {
+				t.Fatalf("ContainsEnv(%v) returned false; want true", c)
+			}
+		})
+	}
+
+	negativeCases := []string{
+		"test",
+		"test-$",
+		"test-${asdf",
+		"test-{asdf}",
+		"$test",
+	}
+	for _, c := range negativeCases {
+		t.Run(fmt.Sprintf("negative case: %v", c), func(t *testing.T) {
+			if ContainsEnv(c) {
+				t.Fatalf("ContainsEnv(%v) returned true; want false", c)
+			}
+		})
+	}
+
+}

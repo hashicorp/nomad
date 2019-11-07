@@ -56,7 +56,7 @@ job "docs" {
   # 30 second intervals.
   update {
     stagger      = "30s"
-    max_parallel = 1
+    max_parallel = 2
   }
 
   # A group defines a series of tasks that should be co-located
@@ -82,7 +82,7 @@ job "docs" {
       # with Consul for service discovery and monitoring.
       service {
         # This tells Consul to monitor the service on the port
-        # labled "http". Since Nomad allocates high dynamic port
+        # labelled "http". Since Nomad allocates high dynamic port
         # numbers, we use labels to refer to them.
         port = "http"
 
@@ -95,14 +95,14 @@ job "docs" {
       }
 
       # It is possible to set environment variables which will be
-      # available to the job when it runs.
+      # available to the task when it runs.
       env {
         "DB_HOST" = "db01.example.com"
         "DB_USER" = "web"
         "DB_PASS" = "loremipsum"
       }
 
-      # Specify the maximum resources required to run the job,
+      # Specify the maximum resources required to run the task,
       # include CPU, memory, and bandwidth.
       resources {
         cpu    = 500 # MHz
@@ -129,5 +129,20 @@ job "docs" {
 }
 ```
 
+Note that starting with Nomad 0.10, the `service` stanza can also be specified at the group level. This
+allows job specification authors to create and register services with Consul Connect support. A service
+stanza specified at the group level must include a [connect][] stanza, like the following snippet.
+
+```hcl
+service {
+       name = "count-api"
+       port = "9001"
+
+       connect {
+         sidecar_service {}
+       }
+     }
+```
 [hcl]: https://github.com/hashicorp/hcl "HashiCorp Configuration Language"
 [job]: /docs/job-specification/job.html "Nomad job Job Specification"
+[connect]: /docs/job-specification/connect.html "Connect Stanza Specification"

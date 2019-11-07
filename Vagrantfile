@@ -1,154 +1,203 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
+#
 
-# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
-VAGRANTFILE_API_VERSION = "2"
+LINUX_BASE_BOX = "bento/ubuntu-16.04"
+FREEBSD_BASE_BOX = "freebsd/FreeBSD-11.3-STABLE"
 
-DEFAULT_CPU_COUNT = 2
-$script = <<SCRIPT
-GO_VERSION="1.8"
+LINUX_IP_ADDRESS = "10.199.0.200"
 
-export DEBIAN_FRONTEND=noninteractive
+Vagrant.configure(2) do |config|
+	# Compilation and development boxes
+	config.vm.define "linux", autostart: true, primary: true do |vmCfg|
+		vmCfg.vm.box = LINUX_BASE_BOX
+		vmCfg.vm.hostname = "linux"
+		vmCfg = configureProviders vmCfg,
+			cpus: suggestedCPUCores()
 
-sudo dpkg --add-architecture i386
-sudo apt-get update
+		vmCfg = configureLinuxProvisioners(vmCfg)
 
-# Install base dependencies
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential curl git-core mercurial bzr \
-     libpcre3-dev pkg-config zip default-jre qemu silversearcher-ag \
-     jq htop vim unzip tree                             \
-     liblxc1 lxc-dev lxc-templates                      \
-     gcc-5-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-     libc6-dev-i386 linux-libc-dev:i386                 \
-     gcc-5-arm-linux-gnueabihf gcc-5-multilib-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
+		vmCfg.vm.synced_folder '.',
+			'/opt/gopath/src/github.com/hashicorp/nomad'
 
-# Setup go, for development of Nomad
-SRCROOT="/opt/go"
-SRCPATH="/opt/gopath"
+		vmCfg.vm.provision "shell",
+			privileged: false,
+			path: './scripts/vagrant-linux-unpriv-bootstrap.sh'
 
-# Get the ARCH
-ARCH=`uname -m | sed 's|i686|386|' | sed 's|x86_64|amd64|'`
+		vmCfg.vm.provider "virtualbox" do |_|
+			vmCfg.vm.network :private_network, ip: LINUX_IP_ADDRESS
+		end
+	end
 
-# Install Go
-if [[ $(go version) == "go version go${GO_VERSION} linux/${ARCH}" ]]; then
-    echo "Go ${GO_VERSION} ${ARCH} already installed; Skipping"
-else
-    cd /tmp
-    wget -q https://storage.googleapis.com/golang/go${GO_VERSION}.linux-${ARCH}.tar.gz
-    tar -xf go${GO_VERSION}.linux-${ARCH}.tar.gz
-    sudo rm -rf $SRCROOT/go
-    sudo mv go $SRCROOT
-    sudo chmod 775 $SRCROOT
-    sudo chown vagrant:vagrant $SRCROOT
-fi
+	config.vm.define "linux-ui", autostart: false, primary: false do |vmCfg|
+		vmCfg.vm.box = LINUX_BASE_BOX
+		vmCfg.vm.hostname = "linux"
+		vmCfg = configureProviders vmCfg,
+			cpus: suggestedCPUCores()
 
-# Setup the GOPATH; even though the shared folder spec gives the working
-# directory the right user/group, we need to set it properly on the
-# parent path to allow subsequent "go get" commands to work.
-sudo mkdir -p $SRCPATH
-sudo chown -R vagrant:vagrant $SRCPATH 2>/dev/null || true
-# ^^ silencing errors here because we expect this to fail for the shared folder
+		vmCfg = configureLinuxProvisioners(vmCfg)
 
-cat <<EOF >/tmp/gopath.sh
-export GOPATH="$SRCPATH"
-export GOROOT="$SRCROOT"
-export PATH="$SRCROOT/bin:$SRCPATH/bin:\$PATH"
-EOF
-sudo mv /tmp/gopath.sh /etc/profile.d/gopath.sh
-sudo chmod 0755 /etc/profile.d/gopath.sh
-source /etc/profile.d/gopath.sh
+		vmCfg.vm.synced_folder '.',
+			'/opt/gopath/src/github.com/hashicorp/nomad'
 
-# Install Docker
-if [[ -f /etc/apt/sources.list.d/docker.list ]]; then
-    echo "Docker repository already installed; Skipping"
-else
-    echo deb https://apt.dockerproject.org/repo ubuntu-`lsb_release -c | awk '{print $2}'` main | sudo tee /etc/apt/sources.list.d/docker.list
-    sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
-    sudo apt-get update
-fi
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-engine
+		vmCfg.vm.provision "shell",
+			privileged: false,
+			path: './scripts/vagrant-linux-unpriv-bootstrap.sh'
 
-# Restart docker to make sure we get the latest version of the daemon if there is an upgrade
-sudo service docker restart
+		# Expose the nomad api and ui to the host
+		vmCfg.vm.network :forwarded_port, guest: 4646, host: 4646, auto_correct: true
+		vmCfg.vm.network :forwarded_port, guest: 8500, host: 8500, auto_correct: true
 
-# Make sure we can actually use docker as the vagrant user
-sudo usermod -aG docker vagrant
+		# Expose Ember ports to the host (one for the site, one for livereload)
+		vmCfg.vm.network :forwarded_port, guest: 4201, host: 4201, auto_correct: true
+		vmCfg.vm.network :forwarded_port, guest: 49153, host: 49153, auto_correct: true
+	end
 
-# Setup Nomad for development
-cd /opt/gopath/src/github.com/hashicorp/nomad && make bootstrap
+	config.vm.define "freebsd", autostart: false, primary: false do |vmCfg|
+		vmCfg.vm.box = FREEBSD_BASE_BOX
+		vmCfg.vm.hostname = "freebsd"
+		vmCfg.ssh.shell = "sh"
+		vmCfg = configureProviders vmCfg,
+			cpus: suggestedCPUCores()
+		vmCfg.vm.network "private_network", type: "dhcp"
+		vmCfg.vm.synced_folder '.',
+			'/opt/gopath/src/github.com/hashicorp/nomad',
+			type: "nfs",
+			bsd__nfs_options: ['noatime']
 
-# Install rkt, consul and vault
-bash scripts/install_rkt.sh
-bash scripts/install_rkt_vagrant.sh
-bash scripts/install_consul.sh
-bash scripts/install_vault.sh
+		vmCfg.vm.provision "shell",
+			privileged: true,
+			path: './scripts/vagrant-freebsd-priv-config.sh'
 
-# Set hostname's IP to made advertisement Just Work
-sudo sed -i -e "s/.*nomad.*/$(ip route get 1 | awk '{print $NF;exit}') $(hostname)/" /etc/hosts
+		vmCfg.vm.provision "shell",
+			privileged: false,
+			path: './scripts/vagrant-freebsd-unpriv-bootstrap.sh'
+	end
 
-# CD into the nomad working directory when we login to the VM
-grep "cd /opt/gopath/src/github.com/hashicorp/nomad" ~/.profile || echo "cd /opt/gopath/src/github.com/hashicorp/nomad" >> ~/.profile
-SCRIPT
+	# Test Cluster (Linux)
+	1.upto(3) do |n|
+		serverName = "nomad-server%02d" % [n]
+		clientName = "nomad-client%02d" % [n]
+		serverIP = "10.199.0.%d" % [10 + n]
+		clientIP = "10.199.0.%d" % [20 + n]
 
-def configureVM(vmCfg, vmParams={
-                  numCPUs: DEFAULT_CPU_COUNT,
-                }
-               )
-  # When updating make sure to use a box that supports VMWare and VirtualBox
-  vmCfg.vm.box = "bento/ubuntu-16.04" # 16.04 LTS
+		config.vm.define serverName, autostart: false, primary: false do |vmCfg|
+			vmCfg.vm.box = LINUX_BASE_BOX
+			vmCfg.vm.hostname = serverName
+			vmCfg = configureProviders(vmCfg)
+			vmCfg = configureLinuxProvisioners(vmCfg)
 
-  vmCfg.vm.provision "shell", inline: $script, privileged: false
-  vmCfg.vm.synced_folder '.', '/opt/gopath/src/github.com/hashicorp/nomad'
+			vmCfg.vm.provider "virtualbox" do |_|
+				vmCfg.vm.network :private_network, ip: serverIP
+			end
 
-  # We're going to compile go and run a concurrent system, so give ourselves
-  # some extra resources. Nomad will have trouble working correctly with <2
-  # CPUs so we should use at least that many.
-  cpus = vmParams.fetch(:numCPUs, DEFAULT_CPU_COUNT)
-  memory = 2048
+			vmCfg.vm.synced_folder '.',
+				'/opt/gopath/src/github.com/hashicorp/nomad'
 
-  vmCfg.vm.provider "parallels" do |p, o|
-    p.memory = memory
-    p.cpus = cpus
-  end
+			vmCfg.vm.provision "shell",
+				privileged: true,
+				path: './scripts/vagrant-linux-priv-zeroconf.sh'
+		end
 
-  vmCfg.vm.provider "virtualbox" do |v|
-    v.memory = memory
-    v.cpus = cpus
-  end
+		config.vm.define clientName, autostart: false, primary: false do |vmCfg|
+			vmCfg.vm.box = LINUX_BASE_BOX
+			vmCfg.vm.hostname = clientName
+			vmCfg = configureProviders(vmCfg)
+			vmCfg = configureLinuxProvisioners(vmCfg)
 
-  ["vmware_fusion", "vmware_workstation"].each do |p|
-    vmCfg.vm.provider p do |v|
-      v.enable_vmrun_ip_lookup = false
-      v.gui = false
-      v.memory = memory
-      v.cpus = cpus
-    end
-  end
-  return vmCfg
+			vmCfg.vm.provider "virtualbox" do |_|
+				vmCfg.vm.network :private_network, ip: clientIP
+			end
+
+			vmCfg.vm.synced_folder '.',
+				'/opt/gopath/src/github.com/hashicorp/nomad'
+
+			vmCfg.vm.provision "shell",
+				privileged: true,
+				path: './scripts/vagrant-linux-priv-zeroconf.sh'
+		end
+	end
 end
 
-Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  1.upto(3) do |n|
-    vmName = "nomad-server%02d" % [n]
-    isFirstBox = (n == 1)
+def configureLinuxProvisioners(vmCfg)
+	vmCfg.vm.provision "shell",
+		privileged: true,
+		inline: 'rm -f /home/vagrant/linux.iso'
 
-    numCPUs = DEFAULT_CPU_COUNT
-    if isFirstBox and Object::RUBY_PLATFORM =~ /darwin/i
-      # Override the max CPUs for the first VM
-      numCPUs = [numCPUs, (`/usr/sbin/sysctl -n hw.ncpu`.to_i - 1)].max
-    end
+	vmCfg.vm.provision "shell",
+		privileged: true,
+		path: './scripts/vagrant-linux-priv-go.sh'
 
-    config.vm.define vmName, autostart: isFirstBox, primary: isFirstBox do |vmCfg|
-      vmCfg.vm.hostname = vmName
-      vmCfg = configureVM(vmCfg, {:numCPUs => numCPUs})
-    end
-  end
+	vmCfg.vm.provision "shell",
+		privileged: true,
+		path: './scripts/vagrant-linux-priv-config.sh'
 
-  1.upto(3) do |n|
-    vmName = "nomad-client%02d" % [n]
-    config.vm.define vmName, autostart: false, primary: false do |vmCfg|
-      vmCfg.vm.hostname = vmName
-      vmCfg = configureVM(vmCfg)
-    end
-  end
+	vmCfg.vm.provision "shell",
+		privileged: true,
+		path: './scripts/vagrant-linux-priv-dev.sh'
+
+	vmCfg.vm.provision "shell",
+		privileged: true,
+		path: './scripts/vagrant-linux-priv-docker.sh'
+
+	vmCfg.vm.provision "shell",
+		privileged: true,
+		path: './scripts/vagrant-linux-priv-consul.sh'
+
+	vmCfg.vm.provision "shell",
+		privileged: true,
+		path: './scripts/vagrant-linux-priv-cni.sh'
+
+	vmCfg.vm.provision "shell",
+		privileged: true,
+		path: './scripts/vagrant-linux-priv-vault.sh'
+
+	vmCfg.vm.provision "shell",
+		privileged: true,
+		path: './scripts/vagrant-linux-priv-rkt.sh'
+
+	vmCfg.vm.provision "shell",
+		privileged: false,
+		path: './scripts/vagrant-linux-unpriv-ui.sh'
+
+	vmCfg.vm.provision "shell",
+		privileged: true,
+		path: './scripts/vagrant-linux-priv-protoc.sh'
+
+	return vmCfg
+end
+
+def configureProviders(vmCfg, cpus: "2", memory: "2048")
+	vmCfg.vm.provider "virtualbox" do |v|
+		v.customize ["modifyvm", :id, "--cableconnected1", "on"]
+		v.memory = memory
+		v.cpus = cpus
+	end
+
+	["vmware_fusion", "vmware_workstation"].each do |p|
+		vmCfg.vm.provider p do |v|
+			v.enable_vmrun_ip_lookup = false
+			v.vmx["memsize"] = memory
+			v.vmx["numvcpus"] = cpus
+		end
+	end
+
+	vmCfg.vm.provider "virtualbox" do |v|
+		v.customize ["modifyvm", :id, "--cableconnected1", "on"]
+		v.memory = memory
+		v.cpus = cpus
+	end
+
+	return vmCfg
+end
+
+def suggestedCPUCores()
+	case RbConfig::CONFIG['host_os']
+	when /darwin/
+		Integer(`sysctl -n hw.ncpu`) / 2
+	when /linux/
+		Integer(`grep -c ^processor /proc/cpuinfo`) / 2
+	else
+		2
+	end
 end

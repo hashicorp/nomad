@@ -33,7 +33,7 @@ func (m *CirconusMetrics) Reset() {
 
 	m.counters = make(map[string]uint64)
 	m.counterFuncs = make(map[string]func() uint64)
-	m.gauges = make(map[string]string)
+	m.gauges = make(map[string]interface{})
 	m.gaugeFuncs = make(map[string]func() int64)
 	m.histograms = make(map[string]*Histogram)
 	m.text = make(map[string]string)
@@ -41,7 +41,7 @@ func (m *CirconusMetrics) Reset() {
 }
 
 // snapshot returns a copy of the values of all registered counters and gauges.
-func (m *CirconusMetrics) snapshot() (c map[string]uint64, g map[string]string, h map[string]*circonusllhist.Histogram, t map[string]string) {
+func (m *CirconusMetrics) snapshot() (c map[string]uint64, g map[string]interface{}, h map[string]*circonusllhist.Histogram, t map[string]string) {
 	c = m.snapCounters()
 	g = m.snapGauges()
 	h = m.snapHistograms()
@@ -68,33 +68,27 @@ func (m *CirconusMetrics) snapCounters() map[string]uint64 {
 	for n, f := range m.counterFuncs {
 		c[n] = f()
 	}
-	if m.resetCounters && len(c) > 0 {
-		m.counterFuncs = make(map[string]func() uint64)
-	}
 
 	return c
 }
 
-func (m *CirconusMetrics) snapGauges() map[string]string {
+func (m *CirconusMetrics) snapGauges() map[string]interface{} {
 	m.gm.Lock()
 	defer m.gm.Unlock()
 	m.gfm.Lock()
 	defer m.gfm.Unlock()
 
-	g := make(map[string]string, len(m.gauges)+len(m.gaugeFuncs))
+	g := make(map[string]interface{}, len(m.gauges)+len(m.gaugeFuncs))
 
 	for n, v := range m.gauges {
 		g[n] = v
 	}
 	if m.resetGauges && len(g) > 0 {
-		m.gauges = make(map[string]string)
+		m.gauges = make(map[string]interface{})
 	}
 
 	for n, f := range m.gaugeFuncs {
-		g[n] = m.gaugeValString(f())
-	}
-	if m.resetGauges && len(g) > 0 {
-		m.gaugeFuncs = make(map[string]func() int64)
+		g[n] = f()
 	}
 
 	return g
@@ -135,9 +129,6 @@ func (m *CirconusMetrics) snapText() map[string]string {
 
 	for n, f := range m.textFuncs {
 		t[n] = f()
-	}
-	if m.resetText && len(t) > 0 {
-		m.textFuncs = make(map[string]func() string)
 	}
 
 	return t

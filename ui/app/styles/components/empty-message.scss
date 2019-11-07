@@ -1,0 +1,25 @@
+.empty-message {
+  padding: 1.5rem;
+  background: $white-ter;
+  border-radius: $radius;
+
+  .empty-message-headline {
+    font-size: $size-3;
+    color: $grey;
+    text-align: center;
+  }
+
+  .empty-message-body {
+    padding: 0 20%;
+    text-align: center;
+    color: $grey;
+
+    strong {
+      color: $grey;
+    }
+  }
+
+  &.is-hollow {
+    background: transparent;
+  }
+}

@@ -2,14 +2,11 @@ package fingerprint
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
 	consul "github.com/hashicorp/consul/api"
-
-	client "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/nomad/structs"
+	log "github.com/hashicorp/go-hclog"
 )
 
 const (
@@ -19,33 +16,28 @@ const (
 
 // ConsulFingerprint is used to fingerprint for Consul
 type ConsulFingerprint struct {
-	logger    *log.Logger
+	logger    log.Logger
 	client    *consul.Client
 	lastState string
 }
 
 // NewConsulFingerprint is used to create a Consul fingerprint
-func NewConsulFingerprint(logger *log.Logger) Fingerprint {
-	return &ConsulFingerprint{logger: logger, lastState: consulUnavailable}
+func NewConsulFingerprint(logger log.Logger) Fingerprint {
+	return &ConsulFingerprint{logger: logger.Named("consul"), lastState: consulUnavailable}
 }
 
-func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Node) (bool, error) {
-	// Guard against uninitialized Links
-	if node.Links == nil {
-		node.Links = map[string]string{}
-	}
-
+func (f *ConsulFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	// Only create the client once to avoid creating too many connections to
 	// Consul.
 	if f.client == nil {
-		consulConfig, err := config.ConsulConfig.ApiConfig()
+		consulConfig, err := req.Config.ConsulConfig.ApiConfig()
 		if err != nil {
-			return false, fmt.Errorf("Failed to initialize the Consul client config: %v", err)
+			return fmt.Errorf("Failed to initialize the Consul client config: %v", err)
 		}
 
 		f.client, err = consul.NewClient(consulConfig)
 		if err != nil {
-			return false, fmt.Errorf("Failed to initialize consul client: %s", err)
+			return fmt.Errorf("Failed to initialize consul client: %s", err)
 		}
 	}
 
@@ -53,46 +45,70 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 	// If we can't hit this URL consul is probably not running on this machine.
 	info, err := f.client.Agent().Self()
 	if err != nil {
-		// Clear any attributes set by a previous fingerprint.
-		f.clearConsulAttributes(node)
+		f.clearConsulAttributes(resp)
 
 		// Print a message indicating that the Consul Agent is not available
 		// anymore
 		if f.lastState == consulAvailable {
-			f.logger.Printf("[INFO] fingerprint.consul: consul agent is unavailable")
+			f.logger.Info("consul agent is unavailable")
 		}
 		f.lastState = consulUnavailable
-		return false, nil
+		return nil
 	}
 
-	node.Attributes["consul.server"] = strconv.FormatBool(info["Config"]["Server"].(bool))
-	node.Attributes["consul.version"] = info["Config"]["Version"].(string)
-	node.Attributes["consul.revision"] = info["Config"]["Revision"].(string)
-	node.Attributes["unique.consul.name"] = info["Config"]["NodeName"].(string)
-	node.Attributes["consul.datacenter"] = info["Config"]["Datacenter"].(string)
+	if s, ok := info["Config"]["Server"].(bool); ok {
+		resp.AddAttribute("consul.server", strconv.FormatBool(s))
+	} else {
+		f.logger.Warn("unable to fingerprint consul.server")
+	}
+	if v, ok := info["Config"]["Version"].(string); ok {
+		resp.AddAttribute("consul.version", v)
+	} else {
+		f.logger.Warn("unable to fingerprint consul.version")
+	}
+	if r, ok := info["Config"]["Revision"].(string); ok {
+		resp.AddAttribute("consul.revision", r)
+	} else {
+		f.logger.Warn("unable to fingerprint consul.revision")
+	}
+	if n, ok := info["Config"]["NodeName"].(string); ok {
+		resp.AddAttribute("unique.consul.name", n)
+	} else {
+		f.logger.Warn("unable to fingerprint unique.consul.name")
+	}
+	if d, ok := info["Config"]["Datacenter"].(string); ok {
+		resp.AddAttribute("consul.datacenter", d)
+	} else {
+		f.logger.Warn("unable to fingerprint consul.datacenter")
+	}
 
-	node.Links["consul"] = fmt.Sprintf("%s.%s",
-		node.Attributes["consul.datacenter"],
-		node.Attributes["unique.consul.name"])
+	if dc, ok := resp.Attributes["consul.datacenter"]; ok {
+		if name, ok2 := resp.Attributes["unique.consul.name"]; ok2 {
+			resp.AddLink("consul", fmt.Sprintf("%s.%s", dc, name))
+		}
+	} else {
+		f.logger.Warn("malformed Consul response prevented linking")
+	}
 
 	// If the Consul Agent was previously unavailable print a message to
 	// indicate the Agent is available now
 	if f.lastState == consulUnavailable {
-		f.logger.Printf("[INFO] fingerprint.consul: consul agent is available")
+		f.logger.Info("consul agent is available")
 	}
 	f.lastState = consulAvailable
-	return true, nil
+	resp.Detected = true
+	return nil
 }
 
 // clearConsulAttributes removes consul attributes and links from the passed
 // Node.
-func (f *ConsulFingerprint) clearConsulAttributes(n *structs.Node) {
-	delete(n.Attributes, "consul.server")
-	delete(n.Attributes, "consul.version")
-	delete(n.Attributes, "consul.revision")
-	delete(n.Attributes, "unique.consul.name")
-	delete(n.Attributes, "consul.datacenter")
-	delete(n.Links, "consul")
+func (f *ConsulFingerprint) clearConsulAttributes(r *FingerprintResponse) {
+	r.RemoveAttribute("consul.server")
+	r.RemoveAttribute("consul.version")
+	r.RemoveAttribute("consul.revision")
+	r.RemoveAttribute("unique.consul.name")
+	r.RemoveAttribute("consul.datacenter")
+	r.RemoveLink("consul")
 }
 
 func (f *ConsulFingerprint) Periodic() (bool, time.Duration) {

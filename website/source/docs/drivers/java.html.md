@@ -21,7 +21,7 @@ task "webservice" {
   driver = "java"
 
   config {
-    jar_path    = "local/exaple.jar"
+    jar_path    = "local/example.jar"
     jvm_options = ["-Xmx2048m", "-Xms256m"]
   }
 }  
@@ -33,7 +33,7 @@ The `java` driver supports the following configuration in the job spec:
   and the manifest specifies a main class, this is optional. If shipping classes
   rather than a Jar, please specify the class to run and the `class_path`.
 
-* `class_path` - (Optional) The `class_path` specifies the clath path used by
+* `class_path` - (Optional) The `class_path` specifies the class path used by
   Java to lookup classes and Jars.
 
 * `jar_path` - (Optional) The path to the downloaded Jar. In most cases this will just be

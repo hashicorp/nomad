@@ -2,42 +2,60 @@ package fingerprint
 
 import (
 	"fmt"
-	"log"
 
-	"github.com/hashicorp/nomad/client/config"
+	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shirou/gopsutil/mem"
 )
 
+const bytesInMB int64 = 1024 * 1024
+
 // MemoryFingerprint is used to fingerprint the available memory on the node
 type MemoryFingerprint struct {
 	StaticFingerprinter
-	logger *log.Logger
+	logger log.Logger
 }
 
 // NewMemoryFingerprint is used to create a Memory fingerprint
-func NewMemoryFingerprint(logger *log.Logger) Fingerprint {
+func NewMemoryFingerprint(logger log.Logger) Fingerprint {
 	f := &MemoryFingerprint{
-		logger: logger,
+		logger: logger.Named("memory"),
 	}
 	return f
 }
 
-func (f *MemoryFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	memInfo, err := mem.VirtualMemory()
-	if err != nil {
-		f.logger.Printf("[WARN] Error reading memory information: %s", err)
-		return false, err
-	}
-
-	if memInfo.Total > 0 {
-		node.Attributes["memory.totalbytes"] = fmt.Sprintf("%d", memInfo.Total)
-
-		if node.Resources == nil {
-			node.Resources = &structs.Resources{}
+func (f *MemoryFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
+	var totalMemory int64
+	cfg := req.Config
+	if cfg.MemoryMB != 0 {
+		totalMemory = int64(cfg.MemoryMB) * bytesInMB
+	} else {
+		memInfo, err := mem.VirtualMemory()
+		if err != nil {
+			f.logger.Warn("error reading memory information", "error", err)
+			return err
 		}
-		node.Resources.MemoryMB = int(memInfo.Total / 1024 / 1024)
+		if memInfo.Total > 0 {
+			totalMemory = int64(memInfo.Total)
+		}
 	}
 
-	return true, nil
+	if totalMemory > 0 {
+		resp.AddAttribute("memory.totalbytes", fmt.Sprintf("%d", totalMemory))
+
+		memoryMB := totalMemory / bytesInMB
+
+		// COMPAT(0.10): Unused since 0.9.
+		resp.Resources = &structs.Resources{
+			MemoryMB: int(memoryMB),
+		}
+
+		resp.NodeResources = &structs.NodeResources{
+			Memory: structs.NodeMemoryResources{
+				MemoryMB: memoryMB,
+			},
+		}
+	}
+
+	return nil
 }

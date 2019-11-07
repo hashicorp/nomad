@@ -8,10 +8,14 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/version"
 )
 
 var (
@@ -20,12 +24,11 @@ var (
 	DefaultEnvBlacklist = strings.Join([]string{
 		"CONSUL_TOKEN",
 		"VAULT_TOKEN",
-		"ATLAS_TOKEN",
 		"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
 		"GOOGLE_APPLICATION_CREDENTIALS",
 	}, ",")
 
-	// DefaulUserBlacklist is the default set of users that tasks are not
+	// DefaultUserBlacklist is the default set of users that tasks are not
 	// allowed to run as when using a driver in "user.checked_drivers"
 	DefaultUserBlacklist = strings.Join([]string{
 		"root",
@@ -77,6 +80,9 @@ type Config struct {
 	// LogOutput is the destination for logs
 	LogOutput io.Writer
 
+	// Logger provides a logger to thhe client
+	Logger log.InterceptLogger
+
 	// Region is the clients region
 	Region string
 
@@ -86,6 +92,14 @@ type Config struct {
 	// Network speed is the default speed of network interfaces if they can not
 	// be determined dynamically.
 	NetworkSpeed int
+
+	// CpuCompute is the default total CPU compute if they can not be determined
+	// dynamically. It should be given as Cores * MHz (2 Cores * 2 Ghz = 4000)
+	CpuCompute int
+
+	// MemoryMB is the default node total memory in megabytes if it cannot be
+	// determined dynamically.
+	MemoryMB int
 
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout. If the
 	// task's KillTimeout is greater than the MaxKillTimeout, MaxKillTimeout is
@@ -110,10 +124,6 @@ type Config struct {
 	// communicating with plugin subsystems over loopback
 	ClientMinPort uint
 
-	// GloballyReservedPorts are ports that are reserved across all network
-	// devices and IPs.
-	GloballyReservedPorts []int
-
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	ChrootEnv map[string]string
@@ -125,10 +135,7 @@ type Config struct {
 	Options map[string]string
 
 	// Version is the version of the Nomad client
-	Version string
-
-	// Revision is the commit number of the Nomad client
-	Revision string
+	Version *version.VersionInfo
 
 	// ConsulConfig is this Agent's Consul configuration
 	ConsulConfig *config.ConsulConfig
@@ -155,13 +162,21 @@ type Config struct {
 	// collection
 	GCInterval time.Duration
 
-	// GCDiskUsageThreshold is the disk usage threshold beyond which the Nomad
-	// client triggers GC of terminal allocations
+	// GCParallelDestroys is the number of parallel destroys the garbage
+	// collector will allow.
+	GCParallelDestroys int
+
+	// GCDiskUsageThreshold is the disk usage threshold given as a percent
+	// beyond which the Nomad client triggers GC of terminal allocations
 	GCDiskUsageThreshold float64
 
-	// GCInodeUsageThreshold is the inode usage threshold beyond which the Nomad
-	// client triggers GC of the terminal allocations
+	// GCInodeUsageThreshold is the inode usage threshold given as a percent
+	// beyond which the Nomad client triggers GC of the terminal allocations
 	GCInodeUsageThreshold float64
+
+	// GCMaxAllocs is the maximum number of allocations a node can have
+	// before garbage collection is triggered.
+	GCMaxAllocs int
 
 	// LogLevel is the level of the logs to putout
 	LogLevel string
@@ -169,6 +184,78 @@ type Config struct {
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID bool
+
+	// ACLEnabled controls if ACL enforcement and management is enabled.
+	ACLEnabled bool
+
+	// ACLTokenTTL is how long we cache token values for
+	ACLTokenTTL time.Duration
+
+	// ACLPolicyTTL is how long we cache policy values for
+	ACLPolicyTTL time.Duration
+
+	// DisableTaggedMetrics determines whether metrics will be displayed via a
+	// key/value/tag format, or simply a key/value format
+	DisableTaggedMetrics bool
+
+	// DisableRemoteExec disables remote exec targeting tasks on this client
+	DisableRemoteExec bool
+
+	// TemplateConfig includes configuration for template rendering
+	TemplateConfig *ClientTemplateConfig
+
+	// BackwardsCompatibleMetrics determines whether to show methods of
+	// displaying metrics for older versions, or to only show the new format
+	BackwardsCompatibleMetrics bool
+
+	// RPCHoldTimeout is how long an RPC can be "held" before it is errored.
+	// This is used to paper over a loss of leadership by instead holding RPCs,
+	// so that the caller experiences a slow response rather than an error.
+	// This period is meant to be long enough for a leader election to take
+	// place, and a small jitter is applied to avoid a thundering herd.
+	RPCHoldTimeout time.Duration
+
+	// PluginLoader is used to load plugins.
+	PluginLoader loader.PluginCatalog
+
+	// PluginSingletonLoader is a plugin loader that will returns singleton
+	// instances of the plugins.
+	PluginSingletonLoader loader.PluginCatalog
+
+	// StateDBFactory is used to override stateDB implementations,
+	StateDBFactory state.NewStateDBFunc
+
+	// CNIPath is the path used to search for CNI plugins. Multiple paths can
+	// be specified with colon delimited
+	CNIPath string
+
+	// BridgeNetworkName is the name to use for the bridge created in bridge
+	// networking mode. This defaults to 'nomad' if not set
+	BridgeNetworkName string
+
+	// BridgeNetworkAllocSubnet is the IP subnet to use for address allocation
+	// for allocations in bridge networking mode. Subnet must be in CIDR
+	// notation
+	BridgeNetworkAllocSubnet string
+
+	// HostVolumes is a map of the configured host volumes by name.
+	HostVolumes map[string]*structs.ClientHostVolumeConfig
+}
+
+type ClientTemplateConfig struct {
+	FunctionBlacklist []string
+	DisableSandbox    bool
+}
+
+func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(ClientTemplateConfig)
+	*nc = *c
+	nc.FunctionBlacklist = helper.CopySliceString(nc.FunctionBlacklist)
+	return nc
 }
 
 func (c *Config) Copy() *Config {
@@ -177,15 +264,17 @@ func (c *Config) Copy() *Config {
 	nc.Node = nc.Node.Copy()
 	nc.Servers = helper.CopySliceString(nc.Servers)
 	nc.Options = helper.CopyMapStringString(nc.Options)
-	nc.GloballyReservedPorts = helper.CopySliceInt(c.GloballyReservedPorts)
+	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
+	nc.TemplateConfig = c.TemplateConfig.Copy()
 	return nc
 }
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
+		Version:                 version.GetVersion(),
 		VaultConfig:             config.DefaultVaultConfig(),
 		ConsulConfig:            config.DefaultConsulConfig(),
 		LogOutput:               os.Stderr,
@@ -194,8 +283,19 @@ func DefaultConfig() *Config {
 		TLSConfig:               &config.TLSConfig{},
 		LogLevel:                "DEBUG",
 		GCInterval:              1 * time.Minute,
+		GCParallelDestroys:      2,
 		GCDiskUsageThreshold:    80,
 		GCInodeUsageThreshold:   70,
+		GCMaxAllocs:             50,
+		NoHostUUID:              true,
+		DisableTaggedMetrics:    false,
+		DisableRemoteExec:       false,
+		TemplateConfig: &ClientTemplateConfig{
+			FunctionBlacklist: []string{"plugin"},
+			DisableSandbox:    false,
+		},
+		BackwardsCompatibleMetrics: false,
+		RPCHoldTimeout:             5 * time.Second,
 	}
 }
 
@@ -231,6 +331,29 @@ func (c *Config) ReadBool(id string) (bool, error) {
 // an error in parsing, the default option is returned.
 func (c *Config) ReadBoolDefault(id string, defaultValue bool) bool {
 	val, err := c.ReadBool(id)
+	if err != nil {
+		return defaultValue
+	}
+	return val
+}
+
+// ReadInt parses the specified option as a int.
+func (c *Config) ReadInt(id string) (int, error) {
+	val, ok := c.Options[id]
+	if !ok {
+		return 0, fmt.Errorf("Specified config is missing from options")
+	}
+	ival, err := strconv.Atoi(val)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to parse %s as int: %s", val, err)
+	}
+	return ival, nil
+}
+
+// ReadIntDefault tries to parse the specified option as a int. If there is
+// an error in parsing, the default option is returned.
+func (c *Config) ReadIntDefault(id string, defaultValue int) int {
+	val, err := c.ReadInt(id)
 	if err != nil {
 		return defaultValue
 	}
@@ -292,15 +415,12 @@ func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string
 	return list
 }
 
-// TLSConfig returns a TLSUtil Config based on the client configuration
-func (c *Config) TLSConfiguration() *tlsutil.Config {
-	tlsConf := &tlsutil.Config{
-		VerifyIncoming:       true,
-		VerifyOutgoing:       true,
-		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
-		CAFile:               c.TLSConfig.CAFile,
-		CertFile:             c.TLSConfig.CertFile,
-		KeyFile:              c.TLSConfig.KeyFile,
+// NomadPluginConfig produces the NomadConfig struct which is sent to Nomad plugins
+func (c *Config) NomadPluginConfig() *base.AgentConfig {
+	return &base.AgentConfig{
+		Driver: &base.ClientDriverConfig{
+			ClientMinPort: c.ClientMinPort,
+			ClientMaxPort: c.ClientMaxPort,
+		},
 	}
-	return tlsConf
 }

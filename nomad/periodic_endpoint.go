@@ -4,14 +4,18 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // Periodic endpoint is used for periodic job interactions
 type Periodic struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 // Force is used to force a new instance of a periodic job
@@ -20,6 +24,13 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "periodic", "force"}, time.Now())
+
+	// Check for write-job permissions
+	if aclObj, err := p.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Validate the arguments
 	if args.JobID == "" {
@@ -33,7 +44,7 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 	}
 
 	ws := memdb.NewWatchSet()
-	job, err := snap.JobByID(ws, args.JobID)
+	job, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
 	if err != nil {
 		return err
 	}
@@ -46,7 +57,7 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 	}
 
 	// Force run the job.
-	eval, err := p.srv.periodicDispatcher.ForceRun(job.ID)
+	eval, err := p.srv.periodicDispatcher.ForceRun(args.RequestNamespace(), job.ID)
 	if err != nil {
 		return fmt.Errorf("force launch for job %q failed: %v", job.ID, err)
 	}

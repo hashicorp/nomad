@@ -2,6 +2,7 @@ package structs
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -9,6 +10,10 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJob_Validate(t *testing.T) {
@@ -24,17 +29,28 @@ func TestJob_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[2].Error(), "job name") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[3].Error(), "job type") {
+	if !strings.Contains(mErr.Errors[3].Error(), "namespace") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[4].Error(), "priority") {
+	if !strings.Contains(mErr.Errors[4].Error(), "job type") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[5].Error(), "datacenters") {
+	if !strings.Contains(mErr.Errors[5].Error(), "priority") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[6].Error(), "task groups") {
+	if !strings.Contains(mErr.Errors[6].Error(), "datacenters") {
 		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[7].Error(), "task groups") {
+		t.Fatalf("err: %s", err)
+	}
+
+	j = &Job{
+		Type: "invalid-job-type",
+	}
+	err = j.Validate()
+	if expected := `Invalid job type: "invalid-job-type"`; !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
 	}
 
 	j = &Job{
@@ -51,13 +67,14 @@ func TestJob_Validate(t *testing.T) {
 
 	j = &Job{
 		Region:      "global",
-		ID:          GenerateUUID(),
+		ID:          uuid.Generate(),
+		Namespace:   "test",
 		Name:        "my-job",
 		Type:        JobTypeService,
 		Priority:    50,
 		Datacenters: []string{"dc1"},
 		TaskGroups: []*TaskGroup{
-			&TaskGroup{
+			{
 				Name: "web",
 				RestartPolicy: &RestartPolicy{
 					Interval: 5 * time.Minute,
@@ -65,7 +82,7 @@ func TestJob_Validate(t *testing.T) {
 					Attempts: 10,
 				},
 			},
-			&TaskGroup{
+			{
 				Name: "web",
 				RestartPolicy: &RestartPolicy{
 					Interval: 5 * time.Minute,
@@ -73,7 +90,7 @@ func TestJob_Validate(t *testing.T) {
 					Attempts: 10,
 				},
 			},
-			&TaskGroup{
+			{
 				RestartPolicy: &RestartPolicy{
 					Interval: 5 * time.Minute,
 					Delay:    10 * time.Second,
@@ -93,19 +110,136 @@ func TestJob_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[2].Error(), "Task group web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
+
+	// test for empty datacenters
+	j = &Job{
+		Datacenters: []string{""},
+	}
+	err = j.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Error(), "datacenter must be non-empty string") {
+		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestJob_Warnings(t *testing.T) {
+	cases := []struct {
+		Name     string
+		Job      *Job
+		Expected []string
+	}{
+		{
+			Name:     "Higher counts for update stanza",
+			Expected: []string{"max parallel count is greater"},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  "foo",
+						Count: 2,
+						Update: &UpdateStrategy{
+							MaxParallel: 10,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "AutoPromote mixed TaskGroups",
+			Expected: []string{"auto_promote must be true for all groups"},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Update: &UpdateStrategy{
+							AutoPromote: true,
+						},
+					},
+					{
+						Update: &UpdateStrategy{
+							AutoPromote: false,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			warnings := c.Job.Warnings()
+			if warnings == nil {
+				if len(c.Expected) == 0 {
+					return
+				} else {
+					t.Fatal("Got no warnings when they were expected")
+				}
+			}
+
+			a := warnings.Error()
+			for _, e := range c.Expected {
+				if !strings.Contains(a, e) {
+					t.Fatalf("Got warnings %q; didn't contain %q", a, e)
+				}
+			}
+		})
+	}
+}
+
+func TestJob_SpecChanged(t *testing.T) {
+	// Get a base test job
+	base := testJob()
+
+	// Only modify the indexes/mutable state of the job
+	mutatedBase := base.Copy()
+	mutatedBase.Status = "foo"
+	mutatedBase.ModifyIndex = base.ModifyIndex + 100
+
+	// changed contains a spec change that should be detected
+	change := base.Copy()
+	change.Priority = 99
+
+	cases := []struct {
+		Name     string
+		Original *Job
+		New      *Job
+		Changed  bool
+	}{
+		{
+			Name:     "Same job except mutable indexes",
+			Changed:  false,
+			Original: base,
+			New:      mutatedBase,
+		},
+		{
+			Name:     "Different",
+			Changed:  true,
+			Original: base,
+			New:      change,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			if actual := c.Original.SpecChanged(c.New); actual != c.Changed {
+				t.Fatalf("SpecChanged() returned %v; want %v", actual, c.Changed)
+			}
+		})
+	}
 }
 
 func testJob() *Job {
 	return &Job{
 		Region:      "global",
-		ID:          GenerateUUID(),
+		ID:          uuid.Generate(),
+		Namespace:   "test",
 		Name:        "my-job",
 		Type:        JobTypeService,
 		Priority:    50,
 		AllAtOnce:   false,
 		Datacenters: []string{"dc1"},
 		Constraints: []*Constraint{
-			&Constraint{
+			{
 				LTarget: "$attr.kernel.name",
 				RTarget: "linux",
 				Operand: "=",
@@ -115,7 +249,7 @@ func testJob() *Job {
 			Enabled: false,
 		},
 		TaskGroups: []*TaskGroup{
-			&TaskGroup{
+			{
 				Name:          "web",
 				Count:         10,
 				EphemeralDisk: DefaultEphemeralDisk(),
@@ -125,8 +259,14 @@ func testJob() *Job {
 					Interval: 10 * time.Minute,
 					Delay:    1 * time.Minute,
 				},
+				ReschedulePolicy: &ReschedulePolicy{
+					Interval:      5 * time.Minute,
+					Attempts:      10,
+					Delay:         5 * time.Second,
+					DelayFunction: "constant",
+				},
 				Tasks: []*Task{
-					&Task{
+					{
 						Name:   "web",
 						Driver: "exec",
 						Config: map[string]interface{}{
@@ -150,7 +290,7 @@ func testJob() *Job {
 							CPU:      500,
 							MemoryMB: 256,
 							Networks: []*NetworkResource{
-								&NetworkResource{
+								{
 									MBits:        50,
 									DynamicPorts: []Port{{Label: "http"}},
 								},
@@ -202,9 +342,62 @@ func TestJob_IsPeriodic(t *testing.T) {
 	}
 }
 
+func TestJob_IsPeriodicActive(t *testing.T) {
+	cases := []struct {
+		job    *Job
+		active bool
+	}{
+		{
+			job: &Job{
+				Type: JobTypeService,
+				Periodic: &PeriodicConfig{
+					Enabled: true,
+				},
+			},
+			active: true,
+		},
+		{
+			job: &Job{
+				Type: JobTypeService,
+				Periodic: &PeriodicConfig{
+					Enabled: false,
+				},
+			},
+			active: false,
+		},
+		{
+			job: &Job{
+				Type: JobTypeService,
+				Periodic: &PeriodicConfig{
+					Enabled: true,
+				},
+				Stop: true,
+			},
+			active: false,
+		},
+		{
+			job: &Job{
+				Type: JobTypeService,
+				Periodic: &PeriodicConfig{
+					Enabled: false,
+				},
+				ParameterizedJob: &ParameterizedJobConfig{},
+			},
+			active: false,
+		},
+	}
+
+	for i, c := range cases {
+		if act := c.job.IsPeriodicActive(); act != c.active {
+			t.Fatalf("case %d failed: got %v; want %v", i, act, c.active)
+		}
+	}
+}
+
 func TestJob_SystemJob_Validate(t *testing.T) {
 	j := testJob()
 	j.Type = JobTypeSystem
+	j.TaskGroups[0].ReschedulePolicy = nil
 	j.Canonicalize()
 
 	err := j.Validate()
@@ -221,6 +414,42 @@ func TestJob_SystemJob_Validate(t *testing.T) {
 	if err := j.Validate(); err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
+
+	// Add affinities at job, task group and task level, that should fail validation
+
+	j.Affinities = []*Affinity{{
+		Operand: "=",
+		LTarget: "${node.datacenter}",
+		RTarget: "dc1",
+	}}
+	j.TaskGroups[0].Affinities = []*Affinity{{
+		Operand: "=",
+		LTarget: "${meta.rack}",
+		RTarget: "r1",
+	}}
+	j.TaskGroups[0].Tasks[0].Affinities = []*Affinity{{
+		Operand: "=",
+		LTarget: "${meta.rack}",
+		RTarget: "r1",
+	}}
+	err = j.Validate()
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "System jobs may not have an affinity stanza")
+
+	// Add spread at job and task group level, that should fail validation
+	j.Spreads = []*Spread{{
+		Attribute: "${node.datacenter}",
+		Weight:    100,
+	}}
+	j.TaskGroups[0].Spreads = []*Spread{{
+		Attribute: "${node.datacenter}",
+		Weight:    100,
+	}}
+
+	err = j.Validate()
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "System jobs may not have a spread stanza")
+
 }
 
 func TestJob_VaultPolicies(t *testing.T) {
@@ -246,26 +475,26 @@ func TestJob_VaultPolicies(t *testing.T) {
 	}
 	j1 := &Job{
 		TaskGroups: []*TaskGroup{
-			&TaskGroup{
+			{
 				Name: "foo",
 				Tasks: []*Task{
-					&Task{
+					{
 						Name: "t1",
 					},
-					&Task{
+					{
 						Name:  "t2",
 						Vault: vj1,
 					},
 				},
 			},
-			&TaskGroup{
+			{
 				Name: "bar",
 				Tasks: []*Task{
-					&Task{
+					{
 						Name:  "t3",
 						Vault: vj2,
 					},
-					&Task{
+					{
 						Name:  "t4",
 						Vault: vj3,
 					},
@@ -275,10 +504,10 @@ func TestJob_VaultPolicies(t *testing.T) {
 	}
 
 	e1 := map[string]map[string]*Vault{
-		"foo": map[string]*Vault{
+		"foo": {
 			"t2": vj1,
 		},
-		"bar": map[string]*Vault{
+		"bar": {
 			"t3": vj2,
 			"t4": vj3,
 		},
@@ -332,28 +561,28 @@ func TestJob_RequiredSignals(t *testing.T) {
 	}
 	j1 := &Job{
 		TaskGroups: []*TaskGroup{
-			&TaskGroup{
+			{
 				Name: "foo",
 				Tasks: []*Task{
-					&Task{
+					{
 						Name: "t1",
 					},
-					&Task{
+					{
 						Name:      "t2",
 						Vault:     vj2,
 						Templates: []*Template{tj2},
 					},
 				},
 			},
-			&TaskGroup{
+			{
 				Name: "bar",
 				Tasks: []*Task{
-					&Task{
+					{
 						Name:      "t3",
 						Vault:     vj1,
 						Templates: []*Template{tj1},
 					},
-					&Task{
+					{
 						Name:  "t4",
 						Vault: vj2,
 					},
@@ -363,11 +592,31 @@ func TestJob_RequiredSignals(t *testing.T) {
 	}
 
 	e1 := map[string]map[string][]string{
-		"foo": map[string][]string{
-			"t2": []string{"SIGUSR1", "SIGUSR2"},
+		"foo": {
+			"t2": {"SIGUSR1", "SIGUSR2"},
 		},
-		"bar": map[string][]string{
-			"t4": []string{"SIGUSR1"},
+		"bar": {
+			"t4": {"SIGUSR1"},
+		},
+	}
+
+	j2 := &Job{
+		TaskGroups: []*TaskGroup{
+			{
+				Name: "foo",
+				Tasks: []*Task{
+					{
+						Name:       "t1",
+						KillSignal: "SIGQUIT",
+					},
+				},
+			},
+		},
+	}
+
+	e2 := map[string]map[string][]string{
+		"foo": {
+			"t1": {"SIGQUIT"},
 		},
 	}
 
@@ -383,6 +632,10 @@ func TestJob_RequiredSignals(t *testing.T) {
 			Job:      j1,
 			Expected: e1,
 		},
+		{
+			Job:      j2,
+			Expected: e2,
+		},
 	}
 
 	for i, c := range cases {
@@ -393,7 +646,54 @@ func TestJob_RequiredSignals(t *testing.T) {
 	}
 }
 
+// test new Equal comparisons for components of Jobs
+func TestJob_PartEqual(t *testing.T) {
+	ns := &Networks{}
+	require.True(t, ns.Equals(&Networks{}))
+
+	ns = &Networks{
+		&NetworkResource{Device: "eth0"},
+	}
+	require.True(t, ns.Equals(&Networks{
+		&NetworkResource{Device: "eth0"},
+	}))
+
+	ns = &Networks{
+		&NetworkResource{Device: "eth0"},
+		&NetworkResource{Device: "eth1"},
+		&NetworkResource{Device: "eth2"},
+	}
+	require.True(t, ns.Equals(&Networks{
+		&NetworkResource{Device: "eth2"},
+		&NetworkResource{Device: "eth0"},
+		&NetworkResource{Device: "eth1"},
+	}))
+
+	cs := &Constraints{
+		&Constraint{"left0", "right0", "=", ""},
+		&Constraint{"left1", "right1", "=", ""},
+		&Constraint{"left2", "right2", "=", ""},
+	}
+	require.True(t, cs.Equals(&Constraints{
+		&Constraint{"left0", "right0", "=", ""},
+		&Constraint{"left2", "right2", "=", ""},
+		&Constraint{"left1", "right1", "=", ""},
+	}))
+
+	as := &Affinities{
+		&Affinity{"left0", "right0", "=", 0, ""},
+		&Affinity{"left1", "right1", "=", 0, ""},
+		&Affinity{"left2", "right2", "=", 0, ""},
+	}
+	require.True(t, as.Equals(&Affinities{
+		&Affinity{"left0", "right0", "=", 0, ""},
+		&Affinity{"left2", "right2", "=", 0, ""},
+		&Affinity{"left1", "right1", "=", 0, ""},
+	}))
+}
+
 func TestTaskGroup_Validate(t *testing.T) {
+	j := testJob()
 	tg := &TaskGroup{
 		Count: -1,
 		RestartPolicy: &RestartPolicy{
@@ -402,8 +702,13 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Attempts: 10,
 			Mode:     RestartPolicyModeDelay,
 		},
+		ReschedulePolicy: &ReschedulePolicy{
+			Interval: 5 * time.Minute,
+			Attempts: 5,
+			Delay:    5 * time.Second,
+		},
 	}
-	err := tg.Validate()
+	err := tg.Validate(j)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "group name") {
 		t.Fatalf("err: %s", err)
@@ -416,12 +721,65 @@ func TestTaskGroup_Validate(t *testing.T) {
 	}
 
 	tg = &TaskGroup{
+		Tasks: []*Task{
+			{
+				Name: "task-a",
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						{
+							ReservedPorts: []Port{{Label: "foo", Value: 123}},
+						},
+					},
+				},
+			},
+			{
+				Name: "task-b",
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						{
+							ReservedPorts: []Port{{Label: "foo", Value: 123}},
+						},
+					},
+				},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	expected := `Static port 123 already reserved by task-a:foo`
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
+	}
+
+	tg = &TaskGroup{
+		Tasks: []*Task{
+			{
+				Name: "task-a",
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						{
+							ReservedPorts: []Port{
+								{Label: "foo", Value: 123},
+								{Label: "bar", Value: 123},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	expected = `Static port 123 already reserved by task-a:foo`
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
+	}
+
+	tg = &TaskGroup{
 		Name:  "web",
 		Count: 1,
 		Tasks: []*Task{
-			&Task{Name: "web", Leader: true},
-			&Task{Name: "web", Leader: true},
-			&Task{},
+			{Name: "web", Leader: true},
+			{Name: "web", Leader: true},
+			{},
 		},
 		RestartPolicy: &RestartPolicy{
 			Interval: 5 * time.Minute,
@@ -429,9 +787,15 @@ func TestTaskGroup_Validate(t *testing.T) {
 			Attempts: 10,
 			Mode:     RestartPolicyModeDelay,
 		},
+		ReschedulePolicy: &ReschedulePolicy{
+			Interval:      5 * time.Minute,
+			Attempts:      10,
+			Delay:         5 * time.Second,
+			DelayFunction: "constant",
+		},
 	}
 
-	err = tg.Validate()
+	err = tg.Validate(j)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "should have an ephemeral disk object") {
 		t.Fatalf("err: %s", err)
@@ -448,12 +812,163 @@ func TestTaskGroup_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[4].Error(), "Task web validation failed") {
 		t.Fatalf("err: %s", err)
 	}
+
+	tg = &TaskGroup{
+		Name:  "web",
+		Count: 1,
+		Tasks: []*Task{
+			{Name: "web", Leader: true},
+		},
+		Update: DefaultUpdateStrategy.Copy(),
+	}
+	j.Type = JobTypeBatch
+	err = tg.Validate(j)
+	if !strings.Contains(err.Error(), "does not allow update block") {
+		t.Fatalf("err: %s", err)
+	}
+
+	tg = &TaskGroup{
+		Count: -1,
+		RestartPolicy: &RestartPolicy{
+			Interval: 5 * time.Minute,
+			Delay:    10 * time.Second,
+			Attempts: 10,
+			Mode:     RestartPolicyModeDelay,
+		},
+		ReschedulePolicy: &ReschedulePolicy{
+			Interval: 5 * time.Minute,
+			Attempts: 5,
+			Delay:    5 * time.Second,
+		},
+	}
+	j.Type = JobTypeSystem
+	err = tg.Validate(j)
+	if !strings.Contains(err.Error(), "System jobs should not have a reschedule policy") {
+		t.Fatalf("err: %s", err)
+	}
+
+	tg = &TaskGroup{
+		Networks: []*NetworkResource{
+			{
+				DynamicPorts: []Port{{"http", 0, 80}},
+			},
+		},
+		Tasks: []*Task{
+			{
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						{
+							DynamicPorts: []Port{{"http", 0, 80}},
+						},
+					},
+				},
+			},
+		},
+	}
+	err = tg.Validate(j)
+	require.Contains(t, err.Error(), "Port label http already in use")
+	require.Contains(t, err.Error(), "Port mapped to 80 already in use")
+
+	tg = &TaskGroup{
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Type:   "nothost",
+				Source: "foo",
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	require.Contains(t, err.Error(), `Volume foo has unrecognised type nothost`)
+
+	tg = &TaskGroup{
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Type: "host",
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	require.Contains(t, err.Error(), `Volume foo has an empty source`)
+
+	tg = &TaskGroup{
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Type: "host",
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+				VolumeMounts: []*VolumeMount{
+					{
+						Volume: "",
+					},
+				},
+			},
+			{
+				Name:      "task-b",
+				Resources: &Resources{},
+				VolumeMounts: []*VolumeMount{
+					{
+						Volume: "foob",
+					},
+				},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	expected = `Task task-a has a volume mount (0) referencing an empty volume`
+	require.Contains(t, err.Error(), expected)
+
+	expected = `Task task-b has a volume mount (0) referencing undefined volume foob`
+	require.Contains(t, err.Error(), expected)
+
+	taskA := &Task{Name: "task-a"}
+	tg = &TaskGroup{
+		Name: "group-a",
+		Services: []*Service{
+			{
+				Name: "service-a",
+				Checks: []*ServiceCheck{
+					{
+						Name:      "check-a",
+						Type:      "tcp",
+						TaskName:  "task-b",
+						PortLabel: "http",
+						Interval:  time.Duration(1 * time.Second),
+						Timeout:   time.Duration(1 * time.Second),
+					},
+				},
+			},
+		},
+		Tasks: []*Task{taskA},
+	}
+	err = tg.Validate(&Job{})
+	expected = `Check check-a invalid: refers to non-existent task task-b`
+	require.Contains(t, err.Error(), expected)
+
+	expected = `Check check-a invalid: only script and gRPC checks should have tasks`
+	require.Contains(t, err.Error(), expected)
+
 }
 
 func TestTask_Validate(t *testing.T) {
 	task := &Task{}
 	ephemeralDisk := DefaultEphemeralDisk()
-	err := task.Validate(ephemeralDisk)
+	err := task.Validate(ephemeralDisk, JobTypeBatch, nil)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "task name") {
 		t.Fatalf("err: %s", err)
@@ -466,7 +981,7 @@ func TestTask_Validate(t *testing.T) {
 	}
 
 	task = &Task{Name: "web/foo"}
-	err = task.Validate(ephemeralDisk)
+	err = task.Validate(ephemeralDisk, JobTypeBatch, nil)
 	mErr = err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[0].Error(), "slashes") {
 		t.Fatalf("err: %s", err)
@@ -478,13 +993,30 @@ func TestTask_Validate(t *testing.T) {
 		Resources: &Resources{
 			CPU:      100,
 			MemoryMB: 100,
-			IOPS:     10,
 		},
 		LogConfig: DefaultLogConfig(),
 	}
 	ephemeralDisk.SizeMB = 200
-	err = task.Validate(ephemeralDisk)
+	err = task.Validate(ephemeralDisk, JobTypeBatch, nil)
 	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	task.Constraints = append(task.Constraints,
+		&Constraint{
+			Operand: ConstraintDistinctHosts,
+		},
+		&Constraint{
+			Operand: ConstraintDistinctProperty,
+			LTarget: "${meta.rack}",
+		})
+
+	err = task.Validate(ephemeralDisk, JobTypeBatch, nil)
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "task level: distinct_hosts") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[1].Error(), "task level: distinct_property") {
 		t.Fatalf("err: %s", err)
 	}
 }
@@ -534,7 +1066,6 @@ func TestTask_Validate_Services(t *testing.T) {
 		Resources: &Resources{
 			CPU:      100,
 			MemoryMB: 100,
-			IOPS:     10,
 		},
 		Services: []*Service{s1, s2},
 	}
@@ -547,14 +1078,14 @@ func TestTask_Validate_Services(t *testing.T) {
 		LogConfig: DefaultLogConfig(),
 	}
 	task1.Resources.Networks = []*NetworkResource{
-		&NetworkResource{
+		{
 			MBits: 10,
 			DynamicPorts: []Port{
-				Port{
+				{
 					Label: "a",
 					Value: 1000,
 				},
-				Port{
+				{
 					Label: "b",
 					Value: 2000,
 				},
@@ -562,7 +1093,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		},
 	}
 
-	err := task.Validate(ephemeralDisk)
+	err := task.Validate(ephemeralDisk, JobTypeService, nil)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -583,12 +1114,140 @@ func TestTask_Validate_Services(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if err = task1.Validate(ephemeralDisk); err != nil {
+	if err = task1.Validate(ephemeralDisk, JobTypeService, nil); err != nil {
 		t.Fatalf("err : %v", err)
 	}
 }
 
+func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
+	ephemeralDisk := DefaultEphemeralDisk()
+	getTask := func(s *Service) *Task {
+		task := &Task{
+			Name:      "web",
+			Driver:    "docker",
+			Resources: DefaultResources(),
+			Services:  []*Service{s},
+			LogConfig: DefaultLogConfig(),
+		}
+		task.Resources.Networks = []*NetworkResource{
+			{
+				MBits: 10,
+				DynamicPorts: []Port{
+					{
+						Label: "http",
+						Value: 80,
+					},
+				},
+			},
+		}
+		return task
+	}
+
+	cases := []*Service{
+		{
+			// https://github.com/hashicorp/nomad/issues/3681#issuecomment-357274177
+			Name:        "DriverModeWithLabel",
+			PortLabel:   "http",
+			AddressMode: AddressModeDriver,
+		},
+		{
+			Name:        "DriverModeWithPort",
+			PortLabel:   "80",
+			AddressMode: AddressModeDriver,
+		},
+		{
+			Name:        "HostModeWithLabel",
+			PortLabel:   "http",
+			AddressMode: AddressModeHost,
+		},
+		{
+			Name:        "HostModeWithoutLabel",
+			AddressMode: AddressModeHost,
+		},
+		{
+			Name:        "DriverModeWithoutLabel",
+			AddressMode: AddressModeDriver,
+		},
+	}
+
+	for _, service := range cases {
+		task := getTask(service)
+		t.Run(service.Name, func(t *testing.T) {
+			if err := task.Validate(ephemeralDisk, JobTypeService, nil); err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
+		})
+	}
+}
+
+func TestTask_Validate_Service_AddressMode_Bad(t *testing.T) {
+	ephemeralDisk := DefaultEphemeralDisk()
+	getTask := func(s *Service) *Task {
+		task := &Task{
+			Name:      "web",
+			Driver:    "docker",
+			Resources: DefaultResources(),
+			Services:  []*Service{s},
+			LogConfig: DefaultLogConfig(),
+		}
+		task.Resources.Networks = []*NetworkResource{
+			{
+				MBits: 10,
+				DynamicPorts: []Port{
+					{
+						Label: "http",
+						Value: 80,
+					},
+				},
+			},
+		}
+		return task
+	}
+
+	cases := []*Service{
+		{
+			// https://github.com/hashicorp/nomad/issues/3681#issuecomment-357274177
+			Name:        "DriverModeWithLabel",
+			PortLabel:   "asdf",
+			AddressMode: AddressModeDriver,
+		},
+		{
+			Name:        "HostModeWithLabel",
+			PortLabel:   "asdf",
+			AddressMode: AddressModeHost,
+		},
+		{
+			Name:        "HostModeWithPort",
+			PortLabel:   "80",
+			AddressMode: AddressModeHost,
+		},
+	}
+
+	for _, service := range cases {
+		task := getTask(service)
+		t.Run(service.Name, func(t *testing.T) {
+			err := task.Validate(ephemeralDisk, JobTypeService, nil)
+			if err == nil {
+				t.Fatalf("expected an error")
+			}
+			//t.Logf("err: %v", err)
+		})
+	}
+}
+
 func TestTask_Validate_Service_Check(t *testing.T) {
+
+	invalidCheck := ServiceCheck{
+		Name:     "check-name",
+		Command:  "/bin/true",
+		Type:     ServiceCheckScript,
+		Interval: 10 * time.Second,
+	}
+
+	err := invalidCheck.validate()
+	if err == nil || !strings.Contains(err.Error(), "Timeout cannot be less") {
+		t.Fatalf("expected a timeout validation error but received: %q", err)
+	}
 
 	check1 := ServiceCheck{
 		Name:     "check-name",
@@ -597,8 +1256,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Timeout:  2 * time.Second,
 	}
 
-	err := check1.validate()
-	if err != nil {
+	if err := check1.validate(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -629,8 +1287,369 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+
+	check2 := ServiceCheck{
+		Name:     "check-name-2",
+		Type:     ServiceCheckHTTP,
+		Interval: 10 * time.Second,
+		Timeout:  2 * time.Second,
+		Path:     "/foo/bar",
+	}
+
+	err = check2.validate()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	check2.Path = ""
+	err = check2.validate()
+	if err == nil {
+		t.Fatal("Expected an error")
+	}
+	if !strings.Contains(err.Error(), "valid http path") {
+		t.Fatalf("err: %v", err)
+	}
+
+	check2.Path = "http://www.example.com"
+	err = check2.validate()
+	if err == nil {
+		t.Fatal("Expected an error")
+	}
+	if !strings.Contains(err.Error(), "relative http path") {
+		t.Fatalf("err: %v", err)
+	}
 }
 
+// TestTask_Validate_Service_Check_AddressMode asserts that checks do not
+// inherit address mode but do inherit ports.
+func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
+	getTask := func(s *Service) *Task {
+		return &Task{
+			Resources: &Resources{
+				Networks: []*NetworkResource{
+					{
+						DynamicPorts: []Port{
+							{
+								Label: "http",
+								Value: 9999,
+							},
+						},
+					},
+				},
+			},
+			Services: []*Service{s},
+		}
+	}
+
+	cases := []struct {
+		Service     *Service
+		ErrContains string
+	}{
+		{
+			Service: &Service{
+				Name:        "invalid-driver",
+				PortLabel:   "80",
+				AddressMode: "host",
+			},
+			ErrContains: `port label "80" referenced`,
+		},
+		{
+			Service: &Service{
+				Name:        "http-driver-fail-1",
+				PortLabel:   "80",
+				AddressMode: "driver",
+				Checks: []*ServiceCheck{
+					{
+						Name:     "invalid-check-1",
+						Type:     "tcp",
+						Interval: time.Second,
+						Timeout:  time.Second,
+					},
+				},
+			},
+			ErrContains: `check "invalid-check-1" cannot use a numeric port`,
+		},
+		{
+			Service: &Service{
+				Name:        "http-driver-fail-2",
+				PortLabel:   "80",
+				AddressMode: "driver",
+				Checks: []*ServiceCheck{
+					{
+						Name:      "invalid-check-2",
+						Type:      "tcp",
+						PortLabel: "80",
+						Interval:  time.Second,
+						Timeout:   time.Second,
+					},
+				},
+			},
+			ErrContains: `check "invalid-check-2" cannot use a numeric port`,
+		},
+		{
+			Service: &Service{
+				Name:        "http-driver-fail-3",
+				PortLabel:   "80",
+				AddressMode: "driver",
+				Checks: []*ServiceCheck{
+					{
+						Name:      "invalid-check-3",
+						Type:      "tcp",
+						PortLabel: "missing-port-label",
+						Interval:  time.Second,
+						Timeout:   time.Second,
+					},
+				},
+			},
+			ErrContains: `port label "missing-port-label" referenced`,
+		},
+		{
+			Service: &Service{
+				Name:        "http-driver-passes",
+				PortLabel:   "80",
+				AddressMode: "driver",
+				Checks: []*ServiceCheck{
+					{
+						Name:     "valid-script-check",
+						Type:     "script",
+						Command:  "ok",
+						Interval: time.Second,
+						Timeout:  time.Second,
+					},
+					{
+						Name:      "valid-host-check",
+						Type:      "tcp",
+						PortLabel: "http",
+						Interval:  time.Second,
+						Timeout:   time.Second,
+					},
+					{
+						Name:        "valid-driver-check",
+						Type:        "tcp",
+						AddressMode: "driver",
+						Interval:    time.Second,
+						Timeout:     time.Second,
+					},
+				},
+			},
+		},
+		{
+			Service: &Service{
+				Name: "empty-address-3673-passes-1",
+				Checks: []*ServiceCheck{
+					{
+						Name:      "valid-port-label",
+						Type:      "tcp",
+						PortLabel: "http",
+						Interval:  time.Second,
+						Timeout:   time.Second,
+					},
+					{
+						Name:     "empty-is-ok",
+						Type:     "script",
+						Command:  "ok",
+						Interval: time.Second,
+						Timeout:  time.Second,
+					},
+				},
+			},
+		},
+		{
+			Service: &Service{
+				Name: "empty-address-3673-passes-2",
+			},
+		},
+		{
+			Service: &Service{
+				Name: "empty-address-3673-fails",
+				Checks: []*ServiceCheck{
+					{
+						Name:     "empty-is-not-ok",
+						Type:     "tcp",
+						Interval: time.Second,
+						Timeout:  time.Second,
+					},
+				},
+			},
+			ErrContains: `invalid: check requires a port but neither check nor service`,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		task := getTask(tc.Service)
+		t.Run(tc.Service.Name, func(t *testing.T) {
+			err := validateServices(task)
+			if err == nil && tc.ErrContains == "" {
+				// Ok!
+				return
+			}
+			if err == nil {
+				t.Fatalf("no error returned. expected: %s", tc.ErrContains)
+			}
+			if !strings.Contains(err.Error(), tc.ErrContains) {
+				t.Fatalf("expected %q but found: %v", tc.ErrContains, err)
+			}
+		})
+	}
+}
+
+func TestTask_Validate_Service_Check_GRPC(t *testing.T) {
+	t.Parallel()
+	// Bad (no port)
+	invalidGRPC := &ServiceCheck{
+		Type:     ServiceCheckGRPC,
+		Interval: time.Second,
+		Timeout:  time.Second,
+	}
+	service := &Service{
+		Name:   "test",
+		Checks: []*ServiceCheck{invalidGRPC},
+	}
+
+	assert.Error(t, service.Validate())
+
+	// Good
+	service.Checks[0] = &ServiceCheck{
+		Type:      ServiceCheckGRPC,
+		Interval:  time.Second,
+		Timeout:   time.Second,
+		PortLabel: "some-port-label",
+	}
+
+	assert.NoError(t, service.Validate())
+}
+
+func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
+	t.Parallel()
+	invalidCheckRestart := &CheckRestart{
+		Limit: -1,
+		Grace: -1,
+	}
+
+	err := invalidCheckRestart.Validate()
+	assert.NotNil(t, err, "invalidateCheckRestart.Validate()")
+	assert.Len(t, err.(*multierror.Error).Errors, 2)
+
+	validCheckRestart := &CheckRestart{}
+	assert.Nil(t, validCheckRestart.Validate())
+
+	validCheckRestart.Limit = 1
+	validCheckRestart.Grace = 1
+	assert.Nil(t, validCheckRestart.Validate())
+}
+
+func TestTask_Validate_ConnectProxyKind(t *testing.T) {
+	ephemeralDisk := DefaultEphemeralDisk()
+	getTask := func(kind TaskKind, leader bool) *Task {
+		task := &Task{
+			Name:      "web",
+			Driver:    "docker",
+			Resources: DefaultResources(),
+			LogConfig: DefaultLogConfig(),
+			Kind:      kind,
+			Leader:    leader,
+		}
+		task.Resources.Networks = []*NetworkResource{
+			{
+				MBits: 10,
+				DynamicPorts: []Port{
+					{
+						Label: "http",
+						Value: 80,
+					},
+				},
+			},
+		}
+		return task
+	}
+
+	cases := []struct {
+		Desc        string
+		Kind        TaskKind
+		Leader      bool
+		Service     *Service
+		TgService   []*Service
+		ErrContains string
+	}{
+		{
+			Desc: "Not connect",
+			Kind: "test",
+		},
+		{
+			Desc: "Invalid because of service in task definition",
+			Kind: "connect-proxy:redis",
+			Service: &Service{
+				Name: "redis",
+			},
+			ErrContains: "Connect proxy task must not have a service stanza",
+		},
+		{
+			Desc:   "Leader should not be set",
+			Kind:   "connect-proxy:redis",
+			Leader: true,
+			Service: &Service{
+				Name: "redis",
+			},
+			ErrContains: "Connect proxy task must not have leader set",
+		},
+		{
+			Desc: "Service name invalid",
+			Kind: "connect-proxy:redis:test",
+			Service: &Service{
+				Name: "redis",
+			},
+			ErrContains: "Connect proxy service name not found in services from task group",
+		},
+		{
+			Desc:        "Service name not found in group",
+			Kind:        "connect-proxy:redis",
+			ErrContains: "Connect proxy service name not found in services from task group",
+		},
+		{
+			Desc: "Connect stanza not configured in group",
+			Kind: "connect-proxy:redis",
+			TgService: []*Service{{
+				Name: "redis",
+			}},
+			ErrContains: "Connect proxy service name not found in services from task group",
+		},
+		{
+			Desc: "Valid connect proxy kind",
+			Kind: "connect-proxy:redis",
+			TgService: []*Service{{
+				Name: "redis",
+				Connect: &ConsulConnect{
+					SidecarService: &ConsulSidecarService{
+						Port: "db",
+					},
+				},
+			}},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		task := getTask(tc.Kind, tc.Leader)
+		if tc.Service != nil {
+			task.Services = []*Service{tc.Service}
+		}
+		t.Run(tc.Desc, func(t *testing.T) {
+			err := task.Validate(ephemeralDisk, "service", tc.TgService)
+			if err == nil && tc.ErrContains == "" {
+				// Ok!
+				return
+			}
+			if err == nil {
+				t.Fatalf("no error returned. expected: %s", tc.ErrContains)
+			}
+			if !strings.Contains(err.Error(), tc.ErrContains) {
+				t.Fatalf("expected %q but found: %v", tc.ErrContains, err)
+			}
+		})
+	}
+
+}
 func TestTask_Validate_LogConfig(t *testing.T) {
 	task := &Task{
 		LogConfig: DefaultLogConfig(),
@@ -639,7 +1658,7 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 		SizeMB: 1,
 	}
 
-	err := task.Validate(ephemeralDisk)
+	err := task.Validate(ephemeralDisk, JobTypeService, nil)
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[3].Error(), "log storage") {
 		t.Fatalf("err: %s", err)
@@ -656,7 +1675,7 @@ func TestTask_Validate_Template(t *testing.T) {
 		SizeMB: 1,
 	}
 
-	err := task.Validate(ephemeralDisk)
+	err := task.Validate(ephemeralDisk, JobTypeService, nil)
 	if !strings.Contains(err.Error(), "Template 1 validation failed") {
 		t.Fatalf("err: %s", err)
 	}
@@ -669,9 +1688,25 @@ func TestTask_Validate_Template(t *testing.T) {
 	}
 
 	task.Templates = []*Template{good, good}
-	err = task.Validate(ephemeralDisk)
+	err = task.Validate(ephemeralDisk, JobTypeService, nil)
 	if !strings.Contains(err.Error(), "same destination as") {
 		t.Fatalf("err: %s", err)
+	}
+
+	// Env templates can't use signals
+	task.Templates = []*Template{
+		{
+			Envvars:    true,
+			ChangeMode: "signal",
+		},
+	}
+
+	err = task.Validate(ephemeralDisk, JobTypeService, nil)
+	if err == nil {
+		t.Fatalf("expected error from Template.Validate")
+	}
+	if expected := "cannot use signals"; !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected to find %q but found %v", expected, err)
 	}
 }
 
@@ -813,14 +1848,194 @@ func TestConstraint_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[0].Error(), "Malformed constraint") {
 		t.Fatalf("err: %s", err)
 	}
+
+	// Perform distinct_property validation
+	c.Operand = ConstraintDistinctProperty
+	c.RTarget = "0"
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "count of 1 or greater") {
+		t.Fatalf("err: %s", err)
+	}
+
+	c.RTarget = "-1"
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "to uint64") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Perform distinct_hosts validation
+	c.Operand = ConstraintDistinctHosts
+	c.LTarget = ""
+	c.RTarget = ""
+	if err := c.Validate(); err != nil {
+		t.Fatalf("expected valid constraint: %v", err)
+	}
+
+	// Perform set_contains* validation
+	c.RTarget = ""
+	for _, o := range []string{ConstraintSetContains, ConstraintSetContainsAll, ConstraintSetContainsAny} {
+		c.Operand = o
+		err = c.Validate()
+		mErr = err.(*multierror.Error)
+		if !strings.Contains(mErr.Errors[0].Error(), "requires an RTarget") {
+			t.Fatalf("err: %s", err)
+		}
+	}
+
+	// Perform LTarget validation
+	c.Operand = ConstraintRegex
+	c.RTarget = "foo"
+	c.LTarget = ""
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "No LTarget") {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Perform constraint type validation
+	c.Operand = "foo"
+	err = c.Validate()
+	mErr = err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "Unknown constraint type") {
+		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestAffinity_Validate(t *testing.T) {
+
+	type tc struct {
+		affinity *Affinity
+		err      error
+		name     string
+	}
+
+	testCases := []tc{
+		{
+			affinity: &Affinity{},
+			err:      fmt.Errorf("Missing affinity operand"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "foo",
+				LTarget: "${meta.node_class}",
+				Weight:  10,
+			},
+			err: fmt.Errorf("Unknown affinity operator \"foo\""),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "=",
+				LTarget: "${meta.node_class}",
+				Weight:  10,
+			},
+			err: fmt.Errorf("Operator \"=\" requires an RTarget"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "=",
+				LTarget: "${meta.node_class}",
+				RTarget: "c4",
+				Weight:  0,
+			},
+			err: fmt.Errorf("Affinity weight cannot be zero"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "=",
+				LTarget: "${meta.node_class}",
+				RTarget: "c4",
+				Weight:  110,
+			},
+			err: fmt.Errorf("Affinity weight must be within the range [-100,100]"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "=",
+				LTarget: "${node.class}",
+				Weight:  10,
+			},
+			err: fmt.Errorf("Operator \"=\" requires an RTarget"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "version",
+				LTarget: "${meta.os}",
+				RTarget: ">>2.0",
+				Weight:  110,
+			},
+			err: fmt.Errorf("Version affinity is invalid"),
+		},
+		{
+			affinity: &Affinity{
+				Operand: "regexp",
+				LTarget: "${meta.os}",
+				RTarget: "\\K2.0",
+				Weight:  100,
+			},
+			err: fmt.Errorf("Regular expression failed to compile"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.affinity.Validate()
+			if tc.err != nil {
+				require.NotNil(t, err)
+				require.Contains(t, err.Error(), tc.err.Error())
+			} else {
+				require.Nil(t, err)
+			}
+		})
+	}
+}
+
+func TestUpdateStrategy_Validate(t *testing.T) {
+	u := &UpdateStrategy{
+		MaxParallel:      -1,
+		HealthCheck:      "foo",
+		MinHealthyTime:   -10,
+		HealthyDeadline:  -15,
+		ProgressDeadline: -25,
+		AutoRevert:       false,
+		Canary:           -1,
+	}
+
+	err := u.Validate()
+	mErr := err.(*multierror.Error)
+	if !strings.Contains(mErr.Errors[0].Error(), "Invalid health check given") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[1].Error(), "Max parallel can not be less than zero") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[2].Error(), "Canary count can not be less than zero") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[3].Error(), "Minimum healthy time may not be less than zero") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[4].Error(), "Healthy deadline must be greater than zero") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[5].Error(), "Progress deadline must be zero or greater") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[6].Error(), "Minimum healthy time must be less than healthy deadline") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[7].Error(), "Healthy deadline must be less than progress deadline") {
+		t.Fatalf("err: %s", err)
+	}
 }
 
 func TestResource_NetIndex(t *testing.T) {
 	r := &Resources{
 		Networks: []*NetworkResource{
-			&NetworkResource{Device: "eth0"},
-			&NetworkResource{Device: "lo0"},
-			&NetworkResource{Device: ""},
+			{Device: "eth0"},
+			{Device: "lo0"},
+			{Device: ""},
 		},
 	}
 	if idx := r.NetIndex(&NetworkResource{Device: "eth0"}); idx != 0 {
@@ -839,13 +2054,11 @@ func TestResource_Superset(t *testing.T) {
 		CPU:      2000,
 		MemoryMB: 2048,
 		DiskMB:   10000,
-		IOPS:     100,
 	}
 	r2 := &Resources{
 		CPU:      2000,
 		MemoryMB: 1024,
 		DiskMB:   5000,
-		IOPS:     50,
 	}
 
 	if s, _ := r1.Superset(r1); !s {
@@ -867,12 +2080,11 @@ func TestResource_Add(t *testing.T) {
 		CPU:      2000,
 		MemoryMB: 2048,
 		DiskMB:   10000,
-		IOPS:     100,
 		Networks: []*NetworkResource{
-			&NetworkResource{
+			{
 				CIDR:          "10.0.0.0/8",
 				MBits:         100,
-				ReservedPorts: []Port{{"ssh", 22}},
+				ReservedPorts: []Port{{"ssh", 22, 0}},
 			},
 		},
 	}
@@ -880,12 +2092,11 @@ func TestResource_Add(t *testing.T) {
 		CPU:      2000,
 		MemoryMB: 1024,
 		DiskMB:   5000,
-		IOPS:     50,
 		Networks: []*NetworkResource{
-			&NetworkResource{
+			{
 				IP:            "10.0.0.1",
 				MBits:         50,
-				ReservedPorts: []Port{{"web", 80}},
+				ReservedPorts: []Port{{"web", 80, 0}},
 			},
 		},
 	}
@@ -899,12 +2110,11 @@ func TestResource_Add(t *testing.T) {
 		CPU:      3000,
 		MemoryMB: 3072,
 		DiskMB:   15000,
-		IOPS:     150,
 		Networks: []*NetworkResource{
-			&NetworkResource{
+			{
 				CIDR:          "10.0.0.0/8",
 				MBits:         150,
-				ReservedPorts: []Port{{"ssh", 22}, {"web", 80}},
+				ReservedPorts: []Port{{"ssh", 22, 0}, {"web", 80, 0}},
 			},
 		},
 	}
@@ -918,17 +2128,17 @@ func TestResource_Add_Network(t *testing.T) {
 	r1 := &Resources{}
 	r2 := &Resources{
 		Networks: []*NetworkResource{
-			&NetworkResource{
+			{
 				MBits:        50,
-				DynamicPorts: []Port{{"http", 0}, {"https", 0}},
+				DynamicPorts: []Port{{"http", 0, 80}, {"https", 0, 443}},
 			},
 		},
 	}
 	r3 := &Resources{
 		Networks: []*NetworkResource{
-			&NetworkResource{
+			{
 				MBits:        25,
-				DynamicPorts: []Port{{"admin", 0}},
+				DynamicPorts: []Port{{"admin", 0, 8080}},
 			},
 		},
 	}
@@ -944,9 +2154,9 @@ func TestResource_Add_Network(t *testing.T) {
 
 	expect := &Resources{
 		Networks: []*NetworkResource{
-			&NetworkResource{
+			{
 				MBits:        75,
-				DynamicPorts: []Port{{"http", 0}, {"https", 0}, {"admin", 0}},
+				DynamicPorts: []Port{{"http", 0, 80}, {"https", 0, 443}, {"admin", 0, 8080}},
 			},
 		},
 	}
@@ -954,6 +2164,75 @@ func TestResource_Add_Network(t *testing.T) {
 	if !reflect.DeepEqual(expect.Networks, r1.Networks) {
 		t.Fatalf("bad: %#v %#v", expect.Networks[0], r1.Networks[0])
 	}
+}
+
+func TestComparableResources_Subtract(t *testing.T) {
+	r1 := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: 2000,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: 2048,
+			},
+			Networks: []*NetworkResource{
+				{
+					CIDR:          "10.0.0.0/8",
+					MBits:         100,
+					ReservedPorts: []Port{{"ssh", 22, 0}},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 10000,
+		},
+	}
+
+	r2 := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: 1000,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: 1024,
+			},
+			Networks: []*NetworkResource{
+				{
+					CIDR:          "10.0.0.0/8",
+					MBits:         20,
+					ReservedPorts: []Port{{"ssh", 22, 0}},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 5000,
+		},
+	}
+	r1.Subtract(r2)
+
+	expect := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: 1000,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: 1024,
+			},
+			Networks: []*NetworkResource{
+				{
+					CIDR:          "10.0.0.0/8",
+					MBits:         100,
+					ReservedPorts: []Port{{"ssh", 22, 0}},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 5000,
+		},
+	}
+
+	require := require.New(t)
+	require.Equal(expect, r1)
 }
 
 func TestEncodeDecode(t *testing.T) {
@@ -1040,6 +2319,14 @@ func TestInvalidServiceCheck(t *testing.T) {
 	}
 
 	s = Service{
+		Name:      "my_service-${NOMAD_META_FOO}",
+		PortLabel: "bar",
+	}
+	if err := s.Validate(); err == nil {
+		t.Fatalf("Service should be invalid (contains underscore but not in a variable name): %v", err)
+	}
+
+	s = Service{
 		Name:      "abcdef0123456789-abcdef0123456789-abcdef0123456789-abcdef0123456",
 		PortLabel: "bar",
 	}
@@ -1084,6 +2371,22 @@ func TestInvalidServiceCheck(t *testing.T) {
 	if err := s.Validate(); err != nil {
 		t.Fatalf("un-expected error: %v", err)
 	}
+
+	s = Service{
+		Name: "service-name",
+		Checks: []*ServiceCheck{
+			{
+				Name:     "tcp-check",
+				Type:     ServiceCheckTCP,
+				Interval: 5 * time.Second,
+				Timeout:  2 * time.Second,
+			},
+		},
+		Connect: &ConsulConnect{
+			SidecarService: &ConsulSidecarService{},
+		},
+	}
+	require.Error(t, s.Validate())
 }
 
 func TestDistinctCheckID(t *testing.T) {
@@ -1143,22 +2446,85 @@ func TestService_Canonicalize(t *testing.T) {
 	s.Name = "${JOB}-${TASKGROUP}-${TASK}-db"
 	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "example-cache-redis-db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
+		t.Fatalf("Expected name: %v, Actual: %v", "example-cache-redis-db", s.Name)
 	}
 
 	s.Name = "${BASE}-db"
 	s.Canonicalize(job, taskGroup, task)
 	if s.Name != "example-cache-redis-db" {
-		t.Fatalf("Expected name: %v, Actual: %v", "expample-cache-redis-db", s.Name)
+		t.Fatalf("Expected name: %v, Actual: %v", "example-cache-redis-db", s.Name)
 	}
 
+}
+
+func TestService_Validate(t *testing.T) {
+	s := Service{
+		Name: "testservice",
+	}
+
+	s.Canonicalize("testjob", "testgroup", "testtask")
+
+	// Base service should be valid
+	require.NoError(t, s.Validate())
+
+	// Native Connect should be valid
+	s.Connect = &ConsulConnect{
+		Native: true,
+	}
+	require.NoError(t, s.Validate())
+
+	// Native Connect + Sidecar should be invalid
+	s.Connect.SidecarService = &ConsulSidecarService{}
+	require.Error(t, s.Validate())
+}
+
+func TestService_Equals(t *testing.T) {
+	s := Service{
+		Name: "testservice",
+	}
+
+	s.Canonicalize("testjob", "testgroup", "testtask")
+
+	o := s.Copy()
+
+	// Base service should be equal to copy of itself
+	require.True(t, s.Equals(o))
+
+	// create a helper to assert a diff and reset the struct
+	assertDiff := func() {
+		require.False(t, s.Equals(o))
+		o = s.Copy()
+		require.True(t, s.Equals(o), "bug in copy")
+	}
+
+	// Changing any field should cause inequality
+	o.Name = "diff"
+	assertDiff()
+
+	o.PortLabel = "diff"
+	assertDiff()
+
+	o.AddressMode = AddressModeDriver
+	assertDiff()
+
+	o.Tags = []string{"diff"}
+	assertDiff()
+
+	o.CanaryTags = []string{"diff"}
+	assertDiff()
+
+	o.Checks = []*ServiceCheck{{Name: "diff"}}
+	assertDiff()
+
+	o.Connect = &ConsulConnect{Native: true}
+	assertDiff()
 }
 
 func TestJob_ExpandServiceNames(t *testing.T) {
 	j := &Job{
 		Name: "my-job",
 		TaskGroups: []*TaskGroup{
-			&TaskGroup{
+			{
 				Name: "web",
 				Tasks: []*Task{
 					{
@@ -1174,7 +2540,7 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 					},
 				},
 			},
-			&TaskGroup{
+			{
 				Name: "admin",
 				Tasks: []*Task{
 					{
@@ -1248,15 +2614,44 @@ func TestPeriodicConfig_ValidCron(t *testing.T) {
 }
 
 func TestPeriodicConfig_NextCron(t *testing.T) {
+	require := require.New(t)
+
+	type testExpectation struct {
+		Time     time.Time
+		HasError bool
+		ErrorMsg string
+	}
+
 	from := time.Date(2009, time.November, 10, 23, 22, 30, 0, time.UTC)
-	specs := []string{"0 0 29 2 * 1980", "*/5 * * * *"}
-	expected := []time.Time{time.Time{}, time.Date(2009, time.November, 10, 23, 25, 0, 0, time.UTC)}
+	specs := []string{"0 0 29 2 * 1980",
+		"*/5 * * * *",
+		"1 15-0 * * 1-5"}
+	expected := []*testExpectation{
+		{
+			Time:     time.Time{},
+			HasError: false,
+		},
+		{
+			Time:     time.Date(2009, time.November, 10, 23, 25, 0, 0, time.UTC),
+			HasError: false,
+		},
+		{
+			Time:     time.Time{},
+			HasError: true,
+			ErrorMsg: "failed parsing cron expression",
+		},
+	}
+
 	for i, spec := range specs {
 		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
 		p.Canonicalize()
-		n := p.Next(from)
-		if expected[i] != n {
-			t.Fatalf("Next(%v) returned %v; want %v", from, n, expected[i])
+		n, err := p.Next(from)
+		nextExpected := expected[i]
+
+		require.Equal(nextExpected.Time, n)
+		require.Equal(err != nil, nextExpected.HasError)
+		if err != nil {
+			require.True(strings.Contains(err.Error(), nextExpected.ErrorMsg))
 		}
 	}
 }
@@ -1273,6 +2668,8 @@ func TestPeriodicConfig_ValidTimeZone(t *testing.T) {
 }
 
 func TestPeriodicConfig_DST(t *testing.T) {
+	require := require.New(t)
+
 	// On Sun, Mar 12, 2:00 am 2017: +1 hour UTC
 	p := &PeriodicConfig{
 		Enabled:  true,
@@ -1289,15 +2686,14 @@ func TestPeriodicConfig_DST(t *testing.T) {
 	e1 := time.Date(2017, time.March, 11, 10, 0, 0, 0, time.UTC)
 	e2 := time.Date(2017, time.March, 12, 9, 0, 0, 0, time.UTC)
 
-	n1 := p.Next(t1).UTC()
-	n2 := p.Next(t2).UTC()
+	n1, err := p.Next(t1)
+	require.Nil(err)
 
-	if !reflect.DeepEqual(e1, n1) {
-		t.Fatalf("Got %v; want %v", n1, e1)
-	}
-	if !reflect.DeepEqual(e2, n2) {
-		t.Fatalf("Got %v; want %v", n1, e1)
-	}
+	n2, err := p.Next(t2)
+	require.Nil(err)
+
+	require.Equal(e1, n1.UTC())
+	require.Equal(e2, n2.UTC())
 }
 
 func TestRestartPolicy_Validate(t *testing.T) {
@@ -1354,14 +2750,214 @@ func TestRestartPolicy_Validate(t *testing.T) {
 	}
 }
 
+func TestReschedulePolicy_Validate(t *testing.T) {
+	type testCase struct {
+		desc             string
+		ReschedulePolicy *ReschedulePolicy
+		errors           []error
+	}
+
+	testCases := []testCase{
+		{
+			desc: "Nil",
+		},
+		{
+			desc: "Disabled",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts: 0,
+				Interval: 0 * time.Second},
+		},
+		{
+			desc: "Disabled",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts: -1,
+				Interval: 5 * time.Minute},
+		},
+		{
+			desc: "Valid Linear Delay",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Interval:      5 * time.Minute,
+				Delay:         10 * time.Second,
+				DelayFunction: "constant"},
+		},
+		{
+			desc: "Valid Exponential Delay",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      5,
+				Interval:      1 * time.Hour,
+				Delay:         30 * time.Second,
+				MaxDelay:      5 * time.Minute,
+				DelayFunction: "exponential"},
+		},
+		{
+			desc: "Valid Fibonacci Delay",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      5,
+				Interval:      15 * time.Minute,
+				Delay:         10 * time.Second,
+				MaxDelay:      5 * time.Minute,
+				DelayFunction: "fibonacci"},
+		},
+		{
+			desc: "Invalid delay function",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Interval:      1 * time.Second,
+				DelayFunction: "blah"},
+			errors: []error{
+				fmt.Errorf("Interval cannot be less than %v (got %v)", ReschedulePolicyMinInterval, time.Second),
+				fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
+				fmt.Errorf("Invalid delay function %q, must be one of %q", "blah", RescheduleDelayFunctions),
+			},
+		},
+		{
+			desc: "Invalid delay ceiling",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Interval:      8 * time.Second,
+				DelayFunction: "exponential",
+				Delay:         15 * time.Second,
+				MaxDelay:      5 * time.Second},
+			errors: []error{
+				fmt.Errorf("Max Delay cannot be less than Delay %v (got %v)",
+					15*time.Second, 5*time.Second),
+			},
+		},
+		{
+			desc: "Invalid delay and interval",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Interval:      1 * time.Second,
+				DelayFunction: "constant"},
+			errors: []error{
+				fmt.Errorf("Interval cannot be less than %v (got %v)", ReschedulePolicyMinInterval, time.Second),
+				fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
+			},
+		}, {
+			// Should suggest 2h40m as the interval
+			desc: "Invalid Attempts - linear delay",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      10,
+				Interval:      1 * time.Hour,
+				Delay:         20 * time.Minute,
+				DelayFunction: "constant",
+			},
+			errors: []error{
+				fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v and"+
+					" delay function %q", 3, time.Hour, 20*time.Minute, "constant"),
+				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts",
+					200*time.Minute, 10),
+			},
+		},
+		{
+			// Should suggest 4h40m as the interval
+			// Delay progression in minutes {5, 10, 20, 40, 40, 40, 40, 40, 40, 40}
+			desc: "Invalid Attempts - exponential delay",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      10,
+				Interval:      30 * time.Minute,
+				Delay:         5 * time.Minute,
+				MaxDelay:      40 * time.Minute,
+				DelayFunction: "exponential",
+			},
+			errors: []error{
+				fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v, "+
+					"delay function %q, and delay ceiling %v", 3, 30*time.Minute, 5*time.Minute,
+					"exponential", 40*time.Minute),
+				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts",
+					280*time.Minute, 10),
+			},
+		},
+		{
+			// Should suggest 8h as the interval
+			// Delay progression in minutes {20, 20, 40, 60, 80, 80, 80, 80, 80, 80}
+			desc: "Invalid Attempts - fibonacci delay",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      10,
+				Interval:      1 * time.Hour,
+				Delay:         20 * time.Minute,
+				MaxDelay:      80 * time.Minute,
+				DelayFunction: "fibonacci",
+			},
+			errors: []error{
+				fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v, "+
+					"delay function %q, and delay ceiling %v", 4, 1*time.Hour, 20*time.Minute,
+					"fibonacci", 80*time.Minute),
+				fmt.Errorf("Set the interval to at least %v to accommodate %v attempts",
+					480*time.Minute, 10),
+			},
+		},
+		{
+			desc: "Ambiguous Unlimited config, has both attempts and unlimited set",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Unlimited:     true,
+				DelayFunction: "exponential",
+				Delay:         5 * time.Minute,
+				MaxDelay:      1 * time.Hour,
+			},
+			errors: []error{
+				fmt.Errorf("Interval must be a non zero value if Attempts > 0"),
+				fmt.Errorf("Reschedule Policy with Attempts = %v, Interval = %v, and Unlimited = %v is ambiguous", 1, time.Duration(0), true),
+			},
+		},
+		{
+			desc: "Invalid Unlimited config",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Interval:      1 * time.Second,
+				Unlimited:     true,
+				DelayFunction: "exponential",
+			},
+			errors: []error{
+				fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
+				fmt.Errorf("Max Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 0*time.Second),
+			},
+		},
+		{
+			desc: "Valid Unlimited config",
+			ReschedulePolicy: &ReschedulePolicy{
+				Unlimited:     true,
+				DelayFunction: "exponential",
+				Delay:         5 * time.Second,
+				MaxDelay:      1 * time.Hour,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			require := require.New(t)
+			gotErr := tc.ReschedulePolicy.Validate()
+			if tc.errors != nil {
+				// Validate all errors
+				for _, err := range tc.errors {
+					require.Contains(gotErr.Error(), err.Error())
+				}
+			} else {
+				require.Nil(gotErr)
+			}
+		})
+	}
+}
+
 func TestAllocation_Index(t *testing.T) {
-	a1 := Allocation{Name: "example.cache[0]"}
-	e1 := 0
-	a2 := Allocation{Name: "ex[123]am123ple.c311ac[123]he12[1][77]"}
-	e2 := 77
+	a1 := Allocation{
+		Name:      "example.cache[1]",
+		TaskGroup: "cache",
+		JobID:     "example",
+		Job: &Job{
+			ID:         "example",
+			TaskGroups: []*TaskGroup{{Name: "cache"}}},
+	}
+	e1 := uint(1)
+	a2 := a1.Copy()
+	a2.Name = "example.cache[713127]"
+	e2 := uint(713127)
 
 	if a1.Index() != e1 || a2.Index() != e2 {
-		t.Fatal()
+		t.Fatalf("Got %d and %d", a1.Index(), a2.Index())
 	}
 }
 
@@ -1394,9 +2990,97 @@ func TestTaskArtifact_Validate_Dest(t *testing.T) {
 	}
 }
 
+// TestTaskArtifact_Hash asserts an artifact's hash changes when any of the
+// fields change.
+func TestTaskArtifact_Hash(t *testing.T) {
+	t.Parallel()
+
+	cases := []TaskArtifact{
+		{},
+		{
+			GetterSource: "a",
+		},
+		{
+			GetterSource: "b",
+		},
+		{
+			GetterSource:  "b",
+			GetterOptions: map[string]string{"c": "c"},
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "d",
+			},
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode: "f",
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode: "g",
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode:   "g",
+			RelativeDest: "h",
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode:   "g",
+			RelativeDest: "i",
+		},
+	}
+
+	// Map of hash to source
+	hashes := make(map[string]TaskArtifact, len(cases))
+	for _, tc := range cases {
+		h := tc.Hash()
+
+		// Hash should be deterministic
+		require.Equal(t, h, tc.Hash())
+
+		// Hash should be unique
+		if orig, ok := hashes[h]; ok {
+			require.Failf(t, "hashes match", "artifact 1: %s\n\n artifact 2: %s\n",
+				pretty.Sprint(tc), pretty.Sprint(orig),
+			)
+		}
+		hashes[h] = tc
+	}
+
+	require.Len(t, hashes, len(cases))
+}
+
 func TestAllocation_ShouldMigrate(t *testing.T) {
 	alloc := Allocation{
-		TaskGroup: "foo",
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
 		Job: &Job{
 			TaskGroups: []*TaskGroup{
 				{
@@ -1415,7 +3099,8 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 	}
 
 	alloc1 := Allocation{
-		TaskGroup: "foo",
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
 		Job: &Job{
 			TaskGroups: []*TaskGroup{
 				{
@@ -1431,7 +3116,8 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 	}
 
 	alloc2 := Allocation{
-		TaskGroup: "foo",
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
 		Job: &Job{
 			TaskGroups: []*TaskGroup{
 				{
@@ -1450,7 +3136,8 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 	}
 
 	alloc3 := Allocation{
-		TaskGroup: "foo",
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
 		Job: &Job{
 			TaskGroups: []*TaskGroup{
 				{
@@ -1462,6 +3149,26 @@ func TestAllocation_ShouldMigrate(t *testing.T) {
 
 	if alloc3.ShouldMigrate() {
 		t.Fatalf("bad: %v", alloc)
+	}
+
+	// No previous
+	alloc4 := Allocation{
+		TaskGroup: "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "foo",
+					EphemeralDisk: &EphemeralDisk{
+						Migrate: true,
+						Sticky:  true,
+					},
+				},
+			},
+		},
+	}
+
+	if alloc4.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc4)
 	}
 }
 
@@ -1497,6 +3204,15 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 			},
 			true,
 		},
+		{
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "md5:${ARTIFACT_CHECKSUM}",
+				},
+			},
+			false,
+		},
 	}
 
 	for i, tc := range cases {
@@ -1506,6 +3222,100 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 			continue
 		}
 	}
+}
+
+func TestPlan_NormalizeAllocations(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		NodeUpdate:      make(map[string][]*Allocation),
+		NodePreemptions: make(map[string][]*Allocation),
+	}
+	stoppedAlloc := MockAlloc()
+	desiredDesc := "Desired desc"
+	plan.AppendStoppedAlloc(stoppedAlloc, desiredDesc, AllocClientStatusLost)
+	preemptedAlloc := MockAlloc()
+	preemptingAllocID := uuid.Generate()
+	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
+
+	plan.NormalizeAllocations()
+
+	actualStoppedAlloc := plan.NodeUpdate[stoppedAlloc.NodeID][0]
+	expectedStoppedAlloc := &Allocation{
+		ID:                 stoppedAlloc.ID,
+		DesiredDescription: desiredDesc,
+		ClientStatus:       AllocClientStatusLost,
+	}
+	assert.Equal(t, expectedStoppedAlloc, actualStoppedAlloc)
+	actualPreemptedAlloc := plan.NodePreemptions[preemptedAlloc.NodeID][0]
+	expectedPreemptedAlloc := &Allocation{
+		ID:                    preemptedAlloc.ID,
+		PreemptedByAllocation: preemptingAllocID,
+	}
+	assert.Equal(t, expectedPreemptedAlloc, actualPreemptedAlloc)
+}
+
+func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		NodeUpdate: make(map[string][]*Allocation),
+	}
+	alloc := MockAlloc()
+	desiredDesc := "Desired desc"
+
+	plan.AppendStoppedAlloc(alloc, desiredDesc, AllocClientStatusLost)
+
+	appendedAlloc := plan.NodeUpdate[alloc.NodeID][0]
+	expectedAlloc := new(Allocation)
+	*expectedAlloc = *alloc
+	expectedAlloc.DesiredDescription = desiredDesc
+	expectedAlloc.DesiredStatus = AllocDesiredStatusStop
+	expectedAlloc.ClientStatus = AllocClientStatusLost
+	expectedAlloc.Job = nil
+	assert.Equal(t, expectedAlloc, appendedAlloc)
+	assert.Equal(t, alloc.Job, plan.Job)
+}
+
+func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		NodePreemptions: make(map[string][]*Allocation),
+	}
+	alloc := MockAlloc()
+	preemptingAllocID := uuid.Generate()
+
+	plan.AppendPreemptedAlloc(alloc, preemptingAllocID)
+
+	appendedAlloc := plan.NodePreemptions[alloc.NodeID][0]
+	expectedAlloc := &Allocation{
+		ID:                    alloc.ID,
+		PreemptedByAllocation: preemptingAllocID,
+		JobID:                 alloc.JobID,
+		Namespace:             alloc.Namespace,
+		DesiredStatus:         AllocDesiredStatusEvict,
+		DesiredDescription:    fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID),
+		AllocatedResources:    alloc.AllocatedResources,
+		TaskResources:         alloc.TaskResources,
+		SharedResources:       alloc.SharedResources,
+	}
+	assert.Equal(t, expectedAlloc, appendedAlloc)
+}
+
+func TestAllocation_MsgPackTags(t *testing.T) {
+	t.Parallel()
+	planType := reflect.TypeOf(Allocation{})
+
+	msgPackTags, _ := planType.FieldByName("_struct")
+
+	assert.Equal(t, msgPackTags.Tag, reflect.StructTag(`codec:",omitempty"`))
+}
+
+func TestEvaluation_MsgPackTags(t *testing.T) {
+	t.Parallel()
+	planType := reflect.TypeOf(Evaluation{})
+
+	msgPackTags, _ := planType.FieldByName("_struct")
+
+	assert.Equal(t, msgPackTags.Tag, reflect.StructTag(`codec:",omitempty"`))
 }
 
 func TestAllocation_Terminated(t *testing.T) {
@@ -1544,6 +3354,717 @@ func TestAllocation_Terminated(t *testing.T) {
 		alloc.ClientStatus = state.ClientStatus
 		if alloc.Terminated() != state.Terminated {
 			t.Fatalf("expected: %v, actual: %v", state.Terminated, alloc.Terminated())
+		}
+	}
+}
+
+func TestAllocation_ShouldReschedule(t *testing.T) {
+	type testCase struct {
+		Desc               string
+		FailTime           time.Time
+		ClientStatus       string
+		DesiredStatus      string
+		ReschedulePolicy   *ReschedulePolicy
+		RescheduleTrackers []*RescheduleEvent
+		ShouldReschedule   bool
+	}
+
+	fail := time.Now()
+
+	harness := []testCase{
+		{
+			Desc:             "Reschedule when desired state is stop",
+			ClientStatus:     AllocClientStatusPending,
+			DesiredStatus:    AllocDesiredStatusStop,
+			FailTime:         fail,
+			ReschedulePolicy: nil,
+			ShouldReschedule: false,
+		},
+		{
+			Desc:             "Disabled rescheduling",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 0, Interval: 1 * time.Minute},
+			ShouldReschedule: false,
+		},
+		{
+			Desc:             "Reschedule when client status is complete",
+			ClientStatus:     AllocClientStatusComplete,
+			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
+			ReschedulePolicy: nil,
+			ShouldReschedule: false,
+		},
+		{
+			Desc:             "Reschedule with nil reschedule policy",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
+			ReschedulePolicy: nil,
+			ShouldReschedule: false,
+		},
+		{
+			Desc:             "Reschedule with unlimited and attempts >0",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 1, Unlimited: true},
+			ShouldReschedule: true,
+		},
+		{
+			Desc:             "Reschedule when client status is complete",
+			ClientStatus:     AllocClientStatusComplete,
+			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
+			ReschedulePolicy: nil,
+			ShouldReschedule: false,
+		},
+		{
+			Desc:             "Reschedule with policy when client status complete",
+			ClientStatus:     AllocClientStatusComplete,
+			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 1, Interval: 1 * time.Minute},
+			ShouldReschedule: false,
+		},
+		{
+			Desc:             "Reschedule with no previous attempts",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 1, Interval: 1 * time.Minute},
+			ShouldReschedule: true,
+		},
+		{
+			Desc:             "Reschedule with leftover attempts",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 2, Interval: 5 * time.Minute},
+			FailTime:         fail,
+			RescheduleTrackers: []*RescheduleEvent{
+				{
+					RescheduleTime: fail.Add(-1 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			ShouldReschedule: true,
+		},
+		{
+			Desc:             "Reschedule with too old previous attempts",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 1, Interval: 5 * time.Minute},
+			RescheduleTrackers: []*RescheduleEvent{
+				{
+					RescheduleTime: fail.Add(-6 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			ShouldReschedule: true,
+		},
+		{
+			Desc:             "Reschedule with no leftover attempts",
+			ClientStatus:     AllocClientStatusFailed,
+			DesiredStatus:    AllocDesiredStatusRun,
+			FailTime:         fail,
+			ReschedulePolicy: &ReschedulePolicy{Attempts: 2, Interval: 5 * time.Minute},
+			RescheduleTrackers: []*RescheduleEvent{
+				{
+					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
+				},
+				{
+					RescheduleTime: fail.Add(-4 * time.Minute).UTC().UnixNano(),
+				},
+			},
+			ShouldReschedule: false,
+		},
+	}
+
+	for _, state := range harness {
+		alloc := Allocation{}
+		alloc.DesiredStatus = state.DesiredStatus
+		alloc.ClientStatus = state.ClientStatus
+		alloc.RescheduleTracker = &RescheduleTracker{state.RescheduleTrackers}
+
+		t.Run(state.Desc, func(t *testing.T) {
+			if got := alloc.ShouldReschedule(state.ReschedulePolicy, state.FailTime); got != state.ShouldReschedule {
+				t.Fatalf("expected %v but got %v", state.ShouldReschedule, got)
+			}
+		})
+
+	}
+}
+
+func TestAllocation_LastEventTime(t *testing.T) {
+	type testCase struct {
+		desc                  string
+		taskState             map[string]*TaskState
+		expectedLastEventTime time.Time
+	}
+
+	t1 := time.Now().UTC()
+
+	testCases := []testCase{
+		{
+			desc:                  "nil task state",
+			expectedLastEventTime: t1,
+		},
+		{
+			desc:                  "empty task state",
+			taskState:             make(map[string]*TaskState),
+			expectedLastEventTime: t1,
+		},
+		{
+			desc: "Finished At not set",
+			taskState: map[string]*TaskState{"foo": {State: "start",
+				StartedAt: t1.Add(-2 * time.Hour)}},
+			expectedLastEventTime: t1,
+		},
+		{
+			desc: "One finished ",
+			taskState: map[string]*TaskState{"foo": {State: "start",
+				StartedAt:  t1.Add(-2 * time.Hour),
+				FinishedAt: t1.Add(-1 * time.Hour)}},
+			expectedLastEventTime: t1.Add(-1 * time.Hour),
+		},
+		{
+			desc: "Multiple task groups",
+			taskState: map[string]*TaskState{"foo": {State: "start",
+				StartedAt:  t1.Add(-2 * time.Hour),
+				FinishedAt: t1.Add(-1 * time.Hour)},
+				"bar": {State: "start",
+					StartedAt:  t1.Add(-2 * time.Hour),
+					FinishedAt: t1.Add(-40 * time.Minute)}},
+			expectedLastEventTime: t1.Add(-40 * time.Minute),
+		},
+		{
+			desc: "No finishedAt set, one task event, should use modify time",
+			taskState: map[string]*TaskState{"foo": {
+				State:     "run",
+				StartedAt: t1.Add(-2 * time.Hour),
+				Events: []*TaskEvent{
+					{Type: "start", Time: t1.Add(-20 * time.Minute).UnixNano()},
+				}},
+			},
+			expectedLastEventTime: t1,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			alloc := &Allocation{CreateTime: t1.UnixNano(), ModifyTime: t1.UnixNano()}
+			alloc.TaskStates = tc.taskState
+			require.Equal(t, tc.expectedLastEventTime, alloc.LastEventTime())
+		})
+	}
+}
+
+func TestAllocation_NextDelay(t *testing.T) {
+	type testCase struct {
+		desc                       string
+		reschedulePolicy           *ReschedulePolicy
+		alloc                      *Allocation
+		expectedRescheduleTime     time.Time
+		expectedRescheduleEligible bool
+	}
+	now := time.Now()
+	testCases := []testCase{
+		{
+			desc: "Allocation hasn't failed yet",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "constant",
+				Delay:         5 * time.Second,
+			},
+			alloc:                      &Allocation{},
+			expectedRescheduleTime:     time.Time{},
+			expectedRescheduleEligible: false,
+		},
+		{
+			desc:                       "Allocation has no reschedule policy",
+			alloc:                      &Allocation{},
+			expectedRescheduleTime:     time.Time{},
+			expectedRescheduleEligible: false,
+		},
+		{
+			desc: "Allocation lacks task state",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "constant",
+				Delay:         5 * time.Second,
+				Unlimited:     true,
+			},
+			alloc:                      &Allocation{ClientStatus: AllocClientStatusFailed, ModifyTime: now.UnixNano()},
+			expectedRescheduleTime:     now.UTC().Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "linear delay, unlimited restarts, no reschedule tracker",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "constant",
+				Delay:         5 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "dead",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+			},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "linear delay with reschedule tracker",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "constant",
+				Delay:         5 * time.Second,
+				Interval:      10 * time.Minute,
+				Attempts:      2,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{{
+						RescheduleTime: now.Add(-2 * time.Minute).UTC().UnixNano(),
+						Delay:          5 * time.Second,
+					}},
+				}},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "linear delay with reschedule tracker, attempts exhausted",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "constant",
+				Delay:         5 * time.Second,
+				Interval:      10 * time.Minute,
+				Attempts:      2,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-3 * time.Minute).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-2 * time.Minute).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
+			expectedRescheduleEligible: false,
+		},
+		{
+			desc: "exponential delay - no reschedule tracker",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "exponential",
+				Delay:         5 * time.Second,
+				MaxDelay:      90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+			},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "exponential delay with reschedule tracker",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "exponential",
+				Delay:         5 * time.Second,
+				MaxDelay:      90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          20 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(40 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "exponential delay with delay ceiling reached",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "exponential",
+				Delay:         5 * time.Second,
+				MaxDelay:      90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-15 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          20 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          40 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-40 * time.Second).UTC().UnixNano(),
+							Delay:          80 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-15 * time.Second).Add(90 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			// Test case where most recent reschedule ran longer than delay ceiling
+			desc: "exponential delay, delay ceiling reset condition met",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "exponential",
+				Delay:         5 * time.Second,
+				MaxDelay:      90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-15 * time.Minute)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          20 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          40 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          80 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          90 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          90 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-15 * time.Minute).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "fibonacci delay - no reschedule tracker",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "fibonacci",
+				Delay:         5 * time.Second,
+				MaxDelay:      90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}}},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "fibonacci delay with reschedule tracker",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "fibonacci",
+				Delay:         5 * time.Second,
+				MaxDelay:      90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-5 * time.Second).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(10 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "fibonacci delay with more events",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "fibonacci",
+				Delay:         5 * time.Second,
+				MaxDelay:      90 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-2 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          15 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          25 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-2 * time.Second).Add(40 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "fibonacci delay with delay ceiling reached",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "fibonacci",
+				Delay:         5 * time.Second,
+				MaxDelay:      50 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-15 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          15 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          25 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-40 * time.Second).UTC().UnixNano(),
+							Delay:          40 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-15 * time.Second).Add(50 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "fibonacci delay with delay reset condition met",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "fibonacci",
+				Delay:         5 * time.Second,
+				MaxDelay:      50 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-5 * time.Minute)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          15 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          25 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          40 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-5 * time.Minute).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+		{
+			desc: "fibonacci delay with the most recent event that reset delay value",
+			reschedulePolicy: &ReschedulePolicy{
+				DelayFunction: "fibonacci",
+				Delay:         5 * time.Second,
+				MaxDelay:      50 * time.Second,
+				Unlimited:     true,
+			},
+			alloc: &Allocation{
+				ClientStatus: AllocClientStatusFailed,
+				TaskStates: map[string]*TaskState{"foo": {State: "start",
+					StartedAt:  now.Add(-1 * time.Hour),
+					FinishedAt: now.Add(-5 * time.Second)}},
+				RescheduleTracker: &RescheduleTracker{
+					Events: []*RescheduleEvent{
+						{
+							RescheduleTime: now.Add(-2 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          10 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          15 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          25 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          40 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+							Delay:          50 * time.Second,
+						},
+						{
+							RescheduleTime: now.Add(-1 * time.Minute).UTC().UnixNano(),
+							Delay:          5 * time.Second,
+						},
+					},
+				}},
+			expectedRescheduleTime:     now.Add(-5 * time.Second).Add(5 * time.Second),
+			expectedRescheduleEligible: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			require := require.New(t)
+			j := testJob()
+			if tc.reschedulePolicy != nil {
+				j.TaskGroups[0].ReschedulePolicy = tc.reschedulePolicy
+			}
+			tc.alloc.Job = j
+			tc.alloc.TaskGroup = j.TaskGroups[0].Name
+			reschedTime, allowed := tc.alloc.NextRescheduleTime()
+			require.Equal(tc.expectedRescheduleEligible, allowed)
+			require.Equal(tc.expectedRescheduleTime, reschedTime)
+		})
+	}
+
+}
+
+func TestRescheduleTracker_Copy(t *testing.T) {
+	type testCase struct {
+		original *RescheduleTracker
+		expected *RescheduleTracker
+	}
+
+	cases := []testCase{
+		{nil, nil},
+		{&RescheduleTracker{Events: []*RescheduleEvent{
+			{RescheduleTime: 2,
+				PrevAllocID: "12",
+				PrevNodeID:  "12",
+				Delay:       30 * time.Second},
+		}}, &RescheduleTracker{Events: []*RescheduleEvent{
+			{RescheduleTime: 2,
+				PrevAllocID: "12",
+				PrevNodeID:  "12",
+				Delay:       30 * time.Second},
+		}}},
+	}
+
+	for _, tc := range cases {
+		if got := tc.original.Copy(); !reflect.DeepEqual(got, tc.expected) {
+			t.Fatalf("expected %v but got %v", *tc.expected, *got)
 		}
 	}
 }
@@ -1650,5 +4171,611 @@ func TestIsRecoverable(t *testing.T) {
 	}
 	if !IsRecoverable(NewRecoverableError(fmt.Errorf(""), true)) {
 		t.Errorf("Explicitly recoverable errors *should* be recoverable")
+	}
+}
+
+func TestACLTokenValidate(t *testing.T) {
+	tk := &ACLToken{}
+
+	// Missing a type
+	err := tk.Validate()
+	assert.NotNil(t, err)
+	if !strings.Contains(err.Error(), "client or management") {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Missing policies
+	tk.Type = ACLClientToken
+	err = tk.Validate()
+	assert.NotNil(t, err)
+	if !strings.Contains(err.Error(), "missing policies") {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Invalid policies
+	tk.Type = ACLManagementToken
+	tk.Policies = []string{"foo"}
+	err = tk.Validate()
+	assert.NotNil(t, err)
+	if !strings.Contains(err.Error(), "associated with policies") {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Name too long policies
+	tk.Name = ""
+	for i := 0; i < 8; i++ {
+		tk.Name += uuid.Generate()
+	}
+	tk.Policies = nil
+	err = tk.Validate()
+	assert.NotNil(t, err)
+	if !strings.Contains(err.Error(), "too long") {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Make it valid
+	tk.Name = "foo"
+	err = tk.Validate()
+	assert.Nil(t, err)
+}
+
+func TestACLTokenPolicySubset(t *testing.T) {
+	tk := &ACLToken{
+		Type:     ACLClientToken,
+		Policies: []string{"foo", "bar", "baz"},
+	}
+
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "baz"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{}))
+	assert.Equal(t, false, tk.PolicySubset([]string{"foo", "bar", "new"}))
+	assert.Equal(t, false, tk.PolicySubset([]string{"new"}))
+
+	tk = &ACLToken{
+		Type: ACLManagementToken,
+	}
+
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "baz"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "new"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"new"}))
+}
+
+func TestACLTokenSetHash(t *testing.T) {
+	tk := &ACLToken{
+		Name:     "foo",
+		Type:     ACLClientToken,
+		Policies: []string{"foo", "bar"},
+		Global:   false,
+	}
+	out1 := tk.SetHash()
+	assert.NotNil(t, out1)
+	assert.NotNil(t, tk.Hash)
+	assert.Equal(t, out1, tk.Hash)
+
+	tk.Policies = []string{"foo"}
+	out2 := tk.SetHash()
+	assert.NotNil(t, out2)
+	assert.NotNil(t, tk.Hash)
+	assert.Equal(t, out2, tk.Hash)
+	assert.NotEqual(t, out1, out2)
+}
+
+func TestACLPolicySetHash(t *testing.T) {
+	ap := &ACLPolicy{
+		Name:        "foo",
+		Description: "great policy",
+		Rules:       "node { policy = \"read\" }",
+	}
+	out1 := ap.SetHash()
+	assert.NotNil(t, out1)
+	assert.NotNil(t, ap.Hash)
+	assert.Equal(t, out1, ap.Hash)
+
+	ap.Rules = "node { policy = \"write\" }"
+	out2 := ap.SetHash()
+	assert.NotNil(t, out2)
+	assert.NotNil(t, ap.Hash)
+	assert.Equal(t, out2, ap.Hash)
+	assert.NotEqual(t, out1, out2)
+}
+
+func TestTaskEventPopulate(t *testing.T) {
+	prepopulatedEvent := NewTaskEvent(TaskSetup)
+	prepopulatedEvent.DisplayMessage = "Hola"
+	testcases := []struct {
+		event       *TaskEvent
+		expectedMsg string
+	}{
+		{nil, ""},
+		{prepopulatedEvent, "Hola"},
+		{NewTaskEvent(TaskSetup).SetMessage("Setup"), "Setup"},
+		{NewTaskEvent(TaskStarted), "Task started by client"},
+		{NewTaskEvent(TaskReceived), "Task received by client"},
+		{NewTaskEvent(TaskFailedValidation), "Validation of task failed"},
+		{NewTaskEvent(TaskFailedValidation).SetValidationError(fmt.Errorf("task failed validation")), "task failed validation"},
+		{NewTaskEvent(TaskSetupFailure), "Task setup failed"},
+		{NewTaskEvent(TaskSetupFailure).SetSetupError(fmt.Errorf("task failed setup")), "task failed setup"},
+		{NewTaskEvent(TaskDriverFailure), "Failed to start task"},
+		{NewTaskEvent(TaskDownloadingArtifacts), "Client is downloading artifacts"},
+		{NewTaskEvent(TaskArtifactDownloadFailed), "Failed to download artifacts"},
+		{NewTaskEvent(TaskArtifactDownloadFailed).SetDownloadError(fmt.Errorf("connection reset by peer")), "connection reset by peer"},
+		{NewTaskEvent(TaskRestarting).SetRestartDelay(2 * time.Second).SetRestartReason(ReasonWithinPolicy), "Task restarting in 2s"},
+		{NewTaskEvent(TaskRestarting).SetRestartReason("Chaos Monkey did it"), "Chaos Monkey did it - Task restarting in 0s"},
+		{NewTaskEvent(TaskKilling), "Sent interrupt"},
+		{NewTaskEvent(TaskKilling).SetKillReason("Its time for you to die"), "Its time for you to die"},
+		{NewTaskEvent(TaskKilling).SetKillTimeout(1 * time.Second), "Sent interrupt. Waiting 1s before force killing"},
+		{NewTaskEvent(TaskTerminated).SetExitCode(-1).SetSignal(3), "Exit Code: -1, Signal: 3"},
+		{NewTaskEvent(TaskTerminated).SetMessage("Goodbye"), "Exit Code: 0, Exit Message: \"Goodbye\""},
+		{NewTaskEvent(TaskKilled), "Task successfully killed"},
+		{NewTaskEvent(TaskKilled).SetKillError(fmt.Errorf("undead creatures can't be killed")), "undead creatures can't be killed"},
+		{NewTaskEvent(TaskNotRestarting).SetRestartReason("Chaos Monkey did it"), "Chaos Monkey did it"},
+		{NewTaskEvent(TaskNotRestarting), "Task exceeded restart policy"},
+		{NewTaskEvent(TaskLeaderDead), "Leader Task in Group dead"},
+		{NewTaskEvent(TaskSiblingFailed), "Task's sibling failed"},
+		{NewTaskEvent(TaskSiblingFailed).SetFailedSibling("patient zero"), "Task's sibling \"patient zero\" failed"},
+		{NewTaskEvent(TaskSignaling), "Task being sent a signal"},
+		{NewTaskEvent(TaskSignaling).SetTaskSignal(os.Interrupt), "Task being sent signal interrupt"},
+		{NewTaskEvent(TaskSignaling).SetTaskSignal(os.Interrupt).SetTaskSignalReason("process interrupted"), "Task being sent signal interrupt: process interrupted"},
+		{NewTaskEvent(TaskRestartSignal), "Task signaled to restart"},
+		{NewTaskEvent(TaskRestartSignal).SetRestartReason("Chaos Monkey restarted it"), "Chaos Monkey restarted it"},
+		{NewTaskEvent(TaskDriverMessage).SetDriverMessage("YOLO"), "YOLO"},
+		{NewTaskEvent("Unknown Type, No message"), ""},
+		{NewTaskEvent("Unknown Type").SetMessage("Hello world"), "Hello world"},
+	}
+
+	for _, tc := range testcases {
+		tc.event.PopulateEventDisplayMessage()
+		if tc.event != nil && tc.event.DisplayMessage != tc.expectedMsg {
+			t.Fatalf("Expected %v but got %v", tc.expectedMsg, tc.event.DisplayMessage)
+		}
+	}
+}
+
+func TestNetworkResourcesEquals(t *testing.T) {
+	require := require.New(t)
+	var networkResourcesTest = []struct {
+		input    []*NetworkResource
+		expected bool
+		errorMsg string
+	}{
+		{
+			[]*NetworkResource{
+				{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80, 0}},
+				},
+				{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80, 0}},
+				},
+			},
+			true,
+			"Equal network resources should return true",
+		},
+		{
+			[]*NetworkResource{
+				{
+					IP:            "10.0.0.0",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80, 0}},
+				},
+				{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80, 0}},
+				},
+			},
+			false,
+			"Different IP addresses should return false",
+		},
+		{
+			[]*NetworkResource{
+				{
+					IP:            "10.0.0.1",
+					MBits:         40,
+					ReservedPorts: []Port{{"web", 80, 0}},
+				},
+				{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80, 0}},
+				},
+			},
+			false,
+			"Different MBits values should return false",
+		},
+		{
+			[]*NetworkResource{
+				{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80, 0}},
+				},
+				{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80, 0}, {"web", 80, 0}},
+				},
+			},
+			false,
+			"Different ReservedPorts lengths should return false",
+		},
+		{
+			[]*NetworkResource{
+				{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80, 0}},
+				},
+				{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{},
+				},
+			},
+			false,
+			"Empty and non empty ReservedPorts values should return false",
+		},
+		{
+			[]*NetworkResource{
+				{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"web", 80, 0}},
+				},
+				{
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"notweb", 80, 0}},
+				},
+			},
+			false,
+			"Different valued ReservedPorts values should return false",
+		},
+		{
+			[]*NetworkResource{
+				{
+					IP:           "10.0.0.1",
+					MBits:        50,
+					DynamicPorts: []Port{{"web", 80, 0}},
+				},
+				{
+					IP:           "10.0.0.1",
+					MBits:        50,
+					DynamicPorts: []Port{{"web", 80, 0}, {"web", 80, 0}},
+				},
+			},
+			false,
+			"Different DynamicPorts lengths should return false",
+		},
+		{
+			[]*NetworkResource{
+				{
+					IP:           "10.0.0.1",
+					MBits:        50,
+					DynamicPorts: []Port{{"web", 80, 0}},
+				},
+				{
+					IP:           "10.0.0.1",
+					MBits:        50,
+					DynamicPorts: []Port{},
+				},
+			},
+			false,
+			"Empty and non empty DynamicPorts values should return false",
+		},
+		{
+			[]*NetworkResource{
+				{
+					IP:           "10.0.0.1",
+					MBits:        50,
+					DynamicPorts: []Port{{"web", 80, 0}},
+				},
+				{
+					IP:           "10.0.0.1",
+					MBits:        50,
+					DynamicPorts: []Port{{"notweb", 80, 0}},
+				},
+			},
+			false,
+			"Different valued DynamicPorts values should return false",
+		},
+	}
+	for _, testCase := range networkResourcesTest {
+		first := testCase.input[0]
+		second := testCase.input[1]
+		require.Equal(testCase.expected, first.Equals(second), testCase.errorMsg)
+	}
+}
+
+func TestNode_Canonicalize(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Make sure the eligiblity is set properly
+	node := &Node{}
+	node.Canonicalize()
+	require.Equal(NodeSchedulingEligible, node.SchedulingEligibility)
+
+	node = &Node{
+		Drain: true,
+	}
+	node.Canonicalize()
+	require.Equal(NodeSchedulingIneligible, node.SchedulingEligibility)
+}
+
+func TestNode_Copy(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	node := &Node{
+		ID:         uuid.Generate(),
+		SecretID:   uuid.Generate(),
+		Datacenter: "dc1",
+		Name:       "foobar",
+		Attributes: map[string]string{
+			"kernel.name":        "linux",
+			"arch":               "x86",
+			"nomad.version":      "0.5.0",
+			"driver.exec":        "1",
+			"driver.mock_driver": "1",
+		},
+		Resources: &Resources{
+			CPU:      4000,
+			MemoryMB: 8192,
+			DiskMB:   100 * 1024,
+			Networks: []*NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		},
+		Reserved: &Resources{
+			CPU:      100,
+			MemoryMB: 256,
+			DiskMB:   4 * 1024,
+			Networks: []*NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []Port{{Label: "ssh", Value: 22}},
+					MBits:         1,
+				},
+			},
+		},
+		NodeResources: &NodeResources{
+			Cpu: NodeCpuResources{
+				CpuShares: 4000,
+			},
+			Memory: NodeMemoryResources{
+				MemoryMB: 8192,
+			},
+			Disk: NodeDiskResources{
+				DiskMB: 100 * 1024,
+			},
+			Networks: []*NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		},
+		ReservedResources: &NodeReservedResources{
+			Cpu: NodeReservedCpuResources{
+				CpuShares: 100,
+			},
+			Memory: NodeReservedMemoryResources{
+				MemoryMB: 256,
+			},
+			Disk: NodeReservedDiskResources{
+				DiskMB: 4 * 1024,
+			},
+			Networks: NodeReservedNetworkResources{
+				ReservedHostPorts: "22",
+			},
+		},
+		Links: map[string]string{
+			"consul": "foobar.dc1",
+		},
+		Meta: map[string]string{
+			"pci-dss":  "true",
+			"database": "mysql",
+			"version":  "5.6",
+		},
+		NodeClass:             "linux-medium-pci",
+		Status:                NodeStatusReady,
+		SchedulingEligibility: NodeSchedulingEligible,
+		Drivers: map[string]*DriverInfo{
+			"mock_driver": {
+				Attributes:        map[string]string{"running": "1"},
+				Detected:          true,
+				Healthy:           true,
+				HealthDescription: "Currently active",
+				UpdateTime:        time.Now(),
+			},
+		},
+	}
+	node.ComputeClass()
+
+	node2 := node.Copy()
+
+	require.Equal(node.Attributes, node2.Attributes)
+	require.Equal(node.Resources, node2.Resources)
+	require.Equal(node.Reserved, node2.Reserved)
+	require.Equal(node.Links, node2.Links)
+	require.Equal(node.Meta, node2.Meta)
+	require.Equal(node.Events, node2.Events)
+	require.Equal(node.DrainStrategy, node2.DrainStrategy)
+	require.Equal(node.Drivers, node2.Drivers)
+}
+
+func TestSpread_Validate(t *testing.T) {
+	type tc struct {
+		spread *Spread
+		err    error
+		name   string
+	}
+
+	testCases := []tc{
+		{
+			spread: &Spread{},
+			err:    fmt.Errorf("Missing spread attribute"),
+			name:   "empty spread",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    -1,
+			},
+			err:  fmt.Errorf("Spread stanza must have a positive weight from 0 to 100"),
+			name: "Invalid weight",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    110,
+			},
+			err:  fmt.Errorf("Spread stanza must have a positive weight from 0 to 100"),
+			name: "Invalid weight",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    50,
+				SpreadTarget: []*SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 25,
+					},
+					{
+						Value:   "dc2",
+						Percent: 150,
+					},
+				},
+			},
+			err:  fmt.Errorf("Spread target percentage for value \"dc2\" must be between 0 and 100"),
+			name: "Invalid percentages",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    50,
+				SpreadTarget: []*SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 75,
+					},
+					{
+						Value:   "dc2",
+						Percent: 75,
+					},
+				},
+			},
+			err:  fmt.Errorf("Sum of spread target percentages must not be greater than 100%%; got %d%%", 150),
+			name: "Invalid percentages",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    50,
+				SpreadTarget: []*SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 25,
+					},
+					{
+						Value:   "dc1",
+						Percent: 50,
+					},
+				},
+			},
+			err:  fmt.Errorf("Spread target value \"dc1\" already defined"),
+			name: "No spread targets",
+		},
+		{
+			spread: &Spread{
+				Attribute: "${node.datacenter}",
+				Weight:    50,
+				SpreadTarget: []*SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 25,
+					},
+					{
+						Value:   "dc2",
+						Percent: 50,
+					},
+				},
+			},
+			err:  nil,
+			name: "Valid spread",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.spread.Validate()
+			if tc.err != nil {
+				require.NotNil(t, err)
+				require.Contains(t, err.Error(), tc.err.Error())
+			} else {
+				require.Nil(t, err)
+			}
+		})
+	}
+}
+
+func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
+	require := require.New(t)
+	cases := []struct {
+		Input  string
+		Parsed []uint64
+		Err    bool
+	}{
+		{
+			"1,2,3",
+			[]uint64{1, 2, 3},
+			false,
+		},
+		{
+			"3,1,2,1,2,3,1-3",
+			[]uint64{1, 2, 3},
+			false,
+		},
+		{
+			"3-1",
+			nil,
+			true,
+		},
+		{
+			"1-3,2-4",
+			[]uint64{1, 2, 3, 4},
+			false,
+		},
+		{
+			"1-3,4,5-5,6,7,8-10",
+			[]uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			false,
+		},
+	}
+
+	for i, tc := range cases {
+		r := &NodeReservedNetworkResources{ReservedHostPorts: tc.Input}
+		out, err := r.ParseReservedHostPorts()
+		if (err != nil) != tc.Err {
+			t.Fatalf("test case %d: %v", i, err)
+			continue
+		}
+
+		require.Equal(out, tc.Parsed)
 	}
 }

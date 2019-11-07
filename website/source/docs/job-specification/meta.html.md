@@ -84,7 +84,7 @@ environment variables.
 
 ```hcl
 meta {
-  class = "${nomad.class}"
+  class = "${node.class}"
 }
 ```
 

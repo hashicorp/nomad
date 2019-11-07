@@ -1,0 +1,22 @@
+@import './charts/distribution-bar';
+@import './charts/line-chart';
+@import './charts/tooltip';
+@import './charts/colors';
+
+.inline-chart {
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+
+  &.is-small {
+    width: 50px;
+  }
+}
+
+// Patterns are templates referenced by other SVG fill properties.
+// Move the pattern svgs out of sight.
+.svg-pattern {
+  overflow: hidden;
+  position: absolute;
+  left: -100%;
+}

@@ -1,31 +1,34 @@
 @import 'bootstrap-sprockets';
 @import 'bootstrap';
 
-@import url("//fonts.googleapis.com/css?family=Open+Sans:300,400,600,700|Ubuntu+Mono");
+// Fonts
+@import '_fonts';
+
+// Mega Nav
+@import 'hashicorp/mega-nav';
+
+// Header anchors
+@import 'hashicorp/anchor-links';
 
 // Core variables and mixins
 @import '_variables';
-@import '_mixins';
 
-// Utility classes
-@import '_utilities';
+// Sidebar
+@import 'hashicorp/sidebar';
+
+// Typography
+@import '_typography';
 
 //Global Site
 @import '_global';
 
-// Hashicorp Shared Project Styles
-@import 'hashicorp-shared/_hashicorp-utility';
-@import 'hashicorp-shared/_project-utility';
-@import 'hashicorp-shared/_hashicorp-header';
-@import 'hashicorp-shared/_hashicorp-sidebar';
-
 // Components
 @import '_header';
 @import '_footer';
+@import '_inner';
 @import '_buttons';
-@import '_sidebar';
 @import '_syntax';
-@import '_announcement-bnr';
+@import '_logos';
 
 // Pages
 @import '_home';
@@ -33,4 +36,4 @@
 @import '_docs';
 @import '_downloads';
 @import '_api';
-@import '_livestream';
+@import '_alert';

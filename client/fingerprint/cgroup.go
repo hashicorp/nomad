@@ -1,22 +1,18 @@
-// +build linux
-
 package fingerprint
 
 import (
-	"log"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	log "github.com/hashicorp/go-hclog"
 )
 
 const (
-	cgroupAvailable   = "available"
 	cgroupUnavailable = "unavailable"
 	interval          = 15
 )
 
 type CGroupFingerprint struct {
-	logger             *log.Logger
+	logger             log.Logger
 	lastState          string
 	mountPointDetector MountPointDetector
 }
@@ -38,9 +34,9 @@ func (b *DefaultMountPointDetector) MountPoint() (string, error) {
 }
 
 // NewCGroupFingerprint returns a new cgroup fingerprinter
-func NewCGroupFingerprint(logger *log.Logger) Fingerprint {
+func NewCGroupFingerprint(logger log.Logger) Fingerprint {
 	f := &CGroupFingerprint{
-		logger:             logger,
+		logger:             logger.Named("cgroup"),
 		lastState:          cgroupUnavailable,
 		mountPointDetector: &DefaultMountPointDetector{},
 	}
@@ -49,8 +45,8 @@ func NewCGroupFingerprint(logger *log.Logger) Fingerprint {
 
 // clearCGroupAttributes clears any node attributes related to cgroups that might
 // have been set in a previous fingerprint run.
-func (f *CGroupFingerprint) clearCGroupAttributes(n *structs.Node) {
-	delete(n.Attributes, "unique.cgroup.mountpoint")
+func (f *CGroupFingerprint) clearCGroupAttributes(r *FingerprintResponse) {
+	r.RemoveAttribute("unique.cgroup.mountpoint")
 }
 
 // Periodic determines the interval at which the periodic fingerprinter will run.

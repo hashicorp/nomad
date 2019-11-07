@@ -2,11 +2,33 @@ set :base_url, "https://www.nomadproject.io/"
 
 activate :hashicorp do |h|
   h.name        = "nomad"
-  h.version     = "0.5.4"
+  h.version     = "0.10.1"
   h.github_slug = "hashicorp/nomad"
 end
 
+# Netlify redirects/headers
+proxy '_redirects', 'redirects.txt', ignore: true
+
 helpers do
+  # Returns a segment tracking ID such that local development is not
+  # tracked to production systems.
+  def segmentId()
+    if (ENV['ENV'] == 'production')
+      'qW11yxgipKMsKFKQUCpTVgQUYftYsJj0'
+    else
+      '0EXTgkNx0Ydje2PGXVbRhpKKoe5wtzcE'
+    end
+  end
+
+  # Returns the FQDN of the image URL.
+  #
+  # @param [String] path
+  #
+  # @return [String]
+  def image_url(path)
+    File.join(base_url, image_path(path))
+  end
+
   # Get the title for the page.
   #
   # @param [Middleman::Page] page
@@ -26,7 +48,12 @@ helpers do
   #
   # @return [String]
   def description_for(page)
-    return escape_html(page.data.description || "")
+    description = (page.data.description || "")
+      .gsub('"', '')
+      .gsub(/\n+/, ' ')
+      .squeeze(' ')
+
+    return escape_html(description)
   end
 
   # This helps by setting the "active" class for sidebar nav elements
@@ -43,10 +70,22 @@ helpers do
   # Returns the id for this page.
   # @return [String]
   def body_id_for(page)
-    if name = page.data.sidebar_current && !name.blank?
+    if !(name = page.data.sidebar_current).blank?
       return "page-#{name.strip}"
     end
-    return "page-home"
+    if page.url == "/" || page.url == "/index.html"
+      return "page-home"
+    end
+    if !(title = page.data.page_title).blank?
+      return title
+        .downcase
+        .gsub('"', '')
+        .gsub(/[^\w]+/, '-')
+        .gsub(/_+/, '-')
+        .squeeze('-')
+        .squeeze(' ')
+    end
+    return ""
   end
 
   # Returns the list of classes for this page.
@@ -54,11 +93,20 @@ helpers do
   def body_classes_for(page)
     classes = []
 
-    if page && page.data.layout
+    if !(layout = page.data.layout).blank?
       classes << "layout-#{page.data.layout}"
     end
 
-    classes << "-displaying-bnr"
+    if !(title = page.data.page_title).blank?
+      title = title
+        .downcase
+        .gsub('"', '')
+        .gsub(/[^\w]+/, '-')
+        .gsub(/_+/, '-')
+        .squeeze('-')
+        .squeeze(' ')
+      classes << "page-#{title}"
+    end
 
     return classes.join(" ")
   end

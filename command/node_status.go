@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
-	"github.com/mitchellh/colorstring"
-
+	humanize "github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/posener/complete"
 )
 
 const (
@@ -24,7 +25,6 @@ const (
 
 type NodeStatusCommand struct {
 	Meta
-	color       *colorstring.Colorize
 	length      int
 	short       bool
 	verbose     bool
@@ -37,7 +37,7 @@ type NodeStatusCommand struct {
 
 func (c *NodeStatusCommand) Help() string {
 	helpText := `
-Usage: nomad node-status [options] <node>
+Usage: nomad node status [options] <node>
 
   Display status information about a given node. The list of nodes
   returned includes only nodes which jobs may be scheduled to, and
@@ -57,7 +57,7 @@ Node Status Options:
   -self
     Query the status of the local node.
 
-  -stats 
+  -stats
     Display detailed resource usage statistics.
 
   -allocs
@@ -83,9 +83,39 @@ func (c *NodeStatusCommand) Synopsis() string {
 	return "Display status information about nodes"
 }
 
+func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-allocs":  complete.PredictNothing,
+			"-json":    complete.PredictNothing,
+			"-self":    complete.PredictNothing,
+			"-short":   complete.PredictNothing,
+			"-stats":   complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *NodeStatusCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Nodes, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Nodes]
+	})
+}
+
+func (c *NodeStatusCommand) Name() string { return "node-status" }
+
 func (c *NodeStatusCommand) Run(args []string) int {
 
-	flags := c.Meta.FlagSet("node-status", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&c.short, "short", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
@@ -102,7 +132,8 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	// Check that we got either a single node or none
 	args = flags.Args()
 	if len(args) > 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes either one or no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -121,16 +152,6 @@ func (c *NodeStatusCommand) Run(args []string) int {
 
 	// Use list mode if no node name was provided
 	if len(args) == 0 && !c.self {
-		// If output format is specified, format and output the node data list
-		var format string
-		if c.json && len(c.tmpl) > 0 {
-			c.Ui.Error("Both -json and -t are not allowed")
-			return 1
-		} else if c.json {
-			format = "json"
-		} else if len(c.tmpl) > 0 {
-			format = "template"
-		}
 
 		// Query the node info
 		nodes, _, err := client.Nodes().List(nil)
@@ -139,58 +160,61 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			return 1
 		}
 
+		// If output format is specified, format and output the node data list
+		if c.json || len(c.tmpl) > 0 {
+			out, err := Format(c.json, c.tmpl, nodes)
+			if err != nil {
+				c.Ui.Error(err.Error())
+				return 1
+			}
+
+			c.Ui.Output(out)
+			return 0
+		}
+
 		// Return nothing if no nodes found
 		if len(nodes) == 0 {
 			return 0
 		}
 
-		if len(format) > 0 {
-			f, err := DataFormat(format, c.tmpl)
-			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
-				return 1
-			}
-
-			out, err := f.TransformData(nodes)
-			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
-				return 1
-			}
-			c.Ui.Output(out)
-			return 0
-		}
-
 		// Format the nodes list
 		out := make([]string, len(nodes)+1)
+
+		out[0] = "ID|DC|Name|Class|"
+
+		if c.verbose {
+			out[0] += "Address|Version|"
+		}
+
+		out[0] += "Drain|Eligibility|Status"
+
 		if c.list_allocs {
-			out[0] = "ID|DC|Name|Class|Drain|Status|Running Allocs"
-		} else {
-			out[0] = "ID|DC|Name|Class|Drain|Status"
+			out[0] += "|Running Allocs"
 		}
 
 		for i, node := range nodes {
+			out[i+1] = fmt.Sprintf("%s|%s|%s|%s",
+				limit(node.ID, c.length),
+				node.Datacenter,
+				node.Name,
+				node.NodeClass)
+			if c.verbose {
+				out[i+1] += fmt.Sprintf("|%s|%s",
+					node.Address, node.Version)
+			}
+			out[i+1] += fmt.Sprintf("|%v|%s|%s",
+				node.Drain,
+				node.SchedulingEligibility,
+				node.Status)
+
 			if c.list_allocs {
 				numAllocs, err := getRunningAllocs(client, node.ID)
 				if err != nil {
 					c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
 					return 1
 				}
-				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%v",
-					limit(node.ID, c.length),
-					node.Datacenter,
-					node.Name,
-					node.NodeClass,
-					node.Drain,
-					node.Status,
+				out[i+1] += fmt.Sprintf("|%v",
 					len(numAllocs))
-			} else {
-				out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-					limit(node.ID, c.length),
-					node.Datacenter,
-					node.Name,
-					node.NodeClass,
-					node.Drain,
-					node.Status)
 			}
 		}
 
@@ -200,7 +224,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// Query the specific node
-	nodeID := ""
+	var nodeID string
 	if !c.self {
 		nodeID = args[0]
 	} else {
@@ -214,12 +238,8 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
 		return 1
 	}
-	if len(nodeID)%2 == 1 {
-		// Identifiers must be of even length, so we strip off the last byte
-		// to provide a consistent user experience.
-		nodeID = nodeID[:len(nodeID)-1]
-	}
 
+	nodeID = sanitizeUUIDPrefix(nodeID)
 	nodes, _, err := client.Nodes().PrefixList(nodeID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
@@ -231,23 +251,12 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		return 1
 	}
 	if len(nodes) > 1 {
-		// Format the nodes list that matches the prefix so that the user
-		// can create a more specific request
-		out := make([]string, len(nodes)+1)
-		out[0] = "ID|DC|Name|Class|Drain|Status"
-		for i, node := range nodes {
-			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s",
-				limit(node.ID, c.length),
-				node.Datacenter,
-				node.Name,
-				node.NodeClass,
-				node.Drain,
-				node.Status)
-		}
 		// Dump the output
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", formatList(out)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s",
+			formatNodeStubList(nodes, c.verbose)))
+		return 1
 	}
+
 	// Prefix lookup matched a single node
 	node, _, err := client.Nodes().Info(nodes[0].ID, nil)
 	if err != nil {
@@ -256,27 +265,13 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	}
 
 	// If output format is specified, format and output the data
-	var format string
-	if c.json && len(c.tmpl) > 0 {
-		c.Ui.Error("Both -json and -t are not allowed")
-		return 1
-	} else if c.json {
-		format = "json"
-	} else if len(c.tmpl) > 0 {
-		format = "template"
-	}
-	if len(format) > 0 {
-		f, err := DataFormat(format, c.tmpl)
+	if c.json || len(c.tmpl) > 0 {
+		out, err := Format(c.json, c.tmpl, node)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
+			c.Ui.Error(err.Error())
 			return 1
 		}
 
-		out, err := f.TransformData(node)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error formatting the data: %s", err))
-			return 1
-		}
 		c.Ui.Output(out)
 		return 0
 	}
@@ -304,87 +299,268 @@ func nodeDrivers(n *api.Node) []string {
 	return drivers
 }
 
+func nodeVolumeNames(n *api.Node) []string {
+	var volumes []string
+	for name := range n.HostVolumes {
+		volumes = append(volumes, name)
+	}
+
+	sort.Strings(volumes)
+	return volumes
+}
+
+func formatDrain(n *api.Node) string {
+	if n.DrainStrategy != nil {
+		b := new(strings.Builder)
+		b.WriteString("true")
+		if n.DrainStrategy.DrainSpec.Deadline.Nanoseconds() < 0 {
+			b.WriteString("; force drain")
+		} else if n.DrainStrategy.ForceDeadline.IsZero() {
+			b.WriteString("; no deadline")
+		} else {
+			fmt.Fprintf(b, "; %s deadline", formatTime(n.DrainStrategy.ForceDeadline))
+		}
+
+		if n.DrainStrategy.IgnoreSystemJobs {
+			b.WriteString("; ignoring system jobs")
+		}
+		return b.String()
+	}
+
+	return strconv.FormatBool(n.Drain)
+}
+
 func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	// Format the header output
 	basic := []string{
-		fmt.Sprintf("ID|%s", limit(node.ID, c.length)),
+		fmt.Sprintf("ID|%s", node.ID),
 		fmt.Sprintf("Name|%s", node.Name),
 		fmt.Sprintf("Class|%s", node.NodeClass),
 		fmt.Sprintf("DC|%s", node.Datacenter),
-		fmt.Sprintf("Drain|%v", node.Drain),
+		fmt.Sprintf("Drain|%v", formatDrain(node)),
+		fmt.Sprintf("Eligibility|%s", node.SchedulingEligibility),
 		fmt.Sprintf("Status|%s", node.Status),
-		fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")),
 	}
 
 	if c.short {
-		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
-	} else {
-		// Get the host stats
-		hostStats, nodeStatsErr := client.Nodes().Stats(node.ID, nil)
-		if nodeStatsErr != nil {
-			c.Ui.Output("")
-			c.Ui.Error(fmt.Sprintf("error fetching node stats (HINT: ensure Client.Advertise.HTTP is set): %v", nodeStatsErr))
-		}
-		if hostStats != nil {
-			uptime := time.Duration(hostStats.Uptime * uint64(time.Second))
-			basic = append(basic, fmt.Sprintf("Uptime|%s", uptime.String()))
-		}
+		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
+		basic = append(basic, fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")))
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
-		// Get list of running allocations on the node
-		runningAllocs, err := getRunningAllocs(client, node.ID)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying node for running allocations: %s", err))
+		// Output alloc info
+		if err := c.outputAllocInfo(client, node); err != nil {
+			c.Ui.Error(fmt.Sprintf("%s", err))
 			return 1
 		}
 
-		allocatedResources := getAllocatedResources(client, runningAllocs, node)
-		c.Ui.Output(c.Colorize().Color("\n[bold]Allocated Resources[reset]"))
-		c.Ui.Output(formatList(allocatedResources))
-
-		actualResources, err := getActualResources(client, runningAllocs, node)
-		if err == nil {
-			c.Ui.Output(c.Colorize().Color("\n[bold]Allocation Resource Utilization[reset]"))
-			c.Ui.Output(formatList(actualResources))
-		}
-
-		hostResources, err := getHostResources(hostStats, node)
-		if err != nil {
-			c.Ui.Output("")
-			c.Ui.Error(fmt.Sprintf("error fetching node stats (HINT: ensure Client.Advertise.HTTP is set): %v", err))
-		}
-		if err == nil {
-			c.Ui.Output(c.Colorize().Color("\n[bold]Host Resource Utilization[reset]"))
-			c.Ui.Output(formatList(hostResources))
-		}
-
-		if hostStats != nil && c.stats {
-			c.Ui.Output(c.Colorize().Color("\n[bold]CPU Stats[reset]"))
-			c.printCpuStats(hostStats)
-			c.Ui.Output(c.Colorize().Color("\n[bold]Memory Stats[reset]"))
-			c.printMemoryStats(hostStats)
-			c.Ui.Output(c.Colorize().Color("\n[bold]Disk Stats[reset]"))
-			c.printDiskStats(hostStats)
-		}
+		return 0
 	}
 
-	allocs, err := getAllocs(client, node, c.length)
+	// Get the host stats
+	hostStats, nodeStatsErr := client.Nodes().Stats(node.ID, nil)
+	if nodeStatsErr != nil {
+		c.Ui.Output("")
+		c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", nodeStatsErr))
+	}
+	if hostStats != nil {
+		uptime := time.Duration(hostStats.Uptime * uint64(time.Second))
+		basic = append(basic, fmt.Sprintf("Uptime|%s", uptime.String()))
+	}
+
+	// When we're not running in verbose mode, then also include host volumes and
+	// driver info in the basic output
+	if !c.verbose {
+		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
+
+		driverStatus := fmt.Sprintf("Driver Status| %s", c.outputTruncatedNodeDriverInfo(node))
+		basic = append(basic, driverStatus)
+	}
+
+	// Output the basic info
+	c.Ui.Output(c.Colorize().Color(formatKV(basic)))
+
+	// If we're running in verbose mode, include full host volume and driver info
+	if c.verbose {
+		c.outputNodeVolumeInfo(node)
+		c.outputNodeDriverInfo(node)
+	}
+
+	// Emit node events
+	c.outputNodeStatusEvents(node)
+
+	// Get list of running allocations on the node
+	runningAllocs, err := getRunningAllocs(client, node.ID)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error querying node for running allocations: %s", err))
 		return 1
 	}
 
-	if len(allocs) > 1 {
-		c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
-		c.Ui.Output(formatList(allocs))
+	allocatedResources := getAllocatedResources(client, runningAllocs, node)
+	c.Ui.Output(c.Colorize().Color("\n[bold]Allocated Resources[reset]"))
+	c.Ui.Output(formatList(allocatedResources))
+
+	actualResources, err := getActualResources(client, runningAllocs, node)
+	if err == nil {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Allocation Resource Utilization[reset]"))
+		c.Ui.Output(formatList(actualResources))
 	}
+
+	hostResources, err := getHostResources(hostStats, node)
+	if err != nil {
+		c.Ui.Output("")
+		c.Ui.Error(fmt.Sprintf("error fetching node stats: %v", err))
+	}
+	if err == nil {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Host Resource Utilization[reset]"))
+		c.Ui.Output(formatList(hostResources))
+	}
+
+	if err == nil && node.NodeResources != nil && len(node.NodeResources.Devices) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Device Resource Utilization[reset]"))
+		c.Ui.Output(formatList(getDeviceResourcesForNode(hostStats.DeviceStats, node)))
+	}
+	if hostStats != nil && c.stats {
+		c.Ui.Output(c.Colorize().Color("\n[bold]CPU Stats[reset]"))
+		c.printCpuStats(hostStats)
+		c.Ui.Output(c.Colorize().Color("\n[bold]Memory Stats[reset]"))
+		c.printMemoryStats(hostStats)
+		c.Ui.Output(c.Colorize().Color("\n[bold]Disk Stats[reset]"))
+		c.printDiskStats(hostStats)
+		if len(hostStats.DeviceStats) > 0 {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Device Stats[reset]"))
+			printDeviceStats(c.Ui, hostStats.DeviceStats)
+		}
+	}
+
+	if err := c.outputAllocInfo(client, node); err != nil {
+		c.Ui.Error(fmt.Sprintf("%s", err))
+		return 1
+	}
+
+	return 0
+}
+
+func (c *NodeStatusCommand) outputAllocInfo(client *api.Client, node *api.Node) error {
+	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
+	if err != nil {
+		return fmt.Errorf("Error querying node allocations: %s", err)
+	}
+
+	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
+	c.Ui.Output(formatAllocList(nodeAllocs, c.verbose, c.length))
 
 	if c.verbose {
 		c.formatAttributes(node)
+		c.formatDeviceAttributes(node)
 		c.formatMeta(node)
 	}
-	return 0
 
+	return nil
+}
+
+func (c *NodeStatusCommand) outputTruncatedNodeDriverInfo(node *api.Node) string {
+	drivers := make([]string, 0, len(node.Drivers))
+
+	for driverName, driverInfo := range node.Drivers {
+		if !driverInfo.Detected {
+			continue
+		}
+
+		if !driverInfo.Healthy {
+			drivers = append(drivers, fmt.Sprintf("%s (unhealthy)", driverName))
+		} else {
+			drivers = append(drivers, driverName)
+		}
+	}
+	sort.Strings(drivers)
+	return strings.Trim(strings.Join(drivers, ","), ", ")
+}
+
+func (c *NodeStatusCommand) outputNodeVolumeInfo(node *api.Node) {
+	c.Ui.Output(c.Colorize().Color("\n[bold]Host Volumes"))
+
+	names := make([]string, 0, len(node.HostVolumes))
+	for name := range node.HostVolumes {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	output := make([]string, 0, len(names)+1)
+	output = append(output, "Name|ReadOnly|Source")
+
+	for _, volName := range names {
+		info := node.HostVolumes[volName]
+		output = append(output, fmt.Sprintf("%s|%v|%s", volName, info.ReadOnly, info.Path))
+	}
+	c.Ui.Output(formatList(output))
+}
+
+func (c *NodeStatusCommand) outputNodeDriverInfo(node *api.Node) {
+	c.Ui.Output(c.Colorize().Color("\n[bold]Drivers"))
+
+	size := len(node.Drivers)
+	nodeDrivers := make([]string, 0, size+1)
+
+	nodeDrivers = append(nodeDrivers, "Driver|Detected|Healthy|Message|Time")
+
+	drivers := make([]string, 0, len(node.Drivers))
+	for driver := range node.Drivers {
+		drivers = append(drivers, driver)
+	}
+	sort.Strings(drivers)
+
+	for _, driver := range drivers {
+		info := node.Drivers[driver]
+		timestamp := formatTime(info.UpdateTime)
+		nodeDrivers = append(nodeDrivers, fmt.Sprintf("%s|%v|%v|%s|%s", driver, info.Detected, info.Healthy, info.HealthDescription, timestamp))
+	}
+	c.Ui.Output(formatList(nodeDrivers))
+}
+
+func (c *NodeStatusCommand) outputNodeStatusEvents(node *api.Node) {
+	c.Ui.Output(c.Colorize().Color("\n[bold]Node Events"))
+	c.outputNodeEvent(node.Events)
+}
+
+func (c *NodeStatusCommand) outputNodeEvent(events []*api.NodeEvent) {
+	size := len(events)
+	nodeEvents := make([]string, size+1)
+	if c.verbose {
+		nodeEvents[0] = "Time|Subsystem|Message|Details"
+	} else {
+		nodeEvents[0] = "Time|Subsystem|Message"
+	}
+
+	for i, event := range events {
+		timestamp := formatTime(event.Timestamp)
+		subsystem := formatEventSubsystem(event.Subsystem, event.Details["driver"])
+		msg := event.Message
+		if c.verbose {
+			details := formatEventDetails(event.Details)
+			nodeEvents[size-i] = fmt.Sprintf("%s|%s|%s|%s", timestamp, subsystem, msg, details)
+		} else {
+			nodeEvents[size-i] = fmt.Sprintf("%s|%s|%s", timestamp, subsystem, msg)
+		}
+	}
+	c.Ui.Output(formatList(nodeEvents))
+}
+
+func formatEventSubsystem(subsystem, driverName string) string {
+	if driverName == "" {
+		return subsystem
+	}
+
+	// If this event is for a driver, append the driver name to make the message
+	// clearer
+	return fmt.Sprintf("Driver: %s", driverName)
+}
+
+func formatEventDetails(details map[string]string) string {
+	output := make([]string, 0, len(details))
+	for k, v := range details {
+		output = append(output, fmt.Sprintf("%s: %s ", k, v))
+	}
+	return strings.Join(output, ", ")
 }
 
 func (c *NodeStatusCommand) formatAttributes(node *api.Node) {
@@ -403,6 +579,35 @@ func (c *NodeStatusCommand) formatAttributes(node *api.Node) {
 	}
 	c.Ui.Output(c.Colorize().Color("\n[bold]Attributes[reset]"))
 	c.Ui.Output(formatKV(attributes))
+}
+
+func (c *NodeStatusCommand) formatDeviceAttributes(node *api.Node) {
+	if node.NodeResources == nil {
+		return
+	}
+	devices := node.NodeResources.Devices
+	if len(devices) == 0 {
+		return
+	}
+
+	sort.Slice(devices, func(i, j int) bool {
+		return devices[i].ID() < devices[j].ID()
+	})
+
+	first := true
+	for _, d := range devices {
+		if len(d.Attributes) == 0 {
+			continue
+		}
+
+		if first {
+			c.Ui.Output("\nDevice Group Attributes")
+			first = false
+		} else {
+			c.Ui.Output("")
+		}
+		c.Ui.Output(formatKV(getDeviceAttributes(d)))
+	}
 }
 
 func (c *NodeStatusCommand) formatMeta(node *api.Node) {
@@ -481,51 +686,28 @@ func getRunningAllocs(client *api.Client, nodeID string) ([]*api.Allocation, err
 	return allocs, err
 }
 
-// getAllocs returns information about every running allocation on the node
-func getAllocs(client *api.Client, node *api.Node, length int) ([]string, error) {
-	var allocs []string
-	// Query the node allocations
-	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
-	// Format the allocations
-	allocs = make([]string, len(nodeAllocs)+1)
-	allocs[0] = "ID|Eval ID|Job ID|Task Group|Desired Status|Client Status"
-	for i, alloc := range nodeAllocs {
-		allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-			limit(alloc.ID, length),
-			limit(alloc.EvalID, length),
-			alloc.JobID,
-			alloc.TaskGroup,
-			alloc.DesiredStatus,
-			alloc.ClientStatus)
-	}
-	return allocs, err
-}
-
 // getAllocatedResources returns the resource usage of the node.
 func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, node *api.Node) []string {
 	// Compute the total
 	total := computeNodeTotalResources(node)
 
 	// Get Resources
-	var cpu, mem, disk, iops int
+	var cpu, mem, disk int
 	for _, alloc := range runningAllocs {
 		cpu += *alloc.Resources.CPU
 		mem += *alloc.Resources.MemoryMB
 		disk += *alloc.Resources.DiskMB
-		iops += *alloc.Resources.IOPS
 	}
 
 	resources := make([]string, 2)
-	resources[0] = "CPU|Memory|Disk|IOPS"
-	resources[1] = fmt.Sprintf("%d/%d MHz|%s/%s|%s/%s|%d/%d",
+	resources[0] = "CPU|Memory|Disk"
+	resources[1] = fmt.Sprintf("%d/%d MHz|%s/%s|%s/%s",
 		cpu,
 		*total.CPU,
 		humanize.IBytes(uint64(mem*bytesPerMegabyte)),
 		humanize.IBytes(uint64(*total.MemoryMB*bytesPerMegabyte)),
 		humanize.IBytes(uint64(disk*bytesPerMegabyte)),
-		humanize.IBytes(uint64(*total.DiskMB*bytesPerMegabyte)),
-		iops,
-		*total.IOPS)
+		humanize.IBytes(uint64(*total.DiskMB*bytesPerMegabyte)))
 
 	return resources
 }
@@ -543,7 +725,6 @@ func computeNodeTotalResources(node *api.Node) api.Resources {
 	total.CPU = helper.IntToPtr(*r.CPU - *res.CPU)
 	total.MemoryMB = helper.IntToPtr(*r.MemoryMB - *res.MemoryMB)
 	total.DiskMB = helper.IntToPtr(*r.DiskMB - *res.DiskMB)
-	total.IOPS = helper.IntToPtr(*r.IOPS - *res.IOPS)
 	return total
 }
 
@@ -619,4 +800,34 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 		)
 	}
 	return resources, nil
+}
+
+// formatNodeStubList is used to return a table format of a list of node stubs.
+func formatNodeStubList(nodes []*api.NodeListStub, verbose bool) string {
+	// Return error if no nodes are found
+	if len(nodes) == 0 {
+		return ""
+	}
+	// Truncate the id unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
+	}
+
+	// Format the nodes list that matches the prefix so that the user
+	// can create a more specific request
+	out := make([]string, len(nodes)+1)
+	out[0] = "ID|DC|Name|Class|Drain|Eligibility|Status"
+	for i, node := range nodes {
+		out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%v|%s|%s",
+			limit(node.ID, length),
+			node.Datacenter,
+			node.Name,
+			node.NodeClass,
+			node.Drain,
+			node.SchedulingEligibility,
+			node.Status)
+	}
+
+	return formatList(out)
 }

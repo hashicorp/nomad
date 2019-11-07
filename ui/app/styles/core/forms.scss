@@ -1,0 +1,43 @@
+@mixin input {
+  @include control;
+  background-color: #fff;
+  border-color: $grey-blue;
+  color: $text;
+
+  &:hover,
+  &.is-hovered,
+  &:active,
+  &.is-active,
+  &:focus,
+  &.is-focused {
+    border-color: darken($grey-blue, 5%);
+  }
+
+  &[disabled] {
+    background-color: $grey-blue;
+    border-color: darken($grey-blue, 5%);
+  }
+}
+
+.input,
+.textarea {
+  @include input;
+  box-shadow: none;
+  padding: 0.4em 0.75em;
+  height: auto;
+
+  &::placeholder {
+    color: $grey-blue;
+  }
+
+  &.is-compact {
+    padding: 0.25em 0.75em;
+    margin: -0.25em -0.25em -0.25em 0;
+  }
+}
+
+.field {
+  &.is-inline {
+    display: inline-block;
+  }
+}

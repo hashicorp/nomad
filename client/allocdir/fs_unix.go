@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"syscall"
 
 	"golang.org/x/sys/unix"
 )
@@ -28,8 +29,8 @@ var (
 
 // dropDirPermissions gives full access to a directory to all users and sets
 // the owner to nobody.
-func dropDirPermissions(path string) error {
-	if err := os.Chmod(path, 0777); err != nil {
+func dropDirPermissions(path string, desired os.FileMode) error {
+	if err := os.Chmod(path, desired|0777); err != nil {
 		return fmt.Errorf("Chmod(%v) failed: %v", path, err)
 	}
 
@@ -82,7 +83,7 @@ func getGid(u *user.User) (int, error) {
 
 // linkOrCopy attempts to hardlink dst to src and fallsback to copying if the
 // hardlink fails.
-func linkOrCopy(src, dst string, perm os.FileMode) error {
+func linkOrCopy(src, dst string, uid, gid int, perm os.FileMode) error {
 	// Avoid link/copy if the file already exists in the chroot
 	// TODO 0.6 clean this up. This was needed because chroot creation fails
 	// when a process restarts.
@@ -94,5 +95,13 @@ func linkOrCopy(src, dst string, perm os.FileMode) error {
 		return nil
 	}
 
-	return fileCopy(src, dst, perm)
+	return fileCopy(src, dst, uid, gid, perm)
+}
+
+func getOwner(fi os.FileInfo) (int, int) {
+	stat, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return -1, -1
+	}
+	return int(stat.Uid), int(stat.Gid)
 }

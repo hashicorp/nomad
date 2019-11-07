@@ -1,0 +1,22 @@
+{{title "Job " job.name " definition"}}
+{{partial "jobs/job/subnav"}}
+<section class="section">
+  {{#unless isEditing}}
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Job Definition
+        <button class="button is-light is-compact pull-right" type="button" onclick={{action edit}} data-test-edit-job>Edit</button>
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{json-viewer data-test-definition-view json=definition}}
+      </div>
+    </div>
+  {{else}}
+    {{job-editor
+      job=job
+      cancelable=true
+      context="edit"
+      onCancel=(action onCancel)
+      onSubmit=(action onSubmit)}}
+  {{/unless}}
+</section>

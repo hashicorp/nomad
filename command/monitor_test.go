@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
 )
 
 func TestMonitor_Update_Eval(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	mon := newMonitor(ui, nil, fullId)
 
@@ -27,7 +27,7 @@ func TestMonitor_Update_Eval(t *testing.T) {
 	}
 	ui.OutputWriter.Reset()
 
-	// Evals trigerred by nodes log
+	// Evals triggered by nodes log
 	state = &evalState{
 		status: structs.EvalStatusPending,
 		node:   "12345678-abcd-efab-cdef-123456789abc",
@@ -64,13 +64,14 @@ func TestMonitor_Update_Eval(t *testing.T) {
 }
 
 func TestMonitor_Update_Allocs(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	mon := newMonitor(ui, nil, fullId)
 
 	// New allocations write new logs
 	state := &evalState{
 		allocs: map[string]*allocState{
-			"alloc1": &allocState{
+			"alloc1": {
 				id:      "87654321-abcd-efab-cdef-123456789abc",
 				group:   "group1",
 				node:    "12345678-abcd-efab-cdef-123456789abc",
@@ -108,7 +109,7 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 	// Alloc updates cause more log lines
 	state = &evalState{
 		allocs: map[string]*allocState{
-			"alloc1": &allocState{
+			"alloc1": {
 				id:      "87654321-abcd-efab-cdef-123456789abc",
 				group:   "group1",
 				node:    "12345678-abcd-efab-cdef-123456789abc",
@@ -134,6 +135,7 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 }
 
 func TestMonitor_Update_AllocModification(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	mon := newMonitor(ui, nil, fullId)
 
@@ -142,7 +144,7 @@ func TestMonitor_Update_AllocModification(t *testing.T) {
 	state := &evalState{
 		index: 2,
 		allocs: map[string]*allocState{
-			"alloc3": &allocState{
+			"alloc3": {
 				id:    "87654321-abcd-bafe-cdef-123456789abc",
 				node:  "12345678-abcd-efab-cdef-123456789abc",
 				group: "group2",
@@ -169,8 +171,9 @@ func TestMonitor_Update_AllocModification(t *testing.T) {
 }
 
 func TestMonitor_Monitor(t *testing.T) {
-	srv, client, _ := testServer(t, nil)
-	defer srv.Stop()
+	t.Parallel()
+	srv, client, _ := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	// Create the monitor
 	ui := new(cli.MockUi)
@@ -178,7 +181,7 @@ func TestMonitor_Monitor(t *testing.T) {
 
 	// Submit a job - this creates a new evaluation we can monitor
 	job := testJob("job1")
-	evalID, _, err := client.Jobs().Register(job, nil)
+	resp, _, err := client.Jobs().Register(job, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -188,7 +191,7 @@ func TestMonitor_Monitor(t *testing.T) {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		code = mon.monitor(evalID, false)
+		code = mon.monitor(resp.EvalID, false)
 	}()
 
 	// Wait for completion
@@ -206,7 +209,7 @@ func TestMonitor_Monitor(t *testing.T) {
 
 	// Check the output
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, evalID) {
+	if !strings.Contains(out, resp.EvalID) {
 		t.Fatalf("missing eval\n\n%s", out)
 	}
 	if !strings.Contains(out, "finished with status") {
@@ -215,8 +218,9 @@ func TestMonitor_Monitor(t *testing.T) {
 }
 
 func TestMonitor_MonitorWithPrefix(t *testing.T) {
-	srv, client, _ := testServer(t, nil)
-	defer srv.Stop()
+	t.Parallel()
+	srv, client, _ := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	// Create the monitor
 	ui := new(cli.MockUi)
@@ -224,7 +228,7 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 
 	// Submit a job - this creates a new evaluation we can monitor
 	job := testJob("job1")
-	evalID, _, err := client.Jobs().Register(job, nil)
+	resp, _, err := client.Jobs().Register(job, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -234,7 +238,7 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		code = mon.monitor(evalID[:8], true)
+		code = mon.monitor(resp.EvalID[:13], true)
 	}()
 
 	// Wait for completion
@@ -252,10 +256,10 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 
 	// Check the output
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, evalID[:8]) {
+	if !strings.Contains(out, resp.EvalID[:8]) {
 		t.Fatalf("missing eval\n\n%s", out)
 	}
-	if strings.Contains(out, evalID) {
+	if strings.Contains(out, resp.EvalID) {
 		t.Fatalf("expected truncated eval id, got: %s", out)
 	}
 	if !strings.Contains(out, "finished with status") {
@@ -263,7 +267,7 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 	}
 
 	// Fail on identifier with too few characters
-	code = mon.monitor(evalID[:1], true)
+	code = mon.monitor(resp.EvalID[:1], true)
 	if code != 1 {
 		t.Fatalf("expect exit 1, got: %d", code)
 	}
@@ -272,7 +276,7 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 	}
 	ui.ErrorWriter.Reset()
 
-	code = mon.monitor(evalID[:3], true)
+	code = mon.monitor(resp.EvalID[:3], true)
 	if code != 2 {
 		t.Fatalf("expect exit 2, got: %d", code)
 	}
@@ -280,72 +284,4 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 		t.Fatalf("expected evaluation monitoring output, got: %s", out)
 	}
 
-}
-
-func TestMonitor_DumpAllocStatus(t *testing.T) {
-	ui := new(cli.MockUi)
-
-	// Create an allocation and dump its status to the UI
-	alloc := &api.Allocation{
-		ID:           "87654321-abcd-efab-cdef-123456789abc",
-		TaskGroup:    "group1",
-		ClientStatus: structs.AllocClientStatusRunning,
-		Metrics: &api.AllocationMetric{
-			NodesEvaluated: 10,
-			NodesFiltered:  5,
-			NodesExhausted: 1,
-			DimensionExhausted: map[string]int{
-				"cpu": 1,
-			},
-			ConstraintFiltered: map[string]int{
-				"$attr.kernel.name = linux": 1,
-			},
-			ClassExhausted: map[string]int{
-				"web-large": 1,
-			},
-		},
-	}
-	dumpAllocStatus(ui, alloc, fullId)
-
-	// Check the output
-	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "87654321-abcd-efab-cdef-123456789abc") {
-		t.Fatalf("missing alloc\n\n%s", out)
-	}
-	if !strings.Contains(out, structs.AllocClientStatusRunning) {
-		t.Fatalf("missing status\n\n%s", out)
-	}
-	if !strings.Contains(out, "5/10") {
-		t.Fatalf("missing filter stats\n\n%s", out)
-	}
-	if !strings.Contains(
-		out, `Constraint "$attr.kernel.name = linux" filtered 1 nodes`) {
-		t.Fatalf("missing constraint\n\n%s", out)
-	}
-	if !strings.Contains(out, "Resources exhausted on 1 nodes") {
-		t.Fatalf("missing resource exhaustion\n\n%s", out)
-	}
-	if !strings.Contains(out, `Class "web-large" exhausted on 1 nodes`) {
-		t.Fatalf("missing class exhaustion\n\n%s", out)
-	}
-	if !strings.Contains(out, `Dimension "cpu" exhausted on 1 nodes`) {
-		t.Fatalf("missing dimension exhaustion\n\n%s", out)
-	}
-	ui.OutputWriter.Reset()
-
-	// Dumping alloc status with no eligible nodes adds a warning
-	alloc.Metrics.NodesEvaluated = 0
-	dumpAllocStatus(ui, alloc, shortId)
-
-	// Check the output
-	out = ui.OutputWriter.String()
-	if !strings.Contains(out, "No nodes were eligible") {
-		t.Fatalf("missing eligibility warning\n\n%s", out)
-	}
-	if strings.Contains(out, "87654321-abcd-efab-cdef-123456789abc") {
-		t.Fatalf("expected truncated id, got %s", out)
-	}
-	if !strings.Contains(out, "87654321") {
-		t.Fatalf("expected alloc id, got %s", out)
-	}
 }

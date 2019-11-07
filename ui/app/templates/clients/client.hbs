@@ -1,0 +1,283 @@
+{{title "Client " (or model.name model.shortId)}}
+<section class="section">
+  <h1 data-test-title class="title">
+    <span data-test-node-status="{{model.compositeStatus}}" class="node-status-light {{model.compositeStatus}}"></span>
+    {{or model.name model.shortId}}
+    <span class="tag is-hollow is-small no-text-transform">
+      {{model.id}}
+      {{copy-button clipboardText=model.id}}
+    </span>
+  </h1>
+
+  <div class="boxed-section is-small">
+    <div class="boxed-section-body inline-definitions">
+      <span class="label">Client Details</span>
+      <span class="pair" data-test-status-definition>
+        <span class="term">Status</span>
+        <span class="status-text node-{{model.status}}">{{model.status}}</span>
+      </span>
+      <span class="pair" data-test-address-definition>
+        <span class="term">Address</span>
+        {{model.httpAddr}}
+      </span>
+      <span class="pair" data-test-draining>
+        <span class="term">Draining</span>
+        {{#if model.isDraining}}
+          <span class="status-text is-info">true</span>
+        {{else}}
+          false
+        {{/if}}
+      </span>
+      <span class="pair" data-test-eligibility>
+        <span class="term">Eligibility</span>
+        {{#if model.isEligible}}
+          {{model.schedulingEligibility}}
+        {{else}}
+          <span class="status-text is-warning">{{model.schedulingEligibility}}</span>
+        {{/if}}
+      </span>
+      <span class="pair" data-test-datacenter-definition>
+        <span class="term">Datacenter</span>
+        {{model.datacenter}}
+      </span>
+      <span class="pair" data-test-driver-health>
+        <span class="term">Drivers</span>
+        {{#if model.unhealthyDrivers.length}}
+          {{x-icon "warning" class="is-text is-warning"}}
+          {{model.unhealthyDrivers.length}} of {{model.detectedDrivers.length}} {{pluralize "driver" model.detectedDrivers.length}} unhealthy
+        {{else}}
+          All healthy
+        {{/if}}
+      </span>
+    </div>
+  </div>
+
+  {{#if model.drainStrategy}}
+    <div class="boxed-section is-small is-info">
+      <div class="boxed-section-body inline-definitions">
+        <span class="label">Drain Strategy</span>
+        <span class="pair" data-test-drain-deadline>
+          <span class="term">Deadline</span>
+          {{#if model.drainStrategy.isForced}}
+            <span class="badge is-danger">Forced Drain</span>
+          {{else if model.drainStrategy.hasNoDeadline}}
+            No deadline
+          {{else}}
+            {{format-duration model.drainStrategy.deadline}}
+          {{/if}}
+        </span>
+        {{#if model.drainStrategy.forceDeadline}}
+          <span class="pair" data-test-drain-forced-deadline>
+            <span class="term">Forced Deadline</span>
+            {{format-ts model.drainStrategy.forceDeadline}}
+            ({{moment-from-now model.drainStrategy.forceDeadline interval=1000}})
+          </span>
+        {{/if}}
+        <span class="pair" data-test-drain-ignore-system-jobs>
+          <span class="term">Ignore System Jobs?</span>
+          {{if model.drainStrategy.ignoreSystemJobs "Yes" "No"}}
+        </span>
+      </div>
+    </div>
+  {{/if}}
+
+  <div class="boxed-section">
+    <div class="boxed-section-head is-hollow">
+      Resource Utilization
+    </div>
+    <div class="boxed-section-body">
+      <div class="columns">
+        <div class="column">
+          {{primary-metric resource=model metric="cpu"}}
+        </div>
+        <div class="column">
+          {{primary-metric resource=model metric="memory"}}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      <div>
+        Allocations
+        <button role="button" class="badge is-white" onclick={{action "setPreemptionFilter" false}} data-test-filter-all>
+          {{model.allocations.length}}
+        </button>
+        {{#if preemptions.length}}
+          <button role="button" class="badge is-warning" onclick={{action "setPreemptionFilter" true}} data-test-filter-preemptions>
+            {{preemptions.length}} {{pluralize "preemption" preemptions.length}}
+          </button>
+        {{/if}}
+      </div>
+      {{search-box
+        searchTerm=(mut searchTerm)
+        onChange=(action resetPagination)
+        placeholder="Search allocations..."
+        class="is-inline pull-right"
+        inputClass="is-compact"}}
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      {{#list-pagination
+        source=sortedAllocations
+        size=pageSize
+        page=currentPage as |p|}}
+        {{#list-table
+          source=p.list
+          sortProperty=sortProperty
+          sortDescending=sortDescending
+          class="with-foot" as |t|}}
+          {{#t.head}}
+            <th class="is-narrow"></th>
+            {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
+            {{#t.sort-by prop="modifyIndex" title="Modify Index"}}Modified{{/t.sort-by}}
+            {{#t.sort-by prop="createIndex" title="Create Index"}}Created{{/t.sort-by}}
+            {{#t.sort-by prop="statusIndex"}}Status{{/t.sort-by}}
+            {{#t.sort-by prop="job.name"}}Job{{/t.sort-by}}
+            {{#t.sort-by prop="jobVersion"}}Version{{/t.sort-by}}
+            <th>CPU</th>
+            <th>Memory</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            {{allocation-row
+              allocation=row.model
+              context="node"
+              onClick=(action "gotoAllocation" row.model)
+              data-test-allocation=row.model.id}}
+          {{/t.body}}
+        {{/list-table}}
+        <div class="table-foot">
+          <nav class="pagination">
+            <div class="pagination-numbers">
+              {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
+            </div>
+            {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
+            {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+            <ul class="pagination-list"></ul>
+          </nav>
+        </div>
+      {{/list-pagination}}
+    </div>
+  </div>
+
+  <div data-test-client-events class="boxed-section">
+    <div class="boxed-section-head">
+      Client Events
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      {{#list-table source=sortedEvents class="is-striped" as |t|}}
+        {{#t.head}}
+          <th class="is-2">Time</th>
+          <th class="is-2">Subsystem</th>
+          <th>Message</th>
+        {{/t.head}}
+        {{#t.body as |row|}}
+          <tr data-test-client-event>
+            <td data-test-client-event-time>{{format-ts row.model.time}}</td>
+            <td data-test-client-event-subsystem>{{row.model.subsystem}}</td>
+            <td data-test-client-event-message>
+              {{#if row.model.message}}
+                {{#if row.model.driver}}
+                  <span class="badge is-secondary is-small">{{row.model.driver}}</span>
+                {{/if}}
+                {{row.model.message}}
+              {{else}}
+                <em>No message</em>
+              {{/if}}
+            </td>
+          </tr>
+        {{/t.body}}
+      {{/list-table}}
+    </div>
+  </div>
+
+  <div data-test-driver-status class="boxed-section">
+    <div class="boxed-section-head">
+      Driver Status
+    </div>
+    <div class="boxed-section-body">
+      {{#list-accordion source=sortedDrivers key="name" as |a|}}
+        {{#a.head buttonLabel="details" isExpandable=a.item.detected}}
+          <div class="columns inline-definitions {{unless a.item.detected "is-faded"}}">
+            <div class="column is-1">
+              <span data-test-name>{{a.item.name}}</span>
+            </div>
+            <div class="column is-2">
+              {{#if a.item.detected}}
+                <span data-test-health>
+                  <span class="color-swatch {{a.item.healthClass}}"></span>
+                  {{if a.item.healthy "Healthy" "Unhealthy"}}
+                </span>
+              {{/if}}
+            </div>
+            <div class="column">
+              <span class="pair">
+                <span class="term">Detected</span>
+                <span data-test-detected>{{if a.item.detected "Yes" "No"}}</span>
+              </span>
+              <span class="is-pulled-right">
+                <span class="pair">
+                  <span class="term">Last Updated</span>
+                  <span data-test-last-updated class="tooltip" aria-label="{{format-ts a.item.updateTime}}">
+                    {{moment-from-now a.item.updateTime interval=1000}}
+                  </span>
+                </span>
+              </span>
+            </div>
+          </div>
+        {{/a.head}}
+        {{#a.body}}
+          <p data-test-health-description class="message">{{a.item.healthDescription}}</p>
+          <div data-test-driver-attributes class="boxed-section">
+            <div class="boxed-section-head">
+               {{capitalize a.item.name}} Attributes
+            </div>
+            {{#if a.item.attributes.attributesStructured}}
+              <div class="boxed-section-body is-full-bleed">
+                {{attributes-table
+                  attributes=a.item.attributesShort
+                  class="attributes-table"}}
+              </div>
+            {{else}}
+              <div class="boxed-section-body">
+                <div class="empty-message">
+                  <h3 class="empty-message-headline">No Driver Attributes</h3>
+                </div>
+              </div>
+            {{/if}}
+          </div>
+        {{/a.body}}
+      {{/list-accordion}}
+    </div>
+  </div>
+
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Attributes
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      {{attributes-table
+        data-test-attributes
+        attributes=model.attributes.attributesStructured
+        class="attributes-table"}}
+    </div>
+    <div class="boxed-section-head">
+      Meta
+    </div>
+    {{#if model.meta.attributesStructured}}
+      <div class="boxed-section-body is-full-bleed">
+        {{attributes-table
+          data-test-meta
+          attributes=model.meta.attributesStructured
+          class="attributes-table"}}
+      </div>
+    {{else}}
+      <div class="boxed-section-body">
+        <div data-test-empty-meta-message class="empty-message">
+          <h3 class="empty-message-headline">No Meta Attributes</h3>
+          <p class="empty-message-body">This client is configured with no meta attributes.</p>
+        </div>
+      </div>
+    {{/if}}
+  </div>
+</section>

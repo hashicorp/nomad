@@ -32,12 +32,13 @@ job "docs" {
 }
 ```
 
-The periodic expression is always evaluated in the **UTC timezone** to ensure
+The periodic expression by default evaluates in the **UTC timezone** to ensure
 consistent evaluation when Nomad spans multiple time zones.
 
 ## `periodic` Requirements
 
  - The job's [scheduler type][batch-type] must be `batch`.
+ - A job can not be updated to be periodically. Thus, to transition an existing job to be periodic, you must first run `nomad stop -purge «job name»`. This is expected behavior and is to ensure that this change has been intentionally made by an operator.
 
 ## `periodic` Parameters
 
@@ -66,6 +67,17 @@ This example shows running a periodic job daily:
 ```hcl
 periodic {
   cron = "@daily"
+}
+```
+
+### Set Time Zone
+
+This example shows setting a time zone for the periodic job to evaluate in:
+
+```hcl
+periodic {
+  cron      = "*/15 * * * * *"
+  time_zone = "America/New_York"
 }
 ```
 

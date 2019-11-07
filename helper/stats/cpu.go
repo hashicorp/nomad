@@ -1,11 +1,21 @@
 package stats
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sync"
+	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/shirou/gopsutil/cpu"
+)
+
+const (
+	// cpuInfoTimeout is the timeout used when gathering CPU info. This is used
+	// to override the default timeout in gopsutil which has a tendency to
+	// timeout on Windows.
+	cpuInfoTimeout = 60 * time.Second
 )
 
 var (
@@ -14,21 +24,23 @@ var (
 	cpuNumCores   int
 	cpuTotalTicks float64
 
+	initErr error
 	onceLer sync.Once
 )
 
 func Init() error {
-	var err error
 	onceLer.Do(func() {
+		var merrs *multierror.Error
+		var err error
 		if cpuNumCores, err = cpu.Counts(true); err != nil {
-			err = fmt.Errorf("Unable to determine the number of CPU cores available: %v", err)
-			return
+			merrs = multierror.Append(merrs, fmt.Errorf("Unable to determine the number of CPU cores available: %v", err))
 		}
 
 		var cpuInfo []cpu.InfoStat
-		if cpuInfo, err = cpu.Info(); err != nil {
-			err = fmt.Errorf("Unable to obtain CPU information: %v", err)
-			return
+		ctx, cancel := context.WithTimeout(context.Background(), cpuInfoTimeout)
+		defer cancel()
+		if cpuInfo, err = cpu.InfoWithContext(ctx); err != nil {
+			merrs = multierror.Append(merrs, fmt.Errorf("Unable to obtain CPU information: %v", err))
 		}
 
 		for _, cpu := range cpuInfo {
@@ -41,8 +53,11 @@ func Init() error {
 		// node to fall into a unique computed node class
 		cpuMhzPerCore = math.Floor(cpuMhzPerCore)
 		cpuTotalTicks = math.Floor(float64(cpuNumCores) * cpuMhzPerCore)
+
+		// Set any errors that occurred
+		initErr = merrs.ErrorOrNil()
 	})
-	return err
+	return initErr
 }
 
 // CPUModelName returns the number of CPU cores available
@@ -60,8 +75,7 @@ func CPUModelName() string {
 	return cpuModelName
 }
 
-// TotalTicksAvailable calculates the total frequency available across all
-// cores
+// TotalTicksAvailable calculates the total Mhz available across all cores
 func TotalTicksAvailable() float64 {
 	return cpuTotalTicks
 }

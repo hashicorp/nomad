@@ -20,14 +20,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"sync/atomic"
-	"testing"
 
-	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/consul/lib/freeport"
+	cleanhttp "github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/nomad/helper/discover"
+	testing "github.com/mitchellh/go-testing-interface"
 )
-
-// offset is used to atomically increment the port numbers.
-var offset uint64
 
 // TestServerConfig is the main server configuration struct.
 type TestServerConfig struct {
@@ -36,13 +34,22 @@ type TestServerConfig struct {
 	Region            string        `json:"region,omitempty"`
 	DisableCheckpoint bool          `json:"disable_update_check"`
 	LogLevel          string        `json:"log_level,omitempty"`
+	Consul            *Consul       `json:"consul,omitempty"`
 	AdvertiseAddrs    *Advertise    `json:"advertise,omitempty"`
 	Ports             *PortsConfig  `json:"ports,omitempty"`
 	Server            *ServerConfig `json:"server,omitempty"`
 	Client            *ClientConfig `json:"client,omitempty"`
 	Vault             *VaultConfig  `json:"vault,omitempty"`
+	ACL               *ACLConfig    `json:"acl,omitempty"`
 	DevMode           bool          `json:"-"`
 	Stdout, Stderr    io.Writer     `json:"-"`
+}
+
+// Consul is used to configure the communication with Consul
+type Consul struct {
+	Address string `json:"address,omitempty"`
+	Auth    string `json:"auth,omitempty"`
+	Token   string `json:"token,omitempty"`
 }
 
 // Advertise is used to configure the addresses to advertise
@@ -63,6 +70,7 @@ type PortsConfig struct {
 type ServerConfig struct {
 	Enabled         bool `json:"enabled"`
 	BootstrapExpect int  `json:"bootstrap_expect"`
+	RaftProtocol    int  `json:"raft_protocol,omitempty"`
 }
 
 // ClientConfig is used to configure the client
@@ -75,29 +83,27 @@ type VaultConfig struct {
 	Enabled bool `json:"enabled"`
 }
 
+// ACLConfig is used to configure ACLs
+type ACLConfig struct {
+	Enabled bool `json:"enabled"`
+}
+
 // ServerConfigCallback is a function interface which can be
 // passed to NewTestServerConfig to modify the server config.
 type ServerConfigCallback func(c *TestServerConfig)
 
 // defaultServerConfig returns a new TestServerConfig struct
 // with all of the listen ports incremented by one.
-func defaultServerConfig() *TestServerConfig {
-	idx := int(atomic.AddUint64(&offset, 1))
-
+func defaultServerConfig(t testing.T) *TestServerConfig {
+	ports := freeport.GetT(t, 3)
 	return &TestServerConfig{
-		NodeName:          fmt.Sprintf("node%d", idx),
+		NodeName:          fmt.Sprintf("node-%d", ports[0]),
 		DisableCheckpoint: true,
 		LogLevel:          "DEBUG",
-		// Advertise can't be localhost
-		AdvertiseAddrs: &Advertise{
-			HTTP: "169.254.42.42",
-			RPC:  "169.254.42.42",
-			Serf: "169.254.42.42",
-		},
 		Ports: &PortsConfig{
-			HTTP: 20000 + idx,
-			RPC:  21000 + idx,
-			Serf: 22000 + idx,
+			HTTP: ports[0],
+			RPC:  ports[1],
+			Serf: ports[2],
 		},
 		Server: &ServerConfig{
 			Enabled:         true,
@@ -109,6 +115,9 @@ func defaultServerConfig() *TestServerConfig {
 		Vault: &VaultConfig{
 			Enabled: false,
 		},
+		ACL: &ACLConfig{
+			Enabled: false,
+		},
 	}
 }
 
@@ -116,7 +125,7 @@ func defaultServerConfig() *TestServerConfig {
 type TestServer struct {
 	cmd    *exec.Cmd
 	Config *TestServerConfig
-	t      *testing.T
+	t      testing.T
 
 	HTTPAddr   string
 	SerfAddr   string
@@ -125,9 +134,18 @@ type TestServer struct {
 
 // NewTestServer creates a new TestServer, and makes a call to
 // an optional callback function to modify the configuration.
-func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
-	if path, err := exec.LookPath("nomad"); err != nil || path == "" {
-		t.Skip("nomad not found on $PATH, skipping")
+func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
+	path, err := discover.NomadExecutable()
+	if err != nil {
+		t.Skipf("nomad not found, skipping: %v", err)
+	}
+
+	// Do a sanity check that we are actually running nomad
+	vcmd := exec.Command(path, "-version")
+	vcmd.Stdout = nil
+	vcmd.Stderr = nil
+	if err := vcmd.Run(); err != nil {
+		t.Skipf("nomad version failed: %v", err)
 	}
 
 	dataDir, err := ioutil.TempDir("", "nomad")
@@ -142,7 +160,7 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 	}
 	defer configFile.Close()
 
-	nomadConfig := defaultServerConfig()
+	nomadConfig := defaultServerConfig(t)
 	nomadConfig.DataDir = dataDir
 
 	if cb != nil {
@@ -175,7 +193,7 @@ func NewTestServer(t *testing.T, cb ServerConfigCallback) *TestServer {
 	}
 
 	// Start the server
-	cmd := exec.Command("nomad", args...)
+	cmd := exec.Command(path, args...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if err := cmd.Start(); err != nil {
@@ -227,7 +245,8 @@ func (s *TestServer) Stop() {
 // but will likely return before a leader is elected.
 func (s *TestServer) waitForAPI() {
 	WaitForResult(func() (bool, error) {
-		resp, err := s.HTTPClient.Get(s.url("/v1/agent/self"))
+		// Using this endpoint as it is does not have restricted access
+		resp, err := s.HTTPClient.Get(s.url("/v1/metrics"))
 		if err != nil {
 			return false, err
 		}
@@ -248,7 +267,8 @@ func (s *TestServer) waitForAPI() {
 func (s *TestServer) waitForLeader() {
 	WaitForResult(func() (bool, error) {
 		// Query the API and check the status code
-		resp, err := s.HTTPClient.Get(s.url("/v1/jobs"))
+		// Using this endpoint as it is does not have restricted access
+		resp, err := s.HTTPClient.Get(s.url("/v1/status/leader"))
 		if err != nil {
 			return false, err
 		}
@@ -257,10 +277,6 @@ func (s *TestServer) waitForLeader() {
 			return false, err
 		}
 
-		// Ensure we have a leader and a node registeration
-		if leader := resp.Header.Get("X-Nomad-KnownLeader"); leader != "true" {
-			return false, fmt.Errorf("Nomad leader status: %#v", leader)
-		}
 		return true, nil
 	}, func(err error) {
 		defer s.Stop()

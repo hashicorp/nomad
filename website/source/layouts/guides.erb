@@ -1,30 +1,323 @@
 <% wrap_layout :inner do %>
   <% content_for :sidebar do %>
-    <div class="docs-sidebar hidden-print affix-top" role="complementary">
       <ul class="nav docs-sidenav">
-        <li<%= sidebar_current("guides-cluster") %>>
-          <a href="/guides/cluster/bootstrapping.html">Bootstrapping Clusters</a>
+
+      <li<%= sidebar_current("guides-install") %>>
+          <a href="/guides/install/index.html">Installing Nomad</a>
           <ul class="nav">
-            <li<%= sidebar_current("guides-cluster-automatic") %>>
-              <a href="/guides/cluster/automatic.html">Automatic</a>
+
+            <li<%= sidebar_current("guides-install-quickstart") %>>
+              <a href="/guides/install/quickstart/index.html">Quickstart</a>
             </li>
-            <li<%= sidebar_current("guides-cluster-manual") %>>
-              <a href="/guides/cluster/manual.html">Manual</a>
+
+            <li<%= sidebar_current("guides-install-production") %>>
+            <a href="/guides/install/production/index.html">Production</a>
+              <ul class="nav">
+
+                <li<%= sidebar_current("guides-install-production-requirements") %>>
+                  <a href="/guides/install/production/requirements.html">Hardware Requirements</a>
+                </li>
+
+                <li<%= sidebar_current("guides-install-production-nomad-agent") %>>
+                  <a href="/guides/install/production/nomad-agent.html">Set Server & Client Nodes</a>
+                </li>
+
+                <li<%= sidebar_current("guides-install-production-reference-architecture") %>>
+                  <a href="/guides/install/production/reference-architecture.html">Reference Architecture</a>
+                </li>
+
+                <li<%= sidebar_current("guides-install-production-deployment-guide") %>>
+                  <a href="/guides/install/production/deployment-guide.html">Reference Install Guide</a>
+                </li>
+
+              </ul>
             </li>
-            <li<%= sidebar_current("guides-cluster-federation") %>>
-              <a href="/guides/cluster/federation.html">Federation</a>
+          </ul>
+      </li>
+
+      <li<%= sidebar_current("guides-upgrade") %>>
+        <a href="/guides/upgrade/index.html">Upgrading</a>
+        <ul class="nav">
+          <li<%= sidebar_current("guides-upgrade-specific") %>>
+            <a href="/guides/upgrade/upgrade-specific.html">Specific Version Details</a>
+          </li>
+        </ul>
+      </li>
+
+      <li<%= sidebar_current("guides-integrations") %>>
+        <a href="/guides/integrations/index.html">Integrations</a>
+        <ul class="nav">
+          <li<%= sidebar_current("guides-integrations-consul") %>>
+            <a href="/guides/integrations/consul-integration/index.html">Consul</a>
+          </li>
+          <li<%= sidebar_current("guides-integrations-consul-connect") %>>
+            <a href="/guides/integrations/consul-connect/index.html">Consul Connect</a>
+          </li>
+          <li<%= sidebar_current("guides-integrations-vault") %>>
+            <a href="/guides/integrations/vault-integration/index.html">Vault</a>
+          </li>
+        </ul>
+      </li>
+
+      <hr>
+
+      <li<%= sidebar_current("guides-operating-a-job") %>>
+        <a href="/guides/operating-a-job/index.html">Deploying & Managing Applications</a>
+        <ul class="nav">
+
+          <li<%= sidebar_current("guides-operating-a-job-configuring-tasks") %>>
+            <a href="/guides/operating-a-job/configuring-tasks.html">Configuring Tasks</a>
+          </li>
+
+          <li<%= sidebar_current("guides-operating-a-job-submitting-jobs") %>>
+            <a href="/guides/operating-a-job/submitting-jobs.html">Submitting Jobs</a>
+          </li>
+
+          <li<%= sidebar_current("guides-operating-a-job-inspecting-state") %>>
+            <a href="/guides/operating-a-job/inspecting-state.html">Inspecting State</a>
+          </li>
+
+          <li<%= sidebar_current("guides-operating-a-job-accessing-logs") %>>
+            <a href="/guides/operating-a-job/accessing-logs.html">Accessing Logs</a>
+          </li>
+
+          <li<%= sidebar_current("guides-operating-a-job-resource-utilization") %>>
+            <a href="/guides/operating-a-job/resource-utilization.html">Resource Utilization</a>
+          </li>
+
+          <li<%= sidebar_current("guides-operating-a-job-updating") %>>
+            <a href="/guides/operating-a-job/update-strategies/index.html">Update Strategies</a>
+            <ul class="nav">
+              <li<%= sidebar_current("guides-operating-a-job-updating-rolling-upgrades") %>>
+                <a href="/guides/operating-a-job/update-strategies/rolling-upgrades.html">Rolling Upgrades</a>
+              </li>
+              <li<%= sidebar_current("guides-operating-a-job-updating-blue-green-deployments") %>>
+                <a href="/guides/operating-a-job/update-strategies/blue-green-and-canary-deployments.html">Blue/Green &amp; Canary</a>
+              </li>
+              <li<%= sidebar_current("guides-operating-a-job-updating-handling-signals") %>>
+                <a href="/guides/operating-a-job/update-strategies/handling-signals.html">Handling Signals</a>
+              </li>
+            </ul>
+          </li>
+
+           <li<%= sidebar_current("guides-operating-a-job-failure-handling-strategies") %>>
+            <a href="/guides/operating-a-job/failure-handling-strategies/index.html">Failure Recovery Strategies</a>
+            <ul class="nav">
+              <li<%= sidebar_current("guides-operating-a-job-failure-handling-strategies-local-restarts") %>>
+                <a href="/guides/operating-a-job/failure-handling-strategies/restart.html">Local Restarts</a>
+              </li>
+              <li<%= sidebar_current("guides-operating-a-job-failure-handling-strategies-check-restart") %>>
+                <a href="/guides/operating-a-job/failure-handling-strategies/check-restart.html">Check Restarts</a>
+              </li>
+              <li<%= sidebar_current("guides-operating-a-job-failure-handling-strategies-reschedule") %>>
+                <a href="/guides/operating-a-job/failure-handling-strategies/reschedule.html">Rescheduling</a>
+              </li>
+            </ul>
+          </li>
+
+          <li<%= sidebar_current("guides-operating-a-job-advanced-scheduling-affinity") %>>
+            <a href="/guides/operating-a-job/advanced-scheduling/affinity.html">Placement Preferences with Affinities</a>
+          </li>
+
+          <li<%= sidebar_current("guides-operating-a-job-spread") %>>
+            <a href="/guides/operating-a-job/advanced-scheduling/spread.html">Fault Tolerance with Spread</a>
+          </li>
+
+          <li<%= sidebar_current("guides-operating-a-job-preemption-service-batch") %>>
+            <a href="/guides/operating-a-job/advanced-scheduling/preemption-service-batch.html">Preemption (Service and Batch Jobs)</a>
+          </li>
+
+          <li<%= sidebar_current("guides-operating-a-job-external-lxc") %>>
+            <a href="/guides/operating-a-job/external/lxc.html">Running LXC Applications</a>
+          </li>
+
+        </ul>
+      </li>
+
+      <li<%= sidebar_current("guides-operations") %>>
+        <a href="/guides/operations/index.html">Operating Nomad</a>
+
+        <ul class="nav">
+          <li<%= sidebar_current("guides-operations-cluster") %>>
+            <a href="/guides/operations/cluster/bootstrapping.html">Clustering</a>
+            <ul class="nav">
+              <li<%= sidebar_current("guides-operations-cluster-manual") %>>
+                <a href="/guides/operations/cluster/manual.html">Manual Clustering</a>
+              </li>
+              <li<%= sidebar_current("guides-operations-cluster-automatic") %>>
+                <a href="/guides/operations/cluster/automatic.html">Automatic Clustering with Consul</a>
+              </li>
+              <li <%= sidebar_current("guides-operations-cluster-cloud-auto-join") %>>
+                <a href="/guides/operations/cluster/cloud_auto_join.html">Cloud Auto-join</a>
+              </li>
+            </ul>
+          </li>
+
+          <li<%= sidebar_current("guides-operations-federation") %>>
+            <a href="/guides/operations/federation.html">Federation</a>
+          </li>
+
+          <li<%= sidebar_current("guides-operations-decommissioning-nodes") %>>
+            <a href="/guides/operations/node-draining.html">Workload Migration</a>
+          </li>
+
+          <li<%= sidebar_current("guides-operations-outage-recovery") %>>
+            <a href="/guides/operations/outage.html">Outage Recovery</a>
+          </li>
+
+          <li<%= sidebar_current("guides-operations-monitoring") %>>
+            <a href="/guides/operations/monitoring-and-alerting/monitoring.html">Monitoring and Alerting</a>
+          <ul class="nav">
+            <li<%= sidebar_current("guides-operations-monitoring-prometheus") %>>
+              <a href="/guides/operations/monitoring-and-alerting/prometheus-metrics.html">Prometheus</a>
             </li>
-            <li<%= sidebar_current("guides-cluster-requirements") %>>
-              <a href="/guides/cluster/requirements.html">Requirements</a>
+          </ul>
+          </li>
+
+          <li<%= sidebar_current("guides-operations-autopilot") %>>
+            <a href="/guides/operations/autopilot.html">Autopilot</a>
+          </li>
+
+        </ul>
+      </li>
+
+      <li<%= sidebar_current("guides-security") %>>
+        <a href="/guides/security/index.html">Securing Nomad</a>
+        <ul class="nav">
+
+          <li<%= sidebar_current("guides-security-encryption") %>>
+            <a href="/guides/security/encryption.html">Encryption Overview</a>
+          </li>
+
+          <li<%= sidebar_current("guides-security-acl") %>>
+            <a href="/guides/security/acl.html">Access Control</a>
+          </li>
+
+          <li<%= sidebar_current("guides-security-tls") %>>
+            <a href="/guides/security/securing-nomad.html">Securing Nomad with TLS</a>
+          </li>
+
+          <li<%= sidebar_current("guides-security-vault-pki") %>>
+            <a href="/guides/security/vault-pki-integration.html">Vault PKI Secrets Engine</a>
+          </li>
+
+        </ul>
+      </li>
+
+      <li<%= sidebar_current("guides-stateful-workloads") %>>
+        <a href="/guides/stateful-workloads/stateful-workloads.html">Stateful Workloads</a>
+        <ul class="nav">
+          <li<%= sidebar_current("guides-stateful-workloads-host-volumes") %>>
+            <a href="/guides/stateful-workloads/host-volumes.html">Host Volumes</a>
+          </li>
+          <li<%= sidebar_current("guides-stateful-workloads-portworx") %>>
+            <a href="/guides/stateful-workloads/portworx.html">Portworx</a>
+          </li>
+        </ul>
+      </li>
+
+      <li<%= sidebar_current("guides-analytical-workloads") %>>
+        <a href="/guides/analytical-workloads/index.html">Analytical Workloads</a>
+
+        <ul class="nav">
+          <li<%= sidebar_current("guides-analytical-workloads") %>>
+            <a href="/guides/analytical-workloads/spark/index.html">Apache Spark</a>
+              <ul class="nav">
+                <li<%= sidebar_current("guides-analytical-workloads-spark-pre") %>>
+                  <a href="/guides/analytical-workloads/spark/pre.html">Getting Started</a>
+                </li>
+                <li<%= sidebar_current("guides-analytical-workloads-spark-customizing") %>>
+                  <a href="/guides/analytical-workloads/spark/customizing.html">Customizing Applications</a>
+                </li>
+                <li<%= sidebar_current("guides-analytical-workloads-spark-resource") %>>
+                  <a href="/guides/analytical-workloads/spark/resource.html">Resource Allocation</a>
+                </li>
+                <li<%= sidebar_current("guides-analytical-workloads-spark-dynamic") %>>
+                  <a href="/guides/analytical-workloads/spark/dynamic.html">Dynamic Executors</a>
+                </li>
+                <li<%= sidebar_current("guides-analytical-workloads-spark-submit") %>>
+                  <a href="/guides/analytical-workloads/spark/submit.html">Submitting Applications</a>
+                </li>
+                <li<%= sidebar_current("guides-analytical-workloads-spark-hdfs") %>>
+                  <a href="/guides/analytical-workloads/spark/hdfs.html">Running HDFS</a>
+                </li>
+                <li<%= sidebar_current("guides-analytical-workloads-spark-monitoring") %>>
+                  <a href="/guides/analytical-workloads/spark/monitoring.html">Monitoring Output</a>
+                </li>
+                <li<%= sidebar_current("guides-analytical-workloads-spark-configuration") %>>
+                  <a href="/guides/analytical-workloads/spark/configuration.html">Configuration Properties</a>
+                </li>
+              </ul>
+          </li>
+        </ul>
+      </li>
+
+      <li<%= sidebar_current("guides-load-balancing") %>>
+        <a href="/guides/load-balancing/load-balancing.html">Load Balancing</a>
+        <ul class="nav">
+          <li<%= sidebar_current("guides-load-balancing-fabio") %>>
+            <a href="/guides/load-balancing/fabio.html">Fabio</a>
+          </li>
+        </ul>
+        <ul class="nav">
+          <li<%= sidebar_current("guides-load-balancing-nginx") %>>
+            <a href="/guides/load-balancing/nginx.html">NGINX</a>
+          </li>
+        </ul>
+        <ul class="nav">
+          <li<%= sidebar_current("guides-load-balancing-haproxy") %>>
+            <a href="/guides/load-balancing/haproxy.html">HAProxy</a>
+          </li>
+        </ul>
+        <ul class="nav">
+          <li<%= sidebar_current("guides-load-balancing-traefik") %>>
+            <a href="/guides/load-balancing/traefik.html">Traefik</a>
+          </li>
+        </ul>
+      </li>
+
+      <li<%= sidebar_current("guides-governance-and-policy") %>>
+        <a href="/guides/governance-and-policy/index.html">Governance & Policy</a>
+        <ul class="nav">
+          <li<%= sidebar_current("guides-governance-and-policy-namespaces") %>>
+            <a href="/guides/governance-and-policy/namespaces.html">Namespaces</a>
+          </li>
+          <li<%= sidebar_current("guides-governance-and-policy-quotas") %>>
+            <a href="/guides/governance-and-policy/quotas.html">Quotas</a>
+          </li>
+          <li<%= sidebar_current("guides-governance-and-policy-sentinel") %>>
+          <a href="/guides/governance-and-policy/sentinel/sentinel-policy.html">Sentinel</a>
+          <ul class="nav">
+            <li<%= sidebar_current("guides-governance-and-policy-sentinel-job") %>>
+              <a href="/guides/governance-and-policy/sentinel/job.html">Job Object</a>
             </li>
           </ul>
         </li>
+        </ul>
+      </li>
 
-        <li<%= sidebar_current("guides-outage-recovery") %>>
-          <a href="/guides/outage.html">Outage Recovery</a>
-        </li>
-      </ul>
-    </div>
+      <li<%= sidebar_current("guides-web-ui") %>>
+        <a href="/guides/web-ui/">Web UI</a>
+        <ul class="nav">
+          <li<%= sidebar_current("guides-web-ui-access") %>>
+            <a href="/guides/web-ui/access.html">Accessing the Web UI</a>
+          </li>
+          <li<%= sidebar_current("guides-web-ui-submitting-a-job") %>>
+            <a href="/guides/web-ui/submitting-a-job.html">Submitting a Job</a>
+          </li>
+          <li<%= sidebar_current("guides-web-ui-operating-a-job") %>>
+            <a href="/guides/web-ui/operating-a-job.html">Operating a Job</a>
+          </li>
+          <li<%= sidebar_current("guides-web-ui-inspecting-the-cluster") %>>
+            <a href="/guides/web-ui/inspecting-the-cluster.html">Inspecting the Cluster</a>
+          </li>
+          <li<%= sidebar_current("guides-web-ui-securing") %>>
+            <a href="/guides/web-ui/securing.html">Securing the Web UI with ACLs</a>
+          </li>
+        </ul>
+      </li>
+
+    </ul>
   <% end %>
 
   <%= yield %>

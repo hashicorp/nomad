@@ -7,14 +7,20 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/kr/text"
+	"github.com/posener/complete"
 
 	"github.com/ryanuber/columnize"
 )
+
+// maxLineLength is the maximum width of any line.
+const maxLineLength int = 78
 
 // formatKV takes a set of strings and formats them into properly
 // aligned k = v pairs using the columnize library.
@@ -51,9 +57,30 @@ func limit(s string, length int) string {
 	return s[:length]
 }
 
+// wrapAtLengthWithPadding wraps the given text at the maxLineLength, taking
+// into account any provided left padding.
+func wrapAtLengthWithPadding(s string, pad int) string {
+	wrapped := text.Wrap(s, maxLineLength-pad)
+	lines := strings.Split(wrapped, "\n")
+	for i, line := range lines {
+		lines[i] = strings.Repeat(" ", pad) + line
+	}
+	return strings.Join(lines, "\n")
+}
+
+// wrapAtLength wraps the given text to maxLineLength.
+func wrapAtLength(s string) string {
+	return wrapAtLengthWithPadding(s, 0)
+}
+
 // formatTime formats the time to string based on RFC822
 func formatTime(t time.Time) string {
-	return t.Format("01/02/06 15:04:05 MST")
+	if t.Unix() < 1 {
+		// It's more confusing to display the UNIX epoch or a zero value than nothing
+		return ""
+	}
+	// Return ISO_8601 time format GH-3806
+	return t.Format("2006-01-02T15:04:05Z07:00")
 }
 
 // formatUnixNanoTime is a helper for formatting time for output.
@@ -69,6 +96,128 @@ func formatTimeDifference(first, second time.Time, d time.Duration) string {
 	return second.Truncate(d).Sub(first.Truncate(d)).String()
 }
 
+// fmtInt formats v into the tail of buf.
+// It returns the index where the output begins.
+func fmtInt(buf []byte, v uint64) int {
+	w := len(buf)
+	for v > 0 {
+		w--
+		buf[w] = byte(v%10) + '0'
+		v /= 10
+	}
+	return w
+}
+
+// prettyTimeDiff prints a human readable time difference.
+// It uses abbreviated forms for each period - s for seconds, m for minutes, h for hours,
+// d for days, mo for months, and y for years. Time difference is rounded to the nearest second,
+// and the top two least granular periods are returned. For example, if the time difference
+// is 10 months, 12 days, 3 hours and 2 seconds, the string "10mo12d" is returned. Zero values return the empty string
+func prettyTimeDiff(first, second time.Time) string {
+	// handle zero values
+	if first.IsZero() || first.UnixNano() == 0 {
+		return ""
+	}
+	// round to the nearest second
+	first = first.Round(time.Second)
+	second = second.Round(time.Second)
+
+	// calculate time difference in seconds
+	var d time.Duration
+	messageSuffix := "ago"
+	if second.Equal(first) || second.After(first) {
+		d = second.Sub(first)
+	} else {
+		d = first.Sub(second)
+		messageSuffix = "from now"
+	}
+
+	u := uint64(d.Seconds())
+
+	var buf [32]byte
+	w := len(buf)
+	secs := u % 60
+
+	// track indexes of various periods
+	var indexes []int
+
+	if secs > 0 {
+		w--
+		buf[w] = 's'
+		// u is now seconds
+		w = fmtInt(buf[:w], secs)
+		indexes = append(indexes, w)
+	}
+	u /= 60
+	// u is now minutes
+	if u > 0 {
+		mins := u % 60
+		if mins > 0 {
+			w--
+			buf[w] = 'm'
+			w = fmtInt(buf[:w], mins)
+			indexes = append(indexes, w)
+		}
+		u /= 60
+		// u is now hours
+		if u > 0 {
+			hrs := u % 24
+			if hrs > 0 {
+				w--
+				buf[w] = 'h'
+				w = fmtInt(buf[:w], hrs)
+				indexes = append(indexes, w)
+			}
+			u /= 24
+		}
+		// u is now days
+		if u > 0 {
+			days := u % 30
+			if days > 0 {
+				w--
+				buf[w] = 'd'
+				w = fmtInt(buf[:w], days)
+				indexes = append(indexes, w)
+			}
+			u /= 30
+		}
+		// u is now months
+		if u > 0 {
+			months := u % 12
+			if months > 0 {
+				w--
+				buf[w] = 'o'
+				w--
+				buf[w] = 'm'
+				w = fmtInt(buf[:w], months)
+				indexes = append(indexes, w)
+			}
+			u /= 12
+		}
+		// u is now years
+		if u > 0 {
+			w--
+			buf[w] = 'y'
+			w = fmtInt(buf[:w], u)
+			indexes = append(indexes, w)
+		}
+	}
+	start := w
+	end := len(buf)
+
+	// truncate to the first two periods
+	num_periods := len(indexes)
+	if num_periods > 2 {
+		end = indexes[num_periods-3]
+	}
+	if start == end { //edge case when time difference is less than a second
+		return "0s " + messageSuffix
+	} else {
+		return string(buf[start:end]) + " " + messageSuffix
+	}
+
+}
+
 // getLocalNodeID returns the node ID of the local Nomad Client and an error if
 // it couldn't be determined or the Agent is not running in Client mode.
 func getLocalNodeID(client *api.Client) (string, error) {
@@ -76,14 +225,12 @@ func getLocalNodeID(client *api.Client) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Error querying agent info: %s", err)
 	}
-	var stats map[string]interface{}
-	stats, _ = info["stats"]
-	clientStats, ok := stats["client"].(map[string]interface{})
+	clientStats, ok := info.Stats["client"]
 	if !ok {
 		return "", fmt.Errorf("Nomad not running in client mode")
 	}
 
-	nodeID, ok := clientStats["node_id"].(string)
+	nodeID, ok := clientStats["node_id"]
 	if !ok {
 		return "", fmt.Errorf("Failed to determine node ID")
 	}
@@ -289,4 +436,31 @@ func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 	}
 
 	return jobStruct, nil
+}
+
+// mergeAutocompleteFlags is used to join multiple flag completion sets.
+func mergeAutocompleteFlags(flags ...complete.Flags) complete.Flags {
+	merged := make(map[string]complete.Predictor, len(flags))
+	for _, f := range flags {
+		for k, v := range f {
+			merged[k] = v
+		}
+	}
+	return merged
+}
+
+// sanitizeUUIDPrefix is used to sanitize a UUID prefix. The returned result
+// will be a truncated version of the prefix if the prefix would not be
+// queryable.
+func sanitizeUUIDPrefix(prefix string) string {
+	hyphens := strings.Count(prefix, "-")
+	length := len(prefix) - hyphens
+	remainder := length % 2
+	return prefix[:len(prefix)-remainder]
+}
+
+// commandErrorText is used to easily render the same messaging across commads
+// when an error is printed.
+func commandErrorText(cmd NamedCommand) string {
+	return fmt.Sprintf("For additional help try 'nomad %s -help'", cmd.Name())
 }

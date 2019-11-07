@@ -12,6 +12,7 @@ Using [cfssl 1.2.0](https://github.com/cloudflare/cfssl)
 | `ca-key-bad.pem`    | CA key for bad region     |
 | `nomad-bad.pem`     | Nomad cert for bad region |
 | `nomad-bad-key.pem` | Nomad key for bad region  |
+| `global-*.pem`      | For global region         |
 
 ## Generating self-signed certs
 ```sh

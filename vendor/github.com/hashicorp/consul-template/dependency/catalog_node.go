@@ -16,7 +16,7 @@ var (
 	_ Dependency = (*CatalogNodeQuery)(nil)
 
 	// CatalogNodeQueryRe is the regular expression to use.
-	CatalogNodeQueryRe = regexp.MustCompile(`\A` + nameRe + dcRe + `\z`)
+	CatalogNodeQueryRe = regexp.MustCompile(`\A` + nodeNameRe + dcRe + `\z`)
 )
 
 func init() {
@@ -43,6 +43,7 @@ type CatalogNodeService struct {
 	ID                string
 	Service           string
 	Tags              ServiceTags
+	Meta              map[string]string
 	Port              int
 	Address           string
 	EnableTagOverride bool
@@ -116,6 +117,7 @@ func (d *CatalogNodeQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interf
 			ID:                v.ID,
 			Service:           v.Service,
 			Tags:              ServiceTags(deepCopyAndSortTags(v.Tags)),
+			Meta:              v.Meta,
 			Port:              v.Port,
 			Address:           v.Address,
 			EnableTagOverride: v.EnableTagOverride,
@@ -125,9 +127,12 @@ func (d *CatalogNodeQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interf
 
 	detail := &CatalogNode{
 		Node: &Node{
+			ID:              node.Node.ID,
 			Node:            node.Node.Node,
 			Address:         node.Node.Address,
+			Datacenter:      node.Node.Datacenter,
 			TaggedAddresses: node.Node.TaggedAddresses,
+			Meta:            node.Node.Meta,
 		},
 		Services: services,
 	}

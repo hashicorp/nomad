@@ -6,21 +6,19 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 func DoSysctrl(mib string) ([]string, error) {
-	err := os.Setenv("LC_ALL", "C")
-	if err != nil {
-		return []string{}, err
-	}
-
 	sysctl, err := exec.LookPath("/usr/sbin/sysctl")
 	if err != nil {
 		return []string{}, err
 	}
-	out, err := exec.Command(sysctl, "-n", mib).Output()
+	cmd := exec.Command(sysctl, "-n", mib)
+	cmd.Env = getSysctrlEnv(os.Environ())
+	out, err := cmd.Output()
 	if err != nil {
 		return []string{}, err
 	}
@@ -36,8 +34,8 @@ func CallSyscall(mib []int32) ([]byte, uint64, error) {
 
 	// get required buffer size
 	length := uint64(0)
-	_, _, err := syscall.Syscall6(
-		syscall.SYS___SYSCTL,
+	_, _, err := unix.Syscall6(
+		unix.SYS___SYSCTL,
 		uintptr(unsafe.Pointer(&mib[0])),
 		uintptr(miblen),
 		0,
@@ -54,8 +52,8 @@ func CallSyscall(mib []int32) ([]byte, uint64, error) {
 	}
 	// get proc info itself
 	buf := make([]byte, length)
-	_, _, err = syscall.Syscall6(
-		syscall.SYS___SYSCTL,
+	_, _, err = unix.Syscall6(
+		unix.SYS___SYSCTL,
 		uintptr(unsafe.Pointer(&mib[0])),
 		uintptr(miblen),
 		uintptr(unsafe.Pointer(&buf[0])),

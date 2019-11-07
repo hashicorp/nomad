@@ -2,9 +2,11 @@ package scheduler
 
 import (
 	"fmt"
-	"log"
 
-	"github.com/hashicorp/go-memdb"
+	log "github.com/hashicorp/go-hclog"
+
+	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -26,7 +28,7 @@ var BuiltinSchedulers = map[string]Factory{
 
 // NewScheduler is used to instantiate and return a new scheduler
 // given the scheduler name, initial state, and planner.
-func NewScheduler(name string, logger *log.Logger, state State, planner Planner) (Scheduler, error) {
+func NewScheduler(name string, logger log.Logger, state State, planner Planner) (Scheduler, error) {
 	// Lookup the factory function
 	factory, ok := BuiltinSchedulers[name]
 	if !ok {
@@ -39,7 +41,7 @@ func NewScheduler(name string, logger *log.Logger, state State, planner Planner)
 }
 
 // Factory is used to instantiate a new Scheduler
-type Factory func(*log.Logger, State, Planner) Scheduler
+type Factory func(log.Logger, State, Planner) Scheduler
 
 // Scheduler is the top level instance for a scheduler. A scheduler is
 // meant to only encapsulate business logic, pushing the various plumbing
@@ -47,7 +49,7 @@ type Factory func(*log.Logger, State, Planner) Scheduler
 // a time. The evaluation may result in task allocations which are computed
 // optimistically, as there are many concurrent evaluations being processed.
 // The task allocations are submitted as a plan, and the current leader will
-// coordinate the commmits to prevent oversubscription or improper allocations
+// coordinate the commits to prevent oversubscription or improper allocations
 // based on stale state.
 type Scheduler interface {
 	// Process is used to handle a new evaluation. The scheduler is free to
@@ -61,12 +63,15 @@ type Scheduler interface {
 // and to enforce complex constraints that require more information than
 // is available to a local state scheduler.
 type State interface {
+	// Config returns the configuration of the state store
+	Config() *state.StateStoreConfig
+
 	// Nodes returns an iterator over all the nodes.
 	// The type of each result is *structs.Node
 	Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error)
 
 	// AllocsByJob returns the allocations by JobID
-	AllocsByJob(ws memdb.WatchSet, jobID string, all bool) ([]*structs.Allocation, error)
+	AllocsByJob(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Allocation, error)
 
 	// AllocsByNode returns all the allocations by node
 	AllocsByNode(ws memdb.WatchSet, node string) ([]*structs.Allocation, error)
@@ -78,7 +83,14 @@ type State interface {
 	NodeByID(ws memdb.WatchSet, nodeID string) (*structs.Node, error)
 
 	// GetJobByID is used to lookup a job by ID
-	JobByID(ws memdb.WatchSet, id string) (*structs.Job, error)
+	JobByID(ws memdb.WatchSet, namespace, id string) (*structs.Job, error)
+
+	// LatestDeploymentByJobID returns the latest deployment matching the given
+	// job ID
+	LatestDeploymentByJobID(ws memdb.WatchSet, namespace, jobID string) (*structs.Deployment, error)
+
+	// SchedulerConfig returns config options for the scheduler
+	SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error)
 }
 
 // Planner interface is used to submit a task allocation plan.

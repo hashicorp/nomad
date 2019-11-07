@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 175">
+  <g fill="none" fill-rule="evenodd">
+    <path d="M17.484 1.02l-16.29 9.473 16.29 9.474 16.162-9.56"/>
+    <path fill="#FFF" fill-rule="nonzero" d="M17.484.037L0 10.194v20.27l11.94 6.915v-.985l-11.087-6.4V11.303l16.204 9.388v19.42l.64.385 17.27-10.03v-20.27L17.485.037zm0 19.93l-16.29-9.474 16.29-9.474 16.162 9.386-16.162 9.56zm16.63 10.03L18.55 39l-.64.384V20.692l16.205-9.56v18.864z"/>
+    <g fill="#FFF" font-family="CourierNewPS-BoldMT, Courier New" font-weight="bold">
+      <text font-size="12" transform="translate(43 2)">
+        <tspan x="0" y="31">web-app:1.0</tspan>
+      </text>
+      <text font-size="18" transform="translate(43 2)">
+        <tspan x="0" y="15">group.blue</tspan>
+      </text>
+    </g>
+    <g fill="#FFF">
+      <path fill-opacity=".6" d="M255.484 1.02l-16.29 9.473 16.29 9.474 16.162-9.56"/>
+      <path fill-rule="nonzero" d="M255.484.037L238 10.194v20.27l11.94 6.915v-.985l-11.087-6.4V11.303l16.204 9.388v19.42l.64.385 17.27-10.03v-20.27L255.485.037zm0 19.93l-16.29-9.474 16.29-9.474 16.162 9.386-16.162 9.56zm16.63 10.03L256.55 39l-.64.384V20.692l16.205-9.56v18.864z"/>
+      <g font-family="CourierNewPS-BoldMT, Courier New" font-weight="bold">
+        <text font-size="12" transform="translate(281 2)">
+          <tspan x="0" y="31">web-app:1.1</tspan>
+        </text>
+        <text font-size="18" transform="translate(281 2)">
+          <tspan x="0" y="15">group.green</tspan>
+        </text>
+      </g>
+    </g>
+    <path stroke="#FFF" stroke-width="5" d="M81.5 49C47.534 49 20 76.534 20 110.5S47.534 172 81.5 172s61.5-27.534 61.5-61.5c0-4.998-.596-9.857-1.72-14.51"/>
+    <path stroke="#FFF" stroke-opacity=".6" stroke-width="5" d="M140.247 92.25c-7.342-23.662-28.587-41.206-54.184-43.083"/>
+    <text fill="#FFF" font-family="Courier-Bold, Courier" font-size="30" font-weight="bold" transform="translate(20 49)">
+      <tspan x="25.494" y="73">8/10</tspan>
+    </text>
+    <path stroke="#FFF" stroke-opacity=".6" stroke-width="5" d="M318.5 49c-33.966 0-61.5 27.534-61.5 61.5s27.534 61.5 61.5 61.5 61.5-27.534 61.5-61.5c0-4.998-.596-9.857-1.72-14.51"/>
+    <path stroke="#FFF" stroke-width="5" d="M377.247 92.25c-7.342-23.662-28.587-41.206-54.184-43.083"/>
+    <text fill="#FFF" font-family="Courier-Bold, Courier" font-size="30" font-weight="bold" transform="translate(257 49)">
+      <tspan x="25.494" y="73">2/10</tspan>
+    </text>
+    <path stroke="#FFF" d="M202.5 66.41v89.18" stroke-linecap="square"/>
+  </g>
+</svg>

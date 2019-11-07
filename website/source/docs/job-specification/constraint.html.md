@@ -28,6 +28,11 @@ filter on [attributes][interpolation] or [client metadata][client-meta].
 Additionally constraints may be specified at the [job][job], [group][group], or
 [task][task] levels for ultimate flexibility.
 
+~> **It is possible to define irreconcilable constraints in a job.**
+For example, because all [tasks within a group are scheduled on the same client node][group],
+specifying different [`${attr.unique.hostname}`][node-variables] constraints at
+the task level will cause a job to be unplaceable.
+
 ```hcl
 job "docs" {
   # All tasks in this job must run on linux.
@@ -65,7 +70,7 @@ all groups (and tasks) in the job.
   to examine for the constraint. This can be any of the [Nomad interpolated
   values](/docs/runtime/interpolation.html#interpreted_node_vars).
 
-- `operator` `(string: "=")` - Specifies the comparison operator.The ordering is
+- `operator` `(string: "=")` - Specifies the comparison operator. The ordering is
   compared lexically. Possible values include:
 
     ```text
@@ -75,9 +80,13 @@ all groups (and tasks) in the job.
     >=
     <
     <=
+    distinct_hosts
+    distinct_property
     regexp
     set_contains
     version
+    is_set
+    is_not_set
     ```
 
     For a detailed explanation of these values and their behavior, please see
@@ -104,13 +113,48 @@ constraint {
 - `"distinct_hosts"` - Instructs the scheduler to not co-locate any groups on
   the same machine. When specified as a job constraint, it applies to all groups
   in the job. When specified as a group constraint, the effect is constrained to
-  that group. Note that the `attribute` parameter should be omitted when using
-  this constraint.
+  that group. This constraint can not be specified at the task level. Note that
+  the `attribute` parameter should be omitted when using this constraint.
 
     ```hcl
     constraint {
       operator  = "distinct_hosts"
       value     = "true"
+    }
+    ```
+
+    The constraint may also be specified as follows for a more compact
+    representation:
+
+    ```hcl
+    constraint {
+        distinct_hosts = true
+    }
+    ```
+
+- `"distinct_property"` - Instructs the scheduler to select nodes that have a
+  distinct value of the specified property. The `value` parameter specifies how
+  many allocations are allowed to share the value of a property. The `value`
+  must be 1 or greater and if omitted, defaults to 1.  When specified as a job
+  constraint, it applies to all groups in the job. When specified as a group
+  constraint, the effect is constrained to that group. This constraint can not
+  be specified at the task level. 
+
+    ```hcl
+    constraint {
+      operator  = "distinct_property"
+      attribute = "${meta.rack}"
+      value     = "3"
+    }
+    ```
+
+    The constraint may also be specified as follows for a more compact
+    representation:
+
+    ```hcl
+    constraint {
+      distinct_property = "${meta.rack}"
+      value     = "3"
     }
     ```
 
@@ -154,6 +198,13 @@ constraint {
     }
     ```
 
+- `"is_set"` - Specifies that a given attribute must be present. This can be
+  combined with the `"!="` operator to require that an attribute has been set
+  before checking for equality. The default behavior for `"!="` is to include
+  nodes that don't have that attribute set.
+
+- `"is_not_set"` - Specifies that a given attribute must not be present. 
+
 ## `constraint` Examples
 
 The following examples only show the `constraint` stanzas. Remember that the
@@ -169,6 +220,22 @@ constraint {
   attribute = "${attr.kernel.version}"
   operator  = "version"
   value     = "> 3.19"
+}
+```
+
+### Distinct Property
+
+A potential use case of the `distinct_property` constraint is to spread a
+service with `count > 1` across racks to minimize correlated failure. Nodes can
+be annotated with which rack they are on using [client
+metadata][client-meta] with values such as "rack-12-1", "rack-12-2", etc.
+The following constraint would assure that an individual rack is not running
+more than 2 instances of the task group.
+
+```hcl
+constraint {
+  distinct_property = "${meta.rack}"
+  value = "2"
 }
 ```
 
@@ -217,6 +284,7 @@ constraint {
 
 [job]: /docs/job-specification/job.html "Nomad job Job Specification"
 [group]: /docs/job-specification/group.html "Nomad group Job Specification"
-[client-meta]: /docs/agent/configuration/client.html#meta "Nomad meta Job Specification"
+[client-meta]: /docs/configuration/client.html#meta "Nomad meta Job Specification"
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [interpolation]: /docs/runtime/interpolation.html "Nomad interpolation"
+[node-variables]: /docs/runtime/interpolation.html#node-variables- "Nomad interpolation-Node variables"

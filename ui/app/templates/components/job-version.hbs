@@ -1,0 +1,21 @@
+<div class="boxed-section-head is-light inline-definitions">
+  Version #{{version.number}}
+  <span class="bumper-left pair is-faded">
+    <span class="term">Stable</span>
+    <span class="badge is-light is-faded" data-test-version-stability><code>{{version.stable}}</code></span>
+  </span>
+  <span class="pair is-faded">
+    <span class="term">Submitted</span>
+    <span data-test-version-submit-time class="submit-date">{{format-ts version.submitTime}}</span>
+  </span>
+  {{#if version.diff}}
+    <button class="button is-light is-compact pull-right" {{action "toggleDiff"}}>{{changeCount}} {{pluralize "Change" changeCount}}</button>
+  {{else}}
+    <span class="pull-right">No Changes</span>
+  {{/if}}
+</div>
+{{#if isOpen}}
+  <div class="boxed-section-body is-dark">
+    {{job-diff diff=version.diff verbose=verbose}}
+  </div>
+{{/if}}

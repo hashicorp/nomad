@@ -9,6 +9,14 @@ description: |-
 
 # `task` Stanza
 
+<table class="table table-bordered table-striped">
+  <tr>
+    <th width="120">Placement</th>
+    <td>
+      <code>job -> group -> **task**</code>
+    </td>
+  </tr>
+</table>
 The `task` stanza creates an individual unit of work, such as a Docker
 container, web application, or batch processing.
 
@@ -37,12 +45,15 @@ job "docs" {
   constraints on the task. This can be provided multiple times to define
   additional constraints.
 
+- `affinity` <code>([Affinity][]: nil)</code> - This can be provided
+  multiple times to define preferred placement criteria.
+
 - `dispatch_payload` <code>([DispatchPayload][]: nil)</code> - Configures the
   task to have access to dispatch payloads.
 
 - `driver` - Specifies the task driver that should be used to run the
   task. See the [driver documentation](/docs/drivers/index.html) for what
-  is available. Examples include `docker`, `qemu`, `java`, and `exec`.
+  is available. Examples include `docker`, `qemu`, `java` and `exec`.
 
 - `env` <code>([Env][]: nil)</code> - Specifies environment variables that will
   be passed to the running process.
@@ -53,6 +64,10 @@ job "docs" {
   the task. Note that the value set here is capped at the value set for
   [`max_kill_timeout`][max_kill] on the agent running the task, which has a
   default value of 30 seconds.
+
+- `kill_signal` `(string)` - Specifies a configurable kill signal for a task,
+  where the default is SIGINT. Note that this is only supported for drivers
+  sending signals (currently `docker`, `exec`, `raw_exec`, and `java` drivers).
 
 - `leader` `(bool: false)` - Specifies whether the task is the leader task of
   the task group. If set to true, when the leader task completes, all other
@@ -65,11 +80,17 @@ job "docs" {
   with user-defined metadata.
 
 - `resources` <code>([Resources][]: <required>)</code> - Specifies the minimum
-  resource requirements such as RAM, CPU, disk, and network.
+  resource requirements such as RAM, CPU and network.
 
 - `service` <code>([Service][]: nil)</code> - Specifies integrations with
   [Consul][] for service discovery. Nomad automatically registers when a task
   is started and de-registers it when the task dies.
+
+- `shutdown_delay` `(string: "0s")` - Specifies the duration to wait when
+  killing a task between removing it from Consul and sending it a shutdown
+  signal. Ideally services would fail healthchecks once they receive a shutdown
+  signal. Alternatively `shutdown_delay` may be set to give in flight requests
+  time to complete before shutting down.
 
 - `user` `(string: <varies>)` - Specifies the user that will run the task.
   Defaults to `nobody` for the [`exec`][exec] and [`java`][java] drivers.
@@ -86,6 +107,9 @@ job "docs" {
 - `vault` <code>([Vault][]: nil)</code> - Specifies the set of Vault policies
   required by the task. This overrides any `vault` block set at the `group` or
   `job` level.
+
+- `kind` `(string: <varies>)` - Used internally to manage tasks according to
+  the value of this field. Initial use case is for Consul Connect.
 
 ## `task` Examples
 
@@ -143,7 +167,7 @@ task "server" {
 ### Service Discovery
 
 This example creates a service in Consul. To read more about service discovery
-in Nomad, please see the [Nomad service discovery documentation][service].
+in Nomad, please see the [Nomad service discovery documentation][service_discovery].
 
 ```hcl
 task "server" {
@@ -172,17 +196,20 @@ task "server" {
 [artifact]: /docs/job-specification/artifact.html "Nomad artifact Job Specification"
 [consul]: https://www.consul.io/ "Consul by HashiCorp"
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
+[affinity]: /docs/job-specification/affinity.html "Nomad affinity Job Specification"
 [dispatchpayload]: /docs/job-specification/dispatch_payload.html "Nomad dispatch_payload Job Specification"
 [env]: /docs/job-specification/env.html "Nomad env Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [resources]: /docs/job-specification/resources.html "Nomad resources Job Specification"
 [logs]: /docs/job-specification/logs.html "Nomad logs Job Specification"
-[service]: /docs/service-discovery/index.html "Nomad Service Discovery"
+[service]: /docs/job-specification/service.html "Nomad service Job Specification"
+[vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"
 [exec]: /docs/drivers/exec.html "Nomad exec Driver"
 [java]: /docs/drivers/java.html "Nomad Java Driver"
 [Docker]: /docs/drivers/docker.html "Nomad Docker Driver"
 [rkt]: /docs/drivers/rkt.html "Nomad rkt Driver"
+[service_discovery]: /guides/integrations/consul-integration/index.html#service-discovery/index.html "Nomad Service Discovery"
 [template]: /docs/job-specification/template.html "Nomad template Job Specification"
-[user_drivers]: /docs/agent/configuration/client.html#_quot_user_checked_drivers_quot_
-[user_blacklist]: /docs/agent/configuration/client.html#_quot_user_blacklist_quot_
-[max_kill]: /docs/agent/configuration/client.html#max_kill_timeout
+[user_drivers]: /docs/configuration/client.html#_quot_user_checked_drivers_quot_
+[user_blacklist]: /docs/configuration/client.html#_quot_user_blacklist_quot_
+[max_kill]: /docs/configuration/client.html#max_kill_timeout

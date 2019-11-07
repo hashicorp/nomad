@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -22,72 +21,117 @@ import (
 type ConsulConfig struct {
 	// ServerServiceName is the name of the service that Nomad uses to register
 	// servers with Consul
-	ServerServiceName string `mapstructure:"server_service_name"`
+	ServerServiceName string `hcl:"server_service_name"`
+
+	// ServerHTTPCheckName is the name of the health check that Nomad uses
+	// to register the server HTTP health check with Consul
+	ServerHTTPCheckName string `hcl:"server_http_check_name"`
+
+	// ServerSerfCheckName is the name of the health check that Nomad uses
+	// to register the server Serf health check with Consul
+	ServerSerfCheckName string `hcl:"server_serf_check_name"`
+
+	// ServerRPCCheckName is the name of the health check that Nomad uses
+	// to register the server RPC health check with Consul
+	ServerRPCCheckName string `hcl:"server_rpc_check_name"`
 
 	// ClientServiceName is the name of the service that Nomad uses to register
 	// clients with Consul
-	ClientServiceName string `mapstructure:"client_service_name"`
+	ClientServiceName string `hcl:"client_service_name"`
+
+	// ClientHTTPCheckName is the name of the health check that Nomad uses
+	// to register the client HTTP health check with Consul
+	ClientHTTPCheckName string `hcl:"client_http_check_name"`
+
+	// Tags are optional service tags that get registered with the service
+	// in Consul
+	Tags []string `hcl:"tags"`
 
 	// AutoAdvertise determines if this Nomad Agent will advertise its
 	// services via Consul.  When true, Nomad Agent will register
 	// services with Consul.
-	AutoAdvertise *bool `mapstructure:"auto_advertise"`
+	AutoAdvertise *bool `hcl:"auto_advertise"`
 
 	// ChecksUseAdvertise specifies that Consul checks should use advertise
 	// address instead of bind address
-	ChecksUseAdvertise *bool `mapstructure:"checks_use_advertise"`
+	ChecksUseAdvertise *bool `hcl:"checks_use_advertise"`
 
-	// Addr is the address of the local Consul agent
-	Addr string `mapstructure:"address"`
+	// Addr is the HTTP endpoint address of the local Consul agent
+	//
+	// Uses Consul's default and env var.
+	Addr string `hcl:"address"`
+
+	// GRPCAddr is the gRPC endpoint address of the local Consul agent
+	GRPCAddr string `hcl:"grpc_address"`
 
 	// Timeout is used by Consul HTTP Client
-	Timeout time.Duration `mapstructure:"timeout"`
+	Timeout    time.Duration
+	TimeoutHCL string `hcl:"timeout" json:"-"`
 
 	// Token is used to provide a per-request ACL token. This options overrides
 	// the agent's default token
-	Token string `mapstructure:"token"`
+	Token string `hcl:"token"`
 
 	// Auth is the information to use for http access to Consul agent
-	Auth string `mapstructure:"auth"`
+	Auth string `hcl:"auth"`
 
 	// EnableSSL sets the transport scheme to talk to the Consul agent as https
-	EnableSSL *bool `mapstructure:"ssl"`
+	//
+	// Uses Consul's default and env var.
+	EnableSSL *bool `hcl:"ssl"`
 
 	// VerifySSL enables or disables SSL verification when the transport scheme
 	// for the consul api client is https
-	VerifySSL *bool `mapstructure:"verify_ssl"`
+	//
+	// Uses Consul's default and env var.
+	VerifySSL *bool `hcl:"verify_ssl"`
 
-	// CAFile is the path to the ca certificate used for Consul communication
-	CAFile string `mapstructure:"ca_file"`
+	// CAFile is the path to the ca certificate used for Consul communication.
+	//
+	// Uses Consul's default and env var.
+	CAFile string `hcl:"ca_file"`
 
 	// CertFile is the path to the certificate for Consul communication
-	CertFile string `mapstructure:"cert_file"`
+	CertFile string `hcl:"cert_file"`
 
 	// KeyFile is the path to the private key for Consul communication
-	KeyFile string `mapstructure:"key_file"`
+	KeyFile string `hcl:"key_file"`
 
 	// ServerAutoJoin enables Nomad servers to find peers by querying Consul and
 	// joining them
-	ServerAutoJoin *bool `mapstructure:"server_auto_join"`
+	ServerAutoJoin *bool `hcl:"server_auto_join"`
 
 	// ClientAutoJoin enables Nomad servers to find addresses of Nomad servers
 	// and register with them
-	ClientAutoJoin *bool `mapstructure:"client_auto_join"`
+	ClientAutoJoin *bool `hcl:"client_auto_join"`
+
+	// ExtraKeysHCL is used by hcl to surface unexpected keys
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // DefaultConsulConfig() returns the canonical defaults for the Nomad
-// `consul` configuration.
+// `consul` configuration. Uses Consul's default configuration which reads
+// environment variables.
 func DefaultConsulConfig() *ConsulConfig {
+	def := consul.DefaultConfig()
 	return &ConsulConfig{
-		ServerServiceName:  "nomad",
-		ClientServiceName:  "nomad-client",
-		AutoAdvertise:      helper.BoolToPtr(true),
-		ChecksUseAdvertise: helper.BoolToPtr(false),
-		EnableSSL:          helper.BoolToPtr(false),
-		VerifySSL:          helper.BoolToPtr(false),
-		ServerAutoJoin:     helper.BoolToPtr(true),
-		ClientAutoJoin:     helper.BoolToPtr(true),
-		Timeout:            5 * time.Second,
+		ServerServiceName:   "nomad",
+		ServerHTTPCheckName: "Nomad Server HTTP Check",
+		ServerSerfCheckName: "Nomad Server Serf Check",
+		ServerRPCCheckName:  "Nomad Server RPC Check",
+		ClientServiceName:   "nomad-client",
+		ClientHTTPCheckName: "Nomad Client HTTP Check",
+		AutoAdvertise:       helper.BoolToPtr(true),
+		ChecksUseAdvertise:  helper.BoolToPtr(false),
+		ServerAutoJoin:      helper.BoolToPtr(true),
+		ClientAutoJoin:      helper.BoolToPtr(true),
+		Timeout:             5 * time.Second,
+
+		// From Consul api package defaults
+		Addr:      def.Address,
+		EnableSSL: helper.BoolToPtr(def.Scheme == "https"),
+		VerifySSL: helper.BoolToPtr(!def.TLSConfig.InsecureSkipVerify),
+		CAFile:    def.TLSConfig.CAFile,
 	}
 }
 
@@ -98,17 +142,36 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.ServerServiceName != "" {
 		result.ServerServiceName = b.ServerServiceName
 	}
+	if b.ServerHTTPCheckName != "" {
+		result.ServerHTTPCheckName = b.ServerHTTPCheckName
+	}
+	if b.ServerSerfCheckName != "" {
+		result.ServerSerfCheckName = b.ServerSerfCheckName
+	}
+	if b.ServerRPCCheckName != "" {
+		result.ServerRPCCheckName = b.ServerRPCCheckName
+	}
 	if b.ClientServiceName != "" {
 		result.ClientServiceName = b.ClientServiceName
 	}
+	if b.ClientHTTPCheckName != "" {
+		result.ClientHTTPCheckName = b.ClientHTTPCheckName
+	}
+	result.Tags = append(result.Tags, b.Tags...)
 	if b.AutoAdvertise != nil {
 		result.AutoAdvertise = helper.BoolToPtr(*b.AutoAdvertise)
 	}
 	if b.Addr != "" {
 		result.Addr = b.Addr
 	}
+	if b.GRPCAddr != "" {
+		result.GRPCAddr = b.GRPCAddr
+	}
 	if b.Timeout != 0 {
 		result.Timeout = b.Timeout
+	}
+	if b.TimeoutHCL != "" {
+		result.TimeoutHCL = b.TimeoutHCL
 	}
 	if b.Token != "" {
 		result.Token = b.Token
@@ -143,9 +206,11 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	return result
 }
 
-// ApiConfig() returns a usable Consul config that can be passed directly to
+// ApiConfig returns a usable Consul config that can be passed directly to
 // hashicorp/consul/api.  NOTE: datacenter is not set
 func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
+	// Get the default config from consul to reuse things like the default
+	// http.Transport.
 	config := consul.DefaultConfig()
 	if c.Addr != "" {
 		config.Address = c.Addr
@@ -154,7 +219,12 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 		config.Token = c.Token
 	}
 	if c.Timeout != 0 {
+		// Create a custom Client to set the timeout
+		if config.HttpClient == nil {
+			config.HttpClient = &http.Client{}
+		}
 		config.HttpClient.Timeout = c.Timeout
+		config.HttpClient.Transport = config.Transport
 	}
 	if c.Auth != "" {
 		var username, password string
@@ -173,25 +243,21 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 	}
 	if c.EnableSSL != nil && *c.EnableSSL {
 		config.Scheme = "https"
-		tlsConfig := consul.TLSConfig{
+		config.TLSConfig = consul.TLSConfig{
 			Address:  config.Address,
 			CAFile:   c.CAFile,
 			CertFile: c.CertFile,
 			KeyFile:  c.KeyFile,
 		}
 		if c.VerifySSL != nil {
-			tlsConfig.InsecureSkipVerify = !*c.VerifySSL
+			config.TLSConfig.InsecureSkipVerify = !*c.VerifySSL
 		}
-
-		tlsClientCfg, err := consul.SetupTLSConfig(&tlsConfig)
+		tlsConfig, err := consul.SetupTLSConfig(&config.TLSConfig)
 		if err != nil {
-			return nil, fmt.Errorf("error creating tls client config for consul: %v", err)
+			return nil, err
 		}
-		config.HttpClient.Transport = &http.Transport{
-			TLSClientConfig: tlsClientCfg,
-		}
+		config.Transport.TLSClientConfig = tlsConfig
 	}
-
 	return config, nil
 }
 

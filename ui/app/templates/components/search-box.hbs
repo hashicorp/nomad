@@ -1,0 +1,11 @@
+<div class="control">
+  <span class="prefix-icon">{{x-icon "search"}}</span>
+  <input
+    class="input {{inputClass}}"
+    type="text"
+    placeholder={{placeholder}}
+    value={{_searchTerm}}
+    oninput={{action "setSearchTerm"}}
+    size="1">
+  <button class="suffix-icon" onclick={{action "clear"}}>{{x-icon "cancel"}}</button>
+</div>

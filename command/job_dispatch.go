@@ -6,7 +6,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hashicorp/nomad/api/contexts"
 	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	"github.com/posener/complete"
 )
 
 type JobDispatchCommand struct {
@@ -17,14 +19,14 @@ func (c *JobDispatchCommand) Help() string {
 	helpText := `
 Usage: nomad job dispatch [options] <parameterized job> [input source]
 
-Dispatch creates an instance of a parameterized job. A data payload to the
-dispatched instance can be provided via stdin by using "-" or by specifiying a
-path to a file. Metadata can be supplied by using the meta flag one or more
-times. 
+  Dispatch creates an instance of a parameterized job. A data payload to the
+  dispatched instance can be provided via stdin by using "-" or by specifying a
+  path to a file. Metadata can be supplied by using the meta flag one or more
+  times.
 
-Upon successful creation, the dispatched job ID will be printed and the
-triggered evaluation will be monitored. This can be disabled by supplying the
-detach flag.
+  Upon successful creation, the dispatched job ID will be printed and the
+  triggered evaluation will be monitored. This can be disabled by supplying the
+  detach flag.
 
 General Options:
 
@@ -33,12 +35,12 @@ General Options:
 Dispatch Options:
 
   -meta <key>=<value>
-    Meta takes a key/value pair seperated by "=". The metadata key will be
+    Meta takes a key/value pair separated by "=". The metadata key will be
     merged into the job's metadata. The job may define a default value for the
-    key which is overriden when dispatching. The flag can be provided more than
+    key which is overridden when dispatching. The flag can be provided more than
     once to inject multiple metadata key/value pairs. Arbitrary keys are not
     allowed. The parameterized job must allow the key to be merged.
-    
+
   -detach
     Return immediately instead of entering monitor mode. After job dispatch,
     the evaluation ID will be printed to the screen, which can be used to
@@ -54,11 +56,37 @@ func (c *JobDispatchCommand) Synopsis() string {
 	return "Dispatch an instance of a parameterized job"
 }
 
+func (c *JobDispatchCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-meta":    complete.PredictAnything,
+			"-detach":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *JobDispatchCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Jobs]
+	})
+}
+
+func (c *JobDispatchCommand) Name() string { return "job dispatch" }
+
 func (c *JobDispatchCommand) Run(args []string) int {
 	var detach, verbose bool
 	var meta []string
 
-	flags := c.Meta.FlagSet("job dispatch", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -74,10 +102,11 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	// Check that we got exactly one node
+	// Check that we got one or two arguments
 	args = flags.Args()
 	if l := len(args); l < 1 || l > 2 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one or two argument: <parameterized job> [input source]")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -125,13 +154,20 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		return 1
 	}
 
+	// See if an evaluation was created. If the job is periodic there will be no
+	// eval.
+	evalCreated := resp.EvalID != ""
+
 	basic := []string{
 		fmt.Sprintf("Dispatched Job ID|%s", resp.DispatchedJobID),
-		fmt.Sprintf("Evaluation ID|%s", limit(resp.EvalID, length)),
+	}
+	if evalCreated {
+		basic = append(basic, fmt.Sprintf("Evaluation ID|%s", limit(resp.EvalID, length)))
 	}
 	c.Ui.Output(formatKV(basic))
 
-	if detach {
+	// Nothing to do
+	if detach || !evalCreated {
 		return 0
 	}
 

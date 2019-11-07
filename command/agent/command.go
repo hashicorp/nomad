@@ -15,18 +15,24 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/circonus"
 	"github.com/armon/go-metrics/datadog"
+	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-checkpoint"
-	"github.com/hashicorp/go-syslog"
+	checkpoint "github.com/hashicorp/go-checkpoint"
+	discover "github.com/hashicorp/go-discover"
+	hclog "github.com/hashicorp/go-hclog"
+	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
-	"github.com/hashicorp/nomad/helper/flag-helpers"
-	"github.com/hashicorp/nomad/helper/gated-writer"
+	"github.com/hashicorp/nomad/helper"
+	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
+	"github.com/hashicorp/nomad/helper/logging"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/hashicorp/scada-client/scada"
+	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
 )
 
 // gracefulTimeout controls how long we wait before forcefully terminating
@@ -37,11 +43,9 @@ const gracefulTimeout = 5 * time.Second
 // ShutdownCh. If two messages are sent on the ShutdownCh it will forcibly
 // exit.
 type Command struct {
-	Revision          string
-	Version           string
-	VersionPrerelease string
-	Ui                cli.Ui
-	ShutdownCh        <-chan struct{}
+	Version    *version.VersionInfo
+	Ui         cli.Ui
+	ShutdownCh <-chan struct{}
 
 	args           []string
 	agent          *Agent
@@ -49,42 +53,49 @@ type Command struct {
 	logFilter      *logutils.LevelFilter
 	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
-
-	scadaProvider *scada.Provider
-	scadaHttp     *HTTPServer
 }
 
 func (c *Command) readConfig() *Config {
-	var dev bool
+	var dev *devModeConfig
 	var configPath []string
 	var servers string
 	var meta []string
 
 	// Make a new, empty config.
 	cmdConfig := &Config{
-		Atlas:  &AtlasConfig{},
 		Client: &ClientConfig{},
+		Consul: &config.ConsulConfig{},
 		Ports:  &Ports{},
-		Server: &ServerConfig{},
-		Vault:  &config.VaultConfig{},
+		Server: &ServerConfig{
+			ServerJoin: &ServerJoin{},
+		},
+		Vault: &config.VaultConfig{},
+		ACL:   &ACLConfig{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
 
 	// Role options
-	flags.BoolVar(&dev, "dev", false, "")
+	var devMode bool
+	var devConnectMode bool
+	flags.BoolVar(&devMode, "dev", false, "")
+	flags.BoolVar(&devConnectMode, "dev-connect", false, "")
 	flags.BoolVar(&cmdConfig.Server.Enabled, "server", false, "")
 	flags.BoolVar(&cmdConfig.Client.Enabled, "client", false, "")
 
 	// Server-only options
 	flags.IntVar(&cmdConfig.Server.BootstrapExpect, "bootstrap-expect", 0, "")
-	flags.BoolVar(&cmdConfig.Server.RejoinAfterLeave, "rejoin", false, "")
-	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.StartJoin), "join", "")
-	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.RetryJoin), "retry-join", "")
-	flags.IntVar(&cmdConfig.Server.RetryMaxAttempts, "retry-max", 0, "")
-	flags.StringVar(&cmdConfig.Server.RetryInterval, "retry-interval", "", "")
 	flags.StringVar(&cmdConfig.Server.EncryptKey, "encrypt", "", "gossip encryption key")
+	flags.IntVar(&cmdConfig.Server.RaftProtocol, "raft-protocol", 0, "")
+	flags.BoolVar(&cmdConfig.Server.RejoinAfterLeave, "rejoin", false, "")
+	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.ServerJoin.StartJoin), "join", "")
+	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.ServerJoin.RetryJoin), "retry-join", "")
+	flags.IntVar(&cmdConfig.Server.ServerJoin.RetryMaxAttempts, "retry-max", 0, "")
+	flags.Var((flaghelper.FuncDurationVar)(func(d time.Duration) error {
+		cmdConfig.Server.ServerJoin.RetryInterval = d
+		return nil
+	}), "retry-interval", "")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
@@ -100,14 +111,49 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.BindAddr, "bind", "", "")
 	flags.StringVar(&cmdConfig.Region, "region", "", "")
 	flags.StringVar(&cmdConfig.DataDir, "data-dir", "", "")
+	flags.StringVar(&cmdConfig.PluginDir, "plugin-dir", "", "")
 	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
+	flags.BoolVar(&cmdConfig.LogJson, "log-json", false, "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
 
-	// Atlas options
-	flags.StringVar(&cmdConfig.Atlas.Infrastructure, "atlas", "", "")
-	flags.BoolVar(&cmdConfig.Atlas.Join, "atlas-join", false, "")
-	flags.StringVar(&cmdConfig.Atlas.Token, "atlas-token", "", "")
+	// Consul options
+	flags.StringVar(&cmdConfig.Consul.Auth, "consul-auth", "", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.AutoAdvertise = &b
+		return nil
+	}), "consul-auto-advertise", "")
+	flags.StringVar(&cmdConfig.Consul.CAFile, "consul-ca-file", "", "")
+	flags.StringVar(&cmdConfig.Consul.CertFile, "consul-cert-file", "", "")
+	flags.StringVar(&cmdConfig.Consul.KeyFile, "consul-key-file", "", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.ChecksUseAdvertise = &b
+		return nil
+	}), "consul-checks-use-advertise", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.ClientAutoJoin = &b
+		return nil
+	}), "consul-client-auto-join", "")
+	flags.StringVar(&cmdConfig.Consul.ClientServiceName, "consul-client-service-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ClientHTTPCheckName, "consul-client-http-check-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerServiceName, "consul-server-service-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerHTTPCheckName, "consul-server-http-check-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerSerfCheckName, "consul-server-serf-check-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerRPCCheckName, "consul-server-rpc-check-name", "", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.ServerAutoJoin = &b
+		return nil
+	}), "consul-server-auto-join", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.EnableSSL = &b
+		return nil
+	}), "consul-ssl", "")
+	flags.StringVar(&cmdConfig.Consul.Token, "consul-token", "", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.VerifySSL = &b
+		return nil
+	}), "consul-verify-ssl", "")
+	flags.StringVar(&cmdConfig.Consul.Addr, "consul-address", "", "")
 
 	// Vault options
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
@@ -120,6 +166,7 @@ func (c *Command) readConfig() *Config {
 	}), "vault-allow-unauthenticated", "")
 	flags.StringVar(&cmdConfig.Vault.Token, "vault-token", "", "")
 	flags.StringVar(&cmdConfig.Vault.Addr, "vault-address", "", "")
+	flags.StringVar(&cmdConfig.Vault.Namespace, "vault-namespace", "", "")
 	flags.StringVar(&cmdConfig.Vault.Role, "vault-create-from-role", "", "")
 	flags.StringVar(&cmdConfig.Vault.TLSCaFile, "vault-ca-file", "", "")
 	flags.StringVar(&cmdConfig.Vault.TLSCaPath, "vault-ca-path", "", "")
@@ -130,6 +177,10 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}), "vault-tls-skip-verify", "")
 	flags.StringVar(&cmdConfig.Vault.TLSServerName, "vault-tls-server-name", "", "")
+
+	// ACL options
+	flags.BoolVar(&cmdConfig.ACL.Enabled, "acl-enabled", false, "")
+	flags.StringVar(&cmdConfig.ACL.ReplicationToken, "acl-replication-token", "", "")
 
 	if err := flags.Parse(c.args); err != nil {
 		return nil
@@ -150,18 +201,26 @@ func (c *Command) readConfig() *Config {
 				c.Ui.Error(fmt.Sprintf("Error parsing Client.Meta value: %v", kv))
 				return nil
 			}
-
 			cmdConfig.Client.Meta[parts[0]] = parts[1]
 		}
 	}
 
 	// Load the configuration
+	dev, err := newDevModeConfig(devMode, devConnectMode)
+	if err != nil {
+		c.Ui.Error(err.Error())
+		return nil
+	}
 	var config *Config
-	if dev {
-		config = DevConfig()
+	if dev != nil {
+		config = DevConfig(dev)
 	} else {
 		config = DefaultConfig()
 	}
+
+	// Merge in the enterprise overlay
+	config.Merge(DefaultEntConfig())
+
 	for _, path := range configPath {
 		current, err := LoadConfig(path)
 		if err != nil {
@@ -184,9 +243,6 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Ensure the sub-structs at least exist
-	if config.Atlas == nil {
-		config.Atlas = &AtlasConfig{}
-	}
 	if config.Client == nil {
 		config.Client = &ClientConfig{}
 	}
@@ -198,9 +254,7 @@ func (c *Command) readConfig() *Config {
 	config = config.Merge(cmdConfig)
 
 	// Set the version info
-	config.Revision = c.Revision
 	config.Version = c.Version
-	config.VersionPrerelease = c.VersionPrerelease
 
 	// Normalize binds, ports, addresses, and advertise
 	if err := config.normalizeAddrs(); err != nil {
@@ -210,20 +264,48 @@ func (c *Command) readConfig() *Config {
 
 	// Check to see if we should read the Vault token from the environment
 	if config.Vault.Token == "" {
-		if token, ok := os.LookupEnv("VAULT_TOKEN"); ok {
-			config.Vault.Token = token
-		}
+		config.Vault.Token = os.Getenv("VAULT_TOKEN")
 	}
 
-	if dev {
-		// Skip validation for dev mode
-		return config
+	// Check to see if we should read the Vault namespace from the environment
+	if config.Vault.Namespace == "" {
+		config.Vault.Namespace = os.Getenv("VAULT_NAMESPACE")
+	}
+
+	// Default the plugin directory to be under that of the data directory if it
+	// isn't explicitly specified.
+	if config.PluginDir == "" && config.DataDir != "" {
+		config.PluginDir = filepath.Join(config.DataDir, "plugins")
+	}
+
+	if !c.isValidConfig(config, cmdConfig) {
+		return nil
+	}
+
+	return config
+}
+
+func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
+
+	// Check that the server is running in at least one mode.
+	if !(config.Server.Enabled || config.Client.Enabled) {
+		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
+		return false
+	}
+
+	// Set up the TLS configuration properly if we have one.
+	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
+	// constructor-type actions like this.
+	if config.TLSConfig != nil && !config.TLSConfig.IsEmpty() {
+		if err := config.TLSConfig.SetChecksum(); err != nil {
+			c.Ui.Error(fmt.Sprintf("WARNING: Error when parsing TLS configuration: %v", err))
+		}
 	}
 
 	if config.Server.EncryptKey != "" {
 		if _, err := config.Server.EncryptBytes(); err != nil {
 			c.Ui.Error(fmt.Sprintf("Invalid encryption key: %s", err))
-			return nil
+			return false
 		}
 		keyfile := filepath.Join(config.DataDir, serfKeyring)
 		if _, err := os.Stat(keyfile); err == nil {
@@ -231,25 +313,12 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
-	// Parse the RetryInterval.
-	dur, err := time.ParseDuration(config.Server.RetryInterval)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing retry interval: %s", err))
-		return nil
-	}
-	config.Server.retryInterval = dur
-
-	// Check that the server is running in at least one mode.
-	if !(config.Server.Enabled || config.Client.Enabled) {
-		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
-		return nil
-	}
-
 	// Verify the paths are absolute.
 	dirs := map[string]string{
-		"data-dir":  config.DataDir,
-		"alloc-dir": config.Client.AllocDir,
-		"state-dir": config.Client.StateDir,
+		"data-dir":   config.DataDir,
+		"plugin-dir": config.PluginDir,
+		"alloc-dir":  config.Client.AllocDir,
+		"state-dir":  config.Client.StateDir,
 	}
 	for k, dir := range dirs {
 		if dir == "" {
@@ -258,39 +327,54 @@ func (c *Command) readConfig() *Config {
 
 		if !filepath.IsAbs(dir) {
 			c.Ui.Error(fmt.Sprintf("%s must be given as an absolute path: got %v", k, dir))
-			return nil
+			return false
 		}
 	}
 
-	// Ensure that we have the directories we neet to run.
+	if config.Client.Enabled {
+		for k := range config.Client.Meta {
+			if !helper.IsValidInterpVariable(k) {
+				c.Ui.Error(fmt.Sprintf("Invalid Client.Meta key: %v", k))
+				return false
+			}
+		}
+	}
+
+	if config.DevMode {
+		// Skip the rest of the validation for dev mode
+		return true
+	}
+
+	// Ensure that we have the directories we need to run.
 	if config.Server.Enabled && config.DataDir == "" {
 		c.Ui.Error("Must specify data directory")
-		return nil
+		return false
 	}
 
 	// The config is valid if the top-level data-dir is set or if both
 	// alloc-dir and state-dir are set.
 	if config.Client.Enabled && config.DataDir == "" {
-		if config.Client.AllocDir == "" || config.Client.StateDir == "" {
-			c.Ui.Error("Must specify both the state and alloc dir if data-dir is omitted.")
-			return nil
+		if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
+			c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
+			return false
 		}
 	}
 
 	// Check the bootstrap flags
-	if config.Server.BootstrapExpect > 0 && !config.Server.Enabled {
+	if !config.Server.Enabled && cmdConfig.Server.BootstrapExpect > 0 {
+		// report an error if BootstrapExpect is set in CLI but server is disabled
 		c.Ui.Error("Bootstrap requires server mode to be enabled")
-		return nil
+		return false
 	}
-	if config.Server.BootstrapExpect == 1 {
+	if config.Server.Enabled && config.Server.BootstrapExpect == 1 {
 		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
 	}
 
-	return config
+	return true
 }
 
-// setupLoggers is used to setup the logGate, logWriter, and our logOutput
-func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter, io.Writer) {
+// setupLoggers is used to setup the logGate, and our logOutput
+func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) {
 	// Setup logging. First create the gated log writer, which will
 	// store logs until we're ready to show them. Then create the level
 	// filter, filtering logs of the specified level.
@@ -305,52 +389,74 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter,
 		c.Ui.Error(fmt.Sprintf(
 			"Invalid log level: %s. Valid log levels are: %v",
 			c.logFilter.MinLevel, c.logFilter.Levels))
-		return nil, nil, nil
+		return nil, nil
 	}
 
+	// Create a log writer, and wrap a logOutput around it
+	writers := []io.Writer{c.logFilter}
+
 	// Check if syslog is enabled
-	var syslog io.Writer
 	if config.EnableSyslog {
 		l, err := gsyslog.NewLogger(gsyslog.LOG_NOTICE, config.SyslogFacility, "nomad")
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
-			return nil, nil, nil
+			return nil, nil
 		}
-		syslog = &SyslogWrapper{l, c.logFilter}
+		writers = append(writers, &SyslogWrapper{l, c.logFilter})
 	}
 
-	// Create a log writer, and wrap a logOutput around it
-	logWriter := NewLogWriter(512)
-	var logOutput io.Writer
-	if syslog != nil {
-		logOutput = io.MultiWriter(c.logFilter, logWriter, syslog)
-	} else {
-		logOutput = io.MultiWriter(c.logFilter, logWriter)
+	// Check if file logging is enabled
+	if config.LogFile != "" {
+		dir, fileName := filepath.Split(config.LogFile)
+
+		// if a path is provided, but has no filename, then a default is used.
+		if fileName == "" {
+			fileName = "nomad.log"
+		}
+
+		// Try to enter the user specified log rotation duration first
+		var logRotateDuration time.Duration
+		if config.LogRotateDuration != "" {
+			duration, err := time.ParseDuration(config.LogRotateDuration)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
+				return nil, nil
+			}
+			logRotateDuration = duration
+		} else {
+			// Default to 24 hrs if no rotation period is specified
+			logRotateDuration = 24 * time.Hour
+		}
+
+		logFile := &logFile{
+			logFilter: c.logFilter,
+			fileName:  fileName,
+			logPath:   dir,
+			duration:  logRotateDuration,
+			MaxBytes:  config.LogRotateBytes,
+			MaxFiles:  config.LogRotateMaxFiles,
+		}
+
+		writers = append(writers, logFile)
 	}
-	c.logOutput = logOutput
-	log.SetOutput(logOutput)
-	return logGate, logWriter, logOutput
+
+	c.logOutput = io.MultiWriter(writers...)
+	log.SetOutput(c.logOutput)
+	return logGate, c.logOutput
 }
 
 // setupAgent is used to start the agent and various interfaces
-func (c *Command) setupAgent(config *Config, logOutput io.Writer) error {
+func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOutput io.Writer, inmem *metrics.InmemSink) error {
 	c.Ui.Output("Starting Nomad agent...")
-	agent, err := NewAgent(config, logOutput)
+	agent, err := NewAgent(config, logger, logOutput, inmem)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error starting agent: %s", err))
 		return err
 	}
 	c.agent = agent
 
-	// Enable the SCADA integration
-	if err := c.setupSCADA(config); err != nil {
-		agent.Shutdown()
-		c.Ui.Error(fmt.Sprintf("Error starting SCADA: %s", err))
-		return err
-	}
-
 	// Setup the HTTP server
-	http, err := NewHTTPServer(agent, config, logOutput)
+	http, err := NewHTTPServer(agent, config)
 	if err != nil {
 		agent.Shutdown()
 		c.Ui.Error(fmt.Sprintf("Error starting http server: %s", err))
@@ -358,11 +464,12 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer) error {
 	}
 	c.httpServer = http
 
-	// Setup update checking
-	if !config.DisableUpdateCheck {
-		version := config.Version
-		if config.VersionPrerelease != "" {
-			version += fmt.Sprintf("-%s", config.VersionPrerelease)
+	// If DisableUpdateCheck is not enabled, set up update checking
+	// (DisableUpdateCheck is false by default)
+	if config.DisableUpdateCheck != nil && !*config.DisableUpdateCheck {
+		version := config.Version.Version
+		if config.Version.VersionPrerelease != "" {
+			version += fmt.Sprintf("-%s", config.Version.VersionPrerelease)
 		}
 		updateParams := &checkpoint.CheckParams{
 			Product: "nomad",
@@ -381,6 +488,7 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer) error {
 			c.checkpointResults(checkpoint.Check(updateParams))
 		}()
 	}
+
 	return nil
 }
 
@@ -391,12 +499,7 @@ func (c *Command) checkpointResults(results *checkpoint.CheckResponse, err error
 		return
 	}
 	if results.Outdated {
-		versionStr := c.Version
-		if c.VersionPrerelease != "" {
-			versionStr += fmt.Sprintf("-%s", c.VersionPrerelease)
-		}
-
-		c.Ui.Error(fmt.Sprintf("Newer Nomad version available: %s (currently running: %s)", results.CurrentVersion, versionStr))
+		c.Ui.Error(fmt.Sprintf("Newer Nomad version available: %s (currently running: %s)", results.CurrentVersion, c.Version.VersionNumber()))
 	}
 	for _, alert := range results.Alerts {
 		switch alert.Level {
@@ -406,6 +509,74 @@ func (c *Command) checkpointResults(results *checkpoint.CheckResponse, err error
 			c.Ui.Error(fmt.Sprintf("Bulletin [%s]: %s (%s)", alert.Level, alert.Message, alert.URL))
 		}
 	}
+}
+
+func (c *Command) AutocompleteFlags() complete.Flags {
+	configFilePredictor := complete.PredictOr(
+		complete.PredictFiles("*.json"),
+		complete.PredictFiles("*.hcl"))
+
+	return map[string]complete.Predictor{
+		"-dev":                           complete.PredictNothing,
+		"-dev-connect":                   complete.PredictNothing,
+		"-server":                        complete.PredictNothing,
+		"-client":                        complete.PredictNothing,
+		"-bootstrap-expect":              complete.PredictAnything,
+		"-encrypt":                       complete.PredictAnything,
+		"-raft-protocol":                 complete.PredictAnything,
+		"-rejoin":                        complete.PredictNothing,
+		"-join":                          complete.PredictAnything,
+		"-retry-join":                    complete.PredictAnything,
+		"-retry-max":                     complete.PredictAnything,
+		"-state-dir":                     complete.PredictDirs("*"),
+		"-alloc-dir":                     complete.PredictDirs("*"),
+		"-node-class":                    complete.PredictAnything,
+		"-servers":                       complete.PredictAnything,
+		"-meta":                          complete.PredictAnything,
+		"-config":                        configFilePredictor,
+		"-bind":                          complete.PredictAnything,
+		"-region":                        complete.PredictAnything,
+		"-data-dir":                      complete.PredictDirs("*"),
+		"-plugin-dir":                    complete.PredictDirs("*"),
+		"-dc":                            complete.PredictAnything,
+		"-log-level":                     complete.PredictAnything,
+		"-json-logs":                     complete.PredictNothing,
+		"-node":                          complete.PredictAnything,
+		"-consul-auth":                   complete.PredictAnything,
+		"-consul-auto-advertise":         complete.PredictNothing,
+		"-consul-ca-file":                complete.PredictAnything,
+		"-consul-cert-file":              complete.PredictAnything,
+		"-consul-key-file":               complete.PredictAnything,
+		"-consul-checks-use-advertise":   complete.PredictNothing,
+		"-consul-client-auto-join":       complete.PredictNothing,
+		"-consul-client-service-name":    complete.PredictAnything,
+		"-consul-client-http-check-name": complete.PredictAnything,
+		"-consul-server-service-name":    complete.PredictAnything,
+		"-consul-server-http-check-name": complete.PredictAnything,
+		"-consul-server-serf-check-name": complete.PredictAnything,
+		"-consul-server-rpc-check-name":  complete.PredictAnything,
+		"-consul-server-auto-join":       complete.PredictNothing,
+		"-consul-ssl":                    complete.PredictNothing,
+		"-consul-verify-ssl":             complete.PredictNothing,
+		"-consul-address":                complete.PredictAnything,
+		"-vault-enabled":                 complete.PredictNothing,
+		"-vault-allow-unauthenticated":   complete.PredictNothing,
+		"-vault-token":                   complete.PredictAnything,
+		"-vault-address":                 complete.PredictAnything,
+		"-vault-create-from-role":        complete.PredictAnything,
+		"-vault-ca-file":                 complete.PredictAnything,
+		"-vault-ca-path":                 complete.PredictAnything,
+		"-vault-cert-file":               complete.PredictAnything,
+		"-vault-key-file":                complete.PredictAnything,
+		"-vault-tls-skip-verify":         complete.PredictNothing,
+		"-vault-tls-server-name":         complete.PredictAnything,
+		"-acl-enabled":                   complete.PredictNothing,
+		"-acl-replication-token":         complete.PredictAnything,
+	}
+}
+
+func (c *Command) AutocompleteArgs() complete.Predictor {
+	return nil
 }
 
 func (c *Command) Run(args []string) int {
@@ -424,40 +595,49 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Setup the log outputs
-	logGate, _, logOutput := c.setupLoggers(config)
+	logGate, logOutput := c.setupLoggers(config)
 	if logGate == nil {
 		return 1
 	}
 
+	// Create logger
+	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
+		Name:       "agent",
+		Level:      hclog.LevelFromString(config.LogLevel),
+		Output:     logOutput,
+		JSONFormat: config.LogJson,
+	})
+
+	// Swap out UI implementation if json logging is enabled
+	if config.LogJson {
+		c.Ui = &logging.HcLogUI{Log: logger}
+	}
+
 	// Log config files
 	if len(config.Files) > 0 {
-		c.Ui.Info(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
+		c.Ui.Output(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
 	} else {
-		c.Ui.Info("No configuration files loaded")
+		c.Ui.Output("No configuration files loaded")
 	}
 
 	// Initialize the telemetry
-	if err := c.setupTelemetry(config); err != nil {
+	inmem, err := c.setupTelemetry(config)
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing telemetry: %s", err))
 		return 1
 	}
 
 	// Create the agent
-	if err := c.setupAgent(config, logOutput); err != nil {
+	if err := c.setupAgent(config, logger, logOutput, inmem); err != nil {
+		logGate.Flush()
 		return 1
 	}
 	defer c.agent.Shutdown()
 
-	// Check and shut down the SCADA listeners at the end
+	// Shutdown the HTTP server at the end
 	defer func() {
 		if c.httpServer != nil {
 			c.httpServer.Shutdown()
-		}
-		if c.scadaHttp != nil {
-			c.scadaHttp.Shutdown()
-		}
-		if c.scadaProvider != nil {
-			c.scadaProvider.Shutdown()
 		}
 	}()
 
@@ -469,17 +649,13 @@ func (c *Command) Run(args []string) int {
 
 	// Compile agent information for output later
 	info := make(map[string]string)
-	info["version"] = fmt.Sprintf("%s%s", config.Version, config.VersionPrerelease)
+	info["version"] = config.Version.VersionNumber()
 	info["client"] = strconv.FormatBool(config.Client.Enabled)
 	info["log level"] = config.LogLevel
 	info["server"] = strconv.FormatBool(config.Server.Enabled)
 	info["region"] = fmt.Sprintf("%s (DC: %s)", config.Region, config.Datacenter)
-	if config.Atlas != nil && config.Atlas.Infrastructure != "" {
-		info["atlas"] = fmt.Sprintf("(Infrastructure: '%s' Join: %v)",
-			config.Atlas.Infrastructure, config.Atlas.Join)
-	} else {
-		info["atlas"] = "<disabled>"
-	}
+	info["bind addrs"] = c.getBindAddrSynopsis()
+	info["advertise addrs"] = c.getAdvertiseAddrSynopsis()
 
 	// Sort the keys for output
 	infoKeys := make([]string, 0, len(info))
@@ -507,15 +683,91 @@ func (c *Command) Run(args []string) int {
 	logGate.Flush()
 
 	// Start retry join process
-	c.retryJoinErrCh = make(chan struct{})
-	go c.retryJoin(config)
+	if err := c.handleRetryJoin(config); err != nil {
+		c.Ui.Error(err.Error())
+		return 1
+	}
 
 	// Wait for exit
-	return c.handleSignals(config)
+	return c.handleSignals()
+}
+
+// handleRetryJoin is used to start retry joining if it is configured.
+func (c *Command) handleRetryJoin(config *Config) error {
+	c.retryJoinErrCh = make(chan struct{})
+
+	if config.Server.Enabled && len(config.Server.RetryJoin) != 0 {
+		joiner := retryJoiner{
+			discover:      &discover.Discover{},
+			errCh:         c.retryJoinErrCh,
+			logger:        c.agent.logger.Named("joiner"),
+			serverJoin:    c.agent.server.Join,
+			serverEnabled: true,
+		}
+
+		if err := joiner.Validate(config); err != nil {
+			return err
+		}
+
+		// Remove the duplicate fields
+		if len(config.Server.RetryJoin) != 0 {
+			config.Server.ServerJoin.RetryJoin = config.Server.RetryJoin
+			config.Server.RetryJoin = nil
+		}
+		if config.Server.RetryMaxAttempts != 0 {
+			config.Server.ServerJoin.RetryMaxAttempts = config.Server.RetryMaxAttempts
+			config.Server.RetryMaxAttempts = 0
+		}
+		if config.Server.RetryInterval != 0 {
+			config.Server.ServerJoin.RetryInterval = config.Server.RetryInterval
+			config.Server.RetryInterval = 0
+		}
+
+		c.agent.logger.Warn("using deprecated retry_join fields. Upgrade configuration to use server_join")
+	}
+
+	if config.Server.Enabled &&
+		config.Server.ServerJoin != nil &&
+		len(config.Server.ServerJoin.RetryJoin) != 0 {
+
+		joiner := retryJoiner{
+			discover:      &discover.Discover{},
+			errCh:         c.retryJoinErrCh,
+			logger:        c.agent.logger.Named("joiner"),
+			serverJoin:    c.agent.server.Join,
+			serverEnabled: true,
+		}
+
+		if err := joiner.Validate(config); err != nil {
+			return err
+		}
+
+		go joiner.RetryJoin(config.Server.ServerJoin)
+	}
+
+	if config.Client.Enabled &&
+		config.Client.ServerJoin != nil &&
+		len(config.Client.ServerJoin.RetryJoin) != 0 {
+		joiner := retryJoiner{
+			discover:      &discover.Discover{},
+			errCh:         c.retryJoinErrCh,
+			logger:        c.agent.logger.Named("joiner"),
+			clientJoin:    c.agent.client.SetServers,
+			clientEnabled: true,
+		}
+
+		if err := joiner.Validate(config); err != nil {
+			return err
+		}
+
+		go joiner.RetryJoin(config.Client.ServerJoin)
+	}
+
+	return nil
 }
 
 // handleSignals blocks until we get an exit-causing signal
-func (c *Command) handleSignals(config *Config) int {
+func (c *Command) handleSignals() int {
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
 
@@ -530,26 +782,25 @@ WAIT:
 	case <-c.retryJoinErrCh:
 		return 1
 	}
-	c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
 
-	// Skip any SIGPIPE signal (See issue #1798)
+	// Skip any SIGPIPE signal and don't try to log it (See issues #1798, #3554)
 	if sig == syscall.SIGPIPE {
 		goto WAIT
 	}
 
+	c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
+
 	// Check if this is a SIGHUP
 	if sig == syscall.SIGHUP {
-		if conf := c.handleReload(config); conf != nil {
-			*config = *conf
-		}
+		c.handleReload()
 		goto WAIT
 	}
 
 	// Check if we should do a graceful leave
 	graceful := false
-	if sig == os.Interrupt && config.LeaveOnInt {
+	if sig == os.Interrupt && c.agent.GetConfig().LeaveOnInt {
 		graceful = true
-	} else if sig == syscall.SIGTERM && config.LeaveOnTerm {
+	} else if sig == syscall.SIGTERM && c.agent.GetConfig().LeaveOnTerm {
 		graceful = true
 	}
 
@@ -580,13 +831,29 @@ WAIT:
 	}
 }
 
+// reloadHTTPServer shuts down the existing HTTP server and restarts it. This
+// is helpful when reloading the agent configuration.
+func (c *Command) reloadHTTPServer() error {
+	c.agent.logger.Info("reloading HTTP server with new TLS configuration")
+
+	c.httpServer.Shutdown()
+
+	http, err := NewHTTPServer(c.agent, c.agent.config)
+	if err != nil {
+		return err
+	}
+	c.httpServer = http
+
+	return nil
+}
+
 // handleReload is invoked when we should reload our configs, e.g. SIGHUP
-func (c *Command) handleReload(config *Config) *Config {
+func (c *Command) handleReload() {
 	c.Ui.Output("Reloading configuration...")
 	newConf := c.readConfig()
 	if newConf == nil {
 		c.Ui.Error(fmt.Sprintf("Failed to reload configs"))
-		return config
+		return
 	}
 
 	// Change the log level
@@ -599,25 +866,72 @@ func (c *Command) handleReload(config *Config) *Config {
 			minLevel, c.logFilter.Levels))
 
 		// Keep the current log level
-		newConf.LogLevel = config.LogLevel
+		newConf.LogLevel = c.agent.GetConfig().LogLevel
 	}
 
-	if s := c.agent.Server(); s != nil {
-		sconf, err := convertServerConfig(newConf, c.logOutput)
+	shouldReloadAgent, shouldReloadHTTP := c.agent.ShouldReload(newConf)
+	if shouldReloadAgent {
+		c.agent.logger.Debug("starting reload of agent config")
+		err := c.agent.Reload(newConf)
 		if err != nil {
-			c.agent.logger.Printf("[ERR] agent: failed to convert server config: %v", err)
-		} else {
-			if err := s.Reload(sconf); err != nil {
-				c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
-			}
+			c.agent.logger.Error("failed to reload the config", "error", err)
+			return
 		}
 	}
 
-	return newConf
+	if s := c.agent.Server(); s != nil {
+		c.agent.logger.Debug("starting reload of server config")
+		sconf, err := convertServerConfig(newConf)
+		if err != nil {
+			c.agent.logger.Error("failed to convert server config", "error", err)
+			return
+		}
+
+		// Finalize the config to get the agent objects injected in
+		c.agent.finalizeServerConfig(sconf)
+
+		// Reload the config
+		if err := s.Reload(sconf); err != nil {
+			c.agent.logger.Error("reloading server config failed", "error", err)
+			return
+		}
+	}
+
+	if s := c.agent.Client(); s != nil {
+		c.agent.logger.Debug("starting reload of client config")
+		clientConfig, err := convertClientConfig(newConf)
+		if err != nil {
+			c.agent.logger.Error("failed to convert client config", "error", err)
+			return
+		}
+
+		// Finalize the config to get the agent objects injected in
+		if err := c.agent.finalizeClientConfig(clientConfig); err != nil {
+			c.agent.logger.Error("failed to finalize client config", "error", err)
+			return
+		}
+
+		if err := c.agent.Client().Reload(clientConfig); err != nil {
+			c.agent.logger.Error("reloading client config failed", "error", err)
+			return
+		}
+	}
+
+	// reload HTTP server after we have reloaded both client and server, in case
+	// we error in either of the above cases. For example, reloading the http
+	// server to a TLS connection could succeed, while reloading the server's rpc
+	// connections could fail.
+	if shouldReloadHTTP {
+		err := c.reloadHTTPServer()
+		if err != nil {
+			c.agent.httpLogger.Error("reloading config failed", "error", err)
+			return
+		}
+	}
 }
 
 // setupTelemetry is used ot setup the telemetry sub-systems
-func (c *Command) setupTelemetry(config *Config) error {
+func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	/* Setup telemetry
 	Aggregate on 10 second intervals for 1 minute. Expose the
 	metrics over stderr when there is a SIGUSR1 received.
@@ -634,9 +948,26 @@ func (c *Command) setupTelemetry(config *Config) error {
 
 	metricsConf := metrics.DefaultConfig("nomad")
 	metricsConf.EnableHostname = !telConfig.DisableHostname
+
+	// Prefer the hostname as a label.
+	metricsConf.EnableHostnameLabel = !telConfig.DisableHostname &&
+		!telConfig.DisableTaggedMetrics && !telConfig.BackwardsCompatibleMetrics
+
 	if telConfig.UseNodeName {
 		metricsConf.HostName = config.NodeName
 		metricsConf.EnableHostname = true
+	}
+
+	allowedPrefixes, blockedPrefixes, err := telConfig.PrefixFilters()
+	if err != nil {
+		return inm, err
+	}
+
+	metricsConf.AllowedPrefixes = allowedPrefixes
+	metricsConf.BlockedPrefixes = blockedPrefixes
+
+	if telConfig.FilterDefault != nil {
+		metricsConf.FilterDefault = *telConfig.FilterDefault
 	}
 
 	// Configure the statsite sink
@@ -644,7 +975,7 @@ func (c *Command) setupTelemetry(config *Config) error {
 	if telConfig.StatsiteAddr != "" {
 		sink, err := metrics.NewStatsiteSink(telConfig.StatsiteAddr)
 		if err != nil {
-			return err
+			return inm, err
 		}
 		fanout = append(fanout, sink)
 	}
@@ -653,17 +984,27 @@ func (c *Command) setupTelemetry(config *Config) error {
 	if telConfig.StatsdAddr != "" {
 		sink, err := metrics.NewStatsdSink(telConfig.StatsdAddr)
 		if err != nil {
-			return err
+			return inm, err
 		}
 		fanout = append(fanout, sink)
+	}
+
+	// Configure the prometheus sink
+	if telConfig.PrometheusMetrics {
+		promSink, err := prometheus.NewPrometheusSink()
+		if err != nil {
+			return inm, err
+		}
+		fanout = append(fanout, promSink)
 	}
 
 	// Configure the datadog sink
 	if telConfig.DataDogAddr != "" {
 		sink, err := datadog.NewDogStatsdSink(telConfig.DataDogAddr, config.NodeName)
 		if err != nil {
-			return err
+			return inm, err
 		}
+		sink.SetTags(telConfig.DataDogTags)
 		fanout = append(fanout, sink)
 	}
 
@@ -698,7 +1039,7 @@ func (c *Command) setupTelemetry(config *Config) error {
 
 		sink, err := circonus.NewCirconusSink(cfg)
 		if err != nil {
-			return err
+			return inm, err
 		}
 		sink.Start()
 		fanout = append(fanout, sink)
@@ -712,99 +1053,89 @@ func (c *Command) setupTelemetry(config *Config) error {
 		metricsConf.EnableHostname = false
 		metrics.NewGlobal(metricsConf, inm)
 	}
-	return nil
-}
 
-// setupSCADA is used to start a new SCADA provider and listener,
-// replacing any existing listeners.
-func (c *Command) setupSCADA(config *Config) error {
-	// Shut down existing SCADA listeners
-	if c.scadaProvider != nil {
-		c.scadaProvider.Shutdown()
-	}
-	if c.scadaHttp != nil {
-		c.scadaHttp.Shutdown()
-	}
-
-	// No-op if we don't have an infrastructure
-	if config.Atlas == nil || config.Atlas.Infrastructure == "" {
-		return nil
-	}
-
-	// Create the new provider and listener
-	c.Ui.Output("Connecting to Atlas: " + config.Atlas.Infrastructure)
-
-	scadaConfig := &scada.Config{
-		Service:      "nomad",
-		Version:      fmt.Sprintf("%s%s", config.Version, config.VersionPrerelease),
-		ResourceType: "nomad-cluster",
-		Meta: map[string]string{
-			"auto-join":  strconv.FormatBool(config.Atlas.Join),
-			"region":     config.Region,
-			"datacenter": config.Datacenter,
-			"client":     strconv.FormatBool(config.Client != nil && config.Client.Enabled),
-			"server":     strconv.FormatBool(config.Server != nil && config.Server.Enabled),
-		},
-		Atlas: scada.AtlasConfig{
-			Endpoint:       config.Atlas.Endpoint,
-			Infrastructure: config.Atlas.Infrastructure,
-			Token:          config.Atlas.Token,
-		},
-	}
-
-	provider, list, err := scada.NewHTTPProvider(scadaConfig, c.logOutput)
-	if err != nil {
-		return err
-	}
-	c.scadaProvider = provider
-	c.scadaHttp = newScadaHttp(c.agent, list)
-	return nil
+	return inm, nil
 }
 
 func (c *Command) startupJoin(config *Config) error {
-	if len(config.Server.StartJoin) == 0 || !config.Server.Enabled {
+	// Nothing to do
+	if !config.Server.Enabled {
 		return nil
 	}
 
+	// Validate both old and new aren't being set
+	old := len(config.Server.StartJoin)
+	var new int
+	if config.Server.ServerJoin != nil {
+		new = len(config.Server.ServerJoin.StartJoin)
+	}
+	if old != 0 && new != 0 {
+		return fmt.Errorf("server_join and start_join cannot both be defined; prefer setting the server_join stanza")
+	}
+
+	// Nothing to do
+	if old+new == 0 {
+		return nil
+	}
+
+	// Combine the lists and join
+	joining := config.Server.StartJoin
+	if new != 0 {
+		joining = append(joining, config.Server.ServerJoin.StartJoin...)
+	}
+
 	c.Ui.Output("Joining cluster...")
-	n, err := c.agent.server.Join(config.Server.StartJoin)
+	n, err := c.agent.server.Join(joining)
 	if err != nil {
 		return err
 	}
 
-	c.Ui.Info(fmt.Sprintf("Join completed. Synced with %d initial agents", n))
+	c.Ui.Output(fmt.Sprintf("Join completed. Synced with %d initial agents", n))
 	return nil
 }
 
-// retryJoin is used to handle retrying a join until it succeeds or all retries
-// are exhausted.
-func (c *Command) retryJoin(config *Config) {
-	if len(config.Server.RetryJoin) == 0 || !config.Server.Enabled {
-		return
+// getBindAddrSynopsis returns a string that describes the addresses the agent
+// is bound to.
+func (c *Command) getBindAddrSynopsis() string {
+	if c == nil || c.agent == nil || c.agent.config == nil || c.agent.config.normalizedAddrs == nil {
+		return ""
 	}
 
-	logger := c.agent.logger
-	logger.Printf("[INFO] agent: Joining cluster...")
+	b := new(strings.Builder)
+	fmt.Fprintf(b, "HTTP: %s", c.agent.config.normalizedAddrs.HTTP)
 
-	attempt := 0
-	for {
-		n, err := c.agent.server.Join(config.Server.RetryJoin)
-		if err == nil {
-			logger.Printf("[INFO] agent: Join completed. Synced with %d initial agents", n)
-			return
+	if c.agent.server != nil {
+		if c.agent.config.normalizedAddrs.RPC != "" {
+			fmt.Fprintf(b, "; RPC: %s", c.agent.config.normalizedAddrs.RPC)
 		}
-
-		attempt++
-		if config.Server.RetryMaxAttempts > 0 && attempt > config.Server.RetryMaxAttempts {
-			logger.Printf("[ERR] agent: max join retry exhausted, exiting")
-			close(c.retryJoinErrCh)
-			return
+		if c.agent.config.normalizedAddrs.Serf != "" {
+			fmt.Fprintf(b, "; Serf: %s", c.agent.config.normalizedAddrs.Serf)
 		}
-
-		logger.Printf("[WARN] agent: Join failed: %v, retrying in %v", err,
-			config.Server.RetryInterval)
-		time.Sleep(config.Server.retryInterval)
 	}
+
+	return b.String()
+}
+
+// getAdvertiseAddrSynopsis returns a string that describes the addresses the agent
+// is advertising.
+func (c *Command) getAdvertiseAddrSynopsis() string {
+	if c == nil || c.agent == nil || c.agent.config == nil || c.agent.config.AdvertiseAddrs == nil {
+		return ""
+	}
+
+	b := new(strings.Builder)
+	fmt.Fprintf(b, "HTTP: %s", c.agent.config.AdvertiseAddrs.HTTP)
+
+	if c.agent.server != nil {
+		if c.agent.config.AdvertiseAddrs.RPC != "" {
+			fmt.Fprintf(b, "; RPC: %s", c.agent.config.AdvertiseAddrs.RPC)
+		}
+		if c.agent.config.AdvertiseAddrs.Serf != "" {
+			fmt.Fprintf(b, "; Serf: %s", c.agent.config.AdvertiseAddrs.Serf)
+		}
+	}
+
+	return b.String()
 }
 
 func (c *Command) Synopsis() string {
@@ -843,6 +1174,10 @@ General Options (clients and servers):
     downloaded artifacts used by drivers. On server nodes, the data
     dir is also used to store the replicated log.
 
+  -plugin-dir=<path>
+    The plugin directory is used to discover Nomad plugins. If not specified,
+    the plugin directory defaults to be that of <data-dir>/plugins/.
+
   -dc=<datacenter>
     The name of the datacenter this Nomad agent is a member of. By
     default this is set to "dc1".
@@ -851,6 +1186,9 @@ General Options (clients and servers):
     Specify the verbosity level of Nomad's logs. Valid values include
     DEBUG, INFO, and WARN, in decreasing order of verbosity. The
     default is INFO.
+
+  -log-json
+    Output logs in a JSON format. The default is false.
 
   -node=<name>
     The name of the local agent. This name is used to identify the node
@@ -865,7 +1203,13 @@ General Options (clients and servers):
     Start the agent in development mode. This enables a pre-configured
     dual-role agent (client + server) which is useful for developing
     or testing Nomad. No other configuration is required to start the
-    agent in this mode.
+    agent in this mode, but you may pass an optional comma-separated
+    list of mode configurations:
+
+  -dev-connect
+	Start the agent in development mode, but bind to a public network
+	interface rather than localhost for using Consul Connect. This
+	mode is supported only on Linux as root.
 
 Server Options:
 
@@ -877,7 +1221,7 @@ Server Options:
 
   -bootstrap-expect=<num>
     Configures the expected number of servers nodes to wait for before
-    bootstrapping the cluster. Once <num> servers have joined eachother,
+    bootstrapping the cluster. Once <num> servers have joined each other,
     Nomad initiates the bootstrap process.
 
   -encrypt=<key>
@@ -886,6 +1230,10 @@ Server Options:
   -join=<address>
     Address of an agent to join at start time. Can be specified
     multiple times.
+
+  -raft-protocol=<num>
+    The Raft protocol version to use. Used for enabling certain Autopilot
+    features. Defaults to 2.
 
   -retry-join=<address>
     Address of an agent to join at start time with retries enabled.
@@ -913,7 +1261,7 @@ Client Options:
     specified a subdirectory under the "-data-dir" will be used.
 
   -alloc-dir
-    The directory used to store allocation data such as downloaded artificats as
+    The directory used to store allocation data such as downloaded artifacts as
     well as data produced by tasks. If not specified, a subdirectory under the
     "-data-dir" will be used.
 
@@ -937,6 +1285,89 @@ Client Options:
     The default speed for network interfaces in MBits if the link speed can not
     be determined dynamically.
 
+ACL Options:
+
+  -acl-enabled
+    Specifies whether the agent should enable ACLs.
+
+  -acl-replication-token
+    The replication token for servers to use when replicating from the
+    authoritative region. The token must be a valid management token from the
+    authoritative region.
+
+Consul Options:
+
+  -consul-address=<addr>
+    Specifies the address to the local Consul agent, given in the format host:port.
+    Supports Unix sockets with the format: unix:///tmp/consul/consul.sock
+
+  -consul-auth=<auth>
+    Specifies the HTTP Basic Authentication information to use for access to the
+    Consul Agent, given in the format username:password.
+
+  -consul-auto-advertise
+    Specifies if Nomad should advertise its services in Consul. The services
+    are named according to server_service_name and client_service_name. Nomad
+    servers and clients advertise their respective services, each tagged
+    appropriately with either http or rpc tag. Nomad servers also advertise a
+    serf tagged service.
+
+  -consul-ca-file=<path>
+    Specifies an optional path to the CA certificate used for Consul communication.
+    This defaults to the system bundle if unspecified.
+
+  -consul-cert-file=<path>
+    Specifies the path to the certificate used for Consul communication. If this
+    is set then you need to also set key_file.
+
+  -consul-checks-use-advertise
+    Specifies if Consul heath checks should bind to the advertise address. By
+    default, this is the bind address.
+
+  -consul-client-auto-join
+    Specifies if the Nomad clients should automatically discover servers in the
+    same region by searching for the Consul service name defined in the
+    server_service_name option.
+
+  -consul-client-service-name=<name>
+    Specifies the name of the service in Consul for the Nomad clients.
+
+  -consul-client-http-check-name=<name>
+    Specifies the HTTP health check name in Consul for the Nomad clients.
+
+  -consul-key-file=<path>
+    Specifies the path to the private key used for Consul communication. If this
+    is set then you need to also set cert_file.
+
+  -consul-server-service-name=<name>
+    Specifies the name of the service in Consul for the Nomad servers.
+
+  -consul-server-http-check-name=<name>
+    Specifies the HTTP health check name in Consul for the Nomad servers.
+
+  -consul-server-serf-check-name=<name>
+    Specifies the Serf health check name in Consul for the Nomad servers.
+
+  -consul-server-rpc-check-name=<name>
+    Specifies the RPC health check name in Consul for the Nomad servers.
+
+  -consul-server-auto-join
+    Specifies if the Nomad servers should automatically discover and join other
+    Nomad servers by searching for the Consul service name defined in the
+    server_service_name option. This search only happens if the server does not
+    have a leader.
+
+  -consul-ssl
+    Specifies if the transport scheme should use HTTPS to communicate with the
+    Consul agent.
+
+  -consul-token=<token>
+    Specifies the token used to provide a per-request ACL token.
+
+  -consul-verify-ssl
+    Specifies if SSL peer verification should be used when communicating to the
+    Consul API client over HTTPS.
+
 Vault Options:
 
   -vault-enabled
@@ -955,7 +1386,7 @@ Vault Options:
     The role name to create tokens for tasks from.
 
   -vault-allow-unauthenticated
-    Whether to allow jobs to be sumbitted that request Vault Tokens but do not
+    Whether to allow jobs to be submitted that request Vault Tokens but do not
     authentication. The flag only applies to Servers.
 
   -vault-ca-file=<path>
@@ -977,22 +1408,6 @@ Vault Options:
 
   -vault-tls-server-name=<token>
     Used to set the SNI host when connecting over TLS.
-
-Atlas Options:
-
-  -atlas=<infrastructure>
-    The Atlas infrastructure name to configure. This enables the SCADA
-    client and attempts to connect Nomad to the HashiCorp Atlas service
-    using the provided infrastructure name and token.
-
-  -atlas-token=<token>
-    The Atlas token to use when connecting to the HashiCorp Atlas
-    service. This must be provided to successfully connect your Nomad
-    agent to Atlas.
-
-  -atlas-join
-    Enable the Atlas join feature. This mode allows agents to discover
-    eachother automatically using the SCADA integration features.
  `
 	return strings.TrimSpace(helpText)
 }

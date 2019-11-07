@@ -6,6 +6,7 @@ import (
 )
 
 func TestOperator_RaftGetConfiguration(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -22,6 +23,7 @@ func TestOperator_RaftGetConfiguration(t *testing.T) {
 }
 
 func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -31,6 +33,21 @@ func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
 	err := operator.RaftRemovePeerByAddress("nope", nil)
 	if err == nil || !strings.Contains(err.Error(),
 		"address \"nope\" was not found in the Raft configuration") {
+		t.Fatalf("err: %v", err)
+	}
+}
+
+func TestOperator_RaftRemovePeerByID(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	// If we get this error, it proves we sent the address all the way
+	// through.
+	operator := c.Operator()
+	err := operator.RaftRemovePeerByID("nope", nil)
+	if err == nil || !strings.Contains(err.Error(),
+		"id \"nope\" was not found in the Raft configuration") {
 		t.Fatalf("err: %v", err)
 	}
 }

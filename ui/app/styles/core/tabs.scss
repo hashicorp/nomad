@@ -1,0 +1,54 @@
+.tabs {
+  background: $white-ter;
+  font-weight: $weight-semibold;
+
+  ul {
+    padding-left: 1em;
+    padding-right: 1em;
+  }
+
+  a {
+    padding: 1em 1.5em;
+    color: darken($grey-blue, 20%);
+    border-bottom: none;
+    box-shadow: inset 0 0 0 $grey-blue;
+    transition: box-shadow 0.1s ease-in-out;
+    text-decoration: none;
+
+    &:hover,
+    &.is-active {
+      text-decoration: none;
+      border-bottom: none;
+      box-shadow: inset 0 -3px 0 $blue;
+      color: $blue;
+    }
+  }
+
+  li:first-child {
+    padding-left: 0;
+  }
+
+  li:last-child {
+    padding-right: 0;
+  }
+
+  &.is-subnav {
+    position: fixed;
+    top: $header-height;
+    left: $gutter-width;
+    right: 0;
+    z-index: $z-subnav;
+
+    + * {
+      margin-top: 5em;
+
+      &.is-closer {
+        margin-top: calc(3.5em + 1px);
+      }
+    }
+
+    @media #{$mq-hidden-gutter} {
+      left: 0;
+    }
+  }
+}

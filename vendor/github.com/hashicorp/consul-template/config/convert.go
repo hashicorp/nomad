@@ -30,7 +30,7 @@ func BoolGoString(b *bool) string {
 	return fmt.Sprintf("%t", *b)
 }
 
-// BoolPresent returns a boolean indiciating if the pointer is nil, or if the
+// BoolPresent returns a boolean indicating if the pointer is nil, or if the
 // pointer is pointing to the zero value..
 func BoolPresent(b *bool) bool {
 	if b == nil {
@@ -62,7 +62,7 @@ func FileModeGoString(o *os.FileMode) string {
 	return fmt.Sprintf("%q", *o)
 }
 
-// FileModePresent returns a boolean indiciating if the pointer is nil, or if
+// FileModePresent returns a boolean indicating if the pointer is nil, or if
 // the pointer is pointing to the zero value.
 func FileModePresent(o *os.FileMode) bool {
 	if o == nil {
@@ -93,7 +93,7 @@ func IntGoString(i *int) string {
 	return fmt.Sprintf("%d", *i)
 }
 
-// IntPresent returns a boolean indiciating if the pointer is nil, or if the
+// IntPresent returns a boolean indicating if the pointer is nil, or if the
 // pointer is pointing to the zero value.
 func IntPresent(i *int) bool {
 	if i == nil {
@@ -127,7 +127,7 @@ func SignalGoString(s *os.Signal) string {
 	return fmt.Sprintf("%q", *s)
 }
 
-// SignalPresent returns a boolean indiciating if the pointer is nil, or if the pointer is pointing to the zero value..
+// SignalPresent returns a boolean indicating if the pointer is nil, or if the pointer is pointing to the zero value..
 func SignalPresent(s *os.Signal) bool {
 	if s == nil {
 		return false
@@ -157,7 +157,7 @@ func StringGoString(s *string) string {
 	return fmt.Sprintf("%q", *s)
 }
 
-// StringPresent returns a boolean indiciating if the pointer is nil, or if the pointer is pointing to the zero value..
+// StringPresent returns a boolean indicating if the pointer is nil, or if the pointer is pointing to the zero value..
 func StringPresent(s *string) bool {
 	if s == nil {
 		return false
@@ -188,7 +188,7 @@ func TimeDurationGoString(t *time.Duration) string {
 	return fmt.Sprintf("%s", t)
 }
 
-// TimeDurationPresent returns a boolean indiciating if the pointer is nil, or if the pointer is pointing to the zero value..
+// TimeDurationPresent returns a boolean indicating if the pointer is nil, or if the pointer is pointing to the zero value..
 func TimeDurationPresent(t *time.Duration) bool {
 	if t == nil {
 		return false

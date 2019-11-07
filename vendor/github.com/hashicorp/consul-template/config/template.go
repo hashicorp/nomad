@@ -10,11 +10,6 @@ import (
 )
 
 const (
-	// DefaultTemplateFilePerms are the default file permissions for templates
-	// rendered onto disk when a specific file permission has not already been
-	// specified.
-	DefaultTemplateFilePerms = 0644
-
 	// DefaultTemplateCommandTimeout is the amount of time to wait for a command
 	// to return.
 	DefaultTemplateCommandTimeout = 30 * time.Second
@@ -24,10 +19,6 @@ var (
 	// ErrTemplateStringEmpty is the error returned with the template contents
 	// are empty.
 	ErrTemplateStringEmpty = errors.New("template: cannot be empty")
-
-	// ErrTemplateInvalidFormat is the error returned with the template is not
-	// a valid format.
-	ErrTemplateInvalidFormat = errors.New("template: invalid format")
 
 	// configTemplateRe is the pattern to split the config template syntax.
 	configTemplateRe = regexp.MustCompile("([a-zA-Z]:)?([^:]+)")
@@ -52,9 +43,17 @@ type TemplateConfig struct {
 	// must be specified, but not both.
 	Contents *string `mapstructure:"contents"`
 
+	// CreateDestDirs tells Consul Template to create the parent directories of
+	// the destination path if they do not exist. The default value is true.
+	CreateDestDirs *bool `mapstructure:"create_dest_dirs"`
+
 	// Destination is the location on disk where the template should be rendered.
 	// This is required unless running in debug/dry mode.
 	Destination *string `mapstructure:"destination"`
+
+	// ErrMissingKey is used to control how the template behaves when attempting
+	// to index a struct or map key that does not exist.
+	ErrMissingKey *bool `mapstructure:"error_on_missing_key"`
 
 	// Exec is the configuration for the command to run when the template renders
 	// successfully.
@@ -76,6 +75,15 @@ type TemplateConfig struct {
 	// delimiter is utilized when parsing the template.
 	LeftDelim  *string `mapstructure:"left_delimiter"`
 	RightDelim *string `mapstructure:"right_delimiter"`
+
+	// FunctionBlacklist is a list of functions that this template is not
+	// permitted to run.
+	FunctionBlacklist []string `mapstructure:"function_blacklist"`
+
+	// SandboxPath adds a prefix to any path provided to the `file` function
+	// and causes an error if a relative path tries to traverse outside that
+	// prefix.
+	SandboxPath *string `mapstructure:"sandbox_path"`
 }
 
 // DefaultTemplateConfig returns a configuration that is populated with the
@@ -103,7 +111,11 @@ func (c *TemplateConfig) Copy() *TemplateConfig {
 
 	o.Contents = c.Contents
 
+	o.CreateDestDirs = c.CreateDestDirs
+
 	o.Destination = c.Destination
+
+	o.ErrMissingKey = c.ErrMissingKey
 
 	if c.Exec != nil {
 		o.Exec = c.Exec.Copy()
@@ -119,6 +131,11 @@ func (c *TemplateConfig) Copy() *TemplateConfig {
 
 	o.LeftDelim = c.LeftDelim
 	o.RightDelim = c.RightDelim
+
+	for _, fun := range c.FunctionBlacklist {
+		o.FunctionBlacklist = append(o.FunctionBlacklist, fun)
+	}
+	o.SandboxPath = c.SandboxPath
 
 	return &o
 }
@@ -157,8 +174,16 @@ func (c *TemplateConfig) Merge(o *TemplateConfig) *TemplateConfig {
 		r.Contents = o.Contents
 	}
 
+	if o.CreateDestDirs != nil {
+		r.CreateDestDirs = o.CreateDestDirs
+	}
+
 	if o.Destination != nil {
 		r.Destination = o.Destination
+	}
+
+	if o.ErrMissingKey != nil {
+		r.ErrMissingKey = o.ErrMissingKey
 	}
 
 	if o.Exec != nil {
@@ -185,6 +210,13 @@ func (c *TemplateConfig) Merge(o *TemplateConfig) *TemplateConfig {
 		r.RightDelim = o.RightDelim
 	}
 
+	for _, fun := range o.FunctionBlacklist {
+		r.FunctionBlacklist = append(r.FunctionBlacklist, fun)
+	}
+	if o.SandboxPath != nil {
+		r.SandboxPath = o.SandboxPath
+	}
+
 	return r
 }
 
@@ -207,8 +239,16 @@ func (c *TemplateConfig) Finalize() {
 		c.Contents = String("")
 	}
 
+	if c.CreateDestDirs == nil {
+		c.CreateDestDirs = Bool(true)
+	}
+
 	if c.Destination == nil {
 		c.Destination = String("")
+	}
+
+	if c.ErrMissingKey == nil {
+		c.ErrMissingKey = Bool(false)
 	}
 
 	if c.Exec == nil {
@@ -225,7 +265,7 @@ func (c *TemplateConfig) Finalize() {
 	c.Exec.Finalize()
 
 	if c.Perms == nil {
-		c.Perms = FileMode(DefaultTemplateFilePerms)
+		c.Perms = FileMode(0)
 	}
 
 	if c.Source == nil {
@@ -244,6 +284,10 @@ func (c *TemplateConfig) Finalize() {
 	if c.RightDelim == nil {
 		c.RightDelim = String("")
 	}
+
+	if c.SandboxPath == nil {
+		c.SandboxPath = String("")
+	}
 }
 
 // GoString defines the printable version of this struct.
@@ -257,25 +301,33 @@ func (c *TemplateConfig) GoString() string {
 		"Command:%s, "+
 		"CommandTimeout:%s, "+
 		"Contents:%s, "+
+		"CreateDestDirs:%s, "+
 		"Destination:%s, "+
+		"ErrMissingKey:%s, "+
 		"Exec:%#v, "+
 		"Perms:%s, "+
 		"Source:%s, "+
 		"Wait:%#v, "+
 		"LeftDelim:%s, "+
 		"RightDelim:%s"+
+		"FunctionBlacklist:%s"+
+		"SandboxPath:%s"+
 		"}",
 		BoolGoString(c.Backup),
 		StringGoString(c.Command),
 		TimeDurationGoString(c.CommandTimeout),
 		StringGoString(c.Contents),
+		BoolGoString(c.CreateDestDirs),
 		StringGoString(c.Destination),
+		BoolGoString(c.ErrMissingKey),
 		c.Exec,
 		FileModeGoString(c.Perms),
 		StringGoString(c.Source),
 		c.Wait,
 		StringGoString(c.LeftDelim),
 		StringGoString(c.RightDelim),
+		c.FunctionBlacklist,
+		StringGoString(c.SandboxPath),
 	)
 }
 
@@ -383,7 +435,8 @@ func ParseTemplateConfig(s string) (*TemplateConfig, error) {
 	case 3:
 		source, destination, command = parts[0], parts[1], parts[2]
 	default:
-		return nil, ErrTemplateInvalidFormat
+		source, destination = parts[0], parts[1]
+		command = strings.Join(parts[2:], ":")
 	}
 
 	var sourcePtr, destinationPtr, commandPtr *string

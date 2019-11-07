@@ -1,0 +1,69 @@
+{
+	"client": [
+		{
+			"chroot_env": [
+				{
+					"e0": "baz"
+				}
+			],
+			"meta": [
+				{
+					"m0": "foo",
+					"m1": "bar",
+					"m2": true,
+					"m3": 1.2
+				}
+			],
+			"options": [
+				{
+					"o0": "foo",
+					"o1": "bar"
+				}
+			],
+			"server_join": [
+				{
+					"retry_join": [
+						"foo",
+						"bar"
+					],
+					"start_join": [
+						"foo",
+						"bar"
+					]
+				}
+			],
+			"servers": [
+				"foo",
+				"bar"
+			]
+		}
+	],
+	"server": [
+		{
+			"enabled_schedulers": [
+				"foo",
+				"bar"
+			],
+			"retry_join": [
+				"foo",
+				"bar"
+			],
+			"server_join": [
+				{
+					"retry_join": [
+						"foo",
+						"bar"
+					],
+					"start_join": [
+						"foo",
+						"bar"
+					]
+				}
+			],
+			"start_join": [
+				"foo",
+				"bar"
+			]
+		}
+	]
+}

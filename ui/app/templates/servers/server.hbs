@@ -1,0 +1,26 @@
+{{title "Server " model.name}}
+<div class="columns">
+  <div class="column is-half">
+    <div class="message">
+      <div class="message-header">
+        Tags
+      </div>
+      <table class="table server-tags">
+        <thead>
+          <tr>
+            <td>Name</td>
+            <td>Value</td>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each sortedTags as |tag|}}
+            <tr data-test-server-tag>
+              <td>{{tag.name}}</td>
+              <td>{{tag.value}}</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

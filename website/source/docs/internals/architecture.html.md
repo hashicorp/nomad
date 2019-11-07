@@ -60,12 +60,14 @@ clarify what is being discussed:
   The servers replicate data between each other and perform leader election to ensure high
   availability. Servers federate across regions to make Nomad globally aware.
 
-* **Regions and Datacenters** - Nomad models infrastructure as regions and datacenters.
-  Regions may contain multiple datacenters. Servers are assigned to regions and manage
-  all state for the region and make scheduling decisions within that region. Requests that
-  are made between regions are forwarded to the appropriate servers. As an example, you may
-  have a `US` region with the `us-east-1` and `us-west-1` datacenters, connected to the
-  `EU` region with the `eu-fr-1` and `eu-uk-1` datacenters.
+* **Regions and Datacenters** - Nomad models infrastructure as regions and
+  datacenters. Regions may contain multiple datacenters. Servers are assigned to
+  a specific region, managing state and making scheduling decisions within that
+  region. Multiple regions can be federated together. For example, you may
+  have a `US` region with the `us-east-1` and `us-west-1` datacenters,
+  connected to the `EU` region with the `eu-fr-1` and `eu-uk-1` datacenters.
+  Requests that are made between regions are forwarded to the appropriate servers.
+  Data is _not_ replicated between regions.
 
 * **Bin Packing** - Bin Packing is the process of filling bins with items in a way that
   maximizes the utilization of bins. This extends to Nomad, where the clients are "bins"
@@ -79,7 +81,7 @@ Looking at only a single region, at a high level Nomad looks like this:
 [![Regional Architecture](/assets/images/nomad-architecture-region.png)](/assets/images/nomad-architecture-region.png)
 
 Within each region, we have both clients and servers. Servers are responsible for
-accepting jobs from users, managing clients, and [computing task placements](/docs/internals/scheduling.html).
+accepting jobs from users, managing clients, and [computing task placements](/docs/internals/scheduling/scheduling.html).
 Each region may have clients from multiple datacenters, allowing a small number of servers
 to handle very large clusters.
 
@@ -92,7 +94,8 @@ At a high level, this setup looks like this:
 Regions are fully independent from each other, and do not share jobs, clients, or
 state. They are loosely-coupled using a gossip protocol, which allows users to
 submit jobs to any region or query the state of any region transparently. Requests
-are forwarded to the appropriate server to be processed and the results returned.
+are forwarded to the appropriate server to be processed and the results returned. 
+Data is _not_ replicated between regions.
 
 The servers in each region are all part of a single consensus group. This means
 that they work together to elect a single leader which has extra duties. The leader
@@ -129,7 +132,7 @@ ensuring PCI compliant workloads run on appropriate servers.
 
 This has been a brief high-level overview of the architecture of Nomad. There
 are more details available for each of the sub-systems. The [consensus protocol](/docs/internals/consensus.html),
-[gossip protocol](/docs/internals/gossip.html), and [scheduler design](/docs/internals/scheduling.html)
+[gossip protocol](/docs/internals/gossip.html), and [scheduler design](/docs/internals/scheduling/scheduling.html)
 are all documented in more detail.
 
 For other details, either consult the code, ask in IRC or reach out to the mailing list.

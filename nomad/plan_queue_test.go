@@ -17,6 +17,7 @@ func testPlanQueue(t *testing.T) *PlanQueue {
 }
 
 func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
+	t.Parallel()
 	pq := testPlanQueue(t)
 	if pq.Enabled() {
 		t.Fatalf("should not be enabled")
@@ -38,10 +39,15 @@ func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
 	}
 
 	resCh := make(chan *structs.PlanResult, 1)
+	errCh := make(chan error)
 	go func() {
+		defer close(errCh)
+		defer close(resCh)
+
 		res, err := future.Wait()
 		if err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
+			return
 		}
 		resCh <- res
 	}()
@@ -64,6 +70,10 @@ func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
 	pending.respond(result, nil)
 
 	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("error in anonymous goroutine: %s", err)
+		}
 	case r := <-resCh:
 		if r != result {
 			t.Fatalf("Bad: %#v", r)
@@ -74,6 +84,7 @@ func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
 }
 
 func TestPlanQueue_Enqueue_Disable(t *testing.T) {
+	t.Parallel()
 	pq := testPlanQueue(t)
 
 	// Enqueue
@@ -104,6 +115,7 @@ func TestPlanQueue_Enqueue_Disable(t *testing.T) {
 }
 
 func TestPlanQueue_Dequeue_Timeout(t *testing.T) {
+	t.Parallel()
 	pq := testPlanQueue(t)
 	pq.SetEnabled(true)
 
@@ -125,6 +137,7 @@ func TestPlanQueue_Dequeue_Timeout(t *testing.T) {
 
 // Ensure higher priority dequeued first
 func TestPlanQueue_Dequeue_Priority(t *testing.T) {
+	t.Parallel()
 	pq := testPlanQueue(t)
 	pq.SetEnabled(true)
 
@@ -158,6 +171,7 @@ func TestPlanQueue_Dequeue_Priority(t *testing.T) {
 
 // Ensure FIFO at fixed priority
 func TestPlanQueue_Dequeue_FIFO(t *testing.T) {
+	t.Parallel()
 	pq := testPlanQueue(t)
 	pq.SetEnabled(true)
 

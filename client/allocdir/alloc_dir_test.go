@@ -3,27 +3,23 @@ package allocdir
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
-	tomb "gopkg.in/tomb.v1"
-
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 var (
-	osMountSharedDirSupport = map[string]bool{
-		"darwin": true,
-		"linux":  true,
-	}
-
 	t1 = &structs.Task{
 		Name:   "web",
 		Driver: "exec",
@@ -49,10 +45,6 @@ var (
 	}
 )
 
-func testLogger() *log.Logger {
-	return log.New(os.Stderr, "", log.LstdFlags)
-}
-
 // Test that AllocDir.Build builds just the alloc directory.
 func TestAllocDir_BuildAlloc(t *testing.T) {
 	tmp, err := ioutil.TempDir("", "AllocDir")
@@ -61,7 +53,7 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	defer d.Destroy()
 	d.NewTaskDir(t1.Name)
 	d.NewTaskDir(t2.Name)
@@ -90,15 +82,28 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 	}
 }
 
+// HACK: This function is copy/pasted from client.testutil to prevent a test
+//       import cycle, due to testutil transitively importing allocdir. This
+//       should be fixed after DriverManager is implemented.
+func MountCompatible(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support mount")
+	}
+
+	if syscall.Geteuid() != 0 {
+		t.Skip("Must be root to run test")
+	}
+}
+
 func TestAllocDir_MountSharedAlloc(t *testing.T) {
-	testutil.MountCompatible(t)
+	MountCompatible(t)
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	defer d.Destroy()
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
@@ -106,11 +111,11 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 
 	// Build 2 task dirs
 	td1 := d.NewTaskDir(t1.Name)
-	if err := td1.Build(false, nil, cstructs.FSIsolationChroot); err != nil {
+	if err := td1.Build(true, nil); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t1.Name, err)
 	}
 	td2 := d.NewTaskDir(t2.Name)
-	if err := td2.Build(false, nil, cstructs.FSIsolationChroot); err != nil {
+	if err := td2.Build(true, nil); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t2.Name, err)
 	}
 
@@ -143,7 +148,7 @@ func TestAllocDir_Snapshot(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	defer d.Destroy()
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
@@ -151,11 +156,11 @@ func TestAllocDir_Snapshot(t *testing.T) {
 
 	// Build 2 task dirs
 	td1 := d.NewTaskDir(t1.Name)
-	if err := td1.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td1.Build(false, nil); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t1.Name, err)
 	}
 	td2 := d.NewTaskDir(t2.Name)
-	if err := td2.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td2.Build(false, nil); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t2.Name, err)
 	}
 
@@ -166,11 +171,23 @@ func TestAllocDir_Snapshot(t *testing.T) {
 		t.Fatalf("Couldn't write file to shared directory: %v", err)
 	}
 
+	// Write a symlink to the shared dir
+	link := "qux"
+	if err := os.Symlink("foo", filepath.Join(d.SharedDir, "data", link)); err != nil {
+		t.Fatalf("Couldn't write symlink to shared directory: %v", err)
+	}
+
 	// Write a file to the task local
 	exp = []byte{'b', 'a', 'r'}
 	file1 := "lol"
 	if err := ioutil.WriteFile(filepath.Join(td1.LocalDir, file1), exp, 0666); err != nil {
-		t.Fatalf("couldn't write to task local directory: %v", err)
+		t.Fatalf("couldn't write file to task local directory: %v", err)
+	}
+
+	// Write a symlink to the task local
+	link1 := "baz"
+	if err := os.Symlink("bar", filepath.Join(td1.LocalDir, link1)); err != nil {
+		t.Fatalf("couldn't write symlink to task local directory :%v", err)
 	}
 
 	var b bytes.Buffer
@@ -180,6 +197,7 @@ func TestAllocDir_Snapshot(t *testing.T) {
 
 	tr := tar.NewReader(&b)
 	var files []string
+	var links []string
 	for {
 		hdr, err := tr.Next()
 		if err != nil && err != io.EOF {
@@ -190,11 +208,16 @@ func TestAllocDir_Snapshot(t *testing.T) {
 		}
 		if hdr.Typeflag == tar.TypeReg {
 			files = append(files, hdr.FileInfo().Name())
+		} else if hdr.Typeflag == tar.TypeSymlink {
+			links = append(links, hdr.FileInfo().Name())
 		}
 	}
 
 	if len(files) != 2 {
 		t.Fatalf("bad files: %#v", files)
+	}
+	if len(links) != 2 {
+		t.Fatalf("bad links: %#v", links)
 	}
 }
 
@@ -212,20 +235,20 @@ func TestAllocDir_Move(t *testing.T) {
 	defer os.RemoveAll(tmp2)
 
 	// Create two alloc dirs
-	d1 := NewAllocDir(testLogger(), tmp1)
+	d1 := NewAllocDir(testlog.HCLogger(t), tmp1)
 	if err := d1.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
 	defer d1.Destroy()
 
-	d2 := NewAllocDir(testLogger(), tmp2)
+	d2 := NewAllocDir(testlog.HCLogger(t), tmp2)
 	if err := d2.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
 	defer d2.Destroy()
 
 	td1 := d1.NewTaskDir(t1.Name)
-	if err := td1.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td1.Build(false, nil); err != nil {
 		t.Fatalf("TaskDir.Build() faild: %v", err)
 	}
 
@@ -273,7 +296,7 @@ func TestAllocDir_EscapeChecking(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
@@ -296,13 +319,12 @@ func TestAllocDir_EscapeChecking(t *testing.T) {
 	}
 
 	// BlockUntilExists
-	tomb := tomb.Tomb{}
-	if _, err := d.BlockUntilExists("../foo", &tomb); err == nil || !strings.Contains(err.Error(), "escapes") {
+	if _, err := d.BlockUntilExists(context.Background(), "../foo"); err == nil || !strings.Contains(err.Error(), "escapes") {
 		t.Fatalf("BlockUntilExists of escaping path didn't error: %v", err)
 	}
 
 	// ChangeEvents
-	if _, err := d.ChangeEvents("../foo", 0, &tomb); err == nil || !strings.Contains(err.Error(), "escapes") {
+	if _, err := d.ChangeEvents(context.Background(), "../foo", 0); err == nil || !strings.Contains(err.Error(), "escapes") {
 		t.Fatalf("ChangeEvents of escaping path didn't error: %v", err)
 	}
 }
@@ -315,14 +337,14 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
 	defer d.Destroy()
 
 	td := d.NewTaskDir(t1.Name)
-	if err := td.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td.Build(false, nil); err != nil {
 		t.Fatalf("TaskDir.Build() failed: %v", err)
 	}
 
@@ -349,12 +371,18 @@ func TestAllocDir_SplitPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(info) != 6 {
-		t.Fatalf("expected: %v, actual: %v", 6, len(info))
+	// Testing that is 6 or more rather than 6 because on osx, the temp dir is
+	// randomized.
+	if len(info) < 6 {
+		t.Fatalf("expected more than: %v, actual: %v", 6, len(info))
 	}
 }
 
 func TestAllocDir_CreateDir(t *testing.T) {
+	if syscall.Geteuid() != 0 {
+		t.Skip("Must be root to run test")
+	}
+
 	dir, err := ioutil.TempDir("", "tmpdirtest")
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -391,6 +419,25 @@ func TestAllocDir_CreateDir(t *testing.T) {
 	}
 }
 
+// TestAllocDir_Copy asserts that AllocDir.Copy does a deep copy of itself and
+// all TaskDirs.
+func TestAllocDir_Copy(t *testing.T) {
+	a := NewAllocDir(testlog.HCLogger(t), "foo")
+	a.NewTaskDir("bar")
+	a.NewTaskDir("baz")
+
+	b := a.Copy()
+
+	// Clear the logger
+	require.Equal(t, a, b)
+
+	// Make sure TaskDirs map is copied
+	a.NewTaskDir("new")
+	if b.TaskDirs["new"] != nil {
+		t.Errorf("TaskDirs map shared between copied")
+	}
+}
+
 func TestPathFuncs(t *testing.T) {
 	dir, err := ioutil.TempDir("", "nomadtest-pathfuncs")
 	if err != nil {
@@ -423,5 +470,34 @@ func TestPathFuncs(t *testing.T) {
 
 	if empty, err := pathEmpty(dir); err != nil || empty {
 		t.Errorf("%q is not empty. empty=%v error=%v", dir, empty, err)
+	}
+}
+
+func TestAllocDir_DetectContentType(t *testing.T) {
+	require := require.New(t)
+	inputPath := "input/"
+	var testFiles []string
+	err := filepath.Walk(inputPath, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			testFiles = append(testFiles, path)
+		}
+		return err
+	})
+	require.Nil(err)
+
+	expectedEncodings := map[string]string{
+		"input/happy.gif": "image/gif",
+		"input/image.png": "image/png",
+		"input/nomad.jpg": "image/jpeg",
+		"input/test.bin":  "application/octet-stream",
+		"input/test.json": "application/json",
+		"input/test.txt":  "text/plain; charset=utf-8",
+		"input/test.go":   "text/plain; charset=utf-8",
+	}
+	for _, file := range testFiles {
+		fileInfo, err := os.Stat(file)
+		require.Nil(err)
+		res := detectContentType(fileInfo, file)
+		require.Equal(expectedEncodings[file], res, "unexpected output for %v", file)
 	}
 }

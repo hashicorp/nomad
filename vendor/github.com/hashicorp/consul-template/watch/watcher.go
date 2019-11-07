@@ -35,13 +35,18 @@ type Watcher struct {
 	maxStale time.Duration
 
 	// once signals if this watcher should tell views to retrieve data exactly
-	// one time intead of polling infinitely.
+	// one time instead of polling infinitely.
 	once bool
 
 	// retryFuncs specifies the different ways to retry based on the upstream.
 	retryFuncConsul  RetryFunc
 	retryFuncDefault RetryFunc
 	retryFuncVault   RetryFunc
+
+	// vaultGrace is the grace period between a lease and the max TTL for which
+	// Consul Template will generate a new secret instead of renewing an existing
+	// one.
+	vaultGrace time.Duration
 }
 
 type NewWatcherInput struct {
@@ -57,10 +62,21 @@ type NewWatcherInput struct {
 	// RenewVault indicates if this watcher should renew Vault tokens.
 	RenewVault bool
 
+	// VaultToken is the vault token to renew.
+	VaultToken string
+
+	// VaultAgentTokenFile is the path to Vault Agent token file
+	VaultAgentTokenFile string
+
 	// RetryFuncs specify the different ways to retry based on the upstream.
 	RetryFuncConsul  RetryFunc
 	RetryFuncDefault RetryFunc
 	RetryFuncVault   RetryFunc
+
+	// VaultGrace is the grace period between a lease and the max TTL for which
+	// Consul Template will generate a new secret instead of renewing an existing
+	// one.
+	VaultGrace time.Duration
 }
 
 // NewWatcher creates a new watcher using the given API client.
@@ -75,15 +91,26 @@ func NewWatcher(i *NewWatcherInput) (*Watcher, error) {
 		retryFuncConsul:  i.RetryFuncConsul,
 		retryFuncDefault: i.RetryFuncDefault,
 		retryFuncVault:   i.RetryFuncVault,
+		vaultGrace:       i.VaultGrace,
 	}
 
 	// Start a watcher for the Vault renew if that config was specified
 	if i.RenewVault {
-		vt, err := dep.NewVaultTokenQuery()
+		vt, err := dep.NewVaultTokenQuery(i.VaultToken)
 		if err != nil {
 			return nil, errors.Wrap(err, "watcher")
 		}
 		if _, err := w.Add(vt); err != nil {
+			return nil, errors.Wrap(err, "watcher")
+		}
+	}
+
+	if len(i.VaultAgentTokenFile) > 0 {
+		vag, err := dep.NewVaultAgentTokenQuery(i.VaultAgentTokenFile)
+		if err != nil {
+			return nil, errors.Wrap(err, "watcher")
+		}
+		if _, err := w.Add(vag); err != nil {
 			return nil, errors.Wrap(err, "watcher")
 		}
 	}
@@ -102,7 +129,7 @@ func (w *Watcher) ErrCh() <-chan error {
 	return w.errCh
 }
 
-// Add adds the given dependency to the list of monitored depedencies
+// Add adds the given dependency to the list of monitored dependencies
 // and start the associated view. If the dependency already exists, no action is
 // taken.
 //
@@ -138,6 +165,7 @@ func (w *Watcher) Add(d dep.Dependency) (bool, error) {
 		MaxStale:   w.maxStale,
 		Once:       w.once,
 		RetryFunc:  retryFunc,
+		VaultGrace: w.vaultGrace,
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "watcher")
@@ -161,7 +189,7 @@ func (w *Watcher) Watching(d dep.Dependency) bool {
 }
 
 // ForceWatching is used to force setting the internal state of watching
-// a depedency. This is only used for unit testing purposes.
+// a dependency. This is only used for unit testing purposes.
 func (w *Watcher) ForceWatching(d dep.Dependency, enabled bool) {
 	w.Lock()
 	defer w.Unlock()

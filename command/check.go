@@ -2,10 +2,11 @@ package command
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/posener/complete"
 )
 
 const (
@@ -36,7 +37,7 @@ Agent Check Options:
      Minimum number of peers that a server is expected to know.
 
   -min-servers
-     Minumum number of servers that a client is expected to know.
+     Minimum number of servers that a client is expected to know.
 `
 
 	return strings.TrimSpace(helpText)
@@ -45,6 +46,8 @@ Agent Check Options:
 func (c *AgentCheckCommand) Synopsis() string {
 	return "Displays health of the local Nomad agent"
 }
+
+func (c *AgentCheckCommand) Name() string { return "check" }
 
 func (c *AgentCheckCommand) Run(args []string) int {
 	var minPeers, minServers int
@@ -55,6 +58,13 @@ func (c *AgentCheckCommand) Run(args []string) int {
 	flags.IntVar(&minServers, "min-servers", 1, "")
 
 	if err := flags.Parse(args); err != nil {
+		return 1
+	}
+
+	args = flags.Args()
+	if len(args) > 0 {
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -69,25 +79,21 @@ func (c *AgentCheckCommand) Run(args []string) int {
 		c.Ui.Output(fmt.Sprintf("unable to query agent info: %v", err))
 		return HealthCritical
 	}
-	if stats, ok := info["stats"]; !ok && (reflect.TypeOf(stats).Kind() == reflect.Map) {
-		c.Ui.Error("error getting stats from the agent api")
-		return 1
-	}
-	if _, ok := info["stats"]["nomad"]; ok {
-		return c.checkServerHealth(info["stats"], minPeers)
+	if _, ok := info.Stats["nomad"]; ok {
+		return c.checkServerHealth(info.Stats, minPeers)
 	}
 
-	if _, ok := info["stats"]["client"]; ok {
-		return c.checkClientHealth(info["stats"], minServers)
+	if clientStats, ok := info.Stats["client"]; ok {
+		return c.checkClientHealth(clientStats, minServers)
 	}
 	return HealthWarn
 }
 
 // checkServerHealth returns the health of a server.
 // TODO Add more rules for determining server health
-func (c *AgentCheckCommand) checkServerHealth(info map[string]interface{}, minPeers int) int {
-	raft := info["raft"].(map[string]interface{})
-	knownPeers, err := strconv.Atoi(raft["num_peers"].(string))
+func (c *AgentCheckCommand) checkServerHealth(info map[string]map[string]string, minPeers int) int {
+	raft := info["raft"]
+	knownPeers, err := strconv.Atoi(raft["num_peers"])
 	if err != nil {
 		c.Ui.Output(fmt.Sprintf("unable to get known peers: %v", err))
 		return HealthCritical
@@ -101,21 +107,20 @@ func (c *AgentCheckCommand) checkServerHealth(info map[string]interface{}, minPe
 }
 
 // checkClientHealth returns the health of a client
-func (c *AgentCheckCommand) checkClientHealth(info map[string]interface{}, minServers int) int {
-	clientStats := info["client"].(map[string]interface{})
-	knownServers, err := strconv.Atoi(clientStats["known_servers"].(string))
+func (c *AgentCheckCommand) checkClientHealth(clientStats map[string]string, minServers int) int {
+	knownServers, err := strconv.Atoi(clientStats["known_servers"])
 	if err != nil {
 		c.Ui.Output(fmt.Sprintf("unable to get known servers: %v", err))
 		return HealthCritical
 	}
 
-	heartbeatTTL, err := time.ParseDuration(clientStats["heartbeat_ttl"].(string))
+	heartbeatTTL, err := time.ParseDuration(clientStats["heartbeat_ttl"])
 	if err != nil {
 		c.Ui.Output(fmt.Sprintf("unable to parse heartbeat TTL: %v", err))
 		return HealthCritical
 	}
 
-	lastHeartbeat, err := time.ParseDuration(clientStats["last_heartbeat"].(string))
+	lastHeartbeat, err := time.ParseDuration(clientStats["last_heartbeat"])
 	if err != nil {
 		c.Ui.Output(fmt.Sprintf("unable to parse last heartbeat: %v", err))
 		return HealthCritical
@@ -132,4 +137,16 @@ func (c *AgentCheckCommand) checkClientHealth(info map[string]interface{}, minSe
 	}
 
 	return HealthPass
+}
+
+func (c *AgentCheckCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-min-peers":   complete.PredictAnything,
+			"-min-servers": complete.PredictAnything,
+		})
+}
+
+func (c *AgentCheckCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }

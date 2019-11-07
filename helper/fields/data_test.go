@@ -14,7 +14,7 @@ func TestFieldDataGet(t *testing.T) {
 	}{
 		"string type, string value": {
 			map[string]*FieldSchema{
-				"foo": &FieldSchema{Type: TypeString},
+				"foo": {Type: TypeString},
 			},
 			map[string]interface{}{
 				"foo": "bar",
@@ -25,7 +25,7 @@ func TestFieldDataGet(t *testing.T) {
 
 		"string type, int value": {
 			map[string]*FieldSchema{
-				"foo": &FieldSchema{Type: TypeInt},
+				"foo": {Type: TypeInt},
 			},
 			map[string]interface{}{
 				"foo": 42,
@@ -36,7 +36,7 @@ func TestFieldDataGet(t *testing.T) {
 
 		"string type, unset value": {
 			map[string]*FieldSchema{
-				"foo": &FieldSchema{Type: TypeString},
+				"foo": {Type: TypeString},
 			},
 			map[string]interface{}{},
 			"foo",
@@ -45,7 +45,7 @@ func TestFieldDataGet(t *testing.T) {
 
 		"string type, unset value with default": {
 			map[string]*FieldSchema{
-				"foo": &FieldSchema{
+				"foo": {
 					Type:    TypeString,
 					Default: "bar",
 				},
@@ -57,7 +57,7 @@ func TestFieldDataGet(t *testing.T) {
 
 		"int type, int value": {
 			map[string]*FieldSchema{
-				"foo": &FieldSchema{Type: TypeInt},
+				"foo": {Type: TypeInt},
 			},
 			map[string]interface{}{
 				"foo": 42,
@@ -68,7 +68,7 @@ func TestFieldDataGet(t *testing.T) {
 
 		"bool type, bool value": {
 			map[string]*FieldSchema{
-				"foo": &FieldSchema{Type: TypeBool},
+				"foo": {Type: TypeBool},
 			},
 			map[string]interface{}{
 				"foo": false,
@@ -79,7 +79,7 @@ func TestFieldDataGet(t *testing.T) {
 
 		"map type, map value": {
 			map[string]*FieldSchema{
-				"foo": &FieldSchema{Type: TypeMap},
+				"foo": {Type: TypeMap},
 			},
 			map[string]interface{}{
 				"foo": map[string]interface{}{
@@ -94,7 +94,7 @@ func TestFieldDataGet(t *testing.T) {
 
 		"array type, array value": {
 			map[string]*FieldSchema{
-				"foo": &FieldSchema{Type: TypeArray},
+				"foo": {Type: TypeArray},
 			},
 			map[string]interface{}{
 				"foo": []interface{}{},

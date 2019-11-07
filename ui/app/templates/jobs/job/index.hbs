@@ -1,0 +1,8 @@
+{{title "Job " model.name}}
+{{component (concat "job-page/" model.templateType)
+  job=model
+  sortProperty=sortProperty
+  sortDescending=sortDescending
+  currentPage=currentPage
+  gotoJob=(action "gotoJob")
+  gotoTaskGroup=(action "gotoTaskGroup")}}

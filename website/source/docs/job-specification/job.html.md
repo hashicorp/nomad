@@ -20,14 +20,13 @@ description: |-
 </table>
 
 The `job` stanza is the top-most configuration option in the job specification.
-A job is a declarative specification of tasks that Nomad should run. Jobs have a
-globally unique name, one or many task groups, which are themselves collections
-of one or many tasks.
+A job is a declarative specification of tasks that Nomad should run. Jobs have
+one or more task groups, which are themselves collections of one or more tasks.
+Job names are unique per [region][region] or [namespace][namespace] (if Nomad
+Enterprise is used).
 
 ```hcl
 job "docs" {
-  all_at_once = true
-
   constraint {
     # ...
   }
@@ -66,14 +65,25 @@ job "docs" {
 
 ## `job` Parameters
 
-- `all_at_once` `(bool: false)` - Controls if the entire set of tasks in the job
-  must be placed atomically or if they can be scheduled incrementally. This
-  should only be used for special circumstances.
+- `all_at_once` `(bool: false)` - Controls whether the scheduler can make
+  partial placements if optimistic scheduling resulted in an oversubscribed
+  node. This does not control whether all allocations for the job, where all
+  would be the desired count for each task group, must be placed atomically.
+  This should only be used for special circumstances.
 
 - `constraint` <code>([Constraint][constraint]: nil)</code> -
   This can be provided multiple times to define additional constraints. See the
   [Nomad constraint reference](/docs/job-specification/constraint.html) for more
   details.
+
+- `affinity` <code>([Affinity][affinity]: nil)</code> -
+    This can be provided multiple times to define preferred placement criteria. See the
+    [Nomad affinity reference](/docs/job-specification/affinity.html) for more
+    details.
+
+- `spread` <code>([Spread][spread]: nil)</code> - This can be provided multiple times
+  to define criteria for spreading allocations across a node attribute or metadata.
+  See the [Nomad spread reference](/docs/job-specification/spread.html) for more details.
 
 - `datacenters` `(array<string>: <required>)` - A list of datacenters in the region which are eligible
   for task placement. This must be provided, and does not have a default.
@@ -85,8 +95,15 @@ job "docs" {
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   with user-defined metadata.
 
+- `migrate` <code>([Migrate][]: nil)</code> - Specifies the groups strategy for
+  migrating off of draining nodes. If omitted, a default migration strategy is
+  applied. Only service jobs with a count greater than 1 support migrate stanzas.
+
+- `namespace` `(string: "default")` - The namespace in which to execute the job.
+  Values other than default are not allowed in non-Enterprise versions of Nomad.
+
 - `parameterized` <code>([Parameterized][parameterized]: nil)</code> - Specifies
-  the job as a paramterized job such that it can be dispatched against.
+  the job as a parameterized job such that it can be dispatched against.
 
 - `periodic` <code>([Periodic][]: nil)</code> - Allows the job to be scheduled
   at fixed times, dates or intervals.
@@ -96,6 +113,10 @@ job "docs" {
   inclusively, with a larger value corresponding to a higher priority.
 
 - `region` `(string: "global")` - The region in which to execute the job.
+
+- `reschedule` <code>([Reschedule][]: nil)</code> - Allows to specify a
+  rescheduling strategy. Nomad will then attempt to schedule the task on another
+  node if any of its allocation statuses become "failed".
 
 - `type` `(string: "service")` - Specifies the  [Nomad scheduler][scheduler] to
   use. Nomad provides the `service`, `system` and `batch` schedulers.
@@ -148,8 +169,8 @@ job "docs" {
 
 ### Batch Job
 
-This example job executes the `uptime` command across all Nomad clients in the
-fleet, as long as those machines are running Linux.
+This example job executes the `uptime` command on 10 Nomad clients in the fleet,
+restricting the eligible nodes to Linux machines.
 
 ```hcl
 job "docs" {
@@ -163,14 +184,11 @@ job "docs" {
   }
 
   group "example" {
+    count = 10
     task "uptime" {
       driver = "exec"
       config {
         command = "uptime"
-      }
-
-      resources {
-        cpu = 20
       }
     }
   }
@@ -204,10 +222,6 @@ job "docs" {
       vault {
         policies = ["secret-readonly"]
       }
-
-      resources {
-        cpu = 20
-      }
     }
   }
 }
@@ -216,15 +230,21 @@ job "docs" {
 When submitting this job, you would run:
 
 ```
-$ VAULT_TOKEN="..." nomad run example.nomad
+$ VAULT_TOKEN="..." nomad job run example.nomad
 ```
 
+[affinity]: /docs/job-specification/affinity.html "Nomad affinity Job Specification"
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
 [group]: /docs/job-specification/group.html "Nomad group Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
+[migrate]: /docs/job-specification/migrate.html "Nomad migrate Job Specification"
+[namespace]: /guides/governance-and-policy/namespaces.html
 [parameterized]: /docs/job-specification/parameterized.html "Nomad parameterized Job Specification"
 [periodic]: /docs/job-specification/periodic.html "Nomad periodic Job Specification"
+[region]: /guides/operations/federation.html
+[reschedule]: /docs/job-specification/reschedule.html "Nomad reschedule Job Specification"
+[scheduler]: /docs/schedulers.html "Nomad Scheduler Types"
+[spread]: /docs/job-specification/spread.html "Nomad spread Job Specification"
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [update]: /docs/job-specification/update.html "Nomad update Job Specification"
 [vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"
-[scheduler]: /docs/runtime/schedulers.html "Nomad Scheduler Types"

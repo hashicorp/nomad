@@ -17,7 +17,8 @@ description: |-
   </tr>
 </table>
 
-The `restart` stanza configures a group's behavior on task failure.
+The `restart` stanza configures a group's behavior on task failure. Restarts
+happen on the client that is running the task.
 
 ```hcl
 job "docs" {
@@ -46,7 +47,7 @@ job "docs" {
   controlled by `mode`. This is specified using a label suffix like "30s" or
   "1h". Defaults vary by job type, see below for more information.
 
-- `mode` `(string: "delay")` - Controls the behavior when the task fails more
+- `mode` `(string: "fail")` - Controls the behavior when the task fails more
   than `attempts` times in an interval. For a detailed explanation of these
   values and their behavior, please see the [mode values section](#mode-values).
 
@@ -59,21 +60,21 @@ defaults by job type:
 
     ```hcl
     restart {
-      attempts = 15
+      attempts = 3
       delay    = "15s"
-      interval = "168h"
-      mode     = "delay"
+      interval = "24h"
+      mode     = "fail"
     }
     ```
 
-- The default non-batch restart policy is:
+- The default service and system job restart policy is:
 
     ```hcl
     restart {
-      interval = "1m"
+      interval = "30m"
       attempts = 2
       delay    = "15s"
-      mode     = "delay"
+      mode     = "fail"
     }
     ```
 
@@ -90,8 +91,9 @@ restart {
 ```
 
 - `"delay"` - Instructs the scheduler to delay the next restart until the next
-  `interval` is reached. This is the default behavior.
+  `interval` is reached.
 
 - `"fail"` - Instructs the scheduler to not attempt to restart the task on
-  failure. This mode is useful for non-idempotent jobs which are unlikely to
-  succeed after a few failures.
+  failure. This is the default behavior. This mode is useful for non-idempotent jobs which are unlikely to
+  succeed after a few failures. Failed jobs will be restarted according to
+  the [`reschedule`](/docs/job-specification/reschedule.html) stanza.

@@ -6,6 +6,7 @@
 /*.hcl
 .DS_Store
 Thumbs.db
+.idea
 
 # Folders
 _obj
@@ -27,6 +28,7 @@ _testmain.go
 *.test
 *.prof
 
+tags
 bin/
 /pkg/
 .vagrant/
@@ -34,6 +36,12 @@ website/build/
 website/npm-debug.log
 *.old
 *.attr
+
+# Test file
+exit-code
+
+# Don't commit uncompressed state test files
+client/state/testdata/*.db
 
 ui/.sass-cache
 ui/static/base.css
@@ -51,9 +59,47 @@ example.nomad
 nomad_linux_amd64
 nomad_darwin_amd64
 TODO.md
-*.generated.go
-
+codecgen-*.generated.go
+GNUMakefile.local
 
 .terraform
 *.tfstate*
 rkt-*
+
+./idea
+*.iml
+
+# UI rules
+
+# compiled output
+/ui/dist
+/ui/tmp
+
+# dependencies
+/ui/node_modules
+/ui/bower_components
+
+# misc
+/ui/.sass-cache
+/ui/connect.lock
+/ui/coverage/*
+/ui/libpeerconnection.log
+/ui/npm-debug.log*
+/ui/testem.log
+/ui/.env*
+/ui/.pnp*
+.ignore
+
+# ember-try
+/ui/.node_modules.ember-try/
+/ui/bower.json.ember-try
+/ui/package.json.ember-try
+
+# generated routes file
+command/agent/bindata_assetfs.go
+
+# auto-generated cert file for Terraform/Azure
+azure-hashistack.pem
+
+# generated keys for e2e tests
+e2e/terraform/keys/

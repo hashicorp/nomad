@@ -1,0 +1,24 @@
+[Unit]
+Description=Nomad Agent
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/local/bin/nomad agent -config /etc/nomad.d
+KillMode=process
+KillSignal=SIGINT
+LimitNOFILE=65536
+LimitNPROC=infinity
+TasksMax=infinity
+Restart=on-failure
+RestartSec=2
+
+# systemd>=230 prefer StartLimitIntervalSec,StartLimitBurst in Unit,
+# however Ubuntu 16.04 only has systemd==229. Use these old style settings
+# as they will be supported by newer systemds.
+StartLimitBurst=3
+StartLimitInterval=10
+
+[Install]
+WantedBy=multi-user.target

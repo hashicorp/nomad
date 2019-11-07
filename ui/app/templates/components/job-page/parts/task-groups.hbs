@@ -1,0 +1,25 @@
+<div class="boxed-section">
+  <div class="boxed-section-head">
+    Task Groups
+  </div>
+  <div class="boxed-section-body is-full-bleed">
+    {{#list-table
+      source=sortedTaskGroups
+      sortProperty=sortProperty
+      sortDescending=sortDescending as |t|}}
+      {{#t.head}}
+        {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+        {{#t.sort-by prop="count"}}Count{{/t.sort-by}}
+        {{#t.sort-by prop="queuedOrStartingAllocs" class="is-3"}}Allocation Status{{/t.sort-by}}
+        {{#t.sort-by prop="reservedCPU"}}Reserved CPU{{/t.sort-by}}
+        {{#t.sort-by prop="reservedMemory"}}Reserved Memory{{/t.sort-by}}
+        {{#t.sort-by prop="reservedEphemeralDisk"}}Reserved Disk{{/t.sort-by}}
+      {{/t.head}}
+      {{#t.body as |row|}}
+        {{task-group-row data-test-task-group
+          taskGroup=row.model
+          onClick=(action gotoTaskGroup row.model)}}
+      {{/t.body}}
+    {{/list-table}}
+  </div>
+</div>

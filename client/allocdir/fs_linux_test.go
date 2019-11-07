@@ -64,7 +64,7 @@ func TestLinuxRootSecretDir(t *testing.T) {
 	if err := removeSecretDir(secretsDir); err != nil {
 		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
-	// run twice as it should be idemptotent
+	// run twice as it should be idempotent
 	if err := removeSecretDir(secretsDir); err != nil {
 		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
@@ -124,7 +124,7 @@ func TestLinuxUnprivilegedSecretDir(t *testing.T) {
 	if err := removeSecretDir(secretsDir); err != nil {
 		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
-	// run twice as it should be idemptotent
+	// run twice as it should be idempotent
 	if err := removeSecretDir(secretsDir); err != nil {
 		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}

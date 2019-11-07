@@ -29,7 +29,7 @@ var (
 	_ Dependency = (*HealthServiceQuery)(nil)
 
 	// HealthServiceQueryRe is the regular expression to use.
-	HealthServiceQueryRe = regexp.MustCompile(`\A` + tagRe + nameRe + dcRe + nearRe + filterRe + `\z`)
+	HealthServiceQueryRe = regexp.MustCompile(`\A` + tagRe + serviceNameRe + dcRe + nearRe + filterRe + `\z`)
 )
 
 func init() {
@@ -38,15 +38,19 @@ func init() {
 
 // HealthService is a service entry in Consul.
 type HealthService struct {
-	Node        string
-	NodeAddress string
-	Address     string
-	ID          string
-	Name        string
-	Tags        ServiceTags
-	Checks      []*api.HealthCheck
-	Status      string
-	Port        int
+	Node                string
+	NodeID              string
+	NodeAddress         string
+	NodeTaggedAddresses map[string]string
+	NodeMeta            map[string]string
+	ServiceMeta         map[string]string
+	Address             string
+	ID                  string
+	Name                string
+	Tags                ServiceTags
+	Checks              api.HealthChecks
+	Status              string
+	Port                int
 }
 
 // HealthServiceQuery is the representation of all a service query in Consul.
@@ -154,21 +158,28 @@ func (d *HealthServiceQuery) Fetch(clients *ClientSet, opts *QueryOptions) (inte
 		}
 
 		list = append(list, &HealthService{
-			Node:        entry.Node.Node,
-			NodeAddress: entry.Node.Address,
-			Address:     address,
-			ID:          entry.Service.ID,
-			Name:        entry.Service.Service,
-			Tags:        ServiceTags(deepCopyAndSortTags(entry.Service.Tags)),
-			Status:      status,
-			Checks:      entry.Checks,
-			Port:        entry.Service.Port,
+			Node:                entry.Node.Node,
+			NodeID:              entry.Node.ID,
+			NodeAddress:         entry.Node.Address,
+			NodeTaggedAddresses: entry.Node.TaggedAddresses,
+			NodeMeta:            entry.Node.Meta,
+			ServiceMeta:         entry.Service.Meta,
+			Address:             address,
+			ID:                  entry.Service.ID,
+			Name:                entry.Service.Service,
+			Tags:                ServiceTags(deepCopyAndSortTags(entry.Service.Tags)),
+			Status:              status,
+			Checks:              entry.Checks,
+			Port:                entry.Service.Port,
 		})
 	}
 
 	log.Printf("[TRACE] %s: returned %d results after filtering", d, len(list))
 
-	sort.Stable(ByNodeThenID(list))
+	// Sort unless the user explicitly asked for nearness
+	if d.near == "" {
+		sort.Stable(ByNodeThenID(list))
+	}
 
 	rm := &ResponseMetadata{
 		LastIndex:   qm.LastIndex,

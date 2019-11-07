@@ -1,7 +1,6 @@
 package allocdir
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 )
@@ -21,13 +20,8 @@ var (
 )
 
 // linkOrCopy is always copies dst to src on Windows.
-func linkOrCopy(src, dst string, perm os.FileMode) error {
-	return fileCopy(src, dst, perm)
-}
-
-// The windows version does nothing currently.
-func mountSharedDir(dir string) error {
-	return errors.New("Mount on Windows not supported.")
+func linkOrCopy(src, dst string, uid, gid int, perm os.FileMode) error {
+	return fileCopy(src, dst, uid, gid, perm)
 }
 
 // The windows version does nothing currently.
@@ -51,12 +45,7 @@ func removeSecretDir(dir string) error {
 }
 
 // The windows version does nothing currently.
-func dropDirPermissions(path string) error {
-	return nil
-}
-
-// The windows version does nothing currently.
-func unmountSharedDir(dir string) error {
+func dropDirPermissions(path string, desired os.FileMode) error {
 	return nil
 }
 
@@ -66,7 +55,7 @@ func MountSpecialDirs(taskDir string) error {
 	return nil
 }
 
-// unmountSpecialDirs unmounts the dev and proc file system from the chroot
-func unmountSpecialDirs(taskDir string) error {
-	return nil
+// getOwner doesn't work on Windows as Windows doesn't use int user IDs
+func getOwner(os.FileInfo) (int, int) {
+	return idUnsupported, idUnsupported
 }

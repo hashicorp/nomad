@@ -4,22 +4,26 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestArchFingerprint(t *testing.T) {
-	f := NewArchFingerprint(testLogger())
+	f := NewArchFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
-	ok, err := f.Fingerprint(&config.Config{}, node)
+
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !ok {
-		t.Fatalf("should apply")
+
+	if !response.Detected {
+		t.Fatalf("expected response to be applicable")
 	}
-	if node.Attributes["cpu.arch"] == "" {
-		t.Fatalf("missing arch")
-	}
+
+	assertNodeAttributeContains(t, response.Attributes, "cpu.arch")
 }

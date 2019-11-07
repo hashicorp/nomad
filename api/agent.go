@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 )
@@ -37,8 +38,8 @@ func (c *Client) Agent() *Agent {
 
 // Self is used to query the /v1/agent/self endpoint and
 // returns information specific to the running agent.
-func (a *Agent) Self() (map[string]map[string]interface{}, error) {
-	var out map[string]map[string]interface{}
+func (a *Agent) Self() (*AgentSelf, error) {
+	var out *AgentSelf
 
 	// Query the self endpoint on the agent
 	_, err := a.client.query("/v1/agent/self", &out, nil)
@@ -55,16 +56,18 @@ func (a *Agent) Self() (map[string]map[string]interface{}, error) {
 // populateCache is used to insert various pieces of static
 // data into the agent handle. This is used during subsequent
 // lookups for the same data later on to save the round trip.
-func (a *Agent) populateCache(info map[string]map[string]interface{}) {
+func (a *Agent) populateCache(self *AgentSelf) {
 	if a.nodeName == "" {
-		a.nodeName, _ = info["member"]["Name"].(string)
+		a.nodeName = self.Member.Name
 	}
-	if tags, ok := info["member"]["Tags"].(map[string]interface{}); ok {
-		if a.datacenter == "" {
-			a.datacenter, _ = tags["dc"].(string)
+	if a.datacenter == "" {
+		if val, ok := self.Config["Datacenter"]; ok {
+			a.datacenter, _ = val.(string)
 		}
-		if a.region == "" {
-			a.region, _ = tags["region"].(string)
+	}
+	if a.region == "" {
+		if val, ok := self.Config["Region"]; ok {
+			a.region, _ = val.(string)
 		}
 	}
 }
@@ -210,6 +213,81 @@ func (a *Agent) RemoveKey(key string) (*KeyringResponse, error) {
 	return &resp, err
 }
 
+// Health queries the agent's health
+func (a *Agent) Health() (*AgentHealthResponse, error) {
+	req, err := a.client.newRequest("GET", "/v1/agent/health")
+	if err != nil {
+		return nil, err
+	}
+
+	var health AgentHealthResponse
+	_, resp, err := a.client.doRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Always try to decode the response as JSON
+	err = json.NewDecoder(resp.Body).Decode(&health)
+	if err == nil {
+		return &health, nil
+	}
+
+	// Return custom error when response is not expected JSON format
+	return nil, fmt.Errorf("unable to unmarshal response with status %d: %v", resp.StatusCode, err)
+}
+
+// Monitor returns a channel which will receive streaming logs from the agent
+// Providing a non-nil stopCh can be used to close the connection and stop log streaming
+func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
+	errCh := make(chan error, 1)
+	r, err := a.client.newRequest("GET", "/v1/agent/monitor")
+	if err != nil {
+		errCh <- err
+		return nil, errCh
+	}
+
+	r.setQueryOptions(q)
+	_, resp, err := requireOK(a.client.doRequest(r))
+	if err != nil {
+		errCh <- err
+		return nil, errCh
+	}
+
+	frames := make(chan *StreamFrame, 10)
+	go func() {
+		defer resp.Body.Close()
+
+		dec := json.NewDecoder(resp.Body)
+
+		for {
+			select {
+			case <-stopCh:
+				close(frames)
+				return
+			default:
+			}
+
+			// Decode the next frame
+			var frame StreamFrame
+			if err := dec.Decode(&frame); err != nil {
+				close(frames)
+				errCh <- err
+				return
+			}
+
+			// Discard heartbeat frame
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			frames <- &frame
+		}
+	}()
+
+	return frames, errCh
+}
+
 // joinResponse is used to decode the response we get while
 // sending a member join request.
 type joinResponse struct {
@@ -218,10 +296,16 @@ type joinResponse struct {
 }
 
 type ServerMembers struct {
-	ServerName string
-	Region     string
-	DC         string
-	Members    []*AgentMember
+	ServerName   string
+	ServerRegion string
+	ServerDC     string
+	Members      []*AgentMember
+}
+
+type AgentSelf struct {
+	Config map[string]interface{}       `json:"config"`
+	Member AgentMember                  `json:"member"`
+	Stats  map[string]map[string]string `json:"stats"`
 }
 
 // AgentMember represents a cluster member known to the agent
@@ -256,4 +340,20 @@ func (a AgentMembersNameSort) Less(i, j int) bool {
 
 	return a[i].Name < a[j].Name
 
+}
+
+// AgentHealthResponse is the response from the Health endpoint describing an
+// agent's health.
+type AgentHealthResponse struct {
+	Client *AgentHealth `json:"client,omitempty"`
+	Server *AgentHealth `json:"server,omitempty"`
+}
+
+// AgentHealth describes the Client or Server's health in a Health request.
+type AgentHealth struct {
+	// Ok is false if the agent is unhealthy
+	Ok bool `json:"ok"`
+
+	// Message describes why the agent is unhealthy
+	Message string `json:"message"`
 }

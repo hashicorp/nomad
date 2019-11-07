@@ -31,7 +31,7 @@ type followerReplication struct {
 	peer Server
 
 	// commitment tracks the entries acknowledged by followers so that the
-	// leader's commit index can advance. It is updated on successsful
+	// leader's commit index can advance. It is updated on successful
 	// AppendEntries responses.
 	commitment *commitment
 
@@ -64,9 +64,9 @@ type followerReplication struct {
 	// notifyCh is notified to send out a heartbeat, which is used to check that
 	// this server is still leader.
 	notifyCh chan struct{}
-	// notify is a list of futures to be resolved upon receipt of an
-	// acknowledgement, then cleared from this list.
-	notify []*verifyFuture
+	// notify is a map of futures to be resolved upon receipt of an
+	// acknowledgement, then cleared from this map.
+	notify map[*verifyFuture]struct{}
 	// notifyLock protects 'notify'.
 	notifyLock sync.Mutex
 
@@ -85,13 +85,20 @@ func (s *followerReplication) notifyAll(leader bool) {
 	// Clear the waiting notifies minimizing lock time
 	s.notifyLock.Lock()
 	n := s.notify
-	s.notify = nil
+	s.notify = make(map[*verifyFuture]struct{})
 	s.notifyLock.Unlock()
 
 	// Submit our votes
-	for _, v := range n {
+	for v, _ := range n {
 		v.vote(leader)
 	}
+}
+
+// cleanNotify is used to delete notify, .
+func (s *followerReplication) cleanNotify(v *verifyFuture) {
+	s.notifyLock.Lock()
+	delete(s.notify, v)
+	s.notifyLock.Unlock()
 }
 
 // LastContact returns the time of last contact.
@@ -157,7 +164,7 @@ PIPELINE:
 	goto RPC
 }
 
-// replicateTo is a hepler to replicate(), used to replicate the logs up to a
+// replicateTo is a helper to replicate(), used to replicate the logs up to a
 // given last index.
 // If the follower log is behind, we take care to bring them up to date.
 func (r *Raft) replicateTo(s *followerReplication, lastIndex uint64) (shouldStop bool) {
@@ -183,7 +190,7 @@ START:
 
 	// Make the RPC call
 	start = time.Now()
-	if err := r.trans.AppendEntries(s.peer.Address, &req, &resp); err != nil {
+	if err := r.trans.AppendEntries(s.peer.ID, s.peer.Address, &req, &resp); err != nil {
 		r.logger.Printf("[ERR] raft: Failed to AppendEntries to %v: %v", s.peer, err)
 		s.failures++
 		return
@@ -278,7 +285,7 @@ func (r *Raft) sendLatestSnapshot(s *followerReplication) (bool, error) {
 		RPCHeader:          r.getRPCHeader(),
 		SnapshotVersion:    meta.Version,
 		Term:               s.currentTerm,
-		Leader:             r.trans.EncodePeer(r.localAddr),
+		Leader:             r.trans.EncodePeer(r.localID, r.localAddr),
 		LastLogIndex:       meta.Index,
 		LastLogTerm:        meta.Term,
 		Peers:              meta.Peers,
@@ -290,7 +297,7 @@ func (r *Raft) sendLatestSnapshot(s *followerReplication) (bool, error) {
 	// Make the call
 	start := time.Now()
 	var resp InstallSnapshotResponse
-	if err := r.trans.InstallSnapshot(s.peer.Address, &req, &resp, snapshot); err != nil {
+	if err := r.trans.InstallSnapshot(s.peer.ID, s.peer.Address, &req, &resp, snapshot); err != nil {
 		r.logger.Printf("[ERR] raft: Failed to install snapshot %v: %v", snapID, err)
 		s.failures++
 		return false, err
@@ -332,7 +339,7 @@ func (r *Raft) heartbeat(s *followerReplication, stopCh chan struct{}) {
 	req := AppendEntriesRequest{
 		RPCHeader: r.getRPCHeader(),
 		Term:      s.currentTerm,
-		Leader:    r.trans.EncodePeer(r.localAddr),
+		Leader:    r.trans.EncodePeer(r.localID, r.localAddr),
 	}
 	var resp AppendEntriesResponse
 	for {
@@ -345,7 +352,7 @@ func (r *Raft) heartbeat(s *followerReplication, stopCh chan struct{}) {
 		}
 
 		start := time.Now()
-		if err := r.trans.AppendEntries(s.peer.Address, &req, &resp); err != nil {
+		if err := r.trans.AppendEntries(s.peer.ID, s.peer.Address, &req, &resp); err != nil {
 			r.logger.Printf("[ERR] raft: Failed to heartbeat to %v: %v", s.peer.Address, err)
 			failures++
 			select {
@@ -367,7 +374,7 @@ func (r *Raft) heartbeat(s *followerReplication, stopCh chan struct{}) {
 // back to the standard replication which can handle more complex situations.
 func (r *Raft) pipelineReplicate(s *followerReplication) error {
 	// Create a new pipeline
-	pipeline, err := r.trans.AppendEntriesPipeline(s.peer.Address)
+	pipeline, err := r.trans.AppendEntriesPipeline(s.peer.ID, s.peer.Address)
 	if err != nil {
 		return err
 	}
@@ -476,7 +483,7 @@ func (r *Raft) pipelineDecode(s *followerReplication, p AppendPipeline, stopCh, 
 func (r *Raft) setupAppendEntries(s *followerReplication, req *AppendEntriesRequest, nextIndex, lastIndex uint64) error {
 	req.RPCHeader = r.getRPCHeader()
 	req.Term = s.currentTerm
-	req.Leader = r.trans.EncodePeer(r.localAddr)
+	req.Leader = r.trans.EncodePeer(r.localID, r.localAddr)
 	req.LeaderCommitIndex = r.getCommitIndex()
 	if err := r.setPreviousLog(req, nextIndex); err != nil {
 		return err

@@ -1,0 +1,12 @@
+{{#if job.hasPlacementFailures}}
+  <div class="boxed-section is-danger" data-test-placement-failures>
+    <div class="boxed-section-head">
+      Placement Failures
+    </div>
+    <div class="boxed-section-body">
+      {{#each job.taskGroups as |taskGroup|}}
+        {{placement-failure taskGroup=taskGroup}}
+      {{/each}}
+    </div>
+  </div>
+{{/if}}

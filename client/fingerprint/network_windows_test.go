@@ -1,9 +1,13 @@
 package fingerprint
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/hashicorp/nomad/helper/testlog"
+)
 
 func TestNetworkFingerPrint_linkspeed_parse(t *testing.T) {
-	f := &NetworkFingerprint{logger: testLogger(), interfaceDetector: &DefaultNetworkInterfaceDetector{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &DefaultNetworkInterfaceDetector{}}
 
 	var outputTests = []struct {
 		in  string
