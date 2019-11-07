@@ -14,7 +14,6 @@ addParameters({
 addDecorator(storyFn => {
   const { template, context } = storyFn();
 
-  // This is applied to a wrapper element just inside .ember-application
   const wrapperElementStyle = {
     margin: '20px',
   };
