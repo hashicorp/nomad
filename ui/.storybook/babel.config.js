@@ -25,4 +25,3 @@ module.exports = {
     ['emotion', { sourceMap: true, autoLabel: true }],
   ],
 };
-// FIXME this is copied wholesale from Vault, should be adapted
