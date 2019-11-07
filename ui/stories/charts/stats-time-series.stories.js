@@ -4,7 +4,7 @@ import EmberObject, { computed } from '@ember/object';
 import { on } from '@ember/object/evented';
 import moment from 'moment';
 
-import DelayedArray from '../delayed-array';
+import DelayedArray from '../utils/delayed-array';
 
 export default {
   title: 'Charts|Stats Time Series',

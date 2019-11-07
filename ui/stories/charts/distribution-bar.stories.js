@@ -3,7 +3,7 @@ import hbs from 'htmlbars-inline-precompile';
 import EmberObject, { computed } from '@ember/object';
 import { on } from '@ember/object/evented';
 
-import DelayedTruth from '../delayed-truth';
+import DelayedTruth from '../utils/delayed-truth';
 
 export default {
   title: 'Charts|Distribution Bar',
