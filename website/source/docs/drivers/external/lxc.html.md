@@ -13,7 +13,7 @@ Name: `lxc`
 The `lxc` driver provides an interface for using LXC for running application
 containers. You can download the external LXC driver [here][lxc-driver]. For more detailed instructions on how to set up and use this driver, please refer to the [LXC guide][lxc-guide].
 
-~> The LXC client set up has changed in Nomad 0.9. You must use the new [plugin syntax][plugin] and install the external LXC driver in the [plugin_dir][plugin_dir] prior to upgrading. See [plugin options][plugin-options] below for an example. Note the job specification remains the same.
+~> **Note:** The LXC client set up has changed in Nomad 0.9. You must use the new [plugin syntax][plugin] and install the external LXC driver in the [plugin_dir][plugin_dir] prior to upgrading. See [plugin options][plugin-options] below for an example. Note the job specification remains the same.
 
 ## Task Configuration
 
@@ -74,24 +74,24 @@ The `lxc` driver supports the following configuration in the job spec:
 
 * `volumes` - (Optional) A list of `host_path:container_path` strings to bind-mount host paths to container paths. Mounting host paths outside of the allocation directory can be disabled on clients by setting the [`volumes_enabled`](#volumes_enabled) option set to false. This will limit volumes to directories that exist inside the allocation directory.
 
-  Note that unlike the similar option for the docker driver, this
-  option must not have an absolute path as the `container_path`
-  component. This will cause an error when submitting a job.
+    ~> **Note:**  Unlike the similar option for the docker driver, this
+    option must not have an absolute path as the `container_path`
+    component. This will cause an error when submitting a job.
 
-  Setting this does not affect the standard bind-mounts of `alloc`,
-  `local`, and `secrets`, which are always created.
+    Setting this does not affect the standard bind-mounts of `alloc`,
+    `local`, and `secrets`, which are always created.
 
-```hcl
-config {
-  volumes = [
-    # Use absolute paths to mount arbitrary paths on the host
-    "/path/on/host:path/in/container",
+    ```hcl
+    config {
+      volumes = [
+        # Use absolute paths to mount arbitrary paths on the host
+        "/path/on/host:path/in/container",
 
-    # Use relative paths to rebind paths already in the allocation dir
-    "relative/to/task:also/in/container"
-  ]
-}
-```
+        # Use relative paths to rebind paths already in the allocation dir
+        "relative/to/task:also/in/container"
+      ]
+    }
+    ```
 
 * `release` - (Optional) The name/version of the distribution. By default this is set by the template.
 
@@ -128,7 +128,7 @@ The `lxc` driver requires the following:
 * `liblxc` to be installed
 * `lxc-templates` to be installed
 
-## Plugin Options<a id="plugin_options"></a>
+## Plugin Options
 
 * `enabled` - The `lxc` driver may be disabled on hosts by setting this option to `false` (defaults to `true`).
 
@@ -160,11 +160,10 @@ Please note the plugin name should match whatever name you have specified for th
 
 ## Client Configuration
 
-~> Only use this section for pre-0.9 releases of Nomad. If you are using Nomad
+-> Only use this section for pre-0.9 releases of Nomad. If you are using Nomad
 0.9 or above, please see [plugin options][plugin-options]
 
-The `lxc` driver has the following [client configuration
-options](/docs/configuration/client.html#options):
+The `lxc` driver has the following [client-level options][client_options]:
 
 * `lxc.enable` - The `lxc` driver may be disabled on hosts by setting this
   option to `false` (defaults to `true`).
@@ -188,3 +187,4 @@ isolation is not supported as of now.
 [plugin]: /docs/configuration/plugin.html
 [plugin_dir]: /docs/configuration/index.html#plugin_dir
 [plugin-options]: #plugin_options
+[client_options]: /docs/configuration/client.html#options
