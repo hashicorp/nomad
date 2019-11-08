@@ -277,6 +277,11 @@ func handleUI(h http.Handler) http.Handler {
 
 func handleRootRedirect() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != "/" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
 		http.Redirect(w, req, "/ui/", 307)
 		return
 	})
