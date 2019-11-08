@@ -413,17 +413,15 @@ func (n *Nodes) Stats(nodeID string, q *QueryOptions) (*HostStats, error) {
 }
 
 func (n *Nodes) GC(nodeID string, q *QueryOptions) error {
-	var resp struct{}
 	path := fmt.Sprintf("/v1/client/gc?node_id=%s", nodeID)
-	_, err := n.client.query(path, &resp, q)
+	_, err := n.client.query(path, nil, q)
 	return err
 }
 
 // TODO Add tests
 func (n *Nodes) GcAlloc(allocID string, q *QueryOptions) error {
-	var resp struct{}
 	path := fmt.Sprintf("/v1/client/allocation/%s/gc", allocID)
-	_, err := n.client.query(path, &resp, q)
+	_, err := n.client.query(path, nil, q)
 	return err
 }
 

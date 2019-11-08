@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -930,8 +931,16 @@ func parseWriteMeta(resp *http.Response, q *WriteMeta) error {
 
 // decodeBody is used to JSON decode a body
 func decodeBody(resp *http.Response, out interface{}) error {
-	dec := json.NewDecoder(resp.Body)
-	return dec.Decode(out)
+	switch resp.ContentLength {
+	case 0:
+		if out == nil {
+			return nil
+		}
+		return errors.New("Got 0 byte response with non-nil decode object")
+	default:
+		dec := json.NewDecoder(resp.Body)
+		return dec.Decode(out)
+	}
 }
 
 // encodeBody is used to encode a request body
