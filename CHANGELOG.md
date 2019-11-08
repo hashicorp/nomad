@@ -12,6 +12,7 @@ BUG FIXES:
  * nomad: Multiple connect enabled services in the same taskgroup failed to
    register [[GH-6646](https://github.com/hashicorp/nomad/issues/6646)]
  * scheduler: Changes to devices in resource stanza should cause rescheduling [[GH-6644](https://github.com/hashicorp/nomad/issues/6644)]
+ * api: Decompress web socket response body if gzipped on error responses [[GH-6650](https://github.com/hashicorp/nomad/issues/6650)]
  
 ## 0.10.1 (November 4, 2019)
 
