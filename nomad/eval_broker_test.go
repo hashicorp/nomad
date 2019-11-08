@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -731,24 +732,29 @@ func TestEvalBroker_Dequeue_Empty_Timeout(t *testing.T) {
 	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
-	doneCh := make(chan struct{}, 1)
 
+	errCh := make(chan error)
 	go func() {
+		defer close(errCh)
 		out, _, err := b.Dequeue(defaultSched, 0)
 		if err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
+			return
 		}
 		if out == nil {
-			t.Fatal("Expect an eval")
+			errCh <- errors.New("expected a non-nil value")
+			return
 		}
-		doneCh <- struct{}{}
 	}()
 
 	// Sleep for a little bit
 	select {
 	case <-time.After(5 * time.Millisecond):
-	case <-doneCh:
-		t.Fatalf("Dequeue(0) should block")
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("error from dequeue goroutine: %s", err)
+		}
+		t.Fatalf("Dequeue(0) should block, not finish")
 	}
 
 	// Enqueue to unblock the dequeue.
@@ -756,8 +762,10 @@ func TestEvalBroker_Dequeue_Empty_Timeout(t *testing.T) {
 	b.Enqueue(eval)
 
 	select {
-	case <-doneCh:
-		return
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("error from dequeue goroutine: %s", err)
+		}
 	case <-time.After(5 * time.Millisecond):
 		t.Fatal("timeout: Dequeue(0) should return after enqueue")
 	}
