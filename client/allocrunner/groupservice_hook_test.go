@@ -1,7 +1,6 @@
 package allocrunner
 
 import (
-	"context"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -18,41 +17,39 @@ var _ interfaces.RunnerPrerunHook = (*groupServiceHook)(nil)
 var _ interfaces.RunnerUpdateHook = (*groupServiceHook)(nil)
 var _ interfaces.RunnerPostrunHook = (*groupServiceHook)(nil)
 
-type testRestartCounter int
-
-func (t *testRestartCounter) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
-	*t++
-	return nil
-}
-
 // TestGroupServiceHook_NoGroupServices asserts calling group service hooks
 // without group services does not error.
 func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Services = []*structs.Service{{
+		Name:      "foo",
+		PortLabel: "9999",
+	}}
+	node := mock.Node()
 	logger := testlog.HCLogger(t)
 	consulClient := consul.NewMockConsulServiceClient(t, logger)
 
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:     alloc,
 		consul:    consulClient,
-		restarter: new(testRestartCounter),
+		restarter: agentconsul.NoopRestarter(),
 		taskEnv:   taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build(),
 		logger:    logger,
 	})
 	require.NoError(t, h.Prerun())
 
-	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, Node: node}
 	require.NoError(t, h.Update(req))
 
 	require.NoError(t, h.Postrun())
 
 	ops := consulClient.GetOps()
-	require.Len(t, ops, 3)
-	require.Equal(t, "add_group", ops[0].Op)
-	require.Equal(t, "update_group", ops[1].Op)
-	require.Equal(t, "remove_group", ops[2].Op)
+	require.Len(t, ops, 4)
+	require.Equal(t, "add", ops[0].Op)
+	require.Equal(t, "update", ops[1].Op)
+	require.Equal(t, "remove", ops[2].Op)
 }
 
 // TestGroupServiceHook_GroupServices asserts group service hooks with group
@@ -61,36 +58,39 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.ConnectAlloc()
+	node := mock.Node()
 	logger := testlog.HCLogger(t)
 	consulClient := consul.NewMockConsulServiceClient(t, logger)
 
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:     alloc,
 		consul:    consulClient,
-		restarter: new(testRestartCounter),
+		restarter: agentconsul.NoopRestarter(),
 		taskEnv:   taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build(),
 		logger:    logger,
 	})
 	require.NoError(t, h.Prerun())
 
-	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, Node: node}
 	require.NoError(t, h.Update(req))
 
 	require.NoError(t, h.Postrun())
 
 	ops := consulClient.GetOps()
-	require.Len(t, ops, 3)
-	require.Equal(t, "add_group", ops[0].Op)
-	require.Equal(t, "update_group", ops[1].Op)
-	require.Equal(t, "remove_group", ops[2].Op)
+	require.Len(t, ops, 4)
+	require.Equal(t, "add", ops[0].Op)
+	require.Equal(t, "update", ops[1].Op)
+	require.Equal(t, "remove", ops[2].Op)
 }
 
 // TestGroupServiceHook_Error asserts group service hooks with group
 // services but no group network returns an error.
-func TestGroupServiceHook_Error(t *testing.T) {
+func TestGroupServiceHook_NoNetwork(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{}
+	node := mock.Node()
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	tg.Services = []*structs.Service{
 		{
@@ -103,21 +103,56 @@ func TestGroupServiceHook_Error(t *testing.T) {
 	}
 	logger := testlog.HCLogger(t)
 
-	// No need to set Consul client or call Run. This hould fail before
-	// attempting to register.
-	consulClient := agentconsul.NewServiceClient(nil, logger, false)
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
 
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:     alloc,
 		consul:    consulClient,
-		restarter: new(testRestartCounter),
+		restarter: agentconsul.NoopRestarter(),
 		taskEnv:   taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build(),
 		logger:    logger,
 	})
-	require.Error(t, h.Prerun())
+	require.NoError(t, h.Prerun())
 
-	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
-	require.Error(t, h.Update(req))
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, Node: node}
+	require.NoError(t, h.Update(req))
 
-	require.Error(t, h.Postrun())
+	require.NoError(t, h.Postrun())
+
+	ops := consulClient.GetOps()
+	require.Len(t, ops, 4)
+	require.Equal(t, "add", ops[0].Op)
+	require.Equal(t, "update", ops[1].Op)
+	require.Equal(t, "remove", ops[2].Op)
+}
+
+func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{}
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	tg.Services = []*structs.Service{
+		{
+			Name:      "testconnect",
+			PortLabel: "9999",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+			},
+		},
+	}
+	logger := testlog.HCLogger(t)
+
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
+
+	h := newGroupServiceHook(groupServiceHookConfig{
+		alloc:     alloc,
+		consul:    consulClient,
+		restarter: agentconsul.NoopRestarter(),
+		taskEnv:   taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build(),
+		logger:    logger,
+	})
+
+	services := h.getWorkloadServices()
+	require.Len(t, services.Services, 1)
 }
