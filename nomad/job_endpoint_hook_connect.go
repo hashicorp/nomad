@@ -142,7 +142,6 @@ func groupConnectHook(g *structs.TaskGroup) error {
 			if !found {
 				g.Networks[0].DynamicPorts = append(g.Networks[0].DynamicPorts, port)
 			}
-			return nil
 		}
 	}
 	return nil

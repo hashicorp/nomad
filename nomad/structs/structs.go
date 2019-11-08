@@ -5013,13 +5013,16 @@ func (tg *TaskGroup) validateNetworks() error {
 				}
 			}
 
-			if port.To != 0 {
+			if port.To > 0 {
 				if other, ok := mappedPorts[port.To]; ok {
 					err := fmt.Errorf("Port mapped to %d already in use by %s", port.To, other)
 					mErr.Errors = append(mErr.Errors, err)
 				} else {
 					mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
 				}
+			} else if port.To < -1 {
+				err := fmt.Errorf("Port %q cannot be mapped to negative value %d", port.Label, port.To)
+				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
 	}
