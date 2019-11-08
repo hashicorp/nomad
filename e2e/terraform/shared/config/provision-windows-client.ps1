@@ -1,15 +1,16 @@
-param([string]$cloud="aws", [string]$nomad_sha="")
-
-# TODO: index is currently unused
-#[string]$index=0)
+param(
+    [string]$Cloud = "aws",
+    [string]$NomadSha = "",
+    [string]$Index=0
+)
 
 # Force TLS1.2
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # Consul
 cp "C:\ops\shared\consul\base.json" "C:\opt\consul.d\base.json"
-cp "C:\ops\shared\consul\retry_$cloud.json" "C:\opt\consul.d\retry_$cloud.json"
-sc.exe create "Consul" binPath= "C:\opt\consul.exe agent -config-dir C:\opt\consul.d" start= auto
+cp "C:\ops\shared\consul\retry_$Cloud.json" "C:\opt\consul.d\retry_$Cloud.json"
+sc.exe create "Consul" binPath= "C:\opt\consul.exe agent -config-dir C:\opt\consul.d -log-file C:\opt\consul\consul.log" start= auto
 sc.exe start "Consul"
 
 # Vault
@@ -23,7 +24,7 @@ md C:\opt\nomad
 
 Read-S3Object `
   -BucketName nomad-team-test-binary `
-  -Key "builds-oss/nomad_windows_amd64_$nomad_sha.zip" `
+  -Key "builds-oss/nomad_windows_amd64_$NomadSha.zip" `
   -File .\nomad.zip
 
 Expand-Archive .\nomad.zip .\
@@ -44,5 +45,5 @@ md C:\tmp\data
 # Expand-7Zip -ArchiveFileName .\cni.tgz -TargetPath C:\opt\cni\bin\
 
 # enable as a service
-sc.exe create "Nomad" binPath= "C:\opt\nomad.exe agent -config-dir C:\opt\nomad.d" start= auto
+sc.exe create "Nomad" binPath= "C:\opt\nomad.exe agent -config C:\opt\nomad.d" start= auto
 sc.exe start "Nomad"

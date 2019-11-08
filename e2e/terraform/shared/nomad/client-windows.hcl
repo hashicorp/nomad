@@ -1,6 +1,7 @@
 enable_debug = true
 
 log_level = "debug"
+log_file = true
 
 data_dir = "C:\\opt\\nomad\\data"
 

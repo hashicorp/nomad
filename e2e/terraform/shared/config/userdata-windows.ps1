@@ -25,6 +25,6 @@ while (!(Test-Path $archiveFile)) { Start-Sleep 10 }
 
 Expand-Archive $archiveFile "C:\ops\shared"
 
-& C:\ops\shared\config\provision-windows-client.ps1 --cloud aws --sha ${nomad_sha} --index 1
+& C:\ops\shared\config\provision-windows-client.ps1 -Cloud aws -NomadSha ${nomad_sha} -Index 1
 
 </powershell>
