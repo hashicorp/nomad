@@ -16,16 +16,17 @@ For more detailed instructions on how to set up and use this driver, please refe
 ## Task Configuration
 
 ```hcl
-   task "test01" {
-      driver = "firecracker-task-driver"
-      config {
-       KernelImage = "/home/build/hello-vmlinux.bin" 
-       Firecracker = "/home/build/firecracker" 
-       Vcpus = 1 
-       Mem = 128
-       Network = "default"
-      }
-    }
+task "test01" {
+  driver = "firecracker-task-driver"
+
+  config {
+    KernelImage = "/home/build/hello-vmlinux.bin"
+    Firecracker = "/home/build/firecracker"
+    Vcpus       = 1
+    Mem         = 128
+    Network     = "default"
+  }
+}
 ```
 
 The firecracker task driver supports the following parameters:
@@ -65,27 +66,27 @@ Network configuration is setup using CNI plugins, the steps to setup firecracker
 -    Create a network configuration to be used by micro-vms on /etc/cni/conf.d/, for example: default.conflist.
 
 ### Example network configuration
-```hcl
+```json
 {
-	"name": "default",
-		"cniVersion": "0.4.0",
-		"plugins": [
-		{
-			"type": "ptp",
-			"ipMasq": true,
-			"ipam": {
-				"type": "host-local",
-				"subnet": "192.168.127.0/24",
-				"resolvConf": "/etc/resolv.conf"
-			}
-		},
-		{
-			"type": "firewall"
-		},
-		{
-			"type": "tc-redirect-tap"
-		}
-		]
+  "name": "default",
+  "cniVersion": "0.4.0",
+  "plugins": [
+    {
+      "type": "ptp",
+      "ipMasq": true,
+      "ipam": {
+        "type": "host-local",
+        "subnet": "192.168.127.0/24",
+        "resolvConf": "/etc/resolv.conf"
+      }
+    },
+    {
+      "type": "firewall"
+    },
+    {
+      "type": "tc-redirect-tap"
+    }
+  ]
 }
 ```
 In this example the name of this network is default and this name is the parameter used in Network on the task driver job spec. Also the filename must match the name of the network, and the suffix .conflist.
@@ -106,5 +107,5 @@ In this example the name of this network is default and this name is the paramet
 [plugin_dir]: /docs/configuration/index.html#plugin_dir
 [tc-redirect-tap]:https://github.com/firecracker-microvm/firecracker-go-sdk/tree/master/cni
 [Container network plugins]:https://github.com/containernetworking/plugins 
-[Firecracker binary]:https://github.com/firecracker-microvm/firecracker/releases/download/v0.16.0/firecracker-v0.16.0
+[Firecracker binary]:https://github.com/firecracker-microvm/firecracker/releases
 [firecracker-task-guide]:https://github.com/cneira/firecracker-task-driver
