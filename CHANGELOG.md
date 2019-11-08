@@ -9,6 +9,8 @@ IMPROVEMENTS:
 BUG FIXES:
 
  * cli: Make scoring column orders consistent `nomad alloc status` [[GH-6609](https://github.com/hashicorp/nomad/issues/6609)]
+ * nomad: Multiple connect enabled services in the same taskgroup failed to
+   register [[GH-6646](https://github.com/hashicorp/nomad/issues/6646)]
  * scheduler: Changes to devices in resource stanza should cause rescheduling [[GH-6644](https://github.com/hashicorp/nomad/issues/6644)]
  
 ## 0.10.1 (November 4, 2019)
