@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"reflect"
 	"sort"
@@ -265,8 +266,10 @@ func TestAllocations_ExecErrors(t *testing.T) {
 	}
 	job.Canonicalize()
 
+	allocID := uuid.Generate()
+
 	alloc := &Allocation{
-		ID:        "",
+		ID:        allocID,
 		Namespace: DefaultNamespace,
 		EvalID:    uuid.Generate(),
 		Name:      "foo-bar[1]",
@@ -280,9 +283,10 @@ func TestAllocations_ExecErrors(t *testing.T) {
 
 	// make a request that will result in an error
 	// ensure the error is what we expect
-	_, err := a.Exec(context.Background(), alloc, "bar", false, []string{"command"}, os.Stdin, os.Stdout, os.Stderr, sizeCh, nil)
-	require.Contains(t, err.Error(), "Unexpected response code: 301")
-	require.Contains(t, err.Error(), "Moved Permanently")
+	exitCode, err := a.Exec(context.Background(), alloc, "bar", false, []string{"command"}, os.Stdin, os.Stdout, os.Stderr, sizeCh, nil)
+
+	require.Equal(t, exitCode, -2)
+	require.Equal(t, err.Error(), fmt.Sprintf("Unknown allocation \"%s\"", allocID))
 }
 
 func TestAllocations_ShouldMigrate(t *testing.T) {
