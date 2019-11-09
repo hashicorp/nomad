@@ -91,6 +91,8 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	wsUpgrader := &websocket.Upgrader{
 		ReadBufferSize:  2048,
 		WriteBufferSize: 2048,
+		// http server already checks CORS policy already before upgrading
+		CheckOrigin: func(*http.Request) bool { return true },
 	}
 
 	// Create the server
