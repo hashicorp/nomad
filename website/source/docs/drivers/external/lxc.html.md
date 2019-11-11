@@ -13,7 +13,7 @@ Name: `lxc`
 The `lxc` driver provides an interface for using LXC for running application
 containers. You can download the external LXC driver [here][lxc-driver]. For more detailed instructions on how to set up and use this driver, please refer to the [LXC guide][lxc-guide].
 
-~> The LXC client set up has changed in Nomad 0.9. You must use the new [plugin syntax][plugin] and install the external LXC driver in the [plugin_dir][plugin_dir] prior to upgrading. See [plugin options][plugin-options] below for an example. Note the job specification remains the same.
+~> **Note:** The LXC client set up has changed in Nomad 0.9. You must use the new [plugin syntax][plugin] and install the external LXC driver in the [plugin_dir][plugin_dir] prior to upgrading. See [plugin options][plugin-options] below for an example. Note the job specification remains the same.
 
 ## Task Configuration
 
@@ -25,6 +25,19 @@ task "busybox" {
     log_level = "trace"
     verbosity = "verbose"
     template = "/usr/share/lxc/templates/lxc-busybox"
+    template_args = []
+
+    # these optional values can be set in the template
+    distro =          ""
+    release =         ""
+    arch =            ""
+    image_variant =   "default"
+    image_server =    "images.linuxcontainers.org"
+    gpg_key_id =      ""
+    gpg_key_server =  ""
+    disable_gpg =     false
+    flush_cache =     false
+    force_cache =     false
   }
 }
 ```
@@ -38,6 +51,8 @@ The `lxc` driver supports the following configuration in the job spec:
       template = "/usr/share/lxc/templates/lxc-alpine"
     }
     ```
+
+* `template_args` - A list of argument strings to pass into the template.
 
 * `log_level` - (Optional) LXC library's logging level. Defaults to `error`.
   Must be one of `trace`, `debug`, `info`, `warn`, or `error`.
@@ -59,24 +74,43 @@ The `lxc` driver supports the following configuration in the job spec:
 
 * `volumes` - (Optional) A list of `host_path:container_path` strings to bind-mount host paths to container paths. Mounting host paths outside of the allocation directory can be disabled on clients by setting the [`volumes_enabled`](#volumes_enabled) option set to false. This will limit volumes to directories that exist inside the allocation directory.
 
-  Note that unlike the similar option for the docker driver, this
-  option must not have an absolute path as the `container_path`
-  component. This will cause an error when submitting a job.
+    ~> **Note:**  Unlike the similar option for the docker driver, this
+    option must not have an absolute path as the `container_path`
+    component. This will cause an error when submitting a job.
 
-  Setting this does not affect the standard bind-mounts of `alloc`,
-  `local`, and `secrets`, which are always created.
+    Setting this does not affect the standard bind-mounts of `alloc`,
+    `local`, and `secrets`, which are always created.
 
-```hcl
-config {
-  volumes = [
-    # Use absolute paths to mount arbitrary paths on the host
-    "/path/on/host:path/in/container",
+    ```hcl
+    config {
+      volumes = [
+        # Use absolute paths to mount arbitrary paths on the host
+        "/path/on/host:path/in/container",
 
-    # Use relative paths to rebind paths already in the allocation dir
-    "relative/to/task:also/in/container"
-  ]
-}
-```
+        # Use relative paths to rebind paths already in the allocation dir
+        "relative/to/task:also/in/container"
+      ]
+    }
+    ```
+
+* `release` - (Optional) The name/version of the distribution. By default this is set by the template.
+
+* `arch` - (Optional) The architecture of the container. By default this is set by the template.
+
+* `image_server` - (Optional) The hostname of the image server. Defaults to `images.linuxcontainers.org`.
+
+* `image_variant` - (Optional) The variant of the image. Defaults to `default` or as set by the template.
+
+* `disable_gpg` - (Optional) Disable GPG validation of images. Defaults to `false`, and enabling this flag is not recommended.
+
+* `flush_cache` - (Optional) Flush the local copy of the image (if present) and force it to be fetched from the image server. Defaults to `false`.
+
+* `force_cache` - (Optional) Force the use of the local copy even if expired. Defaults to `false`.
+
+* `gpg_key_server`: GPG key server used for checking image signatures. Default is set by the underlying LXC library.
+
+* `gpg_key_id`: GPG key ID used for checking image signatures. Default is set by the underlying LXC library.
+
 
 ## Networking
 
@@ -90,17 +124,22 @@ The `lxc` driver requires the following:
 
 * 64-bit Linux host
 * The `linux_amd64` Nomad binary
-* The LXC driver binary placed in the [plugin_dir][plugin_dir] directory. 
+* The LXC driver binary placed in the [plugin_dir][plugin_dir] directory.
 * `liblxc` to be installed
 * `lxc-templates` to be installed
 
-## Plugin Options<a id="plugin_options"></a>
+## Plugin Options
 
 * `enabled` - The `lxc` driver may be disabled on hosts by setting this option to `false` (defaults to `true`).
 
-* `volumes_enabled`<a id="volumes_enabled"></a> - Specifies whether host can bind-mount host paths to container paths (defaults to `true`). 
+* `volumes_enabled`<a id="volumes_enabled"></a> - Specifies whether host can bind-mount host paths to container paths (defaults to `true`).
 
-* `lxc_path` - The location in which all containers are stored (commonly defaults to `/var/lib/lxc`). See [`lxc-create`][lxc-create] for more details. 
+* `lxc_path` - The location in which all containers are stored (commonly defaults to `/var/lib/lxc`). See [`lxc-create`][lxc-create] for more details.
+
+* `gc` stanza:
+    * `container` - Defaults to `true`. This option can be used to disable Nomad
+      from removing a container when the task exits. Under a name conflict,
+      Nomad may still remove the dead container.
 
 An example of using these plugin options with the new [plugin
 syntax][plugin] is shown below:
@@ -111,6 +150,9 @@ plugin "nomad-driver-lxc" {
     enabled = true
     volumes_enabled = true
     lxc_path = "/var/lib/lxc"
+    gc {
+      container = false
+    }
   }
 }
 ```
@@ -118,11 +160,10 @@ Please note the plugin name should match whatever name you have specified for th
 
 ## Client Configuration
 
-~> Only use this section for pre-0.9 releases of Nomad. If you are using Nomad
+-> Only use this section for pre-0.9 releases of Nomad. If you are using Nomad
 0.9 or above, please see [plugin options][plugin-options]
 
-The `lxc` driver has the following [client configuration
-options](/docs/configuration/client.html#options):
+The `lxc` driver has the following [client-level options][client_options]:
 
 * `lxc.enable` - The `lxc` driver may be disabled on hosts by setting this
   option to `false` (defaults to `true`).
@@ -146,3 +187,4 @@ isolation is not supported as of now.
 [plugin]: /docs/configuration/plugin.html
 [plugin_dir]: /docs/configuration/index.html#plugin_dir
 [plugin-options]: #plugin_options
+[client_options]: /docs/configuration/client.html#options
