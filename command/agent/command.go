@@ -29,6 +29,7 @@ import (
 	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/helper/logging"
+	"github.com/hashicorp/nomad/helper/winsvc"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
@@ -777,6 +778,8 @@ WAIT:
 	select {
 	case s := <-signalCh:
 		sig = s
+	case <-winsvc.ShutdownChannel():
+		sig = os.Interrupt
 	case <-c.ShutdownCh:
 		sig = os.Interrupt
 	case <-c.retryJoinErrCh:

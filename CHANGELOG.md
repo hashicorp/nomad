@@ -14,7 +14,7 @@ BUG FIXES:
  * scheduler: Changes to devices in resource stanza should cause rescheduling [[GH-6644](https://github.com/hashicorp/nomad/issues/6644)]
  * api: Decompress web socket response body if gzipped on error responses [[GH-6650](https://github.com/hashicorp/nomad/issues/6650)]
  * api: Return a 404 if endpoint not found instead of redirecting to /ui/ [[GH-6658](https://github.com/hashicorp/nomad/issues/6658)]
- 
+
 ## 0.10.1 (November 4, 2019)
 
 BUG FIXES:
