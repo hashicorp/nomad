@@ -91,9 +91,6 @@ executors:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
       image: circleci/classic:201808-01
-  docker-builder:
-    working_directory: ~/go/src/github.com/hashicorp/nomad
-    machine: true # TODO: Find latest docker image id
 
   # uses a more recent image with unattended upgrades disabled properly
   # but seems to break docker builds
@@ -103,13 +100,6 @@ executors:
       image: ubuntu-1604:201903-01
 
 jobs:
-  build-deps-image:
-    executor: docker-builder
-    steps:
-      - checkout
-      - run: docker build -t hashicorpnomad/ci-build-image:$CIRCLE_SHA1 . -f ./Dockerfile.ci
-      - run: docker push hashicorpnomad/ci-build-image:$CIRCLE_SHA1
-
   lint-go:
     executor: go
     environment:
