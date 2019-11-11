@@ -48,7 +48,7 @@ job "docs" {
 
 The Nomad client will make the Vault token available to the task by writing it
 to the secret directory at `secrets/vault_token` and by injecting a `VAULT_TOKEN`
-environment variable. If the Nomad cluster is [configured](http://localhost:4567/docs/configuration/vault.html#namespace)
+environment variable. If the Nomad cluster is [configured](/docs/configuration/vault.html#namespace)
 to use [Vault Namespaces](https://www.vaultproject.io/docs/enterprise/namespaces/index.html), 
 a `VAULT_NAMESPACE` environment variable will be injected whenever `VAULT_TOKEN` is.
 
