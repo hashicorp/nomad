@@ -5,6 +5,7 @@ FEATURES:
 
 IMPROVEMENTS:
  * client: Enable setting tags on Consul Connect sidecar service
+ * core: Add support for running under Windows Service Manager [[GH-6220](https://github.com/hashicorp/nomad/issues/6220)]
 
 BUG FIXES:
 
