@@ -73,12 +73,12 @@ func TestRootFallthrough(t *testing.T) {
 		expectedCode int
 	}{
 		{
-			desc:         "unknown endpoint",
+			desc:         "unknown endpoint 404s",
 			path:         "/v1/unknown/endpoint",
 			expectedCode: 404,
 		},
 		{
-			desc:         "root",
+			desc:         "root path redirects to ui",
 			path:         "/",
 			expectedCode: 307,
 		},
@@ -101,7 +101,13 @@ func TestRootFallthrough(t *testing.T) {
 
 			resp, err := client.Get(reqURL)
 			require.NoError(t, err)
-			require.Equal(t, resp.StatusCode, tc.expectedCode)
+			require.Equal(t, tc.expectedCode, resp.StatusCode)
+
+			if tc.expectedCode == 307 {
+				loc, err := resp.Location()
+				require.NoError(t, err)
+				require.Equal(t, "/ui/", loc.Path)
+			}
 		})
 	}
 }
