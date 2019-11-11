@@ -880,11 +880,12 @@ func (v *vaultClient) validateRole(role string) error {
 
 	// Read and parse the fields
 	var data struct {
-		ExplicitMaxTtl int `mapstructure:"explicit_max_ttl"`
-		Orphan         bool
-		Period         int
-		TokenPeriod    int `mapstructure:"token_period"`
-		Renewable      bool
+		ExplicitMaxTtl      int `mapstructure:"explicit_max_ttl"`
+		TokenExplicitMaxTtl int `mapstructure:"token_explicit_max_ttl"`
+		Orphan              bool
+		Period              int
+		TokenPeriod         int `mapstructure:"token_period"`
+		Renewable           bool
 	}
 	if err := mapstructure.WeakDecode(rsecret.Data, &data); err != nil {
 		return fmt.Errorf("failed to parse Vault role's data block: %v", err)
@@ -896,7 +897,7 @@ func (v *vaultClient) validateRole(role string) error {
 		multierror.Append(&mErr, fmt.Errorf("Role must allow tokens to be renewed"))
 	}
 
-	if data.ExplicitMaxTtl != 0 {
+	if data.ExplicitMaxTtl != 0 || data.TokenExplicitMaxTtl != 0 {
 		multierror.Append(&mErr, fmt.Errorf("Role can not use an explicit max ttl. Token must be periodic."))
 	}
 

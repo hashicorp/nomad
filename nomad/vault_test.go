@@ -295,10 +295,10 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 		"nomad-role-management": nomadRoleManagementPolicy,
 	}
 	data := map[string]interface{}{
-		"allowed_policies": "default,root",
-		"orphan":           true,
-		"renewable":        true,
-		"explicit_max_ttl": 10,
+		"allowed_policies":       "default,root",
+		"orphan":                 true,
+		"renewable":              true,
+		"token_explicit_max_ttl": 10,
 	}
 	v.Config.Token = testVaultRoleAndToken(v, t, vaultPolicies, data, nil)
 
@@ -328,6 +328,7 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 	})
 
 	require.Contains(t, connErr.Error(), "explicit max ttl")
+	require.Contains(t, connErr.Error(), "non-zero period")
 }
 
 // TestVaultClient_ValidateRole_Success asserts that a valid token role
