@@ -213,7 +213,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 			w.Write([]byte(stubHTML))
 		})
 	}
-	s.mux.Handle("/", handleRootRedirect())
+	s.mux.Handle("/", handleRootFallthrough())
 
 	if enableDebug {
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -275,15 +275,13 @@ func handleUI(h http.Handler) http.Handler {
 	})
 }
 
-func handleRootRedirect() http.Handler {
+func handleRootFallthrough() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path != "/" {
+		if req.URL.Path == "/" {
+			http.Redirect(w, req, "/ui/", 307)
+		} else {
 			w.WriteHeader(http.StatusNotFound)
-			return
 		}
-
-		http.Redirect(w, req, "/ui/", 307)
-		return
 	})
 }
 
