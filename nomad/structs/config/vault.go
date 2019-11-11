@@ -78,6 +78,9 @@ type VaultConfig struct {
 
 	// TLSServerName, if set, is used to set the SNI host when connecting via TLS.
 	TLSServerName string `hcl:"tls_server_name"`
+
+	// Checksum is a MD5 hash of the TLSCaFile, TLSCertFile, and TLSKeyFile.
+	Checksum string
 }
 
 // DefaultVaultConfig() returns the canonical defaults for the Nomad
@@ -191,52 +194,75 @@ func (c *VaultConfig) Copy() *VaultConfig {
 
 // IsEqual compares two Vault configurations and returns a boolean indicating
 // if they are equal.
-func (a *VaultConfig) IsEqual(b *VaultConfig) bool {
+func (a *VaultConfig) IsEqual(b *VaultConfig) (bool, error) {
 	if a == nil && b != nil {
-		return false
+		return false, nil
 	}
 	if a != nil && b == nil {
-		return false
+		return false, nil
 	}
 
 	if a.Token != b.Token {
-		return false
+		return false, nil
 	}
 	if a.Role != b.Role {
-		return false
+		return false, nil
 	}
 	if a.TaskTokenTTL != b.TaskTokenTTL {
-		return false
+		return false, nil
 	}
 	if a.Addr != b.Addr {
-		return false
+		return false, nil
 	}
 	if a.ConnectionRetryIntv.Nanoseconds() != b.ConnectionRetryIntv.Nanoseconds() {
-		return false
+		return false, nil
 	}
 	if a.TLSCaFile != b.TLSCaFile {
-		return false
+		return false, nil
 	}
 	if a.TLSCaPath != b.TLSCaPath {
-		return false
+		return false, nil
 	}
 	if a.TLSCertFile != b.TLSCertFile {
-		return false
+		return false, nil
 	}
 	if a.TLSKeyFile != b.TLSKeyFile {
-		return false
+		return false, nil
 	}
 	if a.TLSServerName != b.TLSServerName {
-		return false
+		return false, nil
 	}
 	if a.AllowUnauthenticated != b.AllowUnauthenticated {
-		return false
+		return false, nil
 	}
 	if a.TLSSkipVerify != b.TLSSkipVerify {
-		return false
+		return false, nil
 	}
 	if a.Enabled != b.Enabled {
-		return false
+		return false, nil
 	}
-	return true
+
+	if a.Checksum == "" {
+		if err := a.SetChecksum(); err != nil {
+			return true, err
+		}
+	}
+
+	if b.Checksum == "" {
+		if err := b.SetChecksum(); err != nil {
+			return true, err
+		}
+	}
+	return a.Checksum == b.Checksum, nil
+}
+
+// SetChecksum generates and sets the checksum for a Vault configuration.
+func (a *VaultConfig) SetChecksum() error {
+	newChecksum, err := createChecksumOfFiles(a.TLSCaFile, a.TLSCertFile, a.TLSKeyFile)
+	if err != nil {
+		return err
+	}
+
+	a.Checksum = newChecksum
+	return nil
 }

@@ -342,7 +342,11 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 	defer v.l.Unlock()
 
 	// If reloading the same config, no-op
-	if v.config.IsEqual(config) {
+	isEqual, err := v.config.IsEqual(config)
+	if err != nil {
+		v.logger.Info("error when parsing TLS certificate %v", err)
+		return nil
+	} else if isEqual {
 		return nil
 	}
 
