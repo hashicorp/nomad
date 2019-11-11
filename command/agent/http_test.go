@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/ugorji/go/codec"
 )
 
@@ -59,6 +60,50 @@ func BenchmarkHTTPRequests(b *testing.B) {
 			s.Server.wrap(handler)(resp, req)
 		}
 	})
+}
+
+// TestRootFallthrough tests rootFallthrough handler to
+// verify redirect and 404 behavior
+func TestRootFallthrough(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		desc         string
+		path         string
+		expectedCode int
+	}{
+		{
+			desc:         "unknown endpoint",
+			path:         "/v1/unknown/endpoint",
+			expectedCode: 404,
+		},
+		{
+			desc:         "root",
+			path:         "/",
+			expectedCode: 307,
+		},
+	}
+
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+
+			reqURL := fmt.Sprintf("http://%s%s", s.Agent.config.AdvertiseAddrs.HTTP, tc.path)
+
+			// setup a client that doesn't follow redirects
+			client := &http.Client{
+				CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+					return http.ErrUseLastResponse
+				},
+			}
+
+			resp, err := client.Get(reqURL)
+			require.NoError(t, err)
+			require.Equal(t, resp.StatusCode, tc.expectedCode)
+		})
+	}
 }
 
 func TestSetIndex(t *testing.T) {
