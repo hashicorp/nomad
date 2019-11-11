@@ -126,7 +126,7 @@ func (m *MonitorMessage) String() string {
 
 // MonitorDrain emits drain related events on the returned string channel. The
 // channel will be closed when all allocations on the draining node have
-// stopped or the context is canceled.
+// stopped, when an error occurs, or if the context is canceled.
 func (n *Nodes) MonitorDrain(ctx context.Context, nodeID string, index uint64, ignoreSys bool) <-chan *MonitorMessage {
 	outCh := make(chan *MonitorMessage, 8)
 	nodeCh := make(chan *MonitorMessage, 1)
