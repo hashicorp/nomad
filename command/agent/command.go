@@ -778,7 +778,7 @@ WAIT:
 	select {
 	case s := <-signalCh:
 		sig = s
-	case <-winsvc.Shutdown_Channel():
+	case <-winsvc.ShutdownChannel():
 		sig = os.Interrupt
 	case <-c.ShutdownCh:
 		sig = os.Interrupt

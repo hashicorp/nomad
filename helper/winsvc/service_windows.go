@@ -17,11 +17,12 @@ func init() {
 	if interactive {
 		return
 	}
-	go func() {
-		_ = wsvc.Run("", serviceWindows{})
-	}()
+	go wsvc.Run("", serviceWindows{})
 }
 
+// Execute implements the Windows service Handler type. It will be
+// called at the start of the service, and the service will exit
+// once Execute completes.
 func (serviceWindows) Execute(args []string, r <-chan wsvc.ChangeRequest, s chan<- wsvc.Status) (svcSpecificEC bool, exitCode uint32) {
 	const accCommands = wsvc.AcceptStop | wsvc.AcceptShutdown
 	s <- wsvc.Status{State: wsvc.Running, Accepts: accCommands}
