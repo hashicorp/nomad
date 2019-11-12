@@ -1,0 +1,72 @@
+{{#popover-menu label="Drain" triggerClass=(if drain.isRunning "is-loading") as |m|}}
+  <form onsubmit={{action (queue (action preventDefault) (perform drain m.actions.close))}} class="form is-small">
+    <h4 class="group-heading">Drain Options</h4>
+    <div class="field">
+      <label class="label is-interactive">
+        <input
+          type="checkbox"
+          checked={{deadlineEnabled}}
+          onchange={{action (mut deadlineEnabled) value="target.checked"}}> Deadline
+        <span class="tooltip multiline" aria-label="The amount of time a drain must complete within.">
+          {{x-icon "info-circle-outline" class="is-faded"}}
+        </span>
+      </label>
+    </div>
+    {{#if deadlineEnabled}}
+      <div class="field is-sub-field">
+        {{#power-select
+          options=durationQuickOptions
+          selected=selectedDurationQuickOption
+          onChange=(action (mut selectedDurationQuickOption)) as |opt|}}
+          {{opt.label}}
+        {{/power-select}}
+      </div>
+      {{#if durationIsCustom}}
+        <div class="field is-sub-field">
+          <label class="label">Deadline</label>
+          <input
+            type="text"
+            class="input {{if parseError "is-danger"}}"
+            placeholder="1h30m"
+            oninput={{action (queue
+              (action (mut parseError) '')
+              (action (mut customDuration) value="target.value"))}} />
+          {{#if parseError}}
+            <em class="help is-danger">{{parseError}}</em>
+          {{/if}}
+        </div>
+      {{/if}}
+    {{/if}}
+    <div class="field">
+      <label class="label is-interactive">
+        <input
+          type="checkbox"
+          checked={{forceDrain}}
+          onchange={{action (mut forceDrain) value="target.checked"}}> Force Drain
+        <span class="tooltip multiline" aria-label="Immediately remove allocations from the client.">
+          {{x-icon "info-circle-outline" class="is-faded"}}
+        </span>
+      </label>
+    </div>
+    <div class="field">
+      <label class="label is-interactive">
+        <input
+          type="checkbox"
+          checked={{drainSystemJobs}}
+          onchange={{action (mut drainSystemJobs) value="target.checked"}}> Drain System Jobs
+        <span class="tooltip multiline" aria-label="Stop allocations for system jobs.">
+          {{x-icon "info-circle-outline" class="is-faded"}}
+        </span>
+      </label>
+    </div>
+    <div class="popover-actions">
+      <button
+        type="button"
+        class="popover-action is-primary"
+        onclick={{perform drain m.actions.close}}>
+        Drain
+      </button>
+      <button type="button" class="popover-action" onclick={{action m.actions.close}}>Cancel</button>
+    </div>
+  </form>
+{{/popover-menu}}
