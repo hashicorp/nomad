@@ -21,6 +21,7 @@ BUG FIXES:
  * nomad: Multiple connect enabled services in the same taskgroup failed to
    register [[GH-6646](https://github.com/hashicorp/nomad/issues/6646)]
  * scheduler: Changes to devices in resource stanza should cause rescheduling [[GH-6644](https://github.com/hashicorp/nomad/issues/6644)]
+ * vault: Allow overriding implicit Vault version constraint [[GH-6687](https://github.com/hashicorp/nomad/issues/6687)]
  * vault: Supported Vault auth role's new field, `token_period` [[GH-6574](https://github.com/hashicorp/nomad/issues/6574)]
 
 ## 0.10.1 (November 4, 2019)

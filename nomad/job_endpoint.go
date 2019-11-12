@@ -33,13 +33,6 @@ const (
 )
 
 var (
-	// vaultConstraint is the implicit constraint added to jobs requesting a
-	// Vault token
-	vaultConstraint = &structs.Constraint{
-		LTarget: "${attr.vault.version}",
-		RTarget: ">= 0.6.1",
-		Operand: structs.ConstraintVersion,
-	}
 
 	// allowRescheduleTransition is the transition that allows failed
 	// allocations to be force rescheduled. We create a one off
