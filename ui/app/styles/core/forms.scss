@@ -41,6 +41,10 @@
     display: inline-block;
   }
 
+  &.is-sub-field {
+    margin-left: 2em;
+  }
+
   &:not(:last-child) {
     margin-bottom: 1rem;
   }
