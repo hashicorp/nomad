@@ -127,11 +127,11 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newAllocHealthWatcherHook(hookLogger, alloc, hs, ar.Listener(), ar.consulClient),
 		newNetworkHook(hookLogger, ns, alloc, nm, nc),
 		newGroupServiceHook(groupServiceHookConfig{
-			alloc:     alloc,
-			consul:    ar.consulClient,
-			restarter: ar,
-			taskEnv:   taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).SetAllocDir(ar.allocDir.AllocDir).Build(),
-			logger:    hookLogger,
+			alloc:          alloc,
+			consul:         ar.consulClient,
+			restarter:      ar,
+			taskEnvBuilder: taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).SetAllocDir(ar.allocDir.AllocDir),
+			logger:         hookLogger,
 		}),
 		newConsulSockHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
 	}
@@ -190,7 +190,6 @@ func (ar *allocRunner) update(update *structs.Allocation) error {
 
 	req := &interfaces.RunnerUpdateRequest{
 		Alloc: update,
-		Node:  ar.clientConfig.Node,
 	}
 
 	var merr multierror.Error

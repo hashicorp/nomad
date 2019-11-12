@@ -1005,12 +1005,12 @@ func (ar *allocRunner) RestartTask(taskName string, taskEvent *structs.TaskEvent
 // Restart satisfies the WorkloadRestarter interface restarts all task runners
 // concurrently
 func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
-	var wg sync.WaitGroup
 	waitCh := make(chan struct{})
 	var err *multierror.Error
 	var errMutex sync.Mutex
 
 	go func() {
+		var wg sync.WaitGroup
 		defer close(waitCh)
 		for tn, tr := range ar.tasks {
 			wg.Add(1)

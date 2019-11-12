@@ -578,7 +578,6 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 	b.namespace = alloc.Namespace
 
 	// Set meta
-	// TODO nickethier make sure this works
 	combined := alloc.Job.CombinedTaskMeta(alloc.TaskGroup, b.taskName)
 	// taskMetaSize is double to total meta keys to account for given and upper
 	// cased values

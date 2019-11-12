@@ -844,4 +844,6 @@ func TestEnvironment_TasklessBuilder(t *testing.T) {
 		taskEnv = NewBuilder(node, alloc, nil, "global").SetAllocDir("/tmp/alloc").Build()
 	})
 
+	require.Equal("foo", taskEnv.ReplaceEnv("${NOMAD_META_jobt}"))
+	require.Equal("bar", taskEnv.ReplaceEnv("${NOMAD_META_groupt}"))
 }

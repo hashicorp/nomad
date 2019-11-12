@@ -1,8 +1,12 @@
 package allocrunner
 
 import (
+	"io/ioutil"
 	"testing"
+	"time"
 
+	consulapi "github.com/hashicorp/consul/api"
+	ctestutil "github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -27,20 +31,19 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 		Name:      "foo",
 		PortLabel: "9999",
 	}}
-	node := mock.Node()
 	logger := testlog.HCLogger(t)
 	consulClient := consul.NewMockConsulServiceClient(t, logger)
 
 	h := newGroupServiceHook(groupServiceHookConfig{
-		alloc:     alloc,
-		consul:    consulClient,
-		restarter: agentconsul.NoopRestarter(),
-		taskEnv:   taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build(),
-		logger:    logger,
+		alloc:          alloc,
+		consul:         consulClient,
+		restarter:      agentconsul.NoopRestarter(),
+		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:         logger,
 	})
 	require.NoError(t, h.Prerun())
 
-	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, Node: node}
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
 	require.NoError(t, h.Update(req))
 
 	require.NoError(t, h.Postrun())
@@ -58,20 +61,19 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.ConnectAlloc()
-	node := mock.Node()
 	logger := testlog.HCLogger(t)
 	consulClient := consul.NewMockConsulServiceClient(t, logger)
 
 	h := newGroupServiceHook(groupServiceHookConfig{
-		alloc:     alloc,
-		consul:    consulClient,
-		restarter: agentconsul.NoopRestarter(),
-		taskEnv:   taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build(),
-		logger:    logger,
+		alloc:          alloc,
+		consul:         consulClient,
+		restarter:      agentconsul.NoopRestarter(),
+		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:         logger,
 	})
 	require.NoError(t, h.Prerun())
 
-	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, Node: node}
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
 	require.NoError(t, h.Update(req))
 
 	require.NoError(t, h.Postrun())
@@ -90,7 +92,6 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{}
-	node := mock.Node()
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	tg.Services = []*structs.Service{
 		{
@@ -106,15 +107,15 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 	consulClient := consul.NewMockConsulServiceClient(t, logger)
 
 	h := newGroupServiceHook(groupServiceHookConfig{
-		alloc:     alloc,
-		consul:    consulClient,
-		restarter: agentconsul.NoopRestarter(),
-		taskEnv:   taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build(),
-		logger:    logger,
+		alloc:          alloc,
+		consul:         consulClient,
+		restarter:      agentconsul.NoopRestarter(),
+		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:         logger,
 	})
 	require.NoError(t, h.Prerun())
 
-	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, Node: node}
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
 	require.NoError(t, h.Update(req))
 
 	require.NoError(t, h.Postrun())
@@ -146,13 +147,104 @@ func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
 	consulClient := consul.NewMockConsulServiceClient(t, logger)
 
 	h := newGroupServiceHook(groupServiceHookConfig{
-		alloc:     alloc,
-		consul:    consulClient,
-		restarter: agentconsul.NoopRestarter(),
-		taskEnv:   taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build(),
-		logger:    logger,
+		alloc:          alloc,
+		consul:         consulClient,
+		restarter:      agentconsul.NoopRestarter(),
+		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:         logger,
 	})
 
 	services := h.getWorkloadServices()
 	require.Len(t, services.Services, 1)
+}
+
+// TestGroupServiceHook_Update08Alloc asserts that adding group services to a previously
+// 0.8 alloc works.
+//
+// COMPAT(0.11) Only valid for upgrades from 0.8.
+func TestGroupServiceHook_Update08Alloc(t *testing.T) {
+	// Create an embedded Consul server
+	testconsul, err := ctestutil.NewTestServerConfig(func(c *ctestutil.TestServerConfig) {
+		// If -v wasn't specified squelch consul logging
+		if !testing.Verbose() {
+			c.Stdout = ioutil.Discard
+			c.Stderr = ioutil.Discard
+		}
+	})
+	if err != nil {
+		t.Fatalf("error starting test consul server: %v", err)
+	}
+	defer testconsul.Stop()
+
+	consulConfig := consulapi.DefaultConfig()
+	consulConfig.Address = testconsul.HTTPAddr
+	consulClient, err := consulapi.NewClient(consulConfig)
+	require.NoError(t, err)
+	serviceClient := agentconsul.NewServiceClient(consulClient.Agent(), testlog.HCLogger(t), true)
+
+	// Lower periodicInterval to ensure periodic syncing doesn't improperly
+	// remove Connect services.
+	//const interval = 50 * time.Millisecond
+	//serviceClient.periodicInterval = interval
+
+	// Disable deregistration probation to test syncing
+	//serviceClient.deregisterProbationExpiry = time.Time{}
+
+	go serviceClient.Run()
+	defer serviceClient.Shutdown()
+
+	// Create new 0.10-style alloc
+	alloc := mock.Alloc()
+	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
+		{
+			Mode: "bridge",
+			IP:   "10.0.0.1",
+			DynamicPorts: []structs.Port{
+				{
+					Label: "connect-proxy-testconnect",
+					Value: 9999,
+					To:    9998,
+				},
+			},
+		},
+	}
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	tg.Services = []*structs.Service{
+		{
+			Name:      "testconnect",
+			PortLabel: "9999",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{
+					Proxy: &structs.ConsulProxy{
+						LocalServicePort: 9000,
+					},
+				},
+			},
+		},
+	}
+
+	// Create old 0.8-style alloc from new alloc
+	oldAlloc := alloc.Copy()
+	oldAlloc.AllocatedResources = nil
+	oldAlloc.Job.LookupTaskGroup(alloc.TaskGroup).Services = nil
+
+	// Create the group service hook
+	h := newGroupServiceHook(groupServiceHookConfig{
+		alloc:          oldAlloc,
+		consul:         serviceClient,
+		restarter:      agentconsul.NoopRestarter(),
+		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), oldAlloc, nil, oldAlloc.Job.Region),
+		logger:         testlog.HCLogger(t),
+	})
+
+	require.NoError(t, h.Prerun())
+	require.NoError(t, h.Update(&interfaces.RunnerUpdateRequest{alloc}))
+
+	// Assert the group and sidecar services are registered
+	require.Eventually(t, func() bool {
+		services, err := consulClient.Agent().Services()
+		require.NoError(t, err)
+		return len(services) == 2
+	}, 3*time.Second, 100*time.Millisecond)
+
 }

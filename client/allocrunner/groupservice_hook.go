@@ -24,10 +24,10 @@ type groupServiceHook struct {
 	logger log.Logger
 
 	// The following fields may be updated
-	canary   bool
-	services []*structs.Service
-	networks structs.Networks
-	taskEnv  *taskenv.TaskEnv
+	canary         bool
+	services       []*structs.Service
+	networks       structs.Networks
+	taskEnvBuilder *taskenv.Builder
 
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
@@ -35,20 +35,20 @@ type groupServiceHook struct {
 }
 
 type groupServiceHookConfig struct {
-	alloc     *structs.Allocation
-	consul    consul.ConsulServiceAPI
-	restarter agentconsul.WorkloadRestarter
-	taskEnv   *taskenv.TaskEnv
-	logger    log.Logger
+	alloc          *structs.Allocation
+	consul         consul.ConsulServiceAPI
+	restarter      agentconsul.WorkloadRestarter
+	taskEnvBuilder *taskenv.Builder
+	logger         log.Logger
 }
 
 func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 	h := &groupServiceHook{
-		allocID:      cfg.alloc.ID,
-		group:        cfg.alloc.TaskGroup,
-		restarter:    cfg.restarter,
-		consulClient: cfg.consul,
-		taskEnv:      cfg.taskEnv,
+		allocID:        cfg.alloc.ID,
+		group:          cfg.alloc.TaskGroup,
+		restarter:      cfg.restarter,
+		consulClient:   cfg.consul,
+		taskEnvBuilder: cfg.taskEnvBuilder,
 	}
 	h.logger = cfg.logger.Named(h.Name())
 	h.services = cfg.alloc.Job.LookupTaskGroup(h.group).Services
@@ -105,7 +105,7 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	h.networks = networks
 	h.services = req.Alloc.Job.LookupTaskGroup(h.group).Services
 	h.canary = canary
-	h.taskEnv = taskenv.NewBuilder(req.Node, req.Alloc, nil, req.Alloc.Job.Region).Build()
+	h.taskEnvBuilder.UpdateTask(req.Alloc, nil)
 
 	// Create new task services struct with those new values
 	newWorkloadServices := h.getWorkloadServices()
@@ -154,9 +154,10 @@ func (h *groupServiceHook) deregister() {
 		h.consulClient.RemoveWorkload(workloadServices)
 	}
 }
+
 func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 	// Interpolate with the task's environment
-	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, h.services)
+	interpolatedServices := taskenv.InterpolateServices(h.taskEnvBuilder.Build(), h.services)
 
 	// Create task services struct with request's driver metadata
 	return &agentconsul.WorkloadServices{

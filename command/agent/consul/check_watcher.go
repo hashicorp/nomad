@@ -27,16 +27,6 @@ type WorkloadRestarter interface {
 	Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error
 }
 
-func NoopRestarter() WorkloadRestarter {
-	return noopRestarter{}
-}
-
-type noopRestarter struct{}
-
-func (noopRestarter) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
-	return nil
-}
-
 // checkRestart handles restarting a task if a check is unhealthy.
 type checkRestart struct {
 	allocID   string
