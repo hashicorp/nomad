@@ -15,6 +15,8 @@ const FOCUSABLE = [
 export default Component.extend({
   classnames: ['popover'],
 
+  triggerClass: '',
+
   isOpen: false,
   dropdown: null,
 
