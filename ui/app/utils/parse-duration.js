@@ -12,6 +12,10 @@ export default str => {
   // Split the string into characters to make iteration easier
   const chars = str.split('');
 
+  if (!(chars[0] >= 0 && chars[0] < 10)) {
+    throw new Error(`ParseError: [${str}] Durations must start with a numeric quantity`);
+  }
+
   // Collect tokens
   const tokens = [];
 
