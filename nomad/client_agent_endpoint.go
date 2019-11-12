@@ -60,10 +60,23 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	}
 
 	// Targeting a node, forward request to node
-	if args.NodeID != "" {
+	if args.NodeID != "" && args.NodeID != "leader" {
 		m.forwardMonitor(conn, args, encoder, decoder)
 		// forwarded request has ended, return
 		return
+	}
+
+	if args.NodeID == "leader" {
+		isLeader, remoteServer := m.srv.getLeader()
+		if !isLeader && remoteServer != nil {
+			m.forwardMonitorLeader(remoteServer, conn, args, encoder, decoder)
+			return
+		}
+		if !isLeader && remoteServer == nil {
+			err := fmt.Errorf("No leader")
+			handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+			return
+		}
 	}
 
 	// NodeID was empty, so monitor this current server
@@ -234,5 +247,28 @@ func (m *Agent) forwardMonitor(conn io.ReadWriteCloser, args cstructs.MonitorReq
 	}
 
 	structs.Bridge(conn, clientConn)
+	return
+}
+
+func (m *Agent) forwardMonitorLeader(leader *serverParts, conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
+	var leaderConn net.Conn
+
+	localConn, err := m.srv.streamingRpc(leader, "Agent.Monitor")
+	if err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	leaderConn = localConn
+	defer leaderConn.Close()
+
+	// Send the Request
+	outEncoder := codec.NewEncoder(leaderConn, structs.MsgpackHandle)
+	if err := outEncoder.Encode(args); err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	structs.Bridge(conn, leaderConn)
 	return
 }
