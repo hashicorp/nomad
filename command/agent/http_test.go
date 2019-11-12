@@ -70,6 +70,7 @@ func TestRootFallthrough(t *testing.T) {
 	cases := []struct {
 		desc         string
 		path         string
+		expectedPath string
 		expectedCode int
 	}{
 		{
@@ -80,6 +81,7 @@ func TestRootFallthrough(t *testing.T) {
 		{
 			desc:         "root path redirects to ui",
 			path:         "/",
+			expectedPath: "/ui/",
 			expectedCode: 307,
 		},
 	}
@@ -87,26 +89,26 @@ func TestRootFallthrough(t *testing.T) {
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
+	// setup a client that doesn't follow redirects
+	client := &http.Client{
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
 			reqURL := fmt.Sprintf("http://%s%s", s.Agent.config.AdvertiseAddrs.HTTP, tc.path)
 
-			// setup a client that doesn't follow redirects
-			client := &http.Client{
-				CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-					return http.ErrUseLastResponse
-				},
-			}
-
 			resp, err := client.Get(reqURL)
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedCode, resp.StatusCode)
 
-			if tc.expectedCode == 307 {
+			if tc.expectedPath != "" {
 				loc, err := resp.Location()
 				require.NoError(t, err)
-				require.Equal(t, "/ui/", loc.Path)
+				require.Equal(t, tc.expectedPath, loc.Path)
 			}
 		})
 	}
