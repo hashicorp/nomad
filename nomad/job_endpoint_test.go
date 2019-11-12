@@ -847,6 +847,8 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 	}
 }
 
+// TestJobEndpoint_Register_Vault_Disabled asserts that submitting a job that
+// uses Vault when Vault is *disabled* results in an error.
 func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
@@ -880,6 +882,9 @@ func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 	}
 }
 
+// TestJobEndpoint_Register_Vault_AllowUnauthenticated asserts submitting a job
+// with a Vault policy but without a Vault token is *succeeds* if
+// allow_unauthenticated=true.
 func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
@@ -931,6 +936,64 @@ func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 	if out.CreateIndex != resp.JobModifyIndex {
 		t.Fatalf("index mis-match")
 	}
+}
+
+// TestJobEndpoint_Register_Vault_OverrideConstraint asserts that job
+// submitters can specify their own Vault constraint to override the
+// automatically injected one.
+func TestJobEndpoint_Register_Vault_OverrideConstraint(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Enable vault and allow authenticated
+	tr := true
+	s1.config.VaultConfig.Enabled = &tr
+	s1.config.VaultConfig.AllowUnauthenticated = &tr
+
+	// Replace the Vault Client on the server
+	s1.vault = &TestVaultClient{}
+
+	// Create the register request with a job asking for a vault policy
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Policies:   []string{"foo"},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
+	job.TaskGroups[0].Tasks[0].Constraints = []*structs.Constraint{
+		{
+			LTarget: "${attr.vault.version}",
+			Operand: "is_set",
+		},
+	}
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+
+	// Check for the job in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	require.Equal(t, resp.JobModifyIndex, out.CreateIndex)
+
+	// Assert constraint was not overridden by the server
+	outConstraints := out.TaskGroups[0].Tasks[0].Constraints
+	require.Len(t, outConstraints, 1)
+	require.True(t, job.TaskGroups[0].Tasks[0].Constraints[0].Equals(outConstraints[0]))
 }
 
 func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
