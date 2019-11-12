@@ -1,6 +1,8 @@
 package api
 
 import (
+	crand "crypto/rand"
+	"fmt"
 	"testing"
 )
 
@@ -89,4 +91,19 @@ func int64ToPtr(i int64) *int64 {
 // float64ToPtr returns the pointer to an float64
 func float64ToPtr(f float64) *float64 {
 	return &f
+}
+
+// generateUUID generates a uuid useful for testing only
+func generateUUID() string {
+	buf := make([]byte, 16)
+	if _, err := crand.Read(buf); err != nil {
+		panic(fmt.Errorf("failed to read random bytes: %v", err))
+	}
+
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%12x",
+		buf[0:4],
+		buf[4:6],
+		buf[6:8],
+		buf[8:10],
+		buf[10:16])
 }
