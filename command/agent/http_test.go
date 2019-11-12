@@ -524,14 +524,6 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	}
 }
 
-// assertIndex tests that X-Nomad-Index is set and non-zero
-func assertIndex(t *testing.T, resp *httptest.ResponseRecorder) {
-	header := resp.Header().Get("X-Nomad-Index")
-	if header == "" || header == "0" {
-		t.Fatalf("Bad: %v", header)
-	}
-}
-
 func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
