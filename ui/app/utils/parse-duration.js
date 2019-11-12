@@ -1,18 +1,35 @@
-export default str => {
-  const durationUnits = ['d', 'h', 'm', 's'];
-  const unitToMs = {
-    s: 1000,
-    m: 1000 * 60,
-    h: 1000 * 60 * 60,
-    d: 1000 * 60 * 60 * 24,
-  };
+const unitToMs = {
+  ms: 1,
+  s: 1000,
+  m: 1000 * 60,
+  h: 1000 * 60 * 60,
+  d: 1000 * 60 * 60 * 24,
+};
+const durationUnits = Object.keys(unitToMs);
 
+const isNumeric = char => char >= 0 && char < 10;
+
+const encodeUnit = (str, token) => {
+  // Convert it to a string and validate the unit type.
+  let newToken = token.join('');
+  if (!durationUnits.includes(newToken)) {
+    throw new Error(`ParseError: [${str}] Unallowed duration unit "${newToken}"`);
+  }
+  return newToken;
+};
+
+const encodeQuantity = (str, token) => {
+  return parseInt(token.join(''));
+};
+
+export default str => {
   if (typeof str === 'number') return str;
 
   // Split the string into characters to make iteration easier
   const chars = str.split('');
 
-  if (!(chars[0] >= 0 && chars[0] < 10)) {
+  // Bail early if the duration doesn't start with a number
+  if (!isNumeric(chars[0])) {
     throw new Error(`ParseError: [${str}] Durations must start with a numeric quantity`);
   }
 
@@ -22,45 +39,37 @@ export default str => {
   // A token can be multi-character, so collect characters
   let token = [];
 
-  // If a non-numeric character follows a non-numeric character, that's a
-  // parse error, so this marker bool is needed
-  let disallowChar = false;
+  // Alternate between numeric "quantity" tokens and non-numeric "unit" tokens
+  let unitMode = false;
 
-  // Take the first character off the chars array until there are no more
   while (chars.length) {
+    let finishToken = false;
     let next = chars.shift();
 
-    // Check to see if the char is numeric
-    if (next >= 0 && next < 10) {
-      // Collect numeric characters until a non-numeric shows up
-      token.push(next);
-      // Release the double non-numeric mark
-      disallowChar = false;
-    } else {
-      if (disallowChar) {
-        throw new Error(
-          `ParseError: [${str}] Cannot follow a non-numeric token with a non-numeric token`
-        );
-      }
-      if (!durationUnits.includes(next)) {
-        throw new Error(`ParseError: [${str}] Unallowed duration unit "${next}"`);
-      }
-
-      // The token array now becomes a single int token
-      tokens.push(parseInt(token.join('')));
-      // This non-numeric char is its own token
-      tokens.push(next);
-
-      // Reset token array
-      token = [];
-      // Set the double non-numeric mark
-      disallowChar = true;
+    // First identify if the next character is the first
+    // character of the next token.
+    if (isNumeric(next) && unitMode) {
+      unitMode = false;
+      finishToken = true;
+    } else if (!isNumeric(next) && !unitMode) {
+      unitMode = true;
+      finishToken = true;
     }
+
+    // When a token is finished, validate it, encode it, and add it to the tokens list
+    if (finishToken) {
+      tokens.push(unitMode ? encodeQuantity(str, token) : encodeUnit(str, token));
+      token = [];
+    }
+
+    // Always add the next character to the token buffer.
+    token.push(next);
   }
 
-  // If there are numeric characters still in the token array, then there must have
-  // not been a followup non-numeric character which would have flushed the numeric tokens.
-  if (token.length) {
+  // Once the loop finishes, flush the token buffer one more time.
+  if (unitMode) {
+    tokens.push(encodeUnit(str, token));
+  } else {
     throw new Error(`ParseError: [${str}] Unmatched quantities and units`);
   }
 
