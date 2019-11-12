@@ -64,7 +64,7 @@ driver) but will be removed in a future release.
 - `network_interface` `(string: varied)` - Specifies the name of the interface
   to force network fingerprinting on. When run in dev mode, this defaults to the
   loopback interface. When not in dev mode, the interface attached to the
-  default route is used. The scheduler chooses from these fingerprinted IP 
+  default route is used. The scheduler chooses from these fingerprinted IP
   addresses when allocating ports for tasks.
 
     If no non-local IP addresses are found, Nomad could fingerprint link-local IPv6
@@ -152,11 +152,11 @@ driver) but will be removed in a future release.
   which the client will use to allocate IP addresses from.
 
 - `template` <code>([Template](#template-parameters): nil)</code> - Specifies
-  controls on the behavior of task [`template`](/docs/job-specification/template.html) stanzas.
+  controls on the behavior of task
+  [`template`](/docs/job-specification/template.html) stanzas.
 
 - `host_volume` <code>([host_volume](#host_volume-stanza): nil)</code> - Exposes
   paths from the host as volumes that can be mounted into jobs.
-
 
 ### `chroot_env` Parameters
 
@@ -340,7 +340,6 @@ see the [drivers documentation](/docs/drivers/index.html).
   reserve on all fingerprinted network devices. Ranges can be specified by using
   a hyphen separated the two inclusive ends.
 
-
 ### `template` Parameters
 
 - `function_blacklist` `([]string: ["plugin"])` - Specifies a list of template
@@ -356,7 +355,7 @@ see the [drivers documentation](/docs/drivers/index.html).
 
 The `host_volume` stanza is used to make volumes available to jobs.
 
-The key of the stanza corresponds to the name of the volume for use in the 
+The key of the stanza corresponds to the name of the volume for use in the
 `source` parameter of a `"host"` type [`volume`](/docs/job-specification/volume.html)
 and ACLs.
 
@@ -418,7 +417,9 @@ client {
 ### Custom Metadata, Network Speed, and Node Class
 
 This example shows a client configuration which customizes the metadata, network
-speed, and node class.
+speed, and node class. The scheduler can use this information while processing
+[constraints][metadata_constraint]. The metadata is completely user configurable;
+the values below are for illustrative purposes only.
 
 ```hcl
 client {
@@ -428,9 +429,13 @@ client {
 
   meta {
     "owner" = "ops"
+    "cached_binaries" = "redis,apache,nginx,jq,cypress,nodejs"
+    "rack" = "rack-12-1"
   }
 }
 ```
+
 [plugin-options]: #plugin-options
 [plugin-stanza]: /docs/configuration/plugin.html
 [server-join]: /docs/configuration/server_join.html "Server Join"
+[metadata_constraint]: /docs/job-specification/constraint.html#user-specified-metadata "Nomad User-Specified Metadata Constraint Example"
