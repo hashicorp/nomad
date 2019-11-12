@@ -832,40 +832,6 @@ func (a *Agent) reservePortsForClient(conf *clientconfig.Config) error {
 	return nil
 }
 
-// findLoopbackDevice iterates through all the interfaces on a machine and
-// returns the ip addr, mask of the loopback device
-func (a *Agent) findLoopbackDevice() (string, string, string, error) {
-	var ifcs []net.Interface
-	var err error
-	ifcs, err = net.Interfaces()
-	if err != nil {
-		return "", "", "", err
-	}
-	for _, ifc := range ifcs {
-		addrs, err := ifc.Addrs()
-		if err != nil {
-			return "", "", "", err
-		}
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			if ip.IsLoopback() {
-				if ip.To4() == nil {
-					continue
-				}
-				return ifc.Name, ip.String(), addr.String(), nil
-			}
-		}
-	}
-
-	return "", "", "", fmt.Errorf("no loopback devices with IPV4 addr found")
-}
-
 // Leave is used gracefully exit. Clients will inform servers
 // of their departure so that allocations can be rescheduled.
 func (a *Agent) Leave() error {
