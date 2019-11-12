@@ -61,7 +61,7 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 
 	// Targeting a node, forward request to node
 	if args.NodeID != "" && args.NodeID != "leader" {
-		m.forwardMonitor(conn, args, encoder, decoder)
+		m.forwardMonitorClient(conn, args, encoder, decoder)
 		// forwarded request has ended, return
 		return
 	}
@@ -73,10 +73,16 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 			return
 		}
 		if !isLeader && remoteServer == nil {
-			err := fmt.Errorf("No leader")
+			err := fmt.Errorf("no leader")
 			handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
 			return
 		}
+	}
+
+	// targeting a specific server, forward to that server
+	if args.ServerID != "" {
+		m.forwardMonitorServer(conn, args, encoder, decoder)
+		return
 	}
 
 	// NodeID was empty, so monitor this current server
@@ -181,7 +187,7 @@ OUTER:
 	}
 }
 
-func (m *Agent) forwardMonitor(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
+func (m *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
 	nodeID := args.NodeID
 
 	snap, err := m.srv.State().Snapshot()
@@ -270,5 +276,45 @@ func (m *Agent) forwardMonitorLeader(leader *serverParts, conn io.ReadWriteClose
 	}
 
 	structs.Bridge(conn, leaderConn)
+	return
+}
+
+func (m *Agent) forwardMonitorServer(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
+	serverID := args.ServerID
+	// empty ServerID to prevent forwarding loop
+	args.ServerID = ""
+
+	serfMembers := m.srv.Members()
+	var target *serverParts
+	for _, mem := range serfMembers {
+		if mem.Name == serverID {
+			ok, srv := isNomadServer(mem)
+			if !ok {
+				err := fmt.Errorf("unknown nomad server %s", serverID)
+				handleStreamResultError(err, nil, encoder)
+				return
+			}
+			target = srv
+		}
+	}
+
+	var serverConn net.Conn
+	localConn, err := m.srv.streamingRpc(target, "Agent.Monitor")
+	if err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	serverConn = localConn
+	defer serverConn.Close()
+
+	// Send the Request
+	outEncoder := codec.NewEncoder(serverConn, structs.MsgpackHandle)
+	if err := outEncoder.Encode(args); err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	structs.Bridge(conn, serverConn)
 	return
 }

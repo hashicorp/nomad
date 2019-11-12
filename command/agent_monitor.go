@@ -61,12 +61,14 @@ func (c *MonitorCommand) Run(args []string) int {
 
 	var logLevel string
 	var nodeID string
+	var serverID string
 	var logJSON bool
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&logLevel, "log-level", "", "")
 	flags.StringVar(&nodeID, "node-id", "", "")
+	flags.StringVar(&serverID, "server-id", "", "")
 	flags.BoolVar(&logJSON, "json", false, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -90,6 +92,7 @@ func (c *MonitorCommand) Run(args []string) int {
 	params := map[string]string{
 		"log_level": logLevel,
 		"node_id":   nodeID,
+		"server_id": serverID,
 		"log_json":  strconv.FormatBool(logJSON),
 	}
 
