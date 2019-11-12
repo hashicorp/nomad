@@ -532,15 +532,6 @@ func assertIndex(t *testing.T, resp *httptest.ResponseRecorder) {
 	}
 }
 
-// checkIndex is like assertIndex but returns an error
-func checkIndex(resp *httptest.ResponseRecorder) error {
-	header := resp.Header().Get("X-Nomad-Index")
-	if header == "" || header == "0" {
-		return fmt.Errorf("Bad: %v", header)
-	}
-	return nil
-}
-
 func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
