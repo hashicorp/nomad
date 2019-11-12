@@ -3,6 +3,11 @@ import parseDuration from 'nomad-ui/utils/parse-duration';
 
 const testCases = [
   {
+    name: 'Only milliseconds',
+    in: '100ms',
+    out: 100 * 1000000,
+  },
+  {
     name: 'Only seconds',
     in: '5s',
     out: 5 * 1000 * 1000000,
@@ -64,11 +69,6 @@ const errorCases = [
     name: 'Float quantities',
     in: '1.5m',
     error: /Unallowed duration unit "\."/,
-  },
-  {
-    name: 'Repeated unit tokens',
-    in: '30hm',
-    error: /Cannot follow a non-numeric token with a non-numeric token/,
   },
 ];
 
