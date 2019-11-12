@@ -138,7 +138,7 @@ constraint {
   must be 1 or greater and if omitted, defaults to 1.  When specified as a job
   constraint, it applies to all groups in the job. When specified as a group
   constraint, the effect is constrained to that group. This constraint can not
-  be specified at the task level. 
+  be specified at the task level.
 
     ```hcl
     constraint {
@@ -203,7 +203,7 @@ constraint {
   before checking for equality. The default behavior for `"!="` is to include
   nodes that don't have that attribute set.
 
-- `"is_not_set"` - Specifies that a given attribute must not be present. 
+- `"is_not_set"` - Specifies that a given attribute must not be present.
 
 ## `constraint` Examples
 
@@ -227,7 +227,7 @@ constraint {
 
 A potential use case of the `distinct_property` constraint is to spread a
 service with `count > 1` across racks to minimize correlated failure. Nodes can
-be annotated with which rack they are on using [client
+be annotated with which rack they are on using [custom client
 metadata][client-meta] with values such as "rack-12-1", "rack-12-2", etc.
 The following constraint would assure that an individual rack is not running
 more than 2 instances of the task group.
@@ -273,7 +273,7 @@ constraint {
 
 This example restricts the task to running on nodes where the binaries for
 redis, cypress, and nginx are all cached locally. This particular example is
-utilizing node [metadata][meta].
+utilizing [custom client metadata][client-meta].
 
 ```hcl
 constraint {
@@ -288,3 +288,4 @@ constraint {
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [interpolation]: /docs/runtime/interpolation.html "Nomad interpolation"
 [node-variables]: /docs/runtime/interpolation.html#node-variables- "Nomad interpolation-Node variables"
+[client-meta]: /docs/configuration/client.html#custom-metadata-network-speed-and-node-class "Nomad Custom Metadata, Network Speed, and Node Class"
