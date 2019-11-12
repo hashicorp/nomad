@@ -1,4 +1,6 @@
-{{#popover-menu label="Drain" triggerClass=(if drain.isRunning "is-loading") as |m|}}
+{{#popover-menu
+  label=(if client.isDraining "Update" "Drain")
+  triggerClass=(if drain.isRunning "is-loading") as |m|}}
   <form onsubmit={{action (queue (action preventDefault) (perform drain m.actions.close))}} class="form is-small">
     <h4 class="group-heading">Drain Options</h4>
     <div class="field">

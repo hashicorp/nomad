@@ -20,7 +20,7 @@ export default Component.extend({
   drainSystemJobs: true,
 
   selectedDurationQuickOption: overridable(function() {
-    return this.durationQuickOptions.findBy('value', '4h');
+    return this.durationQuickOptions[0];
   }),
 
   durationIsCustom: equal('selectedDurationQuickOption.value', 'custom'),
@@ -54,7 +54,7 @@ export default Component.extend({
     try {
       deadline = parseDuration(this.deadline);
     } catch (err) {
-      this.set('parseError', err.message);
+      this.set('parseError', 'Failed to parse duration');
       return;
     }
 
@@ -62,8 +62,6 @@ export default Component.extend({
       Deadline: deadline,
       IgnoreSystemJobs: !this.drainSystemJobs,
     };
-
-    console.log('Draining:', spec);
 
     close();
 
