@@ -25,4 +25,8 @@
       font-weight: $weight-semibold;
     }
   }
+
+  &.is-small {
+    font-size: $size-7;
+  }
 }
