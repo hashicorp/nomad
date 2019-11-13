@@ -205,6 +205,11 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 		PlainText: plainText,
 	}
 
+	// if node and server were requested return error
+	if args.NodeID != "" && args.ServerID != "" {
+		return nil, CodedError(400, "Cannot target node and server simultaneously")
+	}
+
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
 	// Make the RPC

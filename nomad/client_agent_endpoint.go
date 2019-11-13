@@ -60,27 +60,25 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	}
 
 	// Targeting a node, forward request to node
-	if args.NodeID != "" && args.NodeID != "leader" {
+	if args.NodeID != "" {
 		m.forwardMonitorClient(conn, args, encoder, decoder)
 		// forwarded request has ended, return
 		return
 	}
 
-	if args.NodeID == "leader" {
-		isLeader, remoteServer := m.srv.getLeader()
-		if !isLeader && remoteServer != nil {
-			m.forwardMonitorLeader(remoteServer, conn, args, encoder, decoder)
-			return
-		}
-		if !isLeader && remoteServer == nil {
-			err := fmt.Errorf("no leader")
-			handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
-			return
-		}
+	currentServer := m.srv.serf.LocalMember().Name
+	var forwardServer bool
+	// Targeting a remote server which is not the leader and not this server
+	if args.ServerID != "" && args.ServerID != "leader" && args.ServerID != currentServer {
+		forwardServer = true
 	}
 
-	// targeting a specific server, forward to that server
-	if args.ServerID != "" {
+	// Targeting leader and this server is not current leader
+	if args.ServerID == "leader" && !m.srv.IsLeader() {
+		forwardServer = true
+	}
+
+	if forwardServer {
 		m.forwardMonitorServer(conn, args, encoder, decoder)
 		return
 	}
@@ -256,62 +254,52 @@ func (m *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.Moni
 	return
 }
 
-func (m *Agent) forwardMonitorLeader(leader *serverParts, conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
-	var leaderConn net.Conn
-
-	localConn, err := m.srv.streamingRpc(leader, "Agent.Monitor")
-	if err != nil {
-		handleStreamResultError(err, nil, encoder)
-		return
-	}
-
-	leaderConn = localConn
-	defer leaderConn.Close()
-
-	// Send the Request
-	outEncoder := codec.NewEncoder(leaderConn, structs.MsgpackHandle)
-	if err := outEncoder.Encode(args); err != nil {
-		handleStreamResultError(err, nil, encoder)
-		return
-	}
-
-	structs.Bridge(conn, leaderConn)
-	return
-}
-
 func (m *Agent) forwardMonitorServer(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
+	var target *serverParts
 	serverID := args.ServerID
+
 	// empty ServerID to prevent forwarding loop
 	args.ServerID = ""
 
-	serfMembers := m.srv.Members()
-	var target *serverParts
-	for _, mem := range serfMembers {
-		if mem.Name == serverID {
-			ok, srv := isNomadServer(mem)
-			if !ok {
-				err := fmt.Errorf("unknown nomad server %s", serverID)
-				handleStreamResultError(err, nil, encoder)
-				return
+	if serverID == "leader" {
+		isLeader, remoteServer := m.srv.getLeader()
+		if !isLeader && remoteServer != nil {
+			target = remoteServer
+		}
+		if !isLeader && remoteServer == nil {
+			handleStreamResultError(structs.ErrNoLeader, helper.Int64ToPtr(400), encoder)
+			return
+		}
+	} else {
+		// See if the server ID is a known member
+		serfMembers := m.srv.Members()
+		for _, mem := range serfMembers {
+			if mem.Name == serverID {
+				if ok, srv := isNomadServer(mem); ok {
+					target = srv
+				}
 			}
-			target = srv
 		}
 	}
 
-	var serverConn net.Conn
-	localConn, err := m.srv.streamingRpc(target, "Agent.Monitor")
-	if err != nil {
-		handleStreamResultError(err, nil, encoder)
+	// Unable to find a server
+	if target == nil {
+		err := fmt.Errorf("unknown nomad server %s", serverID)
+		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
 		return
 	}
 
-	serverConn = localConn
+	serverConn, err := m.srv.streamingRpc(target, "Agent.Monitor")
+	if err != nil {
+		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		return
+	}
 	defer serverConn.Close()
 
 	// Send the Request
 	outEncoder := codec.NewEncoder(serverConn, structs.MsgpackHandle)
 	if err := outEncoder.Encode(args); err != nil {
-		handleStreamResultError(err, nil, encoder)
+		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
 		return
 	}
 
