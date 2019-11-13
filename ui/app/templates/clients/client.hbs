@@ -83,55 +83,38 @@
   </div>
 
   {{#if model.drainStrategy}}
-    <div class="boxed-section is-small is-info">
-      <div class="boxed-section-body inline-definitions">
-        <span class="label">Drain Strategy</span>
-        <span class="pair" data-test-drain-deadline>
-          <span class="term">Deadline</span>
-          {{#if model.drainStrategy.isForced}}
-            <span class="badge is-danger">Forced Drain</span>
-          {{else if model.drainStrategy.hasNoDeadline}}
-            No deadline
-          {{else}}
-            {{format-duration model.drainStrategy.deadline}}
-          {{/if}}
-        </span>
-        {{#if model.drainStrategy.forceDeadline}}
-          <span class="pair" data-test-drain-forced-deadline>
-            <span class="term">Forced Deadline</span>
-            {{format-ts model.drainStrategy.forceDeadline}}
-            ({{moment-from-now model.drainStrategy.forceDeadline interval=1000}})
-          </span>
-        {{/if}}
-        <span class="pair" data-test-drain-ignore-system-jobs>
-          <span class="term">Ignore System Jobs?</span>
-          {{if model.drainStrategy.ignoreSystemJobs "Yes" "No"}}
-        </span>
-      </div>
-    </div>
-  {{/if}}
-
-  {{#if model.drainStrategy}}
     <div class="boxed-section is-info">
       <div class="boxed-section-head">
         <div class="boxed-section-row">Drain Strategy</div>
         <div class="boxed-section-row">
-          <div class="inline-definitions">
+          <div class="inline-definitions is-small">
+            {{#if (not model.drainStrategy.hasNoDeadline)}}
+              <span class="pair">
+                <span class="term">Duration</span>
+                {{format-duration model.drainStrategy.deadline}}
+              </span>
+            {{/if}}
             <span class="pair">
-              <span class="term">Duration</span>
-              <span class="tooltip" aria-label="Started Absolute">1h0m0s</span>
-            </span>
-            <span class="pair">
-              <span class="term">Remaining</span>
-              <span class="tooltip" aria-label="Deadline Absolute">30m0s</span>
+              <span class="term">{{if model.drainStrategy.hasNoDeadline "Deadline" "Remaining"}}</span>
+              {{#if model.drainStrategy.hasNoDeadline}}
+                No deadline
+              {{else}}
+                <span class="tooltip" aria-label={{format-ts model.drainStrategy.forceDeadline}}>
+                  {{moment-from-now model.drainStrategy.forceDeadline interval=1000 hideAffix=true}}
+                </span>
+              {{/if}}
             </span>
             <span class="pair">
               <span class="term">Force Drain</span>
-              (warn)Yes/No
+              {{#if model.drainStrategy.isForced}}
+                {{x-icon "warning" class="is-text is-warning"}} Yes
+              {{else}}
+                No
+              {{/if}}
             </span>
             <span class="pair">
               <span class="term">Drain System Jobs</span>
-              Yes/No
+              {{if model.drainStrategy.ignoreSystemJobs "No" "Yes"}}
             </span>
           </div>
           <button class="button is-warning is-small pull-right">Force Drain</button>
