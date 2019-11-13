@@ -536,9 +536,18 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		}
 	}
 
+	// Mark start time for the drain
+	if args.DrainStrategy != nil {
+		if node.DrainStrategy == nil || node.DrainStrategy.StartedAt.IsZero() {
+			args.DrainStrategy.StartedAt = time.Now().UTC()
+		} else {
+			args.DrainStrategy.StartedAt = node.DrainStrategy.StartedAt
+		}
+	}
+
 	// Mark the deadline time
 	if args.DrainStrategy != nil && args.DrainStrategy.Deadline.Nanoseconds() > 0 {
-		args.DrainStrategy.ForceDeadline = time.Now().Add(args.DrainStrategy.Deadline)
+		args.DrainStrategy.ForceDeadline = time.Now().Add(args.DrainStrategy.Deadline).UTC()
 	}
 
 	// Construct the node event
