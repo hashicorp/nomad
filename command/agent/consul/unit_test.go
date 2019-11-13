@@ -35,6 +35,7 @@ func testWorkload() *WorkloadServices {
 				Name:      "taskname-service",
 				PortLabel: "x",
 				Tags:      []string{"tag1", "tag2"},
+				Meta:      map[string]string{"meta1": "foo"},
 			},
 		},
 		Networks: []*structs.NetworkResource{
@@ -1073,6 +1074,73 @@ func TestConsul_CanaryTags_NoTags(t *testing.T) {
 	}
 
 	ctx.ServiceClient.RemoveWorkload(ctx.Workload)
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 0)
+}
+
+// TestConsul_CanaryMeta asserts CanaryMeta are used when Canary=true
+func TestConsul_CanaryMeta(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctx := setupFake(t)
+
+	canaryMeta := map[string]string{"meta1": "canary"}
+	canaryMeta["external-source"] = "nomad"
+	ctx.Task.Canary = true
+	ctx.Task.Services[0].CanaryMeta = canaryMeta
+
+	require.NoError(ctx.ServiceClient.RegisterTask(ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 1)
+	for _, service := range ctx.FakeConsul.services {
+		require.Equal(canaryMeta, service.Meta)
+	}
+
+	// Disable canary and assert meta are not the canary meta
+	origTask := ctx.Task.Copy()
+	ctx.Task.Canary = false
+	require.NoError(ctx.ServiceClient.UpdateTask(origTask, ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 1)
+	for _, service := range ctx.FakeConsul.services {
+		require.NotEqual(canaryMeta, service.Meta)
+	}
+
+	ctx.ServiceClient.RemoveTask(ctx.Task)
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 0)
+}
+
+// TestConsul_CanaryMeta_NoMeta asserts Meta are used when Canary=true and there
+// are no specified canary meta
+func TestConsul_CanaryMeta_NoMeta(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctx := setupFake(t)
+
+	meta := map[string]string{"meta1": "foo"}
+	meta["external-source"] = "nomad"
+	ctx.Task.Canary = true
+	ctx.Task.Services[0].Meta = meta
+
+	require.NoError(ctx.ServiceClient.RegisterTask(ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 1)
+	for _, service := range ctx.FakeConsul.services {
+		require.Equal(meta, service.Meta)
+	}
+
+	// Disable canary and assert meta dont change
+	origTask := ctx.Task.Copy()
+	ctx.Task.Canary = false
+	require.NoError(ctx.ServiceClient.UpdateTask(origTask, ctx.Task))
+	require.NoError(ctx.syncOnce())
+	require.Len(ctx.FakeConsul.services, 1)
+	for _, service := range ctx.FakeConsul.services {
+		require.Equal(meta, service.Meta)
+	}
+
+	ctx.ServiceClient.RemoveTask(ctx.Task)
 	require.NoError(ctx.syncOnce())
 	require.Len(ctx.FakeConsul.services, 0)
 }

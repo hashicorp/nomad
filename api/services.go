@@ -107,6 +107,7 @@ type Service struct {
 	CheckRestart *CheckRestart `mapstructure:"check_restart"`
 	Connect      *ConsulConnect
 	Meta         map[string]string
+	CanaryMeta   map[string]string
 }
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task

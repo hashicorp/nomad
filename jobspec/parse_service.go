@@ -47,6 +47,7 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 		"check_restart",
 		"connect",
 		"meta",
+		"canary_meta",
 	}
 	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 		return nil, err
@@ -62,6 +63,7 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 	delete(m, "check_restart")
 	delete(m, "connect")
 	delete(m, "meta")
+	delete(m, "canary_meta")
 
 	if err := mapstructure.WeakDecode(m, &service); err != nil {
 		return nil, err
@@ -117,6 +119,20 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 				return nil, err
 			}
 			if err := mapstructure.WeakDecode(m, &service.Meta); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Parse out canary_meta fields. These are in HCL as a list so we need
+	// to iterate over them and merge them.
+	if metaO := listVal.Filter("canary_meta"); len(metaO.Items) > 0 {
+		for _, o := range metaO.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return nil, err
+			}
+			if err := mapstructure.WeakDecode(m, &service.CanaryMeta); err != nil {
 				return nil, err
 			}
 		}

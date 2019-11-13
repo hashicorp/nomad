@@ -128,7 +128,7 @@ Connect][connect] integration.
   this service when the service is part of an allocation that is currently a
   canary. Once the canary is promoted, the registered tags will be updated to
   those specified in the `tags` parameter. If this is not supplied, the
-  registered tags will be equal to that of the `tags parameter.
+  registered tags will be equal to that of the `tags` parameter.
 
 - `address_mode` `(string: "auto")` - Specifies what address (host or
   driver-specific) this service should advertise.  This setting is supported in
@@ -150,6 +150,13 @@ Connect][connect] integration.
   
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   the Consul service with user-defined metadata.
+
+- `canary_meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that
+  annotates the Consul service with user-defined metadata when the service is
+  part of an allocation that is currently a canary. Once the canary is
+  promoted, the registered meta will be updated to those specified in the
+  `meta` parameter. If this is not supploed, the registered meta will be set to
+  that of the `meta` parameter.
 
 ### `check` Parameters
 

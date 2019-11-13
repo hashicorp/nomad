@@ -169,6 +169,14 @@ job "binstore-storagelocker" {
       }
 
       service {
+        meta {
+          abc = "123"
+        }
+
+        canary_meta {
+          canary = "boom"
+        }
+
         tags        = ["foo", "bar"]
         canary_tags = ["canary", "bam"]
         port        = "http"

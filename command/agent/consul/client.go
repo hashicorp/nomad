@@ -99,7 +99,8 @@ func agentServiceUpdateRequired(reg *api.AgentServiceRegistration, svc *api.Agen
 		reg.Port == svc.Port &&
 		reg.Address == svc.Address &&
 		reg.Name == svc.Service &&
-		reflect.DeepEqual(reg.Tags, svc.Tags))
+		reflect.DeepEqual(reg.Tags, svc.Tags) &&
+		reflect.DeepEqual(reg.Meta, svc.Meta))
 }
 
 // operations are submitted to the main loop via commit() for synchronizing
@@ -713,9 +714,17 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
 
-	meta := make(map[string]string, len(service.Meta))
-	for k, v := range service.Meta {
-		meta[k] = v
+	var meta map[string]string
+	if task.Canary && len(service.CanaryMeta) > 0 {
+		meta = make(map[string]string, len(service.CanaryMeta)+1)
+		for k, v := range service.CanaryMeta {
+			meta[k] = v
+		}
+	} else {
+		meta = make(map[string]string, len(service.Meta)+1)
+		for k, v := range service.Meta {
+			meta[k] = v
+		}
 	}
 
 	// This enables the consul UI to show that Nomad registered this service

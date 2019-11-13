@@ -218,7 +218,13 @@ func TestParse(t *testing.T) {
 									{
 										Tags:       []string{"foo", "bar"},
 										CanaryTags: []string{"canary", "bam"},
-										PortLabel:  "http",
+										Meta: map[string]string{
+											"abc": "123",
+										},
+										CanaryMeta: map[string]string{
+											"canary": "boom",
+										},
+										PortLabel: "http",
 										Checks: []api.ServiceCheck{
 											{
 												Name:        "check-name",
