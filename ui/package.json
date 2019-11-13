@@ -109,7 +109,8 @@
     "prettier": "^1.4.4",
     "query-string": "^5.0.0",
     "qunit-dom": "^0.9.0",
-    "sass": "^1.17.3"
+    "sass": "^1.17.3",
+    "xterm": "^4.2.0-vscode1"
   },
   "engines": {
     "node": "8.* || >= 10.*"

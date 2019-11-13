@@ -12757,6 +12757,11 @@ xtend@~4.0.0:
   resolved "https://registry.yarnpkg.com/xtend/-/xtend-4.0.1.tgz#a5c6d532be656e23db820efb943a1f04998d63af"
   integrity sha1-pcbVMr5lbiPbgg77lDofBJmNY68=
 
+xterm@^4.2.0-vscode1:
+  version "4.2.0-vscode1"
+  resolved "https://registry.yarnpkg.com/xterm/-/xterm-4.2.0-vscode1.tgz#dbd67e52536578ea6b772d69a97da1487acf29e3"
+  integrity sha512-frw5Kprzkko8+G0vp4jOcwTeOpYFbSb2+QShpeQGJ7l3Hg3MTM7kt1G+nLxBPKnkFAmei/JcJTUGJdp/lldAfA==
+
 y18n@^3.2.1:
   version "3.2.1"
   resolved "https://registry.yarnpkg.com/y18n/-/y18n-3.2.1.tgz#6d15fba884c08679c0d77e88e7759e811e07fa41"
