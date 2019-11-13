@@ -111,6 +111,63 @@
     </div>
   {{/if}}
 
+  {{#if model.drainStrategy}}
+    <div class="boxed-section is-info">
+      <div class="boxed-section-head">
+        <div class="boxed-section-row">Drain Strategy</div>
+        <div class="boxed-section-row">
+          <div class="inline-definitions">
+            <span class="pair">
+              <span class="term">Duration</span>
+              <span class="tooltip" aria-label="Started Absolute">1h0m0s</span>
+            </span>
+            <span class="pair">
+              <span class="term">Remaining</span>
+              <span class="tooltip" aria-label="Deadline Absolute">30m0s</span>
+            </span>
+            <span class="pair">
+              <span class="term">Force Drain</span>
+              (warn)Yes/No
+            </span>
+            <span class="pair">
+              <span class="term">Drain System Jobs</span>
+              Yes/No
+            </span>
+          </div>
+          <button class="button is-warning is-small pull-right">Force Drain</button>
+        </div>
+      </div>
+      <div class="boxed-section-body">
+        <div class="columns">
+          <div class="column nowrap is-minimum">
+            <div class="metric-group">
+              <div class="metric is-primary">
+                <h3 class="label">Complete</h3>
+                <p class="value">--</p>
+              </div>
+            </div>
+            <div class="metric-group">
+              <div class="metric">
+                <h3 class="label">Migrating</h3>
+                <p class="value">--</p>
+              </div>
+            </div>
+            <div class="metric-group">
+              <div class="metric">
+                <h3 class="label">Remaining</h3>
+                <p class="value">--</p>
+              </div>
+            </div>
+          </div>
+          <div class="column">
+            <h3 class="title is-4">Status</h3>
+            <p>Time since an allocation was successfully migrated.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+
   <div class="boxed-section">
     <div class="boxed-section-head is-hollow">
       Resource Utilization
