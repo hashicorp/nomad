@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strconv"
 	"testing"
 	"time"
 
@@ -525,23 +524,6 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	}
 }
 
-// assertIndex tests that X-Nomad-Index is set and non-zero
-func assertIndex(t *testing.T, resp *httptest.ResponseRecorder) {
-	header := resp.Header().Get("X-Nomad-Index")
-	if header == "" || header == "0" {
-		t.Fatalf("Bad: %v", header)
-	}
-}
-
-// checkIndex is like assertIndex but returns an error
-func checkIndex(resp *httptest.ResponseRecorder) error {
-	header := resp.Header().Get("X-Nomad-Index")
-	if header == "" || header == "0" {
-		return fmt.Errorf("Bad: %v", header)
-	}
-	return nil
-}
-
 func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
@@ -642,19 +624,6 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 		resp.Body.Close()
 		assert.Equal(resp.StatusCode, 200)
 	}
-}
-
-// getIndex parses X-Nomad-Index
-func getIndex(t *testing.T, resp *httptest.ResponseRecorder) uint64 {
-	header := resp.Header().Get("X-Nomad-Index")
-	if header == "" {
-		t.Fatalf("Bad: %v", header)
-	}
-	val, err := strconv.Atoi(header)
-	if err != nil {
-		t.Fatalf("Bad: %v", header)
-	}
-	return uint64(val)
 }
 
 func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
