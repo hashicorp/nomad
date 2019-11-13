@@ -343,6 +343,13 @@ func TestGetGetterUrl_Queries(t *testing.T) {
 			output: "bucket.s3-eu-west-1.amazonaws.com/foo/bar?aws_access_key_id=abcd1234",
 		},
 		{
+			name: "gcs",
+			artifact: &structs.TaskArtifact{
+				GetterSource: "gcs::https://www.googleapis.com/storage/v1/b/d/f",
+			},
+			output: "gcs::https://www.googleapis.com/storage/v1/b/d/f",
+		},
+		{
 			name: "local file",
 			artifact: &structs.TaskArtifact{
 				GetterSource: "/foo/bar",
