@@ -981,6 +981,7 @@ func TestJobEndpoint_Register_Vault_OverrideConstraint(t *testing.T) {
 	// Fetch the response
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	require.NoError(t, err)
 
 	// Check for the job in the FSM
 	state := s1.fsm.State()
