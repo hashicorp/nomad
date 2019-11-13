@@ -718,6 +718,7 @@ func TestJobEndpoint_Register_Dispatched(t *testing.T) {
 	require.Error(err)
 	require.Contains(err.Error(), "job can't be submitted with 'Dispatched'")
 }
+
 func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
@@ -1176,6 +1177,87 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	if out.VaultToken != "" {
 		t.Fatalf("vault token not cleared")
 	}
+}
+
+// TestJobEndpoint_Register_SemverConstraint asserts that semver ordering is
+// used when evaluating semver constraints.
+func TestJobEndpoint_Register_SemverConstraint(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.State()
+
+	// Create a job with a semver constraint
+	job := mock.Job()
+	job.Constraints = []*structs.Constraint{
+		{
+			LTarget: "${attr.vault.version}",
+			RTarget: ">= 0.6.1",
+			Operand: structs.ConstraintSemver,
+		},
+	}
+	job.TaskGroups[0].Count = 1
+
+	// Insert 2 Nodes, 1 matching the constraint, 1 not
+	node1 := mock.Node()
+	node1.Attributes["vault.version"] = "1.3.0-beta1+ent"
+	node1.ComputeClass()
+	require.NoError(t, state.UpsertNode(1, node1))
+
+	node2 := mock.Node()
+	delete(node2.Attributes, "vault.version")
+	node2.ComputeClass()
+	require.NoError(t, state.UpsertNode(2, node2))
+
+	// Create the register request
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	require.NotZero(t, resp.Index)
+
+	// Wait for placements
+	allocReq := &structs.JobSpecificRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		resp := structs.JobAllocationsResponse{}
+		err := msgpackrpc.CallWithCodec(codec, "Job.Allocations", allocReq, &resp)
+		if err != nil {
+			return false, err
+		}
+		if n := len(resp.Allocations); n != 1 {
+			return false, fmt.Errorf("expected 1 alloc, found %d", n)
+		}
+		alloc := resp.Allocations[0]
+		if alloc.NodeID != node1.ID {
+			return false, fmt.Errorf("expected alloc to be one node=%q but found node=%q",
+				node1.ID, alloc.NodeID)
+		}
+		return true, nil
+	}, func(waitErr error) {
+		evals, err := state.EvalsByJob(nil, structs.DefaultNamespace, job.ID)
+		require.NoError(t, err)
+		for i, e := range evals {
+			t.Logf("%d Eval: %s", i, pretty.Sprint(e))
+		}
+
+		require.NoError(t, waitErr)
+	})
 }
 
 func TestJobEndpoint_Revert(t *testing.T) {
@@ -3710,6 +3792,29 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 	if len(resp.Allocations) != 1 || resp.Allocations[0].JobID != "job1" {
 		t.Fatalf("bad: %#v", resp.Allocations)
 	}
+}
+
+// TestJobEndpoint_Allocations_NoJobID asserts not setting a JobID in the
+// request returns an error.
+func TestJobEndpoint_Allocations_NoJobID(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	get := &structs.JobSpecificRequest{
+		JobID: "",
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	var resp structs.JobAllocationsResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Allocations", get, &resp)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "missing job ID")
 }
 
 func TestJobEndpoint_Evaluations(t *testing.T) {

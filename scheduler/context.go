@@ -5,7 +5,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -35,7 +34,10 @@ type Context interface {
 	RegexpCache() map[string]*regexp.Regexp
 
 	// VersionConstraintCache is a cache of version constraints
-	VersionConstraintCache() map[string]version.Constraints
+	VersionConstraintCache() map[string]VerConstraints
+
+	// SemverConstraintCache is a cache of semver constraints
+	SemverConstraintCache() map[string]VerConstraints
 
 	// Eligibility returns a tracker for node eligibility in the context of the
 	// eval.
@@ -44,8 +46,9 @@ type Context interface {
 
 // EvalCache is used to cache certain things during an evaluation
 type EvalCache struct {
-	reCache         map[string]*regexp.Regexp
-	constraintCache map[string]version.Constraints
+	reCache      map[string]*regexp.Regexp
+	versionCache map[string]VerConstraints
+	semverCache  map[string]VerConstraints
 }
 
 func (e *EvalCache) RegexpCache() map[string]*regexp.Regexp {
@@ -55,11 +58,18 @@ func (e *EvalCache) RegexpCache() map[string]*regexp.Regexp {
 	return e.reCache
 }
 
-func (e *EvalCache) VersionConstraintCache() map[string]version.Constraints {
-	if e.constraintCache == nil {
-		e.constraintCache = make(map[string]version.Constraints)
+func (e *EvalCache) VersionConstraintCache() map[string]VerConstraints {
+	if e.versionCache == nil {
+		e.versionCache = make(map[string]VerConstraints)
 	}
-	return e.constraintCache
+	return e.versionCache
+}
+
+func (e *EvalCache) SemverConstraintCache() map[string]VerConstraints {
+	if e.semverCache == nil {
+		e.semverCache = make(map[string]VerConstraints)
+	}
+	return e.semverCache
 }
 
 // EvalContext is a Context used during an Evaluation

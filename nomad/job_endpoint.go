@@ -951,6 +951,12 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 		return structs.ErrPermissionDenied
 	}
 
+	// Ensure JobID is set otherwise everything works and never returns
+	// allocations which can hide bugs in request code.
+	if args.JobID == "" {
+		return fmt.Errorf("missing job ID")
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,

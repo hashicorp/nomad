@@ -1827,9 +1827,7 @@ func TestConstraint_Validate(t *testing.T) {
 		Operand: "=",
 	}
 	err = c.Validate()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Perform additional regexp validation
 	c.Operand = ConstraintRegex
@@ -1848,6 +1846,15 @@ func TestConstraint_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[0].Error(), "Malformed constraint") {
 		t.Fatalf("err: %s", err)
 	}
+
+	// Perform semver validation
+	c.Operand = ConstraintSemver
+	err = c.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Malformed constraint")
+
+	c.RTarget = ">= 0.6.1"
+	require.NoError(t, c.Validate())
 
 	// Perform distinct_property validation
 	c.Operand = ConstraintDistinctProperty
