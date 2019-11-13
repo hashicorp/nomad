@@ -1,6 +1,4 @@
 import Route from '@ember/routing/route';
-import RSVP from 'rsvp';
-import notifyError from 'nomad-ui/utils/notify-error';
 
 export default Route.extend({
   model() {

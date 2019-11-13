@@ -16,10 +16,11 @@ module.exports = function(app, options) {
   });
 
   proxy.on('error', function(err, req) {
+    // eslint-disable-next-line
     console.error(err, req.url);
   });
 
-  app.use(proxyPath, function(req, res, next){
+  app.use(proxyPath, function(req, res){
     // include root path in proxied request
     req.url = proxyPath + req.url;
     proxy.web(req, res, { target: 'http://localhost:4646'});
