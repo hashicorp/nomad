@@ -27,14 +27,14 @@ module('Integration | Component | exec-terminal', function(hooks) {
         window.xterm.buffer
           .getLine(0)
           .translateToString()
-          .includes('bash')
+          .includes('exec 🥳')
       );
       done();
     });
 
     socket.mockMessage({
       stdout: {
-        data: btoa('bash'),
+        data: 'ZXhlYyDwn6Wz', // FIXME?
       },
     });
   });
