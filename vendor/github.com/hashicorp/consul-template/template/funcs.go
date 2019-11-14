@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	dep "github.com/hashicorp/consul-template/dependency"
+	socktmpl "github.com/hashicorp/go-sockaddr/template"
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -208,8 +210,13 @@ func keyWithDefaultFunc(b *Brain, used, missing *dep.Set) func(string, string) (
 	}
 }
 
+func safeLsFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, error) {
+	// call lsFunc but explicitly mark that empty data set returned on monitored KV prefix is NOT safe
+	return lsFunc(b, used, missing, false)
+}
+
 // lsFunc returns or accumulates keyPrefix dependencies.
-func lsFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, error) {
+func lsFunc(b *Brain, used, missing *dep.Set, emptyIsSafe bool) func(string) ([]*dep.KeyPair, error) {
 	return func(s string) ([]*dep.KeyPair, error) {
 		result := []*dep.KeyPair{}
 
@@ -231,9 +238,23 @@ func lsFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, erro
 					result = append(result, pair)
 				}
 			}
-			return result, nil
+
+			if len(result) == 0 {
+				if emptyIsSafe {
+					// Operator used potentially unsafe ls function in the template instead of the safeLs
+					return result, nil
+				}
+			} else {
+				// non empty result is good so we just return the data
+				return result, nil
+			}
+
+			// If we reach this part of the code result is completely empty as value returned no KV pairs
+			// Operator selected to use safeLs on the specific KV prefix so we will refuse to render template
+			// by marking d as missing
 		}
 
+		// b.Recall either returned an error or safeLs entered unsafe case
 		missing.Add(d)
 
 		return result, nil
@@ -358,6 +379,51 @@ func secretsFunc(b *Brain, used, missing *dep.Set) func(string) ([]string, error
 	}
 }
 
+// byMeta returns Services grouped by one or many ServiceMeta fields.
+func byMeta(meta string, services []*dep.HealthService) (groups map[string][]*dep.HealthService, err error) {
+	re := regexp.MustCompile("[^a-zA-Z0-9_-]")
+	normalize := func(x string) string {
+		return re.ReplaceAllString(x, "_")
+	}
+	getOrDefault := func(m map[string]string, key string) string {
+		realKey := strings.TrimSuffix(key, "|int")
+		if val, ok := m[realKey]; ok {
+			if val != "" {
+				return val
+			}
+		}
+		if strings.HasSuffix(key, "|int") {
+			return "0"
+		}
+		return fmt.Sprintf("_no_%s_", realKey)
+	}
+
+	metas := strings.Split(meta, ",")
+
+	groups = make(map[string][]*dep.HealthService)
+
+	for _, s := range services {
+		sm := s.ServiceMeta
+		keyParts := []string{}
+		for _, meta := range metas {
+			value := getOrDefault(sm, meta)
+			if strings.HasSuffix(meta, "|int") {
+				value = getOrDefault(sm, meta)
+				i, err := strconv.Atoi(value)
+				if err != nil {
+					return nil, errors.Wrap(err, fmt.Sprintf("cannot parse %v as number ", value))
+				}
+				value = fmt.Sprintf("%05d", i)
+			}
+			keyParts = append(keyParts, normalize(value))
+		}
+		key := strings.Join(keyParts, "_")
+		groups[key] = append(groups[key], s)
+	}
+
+	return groups, nil
+}
+
 // serviceFunc returns or accumulates health service dependencies.
 func serviceFunc(b *Brain, used, missing *dep.Set) func(...string) ([]*dep.HealthService, error) {
 	return func(s ...string) ([]*dep.HealthService, error) {
@@ -406,8 +472,13 @@ func servicesFunc(b *Brain, used, missing *dep.Set) func(...string) ([]*dep.Cata
 	}
 }
 
+func safeTreeFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, error) {
+	// call treeFunc but explicitly mark that empty data set returned on monitored KV prefix is NOT safe
+	return treeFunc(b, used, missing, false)
+}
+
 // treeFunc returns or accumulates keyPrefix dependencies.
-func treeFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, error) {
+func treeFunc(b *Brain, used, missing *dep.Set, emptyIsSafe bool) func(string) ([]*dep.KeyPair, error) {
 	return func(s string) ([]*dep.KeyPair, error) {
 		result := []*dep.KeyPair{}
 
@@ -430,9 +501,23 @@ func treeFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, er
 					result = append(result, pair)
 				}
 			}
-			return result, nil
+
+			if len(result) == 0 {
+				if emptyIsSafe {
+					// Operator used potentially unsafe tree function in the template instead of the safeTree
+					return result, nil
+				}
+			} else {
+				// non empty result is good so we just return the data
+				return result, nil
+			}
+
+			// If we reach this part of the code result is completely empty as value returned no KV pairs
+			// Operator selected to use safeTree on the specific KV prefix so we will refuse to render template
+			// by marking d as missing
 		}
 
+		// b.Recall either returned an error or safeTree entered unsafe case
 		missing.Add(d)
 
 		return result, nil
@@ -583,8 +668,8 @@ func explode(pairs []*dep.KeyPair) (map[string]interface{}, error) {
 	return m, nil
 }
 
-// explodeHelper is a recursive helper for explode.
-func explodeHelper(m map[string]interface{}, k, v, p string) error {
+// explodeHelper is a recursive helper for explode and explodeMap
+func explodeHelper(m map[string]interface{}, k string, v interface{}, p string) error {
 	if strings.Contains(k, "/") {
 		parts := strings.Split(k, "/")
 		top := parts[0]
@@ -605,6 +690,24 @@ func explodeHelper(m map[string]interface{}, k, v, p string) error {
 	}
 
 	return nil
+}
+
+// explodeMap turns a single-level map into a deeply-nested hash.
+func explodeMap(mapIn map[string]interface{}) (map[string]interface{}, error) {
+	mapOut := make(map[string]interface{})
+
+	var keys []string
+	for k := range mapIn {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for i := range keys {
+		if err := explodeHelper(mapOut, keys[i], mapIn[keys[i]], keys[i]); err != nil {
+			return nil, errors.Wrap(err, "explodeMap")
+		}
+	}
+	return mapOut, nil
 }
 
 // in searches for a given value in a given interface.
@@ -697,16 +800,41 @@ func indent(spaces int, s string) (string, error) {
 // 			print(i)
 // 		}
 //
-func loop(ints ...int64) (<-chan int64, error) {
-	var start, stop int64
-	switch len(ints) {
+func loop(ifaces ...interface{}) (<-chan int64, error) {
+
+	to64 := func(i interface{}) (int64, error) {
+		v := reflect.ValueOf(i)
+		switch v.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
+			reflect.Int64:
+			return int64(v.Int()), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32,
+			reflect.Uint64:
+			return int64(v.Uint()), nil
+		case reflect.String:
+			return parseInt(v.String())
+		}
+		return 0, fmt.Errorf("loop: bad argument type: %T", i)
+	}
+
+	var i1, i2 interface{}
+	switch len(ifaces) {
 	case 1:
-		start, stop = 0, ints[0]
+		i1, i2 = 0, ifaces[0]
 	case 2:
-		start, stop = ints[0], ints[1]
+		i1, i2 = ifaces[0], ifaces[1]
 	default:
-		return nil, fmt.Errorf("loop: wrong number of arguments, expected 1 or 2"+
-			", but got %d", len(ints))
+		return nil, fmt.Errorf("loop: wrong number of arguments, expected "+
+			"1 or 2, but got %d", len(ifaces))
+	}
+
+	start, err := to64(i1)
+	if err != nil {
+		return nil, err
+	}
+	stop, err := to64(i2)
+	if err != nil {
+		return nil, err
 	}
 
 	ch := make(chan int64)
@@ -1183,4 +1311,14 @@ func pathInSandbox(sandbox, path string) error {
 		}
 	}
 	return nil
+}
+
+// sockaddr wraps go-sockaddr templating
+func sockaddr(args ...string) (string, error) {
+	t := fmt.Sprintf("{{ %s }} ", strings.Join(args, " "))
+	k, err := socktmpl.Parse(t)
+	if err != nil {
+		return "", err
+	}
+	return k, nil
 }
