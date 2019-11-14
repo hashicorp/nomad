@@ -45,6 +45,7 @@ func init() {
 		aclTokenTableSchema,
 		autopilotConfigTableSchema,
 		schedulerConfigTableSchema,
+		clusterMetaTableSchema,
 	}...)
 }
 
@@ -601,6 +602,12 @@ func aclTokenTableSchema() *memdb.TableSchema {
 	}
 }
 
+// singletonRecord can be used to describe tables which should contain only 1 entry.
+// Example uses include storing node config or cluster metadata blobs.
+var singletonRecord = &memdb.ConditionalIndex{
+	Conditional: func(interface{}) (bool, error) { return true, nil },
+}
+
 // schedulerConfigTableSchema returns the MemDB schema for the scheduler config table.
 // This table is used to store configuration options for the scheduler
 func schedulerConfigTableSchema() *memdb.TableSchema {
@@ -611,10 +618,22 @@ func schedulerConfigTableSchema() *memdb.TableSchema {
 				Name:         "id",
 				AllowMissing: true,
 				Unique:       true,
-				// This indexer ensures that this table is a singleton
-				Indexer: &memdb.ConditionalIndex{
-					Conditional: func(obj interface{}) (bool, error) { return true, nil },
-				},
+				Indexer:      singletonRecord, // we store only 1 scheduler config
+			},
+		},
+	}
+}
+
+// clusterMetaTableSchema returns the MemDB schema for the scheduler config table.
+func clusterMetaTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "cluster_meta",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer:      singletonRecord, // we store only 1 cluster metadata
 			},
 		},
 	}
