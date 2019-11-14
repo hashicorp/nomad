@@ -7083,7 +7083,6 @@ func TestStateStore_SchedulerConfig(t *testing.T) {
 
 	require := require.New(t)
 	restore, err := state.Restore()
-
 	require.Nil(err)
 
 	err = restore.SchedulerConfigRestore(schedConfig)
@@ -7096,6 +7095,45 @@ func TestStateStore_SchedulerConfig(t *testing.T) {
 	require.Equal(schedConfig.ModifyIndex, modIndex)
 
 	require.Equal(schedConfig, out)
+}
+
+func TestStateStore_ClusterMetadata(t *testing.T) {
+	require := require.New(t)
+
+	state := testStateStore(t)
+	clusterID := "12345678-1234-1234-1234-1234567890"
+	now := time.Now().UnixNano()
+	meta := &structs.ClusterMetadata{ClusterID: clusterID, CreateTime: now}
+
+	err := state.ClusterSetMetadata(100, meta)
+	require.NoError(err)
+
+	result, err := state.ClusterMetadata()
+	require.NoError(err)
+	require.Equal(clusterID, result.ClusterID)
+	require.Equal(now, result.CreateTime)
+}
+
+func TestStateStore_ClusterMetadataRestore(t *testing.T) {
+	require := require.New(t)
+
+	state := testStateStore(t)
+	clusterID := "12345678-1234-1234-1234-1234567890"
+	now := time.Now().UnixNano()
+	meta := &structs.ClusterMetadata{ClusterID: clusterID, CreateTime: now}
+
+	restore, err := state.Restore()
+	require.NoError(err)
+
+	err = restore.ClusterMetadataRestore(meta)
+	require.NoError(err)
+
+	restore.Commit()
+
+	out, err := state.ClusterMetadata()
+	require.NoError(err)
+	require.Equal(clusterID, out.ClusterID)
+	require.Equal(now, out.CreateTime)
 }
 
 func TestStateStore_Abandon(t *testing.T) {

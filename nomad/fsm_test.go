@@ -184,7 +184,7 @@ func TestFSM_UpsertNode_Canonicalize(t *testing.T) {
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
-	// Setup a node without eligiblity
+	// Setup a node without eligibility
 	node := mock.Node()
 	node.SchedulingEligibility = ""
 
@@ -2698,7 +2698,25 @@ func TestFSM_SnapshotRestore_SchedulerConfiguration(t *testing.T) {
 	require.Nil(err)
 	require.EqualValues(1000, index)
 	require.Equal(schedConfig, out)
+}
 
+func TestFSM_SnapshotRestore_ClusterMetadata(t *testing.T) {
+	t.Parallel()
+
+	fsm := testFSM(t)
+	state := fsm.State()
+	clusterID := "12345678-1234-1234-1234-1234567890"
+	now := time.Now().UnixNano()
+	meta := &structs.ClusterMetadata{ClusterID: clusterID, CreateTime: now}
+	state.ClusterSetMetadata(1000, meta)
+
+	// Verify the contents
+	require := require.New(t)
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out, err := state2.ClusterMetadata()
+	require.NoError(err)
+	require.Equal(clusterID, out.ClusterID)
 }
 
 func TestFSM_ReconcileSummaries(t *testing.T) {
@@ -2971,4 +2989,42 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 	// Verify that preemption is still enabled
 	require.True(config.PreemptionConfig.SystemSchedulerEnabled)
 	require.True(config.PreemptionConfig.BatchSchedulerEnabled)
+}
+
+func TestFSM_ClusterMetadata(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	fsm := testFSM(t)
+	clusterID := "12345678-1234-1234-1234-1234567890"
+	now := time.Now().UnixNano()
+	meta := structs.ClusterMetadata{
+		ClusterID:  clusterID,
+		CreateTime: now,
+	}
+	buf, err := structs.Encode(structs.ClusterMetadataRequestType, meta)
+	r.NoError(err)
+
+	result := fsm.Apply(makeLog(buf))
+	r.Nil(result)
+
+	// Verify the clusterID is set directly in the state store
+	storedMetadata, err := fsm.state.ClusterMetadata()
+	r.NoError(err)
+	r.Equal(clusterID, storedMetadata.ClusterID)
+
+	// Check that the sanity check prevents accidental UUID regeneration
+	erroneous := structs.ClusterMetadata{
+		ClusterID: "99999999-9999-9999-9999-9999999999",
+	}
+	buf, err = structs.Encode(structs.ClusterMetadataRequestType, erroneous)
+	r.NoError(err)
+
+	result = fsm.Apply(makeLog(buf))
+	r.Error(result.(error))
+
+	storedMetadata, err = fsm.state.ClusterMetadata()
+	r.NoError(err)
+	r.Equal(clusterID, storedMetadata.ClusterID)
+	r.Equal(now, storedMetadata.CreateTime)
 }
