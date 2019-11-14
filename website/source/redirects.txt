@@ -49,6 +49,8 @@
 
 # Docs
 /docs/index                                   /docs/index.html
+/api/index                                    /api/index.html
+/resources                                    /resources.html
 /docs/agent/config.html                       /docs/configuration/index.html
 /docs/jobops                                  /guides/operating-a-job/index.html
 /docs/jobops/                                 /guides/operating-a-job/index.html
