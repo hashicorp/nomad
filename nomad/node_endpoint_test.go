@@ -908,7 +908,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 
 	drainStartedAt := out.DrainStrategy.StartedAt
 	// StartedAt should be close to the time the drain started
-	require.WithinDuration(beforeUpdate, out.DrainStrategy.StartedAt, 1*time.Second)
+	require.WithinDuration(beforeUpdate, drainStartedAt, 1*time.Second)
 
 	// StartedAt shouldn't change if a new request comes while still draining
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2))
