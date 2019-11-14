@@ -786,7 +786,7 @@ func TestJobs_EnforceRegister(t *testing.T) {
 
 	// Create a job and attempt to register it with an incorrect index.
 	job := testJob()
-	resp2, _, err := jobs.EnforceRegister(job, 10, nil)
+	_, _, err = jobs.EnforceRegister(job, 10, nil)
 	require.NotNil(err)
 	require.Contains(err.Error(), RegisterEnforceIndexErrPrefix)
 
@@ -806,7 +806,7 @@ func TestJobs_EnforceRegister(t *testing.T) {
 
 	// Fail at incorrect index
 	curIndex := resp[0].JobModifyIndex
-	resp2, _, err = jobs.EnforceRegister(job, 123456, nil)
+	_, _, err = jobs.EnforceRegister(job, 123456, nil)
 	require.NotNil(err)
 	require.Contains(err.Error(), RegisterEnforceIndexErrPrefix)
 
