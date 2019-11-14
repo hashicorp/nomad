@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
-
-	"strings"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
@@ -22,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -43,6 +43,8 @@ const (
 var minAutopilotVersion = version.Must(version.NewVersion("0.8.0"))
 
 var minSchedulerConfigVersion = version.Must(version.NewVersion("0.9.0"))
+
+var minClusterIDVersion = version.Must(version.NewVersion("0.10.3"))
 
 // Default configuration for scheduler with preemption enabled for system jobs
 var defaultSchedulerConfig = &structs.SchedulerConfiguration{
@@ -200,6 +202,10 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Initialize scheduler configuration
 	s.getOrCreateSchedulerConfig()
+
+	// Initialize the ClusterID
+	_, _ = s.ClusterID()
+	// todo: use cluster ID for stuff, later!
 
 	// Enable the plan queue, since we are now the leader
 	s.planQueue.SetEnabled(true)
@@ -1326,4 +1332,20 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 	}
 
 	return config
+}
+
+func (s *Server) generateClusterID() (string, error) {
+	if !ServersMeetMinimumVersion(s.Members(), minClusterIDVersion, false) {
+		s.logger.Named("core").Warn("cannot initialize cluster ID until all servers are above minimum version", "min_version", minClusterIDVersion)
+		return "", errors.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
+	}
+
+	newMeta := structs.ClusterMetadata{ClusterID: uuid.Generate(), CreateTime: time.Now().UnixNano()}
+	if _, _, err := s.raftApply(structs.ClusterMetadataRequestType, newMeta); err != nil {
+		s.logger.Named("core").Error("failed to create cluster ID", "error", err)
+		return "", errors.Wrap(err, "failed to create cluster ID")
+	}
+
+	s.logger.Named("core").Info("established cluster id", "cluster_id", newMeta.ClusterID, "create_time", newMeta.CreateTime)
+	return newMeta.ClusterID, nil
 }
