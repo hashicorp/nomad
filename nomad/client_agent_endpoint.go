@@ -61,8 +61,25 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 
 	// Targeting a node, forward request to node
 	if args.NodeID != "" {
-		m.forwardMonitor(conn, args, encoder, decoder)
+		m.forwardMonitorClient(conn, args, encoder, decoder)
 		// forwarded request has ended, return
+		return
+	}
+
+	currentServer := m.srv.serf.LocalMember().Name
+	var forwardServer bool
+	// Targeting a remote server which is not the leader and not this server
+	if args.ServerID != "" && args.ServerID != "leader" && args.ServerID != currentServer {
+		forwardServer = true
+	}
+
+	// Targeting leader and this server is not current leader
+	if args.ServerID == "leader" && !m.srv.IsLeader() {
+		forwardServer = true
+	}
+
+	if forwardServer {
+		m.forwardMonitorServer(conn, args, encoder, decoder)
 		return
 	}
 
@@ -168,7 +185,7 @@ OUTER:
 	}
 }
 
-func (m *Agent) forwardMonitor(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
+func (m *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
 	nodeID := args.NodeID
 
 	snap, err := m.srv.State().Snapshot()
@@ -234,5 +251,58 @@ func (m *Agent) forwardMonitor(conn io.ReadWriteCloser, args cstructs.MonitorReq
 	}
 
 	structs.Bridge(conn, clientConn)
+	return
+}
+
+func (m *Agent) forwardMonitorServer(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
+	var target *serverParts
+	serverID := args.ServerID
+
+	// empty ServerID to prevent forwarding loop
+	args.ServerID = ""
+
+	if serverID == "leader" {
+		isLeader, remoteServer := m.srv.getLeader()
+		if !isLeader && remoteServer != nil {
+			target = remoteServer
+		}
+		if !isLeader && remoteServer == nil {
+			handleStreamResultError(structs.ErrNoLeader, helper.Int64ToPtr(400), encoder)
+			return
+		}
+	} else {
+		// See if the server ID is a known member
+		serfMembers := m.srv.Members()
+		for _, mem := range serfMembers {
+			if mem.Name == serverID {
+				if ok, srv := isNomadServer(mem); ok {
+					target = srv
+				}
+			}
+		}
+	}
+
+	// Unable to find a server
+	if target == nil {
+		err := fmt.Errorf("unknown nomad server %s", serverID)
+		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+		return
+	}
+
+	serverConn, err := m.srv.streamingRpc(target, "Agent.Monitor")
+	if err != nil {
+		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		return
+	}
+	defer serverConn.Close()
+
+	// Send the Request
+	outEncoder := codec.NewEncoder(serverConn, structs.MsgpackHandle)
+	if err := outEncoder.Encode(args); err != nil {
+		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		return
+	}
+
+	structs.Bridge(conn, serverConn)
 	return
 }

@@ -44,6 +44,9 @@ type MonitorRequest struct {
 	// NodeID is the node we want to track the logs of
 	NodeID string
 
+	// ServerID is the server we want to track the logs of
+	ServerID string
+
 	// PlainText disables base64 encoding.
 	PlainText bool
 

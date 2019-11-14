@@ -175,9 +175,6 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 		return nil, CodedError(400, fmt.Sprintf("Unknown log level: %s", logLevel))
 	}
 
-	// Determine if we are targeting a server or client
-	nodeID := req.URL.Query().Get("node_id")
-
 	logJSON := false
 	logJSONStr := req.URL.Query().Get("log_json")
 	if logJSONStr != "" {
@@ -198,12 +195,19 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 		plainText = parsed
 	}
 
+	nodeID := req.URL.Query().Get("node_id")
 	// Build the request and parse the ACL token
 	args := cstructs.MonitorRequest{
 		NodeID:    nodeID,
+		ServerID:  req.URL.Query().Get("server_id"),
 		LogLevel:  logLevel,
 		LogJSON:   logJSON,
 		PlainText: plainText,
+	}
+
+	// if node and server were requested return error
+	if args.NodeID != "" && args.ServerID != "" {
+		return nil, CodedError(400, "Cannot target node and server simultaneously")
 	}
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
