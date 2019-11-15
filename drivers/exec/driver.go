@@ -458,10 +458,8 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 	}
 
 	if !handle.pluginClient.Exited() {
-		if handle.IsRunning() {
-			if err := handle.exec.Shutdown("", 0); err != nil {
-				handle.logger.Error("destroying executor failed", "err", err)
-			}
+		if err := handle.exec.Shutdown("", 0); err != nil {
+			handle.logger.Error("destroying executor failed", "err", err)
 		}
 
 		handle.pluginClient.Kill()
