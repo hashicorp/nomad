@@ -1,6 +1,6 @@
 import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
-import { computed } from '@ember/object';
+import { computed, observer } from '@ember/object';
 import { task } from 'ember-concurrency';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
@@ -14,6 +14,9 @@ export default Controller.extend(Sortable, Searchable, {
     sortDescending: 'desc',
     onlyPreemptions: 'preemptions',
   },
+
+  // Set in the route
+  flagAsDraining: false,
 
   currentPage: 1,
   pageSize: 8,
@@ -39,6 +42,7 @@ export default Controller.extend(Sortable, Searchable, {
   sortedAllocations: alias('listSearched'),
 
   eligibilityError: null,
+  showDrainNotification: false,
 
   preemptions: computed('model.allocations.@each.wasPreempted', function() {
     return this.model.allocations.filterBy('wasPreempted');
@@ -62,6 +66,14 @@ export default Controller.extend(Sortable, Searchable, {
       this.set('eligibilityError', error);
     }
   }).drop(),
+
+  triggerDrainNotification: observer('model.isDraining', function() {
+    if (!this.model.isDraining && this.flagAsDraining) {
+      this.set('showDrainNotification', true);
+    }
+
+    this.set('flagAsDraining', this.model.isDraining);
+  }),
 
   actions: {
     gotoAllocation(allocation) {

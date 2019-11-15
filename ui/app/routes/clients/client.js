@@ -29,6 +29,12 @@ export default Route.extend(WithWatchers, {
     return model && model.get('allocations');
   },
 
+  setupController(controller, model) {
+    controller.set('flagAsDraining', model.isDraining);
+
+    return this._super(...arguments);
+  },
+
   startWatchers(controller, model) {
     if (model) {
       controller.set('watchModel', this.watch.perform(model));
