@@ -6,6 +6,19 @@
       <p data-test-eligibility-error-message>{{eligibilityError}}</p>
     </div>
   {{/if}}
+  {{#if showDrainNotification}}
+    <div class="notification is-info">
+      <div class="columns">
+        <div class="column">
+          <h3 class="title is-4">Drain Complete</h3>
+          <p>Allocations have been drained and the node has been set to ineligible.</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button class="button is-info" onclick={{action (mut showDrainNotification) false}}>Okay</button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
   <div class="toolbar">
     <div class="toolbar-item is-top-aligned is-minimum">
       <span class="title">
