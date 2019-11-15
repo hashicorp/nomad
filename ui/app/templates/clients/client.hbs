@@ -126,25 +126,29 @@
             <div class="metric-group">
               <div class="metric is-primary">
                 <h3 class="label">Complete</h3>
-                <p class="value">--</p>
+                <p class="value">{{model.completeAllocations.length}}</p>
               </div>
             </div>
             <div class="metric-group">
               <div class="metric">
                 <h3 class="label">Migrating</h3>
-                <p class="value">--</p>
+                <p class="value">{{model.migratingAllocations.length}}</p>
               </div>
             </div>
             <div class="metric-group">
               <div class="metric">
                 <h3 class="label">Remaining</h3>
-                <p class="value">--</p>
+                <p class="value">{{model.runningAllocations.length}}</p>
               </div>
             </div>
           </div>
           <div class="column">
             <h3 class="title is-4">Status</h3>
-            <p>Time since an allocation was successfully migrated.</p>
+            {{#if model.lastMigrateTime}}
+              <p>{{moment-to-now model.lastMigrateTime interval=1000 hideAffix=true}} since an allocation was successfully migrated.</p>
+            {{else}}
+              <p>No allocations migrated.</p>
+            {{/if}}
           </div>
         </div>
       </div>

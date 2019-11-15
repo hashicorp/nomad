@@ -44,6 +44,25 @@ export default Model.extend({
   }),
 
   allocations: hasMany('allocations', { inverse: 'node' }),
+  completeAllocations: computed('allocations.@each.clientStatus', function() {
+    return this.allocations.filterBy('clientStatus', 'complete');
+  }),
+  runningAllocations: computed('allocations.@each.isRunning', function() {
+    return this.allocations.filterBy('isRunning');
+  }),
+  migratingAllocations: computed('allocations.@each.{isMigrating,isRunning}', function() {
+    return this.allocations.filter(alloc => alloc.isRunning && alloc.isMigrating);
+  }),
+  lastMigrateTime: computed('allocations.@each.{isMigrating,isRunning,modifyTime}', function() {
+    const allocation = this.allocations
+      .filterBy('isRunning', false)
+      .filterBy('isMigrating')
+      .sortBy('modifyTime')
+      .reverse()[0];
+    if (allocation) {
+      return allocation.modifyTime;
+    }
+  }),
 
   drivers: fragmentArray('node-driver'),
   events: fragmentArray('node-event'),
