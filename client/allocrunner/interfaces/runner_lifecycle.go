@@ -53,3 +53,10 @@ type ShutdownHook interface {
 
 	Shutdown()
 }
+
+//
+type RunnerPreKillHook interface {
+	RunnerHook
+
+	PreKill()
+}

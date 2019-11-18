@@ -2,6 +2,7 @@ package allocrunner
 
 import (
 	"sync"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -20,6 +21,8 @@ type groupServiceHook struct {
 	restarter    agentconsul.WorkloadRestarter
 	consulClient consul.ConsulServiceAPI
 	prerun       bool
+	delay        time.Duration
+	deregistered bool
 
 	logger log.Logger
 
@@ -43,12 +46,20 @@ type groupServiceHookConfig struct {
 }
 
 func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
+	var shutdownDelay time.Duration
+	tg := cfg.alloc.Job.LookupTaskGroup(cfg.alloc.TaskGroup)
+
+	if tg != nil && tg.ShutdownDelay != nil {
+		shutdownDelay = *tg.ShutdownDelay
+	}
+
 	h := &groupServiceHook{
 		allocID:        cfg.alloc.ID,
 		group:          cfg.alloc.TaskGroup,
 		restarter:      cfg.restarter,
 		consulClient:   cfg.consul,
 		taskEnvBuilder: cfg.taskEnvBuilder,
+		delay:          shutdownDelay,
 	}
 	h.logger = cfg.logger.Named(h.Name())
 	h.services = cfg.alloc.Job.LookupTaskGroup(h.group).Services
@@ -117,10 +128,29 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	return h.consulClient.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
 }
 
+func (h *groupServiceHook) PreKill() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// If we have a shutdown delay deregister
+	// group services and then wait
+	// before continuing to kill tasks
+	h.deregister()
+	h.deregistered = true
+
+	h.logger.Debug("waiting before removing group service", "shutdown_delay", h.delay)
+	select {
+	case <-time.After(h.delay):
+	}
+}
+
 func (h *groupServiceHook) Postrun() error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.deregister()
+
+	if !h.deregistered {
+		h.deregister()
+	}
 	return nil
 }
 

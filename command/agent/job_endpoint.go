@@ -696,6 +696,7 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	tg.Name = *taskGroup.Name
 	tg.Count = *taskGroup.Count
 	tg.Meta = taskGroup.Meta
+	tg.ShutdownDelay = taskGroup.ShutdownDelay
 	tg.Constraints = ApiConstraintsToStructs(taskGroup.Constraints)
 	tg.Affinities = ApiAffinitiesToStructs(taskGroup.Affinities)
 	tg.Networks = ApiNetworkResourceToStructs(taskGroup.Networks)
