@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/assert"
@@ -25,6 +26,94 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(0)
+}
+
+func TestConsulConfig_Merge(t *testing.T) {
+	yes, no := true, false
+
+	c1 := &ConsulConfig{
+		ServerServiceName:    "1",
+		ServerHTTPCheckName:  "1",
+		ServerSerfCheckName:  "1",
+		ServerRPCCheckName:   "1",
+		ClientServiceName:    "1",
+		ClientHTTPCheckName:  "1",
+		Tags:                 []string{"a", "1"},
+		AutoAdvertise:        &no,
+		ChecksUseAdvertise:   &no,
+		Addr:                 "1",
+		GRPCAddr:             "1",
+		Timeout:              time.Duration(1),
+		TimeoutHCL:           "1",
+		Token:                "1",
+		AllowUnauthenticated: &no,
+		Auth:                 "1",
+		EnableSSL:            &no,
+		VerifySSL:            &no,
+		CAFile:               "1",
+		CertFile:             "1",
+		KeyFile:              "1",
+		ServerAutoJoin:       &no,
+		ClientAutoJoin:       &no,
+		ExtraKeysHCL:         []string{"a", "1"},
+	}
+
+	c2 := &ConsulConfig{
+		ServerServiceName:    "2",
+		ServerHTTPCheckName:  "2",
+		ServerSerfCheckName:  "2",
+		ServerRPCCheckName:   "2",
+		ClientServiceName:    "2",
+		ClientHTTPCheckName:  "2",
+		Tags:                 []string{"b", "2"},
+		AutoAdvertise:        &yes,
+		ChecksUseAdvertise:   &yes,
+		Addr:                 "2",
+		GRPCAddr:             "2",
+		Timeout:              time.Duration(2),
+		TimeoutHCL:           "2",
+		Token:                "2",
+		AllowUnauthenticated: &yes,
+		Auth:                 "2",
+		EnableSSL:            &yes,
+		VerifySSL:            &yes,
+		CAFile:               "2",
+		CertFile:             "2",
+		KeyFile:              "2",
+		ServerAutoJoin:       &yes,
+		ClientAutoJoin:       &yes,
+		ExtraKeysHCL:         []string{"b", "2"},
+	}
+
+	exp := &ConsulConfig{
+		ServerServiceName:    "2",
+		ServerHTTPCheckName:  "2",
+		ServerSerfCheckName:  "2",
+		ServerRPCCheckName:   "2",
+		ClientServiceName:    "2",
+		ClientHTTPCheckName:  "2",
+		Tags:                 []string{"a", "1", "b", "2"},
+		AutoAdvertise:        &yes,
+		ChecksUseAdvertise:   &yes,
+		Addr:                 "2",
+		GRPCAddr:             "2",
+		Timeout:              time.Duration(2),
+		TimeoutHCL:           "2",
+		Token:                "2",
+		AllowUnauthenticated: &yes,
+		Auth:                 "2",
+		EnableSSL:            &yes,
+		VerifySSL:            &yes,
+		CAFile:               "2",
+		CertFile:             "2",
+		KeyFile:              "2",
+		ServerAutoJoin:       &yes,
+		ClientAutoJoin:       &yes,
+		ExtraKeysHCL:         []string{"a", "1"}, // not merged
+	}
+
+	result := c1.Merge(c2)
+	require.Equal(t, exp, result)
 }
 
 // TestConsulConfig_Defaults asserts Consul defaults are copied from their

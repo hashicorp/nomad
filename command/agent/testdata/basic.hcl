@@ -174,6 +174,7 @@ consul {
   client_service_name    = "nomad-client"
   client_http_check_name = "nomad-client-http-health-check"
   address                = "127.0.0.1:9500"
+  allow_unauthenticated  = true
   token                  = "token1"
   auth                   = "username:pass"
   ssl                    = true
