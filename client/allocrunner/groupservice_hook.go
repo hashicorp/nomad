@@ -53,11 +53,9 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 	h.logger = cfg.logger.Named(h.Name())
 	h.services = cfg.alloc.Job.LookupTaskGroup(h.group).Services
 
-	var networks structs.Networks
 	if cfg.alloc.AllocatedResources != nil {
-		networks = cfg.alloc.AllocatedResources.Shared.Networks
+		h.networks = cfg.alloc.AllocatedResources.Shared.Networks
 	}
-	h.networks = networks
 
 	if cfg.alloc.DeploymentStatus != nil {
 		h.canary = cfg.alloc.DeploymentStatus.Canary

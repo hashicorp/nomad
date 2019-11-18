@@ -238,7 +238,7 @@ func TestGroupServiceHook_Update08Alloc(t *testing.T) {
 	})
 
 	require.NoError(t, h.Prerun())
-	require.NoError(t, h.Update(&interfaces.RunnerUpdateRequest{alloc}))
+	require.NoError(t, h.Update(&interfaces.RunnerUpdateRequest{Alloc: alloc}))
 
 	// Assert the group and sidecar services are registered
 	require.Eventually(t, func() bool {
