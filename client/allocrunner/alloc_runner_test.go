@@ -528,7 +528,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
 	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
 		return &consul.AllocRegistration{
-			Tasks: map[string]*consul.TaskRegistration{
+			Tasks: map[string]*consul.ServiceRegistrations{
 				task.Name: {
 					Services: map[string]*consul.ServiceRegistration{
 						"123": {
@@ -847,7 +847,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
 	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
 		return &consul.AllocRegistration{
-			Tasks: map[string]*consul.TaskRegistration{
+			Tasks: map[string]*consul.ServiceRegistrations{
 				task.Name: {
 					Services: map[string]*consul.ServiceRegistration{
 						"123": {

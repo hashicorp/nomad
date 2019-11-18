@@ -4455,6 +4455,7 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 
 		tg := j.TaskGroups[0]
 		tg.Services = tgServices
+		tg.Networks = nil
 
 		err := validateJob(j)
 		require.Error(t, err)

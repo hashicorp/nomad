@@ -86,7 +86,7 @@ func TestTaskRunner_EnvoyBootstrapHook_Ok(t *testing.T) {
 	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), logger, true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
-	require.NoError(t, consulClient.RegisterGroup(alloc))
+	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
 
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(alloc, testconsul.HTTPAddr, logger)
