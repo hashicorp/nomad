@@ -137,6 +137,16 @@ job "docs" {
     accidentally. Users should set the `VAULT_TOKEN` environment variable when
     running the job instead.
 
+- `consul_token` `(string: "")` - Specifies the Consul token that proves the
+  submitter of the job has access to the Service Identity policies associated
+  with the job's Consul Connect enabled services. This field is only used to
+  transfer the token and is not stored after job submission.
+
+    !> It is **strongly discouraged** to place the token as a configuration
+    parameter like this, since the token could be checked into source control
+    accidentally. Users should set the `CONSUL_TOKEN` environment variable when
+    running the job instead.
+
 ## `job` Examples
 
 The following examples only show the `job` stanzas. Remember that the

@@ -72,6 +72,11 @@ type ConsulConfig struct {
 	// the agent's default token
 	Token string `hcl:"token"`
 
+	// AllowUnauthenticated allows users to submit jobs requiring Consul
+	// Service Identity tokens without providing a Consul token proving they
+	// have access to such policies.
+	AllowUnauthenticated *bool `hcl:"allow_unauthenticated"`
+
 	// Auth is the information to use for http access to Consul agent
 	Auth string `hcl:"auth"`
 
@@ -115,17 +120,18 @@ type ConsulConfig struct {
 func DefaultConsulConfig() *ConsulConfig {
 	def := consul.DefaultConfig()
 	return &ConsulConfig{
-		ServerServiceName:   "nomad",
-		ServerHTTPCheckName: "Nomad Server HTTP Check",
-		ServerSerfCheckName: "Nomad Server Serf Check",
-		ServerRPCCheckName:  "Nomad Server RPC Check",
-		ClientServiceName:   "nomad-client",
-		ClientHTTPCheckName: "Nomad Client HTTP Check",
-		AutoAdvertise:       helper.BoolToPtr(true),
-		ChecksUseAdvertise:  helper.BoolToPtr(false),
-		ServerAutoJoin:      helper.BoolToPtr(true),
-		ClientAutoJoin:      helper.BoolToPtr(true),
-		Timeout:             5 * time.Second,
+		ServerServiceName:    "nomad",
+		ServerHTTPCheckName:  "Nomad Server HTTP Check",
+		ServerSerfCheckName:  "Nomad Server Serf Check",
+		ServerRPCCheckName:   "Nomad Server RPC Check",
+		ClientServiceName:    "nomad-client",
+		ClientHTTPCheckName:  "Nomad Client HTTP Check",
+		AutoAdvertise:        helper.BoolToPtr(true),
+		ChecksUseAdvertise:   helper.BoolToPtr(false),
+		ServerAutoJoin:       helper.BoolToPtr(true),
+		ClientAutoJoin:       helper.BoolToPtr(true),
+		AllowUnauthenticated: helper.BoolToPtr(true),
+		Timeout:              5 * time.Second,
 
 		// From Consul api package defaults
 		Addr:      def.Address,
@@ -133,6 +139,12 @@ func DefaultConsulConfig() *ConsulConfig {
 		VerifySSL: helper.BoolToPtr(!def.TLSConfig.InsecureSkipVerify),
 		CAFile:    def.TLSConfig.CAFile,
 	}
+}
+
+// AllowsUnauthenticated returns whether the config allows unauthenticated
+// creation of Consul Service Identity tokens for Consul Connect enabled Tasks.
+func (a *ConsulConfig) AllowsUnauthenticated() bool {
+	return a.AllowUnauthenticated != nil && *a.AllowUnauthenticated
 }
 
 // Merge merges two Consul Configurations together.
@@ -202,6 +214,9 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	}
 	if b.ChecksUseAdvertise != nil {
 		result.ChecksUseAdvertise = helper.BoolToPtr(*b.ChecksUseAdvertise)
+	}
+	if b.AllowUnauthenticated != nil {
+		result.AllowUnauthenticated = helper.BoolToPtr(*b.AllowUnauthenticated)
 	}
 	return result
 }
@@ -288,6 +303,9 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 	}
 	if nc.ClientAutoJoin != nil {
 		nc.ClientAutoJoin = helper.BoolToPtr(*nc.ClientAutoJoin)
+	}
+	if nc.AllowUnauthenticated != nil {
+		nc.AllowUnauthenticated = helper.BoolToPtr(*nc.AllowUnauthenticated)
 	}
 
 	return nc

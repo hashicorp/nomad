@@ -111,6 +111,7 @@
   "consul": [
     {
       "address": "127.0.0.1:9500",
+      "allow_unauthenticated": true,
       "auth": "username:pass",
       "auto_advertise": true,
       "ca_file": "/path/to/ca/file",

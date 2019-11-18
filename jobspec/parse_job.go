@@ -79,6 +79,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		"update",
 		"vault",
 		"vault_token",
+		"consul_token",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "job:")
