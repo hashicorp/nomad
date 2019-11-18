@@ -52,6 +52,10 @@ Alias: nomad run
   If the job has specified the region, the -region flag and NOMAD_REGION
   environment variable are overridden and the job's region is used.
 
+  The run command will set the consul_token of the job based on the following
+  precedence, going from highest to lowest: the -consul-token flag, the
+  $CONSUL_TOKEN environment variable and finally the value in the job file.
+
   The run command will set the vault_token of the job based on the following
   precedence, going from highest to lowest: the -vault-token flag, the
   $VAULT_TOKEN environment variable and finally the value in the job file.
@@ -82,6 +86,12 @@ Run Options:
   -policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
 
+  -consul-token
+    If set, the passed Consul token is stored in the job before sending to the
+    Nomad servers. This allows passing the Consul token without storing it in
+    the job file. This overrides the token found in $CONSUL_TOKEN environment
+    variable and that found in the job.
+
   -vault-token
     If set, the passed Vault token is stored in the job before sending to the
     Nomad servers. This allows passing the Vault token without storing it in
@@ -104,6 +114,7 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 			"-check-index":     complete.PredictNothing,
 			"-detach":          complete.PredictNothing,
 			"-verbose":         complete.PredictNothing,
+			"-consul-token":    complete.PredictNothing,
 			"-vault-token":     complete.PredictAnything,
 			"-output":          complete.PredictNothing,
 			"-policy-override": complete.PredictNothing,
@@ -118,7 +129,7 @@ func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
 	var detach, verbose, output, override bool
-	var checkIndexStr, vaultToken string
+	var checkIndexStr, consulToken, vaultToken string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -127,6 +138,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flags.BoolVar(&output, "output", false, "")
 	flags.BoolVar(&override, "policy-override", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
+	flags.StringVar(&consulToken, "consul-token", "", "")
 	flags.StringVar(&vaultToken, "vault-token", "", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -174,6 +186,16 @@ func (c *JobRunCommand) Run(args []string) int {
 	// Check if the job is periodic or is a parameterized job
 	periodic := job.IsPeriodic()
 	paramjob := job.IsParameterized()
+
+	// Parse the Consul token
+	if consulToken == "" {
+		// Check the environment variable
+		consulToken = os.Getenv("CONSUL_TOKEN")
+	}
+
+	if consulToken != "" {
+		job.ConsulToken = helper.StringToPtr(consulToken)
+	}
 
 	// Parse the Vault token
 	if vaultToken == "" {

@@ -3,6 +3,7 @@ package config
 import (
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	vault "github.com/hashicorp/vault/api"
 )
 
@@ -84,11 +85,9 @@ type VaultConfig struct {
 // `vault` configuration.
 func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
-		Addr:                "https://vault.service.consul:8200",
-		ConnectionRetryIntv: DefaultVaultConnectRetryIntv,
-		AllowUnauthenticated: func(b bool) *bool {
-			return &b
-		}(true),
+		Addr:                 "https://vault.service.consul:8200",
+		ConnectionRetryIntv:  DefaultVaultConnectRetryIntv,
+		AllowUnauthenticated: helper.BoolToPtr(true),
 	}
 }
 

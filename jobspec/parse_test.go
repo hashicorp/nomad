@@ -31,6 +31,7 @@ func TestParse(t *testing.T) {
 				Datacenters: []string{"us2", "eu1"},
 				Region:      helper.StringToPtr("fooregion"),
 				Namespace:   helper.StringToPtr("foonamespace"),
+				ConsulToken: helper.StringToPtr("abc"),
 				VaultToken:  helper.StringToPtr("foo"),
 
 				Meta: map[string]string{

@@ -1302,6 +1302,9 @@ The table below shows this endpoint's support for
   job's version. This is checked and acts as a check-and-set value before
   reverting to the specified job.
 
+- `ConsulToken` `(string:"")` - Optional value specifying the [consul token](/docs/commands/job/revert.html)
+  used for Consul [service identity polity authentication checking](/docs/configuration/consul.html#allow_unauthenticated).
+
 - `VaultToken` `(string: "")` - Optional value specifying the [vault token](/docs/commands/job/revert.html)
   used for Vault [policy authentication checking](/docs/configuration/vault.html#allow_unauthenticated).
 

@@ -12,12 +12,19 @@ The `job revert` command is used to revert a job to a prior version of the
 job. The available versions to revert to can be found using [`job history`]
 command.
 
+The revert command will use a Consul token with the following preference:
+first the `-consul-token` flag, then the `$CONSUL_TOKEN` environment variable.
+Because the consul token used to [run] the targeted job version was not
+persisted, it must be provided to revert if the targeted job version includes
+Consul Connect enabled services and the Nomad servers were configured to require
+[consul service identity] authentication.
+
 The revert command will use a Vault token with the following preference:
 first the `-vault-token` flag, then the `$VAULT_TOKEN` environment variable.
 Because the vault token used to [run] the targeted job version was not
 persisted, it must be provided to revert if the targeted job version includes
-Vault policies and the Nomad servers were configured to
-[require authentication].
+Vault policies and the Nomad servers were configured to require [vault policy]
+authentication.
 
 ## Usage
 
@@ -37,6 +44,10 @@ job to revert to.
 - `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
   [eval status] command.
+
+- `-consul-token`: If set, the passed Consul token is sent along with the revert
+  request to the Nomad servers. This overrides the token found in the
+  $CONSUL_TOKEN environment variable.
 
 - `-vault-token`: If set, the passed Vault token is sent along with the revert
   request to the Nomad servers. This overrides the token found in the
@@ -106,5 +117,6 @@ Submit Date = 07/25/17 21:27:18 UTC
 
 [`job history`]: /docs/commands/job/history.html
 [eval status]: /docs/commands/eval-status.html
-[require authentication]: /docs/configuration/vault.html#allow_unauthenticated
+[consul service identity]: /docs/configuration/consul.html#allow_unauthenticated
+[vault policy]: /docs/configuration/vault.html#allow_unauthenticated
 [run]: /docs/commands/job/run.html
