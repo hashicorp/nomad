@@ -155,6 +155,10 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}), "consul-verify-ssl", "")
 	flags.StringVar(&cmdConfig.Consul.Addr, "consul-address", "", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.AllowUnauthenticated = &b
+		return nil
+	}), "consul-allow-unauthenticated", "")
 
 	// Vault options
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
@@ -560,6 +564,7 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		"-consul-ssl":                    complete.PredictNothing,
 		"-consul-verify-ssl":             complete.PredictNothing,
 		"-consul-address":                complete.PredictAnything,
+		"-consul-token":                  complete.PredictAnything,
 		"-vault-enabled":                 complete.PredictNothing,
 		"-vault-allow-unauthenticated":   complete.PredictNothing,
 		"-vault-token":                   complete.PredictAnything,

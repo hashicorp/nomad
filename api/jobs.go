@@ -336,14 +336,15 @@ func (j *Jobs) Dispatch(jobID string, meta map[string]string,
 // enforceVersion is set, the job is only reverted if the current version is at
 // the passed version.
 func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
-	q *WriteOptions, vaultToken string) (*JobRegisterResponse, *WriteMeta, error) {
+	q *WriteOptions, consulToken, vaultToken string) (*JobRegisterResponse, *WriteMeta, error) {
 
 	var resp JobRegisterResponse
 	req := &JobRevertRequest{
 		JobID:               jobID,
 		JobVersion:          version,
 		EnforcePriorVersion: enforcePriorVersion,
-		VaultToken:          vaultToken,
+		// ConsulToken:         consulToken, // TODO(shoenig) enable!
+		VaultToken: vaultToken,
 	}
 	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/revert", req, &resp, q)
 	if err != nil {
@@ -670,6 +671,7 @@ type Job struct {
 	Reschedule        *ReschedulePolicy
 	Migrate           *MigrateStrategy
 	Meta              map[string]string
+	ConsulToken       *string `mapstructure:"consul_token"`
 	VaultToken        *string `mapstructure:"vault_token"`
 	Status            *string
 	StatusDescription *string
@@ -721,6 +723,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.AllAtOnce == nil {
 		j.AllAtOnce = boolToPtr(false)
+	}
+	if j.ConsulToken == nil {
+		j.ConsulToken = stringToPtr("")
 	}
 	if j.VaultToken == nil {
 		j.VaultToken = stringToPtr("")
@@ -965,6 +970,12 @@ type JobRevertRequest struct {
 	// EnforcePriorVersion if set will enforce that the job is at the given
 	// version before reverting.
 	EnforcePriorVersion *uint64
+
+	// ConsulToken is the Consul token that proves the submitter of the job revert
+	// has access to the Service Identity policies associated with the job's
+	// Consul Connect enabled services. This field is only used to transfer the
+	// token and is not stored after the Job revert.
+	ConsulToken string `json:",omitempty"`
 
 	// VaultToken is the Vault token that proves the submitter of the job revert
 	// has access to any Vault policies specified in the targeted job version. This
