@@ -337,6 +337,8 @@ func shuffleNodes(nodes []*structs.Node) {
 // tasksUpdated does a diff between task groups to see if the
 // tasks, their drivers, environment variables or config have updated. The
 // inputs are the task group name to diff and two jobs to diff.
+// taskUpdated and functions called within assume that the given
+// taskGroup has already been checked to not be nil
 func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 	a := jobA.LookupTaskGroup(taskGroup)
 	b := jobB.LookupTaskGroup(taskGroup)
