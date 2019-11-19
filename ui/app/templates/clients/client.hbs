@@ -90,12 +90,12 @@
       </h1>
       <p>
         <label class="is-interactive">
-          <input
-            type="checkbox"
-            checked={{model.isEligible}}
-            disabled={{setEligibility.isRunning}}
-            onchange={{perform setEligibility (not model.isEligible)}}
-          /> Eligible
+          {{#toggle
+            isActive=model.isEligible
+            isDisabled=(or setEligibility.isRunning model.isDraining)
+            onToggle=(perform setEligibility (not model.isEligible))}}
+            Eligible
+          {{/toggle}}
           <span class="tooltip" aria-label="Only eligible clients can receive allocations">
             {{x-icon "info-circle-outline" class="is-faded"}}
           </span>
