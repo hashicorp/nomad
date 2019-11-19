@@ -29,7 +29,7 @@ Read-S3Object `
 
 Expand-Archive .\nomad.zip .\
 rm C:\opt\nomad.exe
-mv nomad.exe C:\opt\nomad.exe
+mv .\pkg\windows_amd64\nomad.exe C:\opt\nomad.exe
 
 # install config file
 cp "C:\ops\shared\nomad\client-windows.hcl" "C:\opt\nomad.d\nomad.hcl"
