@@ -49,6 +49,7 @@ export default Component.extend({
 
   drain: task(function*(close) {
     if (!this.client) return;
+    const isUpdating = this.client.isDraining;
 
     let deadline;
     try {
@@ -71,7 +72,7 @@ export default Component.extend({
       } else {
         yield this.client.drain(spec);
       }
-      this.onDrain();
+      this.onDrain(isUpdating);
     } catch (err) {
       this.onError(err);
     }

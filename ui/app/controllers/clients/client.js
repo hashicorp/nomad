@@ -42,7 +42,10 @@ export default Controller.extend(Sortable, Searchable, {
   sortedAllocations: alias('listSearched'),
 
   eligibilityError: null,
+  stopDrainError: null,
   showDrainNotification: false,
+  showDrainUpdateNotification: false,
+  showDrainStoppedNotification: false,
 
   preemptions: computed('model.allocations.@each.wasPreempted', function() {
     return this.model.allocations.filterBy('wasPreempted');
@@ -67,6 +70,18 @@ export default Controller.extend(Sortable, Searchable, {
     }
   }).drop(),
 
+  stopDrain: task(function*() {
+    try {
+      this.set('flagAsDraining', false);
+      yield this.model.cancelDrain();
+      this.set('showDrainStoppedNotification', true);
+    } catch (err) {
+      this.set('flagAsDraining', true);
+      const error = messageFromAdapterError(err) || 'Could not stop drain';
+      this.set('stopDrainError', error);
+    }
+  }).drop(),
+
   triggerDrainNotification: observer('model.isDraining', function() {
     if (!this.model.isDraining && this.flagAsDraining) {
       this.set('showDrainNotification', true);
@@ -82,6 +97,10 @@ export default Controller.extend(Sortable, Searchable, {
 
     setPreemptionFilter(value) {
       this.set('onlyPreemptions', value);
+    },
+
+    drainNotify(isUpdating) {
+      this.set('showDrainUpdateNotification', isUpdating);
     },
   },
 });
