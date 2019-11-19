@@ -384,6 +384,208 @@ func TestShuffleNodes(t *testing.T) {
 	require.False(t, reflect.DeepEqual(nodes, orig))
 }
 
+func TestTaskUpdatedAffinity(t *testing.T) {
+	j1 := mock.Job()
+	j2 := mock.Job()
+	name := j1.TaskGroups[0].Name
+
+	require.False(t, tasksUpdated(j1, j2, name))
+
+	// TaskGroup Affinity
+	j2.TaskGroups[0].Affinities = []*structs.Affinity{
+		{
+			LTarget: "node.datacenter",
+			RTarget: "dc1",
+			Operand: "=",
+			Weight:  100,
+		},
+	}
+	require.True(t, tasksUpdated(j1, j2, name))
+
+	// TaskGroup Task Affinity
+	j3 := mock.Job()
+	j3.TaskGroups[0].Tasks[0].Affinities = []*structs.Affinity{
+		{
+			LTarget: "node.datacenter",
+			RTarget: "dc1",
+			Operand: "=",
+			Weight:  100,
+		},
+	}
+
+	require.True(t, tasksUpdated(j1, j3, name))
+
+	j4 := mock.Job()
+	j4.TaskGroups[0].Tasks[0].Affinities = []*structs.Affinity{
+		{
+			LTarget: "node.datacenter",
+			RTarget: "dc1",
+			Operand: "=",
+			Weight:  100,
+		},
+	}
+
+	require.True(t, tasksUpdated(j1, j4, name))
+
+	// check different level of same constraint
+	j5 := mock.Job()
+	j5.Affinities = []*structs.Affinity{
+		{
+			LTarget: "node.datacenter",
+			RTarget: "dc1",
+			Operand: "=",
+			Weight:  100,
+		},
+	}
+
+	j6 := mock.Job()
+	j6.Affinities = make([]*structs.Affinity, 0)
+	j6.TaskGroups[0].Affinities = []*structs.Affinity{
+		{
+			LTarget: "node.datacenter",
+			RTarget: "dc1",
+			Operand: "=",
+			Weight:  100,
+		},
+	}
+
+	require.False(t, tasksUpdated(j5, j6, name))
+}
+
+func TestTaskUpdated_Constraint(t *testing.T) {
+	j1 := mock.Job()
+	j1.Constraints = make([]*structs.Constraint, 0)
+
+	j2 := mock.Job()
+	j2.Constraints = make([]*structs.Constraint, 0)
+
+	name := j1.TaskGroups[0].Name
+	require.False(t, tasksUpdated(j1, j2, name))
+
+	// TaskGroup Constraint
+	j2.TaskGroups[0].Constraints = []*structs.Constraint{
+		{
+			LTarget: "kernel",
+			RTarget: "linux",
+			Operand: "=",
+		},
+	}
+
+	// TaskGroup Task Constraint
+	j3 := mock.Job()
+	j3.Constraints = make([]*structs.Constraint, 0)
+
+	j3.TaskGroups[0].Tasks[0].Constraints = []*structs.Constraint{
+		{
+			LTarget: "kernel",
+			RTarget: "linux",
+			Operand: "=",
+		},
+	}
+
+	require.True(t, tasksUpdated(j1, j3, name))
+
+	j4 := mock.Job()
+	j4.Constraints = make([]*structs.Constraint, 0)
+
+	j4.TaskGroups[0].Tasks[0].Constraints = []*structs.Constraint{
+		{
+			LTarget: "kernel",
+			RTarget: "linux",
+			Operand: "=",
+		},
+	}
+
+	require.True(t, tasksUpdated(j1, j4, name))
+
+	// check different level of same constraint
+	j5 := mock.Job()
+	j5.Constraints = []*structs.Constraint{
+		{
+			LTarget: "kernel",
+			RTarget: "linux",
+			Operand: "=",
+		},
+	}
+
+	j6 := mock.Job()
+	j6.Constraints = make([]*structs.Constraint, 0)
+	j6.TaskGroups[0].Constraints = []*structs.Constraint{
+		{
+			LTarget: "kernel",
+			RTarget: "linux",
+			Operand: "=",
+		},
+	}
+
+	require.False(t, tasksUpdated(j5, j6, name))
+}
+
+func TestTaskUpdatedSpread(t *testing.T) {
+	j1 := mock.Job()
+	j2 := mock.Job()
+	name := j1.TaskGroups[0].Name
+
+	require.False(t, tasksUpdated(j1, j2, name))
+
+	// TaskGroup Spread
+	j2.TaskGroups[0].Spreads = []*structs.Spread{
+		{
+			Attribute: "node.datacenter",
+			Weight:    100,
+			SpreadTarget: []*structs.SpreadTarget{
+				{
+					Value:   "r1",
+					Percent: 50,
+				},
+				{
+					Value:   "r2",
+					Percent: 50,
+				},
+			},
+		},
+	}
+	require.True(t, tasksUpdated(j1, j2, name))
+
+	// check different level of same constraint
+	j5 := mock.Job()
+	j5.Spreads = []*structs.Spread{
+		{
+			Attribute: "node.datacenter",
+			Weight:    100,
+			SpreadTarget: []*structs.SpreadTarget{
+				{
+					Value:   "r1",
+					Percent: 50,
+				},
+				{
+					Value:   "r2",
+					Percent: 50,
+				},
+			},
+		},
+	}
+
+	j6 := mock.Job()
+	j6.TaskGroups[0].Spreads = []*structs.Spread{
+		{
+			Attribute: "node.datacenter",
+			Weight:    100,
+			SpreadTarget: []*structs.SpreadTarget{
+				{
+					Value:   "r1",
+					Percent: 50,
+				},
+				{
+					Value:   "r2",
+					Percent: 50,
+				},
+			},
+		},
+	}
+
+	require.False(t, tasksUpdated(j5, j6, name))
+}
 func TestTasksUpdated(t *testing.T) {
 	j1 := mock.Job()
 	j2 := mock.Job()

@@ -337,6 +337,8 @@ func shuffleNodes(nodes []*structs.Node) {
 // tasksUpdated does a diff between task groups to see if the
 // tasks, their drivers, environment variables or config have updated. The
 // inputs are the task group name to diff and two jobs to diff.
+// taskUpdated and functions called within assume that the given
+// taskGroup has already been checked to not be nil
 func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 	a := jobA.LookupTaskGroup(taskGroup)
 	b := jobB.LookupTaskGroup(taskGroup)
@@ -353,6 +355,21 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 
 	// Check that the network resources haven't changed
 	if networkUpdated(a.Networks, b.Networks) {
+		return true
+	}
+
+	// Check Affinities
+	if affinitiesUpdated(jobA, jobB, taskGroup) {
+		return true
+	}
+
+	// Check Constraints
+	if constraintsUpdated(jobA, jobB, taskGroup) {
+		return true
+	}
+
+	// Check Spreads
+	if spreadsUpdated(jobA, jobB, taskGroup) {
 		return true
 	}
 
@@ -440,6 +457,93 @@ func networkPortMap(n *structs.NetworkResource) map[string]int {
 		m[p.Label] = -1
 	}
 	return m
+}
+
+func affinitiesUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
+	var aAffinities []*structs.Affinity
+	var bAffinities []*structs.Affinity
+
+	tgA := jobA.LookupTaskGroup(taskGroup)
+	tgB := jobB.LookupTaskGroup(taskGroup)
+
+	// Append jobA job and task group level affinities
+	aAffinities = append(aAffinities, jobA.Affinities...)
+	aAffinities = append(aAffinities, tgA.Affinities...)
+
+	// Append jobB job and task group level affinities
+	bAffinities = append(bAffinities, jobB.Affinities...)
+	bAffinities = append(bAffinities, tgB.Affinities...)
+
+	// append task affinities
+	for _, task := range tgA.Tasks {
+		aAffinities = append(aAffinities, task.Affinities...)
+	}
+
+	for _, task := range tgB.Tasks {
+		bAffinities = append(bAffinities, task.Affinities...)
+	}
+
+	// Check for equality
+	if len(aAffinities) != len(bAffinities) {
+		return true
+	}
+
+	return !reflect.DeepEqual(aAffinities, bAffinities)
+}
+
+func constraintsUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
+	var aConstraints []*structs.Constraint
+	var bConstraints []*structs.Constraint
+
+	tgA := jobA.LookupTaskGroup(taskGroup)
+	tgB := jobB.LookupTaskGroup(taskGroup)
+
+	// Append jobA job and task group level constraints
+	aConstraints = append(aConstraints, jobA.Constraints...)
+	aConstraints = append(aConstraints, tgA.Constraints...)
+
+	// Append jobB job and task group level constraints
+	bConstraints = append(bConstraints, jobB.Constraints...)
+	bConstraints = append(bConstraints, tgB.Constraints...)
+
+	// Append task constraints
+	for _, task := range tgA.Tasks {
+		aConstraints = append(aConstraints, task.Constraints...)
+	}
+
+	for _, task := range tgB.Tasks {
+		bConstraints = append(bConstraints, task.Constraints...)
+	}
+
+	// Check for equality
+	if len(aConstraints) != len(bConstraints) {
+		return true
+	}
+
+	return !reflect.DeepEqual(aConstraints, bConstraints)
+}
+
+func spreadsUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
+	var aSpreads []*structs.Spread
+	var bSpreads []*structs.Spread
+
+	tgA := jobA.LookupTaskGroup(taskGroup)
+	tgB := jobB.LookupTaskGroup(taskGroup)
+
+	// append jobA and task group level spreads
+	aSpreads = append(aSpreads, jobA.Spreads...)
+	aSpreads = append(aSpreads, tgA.Spreads...)
+
+	// append jobB and task group level spreads
+	bSpreads = append(bSpreads, jobB.Spreads...)
+	bSpreads = append(bSpreads, tgB.Spreads...)
+
+	// Check for equality
+	if len(aSpreads) != len(bSpreads) {
+		return true
+	}
+
+	return !reflect.DeepEqual(aSpreads, bSpreads)
 }
 
 // setStatus is used to update the status of the evaluation

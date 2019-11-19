@@ -17,8 +17,6 @@ description: |-
       <code>job -> **spread**</code>
       <br>
       <code>job -> group -> **spread**</code>
-      <br>
-      <code>job -> group -> task -> **spread**</code>
     </td>
   </tr>
 </table>
