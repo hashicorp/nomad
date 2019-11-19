@@ -65,13 +65,18 @@ limit {
     region_limit {
         cpu = 2500
         memory = 1000
+		networks = [
+			{ mbits = 50 }
+		]
     }
 }
 ```
 
 A quota specification is composed of one or more resource limits. Each limit
 applies to a particular Nomad region. Within the limit object, operators can
-specify the allowed CPU and memory usage.
+specify the allowed CPU, memory usage, and network bandwidth. Network bandwidth
+limits may only specify a single limit for all interfaces. Network quotas were
+introduced in 0.10.2 and are optional, they will not be enforced if omitted.
 
 To create the particular quota, it is as simple as running:
 
