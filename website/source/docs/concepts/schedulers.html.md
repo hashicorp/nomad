@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "Schedulers"
-sidebar_current: "docs-schedulers"
+sidebar_current: "docs-concepts-schedulers"
 description: |-
   Learn about Nomad's various schedulers.
 ---

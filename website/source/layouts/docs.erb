@@ -2,6 +2,32 @@
   <% content_for :sidebar do %>
     <ul class="nav docs-sidenav">
 
+      <li<%= sidebar_current("docs-concepts") %>>
+        <a href="/docs/concepts/index.html">Concepts</a>
+        <ul class="nav">
+          <li<%= sidebar_current("docs-concepts-jobs") %>>
+            <a href="/docs/concepts/jobs.html">Jobs</a>
+                <ul class="nav">
+                    <li <%= sidebar_current("docs-concepts-jobs-specification") %>>
+                        <a href="/docs/concepts/jobs/specification.html">Specification</a>
+                    </li>
+                    <li <%= sidebar_current("docs-concepts-jobs-instance") %>>
+                        <a href="/docs/concepts/jobs/instance.html">Instance</a>
+                    </li>
+                </ul>
+          </li>
+          <li<%= sidebar_current("docs-concepts-schedulers") %>>
+            <a href="/docs/concepts/schedulers.html">Schedulers</a>
+          </li>
+          <li<%= sidebar_current("docs-concepts-allocations") %>>
+            <a href="/docs/concepts/allocations.html">Allocations</a>
+          </li>
+          <li<%= sidebar_current("docs-concepts-deployments") %>>
+            <a href="/docs/concepts/deployments.html">Deployments</a>
+          </li>
+        </ul>
+      </li>
+
       <li<%= sidebar_current("docs-internal") %>>
         <a href="/docs/internals/index.html">Internals</a>
         <ul class="nav">
@@ -529,10 +555,6 @@
             <a href="/docs/devices/community.html">Community</a>
           </li>
         </ul>
-      </li>
-
-      <li<%= sidebar_current("docs-schedulers") %>>
-        <a href="/docs/schedulers.html">Schedulers</a>
       </li>
 
       <li<%= sidebar_current("docs-runtime-environment") %>>
