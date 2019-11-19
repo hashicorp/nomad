@@ -13,14 +13,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
-
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/consul/lib/freeport"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/devices/gpu/nvidia"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/testlog"
