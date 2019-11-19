@@ -427,7 +427,7 @@ func TestTaskUpdatedAffinity(t *testing.T) {
 
 	require.True(t, tasksUpdated(j1, j4, name))
 
-	// check different level of same constraint
+	// check different level of same affinity
 	j5 := mock.Job()
 	j5.Affinities = []*structs.Affinity{
 		{
@@ -446,75 +446,6 @@ func TestTaskUpdatedAffinity(t *testing.T) {
 			RTarget: "dc1",
 			Operand: "=",
 			Weight:  100,
-		},
-	}
-
-	require.False(t, tasksUpdated(j5, j6, name))
-}
-
-func TestTaskUpdated_Constraint(t *testing.T) {
-	j1 := mock.Job()
-	j1.Constraints = make([]*structs.Constraint, 0)
-
-	j2 := mock.Job()
-	j2.Constraints = make([]*structs.Constraint, 0)
-
-	name := j1.TaskGroups[0].Name
-	require.False(t, tasksUpdated(j1, j2, name))
-
-	// TaskGroup Constraint
-	j2.TaskGroups[0].Constraints = []*structs.Constraint{
-		{
-			LTarget: "kernel",
-			RTarget: "linux",
-			Operand: "=",
-		},
-	}
-
-	// TaskGroup Task Constraint
-	j3 := mock.Job()
-	j3.Constraints = make([]*structs.Constraint, 0)
-
-	j3.TaskGroups[0].Tasks[0].Constraints = []*structs.Constraint{
-		{
-			LTarget: "kernel",
-			RTarget: "linux",
-			Operand: "=",
-		},
-	}
-
-	require.True(t, tasksUpdated(j1, j3, name))
-
-	j4 := mock.Job()
-	j4.Constraints = make([]*structs.Constraint, 0)
-
-	j4.TaskGroups[0].Tasks[0].Constraints = []*structs.Constraint{
-		{
-			LTarget: "kernel",
-			RTarget: "linux",
-			Operand: "=",
-		},
-	}
-
-	require.True(t, tasksUpdated(j1, j4, name))
-
-	// check different level of same constraint
-	j5 := mock.Job()
-	j5.Constraints = []*structs.Constraint{
-		{
-			LTarget: "kernel",
-			RTarget: "linux",
-			Operand: "=",
-		},
-	}
-
-	j6 := mock.Job()
-	j6.Constraints = make([]*structs.Constraint, 0)
-	j6.TaskGroups[0].Constraints = []*structs.Constraint{
-		{
-			LTarget: "kernel",
-			RTarget: "linux",
-			Operand: "=",
 		},
 	}
 
