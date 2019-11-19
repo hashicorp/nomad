@@ -18,6 +18,7 @@ BUG FIXES:
  * api: Decompress web socket response body if gzipped on error responses [[GH-6650](https://github.com/hashicorp/nomad/issues/6650)]
  * api: Fixed a bug where some FS/Allocation API endpoints didn't return error messages [[GH-6427](https://github.com/hashicorp/nomad/issues/6427)]
  * cli: Make scoring column orders consistent `nomad alloc status` [[GH-6609](https://github.com/hashicorp/nomad/issues/6609)]
+ * cli: Fixed a bug where `nomad alloc exec` fails if stdout is being redirected and not a TTY [[GH-6684](https://github.com/hashicorp/nomad/issues/6684)]
  * cli: Fixed a bug where a cli user may fail to query FS/Allocation API endpoints if they lack `node:read` capability [[GH-6423](https://github.com/hashicorp/nomad/issues/6423)]
  * client: Fixed a bug where a client may not restart dead internal processes upon client's restart on Windows [[GH-6426](https://github.com/hashicorp/nomad/issues/6426)]
  * driver/exec: Fixed a bug where exec tasks can spawn processes that live beyond task lifecycle [[GH-6722](https://github.com/hashicorp/nomad/issues/6722)]
