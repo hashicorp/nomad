@@ -35,6 +35,13 @@ export default Route.extend(WithWatchers, {
     return this._super(...arguments);
   },
 
+  resetController(controller) {
+    controller.setProperties({
+      eligibilityError: null,
+      stopDrainError: null,
+    });
+  },
+
   startWatchers(controller, model) {
     if (model) {
       controller.set('watchModel', this.watch.perform(model));

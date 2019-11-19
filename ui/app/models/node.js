@@ -112,4 +112,8 @@ export default Model.extend({
   forceDrain(drainSpec) {
     return this.store.adapterFor('node').forceDrain(this, drainSpec);
   },
+
+  cancelDrain() {
+    return this.store.adapterFor('node').cancelDrain(this);
+  },
 });

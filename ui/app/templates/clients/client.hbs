@@ -1,9 +1,55 @@
 {{title "Client " (or model.name model.shortId)}}
-<section class="section">
+<section class="section with-headspace">
   {{#if eligibilityError}}
-    <div data-test-eiligibility-error class="notification is-danger">
-      <h3 class="title is-4" data-test-eiligibility-error-title>Eligibility Error</h3>
-      <p data-test-eligibility-error-message>{{eligibilityError}}</p>
+    <div class="columns">
+      <div class="column">
+        <div data-test-eligibility-error class="notification is-danger">
+          <h3 class="title is-4" data-test-eligibility-error-title>Eligibility Error</h3>
+          <p data-test-eligibility-error-message>{{eligibilityError}}</p>
+        </div>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button data-test-eligibility-error-dismiss class="button is-danger" onclick={{action (mut eligibilityError) ""}}>Okay</button>
+      </div>
+    </div>
+  {{/if}}
+  {{#if stopDrainError}}
+    <div class="columns">
+      <div class="column">
+        <div data-test-stop-drain-error class="notification is-danger">
+          <h3 class="title is-4" data-test-stop-drain-error-title>Stop Drain Error</h3>
+          <p data-test-stop-drain-error-message>{{stopDrainError}}</p>
+        </div>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button data-test-stop-drain-error-dismiss class="button is-danger" onclick={{action (mut eligibilityError) ""}}>Okay</button>
+      </div>
+    </div>
+  {{/if}}
+  {{#if showDrainStoppedNotification}}
+    <div class="notification is-info">
+      <div class="columns">
+        <div class="column">
+          <h3 class="title is-4">Drain Stopped</h3>
+          <p>The drain has been stopped and the node has been set to ineligible.</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button class="button is-info" onclick={{action (mut showDrainStoppedNotification) false}}>Okay</button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+  {{#if showDrainUpdateNotification}}
+    <div class="notification is-info">
+      <div class="columns">
+        <div class="column">
+          <h3 class="title is-4">Drain Updated</h3>
+          <p>The new drain specification has been applied.</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button class="button is-info" onclick={{action (mut showDrainUpdateNotification) false}}>Okay</button>
+        </div>
+      </div>
     </div>
   {{/if}}
   {{#if showDrainNotification}}
@@ -48,7 +94,18 @@
       </p>
     </div>
     <div class="toolbar-item is-right-aligned is-top-aligned">
-      {{drain-popover client=model}}
+      {{#if model.isDraining}}
+        {{two-step-button
+          idleText="Stop Drain"
+          cancelText="Cancel"
+          confirmText="Yes, Stop"
+          confirmationMessage="Are you sure you want to stop this drain?"
+          awaitingConfirmation=stopDrain.isRunning
+          onConfirm=(perform stopDrain)}}
+      {{/if}}
+    </div>
+    <div class="toolbar-item is-right-aligned is-top-aligned">
+      {{drain-popover client=model onDrain=(action "drainNotify")}}
     </div>
   </div>
 
