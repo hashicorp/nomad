@@ -5,10 +5,11 @@
     <h4 class="group-heading">Drain Options</h4>
     <div class="field">
       <label class="label is-interactive">
-        <input
-          type="checkbox"
-          checked={{deadlineEnabled}}
-          onchange={{action (mut deadlineEnabled) value="target.checked"}}> Deadline
+        {{#toggle
+          isActive=deadlineEnabled
+          onToggle=(action (mut deadlineEnabled) value="target.checked")}}
+          Deadline
+        {{/toggle}}
         <span class="tooltip multiline" aria-label="The amount of time a drain must complete within.">
           {{x-icon "info-circle-outline" class="is-faded"}}
         </span>
@@ -41,10 +42,11 @@
     {{/if}}
     <div class="field">
       <label class="label is-interactive">
-        <input
-          type="checkbox"
-          checked={{forceDrain}}
-          onchange={{action (mut forceDrain) value="target.checked"}}> Force Drain
+        {{#toggle
+          isActive=forceDrain
+          onToggle=(action (mut forceDrain) value="target.checked")}}
+          Force Drain
+        {{/toggle}}
         <span class="tooltip multiline" aria-label="Immediately remove allocations from the client.">
           {{x-icon "info-circle-outline" class="is-faded"}}
         </span>
@@ -52,10 +54,11 @@
     </div>
     <div class="field">
       <label class="label is-interactive">
-        <input
-          type="checkbox"
-          checked={{drainSystemJobs}}
-          onchange={{action (mut drainSystemJobs) value="target.checked"}}> Drain System Jobs
+        {{#toggle
+          isActive=drainSystemJobs
+          onToggle=(action (mut drainSystemJobs) value="target.checked")}}
+          Drain System Jobs
+        {{/toggle}}
         <span class="tooltip multiline" aria-label="Stop allocations for system jobs.">
           {{x-icon "info-circle-outline" class="is-faded"}}
         </span>
