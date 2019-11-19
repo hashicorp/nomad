@@ -276,7 +276,10 @@ var (
 		"cap_drop":       hclspec.NewAttr("cap_drop", "list(string)", false),
 		"command":        hclspec.NewAttr("command", "string", false),
 		"cpu_hard_limit": hclspec.NewAttr("cpu_hard_limit", "bool", false),
-		"cpu_cfs_period": hclspec.NewAttr("cpu_cfs_period", "number", false),
+		"cpu_cfs_period": hclspec.NewDefault(
+			hclspec.NewAttr("cpu_cfs_period", "number", false),
+			hclspec.NewLiteral(`100000`),
+		),
 		"devices": hclspec.NewBlockList("devices", hclspec.NewObject(map[string]*hclspec.Spec{
 			"host_path":          hclspec.NewAttr("host_path", "string", false),
 			"container_path":     hclspec.NewAttr("container_path", "string", false),
