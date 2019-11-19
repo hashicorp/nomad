@@ -254,6 +254,8 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
+// TestExecDriver_DestroyKillsAll asserts that when TaskDestroy is called all
+// task processes are cleaned up.
 func TestExecDriver_DestroyKillsAll(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
