@@ -14,5 +14,14 @@
     font-weight: $weight-normal;
     color: darken($grey-blue, 20%);
     white-space: nowrap;
+
+    &.is-right-aligned {
+      left: auto;
+      right: 0;
+    }
+
+    &.inherit-color {
+      color: currentColor;
+    }
   }
 }
