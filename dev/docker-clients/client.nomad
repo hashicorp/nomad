@@ -23,7 +23,7 @@ job "client" {
 
         network {
           mbits = 10
-          port "http" {}
+          port  "http"{}
         }
       }
 
