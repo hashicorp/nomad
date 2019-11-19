@@ -22,7 +22,20 @@
         </div>
       </div>
       <div class="column is-centered is-minimum">
-        <button data-test-stop-drain-error-dismiss class="button is-danger" onclick={{action (mut eligibilityError) ""}}>Okay</button>
+        <button data-test-stop-drain-error-dismiss class="button is-danger" onclick={{action (mut stopDrainError) ""}}>Okay</button>
+      </div>
+    </div>
+  {{/if}}
+  {{#if drainError}}
+    <div class="columns">
+      <div class="column">
+        <div data-test-drain-error class="notification is-danger">
+          <h3 class="title is-4" data-test-drain-error-title>Drain Error</h3>
+          <p data-test-drain-error-message>{{drainError}}</p>
+        </div>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button data-test-drain-error-dismiss class="button is-danger" onclick={{action (mut drainError) ""}}>Okay</button>
       </div>
     </div>
   {{/if}}
@@ -105,7 +118,10 @@
       {{/if}}
     </div>
     <div class="toolbar-item is-right-aligned is-top-aligned">
-      {{drain-popover client=model onDrain=(action "drainNotify")}}
+      {{drain-popover
+        client=model
+        onDrain=(action "drainNotify")
+        onError=(action "drainError")}}
     </div>
   </div>
 
@@ -187,7 +203,19 @@
               {{if model.drainStrategy.ignoreSystemJobs "No" "Yes"}}
             </span>
           </div>
-          <button class="button is-warning is-small pull-right">Force Drain</button>
+          {{#if (not model.drainStrategy.isForced)}}
+            <div class="pull-right">
+              {{two-step-button
+                alignRight=true
+                isInfoAction=true
+                idleText="Force Drain"
+                cancelText="Cancel"
+                confirmText="Yes, Force Drain"
+                confirmationMessage="Are you sure you want to force drain?"
+                awaitingConfirmation=forceDrain.isRunning
+                onConfirm=(perform forceDrain)}}
+            </div>
+          {{/if}}
         </div>
       </div>
       <div class="boxed-section-body">

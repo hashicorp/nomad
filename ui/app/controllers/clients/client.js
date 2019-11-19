@@ -43,6 +43,7 @@ export default Controller.extend(Sortable, Searchable, {
 
   eligibilityError: null,
   stopDrainError: null,
+  drainError: null,
   showDrainNotification: false,
   showDrainUpdateNotification: false,
   showDrainStoppedNotification: false,
@@ -82,6 +83,17 @@ export default Controller.extend(Sortable, Searchable, {
     }
   }).drop(),
 
+  forceDrain: task(function*() {
+    try {
+      yield this.model.forceDrain({
+        IgnoreSystemJobs: this.model.drainStrategy.ignoreSystemJobs,
+      });
+    } catch (err) {
+      const error = messageFromAdapterError(err) || 'Could not force drain';
+      this.set('drainError', error);
+    }
+  }).drop(),
+
   triggerDrainNotification: observer('model.isDraining', function() {
     if (!this.model.isDraining && this.flagAsDraining) {
       this.set('showDrainNotification', true);
@@ -101,6 +113,11 @@ export default Controller.extend(Sortable, Searchable, {
 
     drainNotify(isUpdating) {
       this.set('showDrainUpdateNotification', isUpdating);
+    },
+
+    drainError(err) {
+      const error = messageFromAdapterError(err) || 'Could not run drain';
+      this.set('drainError', error);
     },
   },
 });
