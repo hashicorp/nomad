@@ -23,9 +23,15 @@ Terraform will output node IPs that may be accessed via ssh:
 ssh -i keys/nomad-e2e-*.pem ubuntu@${EC2_IP_ADDR}
 ```
 
+The Windows client runs OpenSSH for conveniences, but has a different user and will drop you into a Powershell shell instead of bash:
+
+```
+ssh -i keys/nomad-e2e-*.pem Administrator@${EC2_IP_ADDR}
+```
+
 
 ## Teardown
-The terraform state file stores all the info, so the nomad_sha doesn't need to be valid during teardown. 
+The terraform state file stores all the info, so the nomad_sha doesn't need to be valid during teardown.
 
 ```
 $ cd e2e/terraform/
