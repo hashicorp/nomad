@@ -2,17 +2,21 @@
   <button
     data-test-idle-button
     type="button"
-    class="button is-danger is-outlined is-important is-small"
+    class="button {{if isInfoAction "is-warning" "is-danger is-outlined"}} is-important is-small"
     disabled={{disabled}}
     onclick={{action "promptForConfirmation"}}>
     {{idleText}}
   </button>
 {{else if isPendingConfirmation}}
-  <span data-test-confirmation-message class="confirmation-text">{{confirmationMessage}}</span>
+  <span
+    data-test-confirmation-message
+    class="confirmation-text {{if isInfoAction "inherit-color"}} {{if alignRight "is-right-aligned"}}">
+    {{confirmationMessage}}
+  </span>
   <button
     data-test-cancel-button
     type="button"
-    class="button is-dark is-outlined is-small"
+    class="button {{if isInfoAction "is-danger is-important" "is-dark"}} is-outlined is-small"
     disabled={{awaitingConfirmation}}
     onclick={{action (queue
       (action "setToIdle")
@@ -22,7 +26,7 @@
   </button>
   <button
     data-test-confirm-button
-    class="button is-danger is-small {{if awaitingConfirmation "is-loading"}}"
+    class="button {{if isInfoAction "is-warning" "is-danger"}} is-small {{if awaitingConfirmation "is-loading"}}"
     disabled={{awaitingConfirmation}}
     onclick={{action "confirm"}}>
     {{confirmText}}

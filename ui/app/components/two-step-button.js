@@ -13,6 +13,8 @@ export default Component.extend({
   confirmationMessage: '',
   awaitingConfirmation: false,
   disabled: false,
+  alignRight: false,
+  isInfoAction: false,
   onConfirm() {},
   onCancel() {},
 
