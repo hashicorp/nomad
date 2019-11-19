@@ -1,0 +1,74 @@
+$size: 10px;
+
+.toggle {
+  cursor: pointer;
+  font-weight: $weight-semibold;
+  position: relative;
+
+  &.is-disabled {
+    color: $grey-blue;
+    cursor: not-allowed;
+  }
+
+  .input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+    z-index: -1;
+  }
+
+  .toggler {
+    display: inline-block;
+    width: $size * 2;
+    height: $size;
+    border-radius: $size;
+    background: $grey-blue;
+    transition: background 0.3s ease-in-out;
+
+    &::after {
+      content: ' ';
+      display: block;
+      position: absolute;
+      width: calc(#{$size} - 2px);
+      height: calc(#{$size} - 2px);
+      border-radius: 100%;
+      background: $white;
+      left: 2px;
+      top: 50%;
+      transform: translate(0, -50%);
+      transition: transform 0.3s ease-in-out;
+    }
+  }
+
+  // Always style the toggler based off the input state to
+  // ensure that the native input is driving behavior.
+  .input:focus + .toggler {
+    box-shadow: inset 0 0 0 2px rgba($blue, 0.5);
+    outline: none;
+  }
+
+  .input:checked + .toggler {
+    background: $blue;
+
+    &::after {
+      transform: translate(100%, -50%);
+    }
+  }
+
+  .input:checked:focus + .toggler {
+    box-shadow: inset 0 0 0 2px rgba($white, 0.5);
+  }
+
+  .input:disabled + .toggler {
+    background: rgba($grey-blue, 0.6);
+
+    &::after {
+      opacity: 0.5;
+    }
+  }
+
+  .input:checked:disabled + .toggler {
+    background: rgba($blue, 0.5);
+  }
+}
