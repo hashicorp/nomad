@@ -20,9 +20,10 @@ func TestConfig_ParseHCL(t *testing.T) {
 				image = "redis:3.2"
 			}`,
 			&TaskConfig{
-				Image:   "redis:3.2",
-				Devices: []DockerDevice{},
-				Mounts:  []DockerMount{},
+				Image:        "redis:3.2",
+				Devices:      []DockerDevice{},
+				Mounts:       []DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 		},
 	}
@@ -51,36 +52,40 @@ func TestConfig_ParseJSON(t *testing.T) {
 			name:  "nil values for blocks are safe",
 			input: `{"Config": {"image": "bash:3", "mounts": null}}`,
 			expected: TaskConfig{
-				Image:   "bash:3",
-				Mounts:  []DockerMount{},
-				Devices: []DockerDevice{},
+				Image:        "bash:3",
+				Mounts:       []DockerMount{},
+				Devices:      []DockerDevice{},
+				CPUCFSPeriod: 100000,
 			},
 		},
 		{
 			name:  "nil values for 'volumes' field are safe",
 			input: `{"Config": {"image": "bash:3", "volumes": null}}`,
 			expected: TaskConfig{
-				Image:   "bash:3",
-				Mounts:  []DockerMount{},
-				Devices: []DockerDevice{},
+				Image:        "bash:3",
+				Mounts:       []DockerMount{},
+				Devices:      []DockerDevice{},
+				CPUCFSPeriod: 100000,
 			},
 		},
 		{
 			name:  "nil values for 'args' field are safe",
 			input: `{"Config": {"image": "bash:3", "args": null}}`,
 			expected: TaskConfig{
-				Image:   "bash:3",
-				Mounts:  []DockerMount{},
-				Devices: []DockerDevice{},
+				Image:        "bash:3",
+				Mounts:       []DockerMount{},
+				Devices:      []DockerDevice{},
+				CPUCFSPeriod: 100000,
 			},
 		},
 		{
 			name:  "nil values for string fields are safe",
 			input: `{"Config": {"image": "bash:3", "command": null}}`,
 			expected: TaskConfig{
-				Image:   "bash:3",
-				Mounts:  []DockerMount{},
-				Devices: []DockerDevice{},
+				Image:        "bash:3",
+				Mounts:       []DockerMount{},
+				Devices:      []DockerDevice{},
+				CPUCFSPeriod: 100000,
 			},
 		},
 	}
