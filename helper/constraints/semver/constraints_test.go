@@ -58,6 +58,9 @@ func TestConstraintCheck(t *testing.T) {
 		{"= 1.0", "1.0.0", true},
 		{"1.0", "1.0.0", true},
 
+		// Assert numbers are *not* compared lexically as in #4729
+		{"> 10", "8", false},
+
 		// Pre-releases are ordered according to Semver v2
 		{"> 2.0", "2.1.0-beta", true},
 		{"> 2.1.0-a", "2.1.0-beta", true},
