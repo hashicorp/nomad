@@ -28,6 +28,11 @@ variable "client_count" {
   default     = "4"
 }
 
+variable "windows_client_count" {
+  description = "The number of windows clients to provision."
+  default     = "1"
+}
+
 variable "nomad_sha" {
   description = "The sha of Nomad to run"
 }
@@ -37,6 +42,12 @@ provider "aws" {
 }
 
 resource "random_pet" "e2e" {
+}
+
+resource "random_password" "windows_admin_password" {
+  length           = 20
+  special          = true
+  override_special = "_%@"
 }
 
 locals {
@@ -51,7 +62,7 @@ module "keys" {
   version = "v2.0.0"
 }
 
-data "aws_ami" "main" {
+data "aws_ami" "linux" {
   most_recent = true
   owners      = ["self"]
 
@@ -63,6 +74,21 @@ data "aws_ami" "main" {
   filter {
     name   = "tag:OS"
     values = ["Ubuntu"]
+  }
+}
+
+data "aws_ami" "windows" {
+  most_recent = true
+  owners      = ["self"]
+
+  filter {
+    name   = "name"
+    values = ["nomad-e2e-windows-2016*"]
+  }
+
+  filter {
+    name   = "tag:OS"
+    values = ["Windows2016"]
   }
 }
 
