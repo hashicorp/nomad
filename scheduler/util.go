@@ -363,11 +363,6 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		return true
 	}
 
-	// Check Constraints
-	if constraintsUpdated(jobA, jobB, taskGroup) {
-		return true
-	}
-
 	// Check Spreads
 	if spreadsUpdated(jobA, jobB, taskGroup) {
 		return true
@@ -489,38 +484,6 @@ func affinitiesUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 	}
 
 	return !reflect.DeepEqual(aAffinities, bAffinities)
-}
-
-func constraintsUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
-	var aConstraints []*structs.Constraint
-	var bConstraints []*structs.Constraint
-
-	tgA := jobA.LookupTaskGroup(taskGroup)
-	tgB := jobB.LookupTaskGroup(taskGroup)
-
-	// Append jobA job and task group level constraints
-	aConstraints = append(aConstraints, jobA.Constraints...)
-	aConstraints = append(aConstraints, tgA.Constraints...)
-
-	// Append jobB job and task group level constraints
-	bConstraints = append(bConstraints, jobB.Constraints...)
-	bConstraints = append(bConstraints, tgB.Constraints...)
-
-	// Append task constraints
-	for _, task := range tgA.Tasks {
-		aConstraints = append(aConstraints, task.Constraints...)
-	}
-
-	for _, task := range tgB.Tasks {
-		bConstraints = append(bConstraints, task.Constraints...)
-	}
-
-	// Check for equality
-	if len(aConstraints) != len(bConstraints) {
-		return true
-	}
-
-	return !reflect.DeepEqual(aConstraints, bConstraints)
 }
 
 func spreadsUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
