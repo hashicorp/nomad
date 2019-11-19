@@ -2502,6 +2502,8 @@ func TestDockerDriver_CreationIdempotent(t *testing.T) {
 	})
 }
 
+// TestDockerDriver_CreateContainerConfig_CPUHardLimit asserts that a default
+// CPU quota and period are set when cpu_hard_limit = true.
 func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
 	t.Parallel()
 
