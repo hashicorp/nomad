@@ -21,7 +21,7 @@ var (
 	vaultConstraint = &structs.Constraint{
 		LTarget: vaultConstraintLTarget,
 		RTarget: ">= 0.6.1",
-		Operand: structs.ConstraintVersion,
+		Operand: structs.ConstraintSemver,
 	}
 )
 

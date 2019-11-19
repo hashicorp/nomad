@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -551,7 +552,11 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}, lFound
 	case structs.ConstraintAttributeIsNotSet:
 		return !lFound
 	case structs.ConstraintVersion:
-		return lFound && rFound && checkVersionMatch(ctx, lVal, rVal)
+		parser := newVersionConstraintParser(ctx)
+		return lFound && rFound && checkVersionMatch(ctx, parser, lVal, rVal)
+	case structs.ConstraintSemver:
+		parser := newSemverConstraintParser(ctx)
+		return lFound && rFound && checkVersionMatch(ctx, parser, lVal, rVal)
 	case structs.ConstraintRegex:
 		return lFound && rFound && checkRegexpMatch(ctx, lVal, rVal)
 	case structs.ConstraintSetContains, structs.ConstraintSetContainsAll:
@@ -601,7 +606,7 @@ func checkLexicalOrder(op string, lVal, rVal interface{}) bool {
 
 // checkVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkVersionMatch(ctx Context, lVal, rVal interface{}) bool {
+func checkVersionMatch(ctx Context, parse verConstraintParser, lVal, rVal interface{}) bool {
 	// Parse the version
 	var versionStr string
 	switch v := lVal.(type) {
@@ -625,17 +630,10 @@ func checkVersionMatch(ctx Context, lVal, rVal interface{}) bool {
 		return false
 	}
 
-	// Check the cache for a match
-	cache := ctx.VersionConstraintCache()
-	constraints := cache[constraintStr]
-
 	// Parse the constraints
+	constraints := parse(constraintStr)
 	if constraints == nil {
-		constraints, err = version.NewConstraint(constraintStr)
-		if err != nil {
-			return false
-		}
-		cache[constraintStr] = constraints
+		return false
 	}
 
 	// Check the constraints against the version
@@ -644,7 +642,7 @@ func checkVersionMatch(ctx Context, lVal, rVal interface{}) bool {
 
 // checkAttributeVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkAttributeVersionMatch(ctx Context, lVal, rVal *psstructs.Attribute) bool {
+func checkAttributeVersionMatch(ctx Context, parse verConstraintParser, lVal, rVal *psstructs.Attribute) bool {
 	// Parse the version
 	var versionStr string
 	if s, ok := lVal.GetString(); ok {
@@ -667,17 +665,10 @@ func checkAttributeVersionMatch(ctx Context, lVal, rVal *psstructs.Attribute) bo
 		return false
 	}
 
-	// Check the cache for a match
-	cache := ctx.VersionConstraintCache()
-	constraints := cache[constraintStr]
-
 	// Parse the constraints
+	constraints := parse(constraintStr)
 	if constraints == nil {
-		constraints, err = version.NewConstraint(constraintStr)
-		if err != nil {
-			return false
-		}
-		cache[constraintStr] = constraints
+		return false
 	}
 
 	// Check the constraints against the version
@@ -1119,7 +1110,17 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 			return false
 		}
 
-		return checkAttributeVersionMatch(ctx, lVal, rVal)
+		parser := newVersionConstraintParser(ctx)
+		return checkAttributeVersionMatch(ctx, parser, lVal, rVal)
+
+	case structs.ConstraintSemver:
+		if !(lFound && rFound) {
+			return false
+		}
+
+		parser := newSemverConstraintParser(ctx)
+		return checkAttributeVersionMatch(ctx, parser, lVal, rVal)
+
 	case structs.ConstraintRegex:
 		if !(lFound && rFound) {
 			return false
@@ -1163,4 +1164,51 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 		return false
 	}
 
+}
+
+// VerConstraints is the interface implemented by both go-verson constraints
+// and semver constraints.
+type VerConstraints interface {
+	Check(v *version.Version) bool
+	String() string
+}
+
+// verConstraintParser returns a version constraints implementation (go-version
+// or semver).
+type verConstraintParser func(verConstraint string) VerConstraints
+
+func newVersionConstraintParser(ctx Context) verConstraintParser {
+	cache := ctx.VersionConstraintCache()
+
+	return func(cstr string) VerConstraints {
+		if c := cache[cstr]; c != nil {
+			return c
+		}
+
+		constraints, err := version.NewConstraint(cstr)
+		if err != nil {
+			return nil
+		}
+		cache[cstr] = constraints
+
+		return constraints
+	}
+}
+
+func newSemverConstraintParser(ctx Context) verConstraintParser {
+	cache := ctx.SemverConstraintCache()
+
+	return func(cstr string) VerConstraints {
+		if c := cache[cstr]; c != nil {
+			return c
+		}
+
+		constraints, err := semver.NewConstraint(cstr)
+		if err != nil {
+			return nil
+		}
+		cache[cstr] = constraints
+
+		return constraints
+	}
 }

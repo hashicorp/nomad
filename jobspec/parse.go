@@ -138,6 +138,7 @@ func parseConstraints(result *[]*api.Constraint, list *ast.ObjectList) error {
 			"set_contains",
 			"value",
 			"version",
+			"semver",
 		}
 		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return err
@@ -156,6 +157,13 @@ func parseConstraints(result *[]*api.Constraint, list *ast.ObjectList) error {
 		// to "version" and the value to the "RTarget"
 		if constraint, ok := m[api.ConstraintVersion]; ok {
 			m["Operand"] = api.ConstraintVersion
+			m["RTarget"] = constraint
+		}
+
+		// If "semver" is provided, set the operand
+		// to "semver" and the value to the "RTarget"
+		if constraint, ok := m[api.ConstraintSemver]; ok {
+			m["Operand"] = api.ConstraintSemver
 			m["RTarget"] = constraint
 		}
 
@@ -219,6 +227,7 @@ func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
 			"set_contains_all",
 			"value",
 			"version",
+			"semver",
 			"weight",
 		}
 		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
@@ -238,6 +247,13 @@ func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
 		// to "version" and the value to the "RTarget"
 		if affinity, ok := m[api.ConstraintVersion]; ok {
 			m["Operand"] = api.ConstraintVersion
+			m["RTarget"] = affinity
+		}
+
+		// If "semver" is provided, set the operand
+		// to "semver" and the value to the "RTarget"
+		if affinity, ok := m[api.ConstraintSemver]; ok {
+			m["Operand"] = api.ConstraintSemver
 			m["RTarget"] = affinity
 		}
 
