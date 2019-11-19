@@ -209,7 +209,7 @@ func (c *Device) setConfig(spec hcldec.Spec, apiVersion string, config []byte, n
 	}
 
 	req := &base.Config{
-		PluginConfig: config,
+		PluginConfig: cdata,
 		AgentConfig:  nmdCfg,
 		ApiVersion:   apiVersion,
 	}
