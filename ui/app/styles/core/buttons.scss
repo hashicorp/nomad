@@ -71,6 +71,7 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
 
       &.is-outlined {
         border-color: $grey-lighter;
+        background-color: $white;
 
         &.is-important {
           border-color: $color;
@@ -80,14 +81,14 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
         &.is-hovered,
         &:focus,
         &.is-focused {
-          background-color: transparent;
+          background-color: $white;
           border-color: darken($color, 10%);
           color: $color;
         }
 
         &:active,
         &.is-active {
-          background-color: transparent;
+          background-color: $white;
           border-color: darken($color, 10%);
           color: darken($color, 10%);
         }
@@ -96,6 +97,7 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
       &.is-inverted.is-outlined {
         border-color: rgba($color-invert, 0.5);
         color: rgba($color-invert, 0.9);
+        background-color: transparent;
 
         &:hover,
         &.is-hovered,
