@@ -27,7 +27,7 @@ const (
 	ErrUnknownEvaluationPrefix = "Unknown evaluation"
 	ErrUnknownDeploymentPrefix = "Unknown deployment"
 
-	errRPCCodedErrorPrefix = "RPC_ERROR::"
+	errRPCCodedErrorPrefix = "RPC Error:: "
 )
 
 var (
@@ -148,15 +148,22 @@ func IsErrNodeLacksRpc(err error) bool {
 	return err != nil && strings.Contains(err.Error(), errNodeLacksRpc)
 }
 
+// NewErrRPCCoded wraps an RPC error with a code to be converted to HTTP status
+// code
 func NewErrRPCCoded(code int, msg string) error {
 	return fmt.Errorf("%s%d,%s", errRPCCodedErrorPrefix, code, msg)
 }
 
+// NewErrRPCCoded wraps an RPC error with a code to be converted to HTTP status
+// code
 func NewErrRPCCodedf(code int, format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
 	return fmt.Errorf("%s%d,%s", errRPCCodedErrorPrefix, code, msg)
 }
 
+// CodeFromRPCCodedErr returns the code and message of error if it's an RPC error
+// created through NewErrRPCCoded function.  Returns `ok` false if error is not
+// an rpc error
 func CodeFromRPCCodedErr(err error) (code int, msg string, ok bool) {
 	if err == nil || !strings.HasPrefix(err.Error(), errRPCCodedErrorPrefix) {
 		return 0, "", false
