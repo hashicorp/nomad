@@ -510,7 +510,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 				return structs.NewErrRPCCodedf(400, "token lookup failed: %v", err)
 			}
 			if out == nil {
-				return structs.NewErrRPCCodedf(400, "cannot find token %s", token.AccessorID)
+				return structs.NewErrRPCCodedf(404, "cannot find token %s", token.AccessorID)
 			}
 
 			// Cannot toggle the "Global" mode
