@@ -220,9 +220,10 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 		return structs.ErrPermissionDenied
 	}
 
+	// If the policy is the anonymous one, anyone can get it
 	// If it is not a management token determine if it can get this policy
 	mgt := acl.IsManagement()
-	if !mgt {
+	if !mgt && args.Name != "anonymous" {
 		snap, err := a.srv.fsm.State().Snapshot()
 		if err != nil {
 			return err
