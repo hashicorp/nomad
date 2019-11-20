@@ -19,6 +19,8 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/devices/gpu/nvidia"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -103,6 +105,7 @@ func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
 			LinuxResources: &drivers.LinuxResources{
 				CPUShares:        512,
 				MemoryLimitBytes: 256 * 1024 * 1024,
+				PercentTicks:     float64(512) / float64(4096),
 			},
 		},
 	}
@@ -2497,4 +2500,31 @@ func TestDockerDriver_CreationIdempotent(t *testing.T) {
 	}, func(err error) {
 		require.NoError(t, err)
 	})
+}
+
+// TestDockerDriver_CreateContainerConfig_CPUHardLimit asserts that a default
+// CPU quota and period are set when cpu_hard_limit = true.
+func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
+	t.Parallel()
+
+	task, _, _ := dockerTask(t)
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+	schema, _ := driver.TaskConfigSchema()
+	spec, _ := hclspecutils.Convert(schema)
+
+	val, _, _ := hclutils.ParseHclInterface(map[string]interface{}{
+		"image":          "foo/bar",
+		"cpu_hard_limit": true,
+	}, spec, nil)
+
+	require.NoError(t, task.EncodeDriverConfig(val))
+	cfg := &TaskConfig{}
+	require.NoError(t, task.DecodeDriverConfig(cfg))
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	require.NotZero(t, c.HostConfig.CPUQuota)
+	require.NotZero(t, c.HostConfig.CPUPeriod)
 }
