@@ -5,6 +5,7 @@ FEATURES:
 
 IMPROVEMENTS:
  * api: Add `StartedAt` field to `Node.DrainStrategy` [[GH-6698](https://github.com/hashicorp/nomad/issues/6698)]
+ * build: Updated to Go 1.12.13 [[GH-6606](https://github.com/hashicorp/nomad/issues/6606)]
  * core: Add support for running under Windows Service Manager [[GH-6220](https://github.com/hashicorp/nomad/issues/6220)]
  * cli: Show full ID in node and alloc individual status views [[GH-6425](https://github.com/hashicorp/nomad/issues/6425)]
  * client: Enable setting tags on Consul Connect sidecar service [[GH-6448](https://github.com/hashicorp/nomad/issues/6448)]
