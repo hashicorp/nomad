@@ -9062,9 +9062,9 @@ func IsServerSide(e error) bool {
 
 // ACLPolicy is used to represent an ACL policy
 type ACLPolicy struct {
-	Name        string // Unique name
-	Description string // Human readable
-	Rules       string // HCL or JSON format
+	Name        string      // Unique name
+	Description string      // Human readable
+	Rules       string      // HCL or JSON format
 	RulesJSON   *acl.Policy // Generated from Rules on read
 	Hash        []byte
 	CreateIndex uint64
