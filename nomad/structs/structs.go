@@ -9065,7 +9065,7 @@ type ACLPolicy struct {
 	Name        string // Unique name
 	Description string // Human readable
 	Rules       string // HCL or JSON format
-	RulesJSON   *acl.Policy
+	RulesJSON   *acl.Policy // Generated from Rules on read
 	Hash        []byte
 	CreateIndex uint64
 	ModifyIndex uint64
