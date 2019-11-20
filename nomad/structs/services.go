@@ -19,6 +19,8 @@ import (
 )
 
 const (
+	EnvoyBootstrapPath = "${NOMAD_SECRETS_DIR}/envoy_bootstrap.json"
+
 	ServiceCheckHTTP   = "http"
 	ServiceCheckTCP    = "tcp"
 	ServiceCheckScript = "script"
@@ -595,6 +597,10 @@ func (c *ConsulConnect) Validate() error {
 // ConsulSidecarService represents a Consul Connect SidecarService jobspec
 // stanza.
 type ConsulSidecarService struct {
+	// Tags are optional service tags that get registered with the sidecar service
+	// in Consul. If unset, the sidecar service inherits the parent service tags.
+	Tags []string
+
 	// Port is the service's port that the sidecar will connect to. May be
 	// a port label or a literal port number.
 	Port string
@@ -611,6 +617,7 @@ func (s *ConsulSidecarService) HasUpstreams() bool {
 // Copy the stanza recursively. Returns nil if nil.
 func (s *ConsulSidecarService) Copy() *ConsulSidecarService {
 	return &ConsulSidecarService{
+		Tags:  helper.CopySliceString(s.Tags),
 		Port:  s.Port,
 		Proxy: s.Proxy.Copy(),
 	}
@@ -623,6 +630,10 @@ func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
 	}
 
 	if s.Port != o.Port {
+		return false
+	}
+
+	if !helper.CompareSliceSetString(s.Tags, o.Tags) {
 		return false
 	}
 
@@ -773,6 +784,17 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 
 // ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
 type ConsulProxy struct {
+
+	// LocalServiceAddress is the address the local service binds to.
+	// Usually 127.0.0.1 it is useful to customize in clusters with mixed
+	// Connect and non-Connect services.
+	LocalServiceAddress string
+
+	// LocalServicePort is the port the local service binds to. Usually
+	// the same as the parent service's port, it is useful to customize
+	// in clusters with mixed Connect and non-Connect services
+	LocalServicePort int
+
 	// Upstreams configures the upstream services this service intends to
 	// connect to.
 	Upstreams []ConsulUpstream
@@ -789,6 +811,8 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 	}
 
 	newP := ConsulProxy{}
+	newP.LocalServiceAddress = p.LocalServiceAddress
+	newP.LocalServicePort = p.LocalServicePort
 
 	if n := len(p.Upstreams); n > 0 {
 		newP.Upstreams = make([]ConsulUpstream, n)
@@ -815,6 +839,12 @@ func (p *ConsulProxy) Equals(o *ConsulProxy) bool {
 		return p == o
 	}
 
+	if p.LocalServiceAddress != o.LocalServiceAddress {
+		return false
+	}
+	if p.LocalServicePort != o.LocalServicePort {
+		return false
+	}
 	if len(p.Upstreams) != len(o.Upstreams) {
 		return false
 	}

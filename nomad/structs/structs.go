@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -207,6 +208,13 @@ type QueryOptions struct {
 	Region string
 
 	// Namespace is the target namespace for the query.
+	//
+	// Since handlers do not have a default value set they should access
+	// the Namespace via the RequestNamespace method.
+	//
+	// Requests accessing specific namespaced objects must check ACLs
+	// against the namespace of the object, not the namespace in the
+	// request.
 	Namespace string
 
 	// If set, wait until query exceeds given index. Must be provided
@@ -233,6 +241,11 @@ func (q QueryOptions) RequestRegion() string {
 	return q.Region
 }
 
+// RequestNamespace returns the request's namespace or the default namespace if
+// no explicit namespace was sent.
+//
+// Requests accessing specific namespaced objects must check ACLs against the
+// namespace of the object, not the namespace in the request.
 func (q QueryOptions) RequestNamespace() string {
 	if q.Namespace == "" {
 		return DefaultNamespace
@@ -254,6 +267,13 @@ type WriteRequest struct {
 	Region string
 
 	// Namespace is the target namespace for the write.
+	//
+	// Since RPC handlers do not have a default value set they should
+	// access the Namespace via the RequestNamespace method.
+	//
+	// Requests accessing specific namespaced objects must check ACLs
+	// against the namespace of the object, not the namespace in the
+	// request.
 	Namespace string
 
 	// AuthToken is secret portion of the ACL token used for the request
@@ -267,6 +287,11 @@ func (w WriteRequest) RequestRegion() string {
 	return w.Region
 }
 
+// RequestNamespace returns the request's namespace or the default namespace if
+// no explicit namespace was sent.
+//
+// Requests accessing specific namespaced objects must check ACLs against the
+// namespace of the object, not the namespace in the request.
 func (w WriteRequest) RequestNamespace() string {
 	if w.Namespace == "" {
 		return DefaultNamespace
@@ -1421,6 +1446,9 @@ type DrainStrategy struct {
 	// ForceDeadline is the deadline time for the drain after which drains will
 	// be forced
 	ForceDeadline time.Time
+
+	// StartedAt is the time the drain process started
+	StartedAt time.Time
 }
 
 func (d *DrainStrategy) Copy() *DrainStrategy {
@@ -3602,15 +3630,16 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 func (j *Job) CombinedTaskMeta(groupName, taskName string) map[string]string {
 	group := j.LookupTaskGroup(groupName)
 	if group == nil {
-		return nil
+		return j.Meta
 	}
+
+	var meta map[string]string
 
 	task := group.LookupTask(taskName)
-	if task == nil {
-		return nil
+	if task != nil {
+		meta = helper.CopyMapStringString(task.Meta)
 	}
 
-	meta := helper.CopyMapStringString(task.Meta)
 	if meta == nil {
 		meta = make(map[string]string, len(group.Meta)+len(j.Meta))
 	}
@@ -4783,6 +4812,14 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 		tg.EphemeralDisk = DefaultEphemeralDisk()
 	}
 
+	for _, service := range tg.Services {
+		service.Canonicalize(job.Name, tg.Name, "group")
+	}
+
+	for _, network := range tg.Networks {
+		network.Canonicalize()
+	}
+
 	for _, task := range tg.Tasks {
 		task.Canonicalize(job, tg)
 	}
@@ -4917,13 +4954,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			continue
 		}
 
-		cfg, err := ParseHostVolumeConfig(decl.Config)
-		if err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unparseable config: %v", name, err))
-			continue
-		}
-
-		if cfg.Source == "" {
+		if decl.Source == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has an empty source", name))
 		}
 	}
@@ -4987,13 +5018,16 @@ func (tg *TaskGroup) validateNetworks() error {
 				}
 			}
 
-			if port.To != 0 {
+			if port.To > 0 {
 				if other, ok := mappedPorts[port.To]; ok {
 					err := fmt.Errorf("Port mapped to %d already in use by %s", port.To, other)
 					mErr.Errors = append(mErr.Errors, err)
 				} else {
 					mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
 				}
+			} else if port.To < -1 {
+				err := fmt.Errorf("Port %q cannot be mapped to negative value %d", port.Label, port.To)
+				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
 	}
@@ -5523,6 +5557,14 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 			mErr.Errors = append(mErr.Errors, serviceErr)
 		}
 	}
+
+	// Validation for volumes
+	for idx, vm := range t.VolumeMounts {
+		if !MountPropagationModeIsValid(vm.PropagationMode) {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) has an invalid propagation mode: \"%s\"", idx, vm.PropagationMode))
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -6578,6 +6620,7 @@ const (
 	ConstraintDistinctHosts     = "distinct_hosts"
 	ConstraintRegex             = "regexp"
 	ConstraintVersion           = "version"
+	ConstraintSemver            = "semver"
 	ConstraintSetContains       = "set_contains"
 	ConstraintSetContainsAll    = "set_contains_all"
 	ConstraintSetContainsAny    = "set_contains_any"
@@ -6647,6 +6690,10 @@ func (c *Constraint) Validate() error {
 	case ConstraintVersion:
 		if _, err := version.NewConstraint(c.RTarget); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Version constraint is invalid: %v", err))
+		}
+	case ConstraintSemver:
+		if _, err := semver.NewConstraint(c.RTarget); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Semver constraint is invalid: %v", err))
 		}
 	case ConstraintDistinctProperty:
 		// If a count is set, make sure it is convertible to a uint64
@@ -6761,6 +6808,10 @@ func (a *Affinity) Validate() error {
 	case ConstraintVersion:
 		if _, err := version.NewConstraint(a.RTarget); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Version affinity is invalid: %v", err))
+		}
+	case ConstraintSemver:
+		if _, err := semver.NewConstraint(a.RTarget); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Semver affinity is invalid: %v", err))
 		}
 	case "=", "==", "is", "!=", "not", "<", "<=", ">", ">=":
 		if a.RTarget == "" {

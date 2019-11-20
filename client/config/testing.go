@@ -18,8 +18,18 @@ func TestClientConfig(t testing.T) (*Config, func()) {
 	conf.Node = mock.Node()
 	conf.Logger = testlog.HCLogger(t)
 
+	// On macOS, os.TempDir returns a symlinked path under /var which
+	// is outside of the directories shared into the VM used for Docker.
+	// Expand the symlink to get the real path in /private, which is ok.
+	dirName := os.TempDir()
+	tmpDir, err := filepath.EvalSymlinks(dirName)
+	if err != nil {
+		t.Fatalf("Could not resolve temporary directory links for %s: %v", tmpDir, err)
+	}
+	tmpDir = filepath.Clean(tmpDir)
+
 	// Create a tempdir to hold state and alloc subdirs
-	parent, err := ioutil.TempDir("", "nomadtest")
+	parent, err := ioutil.TempDir(tmpDir, "nomadtest")
 	if err != nil {
 		t.Fatalf("error creating client dir: %v", err)
 	}

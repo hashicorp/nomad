@@ -31,7 +31,7 @@ const ANSI_YELLOW = "\x1b[33m%s\x1b[0m";
   const page = await browser.newPage();
 
   // Make sure the page is 4K is high-dpi scaling
-  page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 2 });
+  page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 2 });
   console.log("Loading Nomad UI...");
   console.log(
     ANSI_YELLOW,

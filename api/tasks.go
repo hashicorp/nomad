@@ -366,17 +366,32 @@ func (m *MigrateStrategy) Copy() *MigrateStrategy {
 type VolumeRequest struct {
 	Name     string
 	Type     string
+	Source   string
 	ReadOnly bool `mapstructure:"read_only"`
-
-	Config map[string]interface{}
 }
+
+const (
+	VolumeMountPropagationPrivate       = "private"
+	VolumeMountPropagationHostToTask    = "host-to-task"
+	VolumeMountPropagationBidirectional = "bidirectional"
+)
 
 // VolumeMount represents the relationship between a destination path in a task
 // and the task group volume that should be mounted there.
 type VolumeMount struct {
-	Volume      string
-	Destination string
-	ReadOnly    bool `mapstructure:"read_only"`
+	Volume          *string
+	Destination     *string
+	ReadOnly        *bool   `mapstructure:"read_only"`
+	PropagationMode *string `mapstructure:"propagation_mode"`
+}
+
+func (vm *VolumeMount) Canonicalize() {
+	if vm.PropagationMode == nil {
+		vm.PropagationMode = stringToPtr(VolumeMountPropagationPrivate)
+	}
+	if vm.ReadOnly == nil {
+		vm.ReadOnly = boolToPtr(false)
+	}
 }
 
 // TaskGroup is the unit of scheduling.
@@ -632,6 +647,9 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	for _, a := range t.Affinities {
 		a.Canonicalize()
+	}
+	for _, vm := range t.VolumeMounts {
+		vm.Canonicalize()
 	}
 }
 

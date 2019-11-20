@@ -137,11 +137,8 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 	if !strings.Contains(out, "mynode") {
 		t.Fatalf("expect to find mynode, got: %s", out)
 	}
-	if strings.Contains(out, nodeID) {
-		t.Fatalf("expected truncated node id, got: %s", out)
-	}
-	if !strings.Contains(out, nodeID[:8]) {
-		t.Fatalf("expected node id %q, got: %s", nodeID[:8], out)
+	if !strings.Contains(out, nodeID) {
+		t.Fatalf("expected node id %q, got: %s", nodeID, out)
 	}
 	ui.OutputWriter.Reset()
 

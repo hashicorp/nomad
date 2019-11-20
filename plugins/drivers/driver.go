@@ -83,7 +83,7 @@ type ExecOptions struct {
 // network namespace for which tasks can join. This only needs to be implemented
 // if the driver MUST create the network namespace
 type DriverNetworkManager interface {
-	CreateNetwork(allocID string) (*NetworkIsolationSpec, error)
+	CreateNetwork(allocID string) (*NetworkIsolationSpec, bool, error)
 	DestroyNetwork(allocID string, spec *NetworkIsolationSpec) error
 }
 
@@ -357,15 +357,17 @@ func (d *DeviceConfig) Copy() *DeviceConfig {
 }
 
 type MountConfig struct {
-	TaskPath string
-	HostPath string
-	Readonly bool
+	TaskPath        string
+	HostPath        string
+	Readonly        bool
+	PropagationMode string
 }
 
 func (m *MountConfig) IsEqual(o *MountConfig) bool {
 	return m.TaskPath == o.TaskPath &&
 		m.HostPath == o.HostPath &&
-		m.Readonly == o.Readonly
+		m.Readonly == o.Readonly &&
+		m.PropagationMode == o.PropagationMode
 }
 
 func (m *MountConfig) Copy() *MountConfig {

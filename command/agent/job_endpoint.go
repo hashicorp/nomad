@@ -753,7 +753,7 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 				Name:     v.Name,
 				Type:     v.Type,
 				ReadOnly: v.ReadOnly,
-				Config:   v.Config,
+				Source:   v.Source,
 			}
 
 			tg.Volumes[k] = vol
@@ -812,9 +812,10 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 		structsTask.VolumeMounts = make([]*structs.VolumeMount, l)
 		for i, mount := range apiTask.VolumeMounts {
 			structsTask.VolumeMounts[i] = &structs.VolumeMount{
-				Volume:      mount.Volume,
-				Destination: mount.Destination,
-				ReadOnly:    mount.ReadOnly,
+				Volume:          *mount.Volume,
+				Destination:     *mount.Destination,
+				ReadOnly:        *mount.ReadOnly,
+				PropagationMode: *mount.PropagationMode,
 			}
 		}
 	}
@@ -1062,13 +1063,16 @@ func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
 	if in.SidecarService != nil {
 
 		out.SidecarService = &structs.ConsulSidecarService{
+			Tags: helper.CopySliceString(in.SidecarService.Tags),
 			Port: in.SidecarService.Port,
 		}
 
 		if in.SidecarService.Proxy != nil {
 
 			out.SidecarService.Proxy = &structs.ConsulProxy{
-				Config: in.SidecarService.Proxy.Config,
+				LocalServiceAddress: in.SidecarService.Proxy.LocalServiceAddress,
+				LocalServicePort:    in.SidecarService.Proxy.LocalServicePort,
+				Config:              in.SidecarService.Proxy.Config,
 			}
 
 			upstreams := make([]structs.ConsulUpstream, len(in.SidecarService.Proxy.Upstreams))

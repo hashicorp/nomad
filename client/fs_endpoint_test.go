@@ -114,7 +114,6 @@ func TestFS_Stat(t *testing.T) {
 
 func TestFS_Stat_ACL(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
 
 	// Start a server
 	s, root := nomad.TestACLServer(t, nil)
@@ -135,6 +134,15 @@ func TestFS_Stat_ACL(t *testing.T) {
 		[]string{acl.NamespaceCapabilityReadLogs, acl.NamespaceCapabilityReadFS})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, s.RPC, job, root.SecretID)[0]
+
 	cases := []struct {
 		Name          string
 		Token         string
@@ -146,22 +154,19 @@ func TestFS_Stat_ACL(t *testing.T) {
 			ExpectedError: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			Name:          "good token",
-			Token:         tokenGood.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "good token",
+			Token: tokenGood.SecretID,
 		},
 		{
-			Name:          "root token",
-			Token:         root.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "root token",
+			Token: root.SecretID,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			// Make the request with bad allocation id
 			req := &cstructs.FsStatRequest{
-				AllocID: uuid.Generate(),
+				AllocID: alloc.ID,
 				Path:    "/",
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
@@ -172,8 +177,12 @@ func TestFS_Stat_ACL(t *testing.T) {
 
 			var resp cstructs.FsStatResponse
 			err := client.ClientRPC("FileSystem.Stat", req, &resp)
-			require.NotNil(err)
-			require.Contains(err.Error(), c.ExpectedError)
+			if c.ExpectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.NotNil(t, err)
+				require.Contains(t, err.Error(), c.ExpectedError)
+			}
 		})
 	}
 }
@@ -238,7 +247,6 @@ func TestFS_List(t *testing.T) {
 
 func TestFS_List_ACL(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
 
 	// Start a server
 	s, root := nomad.TestACLServer(t, nil)
@@ -259,6 +267,15 @@ func TestFS_List_ACL(t *testing.T) {
 		[]string{acl.NamespaceCapabilityReadLogs, acl.NamespaceCapabilityReadFS})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, s.RPC, job, root.SecretID)[0]
+
 	cases := []struct {
 		Name          string
 		Token         string
@@ -270,14 +287,12 @@ func TestFS_List_ACL(t *testing.T) {
 			ExpectedError: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			Name:          "good token",
-			Token:         tokenGood.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "good token",
+			Token: tokenGood.SecretID,
 		},
 		{
-			Name:          "root token",
-			Token:         root.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "root token",
+			Token: root.SecretID,
 		},
 	}
 
@@ -285,7 +300,7 @@ func TestFS_List_ACL(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			// Make the request with bad allocation id
 			req := &cstructs.FsListRequest{
-				AllocID: uuid.Generate(),
+				AllocID: alloc.ID,
 				Path:    "/",
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
@@ -296,8 +311,11 @@ func TestFS_List_ACL(t *testing.T) {
 
 			var resp cstructs.FsListResponse
 			err := client.ClientRPC("FileSystem.List", req, &resp)
-			require.NotNil(err)
-			require.Contains(err.Error(), c.ExpectedError)
+			if c.ExpectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.EqualError(t, err, c.ExpectedError)
+			}
 		})
 	}
 }
@@ -379,7 +397,6 @@ OUTER:
 
 func TestFS_Stream_ACL(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
 
 	// Start a server
 	s, root := nomad.TestACLServer(t, nil)
@@ -400,6 +417,15 @@ func TestFS_Stream_ACL(t *testing.T) {
 		[]string{acl.NamespaceCapabilityReadLogs, acl.NamespaceCapabilityReadFS})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, s.RPC, job, root.SecretID)[0]
+
 	cases := []struct {
 		Name          string
 		Token         string
@@ -411,14 +437,12 @@ func TestFS_Stream_ACL(t *testing.T) {
 			ExpectedError: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			Name:          "good token",
-			Token:         tokenGood.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "good token",
+			Token: tokenGood.SecretID,
 		},
 		{
-			Name:          "root token",
-			Token:         root.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "root token",
+			Token: root.SecretID,
 		},
 	}
 
@@ -426,7 +450,7 @@ func TestFS_Stream_ACL(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			// Make the request with bad allocation id
 			req := &cstructs.FsStreamRequest{
-				AllocID: uuid.Generate(),
+				AllocID: alloc.ID,
 				Path:    "foo",
 				Origin:  "start",
 				QueryOptions: structs.QueryOptions{
@@ -438,7 +462,7 @@ func TestFS_Stream_ACL(t *testing.T) {
 
 			// Get the handler
 			handler, err := client.StreamingRpcHandler("FileSystem.Stream")
-			require.Nil(err)
+			require.Nil(t, err)
 
 			// Create a pipe
 			p1, p2 := net.Pipe()
@@ -457,10 +481,8 @@ func TestFS_Stream_ACL(t *testing.T) {
 				for {
 					var msg cstructs.StreamErrWrapper
 					if err := decoder.Decode(&msg); err != nil {
-						if err == io.EOF || strings.Contains(err.Error(), "closed") {
-							return
-						}
-						errCh <- fmt.Errorf("error decoding: %v", err)
+						errCh <- err
+						return
 					}
 
 					streamMsg <- &msg
@@ -469,7 +491,7 @@ func TestFS_Stream_ACL(t *testing.T) {
 
 			// Send the request
 			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-			require.Nil(encoder.Encode(req))
+			require.NoError(t, encoder.Encode(req))
 
 			timeout := time.After(5 * time.Second)
 
@@ -479,6 +501,11 @@ func TestFS_Stream_ACL(t *testing.T) {
 				case <-timeout:
 					t.Fatal("timeout")
 				case err := <-errCh:
+					eof := err == io.EOF || strings.Contains(err.Error(), "closed")
+					if c.ExpectedError == "" && eof {
+						// No error was expected!
+						return
+					}
 					t.Fatal(err)
 				case msg := <-streamMsg:
 					if msg.Error == nil {
@@ -905,6 +932,7 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 	args := &structs.JobRegisterRequest{}
 	args.Job = job
 	args.WriteRequest.Region = "global"
+	args.Namespace = job.Namespace
 	var jobResp structs.JobRegisterResponse
 	require.NoError(s.RPC("Job.Register", args, &jobResp))
 
@@ -1018,6 +1046,15 @@ func TestFS_Logs_ACL(t *testing.T) {
 		[]string{acl.NamespaceCapabilityReadLogs, acl.NamespaceCapabilityReadFS})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, s.RPC, job, root.SecretID)[0]
+
 	cases := []struct {
 		Name          string
 		Token         string
@@ -1029,14 +1066,12 @@ func TestFS_Logs_ACL(t *testing.T) {
 			ExpectedError: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			Name:          "good token",
-			Token:         tokenGood.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "good token",
+			Token: tokenGood.SecretID,
 		},
 		{
-			Name:          "root token",
-			Token:         root.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "root token",
+			Token: root.SecretID,
 		},
 	}
 
@@ -1044,8 +1079,8 @@ func TestFS_Logs_ACL(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			// Make the request with bad allocation id
 			req := &cstructs.FsLogsRequest{
-				AllocID: uuid.Generate(),
-				Task:    "foo",
+				AllocID: alloc.ID,
+				Task:    job.TaskGroups[0].Tasks[0].Name,
 				LogType: "stdout",
 				Origin:  "start",
 				QueryOptions: structs.QueryOptions{
@@ -1076,10 +1111,8 @@ func TestFS_Logs_ACL(t *testing.T) {
 				for {
 					var msg cstructs.StreamErrWrapper
 					if err := decoder.Decode(&msg); err != nil {
-						if err == io.EOF || strings.Contains(err.Error(), "closed") {
-							return
-						}
-						errCh <- fmt.Errorf("error decoding: %v", err)
+						errCh <- err
+						return
 					}
 
 					streamMsg <- &msg
@@ -1098,6 +1131,11 @@ func TestFS_Logs_ACL(t *testing.T) {
 				case <-timeout:
 					t.Fatal("timeout")
 				case err := <-errCh:
+					eof := err == io.EOF || strings.Contains(err.Error(), "closed")
+					if c.ExpectedError == "" && eof {
+						// No error was expected!
+						return
+					}
 					t.Fatal(err)
 				case msg := <-streamMsg:
 					if msg.Error == nil {
@@ -1105,6 +1143,7 @@ func TestFS_Logs_ACL(t *testing.T) {
 					}
 
 					if strings.Contains(msg.Error.Error(), c.ExpectedError) {
+						// Ok! Error matched expectation.
 						break OUTER
 					} else {
 						t.Fatalf("Bad error: %v", msg.Error)

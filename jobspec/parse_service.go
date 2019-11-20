@@ -193,6 +193,7 @@ func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
 	valid := []string{
 		"port",
 		"proxy",
+		"tags",
 	}
 
 	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
@@ -216,7 +217,7 @@ func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
 		return nil, err
 	}
 	if err := dec.Decode(m); err != nil {
-		return nil, fmt.Errorf("foo: %v", err)
+		return nil, fmt.Errorf("sidecar_service: %v", err)
 	}
 
 	var proxyList *ast.ObjectList
@@ -315,6 +316,8 @@ func parseSidecarTask(item *ast.ObjectItem) (*api.SidecarTask, error) {
 
 func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 	valid := []string{
+		"local_service_address",
+		"local_service_port",
 		"upstreams",
 		"config",
 	}

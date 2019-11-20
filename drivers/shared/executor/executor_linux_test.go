@@ -467,16 +467,18 @@ func TestExecutor_cmdMounts(t *testing.T) {
 
 	expected := []*lconfigs.Mount{
 		{
-			Source:      "/host/path-ro",
-			Destination: "/task/path-ro",
-			Flags:       unix.MS_BIND | unix.MS_RDONLY,
-			Device:      "bind",
+			Source:           "/host/path-ro",
+			Destination:      "/task/path-ro",
+			Flags:            unix.MS_BIND | unix.MS_RDONLY,
+			Device:           "bind",
+			PropagationFlags: []int{unix.MS_PRIVATE | unix.MS_REC},
 		},
 		{
-			Source:      "/host/path-rw",
-			Destination: "/task/path-rw",
-			Flags:       unix.MS_BIND,
-			Device:      "bind",
+			Source:           "/host/path-rw",
+			Destination:      "/task/path-rw",
+			Flags:            unix.MS_BIND,
+			Device:           "bind",
+			PropagationFlags: []int{unix.MS_PRIVATE | unix.MS_REC},
 		},
 	}
 

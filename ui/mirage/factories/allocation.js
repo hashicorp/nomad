@@ -1,7 +1,9 @@
 import Ember from 'ember';
 import moment from 'moment';
-import { Factory, faker, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'ember-cli-mirage';
+import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
+import { generateResources } from '../common';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
 const CLIENT_STATUSES = ['pending', 'running', 'complete', 'failed', 'lost'];
@@ -23,8 +25,8 @@ export default Factory.extend({
 
   namespace: null,
 
-  clientStatus: faker.list.random(...CLIENT_STATUSES),
-  desiredStatus: faker.list.random(...DESIRED_STATUSES),
+  clientStatus: () => faker.helpers.randomize(CLIENT_STATUSES),
+  desiredStatus: () => faker.helpers.randomize(DESIRED_STATUSES),
 
   // When true, doesn't create any resources, state, or events
   shallow: false,
@@ -62,6 +64,14 @@ export default Factory.extend({
       );
 
       allocation.update({ taskResourceIds: resources.mapBy('id') });
+    },
+  }),
+
+  withAllocatedResources: trait({
+    allocatedResources: () => {
+      return {
+        Shared: generateResources({ networks: { minPorts: 2 } }),
+      };
     },
   }),
 

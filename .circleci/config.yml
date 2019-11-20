@@ -54,12 +54,18 @@ workflows:
           name: "test-shared-exec"
           test_packages: "./drivers/shared/executor"
           <<: *IGNORE_FOR_UI_BRANCHES
-      - test-rkt:
+      - test-machine:
+          name: "test-32bit"
+          # Currently we only explicitly test fingerprinting on 32bit
+          # architectures.
+          test_packages: "./client/fingerprint"
+          goarch: "386"
           <<: *IGNORE_FOR_UI_BRANCHES
       - test-e2e:
           <<: *IGNORE_FOR_UI_BRANCHES
       - test-ui
-      - test-website
+      - test-website:
+          <<: *IGNORE_FOR_UI_BRANCHES
 
   website:
     jobs:
@@ -72,7 +78,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: circleci/golang:1.12.9
+      - image: golang:1.12.13
   go-machine:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
@@ -103,8 +109,8 @@ jobs:
       GOPATH: /go
     steps:
       - checkout
+      - run: apt-get update; apt-get install -y shellcheck sudo unzip
       - install-protoc
-      - run: sudo apt-get update && sudo apt-get install shellcheck
       - run: make deps lint-deps
       - run: make check
       - run: make checkscripts
@@ -118,13 +124,18 @@ jobs:
       exclude_packages:
         type: string
         default: ""
+      goarch:
+        type: string
+        default: "amd64"
     environment:
       <<: *COMMON_ENVS
       GOTEST_PKGS: "<< parameters.test_packages >>"
       GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
       GOPATH: /go
+      GOTESTARCH: "<< parameters.goarch >>"
     steps:
       - checkout
+      - run: apt-get update; apt-get install -y shellcheck sudo unzip
       - run: make deps
       - install-protoc
       - install-consul
@@ -142,8 +153,20 @@ jobs:
       GOPATH: /go
     steps:
       - checkout
-      - run: make deps
-      - run: make e2e-test
+      - run: apt-get update; apt-get install -y sudo unzip
+      # e2e tests require privileged mount/umount permissions when running as root
+      # TODO: switch to using machine executor and run as root to test e2e path
+      - run:
+          name: prepare non-root user
+          command: |
+            groupadd --gid 3434 circleci
+            useradd --uid 3434 --gid circleci --shell /bin/bash --create-home circleci
+            echo 'circleci ALL=NOPASSWD: ALL' >> /etc/sudoers.d/50-circleci
+            echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep
+            chown -R circleci:circleci /go
+
+      - run: sudo -E -H -u circleci PATH=${PATH} make deps
+      - run: sudo -E -H -u circleci PATH=${PATH} make e2e-test
 
   test-website:
     executor: go-machine-recent
@@ -152,32 +175,6 @@ jobs:
     steps:
       - checkout
       - run: make test-website
-
-  test-rkt:
-    executor: go-machine-recent
-    environment:
-      <<: *COMMON_ENVS
-      GOTEST_PKGS: "./drivers/rkt"
-      GOPATH: /home/circleci/go
-      RKT_VERSION: 1.29.0
-    steps:
-      - checkout
-      - install-golang
-      - install-protoc
-      - run:
-          name: install rkt
-          command: |
-            gpg --recv-key 18AD5014C99EF7E3BA5F6CE950BDD3E0FC8A365E
-            wget https://github.com/rkt/rkt/releases/download/v$RKT_VERSION/rkt_$RKT_VERSION-1_amd64.deb
-            wget https://github.com/rkt/rkt/releases/download/v$RKT_VERSION/rkt_$RKT_VERSION-1_amd64.deb.asc
-            gpg --verify rkt_$RKT_VERSION-1_amd64.deb.asc
-            sudo dpkg -i rkt_$RKT_VERSION-1_amd64.deb
-      - run: PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make bootstrap
-      - run-tests
-      - store_test_results:
-          path: /tmp/test-reports
-      - store_artifacts:
-          path: /tmp/test-reports
 
   test-machine:
     executor: "<< parameters.executor >>"
@@ -191,17 +188,30 @@ jobs:
       executor:
         type: string
         default: "go-machine-recent"
+      goarch:
+        type: string
+        default: "amd64"
     environment:
       <<: *COMMON_ENVS
       GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
       GOTEST_PKGS: "<< parameters.test_packages >>"
       GOPATH: /home/circleci/go
+      GOTESTARCH: "<< parameters.goarch >>"
     steps:
       - checkout
       - install-golang
       - install-protoc
       - install-consul
       - install-vault
+      - run:
+          name: Install 32bit gcc libs
+          command: |
+            if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
+              sudo apt-get update
+              sudo apt-get install -y gcc-multilib
+            else
+              echo "Skipping 32bit lib installation while building for not 386"
+            fi
       - run: PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make bootstrap
       - run-tests
       - store_test_results:
@@ -274,7 +284,7 @@ commands:
     parameters:
       version:
         type: string
-        default: "1.12.9"
+        default: "1.12.13"
     steps:
       - run:
           name: install golang << parameters.version >>
@@ -288,7 +298,7 @@ commands:
     parameters:
       version:
         type: string
-        default: 1.0.0
+        default: 1.2.3
     steps:
       - run:
           name: Install Vault << parameters.version >>
@@ -301,7 +311,7 @@ commands:
     parameters:
       version:
         type: string
-        default: 1.6.0-rc1
+        default: 1.6.1
     steps:
       - run:
           name: Install Consul << parameters.version >>
@@ -328,6 +338,10 @@ commands:
               unset GOTEST_PKGS_EXCLUDE
             else
               unset GOTEST_PKGS
+            fi
+
+            if [ ! -z $GOTESTARCH ]; then
+              export GOARCH="$GOTESTARCH";
             fi
 
             mkdir -p /tmp/test-reports

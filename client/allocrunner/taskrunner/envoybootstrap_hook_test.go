@@ -12,8 +12,10 @@ import (
 	consultest "github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -73,14 +75,8 @@ func TestTaskRunner_EnvoyBootstrapHook_Ok(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	tmpAllocDir, err := ioutil.TempDir("", "EnvoyBootstrapHookTest")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpAllocDir)
-
-	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), tmpAllocDir)
-	defer allocDir.Destroy()
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
+	defer cleanup()
 
 	// Register Group Services
 	consulConfig := consulapi.DefaultConfig()
@@ -90,7 +86,7 @@ func TestTaskRunner_EnvoyBootstrapHook_Ok(t *testing.T) {
 	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), logger, true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
-	require.NoError(t, consulClient.RegisterGroup(alloc))
+	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
 
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(alloc, testconsul.HTTPAddr, logger)
@@ -108,7 +104,11 @@ func TestTaskRunner_EnvoyBootstrapHook_Ok(t *testing.T) {
 	// Assert it is Done
 	require.True(t, resp.Done)
 
-	f, err := os.Open(filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json"))
+	// Ensure the default path matches
+	env := map[string]string{
+		taskenv.SecretsDir: req.TaskDir.SecretsDir,
+	}
+	f, err := os.Open(args.ReplaceEnv(structs.EnvoyBootstrapPath, env))
 	require.NoError(t, err)
 	defer f.Close()
 
@@ -123,14 +123,8 @@ func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
 	t.Parallel()
 	logger := testlog.HCLogger(t)
 
-	tmpAllocDir, err := ioutil.TempDir("", "EnvoyBootstrapHookTest")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpAllocDir)
-
-	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), tmpAllocDir)
-	defer allocDir.Destroy()
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
+	defer cleanup()
 
 	alloc := mock.Alloc()
 	task := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks[0]
@@ -153,7 +147,7 @@ func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
 	require.True(t, resp.Done)
 
 	// Assert no file was written
-	_, err = os.Open(filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json"))
+	_, err := os.Open(filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json"))
 	require.Error(t, err)
 	require.True(t, os.IsNotExist(err))
 }
@@ -209,14 +203,8 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	tmpAllocDir, err := ioutil.TempDir("", "EnvoyBootstrapHookTest")
-	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpAllocDir)
-
-	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), tmpAllocDir)
-	defer allocDir.Destroy()
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
+	defer cleanup()
 
 	// Unlike the successful test above, do NOT register the group services
 	// yet. This should cause a recoverable error similar to if Consul was

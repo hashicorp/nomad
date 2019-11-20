@@ -28,12 +28,21 @@ The table below shows this endpoint's support for
 | ---------------- | ----------------- | ------------ |
 | `YES`            | `all`             | `management` for all policies.<br>Output when given a non-management token will be limited to the policies on the token itself |
 
+### Parameters
+
+- `prefix` `(string: "")` - Specifies a string to filter ACL policies based on
+  a name prefix. This is specified as a query string parameter.
 
 ### Sample Request
 
 ```text
 $ curl \
     https://localhost:4646/v1/acl/policies
+```
+
+```text
+$ curl \
+    https://localhost:4646/v1/acl/policies?prefix=prod
 ```
 
 ### Sample Response

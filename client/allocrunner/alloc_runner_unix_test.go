@@ -33,6 +33,12 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 	// 5. Assert task and logmon are cleaned up
 
 	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Services = []*structs.Service{
+		{
+			Name:      "foo",
+			PortLabel: "8888",
+		},
+	}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
@@ -117,13 +123,12 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 	//   2 removals (canary+noncanary) during prekill
 	//   2 removals (canary+noncanary) during exited
 	//   2 removals (canary+noncanary) during stop
-	//   1 remove group during stop
+	//   2 removals (canary+noncanary) group during stop
 	consulOps := conf2.Consul.(*consul.MockConsulServiceClient).GetOps()
-	require.Len(t, consulOps, 7)
-	for _, op := range consulOps[:6] {
+	require.Len(t, consulOps, 8)
+	for _, op := range consulOps {
 		require.Equal(t, "remove", op.Op)
 	}
-	require.Equal(t, "remove_group", consulOps[6].Op)
 
 	// Assert terminated task event was emitted
 	events := ar2.AllocState().TaskStates[task.Name].Events

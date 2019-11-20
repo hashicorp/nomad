@@ -1,7 +1,7 @@
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { faker } from 'ember-cli-mirage';
+import faker from 'nomad-ui/mirage/faker';
 import hbs from 'htmlbars-inline-precompile';
 
 module('Integration | Component | list table', function(hooks) {
@@ -59,31 +59,10 @@ module('Integration | Component | list table', function(hooks) {
     // list-table is not responsible for sorting, only dispatching sort events. The table is still
     // rendered in index-order.
     this.get('source').forEach((item, index) => {
-      const $item = this.$(`.item:eq(${index})`);
-      assert.equal(
-        $item
-          .find('td:eq(0)')
-          .text()
-          .trim(),
-        item.firstName,
-        'First name'
-      );
-      assert.equal(
-        $item
-          .find('td:eq(1)')
-          .text()
-          .trim(),
-        item.lastName,
-        'Last name'
-      );
-      assert.equal(
-        $item
-          .find('td:eq(2)')
-          .text()
-          .trim(),
-        item.age,
-        'Age'
-      );
+      const $item = this.element.querySelectorAll('.item')[index];
+      assert.equal($item.querySelectorAll('td')[0].innerHTML.trim(), item.firstName, 'First name');
+      assert.equal($item.querySelectorAll('td')[1].innerHTML.trim(), item.lastName, 'Last name');
+      assert.equal($item.querySelectorAll('td')[2].innerHTML.trim(), item.age, 'Age');
     });
   });
 

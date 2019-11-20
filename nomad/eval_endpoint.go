@@ -34,10 +34,12 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "eval", "get_eval"}, time.Now())
 
-	// Check for read-job permissions
-	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+	// Check for read-job permissions before performing blocking query.
+	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadJob)
+	aclObj, err := e.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	} else if !allowNsOp(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -55,6 +57,11 @@ func (e *Eval) GetEval(args *structs.EvalSpecificRequest,
 			// Setup the output
 			reply.Eval = out
 			if out != nil {
+				// Re-check namespace in case it differs from request.
+				if !allowNsOp(aclObj, out.Namespace) {
+					return structs.ErrPermissionDenied
+				}
+
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the nodes table
@@ -389,9 +396,11 @@ func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "eval", "allocations"}, time.Now())
 
 	// Check for read-job permissions
-	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadJob)
+	aclObj, err := e.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	} else if !allowNsOp(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -408,6 +417,13 @@ func (e *Eval) Allocations(args *structs.EvalSpecificRequest,
 
 			// Convert to a stub
 			if len(allocs) > 0 {
+				// Evaluations do not span namespaces so just check the
+				// first allocs namespace.
+				ns := allocs[0].Namespace
+				if ns != args.RequestNamespace() && !allowNsOp(aclObj, ns) {
+					return structs.ErrPermissionDenied
+				}
+
 				reply.Allocations = make([]*structs.AllocListStub, 0, len(allocs))
 				for _, alloc := range allocs {
 					reply.Allocations = append(reply.Allocations, alloc.Stub())

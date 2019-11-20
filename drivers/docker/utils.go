@@ -159,7 +159,7 @@ func authFromHelper(helperName string) authBackend {
 			default:
 				return nil, err
 			case *exec.ExitError:
-				return nil, fmt.Errorf("%s with input %q failed with stderr: %s", helper, repo, output)
+				return nil, fmt.Errorf("%s with input %q failed with stderr: %s", helper, repo, err.Error())
 			}
 		}
 
@@ -237,7 +237,10 @@ func parseVolumeSpecWindows(volBind string) (hostPath string, containerPath stri
 		return "", "", "", fmt.Errorf("not <src>:<destination> format")
 	}
 
-	hostPath = parts[0]
+	// Convert host mount path separators to match the host OS's separator
+	// so that relative paths are supported cross-platform regardless of
+	// what slash is used in the jobspec.
+	hostPath = filepath.FromSlash(parts[0])
 	containerPath = parts[1]
 
 	if len(parts) > 2 {

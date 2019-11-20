@@ -381,6 +381,22 @@ func MaxParallelJob() *structs.Job {
 	return job
 }
 
+// ConnectJob adds a Connect proxy sidecar group service to mock.Job.
+func ConnectJob() *structs.Job {
+	job := Job()
+	tg := job.TaskGroups[0]
+	tg.Services = []*structs.Service{
+		{
+			Name:      "testconnect",
+			PortLabel: "9999",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+			},
+		},
+	}
+	return job
+}
+
 func BatchJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
@@ -622,6 +638,26 @@ func Alloc() *structs.Allocation {
 		ClientStatus:  structs.AllocClientStatusPending,
 	}
 	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
+// ConnectJob adds a Connect proxy sidecar group service to mock.Alloc.
+func ConnectAlloc() *structs.Allocation {
+	alloc := Alloc()
+	alloc.Job = ConnectJob()
+	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
+		{
+			Mode: "bridge",
+			IP:   "10.0.0.1",
+			DynamicPorts: []structs.Port{
+				{
+					Label: "connect-proxy-testconnect",
+					Value: 9999,
+					To:    9999,
+				},
+			},
+		},
+	}
 	return alloc
 }
 

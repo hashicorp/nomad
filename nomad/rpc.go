@@ -54,11 +54,11 @@ type rpcHandler struct {
 }
 
 func newRpcHandler(s *Server) *rpcHandler {
-	logger := s.logger.Named("rpc")
+	logger := s.logger.NamedIntercept("rpc")
 	return &rpcHandler{
 		Server:   s,
 		logger:   logger,
-		gologger: logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true}),
+		gologger: logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true}),
 	}
 }
 

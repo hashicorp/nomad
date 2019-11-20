@@ -15,7 +15,7 @@ export default Route.extend({
   },
 
   model(params, transition) {
-    const namespace = transition.queryParams.namespace || this.get('system.activeNamespace.id');
+    const namespace = transition.to.queryParams.namespace || this.get('system.activeNamespace.id');
     const name = params.job_name;
     const fullId = JSON.stringify([name, namespace || 'default']);
     return this.store

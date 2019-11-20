@@ -1537,6 +1537,13 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								TaskName: "task1",
 							},
 						},
+						Connect: &api.ConsulConnect{
+							Native: false,
+							SidecarService: &api.ConsulSidecarService{
+								Tags: []string{"f", "g"},
+								Port: "9000",
+							},
+						},
 					},
 				},
 				Tasks: []*api.Task{
@@ -1875,6 +1882,13 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									IgnoreWarnings: true,
 								},
 								TaskName: "task1",
+							},
+						},
+						Connect: &structs.ConsulConnect{
+							Native: false,
+							SidecarService: &structs.ConsulSidecarService{
+								Tags: []string{"f", "g"},
+								Port: "9000",
 							},
 						},
 					},

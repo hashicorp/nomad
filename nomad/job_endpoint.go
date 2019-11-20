@@ -33,13 +33,6 @@ const (
 )
 
 var (
-	// vaultConstraint is the implicit constraint added to jobs requesting a
-	// Vault token
-	vaultConstraint = &structs.Constraint{
-		LTarget: "${attr.vault.version}",
-		RTarget: ">= 0.6.1",
-		Operand: structs.ConstraintVersion,
-	}
 
 	// allowRescheduleTransition is the transition that allows failed
 	// allocations to be force rescheduled. We create a one off
@@ -88,6 +81,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return fmt.Errorf("missing job for registration")
 	}
 
+	// defensive check; http layer and RPC requester should ensure namespaces are set consistently
+	if args.RequestNamespace() != args.Job.Namespace {
+		return fmt.Errorf("mismatched request namespace in request: %q, %q", args.RequestNamespace(), args.Job.Namespace)
+	}
+
 	// Run admission controllers
 	job, warnings, err := j.admissionControllers(args.Job)
 	if err != nil {
@@ -105,6 +103,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
 			return structs.ErrPermissionDenied
 		}
+
 		// Validate Volume Permsissions
 		for _, tg := range args.Job.TaskGroups {
 			for _, vol := range tg.Volumes {
@@ -112,21 +111,26 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 					return structs.ErrPermissionDenied
 				}
 
-				cfg, err := structs.ParseHostVolumeConfig(vol.Config)
-				if err != nil {
-					return structs.ErrPermissionDenied
-				}
-
 				// If a volume is readonly, then we allow access if the user has ReadOnly
 				// or ReadWrite access to the volume. Otherwise we only allow access if
 				// they have ReadWrite access.
 				if vol.ReadOnly {
-					if !aclObj.AllowHostVolumeOperation(cfg.Source, acl.HostVolumeCapabilityMountReadOnly) &&
-						!aclObj.AllowHostVolumeOperation(cfg.Source, acl.HostVolumeCapabilityMountReadWrite) {
+					if !aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadOnly) &&
+						!aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadWrite) {
 						return structs.ErrPermissionDenied
 					}
 				} else {
-					if !aclObj.AllowHostVolumeOperation(cfg.Source, acl.HostVolumeCapabilityMountReadWrite) {
+					if !aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadWrite) {
+						return structs.ErrPermissionDenied
+					}
+				}
+			}
+
+			for _, t := range tg.Tasks {
+				for _, vm := range t.VolumeMounts {
+					vol := tg.Volumes[vm.Volume]
+					if vm.PropagationMode == structs.VolumeMountPropagationBidirectional &&
+						!aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadWrite) {
 						return structs.ErrPermissionDenied
 					}
 				}
@@ -347,6 +351,11 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 // Validate validates a job
 func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
+
+	// defensive check; http layer and RPC requester should ensure namespaces are set consistently
+	if args.RequestNamespace() != args.Job.Namespace {
+		return fmt.Errorf("mismatched request namespace in request: %q, %q", args.RequestNamespace(), args.Job.Namespace)
+	}
 
 	job, mutateWarnings, err := j.admissionMutators(args.Job)
 	if err != nil {
@@ -940,6 +949,12 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
+	}
+
+	// Ensure JobID is set otherwise everything works and never returns
+	// allocations which can hide bugs in request code.
+	if args.JobID == "" {
+		return fmt.Errorf("missing job ID")
 	}
 
 	// Setup the blocking query

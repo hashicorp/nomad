@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -380,7 +381,16 @@ func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix strin
 				// Add header as first row
 				if i == 0 {
 					scoreOutput[0] = "Node|"
-					for scorerName := range scoreMeta.Scores {
+
+					// sort scores alphabetically
+					scores := make([]string, 0, len(scoreMeta.Scores))
+					for score := range scoreMeta.Scores {
+						scores = append(scores, score)
+					}
+					sort.Strings(scores)
+
+					// build score header output
+					for _, scorerName := range scores {
 						scoreOutput[0] += fmt.Sprintf("%v|", scorerName)
 						scorerNames = append(scorerNames, scorerName)
 					}

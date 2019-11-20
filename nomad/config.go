@@ -76,7 +76,7 @@ type Config struct {
 	LogOutput io.Writer
 
 	// Logger is the logger used by the server.
-	Logger log.Logger
+	Logger log.InterceptLogger
 
 	// ProtocolVersion is the protocol version to speak. This must be between
 	// ProtocolVersionMin and ProtocolVersionMax.
@@ -398,8 +398,7 @@ func DefaultConfig() *Config {
 	// Disable shutdown on removal
 	c.RaftConfig.ShutdownOnRemove = false
 
-	// Enable interoperability with new raft APIs, requires all servers
-	// to be on raft v1 or higher.
+	// Default to Raft v2, update to v3 to enable new Raft and autopilot features.
 	c.RaftConfig.ProtocolVersion = 2
 
 	return c

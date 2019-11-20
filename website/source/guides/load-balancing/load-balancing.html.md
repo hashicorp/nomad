@@ -16,6 +16,9 @@ Balancing Strategies for
 Consul](https://www.hashicorp.com/blog/load-balancing-strategies-for-consul)).
 
 - [Fabio](/guides/load-balancing/fabio.html)
+- [NGINX](/guides/load-balancing/nginx.html)
+- [HAProxy](/guides/load-balancing/haproxy.html)
+- [Traefik](/guides/load-balancing/traefik.html)
 
 Please refer to the specific documentation above or in the sidebar for more
 detailed information about each strategy.

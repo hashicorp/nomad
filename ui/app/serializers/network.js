@@ -15,6 +15,22 @@ export default ApplicationSerializer.extend({
       hash.IP = `[${ip}]`;
     }
 
+    const reservedPorts = (hash.ReservedPorts || []).map(port => ({
+      name: port.Label,
+      port: port.Value,
+      to: port.To,
+      isDynamic: false,
+    }));
+
+    const dynamicPorts = (hash.DynamicPorts || []).map(port => ({
+      name: port.Label,
+      port: port.Value,
+      to: port.To,
+      isDynamic: true,
+    }));
+
+    hash.Ports = reservedPorts.concat(dynamicPorts).sortBy('name');
+
     return this._super(...arguments);
   },
 });

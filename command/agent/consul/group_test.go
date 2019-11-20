@@ -64,18 +64,25 @@ func TestConsul_Connect(t *testing.T) {
 		{
 			Name:      "testconnect",
 			PortLabel: "9999",
+			Meta: map[string]string{
+				"alloc_id": "${NOMAD_ALLOC_ID}",
+			},
 			Connect: &structs.ConsulConnect{
-				SidecarService: &structs.ConsulSidecarService{},
+				SidecarService: &structs.ConsulSidecarService{
+					Proxy: &structs.ConsulProxy{
+						LocalServicePort: 9000,
+					},
+				},
 			},
 		},
 	}
 
 	// required by isNomadSidecar assertion below
 	serviceRegMap := map[string]*api.AgentServiceRegistration{
-		MakeTaskServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0]): nil,
+		MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0]): nil,
 	}
 
-	require.NoError(t, serviceClient.RegisterGroup(alloc))
+	require.NoError(t, serviceClient.RegisterWorkload(BuildAllocServices(mock.Node(), alloc, NoopRestarter())))
 
 	require.Eventually(t, func() bool {
 		services, err := consulClient.Agent().Services()
@@ -90,7 +97,7 @@ func TestConsul_Connect(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, services, 2)
 
-		serviceID := MakeTaskServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0])
+		serviceID := MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0])
 		connectID := serviceID + "-sidecar-proxy"
 
 		require.Contains(t, services, serviceID)
@@ -114,11 +121,12 @@ func TestConsul_Connect(t *testing.T) {
 		require.Equal(t, connectService.Proxy.DestinationServiceName, "testconnect")
 		require.Equal(t, connectService.Proxy.DestinationServiceID, serviceID)
 		require.Equal(t, connectService.Proxy.LocalServiceAddress, "127.0.0.1")
-		require.Equal(t, connectService.Proxy.LocalServicePort, 9999)
+		require.Equal(t, connectService.Proxy.LocalServicePort, 9000)
 		require.Equal(t, connectService.Proxy.Config, map[string]interface{}{
 			"bind_address": "0.0.0.0",
 			"bind_port":    float64(9998),
 		})
+		require.Equal(t, alloc.ID, agentService.Meta["alloc_id"])
 
 		time.Sleep(interval >> 2)
 	}

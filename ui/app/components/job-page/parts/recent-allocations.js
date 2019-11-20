@@ -11,7 +11,7 @@ export default Component.extend({
   sortProperty: 'modifyIndex',
   sortDescending: true,
   sortedAllocations: computed('job.allocations.@each.modifyIndex', function() {
-    return new PromiseArray({
+    return PromiseArray.create({
       promise: this.get('job.allocations').then(allocations =>
         allocations
           .sortBy('modifyIndex')

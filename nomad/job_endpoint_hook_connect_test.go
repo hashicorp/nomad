@@ -63,16 +63,28 @@ func Test_groupConnectHook(t *testing.T) {
 					SidecarService: &structs.ConsulSidecarService{},
 				},
 			},
+			{
+				Name:      "admin",
+				PortLabel: "9090",
+				Connect: &structs.ConsulConnect{
+					SidecarService: &structs.ConsulSidecarService{},
+				},
+			},
 		},
 	}
 
 	tgOut := tgIn.Copy()
 	tgOut.Tasks = []*structs.Task{
 		newConnectTask(tgOut.Services[0]),
+		newConnectTask(tgOut.Services[1]),
 	}
 	tgOut.Networks[0].DynamicPorts = []structs.Port{
 		{
 			Label: fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, "backend"),
+			To:    -1,
+		},
+		{
+			Label: fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, "admin"),
 			To:    -1,
 		},
 	}

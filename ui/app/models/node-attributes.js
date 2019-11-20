@@ -6,10 +6,10 @@ import flat from 'flat';
 const { unflatten } = flat;
 
 export default Fragment.extend({
-  attributes: attr(),
+  nodeAttributes: attr(),
 
-  attributesStructured: computed('attributes', function() {
-    const original = this.attributes;
+  attributesStructured: computed('nodeAttributes', function() {
+    const original = this.nodeAttributes;
 
     if (!original) {
       return;
@@ -30,6 +30,8 @@ export default Fragment.extend({
     //
     // ex: nodeAttrs.get('driver.docker')
     // [ "1", { version: "17.05.0-ce", volumes: { enabled: "1" } } ]
-    return get(this.attributesStructured, key);
+    if (this.attributesStructured) {
+      return get(this.attributesStructured, key);
+    }
   },
 });

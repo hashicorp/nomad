@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
-	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
@@ -184,23 +183,9 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	l.systemCpuStats = stats.NewCpuStats()
 
 	// Starts the task
-	if command.NetworkIsolation != nil && command.NetworkIsolation.Path != "" {
-		netns, err := ns.GetNS(command.NetworkIsolation.Path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get ns %s: %v", command.NetworkIsolation.Path, err)
-		}
-
-		// Start the container in the network namespace
-		err = netns.Do(func(ns.NetNS) error { return container.Run(process) })
-		if err != nil {
-			container.Destroy()
-			return nil, err
-		}
-	} else {
-		if err := container.Run(process); err != nil {
-			container.Destroy()
-			return nil, err
-		}
+	if err := container.Run(process); err != nil {
+		container.Destroy()
+		return nil, err
 	}
 
 	pid, err := process.Pid()
@@ -622,6 +607,13 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 		{Type: lconfigs.NEWNS},
 	}
 
+	if command.NetworkIsolation != nil {
+		cfg.Namespaces = append(cfg.Namespaces, lconfigs.Namespace{
+			Type: lconfigs.NEWNET,
+			Path: command.NetworkIsolation.Path,
+		})
+	}
+
 	// paths to mask using a bind mount to /dev/null to prevent reading
 	cfg.MaskPaths = []string{
 		"/proc/kcore",
@@ -821,6 +813,15 @@ func cmdDevices(devices []*drivers.DeviceConfig) ([]*lconfigs.Device, error) {
 	return r, nil
 }
 
+var userMountToUnixMount = map[string]int{
+	// Empty string maps to `rprivate` for backwards compatibility in restored
+	// older tasks, where mount propagation will not be present.
+	"":                                       unix.MS_PRIVATE | unix.MS_REC, // rprivate
+	structs.VolumeMountPropagationPrivate:    unix.MS_PRIVATE | unix.MS_REC, // rprivate
+	structs.VolumeMountPropagationHostToTask: unix.MS_SLAVE | unix.MS_REC,   // rslave
+	structs.VolumeMountPropagationBidirectional: unix.MS_SHARED | unix.MS_REC, // rshared
+}
+
 // cmdMounts converts a list of driver.MountConfigs into excutor.Mounts.
 func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
 	if len(mounts) == 0 {
@@ -834,11 +835,13 @@ func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
 		if m.Readonly {
 			flags |= unix.MS_RDONLY
 		}
+
 		r[i] = &lconfigs.Mount{
-			Source:      m.HostPath,
-			Destination: m.TaskPath,
-			Device:      "bind",
-			Flags:       flags,
+			Source:           m.HostPath,
+			Destination:      m.TaskPath,
+			Device:           "bind",
+			Flags:            flags,
+			PropagationFlags: []int{userMountToUnixMount[m.PropagationMode]},
 		}
 	}
 

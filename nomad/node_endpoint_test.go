@@ -906,6 +906,17 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	// now+deadline should be after the forced deadline
 	require.True(time.Now().Add(strategy.Deadline).After(out.DrainStrategy.ForceDeadline))
 
+	drainStartedAt := out.DrainStrategy.StartedAt
+	// StartedAt should be close to the time the drain started
+	require.WithinDuration(beforeUpdate, drainStartedAt, 1*time.Second)
+
+	// StartedAt shouldn't change if a new request comes while still draining
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2))
+	ws = memdb.NewWatchSet()
+	out, err = state.NodeByID(ws, node.ID)
+	require.NoError(err)
+	require.True(out.DrainStrategy.StartedAt.Equal(drainStartedAt))
+
 	// Register a system job
 	job := mock.SystemJob()
 	require.Nil(s1.State().UpsertJob(10, job))
@@ -923,8 +934,8 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	ws = memdb.NewWatchSet()
 	out, err = state.NodeByID(ws, node.ID)
 	require.NoError(err)
-	require.Len(out.Events, 3)
-	require.Equal(NodeDrainEventDrainDisabled, out.Events[2].Message)
+	require.Len(out.Events, 4)
+	require.Equal(NodeDrainEventDrainDisabled, out.Events[3].Message)
 
 	// Check that calling UpdateDrain with the same DrainStrategy does not emit
 	// a node event.
@@ -932,7 +943,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	ws = memdb.NewWatchSet()
 	out, err = state.NodeByID(ws, node.ID)
 	require.NoError(err)
-	require.Len(out.Events, 3)
+	require.Len(out.Events, 4)
 }
 
 func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {

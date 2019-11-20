@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { computed, observer } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 import { guidFor } from '@ember/object/internals';
 import { run } from '@ember/runloop';
 import d3 from 'd3-selection';
@@ -184,7 +185,7 @@ export default Component.extend(WindowResizable, {
     return axis && axis.getBBox().width;
   }),
 
-  xAxisOffset: computed('height', 'xAxisHeight', function() {
+  xAxisOffset: overridable('height', 'xAxisHeight', function() {
     return this.height - this.xAxisHeight;
   }),
 

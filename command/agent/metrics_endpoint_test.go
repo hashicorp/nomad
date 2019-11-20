@@ -121,7 +121,7 @@ func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
 				terminal == float32(numTasks), nil
 		}, func(err error) {
 			require.Fail("timed out waiting for metrics to converge",
-				"pending: %v, running: %v, terminal: %v", pending, running, terminal)
+				"expected: (pending: 0, running: 0, terminal: %v), got: (pending: %v, running: %v, terminal: %v)", numTasks, pending, running, terminal)
 		})
 	})
 }

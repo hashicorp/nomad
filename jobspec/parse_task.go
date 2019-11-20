@@ -440,7 +440,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 
 	// Parse the network resources
 	if o := listVal.Filter("network"); len(o.Items) > 0 {
-		r, err := parseNetwork(o)
+		r, err := ParseNetwork(o)
 		if err != nil {
 			return fmt.Errorf("resource, %v", err)
 		}
@@ -522,6 +522,7 @@ func parseVolumeMounts(out *[]*api.VolumeMount, list *ast.ObjectList) error {
 			"volume",
 			"read_only",
 			"destination",
+			"propagation_mode",
 		}
 		if err := helper.CheckHCLKeys(item.Val, valid); err != nil {
 			return err

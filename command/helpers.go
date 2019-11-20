@@ -421,10 +421,10 @@ func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 			return nil, fmt.Errorf("Error getting jobfile from %q: %v", jpath, err)
 		} else {
 			file, err := os.Open(job.Name())
-			defer file.Close()
 			if err != nil {
 				return nil, fmt.Errorf("Error opening file %q: %v", jpath, err)
 			}
+			defer file.Close()
 			jobfile = file
 		}
 	}

@@ -81,7 +81,7 @@ type Config struct {
 	LogOutput io.Writer
 
 	// Logger provides a logger to thhe client
-	Logger log.Logger
+	Logger log.InterceptLogger
 
 	// Region is the clients region
 	Region string

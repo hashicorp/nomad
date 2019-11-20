@@ -23,6 +23,7 @@ type rpcEndpoints struct {
 	ClientStats *ClientStats
 	FileSystem  *FileSystem
 	Allocations *Allocations
+	Agent       *Agent
 }
 
 // ClientRPC is used to make a local, client only RPC call
@@ -218,6 +219,7 @@ func (c *Client) setupClientRpc() {
 	c.endpoints.ClientStats = &ClientStats{c}
 	c.endpoints.FileSystem = NewFileSystemEndpoint(c)
 	c.endpoints.Allocations = NewAllocationsEndpoint(c)
+	c.endpoints.Agent = NewAgentEndpoint(c)
 
 	// Create the RPC Server
 	c.rpcServer = rpc.NewServer()
