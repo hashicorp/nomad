@@ -268,9 +268,8 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 
 				if err != nil {
 					return err
-				} else {
-					reply.Policy.RulesJSON = rules
 				}
+				reply.Policy.RulesJSON = rules
 			} else {
 				// Use the last index that affected the policy table
 				index, err := state.Index("acl_policy")
