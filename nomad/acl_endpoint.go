@@ -264,7 +264,6 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 			reply.Policy = out
 			if out != nil {
 				reply.Index = out.ModifyIndex
-
 				rules, err := policy.Parse(out.Rules)
 
 				if err != nil {
