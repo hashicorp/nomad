@@ -21,6 +21,7 @@ BUG FIXES:
  * cli: Fixed a bug where `nomad alloc exec` fails if stdout is being redirected and not a TTY [[GH-6684](https://github.com/hashicorp/nomad/issues/6684)]
  * cli: Fixed a bug where a cli user may fail to query FS/Allocation API endpoints if they lack `node:read` capability [[GH-6423](https://github.com/hashicorp/nomad/issues/6423)]
  * client: Fixed a bug where a client may not restart dead internal processes upon client's restart on Windows [[GH-6426](https://github.com/hashicorp/nomad/issues/6426)]
+ * client: client: Return empty values when host stats fail [[GH-6349](https://github.com/hashicorp/nomad/issues/6349)]
  * driver/exec: Fixed a bug where exec tasks can spawn processes that live beyond task lifecycle [[GH-6722](https://github.com/hashicorp/nomad/issues/6722)]
  * driver/docker: Added mechanism for detecting running unexpectedly running docker containers [[GH-6325](https://github.com/hashicorp/nomad/issues/6325)]
  * nomad: Multiple connect enabled services in the same taskgroup failed to
