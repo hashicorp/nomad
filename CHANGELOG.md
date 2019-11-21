@@ -1,18 +1,26 @@
 ## 0.10.2 (Unreleased)
 
 FEATURES:
- * core: Add `nomad monitor` command to stream logs at a specified level for debugging [[GH-6499](https://github.com/hashicorp/nomad/issues/6499)]
+
+ * **Nomad Monitor**: New `nomad monitor` command allows remotely following
+   the logs of any Nomad Agent (clients or servers). See
+   https://nomadproject.io/docs/commands/monitor.html
+ * **Docker Container Cleanup**: Nomad will now automatically remove Docker
+   containers for tasks leaked due to Nomad or Docker crashes or bugs.
 
 IMPROVEMENTS:
- * api: Add `StartedAt` field to `Node.DrainStrategy` [[GH-6698](https://github.com/hashicorp/nomad/issues/6698)]
+
+ * agent: Added support for running under Windows Service Manager [[GH-6220](https://github.com/hashicorp/nomad/issues/6220)]
+ * api: Added `StartedAt` field to `Node.DrainStrategy` [[GH-6698](https://github.com/hashicorp/nomad/issues/6698)]
  * api: Added JSON representation of rules to policy endpoint response [[GH-6017](https://github.com/hashicorp/nomad/pull/6017)]
  * api: Update policy endpoint to permit anonymous access [[GH-6021](https://github.com/hashicorp/nomad/issues/6021)]
  * build: Updated to Go 1.12.13 [[GH-6606](https://github.com/hashicorp/nomad/issues/6606)]
- * core: Add support for running under Windows Service Manager [[GH-6220](https://github.com/hashicorp/nomad/issues/6220)]
  * cli: Show full ID in node and alloc individual status views [[GH-6425](https://github.com/hashicorp/nomad/issues/6425)]
  * client: Enable setting tags on Consul Connect sidecar service [[GH-6448](https://github.com/hashicorp/nomad/issues/6448)]
- * client: Add support for downloading artifacts from Google Cloud Storage [[GH-6692](https://github.com/hashicorp/nomad/pull/6692)]
- * command: add -tls-server-name flag [[GH-6370](https://github.com/hashicorp/nomad/issues/6370)]
+ * client: Added support for downloading artifacts from Google Cloud Storage [[GH-6692](https://github.com/hashicorp/nomad/pull/6692)]
+ * command: Added -tls-server-name flag [[GH-6370](https://github.com/hashicorp/nomad/issues/6370)]
+ * command: Added `nomad monitor` command to stream logs at a specified level for debugging [[GH-6499](https://github.com/hashicorp/nomad/issues/6499)]
+ * quota: Added support for network bandwidth quota limits in Nomad enterprise
 
 BUG FIXES:
 
@@ -22,19 +30,18 @@ BUG FIXES:
  * api: Decompress web socket response body if gzipped on error responses [[GH-6650](https://github.com/hashicorp/nomad/issues/6650)]
  * api: Fixed a bug where some FS/Allocation API endpoints didn't return error messages [[GH-6427](https://github.com/hashicorp/nomad/issues/6427)]
  * api: Return 40X status code for failing ACL requests, rather than 500 [[GH-6421](https://github.com/hashicorp/nomad/issues/6421)]
- * cli: Make scoring column orders consistent `nomad alloc status` [[GH-6609](https://github.com/hashicorp/nomad/issues/6609)]
+ * cli: Made scoring column orders consistent `nomad alloc status` [[GH-6609](https://github.com/hashicorp/nomad/issues/6609)]
  * cli: Fixed a bug where `nomad alloc exec` fails if stdout is being redirected and not a TTY [[GH-6684](https://github.com/hashicorp/nomad/issues/6684)]
  * cli: Fixed a bug where a cli user may fail to query FS/Allocation API endpoints if they lack `node:read` capability [[GH-6423](https://github.com/hashicorp/nomad/issues/6423)]
- * client: Fixed a bug where a client may not restart dead internal processes upon client's restart on Windows [[GH-6426](https://github.com/hashicorp/nomad/issues/6426)]
  * client: client: Return empty values when host stats fail [[GH-6349](https://github.com/hashicorp/nomad/issues/6349)]
+ * client: Fixed a bug where a client may not restart dead internal processes upon client's restart on Windows [[GH-6426](https://github.com/hashicorp/nomad/issues/6426)]
  * driver/exec: Fixed a bug where exec tasks can spawn processes that live beyond task lifecycle [[GH-6722](https://github.com/hashicorp/nomad/issues/6722)]
  * driver/docker: Added mechanism for detecting running unexpectedly running docker containers [[GH-6325](https://github.com/hashicorp/nomad/issues/6325)]
- * nomad: Multiple connect enabled services in the same taskgroup failed to
-   register [[GH-6646](https://github.com/hashicorp/nomad/issues/6646)]
+ * nomad: Fixed registering multiple connect enabled services in the same task group [[GH-6646](https://github.com/hashicorp/nomad/issues/6646)]
  * scheduler: Changes to devices in resource stanza should cause rescheduling [[GH-6644](https://github.com/hashicorp/nomad/issues/6644)]
+ * scheduler: Fixed a bug that allowed inplace updates after affinity or spread were changed [[GH-6703](https://github.com/hashicorp/nomad/issues/6703)]
  * vault: Allow overriding implicit Vault version constraint [[GH-6687](https://github.com/hashicorp/nomad/issues/6687)]
- * vault: Supported Vault auth role's new field, `token_period` [[GH-6574](https://github.com/hashicorp/nomad/issues/6574)]
- * scheduler: Fixed a bug that allowed inplace updates after a constraint, affinity, or spread was changed [[GH-6703](https://github.com/hashicorp/nomad/issues/6703)]
+ * vault: Supported Vault auth role's new fields, `token_period` and `token_explicit_max_ttl` [[GH-6574](https://github.com/hashicorp/nomad/issues/6574)], [[GH-6580](https://github.com/hashicorp/nomad/issues/6580)]
 
 ## 0.10.1 (November 4, 2019)
 
