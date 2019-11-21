@@ -1,0 +1,8 @@
+executor: go
+steps:
+  - checkout
+  - run: apt-get update; apt-get install -y shellcheck sudo unzip
+  - install-protoc
+  - run: make deps lint-deps
+  - run: make check
+  - run: make checkscripts
