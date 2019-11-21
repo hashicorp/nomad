@@ -29,7 +29,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 
-	hclog "github.com/hashicorp/go-hclog"
 	cstate "github.com/hashicorp/nomad/client/state"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/stretchr/testify/require"
@@ -635,97 +634,6 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	for _, ar := range c2.getAllocRunners() {
 		<-ar.DestroyCh()
 	}
-}
-
-func TestClient_RestoreError(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	c1, cleanup := TestClient(t, func(c *config.Config) {
-		c.DevMode = false
-		c.RPCHandler = s1
-	})
-	defer cleanup()
-
-	// Wait until the node is ready
-	waitTilNodeReady(c1, t)
-
-	// Create mock allocations
-	job := mock.Job()
-	alloc1 := mock.Alloc()
-	alloc1.NodeID = c1.Node().ID
-	alloc1.Job = job
-	alloc1.JobID = job.ID
-	alloc1.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	alloc1.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"run_for": "10s",
-	}
-	alloc1.ClientStatus = structs.AllocClientStatusRunning
-
-	state := s1.State()
-	err := state.UpsertJob(100, job)
-	require.Nil(err)
-
-	err = state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID))
-	require.Nil(err)
-
-	err = state.UpsertAllocs(102, []*structs.Allocation{alloc1})
-	require.Nil(err)
-
-	// Allocations should get registered
-	testutil.WaitForResult(func() (bool, error) {
-		c1.allocLock.RLock()
-		ar := c1.allocs[alloc1.ID]
-		c1.allocLock.RUnlock()
-		if ar == nil {
-			return false, fmt.Errorf("nil alloc runner")
-		}
-		if ar.Alloc().ClientStatus != structs.AllocClientStatusRunning {
-			return false, fmt.Errorf("client status: got %v; want %v", ar.Alloc().ClientStatus, structs.AllocClientStatusRunning)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
-
-	// Shutdown the client, saves state
-	if err := c1.Shutdown(); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Create a new client with a stateDB implementation that errors
-	logger := testlog.HCLogger(t)
-	c1.config.Logger = logger
-	catalog := consul.NewMockCatalog(logger)
-	mockService := consulApi.NewMockConsulServiceClient(t, logger)
-
-	// This stateDB returns errors for all methods called by restore
-	stateDBFunc := func(hclog.Logger, string) (cstate.StateDB, error) {
-		return &cstate.ErrDB{Allocs: []*structs.Allocation{alloc1}}, nil
-	}
-	c1.config.StateDBFactory = stateDBFunc
-
-	c2, err := NewClient(c1.config, catalog, mockService)
-	require.Nil(err)
-	defer c2.Shutdown()
-
-	// Ensure the allocation has been marked as failed on the server
-	testutil.WaitForResult(func() (bool, error) {
-		alloc, err := s1.State().AllocByID(nil, alloc1.ID)
-		require.Nil(err)
-		failed := alloc.ClientStatus == structs.AllocClientStatusFailed
-		if !failed {
-			return false, fmt.Errorf("Expected failed client status, but got %v", alloc.ClientStatus)
-		}
-		return true, nil
-	}, func(err error) {
-		require.NoError(err)
-	})
-
 }
 
 func TestClient_AddAllocError(t *testing.T) {
