@@ -13,8 +13,8 @@
     "lint:hbs": "ember-template-lint .",
     "lint:js": "eslint .",
     "start": "./node_modules/ember-cli/bin/ember server",
-    "build-storybook": "ember build --environment=test && build-storybook -s dist",
-    "storybook": "ember serve --environment=test & start-storybook -p 6006 -s dist",
+    "build-storybook": "ember build && build-storybook -s dist",
+    "storybook": "ember serve & start-storybook --ci -p 6006 -s dist",
     "test": "./node_modules/ember-cli/bin/ember test"
   },
   "husky": {
