@@ -30,7 +30,7 @@ Usage: nomad monitor [options]
 General Options:
 
 	` + generalOptionsUsage() + `
-	
+
 Monitor Specific Options:
 
   -log-level <level>
@@ -38,6 +38,9 @@ Monitor Specific Options:
 
   -node-id <node-id>
     Sets the specific node to monitor
+
+  -server-id <server-id>
+    Sets the specific server to monitor
 
   -json
     Sets log output to JSON format
