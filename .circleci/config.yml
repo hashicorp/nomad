@@ -73,6 +73,7 @@ jobs:
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
         name: Running Nomad Tests
+        no_output_timeout: 20m
     - store_test_results:
         path: /tmp/test-reports
     - store_artifacts:
@@ -146,6 +147,7 @@ jobs:
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
         name: Running Nomad Tests
+        no_output_timeout: 20m
     - store_test_results:
         path: /tmp/test-reports
     - store_artifacts:
@@ -219,6 +221,7 @@ jobs:
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
         name: Running Nomad Tests
+        no_output_timeout: 20m
     - store_test_results:
         path: /tmp/test-reports
     - store_artifacts:
@@ -292,6 +295,7 @@ jobs:
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
         name: Running Nomad Tests
+        no_output_timeout: 20m
     - store_test_results:
         path: /tmp/test-reports
     - store_artifacts:
@@ -365,6 +369,7 @@ jobs:
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
         name: Running Nomad Tests
+        no_output_timeout: 20m
     - store_test_results:
         path: /tmp/test-reports
     - store_artifacts:
@@ -511,6 +516,7 @@ jobs:
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
         name: Running Nomad Tests
+        no_output_timeout: 20m
     - store_test_results:
         path: /tmp/test-reports
     - store_artifacts:
@@ -567,6 +573,7 @@ jobs:
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
         name: Running Nomad Tests
+        no_output_timeout: 20m
     - store_test_results:
         path: /tmp/test-reports
     - store_artifacts:
@@ -654,6 +661,7 @@ jobs:
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
         name: Running Nomad Tests
+        no_output_timeout: 20m
     - store_test_results:
         path: /tmp/test-reports
     - store_artifacts:
@@ -783,6 +791,7 @@ jobs:
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
         name: Running Nomad Tests
+        no_output_timeout: 20m
     - store_test_results:
         path: /tmp/test-reports
     - store_artifacts:
