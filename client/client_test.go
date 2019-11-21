@@ -1171,7 +1171,7 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	// Client without network configured updates to match fingerprint
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
-	// capture the platform fingerprinted device name for the next test
+
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
 			Cpu:      structs.NodeCpuResources{CpuShares: 123},
