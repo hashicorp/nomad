@@ -141,7 +141,7 @@ An example token role definition is given below:
   "explicit_max_ttl": 0,
   "name": "nomad-cluster",
   "orphan": true,
-  "period": 259200,
+  "token_period": 259200,
   "renewable": true
 }
 ```
@@ -196,7 +196,7 @@ documentation for all possible fields and more complete documentation.
   making bootstrapping and upgrading simpler. As such, **setting `orphan = true`
   is the recommended setting**.
 
-* `period` - Specifies the length the TTL is extended by each renewal in
+* `token_period` - Specifies the length the TTL is extended by each renewal in
   seconds. It is suggested to set this value on the order of magnitude of 3 days
   (259200 seconds) to avoid a large renewal request rate to Vault. **Must be set
   to a positive value**.

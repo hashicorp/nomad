@@ -192,7 +192,7 @@ submitted to Nomad. We will use the following token role:
   "explicit_max_ttl": 0,
   "name": "nomad-cluster",
   "orphan": true,
-  "period": 259200,
+  "token_period": 259200,
   "renewable": true
 }
 ```
@@ -213,7 +213,7 @@ disallowed policies group. An example of this is shown below:
   "explicit_max_ttl": 0,
   "name": "nomad-cluster",
   "orphan": true,
-  "period": 259200,
+  "token_period": 259200,
   "renewable": true
 }
 ```
