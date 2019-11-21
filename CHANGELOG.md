@@ -13,6 +13,7 @@ IMPROVEMENTS:
  * client: Enable setting tags on Consul Connect sidecar service [[GH-6448](https://github.com/hashicorp/nomad/issues/6448)]
  * client: Add support for downloading artifacts from Google Cloud Storage [[GH-6692](https://github.com/hashicorp/nomad/pull/6692)]
  * command: add -tls-server-name flag [[GH-6370](https://github.com/hashicorp/nomad/issues/6370)]
+ * quota: Add support for network bandwidth quota limits in Nomad enterprise
 
 BUG FIXES:
 
