@@ -1850,9 +1850,10 @@
     webpack-dev-middleware "^3.7.0"
     webpack-hot-middleware "^2.25.0"
 
-"@storybook/ember-cli-storybook@storybookjs/ember-cli-storybook#master":
-  version "0.1.0"
-  resolved "https://codeload.github.com/storybookjs/ember-cli-storybook/tar.gz/4b3cc72dc83bc238b6df2b6e55c7f771cf7f6050"
+"@storybook/ember-cli-storybook@^0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@storybook/ember-cli-storybook/-/ember-cli-storybook-0.1.1.tgz#f82ce9980a0785edbebc548a345bcece909b48c8"
+  integrity sha512-e0JCto9q1Nghu/qWuCT+CF21pS/1jk7zaQ83wvR51Fl/yncDGPplapJ9mJtqJ/7+50dadDcneg2hr8nNYDBfxQ==
   dependencies:
     cheerio "^1.0.0-rc.2"
     ember-cli-babel "^7.1.2"
@@ -12460,7 +12461,7 @@ popper.js@^1.14.4, popper.js@^1.14.7:
   resolved "https://registry.yarnpkg.com/popper.js/-/popper.js-1.15.0.tgz#5560b99bbad7647e9faa475c6b8056621f5a4ff2"
   integrity sha512-w010cY1oCUmI+9KwwlWki+r5jxKfTFDVoadl7MSrIujHU5MJ5OR6HTDj6Xo8aoR/QsA56x8jKjA59qGH4ELtrA==
 
-portfinder@1.0.21, portfinder@^1.0.20:
+portfinder@^1.0.20:
   version "1.0.21"
   resolved "https://registry.yarnpkg.com/portfinder/-/portfinder-1.0.21.tgz#60e1397b95ac170749db70034ece306b9a27e324"
   integrity sha512-ESabpDCzmBS3ekHbmpAIiESq3udRsCBGiBZLsC+HgBKv2ezb0R4oG+7RnYEVZ/ZCfhel5Tx3UzdNWA0Lox2QCA==
