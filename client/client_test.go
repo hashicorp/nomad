@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
+	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -602,10 +603,14 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	// Create a new client
 	logger := testlog.HCLogger(t)
 	c1.config.Logger = logger
-	catalog := consul.NewMockCatalog(logger)
+	consulCatalog := consul.NewMockCatalog(logger)
 	mockService := consulApi.NewMockConsulServiceClient(t, logger)
 
-	c2, err := NewClient(c1.config, catalog, mockService)
+	// ensure we use non-shutdown driver instances
+	c1.config.PluginLoader = catalog.TestPluginLoaderWithOptions(t, "", c1.config.Options, nil)
+	c1.config.PluginSingletonLoader = singleton.NewSingletonLoader(logger, c1.config.PluginLoader)
+
+	c2, err := NewClient(c1.config, consulCatalog, mockService)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
