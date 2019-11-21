@@ -31,7 +31,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	cstate "github.com/hashicorp/nomad/client/state"
-	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -447,7 +446,6 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 
 func TestClient_WatchAllocs(t *testing.T) {
 	t.Parallel()
-	ctestutil.ExecCompatible(t)
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -462,6 +460,11 @@ func TestClient_WatchAllocs(t *testing.T) {
 
 	// Create mock allocations
 	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "10s",
+	}
 	alloc1 := mock.Alloc()
 	alloc1.JobID = job.ID
 	alloc1.Job = job
