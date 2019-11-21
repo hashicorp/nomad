@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -1171,7 +1172,6 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
 	// capture the platform fingerprinted device name for the next test
-	dev := client.config.Node.NodeResources.Networks[0].Device
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
 			Cpu:      structs.NodeCpuResources{CpuShares: 123},
@@ -1186,6 +1186,14 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[0].Device)
 	assert.Equal(t, 80, client.config.Node.Resources.CPU)
 	assert.Equal(t, "any-interface", client.config.Node.Resources.Networks[0].Device)
+
+	// lookup an interface. client.Node starts with a hardcoded value, eth0,
+	// and is only updated async through fingerprinter.
+	// Let's just lookup network device; anyone will do for this test
+	interfaces, err := net.Interfaces()
+	require.NoError(t, err)
+	require.NotEmpty(t, interfaces)
+	dev := interfaces[0].Name
 
 	// Client with network interface configured keeps the config
 	// setting on update
