@@ -1,6 +1,7 @@
 steps:
   - run:
       name: Running Nomad Tests
+      no_output_timeout: 20m
       command: |
         if [ -z $GOTEST_PKGS_EXCLUDE ];
         then
