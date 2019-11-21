@@ -34,7 +34,7 @@ BUG FIXES:
    register [[GH-6646](https://github.com/hashicorp/nomad/issues/6646)]
  * scheduler: Changes to devices in resource stanza should cause rescheduling [[GH-6644](https://github.com/hashicorp/nomad/issues/6644)]
  * vault: Allow overriding implicit Vault version constraint [[GH-6687](https://github.com/hashicorp/nomad/issues/6687)]
- * vault: Supported Vault auth role's new field, `token_period` [[GH-6574](https://github.com/hashicorp/nomad/issues/6574)]
+ * vault: Supported Vault auth role's new fields, `token_period` and `token_explicit_max_ttl` [[GH-6574](https://github.com/hashicorp/nomad/issues/6574)], [[GH-6580](https://github.com/hashicorp/nomad/issues/6580)]
  * scheduler: Fixed a bug that allowed inplace updates after a constraint, affinity, or spread was changed [[GH-6703](https://github.com/hashicorp/nomad/issues/6703)]
 
 ## 0.10.1 (November 4, 2019)
