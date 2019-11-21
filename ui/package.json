@@ -14,7 +14,7 @@
     "lint:js": "eslint .",
     "start": "./node_modules/ember-cli/bin/ember server",
     "build-storybook": "ember build && build-storybook -s dist",
-    "storybook": "ember serve & start-storybook --ci -p 6006 -s dist",
+    "storybook": "ember serve & start-storybook -p 6006 -s dist",
     "test": "./node_modules/ember-cli/bin/ember test"
   },
   "husky": {
