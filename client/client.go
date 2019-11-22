@@ -2588,8 +2588,10 @@ func (c *Client) emitStats() {
 	for {
 		select {
 		case <-next.C:
+			c.logger.Warn("debug: emitingStats tick")
 			err := c.hostStatsCollector.Collect()
 			next.Reset(c.config.StatsCollectionInterval)
+			c.logger.Warn("debug: emitingStats collected host stats", "error", err)
 			if err != nil {
 				c.logger.Warn("error fetching host resource usage stats", "error", err)
 			} else {
@@ -2599,6 +2601,7 @@ func (c *Client) emitStats() {
 				}
 			}
 
+			c.logger.Warn("debug: emitingStats calling Client metrics")
 			c.emitClientMetrics()
 		case <-c.shutdownCh:
 			return
@@ -2780,12 +2783,13 @@ func (c *Client) emitHostStats() {
 
 // emitClientMetrics emits lower volume client metrics
 func (c *Client) emitClientMetrics() {
+	c.logger.Warn("debug: emitting metrics")
 	nodeID := c.NodeID()
 
 	c.setGaugeForAllocationStats(nodeID)
 
 	// Emit allocation metrics
-	blocked, migrating, pending, running, terminal := 0, 0, 0, 0, 0
+	blocked, migrating, pending, running, terminal, unknown := 0, 0, 0, 0, 0, 0
 	for _, ar := range c.getAllocRunners() {
 		switch ar.AllocState().ClientStatus {
 		case structs.AllocClientStatusPending:
@@ -2801,8 +2805,17 @@ func (c *Client) emitClientMetrics() {
 			running++
 		case structs.AllocClientStatusComplete, structs.AllocClientStatusFailed:
 			terminal++
+		default:
+			unknown++
 		}
 	}
+	c.logger.Warn("debug: found the following gauges",
+		"blocked", blocked,
+		"migrating", migrating,
+		"pending", pending,
+		"running", running,
+		"terminal", terminal,
+		"unknown", unknown)
 
 	if !c.config.DisableTaggedMetrics {
 		metrics.SetGaugeWithLabels([]string{"client", "allocations", "migrating"}, float32(migrating), c.baseLabels)

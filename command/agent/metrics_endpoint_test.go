@@ -122,7 +122,7 @@ func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
 			t.Logf("metrics found pending=%v running=%v terminal=%v", pending, running, terminal)
 			if int(terminal) != numTasks {
 				b, _ := json.Marshal(metrics)
-				t.Logf("full metrics: %s\n", string(b))
+				t.Logf("full metrics:\n%s\n", string(b))
 			}
 
 			// client alloc metrics should reflect that there is numTasks terminal allocs and no other allocs
