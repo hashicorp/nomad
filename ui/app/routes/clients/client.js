@@ -39,6 +39,11 @@ export default Route.extend(WithWatchers, {
     controller.setProperties({
       eligibilityError: null,
       stopDrainError: null,
+      drainError: null,
+      flagAsDraining: false,
+      showDrainNotification: false,
+      showDrainUpdateNotification: false,
+      showDrainStoppedNotification: false,
     });
   },
 
