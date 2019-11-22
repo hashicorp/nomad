@@ -9,11 +9,13 @@ jobs:
       image: ubuntu-1604:201903-01
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
+    - GIT_PAGER: cat
     - GOLANG_VERSION: 1.12.13
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
     - GOTEST_PKGS: ./nomad/...
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -83,11 +85,13 @@ jobs:
       image: ubuntu-1604:201903-01
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
+    - GIT_PAGER: cat
     - GOLANG_VERSION: 1.12.13
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
     - GOTEST_PKGS: ./api/...
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -157,11 +161,13 @@ jobs:
       image: ubuntu-1604:201903-01
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
+    - GIT_PAGER: cat
     - GOLANG_VERSION: 1.12.13
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
     - GOTEST_PKGS: ./drivers/exec
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -231,11 +237,13 @@ jobs:
       image: ubuntu-1604:201903-01
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
+    - GIT_PAGER: cat
     - GOLANG_VERSION: 1.12.13
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
     - GOTEST_PKGS: ./client/...
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -305,11 +313,13 @@ jobs:
       image: ubuntu-1604:201903-01
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
+    - GIT_PAGER: cat
     - GOLANG_VERSION: 1.12.13
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
     - GOTEST_PKGS: ./drivers/shared/executor
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -415,16 +425,24 @@ jobs:
           sudo ./scripts/vagrant-linux-priv-protoc.sh
         name: install protoc
     - run:
+        command: "CCI_VERSION=\"0.1.5879\"\nCCI_SHA256=\"f178ea62c781aec06267017404f87983c87f171fd0e66ef3737916246ae66dd6\"\n\nURL=\"https://github.com/CircleCI-Public/circleci-cli/releases/download/v${CCI_VERSION}/circleci-cli_${CCI_VERSION}_linux_amd64.tar.gz\"\n\nmkdir -p /tmp/circleci-cli/\ncurl --fail --show-error --location \\\n  -o /tmp/circleci-cli/cli.tar.gz \"${URL}\"\n\necho \"$CCI_SHA256 /tmp/circleci-cli/cli.tar.gz\" | sha256sum -c\n\ntar -xz --strip-components=1 \\\n  -C /tmp/circleci-cli \\\n  -f /tmp/circleci-cli/cli.tar.gz \\\n  \"circleci-cli_${CCI_VERSION}_linux_amd64/circleci\" \n\nsudo cp /tmp/circleci-cli/circleci /usr/bin/circleci-local-cli\n\ncircleci-local-cli version\n"
+        name: Install CircleCI CLI 0.1.5879
+    - run:
         command: make deps lint-deps
     - run:
         command: make check
     - run:
         command: make checkscripts
+    - run:
+        command: make -C .circleci CIRCLECI="circleci-local-cli --skip-update-check" ci-verify
+        name: check .circleci/config.yml is up-to-date
     environment:
+    - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
   build-website:
     docker:
     - image: hashicorp/middleman-hashicorp:0.3.35
@@ -452,11 +470,13 @@ jobs:
       image: ubuntu-1604:201903-01
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
+    - GIT_PAGER: cat
     - GOLANG_VERSION: 1.12.13
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
     - GOTEST_PKGS: ''
     - GOTEST_PKGS_EXCLUDE: ./api|./client|./drivers/docker|./drivers/exec|./drivers/rkt|./drivers/shared/executor|./nomad|./devices
     - GOTESTARCH: amd64
@@ -526,10 +546,12 @@ jobs:
     - image: golang:1.12.13
     working_directory: /go/src/github.com/hashicorp/nomad
     environment:
+    - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
     - GOTEST_PKGS: ./devices/...
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -587,21 +609,25 @@ jobs:
     - run:
         command: make test-website
     environment:
+    - GIT_PAGER: cat
     - GOLANG_VERSION: 1.12.13
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
   test-docker:
     machine:
       image: circleci/classic:201808-01
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
+    - GIT_PAGER: cat
     - GOLANG_VERSION: 1.12.13
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
     - GOTEST_PKGS: ./drivers/docker
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -671,10 +697,12 @@ jobs:
     - image: golang:1.12.13
     working_directory: /go/src/github.com/hashicorp/nomad
     environment:
+    - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
     - GO_TAGS: codegen_generated
     steps:
     - checkout
@@ -718,20 +746,24 @@ jobs:
     - run:
         command: sudo -E -H -u circleci PATH=${PATH} make e2e-test
     environment:
+    - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
   test-32bit:
     machine:
       image: ubuntu-1604:201903-01
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
+    - GIT_PAGER: cat
     - GOLANG_VERSION: 1.12.13
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
     - GOTEST_PKGS: ./client/fingerprint
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: '386'
@@ -799,83 +831,100 @@ jobs:
 workflows:
   build-test:
     jobs:
-    - build-binaries
+    - build-binaries:
+        filters:
+          branches:
+            ignore:
+            - stable-website
     - lint-go:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-client:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-nomad:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-api:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-devices:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-other:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-docker:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-exec:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-shared-exec:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-32bit:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-e2e:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-ui:
         filters:
           branches:
             ignore:
             - stable-website
+            - /^docs-.*/
     - test-website:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
   website:
     jobs:

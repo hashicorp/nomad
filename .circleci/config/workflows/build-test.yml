@@ -1,10 +1,17 @@
 jobs:
-- build-binaries
+- build-binaries:
+    # almost always build binaries as they may be needed
+    # for e2e tests
+    filters:
+      branches:
+        ignore:
+          - stable-website
 - lint-go:
     filters: &backend_branches_filter
       branches:
         ignore:
           - /^.-ui\b.*/
+          - /^docs-.*/
           - stable-website
 - test-machine:
     name: "test-client"
@@ -58,5 +65,6 @@ jobs:
       branches:
         ignore:
         - stable-website
+        - /^docs-.*/
 - test-website:
     filters: *backend_branches_filter
