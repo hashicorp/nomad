@@ -166,7 +166,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
     }
     ```
 
-* `logging` - (Optional) A key-value map of Docker logging options. 
+* `logging` - (Optional) A key-value map of Docker logging options.
     Defaults to `json-file` with log rotation (`max-file=2` and `max-size=2m`).
 
     ```hcl
@@ -648,6 +648,13 @@ plugin "docker" {
       image       = true
       image_delay = "3m"
       container   = true
+
+      dangling_containers {
+        enabled        = true
+        dry_run        = false
+        period         = "5m"
+        creation_grace = "5m"
+      }
     }
 
     volumes {
@@ -690,7 +697,7 @@ plugin "docker" {
     * `config`<a id="plugin_auth_file"></a> - Allows an operator to specify a
       JSON file which is in the dockercfg format containing authentication
       information for a private registry, from either (in order) `auths`,
-      `credHelpers` or `credsStore`. 
+      `credHelpers` or `credsStore`.
     * `helper`<a id="plugin_auth_helper"></a> - Allows an operator to specify a
       [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
       -like script on $PATH to lookup authentication information from external
@@ -719,6 +726,16 @@ plugin "docker" {
     * `container` - Defaults to `true`. This option can be used to disable Nomad
       from removing a container when the task exits. Under a name conflict,
       Nomad may still remove the dead container.
+    * `dangling_containers` stanza for controlling dangling container detection
+      and cleanup:
+      * `enabled` - Defaults to `true`). Enables dangling container handling
+      * `dry_run` - Defaults to `false`. Enables a mode where nomad logs
+        potential dangling containers without killing them.
+      * `period` - Defaults to `"5m"`.  A time duration that controls interval
+        between Nomad scans for dangling containers.
+      * `creation_grace` - Defaults to `"5m"`.  A time duration that controls
+        how long a container can run before it is tracked by Nomad or gets
+        marked (and killed) as a dangling container
 
 * `volumes` stanza:
     * `enabled` - Defaults to `true`. Allows tasks to bind host paths
@@ -894,7 +911,32 @@ need a higher degree of isolation between processes for security or other
 reasons, it is recommended to use full virtualization like
 [QEMU](/docs/drivers/qemu.html).
 
-## Docker for Windows Caveats
+## Caveats
+
+### Dangling Containers
+
+Nomad 0.10.2 introduces a detector and a reaper for docker dangling containers,
+containers that Nomad starts yet does not manage or track. Though rare, they
+sometimes in very loaded clusters and lead to unexpectedly running services,
+potentially with stale versions.
+
+When docker daemon becomes unavailable as Nomad starts a task, it is possible
+for Docker to successfully start the container and fails the API call with 500
+error code. In such cases, Nomad retries and eventually aims to kill such
+containers. However, if the Docker Engine remains unhealthy, subsequent retries
+and stop attempts may still fail, and the started container becomes a dangling
+container that Nomad no longer manges.
+
+The newly added reaper periodically scans for such containers. It only targets
+containers with a `com.hashicorp.nomad.allocation_id` label, or match Nomad's
+conventions for naming and bind-mounts (i.e. `/alloc`, `/secrets`, `local`).
+Containers that don't match Nomad container patterns are left untouched.
+
+Operators can run the reaper in a dry mode, where it only logs dangling
+container ids without killing them, or simply disable it through
+the `gc.dangling_containers` config stanza.
+
+### Docker for Windows
 
 Docker for Windows only supports running Windows containers. Because Docker for
 Windows is relatively new and rapidly evolving you may want to consult the

@@ -15,6 +15,16 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.10.2
+
+Nomad 0.10.2 addresses an issue occurring in heavily loaded clients, where
+containers are started without being properly managed by Nomad. Nomad 0.10.2
+introduced a reaper that detects and kills such containers.
+
+Operators may opt to run reaper in a dry mode or disabling it through a client config.
+
+For more information, see [Docker Dangling containers][dangling-containers].
+
 ## Nomad 0.10.0
 
 ### Deployments
@@ -364,6 +374,7 @@ deleted and then Nomad 0.3.0 can be launched.
 
 [drain-api]: /api/nodes.html#drain-node
 [drain-cli]: /docs/commands/node/drain.html
+[dangling-containers]:  /docs/drivers/docker.html#dangling-containers
 [hcl2]: https://github.com/hashicorp/hcl2
 [lxc]: /docs/drivers/external/lxc.html
 [migrate]: /docs/job-specification/migrate.html
