@@ -831,7 +831,11 @@ jobs:
 workflows:
   build-test:
     jobs:
-    - build-binaries
+    - build-binaries:
+        filters:
+          branches:
+            ignore:
+            - stable-website
     - lint-go:
         filters:
           branches:

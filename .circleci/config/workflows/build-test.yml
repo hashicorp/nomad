@@ -1,5 +1,11 @@
 jobs:
-- build-binaries
+- build-binaries:
+    # almost always build binaries as they may be needed
+    # for e2e tests
+    filters:
+      branches:
+        ignore:
+          - stable-website
 - lint-go:
     filters: &backend_branches_filter
       branches:
