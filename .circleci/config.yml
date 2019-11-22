@@ -425,11 +425,17 @@ jobs:
           sudo ./scripts/vagrant-linux-priv-protoc.sh
         name: install protoc
     - run:
+        command: "CCI_VERSION=\"0.1.5879\"\nCCI_SHA256=\"f178ea62c781aec06267017404f87983c87f171fd0e66ef3737916246ae66dd6\"\n\nURL=\"https://github.com/CircleCI-Public/circleci-cli/releases/download/v${CCI_VERSION}/circleci-cli_${CCI_VERSION}_linux_amd64.tar.gz\"\n\nmkdir -p /tmp/circleci-cli/\ncurl --fail --show-error --location \\\n  -o /tmp/circleci-cli/cli.tar.gz \"${URL}\"\n\necho \"$CCI_SHA256 /tmp/circleci-cli/cli.tar.gz\" | sha256sum -c\n\ntar -xz --strip-components=1 \\\n  -C /tmp/circleci-cli \\\n  -f /tmp/circleci-cli/cli.tar.gz \\\n  \"circleci-cli_${CCI_VERSION}_linux_amd64/circleci\" \n\nsudo cp /tmp/circleci-cli/circleci /usr/bin/circleci-local-cli\n\ncircleci-local-cli version\n"
+        name: Install CircleCI CLI 0.1.5879
+    - run:
         command: make deps lint-deps
     - run:
         command: make check
     - run:
         command: make checkscripts
+    - run:
+        command: make -C .circleci CIRCLECI="circleci-local-cli --skip-update-check" ci-verify
+        name: check .circleci/config.yml is up-to-date
     environment:
     - GIT_PAGER: cat
     - GOMAXPROCS: 1
