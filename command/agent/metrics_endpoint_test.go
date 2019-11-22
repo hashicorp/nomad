@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -101,6 +102,7 @@ func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
 
 			obj, err := s.Server.MetricsRequest(respW, req)
 			if err != nil {
+				t.Logf("found error: %v", err)
 				return false, err
 			}
 
@@ -116,6 +118,13 @@ func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
 					terminal = g.Value
 				}
 			}
+
+			t.Logf("metrics found pending=%v running=%v terminal=%v", pending, running, terminal)
+			if int(terminal) != numTasks {
+				b, _ := json.Marshal(metrics)
+				t.Logf("full metrics: %s\n", string(b))
+			}
+
 			// client alloc metrics should reflect that there is numTasks terminal allocs and no other allocs
 			return pending == float32(0) && running == float32(0) &&
 				terminal == float32(numTasks), nil
