@@ -290,6 +290,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		procState:    drivers.TaskStateRunning,
 		startedAt:    taskState.StartedAt,
 		exitResult:   &drivers.ExitResult{},
+		logger:       d.logger,
 	}
 
 	d.tasks.Set(taskState.TaskConfig.ID, h)
