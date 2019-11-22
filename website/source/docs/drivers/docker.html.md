@@ -729,13 +729,15 @@ plugin "docker" {
     * `dangling_containers` stanza for controlling dangling container detection
       and cleanup:
       * `enabled` - Defaults to `true`. Enables dangling container handling.
-      * `dry_run` - Defaults to `false`. Enables a mode where nomad logs
-        potential dangling containers without killing them.
-      * `period` - Defaults to `"5m"`.  A time duration that controls interval
+      * `dry_run` - Defaults to `false`. Only log dangling containers without
+        cleaning them up.
+      * `period` - Defaults to `"5m"`. A time duration that controls interval
         between Nomad scans for dangling containers.
-      * `creation_grace` - Defaults to `"5m"`.  A time duration that controls
-        how long a container can run before it is tracked by Nomad or gets
-        marked (and killed) as a dangling container
+      * `creation_grace` - Defaults to `"5m"`. Grace period after a container is
+        created during which the GC ignores it. Only used to prevent the GC from
+        removing newly created containers before they are registered with the
+        GC. Should not need adjusting higher but may be adjusted lower to GC
+        more aggressively.
 
 * `volumes` stanza:
     * `enabled` - Defaults to `true`. Allows tasks to bind host paths
@@ -917,8 +919,7 @@ reasons, it is recommended to use full virtualization like
 
 Nomad 0.10.2 introduces a detector and a reaper for dangling Docker containers,
 containers that Nomad starts yet does not manage or track. Though rare, they
-sometimes in very loaded clusters and lead to unexpectedly running services,
-potentially with stale versions.
+lead to unexpectedly running services, potentially with stale versions.
 
 When Docker daemon becomes unavailable as Nomad starts a task, it is possible
 for Docker to successfully start the container and fails the API call with 500
