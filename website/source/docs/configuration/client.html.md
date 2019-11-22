@@ -179,6 +179,7 @@ client {
     "/etc/ld.so.cache"  = "/etc/ld.so.cache"
     "/etc/ld.so.conf"   = "/etc/ld.so.conf"
     "/etc/ld.so.conf.d" = "/etc/ld.so.conf.d"
+    "/etc/passwd"       = "/etc/passwd"
     "/lib"              = "/lib"
     "/lib64"            = "/lib64"
   }
