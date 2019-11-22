@@ -21,7 +21,7 @@ Nomad 0.10.2 addresses an issue occurring in heavily loaded clients, where
 containers are started without being properly managed by Nomad. Nomad 0.10.2
 introduced a reaper that detects and kills such containers.
 
-Operators may opt to run reaper in a dry mode or disabling it through a client config.
+Operators may opt to run reaper in a dry-mode or disabling it through a client config.
 
 For more information, see [Docker Dangling containers][dangling-containers].
 
