@@ -3,13 +3,15 @@ import {
   create,
   collection,
   clickable,
-  hasClass,
+  fillable,
   text,
   isPresent,
   visitable,
 } from 'ember-cli-page-object';
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
+import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
+import notification from 'nomad-ui/tests/pages/components/notification';
 
 export default create({
   visit: visitable('/clients/:id'),
@@ -92,12 +94,56 @@ export default create({
     attributesAreShown: isPresent('[data-test-driver-attributes]'),
   }),
 
-  drain: {
-    deadline: text('[data-test-drain-deadline]'),
-    forcedDeadline: text('[data-test-drain-forced-deadline]'),
-    hasForcedDeadline: isPresent('[data-test-drain-forced-deadline]'),
-    ignoreSystemJobs: text('[data-test-drain-ignore-system-jobs]'),
-    badgeIsDangerous: hasClass('is-danger', '[data-test-drain-deadline] .badge'),
-    badgeLabel: text('[data-test-drain-deadline] .badge'),
+  drainDetails: {
+    scope: '[data-test-drain-details]',
+    durationIsPresent: isPresent('[data-test-duration]'),
+    duration: text('[data-test-duration]'),
+    durationTooltip: attribute('aria-label', '[data-test-duration]'),
+    deadline: text('[data-test-deadline]'),
+    deadlineTooltip: attribute('aria-label', '[data-test-deadline]'),
+    forceDrainText: text('[data-test-force-drain-text]'),
+    drainSystemJobsText: text('[data-test-drain-system-jobs-text]'),
+
+    completeCount: text('[data-test-complete-count]'),
+    migratingCount: text('[data-test-migrating-count]'),
+    remainingCount: text('[data-test-remaining-count]'),
+    status: text('[data-test-status]'),
+    force: twoStepButton('[data-test-force]'),
   },
+
+  drainPopover: {
+    toggle: clickable('[data-test-drain-popover] [data-test-popover-trigger]'),
+    toggleDeadline: clickable('[data-test-drain-deadline-toggle]'),
+    deadlineOptions: {
+      open: clickable('[data-test-drain-deadline-toggle]'),
+      options: collection('data-test-drain-deadline-options]', {
+        label: text(),
+        choose: clickable(),
+      }),
+    },
+
+    setCustomDeadline: fillable('[data-test-drain-custom-deadline]'),
+    toggleForceDrain: clickable(),
+    toggleSystemJobs: clickable(),
+
+    setDeadline(label) {
+      this.deadlineOptions.open();
+      this.deadlineOptions.options
+        .toArray()
+        .findBy('label', label)
+        .choose();
+    },
+  },
+
+  stopDrain: twoStepButton('[data-test-stop-drain]'),
+  stopDrainIsPresent: isPresent('[data-test-stop-drain]'),
+
+  toggleEligibility: clickable('[data-test-eligibility-toggle]'),
+
+  eligibilityError: notification('[data-test-eligibility-error]'),
+  stopDrainError: notification('[data-test-stop-drain-error]'),
+  drainError: notification('[data-test-drain-error]'),
+  drainStoppedNotification: notification('[data-test-drain-stopped-notification]'),
+  drainUpdatedNotification: notification('[data-test-drain-updated-notification]'),
+  drainCompleteNotification: notification('[data-test-drain-complete-notification]'),
 });
