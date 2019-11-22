@@ -91,6 +91,7 @@
       <p>
         <label class="is-interactive">
           {{#toggle
+            data-test-eligibility-toggle
             isActive=model.isEligible
             isDisabled=(or setEligibility.isRunning model.isDraining)
             onToggle=(perform setEligibility (not model.isEligible))}}
@@ -169,7 +170,7 @@
   </div>
 
   {{#if model.drainStrategy}}
-    <div class="boxed-section is-info">
+    <div data-test-drain-details class="boxed-section is-info">
       <div class="boxed-section-head">
         <div class="boxed-section-row">Drain Strategy</div>
         <div class="boxed-section-row">
@@ -177,7 +178,9 @@
             {{#if (not model.drainStrategy.hasNoDeadline)}}
               <span class="pair">
                 <span class="term">Duration</span>
-                {{format-duration model.drainStrategy.deadline}}
+                <span data-test-duration class="tooltip" aria-label={{format-duration model.drainStrategy.deadline}}>
+                  {{format-duration model.drainStrategy.deadline}}
+                </span>
               </span>
             {{/if}}
             <span class="pair">
@@ -185,12 +188,12 @@
               {{#if model.drainStrategy.hasNoDeadline}}
                 No deadline
               {{else}}
-                <span class="tooltip" aria-label={{format-ts model.drainStrategy.forceDeadline}}>
+                <span data-test-deadline class="tooltip" aria-label={{format-ts model.drainStrategy.forceDeadline}}>
                   {{moment-from-now model.drainStrategy.forceDeadline interval=1000 hideAffix=true}}
                 </span>
               {{/if}}
             </span>
-            <span class="pair">
+            <span data-test-force-drain-text class="pair">
               <span class="term">Force Drain</span>
               {{#if model.drainStrategy.isForced}}
                 {{x-icon "warning" class="is-text is-warning"}} Yes
@@ -198,7 +201,7 @@
                 No
               {{/if}}
             </span>
-            <span class="pair">
+            <span data-test-drain-system-jobs-text class="pair">
               <span class="term">Drain System Jobs</span>
               {{if model.drainStrategy.ignoreSystemJobs "No" "Yes"}}
             </span>
@@ -206,6 +209,7 @@
           {{#if (not model.drainStrategy.isForced)}}
             <div class="pull-right">
               {{two-step-button
+                data-test-force
                 alignRight=true
                 isInfoAction=true
                 idleText="Force Drain"
@@ -224,28 +228,28 @@
             <div class="metric-group">
               <div class="metric is-primary">
                 <h3 class="label">Complete</h3>
-                <p class="value">{{model.completeAllocations.length}}</p>
+                <p data-test-complete-count class="value">{{model.completeAllocations.length}}</p>
               </div>
             </div>
             <div class="metric-group">
               <div class="metric">
                 <h3 class="label">Migrating</h3>
-                <p class="value">{{model.migratingAllocations.length}}</p>
+                <p data-test-migrating-count class="value">{{model.migratingAllocations.length}}</p>
               </div>
             </div>
             <div class="metric-group">
               <div class="metric">
                 <h3 class="label">Remaining</h3>
-                <p class="value">{{model.runningAllocations.length}}</p>
+                <p data-test-remaining-count class="value">{{model.runningAllocations.length}}</p>
               </div>
             </div>
           </div>
           <div class="column">
             <h3 class="title is-4">Status</h3>
             {{#if model.lastMigrateTime}}
-              <p>{{moment-to-now model.lastMigrateTime interval=1000 hideAffix=true}} since an allocation was successfully migrated.</p>
+              <p data-test-status>{{moment-to-now model.lastMigrateTime interval=1000 hideAffix=true}} since an allocation was successfully migrated.</p>
             {{else}}
-              <p>No allocations migrated.</p>
+              <p data-test-status>No allocations migrated.</p>
             {{/if}}
           </div>
         </div>

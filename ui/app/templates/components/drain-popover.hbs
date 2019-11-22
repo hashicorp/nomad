@@ -1,4 +1,5 @@
 {{#popover-menu
+  data-test-drain-popover
   label=(if client.isDraining "Update" "Drain")
   triggerClass=(concat "is-small " (if drain.isRunning "is-loading")) as |m|}}
   <form onsubmit={{action (queue (action preventDefault) (perform drain m.actions.close))}} class="form is-small">
@@ -6,6 +7,7 @@
     <div class="field">
       <label class="label is-interactive">
         {{#toggle
+          data-test-drain-deadline-toggle
           isActive=deadlineEnabled
           onToggle=(action (mut deadlineEnabled) value="target.checked")}}
           Deadline
