@@ -1,79 +1,79 @@
 {{title "Client " (or model.name model.shortId)}}
 <section class="section with-headspace">
   {{#if eligibilityError}}
-    <div class="columns">
+    <div data-test-eligibility-error class="columns">
       <div class="column">
-        <div data-test-eligibility-error class="notification is-danger">
-          <h3 class="title is-4" data-test-eligibility-error-title>Eligibility Error</h3>
-          <p data-test-eligibility-error-message>{{eligibilityError}}</p>
+        <div class="notification is-danger">
+          <h3 data-test-title class="title is-4">Eligibility Error</h3>
+          <p data-test-message>{{eligibilityError}}</p>
         </div>
       </div>
       <div class="column is-centered is-minimum">
-        <button data-test-eligibility-error-dismiss class="button is-danger" onclick={{action (mut eligibilityError) ""}}>Okay</button>
+        <button data-test-dismiss class="button is-danger" onclick={{action (mut eligibilityError) ""}}>Okay</button>
       </div>
     </div>
   {{/if}}
   {{#if stopDrainError}}
-    <div class="columns">
+    <div data-test-stop-drain-error class="columns">
       <div class="column">
-        <div data-test-stop-drain-error class="notification is-danger">
-          <h3 class="title is-4" data-test-stop-drain-error-title>Stop Drain Error</h3>
-          <p data-test-stop-drain-error-message>{{stopDrainError}}</p>
+        <div class="notification is-danger">
+          <h3 data-test-title class="title is-4">Stop Drain Error</h3>
+          <p data-test-message>{{stopDrainError}}</p>
         </div>
       </div>
       <div class="column is-centered is-minimum">
-        <button data-test-stop-drain-error-dismiss class="button is-danger" onclick={{action (mut stopDrainError) ""}}>Okay</button>
+        <button data-test-dismiss class="button is-danger" onclick={{action (mut stopDrainError) ""}}>Okay</button>
       </div>
     </div>
   {{/if}}
   {{#if drainError}}
-    <div class="columns">
+    <div data-test-drain-error class="columns">
       <div class="column">
-        <div data-test-drain-error class="notification is-danger">
-          <h3 class="title is-4" data-test-drain-error-title>Drain Error</h3>
-          <p data-test-drain-error-message>{{drainError}}</p>
+        <div class="notification is-danger">
+          <h3 data-test-title class="title is-4">Drain Error</h3>
+          <p data-test-message>{{drainError}}</p>
         </div>
       </div>
       <div class="column is-centered is-minimum">
-        <button data-test-drain-error-dismiss class="button is-danger" onclick={{action (mut drainError) ""}}>Okay</button>
+        <button data-test-dismiss class="button is-danger" onclick={{action (mut drainError) ""}}>Okay</button>
       </div>
     </div>
   {{/if}}
   {{#if showDrainStoppedNotification}}
     <div class="notification is-info">
-      <div class="columns">
+      <div data-test-drain-stopped-notification class="columns">
         <div class="column">
-          <h3 class="title is-4">Drain Stopped</h3>
-          <p>The drain has been stopped and the node has been set to ineligible.</p>
+          <h3 data-test-title class="title is-4">Drain Stopped</h3>
+          <p data-test-message>The drain has been stopped and the node has been set to ineligible.</p>
         </div>
         <div class="column is-centered is-minimum">
-          <button class="button is-info" onclick={{action (mut showDrainStoppedNotification) false}}>Okay</button>
+          <button data-test-dismiss class="button is-info" onclick={{action (mut showDrainStoppedNotification) false}}>Okay</button>
         </div>
       </div>
     </div>
   {{/if}}
   {{#if showDrainUpdateNotification}}
     <div class="notification is-info">
-      <div class="columns">
+      <div data-test-drain-updated-notification class="columns">
         <div class="column">
-          <h3 class="title is-4">Drain Updated</h3>
-          <p>The new drain specification has been applied.</p>
+          <h3 data-test-title class="title is-4">Drain Updated</h3>
+          <p data-test-message>The new drain specification has been applied.</p>
         </div>
         <div class="column is-centered is-minimum">
-          <button class="button is-info" onclick={{action (mut showDrainUpdateNotification) false}}>Okay</button>
+          <button data-test-dismiss class="button is-info" onclick={{action (mut showDrainUpdateNotification) false}}>Okay</button>
         </div>
       </div>
     </div>
   {{/if}}
   {{#if showDrainNotification}}
     <div class="notification is-info">
-      <div class="columns">
+      <div data-test-drain-complete-notification class="columns">
         <div class="column">
-          <h3 class="title is-4">Drain Complete</h3>
-          <p>Allocations have been drained and the node has been set to ineligible.</p>
+          <h3 data-test-title class="title is-4">Drain Complete</h3>
+          <p data-test-message>Allocations have been drained and the node has been set to ineligible.</p>
         </div>
         <div class="column is-centered is-minimum">
-          <button class="button is-info" onclick={{action (mut showDrainNotification) false}}>Okay</button>
+          <button data-test-dimiss class="button is-info" onclick={{action (mut showDrainNotification) false}}>Okay</button>
         </div>
       </div>
     </div>
