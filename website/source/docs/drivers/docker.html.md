@@ -728,7 +728,7 @@ plugin "docker" {
       Nomad may still remove the dead container.
     * `dangling_containers` stanza for controlling dangling container detection
       and cleanup:
-      * `enabled` - Defaults to `true`). Enables dangling container handling
+      * `enabled` - Defaults to `true`. Enables dangling container handling.
       * `dry_run` - Defaults to `false`. Enables a mode where nomad logs
         potential dangling containers without killing them.
       * `period` - Defaults to `"5m"`.  A time duration that controls interval
@@ -915,24 +915,24 @@ reasons, it is recommended to use full virtualization like
 
 ### Dangling Containers
 
-Nomad 0.10.2 introduces a detector and a reaper for docker dangling containers,
+Nomad 0.10.2 introduces a detector and a reaper for dangling Docker containers,
 containers that Nomad starts yet does not manage or track. Though rare, they
 sometimes in very loaded clusters and lead to unexpectedly running services,
 potentially with stale versions.
 
-When docker daemon becomes unavailable as Nomad starts a task, it is possible
+When Docker daemon becomes unavailable as Nomad starts a task, it is possible
 for Docker to successfully start the container and fails the API call with 500
 error code. In such cases, Nomad retries and eventually aims to kill such
 containers. However, if the Docker Engine remains unhealthy, subsequent retries
 and stop attempts may still fail, and the started container becomes a dangling
-container that Nomad no longer manges.
+container that Nomad no longer manages.
 
 The newly added reaper periodically scans for such containers. It only targets
 containers with a `com.hashicorp.nomad.allocation_id` label, or match Nomad's
 conventions for naming and bind-mounts (i.e. `/alloc`, `/secrets`, `local`).
 Containers that don't match Nomad container patterns are left untouched.
 
-Operators can run the reaper in a dry mode, where it only logs dangling
+Operators can run the reaper in a dry run mode, where it only logs dangling
 container ids without killing them, or simply disable it through
 the `gc.dangling_containers` config stanza.
 
