@@ -805,77 +805,90 @@ workflows:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-client:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-nomad:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-api:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-devices:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-other:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-docker:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-exec:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-shared-exec:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-32bit:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-e2e:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
     - test-ui:
         filters:
           branches:
             ignore:
             - stable-website
+            - /^docs-.*/
     - test-website:
         filters:
           branches:
             ignore:
             - /^.-ui\b.*/
+            - /^docs-.*/
             - stable-website
   website:
     jobs:
