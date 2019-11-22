@@ -922,8 +922,8 @@ containers that Nomad starts yet does not manage or track. Though rare, they
 lead to unexpectedly running services, potentially with stale versions.
 
 When Docker daemon becomes unavailable as Nomad starts a task, it is possible
-for Docker to successfully start the container and fails the API call with 500
-error code. In such cases, Nomad retries and eventually aims to kill such
+for Docker to successfully start the container but return a 500 error code from
+the API call. In such cases, Nomad retries and eventually aims to kill such
 containers. However, if the Docker Engine remains unhealthy, subsequent retries
 and stop attempts may still fail, and the started container becomes a dangling
 container that Nomad no longer manages.
@@ -933,9 +933,9 @@ containers with a `com.hashicorp.nomad.allocation_id` label, or match Nomad's
 conventions for naming and bind-mounts (i.e. `/alloc`, `/secrets`, `local`).
 Containers that don't match Nomad container patterns are left untouched.
 
-Operators can run the reaper in a dry run mode, where it only logs dangling
-container ids without killing them, or simply disable it through
-the `gc.dangling_containers` config stanza.
+Operators can run the reaper in a dry-run mode, where it only logs dangling
+container ids without killing them, or disable it by setting the
+`gc.dangling_containers` config stanza.
 
 ### Docker for Windows
 
