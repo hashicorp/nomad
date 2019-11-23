@@ -8,10 +8,22 @@ description: |-
 
 # Installing Nomad
 
-Installing Nomad is simple. There are two approaches to installing Nomad:
+Installing Nomad is simple. There are multple approaches to installing Nomad:
 
 1. Using a <a href="#precompiled-binaries">precompiled binary</a>
 1. Installing <a href="#from-source">from source</a>
+1. Following the <a href="https://www.nomadproject.io/guides/install/quickstart/index.html">Quickstart guides</a>
+   - AWS
+     - <a href="https://aws.amazon.com/quickstart/architecture/nomad/">CloudFormation</a>
+     - <a href="https://github.com/hashicorp/nomad/tree/master/terraform/aws">Terraform</a>
+   - Azure
+     - <a href="https://github.com/hashicorp/nomad/tree/master/terraform/azure">Terraform</a>
+   - HashiCorp Learn
+     - <a href="https://learn.hashicorp.com/nomad/getting-started/install">Precompiled binary</a>
+     - <a href="https://learn.hashicorp.com/nomad/getting-started/install#vagrant-setup-optional-">Vagrant</a>
+   - Katacoda
+     - <a href="https://www.katacoda.com/hashicorp/scenarios/nomad-introduction">Introduction</a>
+     - <a href="https://katacoda.com/hashicorp/scenarios/playground">Playground</a>
 
 Downloading a precompiled binary is easiest, and we provide downloads over
 TLS along with SHA-256 sums to verify the binary.
