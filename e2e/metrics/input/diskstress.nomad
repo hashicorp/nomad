@@ -2,6 +2,11 @@ job "diskstress" {
   datacenters = ["dc1", "dc2"]
   type        = "batch"
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "diskstress" {
     count = 1
 

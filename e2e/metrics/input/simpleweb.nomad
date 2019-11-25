@@ -2,6 +2,11 @@ job "nginx" {
   datacenters = ["dc1"]
   type        = "system"
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "simpleweb" {
     update {
       stagger          = "5s"

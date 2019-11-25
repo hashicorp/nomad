@@ -2,6 +2,11 @@ job "consul-example" {
   datacenters = ["dc1"]
   type        = "service"
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   update {
     max_parallel      = 1
     min_healthy_time  = "10s"

@@ -5,6 +5,11 @@
 job "restarter" {
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "restarter" {
     restart {
       attempts = 100

@@ -2,6 +2,11 @@ job "r1" {
   datacenters = ["dc1", "dc2"]
   type        = "service"
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   spread {
     attribute = "${node.datacenter}"
     weight    = 100

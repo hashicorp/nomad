@@ -1,6 +1,11 @@
 job "redis" {
   datacenters = ["dc1", "dc2"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "cache" {
     count = 4
 
