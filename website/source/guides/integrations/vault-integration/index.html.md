@@ -665,8 +665,7 @@ below </h2>
 [creation-statements]: https://www.vaultproject.io/api/secret/databases/index.html#creation_statements
 [destination]: /docs/job-specification/template.html#destination
 [fabio]: https://github.com/fabiolb/fabio
-[fabio-job]: /guides/load-balancing/fabio.html#step-1-create-a-job-for-fabio
-[fabio-lb]: /guides/load-balancing/fabio.html
+[fabio-lb]: https://learn.hashicorp.com/guides/load-balancing/fabio
 [inline]: /docs/job-specification/template.html#inline-template
 [login]: https://www.vaultproject.io/docs/commands/login.html
 [nomad-alloc-fs]: /docs/commands/alloc/fs.html
