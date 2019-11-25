@@ -142,10 +142,11 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 	}
 
 	// find LinkSpeed from lookup
-	throughput := f.linkSpeed(ec2meta)
-	if cfg.NetworkSpeed != 0 {
-		throughput = cfg.NetworkSpeed
-	} else if throughput == 0 {
+	throughput := cfg.NetworkSpeed
+	if throughput == 0 {
+		throughput = f.linkSpeed(ec2meta)
+	}
+	if throughput == 0 {
 		// Failed to determine speed. Check if the network fingerprint got it
 		found := false
 		if request.Node.Resources != nil && len(request.Node.Resources.Networks) > 0 {
