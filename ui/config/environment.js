@@ -43,6 +43,11 @@ module.exports = function(environment) {
       enabled: USE_MIRAGE,
       excludeFilesFromBuild: !USE_MIRAGE,
     };
+
+    if (process.env.STORYBOOK === 'true') {
+      ENV.APP.autoboot = false;
+      ENV.rootURL = '/';
+    }
   }
 
   if (environment === 'test') {
