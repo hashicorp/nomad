@@ -223,6 +223,91 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 			Result:           true,
 		},
 	}
+	for i, c := range cases {
+		checker.SetVolumes(c.RequestedVolumes)
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+}
+
+func TestCSIVolumeChecker(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+
+	// Register running plugins on some nodes
+	nodes[0].CSINodePlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID: "foo",
+			Healthy:  true,
+		},
+	}
+	nodes[1].CSINodePlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID: "foo",
+			Healthy:  false,
+		},
+	}
+	nodes[2].CSINodePlugins = map[string]*structs.CSIInfo{
+		"bar": {
+			PluginID: "bar",
+			Healthy:  true,
+		},
+	}
+
+	// Create volume requests
+	noVolumes := map[string]*structs.VolumeRequest{}
+
+	volumes := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:   "csi",
+			Name:   "foo",
+			Source: "minnie-driver",
+		},
+	}
+
+	checker := NewCSIVolumeChecker(ctx)
+	cases := []struct {
+		Node             *structs.Node
+		RequestedVolumes map[string]*structs.VolumeRequest
+		Result           bool
+	}{
+		{ // Get it
+			Node:             nodes[0],
+			RequestedVolumes: volumes,
+			Result:           true,
+		},
+		{ // Unhealthy
+			Node:             nodes[1],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{ // Wrong id
+			Node:             nodes[2],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{ // No Volumes requested or available
+			Node:             nodes[3],
+			RequestedVolumes: noVolumes,
+			Result:           true,
+		},
+		{ // No Volumes requested, some available
+			Node:             nodes[0],
+			RequestedVolumes: noVolumes,
+			Result:           true,
+		},
+		{ // Volumes requested, none available
+			Node:             nodes[3],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+	}
 
 	for i, c := range cases {
 		checker.SetVolumes(c.RequestedVolumes)
