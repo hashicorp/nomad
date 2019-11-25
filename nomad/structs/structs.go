@@ -5026,7 +5026,8 @@ func (tg *TaskGroup) Validate(j *Job) error {
 
 	// Validate the Host Volumes
 	for name, decl := range tg.Volumes {
-		if decl.Type != VolumeTypeHost {
+		if !(decl.Type == VolumeTypeHost ||
+			decl.Type == VolumeTypeCSI) {
 			// TODO: Remove this error when adding new volume types
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unrecognised type %s", name, decl.Type))
 			continue
