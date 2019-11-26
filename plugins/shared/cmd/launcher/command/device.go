@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
+	"github.com/zclconf/go-cty/cty/msgpack"
 )
 
 func DeviceCommandFactory(meta Meta) cli.CommandFactory {
@@ -190,9 +191,14 @@ func (c *Device) setConfig(spec hcldec.Spec, apiVersion string, config []byte, n
 		return err
 	}
 
-	_, diag, diagErrs := hclutils.ParseHclInterface(configVal, spec, nil)
+	val, diag, diagErrs := hclutils.ParseHclInterface(configVal, spec, nil)
 	if diag.HasErrors() {
 		return multierror.Append(errors.New("failed to parse config: "), diagErrs...)
+	}
+
+	cdata, err := msgpack.Marshal(val, val.Type())
+	if err != nil {
+		return err
 	}
 
 	req := &base.Config{
