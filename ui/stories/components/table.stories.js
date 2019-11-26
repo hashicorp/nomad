@@ -349,7 +349,7 @@ export const RowLinks = () => {
         </t.head>
         <t.body @key="model.name" as |row|>
           <tr class="is-interactive">
-            <td><a href="#" class="is-primary" target="_self">{{row.model.name}}</a></td>
+            <td><a href="javascript:;" class="is-primary">{{row.model.name}}</a></td>
             <td>{{row.model.lang}}</td>
             <td>{{row.model.desc}}</td>
           </tr>
@@ -383,7 +383,7 @@ export const CellLinks = () => {
         </t.head>
         <t.body @key="model.name" as |row|>
           <tr>
-            <td><a href={{row.model.link}}>{{row.model.name}}</a></td>
+            <td><a href={{row.model.link}} target="_parent">{{row.model.name}}</a></td>
             <td>{{row.model.lang}}</td>
             <td>{{row.model.desc}}</td>
           </tr>

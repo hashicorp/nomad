@@ -10,10 +10,10 @@ export const Standard = () => {
       <h5 class="title is-5">Page tabs</h5>
       <div class="tabs">
         <ul>
-          <li><a href="#" target="_self">Overview</a></li>
-          <li><a href="#" class="is-active" target="_self">Definition</a></li>
-          <li><a href="#" target="_self">Versions</a></li>
-          <li><a href="#" target="_self">Deployments</a></li>
+          <li><a href="javascript:;">Overview</a></li>
+          <li><a href="javascript:;" class="is-active">Definition</a></li>
+          <li><a href="javascript:;">Versions</a></li>
+          <li><a href="javascript:;">Deployments</a></li>
         </ul>
       </div>
       `,
@@ -26,7 +26,7 @@ export const Single = () => {
       <h5 class="title is-5">Single page tab</h5>
       <div class="tabs">
         <ul>
-          <li><a href="#" class="is-active" target="_self">Overview</a></li>
+          <li><a href="javascript:;" class="is-active">Overview</a></li>
         </ul>
       </div>
       `,

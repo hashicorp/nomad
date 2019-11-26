@@ -34,7 +34,9 @@ addDecorator(storyFn => {
     el.appendChild(applicationWrapperElement);
   };
 
-  document.querySelector('base').setAttribute('href', '/');
+  const baseElement = document.querySelector('base');
+  baseElement.setAttribute('href', '/');
+  baseElement.removeAttribute('target');
 
   return {
     template,

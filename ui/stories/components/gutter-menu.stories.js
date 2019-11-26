@@ -14,14 +14,14 @@ export const Standard = () => {
             <aside class="menu">
               <p class="menu-label">Places</p>
               <ul class="menu-list">
-                <li><a href="#" class="is-active" target="_self">Place One</a></li>
-                <li><a href="#" target="_self">Place Two</a></li>
+                <li><a href="javascript:;" class="is-active">Place One</a></li>
+                <li><a href="javascript:;">Place Two</a></li>
               </ul>
 
               <p class="menu-label">Features</p>
               <ul class="menu-list">
-                <li><a href="#" target="_self">Feature One</a></li>
-                <li><a href="#" target="_self">Feature Two</a></li>
+                <li><a href="javascript:;">Feature One</a></li>
+                <li><a href="javascript:;">Feature Two</a></li>
               </ul>
             </aside>
           </div>
@@ -53,14 +53,14 @@ export const RichComponents = () => {
                     </PowerSelect>
                   </div>
                 </li>
-                <li><a href="#" class="is-active" target="_self">Place One</a></li>
-                <li><a href="#" target="_self">Place Two</a></li>
+                <li><a href="javascript:;" class="is-active">Place One</a></li>
+                <li><a href="javascript:;">Place Two</a></li>
               </ul>
 
               <p class="menu-label">Features</p>
               <ul class="menu-list">
-                <li><a href="#" target="_self">Feature One</a></li>
-                <li><a href="#" target="_self">Feature Two</a></li>
+                <li><a href="javascript:;">Feature One</a></li>
+                <li><a href="javascript:;">Feature Two</a></li>
               </ul>
             </aside>
           </div>
@@ -87,26 +87,26 @@ export const ManyItems = () => {
               <p class="menu-label">Places</p>
               <ul class="menu-list">
                 {{#each (array "One Two" "Three" "Four" "Five" "Six" "Seven") as |item|}}
-                  <li><a href="#" target="_self">Place {{item}}</a></li>
+                  <li><a href="javascript:;">Place {{item}}</a></li>
                 {{/each}}
               </ul>
 
               <p class="menu-label">Features</p>
               <ul class="menu-list">
                 {{#each (array "One Two" "Three" "Four" "Five" "Six" "Seven") as |item|}}
-                  <li><a href="#" target="_self">Feature {{item}}</a></li>
+                  <li><a href="javascript:;">Feature {{item}}</a></li>
                 {{/each}}
               </ul>
 
               <p class="menu-label">Other</p>
               <ul class="menu-list">
-                <li><a href="#" class="is-active" target="_self">The one that didn't fit in</a></li>
+                <li><a href="javascript:;" class="is-active">The one that didn't fit in</a></li>
               </ul>
 
               <p class="menu-label">Things</p>
               <ul class="menu-list">
                 {{#each (array "One Two" "Three" "Four" "Five" "Six" "Seven") as |item|}}
-                  <li><a href="#" target="_self">Thing {{item}}</a></li>
+                  <li><a href="javascript:;">Thing {{item}}</a></li>
                 {{/each}}
               </ul>
             </aside>
@@ -133,14 +133,14 @@ export const IconItems = () => {
             <aside class="menu">
               <p class="menu-label">Places</p>
               <ul class="menu-list">
-                <li><a href="#" target="_self">{{x-icon "clock"}} Place One</a></li>
-                <li><a href="#" class="is-active" target="_self">{{x-icon "history"}} Place Two</a></li>
+                <li><a href="javascript:;">{{x-icon "clock"}} Place One</a></li>
+                <li><a href="javascript:;" class="is-active">{{x-icon "history"}} Place Two</a></li>
               </ul>
 
               <p class="menu-label">Features</p>
               <ul class="menu-list">
-                <li><a href="#" target="_self">{{x-icon "warning"}} Feature One</a></li>
-                <li><a href="#" target="_self">{{x-icon "media-pause"}} Feature Two</a></li>
+                <li><a href="javascript:;">{{x-icon "warning"}} Feature One</a></li>
+                <li><a href="javascript:;">{{x-icon "media-pause"}} Feature Two</a></li>
               </ul>
             </aside>
           </div>

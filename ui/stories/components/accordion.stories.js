@@ -21,7 +21,7 @@ export const Standard = () => {
         <ac.body>
           <h1 class="title is-4">{{ac.item.name}}</h1>
           <p>{{ac.item.desc}}</p>
-          <p><a href="{{ac.item.link}}">Learn more...</a></p>
+          <p><a href="{{ac.item.link}}" target="_parent">Learn more...</a></p>
         </ac.body>
       </ListAccordion>
       `,
