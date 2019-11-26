@@ -113,6 +113,8 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 			continue
 		}
 
+		// TODO (TaskDependencies): update this call to use
+		// alloc.AllocatedResources.Comparable()
 		used.Add(alloc.ComparableResources())
 	}
 

@@ -2879,6 +2879,9 @@ func (n *NodeReservedNetworkResources) ParseReservedHostPorts() ([]uint64, error
 }
 
 // AllocatedResources is the set of resources to be used by an allocation.
+// TODO (TaskDependencies): Update this struct and initializer to track
+// task hooks and have Comparable() returns cpu/memory according the following
+//   MAX(SUM(prestart_completed_hooks), SUM(main))+SUM(prestart_running_hooks)
 type AllocatedResources struct {
 	// Tasks is a mapping of task name to the resources for the task.
 	Tasks map[string]*AllocatedTaskResources

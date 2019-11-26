@@ -326,6 +326,10 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		tr.logger.Error("alloc missing task group")
 		return nil, fmt.Errorf("alloc missing task group")
 	}
+
+	// TODO (TaskDependencies): Set the appropriate RestartPolicy here depending on
+	// job and hook types; consider having restart policy be a task field rather than
+	// a group setting
 	tr.restartTracker = restarts.NewRestartTracker(tg.RestartPolicy, tr.alloc.Job.Type)
 
 	// Get the driver
@@ -460,6 +464,10 @@ func (tr *TaskRunner) Run() {
 		}
 	}
 
+	// TODO (TaskDependencies): Block here until the phase corresponding to task
+	// is reached.  Use channels for coordination and consider killCtx and shutdownCtx
+	// as well like above
+
 MAIN:
 	for !tr.Alloc().TerminalStatus() {
 		select {
@@ -511,6 +519,8 @@ MAIN:
 			if resultCh, err := handle.WaitCh(context.Background()); err != nil {
 				tr.logger.Error("wait task failed", "error", err)
 			} else {
+				// TODO (TaskDependencies): wait for deadline if task is prestart/until_completed
+				// and cause it to fail if resultCh hasn't returned by deadline
 				select {
 				case <-tr.killCtx.Done():
 					// We can go through the normal should restart check since

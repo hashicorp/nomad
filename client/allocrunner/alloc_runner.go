@@ -29,6 +29,11 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
+// TODO (TaskDependencies): for coordinating tasks blocking, introduce a helper
+// structs that is passed Tasks and becomes the condition for unblocking
+// TaskRunner.Run function.
+// Need to be set as a field in allocRunner and taskRunner and passed along when creating TRs.
+
 // allocRunner is used to run all the tasks in a given allocation
 type allocRunner struct {
 	// id is the ID of the allocation. Can be accessed without a lock
@@ -398,6 +403,12 @@ func (ar *allocRunner) TaskStateUpdated() {
 // kill tasks which causes further task state updates.
 func (ar *allocRunner) handleTaskStateUpdates() {
 	defer close(ar.taskStateUpdateHandlerCh)
+
+	// TODO (TaskDependencies): Update logic here to inspect completed task
+	// and unblock appropriate task runners
+	// e.g. unblock main tasks when all prestart tasks started and
+	// prestart/block_until=completed finished
+	//
 
 	for done := false; !done; {
 		select {
