@@ -2359,6 +2359,136 @@ func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+// TestServiceSched_JobModify_NodeReschedulePenalty ensures that
+// a failing allocation gets rescheduled with a penalty to the old
+// node, but an updated job doesn't apply the penalty.
+func TestServiceSched_JobModify_NodeReschedulePenalty(t *testing.T) {
+	h := NewHarness(t)
+	require := require.New(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		require.NoError(h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      1,
+		Interval:      15 * time.Minute,
+		Delay:         5 * time.Second,
+		MaxDelay:      1 * time.Minute,
+		DelayFunction: "constant",
+	}
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	require.NoError(h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 2; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	// Mark one of the allocations as failed
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-10 * time.Second)}}
+	failedAlloc := allocs[1]
+	failedAllocID := failedAlloc.ID
+	successAllocID := allocs[0].ID
+
+	require.NoError(h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create and process a mock evaluation
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(h.Process(NewServiceScheduler, eval))
+
+	// Ensure we have one plan
+	require.Equal(1, len(h.Plans))
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	require.NoError(err)
+
+	// Verify that one new allocation got created with its restart tracker info
+	require.Equal(3, len(out))
+	var newAlloc *structs.Allocation
+	for _, alloc := range out {
+		if alloc.ID != successAllocID && alloc.ID != failedAllocID {
+			newAlloc = alloc
+		}
+	}
+	require.Equal(failedAllocID, newAlloc.PreviousAllocation)
+	require.Equal(1, len(newAlloc.RescheduleTracker.Events))
+	require.Equal(failedAllocID, newAlloc.RescheduleTracker.Events[0].PrevAllocID)
+
+	// Verify that the node-reschedule penalty was applied to the new alloc
+	for _, scoreMeta := range newAlloc.Metrics.ScoreMetaData {
+		if scoreMeta.NodeID == failedAlloc.NodeID {
+			require.Equal(-1.0, scoreMeta.Scores["node-reschedule-penalty"],
+				"eval to replace failed alloc missing node-reshedule-penalty: %v",
+				scoreMeta.Scores,
+			)
+		}
+	}
+
+	// Update the job, such that it cannot be done in-place
+	job2 := job.Copy()
+	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
+	require.NoError(h.State.UpsertJob(h.NextIndex(), job2))
+
+	// Create and process a mock evaluation
+	eval = &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(h.Process(NewServiceScheduler, eval))
+
+	// Lookup the new allocations by JobID
+	out, err = h.State.AllocsByJob(ws, job.Namespace, job2.ID, false)
+	require.NoError(err)
+	out, _ = structs.FilterTerminalAllocs(out)
+	require.Equal(2, len(out))
+
+	// No new allocs have node-reschedule-penalty
+	for _, alloc := range out {
+		require.Nil(alloc.RescheduleTracker)
+		require.NotNil(alloc.Metrics)
+		for _, scoreMeta := range alloc.Metrics.ScoreMetaData {
+			if scoreMeta.NodeID != failedAlloc.NodeID {
+				require.Equal(0.0, scoreMeta.Scores["node-reschedule-penalty"],
+					"eval for updated job should not include node-reshedule-penalty: %v",
+					scoreMeta.Scores,
+				)
+			}
+		}
+	}
+}
+
 func TestServiceSched_JobDeregister_Purged(t *testing.T) {
 	h := NewHarness(t)
 
