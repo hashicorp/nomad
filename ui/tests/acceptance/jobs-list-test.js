@@ -119,7 +119,6 @@ module('Acceptance | jobs list', function(hooks) {
     assert.ok(JobsList.runJobButton.isDisabled);
   });
 
-  // FIXME it appears to not be possible to fetch the anonymous policy anonymously?
   test('the anonymous policy is fetched to check whether to show the job run button', async function(assert) {
     window.localStorage.removeItem('nomadTokenSecret');
 
