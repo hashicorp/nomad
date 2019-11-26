@@ -49,29 +49,20 @@ var ec2InstanceSpeedMap = map[*regexp.Regexp]int{
 // EnvAWSFingerprint is used to fingerprint AWS metadata
 type EnvAWSFingerprint struct {
 	StaticFingerprinter
+
+	// endpoint for EC2 metadata as expected by AWS SDK
+	endpoint string
+
 	logger log.Logger
 }
 
 // NewEnvAWSFingerprint is used to create a fingerprint from AWS metadata
 func NewEnvAWSFingerprint(logger log.Logger) Fingerprint {
 	f := &EnvAWSFingerprint{
-		logger: logger.Named("env_aws"),
+		logger:   logger.Named("env_aws"),
+		endpoint: strings.TrimSuffix(os.Getenv("AWS_ENV_URL"), "/meta-data/"),
 	}
 	return f
-}
-
-func ec2MetaClient(timeout time.Duration) *ec2metadata.EC2Metadata {
-	client := &http.Client{
-		Timeout:   timeout,
-		Transport: cleanhttp.DefaultTransport(),
-	}
-
-	c := aws.NewConfig().WithHTTPClient(client)
-	if endpoint := os.Getenv("AWS_ENV_URL"); endpoint != "" {
-		endpoint = strings.TrimSuffix(endpoint, "/meta-data/")
-		c = c.WithEndpoint(endpoint)
-	}
-	return ec2metadata.New(session.New(), c)
 }
 
 func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *FingerprintResponse) error {
@@ -84,7 +75,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		timeout = 1 * time.Millisecond
 	}
 
-	ec2meta := ec2MetaClient(timeout)
+	ec2meta := ec2MetaClient(f.endpoint, timeout)
 
 	if !ec2meta.Available() {
 		return nil
@@ -198,4 +189,17 @@ func (f *EnvAWSFingerprint) linkSpeed(ec2meta *ec2metadata.EC2Metadata) int {
 	}
 
 	return netSpeed
+}
+
+func ec2MetaClient(endpoint string, timeout time.Duration) *ec2metadata.EC2Metadata {
+	client := &http.Client{
+		Timeout:   timeout,
+		Transport: cleanhttp.DefaultTransport(),
+	}
+
+	c := aws.NewConfig().WithHTTPClient(client)
+	if endpoint != "" {
+		c = c.WithEndpoint(endpoint)
+	}
+	return ec2metadata.New(session.New(), c)
 }
