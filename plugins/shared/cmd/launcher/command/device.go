@@ -22,7 +22,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
-	"github.com/vmihailenco/msgpack"
+	"github.com/zclconf/go-cty/cty/msgpack"
 )
 
 func DeviceCommandFactory(meta Meta) cli.CommandFactory {
