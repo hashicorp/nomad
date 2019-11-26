@@ -137,7 +137,7 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 	mgt := acl.IsManagement()
 	var policies map[string]struct{}
 	if !mgt {
-		token, err := a.requestAuthToken(args.AuthToken)
+		token, err := a.requestACLToken(args.AuthToken)
 		if err != nil {
 			return err
 		}
@@ -221,7 +221,7 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	// If it is not a management token determine if it can get this policy
 	mgt := acl.IsManagement()
 	if !mgt && args.Name != "anonymous" {
-		token, err := a.requestAuthToken(args.AuthToken)
+		token, err := a.requestACLToken(args.AuthToken)
 		if err != nil {
 			return err
 		}
@@ -276,7 +276,7 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	return a.srv.blockingRPC(&opts)
 }
 
-func (a *ACL) requestAuthToken(secretID string) (*structs.ACLToken, error) {
+func (a *ACL) requestACLToken(secretID string) (*structs.ACLToken, error) {
 	if secretID == "" {
 		return structs.AnonymousACLToken, nil
 	}
@@ -302,7 +302,7 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	// For client typed tokens, allow them to query any policies associated with that token.
 	// This is used by clients which are resolving the policies to enforce. Any associated
 	// policies need to be fetched so that the client can determine what to allow.
-	token, err := a.requestAuthToken(args.AuthToken)
+	token, err := a.requestACLToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
