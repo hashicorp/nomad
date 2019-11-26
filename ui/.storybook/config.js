@@ -34,6 +34,22 @@ addDecorator(storyFn => {
     el.appendChild(applicationWrapperElement);
   };
 
+  /**
+   * Stories that require routing (table sorting/pagination) fail
+   * with the default iframe setup with this error:
+   *   Path /iframe.html does not start with the provided rootURL /ui/
+   *
+   * Changing ENV.rootURL fixes that but then HistoryLocation.getURL
+   * fails because baseURL is undefined, which is usually set up by
+   * Ember CLI configuring the base element. This adds the href for
+   * Ember CLI to use.
+   *
+   * The default target="_parent" breaks table sorting and pagination
+   * by trying to navigate when clicking the query-params-changing
+   * elements. Removing the base target for the iframe means that
+   * navigation-requiring links within stories need to have the
+   * target themselves.
+   */
   const baseElement = document.querySelector('base');
   baseElement.setAttribute('href', '/');
   baseElement.removeAttribute('target');
