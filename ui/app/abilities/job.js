@@ -31,16 +31,12 @@ export default Ability.extend({
     }, []);
   }),
 
-  policiesSupportRunning: computed(
-    'rulesForActiveNamespace.@each.policy',
-    'rulesForActiveNamespace.@each.capabilities',
-    function() {
-      return this.rulesForActiveNamespace.some(rules => {
-        const capabilities = getWithDefault(rules, 'Capabilities', []);
-        return capabilities.includes('submit-job');
-      });
-    }
-  ),
+  policiesSupportRunning: computed('rulesForActiveNamespace.@each.capabilities', function() {
+    return this.rulesForActiveNamespace.some(rules => {
+      const capabilities = getWithDefault(rules, 'Capabilities', []);
+      return capabilities.includes('submit-job');
+    });
+  }),
 
   // Chooses the closest namespace as described at the bottom here:
   // https://www.nomadproject.io/guides/security/acl.html#namespace-rules
