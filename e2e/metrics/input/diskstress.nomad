@@ -1,28 +1,40 @@
 job "diskstress" {
   datacenters = ["dc1", "dc2"]
-  type = "batch"
+  type        = "batch"
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "diskstress" {
     count = 1
+
     restart {
-      mode = "fail"
+      mode     = "fail"
       attempts = 0
     }
+
     reschedule {
-      attempts = 3
-      interval = "10m"
+      attempts  = 3
+      interval  = "10m"
       unlimited = false
     }
+
     task "diskstress" {
       driver = "docker"
 
       config {
         image = "progrium/stress"
-        args = [
-          "-d", "2",
-          "-t", "30"
-        ]
 
+        args = [
+          "-d",
+          "2",
+          "-t",
+          "30",
+        ]
       }
+
       resources {
         cpu    = 4096
         memory = 256

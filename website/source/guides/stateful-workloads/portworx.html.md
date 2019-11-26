@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Stateful Workloads with Portworx"
-sidebar_current: "guides-stateful-workloads"
+sidebar_current: "guides-stateful-workloads-portworx"
 description: |-
   There are multiple approaches to deploying stateful applications in Nomad.
   This guide uses Portworx deploy a MySQL database.

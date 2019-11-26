@@ -1,6 +1,8 @@
 package nomad
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -730,24 +732,29 @@ func TestEvalBroker_Dequeue_Empty_Timeout(t *testing.T) {
 	t.Parallel()
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
-	doneCh := make(chan struct{}, 1)
 
+	errCh := make(chan error)
 	go func() {
+		defer close(errCh)
 		out, _, err := b.Dequeue(defaultSched, 0)
 		if err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
+			return
 		}
 		if out == nil {
-			t.Fatal("Expect an eval")
+			errCh <- errors.New("expected a non-nil value")
+			return
 		}
-		doneCh <- struct{}{}
 	}()
 
 	// Sleep for a little bit
 	select {
 	case <-time.After(5 * time.Millisecond):
-	case <-doneCh:
-		t.Fatalf("Dequeue(0) should block")
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("error from dequeue goroutine: %s", err)
+		}
+		t.Fatalf("Dequeue(0) should block, not finish")
 	}
 
 	// Enqueue to unblock the dequeue.
@@ -755,8 +762,10 @@ func TestEvalBroker_Dequeue_Empty_Timeout(t *testing.T) {
 	b.Enqueue(eval)
 
 	select {
-	case <-doneCh:
-		return
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("error from dequeue goroutine: %s", err)
+		}
 	case <-time.After(5 * time.Millisecond):
 		t.Fatal("timeout: Dequeue(0) should return after enqueue")
 	}
@@ -867,22 +876,35 @@ func TestEvalBroker_Dequeue_Blocked(t *testing.T) {
 	b.SetEnabled(true)
 
 	// Start with a blocked dequeue
-	outCh := make(chan *structs.Evaluation, 1)
+	outCh := make(chan *structs.Evaluation)
+	errCh := make(chan error)
 	go func() {
+		defer close(errCh)
+		defer close(outCh)
 		start := time.Now()
 		out, _, err := b.Dequeue(defaultSched, time.Second)
-		end := time.Now()
-		outCh <- out
 		if err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
+			return
 		}
+		end := time.Now()
 		if d := end.Sub(start); d < 5*time.Millisecond {
-			t.Fatalf("bad: %v", d)
+			errCh <- fmt.Errorf("test broker dequeue duration too fast: %v", d)
+			return
 		}
+		outCh <- out
 	}()
 
-	// Wait for a bit
-	time.Sleep(5 * time.Millisecond)
+	// Wait for a bit, or t.Fatal if an error has already happened in
+	// the goroutine
+	select {
+	case <-time.After(5 * time.Millisecond):
+		// no errors yet, soldier on
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("error from anonymous goroutine before enqueue: %v", err)
+		}
+	}
 
 	// Enqueue
 	eval := mock.Eval()
@@ -892,10 +914,15 @@ func TestEvalBroker_Dequeue_Blocked(t *testing.T) {
 	select {
 	case out := <-outCh:
 		if out != eval {
-			t.Fatalf("bad: %v", out)
+			prettyExp, _ := json.MarshalIndent(eval, "", "\t")
+			prettyGot, _ := json.MarshalIndent(out, "", "\t")
+			t.Fatalf("dequeue result expected:\n%s\ngot:\n%s",
+				string(prettyExp), string(prettyGot))
 		}
+	case err := <-errCh:
+		t.Fatalf("error from anonymous goroutine after enqueue: %v", err)
 	case <-time.After(time.Second):
-		t.Fatalf("timeout")
+		t.Fatalf("timeout waiting for dequeue result")
 	}
 }
 
@@ -999,13 +1026,16 @@ func TestEvalBroker_PauseResumeNackTimeout(t *testing.T) {
 	// Pause in 20 milliseconds
 	time.Sleep(20 * time.Millisecond)
 	if err := b.PauseNackTimeout(out.ID, token); err != nil {
-		t.Fatalf("err: %v", err)
+		t.Fatalf("pause nack timeout error: %v", err)
 	}
 
+	errCh := make(chan error)
 	go func() {
+		defer close(errCh)
 		time.Sleep(20 * time.Millisecond)
 		if err := b.ResumeNackTimeout(out.ID, token); err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
+			return
 		}
 	}()
 
@@ -1013,15 +1043,24 @@ func TestEvalBroker_PauseResumeNackTimeout(t *testing.T) {
 	out, _, err = b.Dequeue(defaultSched, time.Second)
 	end := time.Now()
 	if err != nil {
-		t.Fatalf("err: %v", err)
+		t.Fatalf("dequeue error: %v", err)
 	}
 	if out != eval {
-		t.Fatalf("bad: %v", out)
+		prettyExp, _ := json.MarshalIndent(eval, "", "\t")
+		prettyGot, _ := json.MarshalIndent(out, "", "\t")
+		t.Fatalf("dequeue result expected:\n%s\ngot:\n%s",
+			string(prettyExp), string(prettyGot))
 	}
 
 	// Check the nack timer
 	if diff := end.Sub(start); diff < 95*time.Millisecond {
-		t.Fatalf("bad: %#v", diff)
+		t.Fatalf("deqeue happened too fast: %#v", diff)
+	}
+
+	// check the result of ResumeNackTimeout
+	err = <-errCh
+	if err != nil {
+		t.Fatalf("resume nack timeout error:%s", err)
 	}
 }
 
@@ -1252,22 +1291,35 @@ func TestEvalBroker_EnqueueAll_Dequeue_Fair(t *testing.T) {
 	b.SetEnabled(true)
 
 	// Start with a blocked dequeue
-	outCh := make(chan *structs.Evaluation, 1)
+	outCh := make(chan *structs.Evaluation)
+	errCh := make(chan error)
 	go func() {
+		defer close(errCh)
+		defer close(outCh)
 		start := time.Now()
 		out, _, err := b.Dequeue(defaultSched, time.Second)
-		end := time.Now()
-		outCh <- out
 		if err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
+			return
 		}
+		end := time.Now()
 		if d := end.Sub(start); d < 5*time.Millisecond {
-			t.Fatalf("bad: %v", d)
+			errCh <- fmt.Errorf("test broker dequeue duration too fast: %v", d)
+			return
 		}
+		outCh <- out
 	}()
 
-	// Wait for a bit
-	time.Sleep(5 * time.Millisecond)
+	// Wait for a bit, or t.Fatal if an error has already happened in
+	// the goroutine
+	select {
+	case <-time.After(5 * time.Millisecond):
+		// no errors yet, soldier on
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("error from anonymous goroutine before enqueue: %v", err)
+		}
+	}
 
 	// Enqueue
 	evals := make(map[*structs.Evaluation]string, 8)
@@ -1284,10 +1336,14 @@ func TestEvalBroker_EnqueueAll_Dequeue_Fair(t *testing.T) {
 	select {
 	case out := <-outCh:
 		if out.Priority != expectedPriority {
-			t.Fatalf("bad: %v", out)
+			pretty, _ := json.MarshalIndent(out, "", "\t")
+			t.Logf("bad priority on *structs.Evaluation: %s", string(pretty))
+			t.Fatalf("priority wanted:%d, priority got:%d", expectedPriority, out.Priority)
 		}
+	case err := <-errCh:
+		t.Fatalf("error from anonymous goroutine after enqueue: %v", err)
 	case <-time.After(time.Second):
-		t.Fatalf("timeout")
+		t.Fatalf("timeout waiting for dequeue result")
 	}
 }
 

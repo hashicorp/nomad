@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestACLEndpoint_GetPolicy(t *testing.T) {
@@ -28,10 +29,14 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 	policy := mock.ACLPolicy()
 	s1.fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{policy})
 
+	anonymousPolicy := mock.ACLPolicy()
+	anonymousPolicy.Name = "anonymous"
+	s1.fsm.State().UpsertACLPolicies(1001, []*structs.ACLPolicy{anonymousPolicy})
+
 	// Create a token with one the policy
 	token := mock.ACLToken()
 	token.Policies = []string{policy.Name}
-	s1.fsm.State().UpsertACLTokens(1001, []*structs.ACLToken{token})
+	s1.fsm.State().UpsertACLTokens(1002, []*structs.ACLToken{token})
 
 	// Lookup the policy
 	get := &structs.ACLPolicySpecificRequest{
@@ -53,7 +58,7 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	assert.Equal(t, uint64(1000), resp.Index)
+	assert.Equal(t, uint64(1001), resp.Index)
 	assert.Nil(t, resp.Policy)
 
 	// Lookup the policy with the token
@@ -70,6 +75,32 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 	}
 	assert.EqualValues(t, 1000, resp2.Index)
 	assert.Equal(t, policy, resp2.Policy)
+
+	// Lookup the anonymous policy with no token
+	get = &structs.ACLPolicySpecificRequest{
+		Name: anonymousPolicy.Name,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	var resp3 structs.SingleACLPolicyResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", get, &resp3); err != nil {
+		require.NoError(t, err)
+	}
+	assert.EqualValues(t, 1001, resp3.Index)
+	assert.Equal(t, anonymousPolicy, resp3.Policy)
+
+	// Lookup non-anonoymous policy with no token
+	get = &structs.ACLPolicySpecificRequest{
+		Name: policy.Name,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	var resp4 structs.SingleACLPolicyResponse
+	err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", get, &resp4)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), structs.ErrPermissionDenied.Error())
 }
 
 func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
@@ -374,6 +405,57 @@ func TestACLEndpoint_ListPolicies(t *testing.T) {
 	if assert.Len(resp3.Policies, 1) {
 		assert.Equal(resp3.Policies[0].Name, p1.Name)
 	}
+}
+
+// TestACLEndpoint_ListPolicies_Unauthenticated asserts that
+// unauthenticated ListPolicies returns anonymous policy if one
+// exists, otherwise, empty
+func TestACLEndpoint_ListPolicies_Unauthenticated(t *testing.T) {
+	t.Parallel()
+	s1, _ := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	listPolicies := func() (*structs.ACLPolicyListResponse, error) {
+		// Lookup the policies
+		get := &structs.ACLPolicyListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region: "global",
+			},
+		}
+
+		var resp structs.ACLPolicyListResponse
+		err := msgpackrpc.CallWithCodec(codec, "ACL.ListPolicies", get, &resp)
+		if err != nil {
+			return nil, err
+		}
+		return &resp, nil
+	}
+
+	p1 := mock.ACLPolicy()
+	p1.Name = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
+	s1.fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{p1})
+
+	t.Run("no anonymous policy", func(t *testing.T) {
+		resp, err := listPolicies()
+		require.NoError(t, err)
+		require.Empty(t, resp.Policies)
+		require.Equal(t, uint64(1000), resp.Index)
+	})
+
+	// now try with anonymous policy
+	p2 := mock.ACLPolicy()
+	p2.Name = "anonymous"
+	s1.fsm.State().UpsertACLPolicies(1001, []*structs.ACLPolicy{p2})
+
+	t.Run("with anonymous policy", func(t *testing.T) {
+		resp, err := listPolicies()
+		require.NoError(t, err)
+		require.Len(t, resp.Policies, 1)
+		require.Equal(t, "anonymous", resp.Policies[0].Name)
+		require.Equal(t, uint64(1001), resp.Index)
+	})
 }
 
 func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
@@ -931,7 +1013,7 @@ func TestACLEndpoint_DeleteTokens_WithNonexistentToken(t *testing.T) {
 
 	assert.NotNil(err)
 	expectedError := fmt.Sprintf("Cannot delete nonexistent tokens: %s", nonexistentToken.AccessorID)
-	assert.Contains(expectedError, err.Error())
+	assert.Contains(err.Error(), expectedError)
 }
 
 func TestACLEndpoint_Bootstrap(t *testing.T) {

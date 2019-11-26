@@ -11,7 +11,7 @@ document.addEventListener('turbolinks:load', function() {
         // Build the quick-nav HTML:
         $("#inner h1").first().after(
             '<div id="inner-quicknav">' +
-                '<span id="inner-quicknav-trigger">' +
+                '<span id="inner-quicknav-trigger" class="g-type-label">' +
                     'Jump to Section' +
                     '<svg width="9" height="5" xmlns="http://www.w3.org/2000/svg"><path d="M8.811 1.067a.612.612 0 0 0 0-.884.655.655 0 0 0-.908 0L4.5 3.491 1.097.183a.655.655 0 0 0-.909 0 .615.615 0 0 0 0 .884l3.857 3.75a.655.655 0 0 0 .91 0l3.856-3.75z" fill-rule="evenodd"/></svg>' +
                 '</span>' +

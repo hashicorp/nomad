@@ -295,19 +295,18 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 		"nomad-role-management": nomadRoleManagementPolicy,
 	}
 	data := map[string]interface{}{
-		"allowed_policies": "default,root",
-		"orphan":           true,
-		"renewable":        true,
-		"explicit_max_ttl": 10,
+		"allowed_policies":       "default,root",
+		"orphan":                 true,
+		"renewable":              true,
+		"token_explicit_max_ttl": 10,
 	}
 	v.Config.Token = testVaultRoleAndToken(v, t, vaultPolicies, data, nil)
 
 	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
 	client, err := NewVaultClient(v.Config, logger, nil)
-	if err != nil {
-		t.Fatalf("failed to build vault client: %v", err)
-	}
+	require.NoError(t, err)
+
 	defer client.Stop()
 
 	// Wait for an error
@@ -325,13 +324,103 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("bad: %v", err)
+		require.NoError(t, err)
 	})
 
-	errStr := connErr.Error()
-	if !strings.Contains(errStr, "explicit max ttl") {
-		t.Fatalf("Expect explicit max ttl error")
+	require.Contains(t, connErr.Error(), "explicit max ttl")
+	require.Contains(t, connErr.Error(), "non-zero period")
+}
+
+// TestVaultClient_ValidateRole_Success asserts that a valid token role
+// gets marked as valid
+func TestVaultClient_ValidateRole_Success(t *testing.T) {
+	t.Parallel()
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	vaultPolicies := map[string]string{
+		"nomad-role-create":     nomadRoleCreatePolicy,
+		"nomad-role-management": nomadRoleManagementPolicy,
 	}
+	data := map[string]interface{}{
+		"allowed_policies": "default,root",
+		"orphan":           true,
+		"renewable":        true,
+		"token_period":     1000,
+	}
+	v.Config.Token = testVaultRoleAndToken(v, t, vaultPolicies, data, nil)
+
+	logger := testlog.HCLogger(t)
+	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
+	client, err := NewVaultClient(v.Config, logger, nil)
+	require.NoError(t, err)
+
+	defer client.Stop()
+
+	// Wait for an error
+	var conn bool
+	var connErr error
+	testutil.WaitForResult(func() (bool, error) {
+		conn, connErr = client.ConnectionEstablished()
+		if !conn {
+			return false, fmt.Errorf("Should connect")
+		}
+
+		if connErr != nil {
+			return false, connErr
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+}
+
+// TestVaultClient_ValidateRole_Deprecated_Success asserts that a valid token
+// role gets marked as valid, even if it uses deprecated field, period
+func TestVaultClient_ValidateRole_Deprecated_Success(t *testing.T) {
+	t.Parallel()
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	vaultPolicies := map[string]string{
+		"nomad-role-create":     nomadRoleCreatePolicy,
+		"nomad-role-management": nomadRoleManagementPolicy,
+	}
+	data := map[string]interface{}{
+		"allowed_policies": "default,root",
+		"orphan":           true,
+		"renewable":        true,
+		"period":           1000,
+	}
+	v.Config.Token = testVaultRoleAndToken(v, t, vaultPolicies, data, nil)
+
+	logger := testlog.HCLogger(t)
+	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
+	client, err := NewVaultClient(v.Config, logger, nil)
+	require.NoError(t, err)
+
+	defer client.Stop()
+
+	// Wait for an error
+	var conn bool
+	var connErr error
+	testutil.WaitForResult(func() (bool, error) {
+		conn, connErr = client.ConnectionEstablished()
+		if !conn {
+			return false, fmt.Errorf("Should connect")
+		}
+
+		if connErr != nil {
+			return false, connErr
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
 }
 
 func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {

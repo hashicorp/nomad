@@ -15,6 +15,41 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.10.2
+
+Nomad 0.10.2 addresses an issue occurring in heavily loaded clients, where
+containers are started without being properly managed by Nomad. Nomad 0.10.2
+introduced a reaper that detects and kills such containers.
+
+Operators may opt to run reaper in a dry-mode or disabling it through a client config.
+
+For more information, see [Docker Dangling containers][dangling-containers].
+
+## Nomad 0.10.0
+
+### Deployments
+
+Nomad 0.10 enables rolling deployments for service jobs by default
+and adds a default update stanza when a service job is created or updated.
+This does not affect jobs with an update stanza.
+
+In pre-0.10 releases, when updating a service job without an update stanza,
+all existing allocations are stopped while new allocations start up,
+and this may cause a service degradation or an outage.
+You can regain this behavior and disable deployments by setting `max_parallel` to 0.
+
+For more information, see [`update` stanza][update].
+
+## Nomad 0.9.5
+
+### Template Rendering
+
+Nomad 0.9.5 includes security fixes for privilege escalation vulnerabilities in handling of job `template` stanzas:
+
+ * The client host's environment variables are now cleaned before rendering the template. If a template includes the `env` function, the job should include an [`env`](https://www.nomadproject.io/docs/job-specification/env.html) stanza to allow access to the variable in the template.
+ * The `plugin` function is no longer permitted by default and will raise an error if used in a template. Operator can opt-in to permitting this function with the new [`template.function_blacklist`](https://www.nomadproject.io/docs/configuration/client.html#template-parameters) field in the client configuration.
+ * The `file` function has been changed to restrict paths to fall inside the task directory by default. Paths that used the `NOMAD_TASK_DIR` environment variable to prefix file paths should work unchanged. Relative paths or symlinks that point outside the task directory will raise an error. An operator can opt-out of this protection with the new [`template.disable_file_sandbox`](https://www.nomadproject.io/docs/configuration/client.html#template-parameters) field in the client configuration.
+
 ## Nomad 0.9.0
 
 ### Preemption
@@ -142,7 +177,7 @@ Raft Protocol versions supported by each Nomad version:
     <td>1</td>
   </tr>
   <tr>
-    <td>0.8</td>
+    <td>0.8 and later</td>
     <td>1, 2, 3</td>
   </tr>
 </table>
@@ -339,6 +374,7 @@ deleted and then Nomad 0.3.0 can be launched.
 
 [drain-api]: /api/nodes.html#drain-node
 [drain-cli]: /docs/commands/node/drain.html
+[dangling-containers]:  /docs/drivers/docker.html#dangling-containers
 [hcl2]: https://github.com/hashicorp/hcl2
 [lxc]: /docs/drivers/external/lxc.html
 [migrate]: /docs/job-specification/migrate.html
@@ -347,3 +383,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [preemption]: /docs/internals/scheduling/preemption.html
 [task-config]: /docs/job-specification/task.html#config
 [validate]: /docs/commands/job/validate.html
+[update]: /docs/job-specification/update.html

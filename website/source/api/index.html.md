@@ -99,7 +99,7 @@ for blocking queries in the documentation.
 
 Endpoints that support blocking queries return an HTTP header named
 `X-Nomad-Index`. This is a unique identifier representing the current state of
-the requested resource.
+the requested resource. On a new Nomad cluster the value of this index starts at 1.
 
 On subsequent requests for this resource, the client can set the `index` query
 string parameter to the value of `X-Nomad-Index`, indicating that the client

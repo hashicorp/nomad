@@ -40,6 +40,9 @@ function smallCluster(server) {
   server.createList('node', 5);
   server.createList('job', 5);
 
+  server.createList('allocFile', 5);
+  server.create('allocFile', 'dir', { depth: 2 });
+
   // FIXME for demonstration only
   server.create('policy', {
     id: 'anonymous',
@@ -53,9 +56,6 @@ function smallCluster(server) {
         policy = "read"
     }`,
   });
-
-  server.createList('allocFile', 5);
-  server.create('allocFile', 'dir', { depth: 2 });
 }
 
 function mediumCluster(server) {

@@ -72,16 +72,15 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 
 	h.logger.Debug("bootstrapping Connect proxy sidecar", "task", req.Task.Name, "service", serviceName)
 
-	//TODO(schmichael) relies on GRPCSocket being created
-	//TODO(schmichael) unnecessasry if the sidecar is running on the host netns
-	grpcAddr := "unix://" + filepath.Join(allocdir.SharedAllocName, allocdir.AllocGRPCSocket)
+	//TODO Should connect directly to Consul if the sidecar is running on
+	//     the host netns.
+	grpcAddr := "unix://" + allocdir.AllocGRPCSocket
 
 	// Envoy bootstrap configuration may contain a Consul token, so write
 	// it to the secrets directory like Vault tokens.
 	fn := filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json")
 
-	canary := h.alloc.DeploymentStatus.IsCanary()
-	id := agentconsul.MakeTaskServiceID(h.alloc.ID, "group-"+tg.Name, service, canary)
+	id := agentconsul.MakeAllocServiceID(h.alloc.ID, "group-"+tg.Name, service)
 	h.logger.Debug("bootstrapping envoy", "sidecar_for", service.Name, "boostrap_file", fn, "sidecar_for_id", id, "grpc_addr", grpcAddr)
 
 	// Since Consul services are registered asynchronously with this task

@@ -509,9 +509,11 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					AllocatedResources: resources,
 					DesiredStatus:      structs.AllocDesiredStatusRun,
 					ClientStatus:       structs.AllocClientStatusPending,
+					// SharedResources is considered deprecated, will be removed in 0.11.
+					// It is only set for compat reasons.
 					SharedResources: &structs.Resources{
 						DiskMB:   tg.EphemeralDisk.SizeMB,
-						Networks: tg.Networks,
+						Networks: resources.Shared.Networks,
 					},
 				}
 

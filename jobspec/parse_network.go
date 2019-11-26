@@ -12,7 +12,8 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func parseNetwork(o *ast.ObjectList) (*api.NetworkResource, error) {
+// ParseNetwork parses a collection containing exactly one NetworkResource
+func ParseNetwork(o *ast.ObjectList) (*api.NetworkResource, error) {
 	if len(o.Items) > 1 {
 		return nil, fmt.Errorf("only one 'network' resource allowed")
 	}

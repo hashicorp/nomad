@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
+	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -29,9 +31,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 
-	hclog "github.com/hashicorp/go-hclog"
 	cstate "github.com/hashicorp/nomad/client/state"
-	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -447,7 +447,6 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 
 func TestClient_WatchAllocs(t *testing.T) {
 	t.Parallel()
-	ctestutil.ExecCompatible(t)
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -462,6 +461,11 @@ func TestClient_WatchAllocs(t *testing.T) {
 
 	// Create mock allocations
 	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "10s",
+	}
 	alloc1 := mock.Alloc()
 	alloc1.JobID = job.ID
 	alloc1.Job = job
@@ -603,10 +607,14 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	// Create a new client
 	logger := testlog.HCLogger(t)
 	c1.config.Logger = logger
-	catalog := consul.NewMockCatalog(logger)
+	consulCatalog := consul.NewMockCatalog(logger)
 	mockService := consulApi.NewMockConsulServiceClient(t, logger)
 
-	c2, err := NewClient(c1.config, catalog, mockService)
+	// ensure we use non-shutdown driver instances
+	c1.config.PluginLoader = catalog.TestPluginLoaderWithOptions(t, "", c1.config.Options, nil)
+	c1.config.PluginSingletonLoader = singleton.NewSingletonLoader(logger, c1.config.PluginLoader)
+
+	c2, err := NewClient(c1.config, consulCatalog, mockService)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -635,97 +643,6 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	for _, ar := range c2.getAllocRunners() {
 		<-ar.DestroyCh()
 	}
-}
-
-func TestClient_RestoreError(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	c1, cleanup := TestClient(t, func(c *config.Config) {
-		c.DevMode = false
-		c.RPCHandler = s1
-	})
-	defer cleanup()
-
-	// Wait until the node is ready
-	waitTilNodeReady(c1, t)
-
-	// Create mock allocations
-	job := mock.Job()
-	alloc1 := mock.Alloc()
-	alloc1.NodeID = c1.Node().ID
-	alloc1.Job = job
-	alloc1.JobID = job.ID
-	alloc1.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	alloc1.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"run_for": "10s",
-	}
-	alloc1.ClientStatus = structs.AllocClientStatusRunning
-
-	state := s1.State()
-	err := state.UpsertJob(100, job)
-	require.Nil(err)
-
-	err = state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID))
-	require.Nil(err)
-
-	err = state.UpsertAllocs(102, []*structs.Allocation{alloc1})
-	require.Nil(err)
-
-	// Allocations should get registered
-	testutil.WaitForResult(func() (bool, error) {
-		c1.allocLock.RLock()
-		ar := c1.allocs[alloc1.ID]
-		c1.allocLock.RUnlock()
-		if ar == nil {
-			return false, fmt.Errorf("nil alloc runner")
-		}
-		if ar.Alloc().ClientStatus != structs.AllocClientStatusRunning {
-			return false, fmt.Errorf("client status: got %v; want %v", ar.Alloc().ClientStatus, structs.AllocClientStatusRunning)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
-
-	// Shutdown the client, saves state
-	if err := c1.Shutdown(); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Create a new client with a stateDB implementation that errors
-	logger := testlog.HCLogger(t)
-	c1.config.Logger = logger
-	catalog := consul.NewMockCatalog(logger)
-	mockService := consulApi.NewMockConsulServiceClient(t, logger)
-
-	// This stateDB returns errors for all methods called by restore
-	stateDBFunc := func(hclog.Logger, string) (cstate.StateDB, error) {
-		return &cstate.ErrDB{Allocs: []*structs.Allocation{alloc1}}, nil
-	}
-	c1.config.StateDBFactory = stateDBFunc
-
-	c2, err := NewClient(c1.config, catalog, mockService)
-	require.Nil(err)
-	defer c2.Shutdown()
-
-	// Ensure the allocation has been marked as failed on the server
-	testutil.WaitForResult(func() (bool, error) {
-		alloc, err := s1.State().AllocByID(nil, alloc1.ID)
-		require.Nil(err)
-		failed := alloc.ClientStatus == structs.AllocClientStatusFailed
-		if !failed {
-			return false, fmt.Errorf("Expected failed client status, but got %v", alloc.ClientStatus)
-		}
-		return true, nil
-	}, func(err error) {
-		require.NoError(err)
-	})
-
 }
 
 func TestClient_AddAllocError(t *testing.T) {
@@ -1254,8 +1171,7 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	// Client without network configured updates to match fingerprint
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
-	// capture the platform fingerprinted device name for the next test
-	dev := client.config.Node.NodeResources.Networks[0].Device
+
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
 			Cpu:      structs.NodeCpuResources{CpuShares: 123},
@@ -1270,6 +1186,14 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[0].Device)
 	assert.Equal(t, 80, client.config.Node.Resources.CPU)
 	assert.Equal(t, "any-interface", client.config.Node.Resources.Networks[0].Device)
+
+	// lookup an interface. client.Node starts with a hardcoded value, eth0,
+	// and is only updated async through fingerprinter.
+	// Let's just lookup network device; anyone will do for this test
+	interfaces, err := net.Interfaces()
+	require.NoError(t, err)
+	require.NotEmpty(t, interfaces)
+	dev := interfaces[0].Name
 
 	// Client with network interface configured keeps the config
 	// setting on update

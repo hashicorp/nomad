@@ -74,6 +74,10 @@ var (
 		SendSignals: true,
 		Exec:        true,
 		FSIsolation: drivers.FSIsolationChroot,
+		NetIsolationModes: []drivers.NetIsolationMode{
+			drivers.NetIsolationModeHost,
+			drivers.NetIsolationModeGroup,
+		},
 	}
 )
 
@@ -300,6 +304,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		procState:    drivers.TaskStateRunning,
 		startedAt:    taskState.StartedAt,
 		exitResult:   &drivers.ExitResult{},
+		logger:       d.logger,
 	}
 
 	d.tasks.Set(taskState.TaskConfig.ID, h)
@@ -454,10 +459,8 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 	}
 
 	if !handle.pluginClient.Exited() {
-		if handle.IsRunning() {
-			if err := handle.exec.Shutdown("", 0); err != nil {
-				handle.logger.Error("destroying executor failed", "err", err)
-			}
+		if err := handle.exec.Shutdown("", 0); err != nil {
+			handle.logger.Error("destroying executor failed", "err", err)
 		}
 
 		handle.pluginClient.Kill()

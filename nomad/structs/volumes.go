@@ -1,13 +1,23 @@
 package structs
 
-import (
-	"github.com/mitchellh/copystructure"
-	"github.com/mitchellh/mapstructure"
-)
-
 const (
 	VolumeTypeHost = "host"
 )
+
+const (
+	VolumeMountPropagationPrivate       = "private"
+	VolumeMountPropagationHostToTask    = "host-to-task"
+	VolumeMountPropagationBidirectional = "bidirectional"
+)
+
+func MountPropagationModeIsValid(propagationMode string) bool {
+	switch propagationMode {
+	case "", VolumeMountPropagationPrivate, VolumeMountPropagationHostToTask, VolumeMountPropagationBidirectional:
+		return true
+	default:
+		return false
+	}
+}
 
 // ClientHostVolumeConfig is used to configure access to host paths on a Nomad Client
 type ClientHostVolumeConfig struct {
@@ -74,29 +84,12 @@ func HostVolumeSliceMerge(a, b []*ClientHostVolumeConfig) []*ClientHostVolumeCon
 	return n
 }
 
-// HostVolumeConfig is the struct that is expected inside the `config` section
-// of a `host` type volume.
-type HostVolumeConfig struct {
-	// Source is the name of the desired HostVolume.
-	Source string
-}
-
-func (h *HostVolumeConfig) Copy() *HostVolumeConfig {
-	if h == nil {
-		return nil
-	}
-	nh := new(HostVolumeConfig)
-	*nh = *h
-	return nh
-}
-
 // VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
 type VolumeRequest struct {
 	Name     string
 	Type     string
+	Source   string
 	ReadOnly bool
-
-	Config map[string]interface{}
 }
 
 func (v *VolumeRequest) Copy() *VolumeRequest {
@@ -105,12 +98,6 @@ func (v *VolumeRequest) Copy() *VolumeRequest {
 	}
 	nv := new(VolumeRequest)
 	*nv = *v
-
-	if i, err := copystructure.Copy(nv.Config); err != nil {
-		panic(err.Error())
-	} else {
-		nv.Config = i.(map[string]interface{})
-	}
 
 	return nv
 }
@@ -131,9 +118,10 @@ func CopyMapVolumeRequest(s map[string]*VolumeRequest) map[string]*VolumeRequest
 // VolumeMount represents the relationship between a destination path in a task
 // and the task group volume that should be mounted there.
 type VolumeMount struct {
-	Volume      string
-	Destination string
-	ReadOnly    bool
+	Volume          string
+	Destination     string
+	ReadOnly        bool
+	PropagationMode string
 }
 
 func (v *VolumeMount) Copy() *VolumeMount {
@@ -157,11 +145,4 @@ func CopySliceVolumeMount(s []*VolumeMount) []*VolumeMount {
 		c[i] = v.Copy()
 	}
 	return c
-}
-
-func ParseHostVolumeConfig(m map[string]interface{}) (*HostVolumeConfig, error) {
-	var c HostVolumeConfig
-	err := mapstructure.Decode(m, &c)
-
-	return &c, err
 }

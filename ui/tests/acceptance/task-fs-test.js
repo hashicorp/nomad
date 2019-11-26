@@ -69,6 +69,11 @@ module('Acceptance | task fs', function(hooks) {
   });
 
   test('when the task is not running, an empty state is shown', async function(assert) {
+    // The API 500s on stat when not running
+    this.server.get('/client/fs/stat/:allocation_id', () => {
+      return new Response(500, {}, 'no such file or directory');
+    });
+
     task.update({
       finishedAt: new Date(),
     });

@@ -23,6 +23,7 @@ func init() {
 		Consul:      true,
 		Cases: []framework.TestCase{
 			new(ConsulE2ETest),
+			new(ScriptChecksE2ETest),
 		},
 	})
 }

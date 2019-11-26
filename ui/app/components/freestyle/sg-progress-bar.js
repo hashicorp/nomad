@@ -1,17 +1,18 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { on } from '@ember/object/evented';
 
 export default Component.extend({
   timerTicks: 0,
 
-  startTimer: function() {
+  startTimer: on('init', function() {
     this.set(
       'timer',
       setInterval(() => {
         this.incrementProperty('timerTicks');
       }, 1000)
     );
-  }.on('init'),
+  }),
 
   willDestroy() {
     clearInterval(this.timer);

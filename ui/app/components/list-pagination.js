@@ -1,8 +1,9 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 
 export default Component.extend({
-  source: computed(() => []),
+  source: overridable(() => []),
   size: 25,
   page: 1,
   spread: 2,

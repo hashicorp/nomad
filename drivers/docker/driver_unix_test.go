@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -598,22 +599,32 @@ func TestDockerDriver_CreateContainerConfig_MountsCombined(t *testing.T) {
 
 	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
 	require.NoError(t, err)
-
 	expectedMounts := []docker.HostMount{
 		{
-			Type:        "bind",
-			Source:      "/tmp/cfg-mount",
-			Target:      "/container/tmp/cfg-mount",
-			ReadOnly:    false,
-			BindOptions: &docker.BindOptions{},
+			Type:     "bind",
+			Source:   "/tmp/cfg-mount",
+			Target:   "/container/tmp/cfg-mount",
+			ReadOnly: false,
+			BindOptions: &docker.BindOptions{
+				Propagation: "",
+			},
 		},
 		{
 			Type:     "bind",
 			Source:   "/tmp/task-mount",
 			Target:   "/container/tmp/task-mount",
 			ReadOnly: true,
+			BindOptions: &docker.BindOptions{
+				Propagation: "rprivate",
+			},
 		},
 	}
+
+	if runtime.GOOS != "linux" {
+		expectedMounts[0].BindOptions = &docker.BindOptions{}
+		expectedMounts[1].BindOptions = &docker.BindOptions{}
+	}
+
 	foundMounts := c.HostConfig.Mounts
 	sort.Slice(foundMounts, func(i, j int) bool {
 		return foundMounts[i].Target < foundMounts[j].Target

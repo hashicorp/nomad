@@ -7,6 +7,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -111,17 +112,28 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	}
 
 	// create network configurator
-	nc := newNetworkConfigurator(hookLogger, ar.Alloc(), config)
+	nc, err := newNetworkConfigurator(hookLogger, ar.Alloc(), config)
+	if err != nil {
+		return fmt.Errorf("failed to initialize network configurator: %v", err)
+	}
 
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
+	alloc := ar.Alloc()
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newAllocDirHook(hookLogger, ar.allocDir),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
-		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
-		newNetworkHook(hookLogger, ns, ar.Alloc(), nm, nc),
-		newGroupServiceHook(hookLogger, ar.Alloc(), ar.consulClient),
+		newAllocHealthWatcherHook(hookLogger, alloc, hs, ar.Listener(), ar.consulClient),
+		newNetworkHook(hookLogger, ns, alloc, nm, nc),
+		newGroupServiceHook(groupServiceHookConfig{
+			alloc:          alloc,
+			consul:         ar.consulClient,
+			restarter:      ar,
+			taskEnvBuilder: taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).SetAllocDir(ar.allocDir.AllocDir),
+			logger:         hookLogger,
+		}),
+		newConsulSockHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
 	}
 
 	return nil

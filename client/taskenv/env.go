@@ -490,22 +490,19 @@ func (b *Builder) Build() *TaskEnv {
 	}
 
 	// Clean keys (see #2405)
+	prefixesToClean := [...]string{AddrPrefix, IpPrefix, PortPrefix, HostPortPrefix, MetaPrefix}
 	cleanedEnv := make(map[string]string, len(envMap))
 	for k, v := range envMap {
-		cleanedK := helper.CleanEnvVar(k, '_')
+		cleanedK := k
+		for i := range prefixesToClean {
+			if strings.HasPrefix(k, prefixesToClean[i]) {
+				cleanedK = helper.CleanEnvVar(k, '_')
+			}
+		}
 		cleanedEnv[cleanedK] = v
 	}
 
-	var cleanedDeviceEnvs map[string]string
-	if deviceEnvs != nil {
-		cleanedDeviceEnvs = make(map[string]string, len(deviceEnvs))
-		for k, v := range deviceEnvs {
-			cleanedK := helper.CleanEnvVar(k, '_')
-			cleanedDeviceEnvs[cleanedK] = v
-		}
-	}
-
-	return NewTaskEnv(cleanedEnv, cleanedDeviceEnvs, nodeAttrs)
+	return NewTaskEnv(cleanedEnv, deviceEnvs, nodeAttrs)
 }
 
 // Update task updates the environment based on a new alloc and task.
@@ -550,6 +547,9 @@ func (b *Builder) SetDeviceHookEnv(hookName string, envs map[string]string) *Bui
 // setTask is called from NewBuilder to populate task related environment
 // variables.
 func (b *Builder) setTask(task *structs.Task) *Builder {
+	if task == nil {
+		return b
+	}
 	b.taskName = task.Name
 	b.envvars = make(map[string]string, len(task.Env))
 	for k, v := range task.Env {
@@ -632,6 +632,17 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 				for _, p := range nw.DynamicPorts {
 					addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
 				}
+			}
+		}
+
+		// Add ports from group networks
+		//TODO Expose IPs but possibly only via variable interpolation
+		for _, nw := range alloc.AllocatedResources.Shared.Networks {
+			for _, p := range nw.ReservedPorts {
+				addGroupPort(b.otherPorts, p)
+			}
+			for _, p := range nw.DynamicPorts {
+				addGroupPort(b.otherPorts, p)
 			}
 		}
 	} else if alloc.TaskResources != nil {
@@ -786,6 +797,19 @@ func buildUpstreamsEnv(envMap map[string]string, upstreams []structs.ConsulUpstr
 	}
 }
 
+// SetPortMapEnvs sets the PortMap related environment variables on the map
+func SetPortMapEnvs(envs map[string]string, ports map[string]int) map[string]string {
+	if envs == nil {
+		envs = map[string]string{}
+	}
+
+	for portLabel, port := range ports {
+		portEnv := helper.CleanEnvVar(PortPrefix+portLabel, '_')
+		envs[portEnv] = strconv.Itoa(port)
+	}
+	return envs
+}
+
 // SetHostEnvvars adds the host environment variables to the tasks. The filter
 // parameter can be use to filter host environment from entering the tasks.
 func (b *Builder) SetHostEnvvars(filter []string) *Builder {
@@ -838,4 +862,16 @@ func addPort(m map[string]string, taskName, ip, portLabel string, port int) {
 	m[key] = ip
 	key = fmt.Sprintf("%s%s_%s", PortPrefix, taskName, portLabel)
 	m[key] = strconv.Itoa(port)
+}
+
+// addGroupPort adds a group network port. The To value is used if one is
+// specified.
+func addGroupPort(m map[string]string, port structs.Port) {
+	if port.To > 0 {
+		m[PortPrefix+port.Label] = strconv.Itoa(port.To)
+	} else {
+		m[PortPrefix+port.Label] = strconv.Itoa(port.Value)
+	}
+
+	m[HostPortPrefix+port.Label] = strconv.Itoa(port.Value)
 }

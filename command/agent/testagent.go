@@ -216,7 +216,7 @@ func (a *TestAgent) start() (*Agent, error) {
 		return nil, fmt.Errorf("unable to set up in memory metrics needed for agent initialization")
 	}
 
-	logger := hclog.New(&hclog.LoggerOptions{
+	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
 		Name:       "agent",
 		Level:      hclog.LevelFromString(a.Config.LogLevel),
 		Output:     a.LogOutput,

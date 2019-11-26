@@ -1,4 +1,4 @@
-Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travis-ci.org/hashicorp/nomad) [![Join the chat at https://gitter.im/hashicorp-nomad/Lobby](https://badges.gitter.im/hashicorp-nomad/Lobby.svg)](https://gitter.im/hashicorp-nomad/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+Nomad [![Build Status](https://circleci.com/gh/hashicorp/nomad.svg?style=svg)](https://circleci.com/gh/hashicorp/nomad) [![Join the chat at https://gitter.im/hashicorp-nomad/Lobby](https://badges.gitter.im/hashicorp-nomad/Lobby.svg)](https://gitter.im/hashicorp-nomad/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 =========
 
 <p align="center" style="text-align:center;">
@@ -16,11 +16,11 @@ Nomad is an easy-to-use, flexible, and performant workload orchestrator that dep
 
 Nomad enables developers to use declarative infrastructure-as-code for deploying their applications (jobs).  Nomad uses bin packing to efficiently schedule jobs and optimize for resource utilization.  Nomad is supported on macOS, Windows, and Linux.
 
-Nomad is widely adopted and used in production by PagerDuty, Target, Citadel, Trivago, SAP, Pandora, Roblox, eBay, Deluxe Entertainment, and more.   
+Nomad is widely adopted and used in production by PagerDuty, Target, Citadel, Trivago, SAP, Pandora, Roblox, eBay, Deluxe Entertainment, and more.
 
 * **Deploy Containers and Legacy Applications**: Nomad’s flexibility as an orchestrator enables an organization to run containers, legacy, and batch applications together on the same infrastructure.  Nomad brings core orchestration benefits to legacy applications without needing to containerize via pluggable task drivers.
 
-* **Simple & Reliable**:  Nomad runs as a single 75MB binary and is entirely self contained - combining resource management and scheduling into a single system.  Nomad does not require any external services for storage or coordination.  Nomad automatically handles application, node, and driver failures.  Nomad is distributed and resilient, using leader election and state replication to provide high availability in the event of failures.   
+* **Simple & Reliable**:  Nomad runs as a single 75MB binary and is entirely self contained - combining resource management and scheduling into a single system.  Nomad does not require any external services for storage or coordination.  Nomad automatically handles application, node, and driver failures.  Nomad is distributed and resilient, using leader election and state replication to provide high availability in the event of failures.
 
 * **Device Plugins & GPU Support**: Nomad offers built-in support for GPU workloads such as machine learning (ML) and artificial intelligence (AI).  Nomad uses device plugins to automatically detect and utilize resources from hardware devices such as GPU, FPGAs, and TPUs.
 
@@ -48,9 +48,9 @@ Documentation & Guides
 -------------------------------
 
 * [Installing Nomad for Production](https://www.nomadproject.io/guides/operations/deployment-guide.html)
-* [Advanced Job Scheduling on Nomad with Affinities](https://www.nomadproject.io/guides/advanced-scheduling/affinity.html)
-* [Increasing Nomad Fault Tolerance with Spread](https://www.nomadproject.io/guides/advanced-scheduling/spread.html)
-* [Load Balancing on Nomad with Fabio & Consul](https://www.nomadproject.io/guides/load-balancing/fabio.html)
+* [Advanced Job Scheduling on Nomad with Affinities](https://www.nomadproject.io/guides/operating-a-job/advanced-scheduling/affinity.html)
+* [Increasing Nomad Fault Tolerance with Spread](https://www.nomadproject.io/guides/operating-a-job/advanced-scheduling/spread.html)
+* [Load Balancing on Nomad with Fabio & Consul](https://learn.hashicorp.com/guides/load-balancing/fabio)
 * [Deploying Stateful Workloads via Portworx](https://www.nomadproject.io/guides/stateful-workloads/portworx.html)
 * [Running Apache Spark on Nomad](https://www.nomadproject.io/guides/spark/spark.html)
 * [Integrating Vault with Nomad for Secrets Management](https://www.nomadproject.io/guides/operations/vault-integration/index.html)
@@ -107,7 +107,7 @@ Who Uses Nomad
   * [Nomad at Target:  Scaling Microservices Across Public and Private Clouds](https://www.hashicorp.com/resources/nomad-scaling-target-microservices-across-cloud)
   * [Playing with Nomad from HashiCorp](https://danielparker.me/nomad/hashicorp/schedulers/nomad/)
 * Trivago
-  * [Maybe You Don’t Need Kubernetes](https://matthias-endler.de/2019/maybe-you-dont-need-kubernetes/)
+  * [Maybe You Don’t Need Kubernetes](https://endler.dev/2019/maybe-you-dont-need-kubernetes/)
   * [Nomad - Our Experiences and Best Practices](https://tech.trivago.com/2019/01/25/nomad-our-experiences-and-best-practices/)
 * Roblox
   * [How Roblox runs a platform for 70 million gamers on HashiCorp Nomad](https://portworx.com/architects-corner-roblox-runs-platform-70-million-gamers-hashicorp-nomad/)
@@ -123,8 +123,6 @@ Who Uses Nomad
   * [Tech at N26 - The Bank in the Cloud](https://medium.com/insiden26/tech-at-n26-the-bank-in-the-cloud-e5ff818b528b)
 * Elsevier
   * [Eslevier’s Container Framework with Nomad, Terraform, and Consul](https://www.hashicorp.com/resources/elsevier-nomad-container-framework-demo)
-* Palantir
-  * [Enterprise Security at Palantir with the HashiCorp stack](https://www.hashicorp.com/resources/enterprise-security-hashicorp-stack)
 * Graymeta
   * [Backend Batch Processing At Scale with Nomad](https://www.hashicorp.com/resources/backend-batch-processing-nomad)
 * NIH NCBI
@@ -140,7 +138,7 @@ Who Uses Nomad
 Contributing to Nomad
 --------------------
 
-If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.12.9+ is *required*).
+If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.12.13+ is *required*, and `gcc-go` is not supported).
 
 See the [`contributing`](contributing/) directory for more developer documentation.
 
@@ -172,6 +170,12 @@ your environment.
 $ make bootstrap
 ...
 ```
+
+Nomad creates many file handles for communicating with tasks, log handlers, etc.
+In some development environments, particularly macOS, the default number of file
+descriptors is too small to run Nomad's test suite. You should set
+`ulimit -n 1024` or higher in your shell. This setting is scoped to your current
+shell and doesn't affect other running shells or future shells.
 
 Afterwards type `make test`. This will run the tests. If this exits with exit status 0,
 then everything is working!

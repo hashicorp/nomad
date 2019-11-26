@@ -8,12 +8,12 @@ description: >
 
 # Command: operator autopilot get-config
 
-The Autopilot operator command is used to view the current Autopilot configuration. See the
-[Autopilot Guide](/guides/operations/autopilot.html) for more information about Autopilot.
+The Autopilot operator command is used to view the current Autopilot
+configuration. See the [Autopilot Guide] for more information about Autopilot.
 
 ## Usage
 
-```
+```plaintext
 nomad operator autopilot get-config [options]
 ```
 
@@ -23,7 +23,8 @@ nomad operator autopilot get-config [options]
 
 The output looks like this:
 
-```
+```shell
+$ nomad operator autopilot get-config
 CleanupDeadServers = true
 LastContactThreshold = 200ms
 MaxTrailingLogs = 250
@@ -61,3 +62,5 @@ UpgradeMigrationTag = ""
 - `UpgradeVersionTag` - Controls the node-meta key to use for
   version info when performing upgrade migrations. If left blank, the Nomad
   version will be used.
+
+[Autopilot Guide]: /guides/operations/autopilot.html

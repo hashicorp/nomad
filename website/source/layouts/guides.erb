@@ -32,6 +32,10 @@
 
               </ul>
             </li>
+
+            <li<%= sidebar_current("guides-install-windows-service") %>>
+              <a href="/guides/install/windows-service.html">Windows Service</a>
+            </li>
           </ul>
       </li>
 
@@ -51,7 +55,7 @@
             <a href="/guides/integrations/consul-integration/index.html">Consul</a>
           </li>
           <li<%= sidebar_current("guides-integrations-consul-connect") %>>
-           <a href="/guides/integrations/consul-connect/index.html">Consul Connect <sup>Beta</sup></a>
+            <a href="/guides/integrations/consul-connect/index.html">Consul Connect</a>
           </li>
           <li<%= sidebar_current("guides-integrations-vault") %>>
             <a href="/guides/integrations/vault-integration/index.html">Vault</a>
@@ -207,7 +211,10 @@
       <li<%= sidebar_current("guides-stateful-workloads") %>>
         <a href="/guides/stateful-workloads/stateful-workloads.html">Stateful Workloads</a>
         <ul class="nav">
-          <li<%= sidebar_current("guides-portworx") %>>
+          <li<%= sidebar_current("guides-stateful-workloads-host-volumes") %>>
+            <a href="/guides/stateful-workloads/host-volumes.html">Host Volumes</a>
+          </li>
+          <li<%= sidebar_current("guides-stateful-workloads-portworx") %>>
             <a href="/guides/stateful-workloads/portworx.html">Portworx</a>
           </li>
         </ul>
@@ -251,11 +258,6 @@
 
       <li<%= sidebar_current("guides-load-balancing") %>>
         <a href="/guides/load-balancing/load-balancing.html">Load Balancing</a>
-        <ul class="nav">
-          <li<%= sidebar_current("guides-fabio") %>>
-            <a href="/guides/load-balancing/fabio.html">Fabio</a>
-          </li>
-        </ul>
       </li>
 
       <li<%= sidebar_current("guides-governance-and-policy") %>>
@@ -275,6 +277,27 @@
             </li>
           </ul>
         </li>
+        </ul>
+      </li>
+
+      <li<%= sidebar_current("guides-web-ui") %>>
+        <a href="/guides/web-ui/">Web UI</a>
+        <ul class="nav">
+          <li<%= sidebar_current("guides-web-ui-access") %>>
+            <a href="/guides/web-ui/access.html">Accessing the Web UI</a>
+          </li>
+          <li<%= sidebar_current("guides-web-ui-submitting-a-job") %>>
+            <a href="/guides/web-ui/submitting-a-job.html">Submitting a Job</a>
+          </li>
+          <li<%= sidebar_current("guides-web-ui-operating-a-job") %>>
+            <a href="/guides/web-ui/operating-a-job.html">Operating a Job</a>
+          </li>
+          <li<%= sidebar_current("guides-web-ui-inspecting-the-cluster") %>>
+            <a href="/guides/web-ui/inspecting-the-cluster.html">Inspecting the Cluster</a>
+          </li>
+          <li<%= sidebar_current("guides-web-ui-securing") %>>
+            <a href="/guides/web-ui/securing.html">Securing the Web UI with ACLs</a>
+          </li>
         </ul>
       </li>
 

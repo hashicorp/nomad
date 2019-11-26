@@ -1,9 +1,10 @@
-import { Factory, faker, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'ember-cli-mirage';
+import faker from 'nomad-ui/mirage/faker';
 import { pickOne } from '../utils';
 
 const REF_TIME = new Date();
 const TROUBLESOME_CHARACTERS = '🏆 💃 🤩 🙌🏿 🖨 ? ; %'.split(' ');
-const makeWord = () => Math.round(Math.random() * 10000000 + 50000).toString(36);
+const makeWord = () => (faker.random.number(10000000) + 50000).toString(36);
 const makeSentence = (count = 10) =>
   new Array(count)
     .fill(null)
@@ -35,7 +36,7 @@ const fileBodyMapping = {
       .map((_, i) => {
         const date = new Date(2019, 6, 23);
         date.setSeconds(i * 5);
-        return `${date.toISOString()} ${makeSentence(Math.round(Math.random() * 5 + 7))}`;
+        return `${date.toISOString()} ${makeSentence(faker.random.number({ max: 5 }) + 7)}`;
       })
       .join('\n'),
   json: () =>

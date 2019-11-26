@@ -13,7 +13,7 @@ an entire allocation or individual task.
 
 ## Usage
 
-```
+```plaintext
 nomad alloc signal [options] <allocation> <task>
 ```
 
@@ -27,13 +27,12 @@ is optional and if omitted every task in the allocation will be signaled.
 
 ## Signal Options
 
-* `-s`: Signal to send to the tasks. Valid options depend on the driver.
-
-* `-verbose`: Display verbose output.
+- `-s`: Signal to send to the tasks. Valid options depend on the driver.
+- `-verbose`: Display verbose output.
 
 ## Examples
 
-```
+```shell
 $ nomad alloc signal eb17e557
 
 $ nomad alloc signal eb17e557 foo
@@ -41,4 +40,3 @@ Could not find task named: foo, found:
 * test
 <blocking>
 ```
-

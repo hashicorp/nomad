@@ -481,3 +481,25 @@ func (a *ACL) AllowQuotaWrite() bool {
 func (a *ACL) IsManagement() bool {
 	return a.management
 }
+
+// NamespaceValidator returns a func that wraps ACL.AllowNamespaceOperation in
+// a list of operations. Returns true (allowed) if acls are disabled or if
+// *any* capabilities match.
+func NamespaceValidator(ops ...string) func(*ACL, string) bool {
+	return func(acl *ACL, ns string) bool {
+		// Always allow if ACLs are disabled.
+		if acl == nil {
+			return true
+		}
+
+		for _, op := range ops {
+			if acl.AllowNamespaceOperation(ns, op) {
+				// An operation is allowed, return true
+				return true
+			}
+		}
+
+		// No operations are allowed by this ACL, return false
+		return false
+	}
+}

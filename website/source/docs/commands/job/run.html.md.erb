@@ -7,25 +7,24 @@ description: >
 ---
 
 # Command: job run
+
 **Alias: `nomad run`**
 
 The `job run` command is used to submit new jobs to Nomad or to update existing
-jobs. Job files must conform to the [job specification](/docs/job-specification/index.html)
-format.
+jobs. Job files must conform to the [job specification] format.
 
 ## Usage
 
-```
+```plaintext
 nomad job run [options] <job file>
 ```
 
 The `job run` command requires a single argument, specifying the path to a file
-containing a valid [job specification](/docs/job-specification/index.html). This file
-will be read and the job will be submitted to Nomad for scheduling. If the
-supplied path is "-", the job file is read from STDIN. Otherwise it is read
-from the file at the supplied path or downloaded and read from URL specified.
-Nomad downloads the job file using [`go-getter`](https://github.com/hashicorp/go-getter)
-and supports `go-getter` syntax.
+containing a valid [job specification]. This file will be read and the job will
+be submitted to Nomad for scheduling. If the supplied path is "-", the job file
+is read from STDIN. Otherwise it is read from the file at the supplied path or
+downloaded and read from URL specified. Nomad downloads the job file using
+[`go-getter`] and supports `go-getter` syntax.
 
 By default, on successful job submission the run command will enter an
 interactive monitor and display log information detailing the scheduling
@@ -50,34 +49,35 @@ precedence, going from highest to lowest: the `-vault-token` flag, the
 
 ## Run Options
 
-* `-check-index`: If set, the job is only registered or
+- `-check-index`: If set, the job is only registered or
   updated if the passed job modify index matches the server side version.
   If a check-index value of zero is passed, the job is only registered if it does
   not yet exist. If a non-zero value is passed, it ensures that the job is being
   updated from a known state. The use of this flag is most common in conjunction
-  with [`job plan` command](/docs/commands/job/plan.html).
+  with [`job plan` command].
 
-* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+- `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
-  [eval status](/docs/commands/eval-status.html) command
+  [eval status] command.
 
-* `-output`: Output the JSON that would be submitted to the HTTP API without
+- `-output`: Output the JSON that would be submitted to the HTTP API without
   submitting the job.
 
-* `-policy-override`: Sets the flag to force override any soft mandatory Sentinel policies.
+- `-policy-override`: Sets the flag to force override any soft mandatory
+  Sentinel policies.
 
-* `-vault-token`: If set, the passed Vault token is stored in the job before
+- `-vault-token`: If set, the passed Vault token is stored in the job before
   sending to the Nomad servers. This allows passing the Vault token without
   storing it in the job file. This overrides the token found in the $VAULT_TOKEN
   environment variable and that found in the job.
 
-* `-verbose`: Show full information.
+- `-verbose`: Show full information.
 
 ## Examples
 
 Schedule the job contained in the file `job1.nomad`, monitoring placement:
 
-```
+```shell
 $ nomad job run job1.nomad
 ==> Monitoring evaluation "52dee78a"
     Evaluation triggered by job "example"
@@ -90,7 +90,7 @@ $ nomad job run job1.nomad
 
 <a id="check-index"></a> Update the job using `check-index`:
 
-```
+```shell
 $ nomad job run -check-index 5 example.nomad
 Enforcing job modify index 5: job exists with conflicting job modify index: 6
 Job not updated
@@ -106,7 +106,7 @@ $ nomad job run -check-index 6 example.nomad
 
 Schedule the job contained in `job1.nomad` and return immediately:
 
-```
+```shell
 $ nomad job run -detach job1.nomad
 4947e728
 ```
@@ -114,7 +114,7 @@ $ nomad job run -detach job1.nomad
 Schedule a job which cannot be successfully placed. This results in a scheduling
 failure and the specifics of the placement are printed:
 
-```
+```shell
 $ nomad job run failing.nomad
 ==> Monitoring evaluation "2ae0e6a5"
     Evaluation triggered by job "example"
@@ -125,3 +125,8 @@ $ nomad job run failing.nomad
       * Constraint "${attr.kernel.name} = linux" filtered 1 nodes
     Evaluation "67493a64" waiting for additional capacity to place remainder
 ```
+
+[`go-getter`]: https://github.com/hashicorp/go-getter
+[`job plan` command]: /docs/commands/job/plan.html
+[eval status]: /docs/commands/eval-status.html
+[job specification]: /docs/job-specification/index.html

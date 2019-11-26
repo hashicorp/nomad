@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 import { inject as service } from '@ember/service';
 
 export default Component.extend({
@@ -10,7 +10,7 @@ export default Component.extend({
   allocationId: null,
 
   // An allocation can also be provided directly
-  allocation: computed('allocationId', function() {
+  allocation: overridable('allocationId', function() {
     return this.store.findRecord('allocation', this.allocationId);
   }),
 

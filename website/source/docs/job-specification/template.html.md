@@ -237,14 +237,71 @@ DB_PASSWD={{ .Data.data.DB_PASSWD | toJSON }}
 {{ end }}
 ```
 
-For more details see [go-envparser's
-README](https://github.com/hashicorp/go-envparse#readme).
+For more details see [go-envparser's README][go-envparse].
 
 ## Vault Integration
 
 ### PKI Certificate
 
-This example acquires a PKI certificate from Vault in PEM format and stores it into your application's secret directory.
+Vault is a popular open source tool for managing secrets. In addition to acting
+as an encrypted KV store, Vault can also generate dynamic secrets, like PKI/TLS
+certificates.
+
+When generating PKI certificates with Vault, the certificate, private key, and
+any intermediate certs are all returned as part of the same API call. Most
+software requires these files be placed in separate files on the system.
+
+~> **Note**: `generate_lease` must be set to `true` (non-default) on the Vault PKI
+role.<br /><br /> Failure to do so will cause the template to frequently render a new
+certificate, approximately every minute. This creates a significant number of
+certificates to be expired in Vault and could ultimately lead to Vault performance
+impacts and failures.
+
+
+#### As individual files
+
+For templates, all dependencies are mapped into a single list. This means that
+multiple templates watching the same path return the same data.
+
+```hcl
+template {
+  data = <<EOH
+{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
+{{- .Data.certificate -}}
+{{ end }}
+EOH
+  destination   = "${NOMAD_SECRETS_DIR}/certificate.crt"
+  change_mode   = "restart"
+}
+
+template {
+  data = <<EOH
+{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
+{{- .Data.issuing_ca -}}
+{{ end }}
+EOH
+  destination   = "${NOMAD_SECRETS_DIR}/ca.crt"
+  change_mode   = "restart"
+}
+
+template {
+  data = <<EOH
+{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
+{{- .Data.private_key -}}
+{{ end }}
+EOH
+  destination   = "${NOMAD_SECRETS_DIR}/private_key.key"
+  change_mode   = "restart"
+}
+```
+
+These are three different input templates, but when run under the Nomad job,
+they are compressed into a single call, sharing the resulting data.
+
+#### As a PEM formatted file
+This example acquires a PKI certificate from Vault in PEM format, concatenates
+the elements into a bundle, and stores it into your application's secret
+directory.
 
 ```hcl
 template {
@@ -258,10 +315,6 @@ EOH
   change_mode   = "restart"
 }
 ```
-
-Most users should set `generate_lease=true` on the `pki/issue/foo` role in Vault's
-PKI backend. If this value is not set, the template stanza will frequently render a new
-certificate, approximately every minute, which is probably not what you want.
 
 ### Vault KV API v1
 
@@ -308,3 +361,4 @@ options](/docs/configuration/client.html#options):
 [artifact]: /docs/job-specification/artifact.html "Nomad artifact Job Specification"
 [env]: /docs/runtime/environment.html "Nomad Runtime Environment"
 [nodevars]: /docs/runtime/interpolation.html#interpreted_node_vars "Nomad Node Variables"
+[go-envparse]: https://github.com/hashicorp/go-envparse#readme "The go-envparse Readme"

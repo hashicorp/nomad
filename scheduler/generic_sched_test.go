@@ -2164,6 +2164,92 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	}
 }
 
+// TestServiceSched_JobModify_InPlace08 asserts that inplace updates of
+// allocations created with Nomad 0.8 do not cause panics.
+//
+// COMPAT(0.11) - While we do not guarantee that upgrades from 0.8 -> 0.10
+// (skipping 0.9) are safe, we do want to avoid panics in the scheduler which
+// cause unrecoverable server outages with no chance of recovery.
+//
+// Safe to remove in 0.11.0 as no one should ever be trying to upgrade from 0.8
+// to 0.11!
+func TestServiceSched_JobModify_InPlace08(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create node
+	node := mock.Node()
+	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Generate a fake job with 0.8 allocations
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create 0.8 alloc
+	alloc := mock.Alloc()
+	alloc.Job = job.Copy()
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.AllocatedResources = nil // 0.8 didn't have this
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Update the job inplace
+	job2 := job.Copy()
+
+	job2.TaskGroups[0].Tasks[0].Services[0].Tags[0] = "newtag"
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+
+	// Create a mock evaluation
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	require.NoError(t, err)
+
+	// Ensure a single plan
+	require.Len(t, h.Plans, 1)
+	plan := h.Plans[0]
+
+	// Ensure the plan did not evict any allocs
+	var update []*structs.Allocation
+	for _, updateList := range plan.NodeUpdate {
+		update = append(update, updateList...)
+	}
+	require.Zero(t, update)
+
+	// Ensure the plan updated the existing alloc
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	require.Len(t, planned, 1)
+	for _, p := range planned {
+		require.Equal(t, job2, p.Job)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	require.Len(t, out, 1)
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
+	newAlloc := out[0]
+
+	// Verify AllocatedResources was set
+	require.NotNil(t, newAlloc.AllocatedResources)
+}
+
 func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 	h := NewHarness(t)
 

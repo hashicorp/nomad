@@ -1,20 +1,19 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 import moment from 'moment';
 
 export default Component.extend({
   tagName: 'ol',
   classNames: ['timeline'],
 
-  versions: computed(() => []),
+  versions: overridable(() => []),
 
   // Passes through to the job-diff component
   verbose: true,
 
   annotatedVersions: computed('versions.[]', function() {
-    const versions = this.versions
-      .sortBy('submitTime')
-      .reverse();
+    const versions = this.versions.sortBy('submitTime').reverse();
     return versions.map((version, index) => {
       const meta = {};
 

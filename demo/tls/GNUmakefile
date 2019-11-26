@@ -24,7 +24,7 @@ clean: ## Remove generated files
 
 # Generate Nomad certificate authority
 ca.pem ca-key.pem ca.csr:
-	@echo "==> Removing generated files..."
+	@echo "==> Generating Nomad certificate authority..."
 	cfssl gencert -initca ca-csr.json | cfssljson -bare ca
 
 # Generate Nomad server certificate

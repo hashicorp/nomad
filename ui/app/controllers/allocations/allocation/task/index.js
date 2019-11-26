@@ -1,5 +1,6 @@
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
@@ -22,7 +23,7 @@ export default Controller.extend({
       .sortBy('name');
   }),
 
-  error: computed(() => {
+  error: overridable(() => {
     // { title, description }
     return null;
   }),

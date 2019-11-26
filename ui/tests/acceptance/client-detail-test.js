@@ -2,7 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import formatDuration from 'nomad-ui/utils/format-duration';
 import moment from 'moment';

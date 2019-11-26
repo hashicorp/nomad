@@ -1,3 +1,5 @@
+For reporting security vulnerabilities [please refer to the website.](https://www.nomadproject.io/security.html)
+
 If you have a question, prepend your issue with `[question]` or preferably use the [nomad mailing list](https://www.nomadproject.io/community.html).
 
 If filing a bug please include the following:

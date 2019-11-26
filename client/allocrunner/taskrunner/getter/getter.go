@@ -18,7 +18,7 @@ var (
 	lock    sync.Mutex
 
 	// supported is the set of download schemes supported by Nomad
-	supported = []string{"http", "https", "s3", "hg", "git"}
+	supported = []string{"http", "https", "s3", "hg", "git", "gcs"}
 )
 
 const (

@@ -63,7 +63,7 @@ var (
 
 	// AllocGRPCSocket is the path relative to the task dir root for the
 	// unix socket connected to Consul's gRPC endpoint.
-	AllocGRPCSocket = filepath.Join(TmpDirName, "consul_grpc.sock")
+	AllocGRPCSocket = filepath.Join(SharedAllocName, TmpDirName, "consul_grpc.sock")
 )
 
 // AllocDir allows creating, destroying, and accessing an allocation's

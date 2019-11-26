@@ -2,6 +2,7 @@ import Ember from 'ember';
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 import { alias } from '@ember/object/computed';
 import { run } from '@ember/runloop';
 import { task, timeout } from 'ember-concurrency';
@@ -24,7 +25,7 @@ export default Component.extend({
   // Internal state
   statsError: false,
 
-  enablePolling: computed(() => !Ember.testing),
+  enablePolling: overridable(() => !Ember.testing),
 
   stats: computed('allocation', 'allocation.isRunning', function() {
     if (!this.get('allocation.isRunning')) return;

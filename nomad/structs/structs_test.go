@@ -872,10 +872,8 @@ func TestTaskGroup_Validate(t *testing.T) {
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{
 			"foo": {
-				Type: "nothost",
-				Config: map[string]interface{}{
-					"sOuRcE": "foo",
-				},
+				Type:   "nothost",
+				Source: "foo",
 			},
 		},
 		Tasks: []*Task{
@@ -1829,9 +1827,7 @@ func TestConstraint_Validate(t *testing.T) {
 		Operand: "=",
 	}
 	err = c.Validate()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Perform additional regexp validation
 	c.Operand = ConstraintRegex
@@ -1850,6 +1846,15 @@ func TestConstraint_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[0].Error(), "Malformed constraint") {
 		t.Fatalf("err: %s", err)
 	}
+
+	// Perform semver validation
+	c.Operand = ConstraintSemver
+	err = c.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Malformed constraint")
+
+	c.RTarget = ">= 0.6.1"
+	require.NoError(t, c.Validate())
 
 	// Perform distinct_property validation
 	c.Operand = ConstraintDistinctProperty
@@ -1995,7 +2000,7 @@ func TestAffinity_Validate(t *testing.T) {
 
 func TestUpdateStrategy_Validate(t *testing.T) {
 	u := &UpdateStrategy{
-		MaxParallel:      0,
+		MaxParallel:      -1,
 		HealthCheck:      "foo",
 		MinHealthyTime:   -10,
 		HealthyDeadline:  -15,
@@ -2009,7 +2014,7 @@ func TestUpdateStrategy_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[0].Error(), "Invalid health check given") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[1].Error(), "Max parallel can not be less than one") {
+	if !strings.Contains(mErr.Errors[1].Error(), "Max parallel can not be less than zero") {
 		t.Fatalf("err: %s", err)
 	}
 	if !strings.Contains(mErr.Errors[2].Error(), "Canary count can not be less than zero") {
@@ -2564,6 +2569,51 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 	if service2Name != "jmx" {
 		t.Fatalf("Expected Service Name: %s, Actual: %s", "jmx", service2Name)
 	}
+
+}
+
+func TestJob_CombinedTaskMeta(t *testing.T) {
+	j := &Job{
+		Meta: map[string]string{
+			"job_test":   "job",
+			"group_test": "job",
+			"task_test":  "job",
+		},
+		TaskGroups: []*TaskGroup{
+			{
+				Name: "group",
+				Meta: map[string]string{
+					"group_test": "group",
+					"task_test":  "group",
+				},
+				Tasks: []*Task{
+					{
+						Name: "task",
+						Meta: map[string]string{
+							"task_test": "task",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	require := require.New(t)
+	require.EqualValues(map[string]string{
+		"job_test":   "job",
+		"group_test": "group",
+		"task_test":  "task",
+	}, j.CombinedTaskMeta("group", "task"))
+	require.EqualValues(map[string]string{
+		"job_test":   "job",
+		"group_test": "group",
+		"task_test":  "group",
+	}, j.CombinedTaskMeta("group", ""))
+	require.EqualValues(map[string]string{
+		"job_test":   "job",
+		"group_test": "job",
+		"task_test":  "job",
+	}, j.CombinedTaskMeta("", "task"))
 
 }
 

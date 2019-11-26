@@ -23,10 +23,10 @@ install:
       cd %APPVEYOR_BUILD_FOLDER%
       rmdir /Q/S C:\go
 
-  # install go 1.12.9 to match version used for cutting a release
+  # install go 1.12.13 to match version used for cutting a release
   - cmd: |
       mkdir c:\go
-      appveyor DownloadFile "https://dl.google.com/go/go1.12.9.windows-amd64.zip" -FileName "%TEMP%\\go.zip"
+      appveyor DownloadFile "https://dl.google.com/go/go1.12.13.windows-amd64.zip" -FileName "%TEMP%\\go.zip"
       
   - ps: Expand-Archive $Env:TEMP\go.zip -DestinationPath C:\
 

@@ -108,6 +108,9 @@ job "docs" {
   required by the task. This overrides any `vault` block set at the `group` or
   `job` level.
 
+- `kind` `(string: <varies>)` - Used internally to manage tasks according to
+  the value of this field. Initial use case is for Consul Connect.
+
 ## `task` Examples
 
 The following examples only show the `task` stanzas. Remember that the

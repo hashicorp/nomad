@@ -17,7 +17,7 @@ Enterprise.
 
 ## Usage
 
-```
+```plaintext
 nomad quota status [options] <quota_name>
 ```
 
@@ -29,13 +29,13 @@ nomad quota status [options] <quota_name>
 
 View the status of a quota specification:
 
-```
+```shell
 $ nomad quota status default-quota
 Name        = default-quota
 Description = Limit the shared default namespace
 Limits      = 1
 
 Quota Limits
-Region  CPU Usage   Memory Usage
-global  500 / 2500  256 / 2000
+Region  CPU Usage   Memory Usage  Network Usage
+global  500 / 2500  256 / 2000    30 / 50
 ```

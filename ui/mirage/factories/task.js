@@ -1,4 +1,5 @@
-import { Factory, faker } from 'ember-cli-mirage';
+import { Factory } from 'ember-cli-mirage';
+import faker from 'nomad-ui/mirage/faker';
 import { generateResources } from '../common';
 
 const DRIVERS = ['docker', 'java', 'rkt', 'qemu', 'exec', 'raw_exec'];
@@ -10,7 +11,7 @@ export default Factory.extend({
   JobID: '',
 
   name: id => `task-${faker.hacker.noun().dasherize()}-${id}`,
-  driver: faker.list.random(...DRIVERS),
+  driver: () => faker.helpers.randomize(DRIVERS),
 
   Resources: generateResources,
 });

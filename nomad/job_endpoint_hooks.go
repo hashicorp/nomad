@@ -8,6 +8,23 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// vaultConstraintLTarget is the lefthand side of the Vault constraint
+	// injected when Vault policies are used. If an existing constraint
+	// with this target exists it overrides the injected constraint.
+	vaultConstraintLTarget = "${attr.vault.version}"
+)
+
+var (
+	// vaultConstraint is the implicit constraint added to jobs requesting a
+	// Vault token
+	vaultConstraint = &structs.Constraint{
+		LTarget: vaultConstraintLTarget,
+		RTarget: ">= 0.6.1",
+		Operand: structs.ConstraintSemver,
+	}
+)
+
 type admissionController interface {
 	Name() string
 }
@@ -53,21 +70,23 @@ func (j *Job) admissionMutators(job *structs.Job) (_ *structs.Job, warnings []er
 
 // admissionValidators returns a slice of validation warnings and a multierror
 // of validation failures.
-func (j *Job) admissionValidators(origJob *structs.Job) (warnings []error, err error) {
+func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
 	// ensure job is not mutated
 	job := origJob.Copy()
 
-	var w []error
-	errs := new(multierror.Error)
+	var warnings []error
+	var errs error
+
 	for _, validator := range j.validators {
-		w, err = validator.Validate(job)
+		w, err := validator.Validate(job)
 		j.logger.Trace("job validate results", "validator", validator.Name(), "warnings", w, "error", err)
 		if err != nil {
-			multierror.Append(errs, err)
+			errs = multierror.Append(errs, err)
 		}
 		warnings = append(warnings, w...)
 	}
-	return warnings, err
+
+	return warnings, errs
 
 }
 
@@ -110,7 +129,7 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 		return j, nil, nil
 	}
 
-	// Add Vault constraints
+	// Add Vault constraints if no Vault constraint exists
 	for _, tg := range j.TaskGroups {
 		_, ok := policies[tg.Name]
 		if !ok {
@@ -120,7 +139,7 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 
 		found := false
 		for _, c := range tg.Constraints {
-			if c.Equals(vaultConstraint) {
+			if c.LTarget == vaultConstraintLTarget {
 				found = true
 				break
 			}

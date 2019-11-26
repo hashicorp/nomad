@@ -16,6 +16,12 @@ job "binstore-storagelocker" {
     value     = "windows"
   }
 
+  constraint {
+    attribute = "${attr.vault.version}"
+    value     = ">= 0.6.1"
+    operator  = "semver"
+  }
+
   affinity {
     attribute = "${meta.team}"
     value     = "mobile"
@@ -130,7 +136,7 @@ job "binstore-storagelocker" {
       driver = "docker"
       user   = "bob"
       leader = true
-      kind = "connect-proxy:test"
+      kind   = "connect-proxy:test"
 
       affinity {
         attribute = "${meta.foo}"

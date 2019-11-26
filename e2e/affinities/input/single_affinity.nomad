@@ -1,15 +1,22 @@
 job "test1" {
   datacenters = ["dc1", "dc2"]
-  type = "service"
+  type        = "service"
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
 
   group "test1" {
     count = 5
+
     affinity {
-      attribute ="${node.datacenter}"
-      operator = "="
-      value = "dc1"
-      weight = 100
+      attribute = "${node.datacenter}"
+      operator  = "="
+      value     = "dc1"
+      weight    = 100
     }
+
     task "test" {
       driver = "raw_exec"
 

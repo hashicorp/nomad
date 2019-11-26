@@ -3,6 +3,7 @@ import { assert } from '@ember/debug';
 import { htmlSafe } from '@ember/template';
 import Evented from '@ember/object/evented';
 import EmberObject, { computed } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 import { assign } from '@ember/polyfills';
 import queryString from 'query-string';
 import { task } from 'ember-concurrency';
@@ -20,7 +21,7 @@ const Log = EmberObject.extend(Evented, {
   // Parameters
 
   url: '',
-  params: computed(() => ({})),
+  params: overridable(() => ({})),
   plainText: false,
   logFetch() {
     assert('Log objects need a logFetch method, which should have an interface like window.fetch');
