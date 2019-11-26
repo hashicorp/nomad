@@ -493,10 +493,16 @@ func TestHTTP_JobUpdateRegion(t *testing.T) {
 			ExpectedRegion: "north-america",
 		},
 		{
-			Name:           "falls back to default if no region is provided",
+			Name:           "defaults to node region global if no region is provided",
 			ConfigRegion:   "",
 			APIRegion:      "",
 			ExpectedRegion: "global",
+		},
+		{
+			Name:           "defaults to node region not-global if no region is provided",
+			ConfigRegion:   "",
+			APIRegion:      "",
+			ExpectedRegion: "not-global",
 		},
 	}
 
@@ -1492,9 +1498,53 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					ProgressDeadline: helper.TimeToPtr(5 * time.Minute),
 					AutoRevert:       helper.BoolToPtr(true),
 				},
-
 				Meta: map[string]string{
 					"key": "value",
+				},
+				Services: []*api.Service{
+					{
+						Name:       "groupserviceA",
+						Tags:       []string{"a", "b"},
+						CanaryTags: []string{"d", "e"},
+						PortLabel:  "1234",
+						Meta: map[string]string{
+							"servicemeta": "foobar",
+						},
+						CheckRestart: &api.CheckRestart{
+							Limit: 4,
+							Grace: helper.TimeToPtr(11 * time.Second),
+						},
+						Checks: []api.ServiceCheck{
+							{
+								Id:            "hello",
+								Name:          "bar",
+								Type:          "http",
+								Command:       "foo",
+								Args:          []string{"a", "b"},
+								Path:          "/check",
+								Protocol:      "http",
+								PortLabel:     "foo",
+								AddressMode:   "driver",
+								GRPCService:   "foo.Bar",
+								GRPCUseTLS:    true,
+								Interval:      4 * time.Second,
+								Timeout:       2 * time.Second,
+								InitialStatus: "ok",
+								CheckRestart: &api.CheckRestart{
+									Limit:          3,
+									IgnoreWarnings: true,
+								},
+								TaskName: "task1",
+							},
+						},
+						Connect: &api.ConsulConnect{
+							Native: false,
+							SidecarService: &api.ConsulSidecarService{
+								Tags: []string{"f", "g"},
+								Port: "9000",
+							},
+						},
+					},
 				},
 				Tasks: []*api.Task{
 					{
@@ -1531,6 +1581,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Tags:       []string{"1", "2"},
 								CanaryTags: []string{"3", "4"},
 								PortLabel:  "foo",
+								Meta: map[string]string{
+									"servicemeta": "foobar",
+								},
 								CheckRestart: &api.CheckRestart{
 									Limit: 4,
 									Grace: helper.TimeToPtr(11 * time.Second),
@@ -1798,6 +1851,48 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Meta: map[string]string{
 					"key": "value",
 				},
+				Services: []*structs.Service{
+					{
+						Name:        "groupserviceA",
+						Tags:        []string{"a", "b"},
+						CanaryTags:  []string{"d", "e"},
+						PortLabel:   "1234",
+						AddressMode: "auto",
+						Meta: map[string]string{
+							"servicemeta": "foobar",
+						},
+						Checks: []*structs.ServiceCheck{
+							{
+								Name:          "bar",
+								Type:          "http",
+								Command:       "foo",
+								Args:          []string{"a", "b"},
+								Path:          "/check",
+								Protocol:      "http",
+								PortLabel:     "foo",
+								AddressMode:   "driver",
+								GRPCService:   "foo.Bar",
+								GRPCUseTLS:    true,
+								Interval:      4 * time.Second,
+								Timeout:       2 * time.Second,
+								InitialStatus: "ok",
+								CheckRestart: &structs.CheckRestart{
+									Grace:          11 * time.Second,
+									Limit:          3,
+									IgnoreWarnings: true,
+								},
+								TaskName: "task1",
+							},
+						},
+						Connect: &structs.ConsulConnect{
+							Native: false,
+							SidecarService: &structs.ConsulSidecarService{
+								Tags: []string{"f", "g"},
+								Port: "9000",
+							},
+						},
+					},
+				},
 				Tasks: []*structs.Task{
 					{
 						Name:   "task1",
@@ -1832,6 +1927,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								CanaryTags:  []string{"3", "4"},
 								PortLabel:   "foo",
 								AddressMode: "auto",
+								Meta: map[string]string{
+									"servicemeta": "foobar",
+								},
 								Checks: []*structs.ServiceCheck{
 									{
 										Name:          "bar",

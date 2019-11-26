@@ -1,4 +1,5 @@
-import { Factory, faker } from 'ember-cli-mirage';
+import { Factory } from 'ember-cli-mirage';
+import faker from 'nomad-ui/mirage/faker';
 
 export default Factory.extend({
   id: () => faker.random.uuid(),

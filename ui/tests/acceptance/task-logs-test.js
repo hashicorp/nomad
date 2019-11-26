@@ -2,7 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import TaskLogs from 'nomad-ui/tests/pages/allocations/task/logs';
 
 let allocation;
@@ -27,6 +27,7 @@ module('Acceptance | task logs', function(hooks) {
   test('/allocation/:id/:task_name/logs should have a log component', async function(assert) {
     assert.equal(currentURL(), `/allocations/${allocation.id}/${task.name}/logs`, 'No redirect');
     assert.ok(TaskLogs.hasTaskLog, 'Task log component found');
+    assert.equal(document.title, `Task ${task.name} logs - Nomad`);
   });
 
   test('the stdout log immediately starts streaming', async function(assert) {

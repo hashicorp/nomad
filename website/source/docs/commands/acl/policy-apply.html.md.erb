@@ -12,12 +12,12 @@ The `acl policy apply` command is used to create or update ACL policies.
 
 ## Usage
 
-```
+```plaintext
 nomad acl policy apply [options] <name> <path>
 ```
 
-The `acl policy apply` command requires two arguments, the policy name and path to file.
-The policy can be read from stdin by setting the path to "-".
+The `acl policy apply` command requires two arguments, the policy name and path
+to file. The policy can be read from stdin by setting the path to "-".
 
 ## General Options
 
@@ -25,13 +25,13 @@ The policy can be read from stdin by setting the path to "-".
 
 ## Apply Options
 
-* `-description`: Sets the human readable description for the ACL policy.
+- `-description`: Sets the human readable description for the ACL policy.
 
 ## Examples
 
 Create a new ACL Policy:
 
-```
+```shell
 $ nomad acl policy apply my-policy my-policy.json
 Successfully wrote 'my-policy' ACL policy!
 ```

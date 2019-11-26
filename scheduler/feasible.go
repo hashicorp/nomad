@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -96,6 +97,86 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 	return NewStaticIterator(ctx, nodes)
 }
 
+// HostVolumeChecker is a FeasibilityChecker which returns whether a node has
+// the host volumes necessary to schedule a task group.
+type HostVolumeChecker struct {
+	ctx Context
+
+	// volumes is a map[HostVolumeName][]RequestedVolume. The requested volumes are
+	// a slice because a single task group may request the same volume multiple times.
+	volumes map[string][]*structs.VolumeRequest
+}
+
+// NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
+func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
+	return &HostVolumeChecker{
+		ctx: ctx,
+	}
+}
+
+// SetVolumes takes the volumes required by a task group and updates the checker.
+func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
+	lookupMap := make(map[string][]*structs.VolumeRequest)
+
+	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
+	// lookup performance. Also filter non-host volumes.
+	for _, req := range volumes {
+		if req.Type != structs.VolumeTypeHost {
+			continue
+		}
+
+		lookupMap[req.Source] = append(lookupMap[req.Source], req)
+	}
+	h.volumes = lookupMap
+}
+
+func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
+	if h.hasVolumes(candidate) {
+		return true
+	}
+
+	h.ctx.Metrics().FilterNode(candidate, "missing compatible host volumes")
+	return false
+}
+
+func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
+	rLen := len(h.volumes)
+	hLen := len(n.HostVolumes)
+
+	// Fast path: Requested no volumes. No need to check further.
+	if rLen == 0 {
+		return true
+	}
+
+	// Fast path: Requesting more volumes than the node has, can't meet the criteria.
+	if rLen > hLen {
+		return false
+	}
+
+	for source, requests := range h.volumes {
+		nodeVolume, ok := n.HostVolumes[source]
+		if !ok {
+			return false
+		}
+
+		// If the volume supports being mounted as ReadWrite, we do not need to
+		// do further validation for readonly placement.
+		if !nodeVolume.ReadOnly {
+			continue
+		}
+
+		// The Volume can only be mounted ReadOnly, validate that no requests for
+		// it are ReadWrite.
+		for _, req := range requests {
+			if !req.ReadOnly {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 // DriverChecker is a FeasibilityChecker which returns whether a node has the
 // drivers necessary to scheduler a task group.
 type DriverChecker struct {
@@ -141,7 +222,11 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 				return false
 			}
 
-			return driverInfo.Detected && driverInfo.Healthy
+			if driverInfo.Detected && driverInfo.Healthy {
+				continue
+			} else {
+				return false
+			}
 		}
 
 		value, ok := option.Attributes[driverStr]
@@ -159,6 +244,7 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -466,7 +552,11 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}, lFound
 	case structs.ConstraintAttributeIsNotSet:
 		return !lFound
 	case structs.ConstraintVersion:
-		return lFound && rFound && checkVersionMatch(ctx, lVal, rVal)
+		parser := newVersionConstraintParser(ctx)
+		return lFound && rFound && checkVersionMatch(ctx, parser, lVal, rVal)
+	case structs.ConstraintSemver:
+		parser := newSemverConstraintParser(ctx)
+		return lFound && rFound && checkVersionMatch(ctx, parser, lVal, rVal)
 	case structs.ConstraintRegex:
 		return lFound && rFound && checkRegexpMatch(ctx, lVal, rVal)
 	case structs.ConstraintSetContains, structs.ConstraintSetContainsAll:
@@ -516,7 +606,7 @@ func checkLexicalOrder(op string, lVal, rVal interface{}) bool {
 
 // checkVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkVersionMatch(ctx Context, lVal, rVal interface{}) bool {
+func checkVersionMatch(ctx Context, parse verConstraintParser, lVal, rVal interface{}) bool {
 	// Parse the version
 	var versionStr string
 	switch v := lVal.(type) {
@@ -540,17 +630,10 @@ func checkVersionMatch(ctx Context, lVal, rVal interface{}) bool {
 		return false
 	}
 
-	// Check the cache for a match
-	cache := ctx.VersionConstraintCache()
-	constraints := cache[constraintStr]
-
 	// Parse the constraints
+	constraints := parse(constraintStr)
 	if constraints == nil {
-		constraints, err = version.NewConstraint(constraintStr)
-		if err != nil {
-			return false
-		}
-		cache[constraintStr] = constraints
+		return false
 	}
 
 	// Check the constraints against the version
@@ -559,7 +642,7 @@ func checkVersionMatch(ctx Context, lVal, rVal interface{}) bool {
 
 // checkAttributeVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkAttributeVersionMatch(ctx Context, lVal, rVal *psstructs.Attribute) bool {
+func checkAttributeVersionMatch(ctx Context, parse verConstraintParser, lVal, rVal *psstructs.Attribute) bool {
 	// Parse the version
 	var versionStr string
 	if s, ok := lVal.GetString(); ok {
@@ -582,17 +665,10 @@ func checkAttributeVersionMatch(ctx Context, lVal, rVal *psstructs.Attribute) bo
 		return false
 	}
 
-	// Check the cache for a match
-	cache := ctx.VersionConstraintCache()
-	constraints := cache[constraintStr]
-
 	// Parse the constraints
+	constraints := parse(constraintStr)
 	if constraints == nil {
-		constraints, err = version.NewConstraint(constraintStr)
-		if err != nil {
-			return false
-		}
-		cache[constraintStr] = constraints
+		return false
 	}
 
 	// Check the constraints against the version
@@ -1034,7 +1110,17 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 			return false
 		}
 
-		return checkAttributeVersionMatch(ctx, lVal, rVal)
+		parser := newVersionConstraintParser(ctx)
+		return checkAttributeVersionMatch(ctx, parser, lVal, rVal)
+
+	case structs.ConstraintSemver:
+		if !(lFound && rFound) {
+			return false
+		}
+
+		parser := newSemverConstraintParser(ctx)
+		return checkAttributeVersionMatch(ctx, parser, lVal, rVal)
+
 	case structs.ConstraintRegex:
 		if !(lFound && rFound) {
 			return false
@@ -1078,4 +1164,51 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 		return false
 	}
 
+}
+
+// VerConstraints is the interface implemented by both go-verson constraints
+// and semver constraints.
+type VerConstraints interface {
+	Check(v *version.Version) bool
+	String() string
+}
+
+// verConstraintParser returns a version constraints implementation (go-version
+// or semver).
+type verConstraintParser func(verConstraint string) VerConstraints
+
+func newVersionConstraintParser(ctx Context) verConstraintParser {
+	cache := ctx.VersionConstraintCache()
+
+	return func(cstr string) VerConstraints {
+		if c := cache[cstr]; c != nil {
+			return c
+		}
+
+		constraints, err := version.NewConstraint(cstr)
+		if err != nil {
+			return nil
+		}
+		cache[cstr] = constraints
+
+		return constraints
+	}
+}
+
+func newSemverConstraintParser(ctx Context) verConstraintParser {
+	cache := ctx.SemverConstraintCache()
+
+	return func(cstr string) VerConstraints {
+		if c := cache[cstr]; c != nil {
+			return c
+		}
+
+		constraints, err := semver.NewConstraint(cstr)
+		if err != nil {
+			return nil
+		}
+		cache[cstr] = constraints
+
+		return constraints
+	}
 }

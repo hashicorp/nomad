@@ -1,7 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 
 module('Acceptance | clients list', function(hooks) {
@@ -26,6 +26,8 @@ module('Acceptance | clients list', function(hooks) {
     ClientsList.nodes.forEach((node, index) => {
       assert.equal(node.id, sortedNodes[index].id.split('-')[0], 'Clients are ordered');
     });
+
+    assert.equal(document.title, 'Clients - Nomad');
   });
 
   test('each client record should show high-level info of the client', async function(assert) {

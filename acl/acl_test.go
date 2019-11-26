@@ -314,6 +314,56 @@ func TestWildcardNamespaceMatching(t *testing.T) {
 	}
 }
 
+func TestWildcardHostVolumeMatching(t *testing.T) {
+	tests := []struct {
+		Policy string
+		Allow  bool
+	}{
+		{ // Wildcard matches
+			Policy: `host_volume "prod-api-*" { policy = "write" }`,
+			Allow:  true,
+		},
+		{ // Non globbed volumes are not wildcards
+			Policy: `host_volume "prod-api" { policy = "write" }`,
+			Allow:  false,
+		},
+		{ // Concrete matches take precedence
+			Policy: `host_volume "prod-api-services" { policy = "deny" }
+			         host_volume "prod-api-*" { policy = "write" }`,
+			Allow: false,
+		},
+		{
+			Policy: `host_volume "prod-api-*" { policy = "deny" }
+			         host_volume "prod-api-services" { policy = "write" }`,
+			Allow: true,
+		},
+		{ // The closest character match wins
+			Policy: `host_volume "*-api-services" { policy = "deny" }
+			         host_volume "prod-api-*" { policy = "write" }`, // 4 vs 8 chars
+			Allow: false,
+		},
+		{
+			Policy: `host_volume "prod-api-*" { policy = "write" }
+               host_volume "*-api-services" { policy = "deny" }`, // 4 vs 8 chars
+			Allow: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.Policy, func(t *testing.T) {
+			assert := assert.New(t)
+
+			policy, err := Parse(tc.Policy)
+			assert.NoError(err)
+			assert.NotNil(policy.HostVolumes)
+
+			acl, err := NewACL(false, []*Policy{policy})
+			assert.Nil(err)
+
+			assert.Equal(tc.Allow, acl.AllowHostVolume("prod-api-services"))
+		})
+	}
+}
 func TestACL_matchingCapabilitySet_returnsAllMatches(t *testing.T) {
 	tests := []struct {
 		Policy        string
@@ -351,8 +401,8 @@ func TestACL_matchingCapabilitySet_returnsAllMatches(t *testing.T) {
 			assert.Nil(err)
 
 			var namespaces []string
-			for _, cs := range acl.findAllMatchingWildcards(tc.NS) {
-				namespaces = append(namespaces, cs.ns)
+			for _, cs := range findAllMatchingWildcards(acl.wildcardNamespaces, tc.NS) {
+				namespaces = append(namespaces, cs.name)
 			}
 
 			assert.Equal(tc.MatchingGlobs, namespaces)
@@ -404,7 +454,7 @@ func TestACL_matchingCapabilitySet_difference(t *testing.T) {
 			acl, err := NewACL(false, []*Policy{policy})
 			assert.Nil(err)
 
-			matches := acl.findAllMatchingWildcards(tc.NS)
+			matches := findAllMatchingWildcards(acl.wildcardNamespaces, tc.NS)
 			assert.Equal(tc.Difference, matches[0].difference)
 		})
 	}

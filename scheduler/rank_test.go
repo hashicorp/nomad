@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	require "github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFeasibleRankIterator(t *testing.T) {
@@ -125,6 +125,246 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 	if out[1].FinalScore < 0.75 || out[1].FinalScore > 0.95 {
 		t.Fatalf("Bad Score: %v", out[1].FinalScore)
 	}
+}
+
+// Tests bin packing iterator with network resources at task and task group level
+func TestBinPackIterator_Network_Success(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				// Perfect fit
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Mode:   "host",
+							Device: "eth0",
+							CIDR:   "192.168.0.100/32",
+							MBits:  1000,
+						},
+					},
+				},
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 1024,
+					},
+					Networks: structs.NodeReservedNetworkResources{
+						ReservedHostPorts: "1000-2000",
+					},
+				},
+			},
+		},
+		{
+			Node: &structs.Node{
+				// 50% fit
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 4096,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 4096,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Mode:   "host",
+							Device: "eth0",
+							CIDR:   "192.168.0.100/32",
+							MBits:  1000,
+						},
+					},
+				},
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 1024,
+					},
+					Networks: structs.NodeReservedNetworkResources{
+						ReservedHostPorts: "1000-2000",
+					},
+				},
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	// Create a task group with networks specified at task and task group level
+	taskGroup := &structs.TaskGroup{
+		EphemeralDisk: &structs.EphemeralDisk{},
+		Tasks: []*structs.Task{
+			{
+				Name: "web",
+				Resources: &structs.Resources{
+					CPU:      1024,
+					MemoryMB: 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							MBits:  300,
+						},
+					},
+				},
+			},
+		},
+		Networks: []*structs.NetworkResource{
+			{
+				Device: "eth0",
+				MBits:  500,
+			},
+		},
+	}
+	binp := NewBinPackIterator(ctx, static, false, 0)
+	binp.SetTaskGroup(taskGroup)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+	out := collectRanked(scoreNorm)
+	require := require.New(t)
+
+	// We expect both nodes to be eligible to place
+	require.Len(out, 2)
+	require.Equal(out[0], nodes[0])
+	require.Equal(out[1], nodes[1])
+
+	// First node should have a perfect score
+	require.Equal(1.0, out[0].FinalScore)
+
+	if out[1].FinalScore < 0.75 || out[1].FinalScore > 0.95 {
+		t.Fatalf("Bad Score: %v", out[1].FinalScore)
+	}
+
+	// Verify network information at taskgroup level
+	require.Equal(500, out[0].AllocResources.Networks[0].MBits)
+	require.Equal(500, out[1].AllocResources.Networks[0].MBits)
+
+	// Verify network information at task level
+	require.Equal(300, out[0].TaskResources["web"].Networks[0].MBits)
+	require.Equal(300, out[1].TaskResources["web"].Networks[0].MBits)
+}
+
+// Tests that bin packing iterator fails due to overprovisioning of network
+// This test has network resources at task group and task level
+func TestBinPackIterator_Network_Failure(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				// 50% fit
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 4096,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 4096,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Mode:   "host",
+							Device: "eth0",
+							CIDR:   "192.168.0.100/32",
+							MBits:  1000,
+						},
+					},
+				},
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 1024,
+					},
+					Networks: structs.NodeReservedNetworkResources{
+						ReservedHostPorts: "1000-2000",
+					},
+				},
+			},
+		},
+	}
+
+	// Add a planned alloc that takes up some network mbits at task and task group level
+	plan := ctx.Plan()
+	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
+		{
+			AllocatedResources: &structs.AllocatedResources{
+				Tasks: map[string]*structs.AllocatedTaskResources{
+					"web": {
+						Cpu: structs.AllocatedCpuResources{
+							CpuShares: 2048,
+						},
+						Memory: structs.AllocatedMemoryResources{
+							MemoryMB: 2048,
+						},
+						Networks: []*structs.NetworkResource{
+							{
+								Device: "eth0",
+								IP:     "192.168.0.1",
+								MBits:  300,
+							},
+						},
+					},
+				},
+				Shared: structs.AllocatedSharedResources{
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.1",
+							MBits:  400,
+						},
+					},
+				},
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	// Create a task group with networks specified at task and task group level
+	taskGroup := &structs.TaskGroup{
+		EphemeralDisk: &structs.EphemeralDisk{},
+		Tasks: []*structs.Task{
+			{
+				Name: "web",
+				Resources: &structs.Resources{
+					CPU:      1024,
+					MemoryMB: 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							MBits:  300,
+						},
+					},
+				},
+			},
+		},
+		Networks: []*structs.NetworkResource{
+			{
+				Device: "eth0",
+				MBits:  250,
+			},
+		},
+	}
+
+	binp := NewBinPackIterator(ctx, static, false, 0)
+	binp.SetTaskGroup(taskGroup)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+	out := collectRanked(scoreNorm)
+	require := require.New(t)
+
+	// We expect a placement failure because we need 800 mbits of network
+	// and only 300 is free
+	require.Len(out, 0)
+	require.Equal(1, ctx.metrics.DimensionExhausted["network: bandwidth exceeded"])
 }
 
 func TestBinPackIterator_PlannedAlloc(t *testing.T) {

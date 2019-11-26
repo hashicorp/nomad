@@ -1,11 +1,11 @@
 resource "aws_iam_instance_profile" "instance_profile" {
-  name_prefix = "${local.random_name}"
-  role        = "${aws_iam_role.instance_role.name}"
+  name_prefix = local.random_name
+  role        = aws_iam_role.instance_role.name
 }
 
 resource "aws_iam_role" "instance_role" {
-  name_prefix        = "${local.random_name}"
-  assume_role_policy = "${data.aws_iam_policy_document.instance_role.json}"
+  name_prefix        = local.random_name
+  assume_role_policy = data.aws_iam_policy_document.instance_role.json
 }
 
 data "aws_iam_policy_document" "instance_role" {
@@ -22,8 +22,8 @@ data "aws_iam_policy_document" "instance_role" {
 
 resource "aws_iam_role_policy" "auto_discover_cluster" {
   name   = "auto-discover-cluster"
-  role   = "${aws_iam_role.instance_role.id}"
-  policy = "${data.aws_iam_policy_document.auto_discover_cluster.json}"
+  role   = aws_iam_role.instance_role.id
+  policy = data.aws_iam_policy_document.auto_discover_cluster.json
 }
 
 # Note: Overloading this instance profile to access
@@ -55,10 +55,11 @@ data "aws_iam_policy_document" "auto_discover_cluster" {
     effect = "Allow"
 
     actions = [
-        "s3:PutObject",
-        "s3:GetObject",
-        "s3:DeleteObject"
+      "s3:PutObject",
+      "s3:GetObject",
+      "s3:DeleteObject",
     ]
     resources = ["arn:aws:s3:::nomad-team-test-binary/*"]
   }
 }
+

@@ -1,5 +1,4 @@
-import { click, find } from 'ember-native-dom-helpers';
-import { settled } from '@ember/test-helpers';
+import { click, find } from '@ember/test-helpers';
 
 export function jobURL(job, path = '') {
   const id = job.get('plainId');
@@ -11,20 +10,14 @@ export function jobURL(job, path = '') {
   return expectedURL;
 }
 
-export function stopJob() {
-  click('[data-test-stop] [data-test-idle-button]');
-  return settled().then(() => {
-    click('[data-test-stop] [data-test-confirm-button]');
-    return settled();
-  });
+export async function stopJob() {
+  await click('[data-test-stop] [data-test-idle-button]');
+  await click('[data-test-stop] [data-test-confirm-button]');
 }
 
-export function startJob() {
-  click('[data-test-start] [data-test-idle-button]');
-  return settled().then(() => {
-    click('[data-test-start] [data-test-confirm-button]');
-    return settled();
-  });
+export async function startJob() {
+  await click('[data-test-start] [data-test-idle-button]');
+  await click('[data-test-start] [data-test-confirm-button]');
 }
 
 export function expectStartRequest(assert, server, job) {
@@ -39,22 +32,19 @@ export function expectStartRequest(assert, server, job) {
   assert.ok(requestPayload.Stop == null, 'The Stop signal is not sent in the POST request');
 }
 
-export function expectError(assert, title) {
-  return () => {
-    assert.equal(
-      find('[data-test-job-error-title]').textContent,
-      title,
-      'Appropriate error is shown'
-    );
-    assert.ok(
-      find('[data-test-job-error-body]').textContent.includes('ACL'),
-      'The error message mentions ACLs'
-    );
+export async function expectError(assert, title) {
+  assert.equal(
+    find('[data-test-job-error-title]').textContent,
+    title,
+    'Appropriate error is shown'
+  );
+  assert.ok(
+    find('[data-test-job-error-body]').textContent.includes('ACL'),
+    'The error message mentions ACLs'
+  );
 
-    click('[data-test-job-error-close]');
-    assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
-    return settled();
-  };
+  await click('[data-test-job-error-close]');
+  assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
 }
 
 export function expectDeleteRequest(assert, server, job) {
@@ -66,6 +56,4 @@ export function expectDeleteRequest(assert, server, job) {
       .find(req => req.url === expectedURL),
     'DELETE URL was made correctly'
   );
-
-  return settled();
 }

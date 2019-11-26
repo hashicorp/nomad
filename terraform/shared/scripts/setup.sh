@@ -9,7 +9,7 @@ cd /ops
 
 CONFIGDIR=/ops/shared/config
 
-CONSULVERSION=1.4.3
+CONSULVERSION=1.6.0
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
@@ -29,7 +29,7 @@ CONSULTEMPLATEDOWNLOAD=https://releases.hashicorp.com/consul-template/${CONSULTE
 CONSULTEMPLATECONFIGDIR=/etc/consul-template.d
 CONSULTEMPLATEDIR=/opt/consul-template
 
-HADOOP_VERSION=2.7.6
+HADOOP_VERSION=2.7.7
 
 # Dependencies
 sudo apt-get install -y software-properties-common

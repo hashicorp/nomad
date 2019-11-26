@@ -1,3 +1,4 @@
+{{title "Job " job.name " evaluations"}}
 {{partial "jobs/job/subnav"}}
 <section class="section">
   {{#if sortedEvaluations.length}}
@@ -8,6 +9,7 @@
       {{#t.head}}
         <th>ID</th>
         {{#t.sort-by prop="priority"}}Priority{{/t.sort-by}}
+        {{#t.sort-by prop="createTime"}}Created{{/t.sort-by}}
         {{#t.sort-by prop="triggeredBy"}}Triggered By{{/t.sort-by}}
         {{#t.sort-by prop="status"}}Status{{/t.sort-by}}
         {{#t.sort-by prop="hasPlacementFailures"}}Placement Failures{{/t.sort-by}}
@@ -16,6 +18,7 @@
         <tr data-test-evaluation="{{row.model.shortId}}">
           <td data-test-id>{{row.model.shortId}}</td>
           <td data-test-priority>{{row.model.priority}}</td>
+          <td data-test-create-time>{{format-month-ts row.model.createTime}}</td>
           <td data-test-triggered-by>{{row.model.triggeredBy}}</td>
           <td data-test-status>{{row.model.status}}</td>
           <td data-test-blocked>

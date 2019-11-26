@@ -1,7 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import { findLeader } from '../../mirage/config';
 import ServersList from 'nomad-ui/tests/pages/servers/list';
 
@@ -37,6 +37,8 @@ module('Acceptance | servers list', function(hooks) {
     ServersList.servers.forEach((server, index) => {
       assert.equal(server.name, sortedAgents[index].name, 'Servers are ordered');
     });
+
+    assert.equal(document.title, 'Servers - Nomad');
   });
 
   test('each server should show high-level info of the server', async function(assert) {

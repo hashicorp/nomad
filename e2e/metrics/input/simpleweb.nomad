@@ -1,9 +1,13 @@
 job "nginx" {
   datacenters = ["dc1"]
-  type = "system"
+  type        = "system"
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
 
   group "simpleweb" {
-
     update {
       stagger          = "5s"
       max_parallel     = 1
@@ -29,8 +33,7 @@ job "nginx" {
 
         network {
           mbits = 1
-          port "http" {
-          }
+          port  "http"{}
         }
       }
 
@@ -49,4 +52,3 @@ job "nginx" {
     }
   }
 }
-

@@ -7,8 +7,9 @@ import (
 // ConsulServiceAPI is the interface the Nomad Client uses to register and
 // remove services and checks from Consul.
 type ConsulServiceAPI interface {
-	RegisterTask(*consul.TaskServices) error
-	RemoveTask(*consul.TaskServices)
-	UpdateTask(old, newTask *consul.TaskServices) error
+	RegisterWorkload(*consul.WorkloadServices) error
+	RemoveWorkload(*consul.WorkloadServices)
+	UpdateWorkload(old, newTask *consul.WorkloadServices) error
 	AllocRegistrations(allocID string) (*consul.AllocRegistration, error)
+	UpdateTTL(id, output, status string) error
 }

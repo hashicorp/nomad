@@ -166,6 +166,10 @@ func (s *HTTPServer) nodeToggleEligibility(resp http.ResponseWriter, req *http.R
 	if err := decodeBody(req, &eligibilityRequest); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
+	if eligibilityRequest.NodeID == "" {
+		eligibilityRequest.NodeID = nodeID
+	}
+
 	s.parseWriteRequest(req, &eligibilityRequest.WriteRequest)
 
 	var out structs.NodeEligibilityUpdateResponse

@@ -7,20 +7,21 @@ description: >
 ---
 
 # Command: job inspect
+
 **Alias: `nomad inspect`**
 
 The `job inspect` command is used to inspect the content of a submitted job.
 
 ## Usage
 
-```
+```plaintext
 nomad job inspect [options] <job>
 ```
 
 The `job inspect` command requires a single argument, a submitted job's name, and
 will retrieve the JSON version of the job. This JSON is valid to be submitted to
-the [Job HTTP API](/api/jobs.html). This command is useful to inspect what
-version of a job Nomad is running.
+the [Job HTTP API]. This command is useful to inspect what version of a job
+Nomad is running.
 
 ## General Options
 
@@ -28,17 +29,15 @@ version of a job Nomad is running.
 
 ## Inspect Options
 
-* `-version`: Display only the job at the given job version.
-
-* `-json` : Output the job in its JSON format.
-
-* `-t` : Format and display the job using a Go template.
+- `-version`: Display only the job at the given job version.
+- `-json` : Output the job in its JSON format.
+- `-t` : Format and display the job using a Go template.
 
 ## Examples
 
 Inspect a submitted job:
 
-```
+```shell
 $ nomad job inspect redis
 {
     "Job": {
@@ -153,3 +152,5 @@ $ nomad job inspect redis
     }
 }
 ```
+
+[Job HTTP API]: /api/jobs.html

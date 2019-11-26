@@ -1,7 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import TaskGroup from 'nomad-ui/tests/pages/jobs/job/task-group';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
@@ -85,6 +85,8 @@ module('Acceptance | task group detail', function(hooks) {
       `Reserved Disk ${totalDisk} MiB`,
       'Aggregated Disk reservation for all tasks'
     );
+
+    assert.equal(document.title, `Task group ${taskGroup.name} - Job ${job.name} - Nomad`);
   });
 
   test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', async function(assert) {

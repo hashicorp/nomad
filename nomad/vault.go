@@ -10,11 +10,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gopkg.in/tomb.v2"
+	tomb "gopkg.in/tomb.v2"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
@@ -233,6 +233,9 @@ type vaultClient struct {
 	// l is used to lock the configuration aspects of the client such that
 	// multiple callers can't cause conflicting config updates
 	l sync.Mutex
+
+	// setConfigLock serializes access to the SetConfig method
+	setConfigLock sync.Mutex
 }
 
 // NewVaultClient returns a Vault client from the given config. If the client
@@ -311,6 +314,8 @@ func (v *vaultClient) SetActive(active bool) {
 func (v *vaultClient) flush() {
 	v.l.Lock()
 	defer v.l.Unlock()
+	v.revLock.Lock()
+	defer v.revLock.Unlock()
 
 	v.client = nil
 	v.clientSys = nil
@@ -330,6 +335,8 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 	if config == nil {
 		return fmt.Errorf("must pass valid VaultConfig")
 	}
+	v.setConfigLock.Lock()
+	defer v.setConfigLock.Unlock()
 
 	v.l.Lock()
 	defer v.l.Unlock()
@@ -341,12 +348,17 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 
 	// Kill any background routines
 	if v.running {
-		// Stop accepting any new request
-		v.connEstablished = false
-
-		// Kill any background routine and create a new tomb
+		// Kill any background routine
 		v.tomb.Kill(nil)
+
+		// Locking around tomb.Wait can deadlock with
+		// establishConnection exiting, so we must unlock here.
+		v.l.Unlock()
 		v.tomb.Wait()
+		v.l.Lock()
+
+		// Stop accepting any new requests
+		v.connEstablished = false
 		v.tomb = &tomb.Tomb{}
 		v.running = false
 	}
@@ -868,10 +880,12 @@ func (v *vaultClient) validateRole(role string) error {
 
 	// Read and parse the fields
 	var data struct {
-		ExplicitMaxTtl int `mapstructure:"explicit_max_ttl"`
-		Orphan         bool
-		Period         int
-		Renewable      bool
+		ExplicitMaxTtl      int `mapstructure:"explicit_max_ttl"`
+		TokenExplicitMaxTtl int `mapstructure:"token_explicit_max_ttl"`
+		Orphan              bool
+		Period              int
+		TokenPeriod         int `mapstructure:"token_period"`
+		Renewable           bool
 	}
 	if err := mapstructure.WeakDecode(rsecret.Data, &data); err != nil {
 		return fmt.Errorf("failed to parse Vault role's data block: %v", err)
@@ -883,11 +897,11 @@ func (v *vaultClient) validateRole(role string) error {
 		multierror.Append(&mErr, fmt.Errorf("Role must allow tokens to be renewed"))
 	}
 
-	if data.ExplicitMaxTtl != 0 {
+	if data.ExplicitMaxTtl != 0 || data.TokenExplicitMaxTtl != 0 {
 		multierror.Append(&mErr, fmt.Errorf("Role can not use an explicit max ttl. Token must be periodic."))
 	}
 
-	if data.Period == 0 {
+	if data.Period == 0 && data.TokenPeriod == 0 {
 		multierror.Append(&mErr, fmt.Errorf("Role must have a non-zero period to make tokens periodic."))
 	}
 
@@ -1000,7 +1014,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		validationErr = fmt.Errorf("Vault returned WrapInfo without WrappedAccessor. Secret warnings: %v", secret.Warnings)
 	}
 	if validationErr != nil {
-		v.logger.Warn("ailed to CreateToken", "error", err)
+		v.logger.Warn("failed to CreateToken", "error", validationErr)
 		return nil, structs.NewRecoverableError(validationErr, true)
 	}
 

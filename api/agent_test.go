@@ -1,9 +1,15 @@
 package api
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
@@ -256,4 +262,117 @@ func TestAgent_Health(t *testing.T) {
 	health, err := a.Health()
 	assert.Nil(err)
 	assert.True(health.Server.Ok)
+}
+
+// TestAgent_MonitorWithNode tests the Monitor endpoint
+// passing in a log level and node ie, which tests monitor
+// functionality for a specific client node
+func TestAgent_MonitorWithNode(t *testing.T) {
+	t.Parallel()
+	rpcPort := 0
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		rpcPort = c.Ports.RPC
+		c.Client = &testutil.ClientConfig{
+			Enabled: true,
+		}
+	})
+	defer s.Stop()
+
+	require.NoError(t, c.Agent().SetServers([]string{fmt.Sprintf("127.0.0.1:%d", rpcPort)}))
+
+	agent := c.Agent()
+
+	index := uint64(0)
+	var node *NodeListStub
+	// grab a node
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, qm, err := c.Nodes().List(&QueryOptions{WaitIndex: index})
+		if err != nil {
+			return false, err
+		}
+		index = qm.LastIndex
+		if len(nodes) != 1 {
+			return false, fmt.Errorf("expected 1 node but found: %s", pretty.Sprint(nodes))
+		}
+		if nodes[0].Status != "ready" {
+			return false, fmt.Errorf("node not ready: %s", nodes[0].Status)
+		}
+		node = nodes[0]
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	doneCh := make(chan struct{})
+	q := &QueryOptions{
+		Params: map[string]string{
+			"log_level": "debug",
+			"node_id":   node.ID,
+		},
+	}
+
+	frames, errCh := agent.Monitor(doneCh, q)
+	defer close(doneCh)
+
+	// make a request to generate some logs
+	_, err := agent.NodeName()
+	require.NoError(t, err)
+
+	// Wait for a log message
+OUTER:
+	for {
+		select {
+		case f := <-frames:
+			if strings.Contains(string(f.Data), "[DEBUG]") {
+				break OUTER
+			}
+		case err := <-errCh:
+			t.Errorf("Error: %v", err)
+		case <-time.After(2 * time.Second):
+			require.Fail(t, "failed to get a DEBUG log message")
+		}
+	}
+}
+
+// TestAgent_Monitor tests the Monitor endpoint
+// passing in only a log level, which tests the servers
+// monitor functionality
+func TestAgent_Monitor(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	agent := c.Agent()
+
+	q := &QueryOptions{
+		Params: map[string]string{
+			"log_level": "debug",
+		},
+	}
+
+	doneCh := make(chan struct{})
+	frames, errCh := agent.Monitor(doneCh, q)
+	defer close(doneCh)
+
+	// make a request to generate some logs
+	_, err := agent.Region()
+	require.NoError(t, err)
+
+	// Wait for a log message
+OUTER:
+	for {
+		select {
+		case log := <-frames:
+			if log == nil {
+				continue
+			}
+			if strings.Contains(string(log.Data), "[DEBUG]") {
+				break OUTER
+			}
+		case err := <-errCh:
+			t.Fatalf("error: %v", err)
+		case <-time.After(2 * time.Second):
+			require.Fail(t, "failed to get a DEBUG log message")
+		}
+	}
 }

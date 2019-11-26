@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
@@ -203,9 +204,21 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		statusDesc = eval.Status
 	}
 
+	// Format eval timestamps
+	var formattedCreateTime, formattedModifyTime string
+	if verbose {
+		formattedCreateTime = formatUnixNanoTime(eval.CreateTime)
+		formattedModifyTime = formatUnixNanoTime(eval.ModifyTime)
+	} else {
+		formattedCreateTime = prettyTimeDiff(time.Unix(0, eval.CreateTime), time.Now())
+		formattedModifyTime = prettyTimeDiff(time.Unix(0, eval.ModifyTime), time.Now())
+	}
+
 	// Format the evaluation data
 	basic := []string{
 		fmt.Sprintf("ID|%s", limit(eval.ID, length)),
+		fmt.Sprintf("Create Time|%s", formattedCreateTime),
+		fmt.Sprintf("Modify Time|%s", formattedModifyTime),
 		fmt.Sprintf("Status|%s", eval.Status),
 		fmt.Sprintf("Status Description|%s", statusDesc),
 		fmt.Sprintf("Type|%s", eval.Type),

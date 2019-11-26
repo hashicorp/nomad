@@ -22,8 +22,8 @@ type ChecksAPI interface {
 	Checks() (map[string]*api.AgentCheck, error)
 }
 
-// TaskRestarter allows the checkWatcher to restart tasks.
-type TaskRestarter interface {
+// WorkloadRestarter allows the checkWatcher to restart tasks or entire task groups.
+type WorkloadRestarter interface {
 	Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error
 }
 
@@ -35,7 +35,7 @@ type checkRestart struct {
 	checkName string
 	taskKey   string // composite of allocID + taskName for uniqueness
 
-	task           TaskRestarter
+	task           WorkloadRestarter
 	grace          time.Duration
 	interval       time.Duration
 	timeLimit      time.Duration
@@ -103,18 +103,32 @@ func (c *checkRestart) apply(ctx context.Context, now time.Time, status string) 
 		c.logger.Debug("restarting due to unhealthy check")
 
 		// Tell TaskRunner to restart due to failure
-		const failure = true
 		reason := fmt.Sprintf("healthcheck: check %q unhealthy", c.checkName)
 		event := structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reason)
-		err := c.task.Restart(ctx, event, failure)
-		if err != nil {
-			// Error restarting
-			return false
-		}
+		go asyncRestart(ctx, c.logger, c.task, event)
 		return true
 	}
 
 	return false
+}
+
+// asyncRestart mimics the pre-0.9 TaskRunner.Restart behavior and is intended
+// to be called in a goroutine.
+func asyncRestart(ctx context.Context, logger log.Logger, task WorkloadRestarter, event *structs.TaskEvent) {
+	// Check watcher restarts are always failures
+	const failure = true
+
+	// Restarting is asynchronous so there's no reason to allow this
+	// goroutine to block indefinitely.
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	if err := task.Restart(ctx, event, failure); err != nil {
+		// Restart errors are not actionable and only relevant when
+		// debugging allocation lifecycle management.
+		logger.Debug("failed to restart task", "error", err,
+			"event_time", event.Time, "event_type", event.Type)
+	}
 }
 
 // checkWatchUpdates add or remove checks from the watcher
@@ -278,7 +292,7 @@ func (w *checkWatcher) Run(ctx context.Context) {
 }
 
 // Watch a check and restart its task if unhealthy.
-func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, restarter TaskRestarter) {
+func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, restarter WorkloadRestarter) {
 	if !check.TriggersRestarts() {
 		// Not watched, noop
 		return

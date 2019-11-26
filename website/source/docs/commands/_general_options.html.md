@@ -25,6 +25,9 @@
   the client certificate from `-client-cert`. Overrides the `NOMAD_CLIENT_KEY`
   environment variable if set.
 
+- `-tls-server-name=<value>`: The server name to use as the SNI host when connecting 
+  via TLS. Overrides the `NOMAD_TLS_SERVER_NAME` environment variable if set.
+
 - `-tls-skip-verify`: Do not verify TLS certificate. This is highly not
   recommended. Verification will also be skipped if `NOMAD_SKIP_VERIFY` is set.
   

@@ -15,7 +15,7 @@ Enterprise.
 
 ## Usage
 
-```
+```plaintext
 nomad quota apply [options] <name> <path>
 ```
 
@@ -28,13 +28,13 @@ specification can be read from stdin by setting the path to "-".
 
 ## Apply Options
 
-* `-json`: Parse the input as a JSON quota specification.
+- `-json`: Parse the input as a JSON quota specification.
 
 ## Examples
 
 Create a new quota specification:
 
-```
+```shell
 $ nomad quota apply my-quota.hcl
 Successfully applied quota specification "my-quota"!
 ```

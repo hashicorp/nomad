@@ -1,5 +1,5 @@
 client {
-    options {
-        "docker.privileged.enabled" = "true"
-    }
+  options {
+    "docker.privileged.enabled" = "true"
+  }
 }

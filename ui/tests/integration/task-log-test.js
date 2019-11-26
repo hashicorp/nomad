@@ -1,8 +1,7 @@
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render, settled } from '@ember/test-helpers';
-import { find, click } from 'ember-native-dom-helpers';
+import { find, click, render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import Pretender from 'pretender';
 import { logEncode } from '../../mirage/data/logs';
@@ -22,24 +21,23 @@ const commonProps = {
   serverTimeout: allowedConnectionTime,
 };
 
-const logHead = ['HEAD'];
-const logTail = ['TAIL'];
+const logHead = [logEncode(['HEAD'], 0)];
+const logTail = [logEncode(['TAIL'], 0)];
 const streamFrames = ['one\n', 'two\n', 'three\n', 'four\n', 'five\n'];
 let streamPointer = 0;
+let logMode = null;
 
 module('Integration | Component | task log', function(hooks) {
   setupRenderingTest(hooks);
 
   hooks.beforeEach(function() {
     const handler = ({ queryParams }) => {
-      const { origin, offset, plain, follow } = queryParams;
-
       let frames;
       let data;
 
-      if (origin === 'start' && offset === '0' && plain && !follow) {
+      if (logMode === 'head') {
         frames = logHead;
-      } else if (origin === 'end' && plain && !follow) {
+      } else if (logMode === 'tail') {
         frames = logTail;
       } else {
         frames = streamFrames;
@@ -65,6 +63,7 @@ module('Integration | Component | task log', function(hooks) {
   hooks.afterEach(function() {
     this.server.shutdown();
     streamPointer = 0;
+    logMode = null;
   });
 
   test('Basic appearance', async function(assert) {
@@ -108,6 +107,7 @@ module('Integration | Component | task log', function(hooks) {
   });
 
   test('Clicking Head loads the log head', async function(assert) {
+    logMode = 'head';
     run.later(run, run.cancelTimers, commonProps.interval);
 
     this.setProperties(commonProps);
@@ -118,7 +118,7 @@ module('Integration | Component | task log', function(hooks) {
     await settled();
     assert.ok(
       this.server.handledRequests.find(
-        ({ queryParams: qp }) => qp.origin === 'start' && qp.plain === 'true' && qp.offset === '0'
+        ({ queryParams: qp }) => qp.origin === 'start' && qp.offset === '0'
       ),
       'Log head request was made'
     );
@@ -126,6 +126,7 @@ module('Integration | Component | task log', function(hooks) {
   });
 
   test('Clicking Tail loads the log tail', async function(assert) {
+    logMode = 'tail';
     run.later(run, run.cancelTimers, commonProps.interval);
 
     this.setProperties(commonProps);
@@ -135,9 +136,7 @@ module('Integration | Component | task log', function(hooks) {
 
     await settled();
     assert.ok(
-      this.server.handledRequests.find(
-        ({ queryParams: qp }) => qp.origin === 'end' && qp.plain === 'true'
-      ),
+      this.server.handledRequests.find(({ queryParams: qp }) => qp.origin === 'end'),
       'Log tail request was made'
     );
     assert.equal(find('[data-test-log-cli]').textContent, logTail[0], 'Tail of the log is shown');

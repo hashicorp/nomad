@@ -1,14 +1,18 @@
 job "hello" {
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   update {
-    max_parallel = 1
+    max_parallel     = 1
     min_healthy_time = "15s"
-    auto_revert = true
+    auto_revert      = true
   }
 
   group "hello" {
-
     count = 3
 
     task "hello" {
@@ -19,17 +23,18 @@ job "hello" {
       }
 
       artifact {
-        source = "https://nomad-community-demo.s3.amazonaws.com/hellov1"
+        source      = "https://nomad-community-demo.s3.amazonaws.com/hellov1"
         destination = "local/hello"
-        mode = "file"
+        mode        = "file"
       }
 
       resources {
         cpu    = 500
         memory = 256
+
         network {
           mbits = 10
-          port "web" {}
+          port  "web" {}
         }
       }
 
@@ -37,6 +42,7 @@ job "hello" {
         name = "hello"
         tags = ["urlprefix-hello/"]
         port = "web"
+
         check {
           name     = "alive"
           type     = "http"

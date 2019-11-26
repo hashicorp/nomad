@@ -108,6 +108,17 @@ func TestJobs_Canonicalize(t *testing.T) {
 				CreateIndex:       uint64ToPtr(0),
 				ModifyIndex:       uint64ToPtr(0),
 				JobModifyIndex:    uint64ToPtr(0),
+				Update: &UpdateStrategy{
+					Stagger:          timeToPtr(30 * time.Second),
+					MaxParallel:      intToPtr(1),
+					HealthCheck:      stringToPtr("checks"),
+					MinHealthyTime:   timeToPtr(10 * time.Second),
+					HealthyDeadline:  timeToPtr(5 * time.Minute),
+					ProgressDeadline: timeToPtr(10 * time.Minute),
+					AutoRevert:       boolToPtr(false),
+					Canary:           intToPtr(0),
+					AutoPromote:      boolToPtr(false),
+				},
 				TaskGroups: []*TaskGroup{
 					{
 						Name:  stringToPtr(""),
@@ -131,7 +142,82 @@ func TestJobs_Canonicalize(t *testing.T) {
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
 						},
+						Update: &UpdateStrategy{
+							Stagger:          timeToPtr(30 * time.Second),
+							MaxParallel:      intToPtr(1),
+							HealthCheck:      stringToPtr("checks"),
+							MinHealthyTime:   timeToPtr(10 * time.Second),
+							HealthyDeadline:  timeToPtr(5 * time.Minute),
+							ProgressDeadline: timeToPtr(10 * time.Minute),
+							AutoRevert:       boolToPtr(false),
+							Canary:           intToPtr(0),
+							AutoPromote:      boolToPtr(false),
+						},
 						Migrate: DefaultMigrateStrategy(),
+						Tasks: []*Task{
+							{
+								KillTimeout: timeToPtr(5 * time.Second),
+								LogConfig:   DefaultLogConfig(),
+								Resources:   DefaultResources(),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "batch",
+			input: &Job{
+				Type: stringToPtr("batch"),
+				TaskGroups: []*TaskGroup{
+					{
+						Tasks: []*Task{
+							{},
+						},
+					},
+				},
+			},
+			expected: &Job{
+				ID:                stringToPtr(""),
+				Name:              stringToPtr(""),
+				Region:            stringToPtr("global"),
+				Namespace:         stringToPtr(DefaultNamespace),
+				Type:              stringToPtr("batch"),
+				ParentID:          stringToPtr(""),
+				Priority:          intToPtr(50),
+				AllAtOnce:         boolToPtr(false),
+				VaultToken:        stringToPtr(""),
+				Status:            stringToPtr(""),
+				StatusDescription: stringToPtr(""),
+				Stop:              boolToPtr(false),
+				Stable:            boolToPtr(false),
+				Version:           uint64ToPtr(0),
+				CreateIndex:       uint64ToPtr(0),
+				ModifyIndex:       uint64ToPtr(0),
+				JobModifyIndex:    uint64ToPtr(0),
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  stringToPtr(""),
+						Count: intToPtr(1),
+						EphemeralDisk: &EphemeralDisk{
+							Sticky:  boolToPtr(false),
+							Migrate: boolToPtr(false),
+							SizeMB:  intToPtr(300),
+						},
+						RestartPolicy: &RestartPolicy{
+							Delay:    timeToPtr(15 * time.Second),
+							Attempts: intToPtr(3),
+							Interval: timeToPtr(24 * time.Hour),
+							Mode:     stringToPtr("fail"),
+						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      intToPtr(1),
+							Interval:      timeToPtr(24 * time.Hour),
+							DelayFunction: stringToPtr("constant"),
+							Delay:         timeToPtr(5 * time.Second),
+							MaxDelay:      timeToPtr(0),
+							Unlimited:     boolToPtr(false),
+						},
 						Tasks: []*Task{
 							{
 								KillTimeout: timeToPtr(5 * time.Second),
@@ -179,6 +265,17 @@ func TestJobs_Canonicalize(t *testing.T) {
 				CreateIndex:       uint64ToPtr(0),
 				ModifyIndex:       uint64ToPtr(0),
 				JobModifyIndex:    uint64ToPtr(0),
+				Update: &UpdateStrategy{
+					Stagger:          timeToPtr(30 * time.Second),
+					MaxParallel:      intToPtr(1),
+					HealthCheck:      stringToPtr("checks"),
+					MinHealthyTime:   timeToPtr(10 * time.Second),
+					HealthyDeadline:  timeToPtr(5 * time.Minute),
+					ProgressDeadline: timeToPtr(10 * time.Minute),
+					AutoRevert:       boolToPtr(false),
+					Canary:           intToPtr(0),
+					AutoPromote:      boolToPtr(false),
+				},
 				TaskGroups: []*TaskGroup{
 					{
 						Name:  stringToPtr("bar"),
@@ -202,6 +299,17 @@ func TestJobs_Canonicalize(t *testing.T) {
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
 						},
+						Update: &UpdateStrategy{
+							Stagger:          timeToPtr(30 * time.Second),
+							MaxParallel:      intToPtr(1),
+							HealthCheck:      stringToPtr("checks"),
+							MinHealthyTime:   timeToPtr(10 * time.Second),
+							HealthyDeadline:  timeToPtr(5 * time.Minute),
+							ProgressDeadline: timeToPtr(10 * time.Minute),
+							AutoRevert:       boolToPtr(false),
+							Canary:           intToPtr(0),
+							AutoPromote:      boolToPtr(false),
+						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
@@ -224,6 +332,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Type:        stringToPtr("service"),
 				Update: &UpdateStrategy{
 					MaxParallel: intToPtr(1),
+					AutoPromote: boolToPtr(true),
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -234,6 +343,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Attempts: intToPtr(10),
 							Delay:    timeToPtr(25 * time.Second),
 							Mode:     stringToPtr("delay"),
+						},
+						Update: &UpdateStrategy{
+							AutoRevert: boolToPtr(true),
 						},
 						EphemeralDisk: &EphemeralDisk{
 							SizeMB: intToPtr(300),
@@ -323,7 +435,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 					ProgressDeadline: timeToPtr(10 * time.Minute),
 					AutoRevert:       boolToPtr(false),
 					Canary:           intToPtr(0),
-					AutoPromote:      nil,
+					AutoPromote:      boolToPtr(true),
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -356,9 +468,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							MinHealthyTime:   timeToPtr(10 * time.Second),
 							HealthyDeadline:  timeToPtr(5 * time.Minute),
 							ProgressDeadline: timeToPtr(10 * time.Minute),
-							AutoRevert:       boolToPtr(false),
+							AutoRevert:       boolToPtr(true),
 							Canary:           intToPtr(0),
-							AutoPromote:      nil,
+							AutoPromote:      boolToPtr(true),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -463,6 +575,17 @@ func TestJobs_Canonicalize(t *testing.T) {
 				CreateIndex:       uint64ToPtr(0),
 				ModifyIndex:       uint64ToPtr(0),
 				JobModifyIndex:    uint64ToPtr(0),
+				Update: &UpdateStrategy{
+					Stagger:          timeToPtr(30 * time.Second),
+					MaxParallel:      intToPtr(1),
+					HealthCheck:      stringToPtr("checks"),
+					MinHealthyTime:   timeToPtr(10 * time.Second),
+					HealthyDeadline:  timeToPtr(5 * time.Minute),
+					ProgressDeadline: timeToPtr(10 * time.Minute),
+					AutoRevert:       boolToPtr(false),
+					Canary:           intToPtr(0),
+					AutoPromote:      boolToPtr(false),
+				},
 				Periodic: &PeriodicConfig{
 					Enabled:         boolToPtr(true),
 					Spec:            stringToPtr(""),
@@ -753,13 +876,15 @@ func TestJobs_Info(t *testing.T) {
 
 	// Trying to retrieve a job by ID before it exists
 	// returns an error
-	_, _, err := jobs.Info("job1", nil)
+	id := "job-id/with\\troublesome:characters\n?&字\000"
+	_, _, err := jobs.Info(id, nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
 	}
 
 	// Register the job
 	job := testJob()
+	job.ID = &id
 	_, wm, err := jobs.Register(job, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -767,7 +892,7 @@ func TestJobs_Info(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Query the job again and ensure it exists
-	result, qm, err := jobs.Info("job1", nil)
+	result, qm, err := jobs.Info(id, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

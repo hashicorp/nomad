@@ -13,12 +13,12 @@ particular job.
 
 ## Usage
 
-```
+```plaintext
 nomad job deployments [options] <job>
 ```
 
-The `job deployments` command requires a single argument, the job ID or an ID prefix
-of a job to display the list of deployments for.
+The `job deployments` command requires a single argument, the job ID or an ID
+prefix of a job to display the list of deployments for.
 
 ## General Options
 
@@ -26,25 +26,24 @@ of a job to display the list of deployments for.
 
 ## Deployment Options
 
-* `-latest`: Display the latest deployment only.
+- `-latest`: Display the latest deployment only.
 
-* `-json` : Output the deployment in its JSON format.
+- `-json` : Output the deployment in its JSON format.
 
-* `-t` : Format and display the deployment using a Go template.
+- `-t` : Format and display the deployment using a Go template.
 
-* `-verbose`: Show full information.
+- `-verbose`: Show full information.
 
-* `-all`: Display all deployments matching the job ID, even those from an
-   older instance of the job.
+- `-all`: Display all deployments matching the job ID, even those from an
+  older instance of the job.
 
 ## Examples
 
 List the deployment for a particular job:
 
-```
+```shell
 $ nomad job deployments example
 ID        Job ID   Job Version  Status      Description
 0b23b149  example  1            running     Deployment is running but requires manual promotion
 06ca68a2  example  0            successful  Deployment completed successfully
 ```
-

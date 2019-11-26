@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -23,19 +25,12 @@ func noErr(t *testing.T, err error) {
 func TestMaterializeTaskGroups(t *testing.T) {
 	job := mock.Job()
 	index := materializeTaskGroups(job)
-	if len(index) != 10 {
-		t.Fatalf("Bad: %#v", index)
-	}
+	require.Equal(t, 10, len(index))
 
 	for i := 0; i < 10; i++ {
 		name := fmt.Sprintf("my-job.web[%d]", i)
-		tg, ok := index[name]
-		if !ok {
-			t.Fatalf("bad")
-		}
-		if tg != job.TaskGroups[0] {
-			t.Fatalf("bad")
-		}
+		require.Contains(t, index, name)
+		require.Equal(t, job.TaskGroups[0], index[name])
 	}
 }
 
@@ -134,43 +129,30 @@ func TestDiffAllocs(t *testing.T) {
 	lost := diff.lost
 
 	// We should update the first alloc
-	if len(update) != 1 || update[0].Alloc != allocs[0] {
-		t.Fatalf("bad: %#v", update)
-	}
+	require.True(t, len(update) == 1 && update[0].Alloc == allocs[0])
 
 	// We should ignore the second alloc
-	if len(ignore) != 1 || ignore[0].Alloc != allocs[1] {
-		t.Fatalf("bad: %#v", ignore)
-	}
+	require.True(t, len(ignore) == 1 && ignore[0].Alloc == allocs[1])
 
 	// We should stop the 3rd alloc
-	if len(stop) != 1 || stop[0].Alloc != allocs[2] {
-		t.Fatalf("bad: %#v", stop)
-	}
+	require.True(t, len(stop) == 1 && stop[0].Alloc == allocs[2])
 
 	// We should migrate the 4rd alloc
-	if len(migrate) != 1 || migrate[0].Alloc != allocs[3] {
-		t.Fatalf("bad: %#v", migrate)
-	}
+	require.True(t, len(migrate) == 1 && migrate[0].Alloc == allocs[3])
 
 	// We should mark the 5th alloc as lost
-	if len(lost) != 1 || lost[0].Alloc != allocs[4] {
-		t.Fatalf("bad: %#v", migrate)
-	}
+	require.True(t, len(lost) == 1 && lost[0].Alloc == allocs[4])
 
 	// We should place 6
-	if len(place) != 6 {
-		t.Fatalf("bad: %#v", place)
-	}
+	require.Equal(t, 6, len(place))
 
 	// Ensure that the allocations which are replacements of terminal allocs are
 	// annotated
 	for name, alloc := range terminalAllocs {
 		for _, allocTuple := range diff.place {
 			if name == allocTuple.Name {
-				if !reflect.DeepEqual(alloc, allocTuple.Alloc) {
-					t.Fatalf("expected: %#v, actual: %#v", alloc, allocTuple.Alloc)
-				}
+				require.True(t, reflect.DeepEqual(alloc, allocTuple.Alloc),
+					"expected: %#v, actual: %#v", alloc, allocTuple.Alloc)
 			}
 		}
 	}
@@ -254,43 +236,30 @@ func TestDiffSystemAllocs(t *testing.T) {
 	lost := diff.lost
 
 	// We should update the first alloc
-	if len(update) != 1 || update[0].Alloc != allocs[0] {
-		t.Fatalf("bad: %#v", update)
-	}
+	require.True(t, len(update) == 1 && update[0].Alloc == allocs[0])
 
 	// We should ignore the second alloc
-	if len(ignore) != 1 || ignore[0].Alloc != allocs[1] {
-		t.Fatalf("bad: %#v", ignore)
-	}
+	require.True(t, len(ignore) == 1 && ignore[0].Alloc == allocs[1])
 
 	// We should stop the third alloc
-	if len(stop) != 0 {
-		t.Fatalf("bad: %#v", stop)
-	}
+	require.Empty(t, stop)
 
 	// There should be no migrates.
-	if len(migrate) != 1 || migrate[0].Alloc != allocs[2] {
-		t.Fatalf("bad: %#v", migrate)
-	}
+	require.True(t, len(migrate) == 1 && migrate[0].Alloc == allocs[2])
 
 	// We should mark the 5th alloc as lost
-	if len(lost) != 1 || lost[0].Alloc != allocs[3] {
-		t.Fatalf("bad: %#v", migrate)
-	}
+	require.True(t, len(lost) == 1 && lost[0].Alloc == allocs[3])
 
 	// We should place 1
-	if l := len(place); l != 2 {
-		t.Fatalf("bad: %#v", l)
-	}
+	require.Equal(t, 2, len(place))
 
 	// Ensure that the allocations which are replacements of terminal allocs are
 	// annotated
 	for _, alloc := range terminalAllocs {
 		for _, allocTuple := range diff.place {
 			if alloc.NodeID == allocTuple.Alloc.NodeID {
-				if !reflect.DeepEqual(alloc, allocTuple.Alloc) {
-					t.Fatalf("expected: %#v, actual: %#v", alloc, allocTuple.Alloc)
-				}
+				require.True(t, reflect.DeepEqual(alloc, allocTuple.Alloc),
+					"expected: %#v, actual: %#v", alloc, allocTuple.Alloc)
 			}
 		}
 	}
@@ -307,28 +276,20 @@ func TestReadyNodesInDCs(t *testing.T) {
 	node4 := mock.Node()
 	node4.Drain = true
 
-	noErr(t, state.UpsertNode(1000, node1))
-	noErr(t, state.UpsertNode(1001, node2))
-	noErr(t, state.UpsertNode(1002, node3))
-	noErr(t, state.UpsertNode(1003, node4))
+	require.NoError(t, state.UpsertNode(1000, node1))
+	require.NoError(t, state.UpsertNode(1001, node2))
+	require.NoError(t, state.UpsertNode(1002, node3))
+	require.NoError(t, state.UpsertNode(1003, node4))
 
 	nodes, dc, err := readyNodesInDCs(state, []string{"dc1", "dc2"})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
+	require.Equal(t, 2, len(nodes))
+	require.True(t, nodes[0].ID != node3.ID && nodes[1].ID != node3.ID)
 
-	if len(nodes) != 2 {
-		t.Fatalf("bad: %v", nodes)
-	}
-	if nodes[0].ID == node3.ID || nodes[1].ID == node3.ID {
-		t.Fatalf("Bad: %#v", nodes)
-	}
-	if count, ok := dc["dc1"]; !ok || count != 1 {
-		t.Fatalf("Bad: dc1 count %v", count)
-	}
-	if count, ok := dc["dc2"]; !ok || count != 1 {
-		t.Fatalf("Bad: dc2 count %v", count)
-	}
+	require.Contains(t, dc, "dc1")
+	require.Equal(t, 1, dc["dc1"])
+	require.Contains(t, dc, "dc2")
+	require.Equal(t, 1, dc["dc2"])
 }
 
 func TestRetryMax(t *testing.T) {
@@ -338,12 +299,8 @@ func TestRetryMax(t *testing.T) {
 		return false, nil
 	}
 	err := retryMax(3, bad, nil)
-	if err == nil {
-		t.Fatalf("should fail")
-	}
-	if calls != 3 {
-		t.Fatalf("mis match")
-	}
+	require.Error(t, err)
+	require.Equal(t, 3, calls, "mis match")
 
 	calls = 0
 	first := true
@@ -355,12 +312,8 @@ func TestRetryMax(t *testing.T) {
 		return false
 	}
 	err = retryMax(3, bad, reset)
-	if err == nil {
-		t.Fatalf("should fail")
-	}
-	if calls != 6 {
-		t.Fatalf("mis match")
-	}
+	require.Error(t, err)
+	require.Equal(t, 6, calls, "mis match")
 
 	calls = 0
 	good := func() (bool, error) {
@@ -368,12 +321,8 @@ func TestRetryMax(t *testing.T) {
 		return true, nil
 	}
 	err = retryMax(3, good, nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if calls != 1 {
-		t.Fatalf("mis match")
-	}
+	require.NoError(t, err)
+	require.Equal(t, 1, calls, "mis match")
 }
 
 func TestTaintedNodes(t *testing.T) {
@@ -386,10 +335,10 @@ func TestTaintedNodes(t *testing.T) {
 	node3.Status = structs.NodeStatusDown
 	node4 := mock.Node()
 	node4.Drain = true
-	noErr(t, state.UpsertNode(1000, node1))
-	noErr(t, state.UpsertNode(1001, node2))
-	noErr(t, state.UpsertNode(1002, node3))
-	noErr(t, state.UpsertNode(1003, node4))
+	require.NoError(t, state.UpsertNode(1000, node1))
+	require.NoError(t, state.UpsertNode(1001, node2))
+	require.NoError(t, state.UpsertNode(1002, node3))
+	require.NoError(t, state.UpsertNode(1003, node4))
 
 	allocs := []*structs.Allocation{
 		{NodeID: node1.ID},
@@ -399,32 +348,19 @@ func TestTaintedNodes(t *testing.T) {
 		{NodeID: "12345678-abcd-efab-cdef-123456789abc"},
 	}
 	tainted, err := taintedNodes(state, allocs)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
+	require.Equal(t, 3, len(tainted))
+	require.NotContains(t, tainted, node1.ID)
+	require.NotContains(t, tainted, node2.ID)
 
-	if len(tainted) != 3 {
-		t.Fatalf("bad: %v", tainted)
-	}
+	require.Contains(t, tainted, node3.ID)
+	require.NotNil(t, tainted[node3.ID])
 
-	if _, ok := tainted[node1.ID]; ok {
-		t.Fatalf("Bad: %v", tainted)
-	}
-	if _, ok := tainted[node2.ID]; ok {
-		t.Fatalf("Bad: %v", tainted)
-	}
+	require.Contains(t, tainted, node4.ID)
+	require.NotNil(t, tainted[node4.ID])
 
-	if node, ok := tainted[node3.ID]; !ok || node == nil {
-		t.Fatalf("Bad: %v", tainted)
-	}
-
-	if node, ok := tainted[node4.ID]; !ok || node == nil {
-		t.Fatalf("Bad: %v", tainted)
-	}
-
-	if node, ok := tainted["12345678-abcd-efab-cdef-123456789abc"]; !ok || node != nil {
-		t.Fatalf("Bad: %v", tainted)
-	}
+	require.Contains(t, tainted, "12345678-abcd-efab-cdef-123456789abc")
+	require.Nil(t, tainted["12345678-abcd-efab-cdef-123456789abc"])
 }
 
 func TestShuffleNodes(t *testing.T) {
@@ -445,43 +381,163 @@ func TestShuffleNodes(t *testing.T) {
 	orig := make([]*structs.Node, len(nodes))
 	copy(orig, nodes)
 	shuffleNodes(nodes)
-	if reflect.DeepEqual(nodes, orig) {
-		t.Fatalf("should not match")
-	}
+	require.False(t, reflect.DeepEqual(nodes, orig))
 }
 
-func TestTasksUpdated(t *testing.T) {
+func TestTaskUpdatedAffinity(t *testing.T) {
 	j1 := mock.Job()
 	j2 := mock.Job()
 	name := j1.TaskGroups[0].Name
 
-	if tasksUpdated(j1, j2, name) {
-		t.Fatalf("bad")
+	require.False(t, tasksUpdated(j1, j2, name))
+
+	// TaskGroup Affinity
+	j2.TaskGroups[0].Affinities = []*structs.Affinity{
+		{
+			LTarget: "node.datacenter",
+			RTarget: "dc1",
+			Operand: "=",
+			Weight:  100,
+		},
+	}
+	require.True(t, tasksUpdated(j1, j2, name))
+
+	// TaskGroup Task Affinity
+	j3 := mock.Job()
+	j3.TaskGroups[0].Tasks[0].Affinities = []*structs.Affinity{
+		{
+			LTarget: "node.datacenter",
+			RTarget: "dc1",
+			Operand: "=",
+			Weight:  100,
+		},
 	}
 
-	j2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
-	if !tasksUpdated(j1, j2, name) {
-		t.Fatalf("bad")
+	require.True(t, tasksUpdated(j1, j3, name))
+
+	j4 := mock.Job()
+	j4.TaskGroups[0].Tasks[0].Affinities = []*structs.Affinity{
+		{
+			LTarget: "node.datacenter",
+			RTarget: "dc1",
+			Operand: "=",
+			Weight:  100,
+		},
 	}
+
+	require.True(t, tasksUpdated(j1, j4, name))
+
+	// check different level of same affinity
+	j5 := mock.Job()
+	j5.Affinities = []*structs.Affinity{
+		{
+			LTarget: "node.datacenter",
+			RTarget: "dc1",
+			Operand: "=",
+			Weight:  100,
+		},
+	}
+
+	j6 := mock.Job()
+	j6.Affinities = make([]*structs.Affinity, 0)
+	j6.TaskGroups[0].Affinities = []*structs.Affinity{
+		{
+			LTarget: "node.datacenter",
+			RTarget: "dc1",
+			Operand: "=",
+			Weight:  100,
+		},
+	}
+
+	require.False(t, tasksUpdated(j5, j6, name))
+}
+
+func TestTaskUpdatedSpread(t *testing.T) {
+	j1 := mock.Job()
+	j2 := mock.Job()
+	name := j1.TaskGroups[0].Name
+
+	require.False(t, tasksUpdated(j1, j2, name))
+
+	// TaskGroup Spread
+	j2.TaskGroups[0].Spreads = []*structs.Spread{
+		{
+			Attribute: "node.datacenter",
+			Weight:    100,
+			SpreadTarget: []*structs.SpreadTarget{
+				{
+					Value:   "r1",
+					Percent: 50,
+				},
+				{
+					Value:   "r2",
+					Percent: 50,
+				},
+			},
+		},
+	}
+	require.True(t, tasksUpdated(j1, j2, name))
+
+	// check different level of same constraint
+	j5 := mock.Job()
+	j5.Spreads = []*structs.Spread{
+		{
+			Attribute: "node.datacenter",
+			Weight:    100,
+			SpreadTarget: []*structs.SpreadTarget{
+				{
+					Value:   "r1",
+					Percent: 50,
+				},
+				{
+					Value:   "r2",
+					Percent: 50,
+				},
+			},
+		},
+	}
+
+	j6 := mock.Job()
+	j6.TaskGroups[0].Spreads = []*structs.Spread{
+		{
+			Attribute: "node.datacenter",
+			Weight:    100,
+			SpreadTarget: []*structs.SpreadTarget{
+				{
+					Value:   "r1",
+					Percent: 50,
+				},
+				{
+					Value:   "r2",
+					Percent: 50,
+				},
+			},
+		},
+	}
+
+	require.False(t, tasksUpdated(j5, j6, name))
+}
+func TestTasksUpdated(t *testing.T) {
+	j1 := mock.Job()
+	j2 := mock.Job()
+	name := j1.TaskGroups[0].Name
+	require.False(t, tasksUpdated(j1, j2, name))
+
+	j2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
+	require.True(t, tasksUpdated(j1, j2, name))
 
 	j3 := mock.Job()
 	j3.TaskGroups[0].Tasks[0].Name = "foo"
-	if !tasksUpdated(j1, j3, name) {
-		t.Fatalf("bad")
-	}
+	require.True(t, tasksUpdated(j1, j3, name))
 
 	j4 := mock.Job()
 	j4.TaskGroups[0].Tasks[0].Driver = "foo"
-	if !tasksUpdated(j1, j4, name) {
-		t.Fatalf("bad")
-	}
+	require.True(t, tasksUpdated(j1, j4, name))
 
 	j5 := mock.Job()
 	j5.TaskGroups[0].Tasks = append(j5.TaskGroups[0].Tasks,
 		j5.TaskGroups[0].Tasks[0])
-	if !tasksUpdated(j1, j5, name) {
-		t.Fatalf("bad")
-	}
+	require.True(t, tasksUpdated(j1, j5, name))
 
 	j6 := mock.Job()
 	j6.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts = []structs.Port{
@@ -489,21 +545,15 @@ func TestTasksUpdated(t *testing.T) {
 		{Label: "https", Value: 0},
 		{Label: "admin", Value: 0},
 	}
-	if !tasksUpdated(j1, j6, name) {
-		t.Fatalf("bad")
-	}
+	require.True(t, tasksUpdated(j1, j6, name))
 
 	j7 := mock.Job()
 	j7.TaskGroups[0].Tasks[0].Env["NEW_ENV"] = "NEW_VALUE"
-	if !tasksUpdated(j1, j7, name) {
-		t.Fatalf("bad")
-	}
+	require.True(t, tasksUpdated(j1, j7, name))
 
 	j8 := mock.Job()
 	j8.TaskGroups[0].Tasks[0].User = "foo"
-	if !tasksUpdated(j1, j8, name) {
-		t.Fatalf("bad")
-	}
+	require.True(t, tasksUpdated(j1, j8, name))
 
 	j9 := mock.Job()
 	j9.TaskGroups[0].Tasks[0].Artifacts = []*structs.TaskArtifact{
@@ -511,65 +561,61 @@ func TestTasksUpdated(t *testing.T) {
 			GetterSource: "http://foo.com/bar",
 		},
 	}
-	if !tasksUpdated(j1, j9, name) {
-		t.Fatalf("bad")
-	}
+	require.True(t, tasksUpdated(j1, j9, name))
 
 	j10 := mock.Job()
 	j10.TaskGroups[0].Tasks[0].Meta["baz"] = "boom"
-	if !tasksUpdated(j1, j10, name) {
-		t.Fatalf("bad")
-	}
+	require.True(t, tasksUpdated(j1, j10, name))
 
 	j11 := mock.Job()
 	j11.TaskGroups[0].Tasks[0].Resources.CPU = 1337
-	if !tasksUpdated(j1, j11, name) {
-		t.Fatalf("bad")
+	require.True(t, tasksUpdated(j1, j11, name))
+
+	j11d1 := mock.Job()
+	j11d1.TaskGroups[0].Tasks[0].Resources.Devices = structs.ResourceDevices{
+		&structs.RequestedDevice{
+			Name:  "gpu",
+			Count: 1,
+		},
 	}
+	j11d2 := mock.Job()
+	j11d2.TaskGroups[0].Tasks[0].Resources.Devices = structs.ResourceDevices{
+		&structs.RequestedDevice{
+			Name:  "gpu",
+			Count: 2,
+		},
+	}
+	require.True(t, tasksUpdated(j11d1, j11d2, name))
 
 	j12 := mock.Job()
 	j12.TaskGroups[0].Tasks[0].Resources.Networks[0].MBits = 100
-	if !tasksUpdated(j1, j12, name) {
-		t.Fatalf("bad")
-	}
+	require.True(t, tasksUpdated(j1, j12, name))
 
 	j13 := mock.Job()
 	j13.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts[0].Label = "foobar"
-	if !tasksUpdated(j1, j13, name) {
-		t.Fatalf("bad")
-	}
+	require.True(t, tasksUpdated(j1, j13, name))
 
 	j14 := mock.Job()
 	j14.TaskGroups[0].Tasks[0].Resources.Networks[0].ReservedPorts = []structs.Port{{Label: "foo", Value: 1312}}
-	if !tasksUpdated(j1, j14, name) {
-		t.Fatalf("bad")
-	}
+	require.True(t, tasksUpdated(j1, j14, name))
 
 	j15 := mock.Job()
 	j15.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{"foo"}}
-	if !tasksUpdated(j1, j15, name) {
-		t.Fatalf("bad")
-	}
+	require.True(t, tasksUpdated(j1, j15, name))
 
 	j16 := mock.Job()
 	j16.TaskGroups[0].EphemeralDisk.Sticky = true
-	if !tasksUpdated(j1, j16, name) {
-		t.Fatal("bad")
-	}
+	require.True(t, tasksUpdated(j1, j16, name))
 
 	// Change group meta
 	j17 := mock.Job()
 	j17.TaskGroups[0].Meta["j17_test"] = "roll_baby_roll"
-	if !tasksUpdated(j1, j17, name) {
-		t.Fatal("bad")
-	}
+	require.True(t, tasksUpdated(j1, j17, name))
 
 	// Change job meta
 	j18 := mock.Job()
 	j18.Meta["j18_test"] = "roll_baby_roll"
-	if !tasksUpdated(j1, j18, name) {
-		t.Fatal("bad")
-	}
+	require.True(t, tasksUpdated(j1, j18, name))
 }
 
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
@@ -583,17 +629,9 @@ func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
 	diff := &diffResult{}
 
 	limit := 2
-	if !evictAndPlace(ctx, diff, allocs, "", &limit) {
-		t.Fatal("evictAndReplace() should have returned true")
-	}
-
-	if limit != 0 {
-		t.Fatalf("evictAndReplace() should decremented limit; got %v; want 0", limit)
-	}
-
-	if len(diff.place) != 2 {
-		t.Fatalf("evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
-	}
+	require.True(t, evictAndPlace(ctx, diff, allocs, "", &limit), "evictAndReplace() should have returned true")
+	require.Zero(t, limit, "evictAndReplace() should decremented limit; got %v; want 0", limit)
+	require.Equal(t, 2, len(diff.place), "evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
 }
 
 func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
@@ -607,17 +645,9 @@ func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
 	diff := &diffResult{}
 
 	limit := 4
-	if evictAndPlace(ctx, diff, allocs, "", &limit) {
-		t.Fatal("evictAndReplace() should have returned false")
-	}
-
-	if limit != 0 {
-		t.Fatalf("evictAndReplace() should decremented limit; got %v; want 0", limit)
-	}
-
-	if len(diff.place) != 4 {
-		t.Fatalf("evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
-	}
+	require.False(t, evictAndPlace(ctx, diff, allocs, "", &limit), "evictAndReplace() should have returned false")
+	require.Zero(t, limit, "evictAndReplace() should decremented limit; got %v; want 0", limit)
+	require.Equal(t, 4, len(diff.place), "evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
 }
 
 func TestSetStatus(t *testing.T) {
@@ -626,98 +656,58 @@ func TestSetStatus(t *testing.T) {
 	eval := mock.Eval()
 	status := "a"
 	desc := "b"
-	if err := setStatus(logger, h, eval, nil, nil, nil, status, desc, nil, ""); err != nil {
-		t.Fatalf("setStatus() failed: %v", err)
-	}
-
-	if len(h.Evals) != 1 {
-		t.Fatalf("setStatus() didn't update plan: %v", h.Evals)
-	}
+	require.NoError(t, setStatus(logger, h, eval, nil, nil, nil, status, desc, nil, ""))
+	require.Equal(t, 1, len(h.Evals), "setStatus() didn't update plan: %v", h.Evals)
 
 	newEval := h.Evals[0]
-	if newEval.ID != eval.ID || newEval.Status != status || newEval.StatusDescription != desc {
-		t.Fatalf("setStatus() submited invalid eval: %v", newEval)
-	}
+	require.True(t, newEval.ID == eval.ID && newEval.Status == status && newEval.StatusDescription == desc,
+		"setStatus() submited invalid eval: %v", newEval)
 
 	// Test next evals
 	h = NewHarness(t)
 	next := mock.Eval()
-	if err := setStatus(logger, h, eval, next, nil, nil, status, desc, nil, ""); err != nil {
-		t.Fatalf("setStatus() failed: %v", err)
-	}
-
-	if len(h.Evals) != 1 {
-		t.Fatalf("setStatus() didn't update plan: %v", h.Evals)
-	}
+	require.NoError(t, setStatus(logger, h, eval, next, nil, nil, status, desc, nil, ""))
+	require.Equal(t, 1, len(h.Evals), "setStatus() didn't update plan: %v", h.Evals)
 
 	newEval = h.Evals[0]
-	if newEval.NextEval != next.ID {
-		t.Fatalf("setStatus() didn't set nextEval correctly: %v", newEval)
-	}
+	require.Equal(t, next.ID, newEval.NextEval, "setStatus() didn't set nextEval correctly: %v", newEval)
 
 	// Test blocked evals
 	h = NewHarness(t)
 	blocked := mock.Eval()
-	if err := setStatus(logger, h, eval, nil, blocked, nil, status, desc, nil, ""); err != nil {
-		t.Fatalf("setStatus() failed: %v", err)
-	}
-
-	if len(h.Evals) != 1 {
-		t.Fatalf("setStatus() didn't update plan: %v", h.Evals)
-	}
+	require.NoError(t, setStatus(logger, h, eval, nil, blocked, nil, status, desc, nil, ""))
+	require.Equal(t, 1, len(h.Evals), "setStatus() didn't update plan: %v", h.Evals)
 
 	newEval = h.Evals[0]
-	if newEval.BlockedEval != blocked.ID {
-		t.Fatalf("setStatus() didn't set BlockedEval correctly: %v", newEval)
-	}
+	require.Equal(t, blocked.ID, newEval.BlockedEval, "setStatus() didn't set BlockedEval correctly: %v", newEval)
 
 	// Test metrics
 	h = NewHarness(t)
 	metrics := map[string]*structs.AllocMetric{"foo": nil}
-	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, nil, ""); err != nil {
-		t.Fatalf("setStatus() failed: %v", err)
-	}
-
-	if len(h.Evals) != 1 {
-		t.Fatalf("setStatus() didn't update plan: %v", h.Evals)
-	}
+	require.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, status, desc, nil, ""))
+	require.Equal(t, 1, len(h.Evals), "setStatus() didn't update plan: %v", h.Evals)
 
 	newEval = h.Evals[0]
-	if !reflect.DeepEqual(newEval.FailedTGAllocs, metrics) {
-		t.Fatalf("setStatus() didn't set failed task group metrics correctly: %v", newEval)
-	}
+	require.True(t, reflect.DeepEqual(newEval.FailedTGAllocs, metrics),
+		"setStatus() didn't set failed task group metrics correctly: %v", newEval)
 
 	// Test queued allocations
 	h = NewHarness(t)
 	queuedAllocs := map[string]int{"web": 1}
 
-	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, ""); err != nil {
-		t.Fatalf("setStatus() failed: %v", err)
-	}
-
-	if len(h.Evals) != 1 {
-		t.Fatalf("setStatus() didn't update plan: %v", h.Evals)
-	}
+	require.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, ""))
+	require.Equal(t, 1, len(h.Evals), "setStatus() didn't update plan: %v", h.Evals)
 
 	newEval = h.Evals[0]
-	if !reflect.DeepEqual(newEval.QueuedAllocations, queuedAllocs) {
-		t.Fatalf("setStatus() didn't set failed task group metrics correctly: %v", newEval)
-	}
+	require.True(t, reflect.DeepEqual(newEval.QueuedAllocations, queuedAllocs), "setStatus() didn't set failed task group metrics correctly: %v", newEval)
 
 	h = NewHarness(t)
 	dID := uuid.Generate()
-	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, dID); err != nil {
-		t.Fatalf("setStatus() failed: %v", err)
-	}
-
-	if len(h.Evals) != 1 {
-		t.Fatalf("setStatus() didn't update plan: %v", h.Evals)
-	}
+	require.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, dID))
+	require.Equal(t, 1, len(h.Evals), "setStatus() didn't update plan: %v", h.Evals)
 
 	newEval = h.Evals[0]
-	if newEval.DeploymentID != dID {
-		t.Fatalf("setStatus() didn't set deployment id correctly: %v", newEval)
-	}
+	require.Equal(t, dID, newEval.DeploymentID, "setStatus() didn't set deployment id correctly: %v", newEval)
 }
 
 func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
@@ -726,7 +716,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	noErr(t, state.UpsertNode(900, node))
+	require.NoError(t, state.UpsertNode(900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -752,8 +742,8 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 		TaskGroup:     "web",
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
-	noErr(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
-	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	require.NoError(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that prevents in-place updates.
 	tg := &structs.TaskGroup{}
@@ -771,13 +761,8 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	// Do the inplace update.
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
-	if len(unplaced) != 1 || len(inplace) != 0 {
-		t.Fatal("inplaceUpdate incorrectly did an inplace update")
-	}
-
-	if len(ctx.plan.NodeAllocation) != 0 {
-		t.Fatal("inplaceUpdate incorrectly did an inplace update")
-	}
+	require.True(t, len(unplaced) == 1 && len(inplace) == 0, "inplaceUpdate incorrectly did an inplace update")
+	require.Empty(t, ctx.plan.NodeAllocation, "inplaceUpdate incorrectly did an inplace update")
 }
 
 func TestInplaceUpdate_NoMatch(t *testing.T) {
@@ -786,7 +771,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	noErr(t, state.UpsertNode(900, node))
+	require.NoError(t, state.UpsertNode(900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -812,8 +797,8 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 		TaskGroup:     "web",
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
-	noErr(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
-	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	require.NoError(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that requires too much resources.
 	tg := &structs.TaskGroup{}
@@ -827,13 +812,8 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	// Do the inplace update.
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
-	if len(unplaced) != 1 || len(inplace) != 0 {
-		t.Fatal("inplaceUpdate incorrectly did an inplace update")
-	}
-
-	if len(ctx.plan.NodeAllocation) != 0 {
-		t.Fatal("inplaceUpdate incorrectly did an inplace update")
-	}
+	require.True(t, len(unplaced) == 1 && len(inplace) == 0, "inplaceUpdate incorrectly did an inplace update")
+	require.Empty(t, ctx.plan.NodeAllocation, "inplaceUpdate incorrectly did an inplace update")
 }
 
 func TestInplaceUpdate_Success(t *testing.T) {
@@ -842,7 +822,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	noErr(t, state.UpsertNode(900, node))
+	require.NoError(t, state.UpsertNode(900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -868,8 +848,8 @@ func TestInplaceUpdate_Success(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
-	noErr(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
-	noErr(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
+	require.NoError(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that updates the resources.
 	tg := &structs.TaskGroup{}
@@ -900,43 +880,23 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	// Do the inplace update.
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
-	if len(unplaced) != 0 || len(inplace) != 1 {
-		t.Fatal("inplaceUpdate did not do an inplace update")
-	}
-
-	if len(ctx.plan.NodeAllocation) != 1 {
-		t.Fatal("inplaceUpdate did not do an inplace update")
-	}
-
-	if inplace[0].Alloc.ID != alloc.ID {
-		t.Fatalf("inplaceUpdate returned the wrong, inplace updated alloc: %#v", inplace)
-	}
+	require.True(t, len(unplaced) == 0 && len(inplace) == 1, "inplaceUpdate did not do an inplace update")
+	require.Equal(t, 1, len(ctx.plan.NodeAllocation), "inplaceUpdate did not do an inplace update")
+	require.Equal(t, alloc.ID, inplace[0].Alloc.ID, "inplaceUpdate returned the wrong, inplace updated alloc: %#v", inplace)
 
 	// Get the alloc we inserted.
 	a := inplace[0].Alloc // TODO(sean@): Verify this is correct vs: ctx.plan.NodeAllocation[alloc.NodeID][0]
-	if a.Job == nil {
-		t.Fatalf("bad")
-	}
-
-	if len(a.Job.TaskGroups) != 1 {
-		t.Fatalf("bad")
-	}
-
-	if len(a.Job.TaskGroups[0].Tasks) != 1 {
-		t.Fatalf("bad")
-	}
-
-	if len(a.Job.TaskGroups[0].Tasks[0].Services) != 3 {
-		t.Fatalf("Expected number of services: %v, Actual: %v", 3, len(a.Job.TaskGroups[0].Tasks[0].Services))
-	}
+	require.NotNil(t, a.Job)
+	require.Equal(t, 1, len(a.Job.TaskGroups))
+	require.Equal(t, 1, len(a.Job.TaskGroups[0].Tasks))
+	require.Equal(t, 3, len(a.Job.TaskGroups[0].Tasks[0].Services),
+		"Expected number of services: %v, Actual: %v", 3, len(a.Job.TaskGroups[0].Tasks[0].Services))
 
 	serviceNames := make(map[string]struct{}, 3)
 	for _, consulService := range a.Job.TaskGroups[0].Tasks[0].Services {
 		serviceNames[consulService.Name] = struct{}{}
 	}
-	if len(serviceNames) != 3 {
-		t.Fatalf("bad")
-	}
+	require.Equal(t, 3, len(serviceNames))
 
 	for _, name := range []string{"dummy-service", "dummy-service2", "web-frontend"} {
 		if _, found := serviceNames[name]; !found {
@@ -956,17 +916,9 @@ func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
 	diff := &diffResult{}
 
 	limit := 6
-	if evictAndPlace(ctx, diff, allocs, "", &limit) {
-		t.Fatal("evictAndReplace() should have returned false")
-	}
-
-	if limit != 2 {
-		t.Fatalf("evictAndReplace() should decremented limit; got %v; want 2", limit)
-	}
-
-	if len(diff.place) != 4 {
-		t.Fatalf("evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
-	}
+	require.False(t, evictAndPlace(ctx, diff, allocs, "", &limit))
+	require.Equal(t, 2, limit, "evictAndReplace() should decremented limit")
+	require.Equal(t, 4, len(diff.place), "evictAndReplace() didn't insert into diffResult properly: %v", diff.place)
 }
 
 func TestTaskGroupConstraints(t *testing.T) {
@@ -1004,19 +956,15 @@ func TestTaskGroupConstraints(t *testing.T) {
 	expDrivers := map[string]struct{}{"exec": {}, "docker": {}}
 
 	actConstrains := taskGroupConstraints(tg)
-	if !reflect.DeepEqual(actConstrains.constraints, expConstr) {
-		t.Fatalf("taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.constraints, expConstr)
-	}
-	if !reflect.DeepEqual(actConstrains.drivers, expDrivers) {
-		t.Fatalf("taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.drivers, expDrivers)
-	}
+	require.True(t, reflect.DeepEqual(actConstrains.constraints, expConstr),
+		"taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.constraints, expConstr)
+	require.True(t, reflect.DeepEqual(actConstrains.drivers, expDrivers),
+		"taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.drivers, expDrivers)
 }
 
 func TestProgressMade(t *testing.T) {
 	noopPlan := &structs.PlanResult{}
-	if progressMade(nil) || progressMade(noopPlan) {
-		t.Fatal("no progress plan marked as making progress")
-	}
+	require.False(t, progressMade(nil) || progressMade(noopPlan), "no progress plan marked as making progress")
 
 	m := map[string][]*structs.Allocation{
 		"foo": {mock.Alloc()},
@@ -1033,10 +981,9 @@ func TestProgressMade(t *testing.T) {
 			{DeploymentID: uuid.Generate()},
 		},
 	}
-	if !(progressMade(both) && progressMade(update) && progressMade(alloc) &&
-		progressMade(deployment) && progressMade(deploymentUpdates)) {
-		t.Fatal("bad")
-	}
+
+	require.True(t, progressMade(both) && progressMade(update) && progressMade(alloc) &&
+		progressMade(deployment) && progressMade(deploymentUpdates))
 }
 
 func TestDesiredUpdates(t *testing.T) {
@@ -1092,9 +1039,7 @@ func TestDesiredUpdates(t *testing.T) {
 	}
 
 	desired := desiredUpdates(diff, inplace, destructive)
-	if !reflect.DeepEqual(desired, expected) {
-		t.Fatalf("desiredUpdates() returned %#v; want %#v", desired, expected)
-	}
+	require.True(t, reflect.DeepEqual(desired, expected), "desiredUpdates() returned %#v; want %#v", desired, expected)
 }
 
 func TestUtil_AdjustQueuedAllocations(t *testing.T) {
@@ -1129,9 +1074,7 @@ func TestUtil_AdjustQueuedAllocations(t *testing.T) {
 	queuedAllocs := map[string]int{"web": 2}
 	adjustQueuedAllocations(logger, &planResult, queuedAllocs)
 
-	if queuedAllocs["web"] != 1 {
-		t.Fatalf("expected: %v, actual: %v", 1, queuedAllocs["web"])
-	}
+	require.Equal(t, 1, queuedAllocs["web"])
 }
 
 func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
@@ -1169,9 +1112,7 @@ func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 		allocsLost = append(allocsLost, alloc.ID)
 	}
 	expected := []string{alloc1.ID, alloc2.ID}
-	if !reflect.DeepEqual(allocsLost, expected) {
-		t.Fatalf("actual: %v, expected: %v", allocsLost, expected)
-	}
+	require.True(t, reflect.DeepEqual(allocsLost, expected), "actual: %v, expected: %v", allocsLost, expected)
 
 	// Update the node status to ready and try again
 	plan = structs.Plan{
@@ -1185,7 +1126,5 @@ func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 		allocsLost = append(allocsLost, alloc.ID)
 	}
 	expected = []string{}
-	if !reflect.DeepEqual(allocsLost, expected) {
-		t.Fatalf("actual: %v, expected: %v", allocsLost, expected)
-	}
+	require.True(t, reflect.DeepEqual(allocsLost, expected), "actual: %v, expected: %v", allocsLost, expected)
 }

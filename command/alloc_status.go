@@ -191,6 +191,11 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 	c.Ui.Output(output)
 
+	if len(alloc.AllocatedResources.Shared.Networks) > 0 && alloc.AllocatedResources.Shared.Networks[0].HasPorts() {
+		c.Ui.Output("")
+		c.Ui.Output(formatAllocNetworkInfo(alloc))
+	}
+
 	if short {
 		c.shortTaskStatus(alloc)
 	} else {
@@ -229,13 +234,13 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 	}
 
 	basic := []string{
-		fmt.Sprintf("ID|%s", limit(alloc.ID, uuidLength)),
+		fmt.Sprintf("ID|%s", alloc.ID),
 		fmt.Sprintf("Eval ID|%s", limit(alloc.EvalID, uuidLength)),
 		fmt.Sprintf("Name|%s", alloc.Name),
 		fmt.Sprintf("Node ID|%s", limit(alloc.NodeID, uuidLength)),
 		fmt.Sprintf("Node Name|%s", alloc.NodeName),
 		fmt.Sprintf("Job ID|%s", alloc.JobID),
-		fmt.Sprintf("Job Version|%d", alloc.Job.Version),
+		fmt.Sprintf("Job Version|%d", *alloc.Job.Version),
 		fmt.Sprintf("Client Status|%s", alloc.ClientStatus),
 		fmt.Sprintf("Client Description|%s", alloc.ClientDescription),
 		fmt.Sprintf("Desired Status|%s", alloc.DesiredStatus),
@@ -297,6 +302,32 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 	}
 
 	return formatKV(basic), nil
+}
+
+func formatAllocNetworkInfo(alloc *api.Allocation) string {
+	nw := alloc.AllocatedResources.Shared.Networks[0]
+	addrs := make([]string, len(nw.DynamicPorts)+len(nw.ReservedPorts)+1)
+	addrs[0] = "Label|Dynamic|Address"
+	portFmt := func(port *api.Port, dyn string) string {
+		s := fmt.Sprintf("%s|%s|%s:%d", port.Label, dyn, nw.IP, port.Value)
+		if port.To > 0 {
+			s += fmt.Sprintf(" -> %d", port.To)
+		}
+		return s
+	}
+	for idx, port := range nw.DynamicPorts {
+		addrs[idx+1] = portFmt(&port, "yes")
+	}
+	for idx, port := range nw.ReservedPorts {
+		addrs[idx+1+len(nw.DynamicPorts)] = portFmt(&port, "yes")
+	}
+
+	var mode string
+	if nw.Mode != "" {
+		mode = fmt.Sprintf(" (mode = %q)", nw.Mode)
+	}
+
+	return fmt.Sprintf("Allocation Addresses%s\n%s", mode, formatList(addrs))
 }
 
 // futureEvalTimePretty returns when the eval is eligible to reschedule

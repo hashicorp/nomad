@@ -91,7 +91,7 @@ const (
 type Server struct {
 	config *Config
 
-	logger log.Logger
+	logger log.InterceptLogger
 
 	// Connection pool to other Nomad servers
 	connPool *pool.ConnPool
@@ -166,6 +166,9 @@ type Server struct {
 	// into the leader manager. Mostly used to handle when servers
 	// join/leave from the region.
 	reconcileCh chan serf.Member
+
+	// used to track when the server is ready to serve consistent reads, updated atomically
+	readyForConsistentReads int32
 
 	// eventCh is used to receive events from the serf cluster
 	eventCh chan serf.Event
@@ -249,6 +252,7 @@ type endpoints struct {
 	// Client endpoints
 	ClientStats       *ClientStats
 	FileSystem        *FileSystem
+	Agent             *Agent
 	ClientAllocations *ClientAllocations
 }
 
@@ -287,7 +291,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 	}
 
 	// Create the logger
-	logger := config.Logger.ResetNamed("nomad")
+	logger := config.Logger.ResetNamedIntercept("nomad")
 
 	// Create the server
 	s := &Server{
@@ -1021,7 +1025,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.ACL = &ACL{srv: s, logger: s.logger.Named("acl")}
 		s.staticEndpoints.Alloc = &Alloc{srv: s, logger: s.logger.Named("alloc")}
 		s.staticEndpoints.Eval = &Eval{srv: s, logger: s.logger.Named("eval")}
-		s.staticEndpoints.Job = &Job{srv: s, logger: s.logger.Named("job")}
+		s.staticEndpoints.Job = NewJobEndpoints(s)
 		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")} // Add but don't register
 		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
 		s.staticEndpoints.Operator = &Operator{srv: s, logger: s.logger.Named("operator")}
@@ -1041,6 +1045,9 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		// Streaming endpoints
 		s.staticEndpoints.FileSystem = &FileSystem{srv: s, logger: s.logger.Named("client_fs")}
 		s.staticEndpoints.FileSystem.register()
+
+		s.staticEndpoints.Agent = &Agent{srv: s}
+		s.staticEndpoints.Agent.register()
 	}
 
 	// Register the static handlers
@@ -1099,12 +1106,12 @@ func (s *Server) setupRaft() error {
 	s.raftTransport = trans
 
 	// Make sure we set the Logger.
-	logger := s.logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true})
+	logger := s.logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true})
 	s.config.RaftConfig.Logger = logger
 	s.config.RaftConfig.LogOutput = nil
 
-	// Our version of Raft protocol requires the LocalID to match the network
-	// address of the transport.
+	// Our version of Raft protocol 2 requires the LocalID to match the network
+	// address of the transport. Raft protocol 3 uses permanent ids.
 	s.config.RaftConfig.LocalID = raft.ServerID(trans.LocalAddr())
 	if s.config.RaftConfig.ProtocolVersion >= 3 {
 		s.config.RaftConfig.LocalID = raft.ServerID(s.config.NodeID)
@@ -1269,7 +1276,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	if s.config.UpgradeVersion != "" {
 		conf.Tags[AutopilotVersionTag] = s.config.UpgradeVersion
 	}
-	logger := s.logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true})
+	logger := s.logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true})
 	conf.MemberlistConfig.Logger = logger
 	conf.Logger = logger
 	conf.MemberlistConfig.LogOutput = nil
@@ -1398,6 +1405,21 @@ func (s *Server) getLeaderAcl() string {
 	s.leaderAclLock.Lock()
 	defer s.leaderAclLock.Unlock()
 	return s.leaderAcl
+}
+
+// Atomically sets a readiness state flag when leadership is obtained, to indicate that server is past its barrier write
+func (s *Server) setConsistentReadReady() {
+	atomic.StoreInt32(&s.readyForConsistentReads, 1)
+}
+
+// Atomically reset readiness state flag on leadership revoke
+func (s *Server) resetConsistentReadReady() {
+	atomic.StoreInt32(&s.readyForConsistentReads, 0)
+}
+
+// Returns true if this server is ready to serve consistent reads
+func (s *Server) isReadyForConsistentReads() bool {
+	return atomic.LoadInt32(&s.readyForConsistentReads) == 1
 }
 
 // Regions returns the known regions in the cluster.

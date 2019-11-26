@@ -33,13 +33,6 @@ const (
 )
 
 var (
-	// vaultConstraint is the implicit constraint added to jobs requesting a
-	// Vault token
-	vaultConstraint = &structs.Constraint{
-		LTarget: "${attr.vault.version}",
-		RTarget: ">= 0.6.1",
-		Operand: structs.ConstraintVersion,
-	}
 
 	// allowRescheduleTransition is the transition that allows failed
 	// allocations to be force rescheduled. We create a one off
@@ -53,6 +46,27 @@ var (
 type Job struct {
 	srv    *Server
 	logger log.Logger
+
+	// builtin admission controllers
+	mutators   []jobMutator
+	validators []jobValidator
+}
+
+// NewJobEndpoints creates a new job endpoint with builtin admission controllers
+func NewJobEndpoints(s *Server) *Job {
+	return &Job{
+		srv:    s,
+		logger: s.logger.Named("job"),
+		mutators: []jobMutator{
+			jobConnectHook{},
+			jobCanonicalizer{},
+			jobImpliedConstraints{},
+		},
+		validators: []jobValidator{
+			jobConnectHook{},
+			jobValidate{},
+		},
+	}
 }
 
 // Register is used to upsert a job for scheduling
@@ -67,20 +81,20 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return fmt.Errorf("missing job for registration")
 	}
 
-	// Initialize the job fields (sets defaults and any necessary init work).
-	canonicalizeWarnings := args.Job.Canonicalize()
+	// defensive check; http layer and RPC requester should ensure namespaces are set consistently
+	if args.RequestNamespace() != args.Job.Namespace {
+		return fmt.Errorf("mismatched request namespace in request: %q, %q", args.RequestNamespace(), args.Job.Namespace)
+	}
 
-	// Add implicit constraints
-	setImplicitConstraints(args.Job)
-
-	// Validate the job and capture any warnings
-	err, warnings := validateJob(args.Job)
+	// Run admission controllers
+	job, warnings, err := j.admissionControllers(args.Job)
 	if err != nil {
 		return err
 	}
+	args.Job = job
 
 	// Set the warning message
-	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
+	reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
 
 	// Check job submission permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
@@ -89,6 +103,40 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
 			return structs.ErrPermissionDenied
 		}
+
+		// Validate Volume Permsissions
+		for _, tg := range args.Job.TaskGroups {
+			for _, vol := range tg.Volumes {
+				if vol.Type != structs.VolumeTypeHost {
+					return structs.ErrPermissionDenied
+				}
+
+				// If a volume is readonly, then we allow access if the user has ReadOnly
+				// or ReadWrite access to the volume. Otherwise we only allow access if
+				// they have ReadWrite access.
+				if vol.ReadOnly {
+					if !aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadOnly) &&
+						!aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadWrite) {
+						return structs.ErrPermissionDenied
+					}
+				} else {
+					if !aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadWrite) {
+						return structs.ErrPermissionDenied
+					}
+				}
+			}
+
+			for _, t := range tg.Tasks {
+				for _, vm := range t.VolumeMounts {
+					vol := tg.Volumes[vm.Volume]
+					if vm.PropagationMode == structs.VolumeMountPropagationBidirectional &&
+						!aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadWrite) {
+						return structs.ErrPermissionDenied
+					}
+				}
+			}
+		}
+
 		// Check if override is set and we do not have permissions
 		if args.PolicyOverride {
 			if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySentinelOverride) {
@@ -173,8 +221,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 	if policyWarnings != nil {
-		reply.Warnings = structs.MergeMultierrorWarnings(warnings,
-			canonicalizeWarnings, policyWarnings)
+		warnings = append(warnings, policyWarnings)
+		reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
 	}
 
 	// Clear the Vault token
@@ -208,6 +256,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Create a new evaluation
+	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -217,6 +266,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		JobID:          args.Job.ID,
 		JobModifyIndex: reply.JobModifyIndex,
 		Status:         structs.EvalStatusPending,
+		CreateTime:     now,
+		ModifyTime:     now,
 	}
 	update := &structs.EvalUpdateRequest{
 		Evals:        []*structs.Evaluation{eval},
@@ -237,67 +288,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.EvalCreateIndex = evalIndex
 	reply.Index = evalIndex
 	return nil
-}
-
-// setImplicitConstraints adds implicit constraints to the job based on the
-// features it is requesting.
-func setImplicitConstraints(j *structs.Job) {
-	// Get the required Vault Policies
-	policies := j.VaultPolicies()
-
-	// Get the required signals
-	signals := j.RequiredSignals()
-
-	// Hot path
-	if len(signals) == 0 && len(policies) == 0 {
-		return
-	}
-
-	// Add Vault constraints
-	for _, tg := range j.TaskGroups {
-		_, ok := policies[tg.Name]
-		if !ok {
-			// Not requesting Vault
-			continue
-		}
-
-		found := false
-		for _, c := range tg.Constraints {
-			if c.Equals(vaultConstraint) {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			tg.Constraints = append(tg.Constraints, vaultConstraint)
-		}
-	}
-
-	// Add signal constraints
-	for _, tg := range j.TaskGroups {
-		tgSignals, ok := signals[tg.Name]
-		if !ok {
-			// Not requesting Vault
-			continue
-		}
-
-		// Flatten the signals
-		required := helper.MapStringStringSliceValueSet(tgSignals)
-		sigConstraint := getSignalConstraint(required)
-
-		found := false
-		for _, c := range tg.Constraints {
-			if c.Equals(sigConstraint) {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			tg.Constraints = append(tg.Constraints, sigConstraint)
-		}
-	}
 }
 
 // getSignalConstraint builds a suitable constraint based on the required
@@ -362,6 +352,17 @@ func (j *Job) Summary(args *structs.JobSummaryRequest,
 func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValidateResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "job", "validate"}, time.Now())
 
+	// defensive check; http layer and RPC requester should ensure namespaces are set consistently
+	if args.RequestNamespace() != args.Job.Namespace {
+		return fmt.Errorf("mismatched request namespace in request: %q, %q", args.RequestNamespace(), args.Job.Namespace)
+	}
+
+	job, mutateWarnings, err := j.admissionMutators(args.Job)
+	if err != nil {
+		return err
+	}
+	args.Job = job
+
 	// Check for read-job permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
@@ -369,14 +370,8 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 		return structs.ErrPermissionDenied
 	}
 
-	// Initialize the job fields (sets defaults and any necessary init work).
-	canonicalizeWarnings := args.Job.Canonicalize()
-
-	// Add implicit constraints
-	setImplicitConstraints(args.Job)
-
 	// Validate the job and capture any warnings
-	err, warnings := validateJob(args.Job)
+	validateWarnings, err := j.admissionValidators(args.Job)
 	if err != nil {
 		if merr, ok := err.(*multierror.Error); ok {
 			for _, err := range merr.Errors {
@@ -389,8 +384,10 @@ func (j *Job) Validate(args *structs.JobValidateRequest, reply *structs.JobValid
 		}
 	}
 
+	validateWarnings = append(validateWarnings, mutateWarnings...)
+
 	// Set the warning message
-	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
+	reply.Warnings = structs.MergeMultierrorWarnings(validateWarnings...)
 	reply.DriverConfigValidated = true
 	return nil
 }
@@ -571,6 +568,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	}
 
 	// Create a new evaluation
+	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -580,6 +578,8 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 		JobID:          job.ID,
 		JobModifyIndex: job.ModifyIndex,
 		Status:         structs.EvalStatusPending,
+		CreateTime:     now,
+		ModifyTime:     now,
 	}
 
 	// Create a AllocUpdateDesiredTransitionRequest request with the eval and any forced rescheduled allocs
@@ -650,6 +650,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// Create a new evaluation
 	// XXX: The job priority / type is strange for this, since it's not a high
 	// priority even if the job was.
+	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -659,6 +660,8 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		JobID:          args.JobID,
 		JobModifyIndex: index,
 		Status:         structs.EvalStatusPending,
+		CreateTime:     now,
+		ModifyTime:     now,
 	}
 	update := &structs.EvalUpdateRequest{
 		Evals:        []*structs.Evaluation{eval},
@@ -738,6 +741,7 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 		}
 
 		// Create a new evaluation
+		now := time.Now().UTC().UnixNano()
 		eval := &structs.Evaluation{
 			ID:          uuid.Generate(),
 			Namespace:   jobNS.Namespace,
@@ -746,6 +750,8 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 			TriggeredBy: structs.EvalTriggerJobDeregister,
 			JobID:       jobNS.ID,
 			Status:      structs.EvalStatusPending,
+			CreateTime:  now,
+			ModifyTime:  now,
 		}
 		args.Evals = append(args.Evals, eval)
 	}
@@ -945,6 +951,12 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 		return structs.ErrPermissionDenied
 	}
 
+	// Ensure JobID is set otherwise everything works and never returns
+	// allocations which can hide bugs in request code.
+	if args.JobID == "" {
+		return fmt.Errorf("missing job ID")
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -1123,20 +1135,15 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		return fmt.Errorf("Job required for plan")
 	}
 
-	// Initialize the job fields (sets defaults and any necessary init work).
-	canonicalizeWarnings := args.Job.Canonicalize()
-
-	// Add implicit constraints
-	setImplicitConstraints(args.Job)
-
-	// Validate the job and capture any warnings
-	err, warnings := validateJob(args.Job)
+	// Run admission controllers
+	job, warnings, err := j.admissionControllers(args.Job)
 	if err != nil {
 		return err
 	}
+	args.Job = job
 
 	// Set the warning message
-	reply.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
+	reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
 
 	// Check job submission permissions, which we assume is the same for plan
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
@@ -1159,8 +1166,8 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		return err
 	}
 	if policyWarnings != nil {
-		reply.Warnings = structs.MergeMultierrorWarnings(warnings,
-			canonicalizeWarnings, policyWarnings)
+		warnings = append(warnings, policyWarnings)
+		reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
 	}
 
 	// Acquire a snapshot of the state
@@ -1195,6 +1202,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Create an eval and mark it as requiring annotations and insert that as well
+	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -1205,6 +1213,9 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		JobModifyIndex: updatedIndex,
 		Status:         structs.EvalStatusPending,
 		AnnotatePlan:   true,
+		// Timestamps are added for consistency but this eval is never persisted
+		CreateTime: now,
+		ModifyTime: now,
 	}
 
 	snap.UpsertEvals(100, []*structs.Evaluation{eval})
@@ -1262,32 +1273,6 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	reply.CreatedEvals = planner.CreateEvals
 	reply.Index = index
 	return nil
-}
-
-// validateJob validates a Job and task drivers and returns an error if there is
-// a validation problem or if the Job is of a type a user is not allowed to
-// submit.
-func validateJob(job *structs.Job) (invalid, warnings error) {
-	validationErrors := new(multierror.Error)
-	if err := job.Validate(); err != nil {
-		multierror.Append(validationErrors, err)
-	}
-
-	// Get any warnings
-	warnings = job.Warnings()
-
-	// TODO: Validate the driver configurations. These had to be removed in 0.9
-	//       to support driver plugins, but see issue: #XXXX for more info.
-
-	if job.Type == structs.JobTypeCore {
-		multierror.Append(validationErrors, fmt.Errorf("job type cannot be core"))
-	}
-
-	if len(job.Payload) != 0 {
-		multierror.Append(validationErrors, fmt.Errorf("job can't be submitted with a payload, only dispatched"))
-	}
-
-	return validationErrors.ErrorOrNil(), warnings
 }
 
 // validateJobUpdate ensures updates to a job are valid.
@@ -1415,6 +1400,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	// If the job is periodic, we don't create an eval.
 	if !dispatchJob.IsPeriodic() {
 		// Create a new evaluation
+		now := time.Now().UTC().UnixNano()
 		eval := &structs.Evaluation{
 			ID:             uuid.Generate(),
 			Namespace:      args.RequestNamespace(),
@@ -1424,6 +1410,8 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 			JobID:          dispatchJob.ID,
 			JobModifyIndex: jobCreateIndex,
 			Status:         structs.EvalStatusPending,
+			CreateTime:     now,
+			ModifyTime:     now,
 		}
 		update := &structs.EvalUpdateRequest{
 			Evals:        []*structs.Evaluation{eval},

@@ -1,11 +1,12 @@
 import Component from '@ember/component';
 import { computed, get } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 
 export default Component.extend({
   classNames: ['accordion'],
 
   key: 'id',
-  source: computed(() => []),
+  source: overridable(() => []),
 
   onToggle(/* item, isOpen */) {},
   startExpanded: false,
@@ -30,5 +31,5 @@ export default Component.extend({
 
   // When source updates come in, the state cache is used to preserve
   // open/close state.
-  stateCache: computed(() => []),
+  stateCache: overridable(() => []),
 });

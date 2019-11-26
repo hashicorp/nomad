@@ -14,17 +14,20 @@ import (
 type MockConsulOp struct {
 	Op      string // add, remove, or update
 	AllocID string
-	Task    string
+	Name    string // task or group name
 }
 
-func NewMockConsulOp(op, allocID, task string) MockConsulOp {
-	if op != "add" && op != "remove" && op != "update" && op != "alloc_registrations" {
+func NewMockConsulOp(op, allocID, name string) MockConsulOp {
+	switch op {
+	case "add", "remove", "update", "alloc_registrations",
+		"add_group", "remove_group", "update_group", "update_ttl":
+	default:
 		panic(fmt.Errorf("invalid consul op: %s", op))
 	}
 	return MockConsulOp{
 		Op:      op,
 		AllocID: allocID,
-		Task:    task,
+		Name:    name,
 	}
 }
 
@@ -50,33 +53,33 @@ func NewMockConsulServiceClient(t testing.T, logger log.Logger) *MockConsulServi
 	return &m
 }
 
-func (m *MockConsulServiceClient) UpdateTask(old, newSvcs *consul.TaskServices) error {
+func (m *MockConsulServiceClient) UpdateWorkload(old, newSvcs *consul.WorkloadServices) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Trace("UpdateTask", "alloc_id", newSvcs.AllocID, "task", newSvcs.Name,
+	m.logger.Trace("UpdateWorkload", "alloc_id", newSvcs.AllocID, "name", newSvcs.Name(),
 		"old_services", len(old.Services), "new_services", len(newSvcs.Services),
 	)
-	m.ops = append(m.ops, NewMockConsulOp("update", newSvcs.AllocID, newSvcs.Name))
+	m.ops = append(m.ops, NewMockConsulOp("update", newSvcs.AllocID, newSvcs.Name()))
 	return nil
 }
 
-func (m *MockConsulServiceClient) RegisterTask(task *consul.TaskServices) error {
+func (m *MockConsulServiceClient) RegisterWorkload(svcs *consul.WorkloadServices) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Trace("RegisterTask", "alloc_id", task.AllocID, "task", task.Name,
-		"services", len(task.Services),
+	m.logger.Trace("RegisterWorkload", "alloc_id", svcs.AllocID, "name", svcs.Name(),
+		"services", len(svcs.Services),
 	)
-	m.ops = append(m.ops, NewMockConsulOp("add", task.AllocID, task.Name))
+	m.ops = append(m.ops, NewMockConsulOp("add", svcs.AllocID, svcs.Name()))
 	return nil
 }
 
-func (m *MockConsulServiceClient) RemoveTask(task *consul.TaskServices) {
+func (m *MockConsulServiceClient) RemoveWorkload(svcs *consul.WorkloadServices) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Trace("RemoveTask", "alloc_id", task.AllocID, "task", task.Name,
-		"services", len(task.Services),
+	m.logger.Trace("RemoveWorkload", "alloc_id", svcs.AllocID, "name", svcs.Name(),
+		"services", len(svcs.Services),
 	)
-	m.ops = append(m.ops, NewMockConsulOp("remove", task.AllocID, task.Name))
+	m.ops = append(m.ops, NewMockConsulOp("remove", svcs.AllocID, svcs.Name()))
 }
 
 func (m *MockConsulServiceClient) AllocRegistrations(allocID string) (*consul.AllocRegistration, error) {
@@ -90,6 +93,15 @@ func (m *MockConsulServiceClient) AllocRegistrations(allocID string) (*consul.Al
 	}
 
 	return nil, nil
+}
+
+func (m *MockConsulServiceClient) UpdateTTL(checkID, output, status string) error {
+	// TODO(tgross): this method is here so we can implement the
+	// interface but the locking we need for testing creates a lot
+	// of opportunities for deadlocks in testing that will never
+	// appear in live code.
+	m.logger.Trace("UpdateTTL", "check_id", checkID, "status", status)
+	return nil
 }
 
 func (m *MockConsulServiceClient) GetOps() []MockConsulOp {

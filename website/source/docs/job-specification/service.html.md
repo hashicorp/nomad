@@ -16,13 +16,17 @@ description: |-
       <code>job -> group -> task -> **service**</code>
     </td>
   </tr>
+  <th width="120">Placement</th>
+    <td>
+      <code>job -> group -> **service**</code>
+    </td>
+  </tr>
 </table>
 
-The `service` stanza instructs Nomad to register the task as a service using the
-service discovery integration. This section of the documentation will discuss the
-configuration, but please also read the
-[Nomad service discovery documentation][service-discovery] for more detailed
-information about the integration.
+The `service` stanza instructs Nomad to register a service with Consul. This
+section of the documentation will discuss the configuration, but please also
+read the [Nomad service discovery documentation][service-discovery] for more
+detailed information about the integration.
 
 ```hcl
 job "docs" {
@@ -32,6 +36,10 @@ job "docs" {
         tags = ["leader", "mysql"]
 
         port = "db"
+
+        meta {
+          meta = "for your service"
+        }
 
         check {
           type     = "tcp"
@@ -60,12 +68,13 @@ job "docs" {
 }
 ```
 
-This section of the documentation only covers the job file options for
-configuring service discovery. For more information on the setup and
-configuration to integrate Nomad with service discovery, please see the
-[Nomad service discovery documentation][service-discovery]. There are steps you
-must take to configure Nomad. Simply adding this configuration to your job file
-does not automatically enable service discovery.
+This section of the documentation only cover the job file fields and stanzas
+for service discovery. For more details on using Nomad with Consul please see
+the [Consul integration documentation][service-discovery].
+
+Nomad 0.10 also allows specifying the `service` stanza at the task group level.
+This enables services in the same task group to opt into [Consul
+Connect][connect] integration.
 
 ## `service` Parameters
 
@@ -73,6 +82,9 @@ does not automatically enable service discovery.
   check associated with the service. This can be specified multiple times to
   define multiple checks for the service. At this time, Nomad supports the
   `grpc`, `http`, `script`<sup><small>1</small></sup>, and `tcp` checks.
+
+- `connect` - Configures the [Consul Connect][connect] integration. Only
+  available on group services.
 
 - `name` `(string: "<job>-<group>-<task>")` - Specifies the name this service
   will be advertised as in Consul.  If not supplied, this will default to the
@@ -135,6 +147,9 @@ does not automatically enable service discovery.
     implemented for Docker and rkt.
 
   - `host` - Use the host IP and port.
+  
+- `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
+  the Consul service with user-defined metadata.
 
 ### `check` Parameters
 
@@ -206,6 +221,11 @@ scripts.
 - `protocol` `(string: "http")` - Specifies the protocol for the http-based
   health checks. Valid options are `http` and `https`.
 
+- `task` `(string: <required>)` - Specifies the task associated with this
+  check. Scripts are executed within the task's environment, and
+  `check_restart` stanzas will apply to the specified task. For `checks` on group
+  level `services` only.
+
 - `timeout` `(string: <required>)` - Specifies how long Consul will wait for a
   health check query to succeed. This is specified using a label suffix like
   "30s" or "1h". This must be greater than or equal to "1s"
@@ -268,45 +288,39 @@ resources {
 }
 ```
 
-### Check with Bash-isms
+### Script Checks with Shells
 
-This example shows a common mistake and correct behavior for custom checks.
-Suppose a health check like this:
-
-```shell
-$ test -f /tmp/file.txt
-```
-
-In this example `test` is not actually a command (binary) on the system; it is a
-built-in shell function to bash. Thus, the following **would not work**:
-
-```hcl
-service {
-  check {
-    type    = "script"
-    command = "test -f /tmp/file.txt" # THIS IS NOT CORRECT
-  }
-}
-```
-
-Nomad will attempt to find an executable named `test` on your system, but it
-does not exist. It is actually just a function of bash. Additionally, it is not
-possible to specify the arguments in a single string. Here is the correct
-solution:
+This example shows a service with a script check that is evaluated and interpolated in a shell; it
+tests whether a file is present at `${HEALTH_CHECK_FILE}` environment variable:
 
 ```hcl
 service {
   check {
     type    = "script"
     command = "/bin/bash"
-    args    = ["-c", "test -f /tmp/file.txt"]
+    args    = ["-c", "test -f ${HEALTH_CHECK_FILE}"]
   }
 }
 ```
 
-The `command` is actually `/bin/bash`, since that is the actual process we are
-running. The arguments to that command are the script itself, which each
-argument provided as a value to the `args` array.
+Using `/bin/bash` (or another shell) is required here to interpolate the `${HEALTH_CHECK_FILE}` value.
+
+The following examples of `command` fields **will not work**:
+
+```hcl
+# invalid because command is not a path
+check {
+  type    = "script"
+  command = "test -f /tmp/file.txt"
+}
+
+# invalid because path will not be interpolated
+check {
+  type    = "script"
+  command = "/bin/test"
+  args    = ["-f", "${HEALTH_CHECK_FILE}"]
+}
+```
 
 ### HTTP Health Check
 
@@ -613,7 +627,6 @@ job "example" {
 The `service` and `check` stanzas can both specify the port number to 
 advertise and check directly since Nomad isn't managing any port assignments.
 
-
 - - -
 
 <sup><small>1</small></sup><small> Script checks are not supported for the
@@ -627,3 +640,4 @@ system of a task for that driver.</small>
 [network]: /docs/job-specification/network.html "Nomad network Job Specification"
 [qemu]: /docs/drivers/qemu.html "Nomad qemu Driver"
 [restart_stanza]: /docs/job-specification/restart.html "restart stanza"
+[connect]: /docs/job-specification/connect.html "Nomad Consul Connect Integration"

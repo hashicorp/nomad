@@ -183,7 +183,7 @@ You will generate the actual token in the next few steps.
 ### Step 5: Create a Token Role
 
 At this point, you must create a Vault token role that Nomad can use. The token
-role allows you to limit what Vault policies are are accessible by jobs
+role allows you to limit what Vault policies are accessible by jobs
 submitted to Nomad. We will use the following token role:
 
 ```json
@@ -665,8 +665,7 @@ below </h2>
 [creation-statements]: https://www.vaultproject.io/api/secret/databases/index.html#creation_statements
 [destination]: /docs/job-specification/template.html#destination
 [fabio]: https://github.com/fabiolb/fabio
-[fabio-job]: /guides/load-balancing/fabio.html#step-1-create-a-job-for-fabio
-[fabio-lb]: /guides/load-balancing/fabio.html
+[fabio-lb]: https://learn.hashicorp.com/guides/load-balancing/fabio
 [inline]: /docs/job-specification/template.html#inline-template
 [login]: https://www.vaultproject.io/docs/commands/login.html
 [nomad-alloc-fs]: /docs/commands/alloc/fs.html

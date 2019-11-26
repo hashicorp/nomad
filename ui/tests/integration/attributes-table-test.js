@@ -1,7 +1,6 @@
-import { find, findAll } from 'ember-native-dom-helpers';
+import { find, findAll, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import flat from 'flat';
 
@@ -33,7 +32,7 @@ module('Integration | Component | attributes table', function(hooks) {
 
     const rowsCount = Object.keys(flatten(commonAttributes)).length;
     assert.equal(
-      this.$('[data-test-attributes-section]').has('[data-test-value]').length,
+      this.element.querySelectorAll('[data-test-attributes-section] [data-test-value]').length,
       rowsCount,
       `Table has ${rowsCount} rows with values`
     );

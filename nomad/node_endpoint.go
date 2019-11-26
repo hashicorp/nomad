@@ -523,8 +523,10 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		return fmt.Errorf("node not found")
 	}
 
+	now := time.Now().UTC()
+
 	// Update the timestamp of when the node status was updated
-	args.UpdatedAt = time.Now().Unix()
+	args.UpdatedAt = now.Unix()
 
 	// COMPAT: Remove in 0.9. Attempt to upgrade the request if it is of the old
 	// format.
@@ -536,9 +538,19 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		}
 	}
 
-	// Mark the deadline time
-	if args.DrainStrategy != nil && args.DrainStrategy.Deadline.Nanoseconds() > 0 {
-		args.DrainStrategy.ForceDeadline = time.Now().Add(args.DrainStrategy.Deadline)
+	// Setup drain strategy
+	if args.DrainStrategy != nil {
+		// Mark start time for the drain
+		if node.DrainStrategy == nil {
+			args.DrainStrategy.StartedAt = now
+		} else {
+			args.DrainStrategy.StartedAt = node.DrainStrategy.StartedAt
+		}
+
+		// Mark the deadline time
+		if args.DrainStrategy.Deadline.Nanoseconds() > 0 {
+			args.DrainStrategy.ForceDeadline = now.Add(args.DrainStrategy.Deadline)
+		}
 	}
 
 	// Construct the node event
@@ -1077,6 +1089,8 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 						Type:        job.Type,
 						Priority:    job.Priority,
 						Status:      structs.EvalStatusPending,
+						CreateTime:  now.UTC().UnixNano(),
+						ModifyTime:  now.UTC().UnixNano(),
 					}
 					evals = append(evals, eval)
 				}
@@ -1134,6 +1148,9 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 		}
 		_, exists := evalsByJobId[namespacedID]
 		if !exists {
+			now := time.Now().UTC().UnixNano()
+			eval.CreateTime = now
+			eval.ModifyTime = now
 			trimmedEvals = append(trimmedEvals, eval)
 			evalsByJobId[namespacedID] = struct{}{}
 		}
@@ -1281,6 +1298,7 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 	var evals []*structs.Evaluation
 	var evalIDs []string
 	jobIDs := make(map[string]struct{})
+	now := time.Now().UTC().UnixNano()
 
 	for _, alloc := range allocs {
 		// Deduplicate on JobID
@@ -1300,6 +1318,8 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			NodeID:          nodeID,
 			NodeModifyIndex: nodeIndex,
 			Status:          structs.EvalStatusPending,
+			CreateTime:      now,
+			ModifyTime:      now,
 		}
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
@@ -1324,6 +1344,8 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 			NodeID:          nodeID,
 			NodeModifyIndex: nodeIndex,
 			Status:          structs.EvalStatusPending,
+			CreateTime:      now,
+			ModifyTime:      now,
 		}
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)

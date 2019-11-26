@@ -1,6 +1,6 @@
 # Consul Template
 
-[![Build Status](http://img.shields.io/travis/hashicorp/consul-template.svg?style=flat-square)](https://travis-ci.org/hashicorp/consul-template)
+[![CircleCI](https://circleci.com/gh/hashicorp/consul-template.svg?style=svg)](https://circleci.com/gh/hashicorp/consul-template)
 [![Go Documentation](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)](https://godoc.org/github.com/hashicorp/consul-template)
 
 This project provides a convenient way to populate values from [Consul][consul]
@@ -19,6 +19,117 @@ this functionality might prove useful.
 **Please see the [Git tag](https://github.com/hashicorp/consul-template/releases) that corresponds to your version of Consul Template for the proper documentation.**
 
 ---
+
+## Table of Contents
+
+- [Community Support](#community-support)
+- [Installation](#installation)
+- [Quick Example](#quick-example)
+- [Usage](#usage)
+  - [Command Line Flags](#command-line-flags)
+  - [Configuration File Format](#configuration-file-format)
+  - [Templating Language](#templating-language)
+    - [API Functions](#api-functions)
+      - [datacenters](#datacenters)
+      - [file](#file)
+      - [key](#key)
+      - [keyExists](#keyexists)
+      - [keyOrDefault](#keyordefault)
+      - [ls](#ls)
+      - [safeLs](#safels)
+      - [node](#node)
+      - [nodes](#nodes)
+      - [secret](#secret)
+      - [secrets](#secrets)
+      - [service](#service)
+      - [services](#services)
+      - [tree](#tree)
+      - [safeTree](#safetree)
+    - [Scratch](#scratch)
+      - [scratch.Key](#scratchkey)
+      - [scratch.Get](#scratchget)
+      - [scratch.Set](#scratchset)
+      - [scratch.SetX](#scratchsetx)
+      - [scratch.MapSet](#scratchmapset)
+      - [scratch.MapSetX](#scratchmapsetx)
+      - [scratch.MapValues](#scratchmapvalues)
+    - [Helper Functions](#helper-functions)
+      - [base64Decode](#base64decode)
+      - [base64Encode](#base64encode)
+      - [base64URLDecode](#base64urldecode)
+      - [base64URLEncode](#base64urlencode)
+      - [byKey](#bykey)
+      - [byTag](#bytag)
+      - [byMeta](#bymeta)
+      - [contains](#contains)
+      - [containsAll](#containsall)
+      - [containsAny](#containsany)
+      - [containsNone](#containsnone)
+      - [containsNotAll](#containsnotall)
+      - [env](#env)
+      - [executeTemplate](#executetemplate)
+      - [explode](#explode)
+      - [explodeMap](#explodemap)
+      - [indent](#indent)
+      - [in](#in)
+      - [loop](#loop)
+      - [join](#join)
+      - [trimSpace](#trimspace)
+      - [parseBool](#parsebool)
+      - [parseFloat](#parsefloat)
+      - [parseInt](#parseint)
+      - [parseJSON](#parsejson)
+      - [parseUint](#parseuint)
+      - [plugin](#plugin)
+      - [regexMatch](#regexmatch)
+      - [regexReplaceAll](#regexreplaceall)
+      - [replaceAll](#replaceall)
+      - [split](#split)
+      - [timestamp](#timestamp)
+      - [toJSON](#tojson)
+      - [toJSONPretty](#tojsonpretty)
+      - [toLower](#tolower)
+      - [toTitle](#totitle)
+      - [toTOML](#totoml)
+      - [toUpper](#toupper)
+      - [toYAML](#toyaml)
+      - [sockaddr](#sockaddr)
+    - [Math Functions](#math-functions)
+      - [add](#add)
+      - [subtract](#subtract)
+      - [multiply](#multiply)
+      - [divide](#divide)
+      - [modulo](#modulo)
+- [Plugins](#plugins)
+  - [Authoring Plugins](#authoring-plugins)
+    - [Important Notes](#important-notes)
+- [Caveats](#caveats)
+  - [Dots in Service Names](#dots-in-service-names)
+  - [Once Mode](#once-mode)
+  - [Exec Mode](#exec-mode)
+  - [De-Duplication Mode](#de-duplication-mode)
+  - [Termination on Error](#termination-on-error)
+  - [Command Environment](#command-environment)
+  - [Multi-phase Execution](#multi-phase-execution)
+- [Running and Process Lifecycle](#running-and-process-lifecycle)
+- [Debugging](#debugging)
+- [FAQ](#faq)
+- [Contributing](#contributing)
+
+
+## Community Support
+
+If you have questions about how consul-template works, its capabilities or
+anything other than a bug or feature request (use github's issue tracker for
+those), please see our community support resources.
+
+Community portal: https://discuss.hashicorp.com/c/consul
+
+Other resources: https://www.consul.io/community.html
+
+Additionally, for issues and pull requests, we'll be using the :+1: reactions
+as a rough voting system to help gauge community priorities. So please add :+1:
+to any issue or pull request you'd like to see worked on. Thanks.
 
 
 ## Installation
@@ -258,19 +369,6 @@ vault {
   # of the address is required.
   address = "https://vault.service.consul:8200"
 
-  # This is the grace period between lease renewal of periodic secrets and secret
-  # re-acquisition. When renewing a secret, if the remaining lease is less than or
-  # equal to the configured grace, Consul Template will request a new credential.
-  # This prevents Vault from revoking the credential at expiration and Consul
-  # Template having a stale credential.
-  #
-  # Note: If you set this to a value that is higher than your default TTL or
-  # max TTL, Consul Template will always read a new secret!
-  #
-  # This should also be less than or around 1/3 of your TTL for a predictable
-  # behaviour. See https://github.com/hashicorp/vault/issues/3414
-  grace = "5m"
-
   # This is a Vault Enterprise namespace to use for reading/writing secrets.
   #
   # This value can also be specified via the environment variable VAULT_NAMESPACE.
@@ -288,7 +386,8 @@ vault {
 
   # This tells Consul Template to load the Vault token from the contents of a file.
   # If this field is specified:
-  # - Consul Template will not try to renew the Vault token.
+  # - by default Consul Template will not try to renew the Vault token, if you want it
+  # to renew you will nee dto specify renew_token = true as below.
   # - Consul Template will periodically stat the file and update the token if it has
   # changed.
   # vault_agent_token_file = "/tmp/vault/agent/token"
@@ -479,6 +578,15 @@ template {
   # that does not conflict with the output file itself.
   left_delimiter  = "{{"
   right_delimiter = "}}"
+
+  # These are functions that are not permitted in the template. If a template
+  # includes one of these functions, it will exit with an error.
+  function_blacklist = []
+
+  # If a sandbox path is provided, any path provided to the `file` function is
+  # checked that it falls within the sandbox path. Relative paths that try to
+  # traverse outside the sandbox path will exit with an error.
+  sandbox_path = ""
 
   # This is the `minimum(:maximum)` to wait before rendering a new template to
   # disk and triggering a command, separated by a colon (`:`). If the optional
@@ -695,6 +803,23 @@ maxconns:15
 minconns:5
 ```
 
+##### `safeLs`
+
+Same as [ls](#ls), but refuse to render template, if the KV prefix query return blank/empty data.
+
+This is especially useful, for rendering mission critical files, that are being populated by consul-template.
+
+For example:
+
+```text
+/root/.ssh/authorized_keys
+/etc/sysconfig/iptables
+```
+
+Using `safeLs` on empty prefixes will result in template output not being rendered at all.
+
+To learn how `safeLs` was born see [CT-1131](https://github.com/hashicorp/consul-template/issues/1131) [C-3975](https://github.com/hashicorp/consul/issues/3975) and [CR-82](https://github.com/hashicorp/consul-replicate/issues/82).
+
 ##### `node`
 
 Query [Consul][consul] for a node in the catalog.
@@ -811,7 +936,7 @@ To access a versioned secret value (for the K/V version 2 backend):
 
 When omitting the `?version` parameter, the latest version of the secret will be
 fetched. Note the nested `.Data.data` syntax when referencing the secret value.
-For more information about using the K/V v2 backend, see the 
+For more information about using the K/V v2 backend, see the
 [Vault Documentation](https://www.vaultproject.io/docs/secrets/kv/kv-v2.html).
 
 When using Vault versions 0.10.0/0.10.1, the secret path will have to be prefixed
@@ -835,18 +960,16 @@ secret in plain-text on disk. If an attacker is able to get access to the file,
 they will have access to plain-text secrets.
 
 Please note that Vault does not support blocking queries. As a result, Consul
-Template will not immediately reload in the event a secret is changed as it does
-with Consul's key-value store. Consul Template will fetch a new secret at half
-the lease duration of the original secret. For example, most items in Vault's
-generic secret backend have a default 30 day lease. This means Consul Template
-will renew the secret every 15 days. As such, it is recommended that a smaller
-lease duration be used when generating the initial secret to force Consul
-Template to renew more often.
+Template will not immediately reload in the event a secret is changed as it
+does with Consul's key-value store. Consul Template will renew the secret with
+Vault's [Renewer API](https://godoc.org/github.com/hashicorp/vault/api#Renewer).
+The Renew API tries to use most of the time the secret is good, renewing at
+around 90% of the lease time (as set by Vault).
 
 Also consider enabling `error_on_missing_key` when working with templates that
 will interact with Vault. By default, Consul Template uses Go's templating
 language. When accessing a struct field or map key that does not exist, it
-defaults to printing "<no value>". This may not be the desired behavior,
+defaults to printing `<no value>`. This may not be the desired behavior,
 especially when working with passwords or other data. As such, it is recommended
 you set:
 
@@ -932,7 +1055,7 @@ The example above is querying Consul for healthy "web" services, in the "east-aw
 
 ```liquid
 {{ range service "web" }}
-server {{ .Name }}{{ .Address }}:{{ .Port }}{{ end }}
+server {{ .Name }} {{ .Address }}:{{ .Port }}{{ end }}
 ```
 
 renders the IP addresses of all _healthy_ nodes with a logical service named
@@ -967,6 +1090,9 @@ This will returns services which are deemed "passing" or "warning" according to
 their node and service-level checks defined in Consul. Please note that the
 comma implies an "or", not an "and".
 
+**Note:** Due to the use of dot `.` to delimit TAG, the `service` command will
+not recognize service names containing dots.
+
 **Note:** There is an architectural difference between the following:
 
 ```liquid
@@ -979,6 +1105,7 @@ passing. The latter will return all services registered with the Consul agent
 and perform client-side filtering. As a general rule, do not use the "passing"
 argument alone if you want only healthy services - simply omit the second
 argument instead.
+
 
 ##### `services`
 
@@ -1031,6 +1158,23 @@ nested/config/value "value"
 
 Unlike `ls`, `tree` returns **all** keys under the prefix, just like the Unix
 `tree` command.
+
+##### `safeTree`
+
+Same as [tree](#tree), but refuse to render template, if the KV prefix query return blank/empty data.
+
+This is especially useful, for rendering mission critical files, that are being populated by consul-template.
+
+For example:
+
+```text
+/root/.ssh/authorized_keys
+/etc/sysconfig/iptables
+```
+
+Using `safeTree` on empty prefixes will result in template output not being rendered at all.
+
+To learn how `safeTree` was born see [CT-1131](https://github.com/hashicorp/consul-template/issues/1131) [C-3975](https://github.com/hashicorp/consul/issues/3975) and [CR-82](https://github.com/hashicorp/consul-replicate/issues/82).
 
 ---
 
@@ -1222,6 +1366,81 @@ Takes the list of services returned by the [`service`](#service) or
 {{ end }}{{ end }}
 ```
 
+##### `byMeta`
+
+Takes a list of services returned by the [`service`](#service) or
+[`services`](#services) and returns a map that groups services by ServiceMeta values.
+Multiple service meta keys can be passed as a comma separated string. `|int` can be added to
+a meta key to convert numbers from service meta values to padded numbers in `printf "%05d" % value`
+format (useful for sorting as Go Template sorts maps by keys).
+
+**Example**:
+
+If we have the following services registered in Consul:
+
+```json
+{
+  "Services": [
+     {
+       "ID": "redis-dev-1",
+       "Name": "redis",
+       "ServiceMeta": {
+         "environment": "dev",
+         "shard_number": "1"
+       },
+       ...
+     },
+     {
+       "ID": "redis-prod-1",
+       "Name": "redis",
+       "ServiceMeta": {
+         "environment": "prod",
+         "shard_number": "1"
+       },
+       ...
+     },
+     {
+       "ID": "redis-prod-2",
+       "Name": "redis",
+       "ServiceMeta": {
+         "environment": "prod",
+         "shard_number": "2",
+       },
+       ...
+     }
+   ]
+}
+```
+
+```liquid
+{{ service "redis|any" | byMeta "environment,shard_number|int" | toJSON }}
+```
+
+The code above will produce a map of services grouped by meta:
+
+```json
+{
+  "dev_00001": [
+    {
+      "ID": "redis-dev-1",
+      ...
+    }
+  ],
+  "prod_00001": [
+    {
+      "ID": "redis-prod-1",
+      ...
+    }
+  ],
+  "prod_00002": [
+    {
+      "ID": "redis-prod-2",
+      ...
+    }
+  ]
+}
+```
+
 ##### `contains`
 
 Determines if a needle is within an iterable element.
@@ -1232,7 +1451,7 @@ Determines if a needle is within an iterable element.
 {{ end }}
 ```
 
-#### `containsAll`
+##### `containsAll`
 
 Returns `true` if all needles are within an iterable element, or `false`
 otherwise. Returns `true` if the list of needles is empty.
@@ -1243,7 +1462,7 @@ otherwise. Returns `true` if the list of needles is empty.
 {{ end }}
 ```
 
-#### `containsAny`
+##### `containsAny`
 
 Returns `true` if any needle is within an iterable element, or `false`
 otherwise. Returns `false` if the list of needles is empty.
@@ -1254,7 +1473,7 @@ otherwise. Returns `false` if the list of needles is empty.
 {{ end }}
 ```
 
-#### `containsNone`
+##### `containsNone`
 
 Returns `true` if no needles are within an iterable element, or `false`
 otherwise. Returns `true` if the list of needles is empty.
@@ -1265,7 +1484,7 @@ otherwise. Returns `true` if the list of needles is empty.
 {{ end }}
 ```
 
-#### `containsNotAll`
+##### `containsNotAll`
 
 Returns `true` if some needle is not within an iterable element, or `false`
 otherwise. Returns `false` if the list of needles is empty.
@@ -1336,6 +1555,17 @@ You can also access deeply nested values:
 You will need to have a reasonable format about your data in Consul. Please see
 [Go's text/template package][text-template] for more information.
 
+
+##### `explodeMap`
+
+Takes the value of a map and converts it into a deeply-nested map for parsing/traversing,
+using the same logic as `explode`.
+
+```liquid
+{{ scratch.MapSet "example", "foo/bar", "a" }}
+{{ scratch.MapSet "example", "foo/baz", "b" }}
+{{ scratch.Get "example" | explodeMap | toYAML }}
+```
 
 ##### `indent`
 
@@ -1476,7 +1706,9 @@ plugin.
 {{ plugin "my-plugin" }}
 ```
 
-This is most commonly combined with a JSON filter for customization:
+The plugin can take an arbitrary number of string arguments, and can be the
+target of a pipeline that produces strings as well. This is most commonly
+combined with a JSON filter for customization:
 
 ```liquid
 {{ tree "foo" | explode | toJSON | plugin "my-plugin" }}
@@ -1675,6 +1907,18 @@ minconns: "2"
 
 Note: Consul stores all KV data as strings. Thus true is "true", 1 is "1", etc.
 
+##### `sockaddr`
+
+Takes a quote-escaped template string as an argument and passes it on to
+[hashicorp/go-sockaddr](https://github.com/hashicorp/go-sockaddr) templating engine.
+
+```liquid
+{{ sockaddr "GetPrivateIP" }}
+```
+
+See [hashicorp/go-sockaddr documentation](https://godoc.org/github.com/hashicorp/go-sockaddr)
+for more information.
+
 ---
 
 #### Math Functions
@@ -1777,7 +2021,9 @@ $ NAME [INPUT...]
   inherited `PATH` so e.g. the plugin `cat` will run the first executable `cat`
   that is found on the `PATH`.
 
-- `INPUT` - input from the template - this will always be JSON if provided
+- `INPUT` - input from the template. There will be one INPUT for every argument passed
+  to the `plugin` function. If the arguments contain whitespace, that whitespace
+  will be passed as if the argument were quoted by the shell.
 
 #### Important Notes
 
@@ -1788,7 +2034,8 @@ $ NAME [INPUT...]
 
 - Plugin output must be returned as a string on stdout. Only stdout will be
   parsed for output. Be sure to log all errors, debugging messages onto stderr
-  to avoid errors when Consul Template returns the value.
+  to avoid errors when Consul Template returns the value. Note that output to
+  stderr will only be output if the plugin returns a non-zero exit code.
 
 - Always `exit 0` or Consul Template will assume the plugin failed to execute
 
@@ -1843,6 +2090,14 @@ func main() {
 
 ## Caveats
 
+### Dots in Service Names
+
+Using dots `.` in service names will conflict with the use of dots for [TAG
+delineation](https://github.com/hashicorp/consul-template#service) in the
+template. Dots already [interfere with using
+DNS](https://www.consul.io/docs/agent/services.html#service-and-tag-names-with-dns)
+for service names, so we recommend avoiding dots wherever possible.
+
 ### Once Mode
 
 In Once mode, Consul Template will wait for all dependencies to be rendered. If
@@ -1870,6 +2125,8 @@ lookup each `service`, since the inner loops cannot be evaluated until the outer
 loop returns a response. Consul Template waits until it gets a response from
 Consul for all dependencies before rendering a template. It does not wait until
 that response is non-empty though.
+
+**Note:** Once mode implicitly disables any wait/quiescence timers specified in configuration files or passed on the command line.
 
 ### Exec Mode
 
@@ -2165,12 +2422,7 @@ A: Configuration management tools are designed to be used in unison with Consul 
 
 ## Contributing
 
-To build and install Consul Template locally, you will need to install the
-Docker engine:
-
-- [Docker for Mac](https://docs.docker.com/engine/installation/mac/)
-- [Docker for Windows](https://docs.docker.com/engine/installation/windows/)
-- [Docker for Linux](https://docs.docker.com/engine/installation/linux/ubuntulinux/)
+To build and install Envconsul locally, you will need to [install Go][go].
 
 Clone the repository:
 
@@ -2191,10 +2443,10 @@ If you want to compile a specific binary, set `XC_OS` and `XC_ARCH` or run the
 following to generate all binaries:
 
 ```shell
-$ make bin
+$ make build
 ```
 
-If you want to run the tests, first [install consul locally](https://www.consul.io/docs/install/index.html), then:
+If you want to run the tests, first install [consul](https://www.consul.io/docs/install/index.html) and [vault](https://www.vaultproject.io/docs/install/) locally, then:
 
 ```shell
 $ make test
@@ -2212,3 +2464,4 @@ go test ./... -run SomeTestFunction_name
 [releases]: https://releases.hashicorp.com/consul-template "Consul Template Releases"
 [text-template]: https://golang.org/pkg/text/template/ "Go's text/template package"
 [vault]: https://www.vaultproject.io "Vault by HashiCorp"
+[go]: https://golang.org "Go programming language"

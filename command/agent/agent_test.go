@@ -162,7 +162,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	if err := conf.normalizeAddrs(); err != nil {
 		t.Fatalf("error normalizing config: %v", err)
 	}
-	out, err = a.serverConfig()
+	_, err = a.serverConfig()
 	if err == nil || !strings.Contains(err.Error(), "unknown unit") {
 		t.Fatalf("expected unknown unit error, got: %#v", err)
 	}
@@ -172,24 +172,36 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("error normalizing config: %v", err)
 	}
 	out, err = a.serverConfig()
+	if err != nil {
+		t.Fatalf("error getting server config: %s", err)
+	}
 	if threshold := out.NodeGCThreshold; threshold != time.Second*10 {
 		t.Fatalf("expect 10s, got: %s", threshold)
 	}
 
 	conf.Server.HeartbeatGrace = 37 * time.Second
 	out, err = a.serverConfig()
+	if err != nil {
+		t.Fatalf("error getting server config: %s", err)
+	}
 	if threshold := out.HeartbeatGrace; threshold != time.Second*37 {
 		t.Fatalf("expect 37s, got: %s", threshold)
 	}
 
 	conf.Server.MinHeartbeatTTL = 37 * time.Second
 	out, err = a.serverConfig()
+	if err != nil {
+		t.Fatalf("error getting server config: %s", err)
+	}
 	if min := out.MinHeartbeatTTL; min != time.Second*37 {
 		t.Fatalf("expect 37s, got: %s", min)
 	}
 
 	conf.Server.MaxHeartbeatsPerSecond = 11.0
 	out, err = a.serverConfig()
+	if err != nil {
+		t.Fatalf("error getting server config: %s", err)
+	}
 	if max := out.MaxHeartbeatsPerSecond; max != 11.0 {
 		t.Fatalf("expect 11, got: %v", max)
 	}
@@ -413,7 +425,7 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	t.Parallel()
 	// Agent.agentHTTPCheck only needs a config and logger
 	a := &Agent{
-		config: DevConfig(),
+		config: DevConfig(nil),
 		logger: testlog.HCLogger(t),
 	}
 	if err := a.config.normalizeAddrs(); err != nil {
@@ -439,6 +451,28 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	if expected := "/v1/agent/health?type=client"; check.Path != expected {
 		t.Errorf("expected client check path to be %q but found %q", expected, check.Path)
 	}
+}
+
+// Here we validate that log levels get updated when the configuration is
+// reloaded. I can't find a good way to fetch this from the logger itself, so
+// we pull it only from the agents configuration struct, not the logger.
+func TestAgent_Reload_LogLevel(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.LogLevel = "INFO"
+	})
+	defer agent.Shutdown()
+
+	assert.Equal("INFO", agent.GetConfig().LogLevel)
+
+	newConfig := &Config{
+		LogLevel: "TRACE",
+	}
+
+	assert.Nil(agent.Reload(newConfig))
+	assert.Equal("TRACE", agent.GetConfig().LogLevel)
 }
 
 // This test asserts that the keyloader embedded in the TLS config is shared

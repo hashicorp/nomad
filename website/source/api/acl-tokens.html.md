@@ -70,12 +70,24 @@ The table below shows this endpoint's support for
 | ---------------- | ----------------- | ------------ |
 | `YES`            | `all`             | `management` |
 
+### Parameters
+
+- `prefix` `(string: "")` - Specifies a string to filter ACL tokens based on an
+  accessor ID prefix. Because the value is decoded to bytes, the prefix must
+  have an even number of hexadecimal characters (0-9a-f). This is specified as
+  a query string parameter.
 
 ### Sample Request
 
 ```text
 $ curl \
     https://localhost:4646/v1/acl/tokens
+```
+
+```text
+$ curl \
+    --request POST \
+    https://localhost:4646/v1/acl/tokens?prefix=3da2ed52
 ```
 
 ### Sample Response

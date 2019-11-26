@@ -296,7 +296,7 @@ func TestWorker_waitForIndex(t *testing.T) {
 
 	// Wait for a future index
 	w := &Worker{srv: s1, logger: s1.logger}
-	snap, err := w.snapshotAfter(index+1, time.Second)
+	snap, err := w.snapshotMinIndex(index+1, time.Second)
 	require.NoError(t, err)
 	require.NotNil(t, snap)
 
@@ -306,7 +306,7 @@ func TestWorker_waitForIndex(t *testing.T) {
 	// Cause a timeout
 	waitIndex := index + 100
 	timeout := 10 * time.Millisecond
-	snap, err = w.snapshotAfter(index+100, timeout)
+	snap, err = w.snapshotMinIndex(index+100, timeout)
 	require.Nil(t, snap)
 	require.EqualError(t, err,
 		fmt.Sprintf("timed out after %s waiting for index=%d", timeout, waitIndex))

@@ -1,7 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 
 let managementToken, clientToken;
@@ -24,6 +24,7 @@ module('Acceptance | jobs list', function(hooks) {
     await JobsList.visit();
 
     assert.equal(currentURL(), '/jobs');
+    assert.equal(document.title, 'Jobs - Nomad');
   });
 
   test('/jobs should list the first page of jobs sorted by modify index', async function(assert) {

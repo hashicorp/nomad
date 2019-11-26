@@ -3,6 +3,7 @@ package watch
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"reflect"
 	"sync"
 	"time"
@@ -207,6 +208,8 @@ func (v *View) fetch(doneCh, successCh chan<- struct{}, errCh chan<- error) {
 		default:
 		}
 
+		start := time.Now() // for rateLimiter below
+
 		data, rm, err := v.dependency.Fetch(v.clients, &dep.QueryOptions{
 			AllowStale: allowStale,
 			WaitTime:   defaultWaitTime,
@@ -247,6 +250,10 @@ func (v *View) fetch(doneCh, successCh chan<- struct{}, errCh chan<- error) {
 			allowStale = true
 		}
 
+		if dur := rateLimiter(start); dur > 1 {
+			time.Sleep(dur)
+		}
+
 		if rm.LastIndex == v.lastIndex {
 			log.Printf("[TRACE] (view) %s no new data (index was the same)", v.dependency)
 			continue
@@ -280,6 +287,18 @@ func (v *View) fetch(doneCh, successCh chan<- struct{}, errCh chan<- error) {
 		close(doneCh)
 		return
 	}
+}
+
+const minDelayBetweenUpdates = time.Millisecond * 100
+
+// return a duration to sleep to limit the frequency of upstream calls
+func rateLimiter(start time.Time) time.Duration {
+	remaining := minDelayBetweenUpdates - time.Since(start)
+	if remaining > 0 {
+		dither := time.Duration(rand.Int63n(20000000)) // 0-20ms
+		return remaining + dither
+	}
+	return 0
 }
 
 // stop halts polling of this view.

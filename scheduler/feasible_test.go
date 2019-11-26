@@ -81,13 +81,217 @@ func TestRandomIterator(t *testing.T) {
 	}
 }
 
-func TestDriverChecker(t *testing.T) {
+func TestHostVolumeChecker(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {Name: "foo"}}
+	nodes[2].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {},
+		"bar": {},
+	}
+	nodes[3].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {},
+		"bar": {},
+	}
+	nodes[4].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {},
+		"baz": {},
+	}
+
+	noVolumes := map[string]*structs.VolumeRequest{}
+
+	volumes := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:   "host",
+			Source: "foo",
+		},
+		"bar": {
+			Type:   "host",
+			Source: "bar",
+		},
+		"baz": {
+			Type:   "nothost",
+			Source: "baz",
+		},
+	}
+
+	checker := NewHostVolumeChecker(ctx)
+	cases := []struct {
+		Node             *structs.Node
+		RequestedVolumes map[string]*structs.VolumeRequest
+		Result           bool
+	}{
+		{ // Nil Volumes, some requested
+			Node:             nodes[0],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{ // Mismatched set of volumes
+			Node:             nodes[1],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{ // Happy Path
+			Node:             nodes[2],
+			RequestedVolumes: volumes,
+			Result:           true,
+		},
+		{ // No Volumes requested or available
+			Node:             nodes[3],
+			RequestedVolumes: noVolumes,
+			Result:           true,
+		},
+		{ // No Volumes requested, some available
+			Node:             nodes[4],
+			RequestedVolumes: noVolumes,
+			Result:           true,
+		},
+	}
+
+	for i, c := range cases {
+		checker.SetVolumes(c.RequestedVolumes)
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+}
+
+func TestHostVolumeChecker_ReadOnly(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+
+	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {
+			ReadOnly: true,
+		},
+	}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {
+			ReadOnly: false,
+		},
+	}
+
+	readwriteRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:   "host",
+			Source: "foo",
+		},
+	}
+
+	readonlyRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:     "host",
+			Source:   "foo",
+			ReadOnly: true,
+		},
+	}
+
+	checker := NewHostVolumeChecker(ctx)
+	cases := []struct {
+		Node             *structs.Node
+		RequestedVolumes map[string]*structs.VolumeRequest
+		Result           bool
+	}{
+		{ // ReadWrite Request, ReadOnly Host
+			Node:             nodes[0],
+			RequestedVolumes: readwriteRequest,
+			Result:           false,
+		},
+		{ // ReadOnly Request, ReadOnly Host
+			Node:             nodes[0],
+			RequestedVolumes: readonlyRequest,
+			Result:           true,
+		},
+		{ // ReadOnly Request, ReadWrite Host
+			Node:             nodes[1],
+			RequestedVolumes: readonlyRequest,
+			Result:           true,
+		},
+		{ // ReadWrite Request, ReadWrite Host
+			Node:             nodes[1],
+			RequestedVolumes: readwriteRequest,
+			Result:           true,
+		},
+	}
+
+	for i, c := range cases {
+		checker.SetVolumes(c.RequestedVolumes)
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+}
+
+func TestDriverChecker_DriverInfo(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	nodes[0].Drivers["foo"] = &structs.DriverInfo{
+		Detected: true,
+		Healthy:  true,
+	}
+	nodes[1].Drivers["foo"] = &structs.DriverInfo{
+		Detected: true,
+		Healthy:  false,
+	}
+	nodes[2].Drivers["foo"] = &structs.DriverInfo{
+		Detected: false,
+		Healthy:  false,
+	}
+
+	drivers := map[string]struct{}{
+		"exec": {},
+		"foo":  {},
+	}
+	checker := NewDriverChecker(ctx, drivers)
+	cases := []struct {
+		Node   *structs.Node
+		Result bool
+	}{
+		{
+			Node:   nodes[0],
+			Result: true,
+		},
+		{
+			Node:   nodes[1],
+			Result: false,
+		},
+		{
+			Node:   nodes[2],
+			Result: false,
+		},
+	}
+
+	for i, c := range cases {
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+}
+func TestDriverChecker_Compatibility(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	for _, n := range nodes {
+		// force compatibility mode
+		n.Drivers = nil
 	}
 	nodes[0].Attributes["driver.foo"] = "1"
 	nodes[1].Attributes["driver.foo"] = "0"
@@ -504,6 +708,8 @@ func TestCheckLexicalOrder(t *testing.T) {
 }
 
 func TestCheckVersionConstraint(t *testing.T) {
+	t.Parallel()
+
 	type tcase struct {
 		lVal, rVal interface{}
 		result     bool
@@ -529,12 +735,90 @@ func TestCheckVersionConstraint(t *testing.T) {
 			lVal: 1, rVal: "~> 1.0",
 			result: true,
 		},
+		{
+			// Prereleases are never > final releases
+			lVal: "1.3.0-beta1", rVal: ">= 0.6.1",
+			result: false,
+		},
+		{
+			// Prerelease X.Y.Z must match
+			lVal: "1.7.0-alpha1", rVal: ">= 1.6.0-beta1",
+			result: false,
+		},
+		{
+			// Meta is ignored
+			lVal: "1.3.0-beta1+ent", rVal: "= 1.3.0-beta1",
+			result: true,
+		},
 	}
 	for _, tc := range cases {
 		_, ctx := testContext(t)
-		if res := checkVersionMatch(ctx, tc.lVal, tc.rVal); res != tc.result {
+		p := newVersionConstraintParser(ctx)
+		if res := checkVersionMatch(ctx, p, tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
+	}
+}
+
+func TestCheckSemverConstraint(t *testing.T) {
+	t.Parallel()
+
+	type tcase struct {
+		name       string
+		lVal, rVal interface{}
+		result     bool
+	}
+	cases := []tcase{
+		{
+			name: "Pessimistic operator always fails 1",
+			lVal: "1.2.3", rVal: "~> 1.0",
+			result: false,
+		},
+		{
+			name: "1.2.3 does satisfy >= 1.0, < 1.4",
+			lVal: "1.2.3", rVal: ">= 1.0, < 1.4",
+			result: true,
+		},
+		{
+			name: "Pessimistic operator always fails 2",
+			lVal: "2.0.1", rVal: "~> 1.0",
+			result: false,
+		},
+		{
+			name: "1.4 does not satisfy >= 1.0, < 1.4",
+			lVal: "1.4", rVal: ">= 1.0, < 1.4",
+			result: false,
+		},
+		{
+			name: "Pessimistic operator always fails 3",
+			lVal: 1, rVal: "~> 1.0",
+			result: false,
+		},
+		{
+			name: "Prereleases are handled according to semver 1",
+			lVal: "1.3.0-beta1", rVal: ">= 0.6.1",
+			result: true,
+		},
+		{
+			name: "Prereleases are handled according to semver 2",
+			lVal: "1.7.0-alpha1", rVal: ">= 1.6.0-beta1",
+			result: true,
+		},
+		{
+			name: "Meta is ignored according to semver",
+			lVal: "1.3.0-beta1+ent", rVal: "= 1.3.0-beta1",
+			result: true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			_, ctx := testContext(t)
+			p := newSemverConstraintParser(ctx)
+			actual := checkVersionMatch(ctx, p, tc.lVal, tc.rVal)
+			require.Equal(t, tc.result, actual)
+		})
 	}
 }
 

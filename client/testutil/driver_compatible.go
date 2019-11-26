@@ -17,6 +17,14 @@ func RequireRoot(t *testing.T) {
 	}
 }
 
+// RequireConsul skips tests unless a Consul binary is available on $PATH.
+func RequireConsul(t *testing.T) {
+	_, err := exec.Command("consul", "version").CombinedOutput()
+	if err != nil {
+		t.Skipf("Test requires Consul: %v", err)
+	}
+}
+
 func ExecCompatible(t *testing.T) {
 	if runtime.GOOS != "linux" || syscall.Geteuid() != 0 {
 		t.Skip("Test only available running as root on linux")

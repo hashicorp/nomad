@@ -1,5 +1,6 @@
 import Ember from 'ember';
-import { Factory, faker, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'ember-cli-mirage';
+import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
 
@@ -16,6 +17,7 @@ const EVAL_TRIGGERED_BY = [
   'failed-follow-up',
   'max-plan-attempts',
 ];
+const REF_TIME = new Date();
 
 const generateCountMap = (keysCount, list) => () => {
   const sample = Array(keysCount)
@@ -45,14 +47,20 @@ export default Factory.extend({
 
   priority: () => faker.random.number(100),
 
-  type: faker.list.random(...EVAL_TYPES),
-  triggeredBy: faker.list.random(...EVAL_TRIGGERED_BY),
-  status: faker.list.random(...EVAL_STATUSES),
+  type: () => faker.helpers.randomize(EVAL_TYPES),
+  triggeredBy: () => faker.helpers.randomize(EVAL_TRIGGERED_BY),
+  status: () => faker.helpers.randomize(EVAL_STATUSES),
   statusDescription: () => faker.lorem.sentence(),
 
   failedTGAllocs: null,
 
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
+  modifyTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
+
+  createIndex: () => faker.random.number({ min: 10, max: 2000 }),
+  createTime() {
+    return faker.date.past(2 / 365, new Date(this.modifyTime / 1000000)) * 1000000;
+  },
 
   waitUntil: null,
 
@@ -106,12 +114,12 @@ export function generateTaskGroupFailures() {
     NodesEvaluated: faker.random.number({ min: 1, max: 100 }),
     NodesExhausted: faker.random.number({ min: 1, max: 100 }),
 
-    NodesAvailable: Math.random() > 0.7 ? generateNodesAvailable() : null,
-    ClassFiltered: Math.random() > 0.7 ? generateClassFiltered() : null,
-    ConstraintFiltered: Math.random() > 0.7 ? generateConstraintFiltered() : null,
-    ClassExhausted: Math.random() > 0.7 ? generateClassExhausted() : null,
-    DimensionExhausted: Math.random() > 0.7 ? generateDimensionExhausted() : null,
-    QuotaExhausted: Math.random() > 0.7 ? generateQuotaExhausted() : null,
-    Scores: Math.random() > 0.7 ? generateScores() : null,
+    NodesAvailable: faker.random.number(10) >= 7 ? generateNodesAvailable() : null,
+    ClassFiltered: faker.random.number(10) >= 7 ? generateClassFiltered() : null,
+    ConstraintFiltered: faker.random.number(10) >= 7 ? generateConstraintFiltered() : null,
+    ClassExhausted: faker.random.number(10) >= 7 ? generateClassExhausted() : null,
+    DimensionExhausted: faker.random.number(10) >= 7 ? generateDimensionExhausted() : null,
+    QuotaExhausted: faker.random.number(10) >= 7 ? generateQuotaExhausted() : null,
+    Scores: faker.random.number(10) >= 7 ? generateScores() : null,
   };
 }

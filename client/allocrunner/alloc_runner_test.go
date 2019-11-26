@@ -528,7 +528,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
 	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
 		return &consul.AllocRegistration{
-			Tasks: map[string]*consul.TaskRegistration{
+			Tasks: map[string]*consul.ServiceRegistrations{
 				task.Name: {
 					Services: map[string]*consul.ServiceRegistration{
 						"123": {
@@ -847,7 +847,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
 	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
 		return &consul.AllocRegistration{
-			Tasks: map[string]*consul.TaskRegistration{
+			Tasks: map[string]*consul.ServiceRegistrations{
 				task.Name: {
 					Services: map[string]*consul.ServiceRegistration{
 						"123": {
@@ -1000,4 +1000,62 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	}, func(err error) {
 		require.Fail(t, "err: %v", err)
 	})
+}
+
+// TestAllocRunner_PersistState_Destroyed asserts that destroyed allocs don't persist anymore
+func TestAllocRunner_PersistState_Destroyed(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	taskName := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks[0].Name
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	conf.StateDB = state.NewMemDB(conf.Logger)
+
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer destroy(ar)
+
+	go ar.Run()
+
+	select {
+	case <-ar.WaitCh():
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "timed out waiting for alloc to complete")
+	}
+
+	// test final persisted state upon completion
+	require.NoError(t, ar.PersistState())
+	allocs, _, err := conf.StateDB.GetAllAllocations()
+	require.NoError(t, err)
+	require.Len(t, allocs, 1)
+	require.Equal(t, alloc.ID, allocs[0].ID)
+	_, ts, err := conf.StateDB.GetTaskRunnerState(alloc.ID, taskName)
+	require.NoError(t, err)
+	require.Equal(t, structs.TaskStateDead, ts.State)
+
+	// check that DB alloc is empty after destroying AR
+	ar.Destroy()
+	select {
+	case <-ar.DestroyCh():
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "timedout waiting for destruction")
+	}
+
+	allocs, _, err = conf.StateDB.GetAllAllocations()
+	require.NoError(t, err)
+	require.Empty(t, allocs)
+	_, ts, err = conf.StateDB.GetTaskRunnerState(alloc.ID, taskName)
+	require.NoError(t, err)
+	require.Nil(t, ts)
+
+	// check that DB alloc is empty after persisting state of destroyed AR
+	ar.PersistState()
+	allocs, _, err = conf.StateDB.GetAllAllocations()
+	require.NoError(t, err)
+	require.Empty(t, allocs)
+	_, ts, err = conf.StateDB.GetTaskRunnerState(alloc.ID, taskName)
+	require.NoError(t, err)
+	require.Nil(t, ts)
 }

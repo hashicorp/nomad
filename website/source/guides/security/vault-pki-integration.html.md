@@ -239,8 +239,8 @@ Success! Uploaded policy: tls-policy
 
 Create a token based on `tls-policy` with the following command:
 
-```
-$ vault token create -policy="tls-policy" -ttl=24h
+```shell
+$ vault token create -policy="tls-policy" -period=24h -orphan
 ```
 
 If the command is successful, you will see output similar to the following:
@@ -248,8 +248,8 @@ If the command is successful, you will see output similar to the following:
 ```shell
 Key                  Value
 ---                  -----
-token                s.xafiYzh7MCMotHLu2d35hepR
-token_accessor       9vj7q5nnF53JAcTyxvccpAZK
+token                s.m069Vpul3c4lfGnJ6unpxgxD
+token_accessor       HiZALO25hDQzSgyaglkzty3M
 token_duration       24h
 token_renewable      true
 token_policies       ["default" "tls-policy"]
@@ -383,7 +383,7 @@ vault {
   address      = "http://active.vault.service.consul:8200"
 
   # This value can also be specified via the environment variable VAULT_TOKEN.
-  token        = "s.xafiYzh7MCMotHLu2d35hepR"
+  token        = "s.m069Vpul3c4lfGnJ6unpxgxD"
 
   # This should also be less than or around 1/3 of your TTL for a predictable
   # behaviour. See https://github.com/hashicorp/vault/issues/3414

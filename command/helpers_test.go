@@ -174,17 +174,17 @@ func TestHelpers_LineLimitReader_TimeLimit(t *testing.T) {
 
 	expected := []byte("hello world")
 
-	resultCh := make(chan struct{})
+	errCh := make(chan error)
+	resultCh := make(chan []byte)
 	go func() {
+		defer close(resultCh)
+		defer close(errCh)
 		outBytes, err := ioutil.ReadAll(limit)
 		if err != nil {
-			t.Fatalf("ReadAll failed: %v", err)
-		}
-
-		if reflect.DeepEqual(outBytes, expected) {
-			close(resultCh)
+			errCh <- fmt.Errorf("ReadAll failed: %v", err)
 			return
 		}
+		resultCh <- outBytes
 	}()
 
 	// Send the data
@@ -192,7 +192,14 @@ func TestHelpers_LineLimitReader_TimeLimit(t *testing.T) {
 	in.Close()
 
 	select {
-	case <-resultCh:
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("ReadAll: %v", err)
+		}
+	case outBytes := <-resultCh:
+		if !reflect.DeepEqual(outBytes, expected) {
+			t.Fatalf("got:%s, expected,%s", string(outBytes), string(expected))
+		}
 	case <-time.After(1 * time.Second):
 		t.Fatalf("did not exit by time limit")
 	}

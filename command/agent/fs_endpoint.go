@@ -17,12 +17,12 @@ import (
 )
 
 var (
-	allocIDNotPresentErr  = fmt.Errorf("must provide a valid alloc id")
-	fileNameNotPresentErr = fmt.Errorf("must provide a file name")
-	taskNotPresentErr     = fmt.Errorf("must provide task name")
-	logTypeNotPresentErr  = fmt.Errorf("must provide log type (stdout/stderr)")
-	clientNotRunning      = fmt.Errorf("node is not running a Nomad Client")
-	invalidOrigin         = fmt.Errorf("origin must be start or end")
+	allocIDNotPresentErr  = CodedError(400, "must provide a valid alloc id")
+	fileNameNotPresentErr = CodedError(400, "must provide a file name")
+	taskNotPresentErr     = CodedError(400, "must provide task name")
+	logTypeNotPresentErr  = CodedError(400, "must provide log type (stdout/stderr)")
+	clientNotRunning      = CodedError(400, "node is not running a Nomad Client")
+	invalidOrigin         = CodedError(400, "origin must be start or end")
 )
 
 func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -194,11 +194,13 @@ func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request)
 // Stream streams the content of a file blocking on EOF.
 // The parameters are:
 // * path: path to file to stream.
+// * follow: A boolean of whether to follow the file, defaults to true.
 // * offset: The offset to start streaming data at, defaults to zero.
 // * origin: Either "start" or "end" and defines from where the offset is
 //           applied. Defaults to "start".
 func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	var allocID, path string
+	var err error
 
 	q := req.URL.Query()
 
@@ -210,10 +212,16 @@ func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interf
 		return nil, fileNameNotPresentErr
 	}
 
+	follow := true
+	if followStr := q.Get("follow"); followStr != "" {
+		if follow, err = strconv.ParseBool(followStr); err != nil {
+			return nil, fmt.Errorf("failed to parse follow field to boolean: %v", err)
+		}
+	}
+
 	var offset int64
 	offsetString := q.Get("offset")
 	if offsetString != "" {
-		var err error
 		if offset, err = strconv.ParseInt(offsetString, 10, 64); err != nil {
 			return nil, fmt.Errorf("error parsing offset: %v", err)
 		}
@@ -234,7 +242,7 @@ func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interf
 		Path:    path,
 		Origin:  origin,
 		Offset:  offset,
-		Follow:  true,
+		Follow:  follow,
 	}
 	s.parse(resp, req, &fsReq.QueryOptions.Region, &fsReq.QueryOptions)
 
@@ -265,13 +273,13 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 
 	if followStr := q.Get("follow"); followStr != "" {
 		if follow, err = strconv.ParseBool(followStr); err != nil {
-			return nil, fmt.Errorf("Failed to parse follow field to boolean: %v", err)
+			return nil, CodedError(400, fmt.Sprintf("failed to parse follow field to boolean: %v", err))
 		}
 	}
 
 	if plainStr := q.Get("plain"); plainStr != "" {
 		if plain, err = strconv.ParseBool(plainStr); err != nil {
-			return nil, fmt.Errorf("Failed to parse plain field to boolean: %v", err)
+			return nil, CodedError(400, fmt.Sprintf("failed to parse plain field to boolean: %v", err))
 		}
 	}
 
@@ -287,7 +295,7 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 	if offsetString != "" {
 		var err error
 		if offset, err = strconv.ParseInt(offsetString, 10, 64); err != nil {
-			return nil, fmt.Errorf("error parsing offset: %v", err)
+			return nil, CodedError(400, fmt.Sprintf("error parsing offset: %v", err))
 		}
 	}
 
@@ -380,10 +388,13 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 			decoder.Reset(httpPipe)
 
 			if err := res.Error; err != nil {
+				code := 500
 				if err.Code != nil {
-					errCh <- CodedError(int(*err.Code), err.Error())
-					return
+					code = int(*err.Code)
 				}
+
+				errCh <- CodedError(code, err.Error())
+				return
 			}
 
 			if _, err := io.Copy(output, bytes.NewReader(res.Payload)); err != nil {

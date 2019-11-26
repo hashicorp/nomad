@@ -6,14 +6,14 @@ GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
-GO_TAGS =
+GO_TAGS ?= codegen_generated
 
 GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
 
 ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
 GOTEST_PKGS ?= "./..."
 else
-GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))$$")
+GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))(/.*)?$$")
 endif
 
 default: help
@@ -25,10 +25,10 @@ endif
 # On Linux we build for Linux and Windows
 ifeq (Linux,$(THIS_OS))
 
-ifeq ($(TRAVIS),true)
-$(info Running in Travis, verbose mode is disabled)
+ifeq ($(CI),true)
+	$(info Running in a CI environment, verbose mode is disabled)
 else
-VERBOSE="true"
+	VERBOSE="true"
 endif
 
 
@@ -50,6 +50,9 @@ endif
 ifeq (FreeBSD,$(THIS_OS))
 ALL_TARGETS += freebsd_amd64
 endif
+
+# include per-user customization after all variables are defined
+-include GNUMakefile.local
 
 pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
@@ -144,6 +147,7 @@ deps:  ## Install build and development dependencies
 	go get -u github.com/a8m/tree/cmd/tree
 	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 	go get -u gotest.tools/gotestsum
+	go get -u github.com/fatih/hclfmt
 	@bash -C "$(PROJECT_ROOT)/scripts/install-codecgen.sh"
 	@bash -C "$(PROJECT_ROOT)/scripts/install-protoc-gen-go.sh"
 
@@ -167,6 +171,7 @@ check: ## Lint the source code
 		--deadline 10m \
 		--vendor \
 		--exclude='.*\.generated\.go' \
+		--exclude='.*\.pb\.go' \
 		--exclude='.*bindata_assetfs\.go' \
 		--skip="ui/" \
 		--sort="path" \
@@ -191,7 +196,7 @@ check: ## Lint the source code
 	@if (git status | grep -q .pb.go); then echo the following proto files are out of sync; git status |grep .pb.go; exit 1; fi
 
 	@echo "==> Check API package is isolated from rest"
-	@! go list -f '{{ join .Deps "\n" }}' ./api | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/
+	@! go list --test -f '{{ join .Deps "\n" }}' ./api | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test
 
 .PHONY: checkscripts
 checkscripts: ## Lint shell scripts
@@ -199,7 +204,7 @@ checkscripts: ## Lint shell scripts
 	@find scripts -type f -name '*.sh' | xargs shellcheck
 
 .PHONY: generate-all
-generate-all: generate-structs proto
+generate-all: generate-structs proto generate-examples
 
 .PHONY: generate-structs
 generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
@@ -214,40 +219,54 @@ proto:
 		protoc -I . -I ../../.. --go_out=plugins=grpc:. $$file; \
 	done
 
+.PHONY: generate-examples
+generate-examples: command/job_init.bindata_assetfs.go
 
+command/job_init.bindata_assetfs.go: command/assets/*
+	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
+
+.PHONY: vendorfmt
 vendorfmt:
 	@echo "--> Formatting vendor/vendor.json"
 	test -x $(GOPATH)/bin/vendorfmt || go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 		vendorfmt
+
+.PHONY: changelogfmt
 changelogfmt:
 	@echo "--> Making [GH-xxxx] references clickable..."
 	@sed -E 's|([^\[])\[GH-([0-9]+)\]|\1[[GH-\2](https://github.com/hashicorp/nomad/issues/\2)]|g' CHANGELOG.md > changelog.tmp && mv changelog.tmp CHANGELOG.md
 
+## We skip the terraform directory as there are templated hcl configurations
+## that do not successfully compile without rendering
+.PHONY: hclfmt
+hclfmt:
+	@echo "--> Formatting HCL"
+	@find . -path ./terraform -prune -o -name 'upstart.nomad' -prune -o \( -name '*.nomad' -o -name '*.hcl' \) -exec hclfmt -w {} +
 
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
-dev: vendorfmt changelogfmt ## Build for the current development platform
+dev: vendorfmt changelogfmt hclfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="$(NOMAD_UI_TAG)"
+		GO_TAGS="$(GO_TAGS) $(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
 .PHONY: prerelease
-prerelease: GO_TAGS=ui release
+prerelease: GO_TAGS=ui codegen_generated release
 prerelease: generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
 
 .PHONY: release
-release: GO_TAGS=ui release
+release: GO_TAGS=ui codegen_generated release
 release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
@@ -274,6 +293,7 @@ test-nomad: dev ## Run Nomad test suites
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=15m \
+		-tags "$(GO_TAGS)" \
 		$(GOTEST_PKGS) $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
@@ -286,6 +306,7 @@ e2e-test: dev ## Run the Nomad e2e test suite
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=900s \
+		-tags "$(GO_TAGS)" \
 		github.com/hashicorp/nomad/e2e/vault/ \
 		-integration
 
@@ -296,13 +317,6 @@ clean: ## Remove build artifacts
 	@rm -rf "$(PROJECT_ROOT)/bin/"
 	@rm -rf "$(PROJECT_ROOT)/pkg/"
 	@rm -f "$(GOPATH)/bin/nomad"
-
-.PHONY: travis
-travis: ## Run Nomad test suites with output to prevent timeouts under Travis CI
-	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
-		make generate-structs; \
-	fi
-	@"$(PROJECT_ROOT)/scripts/travis.sh"
 
 .PHONY: testcluster
 testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if necessary.
@@ -356,6 +370,7 @@ help: ## Display this usage information
 	@echo "This host will build the following targets if 'make release' is invoked:"
 	@echo $(ALL_TARGETS) | sed 's/^/    /'
 
+.PHONY: ui-screenshots
 ui-screenshots:
 	@echo "==> Collecting UI screenshots..."
 	# Build the screenshots image if it doesn't exist yet
@@ -367,6 +382,7 @@ ui-screenshots:
 		--volume "$(shell pwd)/scripts/screenshots/screenshots:/screenshots" \
 		nomad-ui-screenshots
 
+.PHONY: ui-screenshots-local
 ui-screenshots-local:
 	@echo "==> Collecting UI screenshots (local)..."
 	@cd scripts/screenshots/src && SCREENSHOTS_DIR="../screenshots" node index.js

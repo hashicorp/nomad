@@ -53,7 +53,7 @@ type Agent struct {
 	config     *Config
 	configLock sync.Mutex
 
-	logger     log.Logger
+	logger     log.InterceptLogger
 	httpLogger log.Logger
 	logOutput  io.Writer
 
@@ -87,7 +87,7 @@ type Agent struct {
 }
 
 // NewAgent is used to create a new agent with the given configuration
-func NewAgent(config *Config, logger log.Logger, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
+func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
 	a := &Agent{
 		config:     config,
 		logOutput:  logOutput,
@@ -275,6 +275,15 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 		conf.NodeGCThreshold = dur
 	}
+	if gcInterval := agentConfig.Server.JobGCInterval; gcInterval != "" {
+		dur, err := time.ParseDuration(gcInterval)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse job_gc_interval: %v", err)
+		} else if dur <= time.Duration(0) {
+			return nil, fmt.Errorf("job_gc_interval should be greater than 0s")
+		}
+		conf.JobGCInterval = dur
+	}
 	if gcThreshold := agentConfig.Server.JobGCThreshold; gcThreshold != "" {
 		dur, err := time.ParseDuration(gcThreshold)
 		if err != nil {
@@ -461,6 +470,14 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ClientMaxPort = uint(agentConfig.Client.ClientMaxPort)
 	conf.ClientMinPort = uint(agentConfig.Client.ClientMinPort)
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
+	conf.TemplateConfig.FunctionBlacklist = agentConfig.Client.TemplateConfig.FunctionBlacklist
+	conf.TemplateConfig.DisableSandbox = agentConfig.Client.TemplateConfig.DisableSandbox
+
+	hvMap := make(map[string]*structs.ClientHostVolumeConfig, len(agentConfig.Client.HostVolumes))
+	for _, v := range agentConfig.Client.HostVolumes {
+		hvMap[v.Name] = v
+	}
+	conf.HostVolumes = hvMap
 
 	// Setup the node
 	conf.Node = new(structs.Node)
@@ -530,6 +547,11 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ACLEnabled = agentConfig.ACL.Enabled
 	conf.ACLTokenTTL = agentConfig.ACL.TokenTTL
 	conf.ACLPolicyTTL = agentConfig.ACL.PolicyTTL
+
+	// Setup networking configration
+	conf.CNIPath = agentConfig.Client.CNIPath
+	conf.BridgeNetworkName = agentConfig.Client.BridgeNetworkName
+	conf.BridgeNetworkAllocSubnet = agentConfig.Client.BridgeNetworkSubnet
 
 	return conf, nil
 }
@@ -810,40 +832,6 @@ func (a *Agent) reservePortsForClient(conf *clientconfig.Config) error {
 	return nil
 }
 
-// findLoopbackDevice iterates through all the interfaces on a machine and
-// returns the ip addr, mask of the loopback device
-func (a *Agent) findLoopbackDevice() (string, string, string, error) {
-	var ifcs []net.Interface
-	var err error
-	ifcs, err = net.Interfaces()
-	if err != nil {
-		return "", "", "", err
-	}
-	for _, ifc := range ifcs {
-		addrs, err := ifc.Addrs()
-		if err != nil {
-			return "", "", "", err
-		}
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			if ip.IsLoopback() {
-				if ip.To4() == nil {
-					continue
-				}
-				return ifc.Name, ip.String(), addr.String(), nil
-			}
-		}
-	}
-
-	return "", "", "", fmt.Errorf("no loopback devices with IPV4 addr found")
-}
-
 // Leave is used gracefully exit. Clients will inform servers
 // of their departure so that allocations can be rescheduled.
 func (a *Agent) Leave() error {
@@ -934,10 +922,14 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
 
+	if newConfig.LogLevel != "" && newConfig.LogLevel != a.config.LogLevel {
+		agent = true
+	}
+
 	isEqual, err := a.config.TLSConfig.CertificateInfoIsEqual(newConfig.TLSConfig)
 	if err != nil {
 		a.logger.Error("parsing TLS certificate", "error", err)
-		return false, false
+		return agent, false
 	} else if !isEqual {
 		return true, true
 	}
@@ -962,13 +954,27 @@ func (a *Agent) Reload(newConfig *Config) error {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
 
-	if newConfig == nil || newConfig.TLSConfig == nil {
+	updatedLogging := newConfig != nil && (newConfig.LogLevel != a.config.LogLevel)
+
+	if newConfig == nil || newConfig.TLSConfig == nil && !updatedLogging {
 		return fmt.Errorf("cannot reload agent with nil configuration")
 	}
 
-	// This is just a TLS configuration reload, we don't need to refresh
-	// existing network connections
+	if updatedLogging {
+		a.config.LogLevel = newConfig.LogLevel
+		a.logger.SetLevel(log.LevelFromString(newConfig.LogLevel))
+	}
+
+	fullUpdateTLSConfig := func() {
+		// Completely reload the agent's TLS configuration (moving from non-TLS to
+		// TLS, or vice versa)
+		// This does not handle errors in loading the new TLS configuration
+		a.config.TLSConfig = newConfig.TLSConfig.Copy()
+	}
+
 	if !a.config.TLSConfig.IsEmpty() && !newConfig.TLSConfig.IsEmpty() {
+		// This is just a TLS configuration reload, we don't need to refresh
+		// existing network connections
 
 		// Reload the certificates on the keyloader and on success store the
 		// updated TLS config. It is important to reuse the same keyloader
@@ -983,17 +989,12 @@ func (a *Agent) Reload(newConfig *Config) error {
 		a.config.TLSConfig = newConfig.TLSConfig
 		a.config.TLSConfig.KeyLoader = keyloader
 		return nil
-	}
-
-	// Completely reload the agent's TLS configuration (moving from non-TLS to
-	// TLS, or vice versa)
-	// This does not handle errors in loading the new TLS configuration
-	a.config.TLSConfig = newConfig.TLSConfig.Copy()
-
-	if newConfig.TLSConfig.IsEmpty() {
+	} else if newConfig.TLSConfig.IsEmpty() && !a.config.TLSConfig.IsEmpty() {
 		a.logger.Warn("downgrading agent's existing TLS configuration to plaintext")
-	} else {
+		fullUpdateTLSConfig()
+	} else if !newConfig.TLSConfig.IsEmpty() && a.config.TLSConfig.IsEmpty() {
 		a.logger.Info("upgrading from plaintext configuration to TLS")
+		fullUpdateTLSConfig()
 	}
 
 	return nil

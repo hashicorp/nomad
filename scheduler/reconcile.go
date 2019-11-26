@@ -331,7 +331,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	}
 	if !existingDeployment {
 		dstate = &structs.DeploymentState{}
-		if tg.Update != nil {
+		if !tg.Update.IsEmpty() {
 			dstate.AutoRevert = tg.Update.AutoRevert
 			dstate.AutoPromote = tg.Update.AutoPromote
 			dstate.ProgressDeadline = tg.Update.ProgressDeadline
@@ -509,7 +509,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	}
 
 	// Create a new deployment if necessary
-	if !existingDeployment && strategy != nil && dstate.DesiredTotal != 0 && (!hadRunning || updatingSpec) {
+	if !existingDeployment && !strategy.IsEmpty() && dstate.DesiredTotal != 0 && (!hadRunning || updatingSpec) {
 		// A previous group may have made the deployment already
 		if a.deployment == nil {
 			a.deployment = structs.NewDeployment(a.job)
@@ -618,7 +618,7 @@ func (a *allocReconciler) handleGroupCanaries(all allocSet, desiredChanges *stru
 func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, destructive, migrate allocSet, canaryState bool) int {
 	// If there is no update strategy or deployment for the group we can deploy
 	// as many as the group has
-	if group.Update == nil || len(destructive)+len(migrate) == 0 {
+	if group.Update.IsEmpty() || len(destructive)+len(migrate) == 0 {
 		return group.Count
 	} else if a.deploymentPaused || a.deploymentFailed {
 		// If the deployment is paused or failed, do not create anything else

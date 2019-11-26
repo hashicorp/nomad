@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Spread"
-sidebar_current: "guides-advanced-scheduling"
+sidebar_current: "guides-operating-a-job-spread"
 description: |-
   The following guide walks the user through using the spread stanza in Nomad.
 ---

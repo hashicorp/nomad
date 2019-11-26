@@ -19,6 +19,8 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/devices/gpu/nvidia"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -103,6 +105,7 @@ func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
 			LinuxResources: &drivers.LinuxResources{
 				CPUShares:        512,
 				MemoryLimitBytes: 256 * 1024 * 1024,
+				PercentTicks:     float64(512) / float64(4096),
 			},
 		},
 	}
@@ -905,7 +908,8 @@ func TestDockerDriver_Labels(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	require.Equal(t, 2, len(container.Config.Labels))
+	// expect to see 1 additional standard labels
+	require.Equal(t, len(cfg.Labels)+1, len(container.Config.Labels))
 	for k, v := range cfg.Labels {
 		require.Equal(t, v, container.Config.Labels[k])
 	}
@@ -1006,6 +1010,56 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 	// Container name should be /<task_name>-<alloc_id> for backward compat
 	containerName := fmt.Sprintf("%s-%s", strings.Replace(task.Name, "/", "_", -1), task.AllocID)
 	require.Equal(t, containerName, c.Name)
+}
+
+func TestDockerDriver_CreateContainerConfig_User(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, _ := dockerTask(t)
+	task.User = "random-user-1"
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	require.Equal(t, task.User, c.Config.User)
+}
+
+func TestDockerDriver_CreateContainerConfig_Labels(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, _ := dockerTask(t)
+	task.AllocID = uuid.Generate()
+	task.JobName = "redis-demo-job"
+
+	cfg.Labels = map[string]string{
+		"user_label": "user_value",
+
+		// com.hashicorp.nomad. labels are reserved and
+		// cannot be overridden
+		"com.hashicorp.nomad.alloc_id": "bad_value",
+	}
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	expectedLabels := map[string]string{
+		// user provided labels
+		"user_label": "user_value",
+		// default labels
+		"com.hashicorp.nomad.alloc_id": task.AllocID,
+	}
+
+	require.Equal(t, expectedLabels, c.Config.Labels)
 }
 
 func TestDockerDriver_CreateContainerConfig_Logging(t *testing.T) {
@@ -1412,6 +1466,10 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
+	// Verify that the port environment variables are set
+	require.Contains(t, container.Config.Env, "NOMAD_PORT_main=8080")
+	require.Contains(t, container.Config.Env, "NOMAD_PORT_REDIS=6379")
+
 	// Verify that the correct ports are EXPOSED
 	expectedExposedPorts := map[docker.Port]struct{}{
 		docker.Port("8080/tcp"): {},
@@ -1435,6 +1493,41 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 		docker.Port("6379/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
 	}
 	require.Exactly(t, expectedPortBindings, container.HostConfig.PortBindings)
+}
+
+func TestDockerDriver_CreateContainerConfig_PortsMapping(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, port := dockerTask(t)
+	res := port[0]
+	dyn := port[1]
+	cfg.PortMap = map[string]int{
+		"main":  8080,
+		"REDIS": 6379,
+	}
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	require.Equal(t, "org/repo:0.1", c.Config.Image)
+	require.Contains(t, c.Config.Env, "NOMAD_PORT_main=8080")
+	require.Contains(t, c.Config.Env, "NOMAD_PORT_REDIS=6379")
+
+	// Verify that the correct ports are FORWARDED
+	hostIP := "127.0.0.1"
+	if runtime.GOOS == "windows" {
+		hostIP = ""
+	}
+	expectedPortBindings := map[docker.Port][]docker.PortBinding{
+		docker.Port("8080/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
+		docker.Port("8080/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", res)}},
+		docker.Port("6379/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
+		docker.Port("6379/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", dyn)}},
+	}
+	require.Exactly(t, expectedPortBindings, c.HostConfig.PortBindings)
+
 }
 
 func TestDockerDriver_CleanupContainer(t *testing.T) {
@@ -2230,7 +2323,7 @@ func TestDockerDriver_VolumeError(t *testing.T) {
 	driver := dockerDriverHarness(t, nil)
 
 	// assert volume error is recoverable
-	_, err := driver.Impl().(*Driver).createContainer(fakeDockerClient{}, docker.CreateContainerOptions{Config: &docker.Config{}}, cfg)
+	_, err := driver.Impl().(*Driver).createContainer(fakeDockerClient{}, docker.CreateContainerOptions{Config: &docker.Config{}}, cfg.Image)
 	require.True(t, structs.IsRecoverable(err))
 }
 
@@ -2336,4 +2429,102 @@ func waitForExist(t *testing.T, client *docker.Client, containerID string) {
 	}, func(err error) {
 		require.NoError(t, err)
 	})
+}
+
+// TestDockerDriver_CreationIdempotent asserts that createContainer and
+// and startContainers functions are idempotent, as we have some retry
+// logic there without ensureing we delete/destroy containers
+func TestDockerDriver_CreationIdempotent(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, _ := dockerTask(t)
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client := newTestDockerClient(t)
+	driver := dockerDriverHarness(t, nil)
+	cleanup := driver.MkAllocDir(task, true)
+	defer cleanup()
+
+	copyImage(t, task.TaskDir(), "busybox.tar")
+
+	d, ok := driver.Impl().(*Driver)
+	require.True(t, ok)
+
+	_, err := d.createImage(task, cfg, client)
+	require.NoError(t, err)
+
+	containerCfg, err := d.createContainerConfig(task, cfg, cfg.Image)
+	require.NoError(t, err)
+
+	c, err := d.createContainer(client, containerCfg, cfg.Image)
+	require.NoError(t, err)
+	defer client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:    c.ID,
+		Force: true,
+	})
+
+	// calling createContainer again creates a new one and remove old one
+	c2, err := d.createContainer(client, containerCfg, cfg.Image)
+	require.NoError(t, err)
+	defer client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:    c2.ID,
+		Force: true,
+	})
+
+	require.NotEqual(t, c.ID, c2.ID)
+	// old container was destroyed
+	{
+		_, err := client.InspectContainer(c.ID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), NoSuchContainerError)
+	}
+
+	// now start container twice
+	require.NoError(t, d.startContainer(c2))
+	require.NoError(t, d.startContainer(c2))
+
+	tu.WaitForResult(func() (bool, error) {
+		c, err := client.InspectContainer(c2.ID)
+		if err != nil {
+			return false, fmt.Errorf("failed to get container status: %v", err)
+		}
+
+		if !c.State.Running {
+			return false, fmt.Errorf("container is not running but %v", c.State)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+}
+
+// TestDockerDriver_CreateContainerConfig_CPUHardLimit asserts that a default
+// CPU quota and period are set when cpu_hard_limit = true.
+func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
+	t.Parallel()
+
+	task, _, _ := dockerTask(t)
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+	schema, _ := driver.TaskConfigSchema()
+	spec, _ := hclspecutils.Convert(schema)
+
+	val, _, _ := hclutils.ParseHclInterface(map[string]interface{}{
+		"image":          "foo/bar",
+		"cpu_hard_limit": true,
+	}, spec, nil)
+
+	require.NoError(t, task.EncodeDriverConfig(val))
+	cfg := &TaskConfig{}
+	require.NoError(t, task.DecodeDriverConfig(cfg))
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	require.NotZero(t, c.HostConfig.CPUQuota)
+	require.NotZero(t, c.HostConfig.CPUPeriod)
 }

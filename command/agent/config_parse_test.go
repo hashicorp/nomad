@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/require"
 )
@@ -18,6 +19,7 @@ var basicConfig = &Config{
 	NodeName:    "my-web",
 	DataDir:     "/tmp/nomad",
 	PluginDir:   "/tmp/nomad-plugins",
+	LogFile:     "/var/log/nomad.log",
 	LogLevel:    "ERR",
 	LogJson:     true,
 	BindAddr:    "192.168.0.1",
@@ -81,6 +83,9 @@ var basicConfig = &Config{
 		GCMaxAllocs:           50,
 		NoHostUUID:            helper.BoolToPtr(false),
 		DisableRemoteExec:     true,
+		HostVolumes: []*structs.ClientHostVolumeConfig{
+			{Name: "tmp", Path: "/tmp"},
+		},
 	},
 	Server: &ServerConfig{
 		Enabled:                true,
@@ -93,6 +98,7 @@ var basicConfig = &Config{
 		EnabledSchedulers:      []string{"test"},
 		NodeGCThreshold:        "12h",
 		EvalGCThreshold:        "12h",
+		JobGCInterval:          "3m",
 		JobGCThreshold:         "12h",
 		DeploymentGCThreshold:  "12h",
 		HeartbeatGrace:         30 * time.Second,
@@ -404,14 +410,10 @@ func TestConfig_Parse(t *testing.T) {
 		t.Run(tc.File, func(t *testing.T) {
 			require := require.New(t)
 			path, err := filepath.Abs(filepath.Join("./testdata", tc.File))
-			if err != nil {
-				t.Fatalf("file: %s\n\n%s", tc.File, err)
-			}
+			require.NoError(err)
 
 			actual, err := ParseConfigFile(path)
-			if (err != nil) != tc.Err {
-				t.Fatalf("file: %s\n\n%s", tc.File, err)
-			}
+			require.NoError(err)
 
 			// ParseConfig used to re-merge defaults for these three objects,
 			// despite them already being merged in LoadConfig. The test structs

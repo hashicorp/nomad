@@ -9,20 +9,17 @@
     li {
       a {
         color: $sidebar-link-color;
-        font-size: $sidebar-font-size;
         padding: 10px 0 10px 15px;
 
         &:before {
           color: $sidebar-link-color-active;
-          content: '\203A';
-          font-size: $font-size;
+          content: "\203A";
           left: 0;
-          line-height: 100%;
           opacity: 0.4;
           position: absolute;
 
           height: 100%;
-          width: 8px
+          width: 8px;
         }
 
         &:focus,

@@ -7,6 +7,8 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -14,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/go-sockaddr/template"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
@@ -53,6 +56,18 @@ type Config struct {
 
 	// LogJson enables log output in a JSON format
 	LogJson bool `hcl:"log_json"`
+
+	// LogFile enables logging to a file
+	LogFile string `hcl:"log_file"`
+
+	// LogRotateDuration is the time period that logs should be rotated in
+	LogRotateDuration string `hcl:"log_rotate_duration"`
+
+	// LogRotateBytes is the max number of bytes that should be written to a file
+	LogRotateBytes int `hcl:"log_rotate_bytes"`
+
+	// LogRotateMaxFiles is the max number of log files to keep
+	LogRotateMaxFiles int `hcl:"log_rotate_max_files"`
 
 	// BindAddr is the address on which all of nomad's services will
 	// be bound. If not specified, this defaults to 127.0.0.1.
@@ -242,11 +257,45 @@ type ClientConfig struct {
 	// DisableRemoteExec disables remote exec targeting tasks on this client
 	DisableRemoteExec bool `hcl:"disable_remote_exec"`
 
+	// TemplateConfig includes configuration for template rendering
+	TemplateConfig *ClientTemplateConfig `hcl:"template"`
+
 	// ServerJoin contains information that is used to attempt to join servers
 	ServerJoin *ServerJoin `hcl:"server_join"`
 
+	// HostVolumes contains information about the volumes an operator has made
+	// available to jobs running on this node.
+	HostVolumes []*structs.ClientHostVolumeConfig `hcl:"host_volume"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// CNIPath is the path to search for CNI plugins, multiple paths can be
+	// specified colon delimited
+	CNIPath string `hcl:"cni_path"`
+
+	// BridgeNetworkName is the name of the bridge to create when using the
+	// bridge network mode
+	BridgeNetworkName string `hcl:"bridge_network_name"`
+
+	// BridgeNetworkSubnet is the subnet to allocate IP addresses from when
+	// creating allocations with bridge networking mode. This range is local to
+	// the host
+	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
+}
+
+// ClientTemplateConfig is configuration on the client specific to template
+// rendering
+type ClientTemplateConfig struct {
+
+	// FunctionBlacklist disables functions in consul-template that
+	// are unsafe because they expose information from the client host.
+	FunctionBlacklist []string `hcl:"function_blacklist"`
+
+	// DisableSandbox allows templates to access arbitrary files on the
+	// client host. By default templates can access files only within
+	// the task directory.
+	DisableSandbox bool `hcl:"disable_file_sandbox"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -314,6 +363,10 @@ type ServerConfig struct {
 	// Age is not the only requirement for a node to be GCed but the threshold
 	// can be used to filter by age.
 	NodeGCThreshold string `hcl:"node_gc_threshold"`
+
+	// JobGCInterval controls how often we dispatch a job to GC jobs that are
+	// available for garbage collection.
+	JobGCInterval string `hcl:"job_gc_interval"`
 
 	// JobGCThreshold controls how "old" a job must be to be collected by GC.
 	// Age is not the only requirement for a Job to be GCed but the threshold
@@ -630,22 +683,98 @@ func (r *Resources) CanParseReserved() error {
 	return err
 }
 
+// devModeConfig holds the config for the -dev and -dev-connect flags
+type devModeConfig struct {
+	// mode flags are set at the command line via -dev and -dev-connect
+	defaultMode bool
+	connectMode bool
+
+	bindAddr string
+	iface    string
+}
+
+// newDevModeConfig parses the optional string value of the -dev flag
+func newDevModeConfig(devMode, connectMode bool) (*devModeConfig, error) {
+	if !devMode && !connectMode {
+		return nil, nil
+	}
+	mode := &devModeConfig{}
+	mode.defaultMode = devMode
+	if connectMode {
+		if runtime.GOOS != "linux" {
+			// strictly speaking -dev-connect only binds to the
+			// non-localhost interface, but given its purpose
+			// is to support a feature with network namespaces
+			// we'll return an error here rather than let the agent
+			// come up and fail unexpectedly to run jobs
+			return nil, fmt.Errorf("-dev-connect is only supported on linux.")
+		}
+		u, err := user.Current()
+		if err != nil {
+			return nil, fmt.Errorf(
+				"-dev-connect uses network namespaces and is only supported for root: %v", err)
+		}
+		if u.Uid != "0" {
+			return nil, fmt.Errorf(
+				"-dev-connect uses network namespaces and is only supported for root.")
+		}
+		// Ensure Consul is on PATH
+		if _, err := exec.LookPath("consul"); err != nil {
+			return nil, fmt.Errorf("-dev-connect requires a 'consul' binary in Nomad's $PATH")
+		}
+		mode.connectMode = true
+	}
+	err := mode.networkConfig()
+	if err != nil {
+		return nil, err
+	}
+	return mode, nil
+}
+
+func (mode *devModeConfig) networkConfig() error {
+	if runtime.GOOS == "darwin" {
+		mode.bindAddr = "127.0.0.1"
+		mode.iface = "lo0"
+		return nil
+	}
+	if mode != nil && mode.connectMode {
+		// if we hit either of the errors here we're in a weird situation
+		// where syscalls to get the list of network interfaces are failing.
+		// rather than throwing errors, we'll fall back to the default.
+		ifAddrs, err := sockaddr.GetDefaultInterfaces()
+		errMsg := "-dev=connect uses network namespaces: %v"
+		if err != nil {
+			return fmt.Errorf(errMsg, err)
+		}
+		if len(ifAddrs) < 1 {
+			return fmt.Errorf(errMsg, "could not find public network inteface")
+		}
+		iface := ifAddrs[0].Name
+		mode.iface = iface
+		mode.bindAddr = "0.0.0.0" // allows CLI to "just work"
+		return nil
+	}
+	mode.bindAddr = "127.0.0.1"
+	mode.iface = "lo"
+	return nil
+}
+
 // DevConfig is a Config that is used for dev mode of Nomad.
-func DevConfig() *Config {
+func DevConfig(mode *devModeConfig) *Config {
+	if mode == nil {
+		mode = &devModeConfig{defaultMode: true}
+		mode.networkConfig()
+	}
 	conf := DefaultConfig()
-	conf.BindAddr = "127.0.0.1"
+	conf.BindAddr = mode.bindAddr
 	conf.LogLevel = "DEBUG"
 	conf.Client.Enabled = true
 	conf.Server.Enabled = true
-	conf.DevMode = true
+	conf.DevMode = mode != nil
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
 	conf.Consul.AutoAdvertise = helper.BoolToPtr(true)
-	if runtime.GOOS == "darwin" {
-		conf.Client.NetworkInterface = "lo0"
-	} else if runtime.GOOS == "linux" {
-		conf.Client.NetworkInterface = "lo"
-	}
+	conf.Client.NetworkInterface = mode.iface
 	conf.Client.Options = map[string]string{
 		"driver.raw_exec.enable": "true",
 		"driver.docker.volumes":  "true",
@@ -654,6 +783,10 @@ func DevConfig() *Config {
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
+	conf.Client.TemplateConfig = &ClientTemplateConfig{
+		FunctionBlacklist: []string{"plugin"},
+		DisableSandbox:    false,
+	}
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
@@ -694,6 +827,10 @@ func DefaultConfig() *Config {
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
 				RetryMaxAttempts: 0,
+			},
+			TemplateConfig: &ClientTemplateConfig{
+				FunctionBlacklist: []string{"plugin"},
+				DisableSandbox:    false,
 			},
 		},
 		Server: &ServerConfig{
@@ -772,6 +909,18 @@ func (c *Config) Merge(b *Config) *Config {
 	}
 	if b.LogJson {
 		result.LogJson = true
+	}
+	if b.LogFile != "" {
+		result.LogFile = b.LogFile
+	}
+	if b.LogRotateDuration != "" {
+		result.LogRotateDuration = b.LogRotateDuration
+	}
+	if b.LogRotateBytes != 0 {
+		result.LogRotateBytes = b.LogRotateBytes
+	}
+	if b.LogRotateMaxFiles != 0 {
+		result.LogRotateMaxFiles = b.LogRotateMaxFiles
 	}
 	if b.BindAddr != "" {
 		result.BindAddr = b.BindAddr
@@ -1133,6 +1282,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.NodeGCThreshold != "" {
 		result.NodeGCThreshold = b.NodeGCThreshold
 	}
+	if b.JobGCInterval != "" {
+		result.JobGCInterval = b.JobGCInterval
+	}
 	if b.JobGCThreshold != "" {
 		result.JobGCThreshold = b.JobGCThreshold
 	}
@@ -1271,6 +1423,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.DisableRemoteExec = b.DisableRemoteExec
 	}
 
+	if b.TemplateConfig != nil {
+		result.TemplateConfig = b.TemplateConfig
+	}
+
 	// Add the servers
 	result.Servers = append(result.Servers, b.Servers...)
 
@@ -1300,6 +1456,12 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 
 	if b.ServerJoin != nil {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
+	}
+
+	if len(a.HostVolumes) == 0 && len(b.HostVolumes) != 0 {
+		result.HostVolumes = structs.CopySliceClientHostVolumeConfig(b.HostVolumes)
+	} else if len(b.HostVolumes) != 0 {
+		result.HostVolumes = structs.HostVolumeSliceMerge(a.HostVolumes, b.HostVolumes)
 	}
 
 	return &result

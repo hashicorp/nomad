@@ -7,8 +7,10 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
@@ -75,9 +77,26 @@ func (e *UniversalExecutor) configureResourceContainer(pid int) error {
 		},
 	}
 
-	configureBasicCgroups(cfg)
+	err := configureBasicCgroups(cfg)
+	if err != nil {
+		// Log this error to help diagnose cases where nomad is run with too few
+		// permissions, but don't return an error. There is no separate check for
+		// cgroup creation permissions, so this may be the happy path.
+		e.logger.Warn("failed to create cgroup",
+			"docs", "https://www.nomadproject.io/docs/drivers/raw_exec.html#no_cgroups",
+			"error", err)
+		return nil
+	}
 	e.resConCtx.groups = cfg.Cgroups
 	return cgroups.EnterPid(cfg.Cgroups.Paths, pid)
+}
+
+func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
+	if e.resConCtx.isEmpty() {
+		return getAllPidsByScanning()
+	} else {
+		return e.resConCtx.getAllPidsByCgroup()
+	}
 }
 
 // DestroyCgroup kills all processes in the cgroup and removes the cgroup
@@ -153,4 +172,22 @@ func DestroyCgroup(groups *lconfigs.Cgroup, executorPid int) error {
 		multierror.Append(mErrs, fmt.Errorf("failed to delete the cgroup directories: %v", err))
 	}
 	return mErrs.ErrorOrNil()
+}
+
+// withNetworkIsolation calls the passed function the network namespace `spec`
+func withNetworkIsolation(f func() error, spec *drivers.NetworkIsolationSpec) error {
+	if spec != nil && spec.Path != "" {
+		// Get a handle to the target network namespace
+		netns, err := ns.GetNS(spec.Path)
+		if err != nil {
+			return err
+		}
+
+		// Start the container in the network namespace
+		return netns.Do(func(ns.NetNS) error {
+			return f()
+		})
+	}
+
+	return f()
 }

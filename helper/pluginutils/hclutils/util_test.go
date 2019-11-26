@@ -42,9 +42,10 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:   "redis:3.2",
-				Devices: []docker.DockerDevice{},
-				Mounts:  []docker.DockerMount{},
+				Image:        "redis:3.2",
+				Devices:      []docker.DockerDevice{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -58,9 +59,10 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:   "redis:3.2",
-				Devices: []docker.DockerDevice{},
-				Mounts:  []docker.DockerMount{},
+				Image:        "redis:3.2",
+				Devices:      []docker.DockerDevice{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -73,10 +75,11 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:     "redis:3.2",
-				PidsLimit: 2,
-				Devices:   []docker.DockerDevice{},
-				Mounts:    []docker.DockerMount{},
+				Image:        "redis:3.2",
+				PidsLimit:    2,
+				Devices:      []docker.DockerDevice{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -91,10 +94,11 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:     "redis:3.2",
-				PidsLimit: 2,
-				Devices:   []docker.DockerDevice{},
-				Mounts:    []docker.DockerMount{},
+				Image:        "redis:3.2",
+				PidsLimit:    2,
+				Devices:      []docker.DockerDevice{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -107,10 +111,11 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:     "redis:3.2",
-				PidsLimit: 4,
-				Devices:   []docker.DockerDevice{},
-				Mounts:    []docker.DockerMount{},
+				Image:        "redis:3.2",
+				PidsLimit:    4,
+				Devices:      []docker.DockerDevice{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -125,10 +130,11 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:     "redis:3.2",
-				PidsLimit: 4,
-				Devices:   []docker.DockerDevice{},
-				Mounts:    []docker.DockerMount{},
+				Image:        "redis:3.2",
+				PidsLimit:    4,
+				Devices:      []docker.DockerDevice{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -141,10 +147,11 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:   "redis:3.2",
-				Args:    []string{"foo", "bar"},
-				Devices: []docker.DockerDevice{},
-				Mounts:  []docker.DockerMount{},
+				Image:        "redis:3.2",
+				Args:         []string{"foo", "bar"},
+				Devices:      []docker.DockerDevice{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -159,10 +166,11 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:   "redis:3.2",
-				Args:    []string{"foo", "bar"},
-				Devices: []docker.DockerDevice{},
-				Mounts:  []docker.DockerMount{},
+				Image:        "redis:3.2",
+				Args:         []string{"foo", "bar"},
+				Devices:      []docker.DockerDevice{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -177,11 +185,12 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 			spec: dockerDecSpec,
 			vars: vars,
 			expected: &docker.TaskConfig{
-				Image:     "redis:3.2",
-				Args:      []string{"world", "2"},
-				PidsLimit: 4,
-				Devices:   []docker.DockerDevice{},
-				Mounts:    []docker.DockerMount{},
+				Image:        "redis:3.2",
+				Args:         []string{"world", "2"},
+				PidsLimit:    4,
+				Devices:      []docker.DockerDevice{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -196,10 +205,11 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 						}`),
 			spec: dockerDecSpec,
 			expected: &docker.TaskConfig{
-				Image:   "redis:3.2",
-				Args:    []string{"foo", "bar"},
-				Devices: []docker.DockerDevice{},
-				Mounts:  []docker.DockerMount{},
+				Image:        "redis:3.2",
+				Args:         []string{"foo", "bar"},
+				Devices:      []docker.DockerDevice{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -220,8 +230,9 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 					"foo": 1234,
 					"bar": 5678,
 				},
-				Devices: []docker.DockerDevice{},
-				Mounts:  []docker.DockerMount{},
+				Devices:      []docker.DockerDevice{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -244,8 +255,9 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 					"foo": 1234,
 					"bar": 5678,
 				},
-				Devices: []docker.DockerDevice{},
-				Mounts:  []docker.DockerMount{},
+				Devices:      []docker.DockerDevice{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -280,7 +292,8 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 						ContainerPath: "/dev/xvdd",
 					},
 				},
-				Mounts: []docker.DockerMount{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -309,8 +322,9 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 						"tag": "driver-test",
 					},
 				},
-				Devices: []docker.DockerDevice{},
-				Mounts:  []docker.DockerMount{},
+				Devices:      []docker.DockerDevice{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -347,7 +361,8 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 						ContainerPath: "/dev/xvdd",
 					},
 				},
-				Mounts: []docker.DockerMount{},
+				Mounts:       []docker.DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 			expectedType: &docker.TaskConfig{},
 		},
@@ -358,9 +373,9 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Logf("Val: % #v", pretty.Formatter(c.config))
 			// Parse the interface
-			ctyValue, diag := hclutils.ParseHclInterface(c.config, c.spec, c.vars)
+			ctyValue, diag, errs := hclutils.ParseHclInterface(c.config, c.spec, c.vars)
 			if diag.HasErrors() {
-				for _, err := range diag.Errs() {
+				for _, err := range errs {
 					t.Error(err)
 				}
 				t.FailNow()
@@ -497,11 +512,45 @@ func TestParseUnknown(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			inter := hclutils.HclConfigToInterface(t, c.hcl)
 
-			ctyValue, diag := hclutils.ParseHclInterface(inter, cSpec, vars)
+			ctyValue, diag, errs := hclutils.ParseHclInterface(inter, cSpec, vars)
 			t.Logf("parsed: %# v", pretty.Formatter(ctyValue))
 
+			require.NotNil(t, errs)
 			require.True(t, diag.HasErrors())
-			require.Contains(t, diag.Errs()[0].Error(), "no variable named")
+			require.Contains(t, errs[0].Error(), "no variable named")
+		})
+	}
+}
+
+func TestParseInvalid(t *testing.T) {
+	dockerDriver := new(docker.Driver)
+	dockerSpec, err := dockerDriver.TaskConfigSchema()
+	require.NoError(t, err)
+	spec, diags := hclspecutils.Convert(dockerSpec)
+	require.False(t, diags.HasErrors())
+
+	cases := []struct {
+		name string
+		hcl  string
+	}{
+		{
+			"invalid_field",
+			`config { image = "redis:3.2" bad_key = "whatever"}`,
+		},
+	}
+
+	vars := map[string]cty.Value{}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			inter := hclutils.HclConfigToInterface(t, c.hcl)
+
+			ctyValue, diag, errs := hclutils.ParseHclInterface(inter, spec, vars)
+			t.Logf("parsed: %# v", pretty.Formatter(ctyValue))
+
+			require.NotNil(t, errs)
+			require.True(t, diag.HasErrors())
+			require.Contains(t, errs[0].Error(), "Invalid label")
 		})
 	}
 }

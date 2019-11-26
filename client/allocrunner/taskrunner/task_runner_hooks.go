@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/LK4D4/joincontext"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
@@ -56,14 +57,17 @@ func (tr *TaskRunner) initHooks() {
 
 	// Create the task directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
+	alloc := tr.Alloc()
 	tr.runnerHooks = []interfaces.TaskHook{
 		newValidateHook(tr.clientConfig, hookLogger),
 		newTaskDirHook(tr, hookLogger),
 		newLogMonHook(tr.logmonHookConfig, hookLogger),
-		newDispatchHook(tr.Alloc(), hookLogger),
+		newDispatchHook(alloc, hookLogger),
+		newVolumeHook(tr, hookLogger),
 		newArtifactHook(tr, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
+		newEnvoyBootstrapHook(alloc, tr.clientConfig.ConsulConfig.Addr, hookLogger),
 	}
 
 	// If Vault is enabled, add the hook
@@ -102,6 +106,15 @@ func (tr *TaskRunner) initHooks() {
 			logger:    hookLogger,
 		}))
 	}
+
+	// If there are any script checks, add the hook
+	scriptCheckHook := newScriptCheckHook(scriptCheckHookConfig{
+		alloc:  tr.Alloc(),
+		task:   tr.Task(),
+		consul: tr.consulClient,
+		logger: hookLogger,
+	})
+	tr.runnerHooks = append(tr.runnerHooks, scriptCheckHook)
 }
 
 func (tr *TaskRunner) emitHookError(err error, hookName string) {
@@ -180,8 +193,11 @@ func (tr *TaskRunner) prestart() error {
 		}
 
 		// Run the prestart hook
+		// use a joint context to allow any blocking pre-start hooks
+		// to be canceled by either killCtx or shutdownCtx
+		joinedCtx, _ := joincontext.Join(tr.killCtx, tr.shutdownCtx)
 		var resp interfaces.TaskPrestartResponse
-		if err := pre.Prestart(tr.killCtx, &req, &resp); err != nil {
+		if err := pre.Prestart(joinedCtx, &req, &resp); err != nil {
 			tr.emitHookError(err, name)
 			return structs.WrapRecoverable(fmt.Sprintf("prestart hook %q failed: %v", name, err), err)
 		}

@@ -3,10 +3,9 @@ MKFILE_PATH := $(lastword $(MAKEFILE_LIST))
 CURRENT_DIR := $(patsubst %/,%,$(dir $(realpath $(MKFILE_PATH))))
 
 # Ensure GOPATH
-GOPATH ?= $(HOME)/go
-
-# List all our actual files, excluding vendor
-GOFILES ?= $(shell go list $(TEST) | grep -v /vendor/)
+GOPATH ?= $(shell go env GOPATH)
+# assume last entry in GOPATH is home to project
+GOPATH := $(lastword $(subst :, ,${GOPATH}))
 
 # Tags specific for building
 GOTAGS ?=
@@ -15,14 +14,12 @@ GOTAGS ?=
 GOMAXPROCS ?= 4
 
 # Get the project metadata
-GOVERSION := 1.11.5
-PROJECT := $(CURRENT_DIR:$(GOPATH)/src/%=%)
-OWNER := $(notdir $(patsubst %/,%,$(dir $(PROJECT))))
+GO_DOCKER_VERSION ?= 1.13
+PROJECT := $(shell go list -m -mod=vendor)
+OWNER := "hashicorp"
 NAME := $(notdir $(PROJECT))
-GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD || echo release)
 VERSION := $(shell awk -F\" '/Version/ { print $$2; exit }' "${CURRENT_DIR}/version/version.go")
-EXTERNAL_TOOLS = \
-	github.com/golang/dep/cmd/dep
 
 # Current system information
 GOOS ?= $(shell go env GOOS)
@@ -30,8 +27,9 @@ GOARCH ?= $(shell go env GOARCH)
 
 # Default os-arch combination to build
 XC_OS ?= darwin freebsd linux netbsd openbsd solaris windows
-XC_ARCH ?= 386 amd64 arm
-XC_EXCLUDE ?= darwin/arm solaris/386 solaris/arm windows/arm
+XC_ARCH ?= 386 amd64 arm arm64
+# XC_EXCLUDE "arm64" entries excludes both arm and arm64
+XC_EXCLUDE ?= darwin/arm64 freebsd/arm64 netbsd/arm64 openbsd/arm64 solaris/386 solaris/arm64 windows/arm64
 
 # GPG Signing key (blank by default, means no GPG signing)
 GPG_KEY ?=
@@ -44,10 +42,7 @@ LD_FLAGS ?= \
 	-X ${PROJECT}/version.GitCommit=${GIT_COMMIT}
 
 # List of Docker targets to build
-DOCKER_TARGETS ?= alpine scratch
-
-# List of tests to run
-TEST ?= ./...
+DOCKER_TARGETS ?= alpine light scratch
 
 # Create a cross-compile target for every os-arch pairing. This will generate
 # a make target for each os/arch like "make linux/amd64" as well as generate a
@@ -58,22 +53,22 @@ define make-xc-target
 		@printf "%s%20s %s\n" "-->" "${1}/${2}:" "${PROJECT} (excluded)"
   else
 		@printf "%s%20s %s\n" "-->" "${1}/${2}:" "${PROJECT}"
-		@docker run \
-			--interactive \
-			--rm \
-			--dns="8.8.8.8" \
-			--volume="${CURRENT_DIR}:/go/src/${PROJECT}" \
-			--workdir="/go/src/${PROJECT}" \
-			"golang:${GOVERSION}" \
-			env \
-				CGO_ENABLED="0" \
-				GOOS="${1}" \
-				GOARCH="${2}" \
-				go build \
-				  -a \
-					-o="pkg/${1}_${2}/${NAME}${3}" \
-					-ldflags "${LD_FLAGS}" \
-					-tags "${GOTAGS}"
+		case "$2" in \
+			arm) export CGO_ENABLED="1" ; \
+				  export GOARM=5 \
+				  export CC="arm-linux-gnueabi-gcc" ;; \
+			arm64) export CGO_ENABLED="1" ; \
+				  export CC="aarch64-linux-gnu-gcc" ;; \
+			*) export CGO_ENABLED="0" ;; \
+		esac ; \
+		env \
+			GOOS="${1}" \
+			GOARCH="${2}" \
+			go build \
+				-a \
+				-o="pkg/${1}_${2}/${NAME}${3}" \
+				-ldflags "${LD_FLAGS}" \
+				-tags "${GOTAGS}"
   endif
   .PHONY: $1/$2
 
@@ -85,21 +80,28 @@ define make-xc-target
 endef
 $(foreach goarch,$(XC_ARCH),$(foreach goos,$(XC_OS),$(eval $(call make-xc-target,$(goos),$(goarch),$(if $(findstring windows,$(goos)),.exe,)))))
 
-# bootstrap installs the necessary go tools for development or build.
-bootstrap:
-	@echo "==> Bootstrapping ${PROJECT}"
-	@for t in ${EXTERNAL_TOOLS}; do \
-		echo "--> Installing $$t" ; \
-		go get -u "$$t"; \
-	done
-.PHONY: bootstrap
-
-# deps updates all dependencies for this project.
-deps:
-	@echo "==> Updating deps for ${PROJECT}"
-	@dep ensure -update
-	@dep prune
-.PHONY: deps
+# Use docker to create pristine builds for release
+# First build image w/ arm build requirements, then build all binaries
+pristine:
+	@docker build \
+		--rm \
+		--force-rm \
+		--no-cache \
+		--compress \
+		--file="docker/pristine/Dockerfile" \
+		--build-arg="GOVERSION=${GO_DOCKER_VERSION}" \
+		--tag="pristine-builder" .
+	@docker run \
+		--interactive \
+		--user $$(id -u):$$(id -g) \
+		--rm \
+		--dns="8.8.8.8" \
+		--volume="${CURRENT_DIR}:/go/src/${PROJECT}" \
+		--volume="${GOPATH}/pkg/mod:/go/pkg/mod" \
+		--workdir="/go/src/${PROJECT}" \
+		--env=GO111MODULE=on \
+		"pristine-builder" \
+		env GOCACHE=/tmp make -j4 build
 
 # dev builds and installs the project locally.
 dev:
@@ -114,17 +116,21 @@ dev:
 
 # dist builds the binaries and then signs and packages them for distribution
 dist:
+	@$(MAKE) -f "${MKFILE_PATH}" _cleanup
+	@$(MAKE) -f "${MKFILE_PATH}" pristine
+	@$(MAKE) -f "${MKFILE_PATH}" _compress _checksum
+.PHONY: dist
+
+release: dist
 ifndef GPG_KEY
 	@echo "==> ERROR: No GPG key specified! Without a GPG key, this release cannot"
 	@echo "           be signed. Set the environment variable GPG_KEY to the ID of"
 	@echo "           the GPG key to continue."
 	@exit 127
 else
-	@$(MAKE) -f "${MKFILE_PATH}" _cleanup
-	@$(MAKE) -f "${MKFILE_PATH}" -j4 build
-	@$(MAKE) -f "${MKFILE_PATH}" _compress _checksum _sign
+	@$(MAKE) -f "${MKFILE_PATH}" _sign
 endif
-.PHONY: dist
+.PHONY: release
 
 # Create a docker compile and push target for each container. This will create
 # docker-build/scratch, docker-push/scratch, etc. It will also create two meta
@@ -134,19 +140,21 @@ endif
 define make-docker-target
   docker-build/$1:
 		@echo "==> Building ${1} Docker container for ${PROJECT}"
+		@go mod vendor
 		@docker build \
 			--rm \
 			--force-rm \
 			--no-cache \
-			--squash \
 			--compress \
 			--file="docker/${1}/Dockerfile" \
 			--build-arg="LD_FLAGS=${LD_FLAGS}" \
 			--build-arg="GOTAGS=${GOTAGS}" \
+			--build-arg="GOVERSION=${GO_DOCKER_VERSION}" \
 			$(if $(filter $1,scratch),--tag="${OWNER}/${NAME}",) \
 			--tag="${OWNER}/${NAME}:${1}" \
 			--tag="${OWNER}/${NAME}:${VERSION}-${1}" \
 			"${CURRENT_DIR}"
+		@rm -rf "${CURRENT_DIR}/vendor/"
   .PHONY: docker-build/$1
 
   docker-build:: docker-build/$1
@@ -167,19 +175,23 @@ $(foreach target,$(DOCKER_TARGETS),$(eval $(call make-docker-target,$(target))))
 # test runs the test suite.
 test:
 	@echo "==> Testing ${NAME}"
-	@go test -timeout=30s -parallel=20 -tags="${GOTAGS}" ${GOFILES} ${TESTARGS}
+	@go test -count=1 -timeout=30s -parallel=20 -failfast -tags="${GOTAGS}" ./... ${TESTARGS}
 .PHONY: test
 
 # test-race runs the test suite.
 test-race:
 	@echo "==> Testing ${NAME} (race)"
-	@go test -timeout=60s -race -tags="${GOTAGS}" ${GOFILES} ${TESTARGS}
+	@go test -timeout=60s -race -tags="${GOTAGS}" ./... ${TESTARGS}
 .PHONY: test-race
 
 # _cleanup removes any previous binaries
 _cleanup:
 	@rm -rf "${CURRENT_DIR}/pkg/"
 	@rm -rf "${CURRENT_DIR}/bin/"
+.PHONY: _cleanup
+
+clean: _cleanup
+.PHONY: clean
 
 # _compress compresses all the binaries in pkg/* as tarball and zip.
 _compress:
@@ -197,7 +209,7 @@ _compress:
 		cd "$$platform"; \
 		tar -czf "${CURRENT_DIR}/pkg/dist/${NAME}_${VERSION}_$${osarch}.tgz" "${NAME}$${ext}"; \
 		zip -q "${CURRENT_DIR}/pkg/dist/${NAME}_${VERSION}_$${osarch}.zip" "${NAME}$${ext}"; \
-		cd - &>/dev/null; \
+		cd - >/dev/null; \
 	done
 .PHONY: _compress
 
@@ -205,7 +217,7 @@ _compress:
 _checksum:
 	@cd "${CURRENT_DIR}/pkg/dist" && \
 		shasum --algorithm 256 * > ${CURRENT_DIR}/pkg/dist/${NAME}_${VERSION}_SHA256SUMS && \
-		cd - &>/dev/null
+		cd - >/dev/null
 .PHONY: _checksum
 
 # _sign signs the binaries using the given GPG_KEY. This should not be called
@@ -234,3 +246,8 @@ _sign:
 	@echo ""
 	@echo "And then upload the binaries in dist/!"
 .PHONY: _sign
+
+# Add/Update the "Table Of Contents" in the README.md
+toc:
+	@./scripts/readme-toc.sh
+.PHONY: toc

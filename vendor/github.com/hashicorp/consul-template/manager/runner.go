@@ -16,8 +16,8 @@ import (
 	"github.com/hashicorp/consul-template/renderer"
 	"github.com/hashicorp/consul-template/template"
 	"github.com/hashicorp/consul-template/watch"
-	"github.com/hashicorp/go-multierror"
-	"github.com/mattn/go-shellwords"
+	multierror "github.com/hashicorp/go-multierror"
+	shellwords "github.com/mattn/go-shellwords"
 	"github.com/pkg/errors"
 )
 
@@ -37,10 +37,8 @@ type Runner struct {
 	// construct other objects and pass data.
 	config *config.Config
 
-	// dry signals that output should be sent to stdout instead of committed to
-	// disk. once indicates the runner should execute each template exactly one
-	// time and then stop.
-	dry, once bool
+	// signals sending output to STDOUT instead of to a file.
+	dry bool
 
 	// outStream and errStream are the io.Writer streams where the runner will
 	// write information. These can be modified by calling SetOutStream and
@@ -172,13 +170,13 @@ type RenderEvent struct {
 
 // NewRunner accepts a slice of TemplateConfigs and returns a pointer to the new
 // Runner and any error that occurred during creation.
-func NewRunner(config *config.Config, dry, once bool) (*Runner, error) {
-	log.Printf("[INFO] (runner) creating new runner (dry: %v, once: %v)", dry, once)
+func NewRunner(config *config.Config, dry bool) (*Runner, error) {
+	log.Printf("[INFO] (runner) creating new runner (dry: %v, once: %v)",
+		dry, config.Once)
 
 	runner := &Runner{
 		config: config,
 		dry:    dry,
-		once:   once,
 	}
 
 	if err := runner.init(); err != nil {
@@ -223,31 +221,6 @@ func (r *Runner) Start() {
 	}
 
 	for {
-		// Enable quiescence for all templates if we have specified wait
-		// intervals.
-	NEXT_Q:
-		for _, t := range r.templates {
-			if _, ok := r.quiescenceMap[t.ID()]; ok {
-				continue NEXT_Q
-			}
-
-			for _, c := range r.templateConfigsFor(t) {
-				if *c.Wait.Enabled {
-					log.Printf("[DEBUG] (runner) enabling template-specific quiescence for %q", t.ID())
-					r.quiescenceMap[t.ID()] = newQuiescence(
-						r.quiescenceCh, *c.Wait.Min, *c.Wait.Max, t)
-					continue NEXT_Q
-				}
-			}
-
-			if *r.config.Wait.Enabled {
-				log.Printf("[DEBUG] (runner) enabling global quiescence for %q", t.ID())
-				r.quiescenceMap[t.ID()] = newQuiescence(
-					r.quiescenceCh, *r.config.Wait.Min, *r.config.Wait.Max, t)
-				continue NEXT_Q
-			}
-		}
-
 		// Warn the user if they are watching too many dependencies.
 		if r.watcher.Size() > saneViewLimit {
 			log.Printf("[WARN] (runner) watching %d dependencies - watching this "+
@@ -258,6 +231,32 @@ func (r *Runner) Start() {
 
 		if r.allTemplatesRendered() {
 			log.Printf("[DEBUG] (runner) all templates rendered")
+			// Enable quiescence for all templates if we have specified wait
+			// intervals.
+		NEXT_Q:
+			for _, t := range r.templates {
+				if _, ok := r.quiescenceMap[t.ID()]; ok {
+					continue NEXT_Q
+				}
+
+				for _, c := range r.templateConfigsFor(t) {
+					if *c.Wait.Enabled {
+						log.Printf("[DEBUG] (runner) enabling template-specific "+
+							"quiescence for %q", t.ID())
+						r.quiescenceMap[t.ID()] = newQuiescence(
+							r.quiescenceCh, *c.Wait.Min, *c.Wait.Max, t)
+						continue NEXT_Q
+					}
+				}
+
+				if *r.config.Wait.Enabled {
+					log.Printf("[DEBUG] (runner) enabling global quiescence for %q",
+						t.ID())
+					r.quiescenceMap[t.ID()] = newQuiescence(
+						r.quiescenceCh, *r.config.Wait.Min, *r.config.Wait.Max, t)
+					continue NEXT_Q
+				}
+			}
 
 			// If an exec command was given and a command is not currently running,
 			// spawn the child process for supervision.
@@ -305,7 +304,7 @@ func (r *Runner) Start() {
 
 			// If we are running in once mode and all our templates are rendered,
 			// then we should exit here.
-			if r.once {
+			if r.config.Once {
 				log.Printf("[INFO] (runner) once mode and all templates rendered")
 
 				if r.child != nil {
@@ -391,26 +390,13 @@ func (r *Runner) Start() {
 
 // Stop halts the execution of this runner and its subprocesses.
 func (r *Runner) Stop() {
-	r.stopLock.Lock()
-	defer r.stopLock.Unlock()
+	r.internalStop(false)
+}
 
-	if r.stopped {
-		return
-	}
-
-	log.Printf("[INFO] (runner) stopping")
-	r.stopDedup()
-	r.stopWatcher()
-	r.stopChild()
-
-	if err := r.deletePid(); err != nil {
-		log.Printf("[WARN] (runner) could not remove pid at %v: %s",
-			r.config.PidFile, err)
-	}
-
-	r.stopped = true
-
-	close(r.DoneCh)
+// StopImmediately behaves like Stop but won't wait for any splay on any child
+// process it may be running.
+func (r *Runner) StopImmediately() {
+	r.internalStop(true)
 }
 
 // TemplateRenderedCh returns a channel that will be triggered when one or more
@@ -438,6 +424,29 @@ func (r *Runner) RenderEvents() map[string]*RenderEvent {
 	return times
 }
 
+func (r *Runner) internalStop(immediately bool) {
+	r.stopLock.Lock()
+	defer r.stopLock.Unlock()
+
+	if r.stopped {
+		return
+	}
+
+	log.Printf("[INFO] (runner) stopping")
+	r.stopDedup()
+	r.stopWatcher()
+	r.stopChild(immediately)
+
+	if err := r.deletePid(); err != nil {
+		log.Printf("[WARN] (runner) could not remove pid at %q: %s",
+			*r.config.PidFile, err)
+	}
+
+	r.stopped = true
+
+	close(r.DoneCh)
+}
+
 func (r *Runner) stopDedup() {
 	if r.dedup != nil {
 		log.Printf("[DEBUG] (runner) stopping de-duplication manager")
@@ -452,13 +461,18 @@ func (r *Runner) stopWatcher() {
 	}
 }
 
-func (r *Runner) stopChild() {
+func (r *Runner) stopChild(immediately bool) {
 	r.childLock.RLock()
 	defer r.childLock.RUnlock()
 
 	if r.child != nil {
-		log.Printf("[DEBUG] (runner) stopping child process")
-		r.child.Stop()
+		if immediately {
+			log.Printf("[DEBUG] (runner) stopping child process immediately")
+			r.child.StopImmediately()
+		} else {
+			log.Printf("[DEBUG] (runner) stopping child process")
+			r.child.Stop()
+		}
 	}
 }
 
@@ -653,7 +667,7 @@ func (r *Runner) runTemplate(tmpl *template.Template, runCtx *templateRunCtx) (*
 	// If we are in once mode and this template was already rendered, move
 	// onto the next one. We do not want to re-render the template if we are
 	// in once mode, and we certainly do not want to re-run any commands.
-	if r.once {
+	if r.config.Once {
 		r.renderEventsLock.RLock()
 		event, ok := r.renderEvents[tmpl.ID()]
 		r.renderEventsLock.RUnlock()
@@ -836,7 +850,7 @@ func (r *Runner) init() error {
 	}
 
 	// Create the watcher
-	watcher, err := newWatcher(r.config, clients, r.once)
+	watcher, err := newWatcher(r.config, clients, r.config.Once)
 	if err != nil {
 		return fmt.Errorf("runner: %s", err)
 	}
@@ -852,11 +866,13 @@ func (r *Runner) init() error {
 	// destinations.
 	for _, ctmpl := range *r.config.Templates {
 		tmpl, err := template.NewTemplate(&template.NewTemplateInput{
-			Source:        config.StringVal(ctmpl.Source),
-			Contents:      config.StringVal(ctmpl.Contents),
-			ErrMissingKey: config.BoolVal(ctmpl.ErrMissingKey),
-			LeftDelim:     config.StringVal(ctmpl.LeftDelim),
-			RightDelim:    config.StringVal(ctmpl.RightDelim),
+			Source:            config.StringVal(ctmpl.Source),
+			Contents:          config.StringVal(ctmpl.Contents),
+			ErrMissingKey:     config.BoolVal(ctmpl.ErrMissingKey),
+			LeftDelim:         config.StringVal(ctmpl.LeftDelim),
+			RightDelim:        config.StringVal(ctmpl.RightDelim),
+			FunctionBlacklist: ctmpl.FunctionBlacklist,
+			SandboxPath:       config.StringVal(ctmpl.SandboxPath),
 		})
 		if err != nil {
 			return err
@@ -895,7 +911,7 @@ func (r *Runner) init() error {
 	r.quiescenceCh = make(chan *template.Template)
 
 	if *r.config.Dedup.Enabled {
-		if r.once {
+		if r.config.Once {
 			log.Printf("[INFO] (runner) disabling de-duplication in once mode")
 		} else {
 			r.dedup, err = NewDedupManager(r.config.Dedup, clients, r.brain, r.templates)
@@ -940,14 +956,16 @@ func (r *Runner) templateConfigsFor(tmpl *template.Template) []*config.TemplateC
 
 // TemplateConfigMapping returns a mapping between the template ID and the set
 // of TemplateConfig represented by the template ID
-func (r *Runner) TemplateConfigMapping() map[string][]config.TemplateConfig {
-	m := make(map[string][]config.TemplateConfig, len(r.ctemplatesMap))
+func (r *Runner) TemplateConfigMapping() map[string][]*config.TemplateConfig {
+	// this method is primarily used to support embedding consul-template
+	// in other applications (ex. Nomad)
+	m := make(map[string][]*config.TemplateConfig, len(r.ctemplatesMap))
 
 	for id, set := range r.ctemplatesMap {
-		ctmpls := make([]config.TemplateConfig, len(set))
+		ctmpls := make([]*config.TemplateConfig, len(set))
 		m[id] = ctmpls
 		for i, ctmpl := range set {
-			ctmpls[i] = *ctmpl
+			ctmpls[i] = ctmpl
 		}
 	}
 
@@ -1269,7 +1287,7 @@ func newWatcher(c *config.Config, clients *dep.ClientSet, once bool) (*watch.Wat
 	w, err := watch.NewWatcher(&watch.NewWatcherInput{
 		Clients:             clients,
 		MaxStale:            config.TimeDurationVal(c.MaxStale),
-		Once:                once,
+		Once:                c.Once,
 		RenewVault:          clients.Vault().Token() != "" && config.BoolVal(c.Vault.RenewToken),
 		VaultAgentTokenFile: config.StringVal(c.Vault.VaultAgentTokenFile),
 		RetryFuncConsul:     watch.RetryFunc(c.Consul.Retry.RetryFunc()),

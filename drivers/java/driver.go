@@ -83,6 +83,10 @@ var (
 		SendSignals: false,
 		Exec:        false,
 		FSIsolation: drivers.FSIsolationNone,
+		NetIsolationModes: []drivers.NetIsolationMode{
+			drivers.NetIsolationModeHost,
+			drivers.NetIsolationModeGroup,
+		},
 	}
 
 	_ drivers.DriverPlugin = (*Driver)(nil)
@@ -286,6 +290,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		procState:    drivers.TaskStateRunning,
 		startedAt:    taskState.StartedAt,
 		exitResult:   &drivers.ExitResult{},
+		logger:       d.logger,
 	}
 
 	d.tasks.Set(taskState.TaskConfig.ID, h)
@@ -340,17 +345,18 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:            absPath,
-		Args:           args,
-		Env:            cfg.EnvList(),
-		User:           user,
-		ResourceLimits: true,
-		Resources:      cfg.Resources,
-		TaskDir:        cfg.TaskDir().Dir,
-		StdoutPath:     cfg.StdoutPath,
-		StderrPath:     cfg.StderrPath,
-		Mounts:         cfg.Mounts,
-		Devices:        cfg.Devices,
+		Cmd:              absPath,
+		Args:             args,
+		Env:              cfg.EnvList(),
+		User:             user,
+		ResourceLimits:   true,
+		Resources:        cfg.Resources,
+		TaskDir:          cfg.TaskDir().Dir,
+		StdoutPath:       cfg.StdoutPath,
+		StderrPath:       cfg.StderrPath,
+		Mounts:           cfg.Mounts,
+		Devices:          cfg.Devices,
+		NetworkIsolation: cfg.NetworkIsolation,
 	}
 
 	ps, err := exec.Launch(execCmd)
@@ -481,10 +487,8 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 	}
 
 	if !handle.pluginClient.Exited() {
-		if handle.IsRunning() {
-			if err := handle.exec.Shutdown("", 0); err != nil {
-				handle.logger.Error("destroying executor failed", "err", err)
-			}
+		if err := handle.exec.Shutdown("", 0); err != nil {
+			handle.logger.Error("destroying executor failed", "err", err)
 		}
 
 		handle.pluginClient.Kill()

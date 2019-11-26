@@ -1,7 +1,6 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render, settled } from '@ember/test-helpers';
-import { click, find, findAll } from 'ember-native-dom-helpers';
+import { click, find, findAll, render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import {
@@ -45,7 +44,7 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     gotoJob: () => {},
   });
 
-  test('Clicking Force Launch launches a new periodic child job', function(assert) {
+  test('Clicking Force Launch launches a new periodic child job', async function(assert) {
     const childrenCount = 3;
 
     this.server.create('job', 'periodic', {
@@ -54,42 +53,36 @@ module('Integration | Component | job-page/periodic', function(hooks) {
       createAllocations: false,
     });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled().then(async () => {
-      const job = this.store.peekAll('job').findBy('plainId', 'parent');
+    const job = this.store.peekAll('job').findBy('plainId', 'parent');
 
-      this.setProperties(commonProperties(job));
-      await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await this.render(commonTemplate);
 
-      return settled().then(() => {
-        const currentJobCount = server.db.jobs.length;
+    const currentJobCount = server.db.jobs.length;
 
-        assert.equal(
-          findAll('[data-test-job-name]').length,
-          childrenCount,
-          'The new periodic job launch is in the children list'
-        );
+    assert.equal(
+      findAll('[data-test-job-name]').length,
+      childrenCount,
+      'The new periodic job launch is in the children list'
+    );
 
-        click('[data-test-force-launch]');
+    await click('[data-test-force-launch]');
 
-        return settled().then(() => {
-          const expectedURL = jobURL(job, '/periodic/force');
+    const expectedURL = jobURL(job, '/periodic/force');
 
-          assert.ok(
-            this.server.pretender.handledRequests
-              .filterBy('method', 'POST')
-              .find(req => req.url === expectedURL),
-            'POST URL was correct'
-          );
+    assert.ok(
+      this.server.pretender.handledRequests
+        .filterBy('method', 'POST')
+        .find(req => req.url === expectedURL),
+      'POST URL was correct'
+    );
 
-          assert.equal(server.db.jobs.length, currentJobCount + 1, 'POST request was made');
-        });
-      });
-    });
+    assert.equal(server.db.jobs.length, currentJobCount + 1, 'POST request was made');
   });
 
-  test('Clicking force launch without proper permissions shows an error message', function(assert) {
+  test('Clicking force launch without proper permissions shows an error message', async function(assert) {
     this.server.pretender.post('/v1/job/:id/periodic/force', () => [403, {}, null]);
 
     this.server.create('job', 'periodic', {
@@ -99,39 +92,33 @@ module('Integration | Component | job-page/periodic', function(hooks) {
       status: 'running',
     });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled().then(async () => {
-      const job = this.store.peekAll('job').findBy('plainId', 'parent');
+    const job = this.store.peekAll('job').findBy('plainId', 'parent');
 
-      this.setProperties(commonProperties(job));
-      await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await this.render(commonTemplate);
 
-      return settled().then(() => {
-        assert.notOk(find('[data-test-job-error-title]'), 'No error message yet');
+    assert.notOk(find('[data-test-job-error-title]'), 'No error message yet');
 
-        click('[data-test-force-launch]');
+    await click('[data-test-force-launch]');
 
-        return settled().then(() => {
-          assert.equal(
-            find('[data-test-job-error-title]').textContent,
-            'Could Not Force Launch',
-            'Appropriate error is shown'
-          );
-          assert.ok(
-            find('[data-test-job-error-body]').textContent.includes('ACL'),
-            'The error message mentions ACLs'
-          );
+    assert.equal(
+      find('[data-test-job-error-title]').textContent,
+      'Could Not Force Launch',
+      'Appropriate error is shown'
+    );
+    assert.ok(
+      find('[data-test-job-error-body]').textContent.includes('ACL'),
+      'The error message mentions ACLs'
+    );
 
-          click('[data-test-job-error-close]');
+    await click('[data-test-job-error-close]');
 
-          assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
-        });
-      });
-    });
+    assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
   });
 
-  test('Stopping a job sends a delete request for the job', function(assert) {
+  test('Stopping a job sends a delete request for the job', async function(assert) {
     const mirageJob = this.server.create('job', 'periodic', {
       childrenCount: 0,
       createAllocations: false,
@@ -139,22 +126,18 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     });
 
     let job;
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled()
-      .then(async () => {
-        job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-        this.setProperties(commonProperties(job));
-        await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
+    await stopJob();
 
-        return settled();
-      })
-      .then(stopJob)
-      .then(() => expectDeleteRequest(assert, this.server, job));
+    expectDeleteRequest(assert, this.server, job);
   });
 
-  test('Stopping a job without proper permissions shows an error message', function(assert) {
+  test('Stopping a job without proper permissions shows an error message', async function(assert) {
     this.server.pretender.delete('/v1/job/:id', () => [403, {}, null]);
 
     const mirageJob = this.server.create('job', 'periodic', {
@@ -163,45 +146,35 @@ module('Integration | Component | job-page/periodic', function(hooks) {
       status: 'running',
     });
 
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled()
-      .then(async () => {
-        const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-        this.setProperties(commonProperties(job));
-        await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
 
-        return settled();
-      })
-      .then(stopJob)
-      .then(expectError(assert, 'Could Not Stop Job'));
+    await stopJob();
+    expectError(assert, 'Could Not Stop Job');
   });
 
-  test('Starting a job sends a post request for the job using the current definition', function(assert) {
-    let job;
-
+  test('Starting a job sends a post request for the job using the current definition', async function(assert) {
     const mirageJob = this.server.create('job', 'periodic', {
       childrenCount: 0,
       createAllocations: false,
       status: 'dead',
     });
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled()
-      .then(async () => {
-        job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-        this.setProperties(commonProperties(job));
-        await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
 
-        return settled();
-      })
-      .then(startJob)
-      .then(() => expectStartRequest(assert, this.server, job));
+    await startJob();
+    expectStartRequest(assert, this.server, job);
   });
 
-  test('Starting a job without proper permissions shows an error message', function(assert) {
+  test('Starting a job without proper permissions shows an error message', async function(assert) {
     this.server.pretender.post('/v1/job/:id', () => [403, {}, null]);
 
     const mirageJob = this.server.create('job', 'periodic', {
@@ -209,18 +182,14 @@ module('Integration | Component | job-page/periodic', function(hooks) {
       createAllocations: false,
       status: 'dead',
     });
-    this.store.findAll('job');
+    await this.store.findAll('job');
 
-    return settled()
-      .then(async () => {
-        const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
 
-        this.setProperties(commonProperties(job));
-        await render(commonTemplate);
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
 
-        return settled();
-      })
-      .then(startJob)
-      .then(expectError(assert, 'Could Not Start Job'));
+    await startJob();
+    expectError(assert, 'Could Not Start Job');
   });
 });

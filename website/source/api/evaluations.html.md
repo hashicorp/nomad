@@ -28,8 +28,10 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `prefix` `(string: "")`- Specifies a string to filter evaluations on based on
-  an index prefix. This is specified as a query string parameter.
+- `prefix` `(string: "")`- Specifies a string to filter evaluations based on an
+  ID prefix. Because the value is decoded to bytes, the prefix must have an
+  even number of hexadecimal characters (0-9a-f). This is specified as a query
+  string parameter.
 
 ### Sample Request
 
@@ -40,7 +42,7 @@ $ curl \
 
 ```text
 $ curl \
-    https://localhost:4646/v1/evaluations?prefix=25ba81c
+    https://localhost:4646/v1/evaluations?prefix=25ba81
 ```
 
 ### Sample Response

@@ -13,7 +13,7 @@ name = "nomad"
 # `nomad_binary` (optional, null) - URL of a zip file containing a nomad
 # executable with which to replace the Nomad binaries in the AMI.
 #  - Typically this is left commented unless necessary. 
-#nomad_binary = "https://releases.hashicorp.com/nomad/0.9.0/nomad_0.9.0_linux_amd64.zip"
+#nomad_binary = "https://releases.hashicorp.com/nomad/0.10.0/nomad_0.10.0_linux_amd64.zip"
 
 # `region` ("us-east-1") - sets the AWS region to build your cluster in.
 #region = "us-east-1"
@@ -21,7 +21,7 @@ name = "nomad"
 # `ami` (required) - The base AMI for the created nodes, This AMI must exist in
 # the requested region for this environment to build properly.
 #  - If it is not provided here, it will be requested interactively.
-ami = "ami-090a41df9e193a506"
+ami = "ami-09730698a875f6abd"
 
 # `server_instance_type` ("t2.medium"), `client_instance_type` ("t2.medium"),
 # `server_count` (3),`client_count` (4) - These options control instance size

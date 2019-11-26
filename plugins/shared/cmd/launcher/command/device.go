@@ -11,6 +11,7 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
@@ -99,8 +100,6 @@ func (c *Device) Run(args []string) int {
 			c.logger.Error("failed to read config file", "error", err)
 			return 1
 		}
-
-		c.logger.Trace("read config", "config", string(config))
 	}
 
 	// Get the plugin
@@ -172,8 +171,6 @@ func (c *Device) getSpec() (hcldec.Spec, error) {
 		return nil, fmt.Errorf("failed to get config schema: %v", err)
 	}
 
-	c.logger.Trace("device spec", "spec", hclog.Fmt("% #v", pretty.Formatter(spec)))
-
 	// Convert the schema
 	schema, diag := hclspecutils.Convert(spec)
 	if diag.HasErrors() {
@@ -194,17 +191,10 @@ func (c *Device) setConfig(spec hcldec.Spec, apiVersion string, config []byte, n
 		return err
 	}
 
-	c.logger.Trace("raw hcl config", "config", hclog.Fmt("% #v", pretty.Formatter(configVal)))
-
-	val, diag := hclutils.ParseHclInterface(configVal, spec, nil)
+	val, diag, diagErrs := hclutils.ParseHclInterface(configVal, spec, nil)
 	if diag.HasErrors() {
-		errStr := "failed to parse config"
-		for _, err := range diag.Errs() {
-			errStr = fmt.Sprintf("%s\n* %s", errStr, err.Error())
-		}
-		return errors.New(errStr)
+		return multierror.Append(errors.New("failed to parse config: "), diagErrs...)
 	}
-	c.logger.Trace("parsed hcl config", "config", hclog.Fmt("% #v", pretty.Formatter(val)))
 
 	cdata, err := msgpack.Marshal(val, val.Type())
 	if err != nil {
@@ -212,12 +202,11 @@ func (c *Device) setConfig(spec hcldec.Spec, apiVersion string, config []byte, n
 	}
 
 	req := &base.Config{
-		PluginConfig: config,
+		PluginConfig: cdata,
 		AgentConfig:  nmdCfg,
 		ApiVersion:   apiVersion,
 	}
 
-	c.logger.Trace("msgpack config", "config", string(cdata))
 	if err := c.dev.SetConfig(req); err != nil {
 		return err
 	}

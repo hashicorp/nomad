@@ -178,7 +178,7 @@ func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
 // data will be copied from the reader to the rotator.
 type logRotatorWrapper struct {
 	fifoPath          string
-	rotatorWriter     *logging.FileRotator
+	rotatorWriter     io.WriteCloser
 	hasFinishedCopied chan struct{}
 	logger            hclog.Logger
 
@@ -198,13 +198,14 @@ func (l *logRotatorWrapper) isRunning() bool {
 
 // newLogRotatorWrapper takes a rotator and returns a wrapper that has the
 // processOutWriter to attach to the stdout or stderr of a process.
-func newLogRotatorWrapper(path string, logger hclog.Logger, rotator *logging.FileRotator) (*logRotatorWrapper, error) {
+func newLogRotatorWrapper(path string, logger hclog.Logger, rotator io.WriteCloser) (*logRotatorWrapper, error) {
 	logger.Info("opening fifo", "path", path)
 
 	var openFn func() (io.ReadCloser, error)
 	var err error
 
-	if _, ferr := os.Stat(path); os.IsNotExist(ferr) {
+	_, serr := os.Stat(path)
+	if os.IsNotExist(serr) {
 		openFn, err = fifo.CreateAndRead(path)
 	} else {
 		openFn = func() (io.ReadCloser, error) {
@@ -213,6 +214,7 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator *logging.Fil
 	}
 
 	if err != nil {
+		logger.Error("failed to create FIFO", "stat_error", serr, "create_err", err)
 		return nil, fmt.Errorf("failed to create fifo for extracting logs: %v", err)
 	}
 

@@ -10,16 +10,16 @@ description: >
 
 The `deployment status` command is used to display the status of a deployment.
 The status will display the number of desired changes as well as the currently
-applied changes. 
+applied changes.
 
 ## Usage
 
-```
+```plaintext
 nomad deployment status [options] <deployment id>
 ```
 
 The `deployment status` command requires a single argument, a deployment ID or
-prefix. 
+prefix.
 
 ## General Options
 
@@ -27,17 +27,15 @@ prefix.
 
 ## Status Options
 
-* `-json` : Output the deployment in its JSON format.
-
-* `-t` : Format and display the deployment using a Go template.
-
-* `-verbose`: Show full information.
+- `-json` : Output the deployment in its JSON format.
+- `-t` : Format and display the deployment using a Go template.
+- `-verbose`: Show full information.
 
 ## Examples
 
 Inspect the status of a complete deployment:
 
-```
+```shell
 $ nomad deployment status 06ca68a2
 ID          = 06ca68a2
 Job ID      = example
@@ -53,7 +51,7 @@ web         2        2       2        0
 
 Inspect the status of a deployment that is waiting for canary promotion:
 
-```
+```shell
 $ nomad deployment status 0b
 ID          = 0b23b149
 Job ID      = example

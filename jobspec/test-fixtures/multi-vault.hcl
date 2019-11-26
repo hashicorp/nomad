@@ -18,8 +18,10 @@ job "binstore-storagelocker" {
       vault {
         policies = ["foo", "bar"]
       }
+
       vault {
         policies = ["1", "2"]
       }
     }
+  }
 }

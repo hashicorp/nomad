@@ -1,0 +1,27 @@
+docker:
+  - image: circleci/node:10-browsers
+    environment:
+      # See https://git.io/vdao3 for details.
+      JOBS: 2
+steps:
+  - checkout
+  - restore_cache:
+      keys:
+        - v1-deps-{{ checksum "ui/yarn.lock" }}
+        - v1-deps-
+  - run:
+      name: yarn install
+      command: cd ui && yarn install
+  - save_cache:
+      key: v1-deps-{{ checksum "ui/yarn.lock" }}
+      paths:
+        - ./ui/node_modules
+  - run:
+      name: lint:js
+      command: cd ui && yarn run lint:js
+  - run:
+      name: lint:hbs
+      command: cd ui && yarn run lint:hbs
+  - run:
+      name: Ember tests
+      command: cd ui && yarn test

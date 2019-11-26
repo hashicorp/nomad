@@ -1,7 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import Definition from 'nomad-ui/tests/pages/jobs/job/definition';
 
@@ -21,6 +21,7 @@ module('Acceptance | job definition', function(hooks) {
 
   test('visiting /jobs/:job_id/definition', async function(assert) {
     assert.equal(currentURL(), `/jobs/${job.id}/definition`);
+    assert.equal(document.title, `Job ${job.name} definition - Nomad`);
   });
 
   test('the job definition page contains a json viewer component', async function(assert) {

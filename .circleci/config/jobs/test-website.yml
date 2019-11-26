@@ -1,0 +1,4 @@
+executor: go-machine-recent
+steps:
+  - checkout
+  - run: make test-website

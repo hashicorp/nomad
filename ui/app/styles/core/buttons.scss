@@ -30,11 +30,16 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
 
   &.is-compact {
     padding: 0.25em 0.75em;
-    margin: -0.25em -0.25em -0.25em 0;
+    margin: -0.25em 0;
 
     &.pull-right {
       margin-right: -1em;
     }
+  }
+
+  &.is-borderless {
+    border: 0;
+    box-shadow: none;
   }
 
   @each $name, $pair in $colors {

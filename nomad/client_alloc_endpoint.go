@@ -87,13 +87,6 @@ func (a *ClientAllocations) Signal(args *structs.AllocSignalRequest, reply *stru
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client_allocations", "signal"}, time.Now())
 
-	// Check node read permissions
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
-		return structs.ErrPermissionDenied
-	}
-
 	// Verify the arguments.
 	if args.AllocID == "" {
 		return errors.New("missing AllocID")
@@ -105,13 +98,16 @@ func (a *ClientAllocations) Signal(args *structs.AllocSignalRequest, reply *stru
 		return err
 	}
 
-	alloc, err := snap.AllocByID(nil, args.AllocID)
+	alloc, err := getAlloc(snap, args.AllocID)
 	if err != nil {
 		return err
 	}
 
-	if alloc == nil {
-		return structs.NewErrUnknownAllocation(args.AllocID)
+	// Check namespace alloc-lifecycle permission.
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
+		return structs.ErrPermissionDenied
 	}
 
 	// Make sure Node is valid and new enough to support RPC
@@ -143,13 +139,6 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client_allocations", "garbage_collect"}, time.Now())
 
-	// Check node read permissions
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilitySubmitJob) {
-		return structs.ErrPermissionDenied
-	}
-
 	// Verify the arguments.
 	if args.AllocID == "" {
 		return errors.New("missing AllocID")
@@ -161,13 +150,16 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 		return err
 	}
 
-	alloc, err := snap.AllocByID(nil, args.AllocID)
+	alloc, err := getAlloc(snap, args.AllocID)
 	if err != nil {
 		return err
 	}
 
-	if alloc == nil {
-		return structs.NewErrUnknownAllocation(args.AllocID)
+	// Check namespace submit-job permission.
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
 	}
 
 	// Make sure Node is valid and new enough to support RPC
@@ -199,30 +191,22 @@ func (a *ClientAllocations) Restart(args *structs.AllocRestartRequest, reply *st
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client_allocations", "restart"}, time.Now())
 
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
-		return structs.ErrPermissionDenied
-	}
-
-	// Verify the arguments.
-	if args.AllocID == "" {
-		return errors.New("missing AllocID")
-	}
-
 	// Find the allocation
 	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
 
-	alloc, err := snap.AllocByID(nil, args.AllocID)
+	alloc, err := getAlloc(snap, args.AllocID)
 	if err != nil {
 		return err
 	}
 
-	if alloc == nil {
-		return structs.NewErrUnknownAllocation(args.AllocID)
+	// Check for namespace alloc-lifecycle permissions.
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
+		return structs.ErrPermissionDenied
 	}
 
 	// Make sure Node is valid and new enough to support RPC
@@ -254,31 +238,22 @@ func (a *ClientAllocations) Stats(args *cstructs.AllocStatsRequest, reply *cstru
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client_allocations", "stats"}, time.Now())
 
-	// Check node read permissions
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadJob) {
-		return structs.ErrPermissionDenied
-	}
-
-	// Verify the arguments.
-	if args.AllocID == "" {
-		return errors.New("missing AllocID")
-	}
-
 	// Find the allocation
 	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
 
-	alloc, err := snap.AllocByID(nil, args.AllocID)
+	alloc, err := getAlloc(snap, args.AllocID)
 	if err != nil {
 		return err
 	}
 
-	if alloc == nil {
-		return structs.NewErrUnknownAllocation(args.AllocID)
+	// Check for namespace read-job permissions.
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
 	}
 
 	// Make sure Node is valid and new enough to support RPC
@@ -319,19 +294,6 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 		return
 	}
 
-	// Check node read permissions
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
-		handleStreamResultError(err, nil, encoder)
-		return
-	} else if aclObj != nil {
-		// client ultimately checks if AllocNodeExec is required
-		exec := aclObj.AllowNsOp(args.QueryOptions.Namespace, acl.NamespaceCapabilityAllocExec)
-		if !exec {
-			handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
-			return
-		}
-	}
-
 	// Verify the arguments.
 	if args.AllocID == "" {
 		handleStreamResultError(errors.New("missing AllocID"), helper.Int64ToPtr(400), encoder)
@@ -345,15 +307,26 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 		return
 	}
 
-	alloc, err := snap.AllocByID(nil, args.AllocID)
+	alloc, err := getAlloc(snap, args.AllocID)
+	if structs.IsErrUnknownAllocation(err) {
+		handleStreamResultError(err, helper.Int64ToPtr(404), encoder)
+		return
+	}
 	if err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
 	}
-	if alloc == nil {
-		handleStreamResultError(structs.NewErrUnknownAllocation(args.AllocID), helper.Int64ToPtr(404), encoder)
+
+	// Check node read permissions
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocExec) {
+		// client ultimately checks if AllocNodeExec is required
+		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 		return
 	}
+
 	nodeID := alloc.NodeID
 
 	// Make sure Node is valid and new enough to support RPC

@@ -43,7 +43,7 @@ configuration, Nomad will automatically connect and configure with Consul.
 
 An important requirement is that each Nomad agent talks to a unique Consul
 agent. Nomad agents should be configured to talk to Consul agents and not
-Consul servers. If you are observing flapping services, you may have have
+Consul servers. If you are observing flapping services, you may have 
 multiple Nomad agents talking to the same Consul agent. As such avoid
 configuring Nomad to talk to Consul via DNS such as consul.service.consul
 
@@ -51,7 +51,8 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 
 - `address` `(string: "127.0.0.1:8500")` - Specifies the address to the local
   Consul agent, given in the format `host:port`. Supports Unix sockets with the
-  format: `unix:///tmp/consul/consul.sock`
+  format: `unix:///tmp/consul/consul.sock`. Will default to the
+  `CONSUL_HTTP_ADDR` environment variable if set.
 
 - `auth` `(string: "")` - Specifies the HTTP Basic Authentication information to
   use for access to the Consul Agent, given in the format `username:password`.
@@ -64,7 +65,7 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 
 - `ca_file` `(string: "")` - Specifies an optional path to the CA certificate
   used for Consul communication. This defaults to the system bundle if
-  unspecified.
+  unspecified. Will default to the `CONSUL_CACERT` environment variable if set.
 
 - `cert_file` `(string: "")` - Specifies the path to the certificate used for
   Consul communication. If this is set then you need to also set `key_file`.
@@ -106,7 +107,8 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
   only happens if the server does not have a leader.
 
 - `ssl` `(bool: false)` - Specifies if the transport scheme should use HTTPS to
-  communicate with the Consul agent.
+  communicate with the Consul agent. Will default to the `CONSUL_HTTP_SSL`
+  environment variable if set.
 
 - `tags` `(array<string>: [])` - Specifies optional Consul tags to be
   registered with the Nomad server and agent services.
@@ -117,7 +119,9 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
   which may or may not allow writes.
 
 - `verify_ssl` `(bool: true)`- Specifies if SSL peer verification should be used
-  when communicating to the Consul API client over HTTPS
+  when communicating to the Consul API client over HTTPS. Will default to the
+  `CONSUL_HTTP_SSL_VERIFY` environment variable if set.
+
 
 
 If the local Consul agent is configured and accessible by the Nomad agents, the

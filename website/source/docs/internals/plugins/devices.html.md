@@ -3,10 +3,81 @@ layout: "docs"
 page_title: "Device Plugins"
 sidebar_current: "docs-internals-plugins-devices"
 description: |-
-  Learn about how to author a Nomad device plugin.
+  Learn how to author a Nomad device plugin.
 ---
 
 # Devices
 
-Device plugin documentation is currently a work in progress. Until there is
-documentation, the [Nvidia GPU plugin](https://github.com/hashicorp/nomad/tree/master/devices/gpu/nvidia) is a useful example.
+Nomad has built-in support for scheduling compute resources such as CPU, memory,
+and networking. Nomad device plugins are used to support scheduling tasks with
+other devices, such as GPUs. They are responsible for fingerprinting these
+devices and working with the Nomad client to make them available to assigned
+tasks.
+
+For a real world example of a Nomad device plugin implementation, see the [Nvidia
+GPU plugin](https://github.com/hashicorp/nomad/tree/master/devices/gpu/nvidia).
+
+## Authoring Device Plugins
+
+Authoring a device plugin in Nomad consists of implementing the
+[DevicePlugin][devicePlugin] interface alongside
+a main package to launch the plugin.
+
+The [device plugin skeleton project][skeletonProject] exists to help bootstrap
+the development of new device plugins. It provides most of the boilerplate
+necessary for a device plugin, along with detailed comments.
+
+### Lifecycle and State
+
+A device plugin is long-lived. Nomad will ensure that one instance of the plugin is
+running. If the plugin crashes or otherwise terminates, Nomad will launch another
+instance of it.
+
+However, unlike [task drivers](task-drivers.html), device plugins do not currently
+have an interface for persisting state to the Nomad client. Instead, the device
+plugin API emphasizes fingerprinting devices and reporting their status. After
+helping to provision a task with a scheduled device, a device plugin does not
+have any responsibility (or ability) to monitor the task.
+
+## Device Plugin API
+
+The [base plugin][baseplugin] must be implemented in addition to the following
+functions.
+
+### `Fingerprint(context.Context) (<-chan *FingerprintResponse, error)`
+
+The `Fingerprint` [function][fingerprintFn] is called by the client when the plugin is started.
+It allows the plugin to provide Nomad with a list of discovered devices, along with their
+attributes, for the purpose of scheduling workloads using devices.
+The channel returned should immediately send an initial
+[`FingerprintResponse`][fingerprintResponse], then send periodic updates at
+an appropriate interval until the context is canceled.
+
+Each fingerprint response consists of either an error or a list of device groups.
+A device group is a list of detected devices that are identical for the purpose of
+scheduling; that is, they will have identical attributes.
+
+### `Stats(context.Context, time.Duration) (<-chan *StatsResponse, error)`
+
+The `Stats` [function][statsFn] returns a channel on which the plugin should
+emit device statistics, at the specified interval, until either an error is
+encountered or the specified context is cancelled. The `StatsReponse` object
+allows [dimensioned][dimensioned] statistics to be returned for each device in a device group.
+
+### `Reserve(deviceIDs []string) (*ContainerReservation, error)`
+
+The `Reserve` [function][reserveFn] accepts a list of device IDs and returns the information
+necessary for the client to make those devices available to a task. Currently,
+the `ContainerReservation` object allows the plugin to specify environment
+variables for the task, as well as a list of host devices and files to be mounted
+into the task's filesystem. Any orchestration required to prepare the device for
+use should also be performed in this function.
+
+[DevicePlugin]: https://github.com/hashicorp/nomad/blob/v0.9.0/plugins/device/device.go#L20-L33
+[baseplugin]: /docs/internals/plugins/base.html
+[skeletonProject]: https://github.com/hashicorp/nomad-skeleton-device-plugin
+[fingerprintResponse]: https://github.com/hashicorp/nomad/blob/v0.9.0/plugins/device/device.go#L37-L43
+[fingerprintFn]: https://github.com/hashicorp/nomad-skeleton-device-plugin/blob/v0.1.0/device/device.go#L159-L165
+[statsFn]: https://github.com/hashicorp/nomad-skeleton-device-plugin/blob/v0.1.0/device/device.go#L169-L176
+[reserveFn]: https://github.com/hashicorp/nomad-skeleton-device-plugin/blob/v0.1.0/device/device.go#L189-L245
+[dimensioned]: https://github.com/hashicorp/nomad/blob/v0.9.0/plugins/shared/structs/stats.go#L33-L34

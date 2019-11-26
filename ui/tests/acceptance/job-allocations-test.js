@@ -1,7 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import Allocations from 'nomad-ui/tests/pages/jobs/job/allocations';
 
 let job;
@@ -46,6 +46,8 @@ module('Acceptance | job allocations', function(hooks) {
       const shortId = sortedAllocations[index].id.split('-')[0];
       assert.equal(allocation.shortId, shortId, `Allocation ${index} is ${shortId}`);
     });
+
+    assert.equal(document.title, `Job ${job.name} allocations - Nomad`);
   });
 
   test('allocations table is sortable', async function(assert) {

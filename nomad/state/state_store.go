@@ -101,7 +101,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	return snap, nil
 }
 
-// SnapshotAfter is used to create a point in time snapshot where the index is
+// SnapshotMinIndex is used to create a state snapshot where the index is
 // guaranteed to be greater than or equal to the index parameter.
 //
 // Some server operations (such as scheduling) exchange objects via RPC
@@ -111,7 +111,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 //
 // Callers should maintain their own timer metric as the time this method
 // blocks indicates Raft log application latency relative to scheduling.
-func (s *StateStore) SnapshotAfter(ctx context.Context, index uint64) (*StateSnapshot, error) {
+func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*StateSnapshot, error) {
 	// Ported from work.go:waitForIndex prior to 0.9
 
 	const backoffBase = 20 * time.Millisecond
@@ -3769,6 +3769,10 @@ func (s *StateStore) DeleteACLTokens(index uint64, ids []string) error {
 
 // ACLTokenByAccessorID is used to lookup a token by accessor ID
 func (s *StateStore) ACLTokenByAccessorID(ws memdb.WatchSet, id string) (*structs.ACLToken, error) {
+	if id == "" {
+		return nil, fmt.Errorf("acl token lookup failed: missing accessor id")
+	}
+
 	txn := s.db.Txn(false)
 
 	watchCh, existing, err := txn.FirstWatch("acl_token", "id", id)
@@ -3785,6 +3789,10 @@ func (s *StateStore) ACLTokenByAccessorID(ws memdb.WatchSet, id string) (*struct
 
 // ACLTokenBySecretID is used to lookup a token by secret ID
 func (s *StateStore) ACLTokenBySecretID(ws memdb.WatchSet, secretID string) (*structs.ACLToken, error) {
+	if secretID == "" {
+		return nil, fmt.Errorf("acl token lookup failed: missing secret id")
+	}
+
 	txn := s.db.Txn(false)
 
 	watchCh, existing, err := txn.FirstWatch("acl_token", "secret", secretID)

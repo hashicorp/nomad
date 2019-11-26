@@ -216,7 +216,7 @@ func (a *TestAgent) start() (*Agent, error) {
 		return nil, fmt.Errorf("unable to set up in memory metrics needed for agent initialization")
 	}
 
-	logger := hclog.New(&hclog.LoggerOptions{
+	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
 		Name:       "agent",
 		Level:      hclog.LevelFromString(a.Config.LogLevel),
 		Output:     a.LogOutput,
@@ -311,7 +311,7 @@ func (a *TestAgent) pickRandomPorts(c *Config) {
 // TestConfig returns a unique default configuration for testing an
 // agent.
 func (a *TestAgent) config() *Config {
-	conf := DevConfig()
+	conf := DevConfig(nil)
 
 	// Customize the server configuration
 	config := nomad.DefaultConfig()

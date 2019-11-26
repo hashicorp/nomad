@@ -337,6 +337,8 @@ func shuffleNodes(nodes []*structs.Node) {
 // tasksUpdated does a diff between task groups to see if the
 // tasks, their drivers, environment variables or config have updated. The
 // inputs are the task group name to diff and two jobs to diff.
+// taskUpdated and functions called within assume that the given
+// taskGroup has already been checked to not be nil
 func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 	a := jobA.LookupTaskGroup(taskGroup)
 	b := jobB.LookupTaskGroup(taskGroup)
@@ -348,6 +350,21 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 
 	// Check ephemeral disk
 	if !reflect.DeepEqual(a.EphemeralDisk, b.EphemeralDisk) {
+		return true
+	}
+
+	// Check that the network resources haven't changed
+	if networkUpdated(a.Networks, b.Networks) {
+		return true
+	}
+
+	// Check Affinities
+	if affinitiesUpdated(jobA, jobB, taskGroup) {
+		return true
+	}
+
+	// Check Spreads
+	if spreadsUpdated(jobA, jobB, taskGroup) {
 		return true
 	}
 
@@ -387,27 +404,36 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		}
 
 		// Inspect the network to see if the dynamic ports are different
-		if len(at.Resources.Networks) != len(bt.Resources.Networks) {
+		if networkUpdated(at.Resources.Networks, bt.Resources.Networks) {
 			return true
-		}
-		for idx := range at.Resources.Networks {
-			an := at.Resources.Networks[idx]
-			bn := bt.Resources.Networks[idx]
-
-			if an.MBits != bn.MBits {
-				return true
-			}
-
-			aPorts, bPorts := networkPortMap(an), networkPortMap(bn)
-			if !reflect.DeepEqual(aPorts, bPorts) {
-				return true
-			}
 		}
 
 		// Inspect the non-network resources
 		if ar, br := at.Resources, bt.Resources; ar.CPU != br.CPU {
 			return true
 		} else if ar.MemoryMB != br.MemoryMB {
+			return true
+		} else if !ar.Devices.Equals(&br.Devices) {
+			return true
+		}
+	}
+	return false
+}
+
+func networkUpdated(netA, netB []*structs.NetworkResource) bool {
+	if len(netA) != len(netB) {
+		return true
+	}
+	for idx := range netA {
+		an := netA[idx]
+		bn := netB[idx]
+
+		if an.MBits != bn.MBits {
+			return true
+		}
+
+		aPorts, bPorts := networkPortMap(an), networkPortMap(bn)
+		if !reflect.DeepEqual(aPorts, bPorts) {
 			return true
 		}
 	}
@@ -426,6 +452,61 @@ func networkPortMap(n *structs.NetworkResource) map[string]int {
 		m[p.Label] = -1
 	}
 	return m
+}
+
+func affinitiesUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
+	var aAffinities []*structs.Affinity
+	var bAffinities []*structs.Affinity
+
+	tgA := jobA.LookupTaskGroup(taskGroup)
+	tgB := jobB.LookupTaskGroup(taskGroup)
+
+	// Append jobA job and task group level affinities
+	aAffinities = append(aAffinities, jobA.Affinities...)
+	aAffinities = append(aAffinities, tgA.Affinities...)
+
+	// Append jobB job and task group level affinities
+	bAffinities = append(bAffinities, jobB.Affinities...)
+	bAffinities = append(bAffinities, tgB.Affinities...)
+
+	// append task affinities
+	for _, task := range tgA.Tasks {
+		aAffinities = append(aAffinities, task.Affinities...)
+	}
+
+	for _, task := range tgB.Tasks {
+		bAffinities = append(bAffinities, task.Affinities...)
+	}
+
+	// Check for equality
+	if len(aAffinities) != len(bAffinities) {
+		return true
+	}
+
+	return !reflect.DeepEqual(aAffinities, bAffinities)
+}
+
+func spreadsUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
+	var aSpreads []*structs.Spread
+	var bSpreads []*structs.Spread
+
+	tgA := jobA.LookupTaskGroup(taskGroup)
+	tgB := jobB.LookupTaskGroup(taskGroup)
+
+	// append jobA and task group level spreads
+	aSpreads = append(aSpreads, jobA.Spreads...)
+	aSpreads = append(aSpreads, tgA.Spreads...)
+
+	// append jobB and task group level spreads
+	bSpreads = append(bSpreads, jobB.Spreads...)
+	bSpreads = append(bSpreads, tgB.Spreads...)
+
+	// Check for equality
+	if len(aSpreads) != len(bSpreads) {
+		return true
+	}
+
+	return !reflect.DeepEqual(aSpreads, bSpreads)
 }
 
 // setStatus is used to update the status of the evaluation
@@ -810,7 +891,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 				networks = tr.Networks
 			}
 
-			// Add thhe networks back
+			// Add the networks back
 			resources.Networks = networks
 		}
 
@@ -828,6 +909,17 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 				DiskMB: int64(newTG.EphemeralDisk.SizeMB),
 			},
 		}
+
+		// Since this is an inplace update, we should copy network
+		// information from the original alloc. This is similar to how
+		// we copy network info for task level networks above.
+		//
+		// existing.AllocatedResources is nil on Allocations created by
+		// Nomad v0.8 or earlier.
+		if existing.AllocatedResources != nil {
+			newAlloc.AllocatedResources.Shared.Networks = existing.AllocatedResources.Shared.Networks
+		}
+
 		// Use metrics from existing alloc for in place upgrade
 		// This is because if the inplace upgrade succeeded, any scoring metadata from
 		// when it first went through the scheduler should still be preserved. Using scoring

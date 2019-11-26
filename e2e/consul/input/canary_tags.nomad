@@ -1,6 +1,11 @@
 job "consul_canary_test" {
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "consul_canary_test" {
     count = 2
 
@@ -13,8 +18,8 @@ job "consul_canary_test" {
       }
 
       service {
-        name = "canarytest"
-        tags = ["foo", "bar"]
+        name        = "canarytest"
+        tags        = ["foo", "bar"]
         canary_tags = ["foo", "canary"]
       }
     }

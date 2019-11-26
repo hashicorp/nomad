@@ -3,8 +3,8 @@ data "aws_vpc" "default" {
 }
 
 resource "aws_security_group" "primary" {
-  name   = "${local.random_name}"
-  vpc_id = "${data.aws_vpc.default.id}"
+  name   = local.random_name
+  vpc_id = data.aws_vpc.default.id
 
   ingress {
     from_port   = 22

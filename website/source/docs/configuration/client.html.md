@@ -64,9 +64,13 @@ driver) but will be removed in a future release.
 - `network_interface` `(string: varied)` - Specifies the name of the interface
   to force network fingerprinting on. When run in dev mode, this defaults to the
   loopback interface. When not in dev mode, the interface attached to the
-  default route is used. All IP addresses except those scoped local for IPV6 on
-  the chosen interface are fingerprinted. The scheduler chooses from those IP
+  default route is used. The scheduler chooses from these fingerprinted IP
   addresses when allocating ports for tasks.
+
+    If no non-local IP addresses are found, Nomad could fingerprint link-local IPv6
+    addresses depending on the client's
+    [`"fingerprint.network.disallow_link_local"`](#quot-fingerprint-network-disallow_link_local-quot-)
+    configuration value.
 
 - `network_speed` `(int: 0)` - Specifies an override for the network link speed.
   This value, if set, overrides any detected or defaulted link speed. Most
@@ -136,6 +140,24 @@ driver) but will be removed in a future release.
   generated, but setting this to `false` will use the system's UUID. Before
   Nomad 0.6 the default was to use the system UUID.
 
+- `cni_path` `(string: "/opt/cni/bin")` - Sets the search path that is used for
+  CNI plugin discovery. Multiple paths can be searched using colon delimited
+  paths
+
+- `bridge_network name` `(string: "nomad")` - Sets the name of the bridge to be
+  created by nomad for allocations running with bridge networking mode on the
+  client.
+
+- `bridge_network_subnet` `(string: "172.26.66.0/23")` - Specifies the subnet
+  which the client will use to allocate IP addresses from.
+
+- `template` <code>([Template](#template-parameters): nil)</code> - Specifies
+  controls on the behavior of task
+  [`template`](/docs/job-specification/template.html) stanzas.
+
+- `host_volume` <code>([host_volume](#host_volume-stanza): nil)</code> - Exposes
+  paths from the host as volumes that can be mounted into jobs.
+
 ### `chroot_env` Parameters
 
 Drivers based on [isolated fork/exec](/docs/drivers/exec.html) implement file
@@ -157,6 +179,7 @@ client {
     "/etc/ld.so.cache"  = "/etc/ld.so.cache"
     "/etc/ld.so.conf"   = "/etc/ld.so.conf"
     "/etc/ld.so.conf.d" = "/etc/ld.so.conf.d"
+    "/etc/passwd"       = "/etc/passwd"
     "/lib"              = "/lib"
     "/lib64"            = "/lib64"
   }
@@ -318,6 +341,43 @@ see the [drivers documentation](/docs/drivers/index.html).
   reserve on all fingerprinted network devices. Ranges can be specified by using
   a hyphen separated the two inclusive ends.
 
+### `template` Parameters
+
+- `function_blacklist` `([]string: ["plugin"])` - Specifies a list of template
+  rendering functions that should be disallowed in job specs. By default the
+  `plugin` function is disallowed as it allows running arbitrary commands on
+  the host as root (unless Nomad is configured to run as a non-root user).
+
+- `disable_file_sandbox` `(bool: false)` - Allows templates access to arbitrary
+  files on the client host via the `file` function. By default templates can
+  access files only within the task directory.
+
+### `host_volume` Stanza
+
+The `host_volume` stanza is used to make volumes available to jobs.
+
+The key of the stanza corresponds to the name of the volume for use in the
+`source` parameter of a `"host"` type [`volume`](/docs/job-specification/volume.html)
+and ACLs.
+
+```hcl
+client {
+  host_volume "ca-certificates" {
+    path = "/etc/ssl/certs"
+    read_only = true
+  }
+}
+```
+
+#### `host_volume` Parameters
+
+- `path` `(string: "", required)` - Specifies the path on the host that should
+  be used as the source when this volume is mounted into a task. The path must
+  exist on client startup.
+
+- `read_only` `(bool: false)` - Specifies whether the volume should only ever be
+  allowed to be mounted `read_only`, or if it should be writeable.
+
 ## `client` Examples
 
 ### Common Setup
@@ -358,7 +418,9 @@ client {
 ### Custom Metadata, Network Speed, and Node Class
 
 This example shows a client configuration which customizes the metadata, network
-speed, and node class.
+speed, and node class. The scheduler can use this information while processing
+[constraints][metadata_constraint]. The metadata is completely user configurable;
+the values below are for illustrative purposes only.
 
 ```hcl
 client {
@@ -368,9 +430,13 @@ client {
 
   meta {
     "owner" = "ops"
+    "cached_binaries" = "redis,apache,nginx,jq,cypress,nodejs"
+    "rack" = "rack-12-1"
   }
 }
 ```
+
 [plugin-options]: #plugin-options
 [plugin-stanza]: /docs/configuration/plugin.html
 [server-join]: /docs/configuration/server_join.html "Server Join"
+[metadata_constraint]: /docs/job-specification/constraint.html#user-specified-metadata "Nomad User-Specified Metadata Constraint Example"

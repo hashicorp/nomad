@@ -81,7 +81,7 @@ type Config struct {
 	LogOutput io.Writer
 
 	// Logger provides a logger to thhe client
-	Logger log.Logger
+	Logger log.InterceptLogger
 
 	// Region is the clients region
 	Region string
@@ -201,6 +201,9 @@ type Config struct {
 	// DisableRemoteExec disables remote exec targeting tasks on this client
 	DisableRemoteExec bool
 
+	// TemplateConfig includes configuration for template rendering
+	TemplateConfig *ClientTemplateConfig
+
 	// BackwardsCompatibleMetrics determines whether to show methods of
 	// displaying metrics for older versions, or to only show the new format
 	BackwardsCompatibleMetrics bool
@@ -221,6 +224,38 @@ type Config struct {
 
 	// StateDBFactory is used to override stateDB implementations,
 	StateDBFactory state.NewStateDBFunc
+
+	// CNIPath is the path used to search for CNI plugins. Multiple paths can
+	// be specified with colon delimited
+	CNIPath string
+
+	// BridgeNetworkName is the name to use for the bridge created in bridge
+	// networking mode. This defaults to 'nomad' if not set
+	BridgeNetworkName string
+
+	// BridgeNetworkAllocSubnet is the IP subnet to use for address allocation
+	// for allocations in bridge networking mode. Subnet must be in CIDR
+	// notation
+	BridgeNetworkAllocSubnet string
+
+	// HostVolumes is a map of the configured host volumes by name.
+	HostVolumes map[string]*structs.ClientHostVolumeConfig
+}
+
+type ClientTemplateConfig struct {
+	FunctionBlacklist []string
+	DisableSandbox    bool
+}
+
+func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(ClientTemplateConfig)
+	*nc = *c
+	nc.FunctionBlacklist = helper.CopySliceString(nc.FunctionBlacklist)
+	return nc
 }
 
 func (c *Config) Copy() *Config {
@@ -229,30 +264,36 @@ func (c *Config) Copy() *Config {
 	nc.Node = nc.Node.Copy()
 	nc.Servers = helper.CopySliceString(nc.Servers)
 	nc.Options = helper.CopyMapStringString(nc.Options)
+	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
+	nc.TemplateConfig = c.TemplateConfig.Copy()
 	return nc
 }
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
-		Version:                    version.GetVersion(),
-		VaultConfig:                config.DefaultVaultConfig(),
-		ConsulConfig:               config.DefaultConsulConfig(),
-		LogOutput:                  os.Stderr,
-		Region:                     "global",
-		StatsCollectionInterval:    1 * time.Second,
-		TLSConfig:                  &config.TLSConfig{},
-		LogLevel:                   "DEBUG",
-		GCInterval:                 1 * time.Minute,
-		GCParallelDestroys:         2,
-		GCDiskUsageThreshold:       80,
-		GCInodeUsageThreshold:      70,
-		GCMaxAllocs:                50,
-		NoHostUUID:                 true,
-		DisableTaggedMetrics:       false,
-		DisableRemoteExec:          false,
+		Version:                 version.GetVersion(),
+		VaultConfig:             config.DefaultVaultConfig(),
+		ConsulConfig:            config.DefaultConsulConfig(),
+		LogOutput:               os.Stderr,
+		Region:                  "global",
+		StatsCollectionInterval: 1 * time.Second,
+		TLSConfig:               &config.TLSConfig{},
+		LogLevel:                "DEBUG",
+		GCInterval:              1 * time.Minute,
+		GCParallelDestroys:      2,
+		GCDiskUsageThreshold:    80,
+		GCInodeUsageThreshold:   70,
+		GCMaxAllocs:             50,
+		NoHostUUID:              true,
+		DisableTaggedMetrics:    false,
+		DisableRemoteExec:       false,
+		TemplateConfig: &ClientTemplateConfig{
+			FunctionBlacklist: []string{"plugin"},
+			DisableSandbox:    false,
+		},
 		BackwardsCompatibleMetrics: false,
 		RPCHoldTimeout:             5 * time.Second,
 	}

@@ -1,3 +1,4 @@
+{{title "Allocation " model.name}}
 <section class="section">
   {{#if error}}
     <div data-test-inline-error class="notification is-danger">
@@ -16,7 +17,10 @@
   <h1 data-test-title class="title with-headroom">
     Allocation {{model.name}}
     <span class="bumper-left tag {{model.statusClass}}">{{model.clientStatus}}</span>
-    <span class="tag is-hollow is-small no-text-transform">{{model.id}}</span>
+    <span class="tag is-hollow is-small no-text-transform">
+      {{model.id}}
+      {{copy-button clipboardText=model.id}}
+    </span>
     {{#if model.isRunning}}
       {{two-step-button
         data-test-stop
@@ -110,6 +114,66 @@
       {{/if}}
     </div>
   </div>
+
+  {{#if network.ports.length}}
+    <div class="boxed-section" data-test-allocation-ports>
+      <div class="boxed-section-head">
+        Ports
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-table source=network.ports as |t|}}
+          {{#t.head}}
+            <th class="is-2">Name</th>
+            <th class="is-1">Dynamic?</th>
+            <th>Host Address</th>
+            <th>Mapped Port</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            <tr data-test-allocation-port>
+              <td data-test-allocation-port-name>{{row.model.name}}</td>
+              <td data-test-allocation-port-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
+              <td data-test-allocation-port-address>
+                <a href="http://{{network.ip}}:{{row.model.port}}" target="_blank" rel="noopener noreferrer">{{network.ip}}:{{row.model.port}}</a>
+              </td>
+              <td data-test-allocation-port-to>{{row.model.to}}</td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+      </div>
+    </div>
+  {{/if}}
+
+  {{#if services.length}}
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Services
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-table source=services as |t|}}
+          {{#t.head}}
+            <th class="is-2">Name</th>
+            <th class="is-1">Port</th>
+            <td>Tags</td>
+            <td>Connect?</td>
+            <td>Upstreams</td>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            <tr data-test-service>
+              <td data-test-service-name>{{row.model.name}}</td>
+              <td data-test-service-port>{{row.model.portLabel}}</td>
+              <td data-test-service-tags>{{join ", " row.model.tags}}</td>
+              <td data-test-service-connect>{{if row.model.connect "Yes" "No"}}</td>
+              <td data-test-service-upstreams>
+                {{#each row.model.connect.sidecarService.proxy.upstreams as |upstream|}}
+                  {{upstream.destinationName}}:{{upstream.localBindPort}}
+                {{/each}}
+              </td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+      </div>
+    </div>
+  {{/if}}
 
   {{#if model.hasRescheduleEvents}}
     <div class="boxed-section" data-test-reschedule-events>
