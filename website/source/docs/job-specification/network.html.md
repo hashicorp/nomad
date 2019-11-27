@@ -89,8 +89,7 @@ job "docs" {
 - `static` `(int: nil)` - Specifies the static TCP/UDP port to allocate. If omitted, a dynamic port is chosen. We **do not recommend**  using static ports, except
   for `system` or specialized jobs like load balancers.
 - `to` `(string:nil)` - Applicable when using "bridge" mode to configure port
-  to map to inside the task's network namespace. The `NOMAD_PORT_<label>`
-  environment variable will contain the `to` value.
+  to map to inside the task's network namespace. `-1` sets the mapped port equal to the dynamic port allocated by the scheduler. The `NOMAD_PORT_<label>` environment variable will contain the `to` value.
 
 The label assigned to the port is used to identify the port in service
 discovery, and used in the name of the environment variable that indicates
