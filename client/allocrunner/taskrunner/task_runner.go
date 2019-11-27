@@ -50,7 +50,7 @@ const (
 	// giving up and potentially leaking resources.
 	killFailureLimit = 5
 
-	// triggerUpdatechCap is the capacity for the triggerUpdateCh used for
+	// triggerUpdateChCap is the capacity for the triggerUpdateCh used for
 	// triggering updates. It should be exactly 1 as even if multiple
 	// updates have come in since the last one was handled, we only need to
 	// handle the last one.
@@ -158,6 +158,10 @@ type TaskRunner struct {
 	// registering services and checks
 	consulClient consul.ConsulServiceAPI
 
+	// sidsClient is the client used by the service identity hook for managing
+	// service identity tokens
+	siClient consul.ServiceIdentityAPI
+
 	// vaultClient is the client to use to derive and renew Vault tokens
 	vaultClient vaultclient.VaultClient
 
@@ -210,10 +214,15 @@ type TaskRunner struct {
 type Config struct {
 	Alloc        *structs.Allocation
 	ClientConfig *config.Config
-	Consul       consul.ConsulServiceAPI
 	Task         *structs.Task
 	TaskDir      *allocdir.TaskDir
 	Logger       log.Logger
+
+	// Consul is the client to use for managing Consul service registrations
+	Consul consul.ConsulServiceAPI
+
+	// ConsulSI is the client to use for managing Consul SI tokens
+	ConsulSI consul.ServiceIdentityAPI
 
 	// Vault is the client to use to derive and renew Vault tokens
 	Vault vaultclient.VaultClient
@@ -271,6 +280,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		taskLeader:          config.Task.Leader,
 		envBuilder:          envBuilder,
 		consulClient:        config.Consul,
+		siClient:            config.ConsulSI,
 		vaultClient:         config.Vault,
 		state:               tstate,
 		localState:          state.NewLocalState(),

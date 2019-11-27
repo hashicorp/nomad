@@ -97,10 +97,11 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	conf := &Config{
 		Alloc:              alloc,
 		ClientConfig:       clientConf,
-		Consul:             consulapi.NewMockConsulServiceClient(t, logger),
 		Task:               thisTask,
 		TaskDir:            taskDir,
 		Logger:             clientConf.Logger,
+		Consul:             consulapi.NewMockConsulServiceClient(t, logger),
+		ConsulSI:           consulapi.NewMockServiceIdentitiesClient(),
 		Vault:              vaultclient.NewMockVaultClient(),
 		StateDB:            cstate.NoopDB{},
 		StateUpdater:       NewMockTaskStateUpdater(),
@@ -1083,6 +1084,76 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 
 	require.Equal(t, structs.TaskStateDead, state.State)
 	require.True(t, state.Failed, pretty.Sprint(state))
+}
+
+func TestTaskRunner_BlockForSIDS(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	// setup a connect enabled batch job that wants to exit immediately, which
+	// makes testing the prestart lifecycle easier
+	alloc := mock.BatchAlloc()
+	tg := alloc.Job.TaskGroups[0]
+	tg.Tasks[0].Config = map[string]interface{}{"run_for": "0s"}
+	tg.Services = []*structs.Service{{
+		Name:      "testconnect",
+		PortLabel: "9999",
+		Connect: &structs.ConsulConnect{
+			SidecarService: &structs.ConsulSidecarService{},
+		}},
+	}
+	taskName := tg.Tasks[0].Name
+
+	trConfig, cleanup := testTaskRunnerConfig(t, alloc, taskName)
+	defer cleanup()
+
+	// control when we get a Consul SI token
+	token := "12345678-1234-1234-1234-1234567890"
+	waitCh := make(chan struct{})
+	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
+		<-waitCh
+		return map[string]string{taskName: token}, nil
+	}
+	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
+	siClient.DeriveTokenFn = deriveFn
+
+	// start the task runner
+	tr, err := NewTaskRunner(trConfig)
+	r.NoError(err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	// assert task runner blocks on SI token
+	select {
+	case <-tr.WaitCh():
+		r.Fail("task_runner exited before si unblocked")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	// assert task state is still pending
+	r.Equal(structs.TaskStatePending, tr.TaskState().State)
+
+	// unblock service identity token
+	close(waitCh)
+
+	// task runner should exit now that it has been unblocked and it is a batch
+	// job with a zero sleep time
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(15 * time.Second * time.Duration(testutil.TestMultiplier())):
+		r.Fail("timed out waiting for batch task to exist")
+	}
+
+	// assert task exited successfully
+	finalState := tr.TaskState()
+	r.Equal(structs.TaskStateDead, finalState.State)
+	r.False(finalState.Failed)
+
+	// assert the token is on disk
+	tokenPath := filepath.Join(trConfig.TaskDir.SecretsDir, sidsTokenFile)
+	data, err := ioutil.ReadFile(tokenPath)
+	r.NoError(err)
+	r.Equal(token, string(data))
 }
 
 // TestTaskRunner_BlockForVault asserts tasks do not start until a vault token

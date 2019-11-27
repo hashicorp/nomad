@@ -1620,3 +1620,71 @@ func TestClient_hasLocalState(t *testing.T) {
 		require.True(t, c.hasLocalState(alloc))
 	})
 }
+
+func Test_verifiedTasks(t *testing.T) {
+	t.Parallel()
+	logger := testlog.HCLogger(t)
+
+	// produce a result and check against expected tasks and/or error output
+	try := func(t *testing.T, a *structs.Allocation, tasks, expTasks []string, expErr string) {
+		result, err := verifiedTasks(logger, a, tasks)
+		if expErr != "" {
+			require.EqualError(t, err, expErr)
+		} else {
+			require.NoError(t, err)
+			require.Equal(t, expTasks, result)
+		}
+	}
+
+	// create an alloc with TaskGroup=g1, tasks configured given g1Tasks
+	alloc := func(g1Tasks []string) *structs.Allocation {
+		var tasks []*structs.Task
+		for _, taskName := range g1Tasks {
+			tasks = append(tasks, &structs.Task{Name: taskName})
+		}
+
+		return &structs.Allocation{
+			Job: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{
+					{Name: "g0", Tasks: []*structs.Task{{Name: "g0t1"}}},
+					{Name: "g1", Tasks: tasks},
+				},
+			},
+			TaskGroup: "g1",
+		}
+	}
+
+	t.Run("nil alloc", func(t *testing.T) {
+		tasks := []string{"g1t1"}
+		try(t, nil, tasks, nil, "nil allocation")
+	})
+
+	t.Run("missing task names", func(t *testing.T) {
+		var tasks []string
+		tgTasks := []string{"g1t1"}
+		try(t, alloc(tgTasks), tasks, nil, "missing task names")
+	})
+
+	t.Run("missing group", func(t *testing.T) {
+		tasks := []string{"g1t1"}
+		a := alloc(tasks)
+		a.TaskGroup = "other"
+		try(t, a, tasks, nil, "group name in allocation is not present in job")
+	})
+
+	t.Run("nonexistent task", func(t *testing.T) {
+		tasks := []string{"missing"}
+		try(t, alloc([]string{"task1"}), tasks, nil, `task "missing" not found in allocation`)
+	})
+
+	t.Run("matching task", func(t *testing.T) {
+		tasks := []string{"g1t1"}
+		try(t, alloc(tasks), tasks, tasks, "")
+	})
+
+	t.Run("matching task subset", func(t *testing.T) {
+		tasks := []string{"g1t1", "g1t3"}
+		tgTasks := []string{"g1t1", "g1t2", "g1t3"}
+		try(t, alloc(tgTasks), tasks, tasks, "")
+	})
+}

@@ -62,6 +62,10 @@ type allocRunner struct {
 	// registering services and checks
 	consulClient consul.ConsulServiceAPI
 
+	// sidsClient is the client used by the service identity hook for
+	// managing SI tokens
+	sidsClient consul.ServiceIdentityAPI
+
 	// vaultClient is the used to manage Vault tokens
 	vaultClient vaultclient.VaultClient
 
@@ -157,6 +161,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		alloc:                    alloc,
 		clientConfig:             config.ClientConfig,
 		consulClient:             config.Consul,
+		sidsClient:               config.ConsulSI,
 		vaultClient:              config.Vault,
 		tasks:                    make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
 		waitCh:                   make(chan struct{}),
@@ -202,14 +207,16 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
 		config := &taskrunner.Config{
-			Alloc:               ar.alloc,
-			ClientConfig:        ar.clientConfig,
-			Task:                task,
-			TaskDir:             ar.allocDir.NewTaskDir(task.Name),
-			Logger:              ar.logger,
-			StateDB:             ar.stateDB,
-			StateUpdater:        ar,
-			Consul:              ar.consulClient,
+			Alloc:        ar.alloc,
+			ClientConfig: ar.clientConfig,
+			Task:         task,
+			TaskDir:      ar.allocDir.NewTaskDir(task.Name),
+			Logger:       ar.logger,
+			StateDB:      ar.stateDB,
+			StateUpdater: ar,
+			Consul:       ar.consulClient,
+			ConsulSI:     ar.sidsClient,
+
 			Vault:               ar.vaultClient,
 			DeviceStatsReporter: ar.deviceStatsReporter,
 			DeviceManager:       ar.devicemanager,
