@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	log "github.com/hashicorp/go-hclog"
-
 	"github.com/hashicorp/nomad/command/agent/consul"
 	testing "github.com/mitchellh/go-testing-interface"
 )

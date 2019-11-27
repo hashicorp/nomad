@@ -879,7 +879,28 @@ type DeriveVaultTokenResponse struct {
 	Tasks map[string]string
 
 	// Error stores any error that occurred. Errors are stored here so we can
-	// communicate whether it is retriable
+	// communicate whether it is retryable
+	Error *RecoverableError
+
+	QueryMeta
+}
+
+// DeriveSITokenRequest is used to request Consul Service Identity tokens from
+// the Nomad Server for the named tasks in the given allocation.
+type DeriveSITokenRequest struct {
+	NodeID   string
+	SecretID string
+	AllocID  string
+	Tasks    []string
+	QueryOptions
+}
+
+type DeriveSITokenResponse struct {
+	// Tokens maps from Task Name to its associated SI token
+	Tokens map[string]string
+
+	// Error stores any error that occurred. Errors are stored here so we can
+	// communicate whether it is retryable
 	Error *RecoverableError
 
 	QueryMeta
