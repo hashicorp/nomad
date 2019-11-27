@@ -45,7 +45,7 @@ func (h *hookResources) getMounts() []*drivers.MountConfig {
 	return h.Mounts
 }
 
-// initHooks intializes the tasks hooks.
+// initHooks initializes the tasks hooks.
 func (tr *TaskRunner) initHooks() {
 	hookLogger := tr.logger.Named("task_hook")
 	task := tr.Task()
@@ -96,7 +96,7 @@ func (tr *TaskRunner) initHooks() {
 		}))
 	}
 
-	// If there are any services, add the hook
+	// If there are any services, add the service hook
 	if len(task.Services) != 0 {
 		tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
 			alloc:     tr.Alloc(),
@@ -104,6 +104,15 @@ func (tr *TaskRunner) initHooks() {
 			consul:    tr.consulClient,
 			restarter: tr,
 			logger:    hookLogger,
+		}))
+	}
+
+	if usesConnect(tr.alloc.Job.LookupTaskGroup(tr.alloc.TaskGroup)) {
+		tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
+			alloc:      tr.Alloc(),
+			task:       tr.Task(),
+			sidsClient: tr.siClient,
+			logger:     hookLogger,
 		}))
 	}
 
@@ -115,6 +124,15 @@ func (tr *TaskRunner) initHooks() {
 		logger: hookLogger,
 	})
 	tr.runnerHooks = append(tr.runnerHooks, scriptCheckHook)
+}
+
+func usesConnect(tg *structs.TaskGroup) bool {
+	for _, service := range tg.Services {
+		if service.Connect != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (tr *TaskRunner) emitHookError(err error, hookName string) {
@@ -131,7 +149,7 @@ func (tr *TaskRunner) emitHookError(err error, hookName string) {
 
 // prestart is used to run the runners prestart hooks.
 func (tr *TaskRunner) prestart() error {
-	// Determine if the allocation is terminaland we should avoid running
+	// Determine if the allocation is terminal and we should avoid running
 	// prestart hooks.
 	alloc := tr.Alloc()
 	if alloc.TerminalStatus() {
