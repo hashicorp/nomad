@@ -1301,6 +1301,17 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 
 //TODO Remove Backwardscompat or use tr.Alloc()?
 func (tr *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
+	alloc := tr.Alloc()
+	var allocatedCPU float32
+	if alloc.AllocatedResources != nil {
+		if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
+			allocatedCPU = float32(taskRes.Cpu.CpuShares)
+		}
+	} else if taskRes := alloc.TaskResources[tr.taskName]; taskRes != nil {
+		// COMPAT(0.11) Remove in 0.11 when TaskResources is removed
+		allocatedCPU = float32(taskRes.CPU)
+	}
+
 	if !tr.clientConfig.DisableTaggedMetrics {
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_percent"},
 			float32(ru.ResourceUsage.CpuStats.Percent), tr.baseLabels)
@@ -1314,15 +1325,22 @@ func (tr *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
 			float32(ru.ResourceUsage.CpuStats.ThrottledPeriods), tr.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_ticks"},
 			float32(ru.ResourceUsage.CpuStats.TotalTicks), tr.baseLabels)
+		if allocatedCPU > 0 {
+			metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "allocated"},
+				allocatedCPU, tr.baseLabels)
+		}
 	}
 
 	if tr.clientConfig.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "total_percent"}, float32(ru.ResourceUsage.CpuStats.Percent))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "system"}, float32(ru.ResourceUsage.CpuStats.SystemMode))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "user"}, float32(ru.ResourceUsage.CpuStats.UserMode))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "throttled_time"}, float32(ru.ResourceUsage.CpuStats.ThrottledTime))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "throttled_periods"}, float32(ru.ResourceUsage.CpuStats.ThrottledPeriods))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "total_ticks"}, float32(ru.ResourceUsage.CpuStats.TotalTicks))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "total_percent"}, float32(ru.ResourceUsage.CpuStats.Percent))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "system"}, float32(ru.ResourceUsage.CpuStats.SystemMode))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "user"}, float32(ru.ResourceUsage.CpuStats.UserMode))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "throttled_time"}, float32(ru.ResourceUsage.CpuStats.ThrottledTime))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "throttled_periods"}, float32(ru.ResourceUsage.CpuStats.ThrottledPeriods))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "total_ticks"}, float32(ru.ResourceUsage.CpuStats.TotalTicks))
+		if allocatedCPU > 0 {
+			metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "allocated"}, allocatedCPU)
+		}
 	}
 }
 
