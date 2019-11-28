@@ -44,12 +44,13 @@ SEND_BATCH:
 	// csi updates
 	var csiChanged bool
 	c.batchNodeUpdates.batchCSIUpdates(func(name string, info *structs.CSIInfo) {
-		if c.updateNodeFromCSILocked(name, info) {
-			c.config.Node.CSIControllerPlugins[name] = info
+		if c.updateNodeFromCSIControllerLocked(name, info) {
 			if c.config.Node.CSIControllerPlugins[name].UpdateTime.IsZero() {
 				c.config.Node.CSIControllerPlugins[name].UpdateTime = time.Now()
 			}
-			c.config.Node.CSINodePlugins[name] = info
+			csiChanged = true
+		}
+		if c.updateNodeFromCSINodeLocked(name, info) {
 			if c.config.Node.CSINodePlugins[name].UpdateTime.IsZero() {
 				c.config.Node.CSINodePlugins[name].UpdateTime = time.Now()
 			}
@@ -91,71 +92,106 @@ func (c *Client) updateNodeFromCSI(name string, info *structs.CSIInfo) {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
 
-	if c.updateNodeFromCSILocked(name, info) {
-		if info.UpdateTime.IsZero() {
-			info.UpdateTime = time.Now()
-		}
+	changed := false
 
-		c.config.Node.CSIControllerPlugins[name] = info.Copy()
-		c.config.Node.CSINodePlugins[name] = info.Copy()
+	if c.updateNodeFromCSIControllerLocked(name, info) {
+		if c.config.Node.CSIControllerPlugins[name].UpdateTime.IsZero() {
+			c.config.Node.CSIControllerPlugins[name].UpdateTime = time.Now()
+		}
+		changed = true
+	}
+
+	if c.updateNodeFromCSINodeLocked(name, info) {
+		if c.config.Node.CSINodePlugins[name].UpdateTime.IsZero() {
+			c.config.Node.CSINodePlugins[name].UpdateTime = time.Now()
+		}
+		changed = true
+	}
+
+	if changed {
 		c.updateNodeLocked()
 	}
 }
 
-// updateNodeFromCSILocked makes the changes to the node from a csi update
-// but does not send the update to the server. c.configLock must be held before
-// calling this func
-func (c *Client) updateNodeFromCSILocked(name string, info *structs.CSIInfo) bool {
+// updateNodeFromCSIControllerLocked makes the changes to the node from a csi
+// update but does not send the update to the server. c.configLock must be hel
+// before calling this func.
+//
+// It is safe to call for all CSI Updates, but will only perform changes when
+// a ControllerInfo field is present.
+func (c *Client) updateNodeFromCSIControllerLocked(name string, info *structs.CSIInfo) bool {
 	var changed bool
+	if info.ControllerInfo == nil {
+		return false
+	}
+	i := info.Copy()
+	i.NodeInfo = nil
 
 	oldController, hadController := c.config.Node.CSIControllerPlugins[name]
 	if !hadController {
 		// If the controller info has not yet been set, do that here
 		changed = true
-		c.config.Node.CSIControllerPlugins[name] = info
+		c.config.Node.CSIControllerPlugins[name] = i
 	} else {
 		// The controller info has already been set, fix it up
-		if !oldController.IsEqual(info) {
-			c.config.Node.CSIControllerPlugins[name] = info
+		if !oldController.IsEqual(i) {
+			c.config.Node.CSIControllerPlugins[name] = i
 			changed = true
 		}
 
 		// If health state has changed, trigger node event
-		if oldController.Healthy != info.Healthy || oldController.HealthDescription != info.HealthDescription {
+		if oldController.Healthy != i.Healthy || oldController.HealthDescription != i.HealthDescription {
 			changed = true
-			if info.HealthDescription != "" {
+			if i.HealthDescription != "" {
 				event := &structs.NodeEvent{
 					Subsystem: "CSI",
-					Message:   info.HealthDescription,
+					Message:   i.HealthDescription,
 					Timestamp: time.Now(),
-					Details:   map[string]string{"plugin": name},
+					Details:   map[string]string{"plugin": name, "type": "controller"},
 				}
 				c.triggerNodeEvent(event)
 			}
 		}
 	}
 
+	return changed
+}
+
+// updateNodeFromCSINodeLocked makes the changes to the node from a csi
+// update but does not send the update to the server. c.configLock must be hel
+// before calling this func.
+//
+// It is safe to call for all CSI Updates, but will only perform changes when
+// a NodeInfo field is present.
+func (c *Client) updateNodeFromCSINodeLocked(name string, info *structs.CSIInfo) bool {
+	var changed bool
+	if info.NodeInfo == nil {
+		return false
+	}
+	i := info.Copy()
+	i.ControllerInfo = nil
+
 	oldNode, hadNode := c.config.Node.CSINodePlugins[name]
 	if !hadNode {
 		// If the Node info has not yet been set, do that here
 		changed = true
-		c.config.Node.CSINodePlugins[name] = info
+		c.config.Node.CSINodePlugins[name] = i
 	} else {
 		// The node info has already been set, fix it up
 		if !oldNode.IsEqual(info) {
-			c.config.Node.CSINodePlugins[name] = info
+			c.config.Node.CSINodePlugins[name] = i
 			changed = true
 		}
 
 		// If health state has changed, trigger node event
-		if oldNode.Healthy != info.Healthy || oldNode.HealthDescription != info.HealthDescription {
+		if oldNode.Healthy != i.Healthy || oldNode.HealthDescription != i.HealthDescription {
 			changed = true
-			if info.HealthDescription != "" {
+			if i.HealthDescription != "" {
 				event := &structs.NodeEvent{
 					Subsystem: "CSI",
-					Message:   info.HealthDescription,
+					Message:   i.HealthDescription,
 					Timestamp: time.Now(),
-					Details:   map[string]string{"plugin": name},
+					Details:   map[string]string{"plugin": name, "type": "node"},
 				}
 				c.triggerNodeEvent(event)
 			}

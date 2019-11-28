@@ -7,6 +7,33 @@ import (
 	"github.com/hashicorp/nomad/helper"
 )
 
+// CSINodeInfo is the fingerprinted data from a CSI Plugin that is specific to
+// the Node API.
+type CSINodeInfo struct {
+	// ID is the identity of a given nomad client as observed by the storage
+	// provider.
+	ID string
+
+	Topology map[string]string
+}
+
+func (n *CSINodeInfo) Copy() *CSINodeInfo {
+	if n == nil {
+		return nil
+	}
+
+	nc := new(CSINodeInfo)
+	*nc = *n
+	nc.Topology = helper.CopyMapStringString(n.Topology)
+
+	return nc
+}
+
+// CSIControllerInfo is the fingerprinted data from a CSI Plugin that is specific to
+// the Controller API.
+type CSIControllerInfo struct {
+}
+
 // CSIInfo is the current state of a single CSI Plugin. This is updated regularly
 // as plugin health changes on the node.
 type CSIInfo struct {
@@ -16,8 +43,8 @@ type CSIInfo struct {
 	UpdateTime        time.Time
 
 	// CSI Specific metadata
-	Topology map[string]string
-	NodeID   string
+	ControllerInfo *CSIControllerInfo
+	NodeInfo       *CSINodeInfo
 }
 
 func (c *CSIInfo) Copy() *CSIInfo {
@@ -27,7 +54,7 @@ func (c *CSIInfo) Copy() *CSIInfo {
 
 	nc := new(CSIInfo)
 	*nc = *c
-	nc.Topology = helper.CopyMapStringString(c.Topology)
+	nc.NodeInfo = c.NodeInfo.Copy()
 
 	return nc
 }

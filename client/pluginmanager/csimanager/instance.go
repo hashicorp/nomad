@@ -106,7 +106,9 @@ func (i *instanceManager) buildFingerprint(ctx context.Context) (*structs.CSIInf
 		Healthy:           false,
 		HealthDescription: "healthy",
 
-		NodeID: nodeInfo.NodeID,
+		NodeInfo: &structs.CSINodeInfo{
+			ID: nodeInfo.NodeID,
+		},
 	}, nil
 }
 
