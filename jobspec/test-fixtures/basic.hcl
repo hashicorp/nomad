@@ -293,8 +293,9 @@ job "binstore-storagelocker" {
       driver = "docker"
 
       lifecycle {
-        run_level = "prestart"
+        hook = "prestart"
         block_until = "completed"
+        deadline = "7s"
       }
 
       config {
