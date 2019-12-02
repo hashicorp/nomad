@@ -222,7 +222,8 @@ changelogfmt:
 .PHONY: hclfmt
 hclfmt:
 	@echo "--> Formatting HCL"
-	@find . -path ./terraform -prune -o -name 'upstart.nomad' -prune -o \( -name '*.nomad' -o -name '*.hcl' \) -exec hclfmt -w {} +
+	@find . -path ./terraform -prune -o -name 'upstart.nomad' -prune -o \( -name '*.nomad' -o -name '*.hcl' \) -exec \
+sh -c 'hclfmt -w {} || echo in path {}' ';'
 
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
