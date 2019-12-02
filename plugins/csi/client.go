@@ -135,6 +135,22 @@ func (c *client) PluginGetInfo(ctx context.Context) (string, error) {
 	return name, nil
 }
 
+func (c *client) PluginGetCapabilities(ctx context.Context) (*PluginCapabilitySet, error) {
+	if c == nil {
+		return nil, fmt.Errorf("Client not initialized")
+	}
+	if c.identityClient == nil {
+		return nil, fmt.Errorf("Client not initialized")
+	}
+
+	resp, err := c.identityClient.GetPluginCapabilities(ctx, &csipbv1.GetPluginCapabilitiesRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	return NewPluginCapabilitySet(resp), nil
+}
+
 func (c *client) NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error) {
 	if c == nil {
 		return nil, fmt.Errorf("Client not initialized")
