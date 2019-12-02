@@ -121,11 +121,20 @@ func (i *instanceManager) buildControllerFingerprint(ctx context.Context) (*stru
 		return nil, errors.New("plugin unhealthy")
 	}
 
+	capabilities, err := i.client.PluginGetCapabilities(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return &structs.CSIInfo{
 		PluginID:          i.info.Name,
 		Healthy:           true,
 		HealthDescription: "healthy",
-		ControllerInfo:    &structs.CSIControllerInfo{},
+
+		RequiresControllerPlugin: capabilities.HasControllerService(),
+		RequiresTopologies:       capabilities.HasToplogies(),
+
+		ControllerInfo: &structs.CSIControllerInfo{},
 	}, nil
 }
 
@@ -142,6 +151,11 @@ func (i *instanceManager) buildNodeFingerprint(ctx context.Context) (*structs.CS
 		return nil, errors.New("plugin unhealthy")
 	}
 
+	capabilities, err := i.client.PluginGetCapabilities(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	nodeInfo, err := i.client.NodeGetInfo(ctx)
 	if err != nil {
 		return nil, err
@@ -151,6 +165,9 @@ func (i *instanceManager) buildNodeFingerprint(ctx context.Context) (*structs.CS
 		PluginID:          i.info.Name,
 		Healthy:           true,
 		HealthDescription: "healthy",
+
+		RequiresControllerPlugin: capabilities.HasControllerService(),
+		RequiresTopologies:       capabilities.HasToplogies(),
 
 		NodeInfo: &structs.CSINodeInfo{
 			ID: nodeInfo.NodeID,
