@@ -32,6 +32,7 @@ func (n *CSINodeInfo) Copy() *CSINodeInfo {
 // CSIControllerInfo is the fingerprinted data from a CSI Plugin that is specific to
 // the Controller API.
 type CSIControllerInfo struct {
+	Capabilities []string
 }
 
 // CSIInfo is the current state of a single CSI Plugin. This is updated regularly
@@ -42,9 +43,19 @@ type CSIInfo struct {
 	HealthDescription string
 	UpdateTime        time.Time
 
+	// RequiresControllerPlugin is set when the CSI Plugin returns the
+	// CONTROLLER_SERVICE capability. When this is true, the volumes should not be
+	// scheduled on this client until a matching controller plugin is available.
+	RequiresControllerPlugin bool
+
+	// RequiresTopologies is set when the CSI Plugin returns the
+	// VOLUME_ACCESSIBLE_CONSTRAINTS capability. When this is true, we must
+	// respect the Volume and Node Topology information.
+	RequiresTopologies bool
+
 	// CSI Specific metadata
-	ControllerInfo *CSIControllerInfo
-	NodeInfo       *CSINodeInfo
+	ControllerInfo *CSIControllerInfo `json:",omitempty"`
+	NodeInfo       *CSINodeInfo       `json:",omitempty"`
 }
 
 func (c *CSIInfo) Copy() *CSIInfo {
