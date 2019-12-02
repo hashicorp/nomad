@@ -16,12 +16,12 @@ export default Ability.extend({
   }),
 
   rulesForActiveNamespace: computed('activeNamespace', 'token.selfTokenPolicies.[]', function() {
-    const activeNamespace = this.activeNamespace;
+    let activeNamespace = this.activeNamespace;
 
     return (this.get('token.selfTokenPolicies') || []).toArray().reduce((rules, policy) => {
-      const policyNamespaces = getWithDefault(policy, 'rulesJSON.Namespaces', []);
+      let policyNamespaces = getWithDefault(policy, 'rulesJSON.Namespaces', []);
 
-      const matchingNamespace = this._findMatchingNamespace(policyNamespaces, activeNamespace);
+      let matchingNamespace = this._findMatchingNamespace(policyNamespaces, activeNamespace);
 
       if (matchingNamespace) {
         rules.push(policyNamespaces.find(namespace => namespace.Name === matchingNamespace));
@@ -33,7 +33,7 @@ export default Ability.extend({
 
   policiesSupportRunning: computed('rulesForActiveNamespace.@each.capabilities', function() {
     return this.rulesForActiveNamespace.some(rules => {
-      const capabilities = getWithDefault(rules, 'Capabilities', []);
+      let capabilities = getWithDefault(rules, 'Capabilities', []);
       return capabilities.includes('submit-job');
     });
   }),
@@ -41,19 +41,19 @@ export default Ability.extend({
   // Chooses the closest namespace as described at the bottom here:
   // https://www.nomadproject.io/guides/security/acl.html#namespace-rules
   _findMatchingNamespace(policyNamespaces, activeNamespace) {
-    const namespaceNames = policyNamespaces.mapBy('Name');
+    let namespaceNames = policyNamespaces.mapBy('Name');
 
     if (namespaceNames.includes(activeNamespace)) {
       return activeNamespace;
     }
 
-    const globNamespaceNames = namespaceNames.filter(namespaceName => namespaceName.includes('*'));
+    let globNamespaceNames = namespaceNames.filter(namespaceName => namespaceName.includes('*'));
 
-    const matchingNamespaceName = globNamespaceNames.reduce(
+    let matchingNamespaceName = globNamespaceNames.reduce(
       (mostMatching, namespaceName) => {
         // Convert * wildcards to .* for regex matching
-        const namespaceNameRegExp = new RegExp(namespaceName.replace(/\*/g, '.*'));
-        const characterDifference = activeNamespace.length - namespaceName.length;
+        let namespaceNameRegExp = new RegExp(namespaceName.replace(/\*/g, '.*'));
+        let characterDifference = activeNamespace.length - namespaceName.length;
 
         if (
           characterDifference < mostMatching.mostMatchingCharacterDifference &&
