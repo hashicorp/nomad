@@ -596,8 +596,9 @@ type DispatchPayloadConfig struct {
 }
 
 type TaskLifecycle struct {
-	Runlevel   string `mapstructure:"run_level"`
-	BlockUntil string `mapstructure:"block_until"`
+	Hook       string        `mapstructure:"hook"`
+	BlockUntil string        `mapstructure:"block_until"`
+	Deadline   time.Duration `mapstructure:"deadline"`
 }
 
 // Task is a single process in a task group.

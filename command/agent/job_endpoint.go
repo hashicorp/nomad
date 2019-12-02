@@ -920,8 +920,9 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 
 	if apiTask.Lifecycle != nil {
 		structsTask.Lifecycle = &structs.TaskLifecycleConfig{
-			RunLevel:   apiTask.Lifecycle.RunLevel,
+			Hook:       apiTask.Lifecycle.Hook,
 			BlockUntil: apiTask.Lifecycle.BlockUntil,
+			Deadline:   apiTask.Lifecycle.Deadline,
 		}
 	}
 }

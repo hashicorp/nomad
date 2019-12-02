@@ -4299,14 +4299,16 @@ func (d *DispatchPayloadConfig) Validate() error {
 }
 
 const (
-	TaskLifecycleRunLevelPrestart    = "prestart"
+	TaskLifecycleHookPrestart        = "prestart"
 	TaskLifecycleBlockUntilStarted   = "started"
 	TaskLifecycleBlockUntilCompleted = "completed"
+	TaskLifecycleDeadlineMinimum     = 0 * time.Second
 )
 
 type TaskLifecycleConfig struct {
-	RunLevel   string
+	Hook       string
 	BlockUntil string
+	Deadline   time.Duration
 }
 
 func (d *TaskLifecycleConfig) Copy() *TaskLifecycleConfig {
@@ -4323,16 +4325,20 @@ func (d *TaskLifecycleConfig) Validate() error {
 		return nil
 	}
 
-	switch d.RunLevel {
-	case TaskLifecycleRunLevelPrestart:
+	switch d.Hook {
+	case TaskLifecycleHookPrestart:
 	default:
-		return fmt.Errorf("invalid run_level: %v", d.RunLevel)
+		return fmt.Errorf("invalid hook: %v", d.Hook)
 	}
 
 	switch d.BlockUntil {
 	case TaskLifecycleBlockUntilStarted, TaskLifecycleBlockUntilCompleted:
 	default:
 		return fmt.Errorf("invalid block_until: %v", d.BlockUntil)
+	}
+
+	if d.Deadline < TaskLifecycleDeadlineMinimum {
+		return fmt.Errorf("invalid deadline, must be greater than 0s: %v", d.Deadline)
 	}
 
 	return nil

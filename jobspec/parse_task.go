@@ -288,8 +288,9 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 
 		// Check for invalid keys
 		valid := []string{
-			"run_level",
+			"hook",
 			"block_until",
+			"deadline",
 		}
 		if err := helper.CheckHCLKeys(lifecycleBlock.Val, valid); err != nil {
 			return nil, multierror.Prefix(err, "lifecycle ->")
@@ -300,7 +301,16 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		}
 
 		t.Lifecycle = &api.TaskLifecycle{}
-		if err := mapstructure.WeakDecode(m, t.Lifecycle); err != nil {
+
+		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+			WeaklyTypedInput: true,
+			Result:           &t.Lifecycle,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if err := dec.Decode(m); err != nil {
 			return nil, err
 		}
 	}
