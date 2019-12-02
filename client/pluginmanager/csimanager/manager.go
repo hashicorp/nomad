@@ -97,7 +97,7 @@ func (c *csiManager) resyncPluginsFromRegistry(ptype string) {
 
 	pluginMap, ok := c.instances[ptype]
 	if !ok {
-		pluginMap = make(map[string]*instanceManager, 1)
+		pluginMap = make(map[string]*instanceManager)
 		c.instances[ptype] = pluginMap
 	}
 
