@@ -4,7 +4,7 @@ export default {
   title: 'Components|Search Box',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Search Box</h5>
@@ -17,7 +17,7 @@ export const Standard = () => {
   };
 };
 
-export const Compact = () => {
+export let Compact = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Compact Search Box</h5>

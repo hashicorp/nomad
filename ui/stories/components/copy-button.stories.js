@@ -6,7 +6,7 @@ export default {
   decorators: [withKnobs],
 };
 
-export const CopyButton = () => {
+export let CopyButton = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Copy Button</h5>

@@ -5,7 +5,7 @@ export default {
   title: 'Components|Timeline',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Timeline</h5>
@@ -48,7 +48,7 @@ export const Standard = () => {
   };
 };
 
-export const Detailed = () => {
+export let Detailed = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Detailed timeline</h5>
@@ -113,7 +113,7 @@ export const Detailed = () => {
   };
 };
 
-export const Toggling = () => {
+export let Toggling = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Toggling timeline objects</h5>
@@ -176,7 +176,7 @@ export const Toggling = () => {
   };
 };
 
-export const Emphasizing = () => {
+export let Emphasizing = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Emphasizing timeline objects</h5>

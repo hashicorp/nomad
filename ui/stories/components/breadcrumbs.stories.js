@@ -4,7 +4,7 @@ export default {
   title: 'Components|Breadcrumbs',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Breadcrumbs</h5>
@@ -27,7 +27,7 @@ export const Standard = () => {
   };
 };
 
-export const Single = () => {
+export let Single = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Single breadcrumb</h5>

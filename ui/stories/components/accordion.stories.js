@@ -5,7 +5,7 @@ export default {
   title: 'Components|Accordion',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Accordion</h5>
@@ -31,7 +31,7 @@ export const Standard = () => {
   };
 };
 
-export const OneItem = () => {
+export let OneItem = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Accordion, one item</h5>
@@ -57,7 +57,7 @@ export const OneItem = () => {
   };
 };
 
-export const NotExpandable = () => {
+export let NotExpandable = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Accordion, not expandable</h5>

@@ -12,19 +12,19 @@ addParameters({
 });
 
 addDecorator(storyFn => {
-  const { template, context } = storyFn();
+  let { template, context } = storyFn();
 
-  const wrapperElementStyle = {
+  let wrapperElementStyle = {
     margin: '20px',
   };
 
-  const applicationWrapperElement = document.createElement('div');
+  let applicationWrapperElement = document.createElement('div');
   Object.assign(applicationWrapperElement.style, wrapperElementStyle);
 
-  const storybookElement = document.createElement('div');
+  let storybookElement = document.createElement('div');
   storybookElement.setAttribute('id', 'storybook');
 
-  const wormhole = document.createElement('div');
+  let wormhole = document.createElement('div');
   wormhole.setAttribute('id', 'ember-basic-dropdown-wormhole');
 
   storybookElement.appendChild(wormhole);
@@ -50,7 +50,7 @@ addDecorator(storyFn => {
    * navigation-requiring links within stories need to have the
    * target themselves.
    */
-  const baseElement = document.querySelector('base');
+  let baseElement = document.querySelector('base');
   baseElement.setAttribute('href', '/');
   baseElement.removeAttribute('target');
 

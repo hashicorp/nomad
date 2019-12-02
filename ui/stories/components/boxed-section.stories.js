@@ -6,7 +6,7 @@ export default {
   decorators: [withKnobs],
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Boxed section</h5>
@@ -27,7 +27,7 @@ export const Standard = () => {
   };
 };
 
-export const RightHandDetails = () => {
+export let RightHandDetails = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Boxed section with right hand details</h5>
@@ -49,7 +49,7 @@ export const RightHandDetails = () => {
   };
 };
 
-export const TitleDecoration = () => {
+export let TitleDecoration = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Boxed section with title decoration</h5>
@@ -71,7 +71,7 @@ export const TitleDecoration = () => {
   };
 };
 
-export const Foot = () => {
+export let Foot = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Boxed section with foot</h5>
@@ -96,7 +96,7 @@ export const Foot = () => {
   };
 };
 
-export const LargeHeader = () => {
+export let LargeHeader = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Boxed section with large header</h5>
@@ -123,7 +123,7 @@ export const LargeHeader = () => {
   };
 };
 
-export const DarkBody = () => {
+export let DarkBody = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Boxed section with dark body</h5>

@@ -9,7 +9,7 @@ export default {
   title: 'Charts|Distribution Bar',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Distribution Bar</h5>
@@ -31,7 +31,7 @@ export const Standard = () => {
   };
 };
 
-export const WithClasses = () => {
+export let WithClasses = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Distribution Bar with classes</h5>
@@ -53,7 +53,7 @@ export const WithClasses = () => {
   };
 };
 
-export const Flexibility = () => {
+export let Flexibility = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Distribution Bar flexibility</h5>
@@ -80,7 +80,7 @@ export const Flexibility = () => {
   };
 };
 
-export const LiveUpdating = () => {
+export let LiveUpdating = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Live-updating Distribution Bar</h5>
@@ -123,7 +123,7 @@ export const LiveUpdating = () => {
   };
 };
 
-export const SingleBar = () => {
+export let SingleBar = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Distribution Bar with single bar</h5>
@@ -140,7 +140,7 @@ export const SingleBar = () => {
   };
 };
 
-export const Jumbo = () => {
+export let Jumbo = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Jumbo Distribution Bar</h5>

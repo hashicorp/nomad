@@ -6,7 +6,7 @@ export default {
   title: 'Components|JSON Viewer',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">JSON Viewer</h5>
@@ -34,7 +34,7 @@ export const Standard = () => {
   };
 };
 
-export const FullDocument = () => {
+export let FullDocument = () => {
   return {
     template: hbs`
       <h5 class="title is-5">JSON Viewer for full document</h5>
@@ -57,7 +57,7 @@ export const FullDocument = () => {
           Priority: 50,
           AllAtOnce: false,
           Datacenters: ['dc1', 'dc2'],
-          Constraints: null,
+          letraints: null,
           TaskGroups: [
             {
               Name: 'syslog',
@@ -73,7 +73,7 @@ export const FullDocument = () => {
                 Canary: 0,
               },
               Migrate: null,
-              Constraints: [
+              letraints: [
                 {
                   LTarget: '',
                   RTarget: '',
@@ -104,7 +104,7 @@ export const FullDocument = () => {
                   Services: null,
                   Vault: null,
                   Templates: null,
-                  Constraints: null,
+                  letraints: null,
                   Resources: {
                     CPU: 500,
                     MemoryMB: 256,

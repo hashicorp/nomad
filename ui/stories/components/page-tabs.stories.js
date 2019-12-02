@@ -4,7 +4,7 @@ export default {
   title: 'Components|Page Tabs',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Page tabs</h5>
@@ -20,7 +20,7 @@ export const Standard = () => {
   };
 };
 
-export const Single = () => {
+export let Single = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Single page tab</h5>

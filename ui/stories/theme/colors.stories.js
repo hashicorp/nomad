@@ -4,7 +4,7 @@ export default {
   title: 'Theme|Colors',
 };
 
-export const Colors = () => {
+export let Colors = () => {
   return {
     template: hbs`
       <FreestylePalette @colorPalette={{nomadTheme}} @title="Nomad Theme" @description="Accent and neutrals." />

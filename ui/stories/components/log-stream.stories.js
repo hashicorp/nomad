@@ -4,7 +4,7 @@ export default {
   title: 'Components|Log Stream',
 };
 
-export const LogStream = () => {
+export let LogStream = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Log stream</h5>

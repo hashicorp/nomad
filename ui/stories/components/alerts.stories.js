@@ -4,7 +4,7 @@ export default {
   title: 'Components|Alerts',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Alert</h5>
@@ -17,7 +17,7 @@ export const Standard = () => {
   };
 };
 
-export const Colors = () => {
+export let Colors = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Alert colors</h5>
@@ -46,7 +46,7 @@ export const Colors = () => {
   };
 };
 
-export const Dismissal = () => {
+export let Dismissal = () => {
   return {
     template: hbs`
     <h5 class="title is-5">Alert dismissal</h5>

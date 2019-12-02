@@ -4,7 +4,7 @@ export default {
   title: 'Components|Multi-Select Dropdown',
 };
 
-const options1 = [
+let options1 = [
   { key: 'option-1', label: 'Option One' },
   { key: 'option-2', label: 'Option Two' },
   { key: 'option-3', label: 'Option Three' },
@@ -12,9 +12,9 @@ const options1 = [
   { key: 'option-5', label: 'Option Five' },
 ];
 
-const selection1 = ['option-2', 'option-4', 'option-5'];
+let selection1 = ['option-2', 'option-4', 'option-5'];
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Multi-Select Dropdown</h5>
@@ -32,7 +32,7 @@ export const Standard = () => {
   };
 };
 
-export const RightAligned = () => {
+export let RightAligned = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Multi-Select Dropdown right-aligned</h5>
@@ -51,7 +51,7 @@ export const RightAligned = () => {
   };
 };
 
-export const ManyOptions = () => {
+export let ManyOptions = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Multi-Select Dropdown with many options</h5>
@@ -76,7 +76,7 @@ export const ManyOptions = () => {
   };
 };
 
-export const Bar = () => {
+export let Bar = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Multi-Select Dropdown bar</h5>
@@ -98,7 +98,7 @@ export const Bar = () => {
           @onSelect={{action (mut selectionStatus)}} />
       </div>
       <p class='annotation'>
-        Since this is a core component for faceted search, it makes sense to construct an arrangement of multi-select dropdowns.
+        Since this is a core component for faceted search, it makes sense to letruct an arrangement of multi-select dropdowns.
         Do this by wrapping all the options in a <code>.button-bar</code> container.
       </p>
       `,

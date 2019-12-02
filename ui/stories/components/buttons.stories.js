@@ -4,7 +4,7 @@ export default {
   title: 'Components|Buttons',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Buttons</h5>
@@ -27,7 +27,7 @@ export const Standard = () => {
   };
 };
 
-export const Outline = () => {
+export let Outline = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Outline buttons</h5>
@@ -43,7 +43,7 @@ export const Outline = () => {
   };
 };
 
-export const Hollow = () => {
+export let Hollow = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Hollow buttons</h5>
@@ -58,7 +58,7 @@ export const Hollow = () => {
   };
 };
 
-export const Sizes = () => {
+export let Sizes = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Button sizes</h5>

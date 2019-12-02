@@ -4,7 +4,7 @@ export default {
   title: 'Components|Proxy Tag',
 };
 
-export const ProxyTag = () => {
+export let ProxyTag = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Proxy Tag</h5>

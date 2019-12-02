@@ -4,7 +4,7 @@ export default {
   title: 'Theme|Font Stacks',
 };
 
-export const FontStacks = () => {
+export let FontStacks = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Font Stacks</h5>

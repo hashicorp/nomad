@@ -4,7 +4,7 @@ export default {
   title: 'Components|Dropdown',
 };
 
-const options = [
+let options = [
   { name: 'Consul' },
   { name: 'Nomad' },
   { name: 'Packer' },
@@ -13,7 +13,7 @@ const options = [
   { name: 'Vault' },
 ];
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Dropdown</h5>
@@ -28,7 +28,7 @@ export const Standard = () => {
   };
 };
 
-export const Resized = () => {
+export let Resized = () => {
   return {
     template: hbs`
     <h5 class="title is-5">Dropdown resized</h5>
@@ -47,7 +47,7 @@ export const Resized = () => {
   };
 };
 
-export const Search = () => {
+export let Search = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Dropdown with search</h5>

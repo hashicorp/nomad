@@ -4,7 +4,7 @@ export default {
   title: 'Components|Inline Definitions',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Inline definitions</h5>
@@ -30,7 +30,7 @@ export const Standard = () => {
   };
 };
 
-export const Variants = () => {
+export let Variants = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Inline definitions variants</h5>

@@ -4,7 +4,7 @@ export default {
   title: 'Theme|Text Sizing',
 };
 
-export const TextSizing = () => {
+export let TextSizing = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Text sizing</h5>

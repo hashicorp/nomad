@@ -4,7 +4,7 @@ export default {
   title: 'Components|Metrics',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Metrics</h5>
@@ -19,7 +19,7 @@ export const Standard = () => {
   };
 };
 
-export const Groups = () => {
+export let Groups = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Metric groups</h5>
@@ -53,7 +53,7 @@ export const Groups = () => {
   };
 };
 
-export const Colors = () => {
+export let Colors = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Metric colors</h5>
@@ -104,7 +104,7 @@ export const Colors = () => {
   };
 };
 
-export const States = () => {
+export let States = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Metric states</h5>

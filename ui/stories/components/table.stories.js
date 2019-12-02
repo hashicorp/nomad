@@ -21,15 +21,15 @@ export default {
  */
 function injectRoutedController(controllerClass) {
   return on('init', function() {
-    const container = getOwner(this);
+    let container = getOwner(this);
     container.register('controller:storybook', controllerClass);
 
-    const routerFactory = container.factoryFor('router:main');
+    let routerFactory = container.factoryFor('router:main');
     routerFactory.class.map(function() {
       this.route('storybook');
     });
 
-    const router = container.lookup('router:main');
+    let router = container.lookup('router:main');
     router.initialURL = 'storybook';
     router.startRouting(true);
 
@@ -37,7 +37,7 @@ function injectRoutedController(controllerClass) {
   });
 }
 
-const longList = [
+let longList = [
   { city: 'New York', growth: 0.048, population: '8405837', rank: '1', state: 'New York' },
   { city: 'Los Angeles', growth: 0.048, population: '3884307', rank: '2', state: 'California' },
   { city: 'Chicago', growth: -0.061, population: '2718782', rank: '3', state: 'Illinois' },
@@ -132,7 +132,7 @@ const longList = [
   { city: 'Arlington', growth: 0.133, population: '379577', rank: '50', state: 'Texas' },
 ];
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Table</h5>
@@ -158,7 +158,7 @@ export const Standard = () => {
   };
 };
 
-export const Search = () => {
+export let Search = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Table search</h5>
@@ -202,7 +202,7 @@ export const Search = () => {
         searchTerm: '',
 
         filteredShortList: computed('searchTerm', function() {
-          const term = this.searchTerm.toLowerCase();
+          let term = this.searchTerm.toLowerCase();
           return productMetadata.filter(product => product.name.toLowerCase().includes(term));
         }),
       }).create(),
@@ -210,7 +210,7 @@ export const Search = () => {
   };
 };
 
-export const SortableColumns = () => {
+export let SortableColumns = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Table with sortable columns</h5>
@@ -241,14 +241,14 @@ export const SortableColumns = () => {
       ),
 
       sortedShortList: computed('controller.sortProperty', 'controller.sortDescending', function() {
-        const sorted = productMetadata.sortBy(this.get('controller.sortProperty') || 'name');
+        let sorted = productMetadata.sortBy(this.get('controller.sortProperty') || 'name');
         return this.get('controller.sortDescending') ? sorted.reverse() : sorted;
       }),
     },
   };
 };
 
-export const MultiRow = () => {
+export let MultiRow = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Multi-row Table</h5>
@@ -279,14 +279,14 @@ export const MultiRow = () => {
       ),
 
       sortedShortList: computed('controller.sortProperty', 'controller.sortDescending', function() {
-        const sorted = productMetadata.sortBy(this.get('controller.sortProperty') || 'name');
+        let sorted = productMetadata.sortBy(this.get('controller.sortProperty') || 'name');
         return this.get('controller.sortDescending') ? sorted.reverse() : sorted;
       }),
     },
   };
 };
 
-export const Pagination = () => {
+export let Pagination = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Table pagination</h5>
@@ -337,7 +337,7 @@ export const Pagination = () => {
   };
 };
 
-export const RowLinks = () => {
+export let RowLinks = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Table row links</h5>
@@ -371,7 +371,7 @@ export const RowLinks = () => {
   };
 };
 
-export const CellLinks = () => {
+export let CellLinks = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Table cell links</h5>
@@ -397,7 +397,7 @@ export const CellLinks = () => {
   };
 };
 
-export const CellDecorations = () => {
+export let CellDecorations = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Table cell decorations</h5>
@@ -428,7 +428,7 @@ export const CellDecorations = () => {
   };
 };
 
-export const CellIcons = () => {
+export let CellIcons = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Table cell icons</h5>

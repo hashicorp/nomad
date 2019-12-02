@@ -4,7 +4,7 @@ export default {
   title: 'Components|Diff Viewer',
 };
 
-export const DiffViewerWithInsertions = () => {
+export let DiffViewerWithInsertions = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Diff Viewer with insertions</h5>
@@ -25,7 +25,7 @@ export const DiffViewerWithInsertions = () => {
   };
 };
 
-export const DiffViewerWithDeletions = () => {
+export let DiffViewerWithDeletions = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Diff Viewer with deletions</h5>
@@ -58,7 +58,7 @@ export const DiffViewerWithDeletions = () => {
   };
 };
 
-export const DiffViewerWithEdits = () => {
+export let DiffViewerWithEdits = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Diff Viewer with edits</h5>
@@ -92,7 +92,7 @@ export const DiffViewerWithEdits = () => {
   };
 };
 
-export const DiffViewerWithManyChanges = () => {
+export let DiffViewerWithManyChanges = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Diff Viewer with many changes</h5>

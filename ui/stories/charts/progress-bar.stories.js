@@ -7,7 +7,7 @@ export default {
   title: 'Charts|Progress Bar',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Progress Bar</h5>
@@ -23,7 +23,7 @@ export const Standard = () => {
   };
 };
 
-export const Colors = () => {
+export let Colors = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Progress Bar colors</h5>
@@ -73,7 +73,7 @@ export const Colors = () => {
   };
 };
 
-export const LiveUpdates = () => {
+export let LiveUpdates = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Progress Bar with live updates</h5>

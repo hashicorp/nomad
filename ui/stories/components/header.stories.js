@@ -4,7 +4,7 @@ export default {
   title: 'Components|Header',
 };
 
-export const Header = () => {
+export let Header = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Global header</h5>

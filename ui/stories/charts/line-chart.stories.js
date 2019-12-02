@@ -10,7 +10,7 @@ export default {
   title: 'Charts|Line Chart',
 };
 
-const data1 = [
+let data1 = [
   { year: 2010, value: 10 },
   { year: 2011, value: 10 },
   { year: 2012, value: 20 },
@@ -22,7 +22,7 @@ const data1 = [
   { year: 2018, value: 340 },
 ];
 
-const data2 = [
+let data2 = [
   { year: 2010, value: 100 },
   { year: 2011, value: 90 },
   { year: 2012, value: 120 },
@@ -34,7 +34,7 @@ const data2 = [
   { year: 2018, value: 90 },
 ];
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Line Chart</h5>
@@ -56,7 +56,7 @@ export const Standard = () => {
   };
 };
 
-export const FluidWidth = () => {
+export let FluidWidth = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Fluid-width Line Chart</h5>
@@ -79,7 +79,7 @@ export const FluidWidth = () => {
   };
 };
 
-export const LiveData = () => {
+export let LiveData = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Live data Line Chart</h5>
@@ -97,7 +97,7 @@ export const LiveData = () => {
             setInterval(() => {
               this.incrementProperty('timerTicks');
 
-              const ref = this.lineChartLive;
+              let ref = this.lineChartLive;
               ref.addObject({ ts: Date.now(), val: Math.random() * 30 + 20 });
               if (ref.length > 60) {
                 ref.splice(0, ref.length - 60);
@@ -120,7 +120,7 @@ export const LiveData = () => {
   };
 };
 
-export const Gaps = () => {
+export let Gaps = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Line Chart data with gaps</h5>

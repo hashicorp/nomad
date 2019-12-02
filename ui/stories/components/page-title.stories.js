@@ -4,7 +4,7 @@ export default {
   title: 'Components|Page Title',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Page title</h5>
@@ -16,7 +16,7 @@ export const Standard = () => {
   };
 };
 
-export const AfterElements = () => {
+export let AfterElements = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Page title with after elements</h5>
@@ -32,7 +32,7 @@ export const AfterElements = () => {
   };
 };
 
-export const StatusLight = () => {
+export let StatusLight = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Page title with status light</h5>
@@ -49,7 +49,7 @@ export const StatusLight = () => {
   };
 };
 
-export const Actions = () => {
+export let Actions = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Page title with actions</h5>

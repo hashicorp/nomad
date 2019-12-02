@@ -4,7 +4,7 @@ export default {
   title: 'Components|Two-Step Button',
 };
 
-export const Standard = () => {
+export let Standard = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Two-Step Button</h5>
@@ -19,7 +19,7 @@ export const Standard = () => {
   };
 };
 
-export const InTitle = () => {
+export let InTitle = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Two-Step Button in title</h5>
@@ -37,7 +37,7 @@ export const InTitle = () => {
   };
 };
 
-export const LoadingState = () => {
+export let LoadingState = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Two-Step Button loading state</h5>
