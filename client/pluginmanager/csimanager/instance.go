@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/csi"
 )
 
+const managerFingerprintInterval = 30 * time.Second
+
 type instanceManager struct {
 	info   *pluginregistry.PluginInfo
 	logger hclog.Logger
@@ -21,6 +23,9 @@ type instanceManager struct {
 	shutdownCtx         context.Context
 	shutdownCtxCancelFn context.CancelFunc
 	shutdownCh          chan struct{}
+
+	fingerprintNode       bool
+	fingerprintController bool
 
 	client csi.CSIPlugin
 }
@@ -32,6 +37,9 @@ func newInstanceManager(logger hclog.Logger, updater UpdateNodeCSIInfoFunc, p *p
 		logger:  logger.Named(p.Name),
 		info:    p,
 		updater: updater,
+
+		fingerprintNode:       p.Type == "csi-node",
+		fingerprintController: p.Type == "csi-controller",
 
 		shutdownCtx:         ctx,
 		shutdownCtxCancelFn: cancelFn,
@@ -67,23 +75,61 @@ func (i *instanceManager) runLoop() {
 			return
 		case <-timer.C:
 			ctx, cancelFn := i.requestCtxWithTimeout(30 * time.Second)
-			info, err := i.buildFingerprint(ctx)
-			if err != nil {
-				info = &structs.CSIInfo{
-					PluginID:          i.info.Name,
-					Healthy:           false,
-					HealthDescription: fmt.Sprintf("failed fingerprinting with error: %v", err),
+
+			var info *structs.CSIInfo
+			var err error
+
+			if i.fingerprintNode {
+				info, err = i.buildNodeFingerprint(ctx)
+				if err != nil {
+					info = &structs.CSIInfo{
+						PluginID:          i.info.Name,
+						Healthy:           false,
+						HealthDescription: fmt.Sprintf("failed fingerprinting with error: %v", err),
+						NodeInfo:          &structs.CSINodeInfo{},
+					}
+				}
+			} else if i.fingerprintController {
+				info, err = i.buildControllerFingerprint(ctx)
+				if err != nil {
+					info = &structs.CSIInfo{
+						PluginID:          i.info.Name,
+						Healthy:           false,
+						HealthDescription: fmt.Sprintf("failed fingerprinting with error: %v", err),
+						ControllerInfo:    &structs.CSIControllerInfo{},
+					}
 				}
 			}
+
 			cancelFn()
 			i.updater(i.info.Name, info)
-
-			// TODO: Send update and reset timer
+			timer.Reset(managerFingerprintInterval)
 		}
 	}
 }
 
-func (i *instanceManager) buildFingerprint(ctx context.Context) (*structs.CSIInfo, error) {
+func (i *instanceManager) buildControllerFingerprint(ctx context.Context) (*structs.CSIInfo, error) {
+	if i.client == nil {
+		return nil, fmt.Errorf("No CSI Client")
+	}
+
+	healthy, err := i.client.PluginProbe(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !healthy {
+		return nil, errors.New("plugin unhealthy")
+	}
+
+	return &structs.CSIInfo{
+		PluginID:          i.info.Name,
+		Healthy:           true,
+		HealthDescription: "healthy",
+		ControllerInfo:    &structs.CSIControllerInfo{},
+	}, nil
+}
+
+func (i *instanceManager) buildNodeFingerprint(ctx context.Context) (*structs.CSIInfo, error) {
 	if i.client == nil {
 		return nil, fmt.Errorf("No CSI Client")
 	}
@@ -103,7 +149,7 @@ func (i *instanceManager) buildFingerprint(ctx context.Context) (*structs.CSIInf
 
 	return &structs.CSIInfo{
 		PluginID:          i.info.Name,
-		Healthy:           false,
+		Healthy:           true,
 		HealthDescription: "healthy",
 
 		NodeInfo: &structs.CSINodeInfo{

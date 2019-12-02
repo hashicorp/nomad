@@ -182,20 +182,37 @@ WAITFORREADY:
 	}
 
 	// Step 2: Register the plugin with the catalog.
-	info := &pluginregistry.PluginInfo{
-		Type:    "csi",
-		Name:    h.task.CSIPluginConfig.PluginID,
-		Version: "1.0.0",
-		ConnectionInfo: &pluginregistry.PluginConnectionInfo{
-			SocketPath: socketPath,
-		},
+	mkInfoFn := func(pluginType string) *pluginregistry.PluginInfo {
+		return &pluginregistry.PluginInfo{
+			Type:    pluginType,
+			Name:    h.task.CSIPluginConfig.PluginID,
+			Version: "1.0.0",
+			ConnectionInfo: &pluginregistry.PluginConnectionInfo{
+				SocketPath: socketPath,
+			},
+		}
 	}
-	if err := h.runner.pluginRegistry.RegisterPlugin(info); err != nil {
-		h.logger.Error("CSI Plugin registration failed", "error", err)
-		event := structs.NewTaskEvent(structs.TaskPluginUnhealthy)
-		event.SetMessage(fmt.Sprintf("failed to register plugin: %s, reason: %v", h.task.CSIPluginConfig.PluginID, err))
-		h.eventEmitter.EmitEvent(event)
-		return
+
+	registrations := []*pluginregistry.PluginInfo{}
+
+	switch h.task.CSIPluginConfig.PluginType {
+	case structs.CSIPluginTypeController:
+		registrations = append(registrations, mkInfoFn(pluginregistry.PluginTypeCSIController))
+	case structs.CSIPluginTypeNode:
+		registrations = append(registrations, mkInfoFn(pluginregistry.PluginTypeCSINode))
+	case structs.CSIPluginTypeMonolith:
+		registrations = append(registrations, mkInfoFn(pluginregistry.PluginTypeCSIController))
+		registrations = append(registrations, mkInfoFn(pluginregistry.PluginTypeCSINode))
+	}
+
+	for _, reg := range registrations {
+		if err := h.runner.pluginRegistry.RegisterPlugin(reg); err != nil {
+			h.logger.Error("CSI Plugin registration failed", "error", err)
+			event := structs.NewTaskEvent(structs.TaskPluginUnhealthy)
+			event.SetMessage(fmt.Sprintf("failed to register plugin: %s, reason: %v", h.task.CSIPluginConfig.PluginID, err))
+			h.eventEmitter.EmitEvent(event)
+			return
+		}
 	}
 
 	// Step 3: Start the lightweight supervisor loop.
