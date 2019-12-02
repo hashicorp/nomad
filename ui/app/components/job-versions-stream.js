@@ -13,7 +13,9 @@ export default Component.extend({
   verbose: true,
 
   annotatedVersions: computed('versions.[]', function() {
-    const versions = this.versions.sortBy('submitTime').reverse();
+    const versions = this.versions
+      .sortBy('submitTime')
+      .reverse();
     return versions.map((version, index) => {
       const meta = {};
 
