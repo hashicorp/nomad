@@ -125,3 +125,67 @@ func TestClient_RPC_PluginInfo(t *testing.T) {
 	}
 
 }
+
+func TestClient_RPC_PluginGetCapabilities(t *testing.T) {
+	cases := []struct {
+		Name             string
+		ResponseErr      error
+		Response         *csipbv1.GetPluginCapabilitiesResponse
+		ExpectedResponse *PluginCapabilitySet
+		ExpectedErr      error
+	}{
+		{
+			Name:        "handles underlying grpc errors",
+			ResponseErr: fmt.Errorf("some grpc error"),
+			ExpectedErr: fmt.Errorf("some grpc error"),
+		},
+		{
+			Name: "HasControllerService is true when it's part of the response",
+			Response: &csipbv1.GetPluginCapabilitiesResponse{
+				Capabilities: []*csipbv1.PluginCapability{
+					{
+						Type: &csipbv1.PluginCapability_Service_{
+							Service: &csipbv1.PluginCapability_Service{
+								Type: csipbv1.PluginCapability_Service_CONTROLLER_SERVICE,
+							},
+						},
+					},
+				},
+			},
+			ExpectedResponse: &PluginCapabilitySet{hasControllerService: true},
+		},
+		{
+			Name: "HasTopologies is true when it's part of the response",
+			Response: &csipbv1.GetPluginCapabilitiesResponse{
+				Capabilities: []*csipbv1.PluginCapability{
+					{
+						Type: &csipbv1.PluginCapability_Service_{
+							Service: &csipbv1.PluginCapability_Service{
+								Type: csipbv1.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS,
+							},
+						},
+					},
+				},
+			},
+			ExpectedResponse: &PluginCapabilitySet{hasTopologies: true},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			ic, client := newTestClient()
+			defer client.Close()
+
+			ic.NextErr = c.ResponseErr
+			ic.NextPluginCapabilities = c.Response
+
+			resp, err := client.PluginGetCapabilities(context.TODO())
+			if c.ExpectedErr != nil {
+				require.Error(t, c.ExpectedErr, err)
+			}
+
+			require.Equal(t, c.ExpectedResponse, resp)
+		})
+	}
+
+}
