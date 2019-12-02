@@ -15,14 +15,14 @@ var _ pluginmanager.PluginManager = (*csiManager)(nil)
 
 var fakePlugin = &pluginregistry.PluginInfo{
 	Name:           "my-plugin",
-	Type:           "csi",
+	Type:           "csi-controller",
 	ConnectionInfo: &pluginregistry.PluginConnectionInfo{},
 }
 
 func setupRegistry() pluginregistry.Registry {
 	return pluginregistry.NewPluginRegistry(
 		map[string]pluginregistry.PluginDispenser{
-			"csi": func(*pluginregistry.PluginInfo) (interface{}, error) {
+			"csi-controller": func(*pluginregistry.PluginInfo) (interface{}, error) {
 				return nil, nil
 			},
 		})
@@ -64,7 +64,12 @@ func TestCSIManager_RegisterPlugin(t *testing.T) {
 	pm.Run()
 
 	require.Eventually(t, func() bool {
-		_, ok := pm.instances[fakePlugin.Name]
+		pmap, ok := pm.instances[fakePlugin.Type]
+		if !ok {
+			return false
+		}
+
+		_, ok = pmap[fakePlugin.Name]
 		return ok
 	}, 5*time.Second, 10*time.Millisecond)
 }
@@ -92,7 +97,7 @@ func TestCSIManager_DeregisterPlugin(t *testing.T) {
 	pm.Run()
 
 	require.Eventually(t, func() bool {
-		_, ok := pm.instances[fakePlugin.Name]
+		_, ok := pm.instances[fakePlugin.Type][fakePlugin.Name]
 		return ok
 	}, 5*time.Second, 10*time.Millisecond)
 
@@ -100,7 +105,7 @@ func TestCSIManager_DeregisterPlugin(t *testing.T) {
 	require.Nil(t, err)
 
 	require.Eventually(t, func() bool {
-		_, ok := pm.instances[fakePlugin.Name]
+		_, ok := pm.instances[fakePlugin.Type][fakePlugin.Name]
 		return !ok
 	}, 5*time.Second, 10*time.Millisecond)
 }
