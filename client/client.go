@@ -338,7 +338,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
 		pluginRegistry: pluginregistry.NewPluginRegistry(map[string]pluginregistry.PluginDispenser{
-			"csi": func(info *pluginregistry.PluginInfo) (interface{}, error) {
+			pluginregistry.PluginTypeCSIController: func(info *pluginregistry.PluginInfo) (interface{}, error) {
+				return csi.NewClient(info.ConnectionInfo.SocketPath)
+			},
+			pluginregistry.PluginTypeCSINode: func(info *pluginregistry.PluginInfo) (interface{}, error) {
 				return csi.NewClient(info.ConnectionInfo.SocketPath)
 			},
 		}),
