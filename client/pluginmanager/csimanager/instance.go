@@ -51,6 +51,7 @@ func (i *instanceManager) run() {
 	c, err := csi.NewClient(i.info.ConnectionInfo.SocketPath)
 	if err != nil {
 		i.logger.Error("failed to setup instance manager client", "error", err)
+		close(i.shutdownCh)
 		return
 	}
 	i.client = c
