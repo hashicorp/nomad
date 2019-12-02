@@ -7,6 +7,11 @@ import (
 	"sync"
 )
 
+const (
+	PluginTypeCSIController = "csi-controller"
+	PluginTypeCSINode       = "csi-node"
+)
+
 // Registry is an interface that allows for the dynamic registration of plugins
 // that are running as Nomad Tasks.
 type Registry interface {

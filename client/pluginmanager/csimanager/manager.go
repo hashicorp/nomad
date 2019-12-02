@@ -39,7 +39,7 @@ func New(config *Config) pluginmanager.PluginManager {
 	return &csiManager{
 		logger:    config.Logger,
 		registry:  config.PluginRegistry,
-		instances: make(map[string]*instanceManager),
+		instances: make(map[string]map[string]*instanceManager),
 
 		updateNodeCSIInfoFunc: config.UpdateNodeCSIInfoFunc,
 		pluginResyncPeriod:    config.PluginResyncPeriod,
@@ -52,8 +52,9 @@ func New(config *Config) pluginmanager.PluginManager {
 
 type csiManager struct {
 	// instances should only be accessed from the run() goroutine and the shutdown
-	// fn.
-	instances          map[string]*instanceManager
+	// fn. It is a map of PluginType : [PluginName : instanceManager]
+	instances map[string]map[string]*instanceManager
+
 	registry           pluginregistry.Registry
 	logger             hclog.Logger
 	pluginResyncPeriod time.Duration
@@ -80,7 +81,8 @@ func (c *csiManager) runLoop() {
 			close(c.shutdownCh)
 			return
 		case <-timer.C:
-			c.resyncPluginsFromRegistry()
+			c.resyncPluginsFromRegistry("csi-controller")
+			c.resyncPluginsFromRegistry("csi-node")
 			timer.Reset(c.pluginResyncPeriod)
 		}
 	}
@@ -89,29 +91,35 @@ func (c *csiManager) runLoop() {
 // resyncPluginsFromRegistry does a full sync of the running instance managers
 // against those in the registry. Eventually we should primarily be using
 // update events from the registry, but this is an ok fallback for now.
-func (c *csiManager) resyncPluginsFromRegistry() {
-	plugins := c.registry.ListPlugins("csi")
+func (c *csiManager) resyncPluginsFromRegistry(ptype string) {
+	plugins := c.registry.ListPlugins(ptype)
 	seen := make(map[string]struct{}, len(plugins))
+
+	pluginMap, ok := c.instances[ptype]
+	if !ok {
+		pluginMap = make(map[string]*instanceManager, 1)
+		c.instances[ptype] = pluginMap
+	}
 
 	// For every plugin in the registry, ensure that we have an existing plugin
 	// running. Also build the map of valid plugin names.
 	for _, plugin := range plugins {
 		seen[plugin.Name] = struct{}{}
-		if _, ok := c.instances[plugin.Name]; !ok {
-			c.logger.Debug("detected new CSI plugin", "name", plugin.Name)
+		if _, ok := pluginMap[plugin.Name]; !ok {
+			c.logger.Debug("detected new CSI plugin", "name", plugin.Name, "type", ptype)
 			mgr := newInstanceManager(c.logger, c.updateNodeCSIInfoFunc, plugin)
-			c.instances[plugin.Name] = mgr
+			pluginMap[plugin.Name] = mgr
 			mgr.run()
 		}
 	}
 
 	// For every instance manager, if we did not find it during the plugin
 	// iterator, shut it down and remove it from the table.
-	for name, mgr := range c.instances {
+	for name, mgr := range pluginMap {
 		if _, ok := seen[name]; !ok {
-			c.logger.Info("shutting down CSI plugin", "name", name)
+			c.logger.Info("shutting down CSI plugin", "name", name, "type", ptype)
 			mgr.shutdown()
-			delete(c.instances, name)
+			delete(pluginMap, name)
 		}
 	}
 }
@@ -127,12 +135,14 @@ func (c *csiManager) Shutdown() {
 
 	// Shutdown all the instance managers in parallel
 	var wg sync.WaitGroup
-	for _, mgr := range c.instances {
-		wg.Add(1)
-		go func(mgr *instanceManager) {
-			mgr.shutdown()
-			wg.Done()
-		}(mgr)
+	for _, pluginMap := range c.instances {
+		for _, mgr := range pluginMap {
+			wg.Add(1)
+			go func(mgr *instanceManager) {
+				mgr.shutdown()
+				wg.Done()
+			}(mgr)
+		}
 	}
 	wg.Wait()
 }
