@@ -189,10 +189,10 @@ submitted to Nomad. We will use the following token role:
 ```json
 {
   "allowed_policies": "access-tables",
-  "explicit_max_ttl": 0,
+  "token_explicit_max_ttl": 0,
   "name": "nomad-cluster",
   "orphan": true,
-  "period": 259200,
+  "token_period": 259200,
   "renewable": true
 }
 ```
@@ -210,10 +210,10 @@ disallowed policies group. An example of this is shown below:
 ```json
 {
   "disallowed_policies": "nomad-server",
-  "explicit_max_ttl": 0,
+  "token_explicit_max_ttl": 0,
   "name": "nomad-cluster",
   "orphan": true,
-  "period": 259200,
+  "token_period": 259200,
   "renewable": true
 }
 ```
