@@ -1,0 +1,19 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{"path":"github.com/hashicorp/go.net/internal/iana","checksumSHA1":"vWTngSyR18lW99Dc7/PYzo4ki1U=","revision":"104dcad90073cd8d1e6828b2af19185b60cf3e29","revisionTime":"2015-10-06T20:33:46Z"},
+		{"path":"github.com/hashicorp/go.net/ipv4","checksumSHA1":"GrzM6Y27ROBGp5PGnpmwD+UJkys=","revision":"104dcad90073cd8d1e6828b2af19185b60cf3e29","revisionTime":"2015-10-06T20:33:46Z"},
+		{"path":"github.com/hashicorp/go.net/ipv6","checksumSHA1":"dqqbaM5psdihknQNCfQOWR2QRxo=","revision":"104dcad90073cd8d1e6828b2af19185b60cf3e29","revisionTime":"2015-10-06T20:33:46Z"},
+		{"path":"github.com/hashicorp/mdns","checksumSHA1":"VsS1vJ8DIR9hu3J0dx7zWPUfabQ=","revision":"4e527d9d808175f132f949523e640c699e4253bb","revisionTime":"2017-02-21T17:29:40Z"},
+		{"path":"github.com/miekg/dns","checksumSHA1":"XTeOihCDhjG6ltUKExoJ2uEzShk=","revision":"5364553f1ee9cddc7ac8b62dce148309c386695b","revisionTime":"2018-01-25T10:38:03Z"},
+		{"path":"golang.org/x/crypto/ed25519","checksumSHA1":"1hwn8cgg4EVXhCpJIqmMbzqnUo0=","revision":"1875d0a70c90e57f11972aefd42276df65e895b9","revisionTime":"2018-01-27T19:02:20Z"},
+		{"path":"golang.org/x/crypto/ed25519/internal/edwards25519","checksumSHA1":"LXFcVx8I587SnWmKycSDEq9yvK8=","revision":"1875d0a70c90e57f11972aefd42276df65e895b9","revisionTime":"2018-01-27T19:02:20Z"},
+		{"path":"golang.org/x/net/bpf","checksumSHA1":"uX2McdP4VcQ6zkAF0Q4oyd0rFtU=","revision":"2fb46b16b8dda405028c50f7c7f0f9dd1fa6bfb1","revisionTime":"2018-02-02T11:17:09Z"},
+		{"path":"golang.org/x/net/internal/iana","checksumSHA1":"5JWn/wMC+EWNDKI/AYE4JifQF54=","revision":"2fb46b16b8dda405028c50f7c7f0f9dd1fa6bfb1","revisionTime":"2018-02-02T11:17:09Z"},
+		{"path":"golang.org/x/net/internal/socket","checksumSHA1":"WnI4058Oj6W4YSvyXAnK3qCKqvo=","revision":"2fb46b16b8dda405028c50f7c7f0f9dd1fa6bfb1","revisionTime":"2018-02-02T11:17:09Z"},
+		{"path":"golang.org/x/net/ipv4","checksumSHA1":"zPTKyZ1C55w1fk1W+/qGE15jaek=","revision":"2fb46b16b8dda405028c50f7c7f0f9dd1fa6bfb1","revisionTime":"2018-02-02T11:17:09Z"},
+		{"path":"golang.org/x/net/ipv6","checksumSHA1":"3L3n7qKMO9X8E1ibA5mExKvwbmI=","revision":"2fb46b16b8dda405028c50f7c7f0f9dd1fa6bfb1","revisionTime":"2018-02-02T11:17:09Z"}
+	],
+	"rootPath": "github.com/hashicorp/go-discover/provider/mdns"
+}
