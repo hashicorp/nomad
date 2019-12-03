@@ -28,9 +28,9 @@ type Registry interface {
 
 type PluginDispenser func(info *PluginInfo) (interface{}, error)
 
-// NewPluginRegistry takes a map of `plugintype` to PluginDispenser functions
+// New takes a map of `plugintype` to PluginDispenser functions
 // that should be used to vend clients for plugins to be used.
-func NewPluginRegistry(dispensers map[string]PluginDispenser) Registry {
+func New(dispensers map[string]PluginDispenser) Registry {
 	return &dynamicRegistry{
 		plugins:      make(map[string]map[string]*PluginInfo),
 		broadcasters: make(map[string]*pluginEventBroadcaster),
