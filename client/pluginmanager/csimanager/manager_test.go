@@ -20,7 +20,7 @@ var fakePlugin = &pluginregistry.PluginInfo{
 }
 
 func setupRegistry() pluginregistry.Registry {
-	return pluginregistry.NewPluginRegistry(
+	return pluginregistry.New(
 		map[string]pluginregistry.PluginDispenser{
 			"csi-controller": func(*pluginregistry.PluginInfo) (interface{}, error) {
 				return nil, nil
