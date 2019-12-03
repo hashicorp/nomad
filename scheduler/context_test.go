@@ -149,6 +149,116 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 	}
 }
 
+// TestEvalContext_ProposedAlloc_EvictPreempt asserts both Evicted and
+// Preempted allocs are removed from the allocs propsed for a node.
+//
+// See https://github.com/hashicorp/nomad/issues/6787
+//
+func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
+	t.Parallel()
+	state, ctx := testContext(t)
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 1024 * 3,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 1024 * 3,
+					},
+				},
+			},
+		},
+	}
+
+	// Add existing allocations
+	j1, j2, j3 := mock.Job(), mock.Job(), mock.Job()
+	allocEvict := &structs.Allocation{
+		ID:        uuid.Generate(),
+		Namespace: structs.DefaultNamespace,
+		EvalID:    uuid.Generate(),
+		NodeID:    nodes[0].Node.ID,
+		JobID:     j1.ID,
+		Job:       j1,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+		},
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+		TaskGroup:     "web",
+	}
+	allocPreempt := &structs.Allocation{
+		ID:        uuid.Generate(),
+		Namespace: structs.DefaultNamespace,
+		EvalID:    uuid.Generate(),
+		NodeID:    nodes[0].Node.ID,
+		JobID:     j2.ID,
+		Job:       j2,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+		},
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+		TaskGroup:     "web",
+	}
+	allocPropose := &structs.Allocation{
+		ID:        uuid.Generate(),
+		Namespace: structs.DefaultNamespace,
+		EvalID:    uuid.Generate(),
+		NodeID:    nodes[0].Node.ID,
+		JobID:     j3.ID,
+		Job:       j3,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+		},
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+		TaskGroup:     "web",
+	}
+	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(allocEvict.JobID)))
+	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(allocPreempt.JobID)))
+	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(allocPropose.JobID)))
+	require.NoError(t, state.UpsertAllocs(1000, []*structs.Allocation{allocEvict, allocPreempt, allocPropose}))
+
+	// Plan to evict one alloc and preempt another
+	plan := ctx.Plan()
+	plan.NodePreemptions[nodes[0].Node.ID] = []*structs.Allocation{allocEvict}
+	plan.NodeUpdate[nodes[0].Node.ID] = []*structs.Allocation{allocPreempt}
+
+	proposed, err := ctx.ProposedAllocs(nodes[0].Node.ID)
+	require.NoError(t, err)
+	require.Len(t, proposed, 1)
+}
+
 func TestEvalEligibility_JobStatus(t *testing.T) {
 	e := NewEvalEligibility()
 	cc := "v1:100"
