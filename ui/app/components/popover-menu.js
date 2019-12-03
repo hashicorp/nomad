@@ -2,7 +2,6 @@ import Component from '@ember/component';
 import { run } from '@ember/runloop';
 
 const TAB = 9;
-// const ESC = 27;
 const ARROW_DOWN = 40;
 const FOCUSABLE = [
   'a:not([disabled])',
@@ -16,8 +15,9 @@ export default Component.extend({
   classnames: ['popover'],
 
   triggerClass: '',
-
   isOpen: false,
+  label: '',
+
   dropdown: null,
 
   capture(dropdown) {
