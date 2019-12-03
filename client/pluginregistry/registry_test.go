@@ -65,7 +65,7 @@ func TestPluginEventBroadcaster_UnsubscribeWorks(t *testing.T) {
 
 func TestDynamicRegistry_RegisterPlugin_SendsUpdateEvents(t *testing.T) {
 	t.Parallel()
-	r := NewPluginRegistry(nil)
+	r := New(nil)
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
@@ -103,7 +103,7 @@ func TestDynamicRegistry_RegisterPlugin_SendsUpdateEvents(t *testing.T) {
 
 func TestDynamicRegistry_DeregisterPlugin_SendsUpdateEvents(t *testing.T) {
 	t.Parallel()
-	r := NewPluginRegistry(nil)
+	r := New(nil)
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
@@ -148,7 +148,7 @@ func TestDynamicRegistry_DispensePlugin_Works(t *testing.T) {
 		return struct{}{}, nil
 	}
 
-	registry := NewPluginRegistry(map[string]PluginDispenser{"csi": dispenseFn})
+	registry := New(map[string]PluginDispenser{"csi": dispenseFn})
 
 	err := registry.RegisterPlugin(&PluginInfo{
 		Type:           "csi",
