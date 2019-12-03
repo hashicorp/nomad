@@ -5,5 +5,9 @@ export default Component.extend({
   classNames: ['toggle'],
   classNameBindings: ['isDisabled:is-disabled', 'isActive:is-active'],
 
+  'data-test-label': true,
+
+  isActive: false,
+  isDisabled: false,
   onToggle() {},
 });
