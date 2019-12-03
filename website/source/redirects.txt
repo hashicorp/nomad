@@ -49,6 +49,9 @@
 /guides/load-balancing/haproxy.html     https://learn.hashicorp.com/nomad/load-balancing/haproxy
 /guides/load-balancing/traefik.html     https://learn.hashicorp.com/nomad/load-balancing/traefik
 
+/guides/stateful-workloads/host-volumes.html  https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes
+/guides/stateful-workloads/portworx.html      https://learn.hashicorp.com/nomad/stateful-workloads/portworx
+
 # Website
 /community.html                               /resources.html
 
