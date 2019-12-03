@@ -70,6 +70,15 @@ func (c *CSIInfo) Copy() *CSIInfo {
 	return nc
 }
 
+func (c *CSIInfo) SetHealthy(hs bool) {
+	c.Healthy = hs
+	if hs {
+		c.HealthDescription = "healthy"
+	} else {
+		c.HealthDescription = "unhealthy"
+	}
+}
+
 func (c *CSIInfo) IsEqual(o *CSIInfo) bool {
 	nc := *c
 	nc.UpdateTime = time.Time{}
