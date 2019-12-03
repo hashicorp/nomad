@@ -106,9 +106,9 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 		ClientStatus:  structs.AllocClientStatusPending,
 		TaskGroup:     "web",
 	}
-	noErr(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
-	noErr(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
-	noErr(t, state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
+	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	require.NoError(t, state.UpsertAllocs(1000, []*structs.Allocation{alloc1, alloc2}))
 
 	// Add a planned eviction to alloc1
 	plan := ctx.Plan()
