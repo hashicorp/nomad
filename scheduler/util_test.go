@@ -15,13 +15,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// noErr is used to assert there are no errors
-func noErr(t *testing.T, err error) {
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-}
-
 func TestMaterializeTaskGroups(t *testing.T) {
 	job := mock.Job()
 	index := materializeTaskGroups(job)
