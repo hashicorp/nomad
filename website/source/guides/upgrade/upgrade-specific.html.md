@@ -17,6 +17,14 @@ standard upgrade flow.
 
 ## Nomad 0.10.2
 
+### Preemption Panic Fixed
+
+Nomad 0.10.2 fixes a [server crashing bug][gh-6787] present in scheduler
+preemption since 0.9.0. Users unable to immediately upgrade to Nomad 0.10.2 can
+[disable preemption][preemption-api] to avoid the panic.
+
+### Dangling Docker Container Cleanup
+
 Nomad 0.10.2 addresses an issue occurring in heavily loaded clients, where
 containers are started without being properly managed by Nomad. Nomad 0.10.2
 introduced a reaper that detects and kills such containers.
@@ -375,12 +383,14 @@ deleted and then Nomad 0.3.0 can be launched.
 [drain-api]: /api/nodes.html#drain-node
 [drain-cli]: /docs/commands/node/drain.html
 [dangling-containers]:  /docs/drivers/docker.html#dangling-containers
+[gh-6787]: https://github.com/hashicorp/nomad/issues/6787
 [hcl2]: https://github.com/hashicorp/hcl2
 [lxc]: /docs/drivers/external/lxc.html
 [migrate]: /docs/job-specification/migrate.html
 [plugins]: /docs/drivers/external/index.html
 [plugin-stanza]: /docs/configuration/plugin.html
 [preemption]: /docs/internals/scheduling/preemption.html
+[preemption-api]: /api/operator.html#update-scheduler-configuration
 [task-config]: /docs/job-specification/task.html#config
 [validate]: /docs/commands/job/validate.html
 [update]: /docs/job-specification/update.html
