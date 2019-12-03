@@ -26,6 +26,7 @@ BUG FIXES:
 
  * core: Ignore `server` config values if `server` is disabled [[GH-6047](https://github.com/hashicorp/nomad/issues/6047)]
  * core: Added `semver` constraint for strict Semver 2.0 version comparisons [[GH-6699](https://github.com/hashicorp/nomad/issues/6699)]
+ * core: Fixed server panic caused by a plan evicting and preempting allocs on a node [[GH-6792](https://github.com/hashicorp/nomad/issues/6792)]
  * api: Return a 404 if endpoint not found instead of redirecting to /ui/ [[GH-6658](https://github.com/hashicorp/nomad/issues/6658)]
  * api: Decompress web socket response body if gzipped on error responses [[GH-6650](https://github.com/hashicorp/nomad/issues/6650)]
  * api: Fixed a bug where some FS/Allocation API endpoints didn't return error messages [[GH-6427](https://github.com/hashicorp/nomad/issues/6427)]
