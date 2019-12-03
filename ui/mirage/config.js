@@ -278,7 +278,6 @@ export default function() {
     const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
 
-    // FIXME this isn’t how the endpoint truly behaves; it requires a token
     if (req.params.id === 'anonymous') {
       if (policy) {
         return this.serialize(policy);
