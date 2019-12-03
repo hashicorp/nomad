@@ -2,7 +2,6 @@ package csimanager
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -64,6 +63,13 @@ func (i *instanceManager) requestCtxWithTimeout(timeout time.Duration) (context.
 }
 
 func (i *instanceManager) runLoop() {
+	// basicInfo holds a cache of data that should not change within a CSI plugin.
+	// This allows us to minimize the number of requests we make to plugins on each
+	// run of the fingerprinter, and reduces the chances of performing overly
+	// expensive actions repeatedly, and improves stability of data through
+	// transient failures.
+	var basicInfo *structs.CSIInfo
+
 	timer := time.NewTimer(0)
 	for {
 		select {
@@ -77,29 +83,38 @@ func (i *instanceManager) runLoop() {
 		case <-timer.C:
 			ctx, cancelFn := i.requestCtxWithTimeout(30 * time.Second)
 
-			var info *structs.CSIInfo
+			if basicInfo == nil {
+				info, err := i.buildBasicFingerprint(ctx)
+				if err != nil {
+					// If we receive a fingerprinting error, update the stats with as much
+					// info as possible and wait for the next fingerprint interval.
+					info.HealthDescription = fmt.Sprintf("failed initial fingerprint with err: %v", err)
+					cancelFn()
+					i.updater(i.info.Name, basicInfo)
+					timer.Reset(managerFingerprintInterval)
+					continue
+				}
+
+				// If fingerprinting succeeded, we don't need to repopulate the basic
+				// info and we can stop here.
+				basicInfo = info
+			}
+
+			info := basicInfo.Copy()
+			var fp *structs.CSIInfo
 			var err error
 
 			if i.fingerprintNode {
-				info, err = i.buildNodeFingerprint(ctx)
-				if err != nil {
-					info = &structs.CSIInfo{
-						PluginID:          i.info.Name,
-						Healthy:           false,
-						HealthDescription: fmt.Sprintf("failed fingerprinting with error: %v", err),
-						NodeInfo:          &structs.CSINodeInfo{},
-					}
-				}
+				fp, err = i.buildNodeFingerprint(ctx, info)
 			} else if i.fingerprintController {
-				info, err = i.buildControllerFingerprint(ctx)
-				if err != nil {
-					info = &structs.CSIInfo{
-						PluginID:          i.info.Name,
-						Healthy:           false,
-						HealthDescription: fmt.Sprintf("failed fingerprinting with error: %v", err),
-						ControllerInfo:    &structs.CSIControllerInfo{},
-					}
-				}
+				fp, err = i.buildControllerFingerprint(ctx, info)
+			}
+
+			if err != nil {
+				info.Healthy = false
+				info.HealthDescription = fmt.Sprintf("failed fingerprinting with error: %v", err)
+			} else {
+				info = fp
 			}
 
 			cancelFn()
@@ -109,71 +124,70 @@ func (i *instanceManager) runLoop() {
 	}
 }
 
-func (i *instanceManager) buildControllerFingerprint(ctx context.Context) (*structs.CSIInfo, error) {
+func (i *instanceManager) buildControllerFingerprint(ctx context.Context, base *structs.CSIInfo) (*structs.CSIInfo, error) {
 	if i.client == nil {
 		return nil, fmt.Errorf("No CSI Client")
 	}
+
+	fp := base.Copy()
 
 	healthy, err := i.client.PluginProbe(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if !healthy {
-		return nil, errors.New("plugin unhealthy")
-	}
+	fp.SetHealthy(healthy)
 
-	capabilities, err := i.client.PluginGetCapabilities(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &structs.CSIInfo{
-		PluginID:          i.info.Name,
-		Healthy:           true,
-		HealthDescription: "healthy",
-
-		RequiresControllerPlugin: capabilities.HasControllerService(),
-		RequiresTopologies:       capabilities.HasToplogies(),
-
-		ControllerInfo: &structs.CSIControllerInfo{},
-	}, nil
+	return fp, nil
 }
 
-func (i *instanceManager) buildNodeFingerprint(ctx context.Context) (*structs.CSIInfo, error) {
+func (i *instanceManager) buildNodeFingerprint(ctx context.Context, base *structs.CSIInfo) (*structs.CSIInfo, error) {
 	if i.client == nil {
 		return nil, fmt.Errorf("No CSI Client")
 	}
+
+	fp := base.Copy()
 
 	healthy, err := i.client.PluginProbe(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if !healthy {
-		return nil, errors.New("plugin unhealthy")
+	fp.SetHealthy(healthy)
+
+	return fp, nil
+}
+
+func (i *instanceManager) buildBasicFingerprint(ctx context.Context) (*structs.CSIInfo, error) {
+	info := &structs.CSIInfo{
+		PluginID:          i.info.Name,
+		Healthy:           false,
+		HealthDescription: "initial fingerprint not completed",
+	}
+
+	if i.fingerprintNode {
+		info.NodeInfo = &structs.CSINodeInfo{}
+	}
+	if i.fingerprintController {
+		info.ControllerInfo = &structs.CSIControllerInfo{}
 	}
 
 	capabilities, err := i.client.PluginGetCapabilities(ctx)
 	if err != nil {
-		return nil, err
+		return info, err
 	}
 
-	nodeInfo, err := i.client.NodeGetInfo(ctx)
-	if err != nil {
-		return nil, err
+	info.RequiresControllerPlugin = capabilities.HasControllerService()
+	info.RequiresTopologies = capabilities.HasToplogies()
+
+	if i.fingerprintNode {
+		nodeInfo, err := i.client.NodeGetInfo(ctx)
+		if err != nil {
+			return info, err
+		}
+
+		info.NodeInfo.ID = nodeInfo.NodeID
 	}
 
-	return &structs.CSIInfo{
-		PluginID:          i.info.Name,
-		Healthy:           true,
-		HealthDescription: "healthy",
-
-		RequiresControllerPlugin: capabilities.HasControllerService(),
-		RequiresTopologies:       capabilities.HasToplogies(),
-
-		NodeInfo: &structs.CSINodeInfo{
-			ID: nodeInfo.NodeID,
-		},
-	}, nil
+	return info, nil
 }
 
 func (i *instanceManager) shutdown() {
