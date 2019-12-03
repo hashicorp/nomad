@@ -143,13 +143,20 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 
 func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	t.Parallel()
-	shutdownDelay := 1 * time.Second
 
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
 
-	// Create 3 tasks in the task group
+	// Create a group service
+	tg := alloc.Job.TaskGroups[0]
+	tg.Services = []*structs.Service{
+		{
+			Name: "shutdown_service",
+		},
+	}
+
+	// Create two tasks in the  group
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Name = "follower1"
 	task.Driver = "mock_driver"
@@ -170,6 +177,7 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	alloc.AllocatedResources.Tasks[task2.Name] = tr
 
 	// Set a shutdown delay
+	shutdownDelay := 1 * time.Second
 	alloc.Job.TaskGroups[0].ShutdownDelay = &shutdownDelay
 
 	conf, cleanup := testAllocRunnerConfig(t, alloc)
@@ -204,7 +212,7 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	upd.Reset()
 
 	// Stop alloc
-	now := time.Now()
+	shutdownInit := time.Now()
 	update := alloc.Copy()
 	update.DesiredStatus = structs.AllocDesiredStatusStop
 	ar.Update(update)
@@ -231,9 +239,33 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
+	// Get consul client operations
+	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
+	consulOpts := consulClient.GetOps()
+	var groupRemoveOp cconsul.MockConsulOp
+	for _, op := range consulOpts {
+		// Grab the first deregistration request
+		if op.Op == "remove" && op.Name == "group-web" {
+			groupRemoveOp = op
+			break
+		}
+	}
+
+	// Ensure remove operation is close to shutdown initiation
+	require.True(t, groupRemoveOp.OccurredAt.Sub(shutdownInit) < 100*time.Millisecond)
+
 	last = upd.Last()
-	require.Greater(t, last.TaskStates["leader"].FinishedAt.UnixNano(), now.Add(shutdownDelay).UnixNano())
-	require.Greater(t, last.TaskStates["follower1"].FinishedAt.UnixNano(), now.Add(shutdownDelay).UnixNano())
+	minShutdown := shutdownInit.Add(task.ShutdownDelay)
+	leaderFinished := last.TaskStates["leader"].FinishedAt
+	followerFinished := last.TaskStates["follower1"].FinishedAt
+
+	// Check that both tasks shut down after min possible shutdown time
+	require.Greater(t, leaderFinished.UnixNano(), minShutdown.UnixNano())
+	require.Greater(t, followerFinished.UnixNano(), minShutdown.UnixNano())
+
+	// Check that there is at least shutdown_delay between consul
+	// remove operation and task finished at time
+	require.True(t, leaderFinished.Sub(groupRemoveOp.OccurredAt) > shutdownDelay)
 }
 
 // TestAllocRunner_TaskLeader_StopTG asserts that when stopping an alloc with a

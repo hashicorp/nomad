@@ -139,9 +139,10 @@ func (h *groupServiceHook) PreKill() {
 	h.deregistered = true
 
 	h.logger.Debug("waiting before removing group service", "shutdown_delay", h.delay)
-	select {
-	case <-time.After(h.delay):
-	}
+
+	// Wait for specified shutdown_delay
+	// this will block an agent from shutting down
+	<-time.After(h.delay)
 }
 
 func (h *groupServiceHook) Postrun() error {

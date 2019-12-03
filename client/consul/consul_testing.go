@@ -3,6 +3,7 @@ package consul
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 
@@ -12,9 +13,10 @@ import (
 
 // MockConsulOp represents the register/deregister operations.
 type MockConsulOp struct {
-	Op      string // add, remove, or update
-	AllocID string
-	Name    string // task or group name
+	Op         string // add, remove, or update
+	AllocID    string
+	Name       string // task or group name
+	OccurredAt time.Time
 }
 
 func NewMockConsulOp(op, allocID, name string) MockConsulOp {
@@ -25,9 +27,10 @@ func NewMockConsulOp(op, allocID, name string) MockConsulOp {
 		panic(fmt.Errorf("invalid consul op: %s", op))
 	}
 	return MockConsulOp{
-		Op:      op,
-		AllocID: allocID,
-		Name:    name,
+		Op:         op,
+		AllocID:    allocID,
+		Name:       name,
+		OccurredAt: time.Now(),
 	}
 }
 

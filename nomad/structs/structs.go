@@ -3547,9 +3547,9 @@ func (j *Job) Validate() error {
 			taskGroups[tg.Name] = idx
 		}
 
-		// if tg.ShutdownDelay < 0 {
-		// 	mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
-		// }
+		if tg.ShutdownDelay != nil && *tg.ShutdownDelay < 0 {
+			mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
+		}
 
 		if j.Type == "system" && tg.Count > 1 {
 			mErr.Errors = append(mErr.Errors,
