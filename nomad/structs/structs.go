@@ -4300,7 +4300,7 @@ func (d *DispatchPayloadConfig) Validate() error {
 
 const (
 	TaskLifecycleHookPrestart        = "prestart"
-	TaskLifecycleBlockUntilStarted   = "started"
+	TaskLifecycleBlockUntilRunning   = "running"
 	TaskLifecycleBlockUntilCompleted = "completed"
 	TaskLifecycleDeadlineMinimum     = 0 * time.Second
 )
@@ -4332,7 +4332,7 @@ func (d *TaskLifecycleConfig) Validate() error {
 	}
 
 	switch d.BlockUntil {
-	case TaskLifecycleBlockUntilStarted, TaskLifecycleBlockUntilCompleted:
+	case TaskLifecycleBlockUntilRunning, TaskLifecycleBlockUntilCompleted:
 	default:
 		return fmt.Errorf("invalid block_until: %v", d.BlockUntil)
 	}
