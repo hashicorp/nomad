@@ -1,4 +1,4 @@
-## 0.10.2 (November 22, 2019)
+## 0.10.2 (December 4, 2019)
 
 FEATURES:
 
