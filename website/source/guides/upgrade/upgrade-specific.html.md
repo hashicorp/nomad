@@ -19,8 +19,8 @@ standard upgrade flow.
 
 ### Preemption Panic Fixed
 
-Nomad 0.10.2 fixes a [server crashing bug][gh-6787] present in scheduler
-preemption since 0.9.0. Users unable to immediately upgrade to Nomad 0.10.2 can
+Nomad 0.9.7 and 0.10.2 fix a [server crashing bug][gh-6787] present in
+scheduler preemption since 0.9.0. Users unable to immediately upgrade Nomad can
 [disable preemption][preemption-api] to avoid the panic.
 
 ### Dangling Docker Container Cleanup
