@@ -47,7 +47,7 @@ type NodeGetInfoResponse struct {
 //   alphanumeric character with '-', '_', '.', or alphanumerics in
 //   between.
 type Topology struct {
-	Segements map[string]string
+	Segments map[string]string
 }
 
 type client struct {
