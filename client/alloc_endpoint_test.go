@@ -69,14 +69,15 @@ func TestAllocations_Restart(t *testing.T) {
 func TestAllocations_Restart_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	server, addr, root := testACLServer(t, nil)
-	defer server.Shutdown()
 
-	client, cleanup := TestClient(t, func(c *config.Config) {
+	server, addr, root, cleanupS := testACLServer(t, nil)
+	defer cleanupS()
+
+	client, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.ACLEnabled = true
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
@@ -155,14 +156,15 @@ func TestAllocations_GarbageCollectAll(t *testing.T) {
 func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	server, addr, root := testACLServer(t, nil)
-	defer server.Shutdown()
 
-	client, cleanup := TestClient(t, func(c *config.Config) {
+	server, addr, root, cleanupS := testACLServer(t, nil)
+	defer cleanupS()
+
+	client, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.ACLEnabled = true
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Try request without a token and expect failure
 	{
@@ -248,14 +250,15 @@ func TestAllocations_GarbageCollect(t *testing.T) {
 func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	server, addr, root := testACLServer(t, nil)
-	defer server.Shutdown()
 
-	client, cleanup := TestClient(t, func(c *config.Config) {
+	server, addr, root, cleanupS := testACLServer(t, nil)
+	defer cleanupS()
+
+	client, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.ACLEnabled = true
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
@@ -344,14 +347,15 @@ func TestAllocations_Signal(t *testing.T) {
 func TestAllocations_Signal_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	server, addr, root := testACLServer(t, nil)
-	defer server.Shutdown()
 
-	client, cleanup := TestClient(t, func(c *config.Config) {
+	server, addr, root, cleanupS := testACLServer(t, nil)
+	defer cleanupS()
+
+	client, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.ACLEnabled = true
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
@@ -448,14 +452,15 @@ func TestAllocations_Stats(t *testing.T) {
 func TestAllocations_Stats_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	server, addr, root := testACLServer(t, nil)
-	defer server.Shutdown()
 
-	client, cleanup := TestClient(t, func(c *config.Config) {
+	server, addr, root, cleanupS := testACLServer(t, nil)
+	defer cleanupS()
+
+	client, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.ACLEnabled = true
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
@@ -521,14 +526,14 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	expectedStdout := "Hello from the other side\n"
 	expectedStderr := "Hello from the other side\n"
@@ -625,14 +630,14 @@ func TestAlloc_ExecStreaming_NoAllocation(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Make the request
 	req := &cstructs.AllocExecRequest{
@@ -680,15 +685,15 @@ func TestAlloc_ExecStreaming_DisableRemoteExec(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 		c.DisableRemoteExec = true
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Make the request
 	req := &cstructs.AllocExecRequest{
@@ -735,15 +740,15 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 	t.Parallel()
 
 	// Start a server and client
-	s, root := nomad.TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	client, cleanup := TestClient(t, func(c *config.Config) {
+	client, cleanupC := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Create a bad token
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
@@ -839,11 +844,11 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 	isolation := drivers.FSIsolationImage
 
 	// Start a server and client
-	s, root := nomad.TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	client, cleanup := TestClient(t, func(c *config.Config) {
+	client, cleanupC := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 
@@ -858,7 +863,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 
 		c.PluginLoader = catalog.TestPluginLoaderWithOptions(t, "", map[string]string{}, pluginConfig)
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Create a bad token
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
@@ -988,8 +993,8 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 	isolation := drivers.FSIsolationChroot
 
 	// Start a server and client
-	s, root := nomad.TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	client, cleanup := TestClient(t, func(c *config.Config) {
@@ -1132,8 +1137,8 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 	isolation := drivers.FSIsolationNone
 
 	// Start a server and client
-	s, root := nomad.TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	client, cleanup := TestClient(t, func(c *config.Config) {

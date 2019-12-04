@@ -28,14 +28,15 @@ func TestClientStats_Stats(t *testing.T) {
 func TestClientStats_Stats_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	server, addr, root := testACLServer(t, nil)
-	defer server.Shutdown()
 
-	client, cleanup := TestClient(t, func(c *config.Config) {
+	server, addr, root, cleanupS := testACLServer(t, nil)
+	defer cleanupS()
+
+	client, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.ACLEnabled = true
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Try request without a token and expect failure
 	{

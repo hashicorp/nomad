@@ -16,10 +16,10 @@ import (
 	testing "github.com/mitchellh/go-testing-interface"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -78,6 +78,10 @@ type TestAgent struct {
 
 	// RootToken is auto-bootstrapped if ACLs are enabled
 	RootToken *structs.ACLToken
+
+	// ports that are reserved through freeport that must be returned at
+	// the end of a test, done when Shutdown() is called.
+	ports []int
 }
 
 // NewTestAgent returns a started agent with the given name and
@@ -241,6 +245,8 @@ func (a *TestAgent) start() (*Agent, error) {
 // Shutdown stops the agent and removes the data directory if it is
 // managed by the test agent.
 func (a *TestAgent) Shutdown() error {
+	defer freeport.Return(a.ports)
+
 	defer func() {
 		if a.DataDir != "" {
 			os.RemoveAll(a.DataDir)
@@ -289,7 +295,9 @@ func (a *TestAgent) Client() *api.Client {
 // Instead of relying on one set of ports to be sufficient we retry
 // starting the agent with different ports on port conflict.
 func (a *TestAgent) pickRandomPorts(c *Config) {
-	ports := freeport.GetT(a.T, 3)
+	ports := freeport.MustTake(3)
+	a.ports = append(a.ports, ports...)
+
 	c.Ports.HTTP = ports[0]
 	c.Ports.RPC = ports[1]
 	c.Ports.Serf = ports[2]

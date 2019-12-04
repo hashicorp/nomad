@@ -28,20 +28,20 @@ func TestMonitor_Monitor_Remote_Client(t *testing.T) {
 	require := require.New(t)
 
 	// start server and client
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()
@@ -122,12 +122,12 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 	t.Parallel()
 
 	// start servers
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -273,8 +273,8 @@ func TestMonitor_MonitorServer(t *testing.T) {
 	require := require.New(t)
 
 	// start server
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	// No node ID to monitor the remote server
@@ -357,8 +357,8 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 	require := require.New(t)
 
 	// start server
-	s, root := TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
