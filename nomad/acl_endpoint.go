@@ -119,6 +119,7 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
+
 	if done, err := a.srv.forward("ACL.ListPolicies", args, args, reply); done {
 		return err
 	}
@@ -136,12 +137,7 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 	mgt := acl.IsManagement()
 	var policies map[string]struct{}
 	if !mgt {
-		snap, err := a.srv.fsm.State().Snapshot()
-		if err != nil {
-			return err
-		}
-
-		token, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
+		token, err := a.requestACLToken(args.AuthToken)
 		if err != nil {
 			return err
 		}
@@ -207,6 +203,7 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
+
 	if done, err := a.srv.forward("ACL.GetPolicy", args, args, reply); done {
 		return err
 	}
@@ -224,12 +221,7 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	// If it is not a management token determine if it can get this policy
 	mgt := acl.IsManagement()
 	if !mgt && args.Name != "anonymous" {
-		snap, err := a.srv.fsm.State().Snapshot()
-		if err != nil {
-			return err
-		}
-
-		token, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
+		token, err := a.requestACLToken(args.AuthToken)
 		if err != nil {
 			return err
 		}
@@ -284,6 +276,19 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	return a.srv.blockingRPC(&opts)
 }
 
+func (a *ACL) requestACLToken(secretID string) (*structs.ACLToken, error) {
+	if secretID == "" {
+		return structs.AnonymousACLToken, nil
+	}
+
+	snap, err := a.srv.fsm.State().Snapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	return snap.ACLTokenBySecretID(nil, secretID)
+}
+
 // GetPolicies is used to get a set of policies
 func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLPolicySetResponse) error {
 	if !a.srv.config.ACLEnabled {
@@ -294,19 +299,12 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policies"}, time.Now())
 
-	var token *structs.ACLToken
-	var err error
-	if args.AuthToken == "" {
-		// No need to look up the anonymous token
-		token = structs.AnonymousACLToken
-	} else {
-		// For client typed tokens, allow them to query any policies associated with that token.
-		// This is used by clients which are resolving the policies to enforce. Any associated
-		// policies need to be fetched so that the client can determine what to allow.
-		token, err = a.srv.State().ACLTokenBySecretID(nil, args.AuthToken)
-		if err != nil {
-			return err
-		}
+	// For client typed tokens, allow them to query any policies associated with that token.
+	// This is used by clients which are resolving the policies to enforce. Any associated
+	// policies need to be fetched so that the client can determine what to allow.
+	token, err := a.requestACLToken(args.AuthToken)
+	if err != nil {
+		return err
 	}
 
 	if token == nil {

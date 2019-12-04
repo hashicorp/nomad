@@ -43,7 +43,7 @@ resource "aws_instance" "server" {
   }
 }
 
-resource "aws_instance" "client" {
+resource "aws_instance" "client_linux" {
   ami                    = data.aws_ami.linux.image_id
   instance_type          = var.instance_type
   key_name               = module.keys.key_name

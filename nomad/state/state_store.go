@@ -3769,6 +3769,10 @@ func (s *StateStore) DeleteACLTokens(index uint64, ids []string) error {
 
 // ACLTokenByAccessorID is used to lookup a token by accessor ID
 func (s *StateStore) ACLTokenByAccessorID(ws memdb.WatchSet, id string) (*structs.ACLToken, error) {
+	if id == "" {
+		return nil, fmt.Errorf("acl token lookup failed: missing accessor id")
+	}
+
 	txn := s.db.Txn(false)
 
 	watchCh, existing, err := txn.FirstWatch("acl_token", "id", id)
@@ -3785,6 +3789,10 @@ func (s *StateStore) ACLTokenByAccessorID(ws memdb.WatchSet, id string) (*struct
 
 // ACLTokenBySecretID is used to lookup a token by secret ID
 func (s *StateStore) ACLTokenBySecretID(ws memdb.WatchSet, secretID string) (*structs.ACLToken, error) {
+	if secretID == "" {
+		return nil, fmt.Errorf("acl token lookup failed: missing secret id")
+	}
+
 	txn := s.db.Txn(false)
 
 	watchCh, existing, err := txn.FirstWatch("acl_token", "secret", secretID)

@@ -4,6 +4,11 @@
 job "sleeper" {
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   task "sleeper" {
     driver = "raw_exec"
 

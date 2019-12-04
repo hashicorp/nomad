@@ -1,6 +1,11 @@
 job "consul_canary_test" {
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "consul_canary_test" {
     count = 2
 

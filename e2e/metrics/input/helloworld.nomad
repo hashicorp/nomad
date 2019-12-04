@@ -1,6 +1,11 @@
 job "hello" {
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   update {
     max_parallel     = 1
     min_healthy_time = "15s"

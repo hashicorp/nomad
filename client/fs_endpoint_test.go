@@ -1884,13 +1884,14 @@ func TestFS_logsImpl_NoFollow(t *testing.T) {
 	}()
 
 	// Start streaming logs
-	go func() {
-		if err := c.endpoints.FileSystem.logsImpl(
-			context.Background(), false, false, 0,
-			OriginStart, task, logType, ad, frames); err != nil {
-			t.Fatalf("logs() failed: %v", err)
-		}
-	}()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	if err := c.endpoints.FileSystem.logsImpl(
+		ctx, false, false, 0,
+		OriginStart, task, logType, ad, frames); err != nil {
+		t.Fatalf("logsImpl failed: %v", err)
+	}
 
 	select {
 	case <-resultCh:

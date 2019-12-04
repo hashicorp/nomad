@@ -44,6 +44,14 @@
 /intro/getting-started/ui.html          https://learn.hashicorp.com/nomad/getting-started/ui
 /intro/getting-started/next-steps.html  https://learn.hashicorp.com/nomad/getting-started/next-steps
 
+/guides/load-balancing/fabio.html       https://learn.hashicorp.com/nomad/load-balancing/fabio
+/guides/load-balancing/nginx.html       https://learn.hashicorp.com/nomad/load-balancing/nginx
+/guides/load-balancing/haproxy.html     https://learn.hashicorp.com/nomad/load-balancing/haproxy
+/guides/load-balancing/traefik.html     https://learn.hashicorp.com/nomad/load-balancing/traefik
+
+/guides/stateful-workloads/host-volumes.html  https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes
+/guides/stateful-workloads/portworx.html      https://learn.hashicorp.com/nomad/stateful-workloads/portworx
+
 # Website
 /community.html                               /resources.html
 
@@ -228,6 +236,9 @@
 /guides/operations/upgrade/                       /guides/upgrade/index.html
 /guides/operations/upgrade/index.html             /guides/upgrade/index.html
 /guides/operations/upgrade/upgrade-specific.html  /guides/upgrade/upgrade-specific.html
+
+# Multi-part UI guides
+/guides/ui.html /guides/web-ui/index.html
 
 # Enterprise
 

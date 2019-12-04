@@ -1,0 +1,12 @@
+executor: go
+steps:
+  - checkout
+  - run: apt-get update; apt-get install -y shellcheck sudo unzip
+  - install-protoc
+  - install-circleci-local-cli
+  - run: make deps lint-deps
+  - run: make check
+  - run: make checkscripts
+  - run:
+      name: check .circleci/config.yml is up-to-date
+      command: make -C .circleci CIRCLECI="circleci-local-cli --skip-update-check" ci-verify
