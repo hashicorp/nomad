@@ -2,42 +2,109 @@ package fake
 
 import (
 	"context"
+	"errors"
+	"sync"
 
-	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
-	"google.golang.org/grpc"
+	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/csi"
+	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
-// IdentityClient is a CSI identity client used for testing
-type IdentityClient struct {
-	NextErr                error
-	NextPluginInfo         *csipbv1.GetPluginInfoResponse
-	NextPluginCapabilities *csipbv1.GetPluginCapabilitiesResponse
-	NextPluginProbe        *csipbv1.ProbeResponse
+var _ csi.CSIPlugin = &Client{}
+
+// Client is a mock implementation of the csi.CSIPlugin interface for use in testing
+// external components
+type Client struct {
+	Mu sync.RWMutex
+
+	NextPluginInfoResponse *base.PluginInfoResponse
+	NextPluginInfoErr      error
+	PluginInfoCallCount    int64
+
+	NextPluginProbeResponse bool
+	NextPluginProbeErr      error
+	PluginProbeCallCount    int64
+
+	NextPluginGetInfoResponse string
+	NextPluginGetInfoErr      error
+	PluginGetInfoCallCount    int64
+
+	NextPluginGetCapabilitiesResponse *csi.PluginCapabilitySet
+	NextPluginGetCapabilitiesErr      error
+	PluginGetCapabilitiesCallCount    int64
+
+	NextNodeGetInfoResponse *csi.NodeGetInfoResponse
+	NextNodeGetInfoErr      error
+	NodeGetInfoCallCount    int64
 }
 
-// NewIdentityClient returns a new IdentityClient
-func NewIdentityClient() *IdentityClient {
-	return &IdentityClient{}
+// PluginInfo describes the type and version of a plugin.
+func (c *Client) PluginInfo() (*base.PluginInfoResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.PluginInfoCallCount++
+
+	return c.NextPluginInfoResponse, c.NextPluginInfoErr
 }
 
-func (f *IdentityClient) Reset() {
-	f.NextErr = nil
-	f.NextPluginInfo = nil
-	f.NextPluginCapabilities = nil
-	f.NextPluginProbe = nil
+// ConfigSchema returns the schema for parsing the plugins configuration.
+func (c *Client) ConfigSchema() (*hclspec.Spec, error) {
+	return nil, errors.New("Unsupported")
 }
 
-// GetPluginInfo returns plugin info
-func (f *IdentityClient) GetPluginInfo(ctx context.Context, in *csipbv1.GetPluginInfoRequest, opts ...grpc.CallOption) (*csipbv1.GetPluginInfoResponse, error) {
-	return f.NextPluginInfo, f.NextErr
+// SetConfig is used to set the configuration by passing a MessagePack
+// encoding of it.
+func (c *Client) SetConfig(a *base.Config) error {
+	return errors.New("Unsupported")
 }
 
-// GetPluginCapabilities implements csi method
-func (f *IdentityClient) GetPluginCapabilities(ctx context.Context, in *csipbv1.GetPluginCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.GetPluginCapabilitiesResponse, error) {
-	return f.NextPluginCapabilities, f.NextErr
+// PluginProbe is used to verify that the plugin is in a healthy state
+func (c *Client) PluginProbe(ctx context.Context) (bool, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.PluginProbeCallCount++
+
+	return c.NextPluginProbeResponse, c.NextPluginProbeErr
 }
 
-// Probe implements csi method
-func (f *IdentityClient) Probe(ctx context.Context, in *csipbv1.ProbeRequest, opts ...grpc.CallOption) (*csipbv1.ProbeResponse, error) {
-	return f.NextPluginProbe, f.NextErr
+// PluginGetInfo is used to return semantic data about the plugin.
+// Response:
+//  - string: name, the name of the plugin in domain notation format.
+func (c *Client) PluginGetInfo(ctx context.Context) (string, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.PluginGetInfoCallCount++
+
+	return c.NextPluginGetInfoResponse, c.NextPluginGetInfoErr
+}
+
+// PluginGetCapabilities is used to return the available capabilities from the
+// identity service. This currently only looks for the CONTROLLER_SERVICE and
+// Accessible Topology Support
+func (c *Client) PluginGetCapabilities(ctx context.Context) (*csi.PluginCapabilitySet, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.PluginGetCapabilitiesCallCount++
+
+	return c.NextPluginGetCapabilitiesResponse, c.NextPluginGetCapabilitiesErr
+}
+
+// NodeGetInfo is used to return semantic data about the current node in
+// respect to the SP.
+func (c *Client) NodeGetInfo(ctx context.Context) (*csi.NodeGetInfoResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.NodeGetInfoCallCount++
+
+	return c.NextNodeGetInfoResponse, c.NextNodeGetInfoErr
+}
+
+// Shutdown the client and ensure any connections are cleaned up.
+func (c *Client) Close() error {
+	return nil
 }
