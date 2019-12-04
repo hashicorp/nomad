@@ -18,7 +18,7 @@
           {{#if (can "run job")}}
             {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
           {{else}}
-            <div data-test-run-job class="button tooltip" aria-label="You don’t have permission to run jobs" disabled>Run Job</div>
+            <div data-test-run-job class="button tooltip is-right-aligned" aria-label="You don’t have permission to run jobs" disabled>Run Job</div>
           {{/if}}
         </div>
       {{/if}}
@@ -55,7 +55,7 @@
           {{#if (can "run job")}}
             {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
           {{else}}
-            <div data-test-run-job class="button tooltip" aria-label="You don’t have permission to run jobs" disabled>Run Job</div>
+            <div data-test-run-job class="button tooltip is-right-aligned" aria-label="You don’t have permission to run jobs" disabled>Run Job</div>
           {{/if}}
         </div>
       {{/if}}
