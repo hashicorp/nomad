@@ -1,0 +1,29 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{"path":"github.com/hashicorp/vic/pkg/vsphere/tags","checksumSHA1":"X/h8Dt3bUaLOmS21SkLX6jWb1hQ=","revision":"bbfe86ec94430f6716b4b2a7f3b5bb4df65f011d","revisionTime":"2019-04-03T13:15:02Z"},
+		{"path":"github.com/pkg/errors","checksumSHA1":"ljd3FhYRJ91cLZz3wsH9BQQ2JbA=","revision":"816c9085562cd7ee03e7f8188a1cfd942858cded","revisionTime":"2018-03-11T21:45:15Z"},
+		{"path":"github.com/sirupsen/logrus","checksumSHA1":"vRcu8DLpEnhOuaZ/M8iGl2CRG8Y=","revision":"3e01752db0189b9157070a0e1668a620f9a85da2","revisionTime":"2018-07-21T07:00:01Z","version":"v1.0.6","versionExact":"v1.0.6"},
+		{"path":"github.com/vmware/govmomi","checksumSHA1":"d9wuJiM8kohvnjoHIRJcaYH8Bhw=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/find","checksumSHA1":"xFi1dbYQR8VwSRojdJMdvRGOmIw=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/list","checksumSHA1":"J3JrwZagGYMX6oNMkdsUFf8hHo8=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/nfc","checksumSHA1":"kYO3J9/MIfRkiKxPMTUwOvIOSso=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/object","checksumSHA1":"au0bpn151G5bPXhMYhizYr0HULU=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/property","checksumSHA1":"CPOocvkED4p4GhKZxwov8v7xfoA=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/session","checksumSHA1":"X0FWJTv6W/92YB21IBuEp3Mf3z4=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/task","checksumSHA1":"FQR3yNgiShaqUiJREkeqQCKYJ84=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/vim25","checksumSHA1":"7TYb0QwZ9DawKt89GlGABc9ufco=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/vim25/debug","checksumSHA1":"xLvppq0NUD6Hv2GIx1gh75xUzyM=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/vim25/methods","checksumSHA1":"YfxE/jP0aAGIAhBQTVEAjZG1CKc=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/vim25/mo","checksumSHA1":"rAfxxiPj4cguQnmCzCpkKsuTsBc=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/vim25/progress","checksumSHA1":"OLrtV4J/PfHWhl0OZLb1zmqlt6E=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/vim25/soap","checksumSHA1":"QxjgzpmtHAg2pNHffZMnEPkYDLM=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/vim25/types","checksumSHA1":"F58FP8qS+yAPVSCUPRsv2lhkfA0=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"github.com/vmware/govmomi/vim25/xml","checksumSHA1":"6XLRzLEvncx5ORtvBjp41KfRTjc=","revision":"ae91c0ee0a326f320a5458d206fc751f319e1cf9","revisionTime":"2018-05-25T20:17:32Z"},
+		{"path":"golang.org/x/crypto/ssh/terminal","checksumSHA1":"BGm8lKZmvJbf/YOJLeL1rw2WVjA=","revision":"5ba7f63082460102a45837dbd1827e10f9479ac0","revisionTime":"2018-05-30T15:49:09Z"},
+		{"path":"golang.org/x/sys/unix","checksumSHA1":"VUb+SqeoloAw1A2Jz9IzkDNs06c=","revision":"c11f84a56e43e20a78cee75a7c034031ecf57d1f","revisionTime":"2018-05-25T13:55:20Z"},
+		{"path":"golang.org/x/sys/windows","checksumSHA1":"m5QCvoZ2KaoLTG9VWjYNonM08b8=","revision":"c11f84a56e43e20a78cee75a7c034031ecf57d1f","revisionTime":"2018-05-25T13:55:20Z"}
+	],
+	"rootPath": "github.com/hashicorp/go-discover/provider/vsphere"
+}
