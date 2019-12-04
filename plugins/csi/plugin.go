@@ -54,6 +54,13 @@ func (p *PluginCapabilitySet) IsEqual(o *PluginCapabilitySet) bool {
 	return p.hasControllerService == o.hasControllerService && p.hasTopologies == o.hasTopologies
 }
 
+func NewTestPluginCapabilitySet(topologies, controller bool) *PluginCapabilitySet {
+	return &PluginCapabilitySet{
+		hasTopologies:        topologies,
+		hasControllerService: controller,
+	}
+}
+
 func NewPluginCapabilitySet(capabilities *csipbv1.GetPluginCapabilitiesResponse) *PluginCapabilitySet {
 	cs := &PluginCapabilitySet{}
 
