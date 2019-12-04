@@ -7,6 +7,53 @@ import (
 	"github.com/hashicorp/nomad/helper"
 )
 
+// CSITopology is a map of topological domains to topological segments.
+// A topological domain is a sub-division of a cluster, like "region",
+// "zone", "rack", etc.
+//
+// According to CSI, there are a few requirements for the keys within this map:
+// - Valid keys have two segments: an OPTIONAL prefix and name, separated
+//   by a slash (/), for example: "com.company.example/zone".
+// - The key name segment is REQUIRED. The prefix is OPTIONAL.
+// - The key name MUST be 63 characters or less, begin and end with an
+//   alphanumeric character ([a-z0-9A-Z]), and contain only dashes (-),
+//   underscores (_), dots (.), or alphanumerics in between, for example
+//   "zone".
+// - The key prefix MUST be 63 characters or less, begin and end with a
+//   lower-case alphanumeric character ([a-z0-9]), contain only
+//   dashes (-), dots (.), or lower-case alphanumerics in between, and
+//   follow domain name notation format
+//   (https://tools.ietf.org/html/rfc1035#section-2.3.1).
+// - The key prefix SHOULD include the plugin's host company name and/or
+//   the plugin name, to minimize the possibility of collisions with keys
+//   from other plugins.
+// - If a key prefix is specified, it MUST be identical across all
+//   topology keys returned by the SP (across all RPCs).
+// - Keys MUST be case-insensitive. Meaning the keys "Zone" and "zone"
+//   MUST not both exist.
+// - Each value (topological segment) MUST contain 1 or more strings.
+// - Each string MUST be 63 characters or less and begin and end with an
+//   alphanumeric character with '-', '_', '.', or alphanumerics in
+//   between.
+//
+// However, Nomad applies lighter restrictions to these, as they are already
+// only referenced by plugin within the scheduler and as such collisions and
+// related concerns are less of an issue. We may implement these restrictions
+// in the future.
+type CSITopology struct {
+	Segments map[string]string
+}
+
+func (t *CSITopology) Copy() *CSITopology {
+	if t == nil {
+		return nil
+	}
+
+	return &CSITopology{
+		Segments: helper.CopyMapStringString(t.Segments),
+	}
+}
+
 // CSINodeInfo is the fingerprinted data from a CSI Plugin that is specific to
 // the Node API.
 type CSINodeInfo struct {
@@ -14,7 +61,28 @@ type CSINodeInfo struct {
 	// provider.
 	ID string
 
-	Topology map[string]string
+	// MaxVolumes is the maximum number of volumes that can be attached to the
+	// current host via this provider.
+	// If 0 then unlimited volumes may be attached.
+	MaxVolumes int64
+
+	// AccessibleTopology specifies where (regions, zones, racks, etc.) the node is
+	// accessible from within the storage provider.
+	//
+	// A plugin that returns this field MUST also set the `RequiresTopologies`
+	// property.
+	//
+	// This field is OPTIONAL. If it is not specified, then we assume that the
+	// the node is not subject to any topological constraint, and MAY
+	// schedule workloads that reference any volume V, such that there are
+	// no topological constraints declared for V.
+	//
+	// Example 1:
+	//   accessible_topology =
+	//     {"region": "R1", "zone": "Z2"}
+	// Indicates the node exists within the "region" "R1" and the "zone"
+	// "Z2" within the storage provider.
+	AccessibleTopology *CSITopology
 }
 
 func (n *CSINodeInfo) Copy() *CSINodeInfo {
@@ -24,7 +92,7 @@ func (n *CSINodeInfo) Copy() *CSINodeInfo {
 
 	nc := new(CSINodeInfo)
 	*nc = *n
-	nc.Topology = helper.CopyMapStringString(n.Topology)
+	nc.AccessibleTopology = n.AccessibleTopology.Copy()
 
 	return nc
 }
