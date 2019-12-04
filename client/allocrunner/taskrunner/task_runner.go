@@ -198,6 +198,9 @@ type TaskRunner struct {
 	// GetClientAllocs has been called in case of a failed restore.
 	serversContactedCh <-chan struct{}
 
+	// startConditionMetCtx is done when TR should start the task
+	startConditionMetCtx <-chan struct{}
+
 	// waitOnServers defaults to false but will be set true if a restore
 	// fails and the Run method should wait until serversContactedCh is
 	// closed.
@@ -238,6 +241,9 @@ type Config struct {
 	// ServersContactedCh is closed when the first GetClientAllocs call to
 	// servers succeeds and allocs are synced.
 	ServersContactedCh chan struct{}
+
+	// startConditionMetCtx is done when TR should start the task
+	StartConditionMetCtx <-chan struct{}
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -262,31 +268,32 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 
 	tr := &TaskRunner{
-		alloc:               config.Alloc,
-		allocID:             config.Alloc.ID,
-		clientConfig:        config.ClientConfig,
-		task:                config.Task,
-		taskDir:             config.TaskDir,
-		taskName:            config.Task.Name,
-		taskLeader:          config.Task.Leader,
-		envBuilder:          envBuilder,
-		consulClient:        config.Consul,
-		vaultClient:         config.Vault,
-		state:               tstate,
-		localState:          state.NewLocalState(),
-		stateDB:             config.StateDB,
-		stateUpdater:        config.StateUpdater,
-		deviceStatsReporter: config.DeviceStatsReporter,
-		killCtx:             killCtx,
-		killCtxCancel:       killCancel,
-		shutdownCtx:         trCtx,
-		shutdownCtxCancel:   trCancel,
-		triggerUpdateCh:     make(chan struct{}, triggerUpdateChCap),
-		waitCh:              make(chan struct{}),
-		devicemanager:       config.DeviceManager,
-		driverManager:       config.DriverManager,
-		maxEvents:           defaultMaxEvents,
-		serversContactedCh:  config.ServersContactedCh,
+		alloc:                config.Alloc,
+		allocID:              config.Alloc.ID,
+		clientConfig:         config.ClientConfig,
+		task:                 config.Task,
+		taskDir:              config.TaskDir,
+		taskName:             config.Task.Name,
+		taskLeader:           config.Task.Leader,
+		envBuilder:           envBuilder,
+		consulClient:         config.Consul,
+		vaultClient:          config.Vault,
+		state:                tstate,
+		localState:           state.NewLocalState(),
+		stateDB:              config.StateDB,
+		stateUpdater:         config.StateUpdater,
+		deviceStatsReporter:  config.DeviceStatsReporter,
+		killCtx:              killCtx,
+		killCtxCancel:        killCancel,
+		shutdownCtx:          trCtx,
+		shutdownCtxCancel:    trCancel,
+		triggerUpdateCh:      make(chan struct{}, triggerUpdateChCap),
+		waitCh:               make(chan struct{}),
+		devicemanager:        config.DeviceManager,
+		driverManager:        config.DriverManager,
+		maxEvents:            defaultMaxEvents,
+		serversContactedCh:   config.ServersContactedCh,
+		startConditionMetCtx: config.StartConditionMetCtx,
 	}
 
 	// Create the logger based on the allocation ID
@@ -458,6 +465,15 @@ func (tr *TaskRunner) Run() {
 		case <-tr.serversContactedCh:
 			tr.logger.Info("server contacted; unblocking waiting task")
 		}
+	}
+
+	select {
+	case <-tr.startConditionMetCtx:
+		// yay proceed
+	case <-tr.killCtx.Done():
+		return
+	case <-tr.shutdownCtx.Done():
+		return
 	}
 
 MAIN:
