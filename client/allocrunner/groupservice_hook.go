@@ -49,7 +49,7 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 	var shutdownDelay time.Duration
 	tg := cfg.alloc.Job.LookupTaskGroup(cfg.alloc.TaskGroup)
 
-	if tg != nil && tg.ShutdownDelay != nil {
+	if tg.ShutdownDelay != nil {
 		shutdownDelay = *tg.ShutdownDelay
 	}
 
@@ -137,6 +137,10 @@ func (h *groupServiceHook) PreKill() {
 	// before continuing to kill tasks
 	h.deregister()
 	h.deregistered = true
+
+	if h.delay == 0 {
+		return
+	}
 
 	h.logger.Debug("waiting before removing group service", "shutdown_delay", h.delay)
 

@@ -4741,6 +4741,8 @@ type TaskGroup struct {
 	// Volumes is a map of volumes that have been requested by the task group.
 	Volumes map[string]*VolumeRequest
 
+	// ShutdownDelay is the amount of time to wait between deregistering
+	// group services in consul and stopping tasks.
 	ShutdownDelay *time.Duration
 }
 
@@ -4789,7 +4791,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	}
 
 	if tg.ShutdownDelay != nil {
-		ntg.ShutdownDelay = helper.TimeToPtr(*tg.ShutdownDelay)
+		ntg.ShutdownDelay = tg.ShutdownDelay
 	}
 
 	return ntg

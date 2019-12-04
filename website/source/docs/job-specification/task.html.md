@@ -90,7 +90,9 @@ job "docs" {
   killing a task between removing it from Consul and sending it a shutdown
   signal. Ideally services would fail healthchecks once they receive a shutdown
   signal. Alternatively `shutdown_delay` may be set to give in flight requests
-  time to complete before shutting down.
+  time to complete before shutting down. In addition, task groups may have their
+  own [`shutdown_delay`](/docs/job-specification/group.html#shutdown_delay)
+  which waits between deregistering group services and stopping tasks.
 
 - `user` `(string: <varies>)` - Specifies the user that will run the task.
   Defaults to `nobody` for the [`exec`][exec] and [`java`][java] drivers.
