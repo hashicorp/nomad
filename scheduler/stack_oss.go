@@ -34,12 +34,19 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Filter on task group host volumes
 	s.taskGroupHostVolumes = NewHostVolumeChecker(ctx)
 
+	// Filter on available, healthy CSI plugins
+	s.taskGroupCSIVolumes = NewCSIVolumeChecker(ctx)
+
 	// Create the feasibility wrapper which wraps all feasibility checks in
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
-	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint, s.taskGroupHostVolumes, s.taskGroupDevices}
+	tgs := []FeasibilityChecker{s.taskGroupDrivers,
+		s.taskGroupConstraint,
+		s.taskGroupHostVolumes,
+		s.taskGroupCSIVolumes,
+		s.taskGroupDevices}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs)
 
 	// Filter on distinct host constraints.
