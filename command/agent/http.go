@@ -186,6 +186,8 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
 	s.mux.HandleFunc("/v1/agent/monitor", s.wrap(s.AgentMonitor))
 
+	s.mux.HandleFunc("/v1/agent/pprof/", s.wrap(s.AgentPprofRequest))
+
 	s.mux.HandleFunc("/v1/metrics", s.wrap(s.MetricsRequest))
 
 	s.mux.HandleFunc("/v1/validate/job", s.wrap(s.ValidateJobRequest))

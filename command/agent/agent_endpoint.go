@@ -16,6 +16,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/profile"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 	"github.com/mitchellh/copystructure"
@@ -228,7 +229,7 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 			handlerErr = CodedError(400, "No local Node and node_id not provided")
 		}
 	} else {
-		// No node id we want to monitor this server
+		// No node id monitor server
 		handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.Monitor")
 	}
 
@@ -331,6 +332,96 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 	// Attempt remove
 	err := srv.RemoveFailedNode(node)
 	return nil, err
+}
+
+func (s *HTTPServer) AgentPprofRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	path := strings.TrimPrefix(req.URL.Path, "/v1/agent/pprof/")
+	switch {
+	case path == "":
+		// no index route
+		return nil, CodedError(404, ErrInvalidMethod)
+	case path == "cmdline":
+		return s.agentPprofReq(profile.CmdReq, "", resp, req)
+	case path == "profile":
+		return s.agentPprofReq(profile.CPUReq, "", resp, req)
+	case path == "trace":
+		return s.agentPprofReq(profile.TraceReq, "", resp, req)
+	default:
+		// generic pprof profile request
+		return s.agentPprofReq(profile.LookupReq, path, resp, req)
+	}
+}
+
+func (s *HTTPServer) agentPprofReq(reqType profile.ReqType, profile string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check agent read permissions
+	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
+		return nil, err
+	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	nodeID := req.URL.Query().Get("node_id")
+	serverID := req.URL.Query().Get("server_id")
+	secondsParam := req.URL.Query().Get("seconds")
+
+	// Parse profile duration, default to 1 second
+	var seconds int
+	if secondsParam == "" {
+		seconds = 1
+	} else {
+		sec, err := strconv.Atoi(secondsParam)
+		if err != nil {
+			return nil, CodedError(400, err.Error())
+		}
+		seconds = sec
+	}
+
+	// Create the request
+	args := &cstructs.AgentPprofRequest{
+		ReqType:  reqType,
+		Profile:  profile,
+		NodeID:   nodeID,
+		ServerID: serverID,
+		Seconds:  seconds,
+	}
+
+	// if node and server were requested return error
+	if args.NodeID != "" && args.ServerID != "" {
+		return nil, CodedError(400, "Cannot target node and server simultaneously")
+	}
+
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	var reply cstructs.AgentPprofResponse
+	var rpcErr error
+	if args.NodeID != "" {
+		// Make the RPC
+		localClient, remoteClient, localServer := s.rpcHandlerForNode(nodeID)
+
+		// var handler structs.StreamingRpcHandler
+		if localClient {
+			rpcErr = s.agent.Client().ClientRPC("Agent.Profile", &args, &reply)
+		} else if remoteClient {
+			rpcErr = s.agent.Client().RPC("Agent.Profile", &args, &reply)
+		} else if localServer {
+			rpcErr = s.agent.Server().RPC("Agent.Profile", &args, &reply)
+		}
+	} else {
+		// No node id request server
+		rpcErr = s.agent.Server().RPC("Agent.Profile", &args, &reply)
+	}
+
+	if rpcErr != nil {
+		return nil, rpcErr
+	}
+
+	// resp.Write(reply.Payload)
+
+	return reply.Payload, nil
+	// return string(reply.Payload), rpcErr
 }
 
 // AgentServersRequest is used to query the list of servers used by the Nomad

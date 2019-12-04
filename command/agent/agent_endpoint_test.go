@@ -388,6 +388,54 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	})
 }
 
+func TestAgent_PprofRequest(t *testing.T) {
+	cases := []struct {
+		desc           string
+		url            string
+		addNodeID      bool
+		addServerID    bool
+		expectedErr    error
+		expectedStatus int
+	}{
+		{
+			desc:           "cmdline request",
+			url:            "/v1/agent/pprof/cmdline",
+			addNodeID:      true,
+			expectedStatus: 200,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			httpTest(t, nil, func(s *TestAgent) {
+
+				// add node or server id query param
+				url := tc.url
+				if tc.addNodeID {
+					url = url + "?node_id=" + s.client.NodeID()
+				} else if tc.addServerID {
+					url = url + "?server_id=" + s.server.LocalMember().Name
+				}
+
+				req, err := http.NewRequest("GET", url, nil)
+				require.Nil(t, err)
+				respW := httptest.NewRecorder()
+
+				resp, err := s.Server.AgentPprofRequest(respW, req)
+
+				if tc.expectedErr != nil {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+					require.NotNil(t, resp)
+				}
+
+				require.Equal(t, tc.expectedStatus, respW.Code)
+			})
+		})
+	}
+}
+
 type closableRecorder struct {
 	*httptest.ResponseRecorder
 	closer chan bool

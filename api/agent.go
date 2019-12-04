@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 )
 
@@ -286,6 +287,27 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *Stream
 	}()
 
 	return frames, errCh
+}
+
+func (a *Agent) Pprof() ([]byte, error) {
+	r, err := a.client.newRequest("GET", "/debug/pprof/profile")
+	if err != nil {
+		return nil, err
+	}
+
+	_, resp, err := a.client.doRequest(r)
+	if err != nil {
+		return nil, fmt.Errorf("error making request: %s", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding body: %s", err)
+	}
+
+	return body, nil
+
 }
 
 // joinResponse is used to decode the response we get while

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/command/agent/monitor"
+	"github.com/hashicorp/nomad/command/agent/profile"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -26,6 +27,28 @@ func NewAgentEndpoint(c *Client) *Agent {
 	m := &Agent{c: c}
 	m.c.streamingRpcs.Register("Agent.Monitor", m.monitor)
 	return m
+}
+
+func (m *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
+	var resp []byte
+	var err error
+	switch args.ReqType {
+	case profile.CPUReq:
+		resp, err = profile.CPUProfile(args.Seconds)
+	case profile.CmdReq:
+		resp, err = profile.Cmdline()
+	case profile.LookupReq:
+		resp, err = profile.Profile(args.Profile, args.Debug)
+	case profile.TraceReq:
+		resp, err = profile.Trace(args.Seconds)
+	}
+
+	if err != nil {
+		return err
+	}
+	reply.Payload = resp
+
+	return nil
 }
 
 func (m *Agent) monitor(conn io.ReadWriteCloser) {
@@ -76,6 +99,7 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 
 	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
 	framer.Run()
+
 	defer framer.Destroy()
 
 	// goroutine to detect remote side closing

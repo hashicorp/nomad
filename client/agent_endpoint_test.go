@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/profile"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -212,4 +213,29 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAgent_Pprof(t *testing.T) {
+	t.Parallel()
+
+	// start server and client
+	s := nomad.TestServer(t, nil)
+	defer s.Shutdown()
+	testutil.WaitForLeader(t, s.RPC)
+
+	c, cleanup := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+	})
+
+	defer cleanup()
+
+	req := cstructs.AgentPprofRequest{
+		Profile: "allocs",
+		ReqType: profile.LookupReq,
+	}
+
+	reply := cstructs.AgentPprofResponse{}
+
+	err := c.ClientRPC("Agent.Profile", req, &reply)
+	require.NoError(t, err)
 }
