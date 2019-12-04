@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/pluginregistry"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 )
@@ -156,6 +157,16 @@ func (i *instanceManager) buildNodeFingerprint(ctx context.Context, base *struct
 	return fp, nil
 }
 
+func structCSITopologyFromCSITopology(a *csi.Topology) *structs.CSITopology {
+	if a == nil {
+		return nil
+	}
+
+	return &structs.CSITopology{
+		Segments: helper.CopyMapStringString(a.Segments),
+	}
+}
+
 func (i *instanceManager) buildBasicFingerprint(ctx context.Context) (*structs.CSIInfo, error) {
 	info := &structs.CSIInfo{
 		PluginID:          i.info.Name,
@@ -185,6 +196,8 @@ func (i *instanceManager) buildBasicFingerprint(ctx context.Context) (*structs.C
 		}
 
 		info.NodeInfo.ID = nodeInfo.NodeID
+		info.NodeInfo.MaxVolumes = nodeInfo.MaxVolumes
+		info.NodeInfo.AccessibleTopology = structCSITopologyFromCSITopology(nodeInfo.AccessibleTopology)
 	}
 
 	return info, nil
