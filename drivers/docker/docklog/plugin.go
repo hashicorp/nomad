@@ -22,7 +22,7 @@ func LaunchDockerLogger(logger hclog.Logger) (DockerLogger, *plugin.Client, erro
 		return nil, nil, err
 	}
 
-	client := plugin.NewClient(&plugin.ClientConfig{
+	config := &plugin.ClientConfig{
 		HandshakeConfig: base.Handshake,
 		Plugins: map[string]plugin.Plugin{
 			PluginName: &Plugin{impl: NewDockerLogger(logger)},
@@ -32,8 +32,14 @@ func LaunchDockerLogger(logger hclog.Logger) (DockerLogger, *plugin.Client, erro
 			plugin.ProtocolGRPC,
 		},
 		Logger: logger,
-	})
+	}
 
+	config.Cmd.Env = append(config.Cmd.Env,
+		// 1 thread is sufficient for docker_logger demands
+		"GOMAXPROCS=1",
+	)
+
+	client := plugin.NewClient(config)
 	rpcClient, err := client.Client()
 	if err != nil {
 		return nil, nil, err

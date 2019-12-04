@@ -35,6 +35,10 @@ func LaunchLogMon(logger hclog.Logger, reattachConfig *plugin.ReattachConfig) (L
 	// Only set one of Cmd or Reattach
 	if reattachConfig == nil {
 		conf.Cmd = exec.Command(bin, "logmon")
+		conf.Cmd.Env = append(conf.Cmd.Env,
+			// 2 threads: for stdout and stderr copying
+			"GOMAXPROCS=2",
+		)
 	} else {
 		conf.Reattach = reattachConfig
 	}

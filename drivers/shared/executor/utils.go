@@ -61,6 +61,10 @@ func CreateExecutor(logger hclog.Logger, driverConfig *base.ClientDriverConfig,
 	// setting the setsid of the plugin process so that it doesn't get signals sent to
 	// the nomad client.
 	if config.Cmd != nil {
+		config.Cmd.Env = append(config.Cmd.Env,
+			// 1 thread is sufficient
+			"GOMAXPROCS=1",
+		)
 		isolateCommand(config.Cmd)
 	}
 
