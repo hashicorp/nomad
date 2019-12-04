@@ -147,7 +147,6 @@ module('Acceptance | regions (many)', function(hooks) {
   });
 
   test('when the region is not the default region, all api requests include the region query param', async function(assert) {
-    // FIXME clear localStorage before every test? 🤔
     window.localStorage.removeItem('nomadTokenSecret');
     const region = server.db.regions[1].id;
 
