@@ -4,7 +4,7 @@ IMPROVEMENTS:
 
 * scheduler: Removed penalty for allocation's previous node if the allocation did not fail. [[GH-6781](https://github.com/hashicorp/nomad/issues/6781)]
 
-## 0.10.2 (Unreleased)
+## 0.10.2 (December 4, 2019)
 
 FEATURES:
 
