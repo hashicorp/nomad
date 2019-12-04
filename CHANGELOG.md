@@ -1,3 +1,9 @@
+## 0.9.7 (December 4, 2019)
+
+BUG FIXES:
+
+ * core: Fixed server panic caused by a plan evicting and preempting allocs on a node [[GH-6792](https://github.com/hashicorp/nomad/issues/6792)]
+
 ## 0.9.6 (October 7, 2019)
 
 SECURITY:
