@@ -42,18 +42,18 @@ func CSIPluginTypeIsValid(pt CSIPluginType) bool {
 // CSI plugin. This will be used by the csi_plugin_supervisor_hook to configure
 // mounts for the plugin and initiate the connection to the plugin catalog.
 type TaskCSIPluginConfig struct {
-	// PluginID is the identifier of the plugin.
+	// ID is the identifier of the plugin.
 	// Ideally this should be the FQDN of the plugin.
-	PluginID string
+	ID string
 
-	// CSIPluginType instructs Nomad on how to handle processing a plugin
-	PluginType CSIPluginType
+	// Type instructs Nomad on how to handle processing a plugin
+	Type CSIPluginType
 
-	// PluginMountDir is the destination that nomad should mount in its CSI
+	// MountDir is the destination that nomad should mount in its CSI
 	// directory for the plugin. It will then expect a file called CSISocketName
 	// to be created by the plugin, and will provide references into
-	// "PluginMountDir/CSIIntermediaryDirname/{VolumeName}/{AllocID} for mounts.
-	PluginMountDir string
+	// "MountDir/CSIIntermediaryDirname/{VolumeName}/{AllocID} for mounts.
+	MountDir string
 }
 
 func (t *TaskCSIPluginConfig) Copy() *TaskCSIPluginConfig {

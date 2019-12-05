@@ -5593,12 +5593,12 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 
 	// Validate CSI Plugin Config
 	if t.CSIPluginConfig != nil {
-		if t.CSIPluginConfig.PluginID == "" {
+		if t.CSIPluginConfig.ID == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig must have a non-empty PluginID"))
 		}
 
-		if !CSIPluginTypeIsValid(t.CSIPluginConfig.PluginType) {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig PluginType must be one of 'node', 'controller', or 'monolith', got: \"%s\"", t.CSIPluginConfig.PluginType))
+		if !CSIPluginTypeIsValid(t.CSIPluginConfig.Type) {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig PluginType must be one of 'node', 'controller', or 'monolith', got: \"%s\"", t.CSIPluginConfig.Type))
 		}
 
 		// TODO: Investigate validation of the PluginMountDir. Not much we can do apart from check IsAbs until after we understand its execution environment though :(

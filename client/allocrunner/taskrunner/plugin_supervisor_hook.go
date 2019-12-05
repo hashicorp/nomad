@@ -60,7 +60,7 @@ var _ interfaces.TaskStopHook = &csiPluginSupervisorHook{}
 
 func newCSIPluginSupervisorHook(csiRootDir string, eventEmitter ti.EventEmitter, runner *TaskRunner, logger hclog.Logger) *csiPluginSupervisorHook {
 	task := runner.Task()
-	pluginRoot := filepath.Join(csiRootDir, string(task.CSIPluginConfig.PluginType), task.CSIPluginConfig.PluginID)
+	pluginRoot := filepath.Join(csiRootDir, string(task.CSIPluginConfig.Type), task.CSIPluginConfig.ID)
 
 	shutdownCtx, cancelFn := context.WithCancel(context.Background())
 
@@ -94,7 +94,7 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	}
 
 	configMount := &drivers.MountConfig{
-		TaskPath:        h.task.CSIPluginConfig.PluginMountDir,
+		TaskPath:        h.task.CSIPluginConfig.MountDir,
 		HostPath:        h.mountPoint,
 		Readonly:        false,
 		PropagationMode: "bidirectional",
@@ -174,7 +174,7 @@ WAITFORREADY:
 			// Mark the plugin as healthy in a task event
 			h.previousHealthState = pluginHealthy
 			event := structs.NewTaskEvent(structs.TaskPluginHealthy)
-			event.SetMessage(fmt.Sprintf("plugin: %s", h.task.CSIPluginConfig.PluginID))
+			event.SetMessage(fmt.Sprintf("plugin: %s", h.task.CSIPluginConfig.ID))
 			h.eventEmitter.EmitEvent(event)
 
 			break WAITFORREADY
@@ -185,7 +185,7 @@ WAITFORREADY:
 	mkInfoFn := func(pluginType string) *pluginregistry.PluginInfo {
 		return &pluginregistry.PluginInfo{
 			Type:    pluginType,
-			Name:    h.task.CSIPluginConfig.PluginID,
+			Name:    h.task.CSIPluginConfig.ID,
 			Version: "1.0.0",
 			ConnectionInfo: &pluginregistry.PluginConnectionInfo{
 				SocketPath: socketPath,
@@ -195,7 +195,7 @@ WAITFORREADY:
 
 	registrations := []*pluginregistry.PluginInfo{}
 
-	switch h.task.CSIPluginConfig.PluginType {
+	switch h.task.CSIPluginConfig.Type {
 	case structs.CSIPluginTypeController:
 		registrations = append(registrations, mkInfoFn(pluginregistry.PluginTypeCSIController))
 	case structs.CSIPluginTypeNode:
@@ -209,7 +209,7 @@ WAITFORREADY:
 		if err := h.runner.pluginRegistry.RegisterPlugin(reg); err != nil {
 			h.logger.Error("CSI Plugin registration failed", "error", err)
 			event := structs.NewTaskEvent(structs.TaskPluginUnhealthy)
-			event.SetMessage(fmt.Sprintf("failed to register plugin: %s, reason: %v", h.task.CSIPluginConfig.PluginID, err))
+			event.SetMessage(fmt.Sprintf("failed to register plugin: %s, reason: %v", h.task.CSIPluginConfig.ID, err))
 			h.eventEmitter.EmitEvent(event)
 			return
 		}
@@ -231,7 +231,7 @@ WAITFORREADY:
 			// the plugin catalog of the state.
 			if h.previousHealthState == false && pluginHealthy {
 				event := structs.NewTaskEvent(structs.TaskPluginHealthy)
-				event.SetMessage(fmt.Sprintf("plugin: %s", h.task.CSIPluginConfig.PluginID))
+				event.SetMessage(fmt.Sprintf("plugin: %s", h.task.CSIPluginConfig.ID))
 				h.eventEmitter.EmitEvent(event)
 			}
 
