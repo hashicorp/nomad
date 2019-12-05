@@ -4,7 +4,6 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
-import formatDuration from 'nomad-ui/utils/format-duration';
 import moment from 'moment';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Clients from 'nomad-ui/tests/pages/clients/list';
@@ -58,7 +57,12 @@ module('Acceptance | client detail', function(hooks) {
     await ClientDetail.visit({ id: node.id });
 
     assert.ok(ClientDetail.title.includes(node.name), 'Title includes name');
-    assert.ok(ClientDetail.title.includes(node.id), 'Title includes id');
+    assert.ok(ClientDetail.clientId.includes(node.id), 'Title includes id');
+    assert.equal(
+      ClientDetail.statusLight.objectAt(0).id,
+      node.status,
+      'Title includes status light'
+    );
   });
 
   test('/clients/:id should list additional detail for the node below the title', async function(assert) {
@@ -469,23 +473,19 @@ module('Acceptance | client detail', function(hooks) {
     await ClientDetail.visit({ id: node.id });
 
     assert.ok(
-      ClientDetail.drain.deadline.includes(formatDuration(deadline)),
+      ClientDetail.drainDetails.deadline.includes(forceDeadline.fromNow(true)),
       'Deadline is shown in a human formatted way'
     );
 
-    assert.ok(
-      ClientDetail.drain.forcedDeadline.includes(forceDeadline.format("MMM DD, 'YY HH:mm:ss ZZ")),
-      'Force deadline is shown as an absolute date'
+    assert.equal(
+      ClientDetail.drainDetails.deadlineTooltip,
+      forceDeadline.format("MMM DD, 'YY HH:mm:ss ZZ"),
+      'The tooltip for deadline shows the force deadline as an absolute date'
     );
 
     assert.ok(
-      ClientDetail.drain.forcedDeadline.includes(forceDeadline.fromNow()),
-      'Force deadline is shown as a relative date'
-    );
-
-    assert.ok(
-      ClientDetail.drain.ignoreSystemJobs.endsWith('No'),
-      'Ignore System Jobs state is shown'
+      ClientDetail.drainDetails.drainSystemJobsText.endsWith('Yes'),
+      'Drain System Jobs state is shown'
     );
   });
 
@@ -504,19 +504,16 @@ module('Acceptance | client detail', function(hooks) {
 
     await ClientDetail.visit({ id: node.id });
 
+    assert.notOk(ClientDetail.drainDetails.durationIsShown, 'Duration is omitted');
+
     assert.ok(
-      ClientDetail.drain.deadline.includes('No deadline'),
+      ClientDetail.drainDetails.deadline.includes('No deadline'),
       'The value for Deadline is "no deadline"'
     );
 
-    assert.notOk(
-      ClientDetail.drain.hasForcedDeadline,
-      'Forced deadline is not shown since there is no forced deadline'
-    );
-
     assert.ok(
-      ClientDetail.drain.ignoreSystemJobs.endsWith('Yes'),
-      'Ignore System Jobs state is shown'
+      ClientDetail.drainDetails.drainSystemJobsText.endsWith('No'),
+      'Drain System Jobs state is shown'
     );
   });
 
@@ -535,17 +532,18 @@ module('Acceptance | client detail', function(hooks) {
 
     await ClientDetail.visit({ id: node.id });
 
-    assert.equal(ClientDetail.drain.badgeLabel, 'Forced Drain', 'Forced Drain badge is described');
-    assert.ok(ClientDetail.drain.badgeIsDangerous, 'Forced Drain is shown in a red badge');
-
-    assert.notOk(
-      ClientDetail.drain.hasForcedDeadline,
-      'Forced deadline is not shown since there is no forced deadline'
+    assert.ok(
+      ClientDetail.drainDetails.forceDrainText.endsWith('Yes'),
+      'Forced Drain is described'
     );
 
+    assert.ok(ClientDetail.drainDetails.duration.includes('--'), 'Duration is shown but unset');
+
+    assert.ok(ClientDetail.drainDetails.deadline.includes('--'), 'Deadline is shown but unset');
+
     assert.ok(
-      ClientDetail.drain.ignoreSystemJobs.endsWith('No'),
-      'Ignore System Jobs state is shown'
+      ClientDetail.drainDetails.drainSystemJobsText.endsWith('Yes'),
+      'Drain System Jobs state is shown'
     );
   });
 });

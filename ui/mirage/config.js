@@ -209,14 +209,14 @@ export default function() {
 
   this.post('/node/:id/eligibility', function({ nodes }, { params, requestBody }) {
     const body = JSON.parse(requestBody);
-    const node = nodes.find({ id: params.id });
+    const node = nodes.find(params.id);
 
     node.update({ schedulingEligibility: body.Elibility === 'eligible' });
     return this.serialize(node);
   });
 
   this.post('/node/:id/drain', function({ nodes }, { params }) {
-    return this.serialize(nodes.find({ id: params.id }));
+    return this.serialize(nodes.find(params.id));
   });
 
   this.get('/allocations');
