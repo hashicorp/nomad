@@ -1,6 +1,6 @@
 import { Ability } from 'ember-can';
 import { inject as service } from '@ember/service';
-import { computed, getWithDefault } from '@ember/object';
+import { computed, get } from '@ember/object';
 import { equal, or } from '@ember/object/computed';
 
 export default Ability.extend({
@@ -19,7 +19,7 @@ export default Ability.extend({
     let activeNamespace = this.activeNamespace;
 
     return (this.get('token.selfTokenPolicies') || []).toArray().reduce((rules, policy) => {
-      let policyNamespaces = getWithDefault(policy, 'rulesJSON.Namespaces', []);
+      let policyNamespaces = get(policy, 'rulesJSON.Namespaces') || [];
 
       let matchingNamespace = this._findMatchingNamespace(policyNamespaces, activeNamespace);
 
@@ -33,7 +33,7 @@ export default Ability.extend({
 
   policiesSupportRunning: computed('rulesForActiveNamespace.@each.capabilities', function() {
     return this.rulesForActiveNamespace.some(rules => {
-      let capabilities = getWithDefault(rules, 'Capabilities', []);
+      let capabilities = get(rules, 'Capabilities') || [];
       return capabilities.includes('submit-job');
     });
   }),
