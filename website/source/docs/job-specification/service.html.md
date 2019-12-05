@@ -567,13 +567,13 @@ job "example" {
 
       service {
         name = "ipv6-redis"
-        port = db
+        port = "db"
         check {
           name     = "ipv6-redis-check"
           type     = "tcp"
           interval = "10s"
           timeout  = "2s"
-          port     = db
+          port     = "db"
           address_mode = "driver"
         }
       }
