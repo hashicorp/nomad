@@ -32,7 +32,17 @@ export default EmberObject.extend(AbstractLogger, {
     let buffer = '';
 
     const decoder = new TextDecoder();
-    const reader = yield logFetch(url).then(res => res.body.getReader(), fetchFailure(url));
+    const reader = yield logFetch(url).then(res => {
+      const reader = res.body.getReader();
+      // It's possible that the logger was stopped between the time
+      // polling was started and the log request responded.
+      // If the logger was stopped, the reader needs to be immediately
+      // canceled to prevent an endless request running in the background.
+      if (this.poll.isRunning) {
+        return reader;
+      }
+      reader.cancel();
+    }, fetchFailure(url));
 
     if (!reader) {
       return;
