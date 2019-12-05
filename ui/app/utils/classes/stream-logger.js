@@ -28,10 +28,6 @@ export default EmberObject.extend(AbstractLogger, {
     const url = this.fullUrl;
     const logFetch = this.logFetch;
 
-    let streamClosed = false;
-    let buffer = '';
-
-    const decoder = new TextDecoder();
     const reader = yield logFetch(url).then(res => {
       const reader = res.body.getReader();
       // It's possible that the logger was stopped between the time
@@ -49,6 +45,10 @@ export default EmberObject.extend(AbstractLogger, {
     }
 
     this.set('reader', reader);
+
+    let streamClosed = false;
+    let buffer = '';
+    const decoder = new TextDecoder();
 
     while (!streamClosed) {
       yield reader.read().then(({ value, done }) => {
