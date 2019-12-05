@@ -27,6 +27,7 @@ export default create({
   },
 
   title: text('[data-test-title]'),
+  clientId: text('[data-test-node-id]'),
 
   statusLight: collection('[data-test-node-status]', {
     id: attribute('data-test-node-status'),
@@ -99,8 +100,10 @@ export default create({
     durationIsPresent: isPresent('[data-test-duration]'),
     duration: text('[data-test-duration]'),
     durationTooltip: attribute('aria-label', '[data-test-duration]'),
+    durationIsShown: isPresent('[data-test-duration]'),
     deadline: text('[data-test-deadline]'),
     deadlineTooltip: attribute('aria-label', '[data-test-deadline]'),
+    deadlineIsShown: isPresent('[data-test-deadline]'),
     forceDrainText: text('[data-test-force-drain-text]'),
     drainSystemJobsText: text('[data-test-drain-system-jobs-text]'),
 

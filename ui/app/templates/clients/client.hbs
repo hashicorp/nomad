@@ -101,7 +101,7 @@
             {{x-icon "info-circle-outline" class="is-faded"}}
           </span>
         </label>
-        <span class="tag is-hollow is-small no-text-transform">
+        <span data-test-node-id class="tag is-hollow is-small no-text-transform">
           {{model.id}}
           {{copy-button clipboardText=model.id}}
         </span>
@@ -178,15 +178,21 @@
             {{#if (not model.drainStrategy.hasNoDeadline)}}
               <span class="pair">
                 <span class="term">Duration</span>
-                <span data-test-duration class="tooltip" aria-label={{format-duration model.drainStrategy.deadline}}>
-                  {{format-duration model.drainStrategy.deadline}}
-                </span>
+                {{#if model.drainStrategy.isForced}}
+                  <span data-test-duration>--</span>
+                {{else}}
+                  <span data-test-duration class="tooltip" aria-label={{format-duration model.drainStrategy.deadline}}>
+                    {{format-duration model.drainStrategy.deadline}}
+                  </span>
+                {{/if}}
               </span>
             {{/if}}
             <span class="pair">
               <span class="term">{{if model.drainStrategy.hasNoDeadline "Deadline" "Remaining"}}</span>
               {{#if model.drainStrategy.hasNoDeadline}}
-                No deadline
+                <span data-test-deadline>No deadline</span>
+              {{else if model.drainStrategy.isForced}}
+                <span data-test-deadline>--</span>
               {{else}}
                 <span data-test-deadline class="tooltip" aria-label={{format-ts model.drainStrategy.forceDeadline}}>
                   {{moment-from-now model.drainStrategy.forceDeadline interval=1000 hideAffix=true}}

@@ -30,7 +30,7 @@ export default Route.extend(WithWatchers, {
   },
 
   setupController(controller, model) {
-    controller.set('flagAsDraining', model.isDraining);
+    controller.set('flagAsDraining', model && model.isDraining);
 
     return this._super(...arguments);
   },
