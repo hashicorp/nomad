@@ -1679,8 +1679,8 @@ func TestTask_Validate_CSIPluginConfig(t *testing.T) {
 		{
 			name: "requires valid plugin type",
 			pc: &TaskCSIPluginConfig{
-				PluginID:   "com.hashicorp.csi",
-				PluginType: "nonsense",
+				ID:   "com.hashicorp.csi",
+				Type: "nonsense",
 			},
 			expectedErr: "CSIPluginConfig PluginType must be one of 'node', 'controller', or 'monolith', got: \"nonsense\"",
 		},

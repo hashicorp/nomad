@@ -930,9 +930,9 @@ func ApiCSIPluginConfigToStructsCSIPluginConfig(apiConfig *api.TaskCSIPluginConf
 	}
 
 	sc := &structs.TaskCSIPluginConfig{}
-	sc.PluginID = apiConfig.PluginID
-	sc.PluginType = structs.CSIPluginType(apiConfig.PluginType)
-	sc.PluginMountDir = apiConfig.PluginMountDir
+	sc.ID = apiConfig.ID
+	sc.Type = structs.CSIPluginType(apiConfig.Type)
+	sc.MountDir = apiConfig.MountDir
 	return sc
 }
 
