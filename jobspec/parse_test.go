@@ -571,9 +571,9 @@ func TestParse(t *testing.T) {
 								Name:   "binstore",
 								Driver: "docker",
 								CSIPluginConfig: &api.TaskCSIPluginConfig{
-									PluginID:       "org.hashicorp.csi",
-									PluginType:     api.CSIPluginTypeMonolith,
-									PluginMountDir: "/csi/test",
+									ID:       "org.hashicorp.csi",
+									Type:     api.CSIPluginTypeMonolith,
+									MountDir: "/csi/test",
 								},
 							},
 						},
