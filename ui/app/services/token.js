@@ -42,13 +42,11 @@ export default Service.extend({
       if (this.selfToken) {
         return yield this.selfToken.get('policies');
       } else {
-        return yield this.store
-          .findRecord('policy', 'anonymous')
-          .then(policy => [policy])
-          .catch(() => []);
+        let policy = yield this.store.findRecord('policy', 'anonymous');
+        return [policy];
       }
     } catch (e) {
-      return null;
+      return [];
     }
   }),
 
