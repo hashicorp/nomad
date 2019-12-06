@@ -19,9 +19,9 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
-	"github.com/hashicorp/nomad/client/pluginregistry"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -195,9 +195,9 @@ type TaskRunner struct {
 	// handlers
 	driverManager drivermanager.Manager
 
-	// pluginRegistry is the pluginregistry dynamic plugins should be registered
+	// dynamicRegistry is the dynamicplugins dynamic plugins should be registered
 	// with.
-	pluginRegistry pluginregistry.Registry
+	dynamicRegistry dynamicplugins.Registry
 
 	// maxEvents is the capacity of the TaskEvents on the TaskState.
 	// Defaults to defaultMaxEvents but overrideable for testing.
@@ -229,9 +229,9 @@ type Config struct {
 	// ConsulSI is the client to use for managing Consul SI tokens
 	ConsulSI consul.ServiceIdentityAPI
 
-	// PluginRegistry is the pluginregistry dynamic plugins should be registered
+	// DynamicRegistry is the dynamicplugins dynamic plugins should be registered
 	// with.
-	PluginRegistry pluginregistry.Registry
+	DynamicRegistry dynamicplugins.Registry
 
 	// Vault is the client to use to derive and renew Vault tokens
 	Vault vaultclient.VaultClient
@@ -288,7 +288,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		taskName:            config.Task.Name,
 		taskLeader:          config.Task.Leader,
 		envBuilder:          envBuilder,
-		pluginRegistry:      config.PluginRegistry,
+		dynamicRegistry:     config.DynamicRegistry,
 		consulClient:        config.Consul,
 		siClient:            config.ConsulSI,
 		vaultClient:         config.Vault,
