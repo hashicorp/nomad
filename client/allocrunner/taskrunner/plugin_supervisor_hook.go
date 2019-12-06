@@ -89,7 +89,9 @@ func (*csiPluginSupervisorHook) Name() string {
 // plugin on the filesystem.
 func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	if err := os.MkdirAll(h.mountPoint, 0750); err != nil && !os.IsExist(err) {
+	// Create the mount directory that the container will access if it doesn't
+	// already exist. Default to only user access.
+	if err := os.MkdirAll(h.mountPoint, 0700); err != nil && !os.IsExist(err) {
 		return fmt.Errorf("failed to create mount point: %v", err)
 	}
 
@@ -137,8 +139,7 @@ func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.Tas
 //   frequent interval to ensure it is still alive, emitting task events when this
 //   status changes.
 //
-// Deeper fingerprinting of the plugin is not yet implemented, but may happen here
-// or in the plugin catalog in the future.
+// Deeper fingerprinting of the plugin is implemented by the csimanager.
 func (h *csiPluginSupervisorHook) ensureSupervisorLoop(ctx context.Context) {
 	h.runningLock.Lock()
 	if h.running == true {
@@ -182,6 +183,53 @@ WAITFORREADY:
 	}
 
 	// Step 2: Register the plugin with the catalog.
+	deregisterPluginFn, err := h.registerPlugin(socketPath)
+	if err != nil {
+		h.logger.Error("CSI Plugin registration failed", "error", err)
+		event := structs.NewTaskEvent(structs.TaskPluginUnhealthy)
+		event.SetMessage(fmt.Sprintf("failed to register plugin: %s, reason: %v", h.task.CSIPluginConfig.ID, err))
+		h.eventEmitter.EmitEvent(event)
+	}
+
+	// Step 3: Start the lightweight supervisor loop.
+	t.Reset(0)
+	for {
+		select {
+		case <-ctx.Done():
+			// De-register plugins on task shutdown
+			deregisterPluginFn()
+			return
+		case <-t.C:
+			pluginHealthy, err := h.supervisorLoopOnce(ctx, socketPath)
+			if err != nil {
+				h.logger.Error("CSI Plugin fingerprinting failed", "error", err)
+			}
+
+			// The plugin has transitioned to a healthy state. Emit an event.
+			if h.previousHealthState == false && pluginHealthy {
+				event := structs.NewTaskEvent(structs.TaskPluginHealthy)
+				event.SetMessage(fmt.Sprintf("plugin: %s", h.task.CSIPluginConfig.ID))
+				h.eventEmitter.EmitEvent(event)
+			}
+
+			// The plugin has transitioned to an unhealthy state. Emit an event.
+			if h.previousHealthState == true && !pluginHealthy {
+				event := structs.NewTaskEvent(structs.TaskPluginUnhealthy)
+				if err != nil {
+					event.SetMessage(fmt.Sprintf("error: %v", err))
+				} else {
+					event.SetMessage("Unknown Reason")
+				}
+				h.eventEmitter.EmitEvent(event)
+			}
+
+			h.previousHealthState = pluginHealthy
+			t.Reset(30 * time.Second)
+		}
+	}
+}
+
+func (h *csiPluginSupervisorHook) registerPlugin(socketPath string) (func(), error) {
 	mkInfoFn := func(pluginType string) *pluginregistry.PluginInfo {
 		return &pluginregistry.PluginInfo{
 			Type:    pluginType,
@@ -205,52 +253,29 @@ WAITFORREADY:
 		registrations = append(registrations, mkInfoFn(pluginregistry.PluginTypeCSINode))
 	}
 
+	deregistrationFns := []func(){}
+
 	for _, reg := range registrations {
 		if err := h.runner.pluginRegistry.RegisterPlugin(reg); err != nil {
-			h.logger.Error("CSI Plugin registration failed", "error", err)
-			event := structs.NewTaskEvent(structs.TaskPluginUnhealthy)
-			event.SetMessage(fmt.Sprintf("failed to register plugin: %s, reason: %v", h.task.CSIPluginConfig.ID, err))
-			h.eventEmitter.EmitEvent(event)
-			return
+			for _, fn := range deregistrationFns {
+				fn()
+			}
+			return nil, err
 		}
-	}
 
-	// Step 3: Start the lightweight supervisor loop.
-	t.Reset(0)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-			pluginHealthy, err := h.supervisorLoopOnce(ctx, socketPath)
+		deregistrationFns = append(deregistrationFns, func() {
+			err := h.runner.pluginRegistry.DeregisterPlugin(reg.Type, reg.Name)
 			if err != nil {
-				h.logger.Error("CSI Plugin fingerprinting failed", "error", err)
+				h.logger.Error("failed to deregister csi plugin", "name", reg.Name, "type", reg.Type, "error", err)
 			}
-
-			// The plugin has transitioned to a healthy state. Emit an event and inform
-			// the plugin catalog of the state.
-			if h.previousHealthState == false && pluginHealthy {
-				event := structs.NewTaskEvent(structs.TaskPluginHealthy)
-				event.SetMessage(fmt.Sprintf("plugin: %s", h.task.CSIPluginConfig.ID))
-				h.eventEmitter.EmitEvent(event)
-			}
-
-			// The plugin has transitioned to an unhealthy state. Emit an event and inform
-			// the plugin catalog of the state.
-			if h.previousHealthState == true && !pluginHealthy {
-				event := structs.NewTaskEvent(structs.TaskPluginUnhealthy)
-				if err != nil {
-					event.SetMessage(fmt.Sprintf("error: %v", err))
-				} else {
-					event.SetMessage("Unknown Reason")
-				}
-				h.eventEmitter.EmitEvent(event)
-			}
-
-			h.previousHealthState = pluginHealthy
-			t.Reset(30 * time.Second)
-		}
+		})
 	}
+
+	return func() {
+		for _, fn := range deregistrationFns {
+			fn()
+		}
+	}, nil
 }
 
 func (h *csiPluginSupervisorHook) supervisorLoopOnce(ctx context.Context, socketPath string) (bool, error) {
