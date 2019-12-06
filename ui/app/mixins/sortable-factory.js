@@ -1,0 +1,40 @@
+import Mixin from '@ember/object/mixin';
+import { computed } from '@ember/object';
+
+/**
+  Sortable mixin
+
+  Simple sorting behavior for a list of objects.
+
+  Properties to override:
+    - sortProperty: the property to sort by
+    - sortDescending: when true, the list is reversed
+    - listToSort: the list of objects to sort
+
+  Properties provided:
+    - listSorted: a copy of listToSort that has been sorted
+*/
+export default function sortableFactory(properties) {
+  const eachProperties = properties.map(property => `listToSort.@each.${property}`);
+
+  return Mixin.create({
+    // Override in mixin consumer
+    sortProperty: null,
+    sortDescending: true,
+    listToSort: computed(() => []),
+
+    listSorted: computed(
+      ...eachProperties,
+      'listToSort.[]',
+      'sortProperty',
+      'sortDescending',
+      function() {
+        const sorted = this.listToSort.compact().sortBy(this.sortProperty);
+        if (this.sortDescending) {
+          return sorted.reverse();
+        }
+        return sorted;
+      }
+    ),
+  });
+}

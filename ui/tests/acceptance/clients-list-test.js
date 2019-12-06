@@ -1,4 +1,4 @@
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -102,6 +102,23 @@ module('Acceptance | clients list', function(hooks) {
     assert.deepEqual(ClientsList.nodes.mapBy('state.text'), [
       'ready',
       'initializing',
+      'ineligible',
+      'draining',
+      'down',
+    ]);
+
+    // Simulate a client state change arriving through polling
+    let readyClient = this.owner
+      .lookup('service:store')
+      .peekAll('node')
+      .findBy('modifyIndex', 4);
+    readyClient.set('schedulingEligibility', 'ineligible');
+
+    await settled();
+
+    assert.deepEqual(ClientsList.nodes.mapBy('state.text'), [
+      'initializing',
+      'ineligible',
       'ineligible',
       'draining',
       'down',
