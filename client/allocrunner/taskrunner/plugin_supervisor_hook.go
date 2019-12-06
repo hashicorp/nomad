@@ -11,7 +11,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/client/pluginregistry"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -230,33 +230,33 @@ WAITFORREADY:
 }
 
 func (h *csiPluginSupervisorHook) registerPlugin(socketPath string) (func(), error) {
-	mkInfoFn := func(pluginType string) *pluginregistry.PluginInfo {
-		return &pluginregistry.PluginInfo{
+	mkInfoFn := func(pluginType string) *dynamicplugins.PluginInfo {
+		return &dynamicplugins.PluginInfo{
 			Type:    pluginType,
 			Name:    h.task.CSIPluginConfig.ID,
 			Version: "1.0.0",
-			ConnectionInfo: &pluginregistry.PluginConnectionInfo{
+			ConnectionInfo: &dynamicplugins.PluginConnectionInfo{
 				SocketPath: socketPath,
 			},
 		}
 	}
 
-	registrations := []*pluginregistry.PluginInfo{}
+	registrations := []*dynamicplugins.PluginInfo{}
 
 	switch h.task.CSIPluginConfig.Type {
 	case structs.CSIPluginTypeController:
-		registrations = append(registrations, mkInfoFn(pluginregistry.PluginTypeCSIController))
+		registrations = append(registrations, mkInfoFn(dynamicplugins.PluginTypeCSIController))
 	case structs.CSIPluginTypeNode:
-		registrations = append(registrations, mkInfoFn(pluginregistry.PluginTypeCSINode))
+		registrations = append(registrations, mkInfoFn(dynamicplugins.PluginTypeCSINode))
 	case structs.CSIPluginTypeMonolith:
-		registrations = append(registrations, mkInfoFn(pluginregistry.PluginTypeCSIController))
-		registrations = append(registrations, mkInfoFn(pluginregistry.PluginTypeCSINode))
+		registrations = append(registrations, mkInfoFn(dynamicplugins.PluginTypeCSIController))
+		registrations = append(registrations, mkInfoFn(dynamicplugins.PluginTypeCSINode))
 	}
 
 	deregistrationFns := []func(){}
 
 	for _, reg := range registrations {
-		if err := h.runner.pluginRegistry.RegisterPlugin(reg); err != nil {
+		if err := h.runner.dynamicRegistry.RegisterPlugin(reg); err != nil {
 			for _, fn := range deregistrationFns {
 				fn()
 			}
@@ -264,7 +264,7 @@ func (h *csiPluginSupervisorHook) registerPlugin(socketPath string) (func(), err
 		}
 
 		deregistrationFns = append(deregistrationFns, func() {
-			err := h.runner.pluginRegistry.DeregisterPlugin(reg.Type, reg.Name)
+			err := h.runner.dynamicRegistry.DeregisterPlugin(reg.Type, reg.Name)
 			if err != nil {
 				h.logger.Error("failed to deregister csi plugin", "name", reg.Name, "type", reg.Type, "error", err)
 			}
