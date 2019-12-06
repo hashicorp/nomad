@@ -415,13 +415,11 @@ func (s *HTTPServer) agentPprofReq(reqType profile.ReqType, profile string, resp
 	}
 
 	if rpcErr != nil {
+		// TODO: rpcErr should return codedErr
 		return nil, rpcErr
 	}
 
-	// resp.Write(reply.Payload)
-
 	return reply.Payload, nil
-	// return string(reply.Payload), rpcErr
 }
 
 // AgentServersRequest is used to query the list of servers used by the Nomad
