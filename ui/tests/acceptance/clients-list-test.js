@@ -98,7 +98,6 @@ module('Acceptance | clients list', function(hooks) {
 
     await ClientsList.sortBy('state');
 
-    // FIXME isn’t this the reverse of what’s expected?
     assert.deepEqual(ClientsList.nodes.mapBy('state.text'), [
       'ready',
       'initializing',
