@@ -18,6 +18,8 @@ import (
 
 var _ interfaces.TaskPrestartHook = &envoyBootstrapHook{}
 
+const envoyBaseAdminPort = 19000
+
 // envoyBootstrapHook writes the bootstrap config for the Connect Envoy proxy
 // sidecar.
 type envoyBootstrapHook struct {
@@ -76,12 +78,17 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 	//     the host netns.
 	grpcAddr := "unix://" + allocdir.AllocGRPCSocket
 
+	// Envoy runs an administrative API on the loopback interface. If multiple sidecars
+	// are running, the bind addresses need to have unique ports.
+	// TODO: support running in host netns, using freeport to find available port
+	envoyAdminBind := buildEnvoyAdminBind(h.alloc, req.Task.Name)
+
 	// Envoy bootstrap configuration may contain a Consul token, so write
 	// it to the secrets directory like Vault tokens.
 	fn := filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json")
 
 	id := agentconsul.MakeAllocServiceID(h.alloc.ID, "group-"+tg.Name, service)
-	h.logger.Debug("bootstrapping envoy", "sidecar_for", service.Name, "boostrap_file", fn, "sidecar_for_id", id, "grpc_addr", grpcAddr)
+	h.logger.Debug("bootstrapping envoy", "sidecar_for", service.Name, "boostrap_file", fn, "sidecar_for_id", id, "grpc_addr", grpcAddr, "admin_bind", envoyAdminBind)
 
 	// Since Consul services are registered asynchronously with this task
 	// hook running, retry a small number of times with backoff.
@@ -89,6 +96,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 		cmd := exec.CommandContext(ctx, "consul", "connect", "envoy",
 			"-grpc-addr", grpcAddr,
 			"-http-addr", h.consulHTTPAddr,
+			"-admin-bind", envoyAdminBind,
 			"-bootstrap",
 			"-sidecar-for", id,
 		)
@@ -147,4 +155,15 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 	// Bootstrap written. Mark as done and move on.
 	resp.Done = true
 	return nil
+}
+
+func buildEnvoyAdminBind(alloc *structs.Allocation, taskName string) string {
+	port := envoyBaseAdminPort
+	for idx, task := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks {
+		if task.Name == taskName {
+			port += idx
+			break
+		}
+	}
+	return fmt.Sprintf("localhost:%d", port)
 }
