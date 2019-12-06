@@ -155,6 +155,7 @@ deps:  ## Install build and development dependencies
 lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
 	go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+	go get -u github.com/client9/misspell/cmd/misspell
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
@@ -167,6 +168,7 @@ $(git-dir)/hooks/%: dev/hooks/%
 check: ## Lint the source code
 	@echo "==> Linting source code..."
 	@golangci-lint run -j 1
+
 	@echo "==> Spell checking website..."
 	@misspell -error -source=text website/source/
 
