@@ -11,6 +11,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -273,6 +274,86 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 	require.Len(out.TaskGroups[0].Tasks, 2)
 	require.Exactly(sidecarTask, out.TaskGroups[0].Tasks[1])
 
+}
+
+// TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse asserts that a job
+// submission fails allow_unauthenticated is false, and either an invalid or no
+// operator Consul token is provided.
+func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+		c.ConsulConfig.AllowUnauthenticated = helper.BoolToPtr(false)
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.TaskGroups[0].Networks = structs.Networks{
+		{
+			Mode: "bridge",
+		},
+	}
+	job.TaskGroups[0].Services = []*structs.Service{
+		{
+			Name:      "service1", // matches consul.ExamplePolicyID1
+			PortLabel: "8080",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+			},
+		},
+	}
+
+	newRequest := func(job *structs.Job) *structs.JobRegisterRequest {
+		return &structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: job.Namespace,
+			},
+		}
+	}
+
+	// Each variation of the provided Consul operator token
+	noOpToken := ""
+	unrecognizedOpToken := uuid.Generate()
+	unauthorizedOpToken := consul.ExampleOperatorToken3
+	authorizedOpToken := consul.ExampleOperatorToken1
+
+	t.Run("no token provided", func(t *testing.T) {
+		request := newRequest(job)
+		request.Job.ConsulToken = noOpToken
+		var response structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
+		require.EqualError(t, err, "operator token denied: unable to validate operator consul token: no such token")
+	})
+
+	t.Run("unknown token provided", func(t *testing.T) {
+		request := newRequest(job)
+		request.Job.ConsulToken = unrecognizedOpToken
+		var response structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
+		require.EqualError(t, err, "operator token denied: unable to validate operator consul token: no such token")
+	})
+
+	t.Run("unauthorized token provided", func(t *testing.T) {
+		request := newRequest(job)
+		request.Job.ConsulToken = unauthorizedOpToken
+		var response structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
+		require.EqualError(t, err, "operator token denied: permission denied for \"service1\"")
+	})
+
+	t.Run("authorized token provided", func(t *testing.T) {
+		request := newRequest(job)
+		request.Job.ConsulToken = authorizedOpToken
+		var response structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
+		require.NoError(t, err)
+	})
 }
 
 func TestJobEndpoint_Register_ACL(t *testing.T) {

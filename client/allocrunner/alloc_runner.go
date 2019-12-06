@@ -207,16 +207,15 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
 		config := &taskrunner.Config{
-			Alloc:        ar.alloc,
-			ClientConfig: ar.clientConfig,
-			Task:         task,
-			TaskDir:      ar.allocDir.NewTaskDir(task.Name),
-			Logger:       ar.logger,
-			StateDB:      ar.stateDB,
-			StateUpdater: ar,
-			Consul:       ar.consulClient,
-			ConsulSI:     ar.sidsClient,
-
+			Alloc:               ar.alloc,
+			ClientConfig:        ar.clientConfig,
+			Task:                task,
+			TaskDir:             ar.allocDir.NewTaskDir(task.Name),
+			Logger:              ar.logger,
+			StateDB:             ar.stateDB,
+			StateUpdater:        ar,
+			Consul:              ar.consulClient,
+			ConsulSI:            ar.sidsClient,
 			Vault:               ar.vaultClient,
 			DeviceStatsReporter: ar.deviceStatsReporter,
 			DeviceManager:       ar.devicemanager,

@@ -143,13 +143,18 @@ func DefaultConsulConfig() *ConsulConfig {
 
 // AllowsUnauthenticated returns whether the config allows unauthenticated
 // creation of Consul Service Identity tokens for Consul Connect enabled Tasks.
-func (a *ConsulConfig) AllowsUnauthenticated() bool {
-	return a.AllowUnauthenticated != nil && *a.AllowUnauthenticated
+//
+// If allow_unauthenticated is false, the operator must provide a token on
+// job submission (i.e. -consul-token or $CONSUL_TOKEN).
+//
+// todo: seems like we should be using this somewhere...
+func (c *ConsulConfig) AllowsUnauthenticated() bool {
+	return c.AllowUnauthenticated != nil && *c.AllowUnauthenticated
 }
 
 // Merge merges two Consul Configurations together.
-func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
-	result := a.Copy()
+func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
+	result := c.Copy()
 
 	if b.ServerServiceName != "" {
 		result.ServerServiceName = b.ServerServiceName

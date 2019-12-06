@@ -41,6 +41,7 @@ func init() {
 		evalTableSchema,
 		allocTableSchema,
 		vaultAccessorTableSchema,
+		siTokenAccessorTableSchema,
 		aclPolicyTableSchema,
 		aclTokenTableSchema,
 		autopilotConfigTableSchema,
@@ -67,7 +68,7 @@ func stateStoreSchema() *memdb.DBSchema {
 	return db
 }
 
-// indexTableSchema is used for
+// indexTableSchema is used for tracking the most recent index used for each table.
 func indexTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "index",
@@ -526,6 +527,44 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 				Unique:       true,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "Accessor",
+				},
+			},
+
+			"alloc_id": {
+				Name:         "alloc_id",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "AllocID",
+				},
+			},
+
+			"node_id": {
+				Name:         "node_id",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "NodeID",
+				},
+			},
+		},
+	}
+}
+
+// siTokenAccessorTableSchema returns the MemDB schema for the Service Identity
+// token accessor table. This table tracks accessors for tokens created on behalf
+// of allocations with Consul connect enabled tasks that need SI tokens.
+func siTokenAccessorTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: siTokenAccessorTable,
+		Indexes: map[string]*memdb.IndexSchema{
+			// The primary index is the accessor id
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "AccessorID",
 				},
 			},
 

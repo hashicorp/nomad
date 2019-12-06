@@ -382,6 +382,9 @@ func MaxParallelJob() *structs.Job {
 }
 
 // ConnectJob adds a Connect proxy sidecar group service to mock.Job.
+//
+// Note this does *not* include the Job.Register mutation that inserts the
+// associated Sidecar Task (nor the hook that configures envoy as the default).
 func ConnectJob() *structs.Job {
 	job := Job()
 	tg := job.TaskGroups[0]
@@ -399,6 +402,9 @@ func ConnectJob() *structs.Job {
 			},
 		},
 	}
+	tg.Networks = structs.Networks{{
+		Mode: "bridge", // always bridge ... for now?
+	}}
 	return job
 }
 
@@ -666,6 +672,100 @@ func ConnectAlloc() *structs.Allocation {
 	return alloc
 }
 
+func BatchConnectJob() *structs.Job {
+	job := &structs.Job{
+		Region:      "global",
+		ID:          fmt.Sprintf("mock-connect-batch-job%s", uuid.Generate()),
+		Name:        "mock-connect-batch-job",
+		Namespace:   structs.DefaultNamespace,
+		Type:        structs.JobTypeBatch,
+		Priority:    50,
+		AllAtOnce:   false,
+		Datacenters: []string{"dc1"},
+		TaskGroups: []*structs.TaskGroup{{
+			Name:          "mock-connect-batch-job",
+			Count:         1,
+			EphemeralDisk: &structs.EphemeralDisk{SizeMB: 150},
+			Networks: []*structs.NetworkResource{{
+				Mode: "bridge",
+			}},
+			Tasks: []*structs.Task{{
+				Name:   "connect-proxy-testconnect",
+				Kind:   "connect-proxy:testconnect",
+				Driver: "mock_driver",
+				Config: map[string]interface{}{
+					"run_for": "500ms",
+				},
+				LogConfig: structs.DefaultLogConfig(),
+				Resources: &structs.Resources{
+					CPU:      500,
+					MemoryMB: 256,
+					Networks: []*structs.NetworkResource{{
+						MBits:        50,
+						DynamicPorts: []structs.Port{{Label: "port1"}},
+					}},
+				},
+			}},
+			Services: []*structs.Service{{
+				Name: "testconnect",
+			}},
+		}},
+		Meta:           map[string]string{"owner": "shoenig"},
+		Status:         structs.JobStatusPending,
+		Version:        0,
+		CreateIndex:    42,
+		ModifyIndex:    99,
+		JobModifyIndex: 99,
+	}
+	if err := job.Canonicalize(); err != nil {
+		panic(err)
+	}
+	return job
+}
+
+// BatchConnectAlloc is useful for testing task runner things.
+func BatchConnectAlloc() *structs.Allocation {
+	alloc := &structs.Allocation{
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
+		Namespace: structs.DefaultNamespace,
+		TaskGroup: "mock-connect-batch-job",
+		TaskResources: map[string]*structs.Resources{
+			"connect-proxy-testconnect": {
+				CPU:      500,
+				MemoryMB: 256,
+			},
+		},
+
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"connect-proxy-testconnect": {
+					Cpu:    structs.AllocatedCpuResources{CpuShares: 500},
+					Memory: structs.AllocatedMemoryResources{MemoryMB: 256},
+				},
+			},
+			Shared: structs.AllocatedSharedResources{
+				Networks: []*structs.NetworkResource{{
+					Mode: "bridge",
+					IP:   "10.0.0.1",
+					DynamicPorts: []structs.Port{{
+						Label: "connect-proxy-testconnect",
+						Value: 9999,
+						To:    9999,
+					}},
+				}},
+				DiskMB: 0,
+			},
+		},
+		Job:           BatchConnectJob(),
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+	}
+	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
 func BatchAlloc() *structs.Allocation {
 	alloc := &structs.Allocation{
 		ID:        uuid.Generate(),
@@ -821,6 +921,15 @@ func VaultAccessor() *structs.VaultAccessor {
 		AllocID:     uuid.Generate(),
 		CreationTTL: 86400,
 		Task:        "foo",
+	}
+}
+
+func SITokenAccessor() *structs.SITokenAccessor {
+	return &structs.SITokenAccessor{
+		NodeID:     uuid.Generate(),
+		AllocID:    uuid.Generate(),
+		AccessorID: uuid.Generate(),
+		TaskName:   "foo",
 	}
 }
 
