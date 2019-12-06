@@ -6,9 +6,9 @@ import (
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
-	"github.com/hashicorp/nomad/client/pluginregistry"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -46,9 +46,9 @@ type Config struct {
 	// PrevAllocMigrator allows the migration of a previous allocations alloc dir
 	PrevAllocMigrator allocwatcher.PrevAllocMigrator
 
-	// PluginRegistry is the pluginregistry dynamic plugins should be registered
+	// dynamicRegistry is the dynamicplugins dynamic plugins should be registered
 	// with.
-	PluginRegistry pluginregistry.Registry
+	DynamicRegistry dynamicplugins.Registry
 
 	// DeviceManager is used to mount devices as well as lookup device
 	// statistics

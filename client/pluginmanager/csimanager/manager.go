@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/pluginmanager"
-	"github.com/hashicorp/nomad/client/pluginregistry"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // defaultPluginResyncPeriod is the time interval used to do a full resync
-// against the pluginregistry, to account for missed updates.
+// against the dynamicplugins, to account for missed updates.
 const defaultPluginResyncPeriod = 30 * time.Second
 
 // UpdateNodeCSIInfoFunc is the callback used to update the node from
@@ -21,13 +21,13 @@ type UpdateNodeCSIInfoFunc func(string, *structs.CSIInfo)
 
 type Config struct {
 	Logger                hclog.Logger
-	PluginRegistry        pluginregistry.Registry
+	DynamicRegistry       dynamicplugins.Registry
 	UpdateNodeCSIInfoFunc UpdateNodeCSIInfoFunc
 	PluginResyncPeriod    time.Duration
 }
 
 // New returns a new PluginManager that will handle managing CSI plugins from
-// the PluginRegistry from the provided Config.
+// the dynamicRegistry from the provided Config.
 func New(config *Config) pluginmanager.PluginManager {
 	// Use a dedicated internal context for managing plugin shutdown.
 	ctx, cancelFn := context.WithCancel(context.Background())
@@ -38,7 +38,7 @@ func New(config *Config) pluginmanager.PluginManager {
 
 	return &csiManager{
 		logger:    config.Logger,
-		registry:  config.PluginRegistry,
+		registry:  config.DynamicRegistry,
 		instances: make(map[string]map[string]*instanceManager),
 
 		updateNodeCSIInfoFunc: config.UpdateNodeCSIInfoFunc,
@@ -55,7 +55,7 @@ type csiManager struct {
 	// fn. It is a map of PluginType : [PluginName : instanceManager]
 	instances map[string]map[string]*instanceManager
 
-	registry           pluginregistry.Registry
+	registry           dynamicplugins.Registry
 	logger             hclog.Logger
 	pluginResyncPeriod time.Duration
 

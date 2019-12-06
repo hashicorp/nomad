@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/hashicorp/nomad/client/pluginregistry"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
@@ -17,7 +17,7 @@ func setupTestNodeInstanceManager(t *testing.T) (*fake.Client, *instanceManager)
 	tp := &fake.Client{}
 
 	logger := testlog.HCLogger(t)
-	pinfo := &pluginregistry.PluginInfo{
+	pinfo := &dynamicplugins.PluginInfo{
 		Name: "test-plugin",
 	}
 

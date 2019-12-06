@@ -27,11 +27,11 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
-	"github.com/hashicorp/nomad/client/pluginregistry"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/stats"
@@ -282,9 +282,9 @@ type Client struct {
 	serversContactedCh   chan struct{}
 	serversContactedOnce sync.Once
 
-	// pluginRegsitry provides access to plugins that are dynamically registered
+	// dynamicRegistry provides access to plugins that are dynamically registered
 	// with a nomad client. Currently only used for CSI.
-	pluginRegistry pluginregistry.Registry
+	dynamicRegistry dynamicplugins.Registry
 }
 
 var (
@@ -337,11 +337,11 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		invalidAllocs:        make(map[string]struct{}),
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
-		pluginRegistry: pluginregistry.New(map[string]pluginregistry.PluginDispenser{
-			pluginregistry.PluginTypeCSIController: func(info *pluginregistry.PluginInfo) (interface{}, error) {
+		dynamicRegistry: dynamicplugins.NewRegistry(map[string]dynamicplugins.PluginDispenser{
+			dynamicplugins.PluginTypeCSIController: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
 				return csi.NewClient(info.ConnectionInfo.SocketPath)
 			},
-			pluginregistry.PluginTypeCSINode: func(info *pluginregistry.PluginInfo) (interface{}, error) {
+			dynamicplugins.PluginTypeCSINode: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
 				return csi.NewClient(info.ConnectionInfo.SocketPath)
 			},
 		}),
@@ -401,7 +401,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Setup the csi manager
 	csiConfig := &csimanager.Config{
 		Logger:                c.logger,
-		PluginRegistry:        c.pluginRegistry,
+		DynamicRegistry:       c.dynamicRegistry,
 		UpdateNodeCSIInfoFunc: c.batchNodeUpdates.updateNodeFromCSI,
 	}
 	csiManager := csimanager.New(csiConfig)
@@ -1074,7 +1074,7 @@ func (c *Client) restoreState() error {
 			Vault:               c.vaultClient,
 			PrevAllocWatcher:    prevAllocWatcher,
 			PrevAllocMigrator:   prevAllocMigrator,
-			PluginRegistry:      c.pluginRegistry,
+			DynamicRegistry:     c.dynamicRegistry,
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
@@ -2332,7 +2332,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		DeviceStatsReporter: c,
 		PrevAllocWatcher:    prevAllocWatcher,
 		PrevAllocMigrator:   prevAllocMigrator,
-		PluginRegistry:      c.pluginRegistry,
+		DynamicRegistry:     c.dynamicRegistry,
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
 	}
