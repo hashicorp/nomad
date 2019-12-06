@@ -47,7 +47,7 @@ module('Acceptance | clients list', function(hooks) {
     assert.equal(nodeRow.allocations, allocations.length, '# Allocations');
   });
 
-  test('client status, draining, and eligibility are collapsed into one column', async function(assert) {
+  test('client status, draining, and eligibility are collapsed into one column that stays sorted', async function(assert) {
     server.createList('agent', 1);
 
     server.create('node', {
@@ -95,6 +95,17 @@ module('Acceptance | clients list', function(hooks) {
 
     assert.equal(ClientsList.nodes[4].state.text, 'draining');
     assert.ok(ClientsList.nodes[4].state.isInfo, 'expected info class');
+
+    await ClientsList.sortBy('state');
+
+    // FIXME isn’t this the reverse of what’s expected?
+    assert.deepEqual(ClientsList.nodes.mapBy('state.text'), [
+      'ready',
+      'initializing',
+      'ineligible',
+      'draining',
+      'down',
+    ]);
   });
 
   test('each client should link to the client detail page', async function(assert) {

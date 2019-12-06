@@ -64,4 +64,14 @@ export default Model.extend({
   compositeStatus: computed('status', 'isEligible', function() {
     return this.isEligible ? this.status : 'ineligible';
   }),
+
+  state: computed('isDraining', 'isEligible', 'status', function() {
+    if (this.isDraining) {
+      return 'draining';
+    } else if (!this.isEligible) {
+      return 'ineligible';
+    } else {
+      return this.status;
+    }
+  }),
 });
