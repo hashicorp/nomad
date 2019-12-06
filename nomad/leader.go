@@ -233,7 +233,13 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Activate the vault client
 	s.vault.SetActive(true)
-	if err := s.restoreRevokingAccessors(); err != nil {
+	// Cleanup orphaned Vault token accessors
+	if err := s.revokeVaultAccessorsOnRestore(); err != nil {
+		return err
+	}
+
+	// Cleanup orphaned Service Identity token accessors
+	if err := s.revokeSITokenAccessorsOnRestore(); err != nil {
 		return err
 	}
 
@@ -322,9 +328,9 @@ func (s *Server) restoreEvals() error {
 	return nil
 }
 
-// restoreRevokingAccessors is used to restore Vault accessors that should be
+// revokeVaultAccessorsOnRestore is used to restore Vault accessors that should be
 // revoked.
-func (s *Server) restoreRevokingAccessors() error {
+func (s *Server) revokeVaultAccessorsOnRestore() error {
 	// An accessor should be revoked if its allocation or node is terminal
 	ws := memdb.NewWatchSet()
 	state := s.fsm.State()
@@ -368,6 +374,53 @@ func (s *Server) restoreRevokingAccessors() error {
 	if len(revoke) != 0 {
 		if err := s.vault.RevokeTokens(context.Background(), revoke, true); err != nil {
 			return fmt.Errorf("failed to revoke tokens: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// revokeSITokenAccessorsOnRestore is used to revoke Service Identity token
+// accessors on behalf of allocs that are now gone / terminal.
+func (s *Server) revokeSITokenAccessorsOnRestore() error {
+	ws := memdb.NewWatchSet()
+	fsmState := s.fsm.State()
+	iter, err := fsmState.SITokenAccessors(ws)
+	if err != nil {
+		return errors.Wrap(err, "failed to get SI token accessors")
+	}
+
+	var toRevoke []*structs.SITokenAccessor
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		accessor := raw.(*structs.SITokenAccessor)
+
+		// Check the allocation
+		alloc, err := fsmState.AllocByID(ws, accessor.AllocID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to lookup alloc %q", accessor.AllocID)
+		}
+		if alloc == nil || alloc.Terminated() {
+			// no longer running and associated accessors should be revoked
+			toRevoke = append(toRevoke, accessor)
+			continue
+		}
+
+		// Check the node
+		node, err := fsmState.NodeByID(ws, accessor.NodeID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to lookup node %q", accessor.NodeID)
+		}
+		if node == nil || node.TerminalStatus() {
+			// node is terminal and associated accessors should be revoked
+			toRevoke = append(toRevoke, accessor)
+			continue
+		}
+	}
+
+	if len(toRevoke) > 0 {
+		ctx := context.Background()
+		if err := s.consulACLs.RevokeTokens(ctx, toRevoke); err != nil {
+			return errors.Wrap(err, "failed to revoke SI tokens")
 		}
 	}
 

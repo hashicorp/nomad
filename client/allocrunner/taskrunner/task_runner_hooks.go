@@ -107,11 +107,12 @@ func (tr *TaskRunner) initHooks() {
 		}))
 	}
 
-	if usesConnect(tr.alloc.Job.LookupTaskGroup(tr.alloc.TaskGroup)) {
+	if task.UsesConnect() {
 		tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
 			alloc:      tr.Alloc(),
 			task:       tr.Task(),
 			sidsClient: tr.siClient,
+			lifecycle:  tr,
 			logger:     hookLogger,
 		}))
 	}
@@ -124,15 +125,6 @@ func (tr *TaskRunner) initHooks() {
 		logger: hookLogger,
 	})
 	tr.runnerHooks = append(tr.runnerHooks, scriptCheckHook)
-}
-
-func usesConnect(tg *structs.TaskGroup) bool {
-	for _, service := range tg.Services {
-		if service.Connect != nil {
-			return true
-		}
-	}
-	return false
 }
 
 func (tr *TaskRunner) emitHookError(err error, hookName string) {

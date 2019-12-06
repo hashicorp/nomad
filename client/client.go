@@ -1050,7 +1050,7 @@ func (c *Client) restoreState() error {
 			StateUpdater:        c,
 			DeviceStatsReporter: c,
 			Consul:              c.consulService,
-			ConsulSI:            c.tokensClient, // todo(shoenig), keep plumbing!
+			ConsulSI:            c.tokensClient,
 			Vault:               c.vaultClient,
 			PrevAllocWatcher:    prevAllocWatcher,
 			PrevAllocMigrator:   prevAllocMigrator,
@@ -2300,7 +2300,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		ClientConfig:        c.configCopy,
 		StateDB:             c.stateDB,
 		Consul:              c.consulService,
-		ConsulSI:            c.tokensClient, // todo(shoenig), keep plumbing!
+		ConsulSI:            c.tokensClient,
 		Vault:               c.vaultClient,
 		StateUpdater:        c,
 		DeviceStatsReporter: c,
@@ -2445,6 +2445,7 @@ func (c *Client) deriveSIToken(alloc *structs.Allocation, taskNames []string) (m
 
 	req := &structs.DeriveSITokenRequest{
 		NodeID:       c.NodeID(),
+		SecretID:     c.secretNodeID(),
 		AllocID:      alloc.ID,
 		Tasks:        tasks,
 		QueryOptions: structs.QueryOptions{Region: c.Region()},

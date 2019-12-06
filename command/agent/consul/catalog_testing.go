@@ -4,19 +4,17 @@ import (
 	"fmt"
 	"sync"
 
-	log "github.com/hashicorp/go-hclog"
-
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/go-hclog"
 )
 
 // MockCatalog can be used for testing where the CatalogAPI is needed.
 type MockCatalog struct {
-	logger log.Logger
+	logger hclog.Logger
 }
 
-func NewMockCatalog(l log.Logger) *MockCatalog {
-	l = l.Named("mock_consul")
-	return &MockCatalog{logger: l}
+func NewMockCatalog(l hclog.Logger) *MockCatalog {
+	return &MockCatalog{logger: l.Named("mock_consul")}
 }
 
 func (m *MockCatalog) Datacenters() ([]string, error) {

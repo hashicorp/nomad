@@ -67,8 +67,7 @@ func (vc *MockVaultClient) SetDeriveTokenError(allocID string, tasks []string, e
 		vc.deriveTokenErrors = make(map[string]map[string]error, 10)
 	}
 
-	// todo(shoenig): this seems like a bug
-	if _, ok := vc.renewTokenErrors[allocID]; !ok {
+	if _, ok := vc.deriveTokenErrors[allocID]; !ok {
 		vc.deriveTokenErrors[allocID] = make(map[string]error, 10)
 	}
 

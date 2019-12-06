@@ -42,7 +42,7 @@ var (
 	}
 )
 
-// jobConnectHook implements a job  Mutating and Validating admission controller
+// jobConnectHook implements a job Mutating and Validating admission controller
 type jobConnectHook struct{}
 
 func (jobConnectHook) Name() string {

@@ -64,6 +64,9 @@ type Agent struct {
 	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
 	consulCatalog consul.CatalogAPI
 
+	// consulACLs is Nomad's subset of Consul's ACL API Nomad uses.
+	consulACLs consul.ACLsAPI
+
 	// client is the launched Nomad Client. Can be nil if the agent isn't
 	// configured to run a client.
 	client *client.Client
@@ -584,7 +587,7 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Create the server
-	server, err := nomad.NewServer(conf, a.consulCatalog)
+	server, err := nomad.NewServer(conf, a.consulCatalog, a.consulACLs)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
@@ -1023,10 +1026,11 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 		return err
 	}
 
-	// Determine version for TLSSkipVerify
-
 	// Create Consul Catalog client for service discovery.
 	a.consulCatalog = client.Catalog()
+
+	// Create Consul ACL client for managing tokens.
+	a.consulACLs = client.ACL()
 
 	// Create Consul Service client for service advertisement and checks.
 	isClient := false

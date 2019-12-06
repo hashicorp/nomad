@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -332,16 +333,25 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 		}
 
 		// Determine if there are any Vault accessors on the node
-		accessors, err := snap.VaultAccessorsByNode(ws, nodeID)
-		if err != nil {
-			n.logger.Error("looking up accessors for node failed", "node_id", nodeID, "error", err)
+		if accessors, err := snap.VaultAccessorsByNode(ws, nodeID); err != nil {
+			n.logger.Error("looking up vault accessors for node failed", "node_id", nodeID, "error", err)
 			return err
+		} else if l := len(accessors); l > 0 {
+			n.logger.Debug("revoking vault accessors on node due to deregister", "num_accessors", l, "node_id", nodeID)
+			if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
+				n.logger.Error("revoking vault accessors for node failed", "node_id", nodeID, "error", err)
+				return err
+			}
 		}
 
-		if l := len(accessors); l != 0 {
-			n.logger.Debug("revoking accessors on node due to deregister", "num_accessors", l, "node_id", nodeID)
-			if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
-				n.logger.Error("revoking accessors for node failed", "node_id", nodeID, "error", err)
+		// Determine if there are any SI token accessors on the node
+		if accessors, err := snap.SITokenAccessorsByNode(ws, nodeID); err != nil {
+			n.logger.Error("looking up si accessors for node failed", "node_id", nodeID, "error", err)
+			return err
+		} else if l := len(accessors); l > 0 {
+			n.logger.Debug("revoking si accessors on node due to deregister", "num_accessors", l, "node_id", nodeID)
+			if err := n.srv.consulACLs.RevokeTokens(context.Background(), accessors); err != nil {
+				n.logger.Error("revoking si accessors for node failed", "node_id", nodeID, "error", err)
 				return err
 			}
 		}
@@ -444,17 +454,26 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	// Check if we need to setup a heartbeat
 	switch args.Status {
 	case structs.NodeStatusDown:
-		// Determine if there are any Vault accessors on the node
-		accessors, err := n.srv.State().VaultAccessorsByNode(ws, args.NodeID)
-		if err != nil {
-			n.logger.Error("looking up accessors for node failed", "node_id", args.NodeID, "error", err)
+		// Determine if there are any Vault accessors on the node to cleanup
+		if accessors, err := n.srv.State().VaultAccessorsByNode(ws, args.NodeID); err != nil {
+			n.logger.Error("looking up vault accessors for node failed", "node_id", args.NodeID, "error", err)
 			return err
+		} else if l := len(accessors); l > 0 {
+			n.logger.Debug("revoking vault accessors on node due to down state", "num_accessors", l, "node_id", args.NodeID)
+			if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
+				n.logger.Error("revoking vault accessors for node failed", "node_id", args.NodeID, "error", err)
+				return err
+			}
 		}
 
-		if l := len(accessors); l != 0 {
-			n.logger.Debug("revoking accessors on node due to down state", "num_accessors", l, "node_id", args.NodeID)
-			if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
-				n.logger.Error("revoking accessors for node failed", "node_id", args.NodeID, "error", err)
+		// Determine if there are any SI token accessors on the node to cleanup
+		if accessors, err := n.srv.State().SITokenAccessorsByNode(ws, args.NodeID); err != nil {
+			n.logger.Error("looking up si accessors for node failed", "node_id", args.NodeID, "error", err)
+			return err
+		} else if l := len(accessors); l > 0 {
+			n.logger.Debug("revoking si accessors on node due to down state", "num_accessors", l, "node_id", args.NodeID)
+			if err := n.srv.consulACLs.RevokeTokens(context.Background(), accessors); err != nil {
+				n.logger.Error("revoking si accessors for node failed", "node_id", args.NodeID, "error", err)
 				return err
 			}
 		}
@@ -1174,30 +1193,53 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
-	// For each allocation we are updating check if we should revoke any
-	// Vault Accessors
-	var revoke []*structs.VaultAccessor
+	// For each allocation we are updating, check if we should revoke any
+	// - Vault token accessors
+	// - Service Identity token accessors
+	var (
+		revokeVault []*structs.VaultAccessor
+		revokeSI    []*structs.SITokenAccessor
+	)
+
 	for _, alloc := range updates {
 		// Skip any allocation that isn't dead on the client
 		if !alloc.Terminated() {
 			continue
 		}
 
-		// Determine if there are any Vault accessors for the allocation
 		ws := memdb.NewWatchSet()
-		accessors, err := n.srv.State().VaultAccessorsByAlloc(ws, alloc.ID)
-		if err != nil {
-			n.logger.Error("looking up Vault accessors for alloc failed", "alloc_id", alloc.ID, "error", err)
+
+		// Determine if there are any orphaned Vault accessors for the allocation
+		if accessors, err := n.srv.State().VaultAccessorsByAlloc(ws, alloc.ID); err != nil {
+			n.logger.Error("looking up vault accessors for alloc failed", "alloc_id", alloc.ID, "error", err)
 			mErr.Errors = append(mErr.Errors, err)
+		} else {
+			revokeVault = append(revokeVault, accessors...)
 		}
 
-		revoke = append(revoke, accessors...)
+		// Determine if there are any orphaned SI accessors for the allocation
+		if accessors, err := n.srv.State().SITokenAccessorsByAlloc(ws, alloc.ID); err != nil {
+			n.logger.Error("looking up si accessors for alloc failed", "alloc_id", alloc.ID, "error", err)
+			mErr.Errors = append(mErr.Errors, err)
+		} else {
+			revokeSI = append(revokeSI, accessors...)
+		}
 	}
 
-	if l := len(revoke); l != 0 {
-		n.logger.Debug("revoking accessors due to terminal allocations", "num_accessors", l)
-		if err := n.srv.vault.RevokeTokens(context.Background(), revoke, true); err != nil {
-			n.logger.Error("batched Vault accessor revocation failed", "error", err)
+	// Revoke any orphaned Vault accessors
+	if l := len(revokeVault); l > 0 {
+		n.logger.Debug("revoking vault accessors due to terminal allocations", "num_accessors", l)
+		if err := n.srv.vault.RevokeTokens(context.Background(), revokeVault, true); err != nil {
+			n.logger.Error("batched vault accessor revocation failed", "error", err)
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
+	// Revoke any orphaned SI accessors
+	if l := len(revokeSI); l > 0 {
+		n.logger.Debug("revoking si accessors due to terminal allocations", "num_accessors", l)
+		if err := n.srv.consulACLs.RevokeTokens(context.Background(), revokeSI); err != nil {
+			n.logger.Error("batched si accessor revocation failed", "error", err)
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -1369,102 +1411,94 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 
 // DeriveVaultToken is used by the clients to request wrapped Vault tokens for
 // tasks
-func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
-	reply *structs.DeriveVaultTokenResponse) error {
-
-	// setErr is a helper for setting the recoverable error on the reply and
-	// logging it
-	setErr := func(e error, recoverable bool) {
-		if e == nil {
-			return
+func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *structs.DeriveVaultTokenResponse) error {
+	setError := func(e error, recoverable bool) {
+		if e != nil {
+			if re, ok := e.(*structs.RecoverableError); ok {
+				reply.Error = re // No need to wrap if error is already a RecoverableError
+			} else {
+				reply.Error = structs.NewRecoverableError(e, recoverable).(*structs.RecoverableError)
+			}
+			n.logger.Error("DeriveVaultToken failed", "recoverable", recoverable, "error", e)
 		}
-		re, ok := e.(*structs.RecoverableError)
-		if ok {
-			// No need to wrap if error is already a RecoverableError
-			reply.Error = re
-		} else {
-			reply.Error = structs.NewRecoverableError(e, recoverable).(*structs.RecoverableError)
-		}
-
-		n.logger.Error("DeriveVaultToken failed", "recoverable", recoverable, "error", e)
 	}
 
 	if done, err := n.srv.forward("Node.DeriveVaultToken", args, args, reply); done {
-		setErr(err, structs.IsRecoverable(err) || err == structs.ErrNoLeader)
+		setError(err, structs.IsRecoverable(err) || err == structs.ErrNoLeader)
 		return nil
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "derive_vault_token"}, time.Now())
 
 	// Verify the arguments
 	if args.NodeID == "" {
-		setErr(fmt.Errorf("missing node ID"), false)
+		setError(fmt.Errorf("missing node ID"), false)
 		return nil
 	}
 	if args.SecretID == "" {
-		setErr(fmt.Errorf("missing node SecretID"), false)
+		setError(fmt.Errorf("missing node SecretID"), false)
 		return nil
 	}
 	if args.AllocID == "" {
-		setErr(fmt.Errorf("missing allocation ID"), false)
+		setError(fmt.Errorf("missing allocation ID"), false)
 		return nil
 	}
 	if len(args.Tasks) == 0 {
-		setErr(fmt.Errorf("no tasks specified"), false)
+		setError(fmt.Errorf("no tasks specified"), false)
 		return nil
 	}
 
 	// Verify the following:
 	// * The Node exists and has the correct SecretID
-	// * The Allocation exists on the specified node
-	// * The allocation contains the given tasks and they each require Vault
+	// * The Allocation exists on the specified Node
+	// * The Allocation contains the given tasks and they each require Vault
 	//   tokens
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
-		setErr(err, false)
+		setError(err, false)
 		return nil
 	}
 	ws := memdb.NewWatchSet()
 	node, err := snap.NodeByID(ws, args.NodeID)
 	if err != nil {
-		setErr(err, false)
+		setError(err, false)
 		return nil
 	}
 	if node == nil {
-		setErr(fmt.Errorf("Node %q does not exist", args.NodeID), false)
+		setError(fmt.Errorf("Node %q does not exist", args.NodeID), false)
 		return nil
 	}
 	if node.SecretID != args.SecretID {
-		setErr(fmt.Errorf("SecretID mismatch"), false)
+		setError(fmt.Errorf("SecretID mismatch"), false)
 		return nil
 	}
 
 	alloc, err := snap.AllocByID(ws, args.AllocID)
 	if err != nil {
-		setErr(err, false)
+		setError(err, false)
 		return nil
 	}
 	if alloc == nil {
-		setErr(fmt.Errorf("Allocation %q does not exist", args.AllocID), false)
+		setError(fmt.Errorf("Allocation %q does not exist", args.AllocID), false)
 		return nil
 	}
 	if alloc.NodeID != args.NodeID {
-		setErr(fmt.Errorf("Allocation %q not running on Node %q", args.AllocID, args.NodeID), false)
+		setError(fmt.Errorf("Allocation %q not running on Node %q", args.AllocID, args.NodeID), false)
 		return nil
 	}
 	if alloc.TerminalStatus() {
-		setErr(fmt.Errorf("Can't request Vault token for terminal allocation"), false)
+		setError(fmt.Errorf("Can't request Vault token for terminal allocation"), false)
 		return nil
 	}
 
 	// Check the policies
 	policies := alloc.Job.VaultPolicies()
 	if policies == nil {
-		setErr(fmt.Errorf("Job doesn't require Vault policies"), false)
+		setError(fmt.Errorf("Job doesn't require Vault policies"), false)
 		return nil
 	}
 	tg, ok := policies[alloc.TaskGroup]
 	if !ok {
-		setErr(fmt.Errorf("Task group does not require Vault policies"), false)
+		setError(fmt.Errorf("Task group does not require Vault policies"), false)
 		return nil
 	}
 
@@ -1479,7 +1513,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	if len(unneeded) != 0 {
 		e := fmt.Errorf("Requested Vault tokens for tasks without defined Vault policies: %s",
 			strings.Join(unneeded, ", "))
-		setErr(e, false)
+		setError(e, false)
 		return nil
 	}
 
@@ -1532,7 +1566,6 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 			case input <- task:
 			}
 		}
-
 	}()
 
 	// Wait for everything to complete or for an error
@@ -1585,7 +1618,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 			retry = true
 		}
 
-		setErr(err, retry)
+		setError(err, retry)
 		return nil
 	}
 
@@ -1593,6 +1626,244 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest,
 	reply.Tasks = tokens
 	n.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
+}
+
+func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.DeriveSITokenResponse) error {
+	setError := func(e error, recoverable bool) {
+		if e != nil {
+			if re, ok := e.(*structs.RecoverableError); ok {
+				reply.Error = re // No need to wrap if error is already a RecoverableError
+			} else {
+				reply.Error = structs.NewRecoverableError(e, recoverable).(*structs.RecoverableError)
+			}
+			n.logger.Error("DeriveSIToken failed", "recoverable", recoverable, "error", e)
+		}
+	}
+
+	if done, err := n.srv.forward("Node.DeriveSIToken", args, args, reply); done {
+		setError(err, structs.IsRecoverable(err) || err == structs.ErrNoLeader)
+		return nil
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "derive_si_token"}, time.Now())
+
+	// Verify the arguments
+	if err := args.Validate(); err != nil {
+		setError(err, false)
+		return nil
+	}
+
+	// Get the ClusterID
+	clusterID, err := n.srv.ClusterID()
+	if err != nil {
+		setError(err, false)
+		return nil
+	}
+
+	// Verify the following:
+	// * The Node exists and has the correct SecretID.
+	// * The Allocation exists on the specified Node.
+	// * The Allocation contains the given tasks, and each task requires a
+	//   SI token.
+
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		setError(err, false)
+		return nil
+	}
+	node, err := snap.NodeByID(nil, args.NodeID)
+	if err != nil {
+		setError(err, false)
+		return nil
+	}
+	if node == nil {
+		setError(errors.Errorf("Node %q does not exist", args.NodeID), false)
+		return nil
+	}
+	if node.SecretID != args.SecretID {
+		setError(errors.Errorf("SecretID mismatch"), false)
+		return nil
+	}
+
+	alloc, err := snap.AllocByID(nil, args.AllocID)
+	if err != nil {
+		setError(err, false)
+		return nil
+	}
+	if alloc == nil {
+		setError(errors.Errorf("Allocation %q does not exist", args.AllocID), false)
+		return nil
+	}
+	if alloc.NodeID != args.NodeID {
+		setError(errors.Errorf("Allocation %q not running on node %q", args.AllocID, args.NodeID), false)
+		return nil
+	}
+	if alloc.TerminalStatus() {
+		setError(errors.Errorf("Cannot request SI token for terminal allocation"), false)
+		return nil
+	}
+
+	// make sure task group contains at least one connect enabled service
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		setError(errors.Errorf("Allocation %q does not contain TaskGroup %q", args.AllocID, alloc.TaskGroup), false)
+		return nil
+	}
+	if !tgUsesConnect(tg) {
+		setError(errors.Errorf("TaskGroup %q does not use Connect", tg.Name), false)
+		return nil
+	}
+
+	// make sure each task in args.Tasks is a connect-enabled task
+	unneeded := tasksNotUsingConnect(tg, args.Tasks)
+	if len(unneeded) > 0 {
+		setError(fmt.Errorf(
+			"Requested Consul Service Identity tokens for tasks that are not Connect enabled: %v",
+			strings.Join(unneeded, ", "),
+		), false)
+	}
+
+	// At this point the request is valid and we should contact Consul for tokens.
+
+	// A lot of the following is copied from DeriveVaultToken which has been
+	// working fine for years.
+
+	// Create an error group where we will spin up a fixed set of goroutines to
+	// handle deriving tokens but where if any fails the whole group is
+	// canceled.
+	g, ctx := errgroup.WithContext(context.Background())
+
+	// Cap the worker threads
+	numWorkers := len(args.Tasks)
+	if numWorkers > maxParallelRequestsPerDerive {
+		numWorkers = maxParallelRequestsPerDerive
+	}
+
+	// would like to pull some of this out...
+
+	// Create the SI tokens
+	input := make(chan string, numWorkers)
+	results := make(map[string]*structs.SIToken, numWorkers)
+	for i := 0; i < numWorkers; i++ {
+		g.Go(func() error {
+			for {
+				select {
+				case task, ok := <-input:
+					if !ok {
+						return nil
+					}
+					sii := ServiceIdentityIndex{
+						ClusterID: clusterID,
+						AllocID:   alloc.ID,
+						TaskName:  task,
+					}
+					secret, err := n.srv.consulACLs.CreateToken(ctx, sii)
+					if err != nil {
+						return err
+					}
+					results[task] = secret
+				case <-ctx.Done():
+					return nil
+				}
+			}
+		})
+	}
+
+	// Send the input
+	go func() {
+		defer close(input)
+		for _, task := range args.Tasks {
+			select {
+			case <-ctx.Done():
+				return
+			case input <- task:
+			}
+		}
+	}()
+
+	// Wait for everything to complete or for an error
+	createErr := g.Wait()
+
+	accessors := make([]*structs.SITokenAccessor, 0, len(results))
+	tokens := make(map[string]string, len(results))
+	for task, secret := range results {
+		tokens[task] = secret.SecretID
+		accessor := &structs.SITokenAccessor{
+			NodeID:     alloc.NodeID,
+			AllocID:    alloc.ID,
+			TaskName:   task,
+			AccessorID: secret.AccessorID,
+		}
+		accessors = append(accessors, accessor)
+	}
+
+	// If there was an error, revoke all created tokens.
+	if createErr != nil {
+		n.logger.Error("Consul Service Identity token creation for alloc failed", "alloc_id", alloc.ID, "error", createErr)
+		if revokeErr := n.srv.consulACLs.RevokeTokens(context.Background(), accessors); revokeErr != nil {
+			n.logger.Error("Consul Service Identity token revocation for alloc failed", "alloc_id", alloc.ID, "error", revokeErr)
+		}
+
+		if recoverable, ok := createErr.(*structs.RecoverableError); ok {
+			reply.Error = recoverable
+		} else {
+			reply.Error = structs.NewRecoverableError(createErr, false).(*structs.RecoverableError)
+		}
+
+		return nil
+	}
+
+	// Commit the derived tokens to raft before returning them
+	requested := structs.SITokenAccessorsRequest{Accessors: accessors}
+	_, index, err := n.srv.raftApply(structs.ServiceIdentityAccessorRegisterRequestType, &requested)
+	if err != nil {
+		n.logger.Error("registering Service Identity token accessors for alloc failed", "alloc_id", alloc.ID, "error", err)
+
+		// Determine if we can recover from the error
+		retry := false
+		switch err {
+		case raft.ErrNotLeader, raft.ErrLeadershipLost, raft.ErrRaftShutdown, raft.ErrEnqueueTimeout:
+			retry = true
+		}
+		setError(err, retry)
+		return nil
+	}
+
+	// We made it! Now we can set the reply.
+	reply.Index = index
+	reply.Tokens = tokens
+	n.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
+func tgUsesConnect(tg *structs.TaskGroup) bool {
+	for _, service := range tg.Services {
+		if service.Connect != nil {
+			if service.Connect.Native || service.Connect.SidecarService != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func tasksNotUsingConnect(tg *structs.TaskGroup, tasks []string) []string {
+	var unneeded []string
+	for _, task := range tasks {
+		tgTask := tg.LookupTask(task)
+		if !taskUsesConnect(tgTask) {
+			unneeded = append(unneeded, task)
+		}
+	}
+	return unneeded
+}
+
+func taskUsesConnect(task *structs.Task) bool {
+	if task == nil {
+		// not even in the task group
+		return false
+	}
+	// todo(shoenig): TBD what Kind does a native task have?
+	return task.Kind.IsConnectProxy()
 }
 
 func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {

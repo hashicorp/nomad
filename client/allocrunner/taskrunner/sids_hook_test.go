@@ -95,10 +95,11 @@ func TestSIDSHook_computeBackoff(t *testing.T) {
 	}
 
 	try(0, time.Duration(0))
-	try(1, 20*time.Second)
-	try(2, 80*time.Second)
-	try(3, 320*time.Second)
-	try(4, sidsBackoffLimit)
+	try(1, 100*time.Millisecond)
+	try(2, 10*time.Second)
+	try(3, 15*time.Second)
+	try(4, 20*time.Second)
+	try(5, 25*time.Second)
 }
 
 func TestSIDSHook_backoff(t *testing.T) {
