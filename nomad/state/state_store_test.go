@@ -6793,6 +6793,201 @@ func TestStateStore_RestoreVaultAccessor(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpsertSITokenAccessors(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	state := testStateStore(t)
+	a1 := mock.SITokenAccessor()
+	a2 := mock.SITokenAccessor()
+
+	ws := memdb.NewWatchSet()
+	var err error
+
+	_, err = state.SITokenAccessor(ws, a1.AccessorID)
+	r.NoError(err)
+
+	_, err = state.SITokenAccessor(ws, a2.AccessorID)
+	r.NoError(err)
+
+	err = state.UpsertSITokenAccessors(1000, []*structs.SITokenAccessor{a1, a2})
+	r.NoError(err)
+
+	wsFired := watchFired(ws)
+	r.True(wsFired)
+
+	noInsertWS := memdb.NewWatchSet()
+	result1, err := state.SITokenAccessor(noInsertWS, a1.AccessorID)
+	r.NoError(err)
+	r.Equal(a1, result1)
+
+	result2, err := state.SITokenAccessor(noInsertWS, a2.AccessorID)
+	r.NoError(err)
+	r.Equal(a2, result2)
+
+	iter, err := state.SITokenAccessors(noInsertWS)
+	r.NoError(err)
+
+	count := 0
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		count++
+		accessor := raw.(*structs.SITokenAccessor)
+		// iterator is sorted by dynamic UUID
+		matches := reflect.DeepEqual(a1, accessor) || reflect.DeepEqual(a2, accessor)
+		r.True(matches)
+	}
+	r.Equal(2, count)
+
+	index, err := state.Index(siTokenAccessorTable)
+	r.NoError(err)
+	r.Equal(uint64(1000), index)
+
+	noInsertWSFired := watchFired(noInsertWS)
+	r.False(noInsertWSFired)
+}
+
+func TestStateStore_DeleteSITokenAccessors(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	state := testStateStore(t)
+	a1 := mock.SITokenAccessor()
+	a2 := mock.SITokenAccessor()
+	accessors := []*structs.SITokenAccessor{a1, a2}
+	var err error
+
+	err = state.UpsertSITokenAccessors(1000, accessors)
+	r.NoError(err)
+
+	ws := memdb.NewWatchSet()
+	_, err = state.SITokenAccessor(ws, a1.AccessorID)
+	r.NoError(err)
+
+	err = state.DeleteSITokenAccessors(1001, accessors)
+	r.NoError(err)
+
+	wsFired := watchFired(ws)
+	r.True(wsFired)
+
+	wsPostDelete := memdb.NewWatchSet()
+
+	result1, err := state.SITokenAccessor(wsPostDelete, a1.AccessorID)
+	r.NoError(err)
+	r.Nil(result1) // was deleted
+
+	result2, err := state.SITokenAccessor(wsPostDelete, a2.AccessorID)
+	r.NoError(err)
+	r.Nil(result2) // was deleted
+
+	index, err := state.Index(siTokenAccessorTable)
+	r.NoError(err)
+	r.Equal(uint64(1001), index)
+
+	wsPostDeleteFired := watchFired(wsPostDelete)
+	r.False(wsPostDeleteFired)
+}
+
+func TestStateStore_SITokenAccessorsByAlloc(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	var accessors []*structs.SITokenAccessor
+	var expected []*structs.SITokenAccessor
+
+	for i := 0; i < 5; i++ {
+		accessor := mock.SITokenAccessor()
+		accessor.AllocID = alloc.ID
+		expected = append(expected, accessor)
+		accessors = append(accessors, accessor)
+	}
+
+	for i := 0; i < 10; i++ {
+		accessor := mock.SITokenAccessor()
+		accessor.AllocID = uuid.Generate() // does not belong to alloc
+		accessors = append(accessors, accessor)
+	}
+
+	err := state.UpsertSITokenAccessors(1000, accessors)
+	r.NoError(err)
+
+	ws := memdb.NewWatchSet()
+	result, err := state.SITokenAccessorsByAlloc(ws, alloc.ID)
+	r.NoError(err)
+	r.ElementsMatch(expected, result)
+
+	index, err := state.Index(siTokenAccessorTable)
+	r.NoError(err)
+	r.Equal(uint64(1000), index)
+
+	wsFired := watchFired(ws)
+	r.False(wsFired)
+}
+
+func TestStateStore_SITokenAccessorsByNode(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	state := testStateStore(t)
+	node := mock.Node()
+	var accessors []*structs.SITokenAccessor
+	var expected []*structs.SITokenAccessor
+	var err error
+
+	for i := 0; i < 5; i++ {
+		accessor := mock.SITokenAccessor()
+		accessor.NodeID = node.ID
+		expected = append(expected, accessor)
+		accessors = append(accessors, accessor)
+	}
+
+	for i := 0; i < 10; i++ {
+		accessor := mock.SITokenAccessor()
+		accessor.NodeID = uuid.Generate() // does not belong to node
+		accessors = append(accessors, accessor)
+	}
+
+	err = state.UpsertSITokenAccessors(1000, accessors)
+	r.NoError(err)
+
+	ws := memdb.NewWatchSet()
+	result, err := state.SITokenAccessorsByNode(ws, node.ID)
+	r.NoError(err)
+	r.ElementsMatch(expected, result)
+
+	index, err := state.Index(siTokenAccessorTable)
+	r.NoError(err)
+	r.Equal(uint64(1000), index)
+
+	wsFired := watchFired(ws)
+	r.False(wsFired)
+}
+
+func TestStateStore_RestoreSITokenAccessor(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	state := testStateStore(t)
+	a1 := mock.SITokenAccessor()
+
+	restore, err := state.Restore()
+	r.NoError(err)
+
+	err = restore.SITokenAccessorRestore(a1)
+	r.NoError(err)
+
+	restore.Commit()
+
+	ws := memdb.NewWatchSet()
+	result, err := state.SITokenAccessor(ws, a1.AccessorID)
+	r.NoError(err)
+	r.Equal(a1, result)
+
+	wsFired := watchFired(ws)
+	r.False(wsFired)
+}
+
 func TestStateStore_UpsertACLPolicy(t *testing.T) {
 	t.Parallel()
 

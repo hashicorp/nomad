@@ -10,6 +10,7 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/pkg/errors"
@@ -29,7 +30,7 @@ const (
 
 	// sidsTokenFile is the name of the file holding the Consul SI token inside
 	// the task's secret directory
-	sidsTokenFile = "sids_token"
+	sidsTokenFile = "si_token"
 
 	// sidsTokenFilePerms is the level of file permissions granted on the file
 	// in the secrets directory for the task
@@ -40,17 +41,31 @@ type sidsHookConfig struct {
 	alloc      *structs.Allocation
 	task       *structs.Task
 	sidsClient consul.ServiceIdentityAPI
+	lifecycle  ti.TaskLifecycle
 	logger     hclog.Logger
 }
 
 // Service Identities hook for managing SI tokens of connect enabled tasks.
 type sidsHook struct {
-	alloc      *structs.Allocation
-	taskName   string
-	sidsClient consul.ServiceIdentityAPI
-	logger     hclog.Logger
+	// alloc is the allocation
+	alloc *structs.Allocation
 
-	lock     sync.Mutex
+	// taskName is the name of the task
+	taskName string
+
+	// sidsClient is the Consul client [proxy] for requesting SI tokens
+	sidsClient consul.ServiceIdentityAPI
+
+	// lifecycle is used to signal, restart, and kill a task
+	lifecycle ti.TaskLifecycle
+
+	// logger is used to log
+	logger hclog.Logger
+
+	// lock variables that can be manipulated after hook creation
+	lock sync.Mutex
+	// firstRun keeps track of whether the hook is being called for the first
+	// time (for this task) during the lifespan of the Nomad Client process.
 	firstRun bool
 }
 
@@ -59,6 +74,7 @@ func newSIDSHook(c sidsHookConfig) *sidsHook {
 		alloc:      c.alloc,
 		taskName:   c.task.Name,
 		sidsClient: c.sidsClient,
+		lifecycle:  c.lifecycle,
 		logger:     c.logger.Named(sidsHookName),
 		firstRun:   true,
 	}
@@ -158,16 +174,42 @@ func (h *sidsHook) deriveSIToken(ctx context.Context) (string, error) {
 	}
 }
 
+func (h *sidsHook) kill(ctx context.Context, err error) {
+	_ = h.lifecycle.Kill(
+		ctx,
+		structs.NewTaskEvent(structs.TaskKilling).
+			SetFailsTask().
+			SetDisplayMessage(err.Error()),
+	)
+}
+
 // tryDerive loops forever until a token is created, or ctx is done.
 func (h *sidsHook) tryDerive(ctx context.Context, ch chan<- string) {
-	for i := 0; backoff(ctx, i); i++ {
+	for attempt := 0; backoff(ctx, attempt); attempt++ {
+
 		tokens, err := h.sidsClient.DeriveSITokens(h.alloc, []string{h.taskName})
-		if err != nil {
-			h.logger.Warn("failed to derive SI token", "attempt", i, "error", err)
-			continue
+
+		switch {
+
+		case err == nil:
+			// nothing broke and we can return the token for the task
+			ch <- tokens[h.taskName]
+			return
+
+		case structs.IsServerSide(err):
+			// the error is known to be a server problem, just die
+			h.logger.Error("failed to derive SI token", "error", err, "server_side", true)
+			h.kill(ctx, errors.Wrap(err, "consul: failed to derive SI token"))
+
+		case !structs.IsRecoverable(err):
+			// the error is known not to be recoverable, just die
+			h.logger.Error("failed to derive SI token", "error", err, "recoverable", false)
+			h.kill(ctx, errors.Wrap(err, "consul: failed to derive SI token"))
+
+		default:
+			// the error is marked recoverable, retry after some backoff
+			h.logger.Error("failed to derive SI token", "error", err, "recoverable", true)
 		}
-		ch <- tokens[h.taskName]
-		return
 	}
 }
 
@@ -182,12 +224,17 @@ func backoff(ctx context.Context, i int) bool {
 }
 
 func computeBackoff(attempt int) time.Duration {
-	switch {
-	case attempt <= 0:
+	switch attempt {
+	case 0:
 		return 0
-	case attempt >= 4:
-		return sidsBackoffLimit
+	case 1:
+		// go fast on first retry, because a unit test should be fast
+		return 100 * time.Millisecond
 	default:
-		return (1 << (2 * uint(attempt))) * sidsBackoffBaseline
+		wait := time.Duration(attempt) * sidsBackoffBaseline
+		if wait > sidsBackoffLimit {
+			wait = sidsBackoffLimit
+		}
+		return wait
 	}
 }

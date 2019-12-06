@@ -84,6 +84,8 @@ const (
 	SchedulerConfigRequestType
 	NodeBatchDeregisterRequestType
 	ClusterMetadataRequestType
+	ServiceIdentityAccessorRegisterRequestType
+	ServiceIdentityAccessorDeregisterRequestType
 )
 
 const (
@@ -918,27 +920,6 @@ type VaultAccessor struct {
 type DeriveVaultTokenResponse struct {
 	// Tasks is a mapping between the task name and the wrapped token
 	Tasks map[string]string
-
-	// Error stores any error that occurred. Errors are stored here so we can
-	// communicate whether it is retryable
-	Error *RecoverableError
-
-	QueryMeta
-}
-
-// DeriveSITokenRequest is used to request Consul Service Identity tokens from
-// the Nomad Server for the named tasks in the given allocation.
-type DeriveSITokenRequest struct {
-	NodeID   string
-	SecretID string
-	AllocID  string
-	Tasks    []string
-	QueryOptions
-}
-
-type DeriveSITokenResponse struct {
-	// Tokens maps from Task Name to its associated SI token
-	Tokens map[string]string
 
 	// Error stores any error that occurred. Errors are stored here so we can
 	// communicate whether it is retryable
@@ -3823,6 +3804,27 @@ func (j *Job) VaultPolicies() map[string]map[string]*Vault {
 	return policies
 }
 
+// Connect tasks returns the set of Consul Connect enabled tasks that will
+// require a Service Identity token, if Consul ACLs are enabled.
+//
+// This method is meaningful only after the Job has passed through the job
+// submission Mutator functions.
+//
+// task group -> []task
+func (j *Job) ConnectTasks() map[string][]string {
+	m := make(map[string][]string)
+	for _, tg := range j.TaskGroups {
+		for _, task := range tg.Tasks {
+			if task.Kind.IsConnectProxy() {
+				// todo(shoenig): when we support native, probably need to check
+				//  an additional TBD TaskKind as well.
+				m[tg.Name] = append(m[tg.Name], task.Name)
+			}
+		}
+	}
+	return m
+}
+
 // RequiredSignals returns a mapping of task groups to tasks to their required
 // set of signals
 func (j *Job) RequiredSignals() map[string]map[string][]string {
@@ -5432,6 +5434,22 @@ type Task struct {
 	Kind TaskKind
 }
 
+// UsesConnect is for conveniently detecting if the Task is able to make use
+// of Consul Connect features. This will be indicated in the TaskKind of the
+// Task, which exports known types of Tasks.
+//
+// Currently only Consul Connect Proxy tasks are known.
+// (Consul Connect Native tasks will be supported soon).
+func (t *Task) UsesConnect() bool {
+	// todo(shoenig): native tasks
+	switch {
+	case t.Kind.IsConnectProxy():
+		return true
+	default:
+		return false
+	}
+}
+
 func (t *Task) Copy() *Task {
 	if t == nil {
 		return nil
@@ -5805,7 +5823,7 @@ func (t *Task) Warnings() error {
 
 // TaskKind identifies the special kinds of tasks using the following format:
 // '<kind_name>(:<identifier>)`. The TaskKind can optionally include an identifier that
-// is opague to the Task. This identier can be used to relate the task to some
+// is opaque to the Task. This identifier can be used to relate the task to some
 // other entity based on the kind.
 //
 // For example, a task may have the TaskKind of `connect-proxy:service` where

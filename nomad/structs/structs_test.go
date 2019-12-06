@@ -535,6 +535,47 @@ func TestJob_VaultPolicies(t *testing.T) {
 	}
 }
 
+func TestJob_ConnectTasks(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	// todo(shoenig): this will need some updates when we support connect native
+	//  tasks, which will have a different Kind format, probably.
+
+	j0 := &Job{
+		TaskGroups: []*TaskGroup{{
+			Name: "tg1",
+			Tasks: []*Task{{
+				Name: "connect-proxy-task1",
+				Kind: "connect-proxy:task1",
+			}, {
+				Name: "task2",
+				Kind: "task2",
+			}, {
+				Name: "connect-proxy-task3",
+				Kind: "connect-proxy:task3",
+			}},
+		}, {
+			Name: "tg2",
+			Tasks: []*Task{{
+				Name: "task1",
+				Kind: "task1",
+			}, {
+				Name: "connect-proxy-task2",
+				Kind: "connect-proxy:task2",
+			}},
+		}},
+	}
+
+	connectTasks := j0.ConnectTasks()
+
+	exp := map[string][]string{
+		"tg1": {"connect-proxy-task1", "connect-proxy-task3"},
+		"tg2": {"connect-proxy-task2"},
+	}
+	r.Equal(exp, connectTasks)
+}
+
 func TestJob_RequiredSignals(t *testing.T) {
 	j0 := &Job{}
 	e0 := make(map[string]map[string][]string, 0)
@@ -690,6 +731,27 @@ func TestJob_PartEqual(t *testing.T) {
 		&Affinity{"left2", "right2", "=", 0, ""},
 		&Affinity{"left1", "right1", "=", 0, ""},
 	}))
+}
+
+func TestTask_UsesConnect(t *testing.T) {
+	t.Parallel()
+
+	t.Run("normal task", func(t *testing.T) {
+		task := testJob().TaskGroups[0].Tasks[0]
+		usesConnect := task.UsesConnect()
+		require.False(t, usesConnect)
+	})
+
+	t.Run("sidecar proxy", func(t *testing.T) {
+		task := &Task{
+			Name: "connect-proxy-task1",
+			Kind: "connect-proxy:task1",
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
+
+	// todo(shoenig): add native case
 }
 
 func TestTaskGroup_Validate(t *testing.T) {

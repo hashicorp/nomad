@@ -604,7 +604,7 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 	})
 }
 
-func TestLeader_RestoreVaultAccessors(t *testing.T) {
+func TestLeader_revokeVaultAccessorsOnRestore(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
@@ -612,9 +612,9 @@ func TestLeader_RestoreVaultAccessors(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Insert a vault accessor that should be revoked
-	state := s1.fsm.State()
+	fsmState := s1.fsm.State()
 	va := mock.VaultAccessor()
-	if err := state.UpsertVaultAccessor(100, []*structs.VaultAccessor{va}); err != nil {
+	if err := fsmState.UpsertVaultAccessor(100, []*structs.VaultAccessor{va}); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -623,13 +623,42 @@ func TestLeader_RestoreVaultAccessors(t *testing.T) {
 	s1.vault = tvc
 
 	// Do a restore
-	if err := s1.restoreRevokingAccessors(); err != nil {
+	if err := s1.revokeVaultAccessorsOnRestore(); err != nil {
 		t.Fatalf("Failed to restore: %v", err)
 	}
 
 	if len(tvc.RevokedTokens) != 1 && tvc.RevokedTokens[0].Accessor != va.Accessor {
 		t.Fatalf("Bad revoked accessors: %v", tvc.RevokedTokens)
 	}
+}
+
+func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// replace consul ACLs api with a mock for tracking calls
+	var consulACLsAPI mockConsulACLsAPI
+	s1.consulACLs = &consulACLsAPI
+
+	// Insert a SI token accessor that should be revoked
+	fsmState := s1.fsm.State()
+	accessor := mock.SITokenAccessor()
+	err := fsmState.UpsertSITokenAccessors(100, []*structs.SITokenAccessor{accessor})
+	r.NoError(err)
+
+	// Do a restore
+	err = s1.revokeSITokenAccessorsOnRestore()
+	r.NoError(err)
+
+	// Check the accessor was revoked
+	exp := []string{accessor.AccessorID}
+	r.ElementsMatch(exp, consulACLsAPI.revokeRequests)
 }
 
 func TestLeader_ClusterID(t *testing.T) {

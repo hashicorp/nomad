@@ -1,7 +1,6 @@
 package consul
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -36,8 +35,6 @@ func NewMockServiceIdentitiesClient() *MockServiceIdentitiesClient {
 func (mtc *MockServiceIdentitiesClient) DeriveSITokens(alloc *structs.Allocation, tasks []string) (map[string]string, error) {
 	mtc.lock.Lock()
 	defer mtc.lock.Unlock()
-
-	fmt.Println("MockServiceIdentitiesClient.DeriveSITokens running!")
 
 	// if the DeriveTokenFn is explicitly set, use that
 	if mtc.DeriveTokenFn != nil {
