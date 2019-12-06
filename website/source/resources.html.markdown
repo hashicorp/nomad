@@ -172,6 +172,7 @@ description: |-
   <li><a href="https://apache.github.io/incubator-heron/docs/operators/deployment/schedulers/nomad/">Apache Heron Nomad Integration</a> - Realtime, Distributed Stream Processing on Nomad</li>
   <li><a href="https://github.com/jet/nomad-service-alerter"><strong>Jet.com</strong> Nomad Service Alerter</a> - Alerting for your Nomad services</li>
   <li><a href="https://getnelson.github.io/nelson/">Nelson</a> - Automated, Multi-region Container Deployment with HashiCorp Nomad</li>
+  <li><a href="https://github.com/jrasell/chemtrail">Chemtrail</a> - Chemtrail is a client auto scaler allowing for dynamic and safe scaling of the client workerpool based on demand</li>
   <li><a href="https://github.com/jrasell/sherpa">Sherpa</a> - A job scaler for HashiCorp Nomad that aims to be highly flexible so it can support a wide range of architectures and budgets</li>
   <li><a href="https://github.com/jrasell/levant">Levant</a> - An open source templating and deployment tool for HashiCorp Nomad jobs</li>
   <li><a href="https://github.com/underarmour/libra"><strong>Under Armour</strong> Libra</a> - A Nomad Auto Scaler</li>
