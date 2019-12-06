@@ -2,9 +2,11 @@ import Mixin from '@ember/object/mixin';
 import { computed } from '@ember/object';
 
 /**
-  Sortable mixin
+  Sortable mixin factory
 
-  Simple sorting behavior for a list of objects.
+  Simple sorting behavior for a list of objects. Pass the list of properties
+  you want the list to be live-sorted based on, or use the generic sortable.js
+  if you don’t need that.
 
   Properties to override:
     - sortProperty: the property to sort by
