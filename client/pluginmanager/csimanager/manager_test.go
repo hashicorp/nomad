@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/pluginmanager"
-	"github.com/hashicorp/nomad/client/pluginregistry"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -13,16 +13,16 @@ import (
 
 var _ pluginmanager.PluginManager = (*csiManager)(nil)
 
-var fakePlugin = &pluginregistry.PluginInfo{
+var fakePlugin = &dynamicplugins.PluginInfo{
 	Name:           "my-plugin",
 	Type:           "csi-controller",
-	ConnectionInfo: &pluginregistry.PluginConnectionInfo{},
+	ConnectionInfo: &dynamicplugins.PluginConnectionInfo{},
 }
 
-func setupRegistry() pluginregistry.Registry {
-	return pluginregistry.New(
-		map[string]pluginregistry.PluginDispenser{
-			"csi-controller": func(*pluginregistry.PluginInfo) (interface{}, error) {
+func setupRegistry() dynamicplugins.Registry {
+	return dynamicplugins.NewRegistry(
+		map[string]dynamicplugins.PluginDispenser{
+			"csi-controller": func(*dynamicplugins.PluginInfo) (interface{}, error) {
 				return nil, nil
 			},
 		})
@@ -34,7 +34,7 @@ func TestCSIManager_Setup_Shutdown(t *testing.T) {
 
 	cfg := &Config{
 		Logger:                testlog.HCLogger(t),
-		PluginRegistry:        r,
+		DynamicRegistry:       r,
 		UpdateNodeCSIInfoFunc: func(string, *structs.CSIInfo) {},
 	}
 	pm := New(cfg).(*csiManager)
@@ -50,7 +50,7 @@ func TestCSIManager_RegisterPlugin(t *testing.T) {
 
 	cfg := &Config{
 		Logger:                testlog.HCLogger(t),
-		PluginRegistry:        registry,
+		DynamicRegistry:       registry,
 		UpdateNodeCSIInfoFunc: func(string, *structs.CSIInfo) {},
 	}
 	pm := New(cfg).(*csiManager)
@@ -82,7 +82,7 @@ func TestCSIManager_DeregisterPlugin(t *testing.T) {
 
 	cfg := &Config{
 		Logger:                testlog.HCLogger(t),
-		PluginRegistry:        registry,
+		DynamicRegistry:       registry,
 		UpdateNodeCSIInfoFunc: func(string, *structs.CSIInfo) {},
 		PluginResyncPeriod:    500 * time.Millisecond,
 	}
