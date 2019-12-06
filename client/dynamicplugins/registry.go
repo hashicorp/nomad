@@ -1,4 +1,4 @@
-package pluginregistry
+package dynamicplugins
 
 import (
 	"context"
@@ -28,9 +28,9 @@ type Registry interface {
 
 type PluginDispenser func(info *PluginInfo) (interface{}, error)
 
-// New takes a map of `plugintype` to PluginDispenser functions
+// NewRegistry takes a map of `plugintype` to PluginDispenser functions
 // that should be used to vend clients for plugins to be used.
-func New(dispensers map[string]PluginDispenser) Registry {
+func NewRegistry(dispensers map[string]PluginDispenser) Registry {
 	return &dynamicRegistry{
 		plugins:      make(map[string]map[string]*PluginInfo),
 		broadcasters: make(map[string]*pluginEventBroadcaster),

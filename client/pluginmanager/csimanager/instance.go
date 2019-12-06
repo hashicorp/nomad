@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/pluginregistry"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
@@ -15,7 +15,7 @@ import (
 const managerFingerprintInterval = 30 * time.Second
 
 type instanceManager struct {
-	info   *pluginregistry.PluginInfo
+	info   *dynamicplugins.PluginInfo
 	logger hclog.Logger
 
 	updater UpdateNodeCSIInfoFunc
@@ -30,7 +30,7 @@ type instanceManager struct {
 	client csi.CSIPlugin
 }
 
-func newInstanceManager(logger hclog.Logger, updater UpdateNodeCSIInfoFunc, p *pluginregistry.PluginInfo) *instanceManager {
+func newInstanceManager(logger hclog.Logger, updater UpdateNodeCSIInfoFunc, p *dynamicplugins.PluginInfo) *instanceManager {
 	ctx, cancelFn := context.WithCancel(context.Background())
 
 	return &instanceManager{
