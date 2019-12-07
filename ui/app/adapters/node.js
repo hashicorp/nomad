@@ -42,7 +42,7 @@ export default Watchable.extend({
     return this.drain(
       node,
       Object.assign({}, drainSpec, {
-        Deadline: -1000 * 1000000,
+        Deadline: -1,
       })
     );
   },

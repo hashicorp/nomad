@@ -189,7 +189,7 @@ module('Unit | Adapter | Node', function(hooks) {
       {
         NodeID: node.id,
         DrainSpec: {
-          Deadline: -1000000000,
+          Deadline: -1,
           IgnoreSystemJobs: true,
         },
       },
@@ -212,7 +212,7 @@ module('Unit | Adapter | Node', function(hooks) {
       {
         NodeID: node.id,
         DrainSpec: {
-          Deadline: -1000000000,
+          Deadline: -1,
           IgnoreSystemJobs: spec.IgnoreSystemJobs,
         },
       },

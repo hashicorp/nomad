@@ -12,6 +12,7 @@ import {
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
 import notification from 'nomad-ui/tests/pages/components/notification';
+import toggle from 'nomad-ui/tests/pages/components/toggle';
 
 export default create({
   visit: visitable('/clients/:id'),
@@ -115,19 +116,26 @@ export default create({
   },
 
   drainPopover: {
+    label: text('[data-test-drain-popover] [data-test-popover-trigger]'),
+    isOpen: isPresent('[data-test-drain-popover-form]'),
     toggle: clickable('[data-test-drain-popover] [data-test-popover-trigger]'),
-    toggleDeadline: clickable('[data-test-drain-deadline-toggle]'),
+
+    deadlineToggle: toggle('[data-test-drain-deadline-toggle]'),
     deadlineOptions: {
-      open: clickable('[data-test-drain-deadline-toggle]'),
-      options: collection('data-test-drain-deadline-options]', {
+      open: clickable('[data-test-drain-deadline-option-select] .ember-power-select-trigger'),
+      options: collection('.ember-power-select-option', {
         label: text(),
         choose: clickable(),
       }),
     },
 
     setCustomDeadline: fillable('[data-test-drain-custom-deadline]'),
-    toggleForceDrain: clickable(),
-    toggleSystemJobs: clickable(),
+    customDeadline: attribute('value', '[data-test-drain-custom-deadline]'),
+    forceDrainToggle: toggle('[data-test-force-drain-toggle]'),
+    systemJobsToggle: toggle('[data-test-system-jobs-toggle]'),
+
+    submit: clickable('[data-test-drain-submit]'),
+    cancel: clickable('[data-test-drain-cancel]'),
 
     setDeadline(label) {
       this.deadlineOptions.open();
@@ -138,10 +146,10 @@ export default create({
     },
   },
 
-  stopDrain: twoStepButton('[data-test-stop-drain]'),
-  stopDrainIsPresent: isPresent('[data-test-stop-drain]'),
+  stopDrain: twoStepButton('[data-test-drain-stop]'),
+  stopDrainIsPresent: isPresent('[data-test-drain-stop]'),
 
-  toggleEligibility: clickable('[data-test-eligibility-toggle]'),
+  eligibilityToggle: toggle('[data-test-eligibility-toggle]'),
 
   eligibilityError: notification('[data-test-eligibility-error]'),
   stopDrainError: notification('[data-test-stop-drain-error]'),
