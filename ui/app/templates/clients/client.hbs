@@ -110,6 +110,7 @@
     <div class="toolbar-item is-right-aligned is-top-aligned">
       {{#if model.isDraining}}
         {{two-step-button
+          data-test-drain-stop
           idleText="Stop Drain"
           cancelText="Cancel"
           confirmText="Yes, Stop"

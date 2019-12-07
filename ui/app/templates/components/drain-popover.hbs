@@ -1,8 +1,8 @@
 {{#popover-menu
   data-test-drain-popover
-  label=(if client.isDraining "Update" "Drain")
+  label=(if client.isDraining "Update Drain" "Drain")
   triggerClass=(concat "is-small " (if drain.isRunning "is-loading")) as |m|}}
-  <form onsubmit={{action (queue (action preventDefault) (perform drain m.actions.close))}} class="form is-small">
+  <form data-test-drain-popover-form onsubmit={{action (queue (action preventDefault) (perform drain m.actions.close))}} class="form is-small">
     <h4 class="group-heading">Drain Options</h4>
     <div class="field">
       <label class="label is-interactive">
@@ -20,6 +20,8 @@
     {{#if deadlineEnabled}}
       <div class="field is-sub-field">
         {{#power-select
+          data-test-drain-deadline-option-select
+          tagName="div"
           options=durationQuickOptions
           selected=selectedDurationQuickOption
           onChange=(action (mut selectedDurationQuickOption)) as |opt|}}
@@ -30,6 +32,7 @@
         <div class="field is-sub-field">
           <label class="label">Deadline</label>
           <input
+            data-test-drain-custom-deadline
             type="text"
             class="input {{if parseError "is-danger"}}"
             placeholder="1h30m"
@@ -45,6 +48,7 @@
     <div class="field">
       <label class="label is-interactive">
         {{#toggle
+          data-test-force-drain-toggle
           isActive=forceDrain
           onToggle=(action (mut forceDrain) value="target.checked")}}
           Force Drain
@@ -57,6 +61,7 @@
     <div class="field">
       <label class="label is-interactive">
         {{#toggle
+          data-test-system-jobs-toggle
           isActive=drainSystemJobs
           onToggle=(action (mut drainSystemJobs) value="target.checked")}}
           Drain System Jobs
@@ -68,12 +73,13 @@
     </div>
     <div class="popover-actions">
       <button
+        data-test-drain-submit
         type="button"
         class="popover-action is-primary"
         onclick={{perform drain m.actions.close}}>
         Drain
       </button>
-      <button type="button" class="popover-action" onclick={{action m.actions.close}}>Cancel</button>
+      <button data-test-drain-cancel type="button" class="popover-action" onclick={{action m.actions.close}}>Cancel</button>
     </div>
   </form>
 {{/popover-menu}}
