@@ -257,6 +257,8 @@ var (
 			hclspec.NewAttr("infra_image", "string", false),
 			hclspec.NewLiteral(`"gcr.io/google_containers/pause-amd64:3.0"`),
 		),
+
+		"disable_log_collection": hclspec.NewAttr("disable_log_collection", "bool", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -549,15 +551,16 @@ type ContainerGCConfig struct {
 }
 
 type DriverConfig struct {
-	Endpoint        string       `codec:"endpoint"`
-	Auth            AuthConfig   `codec:"auth"`
-	TLS             TLSConfig    `codec:"tls"`
-	GC              GCConfig     `codec:"gc"`
-	Volumes         VolumeConfig `codec:"volumes"`
-	AllowPrivileged bool         `codec:"allow_privileged"`
-	AllowCaps       []string     `codec:"allow_caps"`
-	GPURuntimeName  string       `codec:"nvidia_runtime"`
-	InfraImage      string       `codec:"infra_image"`
+	Endpoint             string       `codec:"endpoint"`
+	Auth                 AuthConfig   `codec:"auth"`
+	TLS                  TLSConfig    `codec:"tls"`
+	GC                   GCConfig     `codec:"gc"`
+	Volumes              VolumeConfig `codec:"volumes"`
+	AllowPrivileged      bool         `codec:"allow_privileged"`
+	AllowCaps            []string     `codec:"allow_caps"`
+	GPURuntimeName       string       `codec:"nvidia_runtime"`
+	InfraImage           string       `codec:"infra_image"`
+	DisableLogCollection bool         `codec:"disable_log_collection"`
 }
 
 type AuthConfig struct {
@@ -659,4 +662,12 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	return capabilities, nil
+}
+
+var _ drivers.InternalCapabilitiesDriver = (*Driver)(nil)
+
+func (d *Driver) InternalCapabilities() drivers.InternalCapabilities {
+	return drivers.InternalCapabilities{
+		DisableLogCollection: d.config != nil && d.config.DisableLogCollection,
+	}
 }

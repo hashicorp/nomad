@@ -36,7 +36,8 @@ func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
 	}()
 
 	hookConf := newLogMonHookConfig(task.Name, dir)
-	hook := newLogMonHook(hookConf, testlog.HCLogger(t))
+	runner := &TaskRunner{logmonHookConfig: hookConf}
+	hook := newLogMonHook(runner, testlog.HCLogger(t))
 
 	req := interfaces.TaskPrestartRequest{
 		Task: task,
@@ -104,7 +105,8 @@ func TestTaskRunner_LogmonHook_ShutdownMidStart(t *testing.T) {
 	}()
 
 	hookConf := newLogMonHookConfig(task.Name, dir)
-	hook := newLogMonHook(hookConf, testlog.HCLogger(t))
+	runner := &TaskRunner{logmonHookConfig: hookConf}
+	hook := newLogMonHook(runner, testlog.HCLogger(t))
 
 	req := interfaces.TaskPrestartRequest{
 		Task: task,
