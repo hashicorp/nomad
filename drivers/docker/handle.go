@@ -51,11 +51,14 @@ type taskHandleState struct {
 }
 
 func (h *taskHandle) buildState() *taskHandleState {
-	return &taskHandleState{
-		ReattachConfig: pstructs.ReattachConfigFromGoPlugin(h.dloggerPluginClient.ReattachConfig()),
-		ContainerID:    h.containerID,
-		DriverNetwork:  h.net,
+	s := &taskHandleState{
+		ContainerID:   h.containerID,
+		DriverNetwork: h.net,
 	}
+	if h.dloggerPluginClient != nil {
+		s.ReattachConfig = pstructs.ReattachConfigFromGoPlugin(h.dloggerPluginClient.ReattachConfig())
+	}
+	return s
 }
 
 func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*drivers.ExecTaskResult, error) {
@@ -171,6 +174,10 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 }
 
 func (h *taskHandle) shutdownLogger() {
+	if h.dlogger == nil {
+		return
+	}
+
 	if err := h.dlogger.Stop(); err != nil {
 		h.logger.Error("failed to stop docker logger process during StopTask",
 			"error", err, "logger_pid", h.dloggerPluginClient.ReattachConfig().Pid)

@@ -59,7 +59,7 @@ func (tr *TaskRunner) initHooks() {
 	tr.runnerHooks = []interfaces.TaskHook{
 		newValidateHook(tr.clientConfig, hookLogger),
 		newTaskDirHook(tr, hookLogger),
-		newLogMonHook(tr.logmonHookConfig, hookLogger),
+		newLogMonHook(tr, hookLogger),
 		newDispatchHook(tr.Alloc(), hookLogger),
 		newArtifactHook(tr, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
