@@ -4327,12 +4327,16 @@ func (d *TaskLifecycleConfig) Validate() error {
 
 	switch d.Hook {
 	case TaskLifecycleHookPrestart:
+	case "":
+		return fmt.Errorf("no lifecycle hook provided")
 	default:
 		return fmt.Errorf("invalid hook: %v", d.Hook)
 	}
 
 	switch d.BlockUntil {
 	case TaskLifecycleBlockUntilRunning, TaskLifecycleBlockUntilCompleted:
+	case "":
+		return fmt.Errorf("no lifecycle block_until provided")
 	default:
 		return fmt.Errorf("invalid block_until: %v", d.BlockUntil)
 	}
