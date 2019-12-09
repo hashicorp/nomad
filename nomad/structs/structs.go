@@ -4303,6 +4303,7 @@ const (
 	TaskLifecycleBlockUntilRunning   = "running"
 	TaskLifecycleBlockUntilCompleted = "completed"
 	TaskLifecycleDeadlineMinimum     = 0 * time.Second
+	TaskLifecycleDeadlineDefault     = 1 * time.Second
 )
 
 type TaskLifecycleConfig struct {
@@ -4318,6 +4319,12 @@ func (d *TaskLifecycleConfig) Copy() *TaskLifecycleConfig {
 	nd := new(TaskLifecycleConfig)
 	*nd = *d
 	return nd
+}
+
+func (d *TaskLifecycleConfig) Canonicalize() {
+	if &d.Deadline == nil {
+		d.Deadline = TaskLifecycleDeadlineDefault
+	}
 }
 
 func (d *TaskLifecycleConfig) Validate() error {
@@ -5479,6 +5486,10 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 
 	for _, template := range t.Templates {
 		template.Canonicalize()
+	}
+
+	if t.Lifecycle != nil {
+		t.Lifecycle.Canonicalize()
 	}
 }
 
