@@ -45,6 +45,7 @@ const (
 	ACLPolicySnapshot
 	ACLTokenSnapshot
 	SchedulerConfigSnapshot
+	ClusterMetadataSnapshot
 )
 
 // LogApplier is the definition of a function that can apply a Raft log
@@ -251,6 +252,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applySchedulerConfigUpdate(buf[1:], log.Index)
 	case structs.NodeBatchDeregisterRequestType:
 		return n.applyDeregisterNodeBatch(buf[1:], log.Index)
+	case structs.ClusterMetadataRequestType:
+		return n.applyClusterMetadata(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -265,6 +268,24 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	}
 
 	panic(fmt.Errorf("failed to apply request: %#v", buf))
+}
+
+func (n *nomadFSM) applyClusterMetadata(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "cluster_meta"}, time.Now())
+
+	var req structs.ClusterMetadata
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.ClusterSetMetadata(index, &req); err != nil {
+		n.logger.Error("ClusterSetMetadata failed", "error", err)
+		return err
+	}
+
+	n.logger.Trace("ClusterSetMetadata", "cluster_id", req.ClusterID, "create_time", req.CreateTime)
+
+	return nil
 }
 
 func (n *nomadFSM) applyUpsertNode(buf []byte, index uint64) interface{} {
@@ -1255,6 +1276,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case ClusterMetadataSnapshot:
+			meta := new(structs.ClusterMetadata)
+			if err := dec.Decode(meta); err != nil {
+				return err
+			}
+			if err := restore.ClusterMetadataRestore(meta); err != nil {
+				return err
+			}
+
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -1524,6 +1554,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistSchedulerConfig(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistClusterMetadata(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -1871,6 +1905,24 @@ func (s *nomadSnapshot) persistSchedulerConfig(sink raft.SnapshotSink,
 	if err := encoder.Encode(schedConfig); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistClusterMetadata(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	// Get the cluster metadata
+	clusterMetadata, err := s.snap.ClusterMetadata()
+	if err != nil {
+		return err
+	}
+
+	// Write out the cluster metadata
+	sink.Write([]byte{byte(ClusterMetadataSnapshot)})
+	if err := encoder.Encode(clusterMetadata); err != nil {
+		return err
+	}
+
 	return nil
 }
 

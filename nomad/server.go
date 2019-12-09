@@ -3,6 +3,7 @@ package nomad
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -215,6 +216,10 @@ type Server struct {
 	// current leader.
 	leaderAcl     string
 	leaderAclLock sync.Mutex
+
+	// clusterIDLock ensures the server does not try to concurrently establish
+	// a cluster ID, racing against itself in calls of ClusterID
+	clusterIDLock sync.Mutex
 
 	// statsFetcher is used by autopilot to check the status of the other
 	// Nomad router.
@@ -1516,6 +1521,45 @@ func (s *Server) GetConfig() *Config {
 // dynamic reloading of this value later.
 func (s *Server) ReplicationToken() string {
 	return s.config.ReplicationToken
+}
+
+// ClusterID returns the unique ID for this cluster.
+//
+// Any Nomad server agent may call this method to get at the ID.
+// If we are the leader and the ID has not yet been created, it will
+// be created now. Otherwise an error is returned.
+//
+// The ID will not be created until all participating servers have reached
+// a minimum version (0.10.3).
+func (s *Server) ClusterID() (string, error) {
+	s.clusterIDLock.Lock()
+	defer s.clusterIDLock.Unlock()
+
+	// try to load the cluster ID from state store
+	fsmState := s.fsm.State()
+	existingMeta, err := fsmState.ClusterMetadata()
+	if err != nil {
+		s.logger.Named("core").Error("failed to get cluster ID", "error", err)
+		return "", err
+	}
+
+	// got the cluster ID from state store, cache that and return it
+	if existingMeta != nil && existingMeta.ClusterID != "" {
+		return existingMeta.ClusterID, nil
+	}
+
+	// if we are not the leader, nothing more we can do
+	if !s.IsLeader() {
+		return "", errors.New("cluster ID not ready yet")
+	}
+
+	// we are the leader, try to generate the ID now
+	generatedID, err := s.generateClusterID()
+	if err != nil {
+		return "", err
+	}
+
+	return generatedID, nil
 }
 
 // peersInfoContent is used to help operators understand what happened to the

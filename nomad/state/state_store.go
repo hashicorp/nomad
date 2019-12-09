@@ -3,16 +3,16 @@ package state
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sort"
 	"time"
-
-	"reflect"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/pkg/errors"
 )
 
 // Txn is a transaction against a state store.
@@ -3932,6 +3932,35 @@ func (s *StateStore) SchedulerSetConfig(idx uint64, config *structs.SchedulerCon
 	return nil
 }
 
+func (s *StateStore) ClusterMetadata() (*structs.ClusterMetadata, error) {
+	txn := s.db.Txn(false)
+	defer txn.Abort()
+
+	// Get the cluster metadata
+	m, err := txn.First("cluster_meta", "id")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed cluster metadata lookup")
+	}
+
+	if m != nil {
+		return m.(*structs.ClusterMetadata), nil
+	}
+
+	return nil, nil
+}
+
+func (s *StateStore) ClusterSetMetadata(index uint64, meta *structs.ClusterMetadata) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	if err := s.setClusterMetadata(txn, meta); err != nil {
+		return errors.Wrap(err, "set cluster metadata failed")
+	}
+
+	txn.Commit()
+	return nil
+}
+
 // WithWriteTransaction executes the passed function within a write transaction,
 // and returns its result.  If the invocation returns no error, the transaction
 // is committed; otherwise, it's aborted.
@@ -3991,6 +4020,29 @@ func (s *StateStore) schedulerSetConfigTxn(idx uint64, tx *memdb.Txn, config *st
 	if err := tx.Insert("scheduler_config", config); err != nil {
 		return fmt.Errorf("failed updating scheduler config: %s", err)
 	}
+	return nil
+}
+
+func (s *StateStore) setClusterMetadata(txn *memdb.Txn, meta *structs.ClusterMetadata) error {
+	// Check for an existing config, if it exists, sanity check the cluster ID matches
+	existing, err := txn.First("cluster_meta", "id")
+	if err != nil {
+		return fmt.Errorf("failed cluster meta lookup: %v", err)
+	}
+
+	if existing != nil {
+		existingClusterID := existing.(*structs.ClusterMetadata).ClusterID
+		if meta.ClusterID != existingClusterID {
+			// there is a bug in cluster ID detection
+			return fmt.Errorf("refusing to set new cluster id, previous: %s, new: %s", existingClusterID, meta.ClusterID)
+		}
+	}
+
+	// update is technically a noop, unless someday we add more / mutable fields
+	if err := txn.Insert("cluster_meta", meta); err != nil {
+		return fmt.Errorf("set cluster metadata failed: %v", err)
+	}
+
 	return nil
 }
 
@@ -4193,6 +4245,13 @@ func (r *StateRestore) ACLTokenRestore(token *structs.ACLToken) error {
 func (r *StateRestore) SchedulerConfigRestore(schedConfig *structs.SchedulerConfiguration) error {
 	if err := r.txn.Insert("scheduler_config", schedConfig); err != nil {
 		return fmt.Errorf("inserting scheduler config failed: %s", err)
+	}
+	return nil
+}
+
+func (r *StateRestore) ClusterMetadataRestore(meta *structs.ClusterMetadata) error {
+	if err := r.txn.Insert("cluster_meta", meta); err != nil {
+		return fmt.Errorf("inserting cluster meta failed: %v", err)
 	}
 	return nil
 }
