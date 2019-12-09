@@ -40,12 +40,13 @@ func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
 
 func TestRPC_forwardLeader(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -79,10 +80,11 @@ func TestRPC_forwardLeader(t *testing.T) {
 
 func TestRPC_WaitForConsistentReads(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS2 := TestServer(t, func(c *Config) {
 		c.RPCHoldTimeout = 20 * time.Millisecond
 	})
-	defer s1.Shutdown()
+	defer cleanupS2()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	isLeader, _ := s1.getLeader()
@@ -120,12 +122,13 @@ func TestRPC_WaitForConsistentReads(t *testing.T) {
 
 func TestRPC_forwardRegion(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.Region = "global"
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -154,7 +157,7 @@ func TestRPC_PlaintextRPCSucceedsWhenInUpgradeMode(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "node1")
 		c.TLSConfig = &config.TLSConfig{
 			EnableRPC:            true,
@@ -165,7 +168,7 @@ func TestRPC_PlaintextRPCSucceedsWhenInUpgradeMode(t *testing.T) {
 			RPCUpgradeMode:       true,
 		}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
 	codec := rpcClient(t, s1)
 
@@ -197,7 +200,7 @@ func TestRPC_PlaintextRPCFailsWhenNotInUpgradeMode(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.DataDir = path.Join(dir, "node1")
 		c.TLSConfig = &config.TLSConfig{
 			EnableRPC:            true,
@@ -207,7 +210,7 @@ func TestRPC_PlaintextRPCFailsWhenNotInUpgradeMode(t *testing.T) {
 			KeyFile:              fookey,
 		}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
 	codec := rpcClient(t, s1)
 
@@ -226,12 +229,12 @@ func TestRPC_streamingRpcConn_badMethod(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -253,6 +256,7 @@ func TestRPC_streamingRpcConn_badMethod(t *testing.T) {
 func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
+
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
@@ -260,7 +264,7 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 	)
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
 		c.DevMode = false
@@ -275,9 +279,9 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 			KeyFile:              fookey,
 		}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
 		c.DevMode = false
@@ -292,7 +296,7 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 			KeyFile:              fookey,
 		}
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -316,23 +320,23 @@ func TestRPC_streamingRpcConn_goodMethod_Plaintext(t *testing.T) {
 	require := require.New(t)
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
 		c.DevMode = false
 		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
 		c.DevMode = false
 		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -368,6 +372,7 @@ func TestRPC_streamingRpcConn_goodMethod_Plaintext(t *testing.T) {
 func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
+
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
@@ -375,7 +380,7 @@ func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
 	)
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
 		c.DevMode = false
@@ -390,9 +395,9 @@ func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
 			KeyFile:              fookey,
 		}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
 		c.DevMode = false
@@ -407,7 +412,7 @@ func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
 			KeyFile:              fookey,
 		}
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -449,8 +454,9 @@ func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
 func TestRPC_handleMultiplexV2(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	p1, p2 := net.Pipe()

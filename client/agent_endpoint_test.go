@@ -27,14 +27,14 @@ func TestMonitor_Monitor(t *testing.T) {
 	require := require.New(t)
 
 	// start server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	req := cstructs.MonitorRequest{
 		LogLevel: "debug",
@@ -108,15 +108,15 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 	require := require.New(t)
 
 	// start server
-	s, root := nomad.TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	policyBad := mock.NodePolicy(acl.PolicyDeny)
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)

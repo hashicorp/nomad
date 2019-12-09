@@ -22,10 +22,11 @@ import (
 
 func TestJobEndpoint_Register(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -106,12 +107,13 @@ func TestJobEndpoint_Register(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_Connect(t *testing.T) {
-	require := require.New(t)
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -178,12 +180,13 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
-	require := require.New(t)
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -275,10 +278,10 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 func TestJobEndpoint_Register_ACL(t *testing.T) {
 	t.Parallel()
 
-	s1, root := TestACLServer(t, func(c *Config) {
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	newVolumeJob := func(readonlyVolume bool) *structs.Job {
@@ -400,10 +403,11 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 
 func TestJobEndpoint_Register_InvalidNamespace(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -439,10 +443,11 @@ func TestJobEndpoint_Register_InvalidNamespace(t *testing.T) {
 
 func TestJobEndpoint_Register_Payload(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -472,10 +477,11 @@ func TestJobEndpoint_Register_Payload(t *testing.T) {
 
 func TestJobEndpoint_Register_Existing(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -594,10 +600,11 @@ func TestJobEndpoint_Register_Existing(t *testing.T) {
 
 func TestJobEndpoint_Register_Periodic(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -646,10 +653,11 @@ func TestJobEndpoint_Register_Periodic(t *testing.T) {
 
 func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -694,10 +702,11 @@ func TestJobEndpoint_Register_ParameterizedJob(t *testing.T) {
 func TestJobEndpoint_Register_Dispatched(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -721,10 +730,11 @@ func TestJobEndpoint_Register_Dispatched(t *testing.T) {
 
 func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -852,12 +862,13 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 // uses Vault when Vault is *disabled* results in an error.
 func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 		f := false
 		c.VaultConfig.Enabled = &f
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -888,10 +899,11 @@ func TestJobEndpoint_Register_Vault_Disabled(t *testing.T) {
 // allow_unauthenticated=true.
 func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -944,10 +956,11 @@ func TestJobEndpoint_Register_Vault_AllowUnauthenticated(t *testing.T) {
 // automatically injected one.
 func TestJobEndpoint_Register_Vault_OverrideConstraint(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1000,10 +1013,11 @@ func TestJobEndpoint_Register_Vault_OverrideConstraint(t *testing.T) {
 
 func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1040,10 +1054,11 @@ func TestJobEndpoint_Register_Vault_NoToken(t *testing.T) {
 
 func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1183,8 +1198,9 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 // used when evaluating semver constraints.
 func TestJobEndpoint_Register_SemverConstraint(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.State()
@@ -1262,10 +1278,11 @@ func TestJobEndpoint_Register_SemverConstraint(t *testing.T) {
 
 func TestJobEndpoint_Revert(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1431,10 +1448,11 @@ func TestJobEndpoint_Revert(t *testing.T) {
 
 func TestJobEndpoint_Revert_Vault_NoToken(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1530,10 +1548,11 @@ func TestJobEndpoint_Revert_Vault_NoToken(t *testing.T) {
 // revert request's Vault token when authorizing policies.
 func TestJobEndpoint_Revert_Vault_Policies(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1644,11 +1663,11 @@ func TestJobEndpoint_Revert_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, root := TestACLServer(t, func(c *Config) {
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	state := s1.fsm.State()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1707,10 +1726,11 @@ func TestJobEndpoint_Revert_ACL(t *testing.T) {
 
 func TestJobEndpoint_Stable(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1772,10 +1792,10 @@ func TestJobEndpoint_Stable_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, root := TestACLServer(t, func(c *Config) {
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	state := s1.fsm.State()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1837,10 +1857,11 @@ func TestJobEndpoint_Stable_ACL(t *testing.T) {
 
 func TestJobEndpoint_Evaluate(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1921,12 +1942,13 @@ func TestJobEndpoint_Evaluate(t *testing.T) {
 }
 
 func TestJobEndpoint_ForceRescheduleEvaluate(t *testing.T) {
-	require := require.New(t)
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -2001,10 +2023,10 @@ func TestJobEndpoint_Evaluate_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, root := TestACLServer(t, func(c *Config) {
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -2073,10 +2095,11 @@ func TestJobEndpoint_Evaluate_ACL(t *testing.T) {
 
 func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -2116,10 +2139,11 @@ func TestJobEndpoint_Evaluate_Periodic(t *testing.T) {
 
 func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -2161,10 +2185,11 @@ func TestJobEndpoint_Evaluate_ParameterizedJob(t *testing.T) {
 func TestJobEndpoint_Deregister(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -2252,10 +2277,10 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, root := TestACLServer(t, func(c *Config) {
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -2332,10 +2357,11 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 
 func TestJobEndpoint_Deregister_Nonexistent(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -2398,10 +2424,11 @@ func TestJobEndpoint_Deregister_Nonexistent(t *testing.T) {
 
 func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -2456,10 +2483,11 @@ func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
 
 func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -2516,10 +2544,11 @@ func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 func TestJobEndpoint_BatchDeregister(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -2609,10 +2638,10 @@ func TestJobEndpoint_BatchDeregister_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, root := TestACLServer(t, func(c *Config) {
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -2676,8 +2705,9 @@ func TestJobEndpoint_BatchDeregister_ACL(t *testing.T) {
 
 func TestJobEndpoint_GetJob(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -2755,8 +2785,8 @@ func TestJobEndpoint_GetJob_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -2811,8 +2841,9 @@ func TestJobEndpoint_GetJob_ACL(t *testing.T) {
 
 func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -2887,8 +2918,9 @@ func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
 
 func TestJobEndpoint_GetJobVersions(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -2961,8 +2993,8 @@ func TestJobEndpoint_GetJobVersions_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -3026,8 +3058,9 @@ func TestJobEndpoint_GetJobVersions_ACL(t *testing.T) {
 
 func TestJobEndpoint_GetJobVersions_Diff(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -3122,8 +3155,9 @@ func TestJobEndpoint_GetJobVersions_Diff(t *testing.T) {
 
 func TestJobEndpoint_GetJobVersions_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -3207,11 +3241,12 @@ func TestJobEndpoint_GetJobVersions_Blocking(t *testing.T) {
 
 func TestJobEndpoint_GetJobSummary(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -3267,15 +3302,15 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 }
 
 func TestJobEndpoint_Summary_ACL(t *testing.T) {
-	require := require.New(t)
 	t.Parallel()
+	require := require.New(t)
 
-	srv, root := TestACLServer(t, func(c *Config) {
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer srv.Shutdown()
-	codec := rpcClient(t, srv)
-	testutil.WaitForLeader(t, srv.RPC)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the job
 	job := mock.Job()
@@ -3331,7 +3366,7 @@ func TestJobEndpoint_Summary_ACL(t *testing.T) {
 	require.Equal(expectedJobSummary, mgmtResp.JobSummary)
 
 	// Create the namespace policy and tokens
-	state := srv.fsm.State()
+	state := s1.fsm.State()
 
 	// Expect failure for request with an invalid token
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
@@ -3355,8 +3390,9 @@ func TestJobEndpoint_Summary_ACL(t *testing.T) {
 
 func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -3448,8 +3484,9 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 
 func TestJobEndpoint_ListJobs(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -3508,16 +3545,16 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 }
 
 func TestJobEndpoint_ListJobs_WithACL(t *testing.T) {
-	require := require.New(t)
 	t.Parallel()
+	require := require.New(t)
 
-	srv, root := TestACLServer(t, func(c *Config) {
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer srv.Shutdown()
-	codec := rpcClient(t, srv)
-	testutil.WaitForLeader(t, srv.RPC)
-	state := srv.fsm.State()
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
 
 	var err error
 
@@ -3569,8 +3606,9 @@ func TestJobEndpoint_ListJobs_WithACL(t *testing.T) {
 
 func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -3635,8 +3673,9 @@ func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 
 func TestJobEndpoint_Allocations(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -3678,8 +3717,8 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -3739,8 +3778,9 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 
 func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -3798,8 +3838,9 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 // request returns an error.
 func TestJobEndpoint_Allocations_NoJobID(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -3819,8 +3860,9 @@ func TestJobEndpoint_Allocations_NoJobID(t *testing.T) {
 
 func TestJobEndpoint_Evaluations(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -3860,8 +3902,8 @@ func TestJobEndpoint_Evaluations_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -3919,8 +3961,9 @@ func TestJobEndpoint_Evaluations_ACL(t *testing.T) {
 
 func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -3974,8 +4017,9 @@ func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
 
 func TestJobEndpoint_Deployments(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -4012,8 +4056,8 @@ func TestJobEndpoint_Deployments_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -4074,8 +4118,9 @@ func TestJobEndpoint_Deployments_ACL(t *testing.T) {
 
 func TestJobEndpoint_Deployments_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -4120,8 +4165,9 @@ func TestJobEndpoint_Deployments_Blocking(t *testing.T) {
 
 func TestJobEndpoint_LatestDeployment(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -4160,8 +4206,8 @@ func TestJobEndpoint_LatestDeployment_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -4227,8 +4273,9 @@ func TestJobEndpoint_LatestDeployment_ACL(t *testing.T) {
 
 func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -4274,10 +4321,11 @@ func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
 
 func TestJobEndpoint_Plan_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, func(c *Config) {
+
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -4307,10 +4355,11 @@ func TestJobEndpoint_Plan_ACL(t *testing.T) {
 
 func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -4366,10 +4415,11 @@ func TestJobEndpoint_Plan_WithDiff(t *testing.T) {
 
 func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -4425,10 +4475,11 @@ func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 
 func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -4495,8 +4546,8 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 	t.Parallel()
 
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -4586,10 +4637,11 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 
 func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -4704,10 +4756,10 @@ func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, root := TestACLServer(t, func(c *Config) {
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -4740,11 +4792,10 @@ func TestJobEndpoint_Dispatch_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, root := TestACLServer(t, func(c *Config) {
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -4985,10 +5036,10 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			s1 := TestServer(t, func(c *Config) {
+			s1, cleanupS1 := TestServer(t, func(c *Config) {
 				c.NumSchedulers = 0 // Prevent automatic dequeue
 			})
-			defer s1.Shutdown()
+			defer cleanupS1()
 			codec := rpcClient(t, s1)
 			testutil.WaitForLeader(t, s1.RPC)
 

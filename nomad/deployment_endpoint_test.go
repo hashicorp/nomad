@@ -16,8 +16,9 @@ import (
 
 func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -47,8 +48,9 @@ func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 
 func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -100,8 +102,9 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
@@ -149,10 +152,11 @@ func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 
 func TestDeploymentEndpoint_Fail(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -198,10 +202,11 @@ func TestDeploymentEndpoint_Fail(t *testing.T) {
 
 func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 	t.Parallel()
-	s1, _ := TestACLServer(t, func(c *Config) {
+
+	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -273,10 +278,11 @@ func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -350,10 +356,11 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 
 func TestDeploymentEndpoint_Pause(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -392,10 +399,11 @@ func TestDeploymentEndpoint_Pause(t *testing.T) {
 
 func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 	t.Parallel()
-	s1, _ := TestACLServer(t, func(c *Config) {
+
+	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -460,10 +468,11 @@ func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_Promote(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -524,10 +533,11 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 
 func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 	t.Parallel()
-	s1, _ := TestACLServer(t, func(c *Config) {
+
+	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -614,10 +624,11 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -681,10 +692,11 @@ func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 
 func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 	t.Parallel()
-	s1, _ := TestACLServer(t, func(c *Config) {
+
+	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -774,10 +786,11 @@ func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -863,10 +876,11 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 // tests rollback upon alloc health failure to job with identical spec does not succeed
 func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -949,8 +963,9 @@ func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
 
 func TestDeploymentEndpoint_List(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -995,8 +1010,9 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 
 func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -1063,8 +1079,9 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1120,8 +1137,9 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 
 func TestDeploymentEndpoint_Allocations(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -1157,8 +1175,9 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 
 func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -1231,8 +1250,9 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1298,8 +1318,9 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 
 func TestDeploymentEndpoint_Reap(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
