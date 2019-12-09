@@ -15,6 +15,8 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/profile"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -453,6 +455,143 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 					}
 				}
 			}
+		})
+	}
+}
+
+func TestAgentProfile_RemoteClient(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// start server and client
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	s2 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+	})
+	defer s2.Shutdown()
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
+
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s2.GetConfig().RPCAddr.String()}
+	})
+	defer cleanup()
+
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := s2.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have a clients")
+	})
+
+	req := cstructs.AgentPprofRequest{
+		ReqType: profile.CPUReq,
+		NodeID:  c.NodeID(),
+	}
+
+	reply := cstructs.AgentPprofResponse{}
+
+	err := s1.RPC("Agent.Profile", &req, &reply)
+	require.NoError(err)
+
+	require.NotNil(reply.Payload)
+	require.Equal(c.NodeID(), reply.AgentID)
+}
+
+func TestAgentProfile_Server(t *testing.T) {
+	t.Parallel()
+
+	// start servers
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	s2 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+	})
+	defer s2.Shutdown()
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
+
+	// determine leader and nonleader
+	servers := []*Server{s1, s2}
+	var nonLeader *Server
+	var leader *Server
+	for _, s := range servers {
+		if !s.IsLeader() {
+			nonLeader = s
+		} else {
+			leader = s
+		}
+	}
+
+	cases := []struct {
+		desc            string
+		serverID        string
+		origin          *Server
+		expectedErr     string
+		expectedAgentID string
+		reqType         profile.ReqType
+	}{
+		{
+			desc:            "remote leader",
+			serverID:        "leader",
+			origin:          nonLeader,
+			reqType:         profile.CmdReq,
+			expectedAgentID: leader.serf.LocalMember().Name,
+		},
+		{
+			desc:            "remote server",
+			serverID:        nonLeader.serf.LocalMember().Name,
+			origin:          leader,
+			reqType:         profile.CmdReq,
+			expectedAgentID: nonLeader.serf.LocalMember().Name,
+		},
+		{
+			desc:            "serverID is current leader",
+			serverID:        "leader",
+			origin:          leader,
+			reqType:         profile.CmdReq,
+			expectedAgentID: leader.serf.LocalMember().Name,
+		},
+		{
+			desc:            "serverID is current server",
+			serverID:        nonLeader.serf.LocalMember().Name,
+			origin:          nonLeader,
+			reqType:         profile.CPUReq,
+			expectedAgentID: nonLeader.serf.LocalMember().Name,
+		},
+		{
+			desc:            "serverID is unknown",
+			serverID:        uuid.Generate(),
+			origin:          nonLeader,
+			reqType:         profile.CmdReq,
+			expectedErr:     "unknown nomad server",
+			expectedAgentID: "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			require := require.New(t)
+
+			req := cstructs.AgentPprofRequest{
+				ReqType:  tc.reqType,
+				ServerID: tc.serverID,
+			}
+
+			reply := cstructs.AgentPprofResponse{}
+
+			err := tc.origin.RPC("Agent.Profile", &req, &reply)
+			if tc.expectedErr != "" {
+				require.Contains(err.Error(), tc.expectedErr)
+			} else {
+				require.Nil(err)
+				require.NotNil(reply.Payload)
+			}
+
+			require.Equal(tc.expectedAgentID, reply.AgentID)
 		})
 	}
 }

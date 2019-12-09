@@ -55,7 +55,6 @@ type MonitorRequest struct {
 }
 
 type AgentPprofRequest struct {
-
 	// Profile specifies the profile to use
 	ReqType profile.ReqType
 
@@ -78,6 +77,9 @@ type AgentPprofRequest struct {
 type AgentPprofResponse struct {
 	// Error stores any error that may have occurred.
 	Error *RpcError
+
+	// ID of the agent that fulfilled the request
+	AgentID string
 
 	Payload []byte
 }

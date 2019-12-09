@@ -32,21 +32,30 @@ func NewAgentEndpoint(c *Client) *Agent {
 func (m *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
 	var resp []byte
 	var err error
+
+	// Determine which profile to run
+	// and generate profile. Blocks for args.Seconds
 	switch args.ReqType {
 	case profile.CPUReq:
-		resp, err = profile.CPUProfile(args.Seconds)
+		resp, err = profile.CPUProfile(context.TODO(), args.Seconds)
 	case profile.CmdReq:
 		resp, err = profile.Cmdline()
 	case profile.LookupReq:
 		resp, err = profile.Profile(args.Profile, args.Debug)
 	case profile.TraceReq:
-		resp, err = profile.Trace(args.Seconds)
+		resp, err = profile.Trace(context.TODO(), args.Seconds)
 	}
 
 	if err != nil {
-		return err
+		if profile.IsErrProfileNotFound(err) {
+			return structs.NewErrRPCCoded(404, err.Error())
+		}
+		return structs.NewErrRPCCoded(500, err.Error())
 	}
+
+	// Copy profile response to reply
 	reply.Payload = resp
+	reply.AgentID = m.c.NodeID()
 
 	return nil
 }

@@ -338,21 +338,23 @@ func (s *HTTPServer) AgentPprofRequest(resp http.ResponseWriter, req *http.Reque
 	path := strings.TrimPrefix(req.URL.Path, "/v1/agent/pprof/")
 	switch {
 	case path == "":
-		// no index route
+		// no root index route
 		return nil, CodedError(404, ErrInvalidMethod)
 	case path == "cmdline":
-		return s.agentPprofReq(profile.CmdReq, "", resp, req)
+		return s.agentPprofReq(profile.CmdReq, resp, req)
 	case path == "profile":
-		return s.agentPprofReq(profile.CPUReq, "", resp, req)
+		return s.agentPprofReq(profile.CPUReq, resp, req)
 	case path == "trace":
-		return s.agentPprofReq(profile.TraceReq, "", resp, req)
+		return s.agentPprofReq(profile.TraceReq, resp, req)
 	default:
+		// Add profile to request
+		req.URL.Query().Add("profile", path)
 		// generic pprof profile request
-		return s.agentPprofReq(profile.LookupReq, path, resp, req)
+		return s.agentPprofReq(profile.LookupReq, resp, req)
 	}
 }
 
-func (s *HTTPServer) agentPprofReq(reqType profile.ReqType, profile string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) agentPprofReq(reqType profile.ReqType, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	var secret string
 	s.parseToken(req, &secret)
 
@@ -363,11 +365,8 @@ func (s *HTTPServer) agentPprofReq(reqType profile.ReqType, profile string, resp
 		return nil, structs.ErrPermissionDenied
 	}
 
-	nodeID := req.URL.Query().Get("node_id")
-	serverID := req.URL.Query().Get("server_id")
-	secondsParam := req.URL.Query().Get("seconds")
-
 	// Parse profile duration, default to 1 second
+	secondsParam := req.URL.Query().Get("seconds")
 	var seconds int
 	if secondsParam == "" {
 		seconds = 1
@@ -382,9 +381,9 @@ func (s *HTTPServer) agentPprofReq(reqType profile.ReqType, profile string, resp
 	// Create the request
 	args := &cstructs.AgentPprofRequest{
 		ReqType:  reqType,
-		Profile:  profile,
-		NodeID:   nodeID,
-		ServerID: serverID,
+		Profile:  req.URL.Query().Get("profile"),
+		NodeID:   req.URL.Query().Get("node_id"),
+		ServerID: req.URL.Query().Get("server_id"),
 		Seconds:  seconds,
 	}
 
@@ -399,9 +398,7 @@ func (s *HTTPServer) agentPprofReq(reqType profile.ReqType, profile string, resp
 	var rpcErr error
 	if args.NodeID != "" {
 		// Make the RPC
-		localClient, remoteClient, localServer := s.rpcHandlerForNode(nodeID)
-
-		// var handler structs.StreamingRpcHandler
+		localClient, remoteClient, localServer := s.rpcHandlerForNode(args.NodeID)
 		if localClient {
 			rpcErr = s.agent.Client().ClientRPC("Agent.Profile", &args, &reply)
 		} else if remoteClient {
@@ -415,7 +412,7 @@ func (s *HTTPServer) agentPprofReq(reqType profile.ReqType, profile string, resp
 	}
 
 	if rpcErr != nil {
-		// TODO: rpcErr should return codedErr
+		// Return RPCCodedErr
 		return nil, rpcErr
 	}
 

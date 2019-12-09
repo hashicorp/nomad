@@ -13,6 +13,7 @@ import (
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/monitor"
+	"github.com/hashicorp/nomad/command/agent/profile"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 
@@ -25,6 +26,63 @@ type Agent struct {
 
 func (m *Agent) register() {
 	m.srv.streamingRpcs.Register("Agent.Monitor", m.monitor)
+}
+
+func (m *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
+	// Targeting a node, forward request to node
+	if args.NodeID != "" {
+		return m.forwardProfileClient(args, reply)
+	}
+
+	currentServer := m.srv.serf.LocalMember().Name
+	var forwardServer bool
+	// Targeting a remote server which is not the leader and not this server
+	if args.ServerID != "" && args.ServerID != "leader" && args.ServerID != currentServer {
+		forwardServer = true
+	}
+
+	// Targeting leader and this server is not current leader
+	if args.ServerID == "leader" && !m.srv.IsLeader() {
+		forwardServer = true
+	}
+
+	if forwardServer {
+		// forward the request
+		return m.forwardProfileServer(args, reply)
+	}
+
+	var resp []byte
+	var err error
+
+	// Mark which server fulfilled the request
+	reply.AgentID = m.srv.serf.LocalMember().Name
+
+	// Determine which profile to run
+	// and generate profile. Blocks for args.Seconds
+	switch args.ReqType {
+	case profile.CPUReq:
+		resp, err = profile.CPUProfile(context.TODO(), args.Seconds)
+	case profile.CmdReq:
+		resp, err = profile.Cmdline()
+	case profile.LookupReq:
+		resp, err = profile.Profile(args.Profile, args.Debug)
+	case profile.TraceReq:
+		resp, err = profile.Trace(context.TODO(), args.Seconds)
+	default:
+		err = structs.NewErrRPCCoded(404, "Unknown profile request type")
+	}
+
+	if err != nil {
+		if profile.IsErrProfileNotFound(err) {
+			return structs.NewErrRPCCoded(404, err.Error())
+		}
+		return structs.NewErrRPCCoded(500, err.Error())
+	}
+
+	// Copy profile response to reply
+	reply.Payload = resp
+
+	return nil
 }
 
 func (m *Agent) monitor(conn io.ReadWriteCloser) {
@@ -305,4 +363,97 @@ func (m *Agent) forwardMonitorServer(conn io.ReadWriteCloser, args cstructs.Moni
 
 	structs.Bridge(conn, serverConn)
 	return
+}
+
+func (m *Agent) forwardProfileServer(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
+	var target *serverParts
+	serverID := args.ServerID
+
+	// empty ServerID to prevent forwarding loop
+	args.ServerID = ""
+
+	if serverID == "leader" {
+		isLeader, remoteServer := m.srv.getLeader()
+		if !isLeader && remoteServer != nil {
+			target = remoteServer
+		}
+		if !isLeader && remoteServer == nil {
+			return structs.NewErrRPCCoded(400, structs.ErrNoLeader.Error())
+		}
+	} else {
+		// See if the server ID is a known member
+		serfMembers := m.srv.Members()
+		for _, mem := range serfMembers {
+			if mem.Name == serverID {
+				if ok, srv := isNomadServer(mem); ok {
+					target = srv
+				}
+			}
+		}
+	}
+
+	// Unable to find a server
+	if target == nil {
+		err := fmt.Errorf("unknown nomad server %s", serverID)
+		return structs.NewErrRPCCoded(400, err.Error())
+	}
+
+	// Forward the request
+	rpcErr := m.srv.forwardServer(target, "Agent.Profile", args, reply)
+	if rpcErr != nil {
+		return structs.NewErrRPCCoded(500, rpcErr.Error())
+	}
+
+	return nil
+}
+
+func (m *Agent) forwardProfileClient(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
+	nodeID := args.NodeID
+
+	snap, err := m.srv.State().Snapshot()
+	if err != nil {
+		return structs.NewErrRPCCoded(500, err.Error())
+	}
+
+	node, err := snap.NodeByID(nil, nodeID)
+	if err != nil {
+		return structs.NewErrRPCCoded(500, err.Error())
+	}
+
+	if node == nil {
+		err := fmt.Errorf("Unknown node %q", nodeID)
+		return structs.NewErrRPCCoded(400, err.Error())
+	}
+
+	if err := nodeSupportsRpc(node); err != nil {
+		return structs.NewErrRPCCoded(400, err.Error())
+	}
+
+	// Get the Connection to the client either by fowarding to another server
+	// or creating direct stream
+	state, ok := m.srv.getNodeConn(nodeID)
+	if !ok {
+		// Determine the server that has a connection to the node
+		srv, err := m.srv.serverWithNodeConn(nodeID, m.srv.Region())
+		if err != nil {
+			code := 500
+			if structs.IsErrNoNodeConn(err) {
+				code = 404
+			}
+			return structs.NewErrRPCCoded(code, err.Error())
+		}
+
+		rpcErr := m.srv.forwardServer(srv, "Agent.Profile", args, reply)
+		if rpcErr != nil {
+			return structs.NewErrRPCCoded(500, err.Error())
+		}
+	} else {
+		// NodeRpc
+		rpcErr := NodeRpc(state.Session, "Agent.Profile", args, reply)
+		if rpcErr != nil {
+			return structs.NewErrRPCCoded(500, err.Error())
+		}
+	}
+
+	return nil
 }
