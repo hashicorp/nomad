@@ -24,12 +24,19 @@ type Agent struct {
 }
 
 func NewAgentEndpoint(c *Client) *Agent {
-	m := &Agent{c: c}
-	m.c.streamingRpcs.Register("Agent.Monitor", m.monitor)
-	return m
+	a := &Agent{c: c}
+	a.c.streamingRpcs.Register("Agent.Monitor", a.monitor)
+	return a
 }
 
-func (m *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
+func (a *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
+	// Check ACL for agent write
+	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
+		return structs.NewErrRPCCoded(500, err.Error())
+	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+		return structs.NewErrRPCCoded(403, structs.ErrPermissionDenied.Error())
+	}
+
 	var resp []byte
 	var err error
 
@@ -55,12 +62,12 @@ func (m *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentP
 
 	// Copy profile response to reply
 	reply.Payload = resp
-	reply.AgentID = m.c.NodeID()
+	reply.AgentID = a.c.NodeID()
 
 	return nil
 }
 
-func (m *Agent) monitor(conn io.ReadWriteCloser) {
+func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	defer metrics.MeasureSince([]string{"client", "agent", "monitor"}, time.Now())
 	defer conn.Close()
 
@@ -75,7 +82,7 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	}
 
 	// Check acl
-	if aclObj, err := m.c.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		handleStreamResultError(err, helper.Int64ToPtr(403), encoder)
 		return
 	} else if aclObj != nil && !aclObj.AllowAgentRead() {
@@ -96,7 +103,7 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	monitor := monitor.New(512, m.c.logger, &log.LoggerOptions{
+	monitor := monitor.New(512, a.c.logger, &log.LoggerOptions{
 		JSONFormat: args.LogJSON,
 		Level:      logLevel,
 	})

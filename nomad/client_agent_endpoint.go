@@ -24,17 +24,17 @@ type Agent struct {
 	srv *Server
 }
 
-func (m *Agent) register() {
-	m.srv.streamingRpcs.Register("Agent.Monitor", m.monitor)
+func (a *Agent) register() {
+	a.srv.streamingRpcs.Register("Agent.Monitor", a.monitor)
 }
 
-func (m *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
+func (a *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
 	// Targeting a node, forward request to node
 	if args.NodeID != "" {
-		return m.forwardProfileClient(args, reply)
+		return a.forwardProfileClient(args, reply)
 	}
 
-	currentServer := m.srv.serf.LocalMember().Name
+	currentServer := a.srv.serf.LocalMember().Name
 	var forwardServer bool
 	// Targeting a remote server which is not the leader and not this server
 	if args.ServerID != "" && args.ServerID != "leader" && args.ServerID != currentServer {
@@ -42,20 +42,29 @@ func (m *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentP
 	}
 
 	// Targeting leader and this server is not current leader
-	if args.ServerID == "leader" && !m.srv.IsLeader() {
+	if args.ServerID == "leader" && !a.srv.IsLeader() {
 		forwardServer = true
 	}
 
+	// Forward request to a remote server
 	if forwardServer {
 		// forward the request
-		return m.forwardProfileServer(args, reply)
+		return a.forwardProfileServer(args, reply)
 	}
 
+	// Check ACL for agent write
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return structs.NewErrRPCCoded(500, err.Error())
+	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+		return structs.NewErrRPCCoded(403, structs.ErrPermissionDenied.Error())
+	}
+
+	// Process the request on this server
 	var resp []byte
 	var err error
 
 	// Mark which server fulfilled the request
-	reply.AgentID = m.srv.serf.LocalMember().Name
+	reply.AgentID = a.srv.serf.LocalMember().Name
 
 	// Determine which profile to run
 	// and generate profile. Blocks for args.Seconds
@@ -85,7 +94,7 @@ func (m *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentP
 	return nil
 }
 
-func (m *Agent) monitor(conn io.ReadWriteCloser) {
+func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	defer conn.Close()
 
 	// Decode args
@@ -99,7 +108,7 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	}
 
 	// Check agent read permissions
-	if aclObj, err := m.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
 	} else if aclObj != nil && !aclObj.AllowAgentRead() {
@@ -119,12 +128,12 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 
 	// Targeting a node, forward request to node
 	if args.NodeID != "" {
-		m.forwardMonitorClient(conn, args, encoder, decoder)
+		a.forwardMonitorClient(conn, args, encoder, decoder)
 		// forwarded request has ended, return
 		return
 	}
 
-	currentServer := m.srv.serf.LocalMember().Name
+	currentServer := a.srv.serf.LocalMember().Name
 	var forwardServer bool
 	// Targeting a remote server which is not the leader and not this server
 	if args.ServerID != "" && args.ServerID != "leader" && args.ServerID != currentServer {
@@ -132,12 +141,12 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	}
 
 	// Targeting leader and this server is not current leader
-	if args.ServerID == "leader" && !m.srv.IsLeader() {
+	if args.ServerID == "leader" && !a.srv.IsLeader() {
 		forwardServer = true
 	}
 
 	if forwardServer {
-		m.forwardMonitorServer(conn, args, encoder, decoder)
+		a.forwardMonitorServer(conn, args, encoder, decoder)
 		return
 	}
 
@@ -145,7 +154,7 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	monitor := monitor.New(512, m.srv.logger, &log.LoggerOptions{
+	monitor := monitor.New(512, a.srv.logger, &log.LoggerOptions{
 		Level:      logLevel,
 		JSONFormat: args.LogJSON,
 	})
@@ -243,10 +252,10 @@ OUTER:
 	}
 }
 
-func (m *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
+func (a *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
 	nodeID := args.NodeID
 
-	snap, err := m.srv.State().Snapshot()
+	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
@@ -272,10 +281,10 @@ func (m *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.Moni
 	// Get the Connection to the client either by fowarding to another server
 	// or creating direct stream
 	var clientConn net.Conn
-	state, ok := m.srv.getNodeConn(nodeID)
+	state, ok := a.srv.getNodeConn(nodeID)
 	if !ok {
 		// Determine the server that has a connection to the node
-		srv, err := m.srv.serverWithNodeConn(nodeID, m.srv.Region())
+		srv, err := a.srv.serverWithNodeConn(nodeID, a.srv.Region())
 		if err != nil {
 			var code *int64
 			if structs.IsErrNoNodeConn(err) {
@@ -284,7 +293,7 @@ func (m *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.Moni
 			handleStreamResultError(err, code, encoder)
 			return
 		}
-		conn, err := m.srv.streamingRpc(srv, "Agent.Monitor")
+		conn, err := a.srv.streamingRpc(srv, "Agent.Monitor")
 		if err != nil {
 			handleStreamResultError(err, nil, encoder)
 			return
@@ -312,7 +321,7 @@ func (m *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.Moni
 	return
 }
 
-func (m *Agent) forwardMonitorServer(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
+func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
 	var target *serverParts
 	serverID := args.ServerID
 
@@ -320,7 +329,7 @@ func (m *Agent) forwardMonitorServer(conn io.ReadWriteCloser, args cstructs.Moni
 	args.ServerID = ""
 
 	if serverID == "leader" {
-		isLeader, remoteServer := m.srv.getLeader()
+		isLeader, remoteServer := a.srv.getLeader()
 		if !isLeader && remoteServer != nil {
 			target = remoteServer
 		}
@@ -330,7 +339,7 @@ func (m *Agent) forwardMonitorServer(conn io.ReadWriteCloser, args cstructs.Moni
 		}
 	} else {
 		// See if the server ID is a known member
-		serfMembers := m.srv.Members()
+		serfMembers := a.srv.Members()
 		for _, mem := range serfMembers {
 			if mem.Name == serverID {
 				if ok, srv := isNomadServer(mem); ok {
@@ -347,7 +356,7 @@ func (m *Agent) forwardMonitorServer(conn io.ReadWriteCloser, args cstructs.Moni
 		return
 	}
 
-	serverConn, err := m.srv.streamingRpc(target, "Agent.Monitor")
+	serverConn, err := a.srv.streamingRpc(target, "Agent.Monitor")
 	if err != nil {
 		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
 		return
@@ -365,7 +374,7 @@ func (m *Agent) forwardMonitorServer(conn io.ReadWriteCloser, args cstructs.Moni
 	return
 }
 
-func (m *Agent) forwardProfileServer(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
+func (a *Agent) forwardProfileServer(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
 	var target *serverParts
 	serverID := args.ServerID
 
@@ -373,7 +382,7 @@ func (m *Agent) forwardProfileServer(args *cstructs.AgentPprofRequest, reply *cs
 	args.ServerID = ""
 
 	if serverID == "leader" {
-		isLeader, remoteServer := m.srv.getLeader()
+		isLeader, remoteServer := a.srv.getLeader()
 		if !isLeader && remoteServer != nil {
 			target = remoteServer
 		}
@@ -382,7 +391,7 @@ func (m *Agent) forwardProfileServer(args *cstructs.AgentPprofRequest, reply *cs
 		}
 	} else {
 		// See if the server ID is a known member
-		serfMembers := m.srv.Members()
+		serfMembers := a.srv.Members()
 		for _, mem := range serfMembers {
 			if mem.Name == serverID {
 				if ok, srv := isNomadServer(mem); ok {
@@ -399,7 +408,7 @@ func (m *Agent) forwardProfileServer(args *cstructs.AgentPprofRequest, reply *cs
 	}
 
 	// Forward the request
-	rpcErr := m.srv.forwardServer(target, "Agent.Profile", args, reply)
+	rpcErr := a.srv.forwardServer(target, "Agent.Profile", args, reply)
 	if rpcErr != nil {
 		return structs.NewErrRPCCoded(500, rpcErr.Error())
 	}
@@ -407,10 +416,10 @@ func (m *Agent) forwardProfileServer(args *cstructs.AgentPprofRequest, reply *cs
 	return nil
 }
 
-func (m *Agent) forwardProfileClient(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
+func (a *Agent) forwardProfileClient(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
 	nodeID := args.NodeID
 
-	snap, err := m.srv.State().Snapshot()
+	snap, err := a.srv.State().Snapshot()
 	if err != nil {
 		return structs.NewErrRPCCoded(500, err.Error())
 	}
@@ -431,10 +440,10 @@ func (m *Agent) forwardProfileClient(args *cstructs.AgentPprofRequest, reply *cs
 
 	// Get the Connection to the client either by fowarding to another server
 	// or creating direct stream
-	state, ok := m.srv.getNodeConn(nodeID)
+	state, ok := a.srv.getNodeConn(nodeID)
 	if !ok {
 		// Determine the server that has a connection to the node
-		srv, err := m.srv.serverWithNodeConn(nodeID, m.srv.Region())
+		srv, err := a.srv.serverWithNodeConn(nodeID, a.srv.Region())
 		if err != nil {
 			code := 500
 			if structs.IsErrNoNodeConn(err) {
@@ -443,7 +452,7 @@ func (m *Agent) forwardProfileClient(args *cstructs.AgentPprofRequest, reply *cs
 			return structs.NewErrRPCCoded(code, err.Error())
 		}
 
-		rpcErr := m.srv.forwardServer(srv, "Agent.Profile", args, reply)
+		rpcErr := a.srv.forwardServer(srv, "Agent.Profile", args, reply)
 		if rpcErr != nil {
 			return structs.NewErrRPCCoded(500, err.Error())
 		}

@@ -464,20 +464,22 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 	require := require.New(t)
 
 	// start server and client
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	s1, cleanup := TestServer(t, nil)
+	defer cleanup()
+
+	s2, cleanup := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanup()
+
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()
@@ -504,12 +506,14 @@ func TestAgentProfile_Server(t *testing.T) {
 	t.Parallel()
 
 	// start servers
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	s1, cleanup := TestServer(t, nil)
+	defer cleanup()
+
+	s2, cleanup := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanup()
+
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)

@@ -549,12 +549,14 @@ func TestAgent_PprofRequest(t *testing.T) {
 
 				if tc.expectedErr != "" {
 					require.Error(t, err)
+
+					httpErr, ok := err.(HTTPCodedError)
+					require.True(t, ok)
+					require.Equal(t, httpErr.Code(), tc.expectedStatus)
 				} else {
 					require.NoError(t, err)
 					require.NotNil(t, resp)
 				}
-
-				require.Equal(t, tc.expectedStatus, respW.Code)
 			})
 		})
 	}

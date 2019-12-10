@@ -348,7 +348,10 @@ func (s *HTTPServer) AgentPprofRequest(resp http.ResponseWriter, req *http.Reque
 		return s.agentPprof(profile.TraceReq, resp, req)
 	default:
 		// Add profile to request
-		req.URL.Query().Add("profile", path)
+		values := req.URL.Query()
+		values.Add("profile", path)
+		req.URL.RawQuery = values.Encode()
+
 		// generic pprof profile request
 		return s.agentPprof(profile.LookupReq, resp, req)
 	}
@@ -424,10 +427,19 @@ func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWrite
 	}
 
 	if rpcErr != nil {
-		// Return RPCCodedErr
-		return nil, rpcErr
+		code, msg, ok := structs.CodeFromRPCCodedErr(rpcErr)
+		if !ok {
+			return nil, CodedError(500, rpcErr.Error())
+		}
+		// Return CodedError
+		return nil, CodedError(code, msg)
 	}
 
+	// Pprof cmdline is not a typical pprof
+	// so just return string instead of bytes
+	if args.ReqType == profile.CmdReq {
+		return string(reply.Payload), nil
+	}
 	return reply.Payload, nil
 }
 

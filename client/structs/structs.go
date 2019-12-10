@@ -35,6 +35,7 @@ type ClientStatsResponse struct {
 	structs.QueryMeta
 }
 
+// MonitorRequest is used to request and stream logs from a client node.
 type MonitorRequest struct {
 	// LogLevel is the log level filter we want to stream logs on
 	LogLevel string
@@ -54,11 +55,14 @@ type MonitorRequest struct {
 	structs.QueryOptions
 }
 
+// AgentPprofRequest is used to request a pprof report for a given node.
 type AgentPprofRequest struct {
-	// Profile specifies the profile to use
+	// ReqType specifies the profile to use
 	ReqType profile.ReqType
 
+	// Profile specifies the runtime/pprof profile to lookup and generate.
 	Profile string
+
 	// Seconds is the number of seconds to capture a profile
 	Seconds int
 
@@ -74,13 +78,12 @@ type AgentPprofRequest struct {
 	structs.QueryOptions
 }
 
+// AgentPprofResponse is used to return a generated pprof profile
 type AgentPprofResponse struct {
-	// Error stores any error that may have occurred.
-	Error *RpcError
-
 	// ID of the agent that fulfilled the request
 	AgentID string
 
+	// Payload is the generated pprof profile
 	Payload []byte
 }
 

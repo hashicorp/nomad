@@ -219,6 +219,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.Handle("/", handleRootFallthrough())
 
 	if enableDebug {
+		s.logger.Warn("enable_debug is set to true. This is insecure and should not be enabled in production")
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
 		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		s.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
