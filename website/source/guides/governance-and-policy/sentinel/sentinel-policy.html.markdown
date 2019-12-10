@@ -194,6 +194,12 @@ easy to read and write, while being fast to evaluate. There is no limitation on
 how complex policies can be, but they are in the execution path so care should
 be taken to avoid adversely impacting performance.
 
+The Nomad integration for Sentinel implements all of the available [standard
+imports](https://docs.hashicorp.com/sentinel/imports/) _except_
+[`http`](https://docs.hashicorp.com/sentinel/imports/http/), which is suitable
+for Sentinel integrations that are _not_ run directly in the request path (for
+example, [HashiCorp Terraform](https://www.terraform.io/).
+
 In each scope, there are different objects made available for introspection, such a job being submitted. Policies can
 inspect these objects to apply fine-grained policies.
 
