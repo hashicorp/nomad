@@ -106,6 +106,11 @@ func (c *MonitorCommand) Run(args []string) int {
 			return 1
 		}
 
+		if len(nodes) == 0 {
+			c.Ui.Error(fmt.Sprintf("No node(s) with prefix or id %q found", nodeID))
+			return 1
+		}
+
 		if len(nodes) > 1 {
 			out := formatNodeStubList(nodes, false)
 			c.Ui.Output(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", out))
