@@ -57,29 +57,6 @@ func testPeriodicJob() *Job {
 	return job
 }
 
-func testNamespace() *Namespace {
-	return &Namespace{
-		Name:        "test-namespace",
-		Description: "Testing namespaces",
-	}
-}
-
-func testQuotaSpec() *QuotaSpec {
-	return &QuotaSpec{
-		Name:        "test-namespace",
-		Description: "Testing namespaces",
-		Limits: []*QuotaLimit{
-			{
-				Region: "global",
-				RegionLimit: &Resources{
-					CPU:      intToPtr(2000),
-					MemoryMB: intToPtr(2000),
-				},
-			},
-		},
-	}
-}
-
 // conversions utils only used for testing
 // added here to avoid linter warning
 
