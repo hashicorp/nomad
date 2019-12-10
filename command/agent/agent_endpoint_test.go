@@ -15,6 +15,7 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -386,6 +387,104 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 			})
 		}
 	})
+}
+
+// Scenerios when Pprof requests should be available
+// see https://github.com/hashicorp/nomad/issues/6496
+// +---------------+------------------+--------+------------------+
+// |   Endpoint    |  `enable_debug`  |  ACLs  |  **Available?**  |
+// +---------------+------------------+--------+------------------+
+// | /debug/pprof  |  unset           |  n/a   |  no              |
+// | /debug/pprof  |  `true`          |  n/a   |  yes             |
+// | /debug/pprof  |  `false`         |  n/a   |  no              |
+// | /agent/pprof  |  unset           |  off   |  no              |
+// | /agent/pprof  |  unset           |  on    |  **yes**         |
+// | /agent/pprof  |  `true`          |  off   |  yes             |
+// | /agent/pprof  |  `false`         |  n/a   |  **no**          |
+// +---------------+------------------+--------+------------------+
+func TestAgent_PprofRequest_Permissions(t *testing.T) {
+	cases := []struct {
+		desc              string
+		aclEnabled        *bool
+		enableDebug       *bool
+		expectedAvailable bool
+	}{
+		{
+			desc: "unset debug, unset acl",
+			// manually set to false because test helpers
+			// enable to true by default
+			enableDebug:       helper.BoolToPtr(false),
+			expectedAvailable: false,
+		},
+		{
+			desc:              "debug true, acl unset",
+			enableDebug:       helper.BoolToPtr(true),
+			expectedAvailable: true,
+		},
+		{
+			desc:              "debug false, acl unset",
+			enableDebug:       helper.BoolToPtr(false),
+			expectedAvailable: false,
+		},
+		{
+			desc:              "debug unset, acl off",
+			enableDebug:       helper.BoolToPtr(false),
+			aclEnabled:        helper.BoolToPtr(false),
+			expectedAvailable: false,
+		},
+		{
+			desc:              "debug unset, acl on",
+			aclEnabled:        helper.BoolToPtr(true),
+			expectedAvailable: true,
+		},
+		{
+			desc:              "debug true, acl off",
+			aclEnabled:        helper.BoolToPtr(false),
+			enableDebug:       helper.BoolToPtr(true),
+			expectedAvailable: true,
+		},
+		{
+			desc:              "debug false, acl unset",
+			enableDebug:       helper.BoolToPtr(false),
+			expectedAvailable: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			cb := func(c *Config) {
+				if tc.aclEnabled != nil {
+					c.ACL.Enabled = *tc.aclEnabled
+				}
+				if tc.enableDebug != nil {
+					c.EnableDebug = *tc.enableDebug
+				}
+			}
+
+			httpTest(t, cb, func(s *TestAgent) {
+				state := s.Agent.server.State()
+
+				url := "/v1/agent/pprof/cmdline"
+				req, err := http.NewRequest("GET", url, nil)
+				require.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				if tc.aclEnabled != nil && *tc.aclEnabled {
+					token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
+					setToken(req, token)
+				}
+
+				resp, err := s.Server.AgentPprofRequest(respW, req)
+				if tc.expectedAvailable {
+					require.NoError(t, err)
+					require.NotNil(t, resp)
+				} else {
+					require.Error(t, err)
+					require.Equal(t, structs.ErrPermissionDenied.Error(), err.Error())
+				}
+			})
+		})
+	}
 }
 
 func TestAgent_PprofRequest(t *testing.T) {

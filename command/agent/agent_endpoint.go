@@ -341,28 +341,40 @@ func (s *HTTPServer) AgentPprofRequest(resp http.ResponseWriter, req *http.Reque
 		// no root index route
 		return nil, CodedError(404, ErrInvalidMethod)
 	case path == "cmdline":
-		return s.agentPprofReq(profile.CmdReq, resp, req)
+		return s.agentPprof(profile.CmdReq, resp, req)
 	case path == "profile":
-		return s.agentPprofReq(profile.CPUReq, resp, req)
+		return s.agentPprof(profile.CPUReq, resp, req)
 	case path == "trace":
-		return s.agentPprofReq(profile.TraceReq, resp, req)
+		return s.agentPprof(profile.TraceReq, resp, req)
 	default:
 		// Add profile to request
 		req.URL.Query().Add("profile", path)
 		// generic pprof profile request
-		return s.agentPprofReq(profile.LookupReq, resp, req)
+		return s.agentPprof(profile.LookupReq, resp, req)
 	}
 }
 
-func (s *HTTPServer) agentPprofReq(reqType profile.ReqType, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	var secret string
 	s.parseToken(req, &secret)
 
-	// Check agent read permissions
-	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
+	// Check agent write permissions
+	aclObj, err := s.agent.Server().ResolveToken(secret)
+	if err != nil {
 		return nil, err
 	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
 		return nil, structs.ErrPermissionDenied
+	}
+
+	enableDebug := s.agent.GetConfig().EnableDebug
+
+	// ACLs not enabled
+	if aclObj == nil {
+		// If debug is not explicitly enabled
+		// return unauthorized
+		if enableDebug == false {
+			return nil, structs.ErrPermissionDenied
+		}
 	}
 
 	// Parse profile duration, default to 1 second
@@ -380,10 +392,10 @@ func (s *HTTPServer) agentPprofReq(reqType profile.ReqType, resp http.ResponseWr
 
 	// Create the request
 	args := &cstructs.AgentPprofRequest{
-		ReqType:  reqType,
-		Profile:  req.URL.Query().Get("profile"),
 		NodeID:   req.URL.Query().Get("node_id"),
+		Profile:  req.URL.Query().Get("profile"),
 		ServerID: req.URL.Query().Get("server_id"),
+		ReqType:  reqType,
 		Seconds:  seconds,
 	}
 
