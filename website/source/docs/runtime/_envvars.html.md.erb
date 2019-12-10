@@ -45,7 +45,7 @@
   </tr>
   <tr>
     <td><tt>NOMAD&lowbar;ALLOC&lowbar;INDEX</tt></td>
-    <td>Allocation index; useful to distinguish instances of task groups. From 0 to (count - 1).</td>
+    <td>Allocation index; useful to distinguish instances of task groups. From 0 to (count - 1). The index is unique within a given version of a job, but canaries or failed tasks in a deployment may reuse the index.</td>
   </tr>
   <tr>
     <td><tt>NOMAD&lowbar;TASK&lowbar;NAME</tt></td>
