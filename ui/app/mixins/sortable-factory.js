@@ -1,5 +1,6 @@
 import Mixin from '@ember/object/mixin';
 import { computed } from '@ember/object';
+import { warn } from '@ember/debug';
 
 /**
   Sortable mixin factory
@@ -16,7 +17,7 @@ import { computed } from '@ember/object';
   Properties provided:
     - listSorted: a copy of listToSort that has been sorted
 */
-export default function sortableFactory(properties) {
+export default function sortableFactory(properties, fromSortableMixin) {
   const eachProperties = properties.map(property => `listToSort.@each.${property}`);
 
   return Mixin.create({
@@ -25,12 +26,26 @@ export default function sortableFactory(properties) {
     sortDescending: true,
     listToSort: computed(() => []),
 
+    _sortableFactoryWarningPrinted: false,
+
     listSorted: computed(
       ...eachProperties,
       'listToSort.[]',
       'sortProperty',
       'sortDescending',
       function() {
+        if (!this._sortableFactoryWarningPrinted) {
+          let message =
+            'Using SortableFactory without property keys means the list will only sort when the members change, not when any of their properties change.';
+
+          if (fromSortableMixin) {
+            message += ' The Sortable mixin is deprecated in favor of SortableFactory.';
+          }
+
+          warn(message, properties.length > 0, { id: 'nomad.no-sortable-properties' });
+          this.set('_sortableFactoryWarningPrinted', true);
+        }
+
         const sorted = this.listToSort.compact().sortBy(this.sortProperty);
         if (this.sortDescending) {
           return sorted.reverse();
