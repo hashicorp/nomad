@@ -63,6 +63,8 @@ type LibcontainerExecutor struct {
 	userProc       *libcontainer.Process
 	userProcExited chan interface{}
 	exitState      *ProcessState
+
+	containerSubsystems []string
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
@@ -202,6 +204,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	if err := cgroups.EnterPid(containerState.CgroupPaths, os.Getpid()); err != nil {
 		l.logger.Error("error entering user process cgroups", "executor_pid", os.Getpid(), "error", err)
 	}
+	l.containerSubsystems = keys(containerState.CgroupPaths)
 
 	// start a goroutine to wait on the process to complete, so Wait calls can
 	// be multiplexed
@@ -288,11 +291,7 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 	}
 
 	// move executor to root cgroup
-	subsystems, err := cgroups.GetAllSubsystems()
-	if err != nil {
-		return err
-	}
-	if err := JoinRootCgroup(subsystems); err != nil {
+	if err := JoinRootCgroup(l.containerSubsystems); err != nil {
 		return err
 	}
 
@@ -916,4 +915,12 @@ func lookPathIn(path string, root string, bin string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("file %s not found under path %s", bin, root)
+}
+
+func keys(m map[string]string) []string {
+	r := make([]string, 0, len(m))
+	for k, _ := range m {
+		r = append(r, k)
+	}
+	return r
 }
