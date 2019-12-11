@@ -39,18 +39,19 @@ func (a *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentP
 
 	var resp []byte
 	var err error
+	var headers map[string]string
 
 	// Determine which profile to run
 	// and generate profile. Blocks for args.Seconds
 	switch args.ReqType {
 	case profile.CPUReq:
-		resp, err = profile.CPUProfile(context.TODO(), args.Seconds)
+		resp, headers, err = profile.CPUProfile(context.TODO(), args.Seconds)
 	case profile.CmdReq:
-		resp, err = profile.Cmdline()
+		resp, headers, err = profile.Cmdline()
 	case profile.LookupReq:
-		resp, err = profile.Profile(args.Profile, args.Debug)
+		resp, headers, err = profile.Profile(args.Profile, args.Debug)
 	case profile.TraceReq:
-		resp, err = profile.Trace(context.TODO(), args.Seconds)
+		resp, headers, err = profile.Trace(context.TODO(), args.Seconds)
 	}
 
 	if err != nil {
@@ -63,6 +64,7 @@ func (a *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentP
 	// Copy profile response to reply
 	reply.Payload = resp
 	reply.AgentID = a.c.NodeID()
+	reply.HTTPHeaders = headers
 
 	return nil
 }

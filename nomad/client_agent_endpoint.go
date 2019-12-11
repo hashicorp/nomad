@@ -62,21 +62,24 @@ func (a *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentP
 	// Process the request on this server
 	var resp []byte
 	var err error
+	var headers map[string]string
 
 	// Mark which server fulfilled the request
 	reply.AgentID = a.srv.serf.LocalMember().Name
 
 	// Determine which profile to run
 	// and generate profile. Blocks for args.Seconds
+	// Our RPC endpoints currently don't support context
+	// or request cancellation so stubbing with TODO
 	switch args.ReqType {
 	case profile.CPUReq:
-		resp, err = profile.CPUProfile(context.TODO(), args.Seconds)
+		resp, headers, err = profile.CPUProfile(context.TODO(), args.Seconds)
 	case profile.CmdReq:
-		resp, err = profile.Cmdline()
+		resp, headers, err = profile.Cmdline()
 	case profile.LookupReq:
-		resp, err = profile.Profile(args.Profile, args.Debug)
+		resp, headers, err = profile.Profile(args.Profile, args.Debug)
 	case profile.TraceReq:
-		resp, err = profile.Trace(context.TODO(), args.Seconds)
+		resp, headers, err = profile.Trace(context.TODO(), args.Seconds)
 	default:
 		err = structs.NewErrRPCCoded(404, "Unknown profile request type")
 	}
@@ -90,6 +93,7 @@ func (a *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentP
 
 	// Copy profile response to reply
 	reply.Payload = resp
+	reply.HTTPHeaders = headers
 
 	return nil
 }

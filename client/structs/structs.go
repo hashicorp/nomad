@@ -85,6 +85,8 @@ type AgentPprofResponse struct {
 
 	// Payload is the generated pprof profile
 	Payload []byte
+
+	HTTPHeaders map[string]string
 }
 
 // AllocFileInfo holds information about a file inside the AllocDir

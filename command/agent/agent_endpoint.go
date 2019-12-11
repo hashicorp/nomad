@@ -334,7 +334,7 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 	return nil, err
 }
 
-func (s *HTTPServer) AgentPprofRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentPprofRequest(resp http.ResponseWriter, req *http.Request) ([]byte, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/agent/pprof/")
 	switch {
 	case path == "":
@@ -357,7 +357,7 @@ func (s *HTTPServer) AgentPprofRequest(resp http.ResponseWriter, req *http.Reque
 	}
 }
 
-func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWriter, req *http.Request) ([]byte, error) {
 	var secret string
 	s.parseToken(req, &secret)
 
@@ -386,11 +386,10 @@ func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWrite
 	if secondsParam == "" {
 		seconds = 1
 	} else {
-		sec, err := strconv.Atoi(secondsParam)
+		seconds, err = strconv.Atoi(secondsParam)
 		if err != nil {
 			return nil, CodedError(400, err.Error())
 		}
-		seconds = sec
 	}
 
 	// Create the request
@@ -435,11 +434,11 @@ func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWrite
 		return nil, CodedError(code, msg)
 	}
 
-	// Pprof cmdline is not a typical pprof
-	// so just return string instead of bytes
-	if args.ReqType == profile.CmdReq {
-		return string(reply.Payload), nil
+	// Set headers from profile request
+	for k, v := range reply.HTTPHeaders {
+		resp.Header().Set(k, v)
 	}
+
 	return reply.Payload, nil
 }
 
