@@ -4,6 +4,10 @@ IMPROVEMENTS:
 
 * scheduler: Removed penalty for allocation's previous node if the allocation did not fail. [[GH-6781](https://github.com/hashicorp/nomad/issues/6781)]
 
+BUG FIXES:
+
+ * cli: Fixed a bug where `nomad monitor -node-id` would cause a cli panic when no nodes where found. [[GH-6828](https://github.com/hashicorp/nomad/issues/6828)]
+
 ## 0.10.2 (December 4, 2019)
 
 FEATURES:
