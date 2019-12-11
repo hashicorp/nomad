@@ -26,7 +26,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	ldevices "github.com/opencontainers/runc/libcontainer/devices"
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
@@ -35,7 +34,7 @@ import (
 )
 
 const (
-	defaultCgroupParent = "nomad"
+	defaultCgroupParent = "/nomad"
 )
 
 var (
@@ -692,30 +691,21 @@ func configureBasicCgroups(cfg *lconfigs.Config) error {
 	id := uuid.Generate()
 
 	// Manually create freezer cgroup
-	cfg.Cgroups.Paths = map[string]string{}
-	root, err := cgroups.FindCgroupMountpointDir()
-	if err != nil {
-		return err
-	}
 
-	if _, err := os.Stat(root); err != nil {
-		return err
-	}
+	subsystem := "freezer"
 
-	freezer := cgroupFs.FreezerGroup{}
-	subsystem := freezer.Name()
-	path, err := cgroups.FindCgroupMountpoint("", subsystem)
+	path, err := getCgroupPathHelper(subsystem, filepath.Join(defaultCgroupParent, id))
 	if err != nil {
 		return fmt.Errorf("failed to find %s cgroup mountpoint: %v", subsystem, err)
 	}
-	// Sometimes subsystems can be mounted together as 'cpu,cpuacct'.
-	path = filepath.Join(root, filepath.Base(path), defaultCgroupParent, id)
 
 	if err = os.MkdirAll(path, 0755); err != nil {
 		return err
 	}
 
-	cfg.Cgroups.Paths[subsystem] = path
+	cfg.Cgroups.Paths = map[string]string{
+		subsystem: path,
+	}
 	return nil
 }
 
