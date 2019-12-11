@@ -61,11 +61,7 @@ export default Model.extend({
 
   // A status attribute that includes states not included in node status.
   // Useful for coloring and sorting nodes
-  compositeStatus: computed('status', 'isEligible', function() {
-    return this.isEligible ? this.status : 'ineligible';
-  }),
-
-  state: computed('isDraining', 'isEligible', 'status', function() {
+  compositeStatus: computed('isDraining', 'isEligible', 'status', function() {
     if (this.isDraining) {
       return 'draining';
     } else if (!this.isEligible) {

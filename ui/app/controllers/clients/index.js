@@ -8,7 +8,7 @@ import Searchable from 'nomad-ui/mixins/searchable';
 import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
 
 export default Controller.extend(
-  SortableFactory(['id', 'name', 'state', 'datacenter']),
+  SortableFactory(['id', 'name', 'compositeStatus', 'datacenter']),
   Searchable,
   {
     clientsController: controller('clients'),

@@ -41,7 +41,11 @@ module('Acceptance | clients list', function(hooks) {
 
     assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
     assert.equal(nodeRow.name, node.name, 'Name');
-    assert.equal(nodeRow.state.text, 'draining', 'Combined status, draining, and eligbility');
+    assert.equal(
+      nodeRow.compositeStatus.text,
+      'draining',
+      'Combined status, draining, and eligbility'
+    );
     assert.equal(nodeRow.address, node.httpAddr);
     assert.equal(nodeRow.datacenter, node.datacenter, 'Datacenter');
     assert.equal(nodeRow.allocations, allocations.length, '# Allocations');
@@ -81,24 +85,24 @@ module('Acceptance | clients list', function(hooks) {
 
     await ClientsList.visit();
 
-    ClientsList.nodes[0].state.as(readyClient => {
+    ClientsList.nodes[0].compositeStatus.as(readyClient => {
       assert.equal(readyClient.text, 'ready');
       assert.ok(readyClient.isUnformatted, 'expected no status class');
       assert.equal(readyClient.tooltip, 'ready / not draining / eligible');
     });
 
-    assert.equal(ClientsList.nodes[1].state.text, 'initializing');
-    assert.equal(ClientsList.nodes[2].state.text, 'down');
+    assert.equal(ClientsList.nodes[1].compositeStatus.text, 'initializing');
+    assert.equal(ClientsList.nodes[2].compositeStatus.text, 'down');
 
-    assert.equal(ClientsList.nodes[3].state.text, 'ineligible');
-    assert.ok(ClientsList.nodes[3].state.isWarning, 'expected warning class');
+    assert.equal(ClientsList.nodes[3].compositeStatus.text, 'ineligible');
+    assert.ok(ClientsList.nodes[3].compositeStatus.isWarning, 'expected warning class');
 
-    assert.equal(ClientsList.nodes[4].state.text, 'draining');
-    assert.ok(ClientsList.nodes[4].state.isInfo, 'expected info class');
+    assert.equal(ClientsList.nodes[4].compositeStatus.text, 'draining');
+    assert.ok(ClientsList.nodes[4].compositeStatus.isInfo, 'expected info class');
 
-    await ClientsList.sortBy('state');
+    await ClientsList.sortBy('compositeStatus');
 
-    assert.deepEqual(ClientsList.nodes.mapBy('state.text'), [
+    assert.deepEqual(ClientsList.nodes.mapBy('compositeStatus.text'), [
       'ready',
       'initializing',
       'ineligible',
@@ -115,7 +119,7 @@ module('Acceptance | clients list', function(hooks) {
 
     await settled();
 
-    assert.deepEqual(ClientsList.nodes.mapBy('state.text'), [
+    assert.deepEqual(ClientsList.nodes.mapBy('compositeStatus.text'), [
       'initializing',
       'ineligible',
       'ineligible',

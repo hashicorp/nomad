@@ -34,8 +34,8 @@ export default create({
     id: text('[data-test-client-id]'),
     name: text('[data-test-client-name]'),
 
-    state: {
-      scope: '[data-test-client-state]',
+    compositeStatus: {
+      scope: '[data-test-client-composite-status]',
 
       tooltip: attribute('aria-label', '.tooltip'),
 

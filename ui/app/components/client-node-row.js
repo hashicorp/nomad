@@ -47,12 +47,12 @@ export default Component.extend(WithVisibilityDetection, {
 
   watch: watchRelationship('allocations'),
 
-  stateClass: computed('node.state', function() {
-    let state = this.get('node.state');
+  compositeStatusClass: computed('node.compositeStatus', function() {
+    let compositeStatus = this.get('node.compositeStatus');
 
-    if (state === 'draining') {
+    if (compositeStatus === 'draining') {
       return 'status-text is-info';
-    } else if (state === 'ineligible') {
+    } else if (compositeStatus === 'ineligible') {
       return 'status-text is-warning';
     } else {
       return '';
