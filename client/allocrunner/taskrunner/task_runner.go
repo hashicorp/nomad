@@ -333,7 +333,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		tr.logger.Error("alloc missing task group")
 		return nil, fmt.Errorf("alloc missing task group")
 	}
-	tr.restartTracker = restarts.NewRestartTracker(tg.RestartPolicy, tr.alloc.Job.Type)
+	tr.restartTracker = restarts.NewRestartTracker(tg.RestartPolicy, tr.alloc.Job.Type, config.Task.Lifecycle)
 
 	// Get the driver
 	if err := tr.initDriver(); err != nil {
