@@ -20,9 +20,13 @@ const (
 	ReasonDelay               = "Exceeded allowed attempts, applying a delay"
 )
 
-func NewRestartTracker(policy *structs.RestartPolicy, jobType string) *RestartTracker {
+func NewRestartTracker(policy *structs.RestartPolicy, jobType string, tlc *structs.TaskLifecycleConfig) *RestartTracker {
 	onSuccess := true
-	if jobType == structs.JobTypeBatch {
+	if tlc != nil && tlc.BlockUntil == structs.TaskLifecycleBlockUntilCompleted {
+		onSuccess = false
+	} else if tlc != nil && tlc.BlockUntil == structs.TaskLifecycleBlockUntilRunning {
+		onSuccess = true
+	} else if jobType == structs.JobTypeBatch {
 		onSuccess = false
 	}
 	return &RestartTracker{
