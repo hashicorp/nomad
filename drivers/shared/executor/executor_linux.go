@@ -747,6 +747,22 @@ func configureBasicCgroups(cfg *lconfigs.Config) error {
 	return nil
 }
 
+func getCgroupPathHelper(subsystem, cgroup string) (string, error) {
+	mnt, root, err := cgroups.FindCgroupMountpointAndRoot("", subsystem)
+	if err != nil {
+		return "", err
+	}
+
+	// This is needed for nested containers, because in /proc/self/cgroup we
+	// see paths from host, which don't exist in container.
+	relCgroup, err := filepath.Rel(root, cgroup)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(mnt, relCgroup), nil
+}
+
 func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 	cfg := &lconfigs.Config{
 		Cgroups: &lconfigs.Cgroup{
