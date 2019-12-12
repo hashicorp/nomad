@@ -64,6 +64,7 @@ const (
 )
 
 // PluginUpdateEvent is a struct that is sent over a PluginsUpdatedCh when
+// plugins are added or removed from the registry.
 type PluginUpdateEvent struct {
 	EventType EventType
 	Info      *PluginInfo

@@ -114,7 +114,7 @@ func (c *Client) updateNodeFromCSI(name string, info *structs.CSIInfo) {
 }
 
 // updateNodeFromCSIControllerLocked makes the changes to the node from a csi
-// update but does not send the update to the server. c.configLock must be hel
+// update but does not send the update to the server. c.configLock must be held
 // before calling this func.
 //
 // It is safe to call for all CSI Updates, but will only perform changes when
