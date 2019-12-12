@@ -12,7 +12,7 @@ BUG FIXES:
 
 NOTES:
 
-* cli: Our darwin releases for this version and up will be signed and notarized according to Apple's requirements.
+* cli: Our [nomad_0.10.2_darwin_amd64_notarized](https://releases.hashicorp.com/nomad/0.10.2/nomad_0.10.2_darwin_amd64_notarized.zip) release has been signed and notarized according to Apple's requirements. In the future, darwin releases will be signed and notarized with our standard naming convention. 
 
     Prior to this release, MacOS 10.15+ users attempting to run our software may see the error: "'nomad' cannot be opened because the developer cannot be verified." This error affected all MacOS 10.15+ users who downloaded our software directly via web browsers, and was caused by [changes to Apple's third-party software requirements](https://developer.apple.com/news/?id=04102019a).
 
