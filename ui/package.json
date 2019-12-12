@@ -13,7 +13,7 @@
     "lint:hbs": "ember-template-lint .",
     "lint:js": "eslint .",
     "start": "./node_modules/ember-cli/bin/ember server",
-    "build-storybook": "STORYBOOK=true ember build -prod && build-storybook -s dist",
+    "build-storybook": "STORYBOOK=true ember build && build-storybook -s dist",
     "storybook": "STORYBOOK=true ember serve & start-storybook -p 6006 -s dist",
     "test": "./node_modules/ember-cli/bin/ember test"
   },
