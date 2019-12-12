@@ -14,12 +14,12 @@ and those canaries have been deemed healthy. When a task group is promoted, the
 rolling upgrade of the remaining allocations is unblocked. If the canaries are
 found to be unhealthy, the deployment may either be failed using the "nomad
 deployment fail" command, the job can be failed forward by submitting a new
-version or failed backwards by reverting to an older version using the [`job
-revert`](/docs/commands/job/revert.html) command.
+version or failed backwards by reverting to an older version using the
+[`job revert`] command.
 
 ## Usage
 
-```
+```plaintext
 nomad deployment promote [options] <deployment id>
 ```
 
@@ -34,21 +34,21 @@ select particular groups to promote.
 
 ## Promote Options
 
-* `-group`: Group may be specified many times and is used to promote that
+- `-group`: Group may be specified many times and is used to promote that
   particular group. If no specific groups are specified, all groups are
   promoted.
 
-* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+- `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
-  [eval status](/docs/commands/eval-status.html) command
+  [eval status] command
 
-* `-verbose`: Show full information.
+- `-verbose`: Show full information.
 
 ## Examples
 
 Promote canaries in all groups:
 
-```
+```shell
 # Have two task groups waiting for promotion.
 $ nomad status example
 ID            = example
@@ -136,7 +136,7 @@ f2409f7d  a8dcce2d  web         0        stop     complete  07/25/17 18:31:34 UT
 
 Promote canaries in a particular group:
 
-```
+```shell
 # Have two task groups waiting for promotion.
 $ nomad status example
 ID            = example
@@ -219,3 +219,6 @@ cee52788  6240eed6  web         0        run      running   07/25/17 18:37:08 UT
 ee8f972e  6240eed6  web         0        run      running   07/25/17 18:37:08 UTC
 0ee7800c  6240eed6  cache       0        stop     complete  07/25/17 18:37:08 UTC
 ```
+
+[`job revert`]: /docs/commands/job/revert.html
+[eval status]: /docs/commands/eval-status.html

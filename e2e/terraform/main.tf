@@ -28,9 +28,9 @@ variable "client_count" {
   default     = "4"
 }
 
-variable "retry_join" {
-  description = "Used by Consul to automatically form a cluster."
-  default     = "provider=aws tag_key=ConsulAutoJoin tag_value=auto-join"
+variable "windows_client_count" {
+  description = "The number of windows clients to provision."
+  default     = "1"
 }
 
 variable "nomad_sha" {
@@ -42,6 +42,12 @@ provider "aws" {
 }
 
 resource "random_pet" "e2e" {
+}
+
+resource "random_password" "windows_admin_password" {
+  length           = 20
+  special          = true
+  override_special = "_%@"
 }
 
 locals {
@@ -56,7 +62,7 @@ module "keys" {
   version = "v2.0.0"
 }
 
-data "aws_ami" "main" {
+data "aws_ami" "linux" {
   most_recent = true
   owners      = ["self"]
 
@@ -71,6 +77,21 @@ data "aws_ami" "main" {
   }
 }
 
+data "aws_ami" "windows" {
+  most_recent = true
+  owners      = ["self"]
+
+  filter {
+    name   = "name"
+    values = ["nomad-e2e-windows-2016*"]
+  }
+
+  filter {
+    name   = "tag:OS"
+    values = ["Windows2016"]
+  }
+}
+
 data "aws_caller_identity" "current" {
 }
 
@@ -78,8 +99,12 @@ output "servers" {
   value = aws_instance.server.*.public_ip
 }
 
-output "clients" {
-  value = aws_instance.client.*.public_ip
+output "linux_clients" {
+  value = aws_instance.client_linux.*.public_ip
+}
+
+output "windows_clients" {
+  value = aws_instance.client_windows.*.public_ip
 }
 
 output "message" {
@@ -88,8 +113,8 @@ Your cluster has been provisioned! - To prepare your environment, run the
 following:
 
 ```
-export NOMAD_ADDR=http://${aws_instance.client[0].public_ip}:4646
-export CONSUL_HTTP_ADDR=http://${aws_instance.client[0].public_ip}:8500
+export NOMAD_ADDR=http://${aws_instance.server[0].public_ip}:4646
+export CONSUL_HTTP_ADDR=http://${aws_instance.server[0].public_ip}:8500
 export NOMAD_E2E=1
 ```
 
@@ -101,7 +126,7 @@ go test -v ./e2e
 
 ssh into nodes with:
 ```
-ssh -i keys/${local.random_name}.pem ubuntu@${aws_instance.client[0].public_ip}
+ssh -i keys/${local.random_name}.pem ubuntu@${aws_instance.client_linux[0].public_ip}
 ```
 EOM
 

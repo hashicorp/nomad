@@ -59,11 +59,6 @@ module('Acceptance | client detail', function(hooks) {
 
     assert.ok(ClientDetail.title.includes(node.name), 'Title includes name');
     assert.ok(ClientDetail.title.includes(node.id), 'Title includes id');
-    assert.equal(
-      ClientDetail.statusLight.objectAt(0).id,
-      node.status,
-      'Title includes status light'
-    );
   });
 
   test('/clients/:id should list additional detail for the node below the title', async function(assert) {

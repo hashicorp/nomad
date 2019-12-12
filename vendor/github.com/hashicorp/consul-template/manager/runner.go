@@ -390,26 +390,13 @@ func (r *Runner) Start() {
 
 // Stop halts the execution of this runner and its subprocesses.
 func (r *Runner) Stop() {
-	r.stopLock.Lock()
-	defer r.stopLock.Unlock()
+	r.internalStop(false)
+}
 
-	if r.stopped {
-		return
-	}
-
-	log.Printf("[INFO] (runner) stopping")
-	r.stopDedup()
-	r.stopWatcher()
-	r.stopChild()
-
-	if err := r.deletePid(); err != nil {
-		log.Printf("[WARN] (runner) could not remove pid at %v: %s",
-			r.config.PidFile, err)
-	}
-
-	r.stopped = true
-
-	close(r.DoneCh)
+// StopImmediately behaves like Stop but won't wait for any splay on any child
+// process it may be running.
+func (r *Runner) StopImmediately() {
+	r.internalStop(true)
 }
 
 // TemplateRenderedCh returns a channel that will be triggered when one or more
@@ -437,6 +424,29 @@ func (r *Runner) RenderEvents() map[string]*RenderEvent {
 	return times
 }
 
+func (r *Runner) internalStop(immediately bool) {
+	r.stopLock.Lock()
+	defer r.stopLock.Unlock()
+
+	if r.stopped {
+		return
+	}
+
+	log.Printf("[INFO] (runner) stopping")
+	r.stopDedup()
+	r.stopWatcher()
+	r.stopChild(immediately)
+
+	if err := r.deletePid(); err != nil {
+		log.Printf("[WARN] (runner) could not remove pid at %q: %s",
+			*r.config.PidFile, err)
+	}
+
+	r.stopped = true
+
+	close(r.DoneCh)
+}
+
 func (r *Runner) stopDedup() {
 	if r.dedup != nil {
 		log.Printf("[DEBUG] (runner) stopping de-duplication manager")
@@ -451,13 +461,18 @@ func (r *Runner) stopWatcher() {
 	}
 }
 
-func (r *Runner) stopChild() {
+func (r *Runner) stopChild(immediately bool) {
 	r.childLock.RLock()
 	defer r.childLock.RUnlock()
 
 	if r.child != nil {
-		log.Printf("[DEBUG] (runner) stopping child process")
-		r.child.Stop()
+		if immediately {
+			log.Printf("[DEBUG] (runner) stopping child process immediately")
+			r.child.StopImmediately()
+		} else {
+			log.Printf("[DEBUG] (runner) stopping child process")
+			r.child.Stop()
+		}
 	}
 }
 

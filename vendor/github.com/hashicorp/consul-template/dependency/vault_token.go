@@ -1,9 +1,6 @@
 package dependency
 
 import (
-	"log"
-	"time"
-
 	"github.com/hashicorp/vault/api"
 	"github.com/pkg/errors"
 )
@@ -37,64 +34,31 @@ func NewVaultTokenQuery(token string) (*VaultTokenQuery, error) {
 }
 
 // Fetch queries the Vault API
-func (d *VaultTokenQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interface{}, *ResponseMetadata, error) {
+func (d *VaultTokenQuery) Fetch(clients *ClientSet, opts *QueryOptions,
+) (interface{}, *ResponseMetadata, error) {
 	select {
 	case <-d.stopCh:
 		return nil, nil, ErrStopped
 	default:
 	}
 
-	opts = opts.Merge(&QueryOptions{})
-
 	if vaultSecretRenewable(d.secret) {
-		log.Printf("[TRACE] %s: starting renewer", d)
-
-		renewer, err := clients.Vault().NewRenewer(&api.RenewerInput{
-			Grace:  opts.VaultGrace,
-			Secret: d.vaultSecret,
-		})
+		err := renewSecret(clients, d)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, d.String())
 		}
-		go renewer.Renew()
-		defer renewer.Stop()
-
-	RENEW:
-		for {
-			select {
-			case err := <-renewer.DoneCh():
-				if err != nil {
-					log.Printf("[WARN] %s: failed to renew: %s", d, err)
-				}
-				log.Printf("[WARN] %s: renewer returned (maybe the lease expired)", d)
-				break RENEW
-			case renewal := <-renewer.RenewCh():
-				log.Printf("[TRACE] %s: successfully renewed", d)
-				printVaultWarnings(d, renewal.Secret.Warnings)
-				updateSecret(d.secret, renewal.Secret)
-			case <-d.stopCh:
-				return nil, nil, ErrStopped
-			}
-		}
-	}
-
-	// The secret isn't renewable, probably the generic secret backend.
-	// TODO This is incorrect when given a non-renewable template. We should
-	// instead to a lookup self to determine the lease duration.
-	dur := vaultRenewDuration(d.secret)
-	if dur < opts.VaultGrace {
-		dur = opts.VaultGrace
-	}
-
-	log.Printf("[TRACE] %s: token is not renewable, sleeping for %s", d, dur)
-	select {
-	case <-time.After(dur):
-		// The lease is almost expired, it's time to request a new one.
-	case <-d.stopCh:
-		return nil, nil, ErrStopped
+		renewSecret(clients, d)
 	}
 
 	return nil, nil, ErrLeaseExpired
+}
+
+func (d *VaultTokenQuery) stopChan() chan struct{} {
+	return d.stopCh
+}
+
+func (d *VaultTokenQuery) secrets() (*Secret, *api.Secret) {
+	return d.secret, d.vaultSecret
 }
 
 // CanShare returns if this dependency is shareable.

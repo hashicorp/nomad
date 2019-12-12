@@ -21,9 +21,9 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/hashicorp/consul/lib/freeport"
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/helper/discover"
+	"github.com/hashicorp/nomad/helper/freeport"
 	testing "github.com/mitchellh/go-testing-interface"
 )
 
@@ -94,8 +94,8 @@ type ServerConfigCallback func(c *TestServerConfig)
 
 // defaultServerConfig returns a new TestServerConfig struct
 // with all of the listen ports incremented by one.
-func defaultServerConfig(t testing.T) *TestServerConfig {
-	ports := freeport.GetT(t, 3)
+func defaultServerConfig() (*TestServerConfig, []int) {
+	ports := freeport.MustTake(3)
 	return &TestServerConfig{
 		NodeName:          fmt.Sprintf("node-%d", ports[0]),
 		DisableCheckpoint: true,
@@ -118,7 +118,7 @@ func defaultServerConfig(t testing.T) *TestServerConfig {
 		ACL: &ACLConfig{
 			Enabled: false,
 		},
-	}
+	}, ports
 }
 
 // TestServer is the main server wrapper struct.
@@ -126,6 +126,10 @@ type TestServer struct {
 	cmd    *exec.Cmd
 	Config *TestServerConfig
 	t      testing.T
+
+	// ports (if any) that are reserved through freeport that must be returned
+	// at the end of a test, done when Close() is called.
+	ports []int
 
 	HTTPAddr   string
 	SerfAddr   string
@@ -160,7 +164,7 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	}
 	defer configFile.Close()
 
-	nomadConfig := defaultServerConfig(t)
+	nomadConfig, ports := defaultServerConfig()
 	nomadConfig.DataDir = dataDir
 
 	if cb != nil {
@@ -207,6 +211,8 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 		cmd:    cmd,
 		t:      t,
 
+		ports: ports,
+
 		HTTPAddr:   fmt.Sprintf("127.0.0.1:%d", nomadConfig.Ports.HTTP),
 		SerfAddr:   fmt.Sprintf("127.0.0.1:%d", nomadConfig.Ports.Serf),
 		HTTPClient: client,
@@ -229,6 +235,8 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 // Stop stops the test Nomad server, and removes the Nomad data
 // directory once we are done.
 func (s *TestServer) Stop() {
+	defer freeport.Return(s.ports)
+
 	defer os.RemoveAll(s.Config.DataDir)
 
 	if err := s.cmd.Process.Kill(); err != nil {

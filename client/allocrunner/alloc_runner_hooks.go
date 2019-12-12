@@ -7,6 +7,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -125,7 +126,13 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, alloc, hs, ar.Listener(), ar.consulClient),
 		newNetworkHook(hookLogger, ns, alloc, nm, nc),
-		newGroupServiceHook(hookLogger, alloc, ar.consulClient),
+		newGroupServiceHook(groupServiceHookConfig{
+			alloc:          alloc,
+			consul:         ar.consulClient,
+			restarter:      ar,
+			taskEnvBuilder: taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).SetAllocDir(ar.allocDir.AllocDir),
+			logger:         hookLogger,
+		}),
 		newConsulSockHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
 	}
 

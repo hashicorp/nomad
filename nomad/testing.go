@@ -8,9 +8,10 @@ import (
 	"time"
 
 	testing "github.com/mitchellh/go-testing-interface"
+	"github.com/pkg/errors"
 
-	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -23,8 +24,8 @@ var (
 	nodeNumber uint32 = 0
 )
 
-func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken) {
-	server := TestServer(t, func(c *Config) {
+func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken, func()) {
+	server, cleanup := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 		if cb != nil {
 			cb(c)
@@ -35,10 +36,10 @@ func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken) {
 	if err != nil {
 		t.Fatalf("failed to bootstrap ACL token: %v", err)
 	}
-	return server, token
+	return server, token, cleanup
 }
 
-func TestServer(t testing.T, cb func(*Config)) *Server {
+func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	// Setup the default settings
 	config := DefaultConfig()
 	config.Logger = testlog.HCLogger(t)
@@ -91,8 +92,9 @@ func TestServer(t testing.T, cb func(*Config)) *Server {
 	catalog := consul.NewMockCatalog(config.Logger)
 
 	for i := 10; i >= 0; i-- {
-		// Get random ports
-		ports := freeport.GetT(t, 2)
+		// Get random ports, need to cleanup later
+		ports := freeport.MustTake(2)
+
 		config.RPCAddr = &net.TCPAddr{
 			IP:   []byte{127, 0, 0, 1},
 			Port: ports[0],
@@ -102,19 +104,43 @@ func TestServer(t testing.T, cb func(*Config)) *Server {
 		// Create server
 		server, err := NewServer(config, catalog)
 		if err == nil {
-			return server
+			return server, func() {
+				ch := make(chan error)
+				go func() {
+					defer close(ch)
+
+					// Shutdown server
+					err := server.Shutdown()
+					if err != nil {
+						ch <- errors.Wrap(err, "failed to shutdown server")
+					}
+
+					freeport.Return(ports)
+				}()
+
+				select {
+				case e := <-ch:
+					if e != nil {
+						t.Fatal(e.Error())
+					}
+				case <-time.After(1 * time.Minute):
+					t.Fatal("timed out while shutting down server")
+				}
+			}
 		} else if i == 0 {
+			freeport.Return(ports)
 			t.Fatalf("err: %v", err)
 		} else {
 			if server != nil {
-				server.Shutdown()
+				_ = server.Shutdown()
+				freeport.Return(ports)
 			}
 			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
 			time.Sleep(wait)
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 func TestJoin(t testing.T, s1 *Server, other ...*Server) {

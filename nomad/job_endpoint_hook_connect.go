@@ -35,8 +35,8 @@ var (
 	connectVersionConstraint = func() *structs.Constraint {
 		return &structs.Constraint{
 			LTarget: "${attr.consul.version}",
-			RTarget: ">= 1.6.0beta1",
-			Operand: "version",
+			RTarget: ">= 1.6.0-beta1",
+			Operand: structs.ConstraintSemver,
 		}
 	}
 )
@@ -50,6 +50,15 @@ func (jobConnectHook) Name() string {
 
 func (jobConnectHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []error, err error) {
 	for _, g := range job.TaskGroups {
+		// TG isn't validated yet, but validation
+		// may depend on mutation results.
+		// Do basic validation here and skip mutation,
+		// so Validate can return a meaningful error
+		// messages
+		if len(g.Networks) == 0 {
+			continue
+		}
+
 		if err := groupConnectHook(g); err != nil {
 			return nil, nil, err
 		}
@@ -133,7 +142,6 @@ func groupConnectHook(g *structs.TaskGroup) error {
 			if !found {
 				g.Networks[0].DynamicPorts = append(g.Networks[0].DynamicPorts, port)
 			}
-			return nil
 		}
 	}
 	return nil

@@ -49,11 +49,12 @@ func init() {
 
 func TestWorker_dequeueEvaluation(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the evaluation
@@ -85,11 +86,12 @@ func TestWorker_dequeueEvaluation(t *testing.T) {
 // evals for the same job.
 func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the evaluation
@@ -153,11 +155,12 @@ func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
 
 func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the evaluation
@@ -200,11 +203,12 @@ func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 
 func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create a worker
@@ -229,11 +233,12 @@ func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
 
 func TestWorker_sendAck(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the evaluation
@@ -276,11 +281,12 @@ func TestWorker_sendAck(t *testing.T) {
 
 func TestWorker_waitForIndex(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Get the current index
@@ -314,11 +320,12 @@ func TestWorker_waitForIndex(t *testing.T) {
 
 func TestWorker_invokeScheduler(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
 	w := &Worker{srv: s1, logger: s1.logger}
 	eval := mock.Eval()
@@ -333,11 +340,12 @@ func TestWorker_invokeScheduler(t *testing.T) {
 
 func TestWorker_SubmitPlan(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Register node
@@ -398,12 +406,13 @@ func TestWorker_SubmitPlan(t *testing.T) {
 
 func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 		c.Build = "0.9.2"
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Register node
@@ -449,11 +458,12 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 
 func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Register node
@@ -519,11 +529,12 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 
 func TestWorker_UpdateEval(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Register node
@@ -566,11 +577,12 @@ func TestWorker_UpdateEval(t *testing.T) {
 
 func TestWorker_CreateEval(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Register node
@@ -614,11 +626,12 @@ func TestWorker_CreateEval(t *testing.T) {
 
 func TestWorker_ReblockEval(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the blocked eval

@@ -547,6 +547,9 @@ func (b *Builder) SetDeviceHookEnv(hookName string, envs map[string]string) *Bui
 // setTask is called from NewBuilder to populate task related environment
 // variables.
 func (b *Builder) setTask(task *structs.Task) *Builder {
+	if task == nil {
+		return b
+	}
 	b.taskName = task.Name
 	b.envvars = make(map[string]string, len(task.Env))
 	for k, v := range task.Env {

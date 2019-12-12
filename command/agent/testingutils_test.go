@@ -99,17 +99,6 @@ func MockJob() *api.Job {
 	return job
 }
 
-func MockPeriodicJob() *api.Job {
-	j := MockJob()
-	j.Type = helper.StringToPtr("batch")
-	j.Periodic = &api.PeriodicConfig{
-		Enabled:  helper.BoolToPtr(true),
-		SpecType: helper.StringToPtr("cron"),
-		Spec:     helper.StringToPtr("*/30 * * * *"),
-	}
-	return j
-}
-
 func MockRegionalJob() *api.Job {
 	j := MockJob()
 	j.Region = helper.StringToPtr("north-america")

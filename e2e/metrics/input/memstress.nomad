@@ -2,19 +2,13 @@ job "memstress" {
   datacenters = ["dc1", "dc2"]
   type        = "batch"
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "memstress" {
     count = 1
-
-    restart {
-      mode     = "fail"
-      attempts = 0
-    }
-
-    reschedule {
-      attempts  = 3
-      interval  = "10m"
-      unlimited = false
-    }
 
     task "memstress" {
       driver = "docker"
@@ -23,16 +17,18 @@ job "memstress" {
         image = "progrium/stress"
 
         args = [
-          "-m",
+          "--vm",
           "2",
-          "-t",
+          "--vm-bytes",
+          "128M",
+          "--timeout",
           "120",
         ]
       }
 
       resources {
-        cpu    = 4096
-        memory = 1024
+        cpu    = 1024
+        memory = 256
       }
     }
   }

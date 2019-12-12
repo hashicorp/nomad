@@ -286,6 +286,9 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 	require.Contains(out, "Placement Metrics")
 	require.Contains(out, mockNode1.ID)
 	require.Contains(out, mockNode2.ID)
+
+	// assert we sort headers alphabetically
+	require.Contains(out, "binpack  node-affinity")
 	require.Contains(out, "final score")
 }
 

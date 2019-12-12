@@ -12,6 +12,7 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/deployment"
 	_ "github.com/hashicorp/nomad/e2e/example"
 	_ "github.com/hashicorp/nomad/e2e/hostvolumes"
+	_ "github.com/hashicorp/nomad/e2e/metrics"
 	_ "github.com/hashicorp/nomad/e2e/nomad09upgrade"
 	_ "github.com/hashicorp/nomad/e2e/nomadexec"
 	_ "github.com/hashicorp/nomad/e2e/spread"

@@ -9,27 +9,11 @@ description: |-
 
 # Stateful Workloads
 
-Nomad allows a user to mount persistent data from local or remote storage volumes
-into task environments in a couple of ways — host volume mounts or Docker Volume
-drivers.
+These guides have been migrated to [HashiCorp's Learn website].
 
-Nomad host volumes allow you to mount any directory on the Nomad client into an
-allocation. These mounts can then be connected to individual tasks within a task
-group.
+You can follow these links to find the specific guides on Learn:
 
-The Docker task driver's support for [volumes][docker-volumes] enables Nomad to
-integrate with software-defined storage (SDS) solutions like
-[Portworx][portworx] to support stateful workloads. Please keep in mind that
-Nomad does not actually manage storage pools or replication as these tasks are
-delegated to the SDS providers. Please assess all factors and risks when
-utilizing such providers to run stateful workloads (such as your production
-database).
+- [Host Volumes](https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes)
+- [Portworx](https://learn.hashicorp.com/nomad//stateful-workloads/portworx)
 
-Please refer to the specific documentation links below or in the sidebar for
-more detailed information about using specific storage integrations.
-
-- [Host Volumes](/guides/stateful-workloads/host-volumes.html)
-- [Portworx](/guides/stateful-workloads/portworx.html)
-
-[docker-volumes]: /docs/drivers/docker.html#volumes
-[portworx]: https://docs.portworx.com/install-with-other/nomad
+[HashiCorp's Learn website]: https://learn.hashicorp.com/nomad?track=stateful-workloads#stateful-workloads

@@ -2,6 +2,11 @@ job "failed_batch" {
   type        = "batch"
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "failed_batch" {
     restart {
       attempts = 0

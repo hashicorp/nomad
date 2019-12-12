@@ -15,8 +15,9 @@ import (
 
 func TestHeartbeat_InitializeHeartbeatTimers(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	node := mock.Node()
@@ -41,8 +42,9 @@ func TestHeartbeat_InitializeHeartbeatTimers(t *testing.T) {
 
 func TestHeartbeat_ResetHeartbeatTimer(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create a new timer
@@ -64,11 +66,12 @@ func TestHeartbeat_ResetHeartbeatTimer(t *testing.T) {
 func TestHeartbeat_ResetHeartbeatTimer_Nonleader(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3 // Won't become leader
 		c.DevDisableBootstrap = true
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
 	require.False(s1.IsLeader())
 
@@ -80,8 +83,9 @@ func TestHeartbeat_ResetHeartbeatTimer_Nonleader(t *testing.T) {
 
 func TestHeartbeat_ResetHeartbeatTimerLocked(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	s1.heartbeatTimersLock.Lock()
@@ -101,8 +105,9 @@ func TestHeartbeat_ResetHeartbeatTimerLocked(t *testing.T) {
 
 func TestHeartbeat_ResetHeartbeatTimerLocked_Renew(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	s1.heartbeatTimersLock.Lock()
@@ -141,8 +146,9 @@ func TestHeartbeat_ResetHeartbeatTimerLocked_Renew(t *testing.T) {
 func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create a node
@@ -164,8 +170,9 @@ func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
 
 func TestHeartbeat_ClearHeartbeatTimer(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	s1.heartbeatTimersLock.Lock()
@@ -184,8 +191,9 @@ func TestHeartbeat_ClearHeartbeatTimer(t *testing.T) {
 
 func TestHeartbeat_ClearAllHeartbeatTimers(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	s1.heartbeatTimersLock.Lock()
@@ -206,18 +214,19 @@ func TestHeartbeat_ClearAllHeartbeatTimers(t *testing.T) {
 
 func TestHeartbeat_Server_HeartbeatTTL_Failover(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
 
-	s2 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
-	s3 := TestServer(t, func(c *Config) {
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
 	TestJoin(t, s1, s2, s3)
 

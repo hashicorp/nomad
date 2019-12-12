@@ -498,3 +498,71 @@ $ curl \
     }
 }
 ```
+
+## Stream Logs
+
+This endpoint streams logs from the local agent until the connection is closed
+
+| Method | Path                         | Produces                   |
+| ------ | ---------------------------- | -------------------------- |
+| `GET`  | `/agent/monitor`             | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `agent:read` |
+
+
+### Parameters
+
+- `log_level` `(string: "info")` - Specifies a text string containing a log level
+  to filter on, such as `info`. Possible values include `trace`, `debug`,
+  `info`, `warn`, `error`
+
+- `json` `(bool: false)` - Specifies if the log format for streamed logs 
+  should be JSON.
+
+- `node_id` `(string: "a57b2adb-1a30-2dda-8df0-25abb0881952")` - Specifies a text
+  string containing a node-id to target for streaming.
+
+- `server_id` `(string: "server1.global")` - Specifies a text
+  string containing a server name or "leader" to target a specific remote server
+  or leader for streaming.
+
+- `plain` `(bool: false)` - Specifies if the response should be JSON or
+  plaintext
+
+### Sample Request
+
+```text
+$ curl \
+    https://localhost:4646/v1/agent/monitor?log_level=debug&server_id=leader
+
+$ curl \
+    https://localhost:4646/v1/agent/monitor?log_level=debug&node_id=a57b2adb-1a30-2dda-8df0-25abb0881952
+```
+
+### Sample Response
+```json
+{
+  "Offset": 0,
+  "Data": "NTMxOTMyCjUzMTkzMwo1MzE5MzQKNTMx..."
+  "FileEvent": "log"
+}
+```
+
+#### Field Reference
+
+The return value is a stream of frames. These frames contain the following
+fields:
+
+- `Data` - A base64 encoding of the bytes being streamed.
+
+- `FileEvent` - An event that could cause a change in the streams position. The
+  possible value for this endpoint is "log".
+
+- `Offset` - Offset is the offset into the stream.
+

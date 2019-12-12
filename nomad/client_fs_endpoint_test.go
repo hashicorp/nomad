@@ -26,15 +26,15 @@ func TestClientFS_List_Local(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -109,8 +109,8 @@ func TestClientFS_List_ACL(t *testing.T) {
 	t.Parallel()
 
 	// Start a server
-	s, root := TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -177,21 +177,21 @@ func TestClientFS_List_Remote(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s2)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -269,8 +269,8 @@ func TestClientFS_Stat_OldNode(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	state := s.State()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
@@ -300,15 +300,15 @@ func TestClientFS_Stat_Local(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -383,8 +383,8 @@ func TestClientFS_Stat_ACL(t *testing.T) {
 	t.Parallel()
 
 	// Start a server
-	s, root := TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -451,12 +451,12 @@ func TestClientFS_Stat_Remote(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -543,8 +543,8 @@ func TestClientFS_Streaming_NoAlloc(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	// Make the request with bad allocation id
@@ -613,8 +613,8 @@ func TestClientFS_Streaming_ACL(t *testing.T) {
 	t.Parallel()
 
 	// Start a server
-	s, root := TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	// Create a bad token
@@ -730,8 +730,8 @@ func TestClientFS_Streaming_Local(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	c, cleanup := client.TestClient(t, func(c *config.Config) {
@@ -862,14 +862,14 @@ func TestClientFS_Streaming_Local_Follow(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Force an allocation onto the node
 	expectedBase := "Hello from the other side"
@@ -1000,20 +1000,20 @@ func TestClientFS_Streaming_Remote_Server(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Force an allocation onto the node
 	expected := "Hello from the other side"
@@ -1146,21 +1146,21 @@ func TestClientFS_Streaming_Remote_Region(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.Region = "two"
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 		c.Region = "two"
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Force an allocation onto the node
 	expected := "Hello from the other side"
@@ -1290,8 +1290,8 @@ func TestClientFS_Logs_NoAlloc(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	// Make the request with bad allocation id
@@ -1361,8 +1361,8 @@ func TestClientFS_Logs_OldNode(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	state := s.State()
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -1440,8 +1440,8 @@ func TestClientFS_Logs_ACL(t *testing.T) {
 	t.Parallel()
 
 	// Start a server
-	s, root := TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	// Create a bad token
@@ -1557,14 +1557,14 @@ func TestClientFS_Logs_Local(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Force an allocation onto the node
 	expected := "Hello from the other side"
@@ -1690,8 +1690,8 @@ func TestClientFS_Logs_Local_Follow(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	c, cleanup := client.TestClient(t, func(c *config.Config) {
@@ -1829,12 +1829,12 @@ func TestClientFS_Logs_Remote_Server(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -1976,12 +1976,12 @@ func TestClientFS_Logs_Remote_Region(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.Region = "two"
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)

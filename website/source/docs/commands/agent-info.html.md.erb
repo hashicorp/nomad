@@ -14,7 +14,7 @@ is connected to. This is useful for troubleshooting and performance monitoring.
 
 ## Usage
 
-```
+```plaintext
 nomad agent-info [options]
 ```
 
@@ -27,15 +27,15 @@ nomad agent-info [options]
 Depending on the agent queried, information from different subsystems is
 returned. These subsystems are described below:
 
-* client  - Status of the local Nomad client
-* nomad   - Status of the local Nomad server
-* serf    - Gossip protocol metrics and information
-* raft    - Status information about the Raft consensus protocol
-* runtime - Various metrics from the runtime environment
+- client  - Status of the local Nomad client
+- nomad   - Status of the local Nomad server
+- serf    - Gossip protocol metrics and information
+- raft    - Status information about the Raft consensus protocol
+- runtime - Various metrics from the runtime environment
 
 ## Examples
 
-```
+```shell
 $ nomad agent-info
 raft
   commit_index = 0

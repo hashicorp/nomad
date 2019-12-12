@@ -832,3 +832,18 @@ func TestEnvironment_SetPortMapEnvs(t *testing.T) {
 	}
 	require.Equal(t, expected, envs)
 }
+
+func TestEnvironment_TasklessBuilder(t *testing.T) {
+	node := mock.Node()
+	alloc := mock.Alloc()
+	alloc.Job.Meta["jobt"] = "foo"
+	alloc.Job.TaskGroups[0].Meta["groupt"] = "bar"
+	require := require.New(t)
+	var taskEnv *TaskEnv
+	require.NotPanics(func() {
+		taskEnv = NewBuilder(node, alloc, nil, "global").SetAllocDir("/tmp/alloc").Build()
+	})
+
+	require.Equal("foo", taskEnv.ReplaceEnv("${NOMAD_META_jobt}"))
+	require.Equal("bar", taskEnv.ReplaceEnv("${NOMAD_META_groupt}"))
+}

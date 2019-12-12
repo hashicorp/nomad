@@ -6,7 +6,7 @@ description: |-
   Learn how to operate a job from the Web UI.
 ---
 
-# Reviewing Job and Allocation Status
+# Operating a Job from the Web UI
 
 The Web UI can be a powerful companion when monitoring and debugging jobs running in Nomad. The Web
 UI will list all jobs, link jobs to allocations, allocations to client nodes, client nodes to driver

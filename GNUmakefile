@@ -154,8 +154,8 @@ deps:  ## Install build and development dependencies
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
-	go get -u github.com/alecthomas/gometalinter
-	gometalinter --install
+	go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+	go get -u github.com/client9/misspell/cmd/misspell
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
@@ -167,27 +167,8 @@ $(git-dir)/hooks/%: dev/hooks/%
 .PHONY: check
 check: ## Lint the source code
 	@echo "==> Linting source code..."
-	@gometalinter \
-		--deadline 10m \
-		--vendor \
-		--exclude='.*\.generated\.go' \
-		--exclude='.*\.pb\.go' \
-		--exclude='.*bindata_assetfs\.go' \
-		--skip="ui/" \
-		--sort="path" \
-		--aggregate \
-		--enable-gc \
-		--disable-all \
-		--enable goimports \
-		--enable misspell \
-		--enable vet \
-		--enable deadcode \
-		--enable varcheck \
-		--enable ineffassign \
-		--enable structcheck \
-		--enable unconvert \
-		--enable gofmt \
-		./...
+	@golangci-lint run -j 1
+
 	@echo "==> Spell checking website..."
 	@misspell -error -source=text website/source/
 
@@ -196,7 +177,7 @@ check: ## Lint the source code
 	@if (git status | grep -q .pb.go); then echo the following proto files are out of sync; git status |grep .pb.go; exit 1; fi
 
 	@echo "==> Check API package is isolated from rest"
-	@! go list -f '{{ join .Deps "\n" }}' ./api | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/
+	@! go list --test -f '{{ join .Deps "\n" }}' ./api | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test
 
 .PHONY: checkscripts
 checkscripts: ## Lint shell scripts

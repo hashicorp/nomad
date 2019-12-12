@@ -126,7 +126,7 @@ func (m *MonitorMessage) String() string {
 
 // MonitorDrain emits drain related events on the returned string channel. The
 // channel will be closed when all allocations on the draining node have
-// stopped or the context is canceled.
+// stopped, when an error occurs, or if the context is canceled.
 func (n *Nodes) MonitorDrain(ctx context.Context, nodeID string, index uint64, ignoreSys bool) <-chan *MonitorMessage {
 	outCh := make(chan *MonitorMessage, 8)
 	nodeCh := make(chan *MonitorMessage, 1)
@@ -335,7 +335,7 @@ func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys
 
 		// Exit if all allocs are terminal
 		if runningAllocs == 0 {
-			msg := Messagef(MonitorMsgLevelInfo, "All allocations on node %q have stopped.", nodeID)
+			msg := Messagef(MonitorMsgLevelInfo, "All allocations on node %q have stopped", nodeID)
 			select {
 			case allocCh <- msg:
 			case <-ctx.Done():
@@ -521,6 +521,9 @@ type DrainStrategy struct {
 	// ForceDeadline is the deadline time for the drain after which drains will
 	// be forced
 	ForceDeadline time.Time
+
+	// StartedAt is the time the drain process started
+	StartedAt time.Time
 }
 
 // DrainSpec describes a Node's drain behavior.

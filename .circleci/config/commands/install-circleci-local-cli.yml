@@ -1,0 +1,31 @@
+parameters:
+  version:
+    type: string
+    default: 0.1.5879
+
+  sha256:
+    type: string
+    default: f178ea62c781aec06267017404f87983c87f171fd0e66ef3737916246ae66dd6
+steps:
+  - run:
+      name: Install CircleCI CLI << parameters.version >>
+      command: |
+        CCI_VERSION="<< parameters.version >>"
+        CCI_SHA256="<< parameters.sha256 >>"
+
+        URL="https://github.com/CircleCI-Public/circleci-cli/releases/download/v${CCI_VERSION}/circleci-cli_${CCI_VERSION}_linux_amd64.tar.gz"
+
+        mkdir -p /tmp/circleci-cli/
+        curl --fail --show-error --location \
+          -o /tmp/circleci-cli/cli.tar.gz "${URL}"
+
+        echo "$CCI_SHA256 /tmp/circleci-cli/cli.tar.gz" | sha256sum -c
+
+        tar -xz --strip-components=1 \
+          -C /tmp/circleci-cli \
+          -f /tmp/circleci-cli/cli.tar.gz \
+          "circleci-cli_${CCI_VERSION}_linux_amd64/circleci" 
+
+        sudo cp /tmp/circleci-cli/circleci /usr/bin/circleci-local-cli
+
+        circleci-local-cli version

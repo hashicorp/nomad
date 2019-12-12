@@ -419,7 +419,7 @@ OUTER:
 type taskHealthState struct {
 	task              *structs.Task
 	state             *structs.TaskState
-	taskRegistrations *consul.TaskRegistration
+	taskRegistrations *consul.ServiceRegistrations
 }
 
 // event takes the deadline time for the allocation to be healthy and the update

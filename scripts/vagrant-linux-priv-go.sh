@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 function install_go() {
-	local go_version=1.12.12
+	local go_version=1.12.13
 	local download=
 
 	download="https://storage.googleapis.com/golang/go${go_version}.linux-amd64.tar.gz"

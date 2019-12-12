@@ -8,6 +8,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -56,7 +57,8 @@ func TestDanglingContainerRemoval(t *testing.T) {
 	testutil.DockerCompatible(t)
 
 	// start two containers: one tracked nomad container, and one unrelated container
-	task, cfg, _ := dockerTask(t)
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client, d, handle, cleanup := dockerSetup(t, task)
@@ -157,7 +159,8 @@ func TestDanglingContainerRemoval(t *testing.T) {
 func TestDanglingContainerRemoval_Stopped(t *testing.T) {
 	testutil.DockerCompatible(t)
 
-	_, cfg, _ := dockerTask(t)
+	_, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
 
 	client := newTestDockerClient(t)
 	container, err := client.CreateContainer(docker.CreateContainerOptions{

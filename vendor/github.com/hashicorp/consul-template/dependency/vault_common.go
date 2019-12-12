@@ -7,6 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"crypto/x509"
+	"encoding/pem"
+
 	"github.com/hashicorp/vault/api"
 )
 
@@ -64,13 +67,78 @@ type SecretWrapInfo struct {
 	WrappedAccessor string
 }
 
-// vaultRenewDuration accepts a secret and returns the recommended amount of
+//
+type renewer interface {
+	Dependency
+	stopChan() chan struct{}
+	secrets() (*Secret, *api.Secret)
+}
+
+func renewSecret(clients *ClientSet, d renewer) error {
+	log.Printf("[TRACE] %s: starting renewer", d)
+
+	secret, vaultSecret := d.secrets()
+	renewer, err := clients.Vault().NewRenewer(&api.RenewerInput{
+		Secret: vaultSecret,
+	})
+	if err != nil {
+		return err
+	}
+	go renewer.Renew()
+	defer renewer.Stop()
+
+	for {
+		select {
+		case err := <-renewer.DoneCh():
+			if err != nil {
+				log.Printf("[WARN] %s: failed to renew: %s", d, err)
+			}
+			log.Printf("[WARN] %s: renewer done (maybe the lease expired)", d)
+			return nil
+		case renewal := <-renewer.RenewCh():
+			log.Printf("[TRACE] %s: successfully renewed", d)
+			printVaultWarnings(d, renewal.Secret.Warnings)
+			updateSecret(secret, renewal.Secret)
+		case <-d.stopChan():
+			return ErrStopped
+		}
+	}
+}
+
+// durationFrom cert gets the duration of validity from cert data and
+// returns that value as an integer number of seconds
+func durationFromCert(certData string) int {
+	block, _ := pem.Decode([]byte(certData))
+	if block == nil {
+		return -1
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		log.Printf("[WARN] Unable to parse certificate data: %s", err)
+		return -1
+	}
+
+	return int(cert.NotAfter.Sub(cert.NotBefore).Seconds())
+}
+
+// leaseCheckWait accepts a secret and returns the recommended amount of
 // time to sleep.
-func vaultRenewDuration(s *Secret) time.Duration {
+func leaseCheckWait(s *Secret) time.Duration {
 	// Handle whether this is an auth or a regular secret.
 	base := s.LeaseDuration
 	if s.Auth != nil && s.Auth.LeaseDuration > 0 {
 		base = s.Auth.LeaseDuration
+	}
+
+	// Handle if this is a certificate with no lease
+	if certInterface, ok := s.Data["certificate"]; ok && s.LeaseID == "" {
+		if certData, ok := certInterface.(string); ok {
+			newDuration := durationFromCert(certData)
+			if newDuration > 0 {
+				log.Printf("[DEBUG] Found certificate and set lease duration to %d seconds", newDuration)
+				base = newDuration
+			}
+		}
 	}
 
 	// Ensure we have a lease duration, since sometimes this can be zero.

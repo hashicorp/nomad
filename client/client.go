@@ -163,7 +163,7 @@ type Client struct {
 	configCopy *config.Config
 	configLock sync.RWMutex
 
-	logger    hclog.Logger
+	logger    hclog.InterceptLogger
 	rpcLogger hclog.Logger
 
 	connPool *pool.ConnPool
@@ -304,7 +304,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	}
 
 	// Create the logger
-	logger := cfg.Logger.ResetNamed("client")
+	logger := cfg.Logger.ResetNamedIntercept("client")
 
 	// Create the client
 	c := &Client{
@@ -2592,12 +2592,11 @@ func (c *Client) emitStats() {
 			next.Reset(c.config.StatsCollectionInterval)
 			if err != nil {
 				c.logger.Warn("error fetching host resource usage stats", "error", err)
-				continue
-			}
-
-			// Publish Node metrics if operator has opted in
-			if c.config.PublishNodeMetrics {
-				c.emitHostStats()
+			} else {
+				// Publish Node metrics if operator has opted in
+				if c.config.PublishNodeMetrics {
+					c.emitHostStats()
+				}
 			}
 
 			c.emitClientMetrics()

@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/require"
@@ -594,7 +594,9 @@ func TestConfig_Listener(t *testing.T) {
 	}
 
 	// Works with valid inputs
-	ports := freeport.GetT(t, 2)
+	ports := freeport.MustTake(2)
+	defer freeport.Return(ports)
+
 	ln, err := config.Listener("tcp", "127.0.0.1", ports[0])
 	if err != nil {
 		t.Fatalf("err: %s", err)

@@ -1,3 +1,49 @@
+## v0.22.1 (Nov 08, 2019)
+
+SECURITY:
+
+* curl is vulnerable in the latest alpine docker image [[GH-1302](https://github.com/hashicorp/consul-template/issues/1302)]
+
+## v0.22.0 (September 10, 2019)
+
+IMPROVEMENTS:
+
+* Add rate limiting to consul api calls [[GH-1279](https://github.com/hashicorp/consul-template/pull/1279)]
+* Add `byMeta` function [[GH-1237](https://github.com/hashicorp/consul-template/pull/1237)]
+* Add support for : and = in service tag values [[GH-1149](https://github.com/hashicorp/consul-template/pull/1149), [GH-1049](https://github.com/hashicorp/consul-template/issues/1049)]
+* Add `explodeMap` function [[GH-1148](https://github.com/hashicorp/consul-template/pull/1148)]
+* Don't wait for splay when stopping child runner [[GH-1141](https://github.com/hashicorp/consul-template/pull/1141)]
+* Add `safels` and `safetree` functions [[GH-1132](https://github.com/hashicorp/consul-template/pull/1132)]
+* Support Vault certificates with no lease [[GH-1106](https://github.com/hashicorp/consul-template/pull/1106)]
+* Add wrapper function for go-sockaddr templating [[GH-1087](https://github.com/hashicorp/consul-template/pull/1087)]
+* Build binaries for arm64 platform [[GH-1251](https://github.com/hashicorp/consul-template/pull/1251)]
+
+BUG FIXES:
+
+* Fix arm/arm64 builds by enabling CGO and restricting builds to Linux [workaround for [go/issues/32912](https://github.com/golang/go/issues/32912)]
+
+## v0.21.3 (September 05, 2019)
+
+BUG FIXES:
+
+* Fix regression in non-renewable sleep [[GH-1277](https://github.com/hashicorp/consul-template/pull/1277), [GH-1272](https://github.com/hashicorp/consul-template/issues/1272), [GH-1276](https://github.com/hashicorp/consul-template/issues/1276)]
+
+## v0.21.2 (August 31, 2019)
+
+BUG FIXES:
+
+* Fix regression in backup [[GH-1271](https://github.com/hashicorp/consul-template/pull/1271), [GH-1270](https://github.com/hashicorp/consul-template/issues/1270)]
+
+## v0.21.1 (August 30, 2019)
+
+BUG FIXES:
+
+* Fixed issue in Vault call retry logic [[GH-1269](https://github.com/hashicorp/consul-template/pull/1269), [GH-1224](https://github.com/hashicorp/consul-template/issues/1224)]
+* Fixed race in backup [[GH-1265](https://github.com/hashicorp/consul-template/pull/1265), [GH-1264](https://github.com/hashicorp/consul-template/issues/1264)]
+* Fixed issue when reading deleted secret [[GH-1260](https://github.com/hashicorp/consul-template/pull/1260), [GH-1198](https://github.com/hashicorp/consul-template/issues/1198)]
+* Fix issue with Vault writes [[GH-1257](https://github.com/hashicorp/consul-template/pull/1257), [GH-1252](https://github.com/hashicorp/consul-template/issues/1252)]
+* Fix loop to work with template set integers [[GH-1255](https://github.com/hashicorp/consul-template/pull/1255), [GH-1143](https://github.com/hashicorp/consul-template/issues/1143)]
+
 ## v0.21.0 (August 05, 2019)
 
 IMPROVEMENTS:
@@ -13,7 +59,7 @@ BUG FIXES:
 * Fixed issue with templates not rendering with `-once` [[GH-1227](https://github.com/hashicorp/consul-template/pull/1227), [GH-1196](https://github.com/hashicorp/consul-template/issues/1196), [GH-1207](https://github.com/hashicorp/consul-template/issues/1207)]
 * Fixed regression with ~/.vault-token and with vault_agent_token_file not respecting renew_token [[GH-1228](https://github.com/hashicorp/consul-template/issues/1228), [GH-1189](https://github.com/hashicorp/consul-template/issues/1189)]
 * CA certificates missing from docker 'light' image [[GH-1200](https://github.com/hashicorp/consul-template/issues/1200)]
-* Fixed issue with dedup data garbage in Consul KV [[GH-1158](https://github.com/hashicorp/consul-template/issues/1158), [[GH-1168](https://github.com/hashicorp/consul-template/issues/1168)]
+* Fixed issue with dedup data garbage in Consul KV [[GH-1158](https://github.com/hashicorp/consul-template/issues/1158), [GH-1168](https://github.com/hashicorp/consul-template/issues/1168)]
 * Fixed bad case in import path [[GH-1139](https://github.com/hashicorp/consul-template/issues/1139)]
 * Documented limits on using "." in service names [[GH-1205](https://github.com/hashicorp/consul-template/issues/1205)]
 

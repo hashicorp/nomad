@@ -179,7 +179,7 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 			if check.Type != structs.ServiceCheckScript {
 				continue
 			}
-			serviceID := agentconsul.MakeTaskServiceID(
+			serviceID := agentconsul.MakeAllocServiceID(
 				h.alloc.ID, h.task.Name, service)
 			sc := newScriptCheck(&scriptCheckConfig{
 				allocID:    h.alloc.ID,
@@ -213,7 +213,7 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 				continue
 			}
 			groupTaskName := "group-" + tg.Name
-			serviceID := agentconsul.MakeTaskServiceID(
+			serviceID := agentconsul.MakeAllocServiceID(
 				h.alloc.ID, groupTaskName, service)
 			sc := newScriptCheck(&scriptCheckConfig{
 				allocID:    h.alloc.ID,
