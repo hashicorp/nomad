@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
@@ -601,6 +603,17 @@ type TaskLifecycle struct {
 	Deadline   time.Duration `mapstructure:"deadline"`
 }
 
+func (l *TaskLifecycle) Canonicalize() {
+	if l.Deadline == 0 {
+		l.Deadline = structs.TaskLifecycleDeadlineDefault
+	}
+}
+
+// Determine if lifecycle has user-input values
+func (l *TaskLifecycle) Empty() bool {
+	return l.Hook == "" && l.BlockUntil == "" && l.Deadline == 0
+}
+
 // Task is a single process in a task group.
 type Task struct {
 	Name            string
@@ -657,6 +670,13 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	for _, vm := range t.VolumeMounts {
 		vm.Canonicalize()
+	}
+	if t.Lifecycle != nil {
+		if t.Lifecycle.Empty() {
+			t.Lifecycle = nil
+		} else {
+			t.Lifecycle.Canonicalize()
+		}
 	}
 }
 

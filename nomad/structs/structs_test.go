@@ -2747,6 +2747,7 @@ func TestPeriodicConfig_DST(t *testing.T) {
 	require.Equal(e1, n1.UTC())
 	require.Equal(e2, n2.UTC())
 }
+
 func TestTaskLifecycleConfig_Validate(t *testing.T) {
 	testCases := []struct {
 		name string
@@ -2802,7 +2803,7 @@ func TestTaskLifecycleConfig_Validate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.tlc.Validate()
 			if tc.err != nil {
-				require.NotNil(t, err)
+				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.err.Error())
 			} else {
 				require.Nil(t, err)

@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/nomad/structs"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -374,6 +376,50 @@ func TestTask_VolumeMount(t *testing.T) {
 	vm.Canonicalize()
 	require.NotNil(t, vm.PropagationMode)
 	require.Equal(t, *vm.PropagationMode, "private")
+}
+
+func TestTask_Canonicalize_TaskLifecycle(t *testing.T) {
+	testCases := []struct {
+		name     string
+		expected *TaskLifecycle
+		task     *Task
+	}{
+		{
+			name: "empty",
+			task: &Task{
+				Lifecycle: &TaskLifecycle{},
+			},
+			expected: nil,
+		},
+		{
+			name: "deadline default",
+			expected: &TaskLifecycle{
+				Hook:       "prestart",
+				BlockUntil: "completed",
+				Deadline:   structs.TaskLifecycleDeadlineDefault,
+			},
+			task: &Task{
+				Lifecycle: &TaskLifecycle{
+					Hook:       "prestart",
+					BlockUntil: "completed",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tg := &TaskGroup{
+				Name: stringToPtr("foo"),
+			}
+			j := &Job{
+				ID: stringToPtr("test"),
+			}
+			tc.task.Canonicalize(tg, j)
+			require.Equal(t, tc.expected, tc.task.Lifecycle)
+
+		})
+	}
 }
 
 // Ensures no regression on https://github.com/hashicorp/nomad/issues/3132
