@@ -10,6 +10,14 @@ BUG FIXES:
 
 ## 0.10.2 (December 4, 2019)
 
+NOTES:
+
+* cli: Our darwin releases for this version and up will be signed and notarized according to Apple's requirements.
+
+    Prior to this release, MacOS 10.15+ users attempting to run our software may see the error: "'nomad' cannot be opened because the developer cannot be verified." This error affected all MacOS 10.15+ users who downloaded our software directly via web browsers, and was caused by [changes to Apple's third-party software requirements](https://developer.apple.com/news/?id=04102019a).
+
+    MacOS 10.15+ users should plan to upgrade to 0.10.2+.
+
 FEATURES:
 
  * **Nomad Monitor**: New `nomad monitor` command allows remotely following
