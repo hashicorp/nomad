@@ -389,9 +389,21 @@ func TestAgentCPUProfile(t *testing.T) {
 		AuthToken: token.SecretID,
 	}
 
-	resp, err := agent.CPUProfile("", "", 1, q)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
+	// Valid local request
+	{
+		resp, err := agent.CPUProfile("", "", 1, q)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+	}
+
+	// Invalid server request
+	{
+		resp, err := agent.CPUProfile("unknown.global", "", 1, q)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "500 (unknown nomad server unknown.global)")
+		require.Nil(t, resp)
+	}
+
 }
 
 func TestAgentTrace(t *testing.T) {

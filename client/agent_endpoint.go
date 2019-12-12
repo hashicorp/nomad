@@ -32,9 +32,9 @@ func NewAgentEndpoint(c *Client) *Agent {
 func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
 	// Check ACL for agent write
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
-		return structs.NewErrRPCCoded(500, err.Error())
+		return err
 	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
-		return structs.NewErrRPCCoded(403, structs.ErrPermissionDenied.Error())
+		return structs.ErrPermissionDenied
 	}
 
 	var resp []byte

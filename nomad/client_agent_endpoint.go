@@ -29,6 +29,19 @@ func (a *Agent) register() {
 }
 
 func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
+	// handle when serverID does not exist for requested region
+	region := args.RequestRegion()
+	if region == "" {
+		return fmt.Errorf("missing target RPC")
+	}
+
+	// Handle region forwarding
+	if region != a.srv.config.Region {
+		// Mark that we are forwarding
+		args.SetForwarded()
+		return a.srv.forwardRegion(region, "Agent.Profile", args, reply)
+	}
+
 	// Targeting a node, forward request to node
 	if args.NodeID != "" {
 		return a.forwardProfileClient(args, reply)
@@ -36,7 +49,7 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 
 	// Handle serverID not equal to ours
 	if args.ServerID != "" {
-		serverToFwd, err := a.serverFor(args.ServerID)
+		serverToFwd, err := a.serverFor(args.ServerID, region)
 		if err != nil {
 			return err
 		}
@@ -47,9 +60,9 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 
 	// Check ACL for agent write
 	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
-		return structs.NewErrRPCCoded(500, err.Error())
+		return err
 	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
-		return structs.NewErrRPCCoded(403, structs.ErrPermissionDenied.Error())
+		return structs.ErrPermissionDenied
 	}
 
 	// Process the request on this server
@@ -247,7 +260,7 @@ OUTER:
 	}
 }
 
-func (a *Agent) serverFor(serverID string) (*serverParts, error) {
+func (a *Agent) serverFor(serverID, region string) (*serverParts, error) {
 	var target *serverParts
 
 	if serverID == "leader" {
@@ -267,6 +280,12 @@ func (a *Agent) serverFor(serverID string) (*serverParts, error) {
 			// with a serf member
 			if mem.Name == serverID || mem.Tags["id"] == serverID {
 				if ok, srv := isNomadServer(mem); ok {
+					if srv.Region != region {
+						return nil,
+							fmt.Errorf(
+								"Requested server:%s region:%s does not exist in requested region: %s",
+								serverID, srv.Region, region)
+					}
 					target = srv
 				}
 
@@ -281,7 +300,7 @@ func (a *Agent) serverFor(serverID string) (*serverParts, error) {
 
 	// ServerID is this current server,
 	// No need to forward request
-	if target.ID == a.srv.GetConfig().NodeID {
+	if target.Name == a.srv.LocalMember().Name {
 		return nil, nil
 	}
 

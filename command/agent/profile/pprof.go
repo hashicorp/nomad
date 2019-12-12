@@ -25,7 +25,7 @@ const (
 	TraceReq  ReqType = "trace"
 	LookupReq ReqType = "profile"
 
-	ErrProfileNotFoundPrefix = "Pprof profile not found"
+	ErrProfileNotFoundPrefix = "Pprof profile not found profile:"
 )
 
 // NewErrProfileNotFound returns a new error caused by a pprof.Lookup

@@ -489,8 +489,9 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 	})
 
 	req := structs.AgentPprofRequest{
-		ReqType: profile.CPUReq,
-		NodeID:  c.NodeID(),
+		ReqType:      profile.CPUReq,
+		NodeID:       c.NodeID(),
+		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 
 	reply := structs.AgentPprofResponse{}
@@ -500,6 +501,81 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 
 	require.NotNil(reply.Payload)
 	require.Equal(c.NodeID(), reply.AgentID)
+}
+
+// Test that we prevent a forwarding loop if the requested
+// serverID does not exist in the requested region
+func TestAgentProfile_RemoteRegionMisMatch(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// start server and client
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.Region = "foo"
+	})
+	defer cleanupS1()
+
+	s2, cleanup := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.Region = "bar"
+	})
+	defer cleanup()
+
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	req := structs.AgentPprofRequest{
+		ReqType:  profile.CPUReq,
+		ServerID: s1.serf.LocalMember().Name,
+		QueryOptions: structs.QueryOptions{
+			Region: "bar",
+		},
+	}
+
+	reply := structs.AgentPprofResponse{}
+
+	err := s1.RPC("Agent.Profile", &req, &reply)
+	require.Contains(err.Error(), "does not exist in requested region")
+	require.Nil(reply.Payload)
+}
+
+// Test that Agent.Profile can forward to a different region
+func TestAgentProfile_RemoteRegion(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// start server and client
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.Region = "foo"
+	})
+	defer cleanupS1()
+
+	s2, cleanup := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.Region = "bar"
+	})
+	defer cleanup()
+
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	req := structs.AgentPprofRequest{
+		ReqType:  profile.CPUReq,
+		ServerID: s2.serf.LocalMember().Name,
+		QueryOptions: structs.QueryOptions{
+			Region: "bar",
+		},
+	}
+
+	reply := structs.AgentPprofResponse{}
+
+	err := s1.RPC("Agent.Profile", &req, &reply)
+	require.NoError(err)
+
+	require.NotNil(reply.Payload)
+	require.Equal(s2.serf.LocalMember().Name, reply.AgentID)
 }
 
 func TestAgentProfile_Server(t *testing.T) {
@@ -581,8 +657,9 @@ func TestAgentProfile_Server(t *testing.T) {
 			require := require.New(t)
 
 			req := structs.AgentPprofRequest{
-				ReqType:  tc.reqType,
-				ServerID: tc.serverID,
+				ReqType:      tc.reqType,
+				ServerID:     tc.serverID,
+				QueryOptions: structs.QueryOptions{Region: "global"},
 			}
 
 			reply := structs.AgentPprofResponse{}
@@ -596,6 +673,65 @@ func TestAgentProfile_Server(t *testing.T) {
 			}
 
 			require.Equal(tc.expectedAgentID, reply.AgentID)
+		})
+	}
+}
+
+func TestAgentProfile_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// start server
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
+	testutil.WaitForLeader(t, s.RPC)
+
+	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
+
+	policyGood := mock.AgentPolicy(acl.PolicyWrite)
+	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid", policyGood)
+
+	cases := []struct {
+		Name        string
+		Token       string
+		ExpectedErr string
+	}{
+		{
+			Name:        "bad token",
+			Token:       tokenBad.SecretID,
+			ExpectedErr: "Permission denied",
+		},
+		{
+			Name:  "good token",
+			Token: tokenGood.SecretID,
+		},
+		{
+			Name:  "root token",
+			Token: root.SecretID,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			req := &structs.AgentPprofRequest{
+				ReqType: profile.CmdReq,
+				QueryOptions: structs.QueryOptions{
+					Namespace: structs.DefaultNamespace,
+					Region:    "global",
+					AuthToken: tc.Token,
+				},
+			}
+
+			reply := &structs.AgentPprofResponse{}
+
+			err := s.RPC("Agent.Profile", req, reply)
+			if tc.ExpectedErr != "" {
+				require.Equal(tc.ExpectedErr, err.Error())
+			} else {
+				require.NoError(err)
+				require.NotNil(reply.Payload)
+			}
 		})
 	}
 }

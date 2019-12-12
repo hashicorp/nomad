@@ -489,43 +489,46 @@ func TestAgent_PprofRequest_Permissions(t *testing.T) {
 
 func TestAgent_PprofRequest(t *testing.T) {
 	cases := []struct {
-		desc           string
-		url            string
-		addNodeID      bool
-		addServerID    bool
-		expectedErr    string
-		expectedStatus int
+		desc        string
+		url         string
+		addNodeID   bool
+		addServerID bool
+		expectedErr string
 	}{
 		{
-			desc:           "cmdline request",
-			url:            "/v1/agent/pprof/cmdline",
-			addNodeID:      true,
-			expectedStatus: 200,
+			desc: "cmdline local request",
+			url:  "/v1/agent/pprof/cmdline",
 		},
 		{
-			desc:           "cpu profile request",
-			url:            "/v1/agent/pprof/profile",
-			addNodeID:      true,
-			expectedStatus: 200,
+			desc:      "cmdline node request",
+			url:       "/v1/agent/pprof/cmdline",
+			addNodeID: true,
 		},
 		{
-			desc:           "trace request",
-			url:            "/v1/agent/pprof/trace",
-			addNodeID:      true,
-			expectedStatus: 200,
+			desc:        "cmdline server request",
+			url:         "/v1/agent/pprof/cmdline",
+			addServerID: true,
 		},
 		{
-			desc:           "pprof lookup request",
-			url:            "/v1/agent/pprof/goroutine",
-			addNodeID:      true,
-			expectedStatus: 200,
+			desc:      "cpu profile request",
+			url:       "/v1/agent/pprof/profile",
+			addNodeID: true,
 		},
 		{
-			desc:           "unknown pprof lookup request",
-			url:            "/v1/agent/pprof/latency",
-			addNodeID:      true,
-			expectedStatus: 404,
-			expectedErr:    "Unknown profile: latency",
+			desc:      "trace request",
+			url:       "/v1/agent/pprof/trace",
+			addNodeID: true,
+		},
+		{
+			desc:      "pprof lookup request",
+			url:       "/v1/agent/pprof/goroutine",
+			addNodeID: true,
+		},
+		{
+			desc:        "unknown pprof lookup request",
+			url:         "/v1/agent/pprof/latency",
+			addNodeID:   true,
+			expectedErr: "RPC Error:: 404,Pprof profile not found profile: latency",
 		},
 	}
 
@@ -549,10 +552,7 @@ func TestAgent_PprofRequest(t *testing.T) {
 
 				if tc.expectedErr != "" {
 					require.Error(t, err)
-
-					httpErr, ok := err.(HTTPCodedError)
-					require.True(t, ok)
-					require.Equal(t, httpErr.Code(), tc.expectedStatus)
+					require.EqualError(t, err, tc.expectedErr)
 				} else {
 					require.NoError(t, err)
 					require.NotNil(t, resp)

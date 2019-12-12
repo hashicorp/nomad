@@ -426,12 +426,7 @@ func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWrite
 	}
 
 	if rpcErr != nil {
-		code, msg, ok := structs.CodeFromRPCCodedErr(rpcErr)
-		if !ok {
-			return nil, CodedError(500, rpcErr.Error())
-		}
-		// Return CodedError
-		return nil, CodedError(code, msg)
+		return nil, rpcErr
 	}
 
 	// Set headers from profile request
