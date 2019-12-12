@@ -82,7 +82,7 @@ func (i *instanceManager) runLoop() {
 			close(i.shutdownCh)
 			return
 		case <-timer.C:
-			ctx, cancelFn := i.requestCtxWithTimeout(30 * time.Second)
+			ctx, cancelFn := i.requestCtxWithTimeout(managerFingerprintInterval)
 
 			if basicInfo == nil {
 				info, err := i.buildBasicFingerprint(ctx)
