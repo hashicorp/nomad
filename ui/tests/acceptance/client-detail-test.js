@@ -440,6 +440,7 @@ module('Acceptance | client detail', function(hooks) {
 
   test('the status light indicates when the node is ineligible for scheduling', async function(assert) {
     node = server.create('node', {
+      drain: false,
       schedulingEligibility: 'ineligible',
     });
 
