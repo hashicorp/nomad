@@ -376,3 +376,64 @@ OUTER:
 		}
 	}
 }
+
+func TestAgentCPUProfile(t *testing.T) {
+	t.Parallel()
+
+	c, s, token := makeACLClient(t, nil, nil)
+	defer s.Stop()
+
+	agent := c.Agent()
+
+	q := &QueryOptions{
+		AuthToken: token.SecretID,
+	}
+
+	resp, err := agent.CPUProfile("", "", 1, q)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+}
+
+func TestAgentTrace(t *testing.T) {
+	t.Parallel()
+
+	c, s, token := makeACLClient(t, nil, nil)
+	defer s.Stop()
+
+	agent := c.Agent()
+
+	q := &QueryOptions{
+		AuthToken: token.SecretID,
+	}
+
+	resp, err := agent.Trace("", "", 1, q)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+}
+
+func TestAgentProfile(t *testing.T) {
+	t.Parallel()
+
+	c, s, token := makeACLClient(t, nil, nil)
+	defer s.Stop()
+
+	agent := c.Agent()
+
+	q := &QueryOptions{
+		AuthToken: token.SecretID,
+	}
+
+	{
+		resp, err := agent.Profile("", "", "goroutine", 0, q)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+	}
+
+	// unknown profile
+	{
+		resp, err := agent.Profile("", "", "invalid", 1, q)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Unexpected response code: 404")
+		require.Nil(t, resp)
+	}
+}

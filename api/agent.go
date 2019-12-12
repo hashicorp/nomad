@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"strconv"
 )
 
 // Agent encapsulates an API client which talks to Nomad's
@@ -289,25 +290,96 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *Stream
 	return frames, errCh
 }
 
-func (a *Agent) Pprof() ([]byte, error) {
-	r, err := a.client.newRequest("GET", "/debug/pprof/profile")
+// CPUProfile returns a runtime/pprof cpu profile for a given server or node.
+// The profile will run for the amount of seconds passed in or default to 1.
+// If no serverID or nodeID are provided the current Agents server will be
+// used.
+func (a *Agent) CPUProfile(serverID, nodeID string, seconds int, q *QueryOptions) ([]byte, error) {
+	if q == nil {
+		q = &QueryOptions{}
+	}
+	if q.Params == nil {
+		q.Params = make(map[string]string)
+	}
+
+	q.Params["seconds"] = strconv.Itoa(seconds)
+	q.Params["node_id"] = nodeID
+	q.Params["server_id"] = serverID
+
+	body, err := a.client.rawQuery("/v1/agent/pprof/profile", q)
 	if err != nil {
 		return nil, err
 	}
 
-	_, resp, err := a.client.doRequest(r)
+	var resp []byte
+	resp, err = ioutil.ReadAll(body)
 	if err != nil {
-		return nil, fmt.Errorf("error making request: %s", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error decoding body: %s", err)
+		return nil, err
 	}
 
-	return body, nil
+	return resp, nil
+}
 
+// Trace returns a runtime/pprof trace for a given server or node.
+// The trace will run for the amount of seconds passed in or default to 1.
+// If no serverID or nodeID are provided the current Agents server will be
+// used.
+func (a *Agent) Trace(serverID, nodeID string, seconds int, q *QueryOptions) ([]byte, error) {
+	if q == nil {
+		q = &QueryOptions{}
+	}
+	if q.Params == nil {
+		q.Params = make(map[string]string)
+	}
+
+	q.Params["seconds"] = strconv.Itoa(seconds)
+	q.Params["node_id"] = nodeID
+	q.Params["server_id"] = serverID
+
+	body, err := a.client.rawQuery("/v1/agent/pprof/trace", q)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []byte
+	resp, err = ioutil.ReadAll(body)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+
+}
+
+// Profile returns a runtime/pprof profile using pprof.Lookup to determine
+// which profile to run.
+func (a *Agent) Profile(serverID, nodeID, profile string, debug int, q *QueryOptions) ([]byte, error) {
+	if q == nil {
+		q = &QueryOptions{}
+	}
+
+	if q == nil {
+		q = &QueryOptions{}
+	}
+	if q.Params == nil {
+		q.Params = make(map[string]string)
+	}
+
+	q.Params["debug"] = strconv.Itoa(debug)
+	q.Params["node_id"] = nodeID
+	q.Params["server_id"] = serverID
+
+	body, err := a.client.rawQuery(fmt.Sprintf("/v1/agent/pprof/%s", profile), q)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []byte
+	resp, err = ioutil.ReadAll(body)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // joinResponse is used to decode the response we get while

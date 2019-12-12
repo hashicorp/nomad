@@ -34,22 +34,15 @@ func (a *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentP
 		return a.forwardProfileClient(args, reply)
 	}
 
-	currentServer := a.srv.serf.LocalMember().Name
-	var forwardServer bool
-	// Targeting a remote server which is not the leader and not this server
-	if args.ServerID != "" && args.ServerID != "leader" && args.ServerID != currentServer {
-		forwardServer = true
-	}
-
-	// Targeting leader and this server is not current leader
-	if args.ServerID == "leader" && !a.srv.IsLeader() {
-		forwardServer = true
-	}
-
-	// Forward request to a remote server
-	if forwardServer {
-		// forward the request
-		return a.forwardProfileServer(args, reply)
+	// Handle serverID not equal to ours
+	if args.ServerID != "" {
+		serverToFwd, err := a.serverFor(args.ServerID)
+		if err != nil {
+			return err
+		}
+		if serverToFwd != nil {
+			return a.srv.forwardServer(serverToFwd, "Agent.Profile", args, reply)
+		}
 	}
 
 	// Check ACL for agent write
@@ -256,6 +249,47 @@ OUTER:
 	}
 }
 
+func (a *Agent) serverFor(serverID string) (*serverParts, error) {
+	var target *serverParts
+
+	if serverID == "leader" {
+		isLeader, remoteLeader := a.srv.getLeader()
+		if !isLeader && remoteLeader != nil {
+			target = remoteLeader
+		} else if !isLeader && remoteLeader == nil {
+			return nil, structs.ErrNoLeader
+		} else if isLeader {
+			// This server is current leader do not forward
+			return nil, nil
+		}
+	} else {
+		members := a.srv.Members()
+		for _, mem := range members {
+			// TODO find a  better way to get the agent ID we associate
+			// with a serf member
+			if mem.Name == serverID || mem.Tags["id"] == serverID {
+				if ok, srv := isNomadServer(mem); ok {
+					target = srv
+				}
+
+			}
+		}
+	}
+
+	// Unable to find a server
+	if target == nil {
+		return nil, fmt.Errorf("unknown nomad server %s", serverID)
+	}
+
+	// ServerID is this current server,
+	// No need to forward request
+	if target.ID == a.srv.GetConfig().NodeID {
+		return nil, nil
+	}
+
+	return target, nil
+}
+
 func (a *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
 	nodeID := args.NodeID
 
@@ -376,48 +410,6 @@ func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, args cstructs.Moni
 
 	structs.Bridge(conn, serverConn)
 	return
-}
-
-func (a *Agent) forwardProfileServer(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
-	var target *serverParts
-	serverID := args.ServerID
-
-	// empty ServerID to prevent forwarding loop
-	args.ServerID = ""
-
-	if serverID == "leader" {
-		isLeader, remoteServer := a.srv.getLeader()
-		if !isLeader && remoteServer != nil {
-			target = remoteServer
-		}
-		if !isLeader && remoteServer == nil {
-			return structs.NewErrRPCCoded(400, structs.ErrNoLeader.Error())
-		}
-	} else {
-		// See if the server ID is a known member
-		serfMembers := a.srv.Members()
-		for _, mem := range serfMembers {
-			if mem.Name == serverID {
-				if ok, srv := isNomadServer(mem); ok {
-					target = srv
-				}
-			}
-		}
-	}
-
-	// Unable to find a server
-	if target == nil {
-		err := fmt.Errorf("unknown nomad server %s", serverID)
-		return structs.NewErrRPCCoded(400, err.Error())
-	}
-
-	// Forward the request
-	rpcErr := a.srv.forwardServer(target, "Agent.Profile", args, reply)
-	if rpcErr != nil {
-		return structs.NewErrRPCCoded(500, rpcErr.Error())
-	}
-
-	return nil
 }
 
 func (a *Agent) forwardProfileClient(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
