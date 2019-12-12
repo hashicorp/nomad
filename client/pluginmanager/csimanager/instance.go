@@ -38,8 +38,8 @@ func newInstanceManager(logger hclog.Logger, updater UpdateNodeCSIInfoFunc, p *d
 		info:    p,
 		updater: updater,
 
-		fingerprintNode:       p.Type == "csi-node",
-		fingerprintController: p.Type == "csi-controller",
+		fingerprintNode:       p.Type == dynamicplugins.PluginTypeCSINode,
+		fingerprintController: p.Type == dynamicplugins.PluginTypeCSIController,
 
 		shutdownCtx:         ctx,
 		shutdownCtxCancelFn: cancelFn,
