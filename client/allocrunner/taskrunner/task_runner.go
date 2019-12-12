@@ -191,8 +191,7 @@ type TaskRunner struct {
 	// handlers
 	driverManager drivermanager.Manager
 
-	// dynamicRegistry is the dynamicplugins dynamic plugins should be registered
-	// with.
+	// dynamicRegistry is where dynamic plugins should be registered.
 	dynamicRegistry dynamicplugins.Registry
 
 	// maxEvents is the capacity of the TaskEvents on the TaskState.
@@ -220,8 +219,7 @@ type Config struct {
 	TaskDir      *allocdir.TaskDir
 	Logger       log.Logger
 
-	// DynamicRegistry is the dynamicplugins dynamic plugins should be registered
-	// with.
+	// DynamicRegistry is where dynamic plugins should be registered.
 	DynamicRegistry dynamicplugins.Registry
 
 	// Vault is the client to use to derive and renew Vault tokens
