@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	_ "github.com/hashicorp/nomad/e2e/affinities"
-	_ "github.com/hashicorp/nomad/e2e/allocstats"
 	_ "github.com/hashicorp/nomad/e2e/clientstate"
 	_ "github.com/hashicorp/nomad/e2e/connect"
 	_ "github.com/hashicorp/nomad/e2e/consul"

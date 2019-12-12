@@ -44,6 +44,9 @@ md C:\tmp\data
 # Invoke-WebRequest -Uri "$cni_url" -Outfile cni.tgz
 # Expand-7Zip -ArchiveFileName .\cni.tgz -TargetPath C:\opt\cni\bin\
 
+# needed for metrics scraping HTTP API calls to the client
+New-NetFirewallRule -DisplayName 'Nomad HTTP Inbound' -Profile @('Public', 'Domain', 'Private') -Direction Inbound -Action Allow -Protocol TCP -LocalPort @('4646')
+
 # enable as a service
 sc.exe create "Nomad" binPath= "C:\opt\nomad.exe agent -config C:\opt\nomad.d" start= auto
 sc.exe start "Nomad"
