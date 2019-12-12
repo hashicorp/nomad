@@ -15,10 +15,6 @@ import (
 )
 
 const (
-	// dockerPullActivityDeadline is the default value set in the imageProgressManager
-	// when newImageProgressManager is called
-	dockerPullActivityDeadline = 2 * time.Minute
-
 	// dockerImageProgressReportInterval is the default value set in the
 	// imageProgressManager when newImageProgressManager is called
 	dockerImageProgressReportInterval = 10 * time.Second
@@ -203,11 +199,11 @@ type imageProgressManager struct {
 
 func newImageProgressManager(
 	image string, cancel context.CancelFunc,
-	inactivityFunc, reporter, slowReporter progressReporterFunc) *imageProgressManager {
+	pullActivityTimeout time.Duration, inactivityFunc, reporter, slowReporter progressReporterFunc) *imageProgressManager {
 
 	pm := &imageProgressManager{
 		image:              image,
-		activityDeadline:   dockerPullActivityDeadline,
+		activityDeadline:   pullActivityTimeout,
 		inactivityFunc:     inactivityFunc,
 		reportInterval:     dockerImageProgressReportInterval,
 		reporter:           reporter,

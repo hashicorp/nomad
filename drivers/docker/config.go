@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	docker "github.com/fsouza/go-dockerclient"
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -256,6 +256,11 @@ var (
 		"infra_image": hclspec.NewDefault(
 			hclspec.NewAttr("infra_image", "string", false),
 			hclspec.NewLiteral(`"gcr.io/google_containers/pause-amd64:3.0"`),
+		),
+
+		"pull_activity_timeout": hclspec.NewDefault(
+			hclspec.NewAttr("pull_activity_timeout", "string", false),
+			hclspec.NewLiteral(`"2m"`),
 		),
 	})
 
@@ -549,15 +554,17 @@ type ContainerGCConfig struct {
 }
 
 type DriverConfig struct {
-	Endpoint        string       `codec:"endpoint"`
-	Auth            AuthConfig   `codec:"auth"`
-	TLS             TLSConfig    `codec:"tls"`
-	GC              GCConfig     `codec:"gc"`
-	Volumes         VolumeConfig `codec:"volumes"`
-	AllowPrivileged bool         `codec:"allow_privileged"`
-	AllowCaps       []string     `codec:"allow_caps"`
-	GPURuntimeName  string       `codec:"nvidia_runtime"`
-	InfraImage      string       `codec:"infra_image"`
+	Endpoint                    string        `codec:"endpoint"`
+	Auth                        AuthConfig    `codec:"auth"`
+	TLS                         TLSConfig     `codec:"tls"`
+	GC                          GCConfig      `codec:"gc"`
+	Volumes                     VolumeConfig  `codec:"volumes"`
+	AllowPrivileged             bool          `codec:"allow_privileged"`
+	AllowCaps                   []string      `codec:"allow_caps"`
+	GPURuntimeName              string        `codec:"nvidia_runtime"`
+	InfraImage                  string        `codec:"infra_image"`
+	PullActivityTimeout         string        `codec:"pull_activity_timeout"`
+	PullActivityTimeoutDuration time.Duration `codec:"-"`
 }
 
 type AuthConfig struct {
@@ -629,6 +636,14 @@ func (d *Driver) SetConfig(c *base.Config) error {
 			return fmt.Errorf("creation_grace is less than minimum, %v", danglingContainersCreationGraceMinimum)
 		}
 		d.config.GC.DanglingContainers.CreationGrace = dur
+	}
+
+	if len(d.config.PullActivityTimeout) > 0 {
+		dur, err := time.ParseDuration(d.config.PullActivityTimeout)
+		if err != nil {
+			return fmt.Errorf("failed to parse 'pull_activity_timeout' duaration: %v", err)
+		}
+		d.config.PullActivityTimeoutDuration = dur
 	}
 
 	if c.AgentConfig != nil {
