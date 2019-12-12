@@ -37,6 +37,7 @@
     "@ember/jquery": "^0.6.0",
     "@ember/optional-features": "^0.7.0",
     "@hashicorp/structure-icons": "^1.3.0",
+    "@storybook/ember-cli-storybook": "^0.1.1",
     "anser": "^1.4.8",
     "broccoli-asset-rev": "^3.0.0",
     "bulma": "0.6.1",
@@ -117,7 +118,6 @@
     "@storybook/addon-viewport": "^5.2.5",
     "@storybook/addons": "^5.2.5",
     "@storybook/ember": "^5.2.5",
-    "@storybook/ember-cli-storybook": "^0.1.1",
     "babel-loader": "^8.0.6",
     "ember-cli-get-component-path-option": "^1.0.0",
     "ember-cli-string-utils": "^1.1.0"
