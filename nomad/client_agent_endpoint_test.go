@@ -488,12 +488,12 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 		t.Fatalf("should have a clients")
 	})
 
-	req := cstructs.AgentPprofRequest{
+	req := structs.AgentPprofRequest{
 		ReqType: profile.CPUReq,
 		NodeID:  c.NodeID(),
 	}
 
-	reply := cstructs.AgentPprofResponse{}
+	reply := structs.AgentPprofResponse{}
 
 	err := s1.RPC("Agent.Profile", &req, &reply)
 	require.NoError(err)
@@ -580,12 +580,12 @@ func TestAgentProfile_Server(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			require := require.New(t)
 
-			req := cstructs.AgentPprofRequest{
+			req := structs.AgentPprofRequest{
 				ReqType:  tc.reqType,
 				ServerID: tc.serverID,
 			}
 
-			reply := cstructs.AgentPprofResponse{}
+			reply := structs.AgentPprofResponse{}
 
 			err := tc.origin.RPC("Agent.Profile", &req, &reply)
 			if tc.expectedErr != "" {

@@ -393,7 +393,7 @@ func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWrite
 	}
 
 	// Create the request
-	args := &cstructs.AgentPprofRequest{
+	args := &structs.AgentPprofRequest{
 		NodeID:   req.URL.Query().Get("node_id"),
 		Profile:  req.URL.Query().Get("profile"),
 		ServerID: req.URL.Query().Get("server_id"),
@@ -408,7 +408,7 @@ func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWrite
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
-	var reply cstructs.AgentPprofResponse
+	var reply structs.AgentPprofResponse
 	var rpcErr error
 	if args.NodeID != "" {
 		// Make the RPC

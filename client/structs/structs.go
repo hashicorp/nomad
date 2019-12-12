@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/stats"
-	"github.com/hashicorp/nomad/command/agent/profile"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 )
@@ -53,40 +52,6 @@ type MonitorRequest struct {
 	PlainText bool
 
 	structs.QueryOptions
-}
-
-// AgentPprofRequest is used to request a pprof report for a given node.
-type AgentPprofRequest struct {
-	// ReqType specifies the profile to use
-	ReqType profile.ReqType
-
-	// Profile specifies the runtime/pprof profile to lookup and generate.
-	Profile string
-
-	// Seconds is the number of seconds to capture a profile
-	Seconds int
-
-	// Debug specifies if pprof profile should inclue debug output
-	Debug int
-
-	// NodeID is the node we want to track the logs of
-	NodeID string
-
-	// ServerID is the server we want to track the logs of
-	ServerID string
-
-	structs.QueryOptions
-}
-
-// AgentPprofResponse is used to return a generated pprof profile
-type AgentPprofResponse struct {
-	// ID of the agent that fulfilled the request
-	AgentID string
-
-	// Payload is the generated pprof profile
-	Payload []byte
-
-	HTTPHeaders map[string]string
 }
 
 // AllocFileInfo holds information about a file inside the AllocDir

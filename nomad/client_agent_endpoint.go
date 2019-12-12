@@ -28,7 +28,7 @@ func (a *Agent) register() {
 	a.srv.streamingRpcs.Register("Agent.Monitor", a.monitor)
 }
 
-func (a *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
+func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
 	// Targeting a node, forward request to node
 	if args.NodeID != "" {
 		return a.forwardProfileClient(args, reply)
@@ -57,11 +57,8 @@ func (a *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentP
 	var err error
 	var headers map[string]string
 
-	// Mark which server fulfilled the request
-	reply.AgentID = a.srv.serf.LocalMember().Name
-
-	// Determine which profile to run
-	// and generate profile. Blocks for args.Seconds
+	// Determine which profile to run and generate profile.
+	// Blocks for args.Seconds
 	// Our RPC endpoints currently don't support context
 	// or request cancellation so stubbing with TODO
 	switch args.ReqType {
@@ -87,6 +84,7 @@ func (a *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentP
 	// Copy profile response to reply
 	reply.Payload = resp
 	reply.HTTPHeaders = headers
+	reply.AgentID = a.srv.serf.LocalMember().Name
 
 	return nil
 }
@@ -412,7 +410,7 @@ func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, args cstructs.Moni
 	return
 }
 
-func (a *Agent) forwardProfileClient(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
+func (a *Agent) forwardProfileClient(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
 	nodeID := args.NodeID
 
 	snap, err := a.srv.State().Snapshot()

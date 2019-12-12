@@ -29,7 +29,7 @@ func NewAgentEndpoint(c *Client) *Agent {
 	return a
 }
 
-func (a *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentPprofResponse) error {
+func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
 	// Check ACL for agent write
 	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		return structs.NewErrRPCCoded(500, err.Error())
@@ -41,8 +41,10 @@ func (a *Agent) Profile(args *cstructs.AgentPprofRequest, reply *cstructs.AgentP
 	var err error
 	var headers map[string]string
 
-	// Determine which profile to run
-	// and generate profile. Blocks for args.Seconds
+	// Determine which profile to run and generate profile.
+	// Blocks for args.Seconds
+	// Our RPC endpoints currently don't support context
+	// or request cancellation so stubbing with TODO
 	switch args.ReqType {
 	case profile.CPUReq:
 		resp, headers, err = profile.CPUProfile(context.TODO(), args.Seconds)
