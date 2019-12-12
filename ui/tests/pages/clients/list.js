@@ -18,12 +18,24 @@ export default create({
 
   search: fillable('.search-box input'),
 
+  sortOptions: collection('[data-test-sort-by]', {
+    id: attribute('data-test-sort-by'),
+    sort: clickable(),
+  }),
+
+  sortBy(id) {
+    return this.sortOptions
+      .toArray()
+      .findBy('id', id)
+      .sort();
+  },
+
   nodes: collection('[data-test-client-node-row]', {
     id: text('[data-test-client-id]'),
     name: text('[data-test-client-name]'),
 
-    state: {
-      scope: '[data-test-client-state]',
+    compositeStatus: {
+      scope: '[data-test-client-composite-status]',
 
       tooltip: attribute('aria-label', '.tooltip'),
 
