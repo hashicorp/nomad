@@ -5552,6 +5552,8 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		if t.Leader {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task must not have leader set"))
 		}
+
+		// Ensure the proxy task has a corresponding service entry
 		serviceErr := ValidateConnectProxyService(t.Kind.Value(), tgServices)
 		if serviceErr != nil {
 			mErr.Errors = append(mErr.Errors, serviceErr)
@@ -5746,15 +5748,28 @@ const ConnectProxyPrefix = "connect-proxy"
 // valid Connect config.
 func ValidateConnectProxyService(serviceName string, tgServices []*Service) error {
 	found := false
+	names := make([]string, 0, len(tgServices))
 	for _, svc := range tgServices {
-		if svc.Name == serviceName && svc.Connect != nil && svc.Connect.SidecarService != nil {
+		if svc.Connect == nil || svc.Connect.SidecarService == nil {
+			continue
+		}
+
+		if svc.Name == serviceName {
 			found = true
 			break
 		}
+
+		// Build up list of mismatched Connect service names for error
+		// reporting.
+		names = append(names, svc.Name)
 	}
 
 	if !found {
-		return fmt.Errorf("Connect proxy service name not found in services from task group")
+		if len(names) == 0 {
+			return fmt.Errorf("No Connect services in task group with Connect proxy (%q)", serviceName)
+		} else {
+			return fmt.Errorf("Connect proxy service name (%q) not found in Connect services from task group: %s", serviceName, names)
+		}
 	}
 
 	return nil
