@@ -127,8 +127,8 @@ func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.Tas
 	return nil
 }
 
-// ensureSupervisorLoop starts a goroutine that will runs on an interval until
-// the passed context is cancelled.
+// ensureSupervisorLoop should be called in a goroutine. It will terminate when
+// the passed in context is terminated.
 //
 // The supervisor works by:
 // - Initially waiting for the plugin to become available. This loop is expensive
