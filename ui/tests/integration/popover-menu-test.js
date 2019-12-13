@@ -1,4 +1,4 @@
-import { find, click } from '@ember/test-helpers';
+import { click } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
@@ -58,7 +58,7 @@ module('Integration | Component | popover-menu', function(hooks) {
     this.setProperties(props);
     await this.render(commonTemplate);
 
-    assert.ok(Array.from(find('[data-test-popover-trigger]').classList).includes('is-special'));
+    assert.dom('[data-test-popover-trigger]').hasClass('is-special');
   });
 
   test('pressing DOWN ARROW when the trigger is focused opens the popover menu', async function(assert) {
@@ -81,11 +81,11 @@ module('Integration | Component | popover-menu', function(hooks) {
     await PopoverMenu.focus();
     await PopoverMenu.downArrow();
 
-    assert.equal(document.activeElement, find('[data-test-popover-trigger]'));
+    assert.dom('[data-test-popover-trigger]').isFocused();
 
     await PopoverMenu.focusNext();
 
-    assert.equal(document.activeElement, find('#mock-input-for-test'));
+    assert.dom('#mock-input-for-test').isFocused();
   });
 
   test('pressing ESC when the popover menu is open closes the menu and returns focus to the trigger button', async function(assert) {
