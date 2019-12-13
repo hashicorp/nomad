@@ -361,26 +361,8 @@ func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWrite
 	var secret string
 	s.parseToken(req, &secret)
 
-	// Check agent write permissions
-	aclObj, err := s.agent.Server().ResolveToken(secret)
-	if err != nil {
-		return nil, err
-	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
-		return nil, structs.ErrPermissionDenied
-	}
-
-	enableDebug := s.agent.GetConfig().EnableDebug
-
-	// ACLs not enabled
-	if aclObj == nil {
-		// If debug is not explicitly enabled
-		// return unauthorized
-		if enableDebug == false {
-			return nil, structs.ErrPermissionDenied
-		}
-	}
-
 	// Parse profile duration, default to 1 second
+	var err error
 	secondsParam := req.URL.Query().Get("seconds")
 	var seconds int
 	if secondsParam == "" {
@@ -388,7 +370,7 @@ func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWrite
 	} else {
 		seconds, err = strconv.Atoi(secondsParam)
 		if err != nil {
-			errStr := fmt.Sprintf("Error parsing seconds parameter %s", seconds)
+			errStr := fmt.Sprintf("Error parsing seconds parameter %s", secondsParam)
 			return nil, CodedError(400, errStr)
 		}
 	}

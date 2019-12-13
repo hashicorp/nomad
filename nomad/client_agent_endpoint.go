@@ -285,8 +285,6 @@ func (a *Agent) forwardFor(serverID, region string) (*serverParts, error) {
 	} else {
 		members := a.srv.Members()
 		for _, mem := range members {
-			// TODO find a  better way to get the agent ID we associate
-			// with a serf member
 			if mem.Name == serverID || mem.Tags["id"] == serverID {
 				if ok, srv := isNomadServer(mem); ok {
 					if srv.Region != region {

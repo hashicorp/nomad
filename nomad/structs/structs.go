@@ -294,6 +294,8 @@ type AgentPprofResponse struct {
 	// Payload is the generated pprof profile
 	Payload []byte
 
+	// HTTPHeaders are a set of key value pairs to be applied as
+	// HTTP headers for a specific runtime profile
 	HTTPHeaders map[string]string
 }
 
