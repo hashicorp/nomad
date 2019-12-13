@@ -3,7 +3,7 @@ import { computed } from '@ember/object';
 import { equal } from '@ember/object/computed';
 import { computed as overridable } from 'ember-overridable-computed';
 import { task } from 'ember-concurrency';
-import parseDuration from 'nomad-ui/utils/parse-duration';
+import Duration from 'duration-js';
 
 export default Component.extend({
   tagName: '',
@@ -53,9 +53,9 @@ export default Component.extend({
 
     let deadline;
     try {
-      deadline = parseDuration(this.deadline);
+      deadline = new Duration(this.deadline).nanoseconds();
     } catch (err) {
-      this.set('parseError', 'Failed to parse duration');
+      this.set('parseError', err.message);
       return;
     }
 
