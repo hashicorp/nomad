@@ -1,3 +1,5 @@
+// dynamicplugins is a package that manages dynamic plugins in Nomad.
+// It exposes a reg
 package dynamicplugins
 
 import (
@@ -38,6 +40,7 @@ func NewRegistry(dispensers map[string]PluginDispenser) Registry {
 	}
 }
 
+// PluginInfo is the metadata that is stored by the registry for a given plugin.
 type PluginInfo struct {
 	Name    string
 	Type    string
@@ -56,10 +59,16 @@ type PluginConnectionInfo struct {
 	SocketPath string
 }
 
+// EventType is the enum of events that will be emitted by a Registry's
+// PluginsUpdatedCh.
 type EventType string
 
 const (
-	EventTypeRegistered   EventType = "registered"
+	// EventTypeRegistered is emited by the Registry when a new plugin has been
+	// registered.
+	EventTypeRegistered EventType = "registered"
+	// EventTypeDeregistered is emited by the Registry when a plugin has been
+	// removed.
 	EventTypeDeregistered EventType = "deregistered"
 )
 
