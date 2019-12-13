@@ -1,4 +1,4 @@
-$size: 10px;
+$size: 12px;
 
 .toggle {
   cursor: pointer;
@@ -21,6 +21,7 @@ $size: 10px;
   .toggler {
     display: inline-block;
     position: relative;
+    vertical-align: middle;
     width: $size * 2;
     height: $size;
     border-radius: $size;
@@ -31,12 +32,12 @@ $size: 10px;
       content: ' ';
       display: block;
       position: absolute;
-      width: calc(#{$size} - 2px);
-      height: calc(#{$size} - 2px);
+      width: calc(#{$size} - 4px);
+      height: calc(#{$size} - 4px);
       border-radius: 100%;
       background: $white;
       left: 2px;
-      top: 1px;
+      top: 2px;
       transform: translateX(0);
       transition: transform 0.3s ease-in-out;
     }
@@ -53,7 +54,7 @@ $size: 10px;
     background: $blue;
 
     &::after {
-      transform: translateX(100%);
+      transform: translateX($size);
     }
   }
 
