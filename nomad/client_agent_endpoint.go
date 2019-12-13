@@ -29,13 +29,15 @@ func (a *Agent) register() {
 }
 
 func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
-	// handle when serverID does not exist for requested region
+	// Forward to different region if necessary
+	// this would typically be done in a.srv.forward() but since
+	// we are targeting a specific server, not just the leader
+	// we must manually handle region forwarding here.
 	region := args.RequestRegion()
 	if region == "" {
 		return fmt.Errorf("missing target RPC")
 	}
 
-	// Handle region forwarding
 	if region != a.srv.config.Region {
 		// Mark that we are forwarding
 		args.SetForwarded()
@@ -49,7 +51,7 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 
 	// Handle serverID not equal to ours
 	if args.ServerID != "" {
-		serverToFwd, err := a.serverFor(args.ServerID, region)
+		serverToFwd, err := a.forwardFor(args.ServerID, region)
 		if err != nil {
 			return err
 		}
@@ -260,7 +262,7 @@ OUTER:
 	}
 }
 
-func (a *Agent) serverFor(serverID, region string) (*serverParts, error) {
+func (a *Agent) forwardFor(serverID, region string) (*serverParts, error) {
 	var target *serverParts
 
 	if serverID == "leader" {
@@ -467,13 +469,13 @@ func (a *Agent) forwardProfileClient(args *structs.AgentPprofRequest, reply *str
 
 		rpcErr := a.srv.forwardServer(srv, "Agent.Profile", args, reply)
 		if rpcErr != nil {
-			return structs.NewErrRPCCoded(500, err.Error())
+			return rpcErr
 		}
 	} else {
 		// NodeRpc
 		rpcErr := NodeRpc(state.Session, "Agent.Profile", args, reply)
 		if rpcErr != nil {
-			return structs.NewErrRPCCoded(500, err.Error())
+			return rpcErr
 		}
 	}
 
