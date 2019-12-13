@@ -338,7 +338,7 @@ func TestAllocations_Signal(t *testing.T) {
 	err = client.ClientRPC("Allocations.Signal", &req, &resp2)
 
 	require.Error(t, err, "Expected error, got: %s, resp: %#+v", err, resp2)
-	require.Equal(t, "1 error(s) occurred:\n\n* Failed to signal task: web, err: Task not running", err.Error())
+	require.Contains(t, err.Error(), "Failed to signal task: web, err: Task not running")
 }
 
 func TestAllocations_Signal_ACL(t *testing.T) {
