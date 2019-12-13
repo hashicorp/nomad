@@ -54,6 +54,8 @@ module('Acceptance | client detail', function(hooks) {
   });
 
   test('/clients/:id should list immediate details for the node in the title', async function(assert) {
+    node = server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible', drain: false });
+
     await ClientDetail.visit({ id: node.id });
 
     assert.ok(ClientDetail.title.includes(node.name), 'Title includes name');
