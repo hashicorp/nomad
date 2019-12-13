@@ -524,3 +524,30 @@ func TestConfig_InternalCapabilities(t *testing.T) {
 	}
 
 }
+
+func TestConfig_DriverConfig_PullActivityTimeout(t *testing.T) {
+	cases := []struct {
+		name     string
+		config   string
+		expected string
+	}{
+		{
+			name:     "default",
+			config:   `{}`,
+			expected: "2m",
+		},
+		{
+			name:     "set explicitly",
+			config:   `{ pull_activity_timeout = "5m" }`,
+			expected: "5m",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+			require.Equal(t, c.expected, tc.PullActivityTimeout)
+		})
+	}
+}
