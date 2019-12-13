@@ -16,13 +16,15 @@ module('Integration | Component | toggle', function(hooks) {
     isDisabled: false,
     label: 'Label',
     onToggle: sinon.spy(),
+    onSpacebar: sinon.spy(),
   });
 
   const commonTemplate = hbs`
     {{#toggle
       isActive=isActive
       isDisabled=isDisabled
-      onToggle=onToggle}}
+      onToggle=onToggle
+      onSpacebar=onSpacebar}}
       {{label}}
     {{/toggle}}
   `;
@@ -85,5 +87,17 @@ module('Integration | Component | toggle', function(hooks) {
 
     await Toggle.toggle();
     assert.equal(props.onToggle.callCount, 1);
+  });
+
+  test('toggles can be toggled with the spacebar', async function(assert) {
+    const props = commonProperties();
+    this.setProperties(props);
+    await this.render(commonTemplate);
+
+    await Toggle.focus();
+    await Toggle.spaceBar();
+
+    assert.equal(props.onSpacebar.callCount, 1, 'This works');
+    assert.equal(props.onToggle.callCount, 1, 'This does not');
   });
 });

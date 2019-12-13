@@ -1,5 +1,7 @@
 import Component from '@ember/component';
 
+const SPACE = 32;
+
 export default Component.extend({
   tagName: 'label',
   classNames: ['toggle'],
@@ -10,4 +12,11 @@ export default Component.extend({
   isActive: false,
   isDisabled: false,
   onToggle() {},
+  onSpacebar() {},
+
+  onKeypress(e) {
+    if (e.keyCode === SPACE) {
+      this.onSpacebar(e);
+    }
+  },
 });
