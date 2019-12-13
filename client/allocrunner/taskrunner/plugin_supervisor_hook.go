@@ -120,7 +120,7 @@ func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.Tas
 	// If we're already running the supervisor routine, then we don't need to try
 	// and restart it here as it only terminates on `Stop` hooks.
 	h.runningLock.Lock()
-	if h.running == true {
+	if h.running {
 		h.runningLock.Unlock()
 		return nil
 	}
@@ -213,14 +213,14 @@ WAITFORREADY:
 			}
 
 			// The plugin has transitioned to a healthy state. Emit an event.
-			if h.previousHealthState == false && pluginHealthy {
+			if !h.previousHealthState && pluginHealthy {
 				event := structs.NewTaskEvent(structs.TaskPluginHealthy)
 				event.SetMessage(fmt.Sprintf("plugin: %s", h.task.CSIPluginConfig.ID))
 				h.eventEmitter.EmitEvent(event)
 			}
 
 			// The plugin has transitioned to an unhealthy state. Emit an event.
-			if h.previousHealthState == true && !pluginHealthy {
+			if h.previousHealthState && !pluginHealthy {
 				event := structs.NewTaskEvent(structs.TaskPluginUnhealthy)
 				if err != nil {
 					event.SetMessage(fmt.Sprintf("error: %v", err))
