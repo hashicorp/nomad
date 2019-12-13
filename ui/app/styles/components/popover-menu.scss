@@ -6,6 +6,7 @@
   border-radius: $radius;
   padding: 0.5em 1em;
   width: 200px;
+  z-index: $z-popover;
 }
 
 .popover-actions {
