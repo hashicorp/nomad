@@ -24,10 +24,9 @@ import (
 // It provides a couple of things to a task running inside Nomad. These are:
 // * A mount to the `plugin_mount_dir`, that will then be used by Nomad
 //   to connect to the nested plugin and handle volume mounts.
-//
-// When the task has started, it starts a loop of attempting to connect to the
-// plugin, to perform initial fingerprinting of the plugins capabilities before
-// notifying the plugin manager of the plugin.
+// * When the task has started, it starts a loop of attempting to connect to the
+//   plugin, to perform initial fingerprinting of the plugins capabilities before
+//   notifying the plugin manager of the plugin.
 type csiPluginSupervisorHook struct {
 	logger     hclog.Logger
 	alloc      *structs.Allocation
@@ -38,10 +37,14 @@ type csiPluginSupervisorHook struct {
 	// eventEmitter is used to emit events to the task
 	eventEmitter ti.EventEmitter
 
-	shutdownCtx         context.Context
-	shutdownCancelFn    context.CancelFunc
-	running             bool
-	runningLock         sync.Mutex
+	shutdownCtx      context.Context
+	shutdownCancelFn context.CancelFunc
+
+	running     bool
+	runningLock sync.Mutex
+
+	// previousHealthstate is used by the supervisor goroutine to track historic
+	// health states for gating task events.
 	previousHealthState bool
 }
 
@@ -168,6 +171,10 @@ WAITFORREADY:
 			pluginHealthy, err := h.supervisorLoopOnce(ctx, socketPath)
 			if err != nil || !pluginHealthy {
 				h.logger.Info("CSI Plugin not ready", "error", err)
+
+				// Plugin is not yet returning healthy, because we want to optimise for
+				// quickly bringing a plugin online, we use a short timeout here.
+				// TODO(dani): Test with more plugins and adjust.
 				t.Reset(5 * time.Second)
 				continue
 			}
@@ -224,6 +231,9 @@ WAITFORREADY:
 			}
 
 			h.previousHealthState = pluginHealthy
+
+			// This loop is informational and in some plugins this may be expensive to
+			// validate. We use a longer timeout (30s) to avoid causing undue work.
 			t.Reset(30 * time.Second)
 		}
 	}
@@ -304,8 +314,8 @@ func (h *csiPluginSupervisorHook) supervisorLoopOnce(ctx context.Context, socket
 // Therefore it may be called even when prestart and the other hooks
 // have not.
 //
-// Stop hooks must be idempotent. The context is cancelled if the task
-// is killed.
+// Stop hooks must be idempotent. The context is cancelled prematurely if the
+// task is killed.
 func (h *csiPluginSupervisorHook) Stop(_ context.Context, req *interfaces.TaskStopRequest, _ *interfaces.TaskStopResponse) error {
 	h.shutdownCancelFn()
 	return nil
