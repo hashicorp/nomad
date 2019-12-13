@@ -385,6 +385,11 @@ func MaxParallelJob() *structs.Job {
 func ConnectJob() *structs.Job {
 	job := Job()
 	tg := job.TaskGroups[0]
+	tg.Networks = []*structs.NetworkResource{
+		{
+			Mode: "bridge",
+		},
+	}
 	tg.Services = []*structs.Service{
 		{
 			Name:      "testconnect",
