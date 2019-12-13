@@ -81,14 +81,6 @@ module('Acceptance | client detail', function(hooks) {
       'Address is in additional details'
     );
     assert.ok(
-      ClientDetail.drainingDefinition.includes(node.drain + ''),
-      'Drain status is in additional details'
-    );
-    assert.ok(
-      ClientDetail.eligibilityDefinition.includes(node.schedulingEligibility),
-      'Scheduling eligibility is in additional details'
-    );
-    assert.ok(
       ClientDetail.datacenterDefinition.includes(node.datacenter),
       'Datacenter is in additional details'
     );

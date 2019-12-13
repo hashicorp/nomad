@@ -38,8 +38,6 @@ export default create({
   statusDefinition: text('[data-test-status-definition]'),
   statusDecorationClass: attribute('class', '[data-test-status-definition] .status-text'),
   addressDefinition: text('[data-test-address-definition]'),
-  drainingDefinition: text('[data-test-draining]'),
-  eligibilityDefinition: text('[data-test-eligibility]'),
   datacenterDefinition: text('[data-test-datacenter-definition]'),
 
   resourceCharts: collection('[data-test-primary-metric]', {
