@@ -510,6 +510,12 @@ func TestAgent_PprofRequest(t *testing.T) {
 			addServerID: true,
 		},
 		{
+			desc:        "invalid server request",
+			url:         "/v1/agent/pprof/unknown",
+			addServerID: true,
+			expectedErr: "RPC Error:: 404,Pprof profile not found profile: unknnown",
+		},
+		{
 			desc:      "cpu profile request",
 			url:       "/v1/agent/pprof/profile",
 			addNodeID: true,

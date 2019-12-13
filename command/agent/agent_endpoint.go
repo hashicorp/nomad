@@ -421,7 +421,7 @@ func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWrite
 			rpcErr = s.agent.Server().RPC("Agent.Profile", &args, &reply)
 		}
 	} else {
-		// No node id request server
+		// No node id target server
 		rpcErr = s.agent.Server().RPC("Agent.Profile", &args, &reply)
 	}
 
