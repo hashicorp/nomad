@@ -1,3 +1,5 @@
+// fake is a package that includes fake implementations of public interfaces
+// from the CSI package for testing.
 package fake
 
 import (
