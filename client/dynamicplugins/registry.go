@@ -1,5 +1,6 @@
 // dynamicplugins is a package that manages dynamic plugins in Nomad.
-// It exposes a reg
+// It exposes a registry that allows for plugins to be registered/deregistered
+// and also allows subscribers to recieve real time updates of these events.
 package dynamicplugins
 
 import (
@@ -64,10 +65,10 @@ type PluginConnectionInfo struct {
 type EventType string
 
 const (
-	// EventTypeRegistered is emited by the Registry when a new plugin has been
+	// EventTypeRegistered is emitted by the Registry when a new plugin has been
 	// registered.
 	EventTypeRegistered EventType = "registered"
-	// EventTypeDeregistered is emited by the Registry when a plugin has been
+	// EventTypeDeregistered is emitted by the Registry when a plugin has been
 	// removed.
 	EventTypeDeregistered EventType = "deregistered"
 )
@@ -233,6 +234,12 @@ func (d *dynamicRegistry) DispensePlugin(ptype string, name string) (interface{}
 	return dispenseFunc(info)
 }
 
+// PluginsUpdatedCh returns a channel over which plugin events for the requested
+// plugin type will be emitted. These events are strongly ordered and will never
+// be dropped.
+//
+// The receiving channel _must not_ be closed before the provided context is
+// cancelled.
 func (d *dynamicRegistry) PluginsUpdatedCh(ctx context.Context, ptype string) <-chan *PluginUpdateEvent {
 	b := d.broadcasterForPluginType(ptype)
 	ch := b.subscribe()
@@ -283,8 +290,9 @@ func (p *pluginEventBroadcaster) run() {
 		case msg := <-p.publishCh:
 			p.subscriptionsLock.RLock()
 			for msgCh := range p.subscriptions {
-				// We block on sends as we do not want any subscribers to miss messages.
-				msgCh <- msg
+				select {
+				case msgCh <- msg:
+				}
 			}
 			p.subscriptionsLock.RUnlock()
 		}
