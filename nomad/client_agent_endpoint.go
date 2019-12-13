@@ -61,15 +61,23 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 	}
 
 	// Check ACL for agent write
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
 		return structs.ErrPermissionDenied
 	}
 
+	// If ACLs are disabled, EnableDebug must be enabled
+	if aclObj == nil {
+		enableDebug := a.srv.config.EnableDebug
+		if enableDebug == false {
+			return structs.ErrPermissionDenied
+		}
+	}
+
 	// Process the request on this server
 	var resp []byte
-	var err error
 	var headers map[string]string
 
 	// Determine which profile to run and generate profile.

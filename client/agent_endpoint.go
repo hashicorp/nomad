@@ -31,14 +31,22 @@ func NewAgentEndpoint(c *Client) *Agent {
 
 func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
 	// Check ACL for agent write
-	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
+	aclObj, err := a.c.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
 		return structs.ErrPermissionDenied
 	}
 
+	// If ACLs are disabled, EnableDebug must be enabled
+	if aclObj == nil {
+		enableDebug := a.c.config.EnableDebug
+		if enableDebug == false {
+			return structs.ErrPermissionDenied
+		}
+	}
+
 	var resp []byte
-	var err error
 	var headers map[string]string
 
 	// Determine which profile to run and generate profile.

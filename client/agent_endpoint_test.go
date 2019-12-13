@@ -215,6 +215,33 @@ func TestMonitor_Monitor_ACL(t *testing.T) {
 	}
 }
 
+// Test that by default with no acl, endpoint is disabled
+func TestAgentProfile_DefaultDisabled(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// start server and client
+	s1, cleanup := nomad.TestServer(t, nil)
+	defer cleanup()
+
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c, cleanupC := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s1.GetConfig().RPCAddr.String()}
+	})
+	defer cleanupC()
+
+	req := structs.AgentPprofRequest{
+		ReqType: profile.CPUReq,
+		NodeID:  c.NodeID(),
+	}
+
+	reply := structs.AgentPprofResponse{}
+
+	err := c.ClientRPC("Agent.Profile", &req, &reply)
+	require.EqualError(err, structs.ErrPermissionDenied.Error())
+}
+
 func TestAgentProfile(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -227,6 +254,7 @@ func TestAgentProfile(t *testing.T) {
 
 	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s1.GetConfig().RPCAddr.String()}
+		c.EnableDebug = true
 	})
 	defer cleanupC()
 

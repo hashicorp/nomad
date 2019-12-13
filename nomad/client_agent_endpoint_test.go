@@ -464,7 +464,9 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 	require := require.New(t)
 
 	// start server and client
-	s1, cleanup := TestServer(t, nil)
+	s1, cleanup := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+	})
 	defer cleanup()
 
 	s2, cleanup := TestServer(t, func(c *Config) {
@@ -478,6 +480,7 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 
 	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.GetConfig().RPCAddr.String()}
+		c.EnableDebug = true
 	})
 	defer cleanupC()
 
@@ -513,12 +516,14 @@ func TestAgentProfile_RemoteRegionMisMatch(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.Region = "foo"
+		c.EnableDebug = true
 	})
 	defer cleanupS1()
 
 	s2, cleanup := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.Region = "bar"
+		c.EnableDebug = true
 	})
 	defer cleanup()
 
@@ -555,6 +560,7 @@ func TestAgentProfile_RemoteRegion(t *testing.T) {
 	s2, cleanup := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.Region = "bar"
+		c.EnableDebug = true
 	})
 	defer cleanup()
 
@@ -582,11 +588,14 @@ func TestAgentProfile_Server(t *testing.T) {
 	t.Parallel()
 
 	// start servers
-	s1, cleanup := TestServer(t, nil)
+	s1, cleanup := TestServer(t, func(c *Config) {
+		c.EnableDebug = true
+	})
 	defer cleanup()
 
 	s2, cleanup := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
+		c.EnableDebug = true
 	})
 	defer cleanup()
 
