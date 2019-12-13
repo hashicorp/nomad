@@ -104,7 +104,7 @@ func (h *logmonHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 
 	if h.isLoggingDisabled() {
-		h.logger.Info("logging is disabled by driver")
+		h.logger.Debug("logging is disabled by driver")
 		return nil
 	}
 

@@ -258,6 +258,8 @@ var (
 			hclspec.NewLiteral(`"gcr.io/google_containers/pause-amd64:3.0"`),
 		),
 
+		// disable_log_collection indicates whether docker driver should collect logs of docker
+		// task containers.  If true, nomad doesn't start docker_logger/logmon processes
 		"disable_log_collection": hclspec.NewAttr("disable_log_collection", "bool", false),
 	})
 
