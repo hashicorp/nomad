@@ -3,6 +3,7 @@ import Component from '@ember/component';
 import { lazyClick } from '../helpers/lazy-click';
 import { watchRelationship } from 'nomad-ui/utils/properties/watch';
 import WithVisibilityDetection from 'nomad-ui/mixins/with-component-visibility-detection';
+import { computed } from '@ember/object';
 
 export default Component.extend(WithVisibilityDetection, {
   store: service(),
@@ -45,4 +46,16 @@ export default Component.extend(WithVisibilityDetection, {
   },
 
   watch: watchRelationship('allocations'),
+
+  compositeStatusClass: computed('node.compositeStatus', function() {
+    let compositeStatus = this.get('node.compositeStatus');
+
+    if (compositeStatus === 'draining') {
+      return 'status-text is-info';
+    } else if (compositeStatus === 'ineligible') {
+      return 'status-text is-warning';
+    } else {
+      return '';
+    }
+  }),
 });
