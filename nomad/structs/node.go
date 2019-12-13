@@ -100,7 +100,18 @@ func (n *CSINodeInfo) Copy() *CSINodeInfo {
 // CSIControllerInfo is the fingerprinted data from a CSI Plugin that is specific to
 // the Controller API.
 type CSIControllerInfo struct {
-	Capabilities []string
+	// Currently empty
+}
+
+func (c *CSIControllerInfo) Copy() *CSIControllerInfo {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(CSIControllerInfo)
+	*nc = *c
+
+	return nc
 }
 
 // CSIInfo is the current state of a single CSI Plugin. This is updated regularly
@@ -133,6 +144,7 @@ func (c *CSIInfo) Copy() *CSIInfo {
 
 	nc := new(CSIInfo)
 	*nc = *c
+	nc.ControllerInfo = c.ControllerInfo.Copy()
 	nc.NodeInfo = c.NodeInfo.Copy()
 
 	return nc
