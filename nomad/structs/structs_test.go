@@ -1599,12 +1599,12 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 			Service: &Service{
 				Name: "redis",
 			},
-			ErrContains: "Connect proxy service name not found in services from task group",
+			ErrContains: `No Connect services in task group with Connect proxy ("redis:test")`,
 		},
 		{
 			Desc:        "Service name not found in group",
 			Kind:        "connect-proxy:redis",
-			ErrContains: "Connect proxy service name not found in services from task group",
+			ErrContains: `No Connect services in task group with Connect proxy ("redis")`,
 		},
 		{
 			Desc: "Connect stanza not configured in group",
@@ -1612,7 +1612,7 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 			TgService: []*Service{{
 				Name: "redis",
 			}},
-			ErrContains: "Connect proxy service name not found in services from task group",
+			ErrContains: `No Connect services in task group with Connect proxy ("redis")`,
 		},
 		{
 			Desc: "Valid connect proxy kind",
@@ -1640,12 +1640,8 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 				// Ok!
 				return
 			}
-			if err == nil {
-				t.Fatalf("no error returned. expected: %s", tc.ErrContains)
-			}
-			if !strings.Contains(err.Error(), tc.ErrContains) {
-				t.Fatalf("expected %q but found: %v", tc.ErrContains, err)
-			}
+			require.Errorf(t, err, "no error returned. expected: %s", tc.ErrContains)
+			require.Containsf(t, err.Error(), tc.ErrContains, "expected %q but found: %v", tc.ErrContains, err)
 		})
 	}
 
