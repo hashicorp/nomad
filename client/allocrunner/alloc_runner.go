@@ -131,8 +131,8 @@ type allocRunner struct {
 	// prevAllocMigrator allows the migration of a previous allocations alloc dir.
 	prevAllocMigrator allocwatcher.PrevAllocMigrator
 
-	// dynamicRegistry is the dynamicplugins dynamic plugins should be registered
-	// with.
+	// dynamicRegistry contains all locally registered dynamic plugins (e.g csi
+	// plugins).
 	dynamicRegistry dynamicplugins.Registry
 
 	// devicemanager is used to mount devices as well as lookup device
