@@ -138,22 +138,6 @@
         <span class="term">Address</span>
         {{model.httpAddr}}
       </span>
-      <span class="pair" data-test-draining>
-        <span class="term">Draining</span>
-        {{#if model.isDraining}}
-          <span class="status-text is-info">true</span>
-        {{else}}
-          false
-        {{/if}}
-      </span>
-      <span class="pair" data-test-eligibility>
-        <span class="term">Eligibility</span>
-        {{#if model.isEligible}}
-          {{model.schedulingEligibility}}
-        {{else}}
-          <span class="status-text is-warning">{{model.schedulingEligibility}}</span>
-        {{/if}}
-      </span>
       <span class="pair" data-test-datacenter-definition>
         <span class="term">Datacenter</span>
         {{model.datacenter}}
