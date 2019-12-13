@@ -915,7 +915,7 @@ type TaskCSIPluginConfig struct {
 	// MountDir is the destination that nomad should mount in its CSI
 	// directory for the plugin. It will then expect a file called CSISocketName
 	// to be created by the plugin, and will provide references into
-	// "MountDir/CSIIntermediaryDirname/{VolumeName}/{AllocID} for mounts.
+	// "MountDir/CSIIntermediaryDirname/VolumeName/AllocID for mounts.
 	//
 	// Default is /csi.
 	MountDir string `mapstructure:"mount_dir"`
