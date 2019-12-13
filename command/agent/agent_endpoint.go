@@ -388,7 +388,8 @@ func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWrite
 	} else {
 		seconds, err = strconv.Atoi(secondsParam)
 		if err != nil {
-			return nil, CodedError(400, err.Error())
+			errStr := fmt.Sprintf("Error parsing seconds parameter %s", seconds)
+			return nil, CodedError(400, errStr)
 		}
 	}
 

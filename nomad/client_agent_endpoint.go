@@ -70,8 +70,7 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 
 	// If ACLs are disabled, EnableDebug must be enabled
 	if aclObj == nil {
-		enableDebug := a.srv.config.EnableDebug
-		if enableDebug == false {
+		if !a.srv.config.EnableDebug {
 			return structs.ErrPermissionDenied
 		}
 	}
