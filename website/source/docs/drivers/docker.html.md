@@ -684,6 +684,10 @@ plugin "docker" {
   the host's devices. Note that you must set a similar setting on the Docker
   daemon for this to work.
 
+* `pull_activity_timeout` - Defaults to `2m`. If Nomad receives no communication
+  from the Docker engine during an image pull within this timeframe, Nomad will
+  timeout the request that initiated the pull command.
+
 * `allow_caps`<a id="plugin_caps"></a> - A list of allowed Linux capabilities.
   Defaults to
   "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,
