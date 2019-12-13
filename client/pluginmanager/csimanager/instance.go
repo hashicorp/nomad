@@ -14,6 +14,8 @@ import (
 
 const managerFingerprintInterval = 30 * time.Second
 
+// instanceManager is used to manage the fingerprinting and supervision of a
+// single CSI Plugin.
 type instanceManager struct {
 	info   *dynamicplugins.PluginInfo
 	logger hclog.Logger
@@ -126,10 +128,6 @@ func (i *instanceManager) runLoop() {
 }
 
 func (i *instanceManager) buildControllerFingerprint(ctx context.Context, base *structs.CSIInfo) (*structs.CSIInfo, error) {
-	if i.client == nil {
-		return nil, fmt.Errorf("No CSI Client")
-	}
-
 	fp := base.Copy()
 
 	healthy, err := i.client.PluginProbe(ctx)
@@ -142,10 +140,6 @@ func (i *instanceManager) buildControllerFingerprint(ctx context.Context, base *
 }
 
 func (i *instanceManager) buildNodeFingerprint(ctx context.Context, base *structs.CSIInfo) (*structs.CSIInfo, error) {
-	if i.client == nil {
-		return nil, fmt.Errorf("No CSI Client")
-	}
-
 	fp := base.Copy()
 
 	healthy, err := i.client.PluginProbe(ctx)
