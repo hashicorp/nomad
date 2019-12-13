@@ -5,13 +5,13 @@ let blackBis = 'hsl(0, 0%, 7%)';
 let greyLight = 'hsl(0, 0%, 71%)';
 
 // From product-colors.scss
-let packerBlue = '#1563ff';
+let vagrantBlue = '#1563ff';
 
 export default create({
   base: 'light',
 
   colorPrimary: blackBis,
-  colorSecondary: packerBlue,
+  colorSecondary: vagrantBlue,
 
   // UI
   appBorderColor: greyLight,
