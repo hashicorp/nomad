@@ -159,11 +159,16 @@ func (c *CSIInfo) SetHealthy(hs bool) {
 	}
 }
 
-func (c *CSIInfo) IsEqual(o *CSIInfo) bool {
+func (c *CSIInfo) Equal(o *CSIInfo) bool {
+	if c == nil && o == nil {
+		return c == o
+	}
+
 	nc := *c
 	nc.UpdateTime = time.Time{}
 	no := *o
 	no.UpdateTime = time.Time{}
+
 	return reflect.DeepEqual(nc, no)
 }
 

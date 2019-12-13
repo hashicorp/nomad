@@ -134,7 +134,7 @@ func (c *Client) updateNodeFromCSIControllerLocked(name string, info *structs.CS
 		c.config.Node.CSIControllerPlugins[name] = i
 	} else {
 		// The controller info has already been set, fix it up
-		if !oldController.IsEqual(i) {
+		if !oldController.Equal(i) {
 			c.config.Node.CSIControllerPlugins[name] = i
 			changed = true
 		}
@@ -178,7 +178,7 @@ func (c *Client) updateNodeFromCSINodeLocked(name string, info *structs.CSIInfo)
 		c.config.Node.CSINodePlugins[name] = i
 	} else {
 		// The node info has already been set, fix it up
-		if !oldNode.IsEqual(info) {
+		if !oldNode.Equal(info) {
 			c.config.Node.CSINodePlugins[name] = i
 			changed = true
 		}
