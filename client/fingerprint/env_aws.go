@@ -77,7 +77,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 
 	ec2meta, err := ec2MetaClient(f.endpoint, timeout)
 	if err != nil {
-		return fmt.Errorf("failed to setup ec2 client: %v", err)
+		return fmt.Errorf("failed to setup ec2Metadata client: %v", err)
 	}
 
 	if !ec2meta.Available() {
