@@ -75,7 +75,10 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		timeout = 1 * time.Millisecond
 	}
 
-	ec2meta := ec2MetaClient(f.endpoint, timeout)
+	ec2meta, err := ec2MetaClient(f.endpoint, timeout)
+	if err != nil {
+		return fmt.Errorf("failed to setup ec2 client: %v", err)
+	}
 
 	if !ec2meta.Available() {
 		return nil
@@ -191,15 +194,20 @@ func (f *EnvAWSFingerprint) linkSpeed(ec2meta *ec2metadata.EC2Metadata) int {
 	return netSpeed
 }
 
-func ec2MetaClient(endpoint string, timeout time.Duration) *ec2metadata.EC2Metadata {
+func ec2MetaClient(endpoint string, timeout time.Duration) (*ec2metadata.EC2Metadata, error) {
 	client := &http.Client{
 		Timeout:   timeout,
 		Transport: cleanhttp.DefaultTransport(),
 	}
 
-	c := aws.NewConfig().WithHTTPClient(client)
+	c := aws.NewConfig().WithHTTPClient(client).WithMaxRetries(0)
 	if endpoint != "" {
 		c = c.WithEndpoint(endpoint)
 	}
-	return ec2metadata.New(session.New(), c)
+
+	session, err := session.NewSession(c)
+	if err != nil {
+		return nil, err
+	}
+	return ec2metadata.New(session, c), nil
 }
