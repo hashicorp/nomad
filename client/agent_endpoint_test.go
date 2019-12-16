@@ -294,7 +294,6 @@ func TestAgentProfile_ACL(t *testing.T) {
 	require := require.New(t)
 
 	// start server
-	// start server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
 	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)

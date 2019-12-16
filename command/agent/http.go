@@ -219,7 +219,9 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.Handle("/", handleRootFallthrough())
 
 	if enableDebug {
-		s.logger.Warn("enable_debug is set to true. This is insecure and should not be enabled in production")
+		if !s.agent.config.DevMode {
+			s.logger.Warn("enable_debug is set to true. This is insecure and should not be enabled in production")
+		}
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
 		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		s.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -358,7 +360,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 	return f
 }
 
-// wrapNonJON is used to wrap functions returning non JSON
+// wrapNonJSON is used to wrap functions returning non JSON
 // serializeable data to make them more convenient. It is primarily
 // responsible for setting nomad headers and logging.
 func (s *HTTPServer) wrapNonJSON(handler func(resp http.ResponseWriter, req *http.Request) ([]byte, error)) func(resp http.ResponseWriter, req *http.Request) {

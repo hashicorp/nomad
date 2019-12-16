@@ -382,10 +382,6 @@ func (a *Agent) Profile(serverID, nodeID, profile string, debug int, q *QueryOpt
 	if q == nil {
 		q = &QueryOptions{}
 	}
-
-	if q == nil {
-		q = &QueryOptions{}
-	}
 	if q.Params == nil {
 		q.Params = make(map[string]string)
 	}

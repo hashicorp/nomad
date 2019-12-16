@@ -82,16 +82,17 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 	// Determine which profile to run and generate profile.
 	// Blocks for args.Seconds
 	// Our RPC endpoints currently don't support context
-	// or request cancellation so stubbing with TODO
+	// or request cancellation so using server shutdownCtx as a
+	// best effort.
 	switch args.ReqType {
 	case profile.CPUReq:
-		resp, headers, err = profile.CPUProfile(context.TODO(), args.Seconds)
+		resp, headers, err = profile.CPUProfile(a.srv.shutdownCtx, args.Seconds)
 	case profile.CmdReq:
 		resp, headers, err = profile.Cmdline()
 	case profile.LookupReq:
 		resp, headers, err = profile.Profile(args.Profile, args.Debug)
 	case profile.TraceReq:
-		resp, headers, err = profile.Trace(context.TODO(), args.Seconds)
+		resp, headers, err = profile.Trace(a.srv.shutdownCtx, args.Seconds)
 	default:
 		err = structs.NewErrRPCCoded(404, "Unknown profile request type")
 	}
@@ -269,6 +270,9 @@ OUTER:
 	}
 }
 
+// forwardFor returns a serverParts for a request to be forwarded to.
+// A response of nil, nil indicates that the current server is equal to the
+// serverID and region so the request should not be forwarded.
 func (a *Agent) forwardFor(serverID, region string) (*serverParts, error) {
 	var target *serverParts
 
@@ -295,7 +299,6 @@ func (a *Agent) forwardFor(serverID, region string) (*serverParts, error) {
 					}
 					target = srv
 				}
-
 			}
 		}
 	}
@@ -451,7 +454,7 @@ func (a *Agent) forwardProfileClient(args *structs.AgentPprofRequest, reply *str
 
 	if node == nil {
 		err := fmt.Errorf("Unknown node %q", nodeID)
-		return structs.NewErrRPCCoded(400, err.Error())
+		return structs.NewErrRPCCoded(404, err.Error())
 	}
 
 	if err := nodeSupportsRpc(node); err != nil {

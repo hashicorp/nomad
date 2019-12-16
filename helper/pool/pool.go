@@ -433,6 +433,7 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 			return err
 		}
 
+		// TODO wrap with RPCCoded error instead
 		return fmt.Errorf("rpc error: %v", err)
 	}
 

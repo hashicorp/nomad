@@ -589,10 +589,13 @@ The table below shows this endpoint's support for
 
 ### Default Behavior
 
-The default behavior of this endpoint complex but seeks to maximize security,
-backward compatibility, and still allow debug access by default when possible. 
-The table below outlines the different scenarios which will enable or disable
-the endpoint.
+This endpoint is enabled whenever ACLs are enabled. Due to the potentially
+sensitive nature of data contained in profiles, as well as their significant
+performance impact, the agent/pprof endpoint is protected by a high level ACL:
+`agent:write`. For these reasons its recommended to leave [`enable_debug`](/docs/configuration/index.html#enable_debug)
+unset and only use the ACL-protected endpoints.
+
+The following table explains when each endpoint is available:
 
 |    Endpoint      |  `enable_debug`  |  ACLs  |  **Available?**  |
 |------------------|------------------|--------|------------------|
@@ -602,39 +605,42 @@ the endpoint.
 | /v1/agent/pprof  |  unset           |  off   |  no              |
 | /v1/agent/pprof  |  unset           |  on    |  **yes**         |
 | /v1/agent/pprof  |  `true`          |  off   |  yes             |
-| /v1/agent/pprof  |  `false`         |  n/a   |  **no**          |
+| /v1/agent/pprof  |  `false`         |  on    |  **yes**         |
 
 
 ### Parameters
 
 - `node_id` `(string: "a57b2adb-1a30-2dda-8df0-25abb0881952")` - Specifies a text
-  string containing a node-id to target for streaming.
+  string containing a Node ID to target for profiling.
 
 - `server_id` `(string: "server1.global")` - Specifies a text
-  string containing a server id, name or "leader" to target a specific remote
-  server or leader for streaming.
+  string containing a Server ID, name, or `leader` to target a specific remote
+  server or leader for profiling.
 
 - `seconds` `(int: 3)` - Specifies the amount of time to run a profile or trace
   request for.
 
 - `debug` `(int: 1)` - Specifies if a given pprof profile should be returned as
-  text/plain instead of application/octet-stream. Defaults to 0, setting to 1
-  enables.
+  human readable plain text instead of the pprof binary format. Defaults to 0, 
+  setting to 1 enables human readable plain text.
 
 ### Sample Request
 
 ```text
 $ curl -O -J \
+    --header "X-Nomad-Token: 8176afd3-772d-0b71-8f85-7fa5d903e9d4" \
     https://localhost:4646/v1/agent/pprof/goroutine?server_id=leader
 
 $ go tool pprof goroutine
 
 $ curl -O -J \
+    --header "X-Nomad-Token: 8176afd3-772d-0b71-8f85-7fa5d903e9d4" \
     https://localhost:4646/v1/agent/profile?seconds=5&node_id=a57b2adb-1a30-2dda-8df0-25abb0881952
 
 $ go tool pprof profile
 
 $ curl -O -J \
+    --header "X-Nomad-Token: 8176afd3-772d-0b71-8f85-7fa5d903e9d4" \
     https://localhost:4646/v1/agent/trace?&seconds=5&server_id=server1.global
 
 go tool trace trace

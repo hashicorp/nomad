@@ -389,7 +389,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	})
 }
 
-// Scenerios when Pprof requests should be available
+// Scenarios when Pprof requests should be available
 // see https://github.com/hashicorp/nomad/issues/6496
 // +---------------+------------------+--------+------------------+
 // |   Endpoint    |  `enable_debug`  |  ACLs  |  **Available?**  |

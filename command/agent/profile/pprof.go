@@ -11,12 +11,6 @@ import (
 	"time"
 )
 
-// goroutine
-// threadcreate
-// heap
-// allocs
-// block
-// mutex
 type ReqType string
 
 const (

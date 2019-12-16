@@ -336,15 +336,15 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 
 func (s *HTTPServer) AgentPprofRequest(resp http.ResponseWriter, req *http.Request) ([]byte, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/agent/pprof/")
-	switch {
-	case path == "":
+	switch path {
+	case "":
 		// no root index route
 		return nil, CodedError(404, ErrInvalidMethod)
-	case path == "cmdline":
+	case "cmdline":
 		return s.agentPprof(profile.CmdReq, resp, req)
-	case path == "profile":
+	case "profile":
 		return s.agentPprof(profile.CPUReq, resp, req)
-	case path == "trace":
+	case "trace":
 		return s.agentPprof(profile.TraceReq, resp, req)
 	default:
 		// Add profile to request
