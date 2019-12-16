@@ -26,6 +26,9 @@ type CSIPlugin interface {
 	// Accessible Topology Support
 	PluginGetCapabilities(ctx context.Context) (*PluginCapabilitySet, error)
 
+	// ControllerPublishVolume is used to attach a remote volume to a cluster node.
+	ControllerPublishVolume(ctx context.Context, req *ControllerPublishVolumeRequest) (*ControllerPublishVolumeResponse, error)
+
 	// NodeGetInfo is used to return semantic data about the current node in
 	// respect to the SP.
 	NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error)
@@ -82,4 +85,16 @@ func NewPluginCapabilitySet(capabilities *csipbv1.GetPluginCapabilitiesResponse)
 	}
 
 	return cs
+}
+
+type ControllerPublishVolumeRequest struct {
+	VolumeID string
+	NodeID   string
+	ReadOnly bool
+
+	//TODO: Add Capabilities
+}
+
+type ControllerPublishVolumeResponse struct {
+	PublishContext map[string]string
 }
