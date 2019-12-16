@@ -35,6 +35,10 @@ type Client struct {
 	NextPluginGetCapabilitiesErr      error
 	PluginGetCapabilitiesCallCount    int64
 
+	NextControllerPublishVolumeResponse *csi.ControllerPublishVolumeResponse
+	NextControllerPublishVolumeErr      error
+	ControllerPublishVolumeCallCount    int64
+
 	NextNodeGetInfoResponse *csi.NodeGetInfoResponse
 	NextNodeGetInfoErr      error
 	NodeGetInfoCallCount    int64
@@ -93,6 +97,16 @@ func (c *Client) PluginGetCapabilities(ctx context.Context) (*csi.PluginCapabili
 	c.PluginGetCapabilitiesCallCount++
 
 	return c.NextPluginGetCapabilitiesResponse, c.NextPluginGetCapabilitiesErr
+}
+
+// ControllerPublishVolume is used to attach a remote volume to a node
+func (c *Client) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.ControllerPublishVolumeCallCount++
+
+	return c.NextControllerPublishVolumeResponse, c.NextControllerPublishVolumeErr
 }
 
 // NodeGetInfo is used to return semantic data about the current node in
