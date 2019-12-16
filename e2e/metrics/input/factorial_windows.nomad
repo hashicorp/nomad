@@ -1,4 +1,4 @@
-job "test_raw_windows" {
+job "factorial_windows" {
   datacenters = ["dc1"]
   type        = "service"
 
