@@ -2881,7 +2881,8 @@ func (n *NodeReservedNetworkResources) ParseReservedHostPorts() ([]uint64, error
 // AllocatedResources is the set of resources to be used by an allocation.
 type AllocatedResources struct {
 	// Tasks is a mapping of task name to the resources for the task.
-	Tasks map[string]*AllocatedTaskResources
+	Tasks          map[string]*AllocatedTaskResources
+	TaskLifecycles map[string]*TaskLifecycleConfig
 
 	// Shared is the set of resource that are shared by all tasks in the group.
 	Shared AllocatedSharedResources
@@ -2902,6 +2903,13 @@ func (a *AllocatedResources) Copy() *AllocatedResources {
 			out.Tasks[task] = resource.Copy()
 		}
 	}
+	if a.TaskLifecycles != nil {
+		out.TaskLifecycles = make(map[string]*TaskLifecycleConfig, len(out.TaskLifecycles))
+		for task, lifecycle := range a.TaskLifecycles {
+			out.TaskLifecycles[task] = lifecycle.Copy()
+		}
+
+	}
 
 	return &out
 }
@@ -2916,9 +2924,29 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 	c := &ComparableResources{
 		Shared: a.Shared,
 	}
-	for _, r := range a.Tasks {
-		c.Flattened.Add(r)
+
+	prestartUntilRunning := &AllocatedTaskResources{}
+	prestartUntilCompleted := &AllocatedTaskResources{}
+	main := &AllocatedTaskResources{}
+
+	for taskName, r := range a.Tasks {
+		lc := a.TaskLifecycles[taskName]
+		if lc == nil {
+			main.Add(r)
+		} else if lc.Hook == TaskLifecycleHookPrestart && lc.BlockUntil == TaskLifecycleBlockUntilRunning {
+			prestartUntilRunning.Add(r)
+		} else if lc.Hook == TaskLifecycleHookPrestart && lc.BlockUntil == TaskLifecycleBlockUntilCompleted {
+			prestartUntilCompleted.Add(r)
+		} else {
+			panic("Unexpected type")
+		}
 	}
+
+	// update this loop to account for lifecycle hook
+	prestartUntilCompleted.Max(main)
+	prestartUntilRunning.Add(prestartUntilCompleted)
+	c.Flattened.Add(prestartUntilRunning)
+
 	// Add network resources that are at the task group level
 	for _, network := range a.Shared.Networks {
 		c.Flattened.Add(&AllocatedTaskResources{
@@ -2997,6 +3025,35 @@ func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 	}
 
 	for _, d := range delta.Devices {
+		// Find the matching device
+		idx := AllocatedDevices(a.Devices).Index(d)
+		if idx == -1 {
+			a.Devices = append(a.Devices, d.Copy())
+		} else {
+			a.Devices[idx].Add(d)
+		}
+	}
+}
+
+func (a *AllocatedTaskResources) Max(other *AllocatedTaskResources) {
+	if other == nil {
+		return
+	}
+
+	a.Cpu.Max(&other.Cpu)
+	a.Memory.Max(&other.Memory)
+
+	for _, n := range other.Networks {
+		// Find the matching interface by IP or CIDR
+		idx := a.NetIndex(n)
+		if idx == -1 {
+			a.Networks = append(a.Networks, n.Copy())
+		} else {
+			a.Networks[idx].Add(n)
+		}
+	}
+
+	for _, d := range other.Devices {
 		// Find the matching device
 		idx := AllocatedDevices(a.Devices).Index(d)
 		if idx == -1 {
@@ -3101,6 +3158,16 @@ func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
 	a.CpuShares -= delta.CpuShares
 }
 
+func (a *AllocatedCpuResources) Max(other *AllocatedCpuResources) {
+	if other == nil {
+		return
+	}
+
+	if other.CpuShares > a.CpuShares {
+		a.CpuShares = other.CpuShares
+	}
+}
+
 // AllocatedMemoryResources captures the allocated memory resources.
 type AllocatedMemoryResources struct {
 	MemoryMB int64
@@ -3120,6 +3187,16 @@ func (a *AllocatedMemoryResources) Subtract(delta *AllocatedMemoryResources) {
 	}
 
 	a.MemoryMB -= delta.MemoryMB
+}
+
+func (a *AllocatedMemoryResources) Max(other *AllocatedMemoryResources) {
+	if other == nil {
+		return
+	}
+
+	if other.MemoryMB > a.MemoryMB {
+		a.MemoryMB = other.MemoryMB
+	}
 }
 
 type AllocatedDevices []*AllocatedDeviceResource

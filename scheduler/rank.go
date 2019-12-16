@@ -21,6 +21,7 @@ type RankedNode struct {
 	FinalScore     float64
 	Scores         []float64
 	TaskResources  map[string]*structs.AllocatedTaskResources
+	TaskLifecycles map[string]*structs.TaskLifecycleConfig
 	AllocResources *structs.AllocatedSharedResources
 
 	// Allocs is used to cache the proposed allocations on the
@@ -53,8 +54,10 @@ func (r *RankedNode) SetTaskResources(task *structs.Task,
 	resource *structs.AllocatedTaskResources) {
 	if r.TaskResources == nil {
 		r.TaskResources = make(map[string]*structs.AllocatedTaskResources)
+		r.TaskLifecycles = make(map[string]*structs.TaskLifecycleConfig)
 	}
 	r.TaskResources[task.Name] = resource
+	r.TaskLifecycles[task.Name] = task.Lifecycle
 }
 
 // RankFeasibleIterator is used to iteratively yield nodes along
@@ -205,6 +208,8 @@ OUTER:
 		// Assign the resources for each task
 		total := &structs.AllocatedResources{
 			Tasks: make(map[string]*structs.AllocatedTaskResources,
+				len(iter.taskGroup.Tasks)),
+			TaskLifecycles: make(map[string]*structs.TaskLifecycleConfig,
 				len(iter.taskGroup.Tasks)),
 			Shared: structs.AllocatedSharedResources{
 				DiskMB: int64(iter.taskGroup.EphemeralDisk.SizeMB),
@@ -391,6 +396,7 @@ OUTER:
 
 			// Accumulate the total resource requirement
 			total.Tasks[task.Name] = taskResources
+			total.TaskLifecycles[task.Name] = task.Lifecycle
 		}
 
 		// Store current set of running allocs before adding resources for the task group
