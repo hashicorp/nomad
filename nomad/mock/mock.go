@@ -899,3 +899,21 @@ func ACLManagementToken() *structs.ACLToken {
 		ModifyIndex: 20,
 	}
 }
+
+func SidecarTask() *structs.Task {
+	return &structs.Task{
+		Lifecycle: &structs.TaskLifecycleConfig{
+			Hook:       structs.TaskLifecycleHookPrestart,
+			BlockUntil: structs.TaskLifecycleBlockUntilRunning,
+		},
+	}
+}
+
+func InitTask() *structs.Task {
+	return &structs.Task{
+		Lifecycle: &structs.TaskLifecycleConfig{
+			Hook:       structs.TaskLifecycleHookPrestart,
+			BlockUntil: structs.TaskLifecycleBlockUntilCompleted,
+		},
+	}
+}
