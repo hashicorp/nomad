@@ -294,6 +294,14 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *Stream
 // The profile will run for the amount of seconds passed in or default to 1.
 // If no serverID or nodeID are provided the current Agents server will be
 // used.
+//
+// The parameters are:
+// * serverID: server ID or name to query, also accepts "leader"
+// * nodeID: client node ID to query
+// * seconds: the amount of time to run the trace for.
+//
+// The call blocks until the profile finishes, and returns the raw bytes of the
+// profile.
 func (a *Agent) CPUProfile(serverID, nodeID string, seconds int, q *QueryOptions) ([]byte, error) {
 	if q == nil {
 		q = &QueryOptions{}
@@ -324,6 +332,14 @@ func (a *Agent) CPUProfile(serverID, nodeID string, seconds int, q *QueryOptions
 // The trace will run for the amount of seconds passed in or default to 1.
 // If no serverID or nodeID are provided the current Agents server will be
 // used.
+//
+// The parameters are:
+// * serverID: server ID or name to query, also accepts "leader"
+// * nodeID: client node ID to query
+// * seconds: the amount of time to run the trace for.
+//
+// The call blocks until the profile finishes, and returns the raw bytes of the
+// profile.
 func (a *Agent) Trace(serverID, nodeID string, seconds int, q *QueryOptions) ([]byte, error) {
 	if q == nil {
 		q = &QueryOptions{}
@@ -352,7 +368,16 @@ func (a *Agent) Trace(serverID, nodeID string, seconds int, q *QueryOptions) ([]
 }
 
 // Profile returns a runtime/pprof profile using pprof.Lookup to determine
-// which profile to run.
+// which profile to run. Accepts a client or server ID but not both simultaneously.
+//
+// The parameters are:
+// * serverID: server ID or name to query, also accepts "leader"
+// * nodeID: client node ID to query
+// * profile: the name of the runtime/pprof profile to lookup and run.
+// * debug: flag to specify if the profile should return human readable output.
+//
+// The call blocks until the profile finishes, and returns the raw bytes of the
+// profile.
 func (a *Agent) Profile(serverID, nodeID, profile string, debug int, q *QueryOptions) ([]byte, error) {
 	if q == nil {
 		q = &QueryOptions{}
