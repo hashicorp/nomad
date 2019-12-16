@@ -41,3 +41,39 @@ func (f *IdentityClient) GetPluginCapabilities(ctx context.Context, in *csipbv1.
 func (f *IdentityClient) Probe(ctx context.Context, in *csipbv1.ProbeRequest, opts ...grpc.CallOption) (*csipbv1.ProbeResponse, error) {
 	return f.NextPluginProbe, f.NextErr
 }
+
+// ControllerClient is a CSI controller client used for testing
+type ControllerClient struct {
+	NextErr                     error
+	NextCapabilitiesResponse    *csipbv1.ControllerGetCapabilitiesResponse
+	NextPublishVolumeResponse   *csipbv1.ControllerPublishVolumeResponse
+	NextUnpublishVolumeResponse *csipbv1.ControllerUnpublishVolumeResponse
+}
+
+// NewControllerClient returns a new ControllerClient
+func NewControllerClient() *ControllerClient {
+	return &ControllerClient{}
+}
+
+func (f *ControllerClient) Reset() {
+	f.NextErr = nil
+	f.NextCapabilitiesResponse = nil
+	f.NextPublishVolumeResponse = nil
+	f.NextUnpublishVolumeResponse = nil
+}
+
+func (c *ControllerClient) ControllerGetCapabilities(ctx context.Context, in *csipbv1.ControllerGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ControllerGetCapabilitiesResponse, error) {
+	return c.NextCapabilitiesResponse, c.NextErr
+}
+
+func (c *ControllerClient) ControllerPublishVolume(ctx context.Context, in *csipbv1.ControllerPublishVolumeRequest, opts ...grpc.CallOption) (*csipbv1.ControllerPublishVolumeResponse, error) {
+	return c.NextPublishVolumeResponse, c.NextErr
+}
+
+func (c *ControllerClient) ControllerUnpublishVolume(ctx context.Context, in *csipbv1.ControllerUnpublishVolumeRequest, opts ...grpc.CallOption) (*csipbv1.ControllerUnpublishVolumeResponse, error) {
+	return c.NextUnpublishVolumeResponse, c.NextErr
+}
+
+func (c *ControllerClient) ValidateVolumeCapabilities(ctx context.Context, in *csipbv1.ValidateVolumeCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ValidateVolumeCapabilitiesResponse, error) {
+	panic("not implemented") // TODO: Implement
+}
