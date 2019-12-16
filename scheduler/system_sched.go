@@ -340,7 +340,8 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 		// Set fields based on if we found an allocation option
 		resources := &structs.AllocatedResources{
-			Tasks: option.TaskResources,
+			Tasks:          option.TaskResources,
+			TaskLifecycles: option.TaskLifecycles,
 			Shared: structs.AllocatedSharedResources{
 				DiskMB: int64(missing.TaskGroup.EphemeralDisk.SizeMB),
 			},
