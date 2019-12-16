@@ -668,6 +668,16 @@ func (c *AllocStatusCommand) outputVerboseResourceUsage(task string, resourceUsa
 func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 	tasks := make([]string, 0, len(alloc.TaskStates)+1)
 	tasks = append(tasks, "Name|State|Last Event|Time|Lifecycle")
+
+	taskLifecycles := map[string]string{}
+	for _, t := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks {
+		lc := "main"
+		if t.Lifecycle != nil {
+			lc = fmt.Sprintf("%s/%s", t.Lifecycle.Hook, t.Lifecycle.BlockUntil)
+		}
+		taskLifecycles[t.Name] = lc
+	}
+
 	for task := range c.sortedTaskStateIterator(alloc.TaskStates) {
 		state := alloc.TaskStates[task]
 		lastState := state.State
@@ -680,25 +690,8 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 			lastTime = formatUnixNanoTime(last.Time)
 		}
 
-		// Stupidly iterate through task groups & tasks to find the one you're looking for
-		var thisTaskGroup *api.TaskGroup
-		for _, tg := range alloc.Job.TaskGroups {
-			if *tg.Name == alloc.TaskGroup {
-				thisTaskGroup = tg
-			}
-		}
-		var thisTask *api.Task
-		for _, t := range thisTaskGroup.Tasks {
-			if t.Name == task {
-				thisTask = t
-			}
-		}
-		taskLifecycle := "main"
-		if thisTask.Lifecycle != nil {
-			taskLifecycle = fmt.Sprintf("%s, %s", thisTask.Lifecycle.Hook, thisTask.Lifecycle.BlockUntil)
-		}
 		tasks = append(tasks, fmt.Sprintf("%s|%s|%s|%s|%s",
-			task, lastState, lastEvent, lastTime, taskLifecycle))
+			task, lastState, lastEvent, lastTime, taskLifecycles[task]))
 	}
 
 	c.Ui.Output(c.Colorize().Color("\n[bold]Tasks[reset]"))
