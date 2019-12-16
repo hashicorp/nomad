@@ -11,13 +11,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestClient() (*fake.IdentityClient, CSIPlugin) {
+func newTestClient() (*fake.IdentityClient, *fake.ControllerClient, CSIPlugin) {
 	ic := &fake.IdentityClient{}
+	cc := &fake.ControllerClient{}
 	client := &client{
-		identityClient: ic,
+		identityClient:   ic,
+		controllerClient: cc,
 	}
 
-	return ic, client
+	return ic, cc, client
 }
 
 func TestClient_RPC_PluginProbe(t *testing.T) {
@@ -61,7 +63,7 @@ func TestClient_RPC_PluginProbe(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			ic, client := newTestClient()
+			ic, _, client := newTestClient()
 			defer client.Close()
 
 			ic.NextErr = c.ResponseErr
@@ -109,7 +111,7 @@ func TestClient_RPC_PluginInfo(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			ic, client := newTestClient()
+			ic, _, client := newTestClient()
 			defer client.Close()
 
 			ic.NextErr = c.ResponseErr
@@ -173,7 +175,7 @@ func TestClient_RPC_PluginGetCapabilities(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			ic, client := newTestClient()
+			ic, _, client := newTestClient()
 			defer client.Close()
 
 			ic.NextErr = c.ResponseErr
@@ -187,5 +189,57 @@ func TestClient_RPC_PluginGetCapabilities(t *testing.T) {
 			require.Equal(t, c.ExpectedResponse, resp)
 		})
 	}
+}
 
+func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
+	cases := []struct {
+		Name             string
+		ResponseErr      error
+		Response         *csipbv1.ControllerPublishVolumeResponse
+		ExpectedResponse *ControllerPublishVolumeResponse
+		ExpectedErr      error
+	}{
+		{
+			Name:        "handles underlying grpc errors",
+			ResponseErr: fmt.Errorf("some grpc error"),
+			ExpectedErr: fmt.Errorf("some grpc error"),
+		},
+		{
+			Name:             "Handles PublishContext == nil",
+			Response:         &csipbv1.ControllerPublishVolumeResponse{},
+			ExpectedResponse: &ControllerPublishVolumeResponse{},
+		},
+		{
+			Name: "Handles PublishContext != nil",
+			Response: &csipbv1.ControllerPublishVolumeResponse{
+				PublishContext: map[string]string{
+					"com.hashicorp/nomad-node-id": "foobar",
+					"com.plugin/device":           "/dev/sdc1",
+				},
+			},
+			ExpectedResponse: &ControllerPublishVolumeResponse{
+				PublishContext: map[string]string{
+					"com.hashicorp/nomad-node-id": "foobar",
+					"com.plugin/device":           "/dev/sdc1",
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			_, cc, client := newTestClient()
+			defer client.Close()
+
+			cc.NextErr = c.ResponseErr
+			cc.NextPublishVolumeResponse = c.Response
+
+			resp, err := client.ControllerPublishVolume(context.TODO(), &ControllerPublishVolumeRequest{})
+			if c.ExpectedErr != nil {
+				require.Error(t, c.ExpectedErr, err)
+			}
+
+			require.Equal(t, c.ExpectedResponse, resp)
+		})
+	}
 }
