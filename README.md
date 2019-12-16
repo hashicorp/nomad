@@ -64,7 +64,7 @@ Resources
 -------------------------------
 
 * Website
-  * [www.nomadproject.io](https://www.nomadproject.io) 
+  * [www.nomadproject.io](https://www.nomadproject.io)
 * Mailing List
   * [Google Groups](https://groups.google.com/group/nomad-tool)
 * Gitter

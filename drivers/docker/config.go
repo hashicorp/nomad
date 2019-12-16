@@ -571,7 +571,7 @@ type DriverConfig struct {
 	InfraImage                  string        `codec:"infra_image"`
 	DisableLogCollection        bool          `codec:"disable_log_collection"`
 	PullActivityTimeout         string        `codec:"pull_activity_timeout"`
-	PullActivityTimeoutDuration time.Duration `codec:"-"`
+	pullActivityTimeoutDuration time.Duration `codec:"-"`
 }
 
 type AuthConfig struct {
@@ -608,6 +608,7 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 const danglingContainersCreationGraceMinimum = 1 * time.Minute
+const pullActivityTimeoutMinimum = 1 * time.Minute
 
 func (d *Driver) SetConfig(c *base.Config) error {
 	var config DriverConfig
@@ -650,7 +651,10 @@ func (d *Driver) SetConfig(c *base.Config) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse 'pull_activity_timeout' duaration: %v", err)
 		}
-		d.config.PullActivityTimeoutDuration = dur
+		if dur < pullActivityTimeoutMinimum {
+			return fmt.Errorf("pull_activity_timeout is less than minimum, %v", pullActivityTimeoutMinimum)
+		}
+		d.config.pullActivityTimeoutDuration = dur
 	}
 
 	if c.AgentConfig != nil {
