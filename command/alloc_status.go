@@ -184,16 +184,20 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	// Format the allocation data
-	output, err := formatAllocBasicInfo(alloc, client, length, verbose)
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
-	c.Ui.Output(output)
+	if short {
+		c.Ui.Output(formatAllocShortInfo(alloc, client))
+	} else {
+		output, err := formatAllocBasicInfo(alloc, client, length, verbose)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+		c.Ui.Output(output)
 
-	if len(alloc.AllocatedResources.Shared.Networks) > 0 && alloc.AllocatedResources.Shared.Networks[0].HasPorts() {
-		c.Ui.Output("")
-		c.Ui.Output(formatAllocNetworkInfo(alloc))
+		if len(alloc.AllocatedResources.Shared.Networks) > 0 && alloc.AllocatedResources.Shared.Networks[0].HasPorts() {
+			c.Ui.Output("")
+			c.Ui.Output(formatAllocNetworkInfo(alloc))
+		}
 	}
 
 	if short {
@@ -220,6 +224,20 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	return 0
+}
+
+func formatAllocShortInfo(alloc *api.Allocation, client *api.Client) string {
+	formattedCreateTime := prettyTimeDiff(time.Unix(0, alloc.CreateTime), time.Now())
+	formattedModifyTime := prettyTimeDiff(time.Unix(0, alloc.ModifyTime), time.Now())
+
+	basic := []string{
+		fmt.Sprintf("ID|%s", alloc.ID),
+		fmt.Sprintf("Name|%s", alloc.Name),
+		fmt.Sprintf("Created|%s", formattedCreateTime),
+		fmt.Sprintf("Modified|%s", formattedModifyTime),
+	}
+
+	return formatKV(basic)
 }
 
 func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength int, verbose bool) (string, error) {
@@ -649,7 +667,7 @@ func (c *AllocStatusCommand) outputVerboseResourceUsage(task string, resourceUsa
 // shortTaskStatus prints out the current state of each task.
 func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 	tasks := make([]string, 0, len(alloc.TaskStates)+1)
-	tasks = append(tasks, "Name|State|Last Event|Time")
+	tasks = append(tasks, "Name|State|Last Event|Time|Lifecycle")
 	for task := range c.sortedTaskStateIterator(alloc.TaskStates) {
 		state := alloc.TaskStates[task]
 		lastState := state.State
@@ -662,8 +680,25 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 			lastTime = formatUnixNanoTime(last.Time)
 		}
 
-		tasks = append(tasks, fmt.Sprintf("%s|%s|%s|%s",
-			task, lastState, lastEvent, lastTime))
+		// Stupidly iterate through task groups & tasks to find the one you're looking for
+		var thisTaskGroup *api.TaskGroup
+		for _, tg := range alloc.Job.TaskGroups {
+			if *tg.Name == alloc.TaskGroup {
+				thisTaskGroup = tg
+			}
+		}
+		var thisTask *api.Task
+		for _, t := range thisTaskGroup.Tasks {
+			if t.Name == task {
+				thisTask = t
+			}
+		}
+		taskLifecycle := "main"
+		if thisTask.Lifecycle != nil {
+			taskLifecycle = fmt.Sprintf("%s, %s", thisTask.Lifecycle.Hook, thisTask.Lifecycle.BlockUntil)
+		}
+		tasks = append(tasks, fmt.Sprintf("%s|%s|%s|%s|%s",
+			task, lastState, lastEvent, lastTime, taskLifecycle))
 	}
 
 	c.Ui.Output(c.Colorize().Color("\n[bold]Tasks[reset]"))
