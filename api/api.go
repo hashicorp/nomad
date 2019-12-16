@@ -178,6 +178,10 @@ type TLSConfig struct {
 	// the Nomad server SSL certificate.
 	CAPath string
 
+	// CAInMemCert is the PEM-encoded CA cert to use to verify the Nomad server
+	// SSL certificate.
+	CAInMemCert []byte
+
 	// ClientCert is the path to the certificate for Nomad communication
 	ClientCert string
 
@@ -348,8 +352,9 @@ func ConfigureTLS(httpClient *http.Client, tlsConfig *TLSConfig) error {
 
 	clientTLSConfig := httpClient.Transport.(*http.Transport).TLSClientConfig
 	rootConfig := &rootcerts.Config{
-		CAFile: tlsConfig.CACert,
-		CAPath: tlsConfig.CAPath,
+		CAFile:        tlsConfig.CACert,
+		CAPath:        tlsConfig.CAPath,
+		CACertificate: tlsConfig.CAInMemCert,
 	}
 	if err := rootcerts.ConfigureTLS(clientTLSConfig, rootConfig); err != nil {
 		return err
