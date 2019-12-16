@@ -27,6 +27,8 @@ type Registry interface {
 	PluginsUpdatedCh(ctx context.Context, ptype string) <-chan *PluginUpdateEvent
 
 	Shutdown()
+
+	StubDispenserForType(ptype string, dispenser PluginDispenser)
 }
 
 type PluginDispenser func(info *PluginInfo) (interface{}, error)
@@ -87,7 +89,30 @@ type dynamicRegistry struct {
 	broadcasters     map[string]*pluginEventBroadcaster
 	broadcastersLock sync.Mutex
 
-	dispensers map[string]PluginDispenser
+	dispensers     map[string]PluginDispenser
+	stubDispensers map[string]PluginDispenser
+}
+
+// StubDispenserForType allows test functions to provide alternative plugin
+// dispensers to simplify writing tests for higher level Nomad features.
+// This function should not be called from production code.
+func (d *dynamicRegistry) StubDispenserForType(ptype string, dispenser PluginDispenser) {
+	// delete from stubs
+	if dispenser == nil && d.stubDispensers != nil {
+		delete(d.stubDispensers, ptype)
+		if len(d.stubDispensers) == 0 {
+			d.stubDispensers = nil
+		}
+
+		return
+	}
+
+	// setup stubs
+	if d.stubDispensers == nil {
+		d.stubDispensers = make(map[string]PluginDispenser, 1)
+	}
+
+	d.stubDispensers[ptype] = dispenser
 }
 
 func (d *dynamicRegistry) RegisterPlugin(info *PluginInfo) error {
@@ -206,12 +231,12 @@ func (d *dynamicRegistry) DispensePlugin(ptype string, name string) (interface{}
 	if ptype == "" {
 		// This error shouldn't make it to a production cluster and is to aid
 		// developers during the development of new plugin types.
-		return nil, errors.New("must specify plugin type to deregister")
+		return nil, errors.New("must specify plugin type to dispense")
 	}
 	if name == "" {
 		// This error shouldn't make it to a production cluster and is to aid
 		// developers during the development of new plugin types.
-		return nil, errors.New("must specify plugin name to deregister")
+		return nil, errors.New("must specify plugin name to dispense")
 	}
 
 	dispenseFunc, ok := d.dispensers[ptype]
@@ -219,6 +244,15 @@ func (d *dynamicRegistry) DispensePlugin(ptype string, name string) (interface{}
 		// This error shouldn't make it to a production cluster and is to aid
 		// developers during the development of new plugin types.
 		return nil, fmt.Errorf("no plugin dispenser found for type: %s", ptype)
+	}
+
+	// After initially loading the dispenser (to avoid masking missing setup in
+	// client/client.go), we then check to see if we have any stub dispensers for
+	// this plugin type. If we do, then replace the dispenser fn with the stub.
+	if d.stubDispensers != nil {
+		if stub, ok := d.stubDispensers[ptype]; ok {
+			dispenseFunc = stub
+		}
 	}
 
 	pmap, ok := d.plugins[ptype]
