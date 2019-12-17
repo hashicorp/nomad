@@ -28,9 +28,15 @@ var (
 	ErrPluginTypeError = errors.New("CSI Plugin loaded incorrectly")
 )
 
-// CSIControllerPublishVolume is used to attach a volume from a CSI Cluster to
+// CSIControllerAttachVolume is used to attach a volume from a CSI Cluster to
 // the storage node provided in the request.
-func (c *ClientCSI) CSIControllerPublishVolume(req *structs.ClientCSIControllerPublishVolumeRequest, resp *structs.ClientCSIControllerPublishVolumeResponse) error {
+//
+// The controller attachment flow currently works as follows:
+// 1. Validate the volume request
+// 2. Call ControllerPublishVolume on the CSI Plugin to trigger a remote attachment
+//
+// In the future this may be expanded to request dynamic secrets for attachement.
+func (c *ClientCSI) CSIControllerAttachVolume(req *structs.ClientCSIControllerAttachVolumeRequest, resp *structs.ClientCSIControllerAttachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"client", "csi_controller", "publish_volume"}, time.Now())
 	client, err := c.findControllerPlugin(req.PluginName)
 	if err != nil {
