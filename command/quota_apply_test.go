@@ -62,7 +62,7 @@ func TestQuotaApplyNetwork(t *testing.T) {
 	}, {
 		hcl: `limit {region = "global", region_limit {network { mbits = 20, device = "eth0"}}}`,
 		q:   nil,
-		err: "1 error(s) occurred:\n\n* limit -> region_limit -> resources -> network -> invalid key: device",
+		err: "network -> invalid key: device",
 	}}
 
 	for _, c := range cases {
@@ -70,7 +70,7 @@ func TestQuotaApplyNetwork(t *testing.T) {
 			q, err := parseQuotaSpec([]byte(c.hcl))
 			require.Equal(t, c.q, q)
 			if c.err != "" {
-				require.EqualError(t, err, c.err)
+				require.Contains(t, err.Error(), c.err)
 			}
 		})
 	}
