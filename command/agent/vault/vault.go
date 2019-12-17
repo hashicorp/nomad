@@ -1,4 +1,4 @@
-package nomad
+package vault
 
 import (
 	"context"
@@ -1264,15 +1264,6 @@ func (v *vaultClient) revokeDaemon() {
 
 		}
 	}
-}
-
-// purgeVaultAccessors creates a Raft transaction to remove the passed Vault
-// Accessors
-func (s *Server) purgeVaultAccessors(accessors []*structs.VaultAccessor) error {
-	// Commit this update via Raft
-	req := structs.VaultAccessorsRequest{Accessors: accessors}
-	_, _, err := s.raftApply(structs.VaultAccessorDeregisterRequestType, req)
-	return err
 }
 
 // wrapNilError is a helper that returns a wrapped function that returns a nil

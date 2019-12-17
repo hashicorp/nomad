@@ -23,6 +23,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/command/agent/vault"
 	"github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/stats"
@@ -203,7 +204,7 @@ type Server struct {
 	consulCatalog consul.CatalogAPI
 
 	// vault is the client for communicating with Vault.
-	vault VaultClient
+	vault vault.VaultClient
 
 	// Worker used for processing
 	workers []*Worker
@@ -948,12 +949,21 @@ func (s *Server) setupNodeDrainer() {
 
 // setupVaultClient is used to set up the Vault API client.
 func (s *Server) setupVaultClient() error {
-	v, err := NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors)
+	v, err := vault.NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors)
 	if err != nil {
 		return err
 	}
 	s.vault = v
 	return nil
+}
+
+// purgeVaultAccessors creates a Raft transaction to remove the passed Vault
+// Accessors
+func (s *Server) purgeVaultAccessors(accessors []*structs.VaultAccessor) error {
+	// Commit this update via Raft
+	req := structs.VaultAccessorsRequest{Accessors: accessors}
+	_, _, err := s.raftApply(structs.VaultAccessorDeregisterRequestType, req)
+	return err
 }
 
 // setupRPC is used to setup the RPC listener

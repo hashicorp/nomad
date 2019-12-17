@@ -1,4 +1,4 @@
-package nomad
+package vault
 
 import (
 	"context"

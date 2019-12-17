@@ -363,7 +363,7 @@ func TestUiErrorWriter(t *testing.T) {
 		" with  followup\nand",
 		" more lines ",
 		" without new line ",
-		"until here\nand then",
+		"\nuntil here\nand then",
 		"some more",
 	}
 
@@ -382,7 +382,7 @@ func TestUiErrorWriter(t *testing.T) {
 	require.Empty(t, outBuf.String())
 
 	// note that the \r\n got replaced by \n
-	expectedErr := "some line\nmultiple\nlines\nhere with  followup\nand more lines  without new line until here\n"
+	expectedErr := "some line\nmultiple\nlines\nhere with  followup\nand more lines  without new line \nuntil here\n"
 	require.Equal(t, expectedErr, errBuf.String())
 
 	// close emits the final line

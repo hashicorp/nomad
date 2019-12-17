@@ -15,6 +15,7 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/nomad/acl"
+	avault "github.com/hashicorp/nomad/command/agent/vault"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -198,7 +199,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 				return err
 			}
 
-			allowedPolicies, err := PoliciesFrom(s)
+			allowedPolicies, err := avault.PoliciesFrom(s)
 			if err != nil {
 				return err
 			}

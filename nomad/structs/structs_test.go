@@ -1599,12 +1599,12 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 			Service: &Service{
 				Name: "redis",
 			},
-			ErrContains: `No Connect services in task group with Connect proxy ("redis:test")`,
+			ErrContains: "Connect proxy service name not found in services from task group",
 		},
 		{
 			Desc:        "Service name not found in group",
 			Kind:        "connect-proxy:redis",
-			ErrContains: `No Connect services in task group with Connect proxy ("redis")`,
+			ErrContains: "Connect proxy service name not found in services from task group",
 		},
 		{
 			Desc: "Connect stanza not configured in group",
@@ -1612,7 +1612,7 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 			TgService: []*Service{{
 				Name: "redis",
 			}},
-			ErrContains: `No Connect services in task group with Connect proxy ("redis")`,
+			ErrContains: "Connect proxy service name not found in services from task group",
 		},
 		{
 			Desc: "Valid connect proxy kind",
@@ -1640,8 +1640,12 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 				// Ok!
 				return
 			}
-			require.Errorf(t, err, "no error returned. expected: %s", tc.ErrContains)
-			require.Containsf(t, err.Error(), tc.ErrContains, "expected %q but found: %v", tc.ErrContains, err)
+			if err == nil {
+				t.Fatalf("no error returned. expected: %s", tc.ErrContains)
+			}
+			if !strings.Contains(err.Error(), tc.ErrContains) {
+				t.Fatalf("expected %q but found: %v", tc.ErrContains, err)
+			}
 		})
 	}
 
@@ -2169,6 +2173,8 @@ func TestResource_Add_Network(t *testing.T) {
 	}
 }
 
+func TestAllocComparableResources(t *testing.T) {
+}
 func TestComparableResources_Subtract(t *testing.T) {
 	r1 := &ComparableResources{
 		Flattened: AllocatedTaskResources{
@@ -2742,6 +2748,71 @@ func TestPeriodicConfig_DST(t *testing.T) {
 
 	require.Equal(e1, n1.UTC())
 	require.Equal(e2, n2.UTC())
+}
+
+func TestTaskLifecycleConfig_Validate(t *testing.T) {
+	testCases := []struct {
+		name string
+		tlc  *TaskLifecycleConfig
+		err  error
+	}{
+		{
+			name: "prestart completed",
+			tlc: &TaskLifecycleConfig{
+				Hook:       "prestart",
+				BlockUntil: "completed",
+				Deadline:   10 * time.Second,
+			},
+			err: nil,
+		},
+		{
+			name: "prestart running",
+			tlc: &TaskLifecycleConfig{
+				Hook:       "prestart",
+				BlockUntil: "running",
+				Deadline:   10 * time.Second,
+			},
+			err: nil,
+		},
+		{
+			name: "no hook",
+			tlc: &TaskLifecycleConfig{
+				BlockUntil: "completed",
+				Deadline:   10 * time.Second,
+			},
+			err: fmt.Errorf("no lifecycle hook provided"),
+		},
+		{
+			name: "no block until",
+			tlc: &TaskLifecycleConfig{
+				Hook:     "prestart",
+				Deadline: 10 * time.Second,
+			},
+			err: fmt.Errorf("no lifecycle block_until provided"),
+		},
+		{
+			name: "negative deadline",
+			tlc: &TaskLifecycleConfig{
+				Hook:       "prestart",
+				BlockUntil: "completed",
+				Deadline:   -10 * time.Second,
+			},
+			err: fmt.Errorf("invalid deadline, must be greater than 0s: %v", -10*time.Second),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.tlc.Validate()
+			if tc.err != nil {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.err.Error())
+			} else {
+				require.Nil(t, err)
+			}
+		})
+
+	}
 }
 
 func TestRestartPolicy_Validate(t *testing.T) {
