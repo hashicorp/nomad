@@ -64,7 +64,7 @@ type CSIVolumeMountOptions struct {
 	MountFlags []string
 }
 
-type ClientCSIControllerPublishVolumeRequest struct {
+type ClientCSIControllerAttachVolumeRequest struct {
 	PluginName string
 
 	// The ID of the volume to be used on a node.
@@ -91,7 +91,7 @@ type ClientCSIControllerPublishVolumeRequest struct {
 	ReadOnly bool
 }
 
-func (c *ClientCSIControllerPublishVolumeRequest) ToCSIRequest() *csi.ControllerPublishVolumeRequest {
+func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() *csi.ControllerPublishVolumeRequest {
 	if c == nil {
 		return &csi.ControllerPublishVolumeRequest{}
 	}
@@ -103,7 +103,7 @@ func (c *ClientCSIControllerPublishVolumeRequest) ToCSIRequest() *csi.Controller
 	}
 }
 
-type ClientCSIControllerPublishVolumeResponse struct {
+type ClientCSIControllerAttachVolumeResponse struct {
 	// Opaque static publish properties of the volume. SP MAY use this
 	// field to ensure subsequent `NodeStageVolume` or `NodePublishVolume`
 	// calls calls have contextual information.
