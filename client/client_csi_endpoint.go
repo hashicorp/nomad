@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -38,11 +39,16 @@ var (
 // In the future this may be expanded to request dynamic secrets for attachement.
 func (c *ClientCSI) CSIControllerAttachVolume(req *structs.ClientCSIControllerAttachVolumeRequest, resp *structs.ClientCSIControllerAttachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"client", "csi_controller", "publish_volume"}, time.Now())
-	client, err := c.findControllerPlugin(req.PluginName)
+	plugin, err := c.findControllerPlugin(req.PluginName)
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer plugin.Close()
+
+	// The following block of validation checks should not be reached on a
+	// real Nomad cluster as all of this data should be validated when registering
+	// volumes with the cluster. They serve as a defensive check before forwarding
+	// requests to plugins, and to aid with development.
 
 	if req.VolumeID == "" {
 		return errors.New("VolumeID is required")
@@ -52,9 +58,18 @@ func (c *ClientCSI) CSIControllerAttachVolume(req *structs.ClientCSIControllerAt
 		return errors.New("NodeID is required")
 	}
 
+	if !structs.ValidCSIVolumeAccessMode(req.AccessMode) {
+		return fmt.Errorf("Unknown access mode: %v", req.AccessMode)
+	}
+
+	if !structs.ValidCSIVolumeAttachmentMode(req.AttachmentMode) {
+		return fmt.Errorf("Unknown attachment mode: %v", req.AttachmentMode)
+	}
+
+	// Submit the request for a volume to the CSI Plugin.
 	ctx, cancelFn := c.requestContext()
 	defer cancelFn()
-	cresp, err := client.ControllerPublishVolume(ctx, req.ToCSIRequest())
+	cresp, err := plugin.ControllerPublishVolume(ctx, req.ToCSIRequest())
 	if err != nil {
 		return err
 	}
