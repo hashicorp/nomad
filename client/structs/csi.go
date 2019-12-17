@@ -2,6 +2,68 @@ package structs
 
 import "github.com/hashicorp/nomad/plugins/csi"
 
+// CSIVolumeAttachmentMode chooses the type of storage api that will be used to
+// interact with the device.
+type CSIVolumeAttachmentMode string
+
+const (
+	CSIVolumeAttachmentModeUnknown     CSIVolumeAttachmentMode = ""
+	CSIVolumeAttachmentModeBlockDevice CSIVolumeAttachmentMode = "block-device"
+	CSIVolumeAttachmentModeFilesystem  CSIVolumeAttachmentMode = "file-system"
+)
+
+func ValidCSIVolumeAttachmentMode(attachmentMode CSIVolumeAttachmentMode) bool {
+	switch attachmentMode {
+	case CSIVolumeAttachmentModeBlockDevice, CSIVolumeAttachmentModeFilesystem:
+		return true
+	default:
+		return false
+	}
+}
+
+// CSIVolumeAccessMode indicates how a volume should be used in a storage topology
+// e.g whether the provider should make the volume available concurrently.
+type CSIVolumeAccessMode string
+
+const (
+	CSIVolumeAccessModeUnknown CSIVolumeAccessMode = ""
+
+	CSIVolumeAccessModeSingleNodeReader CSIVolumeAccessMode = "single-node-reader-only"
+	CSIVolumeAccessModeSingleNodeWriter CSIVolumeAccessMode = "single-node-writer"
+
+	CSIVolumeAccessModeMultiNodeReader       CSIVolumeAccessMode = "multi-node-reader-only"
+	CSIVolumeAccessModeMultiNodeSingleWriter CSIVolumeAccessMode = "multi-node-single-writer"
+	CSIVolumeAccessModeMultiNodeMultiWriter  CSIVolumeAccessMode = "multi-node-multi-writer"
+)
+
+// ValidCSIVolumeAccessMode checks to see that the provided access mode is a valid,
+// non-empty access mode.
+func ValidCSIVolumeAccessMode(accessMode CSIVolumeAccessMode) bool {
+	switch accessMode {
+	case CSIVolumeAccessModeSingleNodeReader, CSIVolumeAccessModeSingleNodeWriter,
+		CSIVolumeAccessModeMultiNodeReader, CSIVolumeAccessModeMultiNodeSingleWriter,
+		CSIVolumeAccessModeMultiNodeMultiWriter:
+		return true
+	default:
+		return false
+	}
+}
+
+// CSIVolumeMountOptions contains the mount options that should be provided when
+// attaching and mounting a volume with the CSIVolumeAttachmentModeFilesystem
+// attachment mode.
+type CSIVolumeMountOptions struct {
+	// Filesystem is the desired filesystem type that should be used by the volume
+	// (e.g ext4, aufs, zfs). This field is optional.
+	Filesystem string
+
+	// MountFlags contain the mount options that should be used for the volume.
+	// These may contain _sensitive_ data and should not be leaked to logs or
+	// returned in debugging data.
+	// The total size of this field must be under 4KiB.
+	MountFlags []string
+}
+
 type ClientCSIControllerPublishVolumeRequest struct {
 	PluginName string
 
@@ -13,18 +75,19 @@ type ClientCSIControllerPublishVolumeRequest struct {
 	// is fingerprinted by the target node for this plugin name.
 	NodeID string
 
-	// TODO: Fingerprint the following correctly:
+	// AttachmentMode indicates how the volume should be attached and mounted into
+	// a task.
+	AttachmentMode CSIVolumeAttachmentMode
 
-	// Volume capability describing how the CO intends to use this volume.
-	// SP MUST ensure the CO can use the published volume as described.
-	// Otherwise SP MUST return the appropriate gRPC error code.
-	// This is a REQUIRED field.
-	// VolumeCapability *VolumeCapability `protobuf:"bytes,3,opt,name=volume_capability,json=volumeCapability,proto3" json:"volume_capability,omitempty"`
+	// AccessMode indicates the desired concurrent access model for the volume
+	AccessMode CSIVolumeAccessMode
 
-	// Indicates SP MUST publish the volume in readonly mode.
-	// CO MUST set this field to false if SP does not have the
-	// PUBLISH_READONLY controller capability.
-	// This is a REQUIRED field.
+	// MountOptions is an optional field that contains additional configuration
+	// when providing an AttachmentMode of CSIVolumeAttachmentModeFilesystem
+	MountOptions *CSIVolumeMountOptions
+
+	// ReadOnly indicates that the volume will be used in a readonly fashion. This
+	// only works when the Controller has the PublishReadonly capability.
 	ReadOnly bool
 }
 
