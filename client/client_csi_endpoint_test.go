@@ -90,9 +90,11 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 				fc.NextControllerPublishVolumeResponse = &csi.ControllerPublishVolumeResponse{}
 			},
 			Request: &structs.ClientCSIControllerAttachVolumeRequest{
-				PluginName: fakePlugin.Name,
-				VolumeID:   "1234-4321-1234-4321",
-				NodeID:     "abcde",
+				PluginName:     fakePlugin.Name,
+				VolumeID:       "1234-4321-1234-4321",
+				NodeID:         "abcde",
+				AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
+				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 			},
 			ExpectedResponse: &structs.ClientCSIControllerAttachVolumeResponse{},
 		},
@@ -104,9 +106,11 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 				}
 			},
 			Request: &structs.ClientCSIControllerAttachVolumeRequest{
-				PluginName: fakePlugin.Name,
-				VolumeID:   "1234-4321-1234-4321",
-				NodeID:     "abcde",
+				PluginName:     fakePlugin.Name,
+				VolumeID:       "1234-4321-1234-4321",
+				NodeID:         "abcde",
+				AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
+				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 			},
 			ExpectedResponse: &structs.ClientCSIControllerAttachVolumeResponse{
 				PublishContext: map[string]string{"foo": "bar"},
