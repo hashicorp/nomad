@@ -191,6 +191,104 @@ func TestClient_RPC_PluginGetCapabilities(t *testing.T) {
 	}
 }
 
+func TestClient_RPC_ControllerGetCapabilities(t *testing.T) {
+	cases := []struct {
+		Name             string
+		ResponseErr      error
+		Response         *csipbv1.ControllerGetCapabilitiesResponse
+		ExpectedResponse *ControllerCapabilitySet
+		ExpectedErr      error
+	}{
+		{
+			Name:        "handles underlying grpc errors",
+			ResponseErr: fmt.Errorf("some grpc error"),
+			ExpectedErr: fmt.Errorf("some grpc error"),
+		},
+		{
+			Name: "ignores unknown capabilities",
+			Response: &csipbv1.ControllerGetCapabilitiesResponse{
+				Capabilities: []*csipbv1.ControllerServiceCapability{
+					{
+						Type: &csipbv1.ControllerServiceCapability_Rpc{
+							Rpc: &csipbv1.ControllerServiceCapability_RPC{
+								Type: csipbv1.ControllerServiceCapability_RPC_GET_CAPACITY,
+							},
+						},
+					},
+				},
+			},
+			ExpectedResponse: &ControllerCapabilitySet{},
+		},
+		{
+			Name: "detects list volumes capabilities",
+			Response: &csipbv1.ControllerGetCapabilitiesResponse{
+				Capabilities: []*csipbv1.ControllerServiceCapability{
+					{
+						Type: &csipbv1.ControllerServiceCapability_Rpc{
+							Rpc: &csipbv1.ControllerServiceCapability_RPC{
+								Type: csipbv1.ControllerServiceCapability_RPC_LIST_VOLUMES,
+							},
+						},
+					},
+					{
+						Type: &csipbv1.ControllerServiceCapability_Rpc{
+							Rpc: &csipbv1.ControllerServiceCapability_RPC{
+								Type: csipbv1.ControllerServiceCapability_RPC_LIST_VOLUMES_PUBLISHED_NODES,
+							},
+						},
+					},
+				},
+			},
+			ExpectedResponse: &ControllerCapabilitySet{
+				HasListVolumes:               true,
+				HasListVolumesPublishedNodes: true,
+			},
+		},
+		{
+			Name: "detects publish capabilities",
+			Response: &csipbv1.ControllerGetCapabilitiesResponse{
+				Capabilities: []*csipbv1.ControllerServiceCapability{
+					{
+						Type: &csipbv1.ControllerServiceCapability_Rpc{
+							Rpc: &csipbv1.ControllerServiceCapability_RPC{
+								Type: csipbv1.ControllerServiceCapability_RPC_PUBLISH_READONLY,
+							},
+						},
+					},
+					{
+						Type: &csipbv1.ControllerServiceCapability_Rpc{
+							Rpc: &csipbv1.ControllerServiceCapability_RPC{
+								Type: csipbv1.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+							},
+						},
+					},
+				},
+			},
+			ExpectedResponse: &ControllerCapabilitySet{
+				HasPublishUnpublishVolume: true,
+				HasPublishReadonly:        true,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, cc, client := newTestClient()
+			defer client.Close()
+
+			cc.NextErr = tc.ResponseErr
+			cc.NextCapabilitiesResponse = tc.Response
+
+			resp, err := client.ControllerGetCapabilities(context.TODO())
+			if tc.ExpectedErr != nil {
+				require.Error(t, tc.ExpectedErr, err)
+			}
+
+			require.Equal(t, tc.ExpectedResponse, resp)
+		})
+	}
+}
+
 func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
 	cases := []struct {
 		Name             string
