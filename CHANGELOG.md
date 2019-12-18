@@ -1,5 +1,10 @@
 ## 0.10.3 (Unreleased)
 
+FEATURES:
+
+* jobspec: Add `shutdown_delay` to task groups so task groups can delay shutdown 
+  after deregistering from Consul [[GH-6746](https://github.com/hashicorp/nomad/issues/6746)]
+
 IMPROVEMENTS:
 
 * scheduler: Removed penalty for allocation's previous node if the allocation did not fail. [[GH-6781](https://github.com/hashicorp/nomad/issues/6781)]

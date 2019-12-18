@@ -65,6 +65,16 @@ job "docs" {
   all tasks in this group. If omitted, a default policy exists for each job
   type, which can be found in the [restart stanza documentation][restart].
 
+- `shutdown_delay` `(string: "0s")` - Specifies the duration to wait when
+  stopping a group's tasks. The delay occurs between Consul deregistration
+  and sending each task a shutdown signal. Ideally, services would fail
+  healthchecks once they receive a shutdown signal. Alternatively
+  `shutdown_delay` may be set to give in flight requests time to complete
+  before shutting down. A group level `shutdown_delay` will run regardless
+  if there are any defined group services. In addition, tasks may have their
+  own [`shutdown_delay`](/docs/job-specification/task.html#shutdown_delay)
+  which waits between deregistering task services and stopping the task.
+
 - `task` <code>([Task][]: <required>)</code> - Specifies one or more tasks to run
   within this group. This can be specified multiple times, to add a task as part
   of the group.

@@ -708,6 +708,10 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		Mode:     *taskGroup.RestartPolicy.Mode,
 	}
 
+	if taskGroup.ShutdownDelay != nil {
+		tg.ShutdownDelay = taskGroup.ShutdownDelay
+	}
+
 	if taskGroup.ReschedulePolicy != nil {
 		tg.ReschedulePolicy = &structs.ReschedulePolicy{
 			Attempts:      *taskGroup.ReschedulePolicy.Attempts,

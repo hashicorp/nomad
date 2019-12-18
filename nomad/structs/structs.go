@@ -3547,6 +3547,10 @@ func (j *Job) Validate() error {
 			taskGroups[tg.Name] = idx
 		}
 
+		if tg.ShutdownDelay != nil && *tg.ShutdownDelay < 0 {
+			mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
+		}
+
 		if j.Type == "system" && tg.Count > 1 {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Job task group %s has count %d. Count cannot exceed 1 with system scheduler",
@@ -4736,6 +4740,10 @@ type TaskGroup struct {
 
 	// Volumes is a map of volumes that have been requested by the task group.
 	Volumes map[string]*VolumeRequest
+
+	// ShutdownDelay is the amount of time to wait between deregistering
+	// group services in consul and stopping tasks.
+	ShutdownDelay *time.Duration
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -4780,6 +4788,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 		for i, s := range tg.Services {
 			ntg.Services[i] = s.Copy()
 		}
+	}
+
+	if tg.ShutdownDelay != nil {
+		ntg.ShutdownDelay = tg.ShutdownDelay
 	}
 
 	return ntg

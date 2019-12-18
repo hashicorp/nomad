@@ -51,6 +51,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"vault",
 			"migrate",
 			"spread",
+			"shutdown_delay",
 			"network",
 			"service",
 			"volume",
@@ -63,6 +64,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		if err := hcl.DecodeObject(&m, item.Val); err != nil {
 			return err
 		}
+
 		delete(m, "constraint")
 		delete(m, "affinity")
 		delete(m, "meta")
@@ -80,7 +82,16 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		// Build the group with the basic decode
 		var g api.TaskGroup
 		g.Name = helper.StringToPtr(n)
-		if err := mapstructure.WeakDecode(m, &g); err != nil {
+		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+			WeaklyTypedInput: true,
+			Result:           &g,
+		})
+
+		if err != nil {
+			return err
+		}
+		if err := dec.Decode(m); err != nil {
 			return err
 		}
 
@@ -201,7 +212,6 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 				return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
 			}
 		}
-
 		collection = append(collection, &g)
 	}
 
