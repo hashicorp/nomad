@@ -222,7 +222,8 @@ func (l *intLogger) log(t time.Time, name string, level Level, msg string, args 
 				args = args[:len(args)-1]
 				stacktrace = cs
 			} else {
-				args = append(args, "<unknown>")
+				extra := args[len(args)-1]
+				args = append(args[:len(args)-1], MissingKey, extra)
 			}
 		}
 
@@ -274,7 +275,12 @@ func (l *intLogger) log(t time.Time, name string, level Level, msg string, args 
 			}
 
 			l.writer.WriteByte(' ')
-			l.writer.WriteString(args[i].(string))
+			switch st := args[i].(type) {
+			case string:
+				l.writer.WriteString(st)
+			default:
+				l.writer.WriteString(fmt.Sprintf("%s", st))
+			}
 			l.writer.WriteByte('=')
 
 			if !raw && strings.ContainsAny(val, " \t\n\r") {
@@ -345,16 +351,12 @@ func (l *intLogger) logJSON(t time.Time, name string, level Level, msg string, a
 				args = args[:len(args)-1]
 				vals["stacktrace"] = cs
 			} else {
-				args = append(args, "<unknown>")
+				extra := args[len(args)-1]
+				args = append(args[:len(args)-1], MissingKey, extra)
 			}
 		}
 
 		for i := 0; i < len(args); i = i + 2 {
-			if _, ok := args[i].(string); !ok {
-				// As this is the logging function not much we can do here
-				// without injecting into logs...
-				continue
-			}
 			val := args[i+1]
 			switch sv := val.(type) {
 			case error:
@@ -370,7 +372,15 @@ func (l *intLogger) logJSON(t time.Time, name string, level Level, msg string, a
 				val = fmt.Sprintf(sv[0].(string), sv[1:]...)
 			}
 
-			vals[args[i].(string)] = val
+			var key string
+
+			switch st := args[i].(type) {
+			case string:
+				key = st
+			default:
+				key = fmt.Sprintf("%s", st)
+			}
+			vals[key] = val
 		}
 	}
 
@@ -471,12 +481,17 @@ func (l *intLogger) IsError() bool {
 	return Level(atomic.LoadInt32(l.level)) <= Error
 }
 
+const MissingKey = "EXTRA_VALUE_AT_END"
+
 // Return a sub-Logger for which every emitted log message will contain
 // the given key/value pairs. This is used to create a context specific
 // Logger.
 func (l *intLogger) With(args ...interface{}) Logger {
+	var extra interface{}
+
 	if len(args)%2 != 0 {
-		panic("With() call requires paired arguments")
+		extra = args[len(args)-1]
+		args = args[:len(args)-1]
 	}
 
 	sl := *l
@@ -507,6 +522,10 @@ func (l *intLogger) With(args ...interface{}) Logger {
 	for _, k := range keys {
 		sl.implied = append(sl.implied, k)
 		sl.implied = append(sl.implied, result[k])
+	}
+
+	if extra != nil {
+		sl.implied = append(sl.implied, MissingKey, extra)
 	}
 
 	return &sl
