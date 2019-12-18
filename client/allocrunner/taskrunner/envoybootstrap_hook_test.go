@@ -17,12 +17,220 @@ import (
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
 var _ interfaces.TaskPrestartHook = (*envoyBootstrapHook)(nil)
+
+func writeTmp(t *testing.T, s string, fm os.FileMode) string {
+	dir, err := ioutil.TempDir("", "envoy-")
+	require.NoError(t, err)
+
+	fPath := filepath.Join(dir, sidsTokenFile)
+	err = ioutil.WriteFile(fPath, []byte(s), fm)
+	require.NoError(t, err)
+
+	return dir
+}
+
+func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
+	t.Parallel()
+
+	t.Run("file does not exist", func(t *testing.T) {
+		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{logger: testlog.HCLogger(t)})
+		config, err := h.maybeLoadSIToken("task1", "/does/not/exist")
+		require.NoError(t, err) // absence of token is not an error
+		require.Equal(t, "", config)
+	})
+
+	t.Run("load token from file", func(t *testing.T) {
+		token := uuid.Generate()
+		f := writeTmp(t, token, 0440)
+		defer cleanupDir(t, f)
+
+		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{logger: testlog.HCLogger(t)})
+		config, err := h.maybeLoadSIToken("task1", f)
+		require.NoError(t, err)
+		require.Equal(t, token, config)
+	})
+
+	t.Run("file is unreadable", func(t *testing.T) {
+		token := uuid.Generate()
+		f := writeTmp(t, token, 0200)
+		defer cleanupDir(t, f)
+
+		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{logger: testlog.HCLogger(t)})
+		config, err := h.maybeLoadSIToken("task1", f)
+		require.Error(t, err)
+		require.False(t, os.IsNotExist(err))
+		require.Equal(t, "", config)
+	})
+}
+
+func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
+	t.Parallel()
+
+	t.Run("excluding SI token", func(t *testing.T) {
+		ebArgs := envoyBootstrapArgs{
+			sidecarFor:     "s1",
+			grpcAddr:       "1.1.1.1",
+			consulHTTPAddr: "2.2.2.2",
+			envoyAdminBind: "localhost:3333",
+		}
+		args := ebArgs.args()
+		require.Equal(t, []string{"connect", "envoy",
+			"-grpc-addr", "1.1.1.1",
+			"-http-addr", "2.2.2.2",
+			"-admin-bind", "localhost:3333",
+			"-bootstrap",
+			"-sidecar-for", "s1",
+		}, args)
+	})
+
+	t.Run("including SI token", func(t *testing.T) {
+		token := uuid.Generate()
+		ebArgs := envoyBootstrapArgs{
+			sidecarFor:     "s1",
+			grpcAddr:       "1.1.1.1",
+			consulHTTPAddr: "2.2.2.2",
+			envoyAdminBind: "localhost:3333",
+			siToken:        token,
+		}
+		args := ebArgs.args()
+		require.Equal(t, []string{"connect", "envoy",
+			"-grpc-addr", "1.1.1.1",
+			"-http-addr", "2.2.2.2",
+			"-admin-bind", "localhost:3333",
+			"-bootstrap",
+			"-sidecar-for", "s1",
+			"-token", token,
+		}, args)
+	})
+}
+
+// dig through envoy config to look for consul token
+type envoyConfig struct {
+	DynamicResources struct {
+		ADSConfig struct {
+			GRPCServices struct {
+				InitialMetadata []struct {
+					Key   string `json:"key"`
+					Value string `json:"value"`
+				} `json:"initial_metadata"`
+			} `json:"grpc_services"`
+		} `json:"ads_config"`
+	} `json:"dynamic_resources"`
+}
+
+func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
+	t.Parallel()
+	testutil.RequireConsul(t)
+
+	testconsul, err := consultest.NewTestServerConfig(func(c *consultest.TestServerConfig) {
+		// If -v wasn't specified squelch consul logging
+		if !testing.Verbose() {
+			c.Stdout = ioutil.Discard
+			c.Stderr = ioutil.Discard
+		}
+	})
+	if err != nil {
+		t.Fatalf("error starting test consul server: %v", err)
+	}
+	defer testconsul.Stop()
+
+	alloc := mock.Alloc()
+	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
+		{
+			Mode: "bridge",
+			IP:   "10.0.0.1",
+			DynamicPorts: []structs.Port{
+				{
+					Label: "connect-proxy-foo",
+					Value: 9999,
+					To:    9999,
+				},
+			},
+		},
+	}
+	tg := alloc.Job.TaskGroups[0]
+	tg.Services = []*structs.Service{
+		{
+			Name:      "foo",
+			PortLabel: "9999", // Just need a valid port, nothing will bind to it
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+			},
+		},
+	}
+	sidecarTask := &structs.Task{
+		Name: "sidecar",
+		Kind: "connect-proxy:foo",
+	}
+	tg.Tasks = append(tg.Tasks, sidecarTask)
+
+	logger := testlog.HCLogger(t)
+
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
+	defer cleanup()
+
+	// Register Group Services
+	consulConfig := consulapi.DefaultConfig()
+	consulConfig.Address = testconsul.HTTPAddr
+	consulAPIClient, err := consulapi.NewClient(consulConfig)
+	require.NoError(t, err)
+
+	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), logger, true)
+	go consulClient.Run()
+	defer consulClient.Shutdown()
+	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+
+	// Run Connect bootstrap Hook
+	h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
+		alloc:          alloc,
+		consulHTTPAddr: testconsul.HTTPAddr,
+		logger:         logger,
+	})
+	req := &interfaces.TaskPrestartRequest{
+		Task:    sidecarTask,
+		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
+	}
+	require.NoError(t, req.TaskDir.Build(false, nil))
+
+	// Insert service identity token in the secrets directory
+	token := uuid.Generate()
+	siTokenFile := filepath.Join(req.TaskDir.SecretsDir, sidsTokenFile)
+	err = ioutil.WriteFile(siTokenFile, []byte(token), 0440)
+	require.NoError(t, err)
+
+	resp := &interfaces.TaskPrestartResponse{}
+
+	// Run the hook
+	require.NoError(t, h.Prestart(context.Background(), req, resp))
+
+	// Assert it is Done
+	require.True(t, resp.Done)
+
+	// Ensure the default path matches
+	env := map[string]string{
+		taskenv.SecretsDir: req.TaskDir.SecretsDir,
+	}
+	f, err := os.Open(args.ReplaceEnv(structs.EnvoyBootstrapPath, env))
+	require.NoError(t, err)
+	defer f.Close()
+
+	// Assert bootstrap configuration is valid json
+	var out envoyConfig
+	require.NoError(t, json.NewDecoder(f).Decode(&out))
+
+	// Assert the SI token got set
+	key := out.DynamicResources.ADSConfig.GRPCServices.InitialMetadata[0].Key
+	value := out.DynamicResources.ADSConfig.GRPCServices.InitialMetadata[0].Value
+	require.Equal(t, "x-consul-token", key)
+	require.Equal(t, token, value)
+}
 
 // TestTaskRunner_EnvoyBootstrapHook_Prestart asserts the EnvoyBootstrapHook
 // creates Envoy's bootstrap.json configuration based on Connect proxy sidecars
@@ -83,13 +291,18 @@ func TestTaskRunner_EnvoyBootstrapHook_Ok(t *testing.T) {
 	consulConfig.Address = testconsul.HTTPAddr
 	consulAPIClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
+
 	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), logger, true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
 	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
 
 	// Run Connect bootstrap Hook
-	h := newEnvoyBootstrapHook(alloc, testconsul.HTTPAddr, logger)
+	h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
+		alloc:          alloc,
+		consulHTTPAddr: testconsul.HTTPAddr,
+		logger:         logger,
+	})
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
 		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
@@ -116,8 +329,14 @@ func TestTaskRunner_EnvoyBootstrapHook_Ok(t *testing.T) {
 	defer f.Close()
 
 	// Assert bootstrap configuration is valid json
-	var out map[string]interface{}
+	var out envoyConfig
 	require.NoError(t, json.NewDecoder(f).Decode(&out))
+
+	// Assert no SI token got set
+	key := out.DynamicResources.ADSConfig.GRPCServices.InitialMetadata[0].Key
+	value := out.DynamicResources.ADSConfig.GRPCServices.InitialMetadata[0].Value
+	require.Equal(t, "x-consul-token", key)
+	require.Equal(t, "", value)
 }
 
 // TestTaskRunner_EnvoyBootstrapHook_Noop asserts that the Envoy bootstrap hook
@@ -134,7 +353,11 @@ func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
 
 	// Run Envoy bootstrap Hook. Use invalid Consul address as it should
 	// not get hit.
-	h := newEnvoyBootstrapHook(alloc, "http://127.0.0.2:1", logger)
+	h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
+		alloc:          alloc,
+		consulHTTPAddr: "http://127.0.0.2:1",
+		logger:         logger,
+	})
 	req := &interfaces.TaskPrestartRequest{
 		Task:    task,
 		TaskDir: allocDir.NewTaskDir(task.Name),
@@ -214,7 +437,11 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 	// not running.
 
 	// Run Connect bootstrap Hook
-	h := newEnvoyBootstrapHook(alloc, testconsul.HTTPAddr, logger)
+	h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
+		alloc:          alloc,
+		consulHTTPAddr: testconsul.HTTPAddr,
+		logger:         logger,
+	})
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
 		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
@@ -225,7 +452,7 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 
 	// Run the hook
 	err = h.Prestart(context.Background(), req, resp)
-	require.Error(t, err)
+	require.EqualError(t, err, "error creating bootstrap configuration for Connect proxy sidecar: exit status 1")
 	require.True(t, structs.IsRecoverable(err))
 
 	// Assert it is not Done
