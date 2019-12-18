@@ -157,3 +157,79 @@ func TestBuildBasicFingerprint_Node(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildControllerFingerprint(t *testing.T) {
+	tt := []struct {
+		Name string
+
+		Capabilities          *csi.ControllerCapabilitySet
+		CapabilitiesErr       error
+		CapabilitiesCallCount int64
+
+		ProbeResponse  bool
+		ProbeErr       error
+		ProbeCallCount int64
+
+		ExpectedControllerInfo *structs.CSIControllerInfo
+		ExpectedErr            error
+	}{
+		{
+			Name: "Minimal successful response",
+
+			Capabilities:          &csi.ControllerCapabilitySet{},
+			CapabilitiesCallCount: 1,
+
+			ProbeResponse:  true,
+			ProbeCallCount: 1,
+
+			ExpectedControllerInfo: &structs.CSIControllerInfo{},
+		},
+		{
+			Name: "Successful response with capabilities",
+
+			Capabilities: &csi.ControllerCapabilitySet{
+				HasListVolumes: true,
+			},
+			CapabilitiesCallCount: 1,
+
+			ProbeResponse:  true,
+			ProbeCallCount: 1,
+
+			ExpectedControllerInfo: &structs.CSIControllerInfo{
+				SupportsListVolumes: true,
+			},
+		},
+		{
+			Name: "ControllerGetCapabilities Failed",
+
+			CapabilitiesErr:       errors.New("request failed"),
+			CapabilitiesCallCount: 1,
+
+			ProbeResponse:  true,
+			ProbeCallCount: 1,
+
+			ExpectedControllerInfo: &structs.CSIControllerInfo{},
+			ExpectedErr:            errors.New("request failed"),
+		},
+	}
+
+	for _, test := range tt {
+		t.Run(test.Name, func(t *testing.T) {
+			client, im := setupTestNodeInstanceManager(t)
+
+			client.NextControllerGetCapabilitiesResponse = test.Capabilities
+			client.NextControllerGetCapabilitiesErr = test.CapabilitiesErr
+
+			client.NextPluginProbeResponse = test.ProbeResponse
+			client.NextPluginProbeErr = test.ProbeErr
+
+			info, err := im.buildControllerFingerprint(context.TODO(), &structs.CSIInfo{ControllerInfo: &structs.CSIControllerInfo{}})
+
+			require.Equal(t, test.ExpectedControllerInfo, info.ControllerInfo)
+			require.Equal(t, test.ExpectedErr, err)
+
+			require.Equal(t, test.CapabilitiesCallCount, client.ControllerGetCapabilitiesCallCount)
+			require.Equal(t, test.ProbeCallCount, client.PluginProbeCallCount)
+		})
+	}
+}
