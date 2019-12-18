@@ -11,15 +11,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestClient() (*fake.IdentityClient, *fake.ControllerClient, CSIPlugin) {
-	ic := &fake.IdentityClient{}
-	cc := &fake.ControllerClient{}
+func newTestClient() (*fake.IdentityClient, *fake.ControllerClient, *fake.NodeClient, CSIPlugin) {
+	ic := fake.NewIdentityClient()
+	cc := fake.NewControllerClient()
+	nc := fake.NewNodeClient()
 	client := &client{
 		identityClient:   ic,
 		controllerClient: cc,
+		nodeClient:       nc,
 	}
 
-	return ic, cc, client
+	return ic, cc, nc, client
 }
 
 func TestClient_RPC_PluginProbe(t *testing.T) {
@@ -63,7 +65,7 @@ func TestClient_RPC_PluginProbe(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			ic, _, client := newTestClient()
+			ic, _, _, client := newTestClient()
 			defer client.Close()
 
 			ic.NextErr = c.ResponseErr
@@ -111,7 +113,7 @@ func TestClient_RPC_PluginInfo(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			ic, _, client := newTestClient()
+			ic, _, _, client := newTestClient()
 			defer client.Close()
 
 			ic.NextErr = c.ResponseErr
@@ -175,7 +177,7 @@ func TestClient_RPC_PluginGetCapabilities(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			ic, _, client := newTestClient()
+			ic, _, _, client := newTestClient()
 			defer client.Close()
 
 			ic.NextErr = c.ResponseErr
@@ -273,13 +275,78 @@ func TestClient_RPC_ControllerGetCapabilities(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			_, cc, client := newTestClient()
+			_, cc, _, client := newTestClient()
 			defer client.Close()
 
 			cc.NextErr = tc.ResponseErr
 			cc.NextCapabilitiesResponse = tc.Response
 
 			resp, err := client.ControllerGetCapabilities(context.TODO())
+			if tc.ExpectedErr != nil {
+				require.Error(t, tc.ExpectedErr, err)
+			}
+
+			require.Equal(t, tc.ExpectedResponse, resp)
+		})
+	}
+}
+
+func TestClient_RPC_NodeGetCapabilities(t *testing.T) {
+	cases := []struct {
+		Name             string
+		ResponseErr      error
+		Response         *csipbv1.NodeGetCapabilitiesResponse
+		ExpectedResponse *NodeCapabilitySet
+		ExpectedErr      error
+	}{
+		{
+			Name:        "handles underlying grpc errors",
+			ResponseErr: fmt.Errorf("some grpc error"),
+			ExpectedErr: fmt.Errorf("some grpc error"),
+		},
+		{
+			Name: "ignores unknown capabilities",
+			Response: &csipbv1.NodeGetCapabilitiesResponse{
+				Capabilities: []*csipbv1.NodeServiceCapability{
+					{
+						Type: &csipbv1.NodeServiceCapability_Rpc{
+							Rpc: &csipbv1.NodeServiceCapability_RPC{
+								Type: csipbv1.NodeServiceCapability_RPC_EXPAND_VOLUME,
+							},
+						},
+					},
+				},
+			},
+			ExpectedResponse: &NodeCapabilitySet{},
+		},
+		{
+			Name: "detects stage volumes capability",
+			Response: &csipbv1.NodeGetCapabilitiesResponse{
+				Capabilities: []*csipbv1.NodeServiceCapability{
+					{
+						Type: &csipbv1.NodeServiceCapability_Rpc{
+							Rpc: &csipbv1.NodeServiceCapability_RPC{
+								Type: csipbv1.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+							},
+						},
+					},
+				},
+			},
+			ExpectedResponse: &NodeCapabilitySet{
+				HasStageUnstageVolume: true,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, _, nc, client := newTestClient()
+			defer client.Close()
+
+			nc.NextErr = tc.ResponseErr
+			nc.NextCapabilitiesResponse = tc.Response
+
+			resp, err := client.NodeGetCapabilities(context.TODO())
 			if tc.ExpectedErr != nil {
 				require.Error(t, tc.ExpectedErr, err)
 			}
@@ -326,7 +393,7 @@ func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			_, cc, client := newTestClient()
+			_, cc, _, client := newTestClient()
 			defer client.Close()
 
 			cc.NextErr = c.ResponseErr
