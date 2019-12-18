@@ -233,3 +233,64 @@ func TestBuildControllerFingerprint(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildNodeFingerprint(t *testing.T) {
+	tt := []struct {
+		Name string
+
+		Capabilities          *csi.NodeCapabilitySet
+		CapabilitiesErr       error
+		CapabilitiesCallCount int64
+
+		ExpectedCSINodeInfo *structs.CSINodeInfo
+		ExpectedErr         error
+	}{
+		{
+			Name: "Minimal successful response",
+
+			Capabilities:          &csi.NodeCapabilitySet{},
+			CapabilitiesCallCount: 1,
+
+			ExpectedCSINodeInfo: &structs.CSINodeInfo{
+				RequiresNodeStageVolume: false,
+			},
+		},
+		{
+			Name: "Successful response with capabilities and topologies",
+
+			Capabilities: &csi.NodeCapabilitySet{
+				HasStageUnstageVolume: true,
+			},
+			CapabilitiesCallCount: 1,
+
+			ExpectedCSINodeInfo: &structs.CSINodeInfo{
+				RequiresNodeStageVolume: true,
+			},
+		},
+		{
+			Name: "NodeGetCapabilities Failed",
+
+			CapabilitiesErr:       errors.New("request failed"),
+			CapabilitiesCallCount: 1,
+
+			ExpectedCSINodeInfo: &structs.CSINodeInfo{},
+			ExpectedErr:         errors.New("request failed"),
+		},
+	}
+
+	for _, test := range tt {
+		t.Run(test.Name, func(t *testing.T) {
+			client, im := setupTestNodeInstanceManager(t)
+
+			client.NextNodeGetCapabilitiesResponse = test.Capabilities
+			client.NextNodeGetCapabilitiesErr = test.CapabilitiesErr
+
+			info, err := im.buildNodeFingerprint(context.TODO(), &structs.CSIInfo{NodeInfo: &structs.CSINodeInfo{}})
+
+			require.Equal(t, test.ExpectedCSINodeInfo, info.NodeInfo)
+			require.Equal(t, test.ExpectedErr, err)
+
+			require.Equal(t, test.CapabilitiesCallCount, client.NodeGetCapabilitiesCallCount)
+		})
+	}
+}
