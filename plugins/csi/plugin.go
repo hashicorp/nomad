@@ -33,6 +33,10 @@ type CSIPlugin interface {
 	// ControllerPublishVolume is used to attach a remote volume to a cluster node.
 	ControllerPublishVolume(ctx context.Context, req *ControllerPublishVolumeRequest) (*ControllerPublishVolumeResponse, error)
 
+	// NodeGetCapabilities is used to return the available capabilities from the
+	// Node Service.
+	NodeGetCapabilities(ctx context.Context) (*NodeCapabilitySet, error)
+
 	// NodeGetInfo is used to return semantic data about the current node in
 	// respect to the SP.
 	NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error)
@@ -132,4 +136,25 @@ type ControllerPublishVolumeRequest struct {
 
 type ControllerPublishVolumeResponse struct {
 	PublishContext map[string]string
+}
+
+type NodeCapabilitySet struct {
+	HasStageUnstageVolume bool
+}
+
+func NewNodeCapabilitySet(resp *csipbv1.NodeGetCapabilitiesResponse) *NodeCapabilitySet {
+	cs := &NodeCapabilitySet{}
+	pluginCapabilities := resp.GetCapabilities()
+	for _, pcap := range pluginCapabilities {
+		if c := pcap.GetRpc(); c != nil {
+			switch c.Type {
+			case csipbv1.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME:
+				cs.HasStageUnstageVolume = true
+			default:
+				continue
+			}
+		}
+	}
+
+	return cs
 }
