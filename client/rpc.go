@@ -21,6 +21,7 @@ import (
 // rpcEndpoints holds the RPC endpoints
 type rpcEndpoints struct {
 	ClientStats *ClientStats
+	ClientCSI   *ClientCSI
 	FileSystem  *FileSystem
 	Allocations *Allocations
 	Agent       *Agent
@@ -217,6 +218,7 @@ func (c *Client) streamingRpcConn(server *servers.Server, method string) (net.Co
 func (c *Client) setupClientRpc() {
 	// Initialize the RPC handlers
 	c.endpoints.ClientStats = &ClientStats{c}
+	c.endpoints.ClientCSI = &ClientCSI{c}
 	c.endpoints.FileSystem = NewFileSystemEndpoint(c)
 	c.endpoints.Allocations = NewAllocationsEndpoint(c)
 	c.endpoints.Agent = NewAgentEndpoint(c)
@@ -234,6 +236,7 @@ func (c *Client) setupClientRpc() {
 func (c *Client) setupClientRpcServer(server *rpc.Server) {
 	// Register the endpoints
 	server.Register(c.endpoints.ClientStats)
+	server.Register(c.endpoints.ClientCSI)
 	server.Register(c.endpoints.FileSystem)
 	server.Register(c.endpoints.Allocations)
 }

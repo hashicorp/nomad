@@ -7,6 +7,7 @@ import (
 	"time"
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"google.golang.org/grpc"
@@ -50,10 +51,19 @@ type Topology struct {
 	Segments map[string]string
 }
 
+// CSIControllerClient defines the minimal CSI Controller Plugin interface used
+// by nomad to simplify the interface required for testing.
+type CSIControllerClient interface {
+	ControllerGetCapabilities(ctx context.Context, in *csipbv1.ControllerGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ControllerGetCapabilitiesResponse, error)
+	ControllerPublishVolume(ctx context.Context, in *csipbv1.ControllerPublishVolumeRequest, opts ...grpc.CallOption) (*csipbv1.ControllerPublishVolumeResponse, error)
+	ControllerUnpublishVolume(ctx context.Context, in *csipbv1.ControllerUnpublishVolumeRequest, opts ...grpc.CallOption) (*csipbv1.ControllerUnpublishVolumeResponse, error)
+	ValidateVolumeCapabilities(ctx context.Context, in *csipbv1.ValidateVolumeCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ValidateVolumeCapabilitiesResponse, error)
+}
+
 type client struct {
 	conn             *grpc.ClientConn
 	identityClient   csipbv1.IdentityClient
-	controllerClient csipbv1.ControllerClient
+	controllerClient CSIControllerClient
 	nodeClient       csipbv1.NodeClient
 }
 
@@ -183,6 +193,39 @@ func (c *client) PluginGetCapabilities(ctx context.Context) (*PluginCapabilitySe
 
 	return NewPluginCapabilitySet(resp), nil
 }
+
+//
+// Controller Endpoints
+//
+
+func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPublishVolumeRequest) (*ControllerPublishVolumeResponse, error) {
+	if c == nil {
+		return nil, fmt.Errorf("Client not initialized")
+	}
+	if c.controllerClient == nil {
+		return nil, fmt.Errorf("controllerClient not initialized")
+	}
+
+	pbrequest := &csipbv1.ControllerPublishVolumeRequest{
+		VolumeId: req.VolumeID,
+		NodeId:   req.NodeID,
+		Readonly: req.ReadOnly,
+		//TODO: add capabilities
+	}
+
+	resp, err := c.controllerClient.ControllerPublishVolume(ctx, pbrequest)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ControllerPublishVolumeResponse{
+		PublishContext: helper.CopyMapStringString(resp.PublishContext),
+	}, nil
+}
+
+//
+// Node Endpoints
+//
 
 func (c *client) NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error) {
 	if c == nil {
