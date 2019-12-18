@@ -198,6 +198,22 @@ func (c *client) PluginGetCapabilities(ctx context.Context) (*PluginCapabilitySe
 // Controller Endpoints
 //
 
+func (c *client) ControllerGetCapabilities(ctx context.Context) (*ControllerCapabilitySet, error) {
+	if c == nil {
+		return nil, fmt.Errorf("Client not initialized")
+	}
+	if c.controllerClient == nil {
+		return nil, fmt.Errorf("controllerClient not initialized")
+	}
+
+	resp, err := c.controllerClient.ControllerGetCapabilities(ctx, &csipbv1.ControllerGetCapabilitiesRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	return NewControllerCapabilitySet(resp), nil
+}
+
 func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPublishVolumeRequest) (*ControllerPublishVolumeResponse, error) {
 	if c == nil {
 		return nil, fmt.Errorf("Client not initialized")
