@@ -478,6 +478,13 @@ func (tr *TaskRunner) Run() {
 
 MAIN:
 	for !tr.Alloc().TerminalStatus() {
+		var deadlineCh <-chan time.Time
+		if tr.task.Lifecycle != nil && tr.task.Lifecycle.BlockUntil == structs.TaskLifecycleBlockUntilCompleted && tr.task.Lifecycle.Deadline != 0 {
+			deadlineCh = time.After(tr.task.Lifecycle.Deadline)
+		} else {
+			deadlineCh = make(chan time.Time)
+		}
+
 		select {
 		case <-tr.killCtx.Done():
 			break MAIN
@@ -535,6 +542,13 @@ MAIN:
 				case <-tr.shutdownCtx.Done():
 					// TaskRunner was told to exit immediately
 					return
+				case <-deadlineCh:
+					result = tr.killForRetry()
+
+					ev := structs.NewTaskEvent(structs.TaskKilled).
+						SetDisplayMessage("task failed to complete within alloted deadline")
+					tr.UpdateState(structs.TaskStatePending, ev)
+
 				case result = <-resultCh:
 				}
 
@@ -867,6 +881,46 @@ func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 	case <-tr.shutdownCtx.Done():
 		return nil
 	}
+}
+
+func (tr *TaskRunner) killForRetry() *drivers.ExitResult {
+	// Check it is running
+	handle := tr.getDriverHandle()
+	if handle == nil {
+		return nil
+	}
+
+	// Kill the task using an exponential backoff in-case of failures.
+	killErr := tr.killTask(handle)
+	if killErr != nil {
+		// We couldn't successfully destroy the resource created.
+		// TODO: are these relevant
+		tr.logger.Error("failed to kill task. Resources may have been leaked", "error", killErr)
+		tr.setKillErr(killErr)
+	}
+
+	// Block until task has exited.
+	waitCh, err := handle.WaitCh(tr.shutdownCtx)
+
+	// The error should be nil or TaskNotFound, if it's something else then a
+	// failure in the driver or transport layer occurred
+	if err != nil {
+		if err == drivers.ErrTaskNotFound {
+			return nil
+		}
+		// TODO: are these relevant
+		tr.logger.Error("failed to wait on task. Resources may have been leaked", "error", err)
+		tr.setKillErr(killErr)
+		return nil
+	}
+
+	select {
+	case result := <-waitCh:
+		return result
+	case <-tr.shutdownCtx.Done():
+		return nil
+	}
+
 }
 
 // killTask kills the task handle. In the case that killing fails,
