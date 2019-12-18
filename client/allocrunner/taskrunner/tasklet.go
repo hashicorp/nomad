@@ -148,7 +148,7 @@ func (t *tasklet) run() *taskletHandle {
 
 			select {
 			case <-t.shutdownCh:
-				// We've been told to exit and just ran so exit
+				// We've been told to exit and just unblocked so exit
 				return
 			default:
 			}
