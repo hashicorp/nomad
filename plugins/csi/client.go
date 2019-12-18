@@ -60,11 +60,18 @@ type CSIControllerClient interface {
 	ValidateVolumeCapabilities(ctx context.Context, in *csipbv1.ValidateVolumeCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ValidateVolumeCapabilitiesResponse, error)
 }
 
+// CSINodeClient defines the minimal CSI Node Plugin interface used
+// by nomad to simplify the interface required for testing.
+type CSINodeClient interface {
+	NodeGetCapabilities(ctx context.Context, in *csipbv1.NodeGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetCapabilitiesResponse, error)
+	NodeGetInfo(ctx context.Context, in *csipbv1.NodeGetInfoRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetInfoResponse, error)
+}
+
 type client struct {
 	conn             *grpc.ClientConn
 	identityClient   csipbv1.IdentityClient
 	controllerClient CSIControllerClient
-	nodeClient       csipbv1.NodeClient
+	nodeClient       CSINodeClient
 }
 
 func (c *client) Close() error {
@@ -242,6 +249,22 @@ func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPub
 //
 // Node Endpoints
 //
+
+func (c *client) NodeGetCapabilities(ctx context.Context) (*NodeCapabilitySet, error) {
+	if c == nil {
+		return nil, fmt.Errorf("Client not initialized")
+	}
+	if c.nodeClient == nil {
+		return nil, fmt.Errorf("Client not initialized")
+	}
+
+	resp, err := c.nodeClient.NodeGetCapabilities(ctx, &csipbv1.NodeGetCapabilitiesRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	return NewNodeCapabilitySet(resp), nil
+}
 
 func (c *client) NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error) {
 	if c == nil {
