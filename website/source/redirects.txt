@@ -52,6 +52,17 @@
 /guides/stateful-workloads/host-volumes.html  https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes
 /guides/stateful-workloads/portworx.html      https://learn.hashicorp.com/nomad/stateful-workloads/portworx
 
+/guides/web-ui/access.html                  https://learn.hashicorp.com/nomad/web-ui/access
+/guides/web-ui/submitting-a-job.html        https://learn.hashicorp.com/nomad/web-ui/ui-workload
+/guides/web-ui/operating-a-job.html         https://learn.hashicorp.com/nomad/web-ui/submit-job
+/guides/web-ui/inspecting-the-cluster.html  https://learn.hashicorp.com/nomad/web-ui/inspecting-the-cluster
+/guides/web-ui/securing.html                https://learn.hashicorp.com/nomad/web-ui/access
+
+/guides/governance-and-policy/namespaces.html                https://learn.hashicorp.com/nomad/governance-and-policy/namespaces
+/guides/governance-and-policy/quotas.html                    https://learn.hashicorp.com/nomad/governance-and-policy/quotas
+/guides/governance-and-policy/sentinel/sentinel-policy.html  https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
+/guides/governance-and-policy/sentinel/job.html              https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
+
 # Website
 /community.html                               /resources.html
 
