@@ -127,6 +127,13 @@ func (i *instanceManager) runLoop() {
 	}
 }
 
+func applyCapabilitySetToControllerInfo(cs *csi.ControllerCapabilitySet, info *structs.CSIControllerInfo) {
+	info.SupportsReadOnlyAttach = cs.HasPublishReadonly
+	info.SupportsAttachDetach = cs.HasPublishUnpublishVolume
+	info.SupportsListVolumes = cs.HasListVolumes
+	info.SupportsListVolumesAttachedNodes = cs.HasListVolumesPublishedNodes
+}
+
 func (i *instanceManager) buildControllerFingerprint(ctx context.Context, base *structs.CSIInfo) (*structs.CSIInfo, error) {
 	fp := base.Copy()
 
@@ -135,6 +142,12 @@ func (i *instanceManager) buildControllerFingerprint(ctx context.Context, base *
 		return nil, err
 	}
 	fp.SetHealthy(healthy)
+
+	caps, err := i.client.ControllerGetCapabilities(ctx)
+	if err != nil {
+		return fp, err
+	}
+	applyCapabilitySetToControllerInfo(caps, fp.ControllerInfo)
 
 	return fp, nil
 }
