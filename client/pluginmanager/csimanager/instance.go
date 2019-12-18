@@ -161,6 +161,12 @@ func (i *instanceManager) buildNodeFingerprint(ctx context.Context, base *struct
 	}
 	fp.SetHealthy(healthy)
 
+	caps, err := i.client.NodeGetCapabilities(ctx)
+	if err != nil {
+		return fp, err
+	}
+	fp.NodeInfo.RequiresNodeStageVolume = caps.HasStageUnstageVolume
+
 	return fp, nil
 }
 
