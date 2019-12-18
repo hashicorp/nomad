@@ -4,20 +4,28 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
 
-	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/pkg/errors"
 )
 
-var _ interfaces.TaskPrestartHook = &envoyBootstrapHook{}
+const envoyBootstrapHookName = "envoy_bootstrap"
+
+type envoyBootstrapHookConfig struct {
+	alloc          *structs.Allocation
+	consulHTTPAddr string
+	logger         hclog.Logger
+}
 
 const (
 	envoyBaseAdminPort      = 19000
@@ -27,6 +35,7 @@ const (
 // envoyBootstrapHook writes the bootstrap config for the Connect Envoy proxy
 // sidecar.
 type envoyBootstrapHook struct {
+	// alloc is the allocation with the envoy task being bootstrapped.
 	alloc *structs.Allocation
 
 	// Bootstrapping Envoy requires talking directly to Consul to generate
@@ -34,20 +43,23 @@ type envoyBootstrapHook struct {
 	// Consul's gRPC endpoint.
 	consulHTTPAddr string
 
-	logger log.Logger
+	// executable is executable file that is consul
+	executable string
+
+	// logger is used to log things
+	logger hclog.Logger
 }
 
-func newEnvoyBootstrapHook(alloc *structs.Allocation, consulHTTPAddr string, logger log.Logger) *envoyBootstrapHook {
-	h := &envoyBootstrapHook{
-		alloc:          alloc,
-		consulHTTPAddr: consulHTTPAddr,
+func newEnvoyBootstrapHook(c *envoyBootstrapHookConfig) *envoyBootstrapHook {
+	return &envoyBootstrapHook{
+		alloc:          c.alloc,
+		consulHTTPAddr: c.consulHTTPAddr,
+		logger:         c.logger.Named(envoyBootstrapHookName),
 	}
-	h.logger = logger.Named(h.Name())
-	return h
 }
 
 func (envoyBootstrapHook) Name() string {
-	return "envoy_bootstrap"
+	return envoyBootstrapHookName
 }
 
 func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
@@ -59,7 +71,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 
 	serviceName := req.Task.Kind.Value()
 	if serviceName == "" {
-		return fmt.Errorf("Connect proxy sidecar does not specify service name")
+		return errors.New("connect proxy sidecar does not specify service name")
 	}
 
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
@@ -73,13 +85,12 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 	}
 
 	if service == nil {
-		return fmt.Errorf("Connect proxy sidecar task exists but no services configured with a sidecar")
+		return errors.New("connect proxy sidecar task exists but no services configured with a sidecar")
 	}
 
 	h.logger.Debug("bootstrapping Connect proxy sidecar", "task", req.Task.Name, "service", serviceName)
 
-	//TODO Should connect directly to Consul if the sidecar is running on
-	//     the host netns.
+	//TODO Should connect directly to Consul if the sidecar is running on the host netns.
 	grpcAddr := "unix://" + allocdir.AllocGRPCSocket
 
 	// Envoy runs an administrative API on the loopback interface. If multiple sidecars
@@ -92,24 +103,36 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 
 	// Envoy bootstrap configuration may contain a Consul token, so write
 	// it to the secrets directory like Vault tokens.
-	fn := filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json")
+	bootstrapFilePath := filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json")
 
 	id := agentconsul.MakeAllocServiceID(h.alloc.ID, "group-"+tg.Name, service)
-	h.logger.Debug("bootstrapping envoy", "sidecar_for", service.Name, "boostrap_file", fn, "sidecar_for_id", id, "grpc_addr", grpcAddr, "admin_bind", envoyAdminBind)
 
+	h.logger.Debug("bootstrapping envoy", "sidecar_for", service.Name, "bootstrap_file", bootstrapFilePath, "sidecar_for_id", id, "grpc_addr", grpcAddr, "admin_bind", envoyAdminBind)
+
+	siToken, err := h.maybeLoadSIToken(req.Task.Name, req.TaskDir.SecretsDir)
+	if err != nil {
+		h.logger.Error("failed to generate envoy bootstrap config", "sidecar_for", service.Name)
+		return errors.Wrap(err, "failed to generate envoy bootstrap config")
+	}
+	h.logger.Debug("check for SI token for task", "task", req.Task.Name, "exists", siToken != "")
+
+	bootstrapArgs := envoyBootstrapArgs{
+		sidecarFor:     id,
+		grpcAddr:       grpcAddr,
+		consulHTTPAddr: h.consulHTTPAddr,
+		envoyAdminBind: envoyAdminBind,
+		siToken:        siToken,
+	}.args()
+
+	// put old stuff in here
 	// Since Consul services are registered asynchronously with this task
 	// hook running, retry a small number of times with backoff.
 	for tries := 3; ; tries-- {
-		cmd := exec.CommandContext(ctx, "consul", "connect", "envoy",
-			"-grpc-addr", grpcAddr,
-			"-http-addr", h.consulHTTPAddr,
-			"-admin-bind", envoyAdminBind,
-			"-bootstrap",
-			"-sidecar-for", id,
-		)
+
+		cmd := exec.CommandContext(ctx, "consul", bootstrapArgs...)
 
 		// Redirect output to secrets/envoy_bootstrap.json
-		fd, err := os.Create(fn)
+		fd, err := os.Create(bootstrapFilePath)
 		if err != nil {
 			return fmt.Errorf("error creating secrets/envoy_bootstrap.json for envoy: %v", err)
 		}
@@ -122,7 +145,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 		err = cmd.Run()
 
 		// Close bootstrap.json
-		fd.Close()
+		_ = fd.Close()
 
 		if err == nil {
 			// Happy path! Bootstrap was created, exit.
@@ -138,7 +161,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 			// occurs, and (b) the file will either be rewritten on
 			// retry or eventually garbage collected if the task
 			// fails.
-			os.Remove(fn)
+			_ = os.Remove(bootstrapFilePath)
 
 			// ExitErrors are recoverable since they indicate the
 			// command was runnable but exited with a unsuccessful
@@ -173,4 +196,83 @@ func buildEnvoyAdminBind(alloc *structs.Allocation, taskName string) string {
 		}
 	}
 	return fmt.Sprintf("localhost:%d", port)
+}
+
+func (h *envoyBootstrapHook) writeConfig(filename, config string) error {
+	if err := ioutil.WriteFile(filename, []byte(config), 0440); err != nil {
+		_ = os.Remove(filename)
+		return err
+	}
+	return nil
+}
+
+func (_ *envoyBootstrapHook) retry(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	case <-time.After(2 * time.Second):
+		return true
+	}
+}
+
+func (h *envoyBootstrapHook) execute(cmd *exec.Cmd) (string, error) {
+	var (
+		stdout bytes.Buffer
+		stderr bytes.Buffer
+	)
+
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		_, recoverable := err.(*exec.ExitError)
+		// ExitErrors are recoverable since they indicate the
+		// command was runnable but exited with a unsuccessful
+		// error code.
+		return stderr.String(), structs.NewRecoverableError(err, recoverable)
+	}
+	return stdout.String(), nil
+}
+
+type envoyBootstrapArgs struct {
+	sidecarFor     string
+	grpcAddr       string
+	envoyAdminBind string
+	consulHTTPAddr string
+	siToken        string
+}
+
+func (e envoyBootstrapArgs) args() []string {
+	arguments := []string{
+		"connect",
+		"envoy",
+		"-grpc-addr", e.grpcAddr,
+		"-http-addr", e.consulHTTPAddr,
+		"-admin-bind", e.envoyAdminBind,
+		"-bootstrap",
+		"-sidecar-for", e.sidecarFor,
+	}
+	if e.siToken != "" {
+		arguments = append(arguments, []string{"-token", e.siToken}...)
+	}
+	return arguments
+}
+
+// maybeLoadSIToken reads the SI token saved to disk in the secretes directory
+// by the service identities prestart hook. This envoy bootstrap hook blocks
+// until the sids hook completes, so if the SI token is required to exist (i.e.
+// Consul ACLs are enabled), it will be in place by the time we try to read it.
+func (h *envoyBootstrapHook) maybeLoadSIToken(task, dir string) (string, error) {
+	tokenPath := filepath.Join(dir, sidsTokenFile)
+	token, err := ioutil.ReadFile(tokenPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			h.logger.Error("failed to load SI token", "task", task, "error", err)
+			return "", errors.Wrapf(err, "failed to load SI token for %s", task)
+		}
+		h.logger.Trace("no SI token to load", "task", task)
+		return "", nil // token file does not exist
+	}
+	h.logger.Trace("recovered pre-existing SI token", "task", task)
+	return string(token), nil
 }

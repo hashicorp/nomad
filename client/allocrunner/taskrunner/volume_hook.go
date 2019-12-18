@@ -96,7 +96,7 @@ func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 		return err
 	}
 
-	// Because this hook is also ran on restores, we only add mounts that do not
+	// Because this hook is also unblocked on restores, we only add mounts that do not
 	// already exist. Although this loop is somewhat expensive, there are only
 	// a small number of mounts that exist within most individual tasks. We may
 	// want to revisit this using a `hookdata` param to be "mount only once"

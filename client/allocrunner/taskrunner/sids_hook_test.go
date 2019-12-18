@@ -28,6 +28,12 @@ func cleanupDir(t *testing.T, dir string) {
 	require.NoError(t, err)
 }
 
+func sidecar(task string) (string, structs.TaskKind) {
+	name := structs.ConnectProxyPrefix + "-" + task
+	kind := structs.TaskKind(structs.ConnectProxyPrefix + ":" + task)
+	return name, kind
+}
+
 func TestSIDSHook_recoverToken(t *testing.T) {
 	t.Parallel()
 
@@ -35,8 +41,13 @@ func TestSIDSHook_recoverToken(t *testing.T) {
 	secrets := tmpDir(t)
 	defer cleanupDir(t, secrets)
 
+	taskName, taskKind := sidecar("foo")
+
 	h := newSIDSHook(sidsHookConfig{
-		task:   &structs.Task{Name: "task1"},
+		task: &structs.Task{
+			Name: taskName,
+			Kind: taskKind,
+		},
 		logger: testlog.HCLogger(t),
 	})
 
@@ -56,8 +67,13 @@ func TestSIDSHook_recoverToken_empty(t *testing.T) {
 	secrets := tmpDir(t)
 	defer cleanupDir(t, secrets)
 
+	taskName, taskKind := sidecar("foo")
+
 	h := newSIDSHook(sidsHookConfig{
-		task:   &structs.Task{Name: "task1"},
+		task: &structs.Task{
+			Name: taskName,
+			Kind: taskKind,
+		},
 		logger: testlog.HCLogger(t),
 	})
 
@@ -73,9 +89,14 @@ func TestSIDSHook_deriveSIToken(t *testing.T) {
 	secrets := tmpDir(t)
 	defer cleanupDir(t, secrets)
 
+	taskName, taskKind := sidecar("task1")
+
 	h := newSIDSHook(sidsHookConfig{
-		alloc:      &structs.Allocation{ID: "a1"},
-		task:       &structs.Task{Name: "task1"},
+		alloc: &structs.Allocation{ID: "a1"},
+		task: &structs.Task{
+			Name: taskName,
+			Kind: taskKind,
+		},
 		logger:     testlog.HCLogger(t),
 		sidsClient: consul.NewMockServiceIdentitiesClient(),
 	})
@@ -83,7 +104,7 @@ func TestSIDSHook_deriveSIToken(t *testing.T) {
 	ctx := context.Background()
 	token, err := h.deriveSIToken(ctx)
 	r.NoError(err)
-	r.True(helper.IsUUID(token))
+	r.True(helper.IsUUID(token), "token: %q", token)
 }
 
 func TestSIDSHook_computeBackoff(t *testing.T) {

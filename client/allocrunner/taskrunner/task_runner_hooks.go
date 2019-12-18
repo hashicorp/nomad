@@ -67,7 +67,6 @@ func (tr *TaskRunner) initHooks() {
 		newArtifactHook(tr, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
-		newEnvoyBootstrapHook(alloc, tr.clientConfig.ConsulConfig.Addr, hookLogger),
 	}
 
 	// If Vault is enabled, add the hook
@@ -107,6 +106,8 @@ func (tr *TaskRunner) initHooks() {
 		}))
 	}
 
+	// If this is a Connect sidecar proxy (or a Connect Native) service,
+	// add the sidsHook for requesting a Service Identity token (if ACLs).
 	if task.UsesConnect() {
 		tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
 			alloc:      tr.Alloc(),
@@ -116,6 +117,13 @@ func (tr *TaskRunner) initHooks() {
 			logger:     hookLogger,
 		}))
 	}
+
+	// envoy bootstrap must execute after sidsHook maybe sets SI token
+	tr.runnerHooks = append(tr.runnerHooks, newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
+		alloc:          alloc,
+		consulHTTPAddr: tr.clientConfig.ConsulConfig.Addr,
+		logger:         hookLogger,
+	}))
 
 	// If there are any script checks, add the hook
 	scriptCheckHook := newScriptCheckHook(scriptCheckHookConfig{

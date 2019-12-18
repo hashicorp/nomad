@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
@@ -51,7 +51,7 @@ type sidsHook struct {
 	alloc *structs.Allocation
 
 	// taskName is the name of the task
-	taskName string
+	task *structs.Task
 
 	// sidsClient is the Consul client [proxy] for requesting SI tokens
 	sidsClient consul.ServiceIdentityAPI
@@ -72,7 +72,7 @@ type sidsHook struct {
 func newSIDSHook(c sidsHookConfig) *sidsHook {
 	return &sidsHook{
 		alloc:      c.alloc,
-		taskName:   c.task.Name,
+		task:       c.task,
 		sidsClient: c.sidsClient,
 		lifecycle:  c.lifecycle,
 		logger:     c.logger.Named(sidsHookName),
@@ -87,13 +87,14 @@ func (h *sidsHook) Name() string {
 func (h *sidsHook) Prestart(
 	ctx context.Context,
 	req *interfaces.TaskPrestartRequest,
-	_ *interfaces.TaskPrestartResponse) error {
+	resp *interfaces.TaskPrestartResponse) error {
 
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
 	// do nothing if we have already done things
 	if h.earlyExit() {
+		resp.Done = true
 		return nil
 	}
 
@@ -113,6 +114,9 @@ func (h *sidsHook) Prestart(
 		}
 	}
 
+	h.logger.Info("derived SI token", "task", h.task.Name, "si_task", h.task.Kind.Value())
+
+	resp.Done = true
 	return nil
 }
 
@@ -145,12 +149,13 @@ func (h *sidsHook) recoverToken(dir string) (string, error) {
 	token, err := ioutil.ReadFile(tokenPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
+			h.logger.Error("failed to recover SI token", "error", err)
 			return "", errors.Wrap(err, "failed to recover SI token")
 		}
-		h.logger.Trace("no pre-existing SI token to recover", "task", h.taskName)
+		h.logger.Trace("no pre-existing SI token to recover", "task", h.task.Name)
 		return "", nil // token file does not exist yet
 	}
-	h.logger.Trace("recovered pre-existing SI token", "task", h.taskName)
+	h.logger.Trace("recovered pre-existing SI token", "task", h.task.Name)
 	return string(token), nil
 }
 
@@ -185,25 +190,30 @@ func (h *sidsHook) kill(ctx context.Context, err error) {
 
 // tryDerive loops forever until a token is created, or ctx is done.
 func (h *sidsHook) tryDerive(ctx context.Context, ch chan<- string) {
+	// Derive the SI token using the name of the proxied / native task, not the
+	// name of the literal sidecar task. The virtual ACL policy of the SI token
+	// is oriented this way.
+	siTaskName := h.task.Kind.Value()
+
 	for attempt := 0; backoff(ctx, attempt); attempt++ {
 
-		tokens, err := h.sidsClient.DeriveSITokens(h.alloc, []string{h.taskName})
+		tokens, err := h.sidsClient.DeriveSITokens(h.alloc, []string{siTaskName})
 
 		switch {
 
 		case err == nil:
 			// nothing broke and we can return the token for the task
-			ch <- tokens[h.taskName]
+			ch <- tokens[siTaskName]
 			return
 
 		case structs.IsServerSide(err):
 			// the error is known to be a server problem, just die
-			h.logger.Error("failed to derive SI token", "error", err, "server_side", true)
+			h.logger.Error("failed to derive SI token", "error", err, "task", h.task.Name, "si_task", siTaskName, "server_side", true)
 			h.kill(ctx, errors.Wrap(err, "consul: failed to derive SI token"))
 
 		case !structs.IsRecoverable(err):
 			// the error is known not to be recoverable, just die
-			h.logger.Error("failed to derive SI token", "error", err, "recoverable", false)
+			h.logger.Error("failed to derive SI token", "error", err, "task", h.task.Name, "si_task", siTaskName, "recoverable", false)
 			h.kill(ctx, errors.Wrap(err, "consul: failed to derive SI token"))
 
 		default:
@@ -213,8 +223,8 @@ func (h *sidsHook) tryDerive(ctx context.Context, ch chan<- string) {
 	}
 }
 
-func backoff(ctx context.Context, i int) bool {
-	next := computeBackoff(i)
+func backoff(ctx context.Context, attempt int) bool {
+	next := computeBackoff(attempt)
 	select {
 	case <-ctx.Done():
 		return false

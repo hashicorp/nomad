@@ -1082,29 +1082,31 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 		actualEvents[i] = string(e.Type)
 	}
 	require.Equal(t, actualEvents, expectedEvents)
-
 	require.Equal(t, structs.TaskStateDead, state.State)
 	require.True(t, state.Failed, pretty.Sprint(state))
 }
 
-type mockEnvoyBootstrapHook struct{}
+type mockEnvoyBootstrapHook struct {
+	// nothing
+}
 
-func (mockEnvoyBootstrapHook) Name() string {
+func (_ *mockEnvoyBootstrapHook) Name() string {
 	return "mock_envoy_bootstrap"
 }
 
-func (*mockEnvoyBootstrapHook) Prestart(_ context.Context, _ *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+func (m *mockEnvoyBootstrapHook) Prestart(_ context.Context, _ *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	resp.Done = true
 	return nil
 }
 
 // The envoy bootstrap hook tries to connect to consul and run the envoy
 // bootstrap command, so turn it off when testing connect jobs that are not
-// using envoy (for now?).
-func disableEnvoyBootstrapHook(tr *TaskRunner) {
+// using envoy.
+func useMockEnvoyBootstrapHook(tr *TaskRunner) {
+	mock := new(mockEnvoyBootstrapHook)
 	for i, hook := range tr.runnerHooks {
 		if _, ok := hook.(*envoyBootstrapHook); ok {
-			tr.runnerHooks[i] = new(mockEnvoyBootstrapHook)
+			tr.runnerHooks[i] = mock
 		}
 	}
 }
@@ -1138,7 +1140,8 @@ func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
 	tr, err := NewTaskRunner(trConfig)
 	r.NoError(err)
 	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
-	disableEnvoyBootstrapHook(tr) // turn off envoy bootstrap
+	useMockEnvoyBootstrapHook(tr) // mock the envoy bootstrap hook
+
 	go tr.Run()
 
 	// assert task runner blocks on SI token
@@ -1189,10 +1192,12 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 
 	// control when we get a Consul SI token
 	token := "12345678-1234-1234-1234-1234567890"
+	siTaskName := task.Kind.Value()
 	deriveCount := 0
 	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
 		if deriveCount > 0 {
-			return map[string]string{task.Name: token}, nil
+
+			return map[string]string{siTaskName: token}, nil
 		}
 		deriveCount++
 		return nil, structs.NewRecoverableError(errors.New("try again later"), true)
@@ -1204,7 +1209,7 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 	tr, err := NewTaskRunner(trConfig)
 	r.NoError(err)
 	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
-	disableEnvoyBootstrapHook(tr) // turn off envoy bootstrap
+	useMockEnvoyBootstrapHook(tr) // mock the envoy bootstrap
 	go tr.Run()
 
 	// assert task runner blocks on SI token
@@ -1247,14 +1252,15 @@ func TestTaskRunner_DeriveSIToken_Unrecoverable(t *testing.T) {
 	defer cleanup()
 
 	// SI token derivation suffers a non-retryable error
+	siTaskName := task.Kind.Value()
 	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
-	siClient.SetDeriveTokenError(alloc.ID, []string{task.Name}, errors.New("non-recoverable"))
+	siClient.SetDeriveTokenError(alloc.ID, []string{siTaskName}, errors.New("non-recoverable"))
 
 	tr, err := NewTaskRunner(trConfig)
 	r.NoError(err)
 
 	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
-	disableEnvoyBootstrapHook(tr) // turn off envoy bootstrap
+	useMockEnvoyBootstrapHook(tr) // mock the envoy bootstrap hook
 	go tr.Run()
 
 	// Wait for the task to die
@@ -1826,7 +1832,7 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 		require.Fail(t, "timed out waiting for task to complete")
 	}
 
-	// Assert the task ran and never restarted
+	// Assert the task unblocked and never restarted
 	state := tr.TaskState()
 	require.Equal(t, structs.TaskStateDead, state.State)
 	require.False(t, state.Failed)
