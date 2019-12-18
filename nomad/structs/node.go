@@ -100,7 +100,23 @@ func (n *CSINodeInfo) Copy() *CSINodeInfo {
 // CSIControllerInfo is the fingerprinted data from a CSI Plugin that is specific to
 // the Controller API.
 type CSIControllerInfo struct {
-	// Currently empty
+	// SupportsReadOnlyAttach is set to true when the controller returns the
+	// ATTACH_READONLY capability.
+	SupportsReadOnlyAttach bool
+
+	// SupportsPublishVolume is true when the controller implements the methods
+	// required to attach and detach volumes. If this is false Nomad should skip
+	// the controller attachment flow.
+	SupportsAttachDetach bool
+
+	// SupportsListVolums is true when the controller implements the ListVolumes
+	// RPC. NOTE: This does not guaruntee that attached nodes will be returned
+	// unless SupportsListVolumesAttachedNodes is also true.
+	SupportsListVolumes bool
+
+	// SupportsListVolumesAttachedNodes indicates whether the plugin will return
+	// attached nodes data when making ListVolume RPCs
+	SupportsListVolumesAttachedNodes bool
 }
 
 func (c *CSIControllerInfo) Copy() *CSIControllerInfo {
