@@ -35,6 +35,10 @@ type Client struct {
 	NextPluginGetCapabilitiesErr      error
 	PluginGetCapabilitiesCallCount    int64
 
+	NextControllerGetCapabilitiesResponse *csi.ControllerCapabilitySet
+	NextControllerGetCapabilitiesErr      error
+	ControllerGetCapabilitiesCallCount    int64
+
 	NextControllerPublishVolumeResponse *csi.ControllerPublishVolumeResponse
 	NextControllerPublishVolumeErr      error
 	ControllerPublishVolumeCallCount    int64
@@ -97,6 +101,15 @@ func (c *Client) PluginGetCapabilities(ctx context.Context) (*csi.PluginCapabili
 	c.PluginGetCapabilitiesCallCount++
 
 	return c.NextPluginGetCapabilitiesResponse, c.NextPluginGetCapabilitiesErr
+}
+
+func (c *Client) ControllerGetCapabilities(ctx context.Context) (*csi.ControllerCapabilitySet, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.ControllerGetCapabilitiesCallCount++
+
+	return c.NextControllerGetCapabilitiesResponse, c.NextControllerGetCapabilitiesErr
 }
 
 // ControllerPublishVolume is used to attach a remote volume to a node
