@@ -83,6 +83,10 @@ type CSINodeInfo struct {
 	// Indicates the node exists within the "region" "R1" and the "zone"
 	// "Z2" within the storage provider.
 	AccessibleTopology *CSITopology
+
+	// RequiresNodeStageVolume indicates whether the client should Stage/Unstage
+	// volumes on this node.
+	RequiresNodeStageVolume bool
 }
 
 func (n *CSINodeInfo) Copy() *CSINodeInfo {
