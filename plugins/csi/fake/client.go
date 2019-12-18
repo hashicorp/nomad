@@ -43,6 +43,10 @@ type Client struct {
 	NextControllerPublishVolumeErr      error
 	ControllerPublishVolumeCallCount    int64
 
+	NextNodeGetCapabilitiesResponse *csi.NodeCapabilitySet
+	NextNodeGetCapabilitiesErr      error
+	NodeGetCapabilitiesCallCount    int64
+
 	NextNodeGetInfoResponse *csi.NodeGetInfoResponse
 	NextNodeGetInfoErr      error
 	NodeGetInfoCallCount    int64
@@ -120,6 +124,15 @@ func (c *Client) ControllerPublishVolume(ctx context.Context, req *csi.Controlle
 	c.ControllerPublishVolumeCallCount++
 
 	return c.NextControllerPublishVolumeResponse, c.NextControllerPublishVolumeErr
+}
+
+func (c *Client) NodeGetCapabilities(ctx context.Context) (*csi.NodeCapabilitySet, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.NodeGetCapabilitiesCallCount++
+
+	return c.NextNodeGetCapabilitiesResponse, c.NextNodeGetCapabilitiesErr
 }
 
 // NodeGetInfo is used to return semantic data about the current node in
