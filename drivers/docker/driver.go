@@ -554,7 +554,7 @@ func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 		},
 	})
 
-	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task))
+	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task), d.config.pullActivityTimeoutDuration)
 }
 
 func (d *Driver) emitEventFunc(task *drivers.TaskConfig) LogEventFn {
