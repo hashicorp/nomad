@@ -26,6 +26,10 @@ type CSIPlugin interface {
 	// Accessible Topology Support
 	PluginGetCapabilities(ctx context.Context) (*PluginCapabilitySet, error)
 
+	// GetControllerCapabilities is used to get controller-specific capabilities
+	// for a plugin.
+	ControllerGetCapabilities(ctx context.Context) (*ControllerCapabilitySet, error)
+
 	// ControllerPublishVolume is used to attach a remote volume to a cluster node.
 	ControllerPublishVolume(ctx context.Context, req *ControllerPublishVolumeRequest) (*ControllerPublishVolumeResponse, error)
 
@@ -78,6 +82,37 @@ func NewPluginCapabilitySet(capabilities *csipbv1.GetPluginCapabilitiesResponse)
 				cs.hasControllerService = true
 			case csipbv1.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS:
 				cs.hasTopologies = true
+			default:
+				continue
+			}
+		}
+	}
+
+	return cs
+}
+
+type ControllerCapabilitySet struct {
+	HasPublishUnpublishVolume    bool
+	HasPublishReadonly           bool
+	HasListVolumes               bool
+	HasListVolumesPublishedNodes bool
+}
+
+func NewControllerCapabilitySet(resp *csipbv1.ControllerGetCapabilitiesResponse) *ControllerCapabilitySet {
+	cs := &ControllerCapabilitySet{}
+
+	pluginCapabilities := resp.GetCapabilities()
+	for _, pcap := range pluginCapabilities {
+		if c := pcap.GetRpc(); c != nil {
+			switch c.Type {
+			case csipbv1.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME:
+				cs.HasPublishUnpublishVolume = true
+			case csipbv1.ControllerServiceCapability_RPC_PUBLISH_READONLY:
+				cs.HasPublishReadonly = true
+			case csipbv1.ControllerServiceCapability_RPC_LIST_VOLUMES:
+				cs.HasListVolumes = true
+			case csipbv1.ControllerServiceCapability_RPC_LIST_VOLUMES_PUBLISHED_NODES:
+				cs.HasListVolumesPublishedNodes = true
 			default:
 				continue
 			}
