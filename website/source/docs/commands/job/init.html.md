@@ -28,8 +28,8 @@ template.
 
 ## Init Options
 
- - `-short`: If set, a minimal jobspec without comments is emitted.
- - `-connect`: If set, the jobspec includes Consul Connect integration.
+- `-short`: If set, a minimal jobspec without comments is emitted.
+- `-connect`: If set, the jobspec includes Consul Connect integration.
 
 ## Examples
 
