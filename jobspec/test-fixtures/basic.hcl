@@ -16,6 +16,12 @@ job "binstore-storagelocker" {
     value     = "windows"
   }
 
+  constraint {
+    attribute = "${attr.vault.version}"
+    value     = ">= 0.6.1"
+    operator  = "semver"
+  }
+
   affinity {
     attribute = "${meta.team}"
     value     = "mobile"

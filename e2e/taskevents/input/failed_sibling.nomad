@@ -2,6 +2,11 @@ job "failed_sibling" {
   type        = "service"
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "failed_sibling" {
     restart {
       attempts = 0

@@ -34,6 +34,25 @@ type ClientStatsResponse struct {
 	structs.QueryMeta
 }
 
+type MonitorRequest struct {
+	// LogLevel is the log level filter we want to stream logs on
+	LogLevel string
+
+	// LogJSON specifies if log format should be unstructured or json
+	LogJSON bool
+
+	// NodeID is the node we want to track the logs of
+	NodeID string
+
+	// ServerID is the server we want to track the logs of
+	ServerID string
+
+	// PlainText disables base64 encoding.
+	PlainText bool
+
+	structs.QueryOptions
+}
+
 // AllocFileInfo holds information about a file inside the AllocDir
 type AllocFileInfo struct {
 	Name        string

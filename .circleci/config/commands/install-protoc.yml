@@ -1,0 +1,6 @@
+steps:
+  - run:
+      name: install protoc
+      command: |
+        sudo rm -rf /usr/bin/protoc
+        sudo ./scripts/vagrant-linux-priv-protoc.sh

@@ -33,13 +33,6 @@ const (
 )
 
 var (
-	// vaultConstraint is the implicit constraint added to jobs requesting a
-	// Vault token
-	vaultConstraint = &structs.Constraint{
-		LTarget: "${attr.vault.version}",
-		RTarget: ">= 0.6.1",
-		Operand: structs.ConstraintVersion,
-	}
 
 	// allowRescheduleTransition is the transition that allows failed
 	// allocations to be force rescheduled. We create a one off
@@ -65,8 +58,8 @@ func NewJobEndpoints(s *Server) *Job {
 		srv:    s,
 		logger: s.logger.Named("job"),
 		mutators: []jobMutator{
-			jobConnectHook{},
 			jobCanonicalizer{},
+			jobConnectHook{},
 			jobImpliedConstraints{},
 		},
 		validators: []jobValidator{
@@ -956,6 +949,12 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
+	}
+
+	// Ensure JobID is set otherwise everything works and never returns
+	// allocations which can hide bugs in request code.
+	if args.JobID == "" {
+		return fmt.Errorf("missing job ID")
 	}
 
 	// Setup the blocking query

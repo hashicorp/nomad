@@ -7,7 +7,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/nomad/structs"
 	testing "github.com/mitchellh/go-testing-interface"
 )
 
@@ -54,60 +53,33 @@ func NewMockConsulServiceClient(t testing.T, logger log.Logger) *MockConsulServi
 	return &m
 }
 
-func (m *MockConsulServiceClient) RegisterGroup(alloc *structs.Allocation) error {
+func (m *MockConsulServiceClient) UpdateWorkload(old, newSvcs *consul.WorkloadServices) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	m.logger.Trace("RegisterGroup", "alloc_id", alloc.ID, "num_services", len(tg.Services))
-	m.ops = append(m.ops, NewMockConsulOp("add_group", alloc.ID, alloc.TaskGroup))
-	return nil
-}
-
-func (m *MockConsulServiceClient) UpdateGroup(_, alloc *structs.Allocation) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	m.logger.Trace("UpdateGroup", "alloc_id", alloc.ID, "num_services", len(tg.Services))
-	m.ops = append(m.ops, NewMockConsulOp("update_group", alloc.ID, alloc.TaskGroup))
-	return nil
-}
-
-func (m *MockConsulServiceClient) RemoveGroup(alloc *structs.Allocation) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	m.logger.Trace("RemoveGroup", "alloc_id", alloc.ID, "num_services", len(tg.Services))
-	m.ops = append(m.ops, NewMockConsulOp("remove_group", alloc.ID, alloc.TaskGroup))
-	return nil
-}
-
-func (m *MockConsulServiceClient) UpdateTask(old, newSvcs *consul.TaskServices) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.logger.Trace("UpdateTask", "alloc_id", newSvcs.AllocID, "task", newSvcs.Name,
+	m.logger.Trace("UpdateWorkload", "alloc_id", newSvcs.AllocID, "name", newSvcs.Name(),
 		"old_services", len(old.Services), "new_services", len(newSvcs.Services),
 	)
-	m.ops = append(m.ops, NewMockConsulOp("update", newSvcs.AllocID, newSvcs.Name))
+	m.ops = append(m.ops, NewMockConsulOp("update", newSvcs.AllocID, newSvcs.Name()))
 	return nil
 }
 
-func (m *MockConsulServiceClient) RegisterTask(task *consul.TaskServices) error {
+func (m *MockConsulServiceClient) RegisterWorkload(svcs *consul.WorkloadServices) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Trace("RegisterTask", "alloc_id", task.AllocID, "task", task.Name,
-		"services", len(task.Services),
+	m.logger.Trace("RegisterWorkload", "alloc_id", svcs.AllocID, "name", svcs.Name(),
+		"services", len(svcs.Services),
 	)
-	m.ops = append(m.ops, NewMockConsulOp("add", task.AllocID, task.Name))
+	m.ops = append(m.ops, NewMockConsulOp("add", svcs.AllocID, svcs.Name()))
 	return nil
 }
 
-func (m *MockConsulServiceClient) RemoveTask(task *consul.TaskServices) {
+func (m *MockConsulServiceClient) RemoveWorkload(svcs *consul.WorkloadServices) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Trace("RemoveTask", "alloc_id", task.AllocID, "task", task.Name,
-		"services", len(task.Services),
+	m.logger.Trace("RemoveWorkload", "alloc_id", svcs.AllocID, "name", svcs.Name(),
+		"services", len(svcs.Services),
 	)
-	m.ops = append(m.ops, NewMockConsulOp("remove", task.AllocID, task.Name))
+	m.ops = append(m.ops, NewMockConsulOp("remove", svcs.AllocID, svcs.Name()))
 }
 
 func (m *MockConsulServiceClient) AllocRegistrations(allocID string) (*consul.AllocRegistration, error) {

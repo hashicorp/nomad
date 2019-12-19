@@ -64,6 +64,9 @@ func TestConsul_Connect(t *testing.T) {
 		{
 			Name:      "testconnect",
 			PortLabel: "9999",
+			Meta: map[string]string{
+				"alloc_id": "${NOMAD_ALLOC_ID}",
+			},
 			Connect: &structs.ConsulConnect{
 				SidecarService: &structs.ConsulSidecarService{
 					Proxy: &structs.ConsulProxy{
@@ -76,10 +79,10 @@ func TestConsul_Connect(t *testing.T) {
 
 	// required by isNomadSidecar assertion below
 	serviceRegMap := map[string]*api.AgentServiceRegistration{
-		MakeTaskServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0]): nil,
+		MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0]): nil,
 	}
 
-	require.NoError(t, serviceClient.RegisterGroup(alloc))
+	require.NoError(t, serviceClient.RegisterWorkload(BuildAllocServices(mock.Node(), alloc, NoopRestarter())))
 
 	require.Eventually(t, func() bool {
 		services, err := consulClient.Agent().Services()
@@ -94,7 +97,7 @@ func TestConsul_Connect(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, services, 2)
 
-		serviceID := MakeTaskServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0])
+		serviceID := MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0])
 		connectID := serviceID + "-sidecar-proxy"
 
 		require.Contains(t, services, serviceID)
@@ -123,6 +126,7 @@ func TestConsul_Connect(t *testing.T) {
 			"bind_address": "0.0.0.0",
 			"bind_port":    float64(9998),
 		})
+		require.Equal(t, alloc.ID, agentService.Meta["alloc_id"])
 
 		time.Sleep(interval >> 2)
 	}

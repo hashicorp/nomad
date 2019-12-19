@@ -2,6 +2,11 @@ job "prometheus" {
   datacenters = ["dc1", "dc2"]
   type        = "service"
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "monitoring" {
     count = 1
 

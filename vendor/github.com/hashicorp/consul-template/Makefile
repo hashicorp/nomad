@@ -14,11 +14,11 @@ GOTAGS ?=
 GOMAXPROCS ?= 4
 
 # Get the project metadata
-GO_DOCKER_VERSION ?= 1.12
+GO_DOCKER_VERSION ?= 1.13
 PROJECT := $(shell go list -m -mod=vendor)
 OWNER := "hashicorp"
 NAME := $(notdir $(PROJECT))
-GIT_COMMIT ?= $(shell git rev-parse --short HEAD)
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD || echo release)
 VERSION := $(shell awk -F\" '/Version/ { print $$2; exit }' "${CURRENT_DIR}/version/version.go")
 
 # Current system information
@@ -27,8 +27,9 @@ GOARCH ?= $(shell go env GOARCH)
 
 # Default os-arch combination to build
 XC_OS ?= darwin freebsd linux netbsd openbsd solaris windows
-XC_ARCH ?= 386 amd64 arm
-XC_EXCLUDE ?= darwin/arm solaris/386 solaris/arm windows/arm
+XC_ARCH ?= 386 amd64 arm arm64
+# XC_EXCLUDE "arm64" entries excludes both arm and arm64
+XC_EXCLUDE ?= darwin/arm64 freebsd/arm64 netbsd/arm64 openbsd/arm64 solaris/386 solaris/arm64 windows/arm64
 
 # GPG Signing key (blank by default, means no GPG signing)
 GPG_KEY ?=
@@ -52,8 +53,15 @@ define make-xc-target
 		@printf "%s%20s %s\n" "-->" "${1}/${2}:" "${PROJECT} (excluded)"
   else
 		@printf "%s%20s %s\n" "-->" "${1}/${2}:" "${PROJECT}"
+		case "$2" in \
+			arm) export CGO_ENABLED="1" ; \
+				  export GOARM=5 \
+				  export CC="arm-linux-gnueabi-gcc" ;; \
+			arm64) export CGO_ENABLED="1" ; \
+				  export CC="aarch64-linux-gnu-gcc" ;; \
+			*) export CGO_ENABLED="0" ;; \
+		esac ; \
 		env \
-			CGO_ENABLED="0" \
 			GOOS="${1}" \
 			GOARCH="${2}" \
 			go build \
@@ -73,7 +81,16 @@ endef
 $(foreach goarch,$(XC_ARCH),$(foreach goos,$(XC_OS),$(eval $(call make-xc-target,$(goos),$(goarch),$(if $(findstring windows,$(goos)),.exe,)))))
 
 # Use docker to create pristine builds for release
+# First build image w/ arm build requirements, then build all binaries
 pristine:
+	@docker build \
+		--rm \
+		--force-rm \
+		--no-cache \
+		--compress \
+		--file="docker/pristine/Dockerfile" \
+		--build-arg="GOVERSION=${GO_DOCKER_VERSION}" \
+		--tag="pristine-builder" .
 	@docker run \
 		--interactive \
 		--user $$(id -u):$$(id -g) \
@@ -82,9 +99,9 @@ pristine:
 		--volume="${CURRENT_DIR}:/go/src/${PROJECT}" \
 		--volume="${GOPATH}/pkg/mod:/go/pkg/mod" \
 		--workdir="/go/src/${PROJECT}" \
-		--env=CGO_ENABLED="0" \
 		--env=GO111MODULE=on \
-		"golang:${GO_DOCKER_VERSION}" env GOCACHE=/tmp make -j4 build
+		"pristine-builder" \
+		env GOCACHE=/tmp make -j4 build
 
 # dev builds and installs the project locally.
 dev:
@@ -229,3 +246,8 @@ _sign:
 	@echo ""
 	@echo "And then upload the binaries in dist/!"
 .PHONY: _sign
+
+# Add/Update the "Table Of Contents" in the README.md
+toc:
+	@./scripts/readme-toc.sh
+.PHONY: toc

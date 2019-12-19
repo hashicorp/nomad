@@ -15,14 +15,15 @@ import (
 func TestRpc_streamingRpcConn_badEndpoint(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := nomad.TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := nomad.TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s1.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Wait for the client to connect
 	testutil.WaitForResult(func() (bool, error) {
@@ -59,7 +60,7 @@ func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
-	s1 := nomad.TestServer(t, func(c *nomad.Config) {
+	s1, cleanupS1 := nomad.TestServer(t, func(c *nomad.Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 1
 		c.DevDisableBootstrap = true
@@ -72,10 +73,10 @@ func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
 			KeyFile:              fookey,
 		}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Region = "regionFoo"
 		c.Servers = []string{s1.GetConfig().RPCAddr.String()}
 		c.TLSConfig = &sconfig.TLSConfig{
@@ -87,7 +88,7 @@ func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
 			KeyFile:              fookey,
 		}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Wait for the client to connect
 	testutil.WaitForResult(func() (bool, error) {

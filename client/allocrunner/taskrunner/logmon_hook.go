@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -28,6 +29,8 @@ const (
 
 // logmonHook launches logmon and manages task logging
 type logmonHook struct {
+	runner *TaskRunner
+
 	// logmon is the handle to the log monitor process for the task.
 	logmon             logmon.LogMon
 	logmonPluginClient *plugin.Client
@@ -43,9 +46,10 @@ type logmonHookConfig struct {
 	stderrFifo string
 }
 
-func newLogMonHook(cfg *logmonHookConfig, logger hclog.Logger) *logmonHook {
+func newLogMonHook(tr *TaskRunner, logger hclog.Logger) *logmonHook {
 	hook := &logmonHook{
-		config: cfg,
+		runner: tr,
+		config: tr.logmonHookConfig,
 		logger: logger,
 	}
 
@@ -99,6 +103,11 @@ func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig,
 func (h *logmonHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 
+	if h.isLoggingDisabled() {
+		h.logger.Debug("logging is disabled by driver")
+		return nil
+	}
+
 	attempts := 0
 	for {
 		err := h.prestartOneLoop(ctx, req)
@@ -128,6 +137,16 @@ func (h *logmonHook) Prestart(ctx context.Context,
 		resp.State = map[string]string{logmonReattachKey: string(jsonCfg)}
 		return nil
 	}
+}
+
+func (h *logmonHook) isLoggingDisabled() bool {
+	ic, ok := h.runner.driver.(drivers.InternalCapabilitiesDriver)
+	if !ok {
+		return false
+	}
+
+	caps := ic.InternalCapabilities()
+	return caps.DisableLogCollection
 }
 
 func (h *logmonHook) prestartOneLoop(ctx context.Context, req *interfaces.TaskPrestartRequest) error {

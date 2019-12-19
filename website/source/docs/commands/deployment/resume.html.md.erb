@@ -14,12 +14,12 @@ rolling deployment.
 
 ## Usage
 
-```
+```plaintext
 nomad deployment resume [options] <deployment id>
 ```
 
 The `deployment resume` command requires a single argument, a deployment ID or
-prefix. 
+prefix.
 
 ## General Options
 
@@ -27,17 +27,17 @@ prefix.
 
 ## Resume Options
 
-* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+- `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
-  [eval status](/docs/commands/eval-status.html) command
+  [eval status] command
 
-* `-verbose`: Show full information.
+- `-verbose`: Show full information.
 
 ## Examples
 
 Manually resume a deployment:
 
-```
+```shell
 $ nomad deployment resume c848972e
 Deployment "c848972e-dcd3-7354-e0d2-39d86642cdb1" resumed
 
@@ -50,3 +50,5 @@ Deployment "c848972e-dcd3-7354-e0d2-39d86642cdb1" resumed
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "5e266d42" finished with status "complete"
 ```
+
+[eval status]: /docs/commands/eval-status.html

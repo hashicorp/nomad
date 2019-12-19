@@ -655,8 +655,9 @@ func deriveChildJob(parent *structs.Job) *structs.Job {
 
 func TestPeriodicDispatch_RunningChildren_NoEvals(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Insert job.
@@ -678,8 +679,9 @@ func TestPeriodicDispatch_RunningChildren_NoEvals(t *testing.T) {
 
 func TestPeriodicDispatch_RunningChildren_ActiveEvals(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Insert periodic job and child.
@@ -714,8 +716,9 @@ func TestPeriodicDispatch_RunningChildren_ActiveEvals(t *testing.T) {
 
 func TestPeriodicDispatch_RunningChildren_ActiveAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Insert periodic job and child.

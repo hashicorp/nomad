@@ -3,22 +3,22 @@ layout: "docs"
 page_title: "Task Driver Plugins"
 sidebar_current: "docs-internals-plugins-task-drivers"
 description: |-
-  Learn about how to author a Nomad plugin.
+  Learn how to author a Nomad task driver plugin.
 ---
 
 # Task Drivers
 
 Task drivers in Nomad are the runtime components that execute workloads. For
-a real world example of a Nomad task driver plugin implementation see the [LXC
+a real world example of a Nomad task driver plugin implementation, see the [LXC
 driver source][lxcdriver].
 
 ## Authoring Task Driver Plugins
 
 Authoring a task driver (shortened to driver in this documentation) in Nomad
 consists of implementing the [DriverPlugin][driverplugin] interface and adding
-a main package to launch the plugin. A driver plugin is long lived and its
+a main package to launch the plugin. A driver plugin is long-lived and its
 lifetime is not bound to the Nomad client. This means that the Nomad client can
-be restarted without the restarting the driver. Nomad will ensure that one
+be restarted without restarting the driver. Nomad will ensure that one
 instance of the driver is running, meaning if the driver crashes or otherwise
 terminates, Nomad will launch another instance of it.
 
@@ -27,9 +27,13 @@ by the Nomad client on task creation. This enables a pattern where the driver
 can maintain an in-memory state of the running tasks, and if necessary the
 Nomad client can recover tasks into the driver state.
 
+The [driver plugin skeleton project][skeletonProject] exists to help bootstrap
+the development of new driver plugins. It provides most of the boilerplate
+necessary for a driver plugin, along with detailed comments.
+
 ## Task Driver Plugin API
 
-The [base plugin][baseplugin] must be implement in addition to the following
+The [base plugin][baseplugin] must be implemented in addition to the following
 functions.
 
 ### `TaskConfigSchema() (*hclspec.Spec, error)`
@@ -123,7 +127,7 @@ returned by the `StartTask` function. If no error was returned, it is
 expected that the driver can now operate on the task by referencing the task
 ID. If an error occurs, the Nomad client will mark the task as `lost`.
 
-### `WaitTask(ctx context.Context, id string) (<-chan *ExitResult, error)`
+### `WaitTask(context.Context, id string) (<-chan *ExitResult, error)`
 
 The `WaitTask` function is expected to return a channel that will send an
 `*ExitResult` when the task exits or close the channel when the context is
@@ -153,7 +157,7 @@ called.
 The `InspectTask` function returns detailed status information for the
 referenced `taskID`.
 
-### `TaskStats(ctx context.Context, id string, i time.Duration) (<-chan *cstructs.TaskResourceUsage, error)`
+### `TaskStats(context.Context, id string, time.Duration) (<-chan *cstructs.TaskResourceUsage, error)`
 
 The `TaskStats` function returns a channel which the driver should send stats
 to at the given interval. The driver must send stats at the given interval
@@ -188,7 +192,8 @@ inside the running container. `ExecTask` is called for Consul script checks.
 
 
 [lxcdriver]: https://github.com/hashicorp/nomad-driver-lxc
-[DriverPlugin]: https://github.com/hashicorp/nomad/blob/v0.9.0-beta2/plugins/drivers/driver.go#L39-L57
+[DriverPlugin]: https://github.com/hashicorp/nomad/blob/v0.9.0/plugins/drivers/driver.go#L39-L57
+[skeletonProject]: https://github.com/hashicorp/nomad-skeleton-driver-plugin
 [baseplugin]: /docs/internals/plugins/base.html
 [taskconfig]: https://godoc.org/github.com/hashicorp/nomad/plugins/drivers#TaskConfig
 [taskhandle]: https://godoc.org/github.com/hashicorp/nomad/plugins/drivers#TaskHandle

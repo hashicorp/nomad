@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
@@ -22,7 +22,9 @@ func newTestPool(t *testing.T) *ConnPool {
 func TestConnPool_ConnListener(t *testing.T) {
 	require := require.New(t)
 
-	ports := freeport.GetT(t, 1)
+	ports := freeport.MustTake(1)
+	defer freeport.Return(ports)
+
 	addrStr := fmt.Sprintf("127.0.0.1:%d", ports[0])
 	addr, err := net.ResolveTCPAddr("tcp", addrStr)
 	require.Nil(err)

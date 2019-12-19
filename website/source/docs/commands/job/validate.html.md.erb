@@ -7,24 +7,24 @@ description: >
 ---
 
 # Command: job validate
+
 **Alias: `nomad validate`**
 
-The `job validate` command is used to check a [HCL job specification](/docs/job-specification/index.html)
-for any syntax errors or validation problems.
+The `job validate` command is used to check an HCL [job specification] for any
+syntax errors or validation problems.
 
 ## Usage
 
-```
+```plaintext
 nomad job validate <file>
 ```
 
-The `job validate` command requires a single argument, specifying the path to a file
-containing a [HCL job specification](/docs/job-specification/index.html). This file
-will be read and the job checked for any problems. If the
-supplied path is "-", the job file is read from STDIN. Otherwise it is read
-from the file at the supplied path or downloaded and read from URL specified.
-Nomad downloads the job file using [`go-getter`](https://github.com/hashicorp/go-getter)
-and supports `go-getter` syntax.
+The `job validate` command requires a single argument, specifying the path to a
+file containing an HCL [job specification]. This file will be read and the job
+checked for any problems. If the supplied path is "-", the job file is read from
+STDIN. Otherwise it is read from the file at the supplied path or downloaded and
+read from URL specified. Nomad downloads the job file using [`go-getter`] and
+supports `go-getter` syntax.
 
 On successful validation, exit code 0 will be returned, otherwise an exit code
 of 1 indicates an error.
@@ -33,7 +33,7 @@ of 1 indicates an error.
 
 Validate a job with invalid syntax:
 
-```
+```shell
 $ nomad job validate example.nomad
 Job validation errors:
 1 error(s) occurred:
@@ -45,7 +45,7 @@ Job validation errors:
 
 Validate a job that has a configuration that causes warnings:
 
-```
+```shell
 $ nomad job validate example.nomad
 Job Warnings:
 1 warning(s):
@@ -56,3 +56,6 @@ Job Warnings:
 
 Job validation successful
 ```
+
+[`go-getter`]: https://github.com/hashicorp/go-getter
+[job specification]: /docs/job-specification/index.html

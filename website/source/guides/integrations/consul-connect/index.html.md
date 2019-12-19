@@ -8,7 +8,8 @@ description: |-
 
 # Consul Connect
 
-~> **Note** This guide describes a new feature available in [Nomad 0.10.0][download].
+~> **Note:** This guide requires Nomad 0.10.0 or later and Consul 1.6.0 or
+  later.
 
 [Consul Connect](https://www.consul.io/docs/connect/index.html) provides
 service-to-service connection authorization and encryption using mutual
@@ -109,10 +110,31 @@ must have CNI plugins installed.
 The following commands install CNI plugins:
 
 ```sh
-$ curl -L -o cni-plugins.tgz https://github.com/containernetworking/plugins/releases/download/v0.8.1/cni-plugins-linux-amd64-v0.8.1.tgz
+$ curl -L -o cni-plugins.tgz https://github.com/containernetworking/plugins/releases/download/v0.8.3/cni-plugins-linux-amd64-v0.8.3.tgz
 $ sudo mkdir -p /opt/cni/bin
 $ sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
+
+Ensure the your Linux operating system distribution has been configured to allow
+container traffic through the bridge network to be routed via iptables. These
+tunables can be set as follows:
+
+```
+$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-arptables
+$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
+$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
+```
+
+To preserve these settings on startup of a client node, add a file including the
+following to `/etc/sysctl.d/` or remove the file your Linux distribution puts in
+that directory.
+
+```
+net.bridge.bridge-nf-call-arptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+```
+
 
 ## Run the Connect-enabled Services
 
@@ -301,14 +323,19 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 
  - The `consul` binary must be present in Nomad's `$PATH` to run the Envoy
    proxy sidecar on client nodes.
- - Consul Connect Native is not yet supported.
- - Consul Connect HTTP and gRPC checks are not yet supported.
- - Consul ACLs are not yet supported.
- - Only the Docker, exec, raw_exec, and java drivers support network namespaces
+ - Consul Connect Native is not yet supported ([#6083][gh6083]).
+ - Consul Connect HTTP and gRPC checks are not yet supported ([#6120][gh6120]).
+ - Consul ACLs are not yet supported ([#6701][gh6701]).
+ - Only the Docker, `exec`, `raw_exec`, and `java` drivers support network namespaces
    and Connect.
- - Variable interpolation for group services and checks are not yet supported.
+ - Changes to the `connect` stanza may not properly trigger a job update
+   ([#6459][gh6459]). Changing a `meta` variable is the suggested workaround as
+   this will always cause an update to occur.
  - Consul Connect and network namespaces are only supported on Linux.
 
 
 [count-dashboard]: /assets/images/count-dashboard.png
-[download]: https://releases.hashicorp.com/nomad/0.10.0-beta1/
+[gh6083]: https://github.com/hashicorp/nomad/issues/6083
+[gh6120]: https://github.com/hashicorp/nomad/issues/6120
+[gh6701]: https://github.com/hashicorp/nomad/issues/6701
+[gh6459]: https://github.com/hashicorp/nomad/issues/6459

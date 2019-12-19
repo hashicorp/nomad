@@ -111,10 +111,6 @@ func (vc *MockVaultClient) StopRenewToken(token string) error {
 	return nil
 }
 
-func (vc *MockVaultClient) RenewLease(leaseId string, interval int) (<-chan error, error) {
-	return nil, nil
-}
-func (vc *MockVaultClient) StopRenewLease(leaseId string) error                   { return nil }
 func (vc *MockVaultClient) Start()                                                {}
 func (vc *MockVaultClient) Stop()                                                 {}
 func (vc *MockVaultClient) GetConsulACL(string, string) (*vaultapi.Secret, error) { return nil, nil }

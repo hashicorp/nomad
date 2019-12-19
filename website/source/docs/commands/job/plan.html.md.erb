@@ -7,27 +7,25 @@ description: >
 ---
 
 # Command: job plan
+
 **Alias: `nomad plan`**
 
-The `job plan` command can be used to invoke the scheduler in a dry-run mode with
-new jobs or when updating existing jobs to determine what would happen if the
-job is submitted. Job files must conform to the [job
-specification](/docs/job-specification/index.html) format.
+The `job plan` command can be used to invoke the scheduler in a dry-run mode
+with new jobs or when updating existing jobs to determine what would happen if
+the job is submitted. Job files must conform to the [job specification] format.
 
 ## Usage
 
-```
+```plaintext
 nomad job plan [options] <path>
 ```
 
 The `job plan` command requires a single argument, specifying the path to a file
-containing a [HCL job specification](/docs/job-specification/index.html). This
-file will be read and the resulting parsed job will be validated. If the
-supplied path is "-", the job file is read from STDIN. Otherwise it is read
-from the file at the supplied path or downloaded and read from URL specified.
-Nomad downloads the job file using
-[`go-getter`](https://github.com/hashicorp/go-getter)
-and supports `go-getter` syntax.
+containing an HCL [job specification]. This file will be read and the resulting
+parsed job will be validated. If the supplied path is "-", the job file is read
+from STDIN. Otherwise it is read from the file at the supplied path or
+downloaded and read from URL specified. Nomad downloads the job file using
+[`go-getter`] and supports `go-getter` syntax.
 
 Plan invokes a dry-run of the scheduler to determine the effects of submitting
 either a new or updated version of a job. The plan will not result in any
@@ -35,9 +33,8 @@ changes to the cluster but gives insight into whether the job could be run
 successfully and how it would affect existing allocations.
 
 A job modify index is returned with the plan. This value can be used when
-submitting the job using [`nomad job run
--check-index`](/docs/commands/job/run.html#check-index), which will check that the
-job was not modified between the plan and run command before invoking the
+submitting the job using [`nomad job run -check-index`], which will check that
+the job was not modified between the plan and run command before invoking the
 scheduler. This ensures the job has not been modified since the plan.
 
 A structured diff between the local and remote job is displayed to
@@ -48,9 +45,9 @@ environment variable are overridden and the job's region is used.
 
 Plan will return one of the following exit codes:
 
-  * 0: No allocations created or destroyed.
-  * 1: Allocations created or destroyed.
-  * 255: Error determining plan results.
+- 0: No allocations created or destroyed.
+- 1: Allocations created or destroyed.
+- 255: Error determining plan results.
 
 ## General Options
 
@@ -58,18 +55,19 @@ Plan will return one of the following exit codes:
 
 ## Plan Options
 
-* `-diff`: Determines whether the diff between the remote job and planned job is
+- `-diff`: Determines whether the diff between the remote job and planned job is
   shown. Defaults to true.
 
-* `-policy-override`: Sets the flag to force override any soft mandatory Sentinel policies.
+- `-policy-override`: Sets the flag to force override any soft mandatory
+  Sentinel policies.
 
-* `-verbose`: Increase diff verbosity.
+- `-verbose`: Increase diff verbosity.
 
 ## Examples
 
 Plan a new job that has not been previously submitted:
 
-```
+```shell
 $ nomad job plan job1.nomad
 nomad job plan example.nomad
 + Job: "example"
@@ -90,10 +88,9 @@ changed, another user has modified the job and the plan's results are
 potentially invalid.
 ```
 
-
 Increase the count of an existing without sufficient cluster capacity:
 
-```
+```shell
 $ nomad job plan example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (7 create, 1 in-place update)
@@ -119,7 +116,7 @@ potentially invalid.
 
 Update an existing job such that it would cause a rolling update:
 
-```
+```shell
 $ nomad job plan example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (3 create/destroy update)
@@ -146,7 +143,7 @@ potentially invalid.
 
 Add a task to the task group using verbose mode:
 
-```
+```shell
 $ nomad job plan -verbose example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (3 create/destroy update)
@@ -201,3 +198,8 @@ server side version matches the job modify index returned. If the index has
 changed, another user has modified the job and the plan's results are
 potentially invalid.
 ```
+
+[job specification]: /docs/job-specification/index.html
+[HCL job specification]: /docs/job-specification/index.html
+[`go-getter`]: https://github.com/hashicorp/go-getter
+[`nomad job run -check-index`] :/docs/commands/job/run.html#check-index

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/freeport"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -51,7 +52,8 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	testutil.DockerCompatible(t)
 	require := require.New(t)
 
-	task, cfg, _ := dockerTask(t)
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
 	cfg.PidsLimit = 1
 	cfg.Command = "/bin/sh"
 	cfg.Args = []string{"-c", "sleep 2 & sleep 2"}

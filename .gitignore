@@ -28,8 +28,8 @@ _testmain.go
 *.test
 *.prof
 
-tags
-bin/
+/tags
+/bin/
 /pkg/
 .vagrant/
 website/build/

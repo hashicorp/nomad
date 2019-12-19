@@ -138,10 +138,10 @@ An example token role definition is given below:
 ```json
 {
   "disallowed_policies": "nomad-server",
-  "explicit_max_ttl": 0,
+  "token_explicit_max_ttl": 0,
   "name": "nomad-cluster",
   "orphan": true,
-  "period": 259200,
+  "token_period": 259200,
   "renewable": true
 }
 ```
@@ -171,7 +171,7 @@ documentation for all possible fields and more complete documentation.
      Nomad. This was remedied in 0.6.5 and does not effect earlier versions
      of Vault.
 
-* `explicit_max_ttl` - Specifies the max TTL of a token. **Must be set to `0`** to
+* `token_explicit_max_ttl` - Specifies the max TTL of a token. **Must be set to `0`** to
   allow periodic tokens.
 
 * `name` - Specifies the name of the policy. We recommend using the name
@@ -196,7 +196,7 @@ documentation for all possible fields and more complete documentation.
   making bootstrapping and upgrading simpler. As such, **setting `orphan = true`
   is the recommended setting**.
 
-* `period` - Specifies the length the TTL is extended by each renewal in
+* `token_period` - Specifies the length the TTL is extended by each renewal in
   seconds. It is suggested to set this value on the order of magnitude of 3 days
   (259200 seconds) to avoid a large renewal request rate to Vault. **Must be set
   to a positive value**.

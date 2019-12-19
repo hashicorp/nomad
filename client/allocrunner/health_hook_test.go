@@ -243,7 +243,7 @@ func TestHealthHook_SetHealth(t *testing.T) {
 		Name:   task.Services[0].Checks[0].Name,
 		Status: consulapi.HealthPassing,
 	}
-	taskRegs := map[string]*agentconsul.TaskRegistration{
+	taskRegs := map[string]*agentconsul.ServiceRegistrations{
 		task.Name: {
 			Services: map[string]*agentconsul.ServiceRegistration{
 				task.Services[0].Name: {

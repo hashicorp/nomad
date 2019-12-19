@@ -22,6 +22,7 @@ import (
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -999,6 +1000,39 @@ func (ar *allocRunner) RestartTask(taskName string, taskEvent *structs.TaskEvent
 	}
 
 	return tr.Restart(context.TODO(), taskEvent, false)
+}
+
+// Restart satisfies the WorkloadRestarter interface restarts all task runners
+// concurrently
+func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
+	waitCh := make(chan struct{})
+	var err *multierror.Error
+	var errMutex sync.Mutex
+
+	go func() {
+		var wg sync.WaitGroup
+		defer close(waitCh)
+		for tn, tr := range ar.tasks {
+			wg.Add(1)
+			go func(taskName string, r agentconsul.WorkloadRestarter) {
+				defer wg.Done()
+				e := r.Restart(ctx, event, failure)
+				if e != nil {
+					errMutex.Lock()
+					defer errMutex.Unlock()
+					err = multierror.Append(err, fmt.Errorf("failed to restart task %s: %v", taskName, e))
+				}
+			}(tn, tr)
+		}
+		wg.Wait()
+	}()
+
+	select {
+	case <-waitCh:
+	case <-ctx.Done():
+	}
+
+	return err.ErrorOrNil()
 }
 
 // RestartAll signalls all task runners in the allocation to restart and passes

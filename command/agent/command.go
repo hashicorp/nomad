@@ -29,6 +29,7 @@ import (
 	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/helper/logging"
+	"github.com/hashicorp/nomad/helper/winsvc"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
@@ -278,14 +279,14 @@ func (c *Command) readConfig() *Config {
 		config.PluginDir = filepath.Join(config.DataDir, "plugins")
 	}
 
-	if !c.isValidConfig(config) {
+	if !c.isValidConfig(config, cmdConfig) {
 		return nil
 	}
 
 	return config
 }
 
-func (c *Command) isValidConfig(config *Config) bool {
+func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
@@ -361,19 +362,20 @@ func (c *Command) isValidConfig(config *Config) bool {
 	}
 
 	// Check the bootstrap flags
-	if config.Server.BootstrapExpect > 0 && !config.Server.Enabled {
+	if !config.Server.Enabled && cmdConfig.Server.BootstrapExpect > 0 {
+		// report an error if BootstrapExpect is set in CLI but server is disabled
 		c.Ui.Error("Bootstrap requires server mode to be enabled")
 		return false
 	}
-	if config.Server.BootstrapExpect == 1 {
+	if config.Server.Enabled && config.Server.BootstrapExpect == 1 {
 		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
 	}
 
 	return true
 }
 
-// setupLoggers is used to setup the logGate, logWriter, and our logOutput
-func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter, io.Writer) {
+// setupLoggers is used to setup the logGate, and our logOutput
+func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) {
 	// Setup logging. First create the gated log writer, which will
 	// store logs until we're ready to show them. Then create the level
 	// filter, filtering logs of the specified level.
@@ -388,19 +390,18 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter,
 		c.Ui.Error(fmt.Sprintf(
 			"Invalid log level: %s. Valid log levels are: %v",
 			c.logFilter.MinLevel, c.logFilter.Levels))
-		return nil, nil, nil
+		return nil, nil
 	}
 
 	// Create a log writer, and wrap a logOutput around it
-	logWriter := NewLogWriter(512)
-	writers := []io.Writer{c.logFilter, logWriter}
+	writers := []io.Writer{c.logFilter}
 
 	// Check if syslog is enabled
 	if config.EnableSyslog {
 		l, err := gsyslog.NewLogger(gsyslog.LOG_NOTICE, config.SyslogFacility, "nomad")
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
-			return nil, nil, nil
+			return nil, nil
 		}
 		writers = append(writers, &SyslogWrapper{l, c.logFilter})
 	}
@@ -420,7 +421,7 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter,
 			duration, err := time.ParseDuration(config.LogRotateDuration)
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
-				return nil, nil, nil
+				return nil, nil
 			}
 			logRotateDuration = duration
 		} else {
@@ -442,11 +443,11 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter,
 
 	c.logOutput = io.MultiWriter(writers...)
 	log.SetOutput(c.logOutput)
-	return logGate, logWriter, c.logOutput
+	return logGate, c.logOutput
 }
 
 // setupAgent is used to start the agent and various interfaces
-func (c *Command) setupAgent(config *Config, logger hclog.Logger, logOutput io.Writer, inmem *metrics.InmemSink) error {
+func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOutput io.Writer, inmem *metrics.InmemSink) error {
 	c.Ui.Output("Starting Nomad agent...")
 	agent, err := NewAgent(config, logger, logOutput, inmem)
 	if err != nil {
@@ -595,13 +596,13 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Setup the log outputs
-	logGate, _, logOutput := c.setupLoggers(config)
+	logGate, logOutput := c.setupLoggers(config)
 	if logGate == nil {
 		return 1
 	}
 
 	// Create logger
-	logger := hclog.New(&hclog.LoggerOptions{
+	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
 		Name:       "agent",
 		Level:      hclog.LevelFromString(config.LogLevel),
 		Output:     logOutput,
@@ -777,6 +778,8 @@ WAIT:
 	select {
 	case s := <-signalCh:
 		sig = s
+	case <-winsvc.ShutdownChannel():
+		sig = os.Interrupt
 	case <-c.ShutdownCh:
 		sig = os.Interrupt
 	case <-c.retryJoinErrCh:

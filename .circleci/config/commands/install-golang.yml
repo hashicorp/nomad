@@ -1,0 +1,10 @@
+steps:
+  - run:
+      name: install golang
+      command: |
+        set -x
+        echo installing golang ${GOLANG_VERSION}
+        sudo rm -rf /usr/local/go
+        wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+        sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+        rm -rf /tmp/golang.tar.gz

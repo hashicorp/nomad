@@ -230,14 +230,16 @@ func funcMap(i *funcMapInput) template.FuncMap {
 		"key":          keyFunc(i.brain, i.used, i.missing),
 		"keyExists":    keyExistsFunc(i.brain, i.used, i.missing),
 		"keyOrDefault": keyWithDefaultFunc(i.brain, i.used, i.missing),
-		"ls":           lsFunc(i.brain, i.used, i.missing),
+		"ls":           lsFunc(i.brain, i.used, i.missing, true),
+		"safeLs":       safeLsFunc(i.brain, i.used, i.missing),
 		"node":         nodeFunc(i.brain, i.used, i.missing),
 		"nodes":        nodesFunc(i.brain, i.used, i.missing),
 		"secret":       secretFunc(i.brain, i.used, i.missing),
 		"secrets":      secretsFunc(i.brain, i.used, i.missing),
 		"service":      serviceFunc(i.brain, i.used, i.missing),
 		"services":     servicesFunc(i.brain, i.used, i.missing),
-		"tree":         treeFunc(i.brain, i.used, i.missing),
+		"tree":         treeFunc(i.brain, i.used, i.missing, true),
+		"safeTree":     safeTreeFunc(i.brain, i.used, i.missing),
 
 		// Scratch
 		"scratch": func() *Scratch { return &scratch },
@@ -257,6 +259,7 @@ func funcMap(i *funcMapInput) template.FuncMap {
 		"env":             envFunc(i.env),
 		"executeTemplate": executeTemplateFunc(i.t),
 		"explode":         explode,
+		"explodeMap":      explodeMap,
 		"in":              in,
 		"indent":          indent,
 		"loop":            loop,
@@ -280,7 +283,8 @@ func funcMap(i *funcMapInput) template.FuncMap {
 		"toUpper":         toUpper,
 		"toYAML":          toYAML,
 		"split":           split,
-
+		"byMeta":          byMeta,
+		"sockaddr":        sockaddr,
 		// Math functions
 		"add":      add,
 		"subtract": subtract,

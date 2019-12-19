@@ -554,7 +554,7 @@ to send out notifications to a [receiver][receivers] of your choice.
 [consul_sd_config]: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cconsul_sd_config%3E
 [env]: /docs/runtime/environment.html
 [fabio]: https://fabiolb.net/
-[fabio-lb]: /guides/load-balancing/fabio.html
+[fabio-lb]: https://learn.hashicorp.com/guides/load-balancing/fabio
 [new-targets]: /assets/images/new-targets.png
 [prometheus-targets]: /assets/images/prometheus-targets.png
 [running-jobs]: /assets/images/running-jobs.png

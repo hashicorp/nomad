@@ -238,7 +238,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 			require.Contains(out, fmt.Sprintf("Alloc %q draining", a.ID))
 		}
 
-		expected := fmt.Sprintf("All allocations on node %q have stopped.\n", nodeID)
+		expected := fmt.Sprintf("All allocations on node %q have stopped\n", nodeID)
 		if !strings.HasSuffix(out, expected) {
 			t.Fatalf("expected output to end with:\n%s", expected)
 		}

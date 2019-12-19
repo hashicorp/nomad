@@ -4,7 +4,11 @@ package rawexec
 
 import (
 	"context"
+	"os"
+	"regexp"
 	"runtime"
+	"strconv"
+	"syscall"
 	"testing"
 
 	"fmt"
@@ -194,6 +198,111 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 	})
 
 	require.NoError(harness.DestroyTask(task.ID, true))
+}
+
+// TestRawExecDriver_DestroyKillsAll asserts that when TaskDestroy is called all
+// task processes are cleaned up.
+func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
+	t.Parallel()
+
+	// This only works reliably with cgroup PID tracking, happens in linux only
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux only test")
+	}
+
+	require := require.New(t)
+
+	d := newEnabledRawExecDriver(t)
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	task := &drivers.TaskConfig{
+		ID:   uuid.Generate(),
+		Name: "test",
+	}
+
+	cleanup := harness.MkAllocDir(task, true)
+	defer cleanup()
+
+	taskConfig := map[string]interface{}{}
+	taskConfig["command"] = "/bin/sh"
+	taskConfig["args"] = []string{"-c", fmt.Sprintf(`sleep 3600 & echo "SLEEP_PID=$!"`)}
+
+	require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
+
+	handle, _, err := harness.StartTask(task)
+	require.NoError(err)
+	defer harness.DestroyTask(task.ID, true)
+
+	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	require.NoError(err)
+
+	select {
+	case result := <-ch:
+		require.True(result.Successful(), "command failed: %#v", result)
+	case <-time.After(10 * time.Second):
+		require.Fail("timeout waiting for task to shutdown")
+	}
+
+	sleepPid := 0
+
+	// Ensure that the task is marked as dead, but account
+	// for WaitTask() closing channel before internal state is updated
+	testutil.WaitForResult(func() (bool, error) {
+		stdout, err := ioutil.ReadFile(filepath.Join(task.TaskDir().LogDir, "test.stdout.0"))
+		if err != nil {
+			return false, fmt.Errorf("failed to output pid file: %v", err)
+		}
+
+		pidMatch := regexp.MustCompile(`SLEEP_PID=(\d+)`).FindStringSubmatch(string(stdout))
+		if len(pidMatch) != 2 {
+			return false, fmt.Errorf("failed to find pid in %s", string(stdout))
+		}
+
+		pid, err := strconv.Atoi(pidMatch[1])
+		if err != nil {
+			return false, fmt.Errorf("pid parts aren't int: %s", pidMatch[1])
+		}
+
+		sleepPid = pid
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+
+	// isProcessRunning returns an error if process is not running
+	isProcessRunning := func(pid int) error {
+		process, err := os.FindProcess(pid)
+		if err != nil {
+			return fmt.Errorf("failed to find process: %s", err)
+		}
+
+		err = process.Signal(syscall.Signal(0))
+		if err != nil {
+			return fmt.Errorf("failed to signal process: %s", err)
+		}
+
+		return nil
+	}
+
+	require.NoError(isProcessRunning(sleepPid))
+
+	require.NoError(harness.DestroyTask(task.ID, true))
+
+	testutil.WaitForResult(func() (bool, error) {
+		err := isProcessRunning(sleepPid)
+		if err == nil {
+			return false, fmt.Errorf("child process is still running")
+		}
+
+		if !strings.Contains(err.Error(), "failed to signal process") {
+			return false, fmt.Errorf("unexpected error: %v", err)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
 }
 
 func TestRawExec_ExecTaskStreaming(t *testing.T) {

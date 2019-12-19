@@ -18,7 +18,13 @@ import (
 	"github.com/gophercloud/gophercloud/pagination"
 )
 
-type Provider struct{}
+type Provider struct {
+	userAgent string
+}
+
+func (p *Provider) SetUserAgent(s string) {
+	p.userAgent = s
+}
 
 func (p *Provider) Help() string {
 	return `Openstack:
@@ -65,6 +71,10 @@ func (p *Provider) Addrs(args map[string]string, l *log.Logger) ([]string, error
 	client, err := newClient(args, l)
 	if err != nil {
 		return nil, err
+	}
+
+	if p.userAgent != "" {
+		client.UserAgent.Prepend(p.userAgent)
 	}
 
 	pager := servers.List(client, ListOpts{ListOpts: servers.ListOpts{Status: "ACTIVE"}, ProjectID: projectID})
@@ -118,16 +128,16 @@ func newClient(args map[string]string, l *log.Logger) (*gophercloud.ServiceClien
 	}
 	projectID := argsOrEnv(args, "project_id", "OS_PROJECT_ID")
 	insecure := argsOrEnv(args, "insecure", "OS_INSECURE")
+	domain_id := argsOrEnv(args, "domain_id", "OS_DOMAIN_ID")
+	domain_name := argsOrEnv(args, "domain_name", "OS_DOMAIN_NAME")
 
 	if url == "" {
 		return nil, fmt.Errorf("discover-os: Auth url must be provided")
 	}
 
 	ao := gophercloud.AuthOptions{
-		// "domain_id": OS_DOMAIN_ID
-		DomainID: "",
-		// "domain_name": OS_DOMAIN_NAME
-		DomainName:       "",
+		DomainID:         domain_id,
+		DomainName:       domain_name,
 		IdentityEndpoint: url,
 		Username:         username,
 		Password:         password,

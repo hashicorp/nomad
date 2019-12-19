@@ -5,6 +5,7 @@ const (
 	ConstraintDistinctHosts     = "distinct_hosts"
 	ConstraintRegex             = "regexp"
 	ConstraintVersion           = "version"
+	ConstraintSemver            = "semver"
 	ConstraintSetContains       = "set_contains"
 	ConstraintSetContainsAll    = "set_contains_all"
 	ConstraintSetContainsAny    = "set_contains_any"

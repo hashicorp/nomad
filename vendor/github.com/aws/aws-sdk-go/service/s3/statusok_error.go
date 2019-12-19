@@ -5,20 +5,24 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/internal/sdkio"
 )
 
 func copyMultipartStatusOKUnmarhsalError(r *request.Request) {
 	b, err := ioutil.ReadAll(r.HTTPResponse.Body)
 	if err != nil {
-		r.Error = awserr.New("SerializationError", "unable to read response body", err)
+		r.Error = awserr.NewRequestFailure(
+			awserr.New(request.ErrCodeSerialization, "unable to read response body", err),
+			r.HTTPResponse.StatusCode,
+			r.RequestID,
+		)
 		return
 	}
 	body := bytes.NewReader(b)
-	r.HTTPResponse.Body = aws.ReadSeekCloser(body)
-	defer r.HTTPResponse.Body.(aws.ReaderSeekerCloser).Seek(0, 0)
+	r.HTTPResponse.Body = ioutil.NopCloser(body)
+	defer body.Seek(0, sdkio.SeekStart)
 
 	if body.Len() == 0 {
 		// If there is no body don't attempt to parse the body.
@@ -27,7 +31,7 @@ func copyMultipartStatusOKUnmarhsalError(r *request.Request) {
 
 	unmarshalError(r)
 	if err, ok := r.Error.(awserr.Error); ok && err != nil {
-		if err.Code() == "SerializationError" {
+		if err.Code() == request.ErrCodeSerialization {
 			r.Error = nil
 			return
 		}

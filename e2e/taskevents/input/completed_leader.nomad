@@ -2,6 +2,11 @@ job "completed_leader" {
   type        = "batch"
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "completed_leader" {
     restart {
       attempts = 0

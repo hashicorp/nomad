@@ -35,7 +35,7 @@ template.
 
 Generate an example job file:
 
-```plaintext
+```shell
 $ nomad job init
 Example job file written to example.nomad
 ```

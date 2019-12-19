@@ -1,9 +1,7 @@
 package command
 
 import (
-	"bufio"
 	"flag"
-	"io"
 	"os"
 	"strings"
 
@@ -50,11 +48,12 @@ type Meta struct {
 	// token is used for ACLs to access privileged information
 	token string
 
-	caCert     string
-	caPath     string
-	clientCert string
-	clientKey  string
-	insecure   bool
+	caCert        string
+	caPath        string
+	clientCert    string
+	clientKey     string
+	tlsServerName string
+	insecure      bool
 }
 
 // FlagSet returns a FlagSet with the common flags that every
@@ -76,23 +75,13 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVar(&m.clientCert, "client-cert", "", "")
 		f.StringVar(&m.clientKey, "client-key", "", "")
 		f.BoolVar(&m.insecure, "insecure", false, "")
+		f.StringVar(&m.tlsServerName, "tls-server-name", "", "")
 		f.BoolVar(&m.insecure, "tls-skip-verify", false, "")
 		f.StringVar(&m.token, "token", "", "")
 
 	}
 
-	// Create an io.Writer that writes to our UI properly for errors.
-	// This is kind of a hack, but it does the job. Basically: create
-	// a pipe, use a scanner to break it into lines, and output each line
-	// to the UI. Do this forever.
-	errR, errW := io.Pipe()
-	errScanner := bufio.NewScanner(errR)
-	go func() {
-		for errScanner.Scan() {
-			m.Ui.Error(errScanner.Text())
-		}
-	}()
-	f.SetOutput(errW)
+	f.SetOutput(&uiErrorWriter{ui: m.Ui})
 
 	return f
 }
@@ -113,6 +102,7 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 		"-client-cert":     complete.PredictFiles("*"),
 		"-client-key":      complete.PredictFiles("*"),
 		"-insecure":        complete.PredictNothing,
+		"-tls-server-name": complete.PredictNothing,
 		"-tls-skip-verify": complete.PredictNothing,
 		"-token":           complete.PredictAnything,
 	}
@@ -136,13 +126,14 @@ func (m *Meta) Client() (*api.Client, error) {
 	}
 
 	// If we need custom TLS configuration, then set it
-	if m.caCert != "" || m.caPath != "" || m.clientCert != "" || m.clientKey != "" || m.insecure {
+	if m.caCert != "" || m.caPath != "" || m.clientCert != "" || m.clientKey != "" || m.tlsServerName != "" || m.insecure {
 		t := &api.TLSConfig{
-			CACert:     m.caCert,
-			CAPath:     m.caPath,
-			ClientCert: m.clientCert,
-			ClientKey:  m.clientKey,
-			Insecure:   m.insecure,
+			CACert:        m.caCert,
+			CAPath:        m.caPath,
+			ClientCert:    m.clientCert,
+			ClientKey:     m.clientKey,
+			TLSServerName: m.tlsServerName,
+			Insecure:      m.insecure,
 		}
 		config.TLSConfig = t
 	}
@@ -204,6 +195,10 @@ func generalOptionsUsage() string {
     Path to an unencrypted PEM encoded private key matching the
     client certificate from -client-cert. Overrides the
     NOMAD_CLIENT_KEY environment variable if set.
+	
+  -tls-server-name=<value>
+    The server name to use as the SNI host when connecting via 
+    TLS. Overrides the NOMAD_TLS_SERVER_NAME environment variable if set.
 
   -tls-skip-verify
     Do not verify TLS certificate. This is highly not recommended. Verification

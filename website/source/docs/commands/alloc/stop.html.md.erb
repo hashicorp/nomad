@@ -13,7 +13,7 @@ entire allocation or individual task.
 
 ## Usage
 
-```
+```plaintext
 nomad alloc stop [options] <allocation>
 ```
 
@@ -32,16 +32,16 @@ down. It is safe to exit the monitor early with ctrl-c.
 
 ## Stop Options
 
-* `-detach`: Return immediately instead of entering monitor mode. After the
+- `-detach`: Return immediately instead of entering monitor mode. After the
     stop command is submitted, a new evaluation ID is printed to the
     screen, which can be used to examine the rescheduling evaluation using the
-    [eval status](/docs/commands/eval-status.html) command.
+    [eval status] command.
 
-* `-verbose`: Display verbose output.
+- `-verbose`: Display verbose output.
 
 ## Examples
 
-```
+```shell
 $ nomad alloc stop c1488bb5
 ==> Monitoring evaluation "26172081"
     Evaluation triggered by job "example"
@@ -54,3 +54,4 @@ $ nomad alloc stop -detach eb17e557
 8a91f0f3-9d6b-ac83-479a-5aa186ab7795
 ```
 
+[eval status]: /docs/commands/eval-status.html

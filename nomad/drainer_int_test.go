@@ -122,8 +122,9 @@ func getNodeAllocsImpl(nodeID string) func(ws memdb.WatchSet, state *state.State
 func TestDrainer_Simple_ServiceOnly(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -225,8 +226,9 @@ func TestDrainer_Simple_ServiceOnly(t *testing.T) {
 func TestDrainer_Simple_ServiceOnly_Deadline(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -320,8 +322,9 @@ func TestDrainer_Simple_ServiceOnly_Deadline(t *testing.T) {
 func TestDrainer_DrainEmptyNode(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -369,8 +372,9 @@ func TestDrainer_DrainEmptyNode(t *testing.T) {
 func TestDrainer_AllTypes_Deadline(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -534,8 +538,9 @@ func TestDrainer_AllTypes_Deadline(t *testing.T) {
 func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -698,8 +703,9 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -878,8 +884,8 @@ func TestDrainer_Batch_TransitionToForce(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			require := require.New(t)
-			s1 := TestServer(t, nil)
-			defer s1.Shutdown()
+			s1, cleanupS1 := TestServer(t, nil)
+			defer cleanupS1()
 			codec := rpcClient(t, s1)
 			testutil.WaitForLeader(t, s1.RPC)
 

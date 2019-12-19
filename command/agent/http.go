@@ -41,9 +41,10 @@ var (
 
 	// allowCORS sets permissive CORS headers for a handler
 	allowCORS = cors.New(cors.Options{
-		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"HEAD", "GET"},
-		AllowedHeaders: []string{"*"},
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"HEAD", "GET"},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
 	})
 )
 
@@ -183,6 +184,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/servers", s.wrap(s.AgentServersRequest))
 	s.mux.HandleFunc("/v1/agent/keyring/", s.wrap(s.KeyringOperationRequest))
 	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
+	s.mux.HandleFunc("/v1/agent/monitor", s.wrap(s.AgentMonitor))
 
 	s.mux.HandleFunc("/v1/metrics", s.wrap(s.MetricsRequest))
 
@@ -212,7 +214,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 			w.Write([]byte(stubHTML))
 		})
 	}
-	s.mux.Handle("/", handleRootRedirect())
+	s.mux.Handle("/", handleRootFallthrough())
 
 	if enableDebug {
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -274,10 +276,13 @@ func handleUI(h http.Handler) http.Handler {
 	})
 }
 
-func handleRootRedirect() http.Handler {
+func handleRootFallthrough() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		http.Redirect(w, req, "/ui/", 307)
-		return
+		if req.URL.Path == "/" {
+			http.Redirect(w, req, "/ui/", 307)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
 	})
 }
 
@@ -300,6 +305,9 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 			errMsg := err.Error()
 			if http, ok := err.(HTTPCodedError); ok {
 				code = http.Code()
+			} else if ecode, emsg, ok := structs.CodeFromRPCCodedErr(err); ok {
+				code = ecode
+				errMsg = emsg
 			} else {
 				// RPC errors get wrapped, so manually unwrap by only looking at their suffix
 				if strings.HasSuffix(errMsg, structs.ErrPermissionDenied.Error()) {

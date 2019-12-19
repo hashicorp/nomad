@@ -3,7 +3,8 @@ layout: "docs"
 page_title: "Commands: server join"
 sidebar_current: "docs-commands-server-join"
 description: >
-  The server join command is used to join the local server to one or more Nomad servers.
+  The server join command is used to join the local server to one or more Nomad
+  servers.
 ---
 
 # Command: server join
@@ -15,7 +16,7 @@ handle discovery of the other server nodes in the cluster.
 
 ## Usage
 
-```
+```plaintext
 nomad server join [options] <addr> [<addr>...]
 ```
 
@@ -32,7 +33,7 @@ be 1.
 
 Join the local server to a remote server:
 
-```
+```shell
 $ nomad server join 10.0.0.8:4648
 Joined 1 servers successfully
 ```

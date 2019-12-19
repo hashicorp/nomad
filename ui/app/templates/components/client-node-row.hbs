@@ -7,15 +7,9 @@
 </td>
 <td data-test-client-id>{{#link-to "clients.client" node.id class="is-primary"}}{{node.shortId}}{{/link-to}}</td>
 <td data-test-client-name class="is-200px is-truncatable" title="{{node.name}}">{{node.name}}</td>
-<td data-test-client-state>
+<td data-test-client-composite-status>
   <span class="tooltip" aria-label="{{node.status}} / {{if node.isDraining "draining" "not draining"}} / {{if node.isEligible "eligible" "not eligible"}}">
-    {{#if node.isDraining}}
-      <span class="status-text is-info">draining</span>
-    {{else if (not node.isEligible)}}
-      <span class="status-text is-warning">ineligible</span>
-    {{else}}
-      {{node.status}}
-    {{/if}}
+    <span class="{{compositeStatusClass}}">{{node.compositeStatus}}</span>
   </span>
 </td>
 <td data-test-client-address>{{node.httpAddr}}</td>

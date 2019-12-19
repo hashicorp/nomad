@@ -9,13 +9,13 @@ description: |-
 
 # Load Balancing
 
-There are multiple approaches to set up load balancing across a Nomad cluster.
+These guides have been migrated to [HashiCorp's Learn website].
 
-Most of these methods assume Consul is installed alongside Nomad (see [Load
-Balancing Strategies for
-Consul](https://www.hashicorp.com/blog/load-balancing-strategies-for-consul)).
+You can follow these links to find the specific guides on Learn:
 
-- [Fabio](/guides/load-balancing/fabio.html)
+- [Fabio](https://learn.hashicorp.com/nomad/load-balancing/fabio)
+- [NGINX](https://learn.hashicorp.com/nomad/load-balancing/nginx)
+- [HAProxy](https://learn.hashicorp.com/nomad/load-balancing/haproxy)
+- [Traefik](https://learn.hashicorp.com/nomad/load-balancing/traefik)
 
-Please refer to the specific documentation above or in the sidebar for more
-detailed information about each strategy.
+[HashiCorp's Learn website]: https://learn.hashicorp.com/nomad?track=load-balancing#load-balancing

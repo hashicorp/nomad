@@ -708,6 +708,8 @@ func TestCheckLexicalOrder(t *testing.T) {
 }
 
 func TestCheckVersionConstraint(t *testing.T) {
+	t.Parallel()
+
 	type tcase struct {
 		lVal, rVal interface{}
 		result     bool
@@ -733,12 +735,90 @@ func TestCheckVersionConstraint(t *testing.T) {
 			lVal: 1, rVal: "~> 1.0",
 			result: true,
 		},
+		{
+			// Prereleases are never > final releases
+			lVal: "1.3.0-beta1", rVal: ">= 0.6.1",
+			result: false,
+		},
+		{
+			// Prerelease X.Y.Z must match
+			lVal: "1.7.0-alpha1", rVal: ">= 1.6.0-beta1",
+			result: false,
+		},
+		{
+			// Meta is ignored
+			lVal: "1.3.0-beta1+ent", rVal: "= 1.3.0-beta1",
+			result: true,
+		},
 	}
 	for _, tc := range cases {
 		_, ctx := testContext(t)
-		if res := checkVersionMatch(ctx, tc.lVal, tc.rVal); res != tc.result {
+		p := newVersionConstraintParser(ctx)
+		if res := checkVersionMatch(ctx, p, tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
+	}
+}
+
+func TestCheckSemverConstraint(t *testing.T) {
+	t.Parallel()
+
+	type tcase struct {
+		name       string
+		lVal, rVal interface{}
+		result     bool
+	}
+	cases := []tcase{
+		{
+			name: "Pessimistic operator always fails 1",
+			lVal: "1.2.3", rVal: "~> 1.0",
+			result: false,
+		},
+		{
+			name: "1.2.3 does satisfy >= 1.0, < 1.4",
+			lVal: "1.2.3", rVal: ">= 1.0, < 1.4",
+			result: true,
+		},
+		{
+			name: "Pessimistic operator always fails 2",
+			lVal: "2.0.1", rVal: "~> 1.0",
+			result: false,
+		},
+		{
+			name: "1.4 does not satisfy >= 1.0, < 1.4",
+			lVal: "1.4", rVal: ">= 1.0, < 1.4",
+			result: false,
+		},
+		{
+			name: "Pessimistic operator always fails 3",
+			lVal: 1, rVal: "~> 1.0",
+			result: false,
+		},
+		{
+			name: "Prereleases are handled according to semver 1",
+			lVal: "1.3.0-beta1", rVal: ">= 0.6.1",
+			result: true,
+		},
+		{
+			name: "Prereleases are handled according to semver 2",
+			lVal: "1.7.0-alpha1", rVal: ">= 1.6.0-beta1",
+			result: true,
+		},
+		{
+			name: "Meta is ignored according to semver",
+			lVal: "1.3.0-beta1+ent", rVal: "= 1.3.0-beta1",
+			result: true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			_, ctx := testContext(t)
+			p := newSemverConstraintParser(ctx)
+			actual := checkVersionMatch(ctx, p, tc.lVal, tc.rVal)
+			require.Equal(t, tc.result, actual)
+		})
 	}
 }
 

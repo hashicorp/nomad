@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
+	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -1445,6 +1446,9 @@ type DrainStrategy struct {
 	// ForceDeadline is the deadline time for the drain after which drains will
 	// be forced
 	ForceDeadline time.Time
+
+	// StartedAt is the time the drain process started
+	StartedAt time.Time
 }
 
 func (d *DrainStrategy) Copy() *DrainStrategy {
@@ -3626,15 +3630,16 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 func (j *Job) CombinedTaskMeta(groupName, taskName string) map[string]string {
 	group := j.LookupTaskGroup(groupName)
 	if group == nil {
-		return nil
+		return j.Meta
 	}
+
+	var meta map[string]string
 
 	task := group.LookupTask(taskName)
-	if task == nil {
-		return nil
+	if task != nil {
+		meta = helper.CopyMapStringString(task.Meta)
 	}
 
-	meta := helper.CopyMapStringString(task.Meta)
 	if meta == nil {
 		meta = make(map[string]string, len(group.Meta)+len(j.Meta))
 	}
@@ -5013,13 +5018,16 @@ func (tg *TaskGroup) validateNetworks() error {
 				}
 			}
 
-			if port.To != 0 {
+			if port.To > 0 {
 				if other, ok := mappedPorts[port.To]; ok {
 					err := fmt.Errorf("Port mapped to %d already in use by %s", port.To, other)
 					mErr.Errors = append(mErr.Errors, err)
 				} else {
 					mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
 				}
+			} else if port.To < -1 {
+				err := fmt.Errorf("Port %q cannot be mapped to negative value %d", port.Label, port.To)
+				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
 	}
@@ -5544,6 +5552,8 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		if t.Leader {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Connect proxy task must not have leader set"))
 		}
+
+		// Ensure the proxy task has a corresponding service entry
 		serviceErr := ValidateConnectProxyService(t.Kind.Value(), tgServices)
 		if serviceErr != nil {
 			mErr.Errors = append(mErr.Errors, serviceErr)
@@ -5738,15 +5748,28 @@ const ConnectProxyPrefix = "connect-proxy"
 // valid Connect config.
 func ValidateConnectProxyService(serviceName string, tgServices []*Service) error {
 	found := false
+	names := make([]string, 0, len(tgServices))
 	for _, svc := range tgServices {
-		if svc.Name == serviceName && svc.Connect != nil && svc.Connect.SidecarService != nil {
+		if svc.Connect == nil || svc.Connect.SidecarService == nil {
+			continue
+		}
+
+		if svc.Name == serviceName {
 			found = true
 			break
 		}
+
+		// Build up list of mismatched Connect service names for error
+		// reporting.
+		names = append(names, svc.Name)
 	}
 
 	if !found {
-		return fmt.Errorf("Connect proxy service name not found in services from task group")
+		if len(names) == 0 {
+			return fmt.Errorf("No Connect services in task group with Connect proxy (%q)", serviceName)
+		} else {
+			return fmt.Errorf("Connect proxy service name (%q) not found in Connect services from task group: %s", serviceName, names)
+		}
 	}
 
 	return nil
@@ -6612,6 +6635,7 @@ const (
 	ConstraintDistinctHosts     = "distinct_hosts"
 	ConstraintRegex             = "regexp"
 	ConstraintVersion           = "version"
+	ConstraintSemver            = "semver"
 	ConstraintSetContains       = "set_contains"
 	ConstraintSetContainsAll    = "set_contains_all"
 	ConstraintSetContainsAny    = "set_contains_any"
@@ -6681,6 +6705,10 @@ func (c *Constraint) Validate() error {
 	case ConstraintVersion:
 		if _, err := version.NewConstraint(c.RTarget); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Version constraint is invalid: %v", err))
+		}
+	case ConstraintSemver:
+		if _, err := semver.NewConstraint(c.RTarget); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Semver constraint is invalid: %v", err))
 		}
 	case ConstraintDistinctProperty:
 		// If a count is set, make sure it is convertible to a uint64
@@ -6795,6 +6823,10 @@ func (a *Affinity) Validate() error {
 	case ConstraintVersion:
 		if _, err := version.NewConstraint(a.RTarget); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Version affinity is invalid: %v", err))
+		}
+	case ConstraintSemver:
+		if _, err := semver.NewConstraint(a.RTarget); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Semver affinity is invalid: %v", err))
 		}
 	case "=", "==", "is", "!=", "not", "<", "<=", ">", ">=":
 		if a.RTarget == "" {
@@ -9045,9 +9077,10 @@ func IsServerSide(e error) bool {
 
 // ACLPolicy is used to represent an ACL policy
 type ACLPolicy struct {
-	Name        string // Unique name
-	Description string // Human readable
-	Rules       string // HCL or JSON format
+	Name        string      // Unique name
+	Description string      // Human readable
+	Rules       string      // HCL or JSON format
+	RulesJSON   *acl.Policy // Generated from Rules on read
 	Hash        []byte
 	CreateIndex uint64
 	ModifyIndex uint64

@@ -80,7 +80,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 	// it to the secrets directory like Vault tokens.
 	fn := filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json")
 
-	id := agentconsul.MakeTaskServiceID(h.alloc.ID, "group-"+tg.Name, service)
+	id := agentconsul.MakeAllocServiceID(h.alloc.ID, "group-"+tg.Name, service)
 	h.logger.Debug("bootstrapping envoy", "sidecar_for", service.Name, "boostrap_file", fn, "sidecar_for_id", id, "grpc_addr", grpcAddr)
 
 	// Since Consul services are registered asynchronously with this task

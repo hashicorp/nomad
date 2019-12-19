@@ -17,7 +17,6 @@ import (
 	"github.com/armon/circbuf"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -27,7 +26,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	ldevices "github.com/opencontainers/runc/libcontainer/devices"
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
@@ -36,7 +34,7 @@ import (
 )
 
 const (
-	defaultCgroupParent = "nomad"
+	defaultCgroupParent = "/nomad"
 )
 
 var (
@@ -91,15 +89,6 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	l.command = command
-
-	// Move to the root cgroup until process is started
-	subsystems, err := cgroups.GetAllSubsystems()
-	if err != nil {
-		return nil, err
-	}
-	if err := JoinRootCgroup(subsystems); err != nil {
-		return nil, err
-	}
 
 	// create a new factory which will store the container state in the allocDir
 	factory, err := libcontainer.New(
@@ -194,15 +183,6 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		return nil, err
 	}
 
-	// Join process cgroups
-	containerState, err := container.State()
-	if err != nil {
-		l.logger.Error("error entering user process cgroups", "executor_pid", os.Getpid(), "error", err)
-	}
-	if err := cgroups.EnterPid(containerState.CgroupPaths, os.Getpid()); err != nil {
-		l.logger.Error("error entering user process cgroups", "executor_pid", os.Getpid(), "error", err)
-	}
-
 	// start a goroutine to wait on the process to complete, so Wait calls can
 	// be multiplexed
 	l.userProcExited = make(chan interface{})
@@ -285,15 +265,6 @@ func (l *LibcontainerExecutor) wait() {
 func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) error {
 	if l.container == nil {
 		return nil
-	}
-
-	// move executor to root cgroup
-	subsystems, err := cgroups.GetAllSubsystems()
-	if err != nil {
-		return err
-	}
-	if err := JoinRootCgroup(subsystems); err != nil {
-		return err
 	}
 
 	status, err := l.container.Status()
@@ -720,31 +691,38 @@ func configureBasicCgroups(cfg *lconfigs.Config) error {
 	id := uuid.Generate()
 
 	// Manually create freezer cgroup
-	cfg.Cgroups.Paths = map[string]string{}
-	root, err := cgroups.FindCgroupMountpointDir()
-	if err != nil {
-		return err
-	}
 
-	if _, err := os.Stat(root); err != nil {
-		return err
-	}
+	subsystem := "freezer"
 
-	freezer := cgroupFs.FreezerGroup{}
-	subsystem := freezer.Name()
-	path, err := cgroups.FindCgroupMountpoint("", subsystem)
+	path, err := getCgroupPathHelper(subsystem, filepath.Join(defaultCgroupParent, id))
 	if err != nil {
 		return fmt.Errorf("failed to find %s cgroup mountpoint: %v", subsystem, err)
 	}
-	// Sometimes subsystems can be mounted together as 'cpu,cpuacct'.
-	path = filepath.Join(root, filepath.Base(path), defaultCgroupParent, id)
 
 	if err = os.MkdirAll(path, 0755); err != nil {
 		return err
 	}
 
-	cfg.Cgroups.Paths[subsystem] = path
+	cfg.Cgroups.Paths = map[string]string{
+		subsystem: path,
+	}
 	return nil
+}
+
+func getCgroupPathHelper(subsystem, cgroup string) (string, error) {
+	mnt, root, err := cgroups.FindCgroupMountpointAndRoot("", subsystem)
+	if err != nil {
+		return "", err
+	}
+
+	// This is needed for nested containers, because in /proc/self/cgroup we
+	// see paths from host, which don't exist in container.
+	relCgroup, err := filepath.Rel(root, cgroup)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(mnt, relCgroup), nil
 }
 
 func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
@@ -769,28 +747,6 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 		return nil, err
 	}
 	return cfg, nil
-}
-
-// JoinRootCgroup moves the current process to the cgroups of the init process
-func JoinRootCgroup(subsystems []string) error {
-	mErrs := new(multierror.Error)
-	paths := map[string]string{}
-	for _, s := range subsystems {
-		mnt, _, err := cgroups.FindCgroupMountpointAndRoot("", s)
-		if err != nil {
-			multierror.Append(mErrs, fmt.Errorf("error getting cgroup path for subsystem: %s", s))
-			continue
-		}
-
-		paths[s] = mnt
-	}
-
-	err := cgroups.EnterPid(paths, os.Getpid())
-	if err != nil {
-		multierror.Append(mErrs, err)
-	}
-
-	return mErrs.ErrorOrNil()
 }
 
 // cmdDevices converts a list of driver.DeviceConfigs into excutor.Devices.

@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper/flatmap"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHelpers_FormatKV(t *testing.T) {
@@ -174,17 +176,17 @@ func TestHelpers_LineLimitReader_TimeLimit(t *testing.T) {
 
 	expected := []byte("hello world")
 
-	resultCh := make(chan struct{})
+	errCh := make(chan error)
+	resultCh := make(chan []byte)
 	go func() {
+		defer close(resultCh)
+		defer close(errCh)
 		outBytes, err := ioutil.ReadAll(limit)
 		if err != nil {
-			t.Fatalf("ReadAll failed: %v", err)
-		}
-
-		if reflect.DeepEqual(outBytes, expected) {
-			close(resultCh)
+			errCh <- fmt.Errorf("ReadAll failed: %v", err)
 			return
 		}
+		resultCh <- outBytes
 	}()
 
 	// Send the data
@@ -192,7 +194,14 @@ func TestHelpers_LineLimitReader_TimeLimit(t *testing.T) {
 	in.Close()
 
 	select {
-	case <-resultCh:
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("ReadAll: %v", err)
+		}
+	case outBytes := <-resultCh:
+		if !reflect.DeepEqual(outBytes, expected) {
+			t.Fatalf("got:%s, expected,%s", string(outBytes), string(expected))
+		}
 	case <-time.After(1 * time.Second):
 		t.Fatalf("did not exit by time limit")
 	}
@@ -334,4 +343,52 @@ func TestPrettyTimeDiff(t *testing.T) {
 		t.Fatalf("Expected empty output but got:%v", out)
 	}
 
+}
+
+// TestUiErrorWriter asserts that writer buffers and
+func TestUiErrorWriter(t *testing.T) {
+	t.Parallel()
+
+	var outBuf, errBuf bytes.Buffer
+	ui := &cli.BasicUi{
+		Writer:      &outBuf,
+		ErrorWriter: &errBuf,
+	}
+
+	w := &uiErrorWriter{ui: ui}
+
+	inputs := []string{
+		"some line\n",
+		"multiple\nlines\r\nhere",
+		" with  followup\nand",
+		" more lines ",
+		" without new line ",
+		"until here\nand then",
+		"some more",
+	}
+
+	partialAcc := ""
+	for _, in := range inputs {
+		n, err := w.Write([]byte(in))
+		require.NoError(t, err)
+		require.Equal(t, len(in), n)
+
+		// assert that writer emits partial result until last new line
+		partialAcc += strings.ReplaceAll(in, "\r\n", "\n")
+		lastNL := strings.LastIndex(partialAcc, "\n")
+		require.Equal(t, partialAcc[:lastNL+1], errBuf.String())
+	}
+
+	require.Empty(t, outBuf.String())
+
+	// note that the \r\n got replaced by \n
+	expectedErr := "some line\nmultiple\nlines\nhere with  followup\nand more lines  without new line until here\n"
+	require.Equal(t, expectedErr, errBuf.String())
+
+	// close emits the final line
+	err := w.Close()
+	require.NoError(t, err)
+
+	expectedErr += "and thensome more\n"
+	require.Equal(t, expectedErr, errBuf.String())
 }

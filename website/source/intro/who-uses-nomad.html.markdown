@@ -73,9 +73,6 @@ Nomad is widely adopted and used in production by PagerDuty, Target, Citadel, Tr
 ####Elsevier
   * [Elsevier’s Container Framework with Nomad, Terraform, and Consul](https://www.hashicorp.com/resources/elsevier-nomad-container-framework-demo)
 
-####Palantir
-  * [Enterprise Security at Palantir with the HashiCorp stack](https://www.hashicorp.com/resources/enterprise-security-hashicorp-stack)
-
 ####Graymeta
   * [Backend Batch Processing At Scale with Nomad](https://www.hashicorp.com/resources/backend-batch-processing-nomad)
 

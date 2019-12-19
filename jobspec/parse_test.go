@@ -43,6 +43,11 @@ func TestParse(t *testing.T) {
 						RTarget: "windows",
 						Operand: "=",
 					},
+					{
+						LTarget: "${attr.vault.version}",
+						RTarget: ">= 0.6.1",
+						Operand: "semver",
+					},
 				},
 
 				Affinities: []*api.Affinity{

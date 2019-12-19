@@ -257,6 +257,9 @@ func DefaultConfig() *Config {
 	if v := os.Getenv("NOMAD_CLIENT_KEY"); v != "" {
 		config.TLSConfig.ClientKey = v
 	}
+	if v := os.Getenv("NOMAD_TLS_SERVER_NAME"); v != "" {
+		config.TLSConfig.TLSServerName = v
+	}
 	if v := os.Getenv("NOMAD_SKIP_VERIFY"); v != "" {
 		if insecure, err := strconv.ParseBool(v); err == nil {
 			config.TLSConfig.Insecure = insecure
@@ -592,10 +595,11 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 		config: &c.config,
 		method: method,
 		url: &url.URL{
-			Scheme: base.Scheme,
-			User:   base.User,
-			Host:   base.Host,
-			Path:   u.Path,
+			Scheme:  base.Scheme,
+			User:    base.User,
+			Host:    base.Host,
+			Path:    u.Path,
+			RawPath: u.RawPath,
 		},
 		params: make(map[string][]string),
 	}
@@ -741,7 +745,16 @@ func (c *Client) websocket(endpoint string, q *QueryOptions) (*websocket.Conn, *
 	// check resp status code, as it's more informative than handshake error we get from ws library
 	if resp != nil && resp.StatusCode != 101 {
 		var buf bytes.Buffer
-		io.Copy(&buf, resp.Body)
+
+		if resp.Header.Get("Content-Encoding") == "gzip" {
+			greader, err := gzip.NewReader(resp.Body)
+			if err != nil {
+				return nil, nil, fmt.Errorf("Unexpected response code: %d", resp.StatusCode)
+			}
+			io.Copy(&buf, greader)
+		} else {
+			io.Copy(&buf, resp.Body)
+		}
 		resp.Body.Close()
 
 		return nil, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, buf.Bytes())

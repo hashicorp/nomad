@@ -76,7 +76,7 @@ type Config struct {
 	LogOutput io.Writer
 
 	// Logger is the logger used by the server.
-	Logger log.Logger
+	Logger log.InterceptLogger
 
 	// ProtocolVersion is the protocol version to speak. This must be between
 	// ProtocolVersionMin and ProtocolVersionMax.
