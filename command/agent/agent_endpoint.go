@@ -16,7 +16,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/command/agent/profile"
+	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 	"github.com/mitchellh/copystructure"
@@ -341,11 +341,11 @@ func (s *HTTPServer) AgentPprofRequest(resp http.ResponseWriter, req *http.Reque
 		// no root index route
 		return nil, CodedError(404, ErrInvalidMethod)
 	case "cmdline":
-		return s.agentPprof(profile.CmdReq, resp, req)
+		return s.agentPprof(pprof.CmdReq, resp, req)
 	case "profile":
-		return s.agentPprof(profile.CPUReq, resp, req)
+		return s.agentPprof(pprof.CPUReq, resp, req)
 	case "trace":
-		return s.agentPprof(profile.TraceReq, resp, req)
+		return s.agentPprof(pprof.TraceReq, resp, req)
 	default:
 		// Add profile to request
 		values := req.URL.Query()
@@ -353,26 +353,20 @@ func (s *HTTPServer) AgentPprofRequest(resp http.ResponseWriter, req *http.Reque
 		req.URL.RawQuery = values.Encode()
 
 		// generic pprof profile request
-		return s.agentPprof(profile.LookupReq, resp, req)
+		return s.agentPprof(pprof.LookupReq, resp, req)
 	}
 }
 
-func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWriter, req *http.Request) ([]byte, error) {
-	var secret string
-	s.parseToken(req, &secret)
+func (s *HTTPServer) agentPprof(reqType pprof.ReqType, resp http.ResponseWriter, req *http.Request) ([]byte, error) {
 
-	// Parse profile duration, default to 1 second
-	var err error
-	secondsParam := req.URL.Query().Get("seconds")
-	var seconds int
-	if secondsParam == "" {
+	// Parse query param int values
+	seconds, _ := strconv.Atoi(req.URL.Query().Get("seconds"))
+	debug, _ := strconv.Atoi(req.URL.Query().Get("debug"))
+	gc, _ := strconv.Atoi(req.URL.Query().Get("gc"))
+
+	// default to 1 second
+	if seconds == 0 {
 		seconds = 1
-	} else {
-		seconds, err = strconv.Atoi(secondsParam)
-		if err != nil {
-			errStr := fmt.Sprintf("Error parsing seconds parameter %s", secondsParam)
-			return nil, CodedError(400, errStr)
-		}
 	}
 
 	// Create the request
@@ -380,6 +374,8 @@ func (s *HTTPServer) agentPprof(reqType profile.ReqType, resp http.ResponseWrite
 		NodeID:   req.URL.Query().Get("node_id"),
 		Profile:  req.URL.Query().Get("profile"),
 		ServerID: req.URL.Query().Get("server_id"),
+		Debug:    debug,
+		GC:       gc,
 		ReqType:  reqType,
 		Seconds:  seconds,
 	}

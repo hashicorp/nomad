@@ -319,8 +319,7 @@ func (a *Agent) CPUProfile(serverID, nodeID string, seconds int, q *QueryOptions
 		return nil, err
 	}
 
-	var resp []byte
-	resp, err = ioutil.ReadAll(body)
+	resp, err := ioutil.ReadAll(body)
 	if err != nil {
 		return nil, err
 	}
@@ -357,8 +356,7 @@ func (a *Agent) Trace(serverID, nodeID string, seconds int, q *QueryOptions) ([]
 		return nil, err
 	}
 
-	var resp []byte
-	resp, err = ioutil.ReadAll(body)
+	resp, err := ioutil.ReadAll(body)
 	if err != nil {
 		return nil, err
 	}
@@ -395,8 +393,7 @@ func (a *Agent) Profile(serverID, nodeID, profile string, debug int, q *QueryOpt
 		return nil, err
 	}
 
-	var resp []byte
-	resp, err = ioutil.ReadAll(body)
+	resp, err := ioutil.ReadAll(body)
 	if err != nil {
 		return nil, err
 	}

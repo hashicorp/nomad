@@ -1,4 +1,4 @@
-package profile
+package pprof
 
 import (
 	"context"
@@ -12,6 +12,7 @@ func TestProfile(t *testing.T) {
 		desc            string
 		profile         string
 		debug           int
+		gc              int
 		expectedHeaders map[string]string
 		expectedErr     error
 	}{
@@ -43,7 +44,7 @@ func TestProfile(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			resp, headers, err := Profile(tc.profile, tc.debug)
+			resp, headers, err := Profile(tc.profile, tc.debug, tc.gc)
 			require.Equal(t, tc.expectedHeaders, headers)
 
 			if tc.expectedErr != nil {

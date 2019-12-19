@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/command/agent/profile"
+	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -232,7 +232,7 @@ func TestAgentProfile_DefaultDisabled(t *testing.T) {
 	defer cleanupC()
 
 	req := structs.AgentPprofRequest{
-		ReqType: profile.CPUReq,
+		ReqType: pprof.CPUReq,
 		NodeID:  c.NodeID(),
 	}
 
@@ -261,7 +261,7 @@ func TestAgentProfile(t *testing.T) {
 	// Successful request
 	{
 		req := structs.AgentPprofRequest{
-			ReqType: profile.CPUReq,
+			ReqType: pprof.CPUReq,
 			NodeID:  c.NodeID(),
 		}
 
@@ -277,7 +277,7 @@ func TestAgentProfile(t *testing.T) {
 	// Unknown profile request
 	{
 		req := structs.AgentPprofRequest{
-			ReqType: profile.LookupReq,
+			ReqType: pprof.LookupReq,
 			Profile: "unknown",
 			NodeID:  c.NodeID(),
 		}
@@ -333,7 +333,7 @@ func TestAgentProfile_ACL(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			req := &structs.AgentPprofRequest{
-				ReqType: profile.CmdReq,
+				ReqType: pprof.CmdReq,
 				QueryOptions: structs.QueryOptions{
 					Namespace: structs.DefaultNamespace,
 					Region:    "global",

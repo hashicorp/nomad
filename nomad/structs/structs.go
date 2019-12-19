@@ -28,7 +28,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/command/agent/profile"
+	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
@@ -266,7 +266,7 @@ func (q QueryOptions) AllowStaleRead() bool {
 // AgentPprofRequest is used to request a pprof report for a given node.
 type AgentPprofRequest struct {
 	// ReqType specifies the profile to use
-	ReqType profile.ReqType
+	ReqType pprof.ReqType
 
 	// Profile specifies the runtime/pprof profile to lookup and generate.
 	Profile string
@@ -276,6 +276,10 @@ type AgentPprofRequest struct {
 
 	// Debug specifies if pprof profile should inclue debug output
 	Debug int
+
+	// GC specifies if the profile should call runtime.GC() before
+	// running its profile. This is only used for "heap" profiles
+	GC int
 
 	// NodeID is the node we want to track the logs of
 	NodeID string

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/command/agent/monitor"
-	"github.com/hashicorp/nomad/command/agent/profile"
+	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -39,10 +39,8 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 	}
 
 	// If ACLs are disabled, EnableDebug must be enabled
-	if aclObj == nil {
-		if !a.c.config.EnableDebug {
-			return structs.ErrPermissionDenied
-		}
+	if aclObj == nil && !a.c.config.EnableDebug {
+		return structs.ErrPermissionDenied
 	}
 
 	var resp []byte
@@ -53,18 +51,18 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 	// Our RPC endpoints currently don't support context
 	// or request cancellation so stubbing with TODO
 	switch args.ReqType {
-	case profile.CPUReq:
-		resp, headers, err = profile.CPUProfile(context.TODO(), args.Seconds)
-	case profile.CmdReq:
-		resp, headers, err = profile.Cmdline()
-	case profile.LookupReq:
-		resp, headers, err = profile.Profile(args.Profile, args.Debug)
-	case profile.TraceReq:
-		resp, headers, err = profile.Trace(context.TODO(), args.Seconds)
+	case pprof.CPUReq:
+		resp, headers, err = pprof.CPUProfile(context.TODO(), args.Seconds)
+	case pprof.CmdReq:
+		resp, headers, err = pprof.Cmdline()
+	case pprof.LookupReq:
+		resp, headers, err = pprof.Profile(args.Profile, args.Debug, args.GC)
+	case pprof.TraceReq:
+		resp, headers, err = pprof.Trace(context.TODO(), args.Seconds)
 	}
 
 	if err != nil {
-		if profile.IsErrProfileNotFound(err) {
+		if pprof.IsErrProfileNotFound(err) {
 			return structs.NewErrRPCCoded(404, err.Error())
 		}
 		return structs.NewErrRPCCoded(500, err.Error())

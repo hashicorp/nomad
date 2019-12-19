@@ -1,10 +1,16 @@
-package profile
+// Package profile is meant to be a near identical implemenation of
+// https://golang.org/src/net/http/pprof/pprof.go
+// It's purpose is to provide a way to accommodate the RPC endpoint style
+// we use instead of traditional http handlers.
+
+package pprof
 
 import (
 	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
 	"strings"
@@ -17,7 +23,7 @@ const (
 	CmdReq    ReqType = "cmdline"
 	CPUReq    ReqType = "cpu"
 	TraceReq  ReqType = "trace"
-	LookupReq ReqType = "profile"
+	LookupReq ReqType = "lookup"
 
 	ErrProfileNotFoundPrefix = "Pprof profile not found profile:"
 )
@@ -49,10 +55,14 @@ func Cmdline() ([]byte, map[string]string, error) {
 
 // Profile generates a pprof.Profile report for the given profile name
 // see runtime/pprof/pprof.go for available profiles.
-func Profile(profile string, debug int) ([]byte, map[string]string, error) {
+func Profile(profile string, debug, gc int) ([]byte, map[string]string, error) {
 	p := pprof.Lookup(profile)
 	if p == nil {
 		return nil, nil, NewErrProfileNotFound(profile)
+	}
+
+	if profile == "heap" && gc > 0 {
+		runtime.GC()
 	}
 
 	var buf bytes.Buffer

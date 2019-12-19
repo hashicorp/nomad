@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/command/agent/profile"
+	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -492,7 +492,7 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 	})
 
 	req := structs.AgentPprofRequest{
-		ReqType:      profile.CPUReq,
+		ReqType:      pprof.CPUReq,
 		NodeID:       c.NodeID(),
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
@@ -531,7 +531,7 @@ func TestAgentProfile_RemoteRegionMisMatch(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	req := structs.AgentPprofRequest{
-		ReqType:  profile.CPUReq,
+		ReqType:  pprof.CPUReq,
 		ServerID: s1.serf.LocalMember().Name,
 		QueryOptions: structs.QueryOptions{
 			Region: "bar",
@@ -568,7 +568,7 @@ func TestAgentProfile_RemoteRegion(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	req := structs.AgentPprofRequest{
-		ReqType:  profile.CPUReq,
+		ReqType:  pprof.CPUReq,
 		ServerID: s2.serf.LocalMember().Name,
 		QueryOptions: structs.QueryOptions{
 			Region: "bar",
@@ -621,41 +621,41 @@ func TestAgentProfile_Server(t *testing.T) {
 		origin          *Server
 		expectedErr     string
 		expectedAgentID string
-		reqType         profile.ReqType
+		reqType         pprof.ReqType
 	}{
 		{
 			desc:            "remote leader",
 			serverID:        "leader",
 			origin:          nonLeader,
-			reqType:         profile.CmdReq,
+			reqType:         pprof.CmdReq,
 			expectedAgentID: leader.serf.LocalMember().Name,
 		},
 		{
 			desc:            "remote server",
 			serverID:        nonLeader.serf.LocalMember().Name,
 			origin:          leader,
-			reqType:         profile.CmdReq,
+			reqType:         pprof.CmdReq,
 			expectedAgentID: nonLeader.serf.LocalMember().Name,
 		},
 		{
 			desc:            "serverID is current leader",
 			serverID:        "leader",
 			origin:          leader,
-			reqType:         profile.CmdReq,
+			reqType:         pprof.CmdReq,
 			expectedAgentID: leader.serf.LocalMember().Name,
 		},
 		{
 			desc:            "serverID is current server",
 			serverID:        nonLeader.serf.LocalMember().Name,
 			origin:          nonLeader,
-			reqType:         profile.CPUReq,
+			reqType:         pprof.CPUReq,
 			expectedAgentID: nonLeader.serf.LocalMember().Name,
 		},
 		{
 			desc:            "serverID is unknown",
 			serverID:        uuid.Generate(),
 			origin:          nonLeader,
-			reqType:         profile.CmdReq,
+			reqType:         pprof.CmdReq,
 			expectedErr:     "unknown nomad server",
 			expectedAgentID: "",
 		},
@@ -724,7 +724,7 @@ func TestAgentProfile_ACL(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			req := &structs.AgentPprofRequest{
-				ReqType: profile.CmdReq,
+				ReqType: pprof.CmdReq,
 				QueryOptions: structs.QueryOptions{
 					Namespace: structs.DefaultNamespace,
 					Region:    "global",

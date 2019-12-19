@@ -13,7 +13,7 @@ import (
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/monitor"
-	"github.com/hashicorp/nomad/command/agent/profile"
+	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 
@@ -85,20 +85,20 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 	// or request cancellation so using server shutdownCtx as a
 	// best effort.
 	switch args.ReqType {
-	case profile.CPUReq:
-		resp, headers, err = profile.CPUProfile(a.srv.shutdownCtx, args.Seconds)
-	case profile.CmdReq:
-		resp, headers, err = profile.Cmdline()
-	case profile.LookupReq:
-		resp, headers, err = profile.Profile(args.Profile, args.Debug)
-	case profile.TraceReq:
-		resp, headers, err = profile.Trace(a.srv.shutdownCtx, args.Seconds)
+	case pprof.CPUReq:
+		resp, headers, err = pprof.CPUProfile(a.srv.shutdownCtx, args.Seconds)
+	case pprof.CmdReq:
+		resp, headers, err = pprof.Cmdline()
+	case pprof.LookupReq:
+		resp, headers, err = pprof.Profile(args.Profile, args.Debug, args.GC)
+	case pprof.TraceReq:
+		resp, headers, err = pprof.Trace(a.srv.shutdownCtx, args.Seconds)
 	default:
 		err = structs.NewErrRPCCoded(404, "Unknown profile request type")
 	}
 
 	if err != nil {
-		if profile.IsErrProfileNotFound(err) {
+		if pprof.IsErrProfileNotFound(err) {
 			return structs.NewErrRPCCoded(404, err.Error())
 		}
 		return structs.NewErrRPCCoded(500, err.Error())
