@@ -320,8 +320,8 @@ func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse(t *testing.T) {
 	// Each variation of the provided Consul operator token
 	noOpToken := ""
 	unrecognizedOpToken := uuid.Generate()
-	unauthorizedOpToken := consul.ExampleOperatorToken3
-	authorizedOpToken := consul.ExampleOperatorToken1
+	unauthorizedOpToken := consul.ExampleOperatorTokenID3
+	authorizedOpToken := consul.ExampleOperatorTokenID1
 
 	t.Run("no token provided", func(t *testing.T) {
 		request := newRequest(job)

@@ -190,30 +190,25 @@ func (h *sidsHook) kill(ctx context.Context, err error) {
 
 // tryDerive loops forever until a token is created, or ctx is done.
 func (h *sidsHook) tryDerive(ctx context.Context, ch chan<- string) {
-	// Derive the SI token using the name of the proxied / native task, not the
-	// name of the literal sidecar task. The virtual ACL policy of the SI token
-	// is oriented this way.
-	siTaskName := h.task.Kind.Value()
-
 	for attempt := 0; backoff(ctx, attempt); attempt++ {
 
-		tokens, err := h.sidsClient.DeriveSITokens(h.alloc, []string{siTaskName})
+		tokens, err := h.sidsClient.DeriveSITokens(h.alloc, []string{h.task.Name})
 
 		switch {
 
 		case err == nil:
 			// nothing broke and we can return the token for the task
-			ch <- tokens[siTaskName]
+			ch <- tokens[h.task.Name]
 			return
 
 		case structs.IsServerSide(err):
 			// the error is known to be a server problem, just die
-			h.logger.Error("failed to derive SI token", "error", err, "task", h.task.Name, "si_task", siTaskName, "server_side", true)
+			h.logger.Error("failed to derive SI token", "error", err, "task", h.task.Name, "server_side", true)
 			h.kill(ctx, errors.Wrap(err, "consul: failed to derive SI token"))
 
 		case !structs.IsRecoverable(err):
 			// the error is known not to be recoverable, just die
-			h.logger.Error("failed to derive SI token", "error", err, "task", h.task.Name, "si_task", siTaskName, "recoverable", false)
+			h.logger.Error("failed to derive SI token", "error", err, "task", h.task.Name, "recoverable", false)
 			h.kill(ctx, errors.Wrap(err, "consul: failed to derive SI token"))
 
 		default:
