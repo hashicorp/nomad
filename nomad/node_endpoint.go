@@ -1714,6 +1714,8 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	}
 
 	// make sure each task in args.Tasks is a connect-enabled task
+	// note: the tasks at this point should be the "connect-sidecar-<id>" name
+	//
 	unneeded := tasksNotUsingConnect(tg, args.Tasks)
 	if len(unneeded) > 0 {
 		setError(fmt.Errorf(
@@ -1751,6 +1753,7 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 					if !ok {
 						return nil
 					}
+
 					sii := ServiceIdentityIndex{
 						ClusterID: clusterID,
 						AllocID:   alloc.ID,
