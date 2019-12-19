@@ -77,3 +77,29 @@ func (c *ControllerClient) ControllerUnpublishVolume(ctx context.Context, in *cs
 func (c *ControllerClient) ValidateVolumeCapabilities(ctx context.Context, in *csipbv1.ValidateVolumeCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ValidateVolumeCapabilitiesResponse, error) {
 	panic("not implemented") // TODO: Implement
 }
+
+// NodeClient is a CSI Node client used for testing
+type NodeClient struct {
+	NextErr                  error
+	NextCapabilitiesResponse *csipbv1.NodeGetCapabilitiesResponse
+	NextGetInfoResponse      *csipbv1.NodeGetInfoResponse
+}
+
+// NewNodeClient returns a new ControllerClient
+func NewNodeClient() *NodeClient {
+	return &NodeClient{}
+}
+
+func (f *NodeClient) Reset() {
+	f.NextErr = nil
+	f.NextCapabilitiesResponse = nil
+	f.NextGetInfoResponse = nil
+}
+
+func (c *NodeClient) NodeGetCapabilities(ctx context.Context, in *csipbv1.NodeGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetCapabilitiesResponse, error) {
+	return c.NextCapabilitiesResponse, c.NextErr
+}
+
+func (c *NodeClient) NodeGetInfo(ctx context.Context, in *csipbv1.NodeGetInfoRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetInfoResponse, error) {
+	return c.NextGetInfoResponse, c.NextErr
+}
