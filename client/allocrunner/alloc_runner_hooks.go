@@ -203,7 +203,7 @@ func (ar *allocRunner) update(update *structs.Allocation) error {
 		var start time.Time
 		if ar.logger.IsTrace() {
 			start = time.Now()
-			ar.logger.Trace("running pre-run hook", "name", name, "start", start)
+			ar.logger.Trace("running update hook", "name", name, "start", start)
 		}
 
 		if err := h.Update(req); err != nil {
