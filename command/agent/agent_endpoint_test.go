@@ -400,90 +400,77 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 // | /agent/pprof  |  unset           |  off   |  no              |
 // | /agent/pprof  |  unset           |  on    |  **yes**         |
 // | /agent/pprof  |  `true`          |  off   |  yes             |
-// | /agent/pprof  |  `false`         |  n/a   |  **no**          |
+// | /agent/pprof  |  `false`         |  on    |  **yes**         |
 // +---------------+------------------+--------+------------------+
 func TestAgent_PprofRequest_Permissions(t *testing.T) {
+	trueP, falseP := helper.BoolToPtr(true), helper.BoolToPtr(false)
 	cases := []struct {
-		desc              string
-		aclEnabled        *bool
-		enableDebug       *bool
-		expectedAvailable bool
+		acl   *bool
+		debug *bool
+		ok    bool
 	}{
-		{
-			desc: "unset debug, unset acl",
-			// manually set to false because test helpers
-			// enable to true by default
-			enableDebug:       helper.BoolToPtr(false),
-			expectedAvailable: false,
-		},
-		{
-			desc:              "debug true, acl unset",
-			enableDebug:       helper.BoolToPtr(true),
-			expectedAvailable: true,
-		},
-		{
-			desc:              "debug false, acl unset",
-			enableDebug:       helper.BoolToPtr(false),
-			expectedAvailable: false,
-		},
-		{
-			desc:              "debug unset, acl off",
-			enableDebug:       helper.BoolToPtr(false),
-			aclEnabled:        helper.BoolToPtr(false),
-			expectedAvailable: false,
-		},
-		{
-			desc:              "debug unset, acl on",
-			aclEnabled:        helper.BoolToPtr(true),
-			expectedAvailable: true,
-		},
-		{
-			desc:              "debug true, acl off",
-			aclEnabled:        helper.BoolToPtr(false),
-			enableDebug:       helper.BoolToPtr(true),
-			expectedAvailable: true,
-		},
-		{
-			desc:              "debug false, acl unset",
-			enableDebug:       helper.BoolToPtr(false),
-			expectedAvailable: false,
-		},
+		// manually set to false because test helpers
+		// enable to true by default
+		// enableDebug:       helper.BoolToPtr(false),
+		{debug: nil, ok: false},
+		{debug: trueP, ok: true},
+		{debug: falseP, ok: false},
+		{debug: falseP, acl: falseP, ok: false},
+		{acl: trueP, ok: true},
+		{acl: falseP, debug: trueP, ok: true},
+		{debug: falseP, acl: trueP, ok: true},
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			cb := func(c *Config) {
-				if tc.aclEnabled != nil {
-					c.ACL.Enabled = *tc.aclEnabled
-				}
-				if tc.enableDebug != nil {
-					c.EnableDebug = *tc.enableDebug
-				}
+		ptrToStr := func(val *bool) string {
+			if val == nil {
+				return "unset"
+			} else if *val == true {
+				return "true"
+			} else {
+				return "false"
 			}
+		}
 
-			httpTest(t, cb, func(s *TestAgent) {
-				state := s.Agent.server.State()
-
-				url := "/v1/agent/pprof/cmdline"
-				req, err := http.NewRequest("GET", url, nil)
-				require.NoError(t, err)
-				respW := httptest.NewRecorder()
-
-				if tc.aclEnabled != nil && *tc.aclEnabled {
-					token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
-					setToken(req, token)
+		t.Run(
+			fmt.Sprintf("debug %s, acl %s",
+				ptrToStr(tc.debug),
+				ptrToStr(tc.acl)),
+			func(t *testing.T) {
+				cb := func(c *Config) {
+					if tc.acl != nil {
+						c.ACL.Enabled = *tc.acl
+					}
+					if tc.debug == nil {
+						var nodebug bool
+						c.EnableDebug = nodebug
+					} else {
+						c.EnableDebug = *tc.debug
+					}
 				}
 
-				resp, err := s.Server.AgentPprofRequest(respW, req)
-				if tc.expectedAvailable {
+				httpTest(t, cb, func(s *TestAgent) {
+					state := s.Agent.server.State()
+					url := "/v1/agent/pprof/cmdline"
+					req, err := http.NewRequest("GET", url, nil)
 					require.NoError(t, err)
-					require.NotNil(t, resp)
-				} else {
-					require.Error(t, err)
-					require.Equal(t, structs.ErrPermissionDenied.Error(), err.Error())
-				}
+					respW := httptest.NewRecorder()
+
+					if tc.acl != nil && *tc.acl {
+						token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
+						setToken(req, token)
+					}
+
+					resp, err := s.Server.AgentPprofRequest(respW, req)
+					if tc.ok {
+						require.NoError(t, err)
+						require.NotNil(t, resp)
+					} else {
+						require.Error(t, err)
+						require.Equal(t, structs.ErrPermissionDenied.Error(), err.Error())
+					}
+				})
 			})
-		})
 	}
 }
 
