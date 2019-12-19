@@ -39,19 +39,19 @@ Namespaces enable multiple teams to safely use a shared multi-region Nomad envir
 
 Namespaces enhance the usability of a shared cluster by isolating teams from the jobs of others, by providing fine grain access control to jobs when coupled with ACLs, and by preventing bad actors from negatively impacting the whole cluster.
 
-See the [Namespaces Guide](https://www.nomadproject.io/guides/governance-and-policy/namespaces.html) for a thorough overview.
+See the [Namespaces Guide](https://learn.hashicorp.com/nomad/governance-and-policy/namespaces) for a thorough overview.
 
 ### Resource Quotas
 Resource Quotas enable an operator to limit resource consumption across teams or projects to reduce waste and align budgets. In Nomad Enterprise, operators can define quota specifications and apply them to namespaces. When a quota is attached to a namespace, the jobs within the namespace may not consume more resources than the quota specification allows.
 
 This allows operators to partition a shared cluster and ensure that no single actor can consume the whole resources of the cluster.
 
-See the [Resource Quotas Guide](https://www.nomadproject.io/guides/governance-and-policy/quotas.html) for a thorough overview.
+See the [Resource Quotas Guide](https://learn.hashicorp.com/nomad/governance-and-policy/quotas) for a thorough overview.
 
 ### Sentinel Policies
 In Nomad Enterprise, operators can create Sentinel policies for fine-grained policy enforcement. Sentinel policies build on top of the ACL system and allow operators to define policies such as disallowing jobs to be submitted to production on Fridays or only allowing users to run jobs that use pre-authorized Docker images. Sentinel policies are defined as code, giving operators considerable flexibility to meet compliance requirements.
 
-See the [Sentinel Policies Guide](https://www.nomadproject.io/guides/governance-and-policy/sentinel/sentinel-policy.html) for a thorough overview.
+See the [Sentinel Policies Guide](https://learn.hashicorp.com/nomad/governance-and-policy/sentinel) for a thorough overview.
 
 ### Preemption
 When a Nomad cluster is at capacity for a given set of placement constraints, any allocations that result from a newly scheduled service or batch job will remain in the pending state until sufficient resources become available - regardless of the defined priority.
