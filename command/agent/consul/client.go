@@ -93,15 +93,14 @@ type AgentAPI interface {
 	UpdateTTL(id, output, status string) error
 }
 
-// ACLsAPI is the consul/api.ACL API used by Nomad Server.
+// ACLsAPI is the consul/api.ACL API subset used by Nomad Server.
 type ACLsAPI interface {
-	// todo: RoleRead (...)
-
 	// We are looking up by [operator token] SecretID, which implies we need
 	// to use this method instead of the normal TokenRead, which can only be
 	// used to lookup tokens by their AccessorID.
 	TokenReadSelf(q *api.QueryOptions) (*api.ACLToken, *api.QueryMeta, error)
 	PolicyRead(policyID string, q *api.QueryOptions) (*api.ACLPolicy, *api.QueryMeta, error)
+	RoleRead(roleID string, q *api.QueryOptions) (*api.ACLRole, *api.QueryMeta, error)
 	TokenCreate(partial *api.ACLToken, q *api.WriteOptions) (*api.ACLToken, *api.WriteMeta, error)
 	TokenDelete(accessorID string, q *api.WriteOptions) (*api.WriteMeta, error)
 	TokenList(q *api.QueryOptions) ([]*api.ACLTokenListEntry, *api.QueryMeta, error)

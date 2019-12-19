@@ -9,7 +9,6 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/pkg/errors"
@@ -48,36 +47,6 @@ const (
 	//   service_prefix "" { policy = "write" }
 	ConsulPolicyWrite = "write"
 )
-
-// ConsulServiceRule represents a policy for a service
-type ConsulServiceRule struct {
-	Name   string `hcl:",key"`
-	Policy string
-}
-
-type ConsulPolicy struct {
-	Services        []*ConsulServiceRule `hcl:"service,expand"`
-	ServicePrefixes []*ConsulServiceRule `hcl:"service_prefix,expand"`
-}
-
-func (cp *ConsulPolicy) IsEmpty() bool {
-	if cp == nil {
-		return true
-	}
-	return len(cp.Services) == 0 && len(cp.ServicePrefixes) == 0
-}
-
-func ParseConsulPolicy(s string) (*ConsulPolicy, error) {
-	cp := new(ConsulPolicy)
-	if err := hcl.Decode(cp, s); err != nil {
-		return nil, errors.Wrap(err, "failed to parse ACL policy")
-	}
-	if cp.IsEmpty() {
-		// the only use case for now, may as well validate asap
-		return nil, errors.New("consul policy contains no service rules")
-	}
-	return cp, nil
-}
 
 type ServiceIdentityIndex struct {
 	ClusterID string
@@ -176,72 +145,6 @@ func (c *consulACLsAPI) CheckSIPolicy(_ context.Context, task, secretID string) 
 	return nil
 }
 
-func (c *consulACLsAPI) hasSufficientPolicy(task string, token *api.ACLToken) (bool, error) {
-
-	for _, policyRef := range token.Policies {
-		if allowable, err := c.policyAllowsServiceWrite(task, policyRef.ID); err != nil {
-			return false, err
-		} else if allowable {
-			return true, nil
-		}
-	}
-
-	// todo: probably also need to go through each role and check all those
-
-	return false, nil
-}
-
-// policyAllowsServiceWrite
-func (c *consulACLsAPI) policyAllowsServiceWrite(task string, policyID string) (bool, error) {
-	policy, _, err := c.aclClient.PolicyRead(policyID, &api.QueryOptions{
-		AllowStale: false,
-	})
-	if err != nil {
-		return false, err
-	}
-
-	// compare policy to the necessary permission for service write
-	// e.g. service "db" { policy = "write" }
-	// e.g. service_prefix "" { policy == "write" }
-	cp, err := ParseConsulPolicy(policy.Rules)
-	if err != nil {
-		return false, err
-	}
-
-	if c.allowsServiceWrite(task, cp) {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-const (
-	serviceNameWildcard = "*"
-)
-
-func (_ *consulACLsAPI) allowsServiceWrite(task string, cp *ConsulPolicy) bool {
-	for _, service := range cp.Services {
-		name := strings.ToLower(service.Name)
-		policy := strings.ToLower(service.Policy)
-		if policy == ConsulPolicyWrite {
-			if name == task || name == serviceNameWildcard {
-				return true
-			}
-		}
-	}
-
-	for _, servicePrefix := range cp.ServicePrefixes {
-		prefix := strings.ToLower(servicePrefix.Name)
-		policy := strings.ToLower(servicePrefix.Policy)
-		if policy == ConsulPolicyWrite {
-			if strings.HasPrefix(task, prefix) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func (c *consulACLsAPI) CreateToken(ctx context.Context, sii ServiceIdentityIndex) (*structs.SIToken, error) {
 	defer metrics.MeasureSince([]string{"nomad", "consul", "create_token"}, time.Now())
 
@@ -254,9 +157,12 @@ func (c *consulACLsAPI) CreateToken(ctx context.Context, sii ServiceIdentityInde
 
 	// todo: rate limiting
 
+	// the token created must be for the service, not the sidecar of the service
+	// https://www.consul.io/docs/acl/acl-system.html#acl-service-identities
+	serviceName := strings.TrimPrefix(sii.TaskName, structs.ConnectProxyPrefix+"-")
 	partial := &api.ACLToken{
 		Description:       sii.Description(),
-		ServiceIdentities: []*api.ACLServiceIdentity{{ServiceName: sii.TaskName}},
+		ServiceIdentities: []*api.ACLServiceIdentity{{ServiceName: serviceName}},
 	}
 
 	token, _, err := c.aclClient.TokenCreate(partial, nil)

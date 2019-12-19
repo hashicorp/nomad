@@ -1192,12 +1192,11 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 
 	// control when we get a Consul SI token
 	token := "12345678-1234-1234-1234-1234567890"
-	siTaskName := task.Kind.Value()
 	deriveCount := 0
 	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
 		if deriveCount > 0 {
 
-			return map[string]string{siTaskName: token}, nil
+			return map[string]string{task.Name: token}, nil
 		}
 		deriveCount++
 		return nil, structs.NewRecoverableError(errors.New("try again later"), true)
@@ -1252,9 +1251,8 @@ func TestTaskRunner_DeriveSIToken_Unrecoverable(t *testing.T) {
 	defer cleanup()
 
 	// SI token derivation suffers a non-retryable error
-	siTaskName := task.Kind.Value()
 	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
-	siClient.SetDeriveTokenError(alloc.ID, []string{siTaskName}, errors.New("non-recoverable"))
+	siClient.SetDeriveTokenError(alloc.ID, []string{task.Name}, errors.New("non-recoverable"))
 
 	tr, err := NewTaskRunner(trConfig)
 	r.NoError(err)
