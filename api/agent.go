@@ -376,7 +376,7 @@ func (a *Agent) Trace(serverID, nodeID string, seconds int, q *QueryOptions) ([]
 //
 // The call blocks until the profile finishes, and returns the raw bytes of the
 // profile.
-func (a *Agent) Profile(serverID, nodeID, profile string, debug int, q *QueryOptions) ([]byte, error) {
+func (a *Agent) Profile(serverID, nodeID, profile string, debug, gc int, q *QueryOptions) ([]byte, error) {
 	if q == nil {
 		q = &QueryOptions{}
 	}
@@ -385,6 +385,7 @@ func (a *Agent) Profile(serverID, nodeID, profile string, debug int, q *QueryOpt
 	}
 
 	q.Params["debug"] = strconv.Itoa(debug)
+	q.Params["qc"] = strconv.Itoa(debug)
 	q.Params["node_id"] = nodeID
 	q.Params["server_id"] = serverID
 

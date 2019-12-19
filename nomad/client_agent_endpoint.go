@@ -29,6 +29,14 @@ func (a *Agent) register() {
 }
 
 func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
+	// Check ACL for agent write
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Forward to different region if necessary
 	// this would typically be done in a.srv.forward() but since
 	// we are targeting a specific server, not just the leader
@@ -60,19 +68,9 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 		}
 	}
 
-	// Check ACL for agent write
-	aclObj, err := a.srv.ResolveToken(args.AuthToken)
-	if err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
-		return structs.ErrPermissionDenied
-	}
-
 	// If ACLs are disabled, EnableDebug must be enabled
-	if aclObj == nil {
-		if !a.srv.config.EnableDebug {
-			return structs.ErrPermissionDenied
-		}
+	if aclObj == nil && !a.srv.config.EnableDebug {
+		return structs.ErrPermissionDenied
 	}
 
 	// Process the request on this server

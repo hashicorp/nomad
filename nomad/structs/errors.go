@@ -79,7 +79,7 @@ func IsErrUnknownMethod(err error) bool {
 }
 
 func IsErrRPCCoded(err error) bool {
-	return err != nil && strings.Contains(err.Error(), errRPCCodedErrorPrefix)
+	return err != nil && strings.HasPrefix(err.Error(), errRPCCodedErrorPrefix)
 }
 
 // NewErrUnknownAllocation returns a new error caused by the allocation being

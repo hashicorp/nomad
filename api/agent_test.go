@@ -436,14 +436,14 @@ func TestAgentProfile(t *testing.T) {
 	}
 
 	{
-		resp, err := agent.Profile("", "", "goroutine", 0, q)
+		resp, err := agent.Profile("", "", "heap", 0, 1, q)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 	}
 
 	// unknown profile
 	{
-		resp, err := agent.Profile("", "", "invalid", 1, q)
+		resp, err := agent.Profile("", "", "invalid", 1, 1, q)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Unexpected response code: 404")
 		require.Nil(t, resp)

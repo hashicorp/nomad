@@ -363,6 +363,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 // wrapNonJSON is used to wrap functions returning non JSON
 // serializeable data to make them more convenient. It is primarily
 // responsible for setting nomad headers and logging.
+// Handler functions are responsible for setting Content-Type Header
 func (s *HTTPServer) wrapNonJSON(handler func(resp http.ResponseWriter, req *http.Request) ([]byte, error)) func(resp http.ResponseWriter, req *http.Request) {
 	f := func(resp http.ResponseWriter, req *http.Request) {
 		setHeaders(resp, s.agent.config.HTTPAPIResponseHeaders)
