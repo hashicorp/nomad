@@ -391,14 +391,21 @@ func TestAgentCPUProfile(t *testing.T) {
 
 	// Valid local request
 	{
-		resp, err := agent.CPUProfile("", "", 1, q)
+		opts := PprofOptions{
+			Seconds: 1,
+		}
+		resp, err := agent.CPUProfile(opts, q)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 	}
 
 	// Invalid server request
 	{
-		resp, err := agent.CPUProfile("unknown.global", "", 1, q)
+		opts := PprofOptions{
+			Seconds:  1,
+			ServerID: "unknown.global",
+		}
+		resp, err := agent.CPUProfile(opts, q)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "500 (unknown nomad server unknown.global)")
 		require.Nil(t, resp)
@@ -418,7 +425,7 @@ func TestAgentTrace(t *testing.T) {
 		AuthToken: token.SecretID,
 	}
 
-	resp, err := agent.Trace("", "", 1, q)
+	resp, err := agent.Trace(PprofOptions{}, q)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 }
@@ -436,14 +443,14 @@ func TestAgentProfile(t *testing.T) {
 	}
 
 	{
-		resp, err := agent.Profile("", "", "heap", 0, 1, q)
+		resp, err := agent.Lookup("heap", PprofOptions{}, q)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 	}
 
 	// unknown profile
 	{
-		resp, err := agent.Profile("", "", "invalid", 1, 1, q)
+		resp, err := agent.Lookup("invalid", PprofOptions{}, q)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Unexpected response code: 404")
 		require.Nil(t, resp)

@@ -360,6 +360,8 @@ func (s *HTTPServer) AgentPprofRequest(resp http.ResponseWriter, req *http.Reque
 func (s *HTTPServer) agentPprof(reqType pprof.ReqType, resp http.ResponseWriter, req *http.Request) ([]byte, error) {
 
 	// Parse query param int values
+	// Errors are dropped here and default to their zero values.
+	// This is to mimick the functionality that net/pprof implements.
 	seconds, _ := strconv.Atoi(req.URL.Query().Get("seconds"))
 	debug, _ := strconv.Atoi(req.URL.Query().Get("debug"))
 	gc, _ := strconv.Atoi(req.URL.Query().Get("gc"))

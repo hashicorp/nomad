@@ -290,41 +290,37 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *Stream
 	return frames, errCh
 }
 
+// PprofOptions contain a set of parameters for profiling a node or server.
+type PprofOptions struct {
+	// ServerID is the server ID, name, or special value "leader" to
+	// specify the server that a given profile should be run on.
+	ServerID string
+
+	// NodeID is the node ID that a given profile should be run on.
+	NodeID string
+
+	// Seconds specifies the amount of time a profile should be run for.
+	// Seconds only applies for certain runtime profiles like CPU and Trace.
+	Seconds int
+
+	// GC determines if a runtime.GC() should be called before a heap
+	// profile.
+	GC int
+
+	// Debug specifies if the output of a lookup profile should be returned
+	// in human readable format instead of binary.
+	Debug int
+}
+
 // CPUProfile returns a runtime/pprof cpu profile for a given server or node.
 // The profile will run for the amount of seconds passed in or default to 1.
 // If no serverID or nodeID are provided the current Agents server will be
 // used.
 //
-// The parameters are:
-// * serverID: server ID or name to query, also accepts "leader"
-// * nodeID: client node ID to query
-// * seconds: the amount of time to run the trace for.
-//
 // The call blocks until the profile finishes, and returns the raw bytes of the
 // profile.
-func (a *Agent) CPUProfile(serverID, nodeID string, seconds int, q *QueryOptions) ([]byte, error) {
-	if q == nil {
-		q = &QueryOptions{}
-	}
-	if q.Params == nil {
-		q.Params = make(map[string]string)
-	}
-
-	q.Params["seconds"] = strconv.Itoa(seconds)
-	q.Params["node_id"] = nodeID
-	q.Params["server_id"] = serverID
-
-	body, err := a.client.rawQuery("/v1/agent/pprof/profile", q)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := ioutil.ReadAll(body)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+func (a *Agent) CPUProfile(opts PprofOptions, q *QueryOptions) ([]byte, error) {
+	return a.pprofRequest("profile", opts, q)
 }
 
 // Trace returns a runtime/pprof trace for a given server or node.
@@ -332,51 +328,22 @@ func (a *Agent) CPUProfile(serverID, nodeID string, seconds int, q *QueryOptions
 // If no serverID or nodeID are provided the current Agents server will be
 // used.
 //
-// The parameters are:
-// * serverID: server ID or name to query, also accepts "leader"
-// * nodeID: client node ID to query
-// * seconds: the amount of time to run the trace for.
-//
 // The call blocks until the profile finishes, and returns the raw bytes of the
 // profile.
-func (a *Agent) Trace(serverID, nodeID string, seconds int, q *QueryOptions) ([]byte, error) {
-	if q == nil {
-		q = &QueryOptions{}
-	}
-	if q.Params == nil {
-		q.Params = make(map[string]string)
-	}
-
-	q.Params["seconds"] = strconv.Itoa(seconds)
-	q.Params["node_id"] = nodeID
-	q.Params["server_id"] = serverID
-
-	body, err := a.client.rawQuery("/v1/agent/pprof/trace", q)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := ioutil.ReadAll(body)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
-
+func (a *Agent) Trace(opts PprofOptions, q *QueryOptions) ([]byte, error) {
+	return a.pprofRequest("trace", opts, q)
 }
 
-// Profile returns a runtime/pprof profile using pprof.Lookup to determine
+// Lookup returns a runtime/pprof profile using pprof.Lookup to determine
 // which profile to run. Accepts a client or server ID but not both simultaneously.
 //
-// The parameters are:
-// * serverID: server ID or name to query, also accepts "leader"
-// * nodeID: client node ID to query
-// * profile: the name of the runtime/pprof profile to lookup and run.
-// * debug: flag to specify if the profile should return human readable output.
-//
 // The call blocks until the profile finishes, and returns the raw bytes of the
-// profile.
-func (a *Agent) Profile(serverID, nodeID, profile string, debug, gc int, q *QueryOptions) ([]byte, error) {
+// profile unless debug is set.
+func (a *Agent) Lookup(profile string, opts PprofOptions, q *QueryOptions) ([]byte, error) {
+	return a.pprofRequest(profile, opts, q)
+}
+
+func (a *Agent) pprofRequest(req string, opts PprofOptions, q *QueryOptions) ([]byte, error) {
 	if q == nil {
 		q = &QueryOptions{}
 	}
@@ -384,12 +351,13 @@ func (a *Agent) Profile(serverID, nodeID, profile string, debug, gc int, q *Quer
 		q.Params = make(map[string]string)
 	}
 
-	q.Params["debug"] = strconv.Itoa(debug)
-	q.Params["qc"] = strconv.Itoa(debug)
-	q.Params["node_id"] = nodeID
-	q.Params["server_id"] = serverID
+	q.Params["seconds"] = strconv.Itoa(opts.Seconds)
+	q.Params["debug"] = strconv.Itoa(opts.Debug)
+	q.Params["gc"] = strconv.Itoa(opts.GC)
+	q.Params["node_id"] = opts.NodeID
+	q.Params["server_id"] = opts.ServerID
 
-	body, err := a.client.rawQuery(fmt.Sprintf("/v1/agent/pprof/%s", profile), q)
+	body, err := a.client.rawQuery(fmt.Sprintf("/v1/agent/pprof/%s", req), q)
 	if err != nil {
 		return nil, err
 	}
