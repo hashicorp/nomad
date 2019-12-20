@@ -162,12 +162,12 @@ func (tc *MetricsTest) queryClientMetrics(t *testing.T, clientNodes []string) {
 			}
 			return true
 		}, timeout, 1*time.Second)
-		require.Truef(t, ok, "prometheus query failed: %v", err)
+		require.Truef(t, ok, "prometheus query failed (%s): %v", metric, err)
 
 		// shorten the timeout after the first workload is successfully
 		// queried so that we don't hang the whole test run if something's
 		// wrong with only one of the jobs
-		timeout = 10 * time.Second
+		timeout = 15 * time.Second
 	}
 }
 
@@ -186,19 +186,20 @@ func (tc *MetricsTest) queryAllocMetrics(t *testing.T, workloads map[string]stri
 			if err != nil {
 				return false
 			}
+
+			// make sure we didn't just collect a bunch of zero metrics
+			lastResult := results[len(results)-1]
+			if !(float64(lastResult.Value) > 0.0) {
+				err = fmt.Errorf("expected non-zero metrics, got: %v", results)
+				return false
+			}
 			return true
 		}, timeout, 1*time.Second)
-		require.Truef(t, ok, "prometheus query failed: %v", err)
-
-		// make sure we didn't just collect a bunch of zero metrics
-		lastResult := results[len(results)-1]
-		require.Greaterf(t, float64(lastResult.Value), 0.0,
-			"expected non-zero metrics: %v", results,
-		)
+		require.Truef(t, ok, "prometheus query failed (%s): %v", query, err)
 
 		// shorten the timeout after the first workload is successfully
 		// queried so that we don't hang the whole test run if something's
 		// wrong with only one of the jobs
-		timeout = 10 * time.Second
+		timeout = 15 * time.Second
 	}
 }
