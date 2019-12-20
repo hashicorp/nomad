@@ -18,4 +18,4 @@ You can follow these links to find the specific guides on Learn:
 - [Submit a Job from the Web UI](https://learn.hashicorp.com/nomad/web-ui/submit-job)
 - [Nomad UI Considerations](https://learn.hashicorp.com/nomad/web-ui/considerations)
 
-[HashiCorp's Learn website]: https://learn.hashicorp.com/nomad?track=governance-and-policy#governance-and-policy
+[HashiCorp's Learn website]: https://learn.hashicorp.com/nomad?track=web-ui#getting-started
