@@ -299,6 +299,24 @@ func nodeDrivers(n *api.Node) []string {
 	return drivers
 }
 
+func nodeCSIControllerNames(n *api.Node) []string {
+	var names []string
+	for name := range n.CSIControllerPlugins {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func nodeCSINodeNames(n *api.Node) []string {
+	var names []string
+	for name := range n.CSINodePlugins {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
 func nodeVolumeNames(n *api.Node) []string {
 	var volumes []string
 	for name := range n.HostVolumes {
@@ -340,6 +358,8 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		fmt.Sprintf("Drain|%v", formatDrain(node)),
 		fmt.Sprintf("Eligibility|%s", node.SchedulingEligibility),
 		fmt.Sprintf("Status|%s", node.Status),
+		fmt.Sprintf("CSI Controllers|%s", strings.Join(nodeCSIControllerNames(node), ",")),
+		fmt.Sprintf("CSI Drivers|%s", strings.Join(nodeCSINodeNames(node), ",")),
 	}
 
 	if c.short {
