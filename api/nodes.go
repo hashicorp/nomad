@@ -466,6 +466,8 @@ type Node struct {
 	Events                []*NodeEvent
 	Drivers               map[string]*DriverInfo
 	HostVolumes           map[string]*HostVolumeInfo
+	CSIControllerPlugins  map[string]*CSIInfo
+	CSINodePlugins        map[string]*CSIInfo
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }
@@ -511,6 +513,41 @@ type NodeReservedDiskResources struct {
 
 type NodeReservedNetworkResources struct {
 	ReservedHostPorts string
+}
+
+type CSITopology struct {
+	Segments map[string]string
+}
+
+// CSINodeInfo is the fingerprinted data from a CSI Plugin that is specific to
+// the Node API.
+type CSINodeInfo struct {
+	ID                      string
+	MaxVolumes              int64
+	AccessibleTopology      *CSITopology
+	RequiresNodeStageVolume bool
+}
+
+// CSIControllerInfo is the fingerprinted data from a CSI Plugin that is specific to
+// the Controller API.
+type CSIControllerInfo struct {
+	SupportsReadOnlyAttach           bool
+	SupportsAttachDetach             bool
+	SupportsListVolumes              bool
+	SupportsListVolumesAttachedNodes bool
+}
+
+// CSIInfo is the current state of a single CSI Plugin. This is updated regularly
+// as plugin health changes on the node.
+type CSIInfo struct {
+	PluginID                 string
+	Healthy                  bool
+	HealthDescription        string
+	UpdateTime               time.Time
+	RequiresControllerPlugin bool
+	RequiresTopologies       bool
+	ControllerInfo           *CSIControllerInfo `json:",omitempty"`
+	NodeInfo                 *CSINodeInfo       `json:",omitempty"`
 }
 
 // DrainStrategy describes a Node's drain behavior.
