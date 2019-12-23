@@ -57,7 +57,7 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
                         "cache"
                     ],
                     "Meta": {
-                      "meta": "for my service",
+                      "meta": "for my service"
                     },
                     "PortLabel": "db",
                     "AddressMode": "",
