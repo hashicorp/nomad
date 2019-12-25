@@ -24,7 +24,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
-	vaultconsts "github.com/hashicorp/vault/helper/consts"
+	vaultconsts "github.com/hashicorp/vault/sdk/helper/consts"
 )
 
 const (

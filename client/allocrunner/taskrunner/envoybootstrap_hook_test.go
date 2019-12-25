@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	consulapi "github.com/hashicorp/consul/api"
-	consultest "github.com/hashicorp/consul/testutil"
+	consultest "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"

@@ -15,11 +15,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
-	log "github.com/hashicorp/go-hclog"
+	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -91,7 +91,7 @@ const (
 type Server struct {
 	config *Config
 
-	logger log.InterceptLogger
+	logger hclog.InterceptLogger
 
 	// Connection pool to other Nomad servers
 	connPool *pool.ConnPool
@@ -1106,7 +1106,8 @@ func (s *Server) setupRaft() error {
 	s.raftTransport = trans
 
 	// Make sure we set the Logger.
-	logger := s.logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true})
+	// logger := s.logger.StandardLoggerIntercept(&hclog.StandardLoggerOptions{InferLevels: true})
+	logger := s.logger.NamedIntercept("raft") // todo: the above line does not compile w/ go modules (!)
 	s.config.RaftConfig.Logger = logger
 	s.config.RaftConfig.LogOutput = nil
 
@@ -1276,7 +1277,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	if s.config.UpgradeVersion != "" {
 		conf.Tags[AutopilotVersionTag] = s.config.UpgradeVersion
 	}
-	logger := s.logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true})
+	logger := s.logger.StandardLoggerIntercept(&hclog.StandardLoggerOptions{InferLevels: true})
 	conf.MemberlistConfig.Logger = logger
 	conf.Logger = logger
 	conf.MemberlistConfig.LogOutput = nil

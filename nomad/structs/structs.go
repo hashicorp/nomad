@@ -25,7 +25,7 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
@@ -8926,7 +8926,7 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 	h.RawToString = true
 
 	// maintain binary format from time prior to upgrading latest ugorji
-	h.BasicHandle.TimeNotBuiltin = true
+	// h.BasicHandle.TimeNotBuiltin = true
 
 	// Sets the default type for decoding a map into a nil interface{}.
 	// This is necessary in particular because we store the driver configs as a
@@ -8956,7 +8956,7 @@ var HashiMsgpackHandle = func() *hcodec.MsgpackHandle {
 	h.RawToString = true
 
 	// maintain binary format from time prior to upgrading latest ugorji
-	h.BasicHandle.TimeNotBuiltin = true
+	// h.BasicHandle.TimeNotBuiltin = true
 
 	// Sets the default type for decoding a map into a nil interface{}.
 	// This is necessary in particular because we store the driver configs as a
