@@ -350,10 +350,7 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 			return err
 		} else if l := len(accessors); l > 0 {
 			n.logger.Debug("revoking si accessors on node due to deregister", "num_accessors", l, "node_id", nodeID)
-			if err := n.srv.consulACLs.RevokeTokens(context.Background(), accessors); err != nil {
-				n.logger.Error("revoking si accessors for node failed", "node_id", nodeID, "error", err)
-				return err
-			}
+			_ = n.srv.consulACLs.RevokeTokens(context.Background(), accessors, true)
 		}
 
 		reply.EvalIDs = append(reply.EvalIDs, evalIDs...)
@@ -472,10 +469,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 			return err
 		} else if l := len(accessors); l > 0 {
 			n.logger.Debug("revoking si accessors on node due to down state", "num_accessors", l, "node_id", args.NodeID)
-			if err := n.srv.consulACLs.RevokeTokens(context.Background(), accessors); err != nil {
-				n.logger.Error("revoking si accessors for node failed", "node_id", args.NodeID, "error", err)
-				return err
-			}
+			_ = n.srv.consulACLs.RevokeTokens(context.Background(), accessors, true)
 		}
 	default:
 		ttl, err := n.srv.resetHeartbeatTimer(args.NodeID)
@@ -1226,7 +1220,7 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 		}
 	}
 
-	// Revoke any orphaned Vault accessors
+	// Revoke any orphaned Vault token accessors
 	if l := len(revokeVault); l > 0 {
 		n.logger.Debug("revoking vault accessors due to terminal allocations", "num_accessors", l)
 		if err := n.srv.vault.RevokeTokens(context.Background(), revokeVault, true); err != nil {
@@ -1235,13 +1229,10 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 		}
 	}
 
-	// Revoke any orphaned SI accessors
+	// Revoke any orphaned SI token accessors
 	if l := len(revokeSI); l > 0 {
 		n.logger.Debug("revoking si accessors due to terminal allocations", "num_accessors", l)
-		if err := n.srv.consulACLs.RevokeTokens(context.Background(), revokeSI); err != nil {
-			n.logger.Error("batched si accessor revocation failed", "error", err)
-			mErr.Errors = append(mErr.Errors, err)
-		}
+		_ = n.srv.consulACLs.RevokeTokens(context.Background(), revokeSI, true)
 	}
 
 	// Respond to the future
@@ -1799,12 +1790,11 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 		accessors = append(accessors, accessor)
 	}
 
-	// If there was an error, revoke all created tokens.
+	// If there was an error, revoke all created tokens. These tokens have not
+	// yet been committed to the persistent store.
 	if createErr != nil {
 		n.logger.Error("Consul Service Identity token creation for alloc failed", "alloc_id", alloc.ID, "error", createErr)
-		if revokeErr := n.srv.consulACLs.RevokeTokens(context.Background(), accessors); revokeErr != nil {
-			n.logger.Error("Consul Service Identity token revocation for alloc failed", "alloc_id", alloc.ID, "error", revokeErr)
-		}
+		_ = n.srv.consulACLs.RevokeTokens(context.Background(), accessors, false)
 
 		if recoverable, ok := createErr.(*structs.RecoverableError); ok {
 			reply.Error = recoverable

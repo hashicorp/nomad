@@ -284,7 +284,7 @@ func (m *MockACLsAPI) tokenDelete(tokenID string, _ *api.WriteOptions) (*api.Wri
 	}
 
 	if _, exists := m.state.tokens[tokenID]; !exists {
-		return nil, errors.New("token does not exist")
+		return nil, nil // consul no-ops delete of non-existent token
 	}
 
 	delete(m.state.tokens, tokenID)

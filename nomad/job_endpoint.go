@@ -218,24 +218,18 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// helper function that checks if the "operator token" supplied with the
 	// job has sufficient ACL permissions for establishing consul connect services
 	checkOperatorToken := func(task string) error {
-		fmt.Println("@@ check op token for:", task, "au:", j.srv.config.ConsulConfig.AllowsUnauthenticated())
-
 		if j.srv.config.ConsulConfig.AllowsUnauthenticated() {
 			// if consul.allow_unauthenticated is enabled (which is the default)
 			// just let the Job through without checking anything.
-			fmt.Println("@@ allows unauthenticated = true, not checking")
 			return nil
 		}
 		proxiedTask := strings.TrimPrefix(task, structs.ConnectProxyPrefix+"-")
-		fmt.Println("@@ proxiedTask:", proxiedTask)
 		ctx := context.Background()
 		if err := j.srv.consulACLs.CheckSIPolicy(ctx, proxiedTask, args.Job.ConsulToken); err != nil {
 			// not much in the way of exported error types, we could parse
 			// the content, but all errors are going to be failures anyway
-			fmt.Println("stopped in check for", proxiedTask)
 			return errors.Wrap(err, "operator token denied")
 		}
-		fmt.Println("got passed check for", proxiedTask)
 		return nil
 	}
 

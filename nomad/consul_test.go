@@ -3,7 +3,9 @@ package nomad
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
@@ -11,13 +13,21 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 )
 
 var _ ConsulACLsAPI = (*consulACLsAPI)(nil)
 var _ ConsulACLsAPI = (*mockConsulACLsAPI)(nil)
 
+type revokeRequest struct {
+	accessorID string
+	committed  bool
+}
+
 type mockConsulACLsAPI struct {
-	revokeRequests []string
+	lock           sync.Mutex
+	revokeRequests []revokeRequest
+	stopped        bool
 }
 
 func (m *mockConsulACLsAPI) CheckSIPolicy(_ context.Context, _, _ string) error {
@@ -32,11 +42,39 @@ func (m *mockConsulACLsAPI) ListTokens() ([]string, error) {
 	panic("not implemented yet")
 }
 
-func (m *mockConsulACLsAPI) RevokeTokens(_ context.Context, accessors []*structs.SITokenAccessor) error {
+func (m *mockConsulACLsAPI) Stop() {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	m.stopped = true
+}
+
+type mockPurgingServer struct {
+	purgedAccessorIDs []string
+	failure           error
+}
+
+func (mps *mockPurgingServer) purgeFunc(accessors []*structs.SITokenAccessor) error {
+	if mps.failure != nil {
+		return mps.failure
+	}
+
 	for _, accessor := range accessors {
-		m.revokeRequests = append(m.revokeRequests, accessor.AccessorID)
+		mps.purgedAccessorIDs = append(mps.purgedAccessorIDs, accessor.AccessorID)
 	}
 	return nil
+}
+
+func (m *mockConsulACLsAPI) RevokeTokens(_ context.Context, accessors []*structs.SITokenAccessor, committed bool) bool {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	for _, accessor := range accessors {
+		m.revokeRequests = append(m.revokeRequests, revokeRequest{
+			accessorID: accessor.AccessorID,
+			committed:  committed,
+		})
+	}
+	return false
 }
 
 func TestConsulACLsAPI_CreateToken(t *testing.T) {
@@ -47,8 +85,7 @@ func TestConsulACLsAPI_CreateToken(t *testing.T) {
 		aclAPI := consul.NewMockACLsAPI(logger)
 		aclAPI.SetError(expErr)
 
-		c, err := NewConsulACLsAPI(aclAPI, logger)
-		require.NoError(t, err)
+		c := NewConsulACLsAPI(aclAPI, logger, nil)
 
 		ctx := context.Background()
 		sii := ServiceIdentityIndex{
@@ -86,8 +123,7 @@ func TestConsulACLsAPI_RevokeTokens(t *testing.T) {
 		logger := testlog.HCLogger(t)
 		aclAPI := consul.NewMockACLsAPI(logger)
 
-		c, err := NewConsulACLsAPI(aclAPI, logger)
-		require.NoError(t, err)
+		c := NewConsulACLsAPI(aclAPI, logger, nil)
 
 		ctx := context.Background()
 		generated, err := c.CreateToken(ctx, ServiceIdentityIndex{
@@ -112,22 +148,99 @@ func TestConsulACLsAPI_RevokeTokens(t *testing.T) {
 
 	t.Run("revoke token success", func(t *testing.T) {
 		ctx, c, token := setup(t, nil)
-		err := c.RevokeTokens(ctx, accessors(token.AccessorID))
-		require.NoError(t, err)
+		retryLater := c.RevokeTokens(ctx, accessors(token.AccessorID), false)
+		require.False(t, retryLater)
 	})
 
 	t.Run("revoke token non-existent", func(t *testing.T) {
 		ctx, c, _ := setup(t, nil)
-		err := c.RevokeTokens(ctx, accessors(uuid.Generate()))
-		require.EqualError(t, err, "token does not exist")
+		retryLater := c.RevokeTokens(ctx, accessors(uuid.Generate()), false)
+		require.False(t, retryLater)
 	})
 
 	t.Run("revoke token error", func(t *testing.T) {
 		exp := errors.New("consul broke")
 		ctx, c, token := setup(t, exp)
-		err := c.RevokeTokens(ctx, accessors(token.AccessorID))
-		require.EqualError(t, err, exp.Error())
+		retryLater := c.RevokeTokens(ctx, accessors(token.AccessorID), false)
+		require.True(t, retryLater)
 	})
+}
+
+func TestConsulACLsAPI_bgRetryRevoke(t *testing.T) {
+	t.Parallel()
+
+	// manually create so the bg daemon does not run, letting us explicitly
+	// call and test bgRetryRevoke
+	setup := func(t *testing.T) (*consulACLsAPI, *mockPurgingServer) {
+		logger := testlog.HCLogger(t)
+		aclAPI := consul.NewMockACLsAPI(logger)
+		server := new(mockPurgingServer)
+		shortWait := rate.Limit(1 * time.Millisecond)
+
+		return &consulACLsAPI{
+			aclClient: aclAPI,
+			purgeFunc: server.purgeFunc,
+			limiter:   rate.NewLimiter(shortWait, int(shortWait)),
+			stopC:     make(chan struct{}),
+			logger:    logger,
+		}, server
+	}
+
+	t.Run("retry revoke no items", func(t *testing.T) {
+		c, server := setup(t)
+		c.bgRetryRevoke()
+		require.Empty(t, server)
+	})
+
+	t.Run("retry revoke success", func(t *testing.T) {
+		c, server := setup(t)
+		accessorID := uuid.Generate()
+		c.bgRetryRevocation = append(c.bgRetryRevocation, &structs.SITokenAccessor{
+			NodeID:     uuid.Generate(),
+			AllocID:    uuid.Generate(),
+			AccessorID: accessorID,
+			TaskName:   "task1",
+		})
+		require.Empty(t, server.purgedAccessorIDs)
+		c.bgRetryRevoke()
+		require.Equal(t, 1, len(server.purgedAccessorIDs))
+		require.Equal(t, accessorID, server.purgedAccessorIDs[0])
+		require.Empty(t, c.bgRetryRevocation) // should be empty now
+	})
+
+	t.Run("retry revoke failure", func(t *testing.T) {
+		c, server := setup(t)
+		server.failure = errors.New("revocation fail")
+		accessorID := uuid.Generate()
+		c.bgRetryRevocation = append(c.bgRetryRevocation, &structs.SITokenAccessor{
+			NodeID:     uuid.Generate(),
+			AllocID:    uuid.Generate(),
+			AccessorID: accessorID,
+			TaskName:   "task1",
+		})
+		require.Empty(t, server.purgedAccessorIDs)
+		c.bgRetryRevoke()
+		require.Equal(t, 1, len(c.bgRetryRevocation)) // non-empty because purge failed
+		require.Equal(t, accessorID, c.bgRetryRevocation[0].AccessorID)
+	})
+}
+
+func TestConsulACLsAPI_Stop(t *testing.T) {
+	t.Parallel()
+
+	setup := func(t *testing.T) *consulACLsAPI {
+		logger := testlog.HCLogger(t)
+		return NewConsulACLsAPI(nil, logger, nil)
+	}
+
+	c := setup(t)
+	c.Stop()
+	_, err := c.CreateToken(context.Background(), ServiceIdentityIndex{
+		ClusterID: "",
+		AllocID:   "",
+		TaskName:  "",
+	})
+	require.Error(t, err)
 }
 
 func TestConsulACLsAPI_CheckSIPolicy(t *testing.T) {
@@ -136,10 +249,9 @@ func TestConsulACLsAPI_CheckSIPolicy(t *testing.T) {
 	try := func(t *testing.T, service, token string, expErr string) {
 		logger := testlog.HCLogger(t)
 		aclAPI := consul.NewMockACLsAPI(logger)
-		cAPI, err := NewConsulACLsAPI(aclAPI, logger)
-		require.NoError(t, err)
+		cAPI := NewConsulACLsAPI(aclAPI, logger, nil)
 
-		err = cAPI.CheckSIPolicy(context.Background(), service, token)
+		err := cAPI.CheckSIPolicy(context.Background(), service, token)
 		if expErr != "" {
 			require.EqualError(t, err, expErr)
 		} else {
