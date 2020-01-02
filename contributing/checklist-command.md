@@ -19,6 +19,7 @@ CLI (command/) -> API Client (api/) -> HTTP API (command/agent) -> RPC (nomad/)
 * [ ] Implement `-verbose` (expands truncated UUIDs, adds other detail)
 * [ ] Update help text
 * [ ] Implement and test new HTTP endpoint in `command/agent/<command>_endpoint.go`
+* [ ] Register new URL paths in `command/agent/http.go`
 * [ ] Implement and test new RPC endpoint in `nomad/<command>_endpoint.go`
 * [ ] Implement and test new Client RPC endpoint in
   `client/<command>_endpoint.go` (For client endpoints like Filesystem only)
