@@ -657,7 +657,10 @@ func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
 	r.NoError(err)
 
 	// Check the accessor was revoked
-	exp := []string{accessor.AccessorID}
+	exp := []revokeRequest{{
+		accessorID: accessor.AccessorID,
+		committed:  true,
+	}}
 	r.ElementsMatch(exp, consulACLsAPI.revokeRequests)
 }
 

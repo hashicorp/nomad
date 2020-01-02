@@ -328,7 +328,7 @@ func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse(t *testing.T) {
 		request.Job.ConsulToken = noOpToken
 		var response structs.JobRegisterResponse
 		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
-		require.EqualError(t, err, "operator token denied: unable to validate operator consul token: no such token")
+		require.EqualError(t, err, "operator token denied: missing consul token")
 	})
 
 	t.Run("unknown token provided", func(t *testing.T) {

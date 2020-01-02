@@ -148,7 +148,7 @@ type VaultStats struct {
 	TokenExpiry time.Time
 }
 
-// PurgeVaultAccessor is called to remove VaultAccessors from the system. If
+// PurgeVaultAccessorFn is called to remove VaultAccessors from the system. If
 // the function returns an error, the token will still be tracked and revocation
 // will retry till there is a success
 type PurgeVaultAccessorFn func(accessors []*structs.VaultAccessor) error
@@ -1165,7 +1165,7 @@ func (v *vaultClient) parallelRevoke(ctx context.Context, accessors []*structs.V
 		handlers = maxParallelRevokes
 	}
 
-	// Create the Vault Tokens
+	// Revoke the Vault Token Accessors
 	input := make(chan *structs.VaultAccessor, handlers)
 	for i := 0; i < handlers; i++ {
 		g.Go(func() error {
@@ -1226,7 +1226,7 @@ func (v *vaultClient) revokeDaemon() {
 				continue
 			}
 
-			// Build the list of allocations that need to revoked while pruning any TTL'd checks
+			// Build the list of accessors that need to be revoked while pruning any TTL'd checks
 			revoking := make([]*structs.VaultAccessor, 0, len(v.revoking))
 			for va, ttl := range v.revoking {
 				if now.After(ttl) {

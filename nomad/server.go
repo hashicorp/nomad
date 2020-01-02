@@ -344,11 +344,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulACLs consu
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
 
 	// Setup Consul (more)
-	if err := s.setupConsul(consulACLs); err != nil {
-		s.Shutdown()
-		s.logger.Error("failed to setup Consul ACL client", "error", err)
-		return nil, fmt.Errorf("Failed to setup Consul ACL client: %v", err)
-	}
+	s.setupConsul(consulACLs)
 
 	// Setup Vault
 	if err := s.setupVaultClient(); err != nil {
@@ -589,10 +585,13 @@ func (s *Server) Shutdown() error {
 		s.fsm.Close()
 	}
 
-	// Stop Vault token renewal
+	// Stop Vault token renewal and revocations
 	if s.vault != nil {
 		s.vault.Stop()
 	}
+
+	// Stop the Consul ACLs token revocations
+	s.consulACLs.Stop()
 
 	return nil
 }
@@ -962,13 +961,8 @@ func (s *Server) setupNodeDrainer() {
 }
 
 // setupConsul is used to setup Server specific consul components.
-func (s *Server) setupConsul(consulACLs consul.ACLsAPI) error {
-	c, err := NewConsulACLsAPI(consulACLs, s.logger)
-	if err != nil {
-		return err
-	}
-	s.consulACLs = c
-	return nil
+func (s *Server) setupConsul(consulACLs consul.ACLsAPI) {
+	s.consulACLs = NewConsulACLsAPI(consulACLs, s.logger, s.purgeSITokenAccessors)
 }
 
 // setupVaultClient is used to set up the Vault API client.

@@ -3220,8 +3220,7 @@ func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
 	// rejigger the server to use a broken mock consul
 	mockACLsAPI := consul.NewMockACLsAPI(s1.logger)
 	mockACLsAPI.SetError(structs.NewRecoverableError(errors.New("consul recoverable error"), true))
-	m, err := NewConsulACLsAPI(mockACLsAPI, s1.logger)
-	r.NoError(err)
+	m := NewConsulACLsAPI(mockACLsAPI, s1.logger, nil)
 	s1.consulACLs = m
 
 	err = state.UpsertAllocs(3, []*structs.Allocation{alloc})
