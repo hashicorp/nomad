@@ -511,7 +511,7 @@ func (r *rpcHandler) forward(method string, info structs.RPCInfo, args interface
 
 	region := info.RequestRegion()
 	if region == "" {
-		return true, fmt.Errorf("missing target RPC")
+		return true, fmt.Errorf("missing region for target RPC")
 	}
 
 	// Handle region forwarding
