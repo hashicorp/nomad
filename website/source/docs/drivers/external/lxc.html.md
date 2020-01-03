@@ -186,5 +186,5 @@ isolation is not supported as of now.
 [lxc_man]: https://linuxcontainers.org/lxc/manpages/man5/lxc.container.conf.5.html#lbAM
 [plugin]: /docs/configuration/plugin.html
 [plugin_dir]: /docs/configuration/index.html#plugin_dir
-[plugin-options]: #plugin_options
+[plugin-options]: #plugin-options
 [client_options]: /docs/configuration/client.html#options
