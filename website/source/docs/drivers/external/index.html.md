@@ -23,6 +23,7 @@ plugins will have the same user experience as built in drivers.
 Below is a list of community-supported task drivers you can use with Nomad:
 
 - [LXC][lxc]
+- [Podman][podman]
 - [Singularity][singularity]
 - [Jail task driver][jail-task-driver]
 - [Pot][pot]
@@ -32,5 +33,6 @@ Below is a list of community-supported task drivers you can use with Nomad:
 [plugin_guide]: /docs/internals/plugins/index.html
 [singularity]: /docs/drivers/external/singularity.html
 [jail-task-driver]: /docs/drivers/external/jail-task-driver.html
+[podman]: /docs/drivers/external/podman.html
 [pot]: /docs/drivers/external/pot.html
 [firecracker-task-driver]: /docs/drivers/external/firecracker-task-driver.html
