@@ -269,6 +269,86 @@ func Job() *structs.Job {
 	job.Canonicalize()
 	return job
 }
+func LifecycleJob() *structs.Job {
+	job := &structs.Job{
+		Region:      "global",
+		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
+		Name:        "my-job",
+		Namespace:   structs.DefaultNamespace,
+		Type:        structs.JobTypeService,
+		Priority:    50,
+		AllAtOnce:   false,
+		Datacenters: []string{"dc1"},
+		Constraints: []*structs.Constraint{
+			{
+				LTarget: "${attr.kernel.name}",
+				RTarget: "linux",
+				Operand: "=",
+			},
+		},
+		TaskGroups: []*structs.TaskGroup{
+			{
+				Name: "web",
+				Tasks: []*structs.Task{
+					{
+						Name:   "web",
+						Driver: "exec",
+						Config: map[string]interface{}{
+							"command": "/bin/date",
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      500,
+							MemoryMB: 256,
+						},
+					},
+					{
+						Name:   "side",
+						Driver: "exec",
+						Config: map[string]interface{}{
+							"command": "/bin/date",
+						},
+						Lifecycle: &structs.TaskLifecycleConfig{
+							Hook:       structs.TaskLifecycleHookPrestart,
+							BlockUntil: structs.TaskLifecycleBlockUntilRunning,
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      500,
+							MemoryMB: 256,
+						},
+					},
+					{
+						Name:   "init",
+						Driver: "exec",
+						Config: map[string]interface{}{
+							"command": "/bin/date",
+						},
+						Lifecycle: &structs.TaskLifecycleConfig{
+							Hook:       structs.TaskLifecycleHookPrestart,
+							BlockUntil: structs.TaskLifecycleBlockUntilCompleted,
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      500,
+							MemoryMB: 256,
+						},
+					},
+				},
+			},
+		},
+		Meta: map[string]string{
+			"owner": "armon",
+		},
+		Status:         structs.JobStatusPending,
+		Version:        0,
+		CreateIndex:    42,
+		ModifyIndex:    99,
+		JobModifyIndex: 99,
+	}
+	job.Canonicalize()
+	return job
+}
 
 func MaxParallelJob() *structs.Job {
 	update := *structs.DefaultUpdateStrategy
