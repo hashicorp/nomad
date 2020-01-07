@@ -252,11 +252,9 @@ func (c *Command) readConfig() *Config {
 		config.Client = &ClientConfig{}
 	}
 
-	// todo(shoenig): disable the server in dev mode just for my own demo stuff
-	//  this should not be merged!
-	//if config.Server == nil {
-	//	config.Server = &ServerConfig{}
-	//}
+	if config.Server == nil {
+		config.Server = &ServerConfig{}
+	}
 
 	// Merge any CLI options over config file options
 	config = config.Merge(cmdConfig)

@@ -769,7 +769,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.BindAddr = mode.bindAddr
 	conf.LogLevel = "DEBUG"
 	conf.Client.Enabled = true
-	conf.Server.Enabled = false
+	conf.Server.Enabled = true
 	conf.DevMode = mode != nil
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
