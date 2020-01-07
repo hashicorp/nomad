@@ -1830,7 +1830,7 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 		require.Fail(t, "timed out waiting for task to complete")
 	}
 
-	// Assert the task unblocked and never restarted
+	// Assert the task ran and never restarted
 	state := tr.TaskState()
 	require.Equal(t, structs.TaskStateDead, state.State)
 	require.False(t, state.Failed)

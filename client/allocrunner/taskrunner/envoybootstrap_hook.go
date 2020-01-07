@@ -121,7 +121,6 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 		siToken:        siToken,
 	}.args()
 
-	// put old stuff in here
 	// Since Consul services are registered asynchronously with this task
 	// hook running, retry a small number of times with backoff.
 	for tries := 3; ; tries-- {

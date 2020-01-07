@@ -350,6 +350,9 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 			return err
 		} else if l := len(accessors); l > 0 {
 			n.logger.Debug("revoking si accessors on node due to deregister", "num_accessors", l, "node_id", nodeID)
+			// Unlike with the Vault integration, there's no error returned here, since
+			// bootstrapping the Consul client is elsewhere. Errors in revocation trigger
+			// background retry attempts rather than inline error handling.
 			_ = n.srv.consulACLs.RevokeTokens(context.Background(), accessors, true)
 		}
 
@@ -465,10 +468,10 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 		// Determine if there are any SI token accessors on the node to cleanup
 		if accessors, err := n.srv.State().SITokenAccessorsByNode(ws, args.NodeID); err != nil {
-			n.logger.Error("looking up si accessors for node failed", "node_id", args.NodeID, "error", err)
+			n.logger.Error("looking up SI accessors for node failed", "node_id", args.NodeID, "error", err)
 			return err
 		} else if l := len(accessors); l > 0 {
-			n.logger.Debug("revoking si accessors on node due to down state", "num_accessors", l, "node_id", args.NodeID)
+			n.logger.Debug("revoking SI accessors on node due to down state", "num_accessors", l, "node_id", args.NodeID)
 			_ = n.srv.consulACLs.RevokeTokens(context.Background(), accessors, true)
 		}
 	default:

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCSI_DeriveTokens(t *testing.T) {
+func TestSI_DeriveTokens(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	dFunc := func(alloc *structs.Allocation, taskNames []string) (map[string]string, error) {
 		return map[string]string{"a": "b"}, nil
@@ -20,7 +20,7 @@ func TestCSI_DeriveTokens(t *testing.T) {
 	require.Equal(t, map[string]string{"a": "b"}, tokens)
 }
 
-func TestCSI_DeriveTokens_error(t *testing.T) {
+func TestSI_DeriveTokens_error(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	dFunc := func(alloc *structs.Allocation, taskNames []string) (map[string]string, error) {
 		return nil, errors.New("some failure")

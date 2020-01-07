@@ -378,14 +378,14 @@ func (c *consulACLsAPI) bgRetryRevoke() {
 	copy(toPurge, c.bgRetryRevocation)
 
 	if err := c.parallelRevoke(context.Background(), toPurge); err != nil {
-		c.logger.Warn("background token revocation failed", "error", err)
+		c.logger.Warn("background SI token revocation failed", "error", err)
 		return
 	}
 
 	// Call the revocation function
 	if err := c.purgeFunc(toPurge); err != nil {
 		// Just try again later (revocation is idempotent)
-		c.logger.Error("token revocation failed", "error", err)
+		c.logger.Error("background SI token purge failed", "error", err)
 		return
 	}
 

@@ -8,17 +8,21 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ConsulServiceRule represents a policy for a service
+// ConsulServiceRule represents a policy for a service.
 type ConsulServiceRule struct {
 	Name   string `hcl:",key"`
 	Policy string
 }
 
+// ConsulPolicy represents the parts of a ConsulServiceRule Policy that are
+// relevant to Service Identity authorizations.
 type ConsulPolicy struct {
 	Services        []*ConsulServiceRule `hcl:"service,expand"`
 	ServicePrefixes []*ConsulServiceRule `hcl:"service_prefix,expand"`
 }
 
+// IsEmpty returns true if there are no Services or ServicePrefixes defined for
+// the ConsulPolicy.
 func (cp *ConsulPolicy) IsEmpty() bool {
 	if cp == nil {
 		return true
@@ -26,6 +30,9 @@ func (cp *ConsulPolicy) IsEmpty() bool {
 	return len(cp.Services) == 0 && len(cp.ServicePrefixes) == 0
 }
 
+// ParseConsulPolicy parses raw string s into a ConsulPolicy. An error is
+// returned if decoding the policy fails, or if the decoded policy has no
+// Services or ServicePrefixes defined.
 func ParseConsulPolicy(s string) (*ConsulPolicy, error) {
 	cp := new(ConsulPolicy)
 	if err := hcl.Decode(cp, s); err != nil {
@@ -71,7 +78,6 @@ func (c *consulACLsAPI) hasSufficientPolicy(task string, token *api.ACLToken) (b
 	return false, nil
 }
 
-// policyAllowsServiceWrite
 func (c *consulACLsAPI) policyAllowsServiceWrite(task string, policyID string) (bool, error) {
 	policy, _, err := c.aclClient.PolicyRead(policyID, &api.QueryOptions{
 		AllowStale: false,

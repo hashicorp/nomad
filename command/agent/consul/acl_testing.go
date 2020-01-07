@@ -88,7 +88,7 @@ func (m *MockACLsAPI) RoleRead(roleID string, _ *api.QueryOptions) (*api.ACLRole
 				ID:   ExamplePolicyID1,
 				Name: "example-policy-1",
 			}},
-			ServiceIdentities: nil, // would it ever make sense ?
+			ServiceIdentities: nil,
 		}, nil, nil
 	case ExampleRoleID2:
 		return &api.ACLRole{
@@ -104,9 +104,8 @@ func (m *MockACLsAPI) RoleRead(roleID string, _ *api.QueryOptions) (*api.ACLRole
 		return &api.ACLRole{
 			ID:                ExampleRoleID3,
 			Name:              "example-role-3",
-			Policies:          nil, // todo
-			ServiceIdentities: nil, // todo
-			ModifyIndex:       0,
+			Policies:          nil, // todo add more if needed
+			ServiceIdentities: nil, // todo add more if needed
 		}, nil, nil
 	default:
 		return nil, nil, nil
