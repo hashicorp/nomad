@@ -809,9 +809,10 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 			continue
 		}
 
-		// If the scheduler has marked it as stop already but the alloc wasn't
-		// terminal on the client change the status to lost.
-		if alloc.DesiredStatus == structs.AllocDesiredStatusStop &&
+		// If the scheduler has marked it as stop or evict already but the alloc
+		// wasn't terminal on the client change the status to lost.
+		if (alloc.DesiredStatus == structs.AllocDesiredStatusStop ||
+			alloc.DesiredStatus == structs.AllocDesiredStatusEvict) &&
 			(alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusPending) {
 			plan.AppendStoppedAlloc(alloc, allocLost, structs.AllocClientStatusLost)
