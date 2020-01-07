@@ -87,7 +87,7 @@ Connect][connect] integration.
   available on group services.
 
 - `name` `(string: "<job>-<group>-<task>")` - Specifies the name this service
-  will be advertised as in Consul.  If not supplied, this will default to the
+  will be advertised as in Consul. If not supplied, this will default to the
   name of the job, group, and task concatenated together with a dash, like
   `"docs-example-server"`. Each service must have a unique name within the
   cluster. Names must adhere to [RFC-1123
@@ -95,20 +95,20 @@ Connect][connect] integration.
   alphanumeric and hyphen characters (i.e. `[a-z0-9\-]`), and be less than 64
   characters in length.
 
-    In addition to the standard [Nomad interpolation][interpolation], the
-    following keys are also available:
+  In addition to the standard [Nomad interpolation][interpolation], the
+  following keys are also available:
 
-    - `${JOB}` - the name of the job
-    - `${GROUP}` - the name of the group
-    - `${TASK}` - the name of the task
-    - `${BASE}` - shorthand for `${JOB}-${GROUP}-${TASK}`
-    
-    Validation of the name occurs in two parts. When the job is registered, an initial validation pass checks that
-    the service name adheres to RFC-1123 §2.1 and the length limit, excluding any variables requiring interpolation. 
-    Once the client receives the service and all interpretable values are available, the service name will be 
-    interpolated and revalidated. This can cause certain service names to pass validation at submit time but fail 
-    at runtime.
-    
+  - `${JOB}` - the name of the job
+  - `${GROUP}` - the name of the group
+  - `${TASK}` - the name of the task
+  - `${BASE}` - shorthand for `${JOB}-${GROUP}-${TASK}`
+
+  Validation of the name occurs in two parts. When the job is registered, an initial validation pass checks that
+  the service name adheres to RFC-1123 §2.1 and the length limit, excluding any variables requiring interpolation.
+  Once the client receives the service and all interpretable values are available, the service name will be
+  interpolated and revalidated. This can cause certain service names to pass validation at submit time but fail
+  at runtime.
+
 - `port` `(string: <optional>)` - Specifies the port to advertise for this
   service. The value of `port` depends on which [`address_mode`](#address_mode)
   is being used:
@@ -131,7 +131,7 @@ Connect][connect] integration.
   registered tags will be equal to that of the `tags parameter.
 
 - `address_mode` `(string: "auto")` - Specifies what address (host or
-  driver-specific) this service should advertise.  This setting is supported in
+  driver-specific) this service should advertise. This setting is supported in
   Docker since Nomad 0.6 and rkt since Nomad 0.7. See [below for
   examples.](#using-driver-address-mode) Valid options are:
 
@@ -147,7 +147,7 @@ Connect][connect] integration.
     implemented for Docker and rkt.
 
   - `host` - Use the host IP and port.
-  
+
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   the Consul service with user-defined metadata.
 
@@ -163,7 +163,7 @@ scripts.
   for Nomad to know which is the best address to use for checks. Consul needs
   access to the address for any HTTP or TCP checks. Added in Nomad 0.7.1. See
   [below for details.](#using-driver-address-mode) Unlike `port`, this setting
-  is *not* inherited from the `service`.
+  is _not_ inherited from the `service`.
 
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
@@ -175,11 +175,11 @@ scripts.
   other value for a failing health check. This is required for script-based
   health checks.
 
-    ~> **Caveat:** The command must be the path to the command on disk, and no
-    shell exists by default. That means operators like `||` or `&&` are not
-    available. Additionally, all arguments must be supplied via the `args`
-    parameter. To achieve the behavior of shell operators, specify the command
-    as a shell, like `/bin/bash` and then use `args` to run the check.
+  ~> **Caveat:** The command must be the path to the command on disk, and no
+  shell exists by default. That means operators like `||` or `&&` are not
+  available. Additionally, all arguments must be supplied via the `args`
+  parameter. To achieve the behavior of shell operators, specify the command
+  as a shell, like `/bin/bash` and then use `args` to run the check.
 
 - `grpc_service` `(string: <optional>)` - What service, if any, to specify in
   the gRPC health check. gRPC health checks require Consul 1.0.5 or later.
@@ -258,7 +258,6 @@ service {
   }
 }
 ```
-
 
 ## `service` Examples
 
@@ -404,7 +403,7 @@ service {
 ```
 
 In this example Consul would health check the `example.Service` service on the
-`rpc` port defined in the task's [network resources][network] stanza.  See
+`rpc` port defined in the task's [network resources][network] stanza. See
 [Using Driver Address Mode](#using-driver-address-mode) for details on address
 selection.
 
@@ -511,7 +510,7 @@ job "example" {
           interval = "10s"
           timeout  = "2s"
           port     = 6379
-          
+
           address_mode = "driver"
         }
       }
@@ -529,14 +528,14 @@ directly since Nomad isn't managing any port assignments.
 The [Docker](/docs/drivers/docker.html#advertise_ipv6_address) driver supports the
 `advertise_ipv6_address` parameter in its configuration.
 
-Services will automatically advertise the IPv6 address when `advertise_ipv6_address` 
+Services will automatically advertise the IPv6 address when `advertise_ipv6_address`
 is used.
 
 Unlike services, checks do not have an `auto` address mode as there's no way
 for Nomad to know which is the best address to use for checks. Consul needs
 access to the address for any HTTP or TCP checks.
 
-So you have to set `address_mode` parameter in the `check` stanza to `driver`. 
+So you have to set `address_mode` parameter in the `check` stanza to `driver`.
 
 For example using `auto` address mode:
 
@@ -624,10 +623,10 @@ job "example" {
 }
 ```
 
-The `service` and `check` stanzas can both specify the port number to 
+The `service` and `check` stanzas can both specify the port number to
 advertise and check directly since Nomad isn't managing any port assignments.
 
-- - -
+---
 
 <sup><small>1</small></sup><small> Script checks are not supported for the
 [qemu driver][qemu] since the Nomad client does not have access to the file

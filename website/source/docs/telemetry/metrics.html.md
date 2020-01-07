@@ -1,12 +1,11 @@
 ---
-layout: "docs"
-page_title: "Metrics"
-sidebar_current: "docs-telemetry-metrics"
-description: |-
-  Learn about the different metrics available in Nomad.
+layout: docs
+page_title: Metrics
+sidebar_current: docs-telemetry-metrics
+description: Learn about the different metrics available in Nomad.
 ---
 
-# Metrics 
+# Metrics
 
 The Nomad agent collects various runtime metrics about the performance of
 different libraries and subsystems. These metrics are aggregated on a ten
@@ -17,7 +16,6 @@ Nomad process.
 
 As of Nomad version 0.7, this data is available via HTTP at `/metrics`. See
 [Metrics](/api/metrics.html) for more information.
-
 
 To view this data via sending a signal to the Nomad process: on Unix,
 this is `USR1` while on Windows it is `BREAK`. Once Nomad receives the signal,
@@ -136,8 +134,8 @@ when retrieving metrics using the above described signals.
   <tr>
     <td>`nomad.broker.total_blocked`</td>
     <td>
-        Evaluations that are blocked until an existing evaluation for the same job
-        completes
+      Evaluations that are blocked until an existing evaluation for the same job
+      completes
     </td>
     <td># of evaluations</td>
     <td>Gauge</td>
@@ -151,8 +149,8 @@ when retrieving metrics using the above described signals.
   <tr>
     <td>`nomad.plan.submit`</td>
     <td>
-        Time to submit a scheduler Plan. Higher values cause lower scheduling
-        throughput
+      Time to submit a scheduler Plan. Higher values cause lower scheduling
+      throughput
     </td>
     <td>ms / Plan Submit</td>
     <td>Timer</td>
@@ -160,15 +158,15 @@ when retrieving metrics using the above described signals.
   <tr>
     <td>`nomad.plan.evaluate`</td>
     <td>
-        Time to validate a scheduler Plan. Higher values cause lower scheduling
-        throughput. Similar to `nomad.plan.submit` but does not include RPC time
-        or time in the Plan Queue
+      Time to validate a scheduler Plan. Higher values cause lower scheduling
+      throughput. Similar to `nomad.plan.submit` but does not include RPC time
+      or time in the Plan Queue
     </td>
     <td>ms / Plan Evaluation</td>
     <td>Timer</td>
   </tr>
   <tr>
-    <td>`nomad.worker.invoke_scheduler.<type>`</td>
+    <td>`nomad.worker.invoke_scheduler.&lt;type&gt;`</td>
     <td>Time to run the scheduler of the given type</td>
     <td>ms / Scheduler Run</td>
     <td>Timer</td>
@@ -176,8 +174,8 @@ when retrieving metrics using the above described signals.
   <tr>
     <td>`nomad.worker.wait_for_index`</td>
     <td>
-        Time waiting for Raft log replication from leader. High delays result in
-        lower scheduling throughput
+      Time waiting for Raft log replication from leader. High delays result in
+      lower scheduling throughput
     </td>
     <td>ms / Raft Index Wait</td>
     <td>Timer</td>
@@ -185,8 +183,8 @@ when retrieving metrics using the above described signals.
   <tr>
     <td>`nomad.heartbeat.active`</td>
     <td>
-        Number of active heartbeat timers. Each timer represents a Nomad Client
-        connection
+      Number of active heartbeat timers. Each timer represents a Nomad Client
+      connection
     </td>
     <td># of heartbeat timers</td>
     <td>Gauge</td>
@@ -194,8 +192,8 @@ when retrieving metrics using the above described signals.
   <tr>
     <td>`nomad.heartbeat.invalidate`</td>
     <td>
-        The length of time it takes to invalidate a Nomad Client due to failed
-        heartbeats
+      The length of time it takes to invalidate a Nomad Client due to failed
+      heartbeats
     </td>
     <td>ms / Heartbeat Invalidation</td>
     <td>Timer</td>
@@ -223,11 +221,10 @@ when retrieving metrics using the above described signals.
 ## Client Metrics
 
 The Nomad client emits metrics related to the resource usage of the allocations
-and tasks running on it and the node itself.  Operators have to explicitly turn
+and tasks running on it and the node itself. Operators have to explicitly turn
 on publishing host and allocation metrics. Publishing allocation and host
 metrics can be turned on by setting the value of `publish_allocation_metrics`
 `publish_node_metrics` to `true`.
-
 
 By default the collection interval is 1 second but it can be changed by the
 changing the value of the `collection_interval` key in the `telemetry`
@@ -244,22 +241,22 @@ parameterized or periodic job respectively. For example, a dispatch job with the
 `myjob/dispatch-1312323423423`, will have the following labels.
 
 <table class="table table-bordered table-striped">
-<tr>
+  <tr>
     <th>Label</th>
     <th>Value</th>
-</tr>
-<tr>
-<td>job</td>
-<td>`myjob/dispatch-1312323423423`</td>
-</tr>
-<tr>
-<td>parent_id</td>
-<td>myjob</td>
-</tr>
-<tr>
-<td>dispatch_id</td>
-<td>1312323423423</td>
-</tr>
+  </tr>
+  <tr>
+    <td>job</td>
+    <td>`myjob/dispatch-1312323423423`</td>
+  </tr>
+  <tr>
+    <td>parent_id</td>
+    <td>myjob</td>
+  </tr>
+  <tr>
+    <td>dispatch_id</td>
+    <td>1312323423423</td>
+  </tr>
 </table>
 
 ## Host Metrics (post Nomad version 0.7)
@@ -492,136 +489,154 @@ detailed above) but any new metrics will only be available in the new format.
     <th>Type</th>
   </tr>
   <tr>
-    <td>`nomad.client.allocated.cpu.<HostID>`</td>
+    <td>`nomad.client.allocated.cpu.&lt;HostID&gt;`</td>
     <td>Total amount of CPU shares the scheduler has allocated to tasks</td>
     <td>MHz</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.unallocated.cpu.<HostID>`</td>
-    <td>Total amount of CPU shares free for the scheduler to allocate to tasks</td>
+    <td>`nomad.client.unallocated.cpu.&lt;HostID&gt;`</td>
+    <td>
+      Total amount of CPU shares free for the scheduler to allocate to tasks
+    </td>
     <td>MHz</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocated.memory.<HostID>`</td>
+    <td>`nomad.client.allocated.memory.&lt;HostID&gt;`</td>
     <td>Total amount of memory the scheduler has allocated to tasks</td>
     <td>Megabytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.unallocated.memory.<HostID>`</td>
+    <td>`nomad.client.unallocated.memory.&lt;HostID&gt;`</td>
     <td>Total amount of memory free for the scheduler to allocate to tasks</td>
     <td>Megabytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocated.disk.<HostID>`</td>
+    <td>`nomad.client.allocated.disk.&lt;HostID&gt;`</td>
     <td>Total amount of disk space the scheduler has allocated to tasks</td>
     <td>Megabytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.unallocated.disk.<HostID>`</td>
-    <td>Total amount of disk space free for the scheduler to allocate to tasks</td>
+    <td>`nomad.client.unallocated.disk.&lt;HostID&gt;`</td>
+    <td>
+      Total amount of disk space free for the scheduler to allocate to tasks
+    </td>
     <td>Megabytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocated.network.<Device-Name>.<HostID>`</td>
-    <td>Total amount of bandwidth the scheduler has allocated to tasks on the
-    given device</td>
+    <td>`nomad.client.allocated.network.&lt;Device-Name&gt;.&lt;HostID&gt;`</td>
+    <td>
+      Total amount of bandwidth the scheduler has allocated to tasks on the
+      given device
+    </td>
     <td>Megabits</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.unallocated.network.<Device-Name>.<HostID>`</td>
-    <td>Total amount of bandwidth free for the scheduler to allocate to tasks on
-    the given device</td>
+    <td>
+      `nomad.client.unallocated.network.&lt;Device-Name&gt;.&lt;HostID&gt;`
+    </td>
+    <td>
+      Total amount of bandwidth free for the scheduler to allocate to tasks on
+      the given device
+    </td>
     <td>Megabits</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.memory.<HostID>.total`</td>
+    <td>`nomad.client.host.memory.&lt;HostID&gt;.total`</td>
     <td>Total amount of physical memory on the node</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.memory.<HostID>.available`</td>
-    <td>Total amount of memory available to processes which includes free and
-    cached memory</td>
+    <td>`nomad.client.host.memory.&lt;HostID&gt;.available`</td>
+    <td>
+      Total amount of memory available to processes which includes free and
+      cached memory
+    </td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.memory.<HostID>.used`</td>
+    <td>`nomad.client.host.memory.&lt;HostID&gt;.used`</td>
     <td>Amount of memory used by processes</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.memory.<HostID>.free`</td>
+    <td>`nomad.client.host.memory.&lt;HostID&gt;.free`</td>
     <td>Amount of memory which is free</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.uptime.<HostID>`</td>
+    <td>`nomad.client.uptime.&lt;HostID&gt;`</td>
     <td>Uptime of the host running the Nomad client</td>
     <td>Seconds</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.cpu.<HostID>.<CPU-Core>.total`</td>
+    <td>`nomad.client.host.cpu.&lt;HostID&gt;.&lt;CPU-Core&gt;.total`</td>
     <td>Total CPU utilization</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.cpu.<HostID>.<CPU-Core>.user`</td>
+    <td>`nomad.client.host.cpu.&lt;HostID&gt;.&lt;CPU-Core&gt;.user`</td>
     <td>CPU utilization in the user space</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.cpu.<HostID>.<CPU-Core>.system`</td>
+    <td>`nomad.client.host.cpu.&lt;HostID&gt;.&lt;CPU-Core&gt;.system`</td>
     <td>CPU utilization in the system space</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.cpu.<HostID>.<CPU-Core>.idle`</td>
+    <td>`nomad.client.host.cpu.&lt;HostID&gt;.&lt;CPU-Core&gt;.idle`</td>
     <td>Idle time spent by the CPU</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.size`</td>
+    <td>`nomad.client.host.disk.&lt;HostID&gt;.&lt;Device-Name&gt;.size`</td>
     <td>Total size of the device</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.used`</td>
+    <td>`nomad.client.host.disk.&lt;HostID&gt;.&lt;Device-Name&gt;.used`</td>
     <td>Amount of space which has been used</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.available`</td>
+    <td>
+      `nomad.client.host.disk.&lt;HostID&gt;.&lt;Device-Name&gt;.available`
+    </td>
     <td>Amount of space which is available</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.used_percent`</td>
+    <td>
+      `nomad.client.host.disk.&lt;HostID&gt;.&lt;Device-Name&gt;.used_percent`
+    </td>
     <td>Percentage of disk space used</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.host.disk.<HostID>.<Device-Name>.inodes_percent`</td>
+    <td>
+      `nomad.client.host.disk.&lt;HostID&gt;.&lt;Device-Name&gt;.inodes_percent`
+    </td>
     <td>Disk space consumed by the inodes</td>
     <td>Percent</td>
     <td>Gauge</td>
@@ -638,67 +653,89 @@ detailed above) but any new metrics will only be available in the new format.
     <th>Type</th>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.memory.rss`</td>
+    <td>
+      `nomad.client.allocs.&lt;Job&gt;.&lt;TaskGroup&gt;.&lt;AllocID&gt;.&lt;Task&gt;.memory.rss`
+    </td>
     <td>Amount of RSS memory consumed by the task</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.memory.cache`</td>
+    <td>
+      `nomad.client.allocs.&lt;Job&gt;.&lt;TaskGroup&gt;.&lt;AllocID&gt;.&lt;Task&gt;.memory.cache`
+    </td>
     <td>Amount of memory cached by the task</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.memory.swap`</td>
+    <td>
+      `nomad.client.allocs.&lt;Job&gt;.&lt;TaskGroup&gt;.&lt;AllocID&gt;.&lt;Task&gt;.memory.swap`
+    </td>
     <td>Amount of memory swapped by the task</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.memory.max_usage`</td>
+    <td>
+      `nomad.client.allocs.&lt;Job&gt;.&lt;TaskGroup&gt;.&lt;AllocID&gt;.&lt;Task&gt;.memory.max_usage`
+    </td>
     <td>Maximum amount of memory ever used by the task</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.memory.kernel_usage`</td>
+    <td>
+      `nomad.client.allocs.&lt;Job&gt;.&lt;TaskGroup&gt;.&lt;AllocID&gt;.&lt;Task&gt;.memory.kernel_usage`
+    </td>
     <td>Amount of memory used by the kernel for this task</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.memory.kernel_max_usage`</td>
+    <td>
+      `nomad.client.allocs.&lt;Job&gt;.&lt;TaskGroup&gt;.&lt;AllocID&gt;.&lt;Task&gt;.memory.kernel_max_usage`
+    </td>
     <td>Maximum amount of memory ever used by the kernel for this task</td>
     <td>Bytes</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.cpu.total_percent`</td>
+    <td>
+      `nomad.client.allocs.&lt;Job&gt;.&lt;TaskGroup&gt;.&lt;AllocID&gt;.&lt;Task&gt;.cpu.total_percent`
+    </td>
     <td>Total CPU resources consumed by the task across all cores</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.cpu.system`</td>
+    <td>
+      `nomad.client.allocs.&lt;Job&gt;.&lt;TaskGroup&gt;.&lt;AllocID&gt;.&lt;Task&gt;.cpu.system`
+    </td>
     <td>Total CPU resources consumed by the task in the system space</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.cpu.user`</td>
+    <td>
+      `nomad.client.allocs.&lt;Job&gt;.&lt;TaskGroup&gt;.&lt;AllocID&gt;.&lt;Task&gt;.cpu.user`
+    </td>
     <td>Total CPU resources consumed by the task in the user space</td>
     <td>Percentage</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.cpu.throttled_time`</td>
+    <td>
+      `nomad.client.allocs.&lt;Job&gt;.&lt;TaskGroup&gt;.&lt;AllocID&gt;.&lt;Task&gt;.cpu.throttled_time`
+    </td>
     <td>Total time that the task was throttled</td>
     <td>Nanoseconds</td>
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.cpu.total_ticks`</td>
+    <td>
+      `nomad.client.allocs.&lt;Job&gt;.&lt;TaskGroup&gt;.&lt;AllocID&gt;.&lt;Task&gt;.cpu.total_ticks`
+    </td>
     <td>CPU ticks consumed by the process in the last collection interval</td>
     <td>Integer</td>
     <td>Gauge</td>
@@ -803,24 +840,24 @@ Job status metrics are emitted by the Nomad leader server.
   <tr>
     <td>Gauge</td>
     <td>
-        Gauge types report an absolute number at the end of the aggregation
-        interval
+      Gauge types report an absolute number at the end of the aggregation
+      interval
     </td>
     <td>false</td>
   </tr>
   <tr>
     <td>Counter</td>
     <td>
-        Counts are incremented and flushed at the end of the aggregation
-        interval and then are reset to zero
+      Counts are incremented and flushed at the end of the aggregation interval
+      and then are reset to zero
     </td>
     <td>true</td>
   </tr>
   <tr>
     <td>Timer</td>
     <td>
-        Timers measure the time to complete a task and will include quantiles,
-        means, standard deviation, etc per interval.
+      Timers measure the time to complete a task and will include quantiles,
+      means, standard deviation, etc per interval.
     </td>
     <td>true</td>
   </tr>
