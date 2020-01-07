@@ -43,9 +43,6 @@ type envoyBootstrapHook struct {
 	// Consul's gRPC endpoint.
 	consulHTTPAddr string
 
-	// executable is executable file that is consul
-	executable string
-
 	// logger is used to log things
 	logger hclog.Logger
 }
