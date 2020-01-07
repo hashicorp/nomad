@@ -17,6 +17,7 @@ description: |-
     </td>
   </tr>
 </table>
+
 The `task` stanza creates an individual unit of work, such as a Docker
 container, web application, or batch processing.
 
@@ -79,7 +80,7 @@ job "docs" {
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   with user-defined metadata.
 
-- `resources` <code>([Resources][]: <required>)</code> - Specifies the minimum
+- `resources` <code>([Resources][]: &lt;required&gt;)</code> - Specifies the minimum
   resource requirements such as RAM, CPU and network.
 
 - `service` <code>([Service][]: nil)</code> - Specifies integrations with
@@ -96,7 +97,7 @@ job "docs" {
 
 - `user` `(string: <varies>)` - Specifies the user that will run the task.
   Defaults to `nobody` for the [`exec`][exec] and [`java`][java] drivers.
-  [Docker][] and [rkt][] images specify their own default users.  This can only
+  [Docker][] and [rkt][] images specify their own default users. This can only
   be set on Linux platforms, and clients can restrict
   [which drivers][user_drivers] are allowed to run tasks as
   [certain users][user_blacklist].
@@ -208,7 +209,7 @@ task "server" {
 [vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"
 [exec]: /docs/drivers/exec.html "Nomad exec Driver"
 [java]: /docs/drivers/java.html "Nomad Java Driver"
-[Docker]: /docs/drivers/docker.html "Nomad Docker Driver"
+[docker]: /docs/drivers/docker.html "Nomad Docker Driver"
 [rkt]: /docs/drivers/rkt.html "Nomad rkt Driver"
 [service_discovery]: /guides/integrations/consul-integration/index.html#service-discovery/index.html "Nomad Service Discovery"
 [template]: /docs/job-specification/template.html "Nomad template Job Specification"

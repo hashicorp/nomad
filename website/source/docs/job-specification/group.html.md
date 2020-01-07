@@ -36,7 +36,7 @@ job "docs" {
   This can be provided multiple times to define additional constraints.
 
 - `affinity` <code>([Affinity][]: nil)</code> - This can be provided
-    multiple times to define preferred placement criteria.
+  multiple times to define preferred placement criteria.
 
 - `spread` <code>([Spread][spread]: nil)</code> - This can be provided
   multiple times to define criteria for spreading allocations across a
@@ -75,7 +75,7 @@ job "docs" {
   own [`shutdown_delay`](/docs/job-specification/task.html#shutdown_delay)
   which waits between deregistering task services and stopping the task.
 
-- `task` <code>([Task][]: <required>)</code> - Specifies one or more tasks to run
+- `task` <code>([Task][]: &lt;required&gt;)</code> - Specifies one or more tasks to run
   within this group. This can be specified multiple times, to add a task as part
   of the group.
 

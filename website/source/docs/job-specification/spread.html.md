@@ -69,7 +69,7 @@ Additionally, spread may be specified at the [job][job] and [group][group] level
   to use. This can be any of the [Nomad interpolated
   values](/docs/runtime/interpolation.html#interpreted_node_vars).
 
-- `target` <code>([target](#target-parameters): <required>)</code> - Specifies one or more target
+- `target` <code>([target](#target-parameters): &lt;required&gt;)</code> - Specifies one or more target
    percentages for each value of the `attribute` in the spread stanza. If this is omitted,
    Nomad will spread allocations evenly across all values of the attribute.
 

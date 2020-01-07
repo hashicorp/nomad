@@ -21,7 +21,7 @@ description: |-
 The `device` stanza is used to create both a scheduling and runtime requirement
 that the given task has access to the specified devices. A device is a hardware
 device that is attached to the node and may be made available to the task.
-Examples are GPUs, FPGAs, and TPUs. 
+Examples are GPUs, FPGAs, and TPUs.
 
 When a `device` stanza is added, Nomad will schedule the task onto a node that
 contains the set of device(s) that meet the specified requirements. The `device` stanza
@@ -75,14 +75,14 @@ due to the ability to isolate devices to specific tasks.
 - `name` `(string: "")` - Specifies the device required. The following inputs
   are valid:
 
-  * `<device_type>`: If a single value is given, it is assumed to be the device
+  - `<device_type>`: If a single value is given, it is assumed to be the device
     type, such as "gpu", or "fpga".
 
-  * `<vendor>/<device_type>`: If two values are given separated by a `/`, the
+  - `<vendor>/<device_type>`: If two values are given separated by a `/`, the
     given device type will be selected, constraining on the provided vendor.
     Examples include "nvidia/gpu" or "amd/gpu".
 
-  * `<vendor>/<device_type>/<model>`: If three values are given separated by a `/`, the
+  - `<vendor>/<device_type>/<model>`: If three values are given separated by a `/`, the
     given device type will be selected, constraining on the provided vendor, and
     model name. Examples include "nvidia/gpu/1080ti" or "nvidia/gpu/2080ti".
 
@@ -90,8 +90,8 @@ due to the ability to isolate devices to specific tasks.
   that are required.
 
 - `constraint` <code>([Constraint][]: nil)</code> - Constraints to restrict
-  which devices are eligible.  This can be provided multiple times to define
-  additional constraints. See below for available attributes. 
+  which devices are eligible. This can be provided multiple times to define
+  additional constraints. See below for available attributes.
 
 - `affinity` <code>([Affinity][]: nil)</code> - Affinity to specify a preference
   for which devices get selected. This can be provided multiple times to define
@@ -150,11 +150,11 @@ The units Nomad supports is as follows:
   </tr>
   <tr>
     <td><tt>Byte</tt></td>
-    <td><tt>**Base 2**: KiB, MiB, GiB, TiB, PiB, EiB<br>**Base 10**: kB, KB (equivalent to kB), MB, GB, TB, PB, EB</tt>
+    <td><tt>**Base 2**: KiB, MiB, GiB, TiB, PiB, EiB<br>**Base 10**: kB, KB (equivalent to kB), MB, GB, TB, PB, EB</tt></td>
   </tr>
   <tr>
     <td><tt>Byte Rates</tt></td>
-    <td><tt>**Base 2**: KiB/s, MiB/s, GiB/s, TiB/s, PiB/s, EiB/s<br>**Base 10**: kB/s, KB/s (equivalent to kB/s), MB/s, GB/s, TB/s, PB/s, EB/s</tt>
+    <td><tt>**Base 2**: KiB/s, MiB/s, GiB/s, TiB/s, PiB/s, EiB/s<br>**Base 10**: kB/s, KB/s (equivalent to kB/s), MB/s, GB/s, TB/s, PB/s, EB/s</tt></td>
   </tr>
   <tr>
     <td><tt>Hertz</tt></td>
@@ -187,7 +187,7 @@ This example schedules a task with a two Nvidia GPU made available.
 
 ```hcl
 device "nvidia/gpu" {
-  count = 2    
+  count = 2
 }
 ```
 

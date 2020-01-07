@@ -20,7 +20,7 @@ description: |-
 
 The `sidecar_service` stanza allows configuring various options for the sidecar
 proxy managed by Nomad for [Consul
-Connect](/guides/integrations/consul-connect/index.html) integration.  It is
+Connect](/guides/integrations/consul-connect/index.html) integration. It is
 valid only within the context of a connect stanza.
 
 ```hcl
@@ -52,12 +52,11 @@ valid only within the context of a connect stanza.
 
 ## `sidecar_service` Parameters
 
-- `tags` <code>(array<string>: nil)</code> - Custom Consul service tags for the sidecar service.
+- `tags` <code>(array&lt;string&gt;: nil)</code> - Custom Consul service tags for the sidecar service.
 
 - `port` `(string: )` - Port label for sidecar service.
 
 - `proxy` <code>([proxy][]: nil)</code> - This is used to configure the sidecar proxy service.
-
 
 ## `sidecar_service` Examples
 
@@ -81,7 +80,7 @@ The following example includes specifying upstreams.
      }
    }
 
- ```
+```
 
 [job]: /docs/job-specification/job.html "Nomad job Job Specification"
 [group]: /docs/job-specification/group.html "Nomad group Job Specification"
