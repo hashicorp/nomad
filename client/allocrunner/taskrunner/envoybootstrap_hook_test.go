@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 var _ interfaces.TaskPrestartHook = (*envoyBootstrapHook)(nil)
@@ -38,6 +39,10 @@ func writeTmp(t *testing.T, s string, fm os.FileMode) string {
 
 func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 	t.Parallel()
+
+	if unix.Geteuid() == 0 {
+		t.Skip("test only works as non-root")
+	}
 
 	t.Run("file does not exist", func(t *testing.T) {
 		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{logger: testlog.HCLogger(t)})
