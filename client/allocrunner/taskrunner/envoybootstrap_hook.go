@@ -13,12 +13,16 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var _ interfaces.TaskPrestartHook = &envoyBootstrapHook{}
 
-const envoyBaseAdminPort = 19000
+const (
+	envoyBaseAdminPort      = 19000
+	envoyAdminBindEnvPrefix = "NOMAD_ENVOY_ADMIN_ADDR_"
+)
 
 // envoyBootstrapHook writes the bootstrap config for the Connect Envoy proxy
 // sidecar.
@@ -82,6 +86,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 	// are running, the bind addresses need to have unique ports.
 	// TODO: support running in host netns, using freeport to find available port
 	envoyAdminBind := buildEnvoyAdminBind(h.alloc, req.Task.Name)
+	resp.Env[helper.CleanEnvVar(envoyAdminBindEnvPrefix+serviceName, '_')] = envoyAdminBind
 
 	// Envoy bootstrap configuration may contain a Consul token, so write
 	// it to the secrets directory like Vault tokens.
