@@ -4360,6 +4360,49 @@ func TestBatchSched_ScaleDown_SameName(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestGenericSched_AllocFit(t *testing.T) {
+
+	h := NewHarness(t)
+	node := mock.Node()
+	node.Resources.CPU = 1200
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Create a job with sidecar & init tasks
+	job := mock.LifecycleJob()
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	require.NoError(t, err)
+
+	fmt.Printf("%#+v\n", h.Evals[0])
+
+	// Ensure no plan as it should be a no-op
+	require.Len(t, h.Plans, 1)
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	require.NoError(t, err)
+
+	// Ensure no allocations placed
+	require.Len(t, out, 1)
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
+}
+
 func TestGenericSched_ChainedAlloc(t *testing.T) {
 	h := NewHarness(t)
 
