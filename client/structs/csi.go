@@ -1,53 +1,9 @@
 package structs
 
-import "github.com/hashicorp/nomad/plugins/csi"
-
-// CSIVolumeAttachmentMode chooses the type of storage api that will be used to
-// interact with the device.
-type CSIVolumeAttachmentMode string
-
-const (
-	CSIVolumeAttachmentModeUnknown     CSIVolumeAttachmentMode = ""
-	CSIVolumeAttachmentModeBlockDevice CSIVolumeAttachmentMode = "block-device"
-	CSIVolumeAttachmentModeFilesystem  CSIVolumeAttachmentMode = "file-system"
+import (
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/csi"
 )
-
-func ValidCSIVolumeAttachmentMode(attachmentMode CSIVolumeAttachmentMode) bool {
-	switch attachmentMode {
-	case CSIVolumeAttachmentModeBlockDevice, CSIVolumeAttachmentModeFilesystem:
-		return true
-	default:
-		return false
-	}
-}
-
-// CSIVolumeAccessMode indicates how a volume should be used in a storage topology
-// e.g whether the provider should make the volume available concurrently.
-type CSIVolumeAccessMode string
-
-const (
-	CSIVolumeAccessModeUnknown CSIVolumeAccessMode = ""
-
-	CSIVolumeAccessModeSingleNodeReader CSIVolumeAccessMode = "single-node-reader-only"
-	CSIVolumeAccessModeSingleNodeWriter CSIVolumeAccessMode = "single-node-writer"
-
-	CSIVolumeAccessModeMultiNodeReader       CSIVolumeAccessMode = "multi-node-reader-only"
-	CSIVolumeAccessModeMultiNodeSingleWriter CSIVolumeAccessMode = "multi-node-single-writer"
-	CSIVolumeAccessModeMultiNodeMultiWriter  CSIVolumeAccessMode = "multi-node-multi-writer"
-)
-
-// ValidCSIVolumeAccessMode checks to see that the provided access mode is a valid,
-// non-empty access mode.
-func ValidCSIVolumeAccessMode(accessMode CSIVolumeAccessMode) bool {
-	switch accessMode {
-	case CSIVolumeAccessModeSingleNodeReader, CSIVolumeAccessModeSingleNodeWriter,
-		CSIVolumeAccessModeMultiNodeReader, CSIVolumeAccessModeMultiNodeSingleWriter,
-		CSIVolumeAccessModeMultiNodeMultiWriter:
-		return true
-	default:
-		return false
-	}
-}
 
 // CSIVolumeMountOptions contains the mount options that should be provided when
 // attaching and mounting a volume with the CSIVolumeAttachmentModeFilesystem
@@ -77,10 +33,10 @@ type ClientCSIControllerAttachVolumeRequest struct {
 
 	// AttachmentMode indicates how the volume should be attached and mounted into
 	// a task.
-	AttachmentMode CSIVolumeAttachmentMode
+	AttachmentMode structs.CSIVolumeAttachmentMode
 
 	// AccessMode indicates the desired concurrent access model for the volume
-	AccessMode CSIVolumeAccessMode
+	AccessMode structs.CSIVolumeAccessMode
 
 	// MountOptions is an optional field that contains additional configuration
 	// when providing an AttachmentMode of CSIVolumeAttachmentModeFilesystem
