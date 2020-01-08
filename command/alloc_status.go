@@ -191,7 +191,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 	c.Ui.Output(output)
 
-	if len(alloc.AllocatedResources.Shared.Networks) > 0 && alloc.AllocatedResources.Shared.Networks[0].HasPorts() {
+	if alloc.AllocatedResources != nil && len(alloc.AllocatedResources.Shared.Networks) > 0 && alloc.AllocatedResources.Shared.Networks[0].HasPorts() {
 		c.Ui.Output("")
 		c.Ui.Output(formatAllocNetworkInfo(alloc))
 	}
