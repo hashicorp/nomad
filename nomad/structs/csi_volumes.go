@@ -57,13 +57,22 @@ func ValidCSIVolumeAccessMode(accessMode CSIVolumeAccessMode) bool {
 	}
 }
 
+func ValidCSIVolumeWriteAccessMode(accessMode CSIVolumeAccessMode) bool {
+	switch accessMode {
+	case CSIVolumeAccessModeSingleNodeWriter,
+		CSIVolumeAccessModeMultiNodeSingleWriter,
+		CSIVolumeAccessModeMultiNodeMultiWriter:
+		return true
+	default:
+		return false
+	}
+}
+
 type CSIVolume struct {
 	ID             string
 	Driver         string
 	Namespace      string
 	Topologies     []*CSITopology
-	MaxReaders     int
-	MaxWriters     int
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
 
@@ -81,6 +90,7 @@ type CSIVolume struct {
 	Controller        []*Job
 	NodeHealthy       int
 	NodeExpected      int
+	ResourceExhausted time.Time
 
 	CreatedIndex  uint64
 	ModifiedIndex uint64
@@ -93,8 +103,6 @@ type CSIVolListStub struct {
 	Topologies        []*CSITopology
 	AccessMode        CSIVolumeAccessMode
 	AttachmentMode    CSIVolumeAttachmentMode
-	MaxReaders        int
-	MaxWriters        int
 	CurrentReaders    int
 	CurrentWriters    int
 	Healthy           bool
@@ -125,8 +133,6 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 		Topologies:        v.Topologies,
 		AccessMode:        v.AccessMode,
 		AttachmentMode:    v.AttachmentMode,
-		MaxReaders:        v.MaxReaders,
-		MaxWriters:        v.MaxWriters,
 		CurrentReaders:    len(v.ReadAllocs),
 		CurrentWriters:    len(v.WriteAllocs),
 		Healthy:           v.Healthy,
@@ -143,17 +149,26 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 }
 
 func (v *CSIVolume) CanReadOnly() bool {
-	if len(v.ReadAllocs) < v.MaxReaders {
-		return true
+	if !v.Healthy {
+		return false
 	}
-	return false
+
+	return v.ResourceExhausted == time.Time{}
 }
 
 func (v *CSIVolume) CanWrite() bool {
-	if len(v.WriteAllocs) < v.MaxWriters {
-		return true
+	if !v.Healthy {
+		return false
 	}
-	return false
+
+	switch v.AccessMode {
+	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter:
+		return len(v.WriteAllocs) == 0
+	case CSIVolumeAccessModeMultiNodeMultiWriter:
+		return v.ResourceExhausted == time.Time{}
+	default:
+		return false
+	}
 }
 
 func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) bool {
@@ -212,8 +227,6 @@ func (v *CSIVolume) Equal(o *CSIVolume) bool {
 	if v.ID == o.ID &&
 		v.Driver == o.Driver &&
 		v.Namespace == o.Namespace &&
-		v.MaxReaders == o.MaxReaders &&
-		v.MaxWriters == o.MaxWriters &&
 		v.AccessMode == o.AccessMode &&
 		v.AttachmentMode == o.AttachmentMode &&
 		v.ControllerName == o.ControllerName {
@@ -249,8 +262,11 @@ func (v *CSIVolume) Validate() error {
 	if v.Namespace == "" {
 		errs = append(errs, "missing namespace")
 	}
-	if v.MaxReaders == 0 && v.MaxWriters == 0 {
-		errs = append(errs, "missing access, set max readers and/or max writers")
+	if v.AccessMode == "" {
+		errs = append(errs, "missing access mode")
+	}
+	if v.AttachmentMode == "" {
+		errs = append(errs, "missing attachment mode")
 	}
 
 	var ok bool
