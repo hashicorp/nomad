@@ -7527,15 +7527,17 @@ type Allocation struct {
 	// the scheduler.
 	Resources *Resources
 
-	// COMPAT(0.11): Remove in 0.11
 	// SharedResources are the resources that are shared by all the tasks in an
 	// allocation
+	// Deprecated: use AllocatedResources.Shared instead.
+	// Keep field to allow us to handle upgrade paths from old versions
 	SharedResources *Resources
 
-	// COMPAT(0.11): Remove in 0.11
 	// TaskResources is the set of resources allocated to each
 	// task. These should sum to the total Resources. Dynamic ports will be
 	// set by the scheduler.
+	// Deprecated: use AllocatedResources.Tasks instead.
+	// Keep field to allow us to handle upgrade paths from old versions
 	TaskResources map[string]*Resources
 
 	// AllocatedResources is the total resources allocated for the task group.
@@ -7630,6 +7632,39 @@ func (a *Allocation) Copy() *Allocation {
 // CopySkipJob provides a copy of the allocation but doesn't deep copy the job
 func (a *Allocation) CopySkipJob() *Allocation {
 	return a.copyImpl(false)
+}
+
+func (a *Allocation) Canonicalize() {
+	if a.AllocatedResources == nil && a.TaskResources != nil {
+		ar := AllocatedResources{}
+		ar.Tasks = toAllocatedResources(a.TaskResources)
+
+		if a.SharedResources != nil {
+			ar.Shared.DiskMB = int64(a.SharedResources.DiskMB)
+			ar.Shared.Networks = a.SharedResources.Networks.Copy()
+		}
+
+		a.AllocatedResources = &ar
+	}
+
+	// TODO: Investigate if we should canonicalize the job
+	// it may be out of sync with respect to the original job
+	// a.Job.Canonicalize()
+}
+
+func toAllocatedResources(taskResources map[string]*Resources) map[string]*AllocatedTaskResources {
+	tasks := make(map[string]*AllocatedTaskResources, len(taskResources))
+
+	for name, tr := range taskResources {
+		atr := AllocatedTaskResources{}
+		atr.Cpu.CpuShares = int64(tr.CPU)
+		atr.Memory.MemoryMB = int64(tr.MemoryMB)
+		atr.Networks = tr.Networks.Copy()
+
+		tasks[name] = &atr
+	}
+
+	return tasks
 }
 
 func (a *Allocation) copyImpl(job bool) *Allocation {

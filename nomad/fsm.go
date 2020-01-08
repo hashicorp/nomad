@@ -681,22 +681,23 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	// prior to being inserted into MemDB.
 	structs.DenormalizeAllocationJobs(req.Job, req.Alloc)
 
-	// COMPAT(0.11): Remove in 0.11
-	// Calculate the total resources of allocations. It is pulled out in the
-	// payload to avoid encoding something that can be computed, but should be
-	// denormalized prior to being inserted into MemDB.
 	for _, alloc := range req.Alloc {
-		if alloc.Resources != nil {
-			continue
+		// COMPAT(0.11): Remove in 0.11
+		// Calculate the total resources of allocations. It is pulled out in the
+		// payload to avoid encoding something that can be computed, but should be
+		// denormalized prior to being inserted into MemDB.
+		if alloc.Resources == nil {
+			alloc.Resources = new(structs.Resources)
+			for _, task := range alloc.TaskResources {
+				alloc.Resources.Add(task)
+			}
+
+			// Add the shared resources
+			alloc.Resources.Add(alloc.SharedResources)
 		}
 
-		alloc.Resources = new(structs.Resources)
-		for _, task := range alloc.TaskResources {
-			alloc.Resources.Add(task)
-		}
-
-		// Add the shared resources
-		alloc.Resources.Add(alloc.SharedResources)
+		// Handle upgrade path
+		alloc.Canonicalize()
 	}
 
 	if err := n.state.UpsertAllocs(index, req.Alloc); err != nil {
@@ -1165,6 +1166,9 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(alloc); err != nil {
 				return err
 			}
+
+			// Handle upgrade path
+			alloc.Canonicalize()
 
 			if err := restore.AllocRestore(alloc); err != nil {
 				return err

@@ -4089,6 +4089,67 @@ func TestAllocation_NextDelay(t *testing.T) {
 
 }
 
+func TestAllocation_Canonicalize_Old(t *testing.T) {
+	alloc := MockAlloc()
+	alloc.AllocatedResources = nil
+	alloc.TaskResources = map[string]*Resources{
+		"web": {
+			CPU:      500,
+			MemoryMB: 256,
+			Networks: []*NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []Port{{Label: "admin", Value: 5000}},
+					MBits:         50,
+					DynamicPorts:  []Port{{Label: "http", Value: 9876}},
+				},
+			},
+		},
+	}
+	alloc.SharedResources = &Resources{
+		DiskMB: 150,
+	}
+	alloc.Canonicalize()
+
+	expected := &AllocatedResources{
+		Tasks: map[string]*AllocatedTaskResources{
+			"web": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 500,
+				},
+				Memory: AllocatedMemoryResources{
+					MemoryMB: 256,
+				},
+				Networks: []*NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []Port{{Label: "admin", Value: 5000}},
+						MBits:         50,
+						DynamicPorts:  []Port{{Label: "http", Value: 9876}},
+					},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 150,
+		},
+	}
+
+	require.Equal(t, expected, alloc.AllocatedResources)
+}
+
+// TestAllocation_Canonicalize_New asserts that an alloc with latest
+// schema isn't modified with Canonicalize
+func TestAllocation_Canonicalize_New(t *testing.T) {
+	alloc := MockAlloc()
+	copy := alloc.Copy()
+
+	alloc.Canonicalize()
+	require.Equal(t, copy, alloc)
+}
+
 func TestRescheduleTracker_Copy(t *testing.T) {
 	type testCase struct {
 		original *RescheduleTracker
