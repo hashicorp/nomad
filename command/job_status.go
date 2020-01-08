@@ -173,6 +173,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Type|%s", *job.Type),
 		fmt.Sprintf("Priority|%d", *job.Priority),
 		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
+		fmt.Sprintf("Namespace|%s", *job.Namespace),
 		fmt.Sprintf("Status|%s", getStatusString(*job.Status, job.Stop)),
 		fmt.Sprintf("Periodic|%v", periodic),
 		fmt.Sprintf("Parameterized|%v", parameterized),
