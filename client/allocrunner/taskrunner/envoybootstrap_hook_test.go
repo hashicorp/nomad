@@ -104,6 +104,9 @@ func TestTaskRunner_EnvoyBootstrapHook_Ok(t *testing.T) {
 	// Assert it is Done
 	require.True(t, resp.Done)
 
+	require.NotNil(t, resp.Env)
+	require.Equal(t, "localhost:19001", resp.Env[envoyAdminBindEnvPrefix+"foo"])
+
 	// Ensure the default path matches
 	env := map[string]string{
 		taskenv.SecretsDir: req.TaskDir.SecretsDir,
