@@ -7,16 +7,16 @@ import (
 )
 
 func TestCSIVolumeClaim(t *testing.T) {
-	vol := CreateCSIVolume(nil)
-	vol.MaxReaders = 1
-	vol.MaxWriters = 1
+	vol := CreateCSIVolume("")
+	vol.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
+	vol.Healthy = true
 
 	alloc := &Allocation{ID: "al"}
 
 	vol.ClaimRead(alloc)
-	require.False(t, vol.CanReadOnly())
+	require.True(t, vol.CanReadOnly())
 	require.True(t, vol.CanWrite())
-	require.False(t, vol.ClaimRead(alloc))
+	require.True(t, vol.ClaimRead(alloc))
 
 	vol.ClaimWrite(alloc)
 	require.True(t, vol.CanReadOnly())
