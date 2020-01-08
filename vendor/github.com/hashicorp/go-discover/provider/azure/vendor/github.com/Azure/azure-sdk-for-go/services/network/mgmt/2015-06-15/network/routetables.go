@@ -21,7 +21,6 @@ import (
 	"context"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
-	"github.com/Azure/go-autorest/tracing"
 	"net/http"
 )
 
@@ -46,16 +45,6 @@ func NewRouteTablesClientWithBaseURI(baseURI string, subscriptionID string) Rout
 // routeTableName - the name of the route table.
 // parameters - parameters supplied to the create or update route table operation.
 func (client RouteTablesClient) CreateOrUpdate(ctx context.Context, resourceGroupName string, routeTableName string, parameters RouteTable) (result RouteTablesCreateOrUpdateFuture, err error) {
-	if tracing.IsEnabled() {
-		ctx = tracing.StartSpan(ctx, fqdn+"/RouteTablesClient.CreateOrUpdate")
-		defer func() {
-			sc := -1
-			if result.Response() != nil {
-				sc = result.Response().StatusCode
-			}
-			tracing.EndSpan(ctx, sc, err)
-		}()
-	}
 	req, err := client.CreateOrUpdatePreparer(ctx, resourceGroupName, routeTableName, parameters)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "network.RouteTablesClient", "CreateOrUpdate", nil, "Failure preparing request")
@@ -97,13 +86,15 @@ func (client RouteTablesClient) CreateOrUpdatePreparer(ctx context.Context, reso
 // CreateOrUpdateSender sends the CreateOrUpdate request. The method will close the
 // http.Response Body if it receives an error.
 func (client RouteTablesClient) CreateOrUpdateSender(req *http.Request) (future RouteTablesCreateOrUpdateFuture, err error) {
-	sd := autorest.GetSendDecorators(req.Context(), azure.DoRetryWithRegistration(client.Client))
-	var resp *http.Response
-	resp, err = autorest.SendWithSender(client, req, sd...)
+	sender := autorest.DecorateSender(client, azure.DoRetryWithRegistration(client.Client))
+	future.Future = azure.NewFuture(req)
+	future.req = req
+	_, err = future.Done(sender)
 	if err != nil {
 		return
 	}
-	future.Future, err = azure.NewFutureFromResponse(resp)
+	err = autorest.Respond(future.Response(),
+		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusCreated))
 	return
 }
 
@@ -125,16 +116,6 @@ func (client RouteTablesClient) CreateOrUpdateResponder(resp *http.Response) (re
 // resourceGroupName - the name of the resource group.
 // routeTableName - the name of the route table.
 func (client RouteTablesClient) Delete(ctx context.Context, resourceGroupName string, routeTableName string) (result RouteTablesDeleteFuture, err error) {
-	if tracing.IsEnabled() {
-		ctx = tracing.StartSpan(ctx, fqdn+"/RouteTablesClient.Delete")
-		defer func() {
-			sc := -1
-			if result.Response() != nil {
-				sc = result.Response().StatusCode
-			}
-			tracing.EndSpan(ctx, sc, err)
-		}()
-	}
 	req, err := client.DeletePreparer(ctx, resourceGroupName, routeTableName)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "network.RouteTablesClient", "Delete", nil, "Failure preparing request")
@@ -174,13 +155,15 @@ func (client RouteTablesClient) DeletePreparer(ctx context.Context, resourceGrou
 // DeleteSender sends the Delete request. The method will close the
 // http.Response Body if it receives an error.
 func (client RouteTablesClient) DeleteSender(req *http.Request) (future RouteTablesDeleteFuture, err error) {
-	sd := autorest.GetSendDecorators(req.Context(), azure.DoRetryWithRegistration(client.Client))
-	var resp *http.Response
-	resp, err = autorest.SendWithSender(client, req, sd...)
+	sender := autorest.DecorateSender(client, azure.DoRetryWithRegistration(client.Client))
+	future.Future = azure.NewFuture(req)
+	future.req = req
+	_, err = future.Done(sender)
 	if err != nil {
 		return
 	}
-	future.Future, err = azure.NewFutureFromResponse(resp)
+	err = autorest.Respond(future.Response(),
+		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted, http.StatusNoContent))
 	return
 }
 
@@ -202,16 +185,6 @@ func (client RouteTablesClient) DeleteResponder(resp *http.Response) (result aut
 // routeTableName - the name of the route table.
 // expand - expands referenced resources.
 func (client RouteTablesClient) Get(ctx context.Context, resourceGroupName string, routeTableName string, expand string) (result RouteTable, err error) {
-	if tracing.IsEnabled() {
-		ctx = tracing.StartSpan(ctx, fqdn+"/RouteTablesClient.Get")
-		defer func() {
-			sc := -1
-			if result.Response.Response != nil {
-				sc = result.Response.Response.StatusCode
-			}
-			tracing.EndSpan(ctx, sc, err)
-		}()
-	}
 	req, err := client.GetPreparer(ctx, resourceGroupName, routeTableName, expand)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "network.RouteTablesClient", "Get", nil, "Failure preparing request")
@@ -260,8 +233,8 @@ func (client RouteTablesClient) GetPreparer(ctx context.Context, resourceGroupNa
 // GetSender sends the Get request. The method will close the
 // http.Response Body if it receives an error.
 func (client RouteTablesClient) GetSender(req *http.Request) (*http.Response, error) {
-	sd := autorest.GetSendDecorators(req.Context(), azure.DoRetryWithRegistration(client.Client))
-	return autorest.SendWithSender(client, req, sd...)
+	return autorest.SendWithSender(client, req,
+		azure.DoRetryWithRegistration(client.Client))
 }
 
 // GetResponder handles the response to the Get request. The method always
@@ -281,16 +254,6 @@ func (client RouteTablesClient) GetResponder(resp *http.Response) (result RouteT
 // Parameters:
 // resourceGroupName - the name of the resource group.
 func (client RouteTablesClient) List(ctx context.Context, resourceGroupName string) (result RouteTableListResultPage, err error) {
-	if tracing.IsEnabled() {
-		ctx = tracing.StartSpan(ctx, fqdn+"/RouteTablesClient.List")
-		defer func() {
-			sc := -1
-			if result.rtlr.Response.Response != nil {
-				sc = result.rtlr.Response.Response.StatusCode
-			}
-			tracing.EndSpan(ctx, sc, err)
-		}()
-	}
 	result.fn = client.listNextResults
 	req, err := client.ListPreparer(ctx, resourceGroupName)
 	if err != nil {
@@ -336,8 +299,8 @@ func (client RouteTablesClient) ListPreparer(ctx context.Context, resourceGroupN
 // ListSender sends the List request. The method will close the
 // http.Response Body if it receives an error.
 func (client RouteTablesClient) ListSender(req *http.Request) (*http.Response, error) {
-	sd := autorest.GetSendDecorators(req.Context(), azure.DoRetryWithRegistration(client.Client))
-	return autorest.SendWithSender(client, req, sd...)
+	return autorest.SendWithSender(client, req,
+		azure.DoRetryWithRegistration(client.Client))
 }
 
 // ListResponder handles the response to the List request. The method always
@@ -354,8 +317,8 @@ func (client RouteTablesClient) ListResponder(resp *http.Response) (result Route
 }
 
 // listNextResults retrieves the next set of results, if any.
-func (client RouteTablesClient) listNextResults(ctx context.Context, lastResults RouteTableListResult) (result RouteTableListResult, err error) {
-	req, err := lastResults.routeTableListResultPreparer(ctx)
+func (client RouteTablesClient) listNextResults(lastResults RouteTableListResult) (result RouteTableListResult, err error) {
+	req, err := lastResults.routeTableListResultPreparer()
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "network.RouteTablesClient", "listNextResults", nil, "Failure preparing next results request")
 	}
@@ -376,32 +339,12 @@ func (client RouteTablesClient) listNextResults(ctx context.Context, lastResults
 
 // ListComplete enumerates all values, automatically crossing page boundaries as required.
 func (client RouteTablesClient) ListComplete(ctx context.Context, resourceGroupName string) (result RouteTableListResultIterator, err error) {
-	if tracing.IsEnabled() {
-		ctx = tracing.StartSpan(ctx, fqdn+"/RouteTablesClient.List")
-		defer func() {
-			sc := -1
-			if result.Response().Response.Response != nil {
-				sc = result.page.Response().Response.Response.StatusCode
-			}
-			tracing.EndSpan(ctx, sc, err)
-		}()
-	}
 	result.page, err = client.List(ctx, resourceGroupName)
 	return
 }
 
 // ListAll gets all route tables in a subscription.
 func (client RouteTablesClient) ListAll(ctx context.Context) (result RouteTableListResultPage, err error) {
-	if tracing.IsEnabled() {
-		ctx = tracing.StartSpan(ctx, fqdn+"/RouteTablesClient.ListAll")
-		defer func() {
-			sc := -1
-			if result.rtlr.Response.Response != nil {
-				sc = result.rtlr.Response.Response.StatusCode
-			}
-			tracing.EndSpan(ctx, sc, err)
-		}()
-	}
 	result.fn = client.listAllNextResults
 	req, err := client.ListAllPreparer(ctx)
 	if err != nil {
@@ -446,8 +389,8 @@ func (client RouteTablesClient) ListAllPreparer(ctx context.Context) (*http.Requ
 // ListAllSender sends the ListAll request. The method will close the
 // http.Response Body if it receives an error.
 func (client RouteTablesClient) ListAllSender(req *http.Request) (*http.Response, error) {
-	sd := autorest.GetSendDecorators(req.Context(), azure.DoRetryWithRegistration(client.Client))
-	return autorest.SendWithSender(client, req, sd...)
+	return autorest.SendWithSender(client, req,
+		azure.DoRetryWithRegistration(client.Client))
 }
 
 // ListAllResponder handles the response to the ListAll request. The method always
@@ -464,8 +407,8 @@ func (client RouteTablesClient) ListAllResponder(resp *http.Response) (result Ro
 }
 
 // listAllNextResults retrieves the next set of results, if any.
-func (client RouteTablesClient) listAllNextResults(ctx context.Context, lastResults RouteTableListResult) (result RouteTableListResult, err error) {
-	req, err := lastResults.routeTableListResultPreparer(ctx)
+func (client RouteTablesClient) listAllNextResults(lastResults RouteTableListResult) (result RouteTableListResult, err error) {
+	req, err := lastResults.routeTableListResultPreparer()
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "network.RouteTablesClient", "listAllNextResults", nil, "Failure preparing next results request")
 	}
@@ -486,16 +429,6 @@ func (client RouteTablesClient) listAllNextResults(ctx context.Context, lastResu
 
 // ListAllComplete enumerates all values, automatically crossing page boundaries as required.
 func (client RouteTablesClient) ListAllComplete(ctx context.Context) (result RouteTableListResultIterator, err error) {
-	if tracing.IsEnabled() {
-		ctx = tracing.StartSpan(ctx, fqdn+"/RouteTablesClient.ListAll")
-		defer func() {
-			sc := -1
-			if result.Response().Response.Response != nil {
-				sc = result.page.Response().Response.Response.StatusCode
-			}
-			tracing.EndSpan(ctx, sc, err)
-		}()
-	}
 	result.page, err = client.ListAll(ctx)
 	return
 }
