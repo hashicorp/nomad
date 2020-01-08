@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/structs"
+	s "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/csi/fake"
 	"github.com/stretchr/testify/require"
@@ -55,7 +56,7 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 				PluginName: fakePlugin.Name,
 				VolumeID:   "1234-4321-1234-4321",
 				NodeID:     "abcde",
-				AccessMode: structs.CSIVolumeAccessMode("foo"),
+				AccessMode: s.CSIVolumeAccessMode("foo"),
 			},
 			ExpectedErr: errors.New("Unknown access mode: foo"),
 		},
@@ -65,8 +66,8 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 				PluginName:     fakePlugin.Name,
 				VolumeID:       "1234-4321-1234-4321",
 				NodeID:         "abcde",
-				AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
-				AttachmentMode: structs.CSIVolumeAttachmentMode("bar"),
+				AccessMode:     s.CSIVolumeAccessModeMultiNodeReader,
+				AttachmentMode: s.CSIVolumeAttachmentMode("bar"),
 			},
 			ExpectedErr: errors.New("Unknown attachment mode: bar"),
 		},
@@ -79,8 +80,8 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 				PluginName:     fakePlugin.Name,
 				VolumeID:       "1234-4321-1234-4321",
 				NodeID:         "abcde",
-				AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
-				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				AccessMode:     s.CSIVolumeAccessModeSingleNodeWriter,
+				AttachmentMode: s.CSIVolumeAttachmentModeFilesystem,
 			},
 			ExpectedErr: errors.New("hello"),
 		},
@@ -93,8 +94,8 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 				PluginName:     fakePlugin.Name,
 				VolumeID:       "1234-4321-1234-4321",
 				NodeID:         "abcde",
-				AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
-				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				AccessMode:     s.CSIVolumeAccessModeSingleNodeWriter,
+				AttachmentMode: s.CSIVolumeAttachmentModeFilesystem,
 			},
 			ExpectedResponse: &structs.ClientCSIControllerAttachVolumeResponse{},
 		},
@@ -109,8 +110,8 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 				PluginName:     fakePlugin.Name,
 				VolumeID:       "1234-4321-1234-4321",
 				NodeID:         "abcde",
-				AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
-				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				AccessMode:     s.CSIVolumeAccessModeSingleNodeWriter,
+				AttachmentMode: s.CSIVolumeAttachmentModeFilesystem,
 			},
 			ExpectedResponse: &structs.ClientCSIControllerAttachVolumeResponse{
 				PublishContext: map[string]string{"foo": "bar"},
