@@ -59,6 +59,10 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 			return nil, fmt.Errorf("No group volume declaration found named: %s", m.Volume)
 		}
 
+		if req.Type != structs.VolumeTypeHost {
+			continue
+		}
+
 		hostVolume, ok := clientVolumesByName[req.Source]
 		if !ok {
 			// Should never happen, but unless the client volumes were mutated during
@@ -92,7 +96,7 @@ func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 
 	requestedMounts, err := h.hostVolumeMountConfigurations(req.Task.VolumeMounts, volumes, hostVolumes)
 	if err != nil {
-		h.logger.Error("Failed to generate volume mounts", "error", err)
+		h.logger.Error("Failed to generate host volume mounts", "error", err)
 		return err
 	}
 
