@@ -412,6 +412,12 @@ The `Task` object supports the following keys:
        updated to the set defined in the `Tags` field. String interpolation is
        supported in tags.
 
+     - `CanaryMeta`: A key-value map that annotates this Service while it
+       is a canary. Once the canary is promoted, the registered meta will be
+       updated to the set defined in the `Meta` field or removed if the `Meta`
+       field is not set. String interpolation is supported in meta keys and
+       values.
+
      - `PortLabel`: `PortLabel` is an optional string and is used to associate
        a port with the service.  If specified, the port label must match one
        defined in the resources block.  This could be a label of either a

@@ -155,7 +155,7 @@ Connect][connect] integration.
   annotates the Consul service with user-defined metadata when the service is
   part of an allocation that is currently a canary. Once the canary is
   promoted, the registered meta will be updated to those specified in the
-  `meta` parameter. If this is not supploed, the registered meta will be set to
+  `meta` parameter. If this is not supplied, the registered meta will be set to
   that of the `meta` parameter.
 
 ### `check` Parameters
