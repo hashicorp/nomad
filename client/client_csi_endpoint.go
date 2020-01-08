@@ -9,6 +9,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/structs"
+	s "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 )
 
@@ -58,11 +59,11 @@ func (c *ClientCSI) CSIControllerAttachVolume(req *structs.ClientCSIControllerAt
 		return errors.New("NodeID is required")
 	}
 
-	if !structs.ValidCSIVolumeAccessMode(req.AccessMode) {
+	if !s.ValidCSIVolumeAccessMode(req.AccessMode) {
 		return fmt.Errorf("Unknown access mode: %v", req.AccessMode)
 	}
 
-	if !structs.ValidCSIVolumeAttachmentMode(req.AttachmentMode) {
+	if !s.ValidCSIVolumeAttachmentMode(req.AttachmentMode) {
 		return fmt.Errorf("Unknown attachment mode: %v", req.AttachmentMode)
 	}
 
