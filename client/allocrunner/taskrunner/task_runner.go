@@ -301,23 +301,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		}
 		tr.taskResources = tres
 	} else {
-		// COMPAT(0.11): Upgrade from 0.8 resources to 0.9+ resources
-		// Grab the old task resources
-		oldTr, ok := tr.alloc.TaskResources[tr.taskName]
-		if !ok {
-			return nil, fmt.Errorf("no task resources found on allocation")
-		}
-
-		// Convert the old to new
-		tr.taskResources = &structs.AllocatedTaskResources{
-			Cpu: structs.AllocatedCpuResources{
-				CpuShares: int64(oldTr.CPU),
-			},
-			Memory: structs.AllocatedMemoryResources{
-				MemoryMB: int64(oldTr.MemoryMB),
-			},
-			Networks: oldTr.Networks,
-		}
+		return nil, fmt.Errorf("no task resources found on allocation")
 	}
 
 	// Build the restart tracker.
@@ -1253,15 +1237,9 @@ func (tr *TaskRunner) UpdateStats(ru *cstructs.TaskResourceUsage) {
 func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	alloc := tr.Alloc()
 	var allocatedMem float32
-	if alloc.AllocatedResources != nil {
-		if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
-			// Convert to bytes to match other memory metrics
-			allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
-		}
-	} else if taskRes := alloc.TaskResources[tr.taskName]; taskRes != nil {
-		// COMPAT(0.11) Remove in 0.11 when TaskResources is removed
-		allocatedMem = float32(taskRes.MemoryMB) * 1024 * 1024
-
+	if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
+		// Convert to bytes to match other memory metrics
+		allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
 	}
 
 	if !tr.clientConfig.DisableTaggedMetrics {
@@ -1303,13 +1281,8 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 func (tr *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
 	alloc := tr.Alloc()
 	var allocatedCPU float32
-	if alloc.AllocatedResources != nil {
-		if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
-			allocatedCPU = float32(taskRes.Cpu.CpuShares)
-		}
-	} else if taskRes := alloc.TaskResources[tr.taskName]; taskRes != nil {
-		// COMPAT(0.11) Remove in 0.11 when TaskResources is removed
-		allocatedCPU = float32(taskRes.CPU)
+	if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
+		allocatedCPU = float32(taskRes.Cpu.CpuShares)
 	}
 
 	if !tr.clientConfig.DisableTaggedMetrics {
