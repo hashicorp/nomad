@@ -34,6 +34,8 @@ func validateHostVolumes(requestedByAlias map[string]*structs.VolumeRequest, cli
 	var result error
 
 	for _, req := range requestedByAlias {
+		// This is a defensive check, but this function should only ever recieve
+		// host-type volumes.
 		if req.Type != structs.VolumeTypeHost {
 			continue
 		}
@@ -59,6 +61,8 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 			return nil, fmt.Errorf("No group volume declaration found named: %s", m.Volume)
 		}
 
+		// This is a defensive check, but this function should only ever recieve
+		// host-type volumes.
 		if req.Type != structs.VolumeTypeHost {
 			continue
 		}
@@ -81,22 +85,55 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 	return mounts, nil
 }
 
-func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	volumes := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup).Volumes
-	mounts := h.runner.hookResources.getMounts()
+// partitionVolumesByType takes a map of volume-alias to volume-request and
+// returns them in the form of volume-type:(volume-alias:volume-request)
+func partitionVolumesByType(xs map[string]*structs.VolumeRequest) map[string]map[string]*structs.VolumeRequest {
+	result := make(map[string]map[string]*structs.VolumeRequest)
+	for name, req := range xs {
+		txs, ok := result[req.Type]
+		if !ok {
+			txs = make(map[string]*structs.VolumeRequest)
+			result[req.Type] = txs
+		}
+		txs[name] = req
+	}
 
+	return result
+}
+
+func (h *volumeHook) prepareHostVolumes(volumes map[string]*structs.VolumeRequest, req *interfaces.TaskPrestartRequest) ([]*drivers.MountConfig, error) {
 	hostVolumes := h.runner.clientConfig.Node.HostVolumes
 
 	// Always validate volumes to ensure that we do not allow volumes to be used
 	// if a host is restarted and loses the host volume configuration.
 	if err := validateHostVolumes(volumes, hostVolumes); err != nil {
 		h.logger.Error("Requested Host Volume does not exist", "existing", hostVolumes, "requested", volumes)
-		return fmt.Errorf("host volume validation error: %v", err)
+		return nil, fmt.Errorf("host volume validation error: %v", err)
 	}
 
 	hostVolumeMounts, err := h.hostVolumeMountConfigurations(req.Task.VolumeMounts, volumes, hostVolumes)
 	if err != nil {
 		h.logger.Error("Failed to generate host volume mounts", "error", err)
+		return nil, err
+	}
+
+	return hostVolumeMounts, nil
+}
+
+func (h *volumeHook) prepareCSIVolumes(req *interfaces.TaskPrestartRequest) ([]*drivers.MountConfig, error) {
+	return nil, nil
+}
+
+func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	volumes := partitionVolumesByType(h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup).Volumes)
+
+	hostVolumeMounts, err := h.prepareHostVolumes(volumes[structs.VolumeTypeHost], req)
+	if err != nil {
+		return err
+	}
+
+	csiVolumeMounts, err := h.prepareCSIVolumes(req)
+	if err != nil {
 		return err
 	}
 
@@ -104,10 +141,14 @@ func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 	// already exist. Although this loop is somewhat expensive, there are only
 	// a small number of mounts that exist within most individual tasks. We may
 	// want to revisit this using a `hookdata` param to be "mount only once"
+	mounts := h.runner.hookResources.getMounts()
 	for _, m := range hostVolumeMounts {
 		mounts = ensureMountpointInserted(mounts, m)
 	}
-
+	for _, m := range csiVolumeMounts {
+		mounts = ensureMountpointInserted(mounts, m)
+	}
 	h.runner.hookResources.setMounts(mounts)
+
 	return nil
 }
