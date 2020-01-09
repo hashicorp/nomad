@@ -10,8 +10,11 @@ import (
 	"github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
+	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
@@ -216,4 +219,70 @@ func TestScript_Exec_Codes(t *testing.T) {
 			t.Fatalf("timed out waiting for all script checks to finish")
 		}
 	}
+}
+
+// TestScript_TaskEnvInterpolation asserts that script check hooks are
+// interpolated in the same way that services are
+func TestScript_TaskEnvInterpolation(t *testing.T) {
+
+	logger := testlog.HCLogger(t)
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
+	exec, cancel := newBlockingScriptExec()
+	defer cancel()
+
+	alloc := mock.ConnectAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	task.Services[0].Name = "${NOMAD_JOB_NAME}-${TASK}-${SVC_NAME}"
+	task.Services[0].Checks[0].Name = "${NOMAD_JOB_NAME}-${SVC_NAME}-check"
+	alloc.Job.Canonicalize() // need to re-canonicalize b/c the mock already did it
+
+	env := taskenv.NewBuilder(mock.Node(), alloc, task, "global").SetHookEnv(
+		"script_check",
+		map[string]string{"SVC_NAME": "frontend"}).Build()
+
+	svcHook := newServiceHook(serviceHookConfig{
+		alloc:  alloc,
+		task:   task,
+		consul: consulClient,
+		logger: logger,
+	})
+	// emulate prestart having been fired
+	svcHook.taskEnv = env
+
+	scHook := newScriptCheckHook(scriptCheckHookConfig{
+		alloc:        alloc,
+		task:         task,
+		consul:       consulClient,
+		logger:       logger,
+		shutdownWait: time.Hour, // heartbeater will never be called
+	})
+	// emulate prestart having been fired
+	scHook.taskEnv = env
+	scHook.driverExec = exec
+
+	expectedSvc := svcHook.getWorkloadServices().Services[0]
+	expected := agentconsul.MakeCheckID(agentconsul.MakeAllocServiceID(
+		alloc.ID, task.Name, expectedSvc), expectedSvc.Checks[0])
+
+	actual := scHook.newScriptChecks()
+	check, ok := actual[expected]
+	require.True(t, ok)
+	require.Equal(t, "my-job-frontend-check", check.check.Name)
+
+	// emulate an update
+	env = taskenv.NewBuilder(mock.Node(), alloc, task, "global").SetHookEnv(
+		"script_check",
+		map[string]string{"SVC_NAME": "backend"}).Build()
+	scHook.taskEnv = env
+	svcHook.taskEnv = env
+
+	expectedSvc = svcHook.getWorkloadServices().Services[0]
+	expected = agentconsul.MakeCheckID(agentconsul.MakeAllocServiceID(
+		alloc.ID, task.Name, expectedSvc), expectedSvc.Checks[0])
+
+	actual = scHook.newScriptChecks()
+	check, ok = actual[expected]
+	require.True(t, ok)
+	require.Equal(t, "my-job-backend-check", check.check.Name)
 }
