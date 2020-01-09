@@ -8,7 +8,6 @@ job "simpleweb" {
   }
 
   group "simpleweb" {
-
     task "simpleweb" {
       driver = "docker"
 
