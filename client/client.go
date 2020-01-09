@@ -262,7 +262,7 @@ type Client struct {
 	pluginManagers *pluginmanager.PluginGroup
 
 	// csimanager is responsible for managing csi plugins.
-	csimanager pluginmanager.PluginManager
+	csimanager csimanager.CSIManager
 
 	// devicemanger is responsible for managing device plugins.
 	devicemanager devicemanager.Manager
@@ -410,7 +410,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	}
 	csiManager := csimanager.New(csiConfig)
 	c.csimanager = csiManager
-	c.pluginManagers.RegisterAndRun(csiManager)
+	c.pluginManagers.RegisterAndRun(csiManager.PluginManager())
 
 	// Setup the driver manager
 	driverConfig := &drivermanager.Config{
