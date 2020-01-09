@@ -2869,18 +2869,18 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Equal(t, 2, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByNSDriver(ws, "default", "minnie")
+	iter, err = state.CSIVolumesByDriver(ws, "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
 
-	err = state.CSIVolumeDeregister(1, "default", []string{
+	err = state.CSIVolumeDeregister(1, []string{
 		"BAADF00D-70AD-4672-9178-802BCA500C87",
 	})
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByNSDriver(ws, "default", "adam")
+	iter, err = state.CSIVolumesByDriver(ws, "adam")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 0, len(vs))
@@ -2898,21 +2898,21 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	w := structs.CSIVolumeClaimWrite
 	u := structs.CSIVolumeClaimRelease
 
-	err = state.CSIVolumeClaim(2, "default", "DEADBEEF-70AD-4672-9178-802BCA500C87", a0, r)
+	err = state.CSIVolumeClaim(2, "DEADBEEF-70AD-4672-9178-802BCA500C87", a0, r)
 	require.NoError(t, err)
-	err = state.CSIVolumeClaim(2, "default", "DEADBEEF-70AD-4672-9178-802BCA500C87", a1, w)
+	err = state.CSIVolumeClaim(2, "DEADBEEF-70AD-4672-9178-802BCA500C87", a1, w)
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByNSDriver(ws, "default", "minnie")
+	iter, err = state.CSIVolumesByDriver(ws, "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.False(t, vs[0].CanWrite())
 
-	err = state.CSIVolumeClaim(2, "default", "DEADBEEF-70AD-4672-9178-802BCA500C87", a0, u)
+	err = state.CSIVolumeClaim(2, "DEADBEEF-70AD-4672-9178-802BCA500C87", a0, u)
 	require.NoError(t, err)
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByNSDriver(ws, "default", "minnie")
+	iter, err = state.CSIVolumesByDriver(ws, "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.True(t, vs[0].CanReadOnly())
