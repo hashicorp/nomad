@@ -631,7 +631,7 @@ func (l *TaskLifecycle) Canonicalize() {
 
 // Determine if lifecycle has user-input values
 func (l *TaskLifecycle) Empty() bool {
-	return l.Hook == "" && l.BlockUntil == "" && l.Deadline == 0
+	return l == nil || (l.Hook == "" && l.BlockUntil == "" && l.Deadline == 0)
 }
 
 // Task is a single process in a task group.
@@ -691,12 +691,10 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	for _, vm := range t.VolumeMounts {
 		vm.Canonicalize()
 	}
-	if t.Lifecycle != nil {
-		if t.Lifecycle.Empty() {
-			t.Lifecycle = nil
-		} else {
-			t.Lifecycle.Canonicalize()
-		}
+	if t.Lifecycle.Empty() {
+		t.Lifecycle = nil
+	} else {
+		t.Lifecycle.Canonicalize()
 	}
 }
 

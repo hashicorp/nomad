@@ -49,7 +49,7 @@ func (c *taskHookCoordinator) setTasks(tasks []*structs.Task) {
 
 		// only working with prestart hooks here
 		switch task.Lifecycle.BlockUntil {
-		case "", structs.TaskLifecycleBlockUntilRunning:
+		case structs.TaskLifecycleBlockUntilRunning:
 			c.prestartTasksUntilRunning[task.Name] = struct{}{}
 		case structs.TaskLifecycleBlockUntilCompleted:
 			c.prestartTasksUntilCompleted[task.Name] = struct{}{}
