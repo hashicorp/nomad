@@ -270,9 +270,9 @@ func Job() *structs.Job {
 	return job
 }
 
-func LifecycleSideTask(resources structs.Resources) *structs.Task {
+func LifecycleSideTask(resources structs.Resources, i int) *structs.Task {
 	return &structs.Task{
-		Name:   "sidecar",
+		Name:   fmt.Sprintf("side-%s", i),
 		Driver: "exec",
 		Config: map[string]interface{}{
 			"command": "/bin/date",
@@ -286,9 +286,9 @@ func LifecycleSideTask(resources structs.Resources) *structs.Task {
 	}
 }
 
-func LifecycleInitTask(resources structs.Resources) *structs.Task {
+func LifecycleInitTask(resources structs.Resources, i int) *structs.Task {
 	return &structs.Task{
-		Name:   "init",
+		Name:   fmt.Sprintf("init-%s", i),
 		Driver: "exec",
 		Config: map[string]interface{}{
 			"command": "/bin/date",
@@ -302,9 +302,9 @@ func LifecycleInitTask(resources structs.Resources) *structs.Task {
 	}
 }
 
-func LifecycleMainTask(resources structs.Resources) *structs.Task {
+func LifecycleMainTask(resources structs.Resources, i int) *structs.Task {
 	return &structs.Task{
-		Name:   "main",
+		Name:   fmt.Sprintf("main-%s", i),
 		Driver: "exec",
 		Config: map[string]interface{}{
 			"command": "/bin/date",
@@ -316,13 +316,13 @@ func LifecycleMainTask(resources structs.Resources) *structs.Task {
 func VariableLifecycleJob(resources structs.Resources, main int, init int, side int) *structs.Job {
 	tasks := []*structs.Task{}
 	for i := 0; i < main; i++ {
-		tasks = append(tasks, LifecycleMainTask(resources))
+		tasks = append(tasks, LifecycleMainTask(resources, i))
 	}
 	for i := 0; i < init; i++ {
-		tasks = append(tasks, LifecycleInitTask(resources))
+		tasks = append(tasks, LifecycleInitTask(resources, i))
 	}
 	for i := 0; i < side; i++ {
-		tasks = append(tasks, LifecycleSideTask(resources))
+		tasks = append(tasks, LifecycleSideTask(resources, i))
 	}
 	job := &structs.Job{
 		Region:      "global",

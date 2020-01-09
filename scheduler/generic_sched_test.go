@@ -4406,14 +4406,23 @@ func TestGenericSched_AllocFit(t *testing.T) {
 			SideTaskCount:    5,
 			ShouldPlaceAlloc: true,
 		},
-
-		// TODO: This test case currently places the allocation,
-		// but it should not be placed. Investigate placement.
 		{
 			Name:    "too many init + sidecar",
 			NodeCpu: 1200,
 			TaskResources: structs.Resources{
 				CPU:      100,
+				MemoryMB: 100,
+			},
+			MainTaskCount:    10,
+			InitTaskCount:    10,
+			SideTaskCount:    10,
+			ShouldPlaceAlloc: false,
+		},
+		{
+			Name:    "too many too big",
+			NodeCpu: 1200,
+			TaskResources: structs.Resources{
+				CPU:      1000,
 				MemoryMB: 100,
 			},
 			MainTaskCount:    10,
