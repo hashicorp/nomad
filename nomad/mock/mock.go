@@ -269,6 +269,96 @@ func Job() *structs.Job {
 	job.Canonicalize()
 	return job
 }
+
+func LifecycleSideTask(resources structs.Resources) *structs.Task {
+	return &structs.Task{
+		Name:   "sidecar",
+		Driver: "exec",
+		Config: map[string]interface{}{
+			"command": "/bin/date",
+		},
+		Lifecycle: &structs.TaskLifecycleConfig{
+			Hook:       structs.TaskLifecycleHookPrestart,
+			BlockUntil: structs.TaskLifecycleBlockUntilRunning,
+		},
+		LogConfig: structs.DefaultLogConfig(),
+		Resources: &resources,
+	}
+}
+
+func LifecycleInitTask(resources structs.Resources) *structs.Task {
+	return &structs.Task{
+		Name:   "init",
+		Driver: "exec",
+		Config: map[string]interface{}{
+			"command": "/bin/date",
+		},
+		Lifecycle: &structs.TaskLifecycleConfig{
+			Hook:       structs.TaskLifecycleHookPrestart,
+			BlockUntil: structs.TaskLifecycleBlockUntilCompleted,
+		},
+		LogConfig: structs.DefaultLogConfig(),
+		Resources: &resources,
+	}
+}
+
+func LifecycleMainTask(resources structs.Resources) *structs.Task {
+	return &structs.Task{
+		Name:   "main",
+		Driver: "exec",
+		Config: map[string]interface{}{
+			"command": "/bin/date",
+		},
+		LogConfig: structs.DefaultLogConfig(),
+		Resources: &resources,
+	}
+}
+func VariableLifecycleJob(resources structs.Resources, main int, init int, side int) *structs.Job {
+	tasks := []*structs.Task{}
+	for i := 0; i < main; i++ {
+		tasks = append(tasks, LifecycleMainTask(resources))
+	}
+	for i := 0; i < init; i++ {
+		tasks = append(tasks, LifecycleInitTask(resources))
+	}
+	for i := 0; i < side; i++ {
+		tasks = append(tasks, LifecycleSideTask(resources))
+	}
+	job := &structs.Job{
+		Region:      "global",
+		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
+		Name:        "my-job",
+		Namespace:   structs.DefaultNamespace,
+		Type:        structs.JobTypeService,
+		Priority:    50,
+		AllAtOnce:   false,
+		Datacenters: []string{"dc1"},
+		Constraints: []*structs.Constraint{
+			{
+				LTarget: "${attr.kernel.name}",
+				RTarget: "linux",
+				Operand: "=",
+			},
+		},
+		TaskGroups: []*structs.TaskGroup{
+			{
+				Name:  "web",
+				Count: 1,
+				Tasks: tasks,
+			},
+		},
+		Meta: map[string]string{
+			"owner": "armon",
+		},
+		Status:         structs.JobStatusPending,
+		Version:        0,
+		CreateIndex:    42,
+		ModifyIndex:    99,
+		JobModifyIndex: 99,
+	}
+	job.Canonicalize()
+	return job
+}
 func LifecycleJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
@@ -288,7 +378,8 @@ func LifecycleJob() *structs.Job {
 		},
 		TaskGroups: []*structs.TaskGroup{
 			{
-				Name: "web",
+				Name:  "web",
+				Count: 1,
 				Tasks: []*structs.Task{
 					{
 						Name:   "web",
@@ -298,7 +389,7 @@ func LifecycleJob() *structs.Job {
 						},
 						LogConfig: structs.DefaultLogConfig(),
 						Resources: &structs.Resources{
-							CPU:      500,
+							CPU:      1000,
 							MemoryMB: 256,
 						},
 					},
@@ -314,7 +405,7 @@ func LifecycleJob() *structs.Job {
 						},
 						LogConfig: structs.DefaultLogConfig(),
 						Resources: &structs.Resources{
-							CPU:      500,
+							CPU:      1000,
 							MemoryMB: 256,
 						},
 					},
@@ -330,7 +421,7 @@ func LifecycleJob() *structs.Job {
 						},
 						LogConfig: structs.DefaultLogConfig(),
 						Resources: &structs.Resources{
-							CPU:      500,
+							CPU:      1000,
 							MemoryMB: 256,
 						},
 					},
