@@ -94,7 +94,7 @@ func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 		return fmt.Errorf("host volume validation error: %v", err)
 	}
 
-	requestedMounts, err := h.hostVolumeMountConfigurations(req.Task.VolumeMounts, volumes, hostVolumes)
+	hostVolumeMounts, err := h.hostVolumeMountConfigurations(req.Task.VolumeMounts, volumes, hostVolumes)
 	if err != nil {
 		h.logger.Error("Failed to generate host volume mounts", "error", err)
 		return err
@@ -104,15 +104,8 @@ func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 	// already exist. Although this loop is somewhat expensive, there are only
 	// a small number of mounts that exist within most individual tasks. We may
 	// want to revisit this using a `hookdata` param to be "mount only once"
-REQUESTED:
-	for _, m := range requestedMounts {
-		for _, em := range mounts {
-			if em.IsEqual(m) {
-				continue REQUESTED
-			}
-		}
-
-		mounts = append(mounts, m)
+	for _, m := range hostVolumeMounts {
+		mounts = ensureMountpointInserted(mounts, m)
 	}
 
 	h.runner.hookResources.setMounts(mounts)
