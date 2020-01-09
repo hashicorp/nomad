@@ -1,5 +1,5 @@
 #!/bin/bash
-# installs and configures the desired build of Nomad as a server
+# installs and configures the desired build of Nomad as a client
 set -o errexit
 set -o nounset
 
@@ -74,7 +74,7 @@ sudo mkdir /tmp/data
 # Install CNI plugins
 sudo mkdir -p /opt/cni/bin
 wget -q -O - \
-     https://github.com/containernetworking/plugins/releases/download/v0.8.2/cni-plugins-linux-amd64-v0.8.2.tgz \
+     https://github.com/containernetworking/plugins/releases/download/v0.8.4/cni-plugins-linux-amd64-v0.8.4.tgz \
     | sudo tar -C /opt/cni/bin -xz
 
 # enable as a systemd service
