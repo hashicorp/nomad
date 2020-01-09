@@ -632,32 +632,16 @@ func csiVolumeTableSchema() *memdb.TableSchema {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
-
-				// Use a compound so (Namespace, ID) is unique
-				Indexer: &memdb.CompoundIndex{
-					Indexes: []memdb.Indexer{
-						&memdb.StringFieldIndex{
-							Field: "Namespace",
-						},
-						&memdb.StringFieldIndex{
-							Field: "ID",
-						},
-					},
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
 				},
 			},
 			"driver": {
 				Name:         "driver",
 				AllowMissing: false,
 				Unique:       false,
-				Indexer: &memdb.CompoundIndex{
-					Indexes: []memdb.Indexer{
-						&memdb.StringFieldIndex{
-							Field: "Namespace",
-						},
-						&memdb.StringFieldIndex{
-							Field: "Driver",
-						},
-					},
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Driver",
 				},
 			},
 		},
