@@ -21,14 +21,11 @@ const (
 )
 
 func NewRestartTracker(policy *structs.RestartPolicy, jobType string, tlc *structs.TaskLifecycleConfig) *RestartTracker {
-	onSuccess := true
-	if tlc != nil && tlc.BlockUntil == structs.TaskLifecycleBlockUntilCompleted {
-		onSuccess = false
-	} else if tlc != nil && tlc.BlockUntil == structs.TaskLifecycleBlockUntilRunning {
-		onSuccess = true
-	} else if jobType == structs.JobTypeBatch {
-		onSuccess = false
+	onSuccess := jobType == structs.JobTypeService
+	if tlc != nil && tlc.Hook == structs.TaskLifecycleHookPrestart {
+		onSuccess = tlc.BlockUntil != structs.TaskLifecycleBlockUntilCompleted
 	}
+
 	return &RestartTracker{
 		startTime: time.Now(),
 		onSuccess: onSuccess,

@@ -203,147 +203,87 @@ func TestClient_RestartTracker_StartError_Recoverable_Delay(t *testing.T) {
 func TestClient_RestartTracker_Lifecycle(t *testing.T) {
 	t.Parallel()
 
-	tc := []struct {
-		name          string
-		tlc           *structs.TaskLifecycleConfig
-		jt            string
-		rp            *structs.RestartPolicy
-		exit          int
-		shouldRestart bool
+	testCase := []struct {
+		name                   string
+		taskLifecycleConfig    *structs.TaskLifecycleConfig
+		jobType                string
+		shouldRestartOnSuccess bool
+		shouldRestartOnFailure bool
 	}{
 		{
-			name:          "exit code 0 - service job no lifecycle",
-			tlc:           nil,
-			jt:            structs.JobTypeService,
-			rp:            testPolicy(true, structs.JobTypeService),
-			exit:          0,
-			shouldRestart: true,
+			name:                   "service job no lifecycle",
+			taskLifecycleConfig:    nil,
+			jobType:                structs.JobTypeService,
+			shouldRestartOnSuccess: true,
+			shouldRestartOnFailure: true,
 		},
 		{
-			name:          "exit code 0 - batch job no lifecycle",
-			tlc:           nil,
-			jt:            structs.JobTypeBatch,
-			rp:            testPolicy(true, structs.JobTypeBatch),
-			exit:          0,
-			shouldRestart: false,
+			name:                   "batch job no lifecycle",
+			taskLifecycleConfig:    nil,
+			jobType:                structs.JobTypeBatch,
+			shouldRestartOnSuccess: false,
+			shouldRestartOnFailure: true,
 		},
 		{
-			name: "exit code 0 - service job w/ lifecycle completed",
-			tlc: &structs.TaskLifecycleConfig{
+			name: "service job w/ lifecycle completed",
+			taskLifecycleConfig: &structs.TaskLifecycleConfig{
 				Hook:       structs.TaskLifecycleHookPrestart,
 				BlockUntil: structs.TaskLifecycleBlockUntilCompleted,
 			},
-			jt:            structs.JobTypeService,
-			rp:            testPolicy(true, structs.JobTypeService),
-			exit:          0,
-			shouldRestart: false,
+			jobType:                structs.JobTypeService,
+			shouldRestartOnSuccess: false,
+			shouldRestartOnFailure: true,
 		},
 		{
-			name: "exit code 0 - service job w/ lifecycle running",
-			tlc: &structs.TaskLifecycleConfig{
+			name: "service job w/ lifecycle running",
+			taskLifecycleConfig: &structs.TaskLifecycleConfig{
 				Hook:       structs.TaskLifecycleHookPrestart,
 				BlockUntil: structs.TaskLifecycleBlockUntilRunning,
 			},
-			jt:            structs.JobTypeService,
-			rp:            testPolicy(true, structs.JobTypeService),
-			exit:          0,
-			shouldRestart: true,
+			jobType:                structs.JobTypeService,
+			shouldRestartOnSuccess: true,
+			shouldRestartOnFailure: true,
 		},
 		{
-			name: "exit code 0 - batch job w/ lifecycle completed",
-			tlc: &structs.TaskLifecycleConfig{
+			name: "batch job lifecycle completed",
+			taskLifecycleConfig: &structs.TaskLifecycleConfig{
 				Hook:       structs.TaskLifecycleHookPrestart,
 				BlockUntil: structs.TaskLifecycleBlockUntilCompleted,
 			},
-			jt:            structs.JobTypeService,
-			rp:            testPolicy(true, structs.JobTypeService),
-			exit:          0,
-			shouldRestart: false,
+			jobType:                structs.JobTypeService,
+			shouldRestartOnSuccess: false,
+			shouldRestartOnFailure: true,
 		},
 		{
-			name: "exit code 0 - batch job w/ lifecycle running",
-			tlc: &structs.TaskLifecycleConfig{
+			name: "batch job lifecycle running",
+			taskLifecycleConfig: &structs.TaskLifecycleConfig{
 				Hook:       structs.TaskLifecycleHookPrestart,
 				BlockUntil: structs.TaskLifecycleBlockUntilRunning,
 			},
-			jt:            structs.JobTypeBatch,
-			rp:            testPolicy(true, structs.JobTypeBatch),
-			exit:          0,
-			shouldRestart: true,
-		},
-		{
-			name:          "exit code 127 - service job no lifecycle",
-			tlc:           nil,
-			jt:            structs.JobTypeService,
-			rp:            testPolicy(true, structs.JobTypeService),
-			exit:          127,
-			shouldRestart: true,
-		},
-		{
-			name:          "exit code 127 - batch job no lifecycle",
-			tlc:           nil,
-			jt:            structs.JobTypeBatch,
-			rp:            testPolicy(true, structs.JobTypeBatch),
-			exit:          127,
-			shouldRestart: true,
-		},
-		{
-			name: "exit code 127 - service job w/ lifecycle completed",
-			tlc: &structs.TaskLifecycleConfig{
-				Hook:       structs.TaskLifecycleHookPrestart,
-				BlockUntil: structs.TaskLifecycleBlockUntilCompleted,
-			},
-			jt:            structs.JobTypeService,
-			rp:            testPolicy(true, structs.JobTypeService),
-			exit:          127,
-			shouldRestart: true,
-		},
-		{
-			name: "exit code 127 - service job w/ lifecycle running",
-			tlc: &structs.TaskLifecycleConfig{
-				Hook:       structs.TaskLifecycleHookPrestart,
-				BlockUntil: structs.TaskLifecycleBlockUntilCompleted,
-			},
-			jt:            structs.JobTypeService,
-			rp:            testPolicy(true, structs.JobTypeService),
-			exit:          127,
-			shouldRestart: true,
-		},
-		{
-			name: "exit code 127 - batch job w/ lifecycle completed",
-			tlc: &structs.TaskLifecycleConfig{
-				Hook:       structs.TaskLifecycleHookPrestart,
-				BlockUntil: structs.TaskLifecycleBlockUntilCompleted,
-			},
-			jt:            structs.JobTypeService,
-			rp:            testPolicy(true, structs.JobTypeService),
-			exit:          127,
-			shouldRestart: true,
-		},
-		{
-			name: "exit code 127 - batch job w/ lifecycle running",
-			tlc: &structs.TaskLifecycleConfig{
-				Hook:       structs.TaskLifecycleHookPrestart,
-				BlockUntil: structs.TaskLifecycleBlockUntilCompleted,
-			},
-			jt:            structs.JobTypeBatch,
-			rp:            testPolicy(true, structs.JobTypeBatch),
-			exit:          127,
-			shouldRestart: true,
+			jobType:                structs.JobTypeBatch,
+			shouldRestartOnSuccess: true,
+			shouldRestartOnFailure: true,
 		},
 	}
 
-	for _, tc := range tc {
-		t.Run(tc.name, func(t *testing.T) {
-			rt := NewRestartTracker(tc.rp, tc.jt, tc.tlc)
+	for _, testCase := range testCase {
+		t.Run(testCase.name, func(t *testing.T) {
+			restartPolicy := testPolicy(true, testCase.jobType)
+			restartTracker := NewRestartTracker(restartPolicy, testCase.jobType, testCase.taskLifecycleConfig)
 
-			state, _ := rt.SetExitResult(testExitResult(tc.exit)).GetState()
-			if !tc.shouldRestart {
+			state, _ := restartTracker.SetExitResult(testExitResult(0)).GetState()
+			if !testCase.shouldRestartOnSuccess {
 				require.Equal(t, structs.TaskTerminated, state)
 			} else {
 				require.Equal(t, structs.TaskRestarting, state)
 			}
 
+			state, _ = restartTracker.SetExitResult(testExitResult(127)).GetState()
+			if !testCase.shouldRestartOnFailure {
+				require.Equal(t, structs.TaskTerminated, state)
+			} else {
+				require.Equal(t, structs.TaskRestarting, state)
+			}
 		})
 	}
 }
