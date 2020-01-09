@@ -1995,6 +1995,10 @@ OUTER:
 			// Ensure that we received all the allocations we wanted
 			pulledAllocs = make(map[string]*structs.Allocation, len(allocsResp.Allocs))
 			for _, alloc := range allocsResp.Allocs {
+
+				// handle an old Server
+				alloc.Canonicalize()
+
 				pulledAllocs[alloc.ID] = alloc
 			}
 
