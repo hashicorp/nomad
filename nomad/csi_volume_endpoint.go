@@ -98,12 +98,10 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			var err error
 			var iter memdb.ResultIterator
 
-			if ns == "" && args.Driver == "" {
-				iter, err = state.CSIVolumes(ws)
-			} else if args.Driver != "" {
-				iter, err = state.CSIVolumesByNSDriver(ws, args.Namespace, args.Driver)
+			if args.Driver != "" {
+				iter, err = state.CSIVolumesByDriver(ws, args.Driver)
 			} else {
-				iter, err = state.CSIVolumesByNS(ws, args.Namespace)
+				iter, err = state.CSIVolumes(ws)
 			}
 
 			if err != nil {
@@ -161,12 +159,11 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "volume", "get"}, metricsStart)
 
-	ns := args.RequestNamespace()
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			vol, err := state.CSIVolumeByID(ws, ns, args.ID)
+			vol, err := state.CSIVolumeByID(ws, args.ID)
 			if err != nil {
 				return err
 			}
@@ -246,7 +243,7 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 		return err
 	}
 
-	err = state.CSIVolumeDeregister(index, ns, args.VolumeIDs)
+	err = state.CSIVolumeDeregister(index, args.VolumeIDs)
 	if err != nil {
 		return err
 	}
