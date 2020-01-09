@@ -11,7 +11,6 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/kr/pretty"
 	"github.com/posener/complete"
 )
 
@@ -237,7 +236,6 @@ func (c *JobRunCommand) Run(args []string) int {
 		opts.PolicyOverride = true
 	}
 
-	fmt.Printf("========\nJOB IS\n%# v\n========", pretty.Formatter(job))
 	// Submit the job
 	resp, _, err := client.Jobs().RegisterOpts(job, opts, nil)
 	if err != nil {
