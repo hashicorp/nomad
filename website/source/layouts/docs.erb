@@ -1,6 +1,65 @@
 <% wrap_layout :inner do %>
   <% content_for :sidebar do %>
     <ul class="nav docs-sidenav">
+      <li<%= sidebar_current("docs-install") %>>
+        <a href="/docs/install/index.html">Installing Nomad</a>
+        <ul class="nav">
+          <li<%= sidebar_current("docs-install-quickstart") %>>
+            <a href="/docs/install/quickstart/index.html">Quickstart</a>
+          </li>
+
+          <li<%= sidebar_current("docs-install-production") %>>
+            <a href="/docs/install/production/index.html">Production</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-install-production-requirements") %>>
+                <a href="/docs/install/production/requirements.html">Hardware Requirements</a>
+              </li>
+
+              <li<%= sidebar_current("docs-install-production-nomad-agent") %>>
+                <a href="/docs/install/production/nomad-agent.html">Set Server & Client Nodes</a>
+              </li>
+
+              <li<%= sidebar_current("docs-install-production-reference-architecture") %>>
+                <a href="/docs/install/production/reference-architecture.html">Reference Architecture</a>
+              </li>
+
+              <li<%= sidebar_current("docs-install-production-deployment-guide") %>>
+                <a href="/docs/install/production/deployment-guide.html">Reference Install Guide</a>
+              </li>
+            </ul>
+          </li>
+
+            <li<%= sidebar_current("docs-install-windows-service") %>>
+              <a href="/docs/install/windows-service.html">Windows Service</a>
+            </li>
+          </ul>
+      </li>
+
+      <li<%= sidebar_current("docs-upgrade") %>>
+        <a href="/docs/upgrade/index.html">Upgrading</a>
+        <ul class="nav">
+          <li<%= sidebar_current("docs-upgrade-specific") %>>
+            <a href="/docs/upgrade/upgrade-specific.html">Specific Version Details</a>
+          </li>
+        </ul>
+      </li>
+
+      <li<%= sidebar_current("docs-integrations") %>>
+        <a href="/docs/integrations/index.html">Integrations</a>
+        <ul class="nav">
+          <li<%= sidebar_current("docs-integrations-consul") %>>
+            <a href="/docs/integrations/consul-integration/index.html">Consul</a>
+          </li>
+          <li<%= sidebar_current("docs-integrations-connect") %>>
+            <a href="/docs/integrations/consul-connect/index.html">Consul Connect</a>
+          </li>
+          <li<%= sidebar_current("docs-integrations-vault") %>>
+            <a href="/docs/integrations/vault-integration/index.html">Vault</a>
+          </li>
+        </ul>
+      </li>
+
+      <hr />
 
       <li<%= sidebar_current("docs-internal") %>>
         <a href="/docs/internals/index.html">Internals</a>
@@ -360,7 +419,7 @@
         </ul>
       </li>
 
-      <hr>
+      <hr />
 
       <li<%= sidebar_current("docs-job-specification") %>>
         <a href="/docs/job-specification/index.html">Job Specification</a>
@@ -558,11 +617,7 @@
         <a href="/docs/runtime/interpolation.html">Variable Interpolation</a>
       </li>
 
-      <li<%= sidebar_current("docs-vault-integration") %>>
-        <a href="/docs/vault-integration/index.html">Vault Integration</a>
-      </li>
-
-      <hr>
+      <hr />
 
       <li<%= sidebar_current("docs-enterprise") %>>
         <a href="/docs/enterprise/index.html">Nomad Enterprise</a>

@@ -1,7 +1,7 @@
 ---
-layout: "guides"
+layout: "docs"
 page_title: "Hardware Requirements"
-sidebar_current: "guides-install-production-requirements"
+sidebar_current: "docs-install-production-requirements"
 description: |-
   Learn about Nomad client and server requirements such as memory and CPU
   recommendations, network topologies, and more.
@@ -17,9 +17,10 @@ significant network bandwidth. The core count and network recommendations are to
 ensure high throughput as Nomad heavily relies on network communication and as
 the Servers are managing all the nodes in the region and performing scheduling.
 The memory and disk requirements are due to the fact that Nomad stores all state
-in memory and will store two snapshots of this data onto disk, which causes high IO in busy clusters with lots of writes. Thus disk should
-be at least 2 times the memory available to the server when deploying a high
-load cluster. When running on AWS prefer NVME or Provisioned IOPS SSD storage for data dir.
+in memory and will store two snapshots of this data onto disk, which causes high
+IO in busy clusters with lots of writes. Thus disk should be at least 2 times
+the memory available to the server when deploying a high load cluster. When
+running on AWS prefer NVME or Provisioned IOPS SSD storage for data dir.
 
 These recommendations are guidelines and operators should always monitor the
 resource usage of Nomad to determine if the machines are under or over-sized.
@@ -29,8 +30,8 @@ used by Nomad. This should be used to target a specific resource utilization per
 node and to reserve resources for applications running outside of Nomad's
 supervision such as Consul and the operating system itself.
 
-Please see the [reservation configuration](/docs/configuration/client.html#reserved) for
-more detail.
+See the [reservation configuration](/docs/configuration/client.html#reserved)
+for more detail.
 
 ## Network Topology
 
@@ -52,11 +53,11 @@ three servers and two failures in a cluster of five servers. Adding more servers
 to the quorum adds more time to replicate state and hence throughput decreases
 so we don't recommend having more than seven servers in a region.
 
-**Nomad clients** do not have the same latency requirements as servers since they
-are not participating in Raft. Thus clients can have 100+ millisecond latency to
-their servers. This allows having a set of Nomad servers that service clients
-that can be spread geographically over a continent or even the world in the case
-of having a single "global" region and many datacenter.
+**Nomad clients** do not have the same latency requirements as servers since
+they are not participating in Raft. Thus clients can have 100+ millisecond
+latency to their servers. This allows having a set of Nomad servers that service
+clients that can be spread geographically over a continent or even the world in
+the case of having a single "global" region and many datacenter.
 
 ## Ports Used
 
@@ -70,9 +71,9 @@ port.
 * RPC (Default 4647). This is used for internal RPC communication between client
   agents and servers, and for inter-server traffic. TCP only.
 
-* Serf WAN (Default 4648). This is used by servers to gossip both over the LAN and
-  WAN to other servers. It isn't required that Nomad clients can reach this address.
-  TCP and UDP.
+* Serf WAN (Default 4648). This is used by servers to gossip both over the LAN
+  and WAN to other servers. It isn't required that Nomad clients can reach this
+  address. TCP and UDP.
 
 When tasks ask for dynamic ports, they are allocated out of the port range
 between 20,000 and 32,000. This is well under the ephemeral port range suggested
@@ -88,11 +89,17 @@ $ cat /proc/sys/net/ipv4/ip_local_port_range
 $ echo "49152 65535" > /proc/sys/net/ipv4/ip_local_port_range
 ```
 
-## Bridge Networking and `iptables`
+## Bridge Networking and iptables
 
-Nomad's task group networks and Consul Connect integration use bridge networking and iptables to send traffic between containers. The Linux kernel bridge module has three "tunables" that control whether traffic crossing the bridge are processed by iptables. Some operating systems (RedHat, CentOS, and Fedora in particular) configure these tunables to optimize for VM workloads where iptables rules might not be correctly configured for guest traffic.
+Nomad's task group networks and Consul Connect integration use bridge networking
+and iptables to send traffic between containers. The Linux kernel bridge module
+has three "tunables" that control whether traffic crossing the bridge are
+processed by iptables. Some operating systems (RedHat, CentOS, and Fedora in
+particular) configure these tunables to optimize for VM workloads where iptables
+rules might not be correctly configured for guest traffic.
 
-These tunables can be set to allow iptables processing for the bridge network as follows:
+These tunables can be set to allow iptables processing for the bridge network as
+follows:
 
 ```
 $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-arptables
@@ -100,7 +107,9 @@ $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
 $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
 ```
 
-To preserve these settings on startup of a client node, add a file including the following to `/etc/sysctl.d/` or remove the file your Linux distribution puts in that directory.
+To preserve these settings on startup of a client node, add a file including the
+following to `/etc/sysctl.d/` or remove the file your Linux distribution puts in
+that directory.
 
 ```
 net.bridge.bridge-nf-call-arptables = 1

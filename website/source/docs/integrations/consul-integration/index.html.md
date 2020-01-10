@@ -1,7 +1,7 @@
 ---
-layout: "guides"
+layout: "docs"
 page_title: "Consul Integration"
-sidebar_current: "guides-integrations-consul"
+sidebar_current: "docs-integrations-consul"
 description: |-
   Learn how to integrate Nomad with Consul and add service discovery to jobs
 ---

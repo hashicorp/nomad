@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "Vault Integration"
-sidebar_current: "docs-vault-integration"
+sidebar_current: "docs-integrations-vault"
 description: |-
   Learn how to integrate Nomad with HashiCorp Vault and retrieve Vault tokens for
   tasks.

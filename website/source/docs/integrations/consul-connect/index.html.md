@@ -1,7 +1,7 @@
 ---
-layout: "guides"
+layout: "docs"
 page_title: "Consul Connect"
-sidebar_current: "guides-integrations-consul-connect"
+sidebar_current: "docs-integrations-connect"
 description: |-
   Learn how to use Nomad with Consul Connect to enable secure service to service communication
 ---

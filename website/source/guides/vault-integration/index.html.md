@@ -1,7 +1,7 @@
 ---
-layout: "guides"
+layout: "docs"
 page_title: "Vault Integration and Retrieving Dynamic Secrets"
-sidebar_current: "guides-integrations-vault"
+sidebar_current: "docs-integrations-vault"
 description: |-
   Learn how to deploy an application in Nomad and retrieve dynamic credentials
   by integrating with Vault.

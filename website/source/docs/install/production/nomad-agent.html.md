@@ -1,7 +1,7 @@
 ---
-layout: "guides"
+layout: "docs"
 page_title: "Nomad Agent"
-sidebar_current: "guides-install-production-nomad-agent"
+sidebar_current: "docs-install-production-nomad-agent"
 description: |-
   The Nomad agent is a long running process which can be used either in
   a client or server mode.
@@ -21,7 +21,8 @@ register with servers to provide the node information, heartbeat to provide
 liveness, and run any tasks assigned to them.
 
 Servers take on the responsibility of being part of the
-[consensus protocol](/docs/internals/consensus.html) and [gossip protocol](/docs/internals/gossip.html).
+[consensus protocol](/docs/internals/consensus.html) and 
+[gossip protocol](/docs/internals/gossip.html).
 The consensus protocol, powered by Raft, allows the servers to perform
 leader election and state replication. The gossip protocol allows for simple
 clustering of servers and multi-region federation. The higher burden on the

@@ -1,7 +1,7 @@
 ---
-layout: "guides"
+layout: "docs"
 page_title: "Nomad as a Windows Service"
-sidebar_current: "guides-install-windows-service"
+sidebar_current: "docs-install-windows-service"
 description: |-
   Discusses how to register and run Nomad as a native Windows service.
 ---

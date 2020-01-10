@@ -1,7 +1,7 @@
 ---
-layout: "guides"
+layout: "docs"
 page_title: "Upgrade Guides"
-sidebar_current: "guides-upgrade-specific"
+sidebar_current: "docs-upgrade-specific"
 description: |-
   Specific versions of Nomad may have additional information about the upgrade
   process beyond the standard flow.
@@ -9,7 +9,7 @@ description: |-
 
 # Upgrade Guides
 
-The [upgrading page](/guides/upgrade/index.html) covers the details of doing
+The [upgrading page](/docs/upgrade/index.html) covers the details of doing
 a standard upgrade. However, specific versions of Nomad may have more
 details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
@@ -29,7 +29,8 @@ Nomad 0.10.2 addresses an issue occurring in heavily loaded clients, where
 containers are started without being properly managed by Nomad. Nomad 0.10.2
 introduced a reaper that detects and kills such containers.
 
-Operators may opt to run reaper in a dry-mode or disabling it through a client config.
+Operators may opt to run reaper in a dry-mode or disabling it through a client
+config.
 
 For more information, see [Docker Dangling containers][dangling-containers].
 
@@ -37,14 +38,14 @@ For more information, see [Docker Dangling containers][dangling-containers].
 
 ### Deployments
 
-Nomad 0.10 enables rolling deployments for service jobs by default
-and adds a default update stanza when a service job is created or updated.
-This does not affect jobs with an update stanza.
+Nomad 0.10 enables rolling deployments for service jobs by default and adds a
+default update stanza when a service job is created or updated. This does not
+affect jobs with an update stanza.
 
-In pre-0.10 releases, when updating a service job without an update stanza,
-all existing allocations are stopped while new allocations start up,
-and this may cause a service degradation or an outage.
-You can regain this behavior and disable deployments by setting `max_parallel` to 0.
+In pre-0.10 releases, when updating a service job without an update stanza, all
+existing allocations are stopped while new allocations start up, and this may
+cause a service degradation or an outage. You can regain this behavior and
+disable deployments by setting `max_parallel` to 0.
 
 For more information, see [`update` stanza][update].
 
@@ -52,11 +53,25 @@ For more information, see [`update` stanza][update].
 
 ### Template Rendering
 
-Nomad 0.9.5 includes security fixes for privilege escalation vulnerabilities in handling of job `template` stanzas:
+Nomad 0.9.5 includes security fixes for privilege escalation vulnerabilities in
+handling of job `template` stanzas:
 
- * The client host's environment variables are now cleaned before rendering the template. If a template includes the `env` function, the job should include an [`env`](https://www.nomadproject.io/docs/job-specification/env.html) stanza to allow access to the variable in the template.
- * The `plugin` function is no longer permitted by default and will raise an error if used in a template. Operator can opt-in to permitting this function with the new [`template.function_blacklist`](https://www.nomadproject.io/docs/configuration/client.html#template-parameters) field in the client configuration.
- * The `file` function has been changed to restrict paths to fall inside the task directory by default. Paths that used the `NOMAD_TASK_DIR` environment variable to prefix file paths should work unchanged. Relative paths or symlinks that point outside the task directory will raise an error. An operator can opt-out of this protection with the new [`template.disable_file_sandbox`](https://www.nomadproject.io/docs/configuration/client.html#template-parameters) field in the client configuration.
+- The client host's environment variables are now cleaned before rendering the
+  template. If a template includes the `env` function, the job should include an
+  [`env` stanza] to allow access to the variable in the template.
+
+- The `plugin` function is no longer permitted by default and will raise an
+  error if used in a template. Operator can opt-in to permitting this function
+  with the new [`template.function_blacklist`] field in the client
+  configuration.
+
+- The `file` function has been changed to restrict paths to fall inside the task
+  directory by default. Paths that used the `NOMAD_TASK_DIR` environment
+  variable to prefix file paths should work unchanged. Relative paths or
+  symlinks that point outside the task directory will raise an error. An
+  operator can opt-out of this protection with the new
+  [`template.disable_file_sandbox`]
+  field in the client configuration.
 
 ## Nomad 0.9.0
 
@@ -73,8 +88,8 @@ details.
 All task drivers have become [plugins][plugins] in Nomad 0.9.0. There are two
 user visible differences between 0.8 and 0.9 drivers:
 
- * [LXC][lxc] is now community supported and distributed independently.
- * Task driver [`config`][task-config] stanzas are no longer validated by
+- [LXC][lxc] is now community supported and distributed independently.
+- Task driver [`config`][task-config] stanzas are no longer validated by
    the [`nomad job validate`][validate] command. This is a regression that will
    be fixed in a future release.
 
@@ -151,6 +166,7 @@ Since HCL2 uses dotted object notation for interpolation users should
 transition away from variable names with multiple consecutive dots.
 
 ### Downgrading clients
+
 Due to the large refactor of the Nomad client in 0.9, downgrading to a
 previous version of the client after upgrading it to Nomad 0.9 is not supported.
 To downgrade safely, users should erase the Nomad client's data directory.
@@ -167,41 +183,51 @@ the old servers during the upgrade.  After the servers have been migrated to
 version 0.8.0, `raft_protocol` can be moved up to 2 and the servers restarted
 to match the default.
 
-The Raft protocol must be stepped up in this way; only adjacent version numbers are
-compatible (for example, version 1 cannot talk to version 3). Here is a table of the
-Raft Protocol versions supported by each Nomad version:
+The Raft protocol must be stepped up in this way; only adjacent version numbers
+are compatible (for example, version 1 cannot talk to version 3). Here is a
+table of the Raft Protocol versions supported by each Nomad version:
 
-<table class="table table-bordered table-striped">
-  <tr>
-    <th>Version</th>
-    <th>Supported Raft Protocols</th>
-  </tr>
-  <tr>
-    <td>0.6 and earlier</td>
-    <td>0</td>
-  </tr>
-  <tr>
-    <td>0.7</td>
-    <td>1</td>
-  </tr>
-  <tr>
-    <td>0.8 and later</td>
-    <td>1, 2, 3</td>
-  </tr>
-</table>
+| Version         | Supported Raft Version |
+| --------------- | ---------------------- |
+| 0.6 and earlier | 0                      |
+| 0.7             | 1                      |
+| 0.8 and later   | 1, 2, 3                |
 
-In order to enable all [Autopilot](/guides/operations/autopilot.html) features, all servers
-in a Nomad cluster must be running with Raft protocol version 3 or later.
+In order to enable all [Autopilot](/guides/operations/autopilot.html) features,
+all servers in a Nomad cluster must be running with Raft protocol version 3 or
+later.
 
 #### Upgrading to Raft Protocol 3
 
-This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all servers in order to work. See [Raft Protocol Version Compatibility](/guides/upgrade/upgrade-specific.html#raft-protocol-version-compatibility) for more details. Also the format of `peers.json` used for outage recovery is different when running with the latest Raft protocol. See [Manual Recovery Using peers.json](/guides/operations/outage.html#manual-recovery-using-peers-json) for a description of the required format.
+This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and
+higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all
+servers in order to work. See [Raft Protocol Version
+Compatibility](/docs/upgrade/upgrade-specific.html#raft-protocol-version-compatibility)
+for more details. Also the format of `peers.json` used for outage recovery is
+different when running with the latest Raft protocol. See [Manual Recovery Using
+peers.json] for a description of the required format.
 
-Please note that the Raft protocol is different from Nomad's internal protocol as shown in commands like `nomad server members`. To see the version of the Raft protocol in use on each server, use the `nomad operator raft list-peers` command.
+Please note that the Raft protocol is different from Nomad's internal protocol
+as shown in commands like `nomad server members`. To see the version of the Raft
+protocol in use on each server, use the `nomad operator raft list-peers`
+command.
 
-The easiest way to upgrade servers is to have each server leave the cluster, upgrade its `raft_protocol` version in the `server` stanza, and then add it back. Make sure the new server joins successfully and that the cluster is stable before rolling the upgrade forward to the next server. It's also possible to stand up a new set of servers, and then slowly stand down each of the older servers in a similar fashion.
+The easiest way to upgrade servers is to have each server leave the cluster,
+upgrade its `raft_protocol` version in the `server` stanza, and then add it
+back. Make sure the new server joins successfully and that the cluster is stable
+before rolling the upgrade forward to the next server. It's also possible to
+stand up a new set of servers, and then slowly stand down each of the older
+servers in a similar fashion.
 
-When using Raft protocol version 3, servers are identified by their `node-id` instead of their IP address when Nomad makes changes to its internal Raft quorum configuration. This means that once a cluster has been upgraded with servers all running Raft protocol version 3, it will no longer allow servers running any older Raft protocol versions to be added. If running a single Nomad server, restarting it in-place will result in that server not being able to elect itself as a leader. To avoid this, either set the Raft protocol back to 2, or use [Manual Recovery Using peers.json](/guides/operations/outage.html#manual-recovery-using-peers-json) to map the server to its node ID in the Raft quorum configuration.
+When using Raft protocol version 3, servers are identified by their `node-id`
+instead of their IP address when Nomad makes changes to its internal Raft quorum
+configuration. This means that once a cluster has been upgraded with servers all
+running Raft protocol version 3, it will no longer allow servers running any
+older Raft protocol versions to be added. If running a single Nomad server,
+restarting it in-place will result in that server not being able to elect itself
+as a leader. To avoid this, either set the Raft protocol back to 2, or use
+[Manual Recovery Using peers.json] to map the server to its node ID in the Raft
+quorum configuration.
 
 
 ### Node Draining Improvements
@@ -226,8 +252,8 @@ guide](/guides/operations/node-draining.html) for details.
 with underscores must be updated.*
 
 In Nomad 0.7 periods (`.`) in environment variables names were replaced with an
-underscore in both the [`env`](/docs/job-specification/env.html) and
-[`template`](/docs/job-specification/template.html) stanzas.
+underscore in both the [`env`][`env` stanza] and [`template`][`template` stanza]
+stanzas.
 
 In Nomad 0.8 periods are *not* replaced and will be included in environment
 variables verbatim.
@@ -288,9 +314,8 @@ If you manually configure `advertise` addresses no changes are necessary.
 
 The change to the default, advertised IP also effect clients that do not specify
 which network_interface to use. If you have several routable IPs, it is advised
-to configure the client's [network
-interface](/docs/configuration/client.html#network_interface)
-such that tasks bind to the correct address.
+to configure the client's [network interface] such that tasks bind to the
+correct address.
 
 ## Nomad 0.5.5
 
@@ -380,17 +405,24 @@ draining the node so no tasks are running on it. This can be verified by running
 state. Once that is done the client can be killed, the `data_dir` should be
 deleted and then Nomad 0.3.0 can be launched.
 
-[drain-api]: /api/nodes.html#drain-node
-[drain-cli]: /docs/commands/node/drain.html
-[dangling-containers]:  /docs/drivers/docker.html#dangling-containers
+[drain-api]: https://www.nomadproject.io/api/nodes.html#drain-node
+[drain-cli]: https://www.nomadproject.io/docs/commands/node/drain.html
+[dangling-containers]: https://www.nomadproject.io/docs/drivers/docker.html#dangling-containers
 [gh-6787]: https://github.com/hashicorp/nomad/issues/6787
 [hcl2]: https://github.com/hashicorp/hcl2
-[lxc]: /docs/drivers/external/lxc.html
-[migrate]: /docs/job-specification/migrate.html
-[plugins]: /docs/drivers/external/index.html
-[plugin-stanza]: /docs/configuration/plugin.html
-[preemption]: /docs/internals/scheduling/preemption.html
-[preemption-api]: /api/operator.html#update-scheduler-configuration
-[task-config]: /docs/job-specification/task.html#config
-[validate]: /docs/commands/job/validate.html
-[update]: /docs/job-specification/update.html
+[lxc]: https://www.nomadproject.io/docs/drivers/external/lxc.html
+[migrate]: https://www.nomadproject.io/docs/job-specification/migrate.html
+[plugins]: https://www.nomadproject.io/docs/drivers/external/index.html
+[plugin-stanza]: https://www.nomadproject.io/docs/configuration/plugin.html
+[preemption]: https://www.nomadproject.io/docs/internals/scheduling/preemption.html
+[preemption-api]: https://www.nomadproject.io/api/operator.html#update-scheduler-configuration
+[task-config]: https://www.nomadproject.io/docs/job-specification/task.html#config
+[validate]: https://www.nomadproject.io/docs/commands/job/validate.html
+[update]: https://www.nomadproject.io/docs/job-specification/update.html
+[Manual Recovery Using peers.json]: /guides/operations/outage.html#manual-recovery-using-peers-json
+[Raft Protocol Version Compatibility]: https://www.nomadproject.io/docs/upgrade/upgrade-specific.html#raft-protocol-version-compatibility
+[`template.function_blacklist`]: https://www.nomadproject.io/docs/configuration/client.html#template-parameters
+[`env` stanza]: https://www.nomadproject.io/docs/job-specification/env.html
+[`template.disable_file_sandbox`]: https://www.nomadproject.io/docs/configuration/client.html#template-parameters
+[network interface]: https://www.nomadproject.io/docs/configuration/client.html#network_interface
+[`template` stanza]: https://www.nomadproject.io/docs/job-specification/template.html
