@@ -1075,6 +1075,7 @@ func (c *Client) restoreState() error {
 			PrevAllocWatcher:    prevAllocWatcher,
 			PrevAllocMigrator:   prevAllocMigrator,
 			DynamicRegistry:     c.dynamicRegistry,
+			CSIManager:          c.csimanager,
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
@@ -2333,6 +2334,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		PrevAllocWatcher:    prevAllocWatcher,
 		PrevAllocMigrator:   prevAllocMigrator,
 		DynamicRegistry:     c.dynamicRegistry,
+		CSIManager:          c.csimanager,
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
 	}
