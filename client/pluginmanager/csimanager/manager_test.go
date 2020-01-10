@@ -28,7 +28,7 @@ func setupRegistry() dynamicplugins.Registry {
 		})
 }
 
-func TestCSIManager_Setup_Shutdown(t *testing.T) {
+func TestManager_Setup_Shutdown(t *testing.T) {
 	r := setupRegistry()
 	defer r.Shutdown()
 
@@ -42,7 +42,7 @@ func TestCSIManager_Setup_Shutdown(t *testing.T) {
 	pm.Shutdown()
 }
 
-func TestCSIManager_RegisterPlugin(t *testing.T) {
+func TestManager_RegisterPlugin(t *testing.T) {
 	registry := setupRegistry()
 	defer registry.Shutdown()
 
@@ -74,7 +74,7 @@ func TestCSIManager_RegisterPlugin(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond)
 }
 
-func TestCSIManager_DeregisterPlugin(t *testing.T) {
+func TestManager_DeregisterPlugin(t *testing.T) {
 	registry := setupRegistry()
 	defer registry.Shutdown()
 

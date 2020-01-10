@@ -28,7 +28,7 @@ type Config struct {
 
 // New returns a new PluginManager that will handle managing CSI plugins from
 // the dynamicRegistry from the provided Config.
-func New(config *Config) CSIManager {
+func New(config *Config) Manager {
 	// Use a dedicated internal context for managing plugin shutdown.
 	ctx, cancelFn := context.WithCancel(context.Background())
 	if config.PluginResyncPeriod == 0 {
