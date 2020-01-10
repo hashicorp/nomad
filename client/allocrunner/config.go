@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -49,6 +50,10 @@ type Config struct {
 	// DynamicRegistry contains all locally registered dynamic plugins (e.g csi
 	// plugins).
 	DynamicRegistry dynamicplugins.Registry
+
+	// CSIManager is used to wait for CSI Volumes to be attached, and by the task
+	// runner to manage their attachment
+	CSIManager csimanager.Manager
 
 	// DeviceManager is used to mount devices as well as lookup device
 	// statistics

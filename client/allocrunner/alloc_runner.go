@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -135,6 +136,10 @@ type allocRunner struct {
 	// plugins).
 	dynamicRegistry dynamicplugins.Registry
 
+	// csiManager is used to wait for CSI Volumes to be attached, and by the task
+	// runner to manage their attachment
+	csiManager csimanager.Manager
+
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
 	devicemanager devicemanager.Manager
@@ -177,6 +182,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		prevAllocWatcher:         config.PrevAllocWatcher,
 		prevAllocMigrator:        config.PrevAllocMigrator,
 		dynamicRegistry:          config.DynamicRegistry,
+		csiManager:               config.CSIManager,
 		devicemanager:            config.DeviceManager,
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
