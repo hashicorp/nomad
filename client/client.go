@@ -262,7 +262,7 @@ type Client struct {
 	pluginManagers *pluginmanager.PluginGroup
 
 	// csimanager is responsible for managing csi plugins.
-	csimanager csimanager.CSIManager
+	csimanager csimanager.Manager
 
 	// devicemanger is responsible for managing device plugins.
 	devicemanager devicemanager.Manager
