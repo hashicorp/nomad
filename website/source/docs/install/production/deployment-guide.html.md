@@ -1,5 +1,5 @@
 ---
-layout: "guides"
+layout: "docs"
 page_title: "Nomad Deployment Guide"
 sidebar_current: "docs-install-production-deployment-guide"
 description: |-
@@ -17,11 +17,11 @@ These instructions are for installing and configuring Nomad on Linux hosts runni
 
 ## Reference Material
 
-This deployment guide is designed to work in combination with the [Nomad Reference Architecture](/docsnstall/production/reference-architecture.html) and [Consul Deployment Guide](https://www.consul.io/docs/guides/deployment-guide.html). Although it is not a strict requirement to follow the Nomad Reference Architecture, please ensure you are familiar with the overall architecture design. For example, installing Nomad server agents on multiple physical or virtual (with correct anti-affinity) hosts for high-availability.
+This deployment guide is designed to work in combination with the [Nomad Reference Architecture](/docs/install/production/reference-architecture.html) and [Consul Deployment Guide](https://www.consul.io/docs/guides/deployment-guide.html). Although it is not a strict requirement to follow the Nomad Reference Architecture, please ensure you are familiar with the overall architecture design. For example, installing Nomad server agents on multiple physical or virtual (with correct anti-affinity) hosts for high-availability.
 
 ## Overview
 
-To provide a highly-available single cluster architecture, we recommend Nomad server agents be deployed to more than one host, as shown in the [Nomad Reference Architecture](/docsnstall/production/reference-architecture.html).
+To provide a highly-available single cluster architecture, we recommend Nomad server agents be deployed to more than one host, as shown in the [Nomad Reference Architecture](/docs/install/production/reference-architecture.html).
 
 ![Reference diagram](/assets/images/nomad_reference_diagram.png)
 
@@ -70,7 +70,7 @@ sudo mkdir --parents /opt/nomad
 
 ## Configure systemd
 
-Systemd uses [documented sane defaults](https://www.freedesktop.org/software/systemd/man/systemd.directives.html) so only non-default values must be set in the configuration file.
+Systemd uses [documented reasonable defaults](https://www.freedesktop.org/software/systemd/man/systemd.directives.html) so only non-default values must be set in the configuration file.
 
 Create a Nomad service file at `/etc/systemd/system/nomad.service`.
 

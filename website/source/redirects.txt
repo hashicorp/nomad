@@ -164,13 +164,13 @@
 /docs/agent/cloud_auto_join.html              /guides/operations/cluster/cloud_auto_join.html
 /docs/agent/telemetry.html                    /guides/operations/monitoring/telemetry.html
 /docs/agent/encryption.html                   /guides/security/encryption.html
-/docs/install                                 /guides/operations/install/index.html
-/docs/install/                                /guides/operations/install/index.html
-/docs/install/index.html                      /guides/operations/install/index.html
-/docs/upgrade                                 /guides/operations/upgrade/index.html
-/docs/upgrade/                                /guides/operations/upgrade/index.html
-/docs/upgrade/index.html                      /guides/operations/upgrade/index.html
-/docs/upgrade/upgrade-specific.html           /guides/operations/upgrade/upgrade-specific.html
+# /docs/install                                 /guides/operations/install/index.html
+# /docs/install/                                /guides/operations/install/index.html
+# /docs/install/index.html                      /guides/operations/install/index.html
+# /docs/upgrade                                 /guides/operations/upgrade/index.html
+# /docs/upgrade/                                /guides/operations/upgrade/index.html
+# /docs/upgrade/index.html                      /guides/operations/upgrade/index.html
+# /docs/upgrade/upgrade-specific.html           /guides/operations/upgrade/upgrade-specific.html
 /docs/service-discovery                       /guides/operations/consul-integration/index.html
 /docs/service-discovery/                      /guides/operations/consul-integration/index.html
 /docs/service-discovery/index.html            /guides/operations/consul-integration/index.html
