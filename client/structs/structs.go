@@ -34,6 +34,7 @@ type ClientStatsResponse struct {
 	structs.QueryMeta
 }
 
+// MonitorRequest is used to request and stream logs from a client node.
 type MonitorRequest struct {
 	// LogLevel is the log level filter we want to stream logs on
 	LogLevel string

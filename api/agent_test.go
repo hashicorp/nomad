@@ -376,3 +376,83 @@ OUTER:
 		}
 	}
 }
+
+func TestAgentCPUProfile(t *testing.T) {
+	t.Parallel()
+
+	c, s, token := makeACLClient(t, nil, nil)
+	defer s.Stop()
+
+	agent := c.Agent()
+
+	q := &QueryOptions{
+		AuthToken: token.SecretID,
+	}
+
+	// Valid local request
+	{
+		opts := PprofOptions{
+			Seconds: 1,
+		}
+		resp, err := agent.CPUProfile(opts, q)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+	}
+
+	// Invalid server request
+	{
+		opts := PprofOptions{
+			Seconds:  1,
+			ServerID: "unknown.global",
+		}
+		resp, err := agent.CPUProfile(opts, q)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "500 (unknown nomad server unknown.global)")
+		require.Nil(t, resp)
+	}
+
+}
+
+func TestAgentTrace(t *testing.T) {
+	t.Parallel()
+
+	c, s, token := makeACLClient(t, nil, nil)
+	defer s.Stop()
+
+	agent := c.Agent()
+
+	q := &QueryOptions{
+		AuthToken: token.SecretID,
+	}
+
+	resp, err := agent.Trace(PprofOptions{}, q)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+}
+
+func TestAgentProfile(t *testing.T) {
+	t.Parallel()
+
+	c, s, token := makeACLClient(t, nil, nil)
+	defer s.Stop()
+
+	agent := c.Agent()
+
+	q := &QueryOptions{
+		AuthToken: token.SecretID,
+	}
+
+	{
+		resp, err := agent.Lookup("heap", PprofOptions{}, q)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+	}
+
+	// unknown profile
+	{
+		resp, err := agent.Lookup("invalid", PprofOptions{}, q)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Unexpected response code: 404")
+		require.Nil(t, resp)
+	}
+}
