@@ -294,6 +294,11 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	allocsToUpsert = append(allocsToUpsert, results.AllocsUpdated...)
 	allocsToUpsert = append(allocsToUpsert, allocsPreempted...)
 
+	// handle upgrade path
+	for _, alloc := range allocsToUpsert {
+		alloc.Canonicalize()
+	}
+
 	if err := s.upsertAllocsImpl(index, allocsToUpsert, txn); err != nil {
 		return err
 	}
