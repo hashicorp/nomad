@@ -339,10 +339,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		serversContactedOnce: sync.Once{},
 		dynamicRegistry: dynamicplugins.NewRegistry(map[string]dynamicplugins.PluginDispenser{
 			dynamicplugins.PluginTypeCSIController: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
-				return csi.NewClient(info.ConnectionInfo.SocketPath)
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "controller"))
 			},
 			dynamicplugins.PluginTypeCSINode: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
-				return csi.NewClient(info.ConnectionInfo.SocketPath)
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "client"))
 			},
 		}),
 	}
