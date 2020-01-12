@@ -7,7 +7,9 @@ import (
 	"time"
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/grpc-middleware/logging"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"google.golang.org/grpc"
@@ -81,12 +83,12 @@ func (c *client) Close() error {
 	return nil
 }
 
-func NewClient(addr string) (CSIPlugin, error) {
+func NewClient(addr string, logger hclog.Logger) (CSIPlugin, error) {
 	if addr == "" {
 		return nil, fmt.Errorf("address is empty")
 	}
 
-	conn, err := newGrpcConn(addr)
+	conn, err := newGrpcConn(addr, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -99,10 +101,12 @@ func NewClient(addr string) (CSIPlugin, error) {
 	}, nil
 }
 
-func newGrpcConn(addr string) (*grpc.ClientConn, error) {
+func newGrpcConn(addr string, logger hclog.Logger) (*grpc.ClientConn, error) {
 	conn, err := grpc.Dial(
 		addr,
 		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(logging.UnaryClientInterceptor(logger)),
+		grpc.WithStreamInterceptor(logging.StreamClientInterceptor(logger)),
 		grpc.WithDialer(func(target string, timeout time.Duration) (net.Conn, error) {
 			return net.DialTimeout("unix", target, timeout)
 		}),
