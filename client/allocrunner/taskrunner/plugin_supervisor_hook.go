@@ -294,7 +294,7 @@ func (h *csiPluginSupervisorHook) supervisorLoopOnce(ctx context.Context, socket
 		return false, fmt.Errorf("failed to stat socket: %v", err)
 	}
 
-	client, err := csi.NewClient(socketPath)
+	client, err := csi.NewClient(socketPath, h.logger.Named("csi_client").With("plugin.name", h.task.CSIPluginConfig.ID, "plugin.type", h.task.CSIPluginConfig.Type))
 	defer client.Close()
 	if err != nil {
 		return false, fmt.Errorf("failed to create csi client: %v", err)
