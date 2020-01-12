@@ -95,6 +95,9 @@ type Logger interface {
 	// Args are alternating key, val pairs
 	// keys must be strings
 	// vals can be any type, but display is implementation specific
+	// Emit a message and key/value pairs at a provided log level
+	Log(level Level, msg string, args ...interface{})
+
 	// Emit a message and key/value pairs at the TRACE level
 	Trace(msg string, args ...interface{})
 
