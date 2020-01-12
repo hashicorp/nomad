@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -274,6 +275,34 @@ func TestAgent_ServerConfig(t *testing.T) {
 	}
 }
 
+func TestAgent_ServerConfig_SchedulerFlags(t *testing.T) {
+	cases := []struct {
+		input    *bool
+		expected bool
+	}{
+		{nil, true},
+		{helper.BoolToPtr(false), false},
+		{helper.BoolToPtr(true), true},
+	}
+
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("case: %v", c.input), func(t *testing.T) {
+			conf := DefaultConfig()
+			conf.Server.SystemSchedulerPreemptionEnabledDefault = c.input
+
+			a := &Agent{config: conf}
+			conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
+			conf.AdvertiseAddrs.RPC = "127.0.0.1:4001"
+			conf.AdvertiseAddrs.HTTP = "10.10.11.1:4005"
+			conf.ACL.Enabled = true
+			require.NoError(t, conf.normalizeAddrs())
+
+			out, err := a.serverConfig()
+			require.NoError(t, err)
+			require.Equal(t, c.expected, out.SystemSchedulerPreemptionEnabledDefault)
+		})
+	}
+}
 func TestAgent_ClientConfig(t *testing.T) {
 	t.Parallel()
 	conf := DefaultConfig()

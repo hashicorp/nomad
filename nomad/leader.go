@@ -45,12 +45,14 @@ var minAutopilotVersion = version.Must(version.NewVersion("0.8.0"))
 var minSchedulerConfigVersion = version.Must(version.NewVersion("0.9.0"))
 
 // Default configuration for scheduler with preemption enabled for system jobs
-var defaultSchedulerConfig = &structs.SchedulerConfiguration{
-	PreemptionConfig: structs.PreemptionConfig{
-		SystemSchedulerEnabled:  true,
-		BatchSchedulerEnabled:   false,
-		ServiceSchedulerEnabled: false,
-	},
+func (s *Server) defaultSchedulerConfig() structs.SchedulerConfiguration {
+	return structs.SchedulerConfiguration{
+		PreemptionConfig: structs.PreemptionConfig{
+			SystemSchedulerEnabled:  s.config.SystemSchedulerPreemptionEnabledDefault,
+			BatchSchedulerEnabled:   false,
+			ServiceSchedulerEnabled: false,
+		},
+	}
 }
 
 // monitorLeadership is used to monitor if we acquire or lose our role
@@ -1319,7 +1321,7 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 		return nil
 	}
 
-	req := structs.SchedulerSetConfigRequest{Config: *defaultSchedulerConfig}
+	req := structs.SchedulerSetConfigRequest{Config: s.defaultSchedulerConfig()}
 	if _, _, err = s.raftApply(structs.SchedulerConfigRequestType, req); err != nil {
 		s.logger.Named("core").Error("failed to initialize config", "error", err)
 		return nil

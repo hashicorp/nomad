@@ -305,6 +305,9 @@ type Config struct {
 	// dead servers.
 	AutopilotInterval time.Duration
 
+	// SystemSchedulerPreemptionEnabledDefault is used to determin whether to enable system preemption by default in a new cluster
+	SystemSchedulerPreemptionEnabledDefault bool
+
 	// PluginLoader is used to load plugins.
 	PluginLoader loader.PluginCatalog
 
@@ -377,8 +380,9 @@ func DefaultConfig() *Config {
 			MaxTrailingLogs:         250,
 			ServerStabilizationTime: 10 * time.Second,
 		},
-		ServerHealthInterval: 2 * time.Second,
-		AutopilotInterval:    10 * time.Second,
+		ServerHealthInterval:                    2 * time.Second,
+		AutopilotInterval:                       10 * time.Second,
+		SystemSchedulerPreemptionEnabledDefault: true,
 	}
 
 	// Enable all known schedulers by default

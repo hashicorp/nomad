@@ -444,6 +444,9 @@ type ServerConfig struct {
 	// ServerJoin contains information that is used to attempt to join servers
 	ServerJoin *ServerJoin `hcl:"server_join"`
 
+	// SystemSchedulerPreemptionEnabledDefault is used to determin whether to enable system preemption by default in a new cluster
+	SystemSchedulerPreemptionEnabledDefault *bool `hcl:"system_scheduler_preemption_enabled_default"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
