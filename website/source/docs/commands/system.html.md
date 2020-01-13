@@ -8,7 +8,8 @@ description: >
 
 # Command: system
 
-The `system` command is used to interact with namespaces.
+The `system` command is used to interact with the system API. These calls are
+used for system maintenance and should not be necessary for most users.
 
 ## Usage
 
