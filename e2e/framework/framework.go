@@ -183,7 +183,6 @@ func (f *Framework) Run(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 // Run starts the package scoped Framework, running each TestSuite
