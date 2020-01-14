@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,6 +29,7 @@ import (
 )
 
 var (
+	integration = flag.Bool("integration", false, "run integration tests")
 	minVaultVer = version.Must(version.NewVersion("0.6.2"))
 )
 
@@ -248,8 +250,8 @@ func getVault(dst, url string) error {
 
 // TestVaultCompatibility tests compatibility across Vault versions
 func TestVaultCompatibility(t *testing.T) {
-	if os.Getenv("NOMAD_E2E") == "" {
-		t.Skip("Skipping e2e tests, NOMAD_E2E not set")
+	if !*integration {
+		t.Skip("skipping test in non-integration mode: add -integration flag to run")
 	}
 
 	vaultBinaries := syncVault(t)
