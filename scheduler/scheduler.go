@@ -91,6 +91,9 @@ type State interface {
 
 	// SchedulerConfig returns config options for the scheduler
 	SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error)
+
+	// CSIVolumeByID fetch CSI volumes, containing controller jobs
+	CSIVolumeByID(memdb.WatchSet, string) (*structs.CSIVolume, error)
 }
 
 // Planner interface is used to submit a task allocation plan.

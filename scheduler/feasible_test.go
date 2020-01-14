@@ -232,7 +232,7 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 }
 
 func TestCSIVolumeChecker(t *testing.T) {
-	_, ctx := testContext(t)
+	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
 		mock.Node(),
@@ -241,24 +241,52 @@ func TestCSIVolumeChecker(t *testing.T) {
 	}
 
 	// Register running plugins on some nodes
+	nodes[0].CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID:       "foo",
+			Healthy:        true,
+			ControllerInfo: &structs.CSIControllerInfo{},
+		},
+	}
 	nodes[0].CSINodePlugins = map[string]*structs.CSIInfo{
 		"foo": {
 			PluginID: "foo",
 			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
 	nodes[1].CSINodePlugins = map[string]*structs.CSIInfo{
 		"foo": {
 			PluginID: "foo",
 			Healthy:  false,
+			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
 	nodes[2].CSINodePlugins = map[string]*structs.CSIInfo{
 		"bar": {
 			PluginID: "bar",
 			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
+
+	// Create the plugins in the state store
+	index := uint64(999)
+	for _, node := range nodes {
+		err := state.UpsertNode(index, node)
+		require.NoError(t, err)
+		index++
+	}
+
+	// Create the volume in the state store
+	vid := "volume-id"
+	vol := structs.NewCSIVolume(vid)
+	vol.PluginID = "foo"
+	vol.Namespace = structs.DefaultNamespace
+	vol.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
+	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	err := state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	require.NoError(t, err)
 
 	// Create volume requests
 	noVolumes := map[string]*structs.VolumeRequest{}
@@ -267,7 +295,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 		"foo": {
 			Type:   "csi",
 			Name:   "foo",
-			Source: "minnie-driver",
+			Source: "volume-id",
 		},
 	}
 
