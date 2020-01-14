@@ -18,6 +18,7 @@ const (
 	errUnknownNomadVersion        = "Unable to determine Nomad version"
 	errNodeLacksRpc               = "Node does not support RPC; requires 0.8 or later"
 	errMissingAllocID             = "Missing allocation ID"
+	errMissingCSIPluginID         = "Missing Plugin ID"
 	errMissingCSIVolumeID         = "Missing Volume ID"
 
 	// Prefix based errors that are used to check if the error is of a given
@@ -42,6 +43,7 @@ var (
 	ErrUnknownNomadVersion        = errors.New(errUnknownNomadVersion)
 	ErrNodeLacksRpc               = errors.New(errNodeLacksRpc)
 	ErrMissingAllocID             = errors.New(errMissingAllocID)
+	ErrMissingCSIPluginID         = errors.New(errMissingCSIPluginID)
 	ErrMissingCSIVolumeID         = errors.New(errMissingCSIVolumeID)
 )
 
