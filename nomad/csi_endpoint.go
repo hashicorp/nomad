@@ -61,10 +61,16 @@ func (srv *Server) WriteACLObj(args *structs.WriteRequest) (*acl.ACL, error) {
 	return srv.QueryACLObj(opts)
 }
 
-// replyCSIVolumeIndex sets the reply with the last index that modified the table csi_volumes
-func (srv *Server) replySetCSIVolumeIndex(state *state.StateStore, reply *structs.QueryMeta) error {
-	// Use the last index that affected the table
-	index, err := state.Index("csi_volumes")
+const (
+	csiVolumeTable = "csi_volumes"
+	csiPluginTable = "csi_plugins"
+)
+
+// replySetIndex sets the reply with the last index that modified the table
+func (srv *Server) replySetIndex(table string, reply *structs.QueryMeta) error {
+	s := srv.fsm.State()
+
+	index, err := s.Index(table)
 	if err != nil {
 		return err
 	}
@@ -98,8 +104,8 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			var err error
 			var iter memdb.ResultIterator
 
-			if args.Driver != "" {
-				iter, err = state.CSIVolumesByDriver(ws, args.Driver)
+			if args.PluginID != "" {
+				iter, err = state.CSIVolumesByPluginID(ws, args.PluginID)
 			} else {
 				iter, err = state.CSIVolumes(ws)
 			}
@@ -117,7 +123,10 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 				if raw == nil {
 					break
 				}
-				vol := raw.(*structs.CSIVolume)
+				vol, err := state.CSIVolumeDenormalize(ws, raw)
+				if err != nil {
+					return err
+				}
 
 				// Filter on the request namespace to avoid ACL checks by volume
 				if ns != "" && vol.Namespace != args.RequestNamespace() {
@@ -136,7 +145,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 				}
 			}
 			reply.Volumes = vs
-			return v.srv.replySetCSIVolumeIndex(state, &reply.QueryMeta)
+			return v.srv.replySetIndex(csiVolumeTable, &reply.QueryMeta)
 		}}
 	return v.srv.blockingRPC(&opts)
 }
@@ -173,7 +182,7 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 			}
 
 			reply.Volume = vol
-			return v.srv.replySetCSIVolumeIndex(state, &reply.QueryMeta)
+			return v.srv.replySetIndex(csiVolumeTable, &reply.QueryMeta)
 		}}
 	return v.srv.blockingRPC(&opts)
 }
@@ -215,7 +224,7 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		return err
 	}
 
-	return v.srv.replySetCSIVolumeIndex(state, &reply.QueryMeta)
+	return v.srv.replySetIndex(csiVolumeTable, &reply.QueryMeta)
 }
 
 // Deregister removes a set of volumes
@@ -248,5 +257,100 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 		return err
 	}
 
-	return v.srv.replySetCSIVolumeIndex(state, &reply.QueryMeta)
+	return v.srv.replySetIndex(csiVolumeTable, &reply.QueryMeta)
+}
+
+// CSIPlugin wraps the structs.CSIPlugin with request data and server context
+type CSIPlugin struct {
+	srv    *Server
+	logger log.Logger
+}
+
+// List replies with CSIPlugins, filtered by ACL access
+func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIPluginListResponse) error {
+	if done, err := v.srv.forward("CSIPlugin.List", args, args, reply); done {
+		return err
+	}
+
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions)
+	if err != nil {
+		return err
+	}
+
+	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityCSIAccess) {
+		return structs.ErrPermissionDenied
+	}
+
+	metricsStart := time.Now()
+	defer metrics.MeasureSince([]string{"nomad", "plugin", "list"}, metricsStart)
+
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// Query all plugins
+			iter, err := state.CSIPlugins(ws)
+			if err != nil {
+				return err
+			}
+
+			// Collect results
+			var ps []*structs.CSIPluginListStub
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+
+				plug := raw.(*structs.CSIPlugin)
+
+				// FIXME we should filter the ACL access for the plugin's
+				// namespace, but plugins don't currently have namespaces
+				ps = append(ps, plug.Stub())
+			}
+
+			reply.Plugins = ps
+			return v.srv.replySetIndex(csiPluginTable, &reply.QueryMeta)
+		}}
+	return v.srv.blockingRPC(&opts)
+}
+
+// Get fetches detailed information about a specific plugin
+func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPluginGetResponse) error {
+	if done, err := v.srv.forward("CSIPlugin.Get", args, args, reply); done {
+		return err
+	}
+
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions)
+	if err != nil {
+		return err
+	}
+
+	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityCSIAccess) {
+		return structs.ErrPermissionDenied
+	}
+
+	metricsStart := time.Now()
+	defer metrics.MeasureSince([]string{"nomad", "plugin", "get"}, metricsStart)
+
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			plug, err := state.CSIPluginByID(ws, args.ID)
+			if err != nil {
+				return err
+			}
+
+			if plug == nil {
+				return structs.ErrMissingCSIPluginID
+			}
+
+			// FIXME we should re-check the ACL access for the plugin's
+			// namespace, but plugins don't currently have namespaces
+
+			reply.Plugin = plug
+			return v.srv.replySetIndex(csiPluginTable, &reply.QueryMeta)
+		}}
+	return v.srv.blockingRPC(&opts)
 }
