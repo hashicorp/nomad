@@ -94,8 +94,7 @@ func TestConsulACLsAPI_allowsServiceWrite(t *testing.T) {
 	t.Parallel()
 
 	try := func(t *testing.T, task string, cp *ConsulPolicy, exp bool) {
-		cAPI := new(consulACLsAPI)
-		result := cAPI.allowsServiceWrite(task, cp)
+		result := cp.allowsServiceWrite(task)
 		require.Equal(t, exp, result)
 	}
 

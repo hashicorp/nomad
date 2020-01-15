@@ -94,7 +94,7 @@ func (c *consulACLsAPI) policyAllowsServiceWrite(task string, policyID string) (
 		return false, err
 	}
 
-	if c.allowsServiceWrite(task, cp) {
+	if cp.allowsServiceWrite(task) {
 		return true, nil
 	}
 
