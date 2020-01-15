@@ -55,6 +55,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"network",
 			"service",
 			"volume",
+			"scaling",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -78,6 +79,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		delete(m, "network")
 		delete(m, "service")
 		delete(m, "volume")
+		delete(m, "scaling")
 
 		// Build the group with the basic decode
 		var g api.TaskGroup
@@ -178,6 +180,13 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		if o := listVal.Filter("volume"); len(o.Items) > 0 {
 			if err := parseVolumes(&g.Volumes, o); err != nil {
 				return multierror.Prefix(err, "volume ->")
+			}
+		}
+
+		// Parse scaling policy
+		if o := listVal.Filter("scaling"); len(o.Items) > 0 {
+			if err := parseScalingPolicy(&g.Scaling, o); err != nil {
+				return multierror.Prefix(err, "scaling ->")
 			}
 		}
 
@@ -331,5 +340,43 @@ func parseVolumes(out *map[string]*api.VolumeRequest, list *ast.ObjectList) erro
 	}
 
 	*out = volumes
+	return nil
+}
+
+func parseScalingPolicy(out **api.ScalingPolicy, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'scaling' block allowed")
+	}
+
+	// Get our resource object
+	o := list.Items[0]
+
+	valid := []string{
+		"policy",
+		"enabled",
+	}
+	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return err
+	}
+
+	var result api.ScalingPolicy
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		WeaklyTypedInput: true,
+		Result:           &result,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
+		return err
+	}
+
+	*out = &result
 	return nil
 }

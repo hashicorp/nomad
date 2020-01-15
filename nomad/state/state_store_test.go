@@ -7197,7 +7197,7 @@ func TestStateStore_DeleteACLPolicy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Ensure we see both policies
+	// Ensure we see neither policy
 	count := 0
 	for {
 		raw := iter.Next()
@@ -7694,6 +7694,168 @@ func TestStateStore_ClusterMetadataRestore(t *testing.T) {
 	require.NoError(err)
 	require.Equal(clusterID, out.ClusterID)
 	require.Equal(now, out.CreateTime)
+}
+
+func TestStateStore_UpsertScalingPolicy(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	policy := mock.ScalingPolicy()
+	policy2 := mock.ScalingPolicy()
+
+	ws := memdb.NewWatchSet()
+	_, err := state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	require.NoError(err)
+
+	_, err = state.ScalingPolicyByTarget(ws, policy.Namespace, policy2.Target)
+	require.NoError(err)
+
+	err = state.UpsertScalingPolicies(1000, []*structs.ScalingPolicy{policy, policy2})
+	require.NoError(err)
+	require.True(watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	require.NoError(err)
+	require.Equal(policy, out)
+
+	out, err = state.ScalingPolicyByTarget(ws, policy2.Namespace, policy2.Target)
+	require.NoError(err)
+	require.Equal(policy2, out)
+
+	iter, err := state.ScalingPoliciesByNamespace(ws, policy.Namespace)
+	require.NoError(err)
+
+	// Ensure we see both policies
+	count := 0
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+	}
+	require.Equal(2, count)
+
+	index, err := state.Index("scaling_policy")
+	require.NoError(err)
+	require.True(1000 == index)
+	require.False(watchFired(ws))
+}
+
+func TestStateStore_DeleteScalingPolicies(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+	policy := mock.ScalingPolicy()
+	policy2 := mock.ScalingPolicy()
+
+	// Create the policy
+	err := state.UpsertScalingPolicies(1000, []*structs.ScalingPolicy{policy, policy2})
+	require.NoError(err)
+
+	// Create a watcher
+	ws := memdb.NewWatchSet()
+	_, err = state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	require.NoError(err)
+
+	// Delete the policy
+	err = state.DeleteScalingPolicies(1001, policy.Namespace, []string{policy.Target, policy2.Target})
+	require.NoError(err)
+
+	// Ensure watching triggered
+	require.True(watchFired(ws))
+
+	// Ensure we don't get the objects back
+	ws = memdb.NewWatchSet()
+	out, err := state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	require.NoError(err)
+	require.Nil(out)
+
+	ws = memdb.NewWatchSet()
+	out, err = state.ScalingPolicyByTarget(ws, policy2.Namespace, policy2.Target)
+	require.NoError(err)
+	require.Nil(out)
+
+	// Ensure we see both policies
+	iter, err := state.ScalingPoliciesByNamespace(ws, policy.Namespace)
+	require.NoError(err)
+	count := 0
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+	}
+	require.Equal(0, count)
+
+	index, err := state.Index("scaling_policy")
+	require.NoError(err)
+	require.True(1001 == index)
+	require.False(watchFired(ws))
+}
+
+func TestStateStore_ScalingPoliciesByNamespace(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+	policyA1 := mock.ScalingPolicy()
+	policyA2 := mock.ScalingPolicy()
+	policyB1 := mock.ScalingPolicy()
+	policyB2 := mock.ScalingPolicy()
+	policyB1.Namespace = "different-namespace"
+	policyB2.Namespace = policyB1.Namespace
+
+	// Create the policies
+	var baseIndex uint64 = 1000
+	err := state.UpsertScalingPolicies(baseIndex, []*structs.ScalingPolicy{policyA1, policyA2, policyB1, policyB2})
+	require.NoError(err)
+
+	iter, err := state.ScalingPoliciesByNamespace(nil, policyA1.Namespace)
+	require.NoError(err)
+
+	// Ensure we see expected policies
+	count := 0
+	found := []string{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+		found = append(found, raw.(*structs.ScalingPolicy).Target)
+	}
+	require.Equal(2, count)
+	sort.Strings(found)
+	expect := []string{policyA1.Target, policyA2.Target}
+	sort.Strings(expect)
+	require.Equal(expect, found)
+
+	iter, err = state.ScalingPoliciesByNamespace(nil, policyB1.Namespace)
+	require.NoError(err)
+
+	// Ensure we see expected policies
+	count = 0
+	found = []string{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+		found = append(found, raw.(*structs.ScalingPolicy).Target)
+	}
+	require.Equal(2, count)
+	sort.Strings(found)
+	expect = []string{policyB1.Target, policyB2.Target}
+	sort.Strings(expect)
+	require.Equal(expect, found)
 }
 
 func TestStateStore_Abandon(t *testing.T) {
