@@ -166,6 +166,9 @@ type Config struct {
 	// Plugins is the set of configured plugins
 	Plugins []*config.PluginConfig `hcl:"plugin"`
 
+	// Limits contains the configuration for timeouts.
+	Limits config.Limits `hcl:"limits"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -862,6 +865,7 @@ func DefaultConfig() *Config {
 		Version:            version.GetVersion(),
 		Autopilot:          config.DefaultAutopilotConfig(),
 		DisableUpdateCheck: helper.BoolToPtr(false),
+		Limits:             config.DefaultLimits(),
 	}
 }
 
@@ -1065,6 +1069,8 @@ func (c *Config) Merge(b *Config) *Config {
 	for k, v := range b.HTTPAPIResponseHeaders {
 		result.HTTPAPIResponseHeaders[k] = v
 	}
+
+	result.Limits = c.Limits.Merge(b.Limits)
 
 	return &result
 }

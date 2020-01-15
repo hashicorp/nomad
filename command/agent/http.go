@@ -16,6 +16,7 @@ import (
 	"github.com/NYTimes/gziphandler"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/websocket"
+	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -112,12 +113,100 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 		return nil, err
 	}
 
+	// Get connection handshake timeout limit
+	handshakeTimeout, err := time.ParseDuration(config.Limits.HTTPSHandshakeTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing https_handshake_timeout: %v", err)
+	} else if handshakeTimeout < 0 {
+		return nil, fmt.Errorf("https_handshake_timeout must be >= 0")
+	}
+
+	// Get max connection limit
+	maxConns := 0
+	if mc := config.Limits.HTTPMaxConnsPerClient; mc != nil {
+		maxConns = *mc
+	}
+	if maxConns < 0 {
+		return nil, fmt.Errorf("http_max_conns_per_client must be >= 0")
+	}
+
+	// Create HTTP server with timeouts
+	httpServer := http.Server{
+		Addr:      srv.Addr,
+		Handler:   gzip(mux),
+		ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
+	}
+
 	go func() {
 		defer close(srv.listenerCh)
-		http.Serve(ln, gzip(mux))
+		httpServer.Serve(ln)
 	}()
 
 	return srv, nil
+}
+
+// makeConnState returns a ConnState func for use in an http.Server. If
+// isTLS=true and handshakeTimeout>0 then the handshakeTimeout will be applied
+// as a connection deadline to new connections and removed when the connection
+// is active (meaning it has successfully completed the TLS handshake).
+//
+// If limit > 0, a per-address connection limit will be enabled regardless of
+// TLS. If connLimit == 0 there is no connection limit.
+func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int) func(conn net.Conn, state http.ConnState) {
+	if !isTLS || handshakeTimeout == 0 {
+		if connLimit > 0 {
+			// Still return the connection limiter
+			return connlimit.NewLimiter(connlimit.Config{
+				MaxConnsPerClientIP: connLimit,
+			}).HTTPConnStateFunc()
+		}
+
+		return nil
+	}
+
+	if connLimit > 0 {
+		// Return conn state callback with connection limiting and a
+		// handshake timeout.
+
+		connLimiter := connlimit.NewLimiter(connlimit.Config{
+			MaxConnsPerClientIP: connLimit,
+		}).HTTPConnStateFunc()
+
+		return func(conn net.Conn, state http.ConnState) {
+			switch state {
+			case http.StateNew:
+				// Set deadline to prevent slow send before TLS handshake or first
+				// byte of request.
+				conn.SetDeadline(time.Now().Add(handshakeTimeout))
+			case http.StateActive:
+				// Clear read deadline. We should maybe set read timeouts more
+				// generally but that's a bigger task as some HTTP endpoints may
+				// stream large requests and responses (e.g. snapshot) so we can't
+				// set sensible blanket timeouts here.
+				conn.SetDeadline(time.Time{})
+			}
+
+			// Call connection limiter
+			connLimiter(conn, state)
+		}
+	}
+
+	// Return conn state callback with just a handshake timeout
+	// (connection limiting disabled).
+	return func(conn net.Conn, state http.ConnState) {
+		switch state {
+		case http.StateNew:
+			// Set deadline to prevent slow send before TLS handshake or first
+			// byte of request.
+			conn.SetDeadline(time.Now().Add(handshakeTimeout))
+		case http.StateActive:
+			// Clear read deadline. We should maybe set read timeouts more
+			// generally but that's a bigger task as some HTTP endpoints may
+			// stream large requests and responses (e.g. snapshot) so we can't
+			// set sensible blanket timeouts here.
+			conn.SetDeadline(time.Time{})
+		}
+	}
 }
 
 // tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
