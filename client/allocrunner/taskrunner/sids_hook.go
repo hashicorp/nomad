@@ -18,7 +18,7 @@ import (
 
 const (
 	// the name of this hook, used in logs
-	sidsHookName = "consul_sids"
+	sidsHookName = "consul_si_token"
 
 	// sidsBackoffBaseline is the baseline time for exponential backoff when
 	// attempting to retrieve a Consul SI token

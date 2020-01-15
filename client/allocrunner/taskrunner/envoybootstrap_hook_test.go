@@ -130,6 +130,8 @@ type envoyConfig struct {
 	} `json:"dynamic_resources"`
 }
 
+// TestEnvoyBootstrapHook_with_SI_token asserts the bootstrap file written for
+// Envoy contains a Consul SI token.
 func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	t.Parallel()
 	testutil.RequireConsul(t)

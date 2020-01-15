@@ -141,7 +141,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 		err = cmd.Run()
 
 		// Close bootstrap.json
-		_ = fd.Close()
+		fd.Close()
 
 		if err == nil {
 			// Happy path! Bootstrap was created, exit.
@@ -157,7 +157,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 			// occurs, and (b) the file will either be rewritten on
 			// retry or eventually garbage collected if the task
 			// fails.
-			_ = os.Remove(bootstrapFilePath)
+			os.Remove(bootstrapFilePath)
 
 			// ExitErrors are recoverable since they indicate the
 			// command was runnable but exited with a unsuccessful
@@ -249,12 +249,12 @@ func (e envoyBootstrapArgs) args() []string {
 		"-sidecar-for", e.sidecarFor,
 	}
 	if e.siToken != "" {
-		arguments = append(arguments, []string{"-token", e.siToken}...)
+		arguments = append(arguments, "-token", e.siToken)
 	}
 	return arguments
 }
 
-// maybeLoadSIToken reads the SI token saved to disk in the secretes directory
+// maybeLoadSIToken reads the SI token saved to disk in the secrets directory
 // by the service identities prestart hook. This envoy bootstrap hook blocks
 // until the sids hook completes, so if the SI token is required to exist (i.e.
 // Consul ACLs are enabled), it will be in place by the time we try to read it.
