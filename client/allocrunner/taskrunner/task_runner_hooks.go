@@ -116,14 +116,13 @@ func (tr *TaskRunner) initHooks() {
 			lifecycle:  tr,
 			logger:     hookLogger,
 		}))
+		// envoy bootstrap must execute after sidsHook maybe sets SI token
+		tr.runnerHooks = append(tr.runnerHooks, newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
+			alloc:          alloc,
+			consulHTTPAddr: tr.clientConfig.ConsulConfig.Addr,
+			logger:         hookLogger,
+		}))
 	}
-
-	// envoy bootstrap must execute after sidsHook maybe sets SI token
-	tr.runnerHooks = append(tr.runnerHooks, newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
-		alloc:          alloc,
-		consulHTTPAddr: tr.clientConfig.ConsulConfig.Addr,
-		logger:         hookLogger,
-	}))
 
 	// If there are any script checks, add the hook
 	scriptCheckHook := newScriptCheckHook(scriptCheckHookConfig{

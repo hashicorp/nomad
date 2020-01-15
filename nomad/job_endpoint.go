@@ -234,13 +234,10 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Enforce that the operator has necessary Consul ACL permissions
-	connectTasks := args.Job.ConnectTasks()
-	if len(connectTasks) > 0 {
-		for _, tg := range connectTasks {
-			for _, task := range tg {
-				if err := checkOperatorToken(task); err != nil {
-					return err
-				}
+	for _, tg := range args.Job.ConnectTasks() {
+		for _, task := range tg {
+			if err := checkOperatorToken(task); err != nil {
+				return err
 			}
 		}
 	}

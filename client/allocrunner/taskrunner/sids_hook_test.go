@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
@@ -51,7 +52,7 @@ func TestSIDSHook_recoverToken(t *testing.T) {
 		logger: testlog.HCLogger(t),
 	})
 
-	expected := "12345678-1234-1234-1234-1234567890"
+	expected := uuid.Generate()
 	err := h.writeToken(secrets, expected)
 	r.NoError(err)
 
