@@ -230,6 +230,9 @@ func (h *envoyBootstrapHook) execute(cmd *exec.Cmd) (string, error) {
 	return stdout.String(), nil
 }
 
+// envoyBootstrapArgs is used to accumulate CLI arguments that will be passed
+// along to the exec invocation of consul which will then generate the bootstrap
+// configuration file for envoy.
 type envoyBootstrapArgs struct {
 	sidecarFor     string
 	grpcAddr       string
@@ -238,6 +241,8 @@ type envoyBootstrapArgs struct {
 	siToken        string
 }
 
+// args returns the CLI arguments consul needs in the correct order, with the
+// -token argument present or not present depending on whether it is set.
 func (e envoyBootstrapArgs) args() []string {
 	arguments := []string{
 		"connect",

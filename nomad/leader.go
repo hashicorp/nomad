@@ -419,7 +419,7 @@ func (s *Server) revokeSITokenAccessorsOnRestore() error {
 
 	if len(toRevoke) > 0 {
 		ctx := context.Background()
-		_ = s.consulACLs.RevokeTokens(ctx, toRevoke, true)
+		s.consulACLs.RevokeTokens(ctx, toRevoke, true)
 	}
 
 	return nil

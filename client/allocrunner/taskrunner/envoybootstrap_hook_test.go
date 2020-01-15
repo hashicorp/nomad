@@ -1,3 +1,7 @@
+// +build !windows
+// todo(shoenig): Once Connect is supported on Windows, we'll need to make this
+//  set of tests work there too.
+
 package taskrunner
 
 import (
@@ -40,6 +44,9 @@ func writeTmp(t *testing.T, s string, fm os.FileMode) string {
 func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 	t.Parallel()
 
+	// This test fails when running as root because the test case for checking
+	// the error condition when the file is unreadable fails (root can read the
+	// file even though the permissions are set to 0200).
 	if unix.Geteuid() == 0 {
 		t.Skip("test only works as non-root")
 	}

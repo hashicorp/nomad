@@ -28,6 +28,7 @@ import (
 	mockdriver "github.com/hashicorp/nomad/drivers/mock"
 	"github.com/hashicorp/nomad/drivers/rawexec"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -1127,7 +1128,7 @@ func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
 	defer cleanup()
 
 	// control when we get a Consul SI token
-	token := "12345678-1234-1234-1234-1234567890"
+	token := uuid.Generate()
 	waitCh := make(chan struct{})
 	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
 		<-waitCh
@@ -1191,7 +1192,7 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 	defer cleanup()
 
 	// control when we get a Consul SI token
-	token := "12345678-1234-1234-1234-1234567890"
+	token := uuid.Generate()
 	deriveCount := 0
 	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
 		if deriveCount > 0 {
