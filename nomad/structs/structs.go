@@ -3899,6 +3899,8 @@ func (j *Job) SpecChanged(new *Job) bool {
 	c.JobModifyIndex = j.JobModifyIndex
 	c.SubmitTime = j.SubmitTime
 
+	// cgbaker: FINISH: probably need some consideration of scaling policy ID here
+
 	// Deep equals the jobs
 	return !reflect.DeepEqual(j, c)
 }
@@ -4438,6 +4440,39 @@ const (
 	ReasonWithinPolicy = "Restart within policy"
 )
 
+// ScalingPolicy specifies the scaling policy for a scaling target
+type ScalingPolicy struct {
+	// Namespace is the namespace for the containing job
+	Namespace string
+
+	// Target is the scaling target; there can be only one policy per scaling target
+	Target string
+
+	// JobID is the ID of the parent job; there can be multiple policies per job
+	JobID string
+
+	// Policy is an opaque description of the scaling policy, passed to the autoscaler
+	Policy map[string]interface{}
+
+	// Enabled indicates whether this policy has been enabled/disabled
+	Enabled bool
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+func (j *Job) GetScalingPolicies() []*ScalingPolicy {
+	ret := []*ScalingPolicy{}
+
+	for _, tg := range j.TaskGroups {
+		if tg.Scaling != nil {
+			ret = append(ret, tg.Scaling)
+		}
+	}
+
+	return ret
+}
+
 // RestartPolicy configures how Tasks are restarted when they crash or fail.
 type RestartPolicy struct {
 	// Attempts is the number of restart that will occur in an interval.
@@ -4789,6 +4824,9 @@ type TaskGroup struct {
 	// all the tasks contained.
 	Constraints []*Constraint
 
+	// Scaling is the list of autoscaling policies for the TaskGroup
+	Scaling *ScalingPolicy
+
 	//RestartPolicy of a TaskGroup
 	RestartPolicy *RestartPolicy
 
@@ -4842,6 +4880,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
 	ntg.Volumes = CopyMapVolumeRequest(ntg.Volumes)
+	ntg.Scaling = CopyScalingPolicy(ntg.Scaling)
 
 	// Copy the network objects
 	if tg.Networks != nil {

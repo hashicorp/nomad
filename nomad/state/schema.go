@@ -47,6 +47,7 @@ func init() {
 		autopilotConfigTableSchema,
 		schedulerConfigTableSchema,
 		clusterMetaTableSchema,
+		scalingPolicyTableSchema,
 	}...)
 }
 
@@ -673,6 +674,67 @@ func clusterMetaTableSchema() *memdb.TableSchema {
 				AllowMissing: false,
 				Unique:       true,
 				Indexer:      singletonRecord, // we store only 1 cluster metadata
+			},
+		},
+	}
+}
+
+// scalingPolicyTableSchema returns the MemDB schema for the policy table.
+// This table is used to store the policies which are referenced by tokens
+func scalingPolicyTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "scaling_policy",
+		Indexes: map[string]*memdb.IndexSchema{
+			// Primary index is used for job management
+			// and simple direct lookup. Target is required to be
+			// unique within a namespace.
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+
+				// Use a compound index so the tuple of (Namespace, Target) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.StringFieldIndex{
+							Field: "Target",
+						},
+					},
+				},
+			},
+			// Job index is used to lookup scaling policies by job
+			"job": {
+				Name:         "job",
+				AllowMissing: false,
+				Unique:       false,
+
+				// Use a compound index so the tuple of (Namespace, JobID) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.StringFieldIndex{
+							Field: "JobID",
+						},
+					},
+				},
+			},
+			// Used to filter by enabled
+			"enabled": {
+				Name:         "enabled",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.FieldSetIndex{
+					Field: "Enabled",
+				},
 			},
 		},
 	}

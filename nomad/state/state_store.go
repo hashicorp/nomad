@@ -4177,6 +4177,207 @@ func (s *StateStore) setClusterMetadata(txn *memdb.Txn, meta *structs.ClusterMet
 	return nil
 }
 
+// UpsertScalingPolicy is used to insert a new scaling policy.
+func (s *StateStore) UpsertScalingPolicies(index uint64, scalingPolicies []*structs.ScalingPolicy) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for _, scalingPolicy := range scalingPolicies {
+		// Check if the scaling policy already exists
+		existing, err := txn.First("scaling_policy", "id", scalingPolicy.Namespace, scalingPolicy.Target)
+		if err != nil {
+			return fmt.Errorf("scaling policy lookup failed: %v", err)
+		}
+
+		// Setup the indexes correctly
+		if existing != nil {
+			scalingPolicy.CreateIndex = existing.(*structs.ScalingPolicy).CreateIndex
+			scalingPolicy.ModifyIndex = index
+		} else {
+			scalingPolicy.CreateIndex = index
+			scalingPolicy.ModifyIndex = index
+		}
+
+		// Insert the scaling policy
+		if err := txn.Insert("scaling_policy", scalingPolicy); err != nil {
+			return err
+		}
+	}
+
+	// Update the indexes table for scaling policy
+	if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// DeleteScalingPolicies is used to delete a set of scaling policies by ID
+func (s *StateStore) DeleteScalingPolicies(index uint64, namespace string, targets []string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	if len(targets) == 0 {
+		return nil
+	}
+
+	for _, tgt := range targets {
+		// Lookup the scaling policy
+		existing, err := txn.First("scaling_policy", "id", namespace, tgt)
+		if err != nil {
+			return fmt.Errorf("scaling policy lookup failed: %v", err)
+		}
+		if existing == nil {
+			return fmt.Errorf("scaling policy not found")
+		}
+
+		// Delete the scaling policy
+		if err := txn.Delete("scaling_policy", existing); err != nil {
+			return fmt.Errorf("scaling policy delete failed: %v", err)
+		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire scaling policy table
+	iter, err := txn.Get("scaling_policy", "id_prefix", namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+// func (s *StateStore) ScalingPoliciesByIDPrefix(ws memdb.WatchSet, namespace, deploymentID string) (memdb.ResultIterator, error) {
+// 	txn := s.db.Txn(false)
+//
+// 	// Walk the entire deployments table
+// 	iter, err := txn.Get("scaling_policy", "id_prefix", deploymentID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+//
+// 	ws.Add(iter.WatchCh())
+//
+// 	// Wrap the iterator in a filter
+// 	wrap := memdb.NewFilterIterator(iter, scalingPolicyNamespaceFilter(namespace))
+// 	return wrap, nil
+// }
+
+// // scalingPolicyNamespaceFilter returns a filter function that filters all
+// // scalingPolicy not in the given namespace.
+// func scalingPolicyNamespaceFilter(namespace string) func(interface{}) bool {
+// 	return func(raw interface{}) bool {
+// 		d, ok := raw.(*structs.Deployment)
+// 		if !ok {
+// 			return true
+// 		}
+//
+// 		return d.Namespace != namespace
+// 	}
+// }
+
+func (s *StateStore) ScalingPolicyByTarget(ws memdb.WatchSet, namespace, target string) (*structs.ScalingPolicy, error) {
+	txn := s.db.Txn(false)
+	return s.scalingPolicyByIDImpl(ws, namespace, target, txn)
+}
+
+func (s *StateStore) scalingPolicyByIDImpl(ws memdb.WatchSet, namespace, target string,
+	txn *memdb.Txn) (*structs.ScalingPolicy, error) {
+	watchCh, existing, err := txn.FirstWatch("scaling_policy", "id", namespace, target)
+	if err != nil {
+		return nil, fmt.Errorf("scaling_policy lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.ScalingPolicy), nil
+	}
+
+	return nil, nil
+}
+
+// func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Deployment, error) {
+// 	txn := s.db.Txn(false)
+//
+// 	var job *structs.Job
+// 	// Read job from state store
+// 	_, existing, err := txn.FirstWatch("jobs", "id", namespace, jobID)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("job lookup failed: %v", err)
+// 	}
+// 	if existing != nil {
+// 		job = existing.(*structs.Job)
+// 	}
+//
+// 	// Get an iterator over the deployments
+// 	iter, err := txn.Get("deployment", "job", namespace, jobID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+//
+// 	ws.Add(iter.WatchCh())
+//
+// 	var out []*structs.Deployment
+// 	for {
+// 		raw := iter.Next()
+// 		if raw == nil {
+// 			break
+// 		}
+// 		d := raw.(*structs.Deployment)
+//
+// 		// If the allocation belongs to a job with the same ID but a different
+// 		// create index and we are not getting all the allocations whose Jobs
+// 		// matches the same Job ID then we skip it
+// 		if !all && job != nil && d.JobCreateIndex != job.CreateIndex {
+// 			continue
+// 		}
+// 		out = append(out, d)
+// 	}
+//
+// 	return out, nil
+// }
+
+// // LatestDeploymentByJobID returns the latest deployment for the given job. The
+// // latest is determined strictly by CreateIndex.
+// func (s *StateStore) LatestDeploymentByJobID(ws memdb.WatchSet, namespace, jobID string) (*structs.Deployment, error) {
+// 	txn := s.db.Txn(false)
+//
+// 	// Get an iterator over the deployments
+// 	iter, err := txn.Get("deployment", "job", namespace, jobID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+//
+// 	ws.Add(iter.WatchCh())
+//
+// 	var out *structs.Deployment
+// 	for {
+// 		raw := iter.Next()
+// 		if raw == nil {
+// 			break
+// 		}
+//
+// 		d := raw.(*structs.Deployment)
+// 		if out == nil || out.CreateIndex < d.CreateIndex {
+// 			out = d
+// 		}
+// 	}
+//
+// 	return out, nil
+// }
+
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore

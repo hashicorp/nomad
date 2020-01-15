@@ -1013,3 +1013,17 @@ func ACLManagementToken() *structs.ACLToken {
 		ModifyIndex: 20,
 	}
 }
+
+func ScalingPolicy() *structs.ScalingPolicy {
+	return &structs.ScalingPolicy{
+		Namespace: structs.DefaultNamespace,
+		Target:    uuid.Generate(),
+		JobID:     uuid.Generate(),
+		Policy: map[string]interface{}{
+			"a": "b",
+		},
+		Enabled:     true,
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
+}

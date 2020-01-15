@@ -407,6 +407,18 @@ func (vm *VolumeMount) Canonicalize() {
 	}
 }
 
+// ScalingPolicy is the user-specified API object for an autoscaling policy
+type ScalingPolicy struct {
+	Policy  map[string]interface{}
+	Enabled *bool
+}
+
+func (p *ScalingPolicy) Canonicalize() {
+	if p.Enabled == nil {
+		p.Enabled = boolToPtr(true)
+	}
+}
+
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
 	Name             *string
@@ -425,6 +437,7 @@ type TaskGroup struct {
 	Meta             map[string]string
 	Services         []*Service
 	ShutdownDelay    *time.Duration `mapstructure:"shutdown_delay"`
+	Scaling          *ScalingPolicy
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -540,6 +553,9 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	}
 	for _, s := range g.Services {
 		s.Canonicalize(nil, g, job)
+	}
+	if g.Scaling != nil {
+		g.Scaling.Canonicalize()
 	}
 }
 

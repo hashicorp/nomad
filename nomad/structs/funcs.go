@@ -252,6 +252,21 @@ func CopySliceNodeScoreMeta(s []*NodeScoreMeta) []*NodeScoreMeta {
 	return c
 }
 
+func CopyScalingPolicy(p *ScalingPolicy) *ScalingPolicy {
+	if p == nil {
+		return nil
+	}
+
+	c := ScalingPolicy{
+		Namespace: p.Namespace,
+		Target:    p.Target,
+		JobID:     p.JobID,
+		Policy:    p.Policy,
+		Enabled:   p.Enabled,
+	}
+	return &c
+}
+
 // VaultPoliciesSet takes the structure returned by VaultPolicies and returns
 // the set of required policies
 func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {

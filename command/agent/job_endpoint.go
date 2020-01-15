@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
+
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
@@ -685,7 +686,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		j.TaskGroups = make([]*structs.TaskGroup, l)
 		for i, taskGroup := range job.TaskGroups {
 			tg := &structs.TaskGroup{}
-			ApiTgToStructsTG(taskGroup, tg)
+			ApiTgToStructsTG(j, taskGroup, tg)
 			j.TaskGroups[i] = tg
 		}
 	}
@@ -693,7 +694,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 	return j
 }
 
-func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
+func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	tg.Name = *taskGroup.Name
 	tg.Count = *taskGroup.Count
 	tg.Meta = taskGroup.Meta
@@ -731,6 +732,11 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 			MinHealthyTime:  *taskGroup.Migrate.MinHealthyTime,
 			HealthyDeadline: *taskGroup.Migrate.HealthyDeadline,
 		}
+	}
+
+	if taskGroup.Scaling != nil {
+		target := fmt.Sprintf("%s/%s", job.ID, tg.Name)
+		tg.Scaling = ApiScalingPolicyToStructs(job, target, taskGroup.Scaling)
 	}
 
 	tg.EphemeralDisk = &structs.EphemeralDisk{
@@ -1188,4 +1194,14 @@ func ApiSpreadToStructs(a1 *api.Spread) *structs.Spread {
 		}
 	}
 	return ret
+}
+
+func ApiScalingPolicyToStructs(job *structs.Job, target string, a1 *api.ScalingPolicy) *structs.ScalingPolicy {
+	return &structs.ScalingPolicy{
+		Namespace: job.Namespace,
+		JobID:     job.ID,
+		Target:    target,
+		Enabled:   *a1.Enabled,
+		Policy:    a1.Policy,
+	}
 }
