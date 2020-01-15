@@ -28,6 +28,11 @@ const (
 	// to retrieve a Consul SI token
 	sidsBackoffLimit = 3 * time.Minute
 
+	// sidsDerivationTimeout limits the amount of time we may spend trying to
+	// derive a SI token. If the hook does not get a token within this amount of
+	// time, the result is a failure.
+	sidsDerivationTimeout = 5 * time.Minute
+
 	// sidsTokenFile is the name of the file holding the Consul SI token inside
 	// the task's secret directory
 	sidsTokenFile = "si_token"
@@ -59,6 +64,11 @@ type sidsHook struct {
 	// lifecycle is used to signal, restart, and kill a task
 	lifecycle ti.TaskLifecycle
 
+	// derivationTimeout is the amount of time we may wait for Consul to successfully
+	// provide a SI token. Making this configurable for testing, otherwise
+	// default to sidsDerivationTimeout
+	derivationTimeout time.Duration
+
 	// logger is used to log
 	logger hclog.Logger
 
@@ -71,12 +81,13 @@ type sidsHook struct {
 
 func newSIDSHook(c sidsHookConfig) *sidsHook {
 	return &sidsHook{
-		alloc:      c.alloc,
-		task:       c.task,
-		sidsClient: c.sidsClient,
-		lifecycle:  c.lifecycle,
-		logger:     c.logger.Named(sidsHookName),
-		firstRun:   true,
+		alloc:             c.alloc,
+		task:              c.task,
+		sidsClient:        c.sidsClient,
+		lifecycle:         c.lifecycle,
+		derivationTimeout: sidsDerivationTimeout,
+		logger:            c.logger.Named(sidsHookName),
+		firstRun:          true,
 	}
 }
 
@@ -163,18 +174,21 @@ func (h *sidsHook) recoverToken(dir string) (string, error) {
 // derive an SI token until a token is successfully created, or ctx is signaled
 // done.
 func (h *sidsHook) deriveSIToken(ctx context.Context) (string, error) {
+	ctx2, cancel := context.WithTimeout(ctx, h.derivationTimeout)
+	defer cancel()
+
 	tokenCh := make(chan string)
 
 	// keep trying to get the token in the background
-	go h.tryDerive(ctx, tokenCh)
+	go h.tryDerive(ctx2, tokenCh)
 
 	// wait until we get a token, or we get a signal to quit
 	for {
 		select {
 		case token := <-tokenCh:
 			return token, nil
-		case <-ctx.Done():
-			return "", ctx.Err()
+		case <-ctx2.Done():
+			return "", ctx2.Err()
 		}
 	}
 }

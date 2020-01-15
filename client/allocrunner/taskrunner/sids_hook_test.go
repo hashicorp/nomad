@@ -37,8 +37,8 @@ func sidecar(task string) (string, structs.TaskKind) {
 
 func TestSIDSHook_recoverToken(t *testing.T) {
 	t.Parallel()
-
 	r := require.New(t)
+
 	secrets := tmpDir(t)
 	defer cleanupDir(t, secrets)
 
@@ -63,8 +63,8 @@ func TestSIDSHook_recoverToken(t *testing.T) {
 
 func TestSIDSHook_recoverToken_empty(t *testing.T) {
 	t.Parallel()
-
 	r := require.New(t)
+
 	secrets := tmpDir(t)
 	defer cleanupDir(t, secrets)
 
@@ -85,8 +85,8 @@ func TestSIDSHook_recoverToken_empty(t *testing.T) {
 
 func TestSIDSHook_deriveSIToken(t *testing.T) {
 	t.Parallel()
-
 	r := require.New(t)
+
 	secrets := tmpDir(t)
 	defer cleanupDir(t, secrets)
 
@@ -106,6 +106,40 @@ func TestSIDSHook_deriveSIToken(t *testing.T) {
 	token, err := h.deriveSIToken(ctx)
 	r.NoError(err)
 	r.True(helper.IsUUID(token), "token: %q", token)
+}
+
+func TestSIDSHook_deriveSIToken_timeout(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	secrets := tmpDir(t)
+	defer cleanupDir(t, secrets)
+
+	taskName, taskKind := sidecar("task1")
+
+	siClient := consul.NewMockServiceIdentitiesClient()
+	siClient.DeriveTokenFn = func(allocation *structs.Allocation, strings []string) (m map[string]string, err error) {
+		select {
+		// block forever, hopefully triggering a timeout in the caller
+		}
+	}
+
+	h := newSIDSHook(sidsHookConfig{
+		alloc: &structs.Allocation{ID: "a1"},
+		task: &structs.Task{
+			Name: taskName,
+			Kind: taskKind,
+		},
+		logger:     testlog.HCLogger(t),
+		sidsClient: siClient,
+	})
+
+	// set the timeout to a really small value for testing
+	h.derivationTimeout = time.Duration(1 * time.Millisecond)
+
+	ctx := context.Background()
+	_, err := h.deriveSIToken(ctx)
+	r.EqualError(err, "context deadline exceeded")
 }
 
 func TestSIDSHook_computeBackoff(t *testing.T) {
