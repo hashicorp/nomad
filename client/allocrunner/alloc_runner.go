@@ -362,12 +362,17 @@ func (ar *allocRunner) Restore() error {
 	ar.state.DeploymentStatus = ds
 	ar.stateLock.Unlock()
 
+	states := make(map[string]*structs.TaskState)
+
 	// Restore task runners
 	for _, tr := range ar.tasks {
 		if err := tr.Restore(); err != nil {
 			return err
 		}
+		states[tr.Task().Name] = tr.TaskState()
 	}
+
+	ar.taskHookCoordinator.taskStateUpdated(states)
 
 	return nil
 }
