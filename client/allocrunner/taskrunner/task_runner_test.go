@@ -1191,7 +1191,7 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
 
-	// control when we get a Consul SI token
+	// control when we get a Consul SI token (recoverable failure on first call)
 	token := uuid.Generate()
 	deriveCount := 0
 	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {

@@ -170,6 +170,13 @@ func (h *sidsHook) recoverToken(dir string) (string, error) {
 	return string(token), nil
 }
 
+// siDerivationResult is used to pass along the result of attempting to derive
+// an SI token between the goroutine doing the derivation and its caller
+type siDerivationResult struct {
+	token string
+	err   error
+}
+
 // deriveSIToken spawns and waits on a goroutine which will make attempts to
 // derive an SI token until a token is successfully created, or ctx is signaled
 // done.
@@ -177,16 +184,20 @@ func (h *sidsHook) deriveSIToken(ctx context.Context) (string, error) {
 	ctx2, cancel := context.WithTimeout(ctx, h.derivationTimeout)
 	defer cancel()
 
-	tokenCh := make(chan string)
+	resultCh := make(chan siDerivationResult)
 
 	// keep trying to get the token in the background
-	go h.tryDerive(ctx2, tokenCh)
+	go h.tryDerive(ctx2, resultCh)
 
 	// wait until we get a token, or we get a signal to quit
 	for {
 		select {
-		case token := <-tokenCh:
-			return token, nil
+		case result := <-resultCh:
+			if result.err != nil {
+				h.kill(ctx, errors.Wrap(result.err, "consul: failed to derive SI token"))
+				return "", result.err
+			}
+			return result.token, nil
 		case <-ctx2.Done():
 			return "", ctx2.Err()
 		}
@@ -203,31 +214,36 @@ func (h *sidsHook) kill(ctx context.Context, err error) {
 }
 
 // tryDerive loops forever until a token is created, or ctx is done.
-func (h *sidsHook) tryDerive(ctx context.Context, ch chan<- string) {
+func (h *sidsHook) tryDerive(ctx context.Context, ch chan<- siDerivationResult) {
 	for attempt := 0; backoff(ctx, attempt); attempt++ {
 
 		tokens, err := h.sidsClient.DeriveSITokens(h.alloc, []string{h.task.Name})
 
 		switch {
-
 		case err == nil:
-			// nothing broke and we can return the token for the task
-			ch <- tokens[h.task.Name]
+			token, exists := tokens[h.task.Name]
+			if !exists {
+				err := errors.New("response does not include token for task")
+				h.logger.Error("derive SI token is missing token for task", "error", err, "task", h.task.Name)
+				ch <- siDerivationResult{token: "", err: err}
+				return
+			}
+			ch <- siDerivationResult{token: token, err: nil}
 			return
-
 		case structs.IsServerSide(err):
 			// the error is known to be a server problem, just die
 			h.logger.Error("failed to derive SI token", "error", err, "task", h.task.Name, "server_side", true)
-			h.kill(ctx, errors.Wrap(err, "consul: failed to derive SI token"))
-
+			ch <- siDerivationResult{token: "", err: err}
+			return
 		case !structs.IsRecoverable(err):
 			// the error is known not to be recoverable, just die
 			h.logger.Error("failed to derive SI token", "error", err, "task", h.task.Name, "recoverable", false)
-			h.kill(ctx, errors.Wrap(err, "consul: failed to derive SI token"))
+			ch <- siDerivationResult{token: "", err: err}
+			return
 
 		default:
 			// the error is marked recoverable, retry after some backoff
-			h.logger.Error("failed to derive SI token", "error", err, "recoverable", true)
+			h.logger.Error("failed attempt to derive SI token", "error", err, "recoverable", true)
 		}
 	}
 }
