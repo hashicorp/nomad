@@ -7661,9 +7661,7 @@ func (a *Allocation) Canonicalize() {
 		a.AllocatedResources = &ar
 	}
 
-	// TODO: Investigate if we should canonicalize the job
-	// it may be out of sync with respect to the original job
-	// a.Job.Canonicalize()
+	a.Job.Canonicalize()
 }
 
 func (a *Allocation) copyImpl(job bool) *Allocation {
