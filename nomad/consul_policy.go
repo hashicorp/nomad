@@ -105,7 +105,7 @@ const (
 	serviceNameWildcard = "*"
 )
 
-func (_ *consulACLsAPI) allowsServiceWrite(task string, cp *ConsulPolicy) bool {
+func (cp *ConsulPolicy) allowsServiceWrite(task string) bool {
 	for _, service := range cp.Services {
 		name := strings.ToLower(service.Name)
 		policy := strings.ToLower(service.Policy)
