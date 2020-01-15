@@ -7634,10 +7634,24 @@ func (a *Allocation) CopySkipJob() *Allocation {
 	return a.copyImpl(false)
 }
 
+// Canonicalize Allocation to ensure fields are initialized to the expectations
+// of this version of Nomad. Should be called when restoring persisted
+// Allocations or receiving Allocations from Nomad agents potentially on an
+// older version of Nomad.
 func (a *Allocation) Canonicalize() {
 	if a.AllocatedResources == nil && a.TaskResources != nil {
 		ar := AllocatedResources{}
-		ar.Tasks = toAllocatedResources(a.TaskResources)
+
+		tasks := make(map[string]*AllocatedTaskResources, len(a.TaskResources))
+		for name, tr := range a.TaskResources {
+			atr := AllocatedTaskResources{}
+			atr.Cpu.CpuShares = int64(tr.CPU)
+			atr.Memory.MemoryMB = int64(tr.MemoryMB)
+			atr.Networks = tr.Networks.Copy()
+
+			tasks[name] = &atr
+		}
+		ar.Tasks = tasks
 
 		if a.SharedResources != nil {
 			ar.Shared.DiskMB = int64(a.SharedResources.DiskMB)
@@ -7650,21 +7664,6 @@ func (a *Allocation) Canonicalize() {
 	// TODO: Investigate if we should canonicalize the job
 	// it may be out of sync with respect to the original job
 	// a.Job.Canonicalize()
-}
-
-func toAllocatedResources(taskResources map[string]*Resources) map[string]*AllocatedTaskResources {
-	tasks := make(map[string]*AllocatedTaskResources, len(taskResources))
-
-	for name, tr := range taskResources {
-		atr := AllocatedTaskResources{}
-		atr.Cpu.CpuShares = int64(tr.CPU)
-		atr.Memory.MemoryMB = int64(tr.MemoryMB)
-		atr.Networks = tr.Networks.Copy()
-
-		tasks[name] = &atr
-	}
-
-	return tasks
 }
 
 func (a *Allocation) copyImpl(job bool) *Allocation {

@@ -604,6 +604,9 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 
 	b.otherPorts = make(map[string]string, len(tg.Tasks)*2)
+
+	// Protect against invalid allocs where AllocatedResources isn't set.
+	// TestClient_AddAllocError explicitly tests for this condition
 	if alloc.AllocatedResources != nil {
 		// Populate task resources
 		if tr, ok := alloc.AllocatedResources.Tasks[b.taskName]; ok {

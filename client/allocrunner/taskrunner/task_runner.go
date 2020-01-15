@@ -294,15 +294,15 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 
 	// Pull out the task's resources
 	ares := tr.alloc.AllocatedResources
-	if ares != nil {
-		tres, ok := ares.Tasks[tr.taskName]
-		if !ok {
-			return nil, fmt.Errorf("no task resources found on allocation")
-		}
-		tr.taskResources = tres
-	} else {
+	if ares == nil {
 		return nil, fmt.Errorf("no task resources found on allocation")
 	}
+
+	tres, ok := ares.Tasks[tr.taskName]
+	if !ok {
+		return nil, fmt.Errorf("no task resources found on allocation")
+	}
+	tr.taskResources = tres
 
 	// Build the restart tracker.
 	tg := tr.alloc.Job.LookupTaskGroup(tr.alloc.TaskGroup)
