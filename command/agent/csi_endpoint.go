@@ -116,3 +116,45 @@ func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *h
 
 	return nil, nil
 }
+
+// CSIPluginsRequest lists CSI plugins
+func (s *HTTPServer) CSIPluginsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != "GET" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.CSIPluginListRequest{}
+
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.CSIPluginListResponse
+	if err := s.agent.RPC("CSIPlugin.List", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out.Plugins, nil
+}
+
+// CSIPluginSpecificRequest list the job with CSIInfo
+func (s *HTTPServer) CSIPluginSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != "GET" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.CSIPluginGetRequest{}
+
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.CSIPluginGetResponse
+	if err := s.agent.RPC("CSIPlugin.Get", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out.Plugin, nil
+}
