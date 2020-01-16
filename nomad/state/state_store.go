@@ -1068,6 +1068,10 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
 
+	if err := s.updateJobScalingPolicies(index, job, txn); err != nil {
+		return fmt.Errorf("unable to update job scaling policies: %v", err)
+	}
+
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
@@ -1164,9 +1168,17 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 
 	// Delete the job summary
 	if _, err = txn.DeleteAll("job_summary", "id", namespace, jobID); err != nil {
-		return fmt.Errorf("deleing job summary failed: %v", err)
+		return fmt.Errorf("deleting job summary failed: %v", err)
 	}
 	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	// Delete the job scaling policies
+	if _, err := txn.DeleteAll("scaling_policy", "job", namespace, jobID); err != nil {
+		return fmt.Errorf("deleting job scaling policies failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
@@ -3507,6 +3519,46 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 	return nil
 }
 
+// updateJobScalingPolicies upserts any scaling policies contained in the job and removes
+// any previous scaling policies that were removed from the job
+func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, txn *memdb.Txn) error {
+
+	ws := memdb.NewWatchSet()
+
+	scalingPolicies := job.GetScalingPolicies()
+	newTargets := map[string]struct{}{}
+	for _, p := range scalingPolicies {
+		newTargets[p.Target] = struct{}{}
+	}
+	// find existing policies that need to be deleted
+	deletedPolicies := []string{}
+	iter, err := s.ScalingPoliciesByJobTxn(ws, job.Namespace, job.ID, txn)
+	if err != nil {
+		return fmt.Errorf("ScalingPoliciesByJob lookup failed: %v", err)
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		oldPolicy := raw.(*structs.ScalingPolicy)
+		if _, ok := newTargets[oldPolicy.Target]; !ok {
+			deletedPolicies = append(deletedPolicies, oldPolicy.Target)
+		}
+	}
+	err = s.DeleteScalingPoliciesTxn(index, job.Namespace, deletedPolicies, txn)
+	if err != nil {
+		return fmt.Errorf("DeleteScalingPolicies of removed policies failed: %v", err)
+	}
+
+	err = s.UpsertScalingPoliciesTxn(index, scalingPolicies, txn)
+	if err != nil {
+		return fmt.Errorf("UpsertScalingPolicies of policies failed: %v", err)
+	}
+
+	return nil
+}
+
 // updateDeploymentWithAlloc is used to update the deployment state associated
 // with the given allocation. The passed alloc may be updated if the deployment
 // status has changed to capture the modify index at which it has changed.
@@ -4182,6 +4234,18 @@ func (s *StateStore) UpsertScalingPolicies(index uint64, scalingPolicies []*stru
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	if err := s.UpsertScalingPoliciesTxn(index, scalingPolicies, txn); err != nil {
+		return err
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// upsertScalingPolicy is used to insert a new scaling policy.
+func (s *StateStore) UpsertScalingPoliciesTxn(index uint64, scalingPolicies []*structs.ScalingPolicy,
+	txn *memdb.Txn) error {
+
 	for _, scalingPolicy := range scalingPolicies {
 		// Check if the scaling policy already exists
 		existing, err := txn.First("scaling_policy", "id", scalingPolicy.Namespace, scalingPolicy.Target)
@@ -4209,15 +4273,23 @@ func (s *StateStore) UpsertScalingPolicies(index uint64, scalingPolicies []*stru
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
-// DeleteScalingPolicies is used to delete a set of scaling policies by ID
 func (s *StateStore) DeleteScalingPolicies(index uint64, namespace string, targets []string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	err := s.DeleteScalingPoliciesTxn(index, namespace, targets, txn)
+	if err == nil {
+		txn.Commit()
+	}
+
+	return err
+}
+
+// DeleteScalingPolicies is used to delete a set of scaling policies by ID
+func (s *StateStore) DeleteScalingPoliciesTxn(index uint64, namespace string, targets []string, txn *memdb.Txn) error {
 	if len(targets) == 0 {
 		return nil
 	}
@@ -4242,14 +4314,12 @@ func (s *StateStore) DeleteScalingPolicies(index uint64, namespace string, targe
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
 func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
-	// Walk the entire scaling policy table
 	iter, err := txn.Get("scaling_policy", "id_prefix", namespace)
 	if err != nil {
 		return nil, err
@@ -4259,42 +4329,26 @@ func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace str
 	return iter, nil
 }
 
-// func (s *StateStore) ScalingPoliciesByIDPrefix(ws memdb.WatchSet, namespace, deploymentID string) (memdb.ResultIterator, error) {
-// 	txn := s.db.Txn(false)
-//
-// 	// Walk the entire deployments table
-// 	iter, err := txn.Get("scaling_policy", "id_prefix", deploymentID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	ws.Add(iter.WatchCh())
-//
-// 	// Wrap the iterator in a filter
-// 	wrap := memdb.NewFilterIterator(iter, scalingPolicyNamespaceFilter(namespace))
-// 	return wrap, nil
-// }
+func (s *StateStore) ScalingPoliciesByJob(ws memdb.WatchSet, namespace, jobID string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+	return s.ScalingPoliciesByJobTxn(ws, namespace, jobID, txn)
+}
 
-// // scalingPolicyNamespaceFilter returns a filter function that filters all
-// // scalingPolicy not in the given namespace.
-// func scalingPolicyNamespaceFilter(namespace string) func(interface{}) bool {
-// 	return func(raw interface{}) bool {
-// 		d, ok := raw.(*structs.Deployment)
-// 		if !ok {
-// 			return true
-// 		}
-//
-// 		return d.Namespace != namespace
-// 	}
-// }
+func (s *StateStore) ScalingPoliciesByJobTxn(ws memdb.WatchSet, namespace, jobID string,
+	txn *memdb.Txn) (memdb.ResultIterator, error) {
+
+	iter, err := txn.Get("scaling_policy", "job", namespace, jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
 
 func (s *StateStore) ScalingPolicyByTarget(ws memdb.WatchSet, namespace, target string) (*structs.ScalingPolicy, error) {
 	txn := s.db.Txn(false)
-	return s.scalingPolicyByIDImpl(ws, namespace, target, txn)
-}
 
-func (s *StateStore) scalingPolicyByIDImpl(ws memdb.WatchSet, namespace, target string,
-	txn *memdb.Txn) (*structs.ScalingPolicy, error) {
 	watchCh, existing, err := txn.FirstWatch("scaling_policy", "id", namespace, target)
 	if err != nil {
 		return nil, fmt.Errorf("scaling_policy lookup failed: %v", err)
@@ -4307,76 +4361,6 @@ func (s *StateStore) scalingPolicyByIDImpl(ws memdb.WatchSet, namespace, target 
 
 	return nil, nil
 }
-
-// func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Deployment, error) {
-// 	txn := s.db.Txn(false)
-//
-// 	var job *structs.Job
-// 	// Read job from state store
-// 	_, existing, err := txn.FirstWatch("jobs", "id", namespace, jobID)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("job lookup failed: %v", err)
-// 	}
-// 	if existing != nil {
-// 		job = existing.(*structs.Job)
-// 	}
-//
-// 	// Get an iterator over the deployments
-// 	iter, err := txn.Get("deployment", "job", namespace, jobID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	ws.Add(iter.WatchCh())
-//
-// 	var out []*structs.Deployment
-// 	for {
-// 		raw := iter.Next()
-// 		if raw == nil {
-// 			break
-// 		}
-// 		d := raw.(*structs.Deployment)
-//
-// 		// If the allocation belongs to a job with the same ID but a different
-// 		// create index and we are not getting all the allocations whose Jobs
-// 		// matches the same Job ID then we skip it
-// 		if !all && job != nil && d.JobCreateIndex != job.CreateIndex {
-// 			continue
-// 		}
-// 		out = append(out, d)
-// 	}
-//
-// 	return out, nil
-// }
-
-// // LatestDeploymentByJobID returns the latest deployment for the given job. The
-// // latest is determined strictly by CreateIndex.
-// func (s *StateStore) LatestDeploymentByJobID(ws memdb.WatchSet, namespace, jobID string) (*structs.Deployment, error) {
-// 	txn := s.db.Txn(false)
-//
-// 	// Get an iterator over the deployments
-// 	iter, err := txn.Get("deployment", "job", namespace, jobID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	ws.Add(iter.WatchCh())
-//
-// 	var out *structs.Deployment
-// 	for {
-// 		raw := iter.Next()
-// 		if raw == nil {
-// 			break
-// 		}
-//
-// 		d := raw.(*structs.Deployment)
-// 		if out == nil || out.CreateIndex < d.CreateIndex {
-// 			out = d
-// 		}
-// 	}
-//
-// 	return out, nil
-// }
 
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
