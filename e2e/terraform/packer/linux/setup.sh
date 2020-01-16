@@ -26,8 +26,6 @@ NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMAD
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
 
-HADOOP_VERSION=2.7.7
-
 # Dependencies
 sudo apt-get install -y software-properties-common
 sudo apt-get update
@@ -83,7 +81,7 @@ sudo chmod 755 $NOMADCONFIGDIR
 sudo mkdir -p $NOMADDIR
 sudo chmod 755 $NOMADDIR
 
-# Docker
+echo "Install Docker"
 distro=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
 sudo apt-get install -y apt-transport-https ca-certificates gnupg2
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
@@ -91,51 +89,46 @@ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/${di
 sudo apt-get update
 sudo apt-get install -y docker-ce
 
-# rkt
-VERSION=1.29.0
-DOWNLOAD=https://github.com/rkt/rkt/releases/download/v${VERSION}/rkt-v${VERSION}.tar.gz
-
-function install_rkt() {
-	wget -q -O /tmp/rkt.tar.gz "${DOWNLOAD}"
-	tar -C /tmp -xvf /tmp/rkt.tar.gz
-	sudo mv /tmp/rkt-v${VERSION}/rkt /usr/local/bin
-	sudo mv /tmp/rkt-v${VERSION}/*.aci /usr/local/bin
-}
-
-function configure_rkt_networking() {
-	sudo mkdir -p /etc/rkt/net.d
-    sudo bash -c 'cat << EOT > /etc/rkt/net.d/99-network.conf
-{
-  "name": "default",
-  "type": "ptp",
-  "ipMasq": false,
-  "ipam": {
-    "type": "host-local",
-    "subnet": "172.16.28.0/24",
-    "routes": [
-      {
-        "dst": "0.0.0.0/0"
-      }
-    ]
-  }
-}
-EOT'
-}
-
-install_rkt
-configure_rkt_networking
-
-# Java
+echo "Install Java"
 sudo add-apt-repository -y ppa:openjdk-r/ppa
 sudo apt-get update
 sudo apt-get install -y openjdk-8-jdk
 JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
 
-# Spark
+echo "Install Spark"
 sudo wget -P /ops/examples/spark https://nomad-spark.s3.amazonaws.com/spark-2.2.0-bin-nomad-0.7.0.tgz
 sudo tar -xvf /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0.tgz --directory /ops/examples/spark
 sudo mv /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0 /usr/local/bin/spark
 sudo chown -R root:root /usr/local/bin/spark
 
-# Hadoop (to enable the HDFS CLI)
+echo "Install HDFS CLI"
+HADOOP_VERSION=2.7.7
+HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
+sudo mkdir -p "$HADOOPCONFIGDIR"
+
 wget -O - http://apache.mirror.iphh.net/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz | sudo tar xz -C /usr/local/
+
+# note this 'EOF' syntax avoids expansion in the heredoc
+sudo tee "$HADOOPCONFIGDIR/core-site.xml" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://hdfs.service.consul/</value>
+    </property>
+</configuration>
+EOF
+
+echo "Configure user shell"
+sudo tee -a /home/ubuntu/.bashrc << 'EOF'
+IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetPrivateIP')
+export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
+export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500
+export VAULT_ADDR=http://$IP_ADDRESS:8200
+export NOMAD_ADDR=http://$IP_ADDRESS:4646
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre
+
+# Update PATH
+export PATH=$PATH:/usr/local/bin/spark/bin:/usr/local/$HADOOP_VERSION/bin
+EOF
