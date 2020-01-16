@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -183,6 +184,9 @@ type TaskRunner struct {
 	// deviceStatsReporter is used to lookup resource usage for alloc devices
 	deviceStatsReporter cinterfaces.DeviceStatsReporter
 
+	// csiManager is used to manage the mounting of CSI volumes into tasks
+	csiManager csimanager.Manager
+
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
 	devicemanager devicemanager.Manager
@@ -233,6 +237,9 @@ type Config struct {
 
 	// deviceStatsReporter is used to lookup resource usage for alloc devices
 	DeviceStatsReporter cinterfaces.DeviceStatsReporter
+
+	// CSIManager is used to manage the mounting of CSI volumes into tasks
+	CSIManager csimanager.Manager
 
 	// DeviceManager is used to mount devices as well as lookup device
 	// statistics
@@ -291,6 +298,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		shutdownCtxCancel:   trCancel,
 		triggerUpdateCh:     make(chan struct{}, triggerUpdateChCap),
 		waitCh:              make(chan struct{}),
+		csiManager:          config.CSIManager,
 		devicemanager:       config.DeviceManager,
 		driverManager:       config.DriverManager,
 		maxEvents:           defaultMaxEvents,
