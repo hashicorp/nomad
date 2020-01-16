@@ -328,6 +328,14 @@ func parseScalingPolicy(out **api.ScalingPolicy, list *ast.ObjectList) error {
 	// Get our resource object
 	o := list.Items[0]
 
+	// We need this later
+	var listVal *ast.ObjectList
+	if ot, ok := o.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return fmt.Errorf("should be an object")
+	}
+
 	valid := []string{
 		"policy",
 		"enabled",
@@ -340,6 +348,7 @@ func parseScalingPolicy(out **api.ScalingPolicy, list *ast.ObjectList) error {
 	if err := hcl.DecodeObject(&m, o.Val); err != nil {
 		return err
 	}
+	delete(m, "policy")
 
 	var result api.ScalingPolicy
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -351,6 +360,20 @@ func parseScalingPolicy(out **api.ScalingPolicy, list *ast.ObjectList) error {
 	}
 	if err := dec.Decode(m); err != nil {
 		return err
+	}
+
+	// If we have policy, then parse that
+	if o := listVal.Filter("policy"); len(o.Items) > 0 {
+		for _, o := range o.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return err
+			}
+
+			if err := mapstructure.WeakDecode(m, &result.Policy); err != nil {
+				return err
+			}
+		}
 	}
 
 	*out = &result
