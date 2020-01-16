@@ -148,16 +148,18 @@ RECONCILE:
 	// updates
 	reconcileCh = s.reconcileCh
 
+WAIT:
 	// Poll the stop channel to give it priority so we don't waste time
 	// trying to perform the other operations if we have been asked to shut
 	// down.
 	select {
 	case <-stopCh:
 		return
+	case <-s.shutdownCh:
+		return
 	default:
 	}
 
-WAIT:
 	// Wait until leadership is lost
 	for {
 		select {
