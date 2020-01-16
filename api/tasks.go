@@ -407,18 +407,6 @@ func (vm *VolumeMount) Canonicalize() {
 	}
 }
 
-// ScalingPolicy is the user-specified API object for an autoscaling policy
-type ScalingPolicy struct {
-	Policy  map[string]interface{}
-	Enabled *bool
-}
-
-func (p *ScalingPolicy) Canonicalize() {
-	if p.Enabled == nil {
-		p.Enabled = boolToPtr(true)
-	}
-}
-
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
 	Name             *string

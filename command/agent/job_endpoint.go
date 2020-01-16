@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -82,6 +83,8 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/stable"):
 		jobName := strings.TrimSuffix(path, "/stable")
 		return s.jobStable(resp, req, jobName)
+	case strings.HasSuffix(path, "/scale"):
+		return s.jobScale(resp, req, path)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -448,6 +451,49 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 
 	var out structs.JobDeregisterResponse
 	if err := s.agent.RPC("Job.Deregister", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
+}
+
+func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request,
+	jobAndTarget string) (interface{}, error) {
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var args api.ScalingRequest
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+
+	if args.JobID == "" {
+		return nil, CodedError(400, "Job ID must be specified")
+	}
+	if !strings.HasPrefix(jobAndTarget, args.JobID) {
+		return nil, CodedError(400, "Job ID does not match")
+	}
+	subTarget := strings.TrimPrefix(jobAndTarget, args.JobID)
+	groupScale := regexp.MustCompile(`/[^/]+/scale`)
+	groupName := groupScale.FindString(subTarget)
+	if groupName == "" {
+		return nil, CodedError(400, "Invalid scaling target")
+	}
+
+	scaleReq := structs.JobScaleRequest{
+		JobID:          args.JobID,
+		GroupName:      groupName,
+		Value:          args.Value,
+		PolicyOverride: args.PolicyOverride,
+		Reason:         args.Reason,
+	}
+	// parseWriteRequest overrides Namespace, Region and AuthToken
+	// based on values from the original http request
+	s.parseWriteRequest(req, &scaleReq.WriteRequest)
+
+	var out structs.JobRegisterResponse
+	if err := s.agent.RPC("Job.Scale", &scaleReq, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)

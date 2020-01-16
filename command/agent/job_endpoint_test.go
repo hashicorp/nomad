@@ -666,6 +666,66 @@ func TestHTTP_JobDelete(t *testing.T) {
 	})
 }
 
+func TestHTTP_Job_GroupScale(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job, policy := mock.JobWithScalingPolicy()
+		args := structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var resp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		newCount := job.TaskGroups[0].Count + 1
+		scaleReq := &api.ScalingRequest{
+			JobID:  job.ID,
+			Value:  newCount,
+			Reason: "testing",
+		}
+		buf := encodeReq(scaleReq)
+
+		// Make the HTTP request to scale the job group
+		req, err := http.NewRequest("POST", policy.Target, buf)
+		require.NoError(err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		require.NoError(err)
+
+		// Check the response
+		resp = obj.(structs.JobRegisterResponse)
+		require.NotEmpty(resp.EvalID)
+
+		// Check for the index
+		require.NotEmpty(respW.Header().Get("X-Nomad-Index"))
+
+		// Check that the group count was changed
+		getReq := structs.JobSpecificRequest{
+			JobID: job.ID,
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var getResp structs.SingleJobResponse
+		err = s.Agent.RPC("Job.GetJob", &getReq, &getResp)
+		require.NoError(err)
+		require.NotNil(getResp.Job)
+		require.Equal(newCount, getResp.Job.TaskGroups[0].Count)
+	})
+}
+
 func TestHTTP_JobForceEvaluate(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
