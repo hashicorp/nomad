@@ -57,11 +57,26 @@ var defaultSchedulerConfig = &structs.SchedulerConfiguration{
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
 func (s *Server) monitorLeadership() {
+	// We use the notify channel we configured Raft with, NOT Raft's
+	// leaderCh, which is only notified best-effort. Doing this ensures
+	// that we get all notifications in order, which is required for
+	// cleanup and to ensure we never run multiple leader loops.
+	leaderCh := s.leaderCh
+
 	var weAreLeaderCh chan struct{}
 	var leaderLoop sync.WaitGroup
 	for {
 		select {
-		case isLeader := <-s.leaderCh:
+		case isLeader := <-leaderCh:
+			// suppress leadership flapping
+			isLeader, suppressed := suppressLeadershipFlaps(isLeader, leaderCh)
+
+			// if gained and lost leadership immediately, move on without emitting error
+			if suppressed && !isLeader && weAreLeaderCh == nil {
+				s.logger.Info("cluster leadership acquired but lost immediately")
+				continue
+			}
+
 			switch {
 			case isLeader:
 				if weAreLeaderCh != nil {
@@ -92,6 +107,35 @@ func (s *Server) monitorLeadership() {
 
 		case <-s.shutdownCh:
 			return
+		}
+	}
+}
+
+// suppressLeadershipFlaps suppresses cases where we gained but lost leadership immediately.
+// Protect against case where leadership transitions multiple times while server updates
+// internal leadership related structures.
+//
+// This uses a conservative approach - mainly avoid establishing leadership if server already lost it
+//
+// Params:
+//   isLeader: the last value dequeued from channel
+//   ch: leadership channel
+// Returns:
+//   leader: last buffered leadership state
+//   suppressed: true if method dequeued elements from channel
+func suppressLeadershipFlaps(isLeader bool, ch <-chan bool) (leader, suppressed bool) {
+	if !isLeader {
+		return isLeader, false
+	}
+
+	leader = isLeader
+	for {
+		select {
+		case v := <-ch:
+			leader = v
+			suppressed = true
+		default:
+			return leader, suppressed
 		}
 	}
 }

@@ -1234,8 +1234,8 @@ func (s *Server) setupRaft() error {
 		}
 	}
 
-	// Setup the leader channel
-	leaderCh := make(chan bool, 1)
+	// Set up a channel for reliable leader notifications.
+	leaderCh := make(chan bool, 10)
 	s.config.RaftConfig.NotifyCh = leaderCh
 	s.leaderCh = leaderCh
 

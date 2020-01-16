@@ -1234,3 +1234,93 @@ func waitForStableLeadership(t *testing.T, servers []*Server) *Server {
 
 	return leader
 }
+
+func TestSuppressLeadershipFlaps(t *testing.T) {
+	t.Run("steps down don't get surpressed", func(t *testing.T) {
+		init := false
+		ch := make(chan bool, 5)
+		ch <- true
+
+		leader, suppressed := suppressLeadershipFlaps(init, ch)
+		require.False(t, leader)
+		require.False(t, suppressed)
+
+		select {
+		case v := <-ch:
+			require.True(t, v)
+		default:
+			require.Fail(t, "ch should be ready")
+		}
+	})
+	t.Run("single steps up don't get surpressed", func(t *testing.T) {
+		init := true
+		ch := make(chan bool, 5)
+
+		leader, suppressed := suppressLeadershipFlaps(init, ch)
+		require.True(t, leader)
+		require.False(t, suppressed)
+
+		select {
+		case v := <-ch:
+			require.Failf(t, "channel has ready element unexpected", "element: %v", v)
+		default:
+			// channel isn't ready, yay
+		}
+	})
+	t.Run("single flap gets suppressed", func(t *testing.T) {
+		init := true
+		ch := make(chan bool, 5)
+		ch <- false
+
+		leader, suppressed := suppressLeadershipFlaps(init, ch)
+		require.False(t, leader)
+		require.True(t, suppressed)
+
+		select {
+		case v := <-ch:
+			require.Failf(t, "channel has ready element unexpected", "element: %v", v)
+		default:
+			// channel isn't ready, yay
+		}
+	})
+
+	t.Run("multiple transitions get suppressed, end at true", func(t *testing.T) {
+		init := true
+		ch := make(chan bool, 5)
+		ch <- false
+		ch <- true
+		ch <- false
+		ch <- true
+
+		leader, suppressed := suppressLeadershipFlaps(init, ch)
+		require.True(t, leader)
+		require.True(t, suppressed)
+
+		select {
+		case v := <-ch:
+			require.Failf(t, "channel has ready element unexpected", "element: %v", v)
+		default:
+			// channel isn't ready, yay
+		}
+
+	})
+	t.Run("multiple transitions get suppressed, end at false", func(t *testing.T) {
+		init := true
+		ch := make(chan bool, 5)
+		ch <- false
+		ch <- true
+		ch <- false
+
+		leader, suppressed := suppressLeadershipFlaps(init, ch)
+		require.False(t, leader)
+		require.True(t, suppressed)
+
+		select {
+		case v := <-ch:
+			require.Failf(t, "channel has ready element unexpected", "element: %v", v)
+		default:
+			// channel isn't ready, yay
+		}
+
+	})
+}
