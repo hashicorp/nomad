@@ -141,7 +141,7 @@ type allocRunner struct {
 	dynamicRegistry dynamicplugins.Registry
 
 	// csiManager is used to wait for CSI Volumes to be attached, and by the task
-	// runner to manage their attachment
+	// runner to manage their mounting
 	csiManager csimanager.Manager
 
 	// devicemanager is used to mount devices as well as lookup device
@@ -231,6 +231,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			ConsulSI:            ar.sidsClient,
 			Vault:               ar.vaultClient,
 			DeviceStatsReporter: ar.deviceStatsReporter,
+			CSIManager:          ar.csiManager,
 			DeviceManager:       ar.devicemanager,
 			DriverManager:       ar.driverManager,
 			ServersContactedCh:  ar.serversContactedCh,
