@@ -5,6 +5,7 @@ import (
 
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/e2e/framework/provisioning"
 )
 
 // TestSuite defines a set of test cases and under what conditions to run them
@@ -58,7 +59,7 @@ func (c Constraints) matches(env Environment) error {
 
 // TC is the base test case which should be embedded in TestCase implementations.
 type TC struct {
-	cluster *ClusterInfo
+	cluster *provisioning.ClusterInfo
 }
 
 // Nomad returns a configured nomad api client
@@ -77,6 +78,6 @@ func (tc *TC) Name() string {
 	return tc.cluster.Name
 }
 
-func (tc *TC) setClusterInfo(info *ClusterInfo) {
+func (tc *TC) setClusterInfo(info *provisioning.ClusterInfo) {
 	tc.cluster = info
 }
