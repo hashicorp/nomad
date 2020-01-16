@@ -4461,8 +4461,14 @@ type ScalingPolicy struct {
 	ModifyIndex uint64
 }
 
+func (p *ScalingPolicy) TargetTaskGroup(job *Job, tg *TaskGroup) *ScalingPolicy {
+	p.Target = fmt.Sprintf("%s/%s", job.ID, tg.Name)
+	return p
+}
+
+// GetScalingPolicies returns a slice of all scaling scaling policies for this job
 func (j *Job) GetScalingPolicies() []*ScalingPolicy {
-	ret := []*ScalingPolicy{}
+	ret := make([]*ScalingPolicy, 0)
 
 	for _, tg := range j.TaskGroups {
 		if tg.Scaling != nil {

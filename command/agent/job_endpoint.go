@@ -735,8 +735,7 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 	}
 
 	if taskGroup.Scaling != nil {
-		target := fmt.Sprintf("%s/%s", job.ID, tg.Name)
-		tg.Scaling = ApiScalingPolicyToStructs(job, target, taskGroup.Scaling)
+		tg.Scaling = ApiScalingPolicyToStructs(job, taskGroup.Scaling).TargetTaskGroup(job, tg)
 	}
 
 	tg.EphemeralDisk = &structs.EphemeralDisk{
@@ -1196,11 +1195,10 @@ func ApiSpreadToStructs(a1 *api.Spread) *structs.Spread {
 	return ret
 }
 
-func ApiScalingPolicyToStructs(job *structs.Job, target string, a1 *api.ScalingPolicy) *structs.ScalingPolicy {
+func ApiScalingPolicyToStructs(job *structs.Job, a1 *api.ScalingPolicy) *structs.ScalingPolicy {
 	return &structs.ScalingPolicy{
 		Namespace: job.Namespace,
 		JobID:     job.ID,
-		Target:    target,
 		Enabled:   *a1.Enabled,
 		Policy:    a1.Policy,
 	}

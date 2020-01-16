@@ -539,14 +539,6 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		}
 	}
 
-	// cgbaker: FINISH
-	// create/update any scaling policies, remove old policies
-	// scalingPolicies := req.Job.GetScalingPolicies()
-	// for p := range scalingPolicies {
-	// 	n.state.UpsertACLPolicies()
-	// 	n.state.Upsert
-	// }
-
 	return nil
 }
 

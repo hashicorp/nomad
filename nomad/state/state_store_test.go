@@ -7744,6 +7744,45 @@ func TestStateStore_UpsertScalingPolicy(t *testing.T) {
 	require.False(watchFired(ws))
 }
 
+func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+	job := mock.Job()
+	// create policy and register against task group
+	policy := &structs.ScalingPolicy{
+		Namespace: job.Namespace,
+		JobID:     job.ID,
+		Policy:    map[string]interface{}{},
+		Enabled:   true,
+	}
+	policy.TargetTaskGroup(job, job.TaskGroups[0])
+	job.TaskGroups[0].Scaling = policy
+
+	// Create a watchset so we can test that upsert fires the watch
+	ws := memdb.NewWatchSet()
+	out, err := state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	require.NoError(err)
+	require.Nil(out)
+
+	var newIndex uint64 = 1000
+	err = state.UpsertJob(newIndex, job)
+	require.NoError(err)
+	require.True(watchFired(ws), "watch did not fire")
+
+	ws = memdb.NewWatchSet()
+	out, err = state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(newIndex, out.CreateIndex)
+	require.Equal(newIndex, out.ModifyIndex)
+
+	index, err := state.Index("scaling_policy")
+	require.Equal(newIndex, index)
+}
+
 func TestStateStore_DeleteScalingPolicies(t *testing.T) {
 	t.Parallel()
 
@@ -7799,25 +7838,53 @@ func TestStateStore_DeleteScalingPolicies(t *testing.T) {
 	require.False(watchFired(ws))
 }
 
-func TestStateStore_ScalingPoliciesByNamespace(t *testing.T) {
+func TestStateStore_DeleteJob_ChildScalingPolicies(t *testing.T) {
 	t.Parallel()
 
 	require := require.New(t)
 
 	state := testStateStore(t)
-	policyA1 := mock.ScalingPolicy()
-	policyA2 := mock.ScalingPolicy()
+
+	job := mock.Job()
+
+	err := state.UpsertJob(1000, job)
+	require.NoError(err)
+
+	policy := mock.ScalingPolicy()
+	policy.JobID = job.ID
+	err = state.UpsertScalingPolicies(1001, []*structs.ScalingPolicy{policy})
+	require.NoError(err)
+
+	// Delete the job
+	err = state.DeleteJob(1002, job.Namespace, job.ID)
+	require.NoError(err)
+
+	// Ensure the scaling policy was deleted
+	ws := memdb.NewWatchSet()
+	out, err := state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	require.NoError(err)
+	require.Nil(out)
+	index, err := state.Index("scaling_policy")
+	require.True(index > 1001)
+}
+
+func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+	policyA := mock.ScalingPolicy()
 	policyB1 := mock.ScalingPolicy()
 	policyB2 := mock.ScalingPolicy()
-	policyB1.Namespace = "different-namespace"
-	policyB2.Namespace = policyB1.Namespace
+	policyB1.JobID = policyB2.JobID
 
 	// Create the policies
 	var baseIndex uint64 = 1000
-	err := state.UpsertScalingPolicies(baseIndex, []*structs.ScalingPolicy{policyA1, policyA2, policyB1, policyB2})
+	err := state.UpsertScalingPolicies(baseIndex, []*structs.ScalingPolicy{policyA, policyB1, policyB2})
 	require.NoError(err)
 
-	iter, err := state.ScalingPoliciesByNamespace(nil, policyA1.Namespace)
+	iter, err := state.ScalingPoliciesByJob(nil, policyA.Namespace, policyA.JobID)
 	require.NoError(err)
 
 	// Ensure we see expected policies
@@ -7831,13 +7898,13 @@ func TestStateStore_ScalingPoliciesByNamespace(t *testing.T) {
 		count++
 		found = append(found, raw.(*structs.ScalingPolicy).Target)
 	}
-	require.Equal(2, count)
+	require.Equal(1, count)
 	sort.Strings(found)
-	expect := []string{policyA1.Target, policyA2.Target}
+	expect := []string{policyA.Target}
 	sort.Strings(expect)
 	require.Equal(expect, found)
 
-	iter, err = state.ScalingPoliciesByNamespace(nil, policyB1.Namespace)
+	iter, err = state.ScalingPoliciesByJob(nil, policyB1.Namespace, policyB1.JobID)
 	require.NoError(err)
 
 	// Ensure we see expected policies
