@@ -7750,16 +7750,7 @@ func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
 	require := require.New(t)
 
 	state := testStateStore(t)
-	job := mock.Job()
-	// create policy and register against task group
-	policy := &structs.ScalingPolicy{
-		Namespace: job.Namespace,
-		JobID:     job.ID,
-		Policy:    map[string]interface{}{},
-		Enabled:   true,
-	}
-	policy.TargetTaskGroup(job, job.TaskGroups[0])
-	job.TaskGroups[0].Scaling = policy
+	job, policy := mock.JobWithScalingPolicy()
 
 	// Create a watchset so we can test that upsert fires the watch
 	ws := memdb.NewWatchSet()
@@ -7802,7 +7793,7 @@ func TestStateStore_DeleteScalingPolicies(t *testing.T) {
 	require.NoError(err)
 
 	// Delete the policy
-	err = state.DeleteScalingPolicies(1001, policy.Namespace, []string{policy.Target, policy2.Target})
+	err = state.DeleteScalingPolicies(1001, []string{policy.ID, policy2.ID})
 	require.NoError(err)
 
 	// Ensure watching triggered

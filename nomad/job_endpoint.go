@@ -178,8 +178,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
-	// cgbaker: FINISH: validate the scaling policies (e.g., can't change policy ID)
-
 	// Ensure that the job has permissions for the requested Vault tokens
 	policies := args.Job.VaultPolicies()
 	if len(policies) != 0 {
