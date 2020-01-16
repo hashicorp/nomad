@@ -52,7 +52,7 @@ type Config struct {
 	DynamicRegistry dynamicplugins.Registry
 
 	// CSIManager is used to wait for CSI Volumes to be attached, and by the task
-	// runner to manage their attachment
+	// runner to manage their mounting
 	CSIManager csimanager.Manager
 
 	// DeviceManager is used to mount devices as well as lookup device
