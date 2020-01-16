@@ -1080,6 +1080,29 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+
+		{
+			"tg-scaling-policy.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("elastic"),
+				Name: helper.StringToPtr("elastic"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("group"),
+						Scaling: &api.ScalingPolicy{
+							Policy: map[string]interface{}{
+								"foo": "bar",
+								"b":   true,
+								"val": 5,
+								"f":   .1,
+							},
+							Enabled: helper.BoolToPtr(false),
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
