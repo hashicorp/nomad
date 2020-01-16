@@ -5,6 +5,7 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -29,9 +30,11 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 
 	codec := rpcClient(t, srv)
 
+	id0 := uuid.Generate()
+
 	// Create the volume
 	vols := []*structs.CSIVolume{{
-		ID:             "DEADBEEF-70AD-4672-9178-802BCA500C87",
+		ID:             id0,
 		Namespace:      ns,
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
@@ -42,7 +45,7 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 
 	// Create the register request
 	req := &structs.CSIVolumeGetRequest{
-		ID: "DEADBEEF-70AD-4672-9178-802BCA500C87",
+		ID: id0,
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
 			Namespace: ns,
@@ -75,9 +78,11 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 
 	codec := rpcClient(t, srv)
 
+	id0 := uuid.Generate()
+
 	// Create the volume
 	vols := []*structs.CSIVolume{{
-		ID:             "DEADBEEF-70AD-4672-9178-802BCA500C87",
+		ID:             id0,
 		Namespace:      "notTheNamespace",
 		Driver:         "minnie",
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
@@ -106,7 +111,7 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	getToken := mock.CreatePolicyAndToken(t, state, 1001, "csi-access", policy)
 
 	req2 := &structs.CSIVolumeGetRequest{
-		ID: "DEADBEEF-70AD-4672-9178-802BCA500C87",
+		ID: id0,
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
 			AuthToken: getToken.SecretID,
@@ -125,7 +130,7 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 
 	// Deregistration works
 	req3 := &structs.CSIVolumeDeregisterRequest{
-		VolumeIDs: []string{"DEADBEEF-70AD-4672-9178-802BCA500C87"},
+		VolumeIDs: []string{id0},
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: ns,
@@ -160,21 +165,25 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	nsTok := mock.CreatePolicyAndToken(t, state, 1001, "csi-access", policy)
 	codec := rpcClient(t, srv)
 
+	id0 := uuid.Generate()
+	id1 := uuid.Generate()
+	id2 := uuid.Generate()
+
 	// Create the volume
 	vols := []*structs.CSIVolume{{
-		ID:             "DEADBEEF-70AD-4672-9178-802BCA500C87",
+		ID:             id0,
 		Namespace:      ns,
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		Driver:         "minnie",
 	}, {
-		ID:             "BAADF00D-70AD-4672-9178-802BCA500C87",
+		ID:             id1,
 		Namespace:      ns,
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		Driver:         "adam",
 	}, {
-		ID:             "BEADCEED-70AD-4672-9178-802BCA500C87",
+		ID:             id2,
 		Namespace:      ms,
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
