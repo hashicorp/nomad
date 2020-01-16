@@ -1194,12 +1194,3 @@ func ApiSpreadToStructs(a1 *api.Spread) *structs.Spread {
 	}
 	return ret
 }
-
-func ApiScalingPolicyToStructs(job *structs.Job, a1 *api.ScalingPolicy) *structs.ScalingPolicy {
-	return &structs.ScalingPolicy{
-		Namespace: job.Namespace,
-		JobID:     job.ID,
-		Enabled:   *a1.Enabled,
-		Policy:    a1.Policy,
-	}
-}

@@ -685,11 +685,22 @@ func scalingPolicyTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "scaling_policy",
 		Indexes: map[string]*memdb.IndexSchema{
-			// Primary index is used for job management
-			// and simple direct lookup. Target is required to be
-			// unique within a namespace.
+			// Primary index is used for simple direct lookup.
 			"id": {
 				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+
+				// Use a compound index so the tuple of (Namespace, Target) is
+				// uniquely identifying
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
+				},
+			},
+			// Target index is used for looking up by target or listing policies in namespace
+			// A target can only have a single scaling policy, so this is guaranteed to be unique.
+			"target": {
+				Name:         "target",
 				AllowMissing: false,
 				Unique:       true,
 

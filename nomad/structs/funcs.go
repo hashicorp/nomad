@@ -258,11 +258,14 @@ func CopyScalingPolicy(p *ScalingPolicy) *ScalingPolicy {
 	}
 
 	c := ScalingPolicy{
-		Namespace: p.Namespace,
-		Target:    p.Target,
-		JobID:     p.JobID,
-		Policy:    p.Policy,
-		Enabled:   p.Enabled,
+		ID:          p.ID,
+		Namespace:   p.Namespace,
+		Target:      p.Target,
+		JobID:       p.JobID,
+		Policy:      p.Policy,
+		Enabled:     p.Enabled,
+		CreateIndex: p.CreateIndex,
+		ModifyIndex: p.ModifyIndex,
 	}
 	return &c
 }

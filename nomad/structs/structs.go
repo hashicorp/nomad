@@ -27,6 +27,10 @@ import (
 	hcodec "github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
+	"github.com/mitchellh/copystructure"
+	"github.com/ugorji/go/codec"
+	"golang.org/x/crypto/blake2b"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
@@ -35,9 +39,6 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/mitchellh/copystructure"
-	"github.com/ugorji/go/codec"
-	"golang.org/x/crypto/blake2b"
 )
 
 var (
@@ -1038,6 +1039,29 @@ type DeploymentSpecificRequest struct {
 type DeploymentFailRequest struct {
 	DeploymentID string
 	WriteRequest
+}
+
+// ScalingPolicySpecificRequest is used when we just need to specify a target scaling policy
+type ScalingPolicySpecificRequest struct {
+	ID string
+	QueryOptions
+}
+
+// SingleScalingPolicyResponse is used to return a single job
+type SingleScalingPolicyResponse struct {
+	Policy *ScalingPolicy
+	QueryMeta
+}
+
+// ScalingPolicyListRequest is used to parameterize a scaling policy list request
+type ScalingPolicyListRequest struct {
+	QueryOptions
+}
+
+// ScalingPolicyListResponse is used for a list request
+type ScalingPolicyListResponse struct {
+	Policies []*ScalingPolicyListStub
+	QueryMeta
 }
 
 // SingleDeploymentResponse is used to respond with a single deployment
@@ -4442,6 +4466,9 @@ const (
 
 // ScalingPolicy specifies the scaling policy for a scaling target
 type ScalingPolicy struct {
+	// ID is a generated UUID used for looking up the scaling policy
+	ID string
+
 	// Namespace is the namespace for the containing job
 	Namespace string
 
@@ -4462,8 +4489,18 @@ type ScalingPolicy struct {
 }
 
 func (p *ScalingPolicy) TargetTaskGroup(job *Job, tg *TaskGroup) *ScalingPolicy {
-	p.Target = fmt.Sprintf("%s/%s", job.ID, tg.Name)
+	p.Target = fmt.Sprintf("/v1/job/%s/%s/scale", job.ID, tg.Name)
 	return p
+}
+
+func (p *ScalingPolicy) Stub() *ScalingPolicyListStub {
+	return &ScalingPolicyListStub{
+		ID:          p.ID,
+		JobID:       p.JobID,
+		Target:      p.Target,
+		CreateIndex: p.CreateIndex,
+		ModifyIndex: p.ModifyIndex,
+	}
 }
 
 // GetScalingPolicies returns a slice of all scaling scaling policies for this job
@@ -4477,6 +4514,16 @@ func (j *Job) GetScalingPolicies() []*ScalingPolicy {
 	}
 
 	return ret
+}
+
+// ScalingPolicyListStub is used to return a subset of scaling policy information
+// for the scaling policy list
+type ScalingPolicyListStub struct {
+	ID          string
+	JobID       string
+	Target      string
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 // RestartPolicy configures how Tasks are restarted when they crash or fail.
