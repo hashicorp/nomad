@@ -6,9 +6,14 @@ description: |-
   List of data services.
 ---
 
-#Governance & Policy
+# Governance & Policy
 
-This section provides some best practices and guidance for operating Nomad securely in a multi-team setting through features such as namespaces, resource quotas, and Sentinel.
+These guides have been migrated to [HashiCorp's Learn website].
 
-Please navigate the appropriate sub-sections for more information.
-  
+You can follow these links to find the specific guides on Learn:
+
+- [Namespaces](https://learn.hashicorp.com/nomad/governance-and-policy/namespaces)
+- [Quotas](https://learn.hashicorp.com/nomad/governance-and-policy/quotas)
+- [Sentinel](https://learn.hashicorp.com/nomad/governance-and-policy/sentinel)
+
+[HashiCorp's Learn website]: https://learn.hashicorp.com/nomad?track=governance-and-policy#governance-and-policy

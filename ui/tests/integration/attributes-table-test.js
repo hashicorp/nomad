@@ -32,7 +32,7 @@ module('Integration | Component | attributes table', function(hooks) {
 
     const rowsCount = Object.keys(flatten(commonAttributes)).length;
     assert.equal(
-      this.$('[data-test-attributes-section]').has('[data-test-value]').length,
+      this.element.querySelectorAll('[data-test-attributes-section] [data-test-value]').length,
       rowsCount,
       `Table has ${rowsCount} rows with values`
     );

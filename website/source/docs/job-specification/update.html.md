@@ -211,7 +211,7 @@ update {
 }
 ```
 
-### Upgrade Stanza Inheritance
+### Update Stanza Inheritance
 
 This example shows how inheritance can simplify the job when there are multiple
 task groups.

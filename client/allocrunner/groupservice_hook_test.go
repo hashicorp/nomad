@@ -1,10 +1,15 @@
 package allocrunner
 
 import (
+	"io/ioutil"
 	"testing"
+	"time"
 
+	consulapi "github.com/hashicorp/consul/api"
+	ctestutil "github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -15,6 +20,7 @@ import (
 var _ interfaces.RunnerPrerunHook = (*groupServiceHook)(nil)
 var _ interfaces.RunnerUpdateHook = (*groupServiceHook)(nil)
 var _ interfaces.RunnerPostrunHook = (*groupServiceHook)(nil)
+var _ interfaces.RunnerPreKillHook = (*groupServiceHook)(nil)
 
 // TestGroupServiceHook_NoGroupServices asserts calling group service hooks
 // without group services does not error.
@@ -22,10 +28,20 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Services = []*structs.Service{{
+		Name:      "foo",
+		PortLabel: "9999",
+	}}
 	logger := testlog.HCLogger(t)
 	consulClient := consul.NewMockConsulServiceClient(t, logger)
 
-	h := newGroupServiceHook(logger, alloc, consulClient)
+	h := newGroupServiceHook(groupServiceHookConfig{
+		alloc:          alloc,
+		consul:         consulClient,
+		restarter:      agentconsul.NoopRestarter(),
+		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:         logger,
+	})
 	require.NoError(t, h.Prerun())
 
 	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
@@ -34,10 +50,10 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 	require.NoError(t, h.Postrun())
 
 	ops := consulClient.GetOps()
-	require.Len(t, ops, 3)
-	require.Equal(t, "add_group", ops[0].Op)
-	require.Equal(t, "update_group", ops[1].Op)
-	require.Equal(t, "remove_group", ops[2].Op)
+	require.Len(t, ops, 4)
+	require.Equal(t, "add", ops[0].Op)
+	require.Equal(t, "update", ops[1].Op)
+	require.Equal(t, "remove", ops[2].Op)
 }
 
 // TestGroupServiceHook_GroupServices asserts group service hooks with group
@@ -49,7 +65,13 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	consulClient := consul.NewMockConsulServiceClient(t, logger)
 
-	h := newGroupServiceHook(logger, alloc, consulClient)
+	h := newGroupServiceHook(groupServiceHookConfig{
+		alloc:          alloc,
+		consul:         consulClient,
+		restarter:      agentconsul.NoopRestarter(),
+		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:         logger,
+	})
 	require.NoError(t, h.Prerun())
 
 	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
@@ -58,18 +80,19 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 	require.NoError(t, h.Postrun())
 
 	ops := consulClient.GetOps()
-	require.Len(t, ops, 3)
-	require.Equal(t, "add_group", ops[0].Op)
-	require.Equal(t, "update_group", ops[1].Op)
-	require.Equal(t, "remove_group", ops[2].Op)
+	require.Len(t, ops, 4)
+	require.Equal(t, "add", ops[0].Op)
+	require.Equal(t, "update", ops[1].Op)
+	require.Equal(t, "remove", ops[2].Op)
 }
 
 // TestGroupServiceHook_Error asserts group service hooks with group
 // services but no group network returns an error.
-func TestGroupServiceHook_Error(t *testing.T) {
+func TestGroupServiceHook_NoNetwork(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{}
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	tg.Services = []*structs.Service{
 		{
@@ -82,15 +105,147 @@ func TestGroupServiceHook_Error(t *testing.T) {
 	}
 	logger := testlog.HCLogger(t)
 
-	// No need to set Consul client or call Run. This hould fail before
-	// attempting to register.
-	consulClient := agentconsul.NewServiceClient(nil, logger, false)
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
 
-	h := newGroupServiceHook(logger, alloc, consulClient)
-	require.Error(t, h.Prerun())
+	h := newGroupServiceHook(groupServiceHookConfig{
+		alloc:          alloc,
+		consul:         consulClient,
+		restarter:      agentconsul.NoopRestarter(),
+		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:         logger,
+	})
+	require.NoError(t, h.Prerun())
 
 	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
-	require.Error(t, h.Update(req))
+	require.NoError(t, h.Update(req))
 
-	require.Error(t, h.Postrun())
+	require.NoError(t, h.Postrun())
+
+	ops := consulClient.GetOps()
+	require.Len(t, ops, 4)
+	require.Equal(t, "add", ops[0].Op)
+	require.Equal(t, "update", ops[1].Op)
+	require.Equal(t, "remove", ops[2].Op)
+}
+
+func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{}
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	tg.Services = []*structs.Service{
+		{
+			Name:      "testconnect",
+			PortLabel: "9999",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+			},
+		},
+	}
+	logger := testlog.HCLogger(t)
+
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
+
+	h := newGroupServiceHook(groupServiceHookConfig{
+		alloc:          alloc,
+		consul:         consulClient,
+		restarter:      agentconsul.NoopRestarter(),
+		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:         logger,
+	})
+
+	services := h.getWorkloadServices()
+	require.Len(t, services.Services, 1)
+}
+
+// TestGroupServiceHook_Update08Alloc asserts that adding group services to a previously
+// 0.8 alloc works.
+//
+// COMPAT(0.11) Only valid for upgrades from 0.8.
+func TestGroupServiceHook_Update08Alloc(t *testing.T) {
+	// Create an embedded Consul server
+	testconsul, err := ctestutil.NewTestServerConfig(func(c *ctestutil.TestServerConfig) {
+		// If -v wasn't specified squelch consul logging
+		if !testing.Verbose() {
+			c.Stdout = ioutil.Discard
+			c.Stderr = ioutil.Discard
+		}
+	})
+	if err != nil {
+		t.Fatalf("error starting test consul server: %v", err)
+	}
+	defer testconsul.Stop()
+
+	consulConfig := consulapi.DefaultConfig()
+	consulConfig.Address = testconsul.HTTPAddr
+	consulClient, err := consulapi.NewClient(consulConfig)
+	require.NoError(t, err)
+	serviceClient := agentconsul.NewServiceClient(consulClient.Agent(), testlog.HCLogger(t), true)
+
+	// Lower periodicInterval to ensure periodic syncing doesn't improperly
+	// remove Connect services.
+	//const interval = 50 * time.Millisecond
+	//serviceClient.periodicInterval = interval
+
+	// Disable deregistration probation to test syncing
+	//serviceClient.deregisterProbationExpiry = time.Time{}
+
+	go serviceClient.Run()
+	defer serviceClient.Shutdown()
+
+	// Create new 0.10-style alloc
+	alloc := mock.Alloc()
+	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
+		{
+			Mode: "bridge",
+			IP:   "10.0.0.1",
+			DynamicPorts: []structs.Port{
+				{
+					Label: "connect-proxy-testconnect",
+					Value: 9999,
+					To:    9998,
+				},
+			},
+		},
+	}
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	tg.Services = []*structs.Service{
+		{
+			Name:      "testconnect",
+			PortLabel: "9999",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{
+					Proxy: &structs.ConsulProxy{
+						LocalServicePort: 9000,
+					},
+				},
+			},
+		},
+	}
+
+	// Create old 0.8-style alloc from new alloc
+	oldAlloc := alloc.Copy()
+	oldAlloc.AllocatedResources = nil
+	oldAlloc.Job.LookupTaskGroup(alloc.TaskGroup).Services = nil
+
+	// Create the group service hook
+	h := newGroupServiceHook(groupServiceHookConfig{
+		alloc:          oldAlloc,
+		consul:         serviceClient,
+		restarter:      agentconsul.NoopRestarter(),
+		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), oldAlloc, nil, oldAlloc.Job.Region),
+		logger:         testlog.HCLogger(t),
+	})
+
+	require.NoError(t, h.Prerun())
+	require.NoError(t, h.Update(&interfaces.RunnerUpdateRequest{Alloc: alloc}))
+
+	// Assert the group and sidecar services are registered
+	require.Eventually(t, func() bool {
+		services, err := consulClient.Agent().Services()
+		require.NoError(t, err)
+		return len(services) == 2
+	}, 3*time.Second, 100*time.Millisecond)
+
 }

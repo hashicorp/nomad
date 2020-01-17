@@ -174,12 +174,13 @@ func (h *scriptCheckHook) Stop(ctx context.Context, req *interfaces.TaskStopRequ
 
 func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 	scriptChecks := make(map[string]*scriptCheck)
-	for _, service := range h.task.Services {
+	interpolatedTaskServices := taskenv.InterpolateServices(h.taskEnv, h.task.Services)
+	for _, service := range interpolatedTaskServices {
 		for _, check := range service.Checks {
 			if check.Type != structs.ServiceCheckScript {
 				continue
 			}
-			serviceID := agentconsul.MakeTaskServiceID(
+			serviceID := agentconsul.MakeAllocServiceID(
 				h.alloc.ID, h.task.Name, service)
 			sc := newScriptCheck(&scriptCheckConfig{
 				allocID:    h.alloc.ID,
@@ -204,7 +205,8 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 	// needs are entirely encapsulated within the group service hook which
 	// watches Consul for status changes.
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
-	for _, service := range tg.Services {
+	interpolatedGroupServices := taskenv.InterpolateServices(h.taskEnv, tg.Services)
+	for _, service := range interpolatedGroupServices {
 		for _, check := range service.Checks {
 			if check.Type != structs.ServiceCheckScript {
 				continue
@@ -213,7 +215,7 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 				continue
 			}
 			groupTaskName := "group-" + tg.Name
-			serviceID := agentconsul.MakeTaskServiceID(
+			serviceID := agentconsul.MakeAllocServiceID(
 				h.alloc.ID, groupTaskName, service)
 			sc := newScriptCheck(&scriptCheckConfig{
 				allocID:    h.alloc.ID,
@@ -293,37 +295,10 @@ func newScriptCheck(config *scriptCheckConfig) *scriptCheck {
 	sc.callback = newScriptCheckCallback(sc)
 	sc.logger = config.logger
 	sc.shutdownCh = config.shutdownCh
-
-	// the hash of the interior structs.ServiceCheck is used by the
-	// Consul client to get the ID to register for the check. So we
-	// update it here so that we have the same ID for UpdateTTL.
-
-	// TODO(tgross): this block is similar to one in service_hook
-	// and we can pull that out to a function so we know we're
-	// interpolating the same everywhere
-	sc.check.Name = config.taskEnv.ReplaceEnv(orig.Name)
-	sc.check.Type = config.taskEnv.ReplaceEnv(orig.Type)
 	sc.check.Command = sc.Command
 	sc.check.Args = sc.Args
-	sc.check.Path = config.taskEnv.ReplaceEnv(orig.Path)
-	sc.check.Protocol = config.taskEnv.ReplaceEnv(orig.Protocol)
-	sc.check.PortLabel = config.taskEnv.ReplaceEnv(orig.PortLabel)
-	sc.check.InitialStatus = config.taskEnv.ReplaceEnv(orig.InitialStatus)
-	sc.check.Method = config.taskEnv.ReplaceEnv(orig.Method)
-	sc.check.GRPCService = config.taskEnv.ReplaceEnv(orig.GRPCService)
-	if len(orig.Header) > 0 {
-		header := make(map[string][]string, len(orig.Header))
-		for k, vs := range orig.Header {
-			newVals := make([]string, len(vs))
-			for i, v := range vs {
-				newVals[i] = config.taskEnv.ReplaceEnv(v)
-			}
-			header[config.taskEnv.ReplaceEnv(k)] = newVals
-		}
-		sc.check.Header = header
-	}
+
 	if config.isGroup {
-		// TODO(tgross):
 		// group services don't have access to a task environment
 		// at creation, so their checks get registered before the
 		// check can be interpolated here. if we don't use the

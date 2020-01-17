@@ -76,19 +76,20 @@ job "docs" {
 
 - `mode`  `(string: "host")` - Mode of the network. The following modes are available:
 
- - “none” - Task group will have an isolated network without any network interfaces.
- - “bridge” - Task group will have an isolated network namespace with an interface
+ - `none` - Task group will have an isolated network without any network interfaces.
+ - `bridge` - Task group will have an isolated network namespace with an interface
            that is bridged with the host. Note that bridge networking is only
            currently supported for the `docker`, `exec`, `raw_exec`, and `java` task
            drivers.
- - “host” - Each task will join the host network namespace and a shared network
+ - `host` - Each task will join the host network namespace and a shared network
            namespace is not created. This matches the current behavior in Nomad 0.9.
 
 ### `port` Parameters
 
 - `static` `(int: nil)` - Specifies the static TCP/UDP port to allocate. If omitted, a dynamic port is chosen. We **do not recommend**  using static ports, except
   for `system` or specialized jobs like load balancers.
-- `to` `(string:nil)` - Applicable when using "bridge" mode to configure port to map to inside the task's network namespace.
+- `to` `(string:nil)` - Applicable when using "bridge" mode to configure port
+  to map to inside the task's network namespace. `-1` sets the mapped port equal to the dynamic port allocated by the scheduler. The `NOMAD_PORT_<label>` environment variable will contain the `to` value.
 
 The label assigned to the port is used to identify the port in service
 discovery, and used in the name of the environment variable that indicates
@@ -210,10 +211,12 @@ network {
 }
 ```
 
+### Limitations
+
+* Only one `network` stanza can be specified, when it is defined at the task group level.
+* Only the `NOMAD_PORT_<label>` and `NOMAD_HOST_PORT_<label>` environment
+  variables are set for group network ports.
+
 [docker-driver]: /docs/drivers/docker.html "Nomad Docker Driver"
 [qemu-driver]: /docs/drivers/qemu.html "Nomad QEMU Driver"
 [Connect]: /docs/job-specification/connect.html "Nomad Consul Connect Integration"
-
-### Limitations
-
-Only one `network` stanza can be specified, when it is defined at the task group level.

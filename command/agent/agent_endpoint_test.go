@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -247,6 +250,328 @@ func TestHTTP_AgentMembers_ACL(t *testing.T) {
 			require.Len(members.Members, 1)
 		}
 	})
+}
+
+func TestHTTP_AgentMonitor(t *testing.T) {
+	t.Parallel()
+
+	httpTest(t, nil, func(s *TestAgent) {
+		// invalid log_json
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_json=no", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+
+			// Make the request
+			_, err = s.Server.AgentMonitor(resp, req)
+			if err.(HTTPCodedError).Code() != 400 {
+				t.Fatalf("expected 400 response, got: %v", resp.Code)
+			}
+		}
+
+		// unknown log_level
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=unknown", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+
+			// Make the request
+			_, err = s.Server.AgentMonitor(resp, req)
+			if err.(HTTPCodedError).Code() != 400 {
+				t.Fatalf("expected 400 response, got: %v", resp.Code)
+			}
+		}
+
+		// check for a specific log
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+			defer resp.Close()
+
+			go func() {
+				_, err = s.Server.AgentMonitor(resp, req)
+				require.NoError(t, err)
+			}()
+
+			// send the same log until monitor sink is set up
+			maxLogAttempts := 10
+			tried := 0
+			testutil.WaitForResult(func() (bool, error) {
+				if tried < maxLogAttempts {
+					s.Server.logger.Warn("log that should be sent")
+					tried++
+				}
+
+				got := resp.Body.String()
+				want := `{"Data":"`
+				if strings.Contains(got, want) {
+					return true, nil
+				}
+
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", got, want)
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+		}
+
+		// plain param set to true
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=debug&plain=true", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+			defer resp.Close()
+
+			go func() {
+				_, err = s.Server.AgentMonitor(resp, req)
+				require.NoError(t, err)
+			}()
+
+			// send the same log until monitor sink is set up
+			maxLogAttempts := 10
+			tried := 0
+			testutil.WaitForResult(func() (bool, error) {
+				if tried < maxLogAttempts {
+					s.Server.logger.Debug("log that should be sent")
+					tried++
+				}
+
+				got := resp.Body.String()
+				want := `[DEBUG] http: log that should be sent`
+				if strings.Contains(got, want) {
+					return true, nil
+				}
+
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", got, want)
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+		}
+
+		// stream logs for a given node
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn&node_id="+s.client.NodeID(), nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+			defer resp.Close()
+
+			go func() {
+				_, err = s.Server.AgentMonitor(resp, req)
+				require.NoError(t, err)
+			}()
+
+			// send the same log until monitor sink is set up
+			maxLogAttempts := 10
+			tried := 0
+			out := ""
+			testutil.WaitForResult(func() (bool, error) {
+				if tried < maxLogAttempts {
+					s.Server.logger.Debug("log that should not be sent")
+					s.Server.logger.Warn("log that should be sent")
+					tried++
+				}
+				output, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					return false, err
+				}
+
+				out += string(output)
+				want := `{"Data":"`
+				if strings.Contains(out, want) {
+					return true, nil
+				}
+
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", out, want)
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+		}
+	})
+}
+
+// Scenarios when Pprof requests should be available
+// see https://github.com/hashicorp/nomad/issues/6496
+// +---------------+------------------+--------+------------------+
+// |   Endpoint    |  `enable_debug`  |  ACLs  |  **Available?**  |
+// +---------------+------------------+--------+------------------+
+// | /debug/pprof  |  unset           |  n/a   |  no              |
+// | /debug/pprof  |  `true`          |  n/a   |  yes             |
+// | /debug/pprof  |  `false`         |  n/a   |  no              |
+// | /agent/pprof  |  unset           |  off   |  no              |
+// | /agent/pprof  |  unset           |  on    |  **yes**         |
+// | /agent/pprof  |  `true`          |  off   |  yes             |
+// | /agent/pprof  |  `false`         |  on    |  **yes**         |
+// +---------------+------------------+--------+------------------+
+func TestAgent_PprofRequest_Permissions(t *testing.T) {
+	trueP, falseP := helper.BoolToPtr(true), helper.BoolToPtr(false)
+	cases := []struct {
+		acl   *bool
+		debug *bool
+		ok    bool
+	}{
+		// manually set to false because test helpers
+		// enable to true by default
+		// enableDebug:       helper.BoolToPtr(false),
+		{debug: nil, ok: false},
+		{debug: trueP, ok: true},
+		{debug: falseP, ok: false},
+		{debug: falseP, acl: falseP, ok: false},
+		{acl: trueP, ok: true},
+		{acl: falseP, debug: trueP, ok: true},
+		{debug: falseP, acl: trueP, ok: true},
+	}
+
+	for _, tc := range cases {
+		ptrToStr := func(val *bool) string {
+			if val == nil {
+				return "unset"
+			} else if *val == true {
+				return "true"
+			} else {
+				return "false"
+			}
+		}
+
+		t.Run(
+			fmt.Sprintf("debug %s, acl %s",
+				ptrToStr(tc.debug),
+				ptrToStr(tc.acl)),
+			func(t *testing.T) {
+				cb := func(c *Config) {
+					if tc.acl != nil {
+						c.ACL.Enabled = *tc.acl
+					}
+					if tc.debug == nil {
+						var nodebug bool
+						c.EnableDebug = nodebug
+					} else {
+						c.EnableDebug = *tc.debug
+					}
+				}
+
+				httpTest(t, cb, func(s *TestAgent) {
+					state := s.Agent.server.State()
+					url := "/v1/agent/pprof/cmdline"
+					req, err := http.NewRequest("GET", url, nil)
+					require.NoError(t, err)
+					respW := httptest.NewRecorder()
+
+					if tc.acl != nil && *tc.acl {
+						token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
+						setToken(req, token)
+					}
+
+					resp, err := s.Server.AgentPprofRequest(respW, req)
+					if tc.ok {
+						require.NoError(t, err)
+						require.NotNil(t, resp)
+					} else {
+						require.Error(t, err)
+						require.Equal(t, structs.ErrPermissionDenied.Error(), err.Error())
+					}
+				})
+			})
+	}
+}
+
+func TestAgent_PprofRequest(t *testing.T) {
+	cases := []struct {
+		desc        string
+		url         string
+		addNodeID   bool
+		addServerID bool
+		expectedErr string
+	}{
+		{
+			desc: "cmdline local request",
+			url:  "/v1/agent/pprof/cmdline",
+		},
+		{
+			desc:      "cmdline node request",
+			url:       "/v1/agent/pprof/cmdline",
+			addNodeID: true,
+		},
+		{
+			desc:        "cmdline server request",
+			url:         "/v1/agent/pprof/cmdline",
+			addServerID: true,
+		},
+		{
+			desc:        "invalid server request",
+			url:         "/v1/agent/pprof/unknown",
+			addServerID: true,
+			expectedErr: "RPC Error:: 404,Pprof profile not found profile: unknown",
+		},
+		{
+			desc:      "cpu profile request",
+			url:       "/v1/agent/pprof/profile",
+			addNodeID: true,
+		},
+		{
+			desc:      "trace request",
+			url:       "/v1/agent/pprof/trace",
+			addNodeID: true,
+		},
+		{
+			desc:      "pprof lookup request",
+			url:       "/v1/agent/pprof/goroutine",
+			addNodeID: true,
+		},
+		{
+			desc:        "unknown pprof lookup request",
+			url:         "/v1/agent/pprof/latency",
+			addNodeID:   true,
+			expectedErr: "RPC Error:: 404,Pprof profile not found profile: latency",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			httpTest(t, nil, func(s *TestAgent) {
+
+				// add node or server id query param
+				url := tc.url
+				if tc.addNodeID {
+					url = url + "?node_id=" + s.client.NodeID()
+				} else if tc.addServerID {
+					url = url + "?server_id=" + s.server.LocalMember().Name
+				}
+
+				req, err := http.NewRequest("GET", url, nil)
+				require.Nil(t, err)
+				respW := httptest.NewRecorder()
+
+				resp, err := s.Server.AgentPprofRequest(respW, req)
+
+				if tc.expectedErr != "" {
+					require.Error(t, err)
+					require.EqualError(t, err, tc.expectedErr)
+				} else {
+					require.NoError(t, err)
+					require.NotNil(t, resp)
+				}
+			})
+		})
+	}
+}
+
+type closableRecorder struct {
+	*httptest.ResponseRecorder
+	closer chan bool
+}
+
+func newClosableRecorder() *closableRecorder {
+	r := httptest.NewRecorder()
+	closer := make(chan bool)
+	return &closableRecorder{r, closer}
+}
+
+func (r *closableRecorder) Close() {
+	close(r.closer)
+}
+
+func (r *closableRecorder) CloseNotify() <-chan bool {
+	return r.closer
 }
 
 func TestHTTP_AgentForceLeave(t *testing.T) {

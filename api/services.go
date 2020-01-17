@@ -143,6 +143,7 @@ type ConsulConnect struct {
 // ConsulSidecarService represents a Consul Connect SidecarService jobspec
 // stanza.
 type ConsulSidecarService struct {
+	Tags  []string
 	Port  string
 	Proxy *ConsulProxy
 }

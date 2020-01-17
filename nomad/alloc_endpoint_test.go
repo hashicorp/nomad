@@ -18,8 +18,10 @@ import (
 
 func TestAllocEndpoint_List(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -84,8 +86,9 @@ func TestAllocEndpoint_List(t *testing.T) {
 
 func TestAllocEndpoint_List_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -140,8 +143,9 @@ func TestAllocEndpoint_List_ACL(t *testing.T) {
 
 func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -215,8 +219,9 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 
 func TestAllocEndpoint_GetAlloc(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -255,8 +260,9 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 
 func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
@@ -365,8 +371,9 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 
 func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -420,8 +427,9 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 
 func TestAllocEndpoint_GetAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -467,8 +475,9 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 
 func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -524,8 +533,8 @@ func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, _ := TestACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -608,8 +617,8 @@ func TestAllocEndpoint_Stop_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, _ := TestACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 

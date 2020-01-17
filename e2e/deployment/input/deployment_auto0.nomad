@@ -1,6 +1,11 @@
 job "deployment_auto.nomad" {
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "one" {
     count = 3
 

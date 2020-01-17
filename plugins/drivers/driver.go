@@ -357,15 +357,17 @@ func (d *DeviceConfig) Copy() *DeviceConfig {
 }
 
 type MountConfig struct {
-	TaskPath string
-	HostPath string
-	Readonly bool
+	TaskPath        string
+	HostPath        string
+	Readonly        bool
+	PropagationMode string
 }
 
 func (m *MountConfig) IsEqual(o *MountConfig) bool {
 	return m.TaskPath == o.TaskPath &&
 		m.HostPath == o.HostPath &&
-		m.Readonly == o.Readonly
+		m.Readonly == o.Readonly &&
+		m.PropagationMode == o.PropagationMode
 }
 
 func (m *MountConfig) Copy() *MountConfig {
@@ -525,3 +527,18 @@ type ExecTaskStream interface {
 
 type ExecTaskStreamingRequestMsg = proto.ExecTaskStreamingRequest
 type ExecTaskStreamingResponseMsg = proto.ExecTaskStreamingResponse
+
+// InternalCapabilitiesDriver is an experimental interface enabling a driver
+// to disable some nomad functionality (e.g. logs or metrics).
+//
+// Intended for internal drivers only while the interface is stabalized.
+type InternalCapabilitiesDriver interface {
+	InternalCapabilities() InternalCapabilities
+}
+
+// InternalCapabilities flags disabled functionality.
+// Zero value means all is supported.
+type InternalCapabilities struct {
+	DisableLogCollection     bool
+	DisableMetricsCollection bool
+}

@@ -86,7 +86,7 @@ func (c *NodeEligibilityCommand) Run(args []string) int {
 
 	// Check that we got either enable or disable, but not both.
 	if (enable && disable) || (!enable && !disable) {
-		c.Ui.Error("Ethier the '-enable' or '-disable' flag must be set")
+		c.Ui.Error("Either the '-enable' or '-disable' flag must be set")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

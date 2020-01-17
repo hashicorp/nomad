@@ -1,6 +1,6 @@
 package structs
 
-//go:generate codecgen -d 102 -o structs.generated.go structs.go
+//go:generate codecgen -d 102 -t codec_generated -o structs.generated.go structs.go
 
 import (
 	"errors"
@@ -32,6 +32,26 @@ func (r *RpcError) Error() string {
 type ClientStatsResponse struct {
 	HostStats *stats.HostStats
 	structs.QueryMeta
+}
+
+// MonitorRequest is used to request and stream logs from a client node.
+type MonitorRequest struct {
+	// LogLevel is the log level filter we want to stream logs on
+	LogLevel string
+
+	// LogJSON specifies if log format should be unstructured or json
+	LogJSON bool
+
+	// NodeID is the node we want to track the logs of
+	NodeID string
+
+	// ServerID is the server we want to track the logs of
+	ServerID string
+
+	// PlainText disables base64 encoding.
+	PlainText bool
+
+	structs.QueryOptions
 }
 
 // AllocFileInfo holds information about a file inside the AllocDir

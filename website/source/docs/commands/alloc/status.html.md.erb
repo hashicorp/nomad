@@ -11,13 +11,13 @@ description: >
 The `alloc status` command displays status information and metadata about an
 existing allocation and its tasks. It can be useful while debugging to reveal
 the underlying reasons for scheduling decisions or failures, as well as the
-current state of its tasks. As of Nomad 0.7.1, alloc status also shows allocation
-modification time in addition to create time. As of Nomad 0.8, alloc status shows
-information about reschedule attempts.
+current state of its tasks. As of Nomad 0.7.1, alloc status also shows
+allocation modification time in addition to create time. As of Nomad 0.8, alloc
+status shows information about reschedule attempts.
 
 ## Usage
 
-```
+```plaintext
 nomad alloc status [options] <allocation>
 ```
 
@@ -31,16 +31,16 @@ allocations and information will be displayed.
 
 ## Alloc Status Options
 
-* `-short`: Display short output. Shows only the most recent task event.
-* `-verbose`: Show full information.
-* `-json` : Output the allocation in its JSON format.
-* `-t` : Format and display the allocation using a Go template.
+- `-short`: Display short output. Shows only the most recent task event.
+- `-verbose`: Show full information.
+- `-json` : Output the allocation in its JSON format.
+- `-t` : Format and display the allocation using a Go template.
 
 ## Examples
 
 Short status of an alloc:
 
-```
+```shell
 $ nomad alloc status --short 0af996ed
 ID                  = 0af996ed
 Eval ID             = be9bde98
@@ -64,7 +64,7 @@ web    running  Started     07/25/17 16:12:49 UTC
 
 Full status of an alloc, which shows one of the tasks dying and then being restarted:
 
-```
+```shell
 $ nomad alloc status 0af996ed
 ID                   = 0af996ed
 Eval ID              = be9bde98
@@ -119,7 +119,7 @@ Recent Events:
 
 Verbose status can also be accessed:
 
-```
+```shell
 $ nomad alloc status -verbose 0af996ed
 ID                     = 0af996ed-aff4-8ddb-a566-e55ebf8969c9
 Eval ID                = be9bde98-0490-1beb-ced0-012d10ddf22e

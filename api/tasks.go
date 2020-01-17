@@ -370,12 +370,28 @@ type VolumeRequest struct {
 	ReadOnly bool `mapstructure:"read_only"`
 }
 
+const (
+	VolumeMountPropagationPrivate       = "private"
+	VolumeMountPropagationHostToTask    = "host-to-task"
+	VolumeMountPropagationBidirectional = "bidirectional"
+)
+
 // VolumeMount represents the relationship between a destination path in a task
 // and the task group volume that should be mounted there.
 type VolumeMount struct {
-	Volume      string
-	Destination string
-	ReadOnly    bool `mapstructure:"read_only"`
+	Volume          *string
+	Destination     *string
+	ReadOnly        *bool   `mapstructure:"read_only"`
+	PropagationMode *string `mapstructure:"propagation_mode"`
+}
+
+func (vm *VolumeMount) Canonicalize() {
+	if vm.PropagationMode == nil {
+		vm.PropagationMode = stringToPtr(VolumeMountPropagationPrivate)
+	}
+	if vm.ReadOnly == nil {
+		vm.ReadOnly = boolToPtr(false)
+	}
 }
 
 // TaskGroup is the unit of scheduling.
@@ -395,6 +411,7 @@ type TaskGroup struct {
 	Networks         []*NetworkResource
 	Meta             map[string]string
 	Services         []*Service
+	ShutdownDelay    *time.Duration `mapstructure:"shutdown_delay"`
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -631,6 +648,9 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	for _, a := range t.Affinities {
 		a.Canonicalize()
+	}
+	for _, vm := range t.VolumeMounts {
+		vm.Canonicalize()
 	}
 }
 

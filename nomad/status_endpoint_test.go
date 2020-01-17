@@ -15,8 +15,9 @@ import (
 
 func TestStatusVersion(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 
 	arg := &structs.GenericRequest{
@@ -46,8 +47,9 @@ func TestStatusVersion(t *testing.T) {
 
 func TestStatusPing(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 
 	arg := struct{}{}
@@ -59,8 +61,9 @@ func TestStatusPing(t *testing.T) {
 
 func TestStatusLeader(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -81,8 +84,9 @@ func TestStatusLeader(t *testing.T) {
 
 func TestStatusPeers(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 
 	arg := &structs.GenericRequest{
@@ -102,8 +106,9 @@ func TestStatusPeers(t *testing.T) {
 
 func TestStatusMembers(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	assert := assert.New(t)
 
@@ -121,8 +126,9 @@ func TestStatusMembers(t *testing.T) {
 
 func TestStatusMembers_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	assert := assert.New(t)
 	state := s1.fsm.State()
@@ -174,8 +180,9 @@ func TestStatusMembers_ACL(t *testing.T) {
 
 func TestStatus_HasClientConn(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	require := require.New(t)
 

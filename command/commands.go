@@ -366,6 +366,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"monitor": func() (cli.Command, error) {
+			return &MonitorCommand{
+				Meta: meta,
+			}, nil
+		},
 		"namespace": func() (cli.Command, error) {
 			return &NamespaceCommand{
 				Meta: meta,
@@ -602,6 +607,26 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"stop": func() (cli.Command, error) {
 			return &JobStopCommand{
+				Meta: meta,
+			}, nil
+		},
+		"system": func() (cli.Command, error) {
+			return &SystemCommand{
+				Meta: meta,
+			}, nil
+		},
+		"system gc": func() (cli.Command, error) {
+			return &SystemGCCommand{
+				Meta: meta,
+			}, nil
+		},
+		"system reconcile": func() (cli.Command, error) {
+			return &SystemReconcileCommand{
+				Meta: meta,
+			}, nil
+		},
+		"system reconcile summaries": func() (cli.Command, error) {
+			return &SystemReconcileSummariesCommand{
 				Meta: meta,
 			}, nil
 		},

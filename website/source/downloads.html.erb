@@ -36,11 +36,6 @@ description: |-
       <p>
       Check out the <a href="https://github.com/hashicorp/nomad/blob/v<%= latest_version %>/CHANGELOG.md">v<%= latest_version %> CHANGELOG</a> for information on the latest release.
       </p>
-
-      <h3>Nomad 0.10.0 Release Candidate</h3>
-      <p>
-      A release candidate for Nomad 0.10.0 is also available! The release candidate can be <a href="https://releases.hashicorp.com/nomad/0.10.0-rc1/">downloaded on the Nomad releases page</a>.
-      </p>
     </div>
   </div>
 
@@ -50,7 +45,7 @@ description: |-
       <div class="col-md-12 download">
         <div class="icon pull-left"><%= system_icon(os) %></div>
         <div class="details">
-          <h2 class="os-name"><%= pretty_os(os) %></h2>
+          <h2 class="os-name g-type-display-4"><%= pretty_os(os) %></h2>
           <ul>
             <% arches.each do |arch, url| %>
               <li><a href="<%= url %>"><%= pretty_arch(arch) %></a></li>

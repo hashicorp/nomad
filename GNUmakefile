@@ -6,7 +6,7 @@ GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
-GO_TAGS ?=
+GO_TAGS ?= codegen_generated
 
 GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
 
@@ -154,8 +154,8 @@ deps:  ## Install build and development dependencies
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
-	go get -u github.com/alecthomas/gometalinter
-	gometalinter --install
+	go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+	go get -u github.com/client9/misspell/cmd/misspell
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
@@ -167,27 +167,8 @@ $(git-dir)/hooks/%: dev/hooks/%
 .PHONY: check
 check: ## Lint the source code
 	@echo "==> Linting source code..."
-	@gometalinter \
-		--deadline 10m \
-		--vendor \
-		--exclude='.*\.generated\.go' \
-		--exclude='.*\.pb\.go' \
-		--exclude='.*bindata_assetfs\.go' \
-		--skip="ui/" \
-		--sort="path" \
-		--aggregate \
-		--enable-gc \
-		--disable-all \
-		--enable goimports \
-		--enable misspell \
-		--enable vet \
-		--enable deadcode \
-		--enable varcheck \
-		--enable ineffassign \
-		--enable structcheck \
-		--enable unconvert \
-		--enable gofmt \
-		./...
+	@golangci-lint run -j 1
+
 	@echo "==> Spell checking website..."
 	@misspell -error -source=text website/source/
 
@@ -196,7 +177,7 @@ check: ## Lint the source code
 	@if (git status | grep -q .pb.go); then echo the following proto files are out of sync; git status |grep .pb.go; exit 1; fi
 
 	@echo "==> Check API package is isolated from rest"
-	@! go list -f '{{ join .Deps "\n" }}' ./api | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/
+	@! go list --test -f '{{ join .Deps "\n" }}' ./api | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test
 
 .PHONY: checkscripts
 checkscripts: ## Lint shell scripts
@@ -241,7 +222,8 @@ changelogfmt:
 .PHONY: hclfmt
 hclfmt:
 	@echo "--> Formatting HCL"
-	@find . -path ./terraform -prune -o -name 'upstart.nomad' -prune -o \( -name '*.nomad' -o -name '*.hcl' \) -exec hclfmt -w {} +
+	@find . -path ./terraform -prune -o -name 'upstart.nomad' -prune -o \( -name '*.nomad' -o -name '*.hcl' \) -exec \
+sh -c 'hclfmt -w {} || echo in path {}' ';'
 
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
@@ -262,11 +244,11 @@ dev: vendorfmt changelogfmt hclfmt ## Build for the current development platform
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
 .PHONY: prerelease
-prerelease: GO_TAGS=ui release
+prerelease: GO_TAGS=ui codegen_generated release
 prerelease: generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
 
 .PHONY: release
-release: GO_TAGS=ui release
+release: GO_TAGS=ui codegen_generated release
 release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
@@ -293,6 +275,7 @@ test-nomad: dev ## Run Nomad test suites
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=15m \
+		-tags "$(GO_TAGS)" \
 		$(GOTEST_PKGS) $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
@@ -305,6 +288,7 @@ e2e-test: dev ## Run the Nomad e2e test suite
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=900s \
+		-tags "$(GO_TAGS)" \
 		github.com/hashicorp/nomad/e2e/vault/ \
 		-integration
 

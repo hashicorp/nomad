@@ -43,6 +43,11 @@ func TestParse(t *testing.T) {
 						RTarget: "windows",
 						Operand: "=",
 					},
+					{
+						LTarget: "${attr.vault.version}",
+						RTarget: ">= 0.6.1",
+						Operand: "semver",
+					},
 				},
 
 				Affinities: []*api.Affinity{
@@ -197,8 +202,8 @@ func TestParse(t *testing.T) {
 								},
 								VolumeMounts: []*api.VolumeMount{
 									{
-										Volume:      "foo",
-										Destination: "/mnt/foo",
+										Volume:      helper.StringToPtr("foo"),
+										Destination: helper.StringToPtr("/mnt/foo"),
 									},
 								},
 								Affinities: []*api.Affinity{
@@ -921,8 +926,9 @@ func TestParse(t *testing.T) {
 				Datacenters: []string{"dc1"},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  helper.StringToPtr("bar"),
-						Count: helper.IntToPtr(3),
+						Name:          helper.StringToPtr("bar"),
+						ShutdownDelay: helper.TimeToPtr(14 * time.Second),
+						Count:         helper.IntToPtr(3),
 						Networks: []*api.NetworkResource{
 							{
 								Mode: "bridge",
@@ -943,6 +949,7 @@ func TestParse(t *testing.T) {
 								PortLabel:  "1234",
 								Connect: &api.ConsulConnect{
 									SidecarService: &api.ConsulSidecarService{
+										Tags: []string{"side1", "side2"},
 										Proxy: &api.ConsulProxy{
 											Upstreams: []*api.ConsulUpstream{
 												{

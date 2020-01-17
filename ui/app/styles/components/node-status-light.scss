@@ -27,7 +27,8 @@ $size: 0.75em;
     );
   }
 
-  &.ineligible {
+  &.ineligible,
+  &.draining {
     background: $warning;
   }
 }

@@ -192,7 +192,6 @@ func (c *Run) runTest(opts *runOpts) (*TestReport, error) {
 	cmd := exec.Command(goBin, opts.goArgs()...)
 	cmd.Env = opts.goEnv()
 	out, err := cmd.StdoutPipe()
-	defer out.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -200,6 +199,13 @@ func (c *Run) runTest(opts *runOpts) (*TestReport, error) {
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		// should command fail, log here then proceed to generate test report
+		// to report more informative info about which tests fail
+		c.logger.Error("test command failed", "error", err)
 	}
 
 	dec := NewDecoder(out)

@@ -141,6 +141,133 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	})
 }
 
+func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
+	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+
+	// Create a group service
+	tg := alloc.Job.TaskGroups[0]
+	tg.Services = []*structs.Service{
+		{
+			Name: "shutdown_service",
+		},
+	}
+
+	// Create two tasks in the  group
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Name = "follower1"
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+
+	task2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	task2.Name = "leader"
+	task2.Driver = "mock_driver"
+	task2.Leader = true
+	task2.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+
+	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2)
+	alloc.AllocatedResources.Tasks[task.Name] = tr
+	alloc.AllocatedResources.Tasks[task2.Name] = tr
+
+	// Set a shutdown delay
+	shutdownDelay := 1 * time.Second
+	alloc.Job.TaskGroups[0].ShutdownDelay = &shutdownDelay
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer destroy(ar)
+	go ar.Run()
+
+	// Wait for tasks to start
+	upd := conf.StateUpdater.(*MockStateUpdater)
+	last := upd.Last()
+	testutil.WaitForResult(func() (bool, error) {
+		last = upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+		if n := len(last.TaskStates); n != 2 {
+			return false, fmt.Errorf("Not enough task states (want: 2; found %d)", n)
+		}
+		for name, state := range last.TaskStates {
+			if state.State != structs.TaskStateRunning {
+				return false, fmt.Errorf("Task %q is not running yet (it's %q)", name, state.State)
+			}
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Reset updates
+	upd.Reset()
+
+	// Stop alloc
+	shutdownInit := time.Now()
+	update := alloc.Copy()
+	update.DesiredStatus = structs.AllocDesiredStatusStop
+	ar.Update(update)
+
+	// Wait for tasks to stop
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+
+		fin := last.TaskStates["leader"].FinishedAt
+
+		if fin.IsZero() {
+			return false, nil
+		}
+
+		return true, nil
+	}, func(err error) {
+		last := upd.Last()
+		for name, state := range last.TaskStates {
+			t.Logf("%s: %s", name, state.State)
+		}
+		t.Fatalf("err: %v", err)
+	})
+
+	// Get consul client operations
+	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
+	consulOpts := consulClient.GetOps()
+	var groupRemoveOp cconsul.MockConsulOp
+	for _, op := range consulOpts {
+		// Grab the first deregistration request
+		if op.Op == "remove" && op.Name == "group-web" {
+			groupRemoveOp = op
+			break
+		}
+	}
+
+	// Ensure remove operation is close to shutdown initiation
+	require.True(t, groupRemoveOp.OccurredAt.Sub(shutdownInit) < 100*time.Millisecond)
+
+	last = upd.Last()
+	minShutdown := shutdownInit.Add(task.ShutdownDelay)
+	leaderFinished := last.TaskStates["leader"].FinishedAt
+	followerFinished := last.TaskStates["follower1"].FinishedAt
+
+	// Check that both tasks shut down after min possible shutdown time
+	require.Greater(t, leaderFinished.UnixNano(), minShutdown.UnixNano())
+	require.Greater(t, followerFinished.UnixNano(), minShutdown.UnixNano())
+
+	// Check that there is at least shutdown_delay between consul
+	// remove operation and task finished at time
+	require.True(t, leaderFinished.Sub(groupRemoveOp.OccurredAt) > shutdownDelay)
+}
+
 // TestAllocRunner_TaskLeader_StopTG asserts that when stopping an alloc with a
 // leader the leader is stopped before other tasks.
 func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
@@ -528,7 +655,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
 	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
 		return &consul.AllocRegistration{
-			Tasks: map[string]*consul.TaskRegistration{
+			Tasks: map[string]*consul.ServiceRegistrations{
 				task.Name: {
 					Services: map[string]*consul.ServiceRegistration{
 						"123": {
@@ -847,7 +974,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
 	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
 		return &consul.AllocRegistration{
-			Tasks: map[string]*consul.TaskRegistration{
+			Tasks: map[string]*consul.ServiceRegistrations{
 				task.Name: {
 					Services: map[string]*consul.ServiceRegistration{
 						"123": {

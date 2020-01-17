@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
@@ -215,6 +216,88 @@ func TestExecutor_CgroupPaths(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) { t.Error(err) })
+}
+
+// TestExecutor_CgroupPaths asserts that all cgroups created for a task
+// are destroyed on shutdown
+func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	testutil.ExecCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "/bin/bash"
+	execCmd.Args = []string{"-c", "sleep 0.2; cat /proc/self/cgroup"}
+	defer allocDir.Destroy()
+
+	execCmd.ResourceLimits = true
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
+
+	ps, err := executor.Launch(execCmd)
+	require.NoError(err)
+	require.NotZero(ps.Pid)
+
+	state, err := executor.Wait(context.Background())
+	require.NoError(err)
+	require.Zero(state.ExitCode)
+
+	var cgroupsPaths string
+	tu.WaitForResult(func() (bool, error) {
+		output := strings.TrimSpace(testExecCmd.stdout.String())
+		// sanity check that we got some cgroups
+		if !strings.Contains(output, ":devices:") {
+			return false, fmt.Errorf("was expected cgroup files but found:\n%v", output)
+		}
+		lines := strings.Split(output, "\n")
+		for _, line := range lines {
+			// Every cgroup entry should be /nomad/$ALLOC_ID
+			if line == "" {
+				continue
+			}
+
+			// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
+			// don't isolate it by default.
+			if strings.Contains(line, ":rdma:") {
+				continue
+			}
+
+			if !strings.Contains(line, ":/nomad/") {
+				return false, fmt.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
+			}
+		}
+
+		cgroupsPaths = output
+		return true, nil
+	}, func(err error) { t.Error(err) })
+
+	// shutdown executor and test that cgroups are destroyed
+	executor.Shutdown("SIGKILL", 0)
+
+	// test that the cgroup paths are not visible
+	tmpFile, err := ioutil.TempFile("", "")
+	require.NoError(err)
+	defer os.Remove(tmpFile.Name())
+
+	_, err = tmpFile.WriteString(cgroupsPaths)
+	require.NoError(err)
+	tmpFile.Close()
+
+	subsystems, err := cgroups.ParseCgroupFile(tmpFile.Name())
+	require.NoError(err)
+
+	for subsystem, cgroup := range subsystems {
+		if !strings.Contains(cgroup, "nomad/") {
+			// this should only be rdma at this point
+			continue
+		}
+
+		p, err := getCgroupPathHelper(subsystem, cgroup)
+		require.NoError(err)
+		require.Falsef(cgroups.PathExists(p), "cgroup for %s %s still exists", subsystem, cgroup)
+	}
 }
 
 func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
@@ -467,16 +550,18 @@ func TestExecutor_cmdMounts(t *testing.T) {
 
 	expected := []*lconfigs.Mount{
 		{
-			Source:      "/host/path-ro",
-			Destination: "/task/path-ro",
-			Flags:       unix.MS_BIND | unix.MS_RDONLY,
-			Device:      "bind",
+			Source:           "/host/path-ro",
+			Destination:      "/task/path-ro",
+			Flags:            unix.MS_BIND | unix.MS_RDONLY,
+			Device:           "bind",
+			PropagationFlags: []int{unix.MS_PRIVATE | unix.MS_REC},
 		},
 		{
-			Source:      "/host/path-rw",
-			Destination: "/task/path-rw",
-			Flags:       unix.MS_BIND,
-			Device:      "bind",
+			Source:           "/host/path-rw",
+			Destination:      "/task/path-rw",
+			Flags:            unix.MS_BIND,
+			Device:           "bind",
+			PropagationFlags: []int{unix.MS_PRIVATE | unix.MS_REC},
 		},
 	}
 

@@ -190,7 +190,6 @@ func (l *AllocLogsCommand) Run(args []string) int {
 
 		if err != nil {
 			l.Ui.Error(err.Error())
-			l.Ui.Error("\nPlease specify the task.")
 			return 1
 		}
 	}

@@ -8,14 +8,15 @@ description: >
 
 # Command: sentinel list
 
-The `sentinel list` command is used to display all the installed Sentinel policies.
+The `sentinel list` command is used to display all the installed Sentinel
+policies.
 
 ~> Sentinel commands are new in Nomad 0.7 and are only available with Nomad
 Enterprise.
 
 ## Usage
 
-```
+```plaintext
 nomad sentinel list [options]
 ```
 
@@ -29,7 +30,7 @@ The `sentinel list` command requires no arguments.
 
 List all policies:
 
-```
+```shell
 $ nomad sentinel list
 Name  Scope       Enforcement Level  Description
 foo   submit-job  advisory           my test policy

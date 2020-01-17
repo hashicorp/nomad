@@ -22,12 +22,12 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Create a job
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -39,7 +39,7 @@ func TestServiceSched_JobRegister(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -78,7 +78,7 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure all allocations placed
 	if len(out) != 10 {
@@ -112,13 +112,13 @@ func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Create a job
 	job := mock.Job()
 	job.TaskGroups[0].EphemeralDisk.Sticky = true
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -129,7 +129,7 @@ func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	if err := h.Process(NewServiceScheduler, eval); err != nil {
@@ -151,7 +151,7 @@ func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
 	// Update the job to force a rolling upgrade
 	updated := job.Copy()
 	updated.TaskGroups[0].Tasks[0].Resources.CPU += 10
-	noErr(t, h.State.UpsertJob(h.NextIndex(), updated))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), updated))
 
 	// Create a mock evaluation to handle the update
 	eval = &structs.Evaluation{
@@ -162,7 +162,7 @@ func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 	h1 := NewHarnessWithState(t, h.State)
 	if err := h1.Process(NewServiceScheduler, eval); err != nil {
 		t.Fatalf("err: %v", err)
@@ -203,14 +203,14 @@ func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {
 
 	// Create a node
 	node := mock.Node()
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create a job with count 2 and disk as 60GB so that only one allocation
 	// can fit
 	job := mock.Job()
 	job.TaskGroups[0].Count = 2
 	job.TaskGroups[0].EphemeralDisk.SizeMB = 88 * 1024
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -222,7 +222,7 @@ func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -262,7 +262,7 @@ func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure only one allocation was placed
 	if len(out) != 1 {
@@ -278,7 +278,7 @@ func TestServiceSched_JobRegister_DistinctHosts(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Create a job that uses distinct host and has count 1 higher than what is
@@ -286,7 +286,7 @@ func TestServiceSched_JobRegister_DistinctHosts(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Count = 11
 	job.Constraints = append(job.Constraints, &structs.Constraint{Operand: structs.ConstraintDistinctHosts})
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -298,7 +298,7 @@ func TestServiceSched_JobRegister_DistinctHosts(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -335,7 +335,7 @@ func TestServiceSched_JobRegister_DistinctHosts(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure all allocations placed
 	if len(out) != 10 {
@@ -365,7 +365,7 @@ func TestServiceSched_JobRegister_DistinctProperty(t *testing.T) {
 			rack = "rack1"
 		}
 		node.Meta["rack"] = rack
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Create a job that uses distinct property and has count higher than what is
@@ -378,7 +378,7 @@ func TestServiceSched_JobRegister_DistinctProperty(t *testing.T) {
 			LTarget: "${meta.rack}",
 			RTarget: "2",
 		})
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -390,7 +390,7 @@ func TestServiceSched_JobRegister_DistinctProperty(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -432,7 +432,7 @@ func TestServiceSched_JobRegister_DistinctProperty(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure all allocations placed
 	if len(out) != 4 {
@@ -458,7 +458,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		node := mock.Node()
 		node.Meta["ssd"] = "true"
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Create a job that uses distinct property only on one task group.
@@ -473,7 +473,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup(t *testing.T) {
 
 	job.TaskGroups[1].Name = "tg2"
 	job.TaskGroups[1].Count = 2
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -484,7 +484,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -520,7 +520,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure all allocations placed
 	if len(out) != 3 {
@@ -578,7 +578,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) 
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	assert.Nil(h.Process(NewServiceScheduler, eval), "Process")
@@ -665,7 +665,7 @@ func TestServiceSched_Spread(t *testing.T) {
 				JobID:       job.ID,
 				Status:      structs.EvalStatusPending,
 			}
-			noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+			require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 			// Process the evaluation
 			assert.Nil(h.Process(NewServiceScheduler, eval), "Process")
@@ -742,7 +742,7 @@ func TestServiceSched_EvenSpread(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	assert.Nil(h.Process(NewServiceScheduler, eval), "Process")
@@ -785,12 +785,12 @@ func TestServiceSched_JobRegister_Annotate(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Create a job
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -802,7 +802,7 @@ func TestServiceSched_JobRegister_Annotate(t *testing.T) {
 		AnnotatePlan: true,
 		Status:       structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -828,7 +828,7 @@ func TestServiceSched_JobRegister_Annotate(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure all allocations placed
 	if len(out) != 10 {
@@ -864,13 +864,13 @@ func TestServiceSched_JobRegister_CountZero(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Create a job and set the task group count to zero.
 	job := mock.Job()
 	job.TaskGroups[0].Count = 0
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -881,7 +881,7 @@ func TestServiceSched_JobRegister_CountZero(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -897,7 +897,7 @@ func TestServiceSched_JobRegister_CountZero(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure no allocations placed
 	if len(out) != 0 {
@@ -913,7 +913,7 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 	// Create NO nodes
 	// Create a job
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -925,7 +925,7 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -992,17 +992,17 @@ func TestServiceSched_JobRegister_CreateBlockedEval(t *testing.T) {
 		},
 	}
 	node.ComputeClass()
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create an ineligible node
 	node2 := mock.Node()
 	node2.Attributes["kernel.name"] = "windows"
 	node2.ComputeClass()
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node2))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node2))
 
 	// Create a jobs
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -1014,7 +1014,7 @@ func TestServiceSched_JobRegister_CreateBlockedEval(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1085,8 +1085,8 @@ func TestServiceSched_JobRegister_FeasibleAndInfeasibleTG(t *testing.T) {
 	// Create one node
 	node := mock.Node()
 	node.NodeClass = "class_0"
-	noErr(t, node.ComputeClass())
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, node.ComputeClass())
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create a job that constrains on a node class
 	job := mock.Job()
@@ -1102,7 +1102,7 @@ func TestServiceSched_JobRegister_FeasibleAndInfeasibleTG(t *testing.T) {
 	tg2.Name = "web2"
 	tg2.Constraints[1].RTarget = "class_1"
 	job.TaskGroups = append(job.TaskGroups, tg2)
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -1113,7 +1113,7 @@ func TestServiceSched_JobRegister_FeasibleAndInfeasibleTG(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
 	if err != nil {
@@ -1138,7 +1138,7 @@ func TestServiceSched_JobRegister_FeasibleAndInfeasibleTG(t *testing.T) {
 	// Ensure two allocations placed
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 	if len(out) != 2 {
 		t.Fatalf("bad: %#v", out)
 	}
@@ -1179,7 +1179,7 @@ func TestServiceSched_EvaluateMaxPlanEval(t *testing.T) {
 	// Create a job and set the task group count to zero.
 	job := mock.Job()
 	job.TaskGroups[0].Count = 0
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock blocked evaluation
 	eval := &structs.Evaluation{
@@ -1192,7 +1192,7 @@ func TestServiceSched_EvaluateMaxPlanEval(t *testing.T) {
 	}
 
 	// Insert it into the state store
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1213,14 +1213,14 @@ func TestServiceSched_Plan_Partial_Progress(t *testing.T) {
 
 	// Create a node
 	node := mock.Node()
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create a job with a high resource ask so that all the allocations can't
 	// be placed on a single node.
 	job := mock.Job()
 	job.TaskGroups[0].Count = 3
 	job.TaskGroups[0].Tasks[0].Resources.CPU = 3600
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -1232,7 +1232,7 @@ func TestServiceSched_Plan_Partial_Progress(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1263,7 +1263,7 @@ func TestServiceSched_Plan_Partial_Progress(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure only one allocations placed
 	if len(out) != 1 {
@@ -1283,7 +1283,7 @@ func TestServiceSched_EvaluateBlockedEval(t *testing.T) {
 
 	// Create a job
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock blocked evaluation
 	eval := &structs.Evaluation{
@@ -1296,7 +1296,7 @@ func TestServiceSched_EvaluateBlockedEval(t *testing.T) {
 	}
 
 	// Insert it into the state store
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1329,12 +1329,12 @@ func TestServiceSched_EvaluateBlockedEval_Finished(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Create a job and set the task group count to zero.
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock blocked evaluation
 	eval := &structs.Evaluation{
@@ -1347,7 +1347,7 @@ func TestServiceSched_EvaluateBlockedEval_Finished(t *testing.T) {
 	}
 
 	// Insert it into the state store
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1386,7 +1386,7 @@ func TestServiceSched_EvaluateBlockedEval_Finished(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure all allocations placed
 	if len(out) != 10 {
@@ -1415,12 +1415,12 @@ func TestServiceSched_JobModify(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -1431,7 +1431,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Add a few terminal status allocations, these should be ignored
 	var terminal []*structs.Allocation
@@ -1444,7 +1444,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.DesiredStatus = structs.AllocDesiredStatusStop
 		terminal = append(terminal, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), terminal))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), terminal))
 
 	// Update the job
 	job2 := mock.Job()
@@ -1452,7 +1452,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 
 	// Update the task, such that it cannot be done in-place
 	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job2))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -1463,7 +1463,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1498,7 +1498,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure all allocations placed
 	out, _ = structs.FilterTerminalAllocs(out)
@@ -1518,13 +1518,13 @@ func TestServiceSched_JobModify_IncrCount_NodeLimit(t *testing.T) {
 	// Create one node
 	node := mock.Node()
 	node.NodeResources.Cpu.CpuShares = 1000
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Generate a fake job with one allocation
 	job := mock.Job()
 	job.TaskGroups[0].Tasks[0].Resources.CPU = 256
 	job2 := job.Copy()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	alloc := mock.Alloc()
@@ -1534,11 +1534,11 @@ func TestServiceSched_JobModify_IncrCount_NodeLimit(t *testing.T) {
 	alloc.Name = "my-job.web[0]"
 	alloc.AllocatedResources.Tasks["web"].Cpu.CpuShares = 256
 	allocs = append(allocs, alloc)
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Update the job to count 3
 	job2.TaskGroups[0].Count = 3
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job2))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -1549,7 +1549,7 @@ func TestServiceSched_JobModify_IncrCount_NodeLimit(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1593,7 +1593,7 @@ func TestServiceSched_JobModify_IncrCount_NodeLimit(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure all allocations placed
 	out, _ = structs.FilterTerminalAllocs(out)
@@ -1612,12 +1612,12 @@ func TestServiceSched_JobModify_CountZero(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -1628,7 +1628,7 @@ func TestServiceSched_JobModify_CountZero(t *testing.T) {
 		alloc.Name = structs.AllocName(alloc.JobID, alloc.TaskGroup, uint(i))
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Add a few terminal status allocations, these should be ignored
 	var terminal []*structs.Allocation
@@ -1641,13 +1641,13 @@ func TestServiceSched_JobModify_CountZero(t *testing.T) {
 		alloc.DesiredStatus = structs.AllocDesiredStatusStop
 		terminal = append(terminal, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), terminal))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), terminal))
 
 	// Update the job to be count zero
 	job2 := mock.Job()
 	job2.ID = job.ID
 	job2.TaskGroups[0].Count = 0
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job2))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -1658,7 +1658,7 @@ func TestServiceSched_JobModify_CountZero(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1693,7 +1693,7 @@ func TestServiceSched_JobModify_CountZero(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure all allocations placed
 	out, _ = structs.FilterTerminalAllocs(out)
@@ -1712,12 +1712,12 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -1728,7 +1728,7 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Update the job
 	job2 := mock.Job()
@@ -1743,7 +1743,7 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 
 	// Update the task, such that it cannot be done in-place
 	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job2))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -1754,7 +1754,7 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1816,7 +1816,7 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 	// Create a node and clear the reserved resources
 	node := mock.Node()
 	node.ReservedResources = nil
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create a resource ask that is the same as the resources available on the
 	// node
@@ -1844,7 +1844,7 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Count = 1
 	job.TaskGroups[0].Tasks[0].Resources = request
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	alloc := mock.Alloc()
 	alloc.AllocatedResources = allocated
@@ -1852,7 +1852,7 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Update the job to place more versions of the task group, drop the count
 	// and force destructive updates
@@ -1868,7 +1868,7 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 
 	// Update the task, such that it cannot be done in-place
 	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job2))
 
 	eval := &structs.Evaluation{
 		Namespace:   structs.DefaultNamespace,
@@ -1878,7 +1878,7 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -1938,12 +1938,12 @@ func TestServiceSched_JobModify_Canaries(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -1954,7 +1954,7 @@ func TestServiceSched_JobModify_Canaries(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Update the job
 	job2 := mock.Job()
@@ -1970,7 +1970,7 @@ func TestServiceSched_JobModify_Canaries(t *testing.T) {
 
 	// Update the task, such that it cannot be done in-place
 	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job2))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -1981,7 +1981,7 @@ func TestServiceSched_JobModify_Canaries(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2051,15 +2051,15 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations and create an older deployment
 	job := mock.Job()
 	d := mock.Deployment()
 	d.JobID = job.ID
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
-	noErr(t, h.State.UpsertDeployment(h.NextIndex(), d))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertDeployment(h.NextIndex(), d))
 
 	// Create allocs that are part of the old deployment
 	var allocs []*structs.Allocation
@@ -2073,7 +2073,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Update the job
 	job2 := mock.Job()
@@ -2085,7 +2085,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		MinHealthyTime:  10 * time.Second,
 		HealthyDeadline: 10 * time.Minute,
 	}
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job2))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -2096,7 +2096,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2136,7 +2136,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure all allocations placed
 	if len(out) != 10 {
@@ -2164,6 +2164,92 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	}
 }
 
+// TestServiceSched_JobModify_InPlace08 asserts that inplace updates of
+// allocations created with Nomad 0.8 do not cause panics.
+//
+// COMPAT(0.11) - While we do not guarantee that upgrades from 0.8 -> 0.10
+// (skipping 0.9) are safe, we do want to avoid panics in the scheduler which
+// cause unrecoverable server outages with no chance of recovery.
+//
+// Safe to remove in 0.11.0 as no one should ever be trying to upgrade from 0.8
+// to 0.11!
+func TestServiceSched_JobModify_InPlace08(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create node
+	node := mock.Node()
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Generate a fake job with 0.8 allocations
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create 0.8 alloc
+	alloc := mock.Alloc()
+	alloc.Job = job.Copy()
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.AllocatedResources = nil // 0.8 didn't have this
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Update the job inplace
+	job2 := job.Copy()
+
+	job2.TaskGroups[0].Tasks[0].Services[0].Tags[0] = "newtag"
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job2))
+
+	// Create a mock evaluation
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	require.NoError(t, err)
+
+	// Ensure a single plan
+	require.Len(t, h.Plans, 1)
+	plan := h.Plans[0]
+
+	// Ensure the plan did not evict any allocs
+	var update []*structs.Allocation
+	for _, updateList := range plan.NodeUpdate {
+		update = append(update, updateList...)
+	}
+	require.Zero(t, update)
+
+	// Ensure the plan updated the existing alloc
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	require.Len(t, planned, 1)
+	for _, p := range planned {
+		require.Equal(t, job2, p.Job)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	require.NoError(t, err)
+
+	// Ensure all allocations placed
+	require.Len(t, out, 1)
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
+	newAlloc := out[0]
+
+	// Verify AllocatedResources was set
+	require.NotNil(t, newAlloc.AllocatedResources)
+}
+
 func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 	h := NewHarness(t)
 
@@ -2173,7 +2259,7 @@ func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 		node := mock.Node()
 		node.Meta["rack"] = fmt.Sprintf("rack%d", i)
 		nodes = append(nodes, node)
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Create a job that uses distinct property and has count higher than what is
@@ -2185,7 +2271,7 @@ func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 			Operand: structs.ConstraintDistinctProperty,
 			LTarget: "${meta.rack}",
 		})
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	oldJob := job.Copy()
 	oldJob.JobModifyIndex -= 1
@@ -2201,7 +2287,7 @@ func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -2212,7 +2298,7 @@ func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2254,7 +2340,7 @@ func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure all allocations placed
 	if len(out) != 10 {
@@ -2273,6 +2359,136 @@ func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+// TestServiceSched_JobModify_NodeReschedulePenalty ensures that
+// a failing allocation gets rescheduled with a penalty to the old
+// node, but an updated job doesn't apply the penalty.
+func TestServiceSched_JobModify_NodeReschedulePenalty(t *testing.T) {
+	h := NewHarness(t)
+	require := require.New(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		require.NoError(h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      1,
+		Interval:      15 * time.Minute,
+		Delay:         5 * time.Second,
+		MaxDelay:      1 * time.Minute,
+		DelayFunction: "constant",
+	}
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	require.NoError(h.State.UpsertJob(h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 2; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	// Mark one of the allocations as failed
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-10 * time.Second)}}
+	failedAlloc := allocs[1]
+	failedAllocID := failedAlloc.ID
+	successAllocID := allocs[0].ID
+
+	require.NoError(h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// Create and process a mock evaluation
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(h.Process(NewServiceScheduler, eval))
+
+	// Ensure we have one plan
+	require.Equal(1, len(h.Plans))
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	require.NoError(err)
+
+	// Verify that one new allocation got created with its restart tracker info
+	require.Equal(3, len(out))
+	var newAlloc *structs.Allocation
+	for _, alloc := range out {
+		if alloc.ID != successAllocID && alloc.ID != failedAllocID {
+			newAlloc = alloc
+		}
+	}
+	require.Equal(failedAllocID, newAlloc.PreviousAllocation)
+	require.Equal(1, len(newAlloc.RescheduleTracker.Events))
+	require.Equal(failedAllocID, newAlloc.RescheduleTracker.Events[0].PrevAllocID)
+
+	// Verify that the node-reschedule penalty was applied to the new alloc
+	for _, scoreMeta := range newAlloc.Metrics.ScoreMetaData {
+		if scoreMeta.NodeID == failedAlloc.NodeID {
+			require.Equal(-1.0, scoreMeta.Scores["node-reschedule-penalty"],
+				"eval to replace failed alloc missing node-reshedule-penalty: %v",
+				scoreMeta.Scores,
+			)
+		}
+	}
+
+	// Update the job, such that it cannot be done in-place
+	job2 := job.Copy()
+	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
+	require.NoError(h.State.UpsertJob(h.NextIndex(), job2))
+
+	// Create and process a mock evaluation
+	eval = &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(h.Process(NewServiceScheduler, eval))
+
+	// Lookup the new allocations by JobID
+	out, err = h.State.AllocsByJob(ws, job.Namespace, job2.ID, false)
+	require.NoError(err)
+	out, _ = structs.FilterTerminalAllocs(out)
+	require.Equal(2, len(out))
+
+	// No new allocs have node-reschedule-penalty
+	for _, alloc := range out {
+		require.Nil(alloc.RescheduleTracker)
+		require.NotNil(alloc.Metrics)
+		for _, scoreMeta := range alloc.Metrics.ScoreMetaData {
+			if scoreMeta.NodeID != failedAlloc.NodeID {
+				require.Equal(0.0, scoreMeta.Scores["node-reschedule-penalty"],
+					"eval for updated job should not include node-reshedule-penalty: %v",
+					scoreMeta.Scores,
+				)
+			}
+		}
+	}
+}
+
 func TestServiceSched_JobDeregister_Purged(t *testing.T) {
 	h := NewHarness(t)
 
@@ -2289,7 +2505,7 @@ func TestServiceSched_JobDeregister_Purged(t *testing.T) {
 	for _, alloc := range allocs {
 		h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID))
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -2300,7 +2516,7 @@ func TestServiceSched_JobDeregister_Purged(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2322,7 +2538,7 @@ func TestServiceSched_JobDeregister_Purged(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure that the job field on the allocation is still populated
 	for _, alloc := range out {
@@ -2412,99 +2628,120 @@ func TestServiceSched_JobDeregister_Stopped(t *testing.T) {
 }
 
 func TestServiceSched_NodeDown(t *testing.T) {
-	h := NewHarness(t)
-
-	// Register a node
-	node := mock.Node()
-	node.Status = structs.NodeStatusDown
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
-
-	// Generate a fake job with allocations and an update policy.
-	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
-
-	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
-		alloc := mock.Alloc()
-		alloc.Job = job
-		alloc.JobID = job.ID
-		alloc.NodeID = node.ID
-		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		allocs = append(allocs, alloc)
+	cases := []struct {
+		desired    string
+		client     string
+		migrate    bool
+		reschedule bool
+		terminal   bool
+		lost       bool
+	}{
+		{
+			desired: structs.AllocDesiredStatusStop,
+			client:  structs.AllocClientStatusRunning,
+			lost:    true,
+		},
+		{
+			desired: structs.AllocDesiredStatusRun,
+			client:  structs.AllocClientStatusPending,
+			migrate: true,
+		},
+		{
+			desired: structs.AllocDesiredStatusRun,
+			client:  structs.AllocClientStatusRunning,
+			migrate: true,
+		},
+		{
+			desired:  structs.AllocDesiredStatusRun,
+			client:   structs.AllocClientStatusLost,
+			terminal: true,
+		},
+		{
+			desired:  structs.AllocDesiredStatusRun,
+			client:   structs.AllocClientStatusComplete,
+			terminal: true,
+		},
+		{
+			desired:    structs.AllocDesiredStatusRun,
+			client:     structs.AllocClientStatusFailed,
+			reschedule: true,
+		},
+		{
+			desired: structs.AllocDesiredStatusEvict,
+			client:  structs.AllocClientStatusRunning,
+			lost:    true,
+		},
 	}
 
-	// Cover each terminal case and ensure it doesn't change to lost
-	allocs[7].DesiredStatus = structs.AllocDesiredStatusRun
-	allocs[7].ClientStatus = structs.AllocClientStatusLost
-	allocs[8].DesiredStatus = structs.AllocDesiredStatusRun
-	allocs[8].ClientStatus = structs.AllocClientStatusFailed
-	allocs[9].DesiredStatus = structs.AllocDesiredStatusRun
-	allocs[9].ClientStatus = structs.AllocClientStatusComplete
+	for i, tc := range cases {
+		t.Run(fmt.Sprintf(""), func(t *testing.T) {
+			h := NewHarness(t)
 
-	toBeRescheduled := map[string]bool{allocs[8].ID: true}
+			// Register a node
+			node := mock.Node()
+			node.Status = structs.NodeStatusDown
+			require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
-	// Mark some allocs as running
-	for i := 0; i < 4; i++ {
-		out := allocs[i]
-		out.ClientStatus = structs.AllocClientStatusRunning
-	}
+			// Generate a fake job with allocations and an update policy.
+			job := mock.Job()
+			require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
-	// Mark appropriate allocs for migration
-	toBeMigrated := map[string]bool{}
-	for i := 0; i < 3; i++ {
-		out := allocs[i]
-		out.DesiredTransition.Migrate = helper.BoolToPtr(true)
-		toBeMigrated[out.ID] = true
-	}
+			alloc := mock.Alloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = node.ID
+			alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 
-	toBeLost := map[string]bool{}
-	for i := len(toBeMigrated); i < 7; i++ {
-		toBeLost[allocs[i].ID] = true
-	}
+			alloc.DesiredStatus = tc.desired
+			alloc.ClientStatus = tc.client
 
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+			// Mark for migration if necessary
+			alloc.DesiredTransition.Migrate = helper.BoolToPtr(tc.migrate)
 
-	// Create a mock evaluation to deal with drain
-	eval := &structs.Evaluation{
-		Namespace:   structs.DefaultNamespace,
-		ID:          uuid.Generate(),
-		Priority:    50,
-		TriggeredBy: structs.EvalTriggerNodeUpdate,
-		JobID:       job.ID,
-		NodeID:      node.ID,
-		Status:      structs.EvalStatusPending,
-	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+			allocs := []*structs.Allocation{alloc}
+			require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
-	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
-	require.NoError(t, err)
-
-	// Ensure a single plan
-	require.Len(t, h.Plans, 1)
-	plan := h.Plans[0]
-
-	// Test the scheduler marked all non-terminal allocations as lost
-	require.Len(t, plan.NodeUpdate[node.ID], len(toBeMigrated)+len(toBeLost)+len(toBeRescheduled))
-
-	for _, out := range plan.NodeUpdate[node.ID] {
-		t.Run("alloc "+out.ID, func(t *testing.T) {
-			require.Equal(t, structs.AllocDesiredStatusStop, out.DesiredStatus)
-
-			if toBeMigrated[out.ID] {
-				// there is no indicator on job itself that marks it as migrated
-				require.NotEqual(t, structs.AllocClientStatusLost, out.ClientStatus)
-			} else if toBeLost[out.ID] {
-				require.Equal(t, structs.AllocClientStatusLost, out.ClientStatus)
-			} else if toBeRescheduled[out.ID] {
-				require.Equal(t, structs.AllocClientStatusFailed, out.ClientStatus)
-			} else {
-				require.Fail(t, "unexpected alloc update")
+			// Create a mock evaluation to deal with drain
+			eval := &structs.Evaluation{
+				Namespace:   structs.DefaultNamespace,
+				ID:          uuid.Generate(),
+				Priority:    50,
+				TriggeredBy: structs.EvalTriggerNodeUpdate,
+				JobID:       job.ID,
+				NodeID:      node.ID,
+				Status:      structs.EvalStatusPending,
 			}
+			require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+			// Process the evaluation
+			err := h.Process(NewServiceScheduler, eval)
+			require.NoError(t, err)
+
+			if tc.terminal {
+				// No plan for terminal state allocs
+				require.Len(t, h.Plans, 0)
+			} else {
+				require.Len(t, h.Plans, 1)
+
+				plan := h.Plans[0]
+				out := plan.NodeUpdate[node.ID]
+				require.Len(t, out, 1)
+
+				outAlloc := out[0]
+				if tc.migrate {
+					require.NotEqual(t, structs.AllocClientStatusLost, outAlloc.ClientStatus)
+				} else if tc.reschedule {
+					require.Equal(t, structs.AllocClientStatusFailed, outAlloc.ClientStatus)
+				} else if tc.lost {
+					require.Equal(t, structs.AllocClientStatusLost, outAlloc.ClientStatus)
+				} else {
+					require.Fail(t, "unexpected alloc update")
+				}
+			}
+
+			h.AssertEvalStatus(t, structs.EvalStatusComplete)
 		})
 	}
-
-	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
 func TestServiceSched_NodeUpdate(t *testing.T) {
@@ -2512,11 +2749,11 @@ func TestServiceSched_NodeUpdate(t *testing.T) {
 
 	// Register a node
 	node := mock.Node()
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Generate a fake job with allocations and an update policy.
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -2527,14 +2764,14 @@ func TestServiceSched_NodeUpdate(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Mark some allocs as running
 	ws := memdb.NewWatchSet()
 	for i := 0; i < 4; i++ {
 		out, _ := h.State.AllocByID(ws, allocs[i].ID)
 		out.ClientStatus = structs.AllocClientStatusRunning
-		noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), []*structs.Allocation{out}))
+		require.NoError(t, h.State.UpdateAllocsFromClient(h.NextIndex(), []*structs.Allocation{out}))
 	}
 
 	// Create a mock evaluation which won't trigger any new placements
@@ -2547,7 +2784,7 @@ func TestServiceSched_NodeUpdate(t *testing.T) {
 		NodeID:      node.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2567,17 +2804,17 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	// Register a draining node
 	node := mock.Node()
 	node.Drain = true
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations and an update policy.
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -2589,7 +2826,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 		alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -2601,7 +2838,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 		NodeID:      node.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2632,7 +2869,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure all allocations placed
 	out, _ = structs.FilterTerminalAllocs(out)
@@ -2650,11 +2887,11 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 	node := mock.Node()
 	node.Drain = true
 	node.Status = structs.NodeStatusDown
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Generate a fake job with allocations
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -2665,7 +2902,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Set the desired state of the allocs to stop
 	var stop []*structs.Allocation
@@ -2675,7 +2912,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 		newAlloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 		stop = append(stop, newAlloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), stop))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), stop))
 
 	// Mark some of the allocations as running
 	var running []*structs.Allocation
@@ -2684,7 +2921,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 		newAlloc.ClientStatus = structs.AllocClientStatusRunning
 		running = append(running, newAlloc)
 	}
-	noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), running))
+	require.NoError(t, h.State.UpdateAllocsFromClient(h.NextIndex(), running))
 
 	// Mark some of the allocations as complete
 	var complete []*structs.Allocation
@@ -2703,7 +2940,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 		newAlloc.ClientStatus = structs.AllocClientStatusComplete
 		complete = append(complete, newAlloc)
 	}
-	noErr(t, h.State.UpdateAllocsFromClient(h.NextIndex(), complete))
+	require.NoError(t, h.State.UpdateAllocsFromClient(h.NextIndex(), complete))
 
 	// Create a mock evaluation to deal with the node update
 	eval := &structs.Evaluation{
@@ -2716,7 +2953,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2761,12 +2998,12 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 
 	// Register a draining node
 	node := mock.Node()
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Generate a fake job with allocations and an update policy.
 	job := mock.Job()
 	job.TaskGroups[0].Count = 2
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 2; i++ {
@@ -2778,10 +3015,10 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 		alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	node.Drain = true
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -2793,7 +3030,7 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 		NodeID:      node.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2814,12 +3051,12 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Create a job
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -2830,7 +3067,7 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2846,7 +3083,7 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure no allocations placed
 	if len(out) != 0 {
@@ -2865,7 +3102,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations and an update policy.
@@ -2881,7 +3118,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 	tgName := job.TaskGroups[0].Name
 	now := time.Now()
 
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 2; i++ {
@@ -2900,7 +3137,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 	failedAllocID := allocs[1].ID
 	successAllocID := allocs[0].ID
 
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation
 	eval := &structs.Evaluation{
@@ -2911,7 +3148,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -2927,7 +3164,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Verify that one new allocation got created with its restart tracker info
 	assert := assert.New(t)
@@ -2945,7 +3182,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 	// Mark this alloc as failed again, should not get rescheduled
 	newAlloc.ClientStatus = structs.AllocClientStatusFailed
 
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{newAlloc}))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{newAlloc}))
 
 	// Create another mock evaluation
 	eval = &structs.Evaluation{
@@ -2956,14 +3193,14 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err = h.Process(NewServiceScheduler, eval)
 	assert.Nil(err)
 	// Verify no new allocs were created this time
 	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 	assert.Equal(3, len(out))
 
 }
@@ -2977,7 +3214,7 @@ func TestServiceSched_Reschedule_Later(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations and an update policy.
@@ -2994,7 +3231,7 @@ func TestServiceSched_Reschedule_Later(t *testing.T) {
 	tgName := job.TaskGroups[0].Name
 	now := time.Now()
 
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 2; i++ {
@@ -3012,7 +3249,7 @@ func TestServiceSched_Reschedule_Later(t *testing.T) {
 		FinishedAt: now}}
 	failedAllocID := allocs[1].ID
 
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation
 	eval := &structs.Evaluation{
@@ -3023,7 +3260,7 @@ func TestServiceSched_Reschedule_Later(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -3039,7 +3276,7 @@ func TestServiceSched_Reschedule_Later(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(err)
 
 	// Verify no new allocs were created
 	require.Equal(2, len(out))
@@ -3065,7 +3302,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	maxRestartAttempts := 3
@@ -3081,7 +3318,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 	tgName := job.TaskGroups[0].Name
 	now := time.Now()
 
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 2; i++ {
@@ -3099,7 +3336,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 		StartedAt:  now.Add(-1 * time.Hour),
 		FinishedAt: now.Add(-10 * time.Second)}}
 
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation
 	eval := &structs.Evaluation{
@@ -3110,7 +3347,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	expectedNumAllocs := 3
 	expectedNumReschedTrackers := 1
@@ -3122,7 +3359,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 	for i := 0; i < maxRestartAttempts; i++ {
 		// Process the evaluation
 		err := h.Process(NewServiceScheduler, eval)
-		noErr(t, err)
+		require.NoError(t, err)
 
 		// Ensure multiple plans
 		if len(h.Plans) == 0 {
@@ -3132,7 +3369,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 		// Lookup the allocations by JobID
 		ws := memdb.NewWatchSet()
 		out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-		noErr(t, err)
+		require.NoError(t, err)
 
 		// Verify that a new allocation got created with its restart tracker info
 		assert.Equal(expectedNumAllocs, len(out))
@@ -3170,7 +3407,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 		failedAllocId = newAlloc.ID
 		failedNodeID = newAlloc.NodeID
 
-		noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{newAlloc}))
+		require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{newAlloc}))
 
 		// Create another mock evaluation
 		eval = &structs.Evaluation{
@@ -3181,7 +3418,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 			JobID:       job.ID,
 			Status:      structs.EvalStatusPending,
 		}
-		noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+		require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 		expectedNumAllocs += 1
 		expectedNumReschedTrackers += 1
 	}
@@ -3193,7 +3430,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 	// Verify no new allocs were created because restart attempts were exhausted
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 	assert.Equal(5, len(out)) // 2 original, plus 3 reschedule attempts
 }
 
@@ -3206,7 +3443,7 @@ func TestServiceSched_Reschedule_PruneEvents(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations and an update policy.
@@ -3218,7 +3455,7 @@ func TestServiceSched_Reschedule_PruneEvents(t *testing.T) {
 		Delay:         5 * time.Second,
 		Unlimited:     true,
 	}
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 2; i++ {
@@ -3275,7 +3512,7 @@ func TestServiceSched_Reschedule_PruneEvents(t *testing.T) {
 	failedAllocID := allocs[1].ID
 	successAllocID := allocs[0].ID
 
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation
 	eval := &structs.Evaluation{
@@ -3286,7 +3523,7 @@ func TestServiceSched_Reschedule_PruneEvents(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -3302,7 +3539,7 @@ func TestServiceSched_Reschedule_PruneEvents(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Verify that one new allocation got created with its restart tracker info
 	assert := assert.New(t)
@@ -3339,7 +3576,7 @@ func TestDeployment_FailedAllocs_Reschedule(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				node := mock.Node()
 				nodes = append(nodes, node)
-				noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+				require.NoError(h.State.UpsertNode(h.NextIndex(), node))
 			}
 
 			// Generate a fake job with allocations and a reschedule policy.
@@ -3420,13 +3657,13 @@ func TestBatchSched_Run_CompleteAlloc(t *testing.T) {
 
 	// Create a node
 	node := mock.Node()
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create a job
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.TaskGroups[0].Count = 1
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a complete alloc
 	alloc := mock.Alloc()
@@ -3435,7 +3672,7 @@ func TestBatchSched_Run_CompleteAlloc(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
 	alloc.ClientStatus = structs.AllocClientStatusComplete
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -3446,7 +3683,7 @@ func TestBatchSched_Run_CompleteAlloc(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -3462,7 +3699,7 @@ func TestBatchSched_Run_CompleteAlloc(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure no allocations placed
 	if len(out) != 1 {
@@ -3477,13 +3714,13 @@ func TestBatchSched_Run_FailedAlloc(t *testing.T) {
 
 	// Create a node
 	node := mock.Node()
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create a job
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.TaskGroups[0].Count = 1
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	tgName := job.TaskGroups[0].Name
 	now := time.Now()
@@ -3498,7 +3735,7 @@ func TestBatchSched_Run_FailedAlloc(t *testing.T) {
 	alloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
 		StartedAt:  now.Add(-1 * time.Hour),
 		FinishedAt: now.Add(-10 * time.Second)}}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -3509,7 +3746,7 @@ func TestBatchSched_Run_FailedAlloc(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -3525,7 +3762,7 @@ func TestBatchSched_Run_FailedAlloc(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure a replacement alloc was placed.
 	if len(out) != 2 {
@@ -3547,14 +3784,14 @@ func TestBatchSched_Run_LostAlloc(t *testing.T) {
 
 	// Create a node
 	node := mock.Node()
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create a job
 	job := mock.Job()
 	job.ID = "my-job"
 	job.Type = structs.JobTypeBatch
 	job.TaskGroups[0].Count = 3
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Desired = 3
 	// Mark one as lost and then schedule
@@ -3581,7 +3818,7 @@ func TestBatchSched_Run_LostAlloc(t *testing.T) {
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc.ClientStatus = structs.AllocClientStatusComplete
 	allocs = append(allocs, alloc)
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -3592,7 +3829,7 @@ func TestBatchSched_Run_LostAlloc(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -3608,7 +3845,7 @@ func TestBatchSched_Run_LostAlloc(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure a replacement alloc was placed.
 	if len(out) != 4 {
@@ -3635,13 +3872,13 @@ func TestBatchSched_Run_FailedAllocQueuedAllocations(t *testing.T) {
 
 	node := mock.Node()
 	node.Drain = true
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create a job
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.TaskGroups[0].Count = 1
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	tgName := job.TaskGroups[0].Name
 	now := time.Now()
@@ -3656,7 +3893,7 @@ func TestBatchSched_Run_FailedAllocQueuedAllocations(t *testing.T) {
 	alloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
 		StartedAt:  now.Add(-1 * time.Hour),
 		FinishedAt: now.Add(-10 * time.Second)}}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -3667,7 +3904,7 @@ func TestBatchSched_Run_FailedAllocQueuedAllocations(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -3691,14 +3928,14 @@ func TestBatchSched_ReRun_SuccessfullyFinishedAlloc(t *testing.T) {
 	node := mock.Node()
 	node.Drain = true
 	node2 := mock.Node()
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node2))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node2))
 
 	// Create a job
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.TaskGroups[0].Count = 1
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a successful alloc
 	alloc := mock.Alloc()
@@ -3718,7 +3955,7 @@ func TestBatchSched_ReRun_SuccessfullyFinishedAlloc(t *testing.T) {
 			},
 		},
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to rerun the job
 	eval := &structs.Evaluation{
@@ -3729,7 +3966,7 @@ func TestBatchSched_ReRun_SuccessfullyFinishedAlloc(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -3745,7 +3982,7 @@ func TestBatchSched_ReRun_SuccessfullyFinishedAlloc(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	// Ensure no replacement alloc was placed.
 	if len(out) != 1 {
@@ -3765,13 +4002,13 @@ func TestBatchSched_JobModify_InPlace_Terminal(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -3783,7 +4020,7 @@ func TestBatchSched_JobModify_InPlace_Terminal(t *testing.T) {
 		alloc.ClientStatus = structs.AllocClientStatusComplete
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation to trigger the job
 	eval := &structs.Evaluation{
@@ -3794,7 +4031,7 @@ func TestBatchSched_JobModify_InPlace_Terminal(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -3817,13 +4054,13 @@ func TestBatchSched_JobModify_Destructive_Terminal(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -3835,7 +4072,7 @@ func TestBatchSched_JobModify_Destructive_Terminal(t *testing.T) {
 		alloc.ClientStatus = structs.AllocClientStatusComplete
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Update the job
 	job2 := mock.Job()
@@ -3843,7 +4080,7 @@ func TestBatchSched_JobModify_Destructive_Terminal(t *testing.T) {
 	job2.Type = structs.JobTypeBatch
 	job2.Version++
 	job2.TaskGroups[0].Tasks[0].Env = map[string]string{"foo": "bar"}
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job2))
 
 	allocs = nil
 	for i := 0; i < 10; i++ {
@@ -3866,7 +4103,7 @@ func TestBatchSched_JobModify_Destructive_Terminal(t *testing.T) {
 		}
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -3877,7 +4114,7 @@ func TestBatchSched_JobModify_Destructive_Terminal(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -3901,14 +4138,14 @@ func TestBatchSched_NodeDrain_Running_OldJob(t *testing.T) {
 	node := mock.Node()
 	node.Drain = true
 	node2 := mock.Node()
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node2))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node2))
 
 	// Create a job
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.TaskGroups[0].Count = 1
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a running alloc
 	alloc := mock.Alloc()
@@ -3917,13 +4154,13 @@ func TestBatchSched_NodeDrain_Running_OldJob(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
 	alloc.ClientStatus = structs.AllocClientStatusRunning
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create an update job
 	job2 := job.Copy()
 	job2.TaskGroups[0].Tasks[0].Env = map[string]string{"foo": "bar"}
 	job2.Version++
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job2))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -3935,7 +4172,7 @@ func TestBatchSched_NodeDrain_Running_OldJob(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -3973,14 +4210,14 @@ func TestBatchSched_NodeDrain_Complete(t *testing.T) {
 	node := mock.Node()
 	node.Drain = true
 	node2 := mock.Node()
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node2))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node2))
 
 	// Create a job
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.TaskGroups[0].Count = 1
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a complete alloc
 	alloc := mock.Alloc()
@@ -3999,7 +4236,7 @@ func TestBatchSched_NodeDrain_Complete(t *testing.T) {
 			},
 		},
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -4011,7 +4248,7 @@ func TestBatchSched_NodeDrain_Complete(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -4035,13 +4272,13 @@ func TestBatchSched_ScaleDown_SameName(t *testing.T) {
 
 	// Create a node
 	node := mock.Node()
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create a job
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.TaskGroups[0].Count = 1
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	scoreMetric := &structs.AllocMetric{
 		NodesEvaluated: 10,
@@ -4067,12 +4304,12 @@ func TestBatchSched_ScaleDown_SameName(t *testing.T) {
 		alloc.Metrics = scoreMetric
 		allocs = append(allocs, alloc)
 	}
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
 	// Update the job's modify index to force an inplace upgrade
 	updatedJob := job.Copy()
 	updatedJob.JobModifyIndex = job.JobModifyIndex + 1
-	noErr(t, h.State.UpsertJob(h.NextIndex(), updatedJob))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), updatedJob))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -4084,7 +4321,7 @@ func TestBatchSched_ScaleDown_SameName(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewBatchScheduler, eval)
@@ -4118,12 +4355,12 @@ func TestGenericSched_ChainedAlloc(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
 
 	// Create a job
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -4134,7 +4371,7 @@ func TestGenericSched_ChainedAlloc(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 	// Process the evaluation
 	if err := h.Process(NewServiceScheduler, eval); err != nil {
 		t.Fatalf("err: %v", err)
@@ -4154,7 +4391,7 @@ func TestGenericSched_ChainedAlloc(t *testing.T) {
 	job1.ID = job.ID
 	job1.TaskGroups[0].Tasks[0].Env["foo"] = "bar"
 	job1.TaskGroups[0].Count = 12
-	noErr(t, h1.State.UpsertJob(h1.NextIndex(), job1))
+	require.NoError(t, h1.State.UpsertJob(h1.NextIndex(), job1))
 
 	// Create a mock evaluation to update the job
 	eval1 := &structs.Evaluation{
@@ -4165,7 +4402,7 @@ func TestGenericSched_ChainedAlloc(t *testing.T) {
 		JobID:       job1.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval1}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval1}))
 
 	// Process the evaluation
 	if err := h1.Process(NewServiceScheduler, eval1); err != nil {
@@ -4207,7 +4444,7 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 	// Register a draining node
 	node := mock.Node()
 	node.Drain = true
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create an alloc on the draining node
 	alloc := mock.Alloc()
@@ -4216,8 +4453,8 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 	alloc.Job.TaskGroups[0].Count = 1
 	alloc.Job.TaskGroups[0].EphemeralDisk.Sticky = true
 	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
-	noErr(t, h.State.UpsertJob(h.NextIndex(), alloc.Job))
-	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), alloc.Job))
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -4230,7 +4467,7 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -4271,14 +4508,14 @@ func TestServiceSched_CancelDeployment_Stopped(t *testing.T) {
 	job.JobModifyIndex = job.CreateIndex + 1
 	job.ModifyIndex = job.CreateIndex + 1
 	job.Stop = true
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a deployment
 	d := mock.Deployment()
 	d.JobID = job.ID
 	d.JobCreateIndex = job.CreateIndex
 	d.JobModifyIndex = job.JobModifyIndex - 1
-	noErr(t, h.State.UpsertDeployment(h.NextIndex(), d))
+	require.NoError(t, h.State.UpsertDeployment(h.NextIndex(), d))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -4290,7 +4527,7 @@ func TestServiceSched_CancelDeployment_Stopped(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -4307,7 +4544,7 @@ func TestServiceSched_CancelDeployment_Stopped(t *testing.T) {
 	// Ensure the plan cancelled the existing deployment
 	ws := memdb.NewWatchSet()
 	out, err := h.State.LatestDeploymentByJobID(ws, job.Namespace, job.ID)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	if out == nil {
 		t.Fatalf("No deployment for job")
@@ -4342,15 +4579,15 @@ func TestServiceSched_CancelDeployment_NewerJob(t *testing.T) {
 
 	// Generate a fake job
 	job := mock.Job()
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a deployment for an old version of the job
 	d := mock.Deployment()
 	d.JobID = job.ID
-	noErr(t, h.State.UpsertDeployment(h.NextIndex(), d))
+	require.NoError(t, h.State.UpsertDeployment(h.NextIndex(), d))
 
 	// Upsert again to bump job version
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	// Create a mock evaluation to kick the job
 	eval := &structs.Evaluation{
@@ -4362,7 +4599,7 @@ func TestServiceSched_CancelDeployment_NewerJob(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -4379,7 +4616,7 @@ func TestServiceSched_CancelDeployment_NewerJob(t *testing.T) {
 	// Ensure the plan cancelled the existing deployment
 	ws := memdb.NewWatchSet()
 	out, err := h.State.LatestDeploymentByJobID(ws, job.Namespace, job.ID)
-	noErr(t, err)
+	require.NoError(t, err)
 
 	if out == nil {
 		t.Fatalf("No deployment for job")

@@ -25,6 +25,7 @@ var (
 		"args": []interface{}{
 			"-c", structs.EnvoyBootstrapPath,
 			"-l", "${meta.connect.log_level}",
+			"--disable-hot-restart",
 		},
 	}
 
@@ -35,8 +36,8 @@ var (
 	connectVersionConstraint = func() *structs.Constraint {
 		return &structs.Constraint{
 			LTarget: "${attr.consul.version}",
-			RTarget: ">= 1.6.0beta1",
-			Operand: "version",
+			RTarget: ">= 1.6.0-beta1",
+			Operand: structs.ConstraintSemver,
 		}
 	}
 )
@@ -50,7 +51,16 @@ func (jobConnectHook) Name() string {
 
 func (jobConnectHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []error, err error) {
 	for _, g := range job.TaskGroups {
-		if err := groupConnectHook(g); err != nil {
+		// TG isn't validated yet, but validation
+		// may depend on mutation results.
+		// Do basic validation here and skip mutation,
+		// so Validate can return a meaningful error
+		// messages
+		if len(g.Networks) == 0 {
+			continue
+		}
+
+		if err := groupConnectHook(job, g); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -87,7 +97,7 @@ func isSidecarForService(t *structs.Task, svc string) bool {
 	return t.Kind == structs.TaskKind(fmt.Sprintf("%s:%s", structs.ConnectProxyPrefix, svc))
 }
 
-func groupConnectHook(g *structs.TaskGroup) error {
+func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 	for _, service := range g.Services {
 		if service.Connect.HasSidecar() {
 			// Check to see if the sidecar task already exists
@@ -95,7 +105,7 @@ func groupConnectHook(g *structs.TaskGroup) error {
 
 			// If the task doesn't already exist, create a new one and add it to the job
 			if task == nil {
-				task = newConnectTask(service)
+				task = newConnectTask(service.Name)
 
 				// If there happens to be a task defined with the same name
 				// append an UUID fragment to the task name
@@ -111,6 +121,9 @@ func groupConnectHook(g *structs.TaskGroup) error {
 			if service.Connect.SidecarTask != nil {
 				service.Connect.SidecarTask.MergeIntoTask(task)
 			}
+
+			// Canonicalize task since this mutator runs after job canonicalization
+			task.Canonicalize(job, g)
 
 			// port to be added for the sidecar task's proxy port
 			port := structs.Port{
@@ -133,17 +146,16 @@ func groupConnectHook(g *structs.TaskGroup) error {
 			if !found {
 				g.Networks[0].DynamicPorts = append(g.Networks[0].DynamicPorts, port)
 			}
-			return nil
 		}
 	}
 	return nil
 }
 
-func newConnectTask(service *structs.Service) *structs.Task {
+func newConnectTask(serviceName string) *structs.Task {
 	task := &structs.Task{
 		// Name is used in container name so must start with '[A-Za-z0-9]'
-		Name:          fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name),
-		Kind:          structs.TaskKind(fmt.Sprintf("%s:%s", structs.ConnectProxyPrefix, service.Name)),
+		Name:          fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, serviceName),
+		Kind:          structs.TaskKind(fmt.Sprintf("%s:%s", structs.ConnectProxyPrefix, serviceName)),
 		Driver:        "docker",
 		Config:        connectDriverConfig,
 		ShutdownDelay: 5 * time.Second,

@@ -8,17 +8,18 @@ description: >
 
 # Command: job eval
 
-The `job eval` command is used to force an evaluation of a job, given the job ID.
+The `job eval` command is used to force an evaluation of a job, given the job
+ID.
 
 ## Usage
 
-```
+```plaintext
 nomad job eval [options] <job_id>
 ```
 
-The `job eval` command requires a single argument, specifying the job ID to evaluate.
-If there is an exact match based on the provided job ID, then
-the job will be evaluated, forcing a scheduler run.
+The `job eval` command requires a single argument, specifying the job ID to
+evaluate. If there is an exact match based on the provided job ID, then the job
+will be evaluated, forcing a scheduler run.
 
 ## General Options
 
@@ -26,22 +27,23 @@ the job will be evaluated, forcing a scheduler run.
 
 ## Eval Options
 
-* `-force-reschedule`: `force-reschedule` is used to force placement of failed allocations.
-If this is set, failed allocations that are past their reschedule limit, and those that are
-scheduled to be replaced at a future time are placed immediately. This option only places failed
-allocations if the task group has rescheduling enabled.
+- `-force-reschedule`: `force-reschedule` is used to force placement of failed
+  allocations. If this is set, failed allocations that are past their reschedule
+  limit, and those that are scheduled to be replaced at a future time are placed
+  immediately. This option only places failed allocations if the task group has
+  rescheduling enabled.
 
-* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+- `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
-  [eval status](/docs/commands/eval-status.html) command
+  [eval status] command.
 
-* `-verbose`: Show full information.
+- `-verbose`: Show full information.
 
 ## Examples
 
 Evaluate the job with ID "job1":
 
-```
+```shell
 $ nomad job eval job1
 ==> Monitoring evaluation "0f3bc0f3"
     Evaluation triggered by job "test"
@@ -52,14 +54,14 @@ $ nomad job eval job1
 
 Evaluate the job with ID "job1" and return immediately:
 
-```
+```shell
 $ nomad job eval -detach job1
 Created eval ID: "4947e728"
 ```
 
 Evaluate the job with ID "job1", and reschedule any eligible failed allocations:
 
-```
+```shell
 $ nomad job eval -force-reschedule job1
 ==> Monitoring evaluation "0f3bc0f3"
     Evaluation triggered by job "test"
@@ -67,3 +69,5 @@ $ nomad job eval -force-reschedule job1
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "0f3bc0f3" finished with status "complete"
 ```
+
+[eval status]: /docs/commands/eval-status.html

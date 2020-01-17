@@ -14,11 +14,12 @@ import (
 
 func TestPeriodicEndpoint_Force(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
+	defer cleanupS1()
 	state := s1.fsm.State()
-	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -64,10 +65,11 @@ func TestPeriodicEndpoint_Force(t *testing.T) {
 
 func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, func(c *Config) {
+
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	state := s1.fsm.State()
 	assert := assert.New(t)
 	codec := rpcClient(t, s1)
@@ -144,11 +146,12 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 
 func TestPeriodicEndpoint_Force_NonPeriodic(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
+	defer cleanupS1()
 	state := s1.fsm.State()
-	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 

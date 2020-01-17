@@ -91,6 +91,8 @@ func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
 			require.Fail("timed-out waiting for job to complete")
 		})
 
+		nodeID := s.client.NodeID()
+
 		// wait for metrics to converge
 		var pending, running, terminal float32 = -1.0, -1.0, -1.0
 		testutil.WaitForResultRetries(100, func() (bool, error) {
@@ -106,6 +108,13 @@ func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
 
 			metrics := obj.(metrics.MetricsSummary)
 			for _, g := range metrics.Gauges {
+
+				// ignore client metrics belonging to other test nodes
+				// from other tests that contaminate go-metrics reporting
+				if g.DisplayLabels["node_id"] != nodeID {
+					continue
+				}
+
 				if strings.HasSuffix(g.Name, "client.allocations.pending") {
 					pending = g.Value
 				}
@@ -121,7 +130,7 @@ func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
 				terminal == float32(numTasks), nil
 		}, func(err error) {
 			require.Fail("timed out waiting for metrics to converge",
-				"pending: %v, running: %v, terminal: %v", pending, running, terminal)
+				"expected: (pending: 0, running: 0, terminal: %v), got: (pending: %v, running: %v, terminal: %v)", numTasks, pending, running, terminal)
 		})
 	})
 }

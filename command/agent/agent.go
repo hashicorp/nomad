@@ -53,7 +53,7 @@ type Agent struct {
 	config     *Config
 	configLock sync.Mutex
 
-	logger     log.Logger
+	logger     log.InterceptLogger
 	httpLogger log.Logger
 	logOutput  io.Writer
 
@@ -87,7 +87,7 @@ type Agent struct {
 }
 
 // NewAgent is used to create a new agent with the given configuration
-func NewAgent(config *Config, logger log.Logger, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
+func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
 	a := &Agent{
 		config:     config,
 		logOutput:  logOutput,
@@ -132,6 +132,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf = nomad.DefaultConfig()
 	}
 	conf.DevMode = agentConfig.DevMode
+	conf.EnableDebug = agentConfig.EnableDebug
+
 	conf.Build = agentConfig.Version.VersionNumber()
 	if agentConfig.Region != "" {
 		conf.Region = agentConfig.Region
@@ -433,6 +435,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.Servers = agentConfig.Client.Servers
 	conf.LogLevel = agentConfig.LogLevel
 	conf.DevMode = agentConfig.DevMode
+	conf.EnableDebug = agentConfig.EnableDebug
+
 	if agentConfig.Region != "" {
 		conf.Region = agentConfig.Region
 	}
@@ -830,40 +834,6 @@ func (a *Agent) reservePortsForClient(conf *clientconfig.Config) error {
 	}
 	conf.Node.ReservedResources.Networks.ReservedHostPorts = res
 	return nil
-}
-
-// findLoopbackDevice iterates through all the interfaces on a machine and
-// returns the ip addr, mask of the loopback device
-func (a *Agent) findLoopbackDevice() (string, string, string, error) {
-	var ifcs []net.Interface
-	var err error
-	ifcs, err = net.Interfaces()
-	if err != nil {
-		return "", "", "", err
-	}
-	for _, ifc := range ifcs {
-		addrs, err := ifc.Addrs()
-		if err != nil {
-			return "", "", "", err
-		}
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			if ip.IsLoopback() {
-				if ip.To4() == nil {
-					continue
-				}
-				return ifc.Name, ip.String(), addr.String(), nil
-			}
-		}
-	}
-
-	return "", "", "", fmt.Errorf("no loopback devices with IPV4 addr found")
 }
 
 // Leave is used gracefully exit. Clients will inform servers

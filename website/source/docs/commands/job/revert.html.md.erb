@@ -9,25 +9,24 @@ description: >
 # Command: job revert
 
 The `job revert` command is used to revert a job to a prior version of the
-job. The available versions to revert to can be found using [`job
-history`](/docs/commands/job/history.html) command.
+job. The available versions to revert to can be found using [`job history`]
+command.
 
 The revert command will use a Vault token with the following preference:
 first the `-vault-token` flag, then the `$VAULT_TOKEN` environment variable.
-Because the vault token used to [run](/docs/commands/job/run.html) the targeted
-job version was not persisted, it must be provided to revert if the targeted
-job version includes Vault policies and the Nomad servers were
-[configured](/docs/configuration/vault.html#allow_unauthenticated)
-to require authentication.
+Because the vault token used to [run] the targeted job version was not
+persisted, it must be provided to revert if the targeted job version includes
+Vault policies and the Nomad servers were configured to
+[require authentication].
 
 ## Usage
 
-```
+```plaintext
 nomad job revert [options] <job> <version>
 ```
 
-The `job revert` command requires two inputs, the job ID and the version of that job
-to revert to.
+The `job revert` command requires two inputs, the job ID and the version of that
+job to revert to.
 
 ## General Options
 
@@ -35,21 +34,21 @@ to revert to.
 
 ## Revert Options
 
-* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+- `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
-  [eval status](/docs/commands/eval-status.html) command
+  [eval status] command.
 
-* `-vault-token`: If set, the passed Vault token is sent along with the revert request
-  to the Nomad servers. This overrides the token found in the $VAULT_TOKEN environment
-  variable.
+- `-vault-token`: If set, the passed Vault token is sent along with the revert
+  request to the Nomad servers. This overrides the token found in the
+  $VAULT_TOKEN environment variable.
 
-* `-verbose`: Show full information.
+- `-verbose`: Show full information.
 
 ## Examples
 
 Revert to an older version of a job:
 
-```
+```shell
 $ nomad job history -p example
 Version     = 1
 Stable      = false
@@ -104,3 +103,8 @@ Version     = 0
 Stable      = false
 Submit Date = 07/25/17 21:27:18 UTC
 ```
+
+[`job history`]: /docs/commands/job/history.html
+[eval status]: /docs/commands/eval-status.html
+[require authentication]: /docs/configuration/vault.html#allow_unauthenticated
+[run]: /docs/commands/job/run.html

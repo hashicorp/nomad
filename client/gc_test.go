@@ -351,8 +351,8 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 	const maxAllocs = 6
 	require := require.New(t)
 
-	server, serverAddr := testServer(t, nil)
-	defer server.Shutdown()
+	server, serverAddr, cleanupS := testServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, server.RPC)
 
 	client, cleanup := TestClient(t, func(c *config.Config) {

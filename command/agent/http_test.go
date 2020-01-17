@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strconv"
 	"testing"
 	"time"
 
@@ -21,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/ugorji/go/codec"
 )
 
@@ -59,6 +59,58 @@ func BenchmarkHTTPRequests(b *testing.B) {
 			s.Server.wrap(handler)(resp, req)
 		}
 	})
+}
+
+// TestRootFallthrough tests rootFallthrough handler to
+// verify redirect and 404 behavior
+func TestRootFallthrough(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		desc         string
+		path         string
+		expectedPath string
+		expectedCode int
+	}{
+		{
+			desc:         "unknown endpoint 404s",
+			path:         "/v1/unknown/endpoint",
+			expectedCode: 404,
+		},
+		{
+			desc:         "root path redirects to ui",
+			path:         "/",
+			expectedPath: "/ui/",
+			expectedCode: 307,
+		},
+	}
+
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	// setup a client that doesn't follow redirects
+	client := &http.Client{
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+
+			reqURL := fmt.Sprintf("http://%s%s", s.Agent.config.AdvertiseAddrs.HTTP, tc.path)
+
+			resp, err := client.Get(reqURL)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedCode, resp.StatusCode)
+
+			if tc.expectedPath != "" {
+				loc, err := resp.Location()
+				require.NoError(t, err)
+				require.Equal(t, tc.expectedPath, loc.Path)
+			}
+		})
+	}
 }
 
 func TestSetIndex(t *testing.T) {
@@ -164,6 +216,60 @@ func TestContentTypeIsJSON(t *testing.T) {
 	if contentType != "application/json" {
 		t.Fatalf("Content-Type header was not 'application/json'")
 	}
+}
+
+func TestWrapNonJSON(t *testing.T) {
+	t.Parallel()
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	resp := httptest.NewRecorder()
+
+	handler := func(resp http.ResponseWriter, req *http.Request) ([]byte, error) {
+		return []byte("test response"), nil
+	}
+
+	req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
+	s.Server.wrapNonJSON(handler)(resp, req)
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	require.Equal(t, respBody, []byte("test response"))
+
+}
+
+func TestWrapNonJSON_Error(t *testing.T) {
+	t.Parallel()
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	handlerRPCErr := func(resp http.ResponseWriter, req *http.Request) ([]byte, error) {
+		return nil, structs.NewErrRPCCoded(404, "not found")
+	}
+
+	handlerCodedErr := func(resp http.ResponseWriter, req *http.Request) ([]byte, error) {
+		return nil, CodedError(422, "unprocessable")
+	}
+
+	// RPC coded error
+	{
+		resp := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
+		s.Server.wrapNonJSON(handlerRPCErr)(resp, req)
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		require.Equal(t, []byte("not found"), respBody)
+		require.Equal(t, 404, resp.Code)
+	}
+
+	// CodedError
+	{
+		resp := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
+		s.Server.wrapNonJSON(handlerCodedErr)(resp, req)
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		require.Equal(t, []byte("unprocessable"), respBody)
+		require.Equal(t, 422, resp.Code)
+	}
+
 }
 
 func TestPrettyPrint(t *testing.T) {
@@ -525,23 +631,6 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	}
 }
 
-// assertIndex tests that X-Nomad-Index is set and non-zero
-func assertIndex(t *testing.T, resp *httptest.ResponseRecorder) {
-	header := resp.Header().Get("X-Nomad-Index")
-	if header == "" || header == "0" {
-		t.Fatalf("Bad: %v", header)
-	}
-}
-
-// checkIndex is like assertIndex but returns an error
-func checkIndex(resp *httptest.ResponseRecorder) error {
-	header := resp.Header().Get("X-Nomad-Index")
-	if header == "" || header == "0" {
-		return fmt.Errorf("Bad: %v", header)
-	}
-	return nil
-}
-
 func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
@@ -642,19 +731,6 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 		resp.Body.Close()
 		assert.Equal(resp.StatusCode, 200)
 	}
-}
-
-// getIndex parses X-Nomad-Index
-func getIndex(t *testing.T, resp *httptest.ResponseRecorder) uint64 {
-	header := resp.Header().Get("X-Nomad-Index")
-	if header == "" {
-		t.Fatalf("Bad: %v", header)
-	}
-	val, err := strconv.Atoi(header)
-	if err != nil {
-		t.Fatalf("Bad: %v", header)
-	}
-	return uint64(val)
 }
 
 func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {

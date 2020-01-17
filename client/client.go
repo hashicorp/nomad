@@ -95,7 +95,8 @@ const (
 
 	// defaultConnectSidecarImage is the image set in the node meta by default
 	// to be used by Consul Connect sidecar tasks
-	defaultConnectSidecarImage = "envoyproxy/envoy:v1.11.1"
+	// Update sidecar_task.html when updating this.
+	defaultConnectSidecarImage = "envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09"
 
 	// defaultConnectLogLevel is the log level set in the node meta by default
 	// to be used by Consul Connect sidecar tasks
@@ -162,7 +163,7 @@ type Client struct {
 	configCopy *config.Config
 	configLock sync.RWMutex
 
-	logger    hclog.Logger
+	logger    hclog.InterceptLogger
 	rpcLogger hclog.Logger
 
 	connPool *pool.ConnPool
@@ -303,7 +304,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	}
 
 	// Create the logger
-	logger := cfg.Logger.ResetNamed("client")
+	logger := cfg.Logger.ResetNamedIntercept("client")
 
 	// Create the client
 	c := &Client{
@@ -2591,12 +2592,11 @@ func (c *Client) emitStats() {
 			next.Reset(c.config.StatsCollectionInterval)
 			if err != nil {
 				c.logger.Warn("error fetching host resource usage stats", "error", err)
-				continue
-			}
-
-			// Publish Node metrics if operator has opted in
-			if c.config.PublishNodeMetrics {
-				c.emitHostStats()
+			} else {
+				// Publish Node metrics if operator has opted in
+				if c.config.PublishNodeMetrics {
+					c.emitHostStats()
+				}
 			}
 
 			c.emitClientMetrics()

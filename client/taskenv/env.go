@@ -547,6 +547,9 @@ func (b *Builder) SetDeviceHookEnv(hookName string, envs map[string]string) *Bui
 // setTask is called from NewBuilder to populate task related environment
 // variables.
 func (b *Builder) setTask(task *structs.Task) *Builder {
+	if task == nil {
+		return b
+	}
 	b.taskName = task.Name
 	b.envvars = make(map[string]string, len(task.Env))
 	for k, v := range task.Env {
@@ -629,6 +632,17 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 				for _, p := range nw.DynamicPorts {
 					addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
 				}
+			}
+		}
+
+		// Add ports from group networks
+		//TODO Expose IPs but possibly only via variable interpolation
+		for _, nw := range alloc.AllocatedResources.Shared.Networks {
+			for _, p := range nw.ReservedPorts {
+				addGroupPort(b.otherPorts, p)
+			}
+			for _, p := range nw.DynamicPorts {
+				addGroupPort(b.otherPorts, p)
 			}
 		}
 	} else if alloc.TaskResources != nil {
@@ -848,4 +862,16 @@ func addPort(m map[string]string, taskName, ip, portLabel string, port int) {
 	m[key] = ip
 	key = fmt.Sprintf("%s%s_%s", PortPrefix, taskName, portLabel)
 	m[key] = strconv.Itoa(port)
+}
+
+// addGroupPort adds a group network port. The To value is used if one is
+// specified.
+func addGroupPort(m map[string]string, port structs.Port) {
+	if port.To > 0 {
+		m[PortPrefix+port.Label] = strconv.Itoa(port.To)
+	} else {
+		m[PortPrefix+port.Label] = strconv.Itoa(port.Value)
+	}
+
+	m[HostPortPrefix+port.Label] = strconv.Itoa(port.Value)
 }

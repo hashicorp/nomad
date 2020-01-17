@@ -131,4 +131,4 @@ In the event of a region-level failure (which would contain an entire Nomad serv
   the steps required to install and configure a single HashiCorp Nomad cluster.
 
 [acl]: /guides/security/acl.html
-[sentinel]: /guides/governance-and-policy/sentinel/sentinel-policy.html
+[sentinel]: https://learn.hashicorp.com/nomad/governance-and-policy/sentinel

@@ -4,7 +4,7 @@ page_title: "spread Stanza - Job Specification"
 sidebar_current: "docs-job-specification-spread"
 description: |-
   The "spread" stanza is used to spread placements across a certain node attributes such as datacenter.
-  Spread may be specified at the job, group, or task levels for ultimate flexibility.
+  Spread may be specified at the job or group levels for ultimate flexibility.
   More than one spread stanza may be specified with relative weights between each.
 ---
 
@@ -17,8 +17,6 @@ description: |-
       <code>job -> **spread**</code>
       <br>
       <code>job -> group -> **spread**</code>
-      <br>
-      <code>job -> group -> task -> **spread**</code>
     </td>
   </tr>
 </table>
@@ -62,7 +60,7 @@ Spread criteria are treated as a soft preference by the Nomad scheduler.
 If no nodes match a given spread criteria, placement is still successful.
 
 Spread may be expressed on [attributes][interpolation] or [client metadata][client-meta].
-Additionally, spread may be specified at the [job][job] and [group][group] levels for ultimate flexibility.
+Additionally, spread may be specified at the [job][job] and [group][group] levels for ultimate flexibility. Job level spread criteria are inherited by all task groups in the job.
 
 
 ## `spread` Parameters

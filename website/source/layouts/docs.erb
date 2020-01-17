@@ -231,6 +231,9 @@
               </li>
             </ul>
           </li>
+          <li <%=sidebar_current("docs-commands-monitor") %>>
+            <a href="/docs/commands/monitor.html">monitor</a>
+          </li>
           <li<%= sidebar_current("docs-commands-namespace") %>>
             <a href="/docs/commands/namespace.html">namespace</a>
             <ul class="nav">
@@ -347,6 +350,17 @@
           </li>
           <li<%= sidebar_current("docs-commands-status") %>>
             <a href="/docs/commands/status.html">status</a>
+          </li>
+          <li<%= sidebar_current("docs-commands-system") %>>
+            <a href="/docs/commands/system.html">system</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-commands-system-gc") %>>
+                <a href="/docs/commands/system/gc.html">gc</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-system-reconcile-summaries") %>>
+                <a href="/docs/commands/system/reconcile-summaries.html">reconcile summaries</a>
+              </li>
+            </ul>
           </li>
           <li<%= sidebar_current("docs-commands-ui") %>>
             <a href="/docs/commands/ui.html">ui</a>
@@ -495,6 +509,9 @@
               <li<%= sidebar_current("docs-drivers-community-lxc") %>>
                 <a href="/docs/drivers/external/lxc.html">LXC</a>
               </li>
+              <li<%= sidebar_current("docs-drivers-community-podman") %>>
+                <a href="/docs/drivers/external/podman.html">Podman</a>
+              </li>
               <li<%= sidebar_current("docs-drivers-community-singularity") %>>
               <a href="/docs/drivers/external/singularity.html">Singularity</a>
             </li>
@@ -504,6 +521,10 @@
             </li>
               <li<%= sidebar_current("docs-drivers-community-pot") %>>
               <a href="/docs/drivers/external/pot.html">Pot</a>
+            </li>
+            </li>
+              <li<%= sidebar_current("docs-drivers-community-firecracker-task-driver") %>>
+              <a href="/docs/drivers/external/firecracker-task-driver.html">Firecracker driver</a>
             </li>
             </ul>
           </li>

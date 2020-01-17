@@ -1,12 +1,13 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 import moment from 'moment';
 
 export default Component.extend({
   tagName: 'ol',
   classNames: ['timeline'],
 
-  versions: computed(() => []),
+  versions: overridable(() => []),
 
   // Passes through to the job-diff component
   verbose: true,

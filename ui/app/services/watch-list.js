@@ -10,6 +10,7 @@ export default Service.extend({
   }),
 
   init() {
+    this._super(...arguments);
     list = {};
   },
 

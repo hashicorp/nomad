@@ -7,7 +7,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -134,6 +134,25 @@ var (
 		Name:              pluginName,
 	}
 
+	danglingContainersBlock = hclspec.NewObject(map[string]*hclspec.Spec{
+		"enabled": hclspec.NewDefault(
+			hclspec.NewAttr("enabled", "bool", false),
+			hclspec.NewLiteral(`true`),
+		),
+		"period": hclspec.NewDefault(
+			hclspec.NewAttr("period", "string", false),
+			hclspec.NewLiteral(`"5m"`),
+		),
+		"creation_grace": hclspec.NewDefault(
+			hclspec.NewAttr("creation_grace", "string", false),
+			hclspec.NewLiteral(`"5m"`),
+		),
+		"dry_run": hclspec.NewDefault(
+			hclspec.NewAttr("dry_run", "bool", false),
+			hclspec.NewLiteral(`false`),
+		),
+	})
+
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
 	// and is used to parse the contents of the 'plugin "docker" {...}' block.
 	// Example:
@@ -195,9 +214,22 @@ var (
 				hclspec.NewAttr("container", "bool", false),
 				hclspec.NewLiteral("true"),
 			),
+			"dangling_containers": hclspec.NewDefault(
+				hclspec.NewBlock("dangling_containers", false, danglingContainersBlock),
+				hclspec.NewLiteral(`{
+					enabled = true
+					period = "5m"
+					creation_grace = "5m"
+				}`),
+			),
 		})), hclspec.NewLiteral(`{
 			image = true
 			container = true
+			dangling_containers = {
+				enabled = true
+				period = "5m"
+				creation_grace = "5m"
+			}
 		}`)),
 
 		// docker volume options
@@ -225,6 +257,17 @@ var (
 			hclspec.NewAttr("infra_image", "string", false),
 			hclspec.NewLiteral(`"gcr.io/google_containers/pause-amd64:3.0"`),
 		),
+
+		// the duration that the driver will wait for activity from the Docker engine during an image pull
+		// before canceling the request
+		"pull_activity_timeout": hclspec.NewDefault(
+			hclspec.NewAttr("pull_activity_timeout", "string", false),
+			hclspec.NewLiteral(`"2m"`),
+		),
+
+		// disable_log_collection indicates whether docker driver should collect logs of docker
+		// task containers.  If true, nomad doesn't start docker_logger/logmon processes
+		"disable_log_collection": hclspec.NewAttr("disable_log_collection", "bool", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -244,7 +287,10 @@ var (
 		"cap_drop":       hclspec.NewAttr("cap_drop", "list(string)", false),
 		"command":        hclspec.NewAttr("command", "string", false),
 		"cpu_hard_limit": hclspec.NewAttr("cpu_hard_limit", "bool", false),
-		"cpu_cfs_period": hclspec.NewAttr("cpu_cfs_period", "number", false),
+		"cpu_cfs_period": hclspec.NewDefault(
+			hclspec.NewAttr("cpu_cfs_period", "number", false),
+			hclspec.NewLiteral(`100000`),
+		),
 		"devices": hclspec.NewBlockList("devices", hclspec.NewObject(map[string]*hclspec.Spec{
 			"host_path":          hclspec.NewAttr("host_path", "string", false),
 			"container_path":     hclspec.NewAttr("container_path", "string", false),
@@ -491,16 +537,41 @@ type DockerVolumeDriverConfig struct {
 	Options hclutils.MapStrStr `codec:"options"`
 }
 
+// ContainerGCConfig controls the behavior of the GC reconciler to detects
+// dangling nomad containers that aren't tracked due to docker/nomad bugs
+type ContainerGCConfig struct {
+	// Enabled controls whether container reconciler is enabled
+	Enabled bool `codec:"enabled"`
+
+	// DryRun indicates that reconciler should log unexpectedly running containers
+	// if found without actually killing them
+	DryRun bool `codec:"dry_run"`
+
+	// PeriodStr controls the frequency of scanning containers
+	PeriodStr string        `codec:"period"`
+	period    time.Duration `codec:"-"`
+
+	// CreationGraceStr is the duration allowed for a newly created container
+	// to live without being registered as a running task in nomad.
+	// A container is treated as leaked if it lived more than grace duration
+	// and haven't been registered in tasks.
+	CreationGraceStr string        `codec:"creation_grace"`
+	CreationGrace    time.Duration `codec:"-"`
+}
+
 type DriverConfig struct {
-	Endpoint        string       `codec:"endpoint"`
-	Auth            AuthConfig   `codec:"auth"`
-	TLS             TLSConfig    `codec:"tls"`
-	GC              GCConfig     `codec:"gc"`
-	Volumes         VolumeConfig `codec:"volumes"`
-	AllowPrivileged bool         `codec:"allow_privileged"`
-	AllowCaps       []string     `codec:"allow_caps"`
-	GPURuntimeName  string       `codec:"nvidia_runtime"`
-	InfraImage      string       `codec:"infra_image"`
+	Endpoint                    string        `codec:"endpoint"`
+	Auth                        AuthConfig    `codec:"auth"`
+	TLS                         TLSConfig     `codec:"tls"`
+	GC                          GCConfig      `codec:"gc"`
+	Volumes                     VolumeConfig  `codec:"volumes"`
+	AllowPrivileged             bool          `codec:"allow_privileged"`
+	AllowCaps                   []string      `codec:"allow_caps"`
+	GPURuntimeName              string        `codec:"nvidia_runtime"`
+	InfraImage                  string        `codec:"infra_image"`
+	DisableLogCollection        bool          `codec:"disable_log_collection"`
+	PullActivityTimeout         string        `codec:"pull_activity_timeout"`
+	pullActivityTimeoutDuration time.Duration `codec:"-"`
 }
 
 type AuthConfig struct {
@@ -519,6 +590,8 @@ type GCConfig struct {
 	ImageDelay         string        `codec:"image_delay"`
 	imageDelayDuration time.Duration `codec:"-"`
 	Container          bool          `codec:"container"`
+
+	DanglingContainers ContainerGCConfig `codec:"dangling_containers"`
 }
 
 type VolumeConfig struct {
@@ -533,6 +606,9 @@ func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
 func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
+
+const danglingContainersCreationGraceMinimum = 1 * time.Minute
+const pullActivityTimeoutMinimum = 1 * time.Minute
 
 func (d *Driver) SetConfig(c *base.Config) error {
 	var config DriverConfig
@@ -549,6 +625,36 @@ func (d *Driver) SetConfig(c *base.Config) error {
 			return fmt.Errorf("failed to parse 'image_delay' duration: %v", err)
 		}
 		d.config.GC.imageDelayDuration = dur
+	}
+
+	if len(d.config.GC.DanglingContainers.PeriodStr) > 0 {
+		dur, err := time.ParseDuration(d.config.GC.DanglingContainers.PeriodStr)
+		if err != nil {
+			return fmt.Errorf("failed to parse 'period' duration: %v", err)
+		}
+		d.config.GC.DanglingContainers.period = dur
+	}
+
+	if len(d.config.GC.DanglingContainers.CreationGraceStr) > 0 {
+		dur, err := time.ParseDuration(d.config.GC.DanglingContainers.CreationGraceStr)
+		if err != nil {
+			return fmt.Errorf("failed to parse 'creation_grace' duration: %v", err)
+		}
+		if dur < danglingContainersCreationGraceMinimum {
+			return fmt.Errorf("creation_grace is less than minimum, %v", danglingContainersCreationGraceMinimum)
+		}
+		d.config.GC.DanglingContainers.CreationGrace = dur
+	}
+
+	if len(d.config.PullActivityTimeout) > 0 {
+		dur, err := time.ParseDuration(d.config.PullActivityTimeout)
+		if err != nil {
+			return fmt.Errorf("failed to parse 'pull_activity_timeout' duaration: %v", err)
+		}
+		if dur < pullActivityTimeoutMinimum {
+			return fmt.Errorf("pull_activity_timeout is less than minimum, %v", pullActivityTimeoutMinimum)
+		}
+		d.config.pullActivityTimeoutDuration = dur
 	}
 
 	if c.AgentConfig != nil {
@@ -568,6 +674,8 @@ func (d *Driver) SetConfig(c *base.Config) error {
 
 	d.coordinator = newDockerCoordinator(coordinatorConfig)
 
+	d.reconciler = newReconciler(d)
+
 	return nil
 }
 
@@ -577,4 +685,12 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	return capabilities, nil
+}
+
+var _ drivers.InternalCapabilitiesDriver = (*Driver)(nil)
+
+func (d *Driver) InternalCapabilities() drivers.InternalCapabilities {
+	return drivers.InternalCapabilities{
+		DisableLogCollection: d.config != nil && d.config.DisableLogCollection,
+	}
 }

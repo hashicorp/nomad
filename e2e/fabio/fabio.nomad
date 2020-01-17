@@ -2,6 +2,11 @@ job "fabio" {
   datacenters = ["dc1", "dc2"]
   type        = "system"
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "fabio" {
     task "fabio" {
       driver = "docker"

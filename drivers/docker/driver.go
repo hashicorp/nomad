@@ -66,6 +66,10 @@ var (
 	nvidiaVisibleDevices = "NVIDIA_VISIBLE_DEVICES"
 )
 
+const (
+	dockerLabelAllocID = "com.hashicorp.nomad.alloc_id"
+)
+
 type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
@@ -108,6 +112,8 @@ type Driver struct {
 	// for use during fingerprinting.
 	detected     bool
 	detectedLock sync.RWMutex
+
+	reconciler *containerReconciler
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
@@ -203,23 +209,25 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		net:                   handleState.DriverNetwork,
 	}
 
-	h.dlogger, h.dloggerPluginClient, err = d.reattachToDockerLogger(handleState.ReattachConfig)
-	if err != nil {
-		d.logger.Warn("failed to reattach to docker logger process", "error", err)
-
-		h.dlogger, h.dloggerPluginClient, err = d.setupNewDockerLogger(container, handle.Config, time.Now())
+	if !d.config.DisableLogCollection {
+		h.dlogger, h.dloggerPluginClient, err = d.reattachToDockerLogger(handleState.ReattachConfig)
 		if err != nil {
-			if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
-				d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
-			}
-			return fmt.Errorf("failed to setup replacement docker logger: %v", err)
-		}
+			d.logger.Warn("failed to reattach to docker logger process", "error", err)
 
-		if err := handle.SetDriverState(h.buildState()); err != nil {
-			if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
-				d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+			h.dlogger, h.dloggerPluginClient, err = d.setupNewDockerLogger(container, handle.Config, time.Now())
+			if err != nil {
+				if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
+					d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+				}
+				return fmt.Errorf("failed to setup replacement docker logger: %v", err)
 			}
-			return fmt.Errorf("failed to store driver state: %v", err)
+
+			if err := handle.SetDriverState(h.buildState()); err != nil {
+				if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
+					d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+				}
+				return fmt.Errorf("failed to store driver state: %v", err)
+			}
 		}
 	}
 
@@ -309,6 +317,10 @@ CREATE:
 		// the container is started
 		runningContainer, err := client.InspectContainer(container.ID)
 		if err != nil {
+			client.RemoveContainer(docker.RemoveContainerOptions{
+				ID:    container.ID,
+				Force: true,
+			})
 			msg := "failed to inspect started container"
 			d.logger.Error(msg, "error", err)
 			client.RemoveContainer(docker.RemoveContainerOptions{
@@ -324,11 +336,18 @@ CREATE:
 			container.ID, "container_state", container.State.String())
 	}
 
-	dlogger, pluginClient, err := d.setupNewDockerLogger(container, cfg, time.Unix(0, 0))
-	if err != nil {
-		d.logger.Error("an error occurred after container startup, terminating container", "container_id", container.ID)
-		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
-		return nil, nil, err
+	collectingLogs := !d.config.DisableLogCollection
+
+	var dlogger docklog.DockerLogger
+	var pluginClient *plugin.Client
+
+	if collectingLogs {
+		dlogger, pluginClient, err = d.setupNewDockerLogger(container, cfg, time.Unix(0, 0))
+		if err != nil {
+			d.logger.Error("an error occurred after container startup, terminating container", "container_id", container.ID)
+			client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
+			return nil, nil, err
+		}
 	}
 
 	// Detect container address
@@ -358,8 +377,10 @@ CREATE:
 
 	if err := handle.SetDriverState(h.buildState()); err != nil {
 		d.logger.Error("error encoding container occurred after startup, terminating container", "container_id", container.ID, "error", err)
-		dlogger.Stop()
-		pluginClient.Kill()
+		if collectingLogs {
+			dlogger.Stop()
+			pluginClient.Kill()
+		}
 		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
 		return nil, nil, err
 	}
@@ -533,7 +554,7 @@ func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 		},
 	})
 
-	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task))
+	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task), d.config.pullActivityTimeoutDuration)
 }
 
 func (d *Driver) emitEventFunc(task *drivers.TaskConfig) LogEventFn {
@@ -640,6 +661,15 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	}
 
 	return binds, nil
+}
+
+var userMountToUnixMount = map[string]string{
+	// Empty string maps to `rprivate` for backwards compatibility in restored
+	// older tasks, where mount propagation will not be present.
+	"":                                     "rprivate",
+	nstructs.VolumeMountPropagationPrivate: "rprivate",
+	nstructs.VolumeMountPropagationHostToTask:    "rslave",
+	nstructs.VolumeMountPropagationBidirectional: "rshared",
 }
 
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
@@ -833,13 +863,24 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
 	}
+
 	for _, m := range task.Mounts {
-		hostConfig.Mounts = append(hostConfig.Mounts, docker.HostMount{
+		hm := docker.HostMount{
 			Type:     "bind",
 			Target:   m.TaskPath,
 			Source:   m.HostPath,
 			ReadOnly: m.Readonly,
-		})
+		}
+
+		// MountPropagation is only supported by Docker on Linux:
+		// https://docs.docker.com/storage/bind-mounts/#configure-bind-propagation
+		if runtime.GOOS == "linux" {
+			hm.BindOptions = &docker.BindOptions{
+				Propagation: userMountToUnixMount[m.PropagationMode],
+			}
+		}
+
+		hostConfig.Mounts = append(hostConfig.Mounts, hm)
 	}
 
 	// set DNS search domains and extra hosts
@@ -882,7 +923,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	// Setup port mapping and exposed ports
 	if len(task.Resources.NomadResources.Networks) == 0 {
-		logger.Debug("no network interfaces are available")
 		if len(driverConfig.PortMap) > 0 {
 			return c, fmt.Errorf("Trying to map ports but no network interface is available")
 		}
@@ -957,8 +997,15 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	if len(driverConfig.Labels) > 0 {
 		config.Labels = driverConfig.Labels
-		logger.Debug("applied labels on the container", "labels", config.Labels)
 	}
+
+	labels := make(map[string]string, len(driverConfig.Labels)+1)
+	for k, v := range driverConfig.Labels {
+		labels[k] = v
+	}
+	labels[dockerLabelAllocID] = task.AllocID
+	config.Labels = labels
+	logger.Debug("applied labels on the container", "labels", config.Labels)
 
 	config.Env = task.EnvList()
 

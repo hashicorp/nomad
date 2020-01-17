@@ -65,8 +65,8 @@ type ConsulConfig struct {
 	GRPCAddr string `hcl:"grpc_address"`
 
 	// Timeout is used by Consul HTTP Client
-	Timeout    time.Duration
-	TimeoutHCL string `hcl:"timeout" json:"-"`
+	Timeout    time.Duration `hcl:"-"`
+	TimeoutHCL string        `hcl:"timeout" json:"-"`
 
 	// Token is used to provide a per-request ACL token. This options overrides
 	// the agent's default token

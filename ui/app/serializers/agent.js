@@ -1,5 +1,5 @@
 import ApplicationSerializer from './application';
-import { AdapterError } from 'ember-data/adapters/errors';
+import AdapterError from '@ember-data/adapter/error';
 
 export default ApplicationSerializer.extend({
   attrs: {

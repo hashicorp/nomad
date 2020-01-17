@@ -1,4 +1,4 @@
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -41,13 +41,17 @@ module('Acceptance | clients list', function(hooks) {
 
     assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
     assert.equal(nodeRow.name, node.name, 'Name');
-    assert.equal(nodeRow.state.text, 'draining', 'Combined status, draining, and eligbility');
+    assert.equal(
+      nodeRow.compositeStatus.text,
+      'draining',
+      'Combined status, draining, and eligbility'
+    );
     assert.equal(nodeRow.address, node.httpAddr);
     assert.equal(nodeRow.datacenter, node.datacenter, 'Datacenter');
     assert.equal(nodeRow.allocations, allocations.length, '# Allocations');
   });
 
-  test('client status, draining, and eligibility are collapsed into one column', async function(assert) {
+  test('client status, draining, and eligibility are collapsed into one column that stays sorted', async function(assert) {
     server.createList('agent', 1);
 
     server.create('node', {
@@ -81,20 +85,47 @@ module('Acceptance | clients list', function(hooks) {
 
     await ClientsList.visit();
 
-    ClientsList.nodes[0].state.as(readyClient => {
+    ClientsList.nodes[0].compositeStatus.as(readyClient => {
       assert.equal(readyClient.text, 'ready');
       assert.ok(readyClient.isUnformatted, 'expected no status class');
       assert.equal(readyClient.tooltip, 'ready / not draining / eligible');
     });
 
-    assert.equal(ClientsList.nodes[1].state.text, 'initializing');
-    assert.equal(ClientsList.nodes[2].state.text, 'down');
+    assert.equal(ClientsList.nodes[1].compositeStatus.text, 'initializing');
+    assert.equal(ClientsList.nodes[2].compositeStatus.text, 'down');
 
-    assert.equal(ClientsList.nodes[3].state.text, 'ineligible');
-    assert.ok(ClientsList.nodes[3].state.isWarning, 'expected warning class');
+    assert.equal(ClientsList.nodes[3].compositeStatus.text, 'ineligible');
+    assert.ok(ClientsList.nodes[3].compositeStatus.isWarning, 'expected warning class');
 
-    assert.equal(ClientsList.nodes[4].state.text, 'draining');
-    assert.ok(ClientsList.nodes[4].state.isInfo, 'expected info class');
+    assert.equal(ClientsList.nodes[4].compositeStatus.text, 'draining');
+    assert.ok(ClientsList.nodes[4].compositeStatus.isInfo, 'expected info class');
+
+    await ClientsList.sortBy('compositeStatus');
+
+    assert.deepEqual(ClientsList.nodes.mapBy('compositeStatus.text'), [
+      'ready',
+      'initializing',
+      'ineligible',
+      'draining',
+      'down',
+    ]);
+
+    // Simulate a client state change arriving through polling
+    let readyClient = this.owner
+      .lookup('service:store')
+      .peekAll('node')
+      .findBy('modifyIndex', 4);
+    readyClient.set('schedulingEligibility', 'ineligible');
+
+    await settled();
+
+    assert.deepEqual(ClientsList.nodes.mapBy('compositeStatus.text'), [
+      'initializing',
+      'ineligible',
+      'ineligible',
+      'draining',
+      'down',
+    ]);
   });
 
   test('each client should link to the client detail page', async function(assert) {

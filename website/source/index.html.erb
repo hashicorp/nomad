@@ -9,9 +9,13 @@ description: |-
   <div class="container hero">
     <div class="row">
       <div class="col-md-offset-2 col-md-8">
+        <div class="alert">
+          <a href="https://www.hashicorp.com/blog/hashicorp-nomad-0-10-general-availability" class="g-alert nomad-green "><span class="g-type-tag-label">NEW</span><p class="g-type-body-small">Announcing the general availability of Nomad 0.10. Read more<svg width="15" height="9" viewBox="0 0 15 9" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="0.5" y1="4.5" x2="13.5" y2="4.5" stroke="#000" stroke-linecap="round"></line><path d="M10.3536 0.646447C10.1583 0.451184 9.84171 0.451184 9.64645 0.646447C9.45118 0.841709 9.45118 1.15829 9.64645 1.35355L10.3536 0.646447ZM13.5 4.5L13.8536 4.85355L14.2071 4.5L13.8536 4.14645L13.5 4.5ZM9.64645 7.64645C9.45118 7.84171 9.45118 8.15829 9.64645 8.35355C9.84171 8.54882 10.1583 8.54882 10.3536 8.35355L9.64645 7.64645ZM9.64645 1.35355L13.1464 4.85355L13.8536 4.14645L10.3536 0.646447L9.64645 1.35355ZM13.1464 4.14645L9.64645 7.64645L10.3536 8.35355L13.8536 4.85355L13.1464 4.14645Z" fill="#000"></path></svg></p></a>
+        </div>
+
         <%= inline_svg "logo-hashicorp.svg", height: 120, class: "logo" %>
 
-        <h1>Deploy and Manage Any Containerized, Legacy, or Batch Application</h1>
+        <h1 class="g-type-display-3">Deploy and Manage Any Containerized, Legacy, or Batch Application</h1>
 
         <a class="button primary" href="/intro/index.html">Get Started</a>
         <a class="button" href="/downloads.html">Download <%= latest_version %></a>
@@ -24,8 +28,8 @@ description: |-
   <div class="container">
     <div class="row">
       <div class="col-sm-12">
-        <h2>Simple and Lightweight</h2>
-        <p class="lead">
+        <h2 class="g-type-display-2">Simple and Lightweight</h2>
+        <p class="g-type-body-large lead">
           Nomad is an easy-to-use, flexible, and performant workload orchestrator that can
           deploy a mix of microservice, batch, containerized, and non-containerized applications.
           Nomad is easy to operate and scale and has native Consul and Vault integrations.
@@ -34,20 +38,20 @@ description: |-
     </div>
     <div class="row">
       <div class="col-sm-6">
-        <h3>1. Declare Jobs</h3>
-        <p>
+        <h3 class="g-type-display-4">1. Declare Jobs</h3>
+        <p class="g-type-body">
           Users compose and submit high-level job files. Nomad handles the
           scheduling and upgrading of the applications over time.
         </p>
-        <p>
+        <p class="g-type-body">
           This flexibility makes it easy to deploy one container, dozens of
           containers, or even <a
           href="https://www.hashicorp.com/c1m/">millions</a>.
         </p>
       </div>
       <div class="col-sm-6">
-        <h3>2. Plan Changes</h3>
-        <p>
+        <h3 class="g-type-display-4">2. Plan Changes</h3>
+        <p class="g-type-body">
           With built-in dry-run execution, Nomad shows what scheduling decisions
           it will take before it takes them. Operators can approve or deny these
           changes to create a safe and reproducible workflow.
@@ -56,16 +60,16 @@ description: |-
     </div>
     <div class="row">
       <div class="col-sm-6">
-        <h3>3. Run Applications</h3>
-        <p>
+        <h3 class="g-type-display-4">3. Run Applications</h3>
+        <p class="g-type-body">
           Nomad runs applications and ensures they keep running in failure
           scenarios. In addition to long-running services, Nomad can schedule
           batch jobs, distributed cron jobs, and parameterized jobs.
         </p>
       </div>
       <div class="col-sm-6">
-        <h3>4. Monitor Progress</h3>
-        <p>
+        <h3 class="g-type-display-4">4. Monitor Progress</h3>
+        <p class="g-type-body">
           Stream logs, send signals, and interact with the file system of
           scheduled applications. These operator-friendly commands bring the
           familiar debugging tools to a scheduled world.
@@ -79,9 +83,9 @@ description: |-
   <div class="container">
     <div class="row">
       <div class="col-sm-12">
-        <span class="callout">Combine</span>
-        <h2>Hybrid &amp; Multi Cloud</h2>
-        <p class="lead">
+        <span class="callout g-type-label">Combine</span>
+        <h2 class="g-type-display-2">Hybrid &amp; Multi Cloud</h2>
+        <p class="g-type-body-large lead">
           As more organizations adopt cloud technologies, the desire to run in
           multiple datacenters and multiple regions becomes critical. Nomad can
           span public and private clouds and treat all your infrastructure as a
@@ -98,8 +102,8 @@ description: |-
 
     <div class="row">
       <div class="col-sm-6">
-        <h3>Hybrid Cloud</h3>
-        <p>
+        <h3 class="g-type-display-4">Hybrid Cloud</h3>
+        <p class="g-type-body">
           Nomad bridges the gap between the public and private cloud, creating a
           unified interface for developers to run any application on any
           infrastructure. Easily run services across your internal private cloud
@@ -107,8 +111,8 @@ description: |-
         </p>
       </div>
       <div class="col-sm-6">
-        <h3>Multi Cloud</h3>
-        <p>
+        <h3 class="g-type-display-4">Multi Cloud</h3>
+        <p class="g-type-body">
           As more organizations adopt cloud technologies, the desire to run
           applications simultaneously across multiple clouds increases. Nomad
           combines the power of all cloud providers into a single, unified
@@ -123,9 +127,9 @@ description: |-
   <div class="container">
     <div class="row">
       <div class="col-sm-12">
-        <span class="callout">Maintain</span>
-        <h2>Simplify Operations</h2>
-        <p class="lead">
+        <span class="callout g-type-label">Maintain</span>
+        <h2 class="g-type-display-2">Simplify Operations</h2>
+        <p class="g-type-body-large lead">
           Nomad simplifies operations by supporting several deployment
           strategies to safely upgrade jobs, automatically handling machine
           failures, and providing a single workflow to deploy applications.
@@ -135,7 +139,7 @@ description: |-
 
     <div class="row">
       <div class="col-sm-offset-5 col-sm-6">
-        <h3>Rolling Deploys</h3>
+        <h3 class="g-type-display-4">Rolling Deploys</h3>
       </div>
     </div>
     <div class="row">
@@ -143,7 +147,7 @@ description: |-
         <%= inline_svg "feature-rolling-deploys.svg" %>
       </div>
       <div class="col-sm-7">
-        <p>
+        <p class="g-type-body">
           In order to update an application while reducing downtime, Nomad
           provides a built-in mechanism for rolling upgrades. Operators specify
           the rate at which they would like to upgrade their service in the
@@ -158,12 +162,12 @@ description: |-
 
     <div class="row">
       <div class="col-sm-12">
-        <h3>Blue/Green Deployments</h3>
+        <h3 class="g-type-display-4">Blue/Green Deployments</h3>
       </div>
     </div>
     <div class="row">
       <div class="col-sm-7">
-        <p>
+        <p class="g-type-body">
           Nomad supports native blue/green and canary deployments through the
           declarative job file syntax. Instead of doing a rolling upgrade of the
           existing allocations, the new version of the group is deployed along
@@ -180,7 +184,7 @@ description: |-
 
     <div class="row">
       <div class="col-sm-offset-5 col-sm-6">
-        <h3>Automatic Machine Failures</h3>
+        <h3 class="g-type-display-4">Automatic Machine Failures</h3>
       </div>
     </div>
     <div class="row">
@@ -188,7 +192,7 @@ description: |-
         <%= inline_svg "feature-machine-failure.svg" %>
       </div>
       <div class="col-sm-7">
-        <p>
+        <p class="g-type-body">
           Because it knows the state of all nodes and applications, if a
           node becomes unhealthy, Nomad will automatically reschedule the
           applications that were previously running on the unhealthy host
@@ -205,9 +209,9 @@ description: |-
   <div class="container">
     <div class="row">
       <div class="col-sm-12">
-        <span class="callout">Support</span>
-        <h2>Flexible Workloads</h2>
-        <p class="lead">
+        <span class="callout g-type-label">Support</span>
+        <h2 class="g-type-display-2">Flexible Workloads</h2>
+        <p class="g-type-body-large lead">
           In addition to supporting Linux, Windows, and Mac, Nomad has
           extensible support for containerized, virtualized, and standalone
           applications. Easily start Docker containers, VMs, or application
@@ -224,8 +228,8 @@ description: |-
 
     <div class="row">
       <div class="col-sm-6">
-        <h3>Diverse Technologies</h3>
-        <p>
+        <h3 class="g-type-display-4">Diverse Technologies</h3>
+        <p class="g-type-body">
           By supporting a wide range of technologies such as Docker, rkt, and
           LXC, Nomad does not force you into a single technology. Easily use
           multiple container or virtualization runtimes simultaneously.
@@ -234,8 +238,8 @@ description: |-
         </p>
       </div>
       <div class="col-sm-6">
-        <h3>Multi OS</h3>
-        <p>
+        <h3 class="g-type-display-4">Multi OS</h3>
+        <p class="g-type-body">
           The Nomad client runs on Linux, Windows, and Mac OS. This diverse
           operating system support enables using the same application scheduler
           for all your scheduling and runtime needs.
@@ -250,9 +254,9 @@ description: |-
   <div class="container">
     <div class="row">
       <div class="col-sm-12">
-        <span class="callout">Maximize</span>
-        <h2>Increase Utilization &amp; Reduce Costs</h2>
-        <p class="lead">
+        <span class="callout g-type-label">Maximize</span>
+        <h2 class="g-type-display-2">Increase Utilization &amp; Reduce Costs</h2>
+        <p class="g-type-body-large lead">
           Nomad uses bin packing to optimize application placement onto servers
           to maximize resource utilization, increase density, and help reduce
           costs.
@@ -268,8 +272,8 @@ description: |-
 
     <div class="row">
       <div class="col-sm-6">
-        <h3>Increase Density</h3>
-        <p>
+        <h3 class="g-type-display-4">Increase Density</h3>
+        <p class="g-type-body">
           Nomad places applications and services based on a bin packing
           algorithm, which is used to optimize the resource utilization and
           density of applications. Nomad automatically augments the bin-packing
@@ -278,8 +282,8 @@ description: |-
         </p>
       </div>
       <div class="col-sm-6">
-        <h3>Reduce Costs</h3>
-        <p>
+        <h3 class="g-type-display-4">Reduce Costs</h3>
+        <p class="g-type-body">
           By maximizing resource utilization, Nomad can help remove unused or
           under-utilized machines in the cluster, reducing overall costs.
           Additionally, Nomad enables organizations to utilize larger, more
@@ -294,9 +298,9 @@ description: |-
   <div class="container">
     <div class="row">
       <div class="col-sm-12">
-        <h2>Examples</h2>
-        <h3>Create and Submit Jobs</h3>
-        <p>
+        <h2 class="g-type-display-2">Examples</h2>
+        <h3 class="g-type-display-4">Create and Submit Jobs</h3>
+        <p class="g-type-body">
           Easily create, validate, submit, and check the status of jobs using
           the Nomad CLI.
         </p>
@@ -346,8 +350,8 @@ description: |-
 
     <div class="row">
       <div class="col-sm-12">
-        <h3>Plan Changes</h3>
-        <p>
+        <h3 class="g-type-display-4">Plan Changes</h3>
+        <p class="g-type-body">
           Perform a dry-run to check application placement, scheduling
           decisions, and visualize failures before they happen.
         </p>
@@ -394,8 +398,8 @@ description: |-
 
     <div class="row">
       <div class="col-sm-12">
-        <h3>View Application Logs</h3>
-        <p>
+        <h3 class="g-type-display-4">View Application Logs</h3>
+        <p class="g-type-body">
           Stream application logs directly in the terminal to help analyze and
           debug applications.
         </p>
@@ -420,9 +424,9 @@ description: |-
       </div>
     </div>
 
-    <div class="row">
+    <div class="row get-started">
       <div class="col-sm-12 col-lg-8 col-lg-offset-2">
-        <p class="lead" align="center">
+        <p class="g-type-body-large lead" align="center">
           The introduction contains a walkthrough guide, glossary, and a range
           of examples for learning and experimenting with Nomad.
         </p>

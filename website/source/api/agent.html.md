@@ -498,3 +498,151 @@ $ curl \
     }
 }
 ```
+
+## Stream Logs
+
+This endpoint streams logs from the local agent until the connection is closed
+
+| Method | Path                         | Produces                   |
+| ------ | ---------------------------- | -------------------------- |
+| `GET`  | `/agent/monitor`             | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `agent:read` |
+
+
+### Parameters
+
+- `log_level` `(string: "info")` - Specifies a text string containing a log level
+  to filter on, such as `info`. Possible values include `trace`, `debug`,
+  `info`, `warn`, `error`
+
+- `json` `(bool: false)` - Specifies if the log format for streamed logs 
+  should be JSON.
+
+- `node_id` `(string: "a57b2adb-1a30-2dda-8df0-25abb0881952")` - Specifies a text
+  string containing a node-id to target for streaming.
+
+- `server_id` `(string: "server1.global")` - Specifies a text
+  string containing a server name or "leader" to target a specific remote server
+  or leader for streaming.
+
+- `plain` `(bool: false)` - Specifies if the response should be JSON or
+  plaintext
+
+### Sample Request
+
+```text
+$ curl \
+    https://localhost:4646/v1/agent/monitor?log_level=debug&server_id=leader
+
+$ curl \
+    https://localhost:4646/v1/agent/monitor?log_level=debug&node_id=a57b2adb-1a30-2dda-8df0-25abb0881952
+```
+
+### Sample Response
+```json
+{
+  "Offset": 0,
+  "Data": "NTMxOTMyCjUzMTkzMwo1MzE5MzQKNTMx..."
+  "FileEvent": "log"
+}
+```
+
+#### Field Reference
+
+The return value is a stream of frames. These frames contain the following
+fields:
+
+- `Data` - A base64 encoding of the bytes being streamed.
+
+- `FileEvent` - An event that could cause a change in the streams position. The
+  possible value for this endpoint is "log".
+
+- `Offset` - Offset is the offset into the stream.
+
+## Agent Runtime Profiles
+
+This endpoint is the equivalent of Go's /debug/pprof endpoint but is protected
+by ACLs and supports remote forwarding to a client node or server. See the
+[Golang documentation](https://golang.org/pkg/runtime/pprof/#Profile) for a list of available profiles.
+
+| Method | Path                          | Produces                   |
+| ------ | ----------------------------- | -------------------------- |
+| `GET`  | `/agent/pprof/cmdline`        | `text/plain`               |
+| `GET`  | `/agent/pprof/profile`        | `application/octet-stream` |
+| `GET`  | `/agent/pprof/trace`          | `application/octet-stream` |
+| `GET`  | `/agent/pprof/<pprof profile>`| `application/octet-stream` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required  |
+| ---------------- | ------------- |
+| `NO`             | `agent:write` |
+
+### Default Behavior
+
+This endpoint is enabled whenever ACLs are enabled. Due to the potentially
+sensitive nature of data contained in profiles, as well as their significant
+performance impact, the agent/pprof endpoint is protected by a high level ACL:
+`agent:write`. For these reasons its recommended to leave [`enable_debug`](/docs/configuration/index.html#enable_debug)
+unset and only use the ACL-protected endpoints.
+
+The following table explains when each endpoint is available:
+
+|    Endpoint      |  `enable_debug`  |  ACLs  |  **Available?**  |
+|------------------|------------------|--------|------------------|
+| /v1/agent/pprof  |  unset           |  n/a   |  no              |
+| /v1/agent/pprof  |  `true`          |  n/a   |  yes             |
+| /v1/agent/pprof  |  `false`         |  n/a   |  no              |
+| /v1/agent/pprof  |  unset           |  off   |  no              |
+| /v1/agent/pprof  |  unset           |  on    |  **yes**         |
+| /v1/agent/pprof  |  `true`          |  off   |  yes             |
+| /v1/agent/pprof  |  `false`         |  on    |  **yes**         |
+
+
+### Parameters
+
+- `node_id` `(string: "a57b2adb-1a30-2dda-8df0-25abb0881952")` - Specifies a text
+  string containing a Node ID to target for profiling.
+
+- `server_id` `(string: "server1.global")` - Specifies a text
+  string containing a Server ID, name, or `leader` to target a specific remote
+  server or leader for profiling.
+
+- `seconds` `(int: 3)` - Specifies the amount of time to run a profile or trace
+  request for.
+
+- `debug` `(int: 1)` - Specifies if a given pprof profile should be returned as
+  human readable plain text instead of the pprof binary format. Defaults to 0, 
+  setting to 1 enables human readable plain text.
+
+### Sample Request
+
+```text
+$ curl -O -J \
+    --header "X-Nomad-Token: 8176afd3-772d-0b71-8f85-7fa5d903e9d4" \
+    https://localhost:4646/v1/agent/pprof/goroutine?server_id=leader
+
+$ go tool pprof goroutine
+
+$ curl -O -J \
+    --header "X-Nomad-Token: 8176afd3-772d-0b71-8f85-7fa5d903e9d4" \
+    https://localhost:4646/v1/agent/profile?seconds=5&node_id=a57b2adb-1a30-2dda-8df0-25abb0881952
+
+$ go tool pprof profile
+
+$ curl -O -J \
+    --header "X-Nomad-Token: 8176afd3-772d-0b71-8f85-7fa5d903e9d4" \
+    https://localhost:4646/v1/agent/trace?&seconds=5&server_id=server1.global
+
+go tool trace trace
+```
+

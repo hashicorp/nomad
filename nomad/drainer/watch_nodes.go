@@ -150,19 +150,15 @@ func NewNodeDrainWatcher(ctx context.Context, limiter *rate.Limiter, state *stat
 func (w *nodeDrainWatcher) watch() {
 	nindex := uint64(1)
 	for {
-		w.logger.Trace("getting nodes at index", "index", nindex)
 		nodes, index, err := w.getNodes(nindex)
-		w.logger.Trace("got nodes at index", "num_nodes", len(nodes), "index", nindex, "error", err)
 		if err != nil {
 			if err == context.Canceled {
-				w.logger.Trace("shutting down")
 				return
 			}
 
 			w.logger.Error("error watching node updates at index", "index", nindex, "error", err)
 			select {
 			case <-w.ctx.Done():
-				w.logger.Trace("shutting down")
 				return
 			case <-time.After(stateReadErrorDelay):
 				continue
@@ -180,20 +176,16 @@ func (w *nodeDrainWatcher) watch() {
 			switch {
 			// If the node is tracked but not draining, untrack
 			case tracked && !newDraining:
-				w.logger.Trace("tracked node is no longer draining", "node_id", nodeID)
 				w.tracker.Remove(nodeID)
 
 				// If the node is not being tracked but is draining, track
 			case !tracked && newDraining:
-				w.logger.Trace("untracked node is draining", "node_id", nodeID)
 				w.tracker.Update(node)
 
 				// If the node is being tracked but has changed, update:
 			case tracked && newDraining && !currentNode.DrainStrategy.Equal(node.DrainStrategy):
-				w.logger.Trace("tracked node has updated drain", "node_id", nodeID)
 				w.tracker.Update(node)
 			default:
-				w.logger.Trace("no changes for node", "node_id", nodeID, "node_modify_index", node.ModifyIndex, "tracked", tracked, "newly_draining", newDraining)
 			}
 
 			// TODO(schmichael) handle the case of a lost node
@@ -201,7 +193,6 @@ func (w *nodeDrainWatcher) watch() {
 
 		for nodeID := range tracked {
 			if _, ok := nodes[nodeID]; !ok {
-				w.logger.Trace("tracked node no longer exists", "node_id", nodeID)
 				w.tracker.Remove(nodeID)
 			}
 		}

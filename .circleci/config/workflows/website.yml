@@ -1,0 +1,6 @@
+jobs:
+  - build-website:
+      context: static-sites
+      filters:
+        branches:
+          only: stable-website

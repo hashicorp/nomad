@@ -71,6 +71,10 @@ type Config struct {
 	// avoids persistent storage.
 	DevMode bool
 
+	// EnableDebug is used to enable debugging RPC endpoints
+	// in the absence of ACLs
+	EnableDebug bool
+
 	// StateDir is where we store our state
 	StateDir string
 
@@ -81,7 +85,7 @@ type Config struct {
 	LogOutput io.Writer
 
 	// Logger provides a logger to thhe client
-	Logger log.Logger
+	Logger log.InterceptLogger
 
 	// Region is the clients region
 	Region string
