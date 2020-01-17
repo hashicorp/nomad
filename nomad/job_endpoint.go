@@ -798,6 +798,113 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 	return nil
 }
 
+// Scale is used to modify one of the scaling targest in the job
+func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterResponse) error {
+	if done, err := j.srv.forward("Job.Scale", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "scale"}, time.Now())
+
+	// Check for submit-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityScaleJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	// Validate the arguments
+	if args.JobID == "" {
+		return fmt.Errorf("missing job ID for scaling")
+	} else if args.GroupName == "" {
+		return fmt.Errorf("missing task group name for scaling")
+	} else if args.Value == nil {
+		return fmt.Errorf("missing new scaling value")
+	}
+	newCount, ok := args.Value.(float64)
+	if !ok {
+		return fmt.Errorf("scaling value for task group must be int: %t %v", args.Value, args.Value)
+	}
+
+	// Lookup the job
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	ws := memdb.NewWatchSet()
+	job, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
+	if err != nil {
+		return err
+	}
+
+	found := false
+	for _, tg := range job.TaskGroups {
+		if args.GroupName == tg.Name {
+			tg.Count = int(newCount)
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("task group %q specified for scaling does not exist in job", args.GroupName)
+	}
+	registerReq := structs.JobRegisterRequest{
+		Job:            job,
+		EnforceIndex:   true,
+		JobModifyIndex: job.ModifyIndex,
+		PolicyOverride: args.PolicyOverride,
+		WriteRequest:   args.WriteRequest,
+	}
+
+	// Commit this update via Raft
+	_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, registerReq)
+	if err != nil {
+		j.logger.Error("job register for scale failed", "error", err)
+		return err
+	}
+
+	// Populate the reply with job information
+	reply.JobModifyIndex = index
+
+	// If the job is periodic or parameterized, we don't create an eval.
+	if job != nil && (job.IsPeriodic() || job.IsParameterized()) {
+		return nil
+	}
+
+	// Create a new evaluation
+	// XXX: The job priority / type is strange for this, since it's not a high
+	// priority even if the job was.
+	now := time.Now().UTC().UnixNano()
+	eval := &structs.Evaluation{
+		ID:             uuid.Generate(),
+		Namespace:      args.RequestNamespace(),
+		Priority:       structs.JobDefaultPriority,
+		Type:           structs.JobTypeService,
+		TriggeredBy:    structs.EvalTriggerScaling,
+		JobID:          args.JobID,
+		JobModifyIndex: index,
+		Status:         structs.EvalStatusPending,
+		CreateTime:     now,
+		ModifyTime:     now,
+	}
+	update := &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval},
+		WriteRequest: structs.WriteRequest{Region: args.Region},
+	}
+
+	// Commit this evaluation via Raft
+	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+	if err != nil {
+		j.logger.Error("eval create failed", "error", err, "method", "deregister")
+		return err
+	}
+
+	// Populate the reply with eval information
+	reply.EvalID = eval.ID
+	reply.EvalCreateIndex = evalIndex
+	reply.Index = evalIndex
+	return nil
+}
+
 // GetJob is used to request information about a specific job
 func (j *Job) GetJob(args *structs.JobSpecificRequest,
 	reply *structs.SingleJobResponse) error {
