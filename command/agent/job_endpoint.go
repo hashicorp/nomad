@@ -475,8 +475,11 @@ func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match")
 	}
 	subTarget := strings.TrimPrefix(jobAndTarget, args.JobID)
-	groupScale := regexp.MustCompile(`/[^/]+/scale`)
-	groupName := groupScale.FindString(subTarget)
+	groupScale := regexp.MustCompile(`^/([^/]+)/scale$`)
+	var groupName string
+	if subMatch := groupScale.FindStringSubmatch(subTarget); subMatch != nil {
+		groupName = subMatch[1]
+	}
 	if groupName == "" {
 		return nil, CodedError(400, "Invalid scaling target")
 	}

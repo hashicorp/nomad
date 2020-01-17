@@ -63,7 +63,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate, structs.EvalTriggerFailedFollowUp,
 		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate, structs.EvalTriggerPreemption,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerNodeDrain, structs.EvalTriggerAllocStop,
-		structs.EvalTriggerQueuedAllocs:
+		structs.EvalTriggerQueuedAllocs, structs.EvalTriggerScaling:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
