@@ -14,7 +14,7 @@ export let Standard = () => {
           <p class="value">12</p>
         </div>
       </div>
-      <p class='annotation'>Metrics are a way to show simple values (generally numbers). Labels are smaller than numbers to put emphasis on the data.</p>
+      <p class="annotation">Metrics are a way to show simple values (generally numbers). Labels are smaller than numbers to put emphasis on the data.</p>
       `,
   };
 };
@@ -48,7 +48,7 @@ export let Groups = () => {
           <p class="value">73º</p>
         </div>
       </div>
-      <p class='annotation'>Related metrics should be lumped together in metric groups. All metrics have to be in a metric group. By putting multiple metrics in a single group, they will be visually lumped together.</p>
+      <p class="annotation">Related metrics should be lumped together in metric groups. All metrics have to be in a metric group. By putting multiple metrics in a single group, they will be visually lumped together.</p>
       `,
   };
 };
@@ -98,8 +98,8 @@ export let Colors = () => {
           <p class="value">9</p>
         </div>
       </div>
-      <p class='annotation'>All color-modifiers work for metrics, but some work better than others.</p>
-      <p class='annotation'>Emotive colors work well and are put to use when applicable. Other colors have worse support and less utility.</p>
+      <p class="annotation">All color-modifiers work for metrics, but some work better than others.</p>
+      <p class="annotation">Emotive colors work well and are put to use when applicable. Other colors have worse support and less utility.</p>
       `,
   };
 };
@@ -137,7 +137,7 @@ export let States = () => {
           <p class="value">C</p>
         </div>
       </div>
-      <p class='annotation'>Metrics have a disabled state. This is used when a metric is non-existent or irrelevant. It's just as important to show the lack of value as it is to show a value, so simply not rendering non-existent or irrelevant metrics would be worse.</p>
+      <p class="annotation">Metrics have a disabled state. This is used when a metric is non-existent or irrelevant. It's just as important to show the lack of value as it is to show a value, so simply not rendering non-existent or irrelevant metrics would be worse.</p>
       `,
   };
 };

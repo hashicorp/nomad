@@ -18,7 +18,7 @@ export let Standard = () => {
           <DistributionBar @data={{distributionBarData}} />
         {{/if}}
       </div>
-      <p class='annotation'>The distribution bar chart proportionally show data in a single bar. It includes a tooltip out of the box, assumes the size of the container element, and is designed to be styled with CSS.</p>
+      <p class="annotation">The distribution bar chart proportionally show data in a single bar. It includes a tooltip out of the box, assumes the size of the container element, and is designed to be styled with CSS.</p>
       `,
     context: {
       delayedTruth: DelayedTruth.create(),
@@ -40,7 +40,7 @@ export let WithClasses = () => {
           <DistributionBar @data={{distributionBarDataWithClasses}} />
         {{/if}}
       </div>
-      <p class='annotation'>If a datum provides a <code>className</code> property, it will be assigned to the corresponding <code>rect</code> element, allowing for custom colorization.</p>
+      <p class="annotation">If a datum provides a <code>className</code> property, it will be assigned to the corresponding <code>rect</code> element, allowing for custom colorization.</p>
       `,
     context: {
       delayedTruth: DelayedTruth.create(),
@@ -67,7 +67,7 @@ export let Flexibility = () => {
           <DistributionBar @data={{distributionBarData}} />
         {{/if}}
       </div>
-      <p class='annotation'>Distribution bar assumes the dimensions of the container.</p>
+      <p class="annotation">Distribution bar assumes the dimensions of the container.</p>
       `,
     context: {
       delayedTruth: DelayedTruth.create(),
@@ -87,7 +87,7 @@ export let LiveUpdating = () => {
       <div class="block" style="height:50px; width:600px;">
         <DistributionBar @data={{controller.distributionBarDataRotating}} />
       </div>
-      <p class='annotation'>Distribution bar animates with data changes.</p>
+      <p class="annotation">Distribution bar animates with data changes.</p>
       <div class="boxed-section">
         <div class="boxed-section-body is-dark">
           <JsonViewer @json={{controller.distributionBarDataRotating}} />
@@ -159,7 +159,7 @@ export let Jumbo = () => {
           </ol>
         </DistributionBar>
       {{/if}}
-      <p class='annotation'>A variation of the Distribution Bar component for when the distribution bar is the central component of the page. It's a larger format that requires no interaction to see the data labels and values.</p>
+      <p class="annotation">A variation of the Distribution Bar component for when the distribution bar is the central component of the page. It's a larger format that requires no interaction to see the data labels and values.</p>
       `,
     context: {
       delayedTruth: DelayedTruth.create(),

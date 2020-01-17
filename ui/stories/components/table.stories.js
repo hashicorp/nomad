@@ -150,7 +150,7 @@ export let Standard = () => {
           </tr>
         </t.body>
       </ListTable>
-      <p class='annotation'>Tables have airy designs with a minimal amount of borders. This maximizes their utility.</p>
+      <p class="annotation">Tables have airy designs with a minimal amount of borders. This maximizes their utility.</p>
       `,
     context: {
       shortList: productMetadata,
@@ -195,7 +195,7 @@ export let Search = () => {
           {{/if}}
         </div>
       </div>
-      <p class='annotation'>Tables compose with boxed-section and boxed-section composes with search box.</p>
+      <p class="annotation">Tables compose with boxed-section and boxed-section composes with search box.</p>
       `,
     context: {
       controller: EmberObject.extend({
@@ -228,8 +228,8 @@ export let SortableColumns = () => {
           </tr>
         </t.body>
       </ListTable>
-      <p class='annotation'>The list-table component provides a <code>sort-by</code> contextual component for building <code>link-to</code> components with the appropriate query params.</p>
-      <p class='annotation'>This leaves the component stateless, relying on data to be passed down and sending actions back up via the router (via link-to).</p>
+      <p class="annotation">The list-table component provides a <code>sort-by</code> contextual component for building <code>link-to</code> components with the appropriate query params.</p>
+      <p class="annotation">This leaves the component stateless, relying on data to be passed down and sending actions back up via the router (via link-to).</p>
       `,
     context: {
       injectRoutedController: injectRoutedController(
@@ -267,7 +267,7 @@ export let MultiRow = () => {
           </tr>
         </t.body>
       </ListTable>
-      <p class='annotation'>The list-table component attempts to be as flexible as possible. For this reason, <code>t.body</code> does not provide the typical <code>tr</code> element. It's sometimes desired to have multiple elements per record.</p>
+      <p class="annotation">The list-table component attempts to be as flexible as possible. For this reason, <code>t.body</code> does not provide the typical <code>tr</code> element. It's sometimes desired to have multiple elements per record.</p>
       `,
     context: {
       injectRoutedController: injectRoutedController(
@@ -321,9 +321,9 @@ export let Pagination = () => {
           </nav>
         </div>
       </ListPagination>
-      <p class='annotation'>Pagination works like sorting: using <code>link-to</code>s to set a query param.</p>
-      <p class='annotation'>Pagination, like Table, is a minimal design. Only a next and previous button are available. The current place in the set of pages is tracked by showing which slice of items is currently shown.</p>
-      <p class='annotation'>The pagination component exposes first and last components (for jumping to the beginning and end of a list) as well as pageLinks for generating links around the current page.</p>
+      <p class="annotation">Pagination works like sorting: using <code>link-to</code>s to set a query param.</p>
+      <p class="annotation">Pagination, like Table, is a minimal design. Only a next and previous button are available. The current place in the set of pages is tracked by showing which slice of items is currently shown.</p>
+      <p class="annotation">The pagination component exposes first and last components (for jumping to the beginning and end of a list) as well as pageLinks for generating links around the current page.</p>
       `,
     context: {
       injectRoutedController: injectRoutedController(
@@ -355,8 +355,8 @@ export let RowLinks = () => {
           </tr>
         </t.body>
       </ListTable>
-      <p class='annotation'>It is common for tables to act as lists of links, (e.g., clients list all allocations, each row links to the allocation detail). The helper class <code>is-interactive</code> on the <code>tr</code> makes table rows have a pointer cursor. The helper class <code>is-primary</code> on the <code>a</code> element in a table row makes the link bold and black instead of blue. This makes the link stand out less, since the entire row is a link.</p>
-      <p class='annotation'>
+      <p class="annotation">It is common for tables to act as lists of links, (e.g., clients list all allocations, each row links to the allocation detail). The helper class <code>is-interactive</code> on the <code>tr</code> makes table rows have a pointer cursor. The helper class <code>is-primary</code> on the <code>a</code> element in a table row makes the link bold and black instead of blue. This makes the link stand out less, since the entire row is a link.</p>
+      <p class="annotation">
         A few rules for using table row links:
         <ol>
           <li>The <code>is-primary</code> cell should always be the first cell</li>
@@ -389,7 +389,7 @@ export let CellLinks = () => {
           </tr>
         </t.body>
       </ListTable>
-      <p class='annotation'>Links in table cells are just links.</p>
+      <p class="annotation">Links in table cells are just links.</p>
       `,
     context: {
       shortList: productMetadata,
@@ -420,7 +420,7 @@ export let CellDecorations = () => {
           </tr>
         </t.body>
       </ListTable>
-      <p class='annotation'>Small icons and accents of color make tables easier to scan.</p>
+      <p class="annotation">Small icons and accents of color make tables easier to scan.</p>
       `,
     context: {
       shortList: productMetadata,

@@ -66,7 +66,7 @@ export let DiffViewerWithEdits = () => {
         <div class="boxed-section-body is-dark">
           {{job-diff diff=editsOnly}}
         </div>
-        <p class='annotation'>Often times a diff will only have a couple lines. Minor tweaks to a job spec result in small diffs.</p>
+        <p class="annotation">Often times a diff will only have a couple lines. Minor tweaks to a job spec result in small diffs.</p>
       </div>
       `,
     context: {

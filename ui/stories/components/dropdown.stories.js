@@ -20,7 +20,7 @@ export let Standard = () => {
       <PowerSelect @options={{options}} @selected={{selectedOption}} @searchField="name" @searchEnabled={{gt options.length 10}} @onChange={{action (mut selectedOption)}} as |option|>
         {{option.name}}
       </PowerSelect>
-      <p class='annotation'>Power Select currently fulfills all of Nomad's dropdown needs out of the box.</p>
+      <p class="annotation">Power Select currently fulfills all of Nomad's dropdown needs out of the box.</p>
       `,
     context: {
       options,
@@ -39,7 +39,7 @@ export let Resized = () => {
         </PowerSelect>
       </div>
     </div>
-    <p class='annotation'>Dropdowns are always 100% wide. To control the width of a dropdown, adjust the dimensions of its container. One way to achieve this is using columns.</p>
+    <p class="annotation">Dropdowns are always 100% wide. To control the width of a dropdown, adjust the dimensions of its container. One way to achieve this is using columns.</p>
     `,
     context: {
       options,
@@ -58,7 +58,7 @@ export let Search = () => {
           </PowerSelect>
         </div>
       </div>
-      <p class='annotation'>Whether or not the dropdown has a search box is configurable. Typically the default is to show a search once a dropdown has more than 10 options.</p>
+      <p class="annotation">Whether or not the dropdown has a search box is configurable. Typically the default is to show a search once a dropdown has more than 10 options.</p>
       `,
     context: {
       manyOptions: [

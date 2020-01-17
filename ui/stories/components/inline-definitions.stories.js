@@ -25,7 +25,7 @@ export let Standard = () => {
           </span>
         </div>
       </div>
-      <p class='annotation'>A way to tightly display key/value information. Typically seen at the top of pages.</p>
+      <p class="annotation">A way to tightly display key/value information. Typically seen at the top of pages.</p>
       `,
   };
 };
@@ -86,7 +86,7 @@ export let Variants = () => {
           </span>
         </div>
       </div>
-      <p class='annotation'>Inline definitions are meant to pair well with emotive color variations.</p>
+      <p class="annotation">Inline definitions are meant to pair well with emotive color variations.</p>
       `,
   };
 };

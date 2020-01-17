@@ -53,7 +53,7 @@ export let LoadingState = () => {
           @state="prompt"
         />
       </h1>
-      <p class='annotation'>  <strong>Note:</strong> the <code>state</code> property is internal state and only used here to bypass the idle state for demonstration purposes.</p>
+      <p class="annotation">  <strong>Note:</strong> the <code>state</code> property is internal state and only used here to bypass the idle state for demonstration purposes.</p>
       `,
   };
 };

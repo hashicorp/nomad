@@ -23,7 +23,7 @@ export let Standard = () => {
         @options={{options1}}
         @selection={{selection1}}
         @onSelect={{action (mut selection1)}} />
-      <p class='annotation'>A wrapper around basic-dropdown for creating a list of checkboxes and tracking the state thereof.</p>
+      <p class="annotation">A wrapper around basic-dropdown for creating a list of checkboxes and tracking the state thereof.</p>
       `,
     context: {
       options1,
@@ -60,7 +60,7 @@ export let ManyOptions = () => {
         @options={{optionsMany}}
         @selection={{selectionMany}}
         @onSelect={{action (mut selectionMany)}} />
-      <p class='annotation'>
+      <p class="annotation">
         A strength of the multi-select-dropdown is its simple presentation. It is quick to select options and it is quick to remove options.
         However, this strength becomes a weakness when there are too many options. Since the selection isn't pinned in any way, removing a selection
         can become an adventure of scrolling up and down. Also since the selection isn't pinned, this component can't support search, since search would
@@ -97,7 +97,7 @@ export let Bar = () => {
           @selection={{selectionStatus}}
           @onSelect={{action (mut selectionStatus)}} />
       </div>
-      <p class='annotation'>
+      <p class="annotation">
         Since this is a core component for faceted search, it makes sense to letruct an arrangement of multi-select dropdowns.
         Do this by wrapping all the options in a <code>.button-bar</code> container.
       </p>

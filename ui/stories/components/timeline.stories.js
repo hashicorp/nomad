@@ -38,8 +38,8 @@ export let Standard = () => {
           </div>
         </li>
       </ol>
-      <p class='annotation'>Timelines are a combination of objects and notes. Objects compose with boxed sections to create structure.</p>
-      <p class='annotation'>Timeline notes should be used sparingly when possible. In this example there is a note per day rather than a note per object.</p>
+      <p class="annotation">Timelines are a combination of objects and notes. Objects compose with boxed sections to create structure.</p>
+      <p class="annotation">Timeline notes should be used sparingly when possible. In this example there is a note per day rather than a note per object.</p>
       `,
     context: {
       yesterday: moment().subtract(1, 'd'),
@@ -167,7 +167,7 @@ export let Toggling = () => {
           </div>
         </li>
       </ol>
-      <p class='annotation'></p>
+      <p class="annotation"></p>
       `,
     context: {
       yesterday: moment().subtract(1, 'd'),
@@ -233,7 +233,7 @@ export let Emphasizing = () => {
           </div>
         </li>
       </ol>
-      <p class='annotation'>By using a full boxed-section for an emphasized timeline object, the object takes up more space and gets more visual weight. It also adheres to existing patterns.</p>
+      <p class="annotation">By using a full boxed-section for an emphasized timeline object, the object takes up more space and gets more visual weight. It also adheres to existing patterns.</p>
       `,
     context: {
       yesterday: moment().subtract(1, 'd'),

@@ -22,7 +22,7 @@ export let Standard = () => {
           </li>
         </nav>
       </div>
-      <p class='annotation'>Breadcrumbs are only ever used in the secondary nav of the primary header.</p>
+      <p class="annotation">Breadcrumbs are only ever used in the secondary nav of the primary header.</p>
       `,
   };
 };
@@ -39,7 +39,7 @@ export let Single = () => {
           </li>
         </nav>
       </div>
-      <p class='annotation'>Breadcrumbs are given a lot of emphasis and often double as a page title. Since they are also global state, they are important for helping a user keep their bearings.</p>
+      <p class="annotation">Breadcrumbs are given a lot of emphasis and often double as a page title. Since they are also global state, they are important for helping a user keep their bearings.</p>
       `,
   };
 };

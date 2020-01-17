@@ -89,7 +89,7 @@ export let LiveUpdates = () => {
           </div>
         </div>
       </div>
-      <p class='annotation'>
+      <p class="annotation">
         <div class="boxed-section">
           <div class="boxed-section-body is-dark">
             <JsonViewer @json={{data.liveDetails}} />

@@ -12,7 +12,7 @@ export let Standard = () => {
         <h3 class="title is-4">This is an alert</h3>
         <p>Alerts are used for both situational and reactionary information.</p>
       </div>
-      <p class='annotation'>Alerts use Bulma's notification component.</p>
+      <p class="annotation">Alerts use Bulma's notification component.</p>
       `,
   };
 };
@@ -41,7 +41,7 @@ export let Colors = () => {
         <p>Alerts are used for both situational and reactionary information.</p>
       </div>
 
-      <p class='annotation'>Alerts are always paired with an emotive color. If there is no emotive association with the content of the alert, then an alert is the wrong component to use.</p>
+      <p class="annotation">Alerts are always paired with an emotive color. If there is no emotive association with the content of the alert, then an alert is the wrong component to use.</p>
       `,
   };
 };

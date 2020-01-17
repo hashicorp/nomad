@@ -59,8 +59,8 @@ export let HighLowComparison = () => {
           {{/if}}
         </div>
       </div>
-      <p class='annotation'>Line charts, and therefore stats time series charts, use a letant linear gradient with a height equal to the canvas. This makes the color intensity of the gradient at values consistent across charts as long as those charts have the same y-axis domain.</p>
-      <p class='annotation'>This is used to great effect with stats charts since they all have a y-axis domain of 0-100%.</p>
+      <p class="annotation">Line charts, and therefore stats time series charts, use a letant linear gradient with a height equal to the canvas. This makes the color intensity of the gradient at values consistent across charts as long as those charts have the same y-axis domain.</p>
+      <p class="annotation">This is used to great effect with stats charts since they all have a y-axis domain of 0-100%.</p>
       `,
     context: {
       data: EmberObject.extend({

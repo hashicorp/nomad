@@ -70,7 +70,7 @@ export let FluidWidth = () => {
           <LineChart @data={{lineChartMild}} @xProp="year" @yProp="value" @chartClass="is-warning" />
         {{/if}}
       </div>
-      <p class='annotation'>A line chart will assume the width of its container. This includes the dimensions of the axes, which are calculated based on real DOM measurements. This requires a two-pass render: first the axes are placed with their real domains (in order to capture width and height of tick labels), second the axes are adjusted to make sure both the x and y axes are within the height and width bounds of the container.</p>
+      <p class="annotation">A line chart will assume the width of its container. This includes the dimensions of the axes, which are calculated based on real DOM measurements. This requires a two-pass render: first the axes are placed with their real domains (in order to capture width and height of tick labels), second the axes are adjusted to make sure both the x and y axes are within the height and width bounds of the container.</p>
       `,
     context: {
       lineChartData: DelayedArray.create(data1),
