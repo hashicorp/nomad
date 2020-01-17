@@ -25,6 +25,7 @@ const (
 	NamespaceCapabilityDeny             = "deny"
 	NamespaceCapabilityListJobs         = "list-jobs"
 	NamespaceCapabilityReadJob          = "read-job"
+	NamespaceCapabilityScaleJob         = "scale-job"
 	NamespaceCapabilitySubmitJob        = "submit-job"
 	NamespaceCapabilityDispatchJob      = "dispatch-job"
 	NamespaceCapabilityReadLogs         = "read-logs"

@@ -8603,6 +8603,7 @@ const (
 	EvalTriggerRetryFailedAlloc  = "alloc-failure"
 	EvalTriggerQueuedAllocs      = "queued-allocs"
 	EvalTriggerPreemption        = "preemption"
+	EvalTriggerScaling           = "job-scaling"
 )
 
 const (

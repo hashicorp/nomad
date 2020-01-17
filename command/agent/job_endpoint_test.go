@@ -686,6 +686,8 @@ func TestHTTP_Job_GroupScale(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
+		// FINISH: cgbaker: do something with args.reason
+
 		newCount := job.TaskGroups[0].Count + 1
 		scaleReq := &api.ScalingRequest{
 			JobID:  job.ID,
