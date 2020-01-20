@@ -29,10 +29,8 @@ func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Reque
 
 // CSIVolumeSpecificRequest dispatches GET and PUT
 func (s *HTTPServer) CSIVolumeSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// Tokenize the suffix of the path to get the volume id
 	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/csi/volume/")
-
-	// tokenize the suffix of the path to get the alloc id and find the action
-	// invoked on the alloc id
 	tokens := strings.Split(reqSuffix, "/")
 	if len(tokens) > 2 || len(tokens) < 1 {
 		return nil, CodedError(404, resourceNotFoundErr)
@@ -66,7 +64,7 @@ func (s *HTTPServer) csiVolumeGet(id string, resp http.ResponseWriter, req *http
 
 	setMeta(resp, &out.QueryMeta)
 	if out.Volume == nil {
-		return nil, CodedError(404, "alloc not found")
+		return nil, CodedError(404, "volume not found")
 	}
 
 	return out.Volume, nil
@@ -144,8 +142,15 @@ func (s *HTTPServer) CSIPluginSpecificRequest(resp http.ResponseWriter, req *htt
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	args := structs.CSIPluginGetRequest{}
+	// Tokenize the suffix of the path to get the plugin id
+	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/csi/plugin/")
+	tokens := strings.Split(reqSuffix, "/")
+	if len(tokens) > 2 || len(tokens) < 1 {
+		return nil, CodedError(404, resourceNotFoundErr)
+	}
+	id := tokens[0]
 
+	args := structs.CSIPluginGetRequest{ID: id}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
@@ -156,5 +161,9 @@ func (s *HTTPServer) CSIPluginSpecificRequest(resp http.ResponseWriter, req *htt
 	}
 
 	setMeta(resp, &out.QueryMeta)
+	if out.Plugin == nil {
+		return nil, CodedError(404, "plugin not found")
+	}
+
 	return out.Plugin, nil
 }

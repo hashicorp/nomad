@@ -166,6 +166,8 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 
 	s.mux.HandleFunc("/v1/csi/volumes", s.wrap(s.CSIVolumesRequest))
 	s.mux.HandleFunc("/v1/csi/volume/", s.wrap(s.CSIVolumeSpecificRequest))
+	s.mux.HandleFunc("/v1/csi/plugins", s.wrap(s.CSIPluginsRequest))
+	s.mux.HandleFunc("/v1/csi/plugin/", s.wrap(s.CSIPluginSpecificRequest))
 
 	s.mux.HandleFunc("/v1/acl/policies", s.wrap(s.ACLPoliciesRequest))
 	s.mux.HandleFunc("/v1/acl/policy/", s.wrap(s.ACLPolicySpecificRequest))
