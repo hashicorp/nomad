@@ -8,6 +8,7 @@ export default Route.extend({
   config: service(),
   system: service(),
   store: service(),
+  token: service(),
 
   queryParams: {
     region: {
@@ -22,28 +23,34 @@ export default Route.extend({
   },
 
   beforeModel(transition) {
-    return RSVP.all([this.get('system.regions'), this.get('system.defaultRegion')]).then(
-      promises => {
-        if (!this.get('system.shouldShowRegions')) return promises;
+    const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
+      .perform()
+      .catch();
 
-        const queryParam = transition.to.queryParams.region;
-        const defaultRegion = this.get('system.defaultRegion.region');
-        const currentRegion = this.get('system.activeRegion') || defaultRegion;
+    return RSVP.all([
+      this.get('system.regions'),
+      this.get('system.defaultRegion'),
+      fetchSelfTokenAndPolicies,
+    ]).then(promises => {
+      if (!this.get('system.shouldShowRegions')) return promises;
 
-        // Only reset the store if the region actually changed
-        if (
-          (queryParam && queryParam !== currentRegion) ||
-          (!queryParam && currentRegion !== defaultRegion)
-        ) {
-          this.system.reset();
-          this.store.unloadAll();
-        }
+      const queryParam = transition.to.queryParams.region;
+      const defaultRegion = this.get('system.defaultRegion.region');
+      const currentRegion = this.get('system.activeRegion') || defaultRegion;
 
-        this.set('system.activeRegion', queryParam || defaultRegion);
-
-        return promises;
+      // Only reset the store if the region actually changed
+      if (
+        (queryParam && queryParam !== currentRegion) ||
+        (!queryParam && currentRegion !== defaultRegion)
+      ) {
+        this.system.reset();
+        this.store.unloadAll();
       }
-    );
+
+      this.set('system.activeRegion', queryParam || defaultRegion);
+
+      return promises;
+    });
   },
 
   // Model is being used as a way to transfer the provided region

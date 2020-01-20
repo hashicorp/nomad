@@ -1,10 +1,14 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
+import { getOwner } from '@ember/application';
 import { assign } from '@ember/polyfills';
+import { task } from 'ember-concurrency';
 import queryString from 'query-string';
 import fetch from 'nomad-ui/utils/fetch';
 
 export default Service.extend({
+  store: service(),
   system: service(),
 
   secret: computed({
@@ -20,6 +24,37 @@ export default Service.extend({
 
       return value;
     },
+  }),
+
+  fetchSelfToken: task(function*() {
+    const TokenAdapter = getOwner(this).lookup('adapter:token');
+    try {
+      return yield TokenAdapter.findSelf();
+    } catch (e) {
+      return null;
+    }
+  }),
+
+  selfToken: alias('fetchSelfToken.lastSuccessful.value'),
+
+  fetchSelfTokenPolicies: task(function*() {
+    try {
+      if (this.selfToken) {
+        return yield this.selfToken.get('policies');
+      } else {
+        let policy = yield this.store.findRecord('policy', 'anonymous');
+        return [policy];
+      }
+    } catch (e) {
+      return [];
+    }
+  }),
+
+  selfTokenPolicies: alias('fetchSelfTokenPolicies.lastSuccessful.value'),
+
+  fetchSelfTokenAndPolicies: task(function*() {
+    yield this.fetchSelfToken.perform();
+    yield this.fetchSelfTokenPolicies.perform();
   }),
 
   // All non Ember Data requests should go through authorizedRequest.
