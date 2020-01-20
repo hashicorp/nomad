@@ -12,8 +12,7 @@ Prefer adding a new message to changing any existing RPC messages.
 * [ ] State method for modifying objects in a `Txn` in `nomad/state/state_store.go`
   * `nomad/state/state_store_test.go`
 * [ ] Handler for the request in `nomad/foo_endpoint.go`
-  * RPCs are resolved by matching the method name for bound structs
-	[net/rpc](https://golang.org/pkg/net/rpc/)
+  * Register new RPC struct in `nomad/server.go`
 * Wrapper for the HTTP request in `command/agent/foo_endpoint.go`
   * Backwards compatibility requires a new endpoint, an upgraded
     client or server may be forwarding this request to an old server,
