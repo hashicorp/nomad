@@ -40,9 +40,12 @@ md C:\tmp\data
 # TODO(tgross): not sure we even support this for Windows?
 # Write-Output "Install CNI"
 # md C:\opt\cni\bin
-# $cni_url = "https://github.com/containernetworking/plugins/releases/download/v0.8.2/cni-plugins-windows-amd64-v0.8.2.tgz"
+# $cni_url = "https://github.com/containernetworking/plugins/releases/download/v0.8.4/cni-plugins-windows-amd64-v0.8.4.tgz"
 # Invoke-WebRequest -Uri "$cni_url" -Outfile cni.tgz
 # Expand-7Zip -ArchiveFileName .\cni.tgz -TargetPath C:\opt\cni\bin\
+
+# needed for metrics scraping HTTP API calls to the client
+New-NetFirewallRule -DisplayName 'Nomad HTTP Inbound' -Profile @('Public', 'Domain', 'Private') -Direction Inbound -Action Allow -Protocol TCP -LocalPort @('4646')
 
 # enable as a service
 sc.exe create "Nomad" binPath= "C:\opt\nomad.exe agent -config C:\opt\nomad.d" start= auto

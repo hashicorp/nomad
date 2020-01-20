@@ -27,6 +27,10 @@ by the Nomad client on task creation. This enables a pattern where the driver
 can maintain an in-memory state of the running tasks, and if necessary the
 Nomad client can recover tasks into the driver state.
 
+The [driver plugin skeleton project][skeletonProject] exists to help bootstrap
+the development of new driver plugins. It provides most of the boilerplate
+necessary for a driver plugin, along with detailed comments.
+
 ## Task Driver Plugin API
 
 The [base plugin][baseplugin] must be implemented in addition to the following
@@ -189,6 +193,7 @@ inside the running container. `ExecTask` is called for Consul script checks.
 
 [lxcdriver]: https://github.com/hashicorp/nomad-driver-lxc
 [DriverPlugin]: https://github.com/hashicorp/nomad/blob/v0.9.0/plugins/drivers/driver.go#L39-L57
+[skeletonProject]: https://github.com/hashicorp/nomad-skeleton-driver-plugin
 [baseplugin]: /docs/internals/plugins/base.html
 [taskconfig]: https://godoc.org/github.com/hashicorp/nomad/plugins/drivers#TaskConfig
 [taskhandle]: https://godoc.org/github.com/hashicorp/nomad/plugins/drivers#TaskHandle

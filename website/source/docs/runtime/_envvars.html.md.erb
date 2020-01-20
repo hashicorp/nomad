@@ -45,7 +45,7 @@
   </tr>
   <tr>
     <td><tt>NOMAD&lowbar;ALLOC&lowbar;INDEX</tt></td>
-    <td>Allocation index; useful to distinguish instances of task groups. From 0 to (count - 1).</td>
+    <td>Allocation index; useful to distinguish instances of task groups. From 0 to (count - 1). The index is unique within a given version of a job, but canaries or failed tasks in a deployment may reuse the index.</td>
   </tr>
   <tr>
     <td><tt>NOMAD&lowbar;TASK&lowbar;NAME</tt></td>
@@ -159,6 +159,13 @@
     <td>
       Host <tt>IP:Port</tt> for the given <tt>service</tt> when defined as a
       Consul Connect <a href="/docs/job-specification/upstreams.html">upstream</a>. 
+    </td>
+  </tr>
+  <tr>
+    <td><tt>NOMAD&lowbar;ENVOY&lowbar;ADMIN&lowbar;ADDR&lowbar;&lt;service&gt;</tt></td>
+    <td>
+      Local address <tt>localhost:Port</tt> for the admin port of the envoy sidecar for the
+      given <tt>service</tt> when defined as a Consul Connect enabled service. 
     </td>
   </tr>
 </table>

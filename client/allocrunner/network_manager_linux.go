@@ -54,7 +54,7 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 
 		caps, err := driver.Capabilities()
 		if err != nil {
-			return nil, fmt.Errorf("failed to retrive capabilities for driver %s: %v",
+			return nil, fmt.Errorf("failed to retrieve capabilities for driver %s: %v",
 				task.Driver, err)
 		}
 

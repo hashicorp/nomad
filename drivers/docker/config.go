@@ -7,7 +7,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -257,6 +257,17 @@ var (
 			hclspec.NewAttr("infra_image", "string", false),
 			hclspec.NewLiteral(`"gcr.io/google_containers/pause-amd64:3.0"`),
 		),
+
+		// the duration that the driver will wait for activity from the Docker engine during an image pull
+		// before canceling the request
+		"pull_activity_timeout": hclspec.NewDefault(
+			hclspec.NewAttr("pull_activity_timeout", "string", false),
+			hclspec.NewLiteral(`"2m"`),
+		),
+
+		// disable_log_collection indicates whether docker driver should collect logs of docker
+		// task containers.  If true, nomad doesn't start docker_logger/logmon processes
+		"disable_log_collection": hclspec.NewAttr("disable_log_collection", "bool", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -549,15 +560,18 @@ type ContainerGCConfig struct {
 }
 
 type DriverConfig struct {
-	Endpoint        string       `codec:"endpoint"`
-	Auth            AuthConfig   `codec:"auth"`
-	TLS             TLSConfig    `codec:"tls"`
-	GC              GCConfig     `codec:"gc"`
-	Volumes         VolumeConfig `codec:"volumes"`
-	AllowPrivileged bool         `codec:"allow_privileged"`
-	AllowCaps       []string     `codec:"allow_caps"`
-	GPURuntimeName  string       `codec:"nvidia_runtime"`
-	InfraImage      string       `codec:"infra_image"`
+	Endpoint                    string        `codec:"endpoint"`
+	Auth                        AuthConfig    `codec:"auth"`
+	TLS                         TLSConfig     `codec:"tls"`
+	GC                          GCConfig      `codec:"gc"`
+	Volumes                     VolumeConfig  `codec:"volumes"`
+	AllowPrivileged             bool          `codec:"allow_privileged"`
+	AllowCaps                   []string      `codec:"allow_caps"`
+	GPURuntimeName              string        `codec:"nvidia_runtime"`
+	InfraImage                  string        `codec:"infra_image"`
+	DisableLogCollection        bool          `codec:"disable_log_collection"`
+	PullActivityTimeout         string        `codec:"pull_activity_timeout"`
+	pullActivityTimeoutDuration time.Duration `codec:"-"`
 }
 
 type AuthConfig struct {
@@ -594,6 +608,7 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 const danglingContainersCreationGraceMinimum = 1 * time.Minute
+const pullActivityTimeoutMinimum = 1 * time.Minute
 
 func (d *Driver) SetConfig(c *base.Config) error {
 	var config DriverConfig
@@ -631,6 +646,17 @@ func (d *Driver) SetConfig(c *base.Config) error {
 		d.config.GC.DanglingContainers.CreationGrace = dur
 	}
 
+	if len(d.config.PullActivityTimeout) > 0 {
+		dur, err := time.ParseDuration(d.config.PullActivityTimeout)
+		if err != nil {
+			return fmt.Errorf("failed to parse 'pull_activity_timeout' duaration: %v", err)
+		}
+		if dur < pullActivityTimeoutMinimum {
+			return fmt.Errorf("pull_activity_timeout is less than minimum, %v", pullActivityTimeoutMinimum)
+		}
+		d.config.pullActivityTimeoutDuration = dur
+	}
+
 	if c.AgentConfig != nil {
 		d.clientConfig = c.AgentConfig.Driver
 	}
@@ -659,4 +685,12 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	return capabilities, nil
+}
+
+var _ drivers.InternalCapabilitiesDriver = (*Driver)(nil)
+
+func (d *Driver) InternalCapabilities() drivers.InternalCapabilities {
+	return drivers.InternalCapabilities{
+		DisableLogCollection: d.config != nil && d.config.DisableLogCollection,
+	}
 }

@@ -926,8 +926,9 @@ func TestParse(t *testing.T) {
 				Datacenters: []string{"dc1"},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  helper.StringToPtr("bar"),
-						Count: helper.IntToPtr(3),
+						Name:          helper.StringToPtr("bar"),
+						ShutdownDelay: helper.TimeToPtr(14 * time.Second),
+						Count:         helper.IntToPtr(3),
 						Networks: []*api.NetworkResource{
 							{
 								Mode: "bridge",

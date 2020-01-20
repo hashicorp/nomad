@@ -1,4 +1,9 @@
-# launch server 
+#!/usr/bin/env bash
+set -e
+
+mkdir -p /tmp/server{1,2,3} /tmp/client{1,2}
+
+# launch server
 ( nomad agent -config=server1.hcl 2>&1 | tee "/tmp/server1/log" ; echo "Exit code: $?" >> "/tmp/server1/log" ) &
 
 ( nomad agent -config=server2.hcl 2>&1 | tee "/tmp/server2/log" ; echo "Exit code: $?" >> "/tmp/server2/log" ) &

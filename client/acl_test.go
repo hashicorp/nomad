@@ -13,8 +13,8 @@ import (
 )
 
 func TestClient_ACL_resolveTokenValue(t *testing.T) {
-	s1, _, _ := testACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, _, _, cleanupS1 := testACLServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
@@ -62,8 +62,8 @@ func TestClient_ACL_resolveTokenValue(t *testing.T) {
 }
 
 func TestClient_ACL_resolvePolicies(t *testing.T) {
-	s1, _, root := testACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, _, root, cleanupS1 := testACLServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
@@ -102,8 +102,8 @@ func TestClient_ACL_resolvePolicies(t *testing.T) {
 }
 
 func TestClient_ACL_ResolveToken_Disabled(t *testing.T) {
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
@@ -118,8 +118,8 @@ func TestClient_ACL_ResolveToken_Disabled(t *testing.T) {
 }
 
 func TestClient_ACL_ResolveToken(t *testing.T) {
-	s1, _, _ := testACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, _, _, cleanupS1 := testACLServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {

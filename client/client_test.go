@@ -35,14 +35,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testACLServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, *structs.ACLToken) {
-	server, token := nomad.TestACLServer(t, cb)
-	return server, server.GetConfig().RPCAddr.String(), token
+func testACLServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, *structs.ACLToken, func()) {
+	server, token, cleanup := nomad.TestACLServer(t, cb)
+	return server, server.GetConfig().RPCAddr.String(), token, cleanup
 }
 
-func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
-	server := nomad.TestServer(t, cb)
-	return server, server.GetConfig().RPCAddr.String()
+func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, func()) {
+	server, cleanup := nomad.TestServer(t, cb)
+	return server, server.GetConfig().RPCAddr.String(), cleanup
 }
 
 func TestClient_StartStop(t *testing.T) {
@@ -83,13 +83,14 @@ func TestClient_BaseLabels(t *testing.T) {
 
 func TestClient_RPC(t *testing.T) {
 	t.Parallel()
-	s1, addr := testServer(t, nil)
-	defer s1.Shutdown()
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	_, addr, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
+
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	// RPC should succeed
 	testutil.WaitForResult(func() (bool, error) {
@@ -103,13 +104,14 @@ func TestClient_RPC(t *testing.T) {
 
 func TestClient_RPC_FireRetryWatchers(t *testing.T) {
 	t.Parallel()
-	s1, addr := testServer(t, nil)
-	defer s1.Shutdown()
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	_, addr, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
+
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	watcher := c1.rpcRetryWatcher()
 
@@ -131,13 +133,14 @@ func TestClient_RPC_FireRetryWatchers(t *testing.T) {
 
 func TestClient_RPC_Passthrough(t *testing.T) {
 	t.Parallel()
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
+
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	// RPC should succeed
 	testutil.WaitForResult(func() (bool, error) {
@@ -257,7 +260,7 @@ func TestClient_MixedTLS(t *testing.T) {
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	s1, addr := testServer(t, func(c *nomad.Config) {
+	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.TLSConfig = &nconfig.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -267,7 +270,7 @@ func TestClient_MixedTLS(t *testing.T) {
 			KeyFile:              fookey,
 		}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
@@ -299,6 +302,7 @@ func TestClient_MixedTLS(t *testing.T) {
 // unable to communicate.
 func TestClient_BadTLS(t *testing.T) {
 	t.Parallel()
+
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
@@ -307,7 +311,7 @@ func TestClient_BadTLS(t *testing.T) {
 		badcert = "../helper/tlsutil/testdata/nomad-bad.pem"
 		badkey  = "../helper/tlsutil/testdata/nomad-bad-key.pem"
 	)
-	s1, addr := testServer(t, func(c *nomad.Config) {
+	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.TLSConfig = &nconfig.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -317,10 +321,10 @@ func TestClient_BadTLS(t *testing.T) {
 			KeyFile:              fookey,
 		}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.TLSConfig = &nconfig.TLSConfig{
 			EnableHTTP:           true,
@@ -331,7 +335,7 @@ func TestClient_BadTLS(t *testing.T) {
 			KeyFile:              badkey,
 		}
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
@@ -354,14 +358,15 @@ func TestClient_BadTLS(t *testing.T) {
 
 func TestClient_Register(t *testing.T) {
 	t.Parallel()
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
@@ -386,16 +391,17 @@ func TestClient_Register(t *testing.T) {
 
 func TestClient_Heartbeat(t *testing.T) {
 	t.Parallel()
-	s1, _ := testServer(t, func(c *nomad.Config) {
+
+	s1, _, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.MinHeartbeatTTL = 50 * time.Millisecond
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
@@ -422,8 +428,9 @@ func TestClient_Heartbeat(t *testing.T) {
 // the server.
 func TestClient_UpdateAllocStatus(t *testing.T) {
 	t.Parallel()
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
 
 	_, cleanup := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
@@ -447,8 +454,9 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 
 func TestClient_WatchAllocs(t *testing.T) {
 	t.Parallel()
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
@@ -547,15 +555,15 @@ func waitTilNodeReady(client *Client, t *testing.T) {
 func TestClient_SaveRestoreState(t *testing.T) {
 	t.Parallel()
 
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.DevMode = false
 		c.RPCHandler = s1
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
@@ -649,15 +657,15 @@ func TestClient_AddAllocError(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.DevMode = false
 		c.RPCHandler = s1
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
@@ -749,8 +757,9 @@ func TestClient_Init(t *testing.T) {
 
 func TestClient_BlockedAllocations(t *testing.T) {
 	t.Parallel()
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
@@ -905,10 +914,10 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	s1, addr := testServer(t, func(c *nomad.Config) {
+	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.Region = "global"
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	const (
@@ -981,10 +990,10 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	s1, addr := testServer(t, func(c *nomad.Config) {
+	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.Region = "global"
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	const (

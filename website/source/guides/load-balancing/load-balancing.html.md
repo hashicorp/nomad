@@ -11,7 +11,7 @@ description: |-
 
 These guides have been migrated to [HashiCorp's Learn website].
 
-You can follow these links to specific guides at Learn:
+You can follow these links to find the specific guides on Learn:
 
 - [Fabio](https://learn.hashicorp.com/nomad/load-balancing/fabio)
 - [NGINX](https://learn.hashicorp.com/nomad/load-balancing/nginx)

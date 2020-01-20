@@ -14,7 +14,7 @@ func TestMonitorCommand_Implements(t *testing.T) {
 
 func TestMonitorCommand_Fails(t *testing.T) {
 	t.Parallel()
-	srv, _, _ := testServer(t, false, nil)
+	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
@@ -33,4 +33,13 @@ func TestMonitorCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"-address=nope"}); code != 1 {
 		t.Fatalf("exepected exit code 1, got: %d", code)
 	}
+
+	// Fails on nonexistent node
+	if code := cmd.Run([]string{"-address=" + url, "-node-id=12345678-abcd-efab-cdef-123456789abc"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No node(s) with prefix") {
+		t.Fatalf("expected not found error, got: %s", out)
+	}
+	ui.ErrorWriter.Reset()
 }

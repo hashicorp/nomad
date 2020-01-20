@@ -411,6 +411,7 @@ type TaskGroup struct {
 	Networks         []*NetworkResource
 	Meta             map[string]string
 	Services         []*Service
+	ShutdownDelay    *time.Duration `mapstructure:"shutdown_delay"`
 }
 
 // NewTaskGroup creates a new TaskGroup.

@@ -49,7 +49,7 @@ Monitor Specific Options:
 }
 
 func (c *MonitorCommand) Synopsis() string {
-	return "stream logs from a Nomad agent"
+	return "Stream logs from a Nomad agent"
 }
 
 func (c *MonitorCommand) Name() string { return "monitor" }
@@ -103,6 +103,11 @@ func (c *MonitorCommand) Run(args []string) int {
 		nodes, _, err := client.Nodes().PrefixList(nodeID)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node: %v", err))
+			return 1
+		}
+
+		if len(nodes) == 0 {
+			c.Ui.Error(fmt.Sprintf("No node(s) with prefix or id %q found", nodeID))
 			return 1
 		}
 

@@ -129,7 +129,7 @@ func newDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 
 // PullImage is used to pull an image. It returns the pulled imaged ID or an
 // error that occurred during the pull
-func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration, callerID string, emitFn LogEventFn) (imageID string, err error) {
+func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConfiguration, callerID string, emitFn LogEventFn, pullActivityTimeout time.Duration) (imageID string, err error) {
 	// Get the future
 	d.imageLock.Lock()
 	future, ok := d.pullFutures[image]
@@ -138,7 +138,7 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 		// Make the future
 		future = newPullFuture()
 		d.pullFutures[image] = future
-		go d.pullImageImpl(image, authOptions, future)
+		go d.pullImageImpl(image, authOptions, pullActivityTimeout, future)
 	}
 	d.imageLock.Unlock()
 
@@ -165,14 +165,14 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 
 // pullImageImpl is the implementation of pulling an image. The results are
 // returned via the passed future
-func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.AuthConfiguration, future *pullFuture) {
+func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.AuthConfiguration, pullActivityTimeout time.Duration, future *pullFuture) {
 	defer d.clearPullLogger(image)
 	// Parse the repo and tag
 	repo, tag := parseDockerImage(image)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pm := newImageProgressManager(image, cancel, d.handlePullInactivity,
+	pm := newImageProgressManager(image, cancel, pullActivityTimeout, d.handlePullInactivity,
 		d.handlePullProgressReport, d.handleSlowPullProgressReport)
 	defer pm.stop()
 

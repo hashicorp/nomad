@@ -16,8 +16,9 @@ import (
 
 func TestCoreScheduler_EvalGC(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 	require := require.New(t)
 
@@ -109,8 +110,9 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 // Tests GC behavior on allocations being rescheduled
 func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 	require := require.New(t)
 
@@ -213,8 +215,9 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 // Tests GC behavior on stopped job with reschedulable allocs
 func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 	require := require.New(t)
 
@@ -288,8 +291,9 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 // An EvalGC should never reap a batch job that has not been stopped
 func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -391,8 +395,9 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 // An EvalGC should reap allocations from jobs with an older modify index
 func TestCoreScheduler_EvalGC_Batch_OldVersion(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -513,8 +518,9 @@ func TestCoreScheduler_EvalGC_Batch_OldVersion(t *testing.T) {
 // An EvalGC should  reap a batch job that has been stopped
 func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	require := require.New(t)
@@ -609,8 +615,9 @@ func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
 
 func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 	require := require.New(t)
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -729,12 +736,13 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			require := require.New(t)
 			var server *Server
+			var cleanup func()
 			if withAcl {
-				server, _ = TestACLServer(t, nil)
+				server, _, cleanup = TestACLServer(t, nil)
 			} else {
-				server = TestServer(t, nil)
+				server, cleanup = TestServer(t, nil)
 			}
-			defer server.Shutdown()
+			defer cleanup()
 			testutil.WaitForLeader(t, server.RPC)
 
 			// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -811,12 +819,13 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 	for _, withAcl := range []bool{false, true} {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			var server *Server
+			var cleanup func()
 			if withAcl {
-				server, _ = TestACLServer(t, nil)
+				server, _, cleanup = TestACLServer(t, nil)
 			} else {
-				server = TestServer(t, nil)
+				server, cleanup = TestServer(t, nil)
 			}
-			defer server.Shutdown()
+			defer cleanup()
 			testutil.WaitForLeader(t, server.RPC)
 
 			// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -864,8 +873,9 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 
 func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -919,8 +929,9 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 
 func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -976,8 +987,9 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 
 func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -1019,8 +1031,9 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 
 func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -1142,8 +1155,9 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 
 func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -1287,8 +1301,9 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 // allocs/evals and job or nothing
 func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -1399,8 +1414,9 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 // This test ensures that stopped jobs are GCd
 func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -1502,12 +1518,13 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 	for _, withAcl := range []bool{false, true} {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			var server *Server
+			var cleanup func()
 			if withAcl {
-				server, _ = TestACLServer(t, nil)
+				server, _, cleanup = TestACLServer(t, nil)
 			} else {
-				server = TestServer(t, nil)
+				server, cleanup = TestServer(t, nil)
 			}
-			defer server.Shutdown()
+			defer cleanup()
 			testutil.WaitForLeader(t, server.RPC)
 
 			// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -1570,8 +1587,9 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 // This test ensures parameterized jobs only get gc'd when stopped
 func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -1650,8 +1668,8 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	t.Parallel()
 
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -1723,8 +1741,9 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 
 func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
 
@@ -1776,12 +1795,13 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 	for _, withAcl := range []bool{false, true} {
 		t.Run(fmt.Sprintf("with acl %v", withAcl), func(t *testing.T) {
 			var server *Server
+			var cleanup func()
 			if withAcl {
-				server, _ = TestACLServer(t, nil)
+				server, _, cleanup = TestACLServer(t, nil)
 			} else {
-				server = TestServer(t, nil)
+				server, cleanup = TestServer(t, nil)
 			}
-			defer server.Shutdown()
+			defer cleanup()
 			testutil.WaitForLeader(t, server.RPC)
 			assert := assert.New(t)
 
@@ -1818,8 +1838,9 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 
 func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -1860,8 +1881,9 @@ func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 
 func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
@@ -1897,8 +1919,9 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 func TestCoreScheduler_PartitionJobReap(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create a core scheduler

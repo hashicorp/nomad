@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/command/agent/monitor"
+	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -23,12 +24,59 @@ type Agent struct {
 }
 
 func NewAgentEndpoint(c *Client) *Agent {
-	m := &Agent{c: c}
-	m.c.streamingRpcs.Register("Agent.Monitor", m.monitor)
-	return m
+	a := &Agent{c: c}
+	a.c.streamingRpcs.Register("Agent.Monitor", a.monitor)
+	return a
 }
 
-func (m *Agent) monitor(conn io.ReadWriteCloser) {
+func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
+	// Check ACL for agent write
+	aclObj, err := a.c.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+		return structs.ErrPermissionDenied
+	}
+
+	// If ACLs are disabled, EnableDebug must be enabled
+	if aclObj == nil && !a.c.config.EnableDebug {
+		return structs.ErrPermissionDenied
+	}
+
+	var resp []byte
+	var headers map[string]string
+
+	// Determine which profile to run and generate profile.
+	// Blocks for args.Seconds
+	// Our RPC endpoints currently don't support context
+	// or request cancellation so stubbing with TODO
+	switch args.ReqType {
+	case pprof.CPUReq:
+		resp, headers, err = pprof.CPUProfile(context.TODO(), args.Seconds)
+	case pprof.CmdReq:
+		resp, headers, err = pprof.Cmdline()
+	case pprof.LookupReq:
+		resp, headers, err = pprof.Profile(args.Profile, args.Debug, args.GC)
+	case pprof.TraceReq:
+		resp, headers, err = pprof.Trace(context.TODO(), args.Seconds)
+	}
+
+	if err != nil {
+		if pprof.IsErrProfileNotFound(err) {
+			return structs.NewErrRPCCoded(404, err.Error())
+		}
+		return structs.NewErrRPCCoded(500, err.Error())
+	}
+
+	// Copy profile response to reply
+	reply.Payload = resp
+	reply.AgentID = a.c.NodeID()
+	reply.HTTPHeaders = headers
+
+	return nil
+}
+
+func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	defer metrics.MeasureSince([]string{"client", "agent", "monitor"}, time.Now())
 	defer conn.Close()
 
@@ -43,7 +91,7 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	}
 
 	// Check acl
-	if aclObj, err := m.c.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
 		handleStreamResultError(err, helper.Int64ToPtr(403), encoder)
 		return
 	} else if aclObj != nil && !aclObj.AllowAgentRead() {
@@ -64,7 +112,7 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	monitor := monitor.New(512, m.c.logger, &log.LoggerOptions{
+	monitor := monitor.New(512, a.c.logger, &log.LoggerOptions{
 		JSONFormat: args.LogJSON,
 		Level:      logLevel,
 	})
@@ -76,6 +124,7 @@ func (m *Agent) monitor(conn io.ReadWriteCloser) {
 
 	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
 	framer.Run()
+
 	defer framer.Destroy()
 
 	// goroutine to detect remote side closing

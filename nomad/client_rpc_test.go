@@ -30,8 +30,9 @@ func (n namedConnWrapper) LocalAddr() net.Addr {
 func TestServer_removeNodeConn_differentAddrs(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	p1, p2 := net.Pipe()
@@ -86,12 +87,13 @@ func TestServer_removeNodeConn_differentAddrs(t *testing.T) {
 func TestServerWithNodeConn_NoPath(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -105,8 +107,9 @@ func TestServerWithNodeConn_NoPath(t *testing.T) {
 func TestServerWithNodeConn_NoPath_Region(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	nodeID := uuid.Generate()
@@ -118,12 +121,13 @@ func TestServerWithNodeConn_NoPath_Region(t *testing.T) {
 func TestServerWithNodeConn_Path(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -143,12 +147,13 @@ func TestServerWithNodeConn_Path(t *testing.T) {
 func TestServerWithNodeConn_Path_Region(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.Region = "two"
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -168,16 +173,17 @@ func TestServerWithNodeConn_Path_Region(t *testing.T) {
 func TestServerWithNodeConn_Path_Newest(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
-	s3 := TestServer(t, func(c *Config) {
+	defer cleanupS2()
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 	TestJoin(t, s1, s2, s3)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -201,16 +207,17 @@ func TestServerWithNodeConn_Path_Newest(t *testing.T) {
 func TestServerWithNodeConn_PathAndErr(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
-	s3 := TestServer(t, func(c *Config) {
+	defer cleanupS2()
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 	TestJoin(t, s1, s2, s3)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -234,16 +241,17 @@ func TestServerWithNodeConn_PathAndErr(t *testing.T) {
 func TestServerWithNodeConn_NoPathAndErr(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
-	s3 := TestServer(t, func(c *Config) {
+	defer cleanupS2()
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 	TestJoin(t, s1, s2, s3)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -265,14 +273,14 @@ func TestServerWithNodeConn_NoPathAndErr(t *testing.T) {
 func TestNodeStreamingRpc_badEndpoint(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s1.config.RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Wait for the client to connect
 	testutil.WaitForResult(func() (bool, error) {

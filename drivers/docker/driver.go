@@ -209,23 +209,25 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		net:                   handleState.DriverNetwork,
 	}
 
-	h.dlogger, h.dloggerPluginClient, err = d.reattachToDockerLogger(handleState.ReattachConfig)
-	if err != nil {
-		d.logger.Warn("failed to reattach to docker logger process", "error", err)
-
-		h.dlogger, h.dloggerPluginClient, err = d.setupNewDockerLogger(container, handle.Config, time.Now())
+	if !d.config.DisableLogCollection {
+		h.dlogger, h.dloggerPluginClient, err = d.reattachToDockerLogger(handleState.ReattachConfig)
 		if err != nil {
-			if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
-				d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
-			}
-			return fmt.Errorf("failed to setup replacement docker logger: %v", err)
-		}
+			d.logger.Warn("failed to reattach to docker logger process", "error", err)
 
-		if err := handle.SetDriverState(h.buildState()); err != nil {
-			if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
-				d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+			h.dlogger, h.dloggerPluginClient, err = d.setupNewDockerLogger(container, handle.Config, time.Now())
+			if err != nil {
+				if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
+					d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+				}
+				return fmt.Errorf("failed to setup replacement docker logger: %v", err)
 			}
-			return fmt.Errorf("failed to store driver state: %v", err)
+
+			if err := handle.SetDriverState(h.buildState()); err != nil {
+				if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
+					d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+				}
+				return fmt.Errorf("failed to store driver state: %v", err)
+			}
 		}
 	}
 
@@ -334,11 +336,18 @@ CREATE:
 			container.ID, "container_state", container.State.String())
 	}
 
-	dlogger, pluginClient, err := d.setupNewDockerLogger(container, cfg, time.Unix(0, 0))
-	if err != nil {
-		d.logger.Error("an error occurred after container startup, terminating container", "container_id", container.ID)
-		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
-		return nil, nil, err
+	collectingLogs := !d.config.DisableLogCollection
+
+	var dlogger docklog.DockerLogger
+	var pluginClient *plugin.Client
+
+	if collectingLogs {
+		dlogger, pluginClient, err = d.setupNewDockerLogger(container, cfg, time.Unix(0, 0))
+		if err != nil {
+			d.logger.Error("an error occurred after container startup, terminating container", "container_id", container.ID)
+			client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
+			return nil, nil, err
+		}
 	}
 
 	// Detect container address
@@ -368,8 +377,10 @@ CREATE:
 
 	if err := handle.SetDriverState(h.buildState()); err != nil {
 		d.logger.Error("error encoding container occurred after startup, terminating container", "container_id", container.ID, "error", err)
-		dlogger.Stop()
-		pluginClient.Kill()
+		if collectingLogs {
+			dlogger.Stop()
+			pluginClient.Kill()
+		}
 		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
 		return nil, nil, err
 	}
@@ -543,7 +554,7 @@ func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 		},
 	})
 
-	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task))
+	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task), d.config.pullActivityTimeoutDuration)
 }
 
 func (d *Driver) emitEventFunc(task *drivers.TaskConfig) LogEventFn {

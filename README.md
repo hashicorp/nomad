@@ -1,4 +1,4 @@
-Nomad [![Build Status](https://circleci.com/gh/hashicorp/nomad.svg?style=svg)](https://circleci.com/gh/hashicorp/nomad) [![Join the chat at https://gitter.im/hashicorp-nomad/Lobby](https://badges.gitter.im/hashicorp-nomad/Lobby.svg)](https://gitter.im/hashicorp-nomad/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+Nomad [![Build Status](https://circleci.com/gh/hashicorp/nomad.svg?style=svg)](https://circleci.com/gh/hashicorp/nomad) [![Discuss](https://img.shields.io/badge/discuss-nomad-00BC7F?style=flat)](https://discuss.hashicorp.com/c/nomad)
 =========
 
 <p align="center" style="text-align:center;">
@@ -50,8 +50,8 @@ Documentation & Guides
 * [Installing Nomad for Production](https://www.nomadproject.io/guides/operations/deployment-guide.html)
 * [Advanced Job Scheduling on Nomad with Affinities](https://www.nomadproject.io/guides/operating-a-job/advanced-scheduling/affinity.html)
 * [Increasing Nomad Fault Tolerance with Spread](https://www.nomadproject.io/guides/operating-a-job/advanced-scheduling/spread.html)
-* [Load Balancing on Nomad with Fabio & Consul](https://learn.hashicorp.com/guides/load-balancing/fabio)
-* [Deploying Stateful Workloads via Portworx](https://www.nomadproject.io/guides/stateful-workloads/portworx.html)
+* [Load Balancing on Nomad with Fabio & Consul](https://learn.hashicorp.com/nomad/load-balancing/fabio)
+* [Deploying Stateful Workloads via Portworx](https://learn.hashicorp.com/nomad/stateful-workloads/portworx)
 * [Running Apache Spark on Nomad](https://www.nomadproject.io/guides/spark/spark.html)
 * [Integrating Vault with Nomad for Secrets Management](https://www.nomadproject.io/guides/operations/vault-integration/index.html)
 * [Securing Nomad with TLS](https://www.nomadproject.io/guides/security/securing-nomad.html)

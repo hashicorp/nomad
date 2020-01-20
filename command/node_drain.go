@@ -147,7 +147,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 
 	// Check that we got either enable or disable, but not both.
 	if (enable && disable) || (!monitor && !enable && !disable) {
-		c.Ui.Error("Ethier the '-enable' or '-disable' flag must be set, unless using '-monitor'")
+		c.Ui.Error("Either the '-enable' or '-disable' flag must be set, unless using '-monitor'")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

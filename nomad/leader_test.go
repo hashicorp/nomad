@@ -20,18 +20,18 @@ import (
 )
 
 func TestLeader_LeftServer(t *testing.T) {
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
-	s3 := TestServer(t, func(c *Config) {
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
 	TestJoin(t, s1, s2, s3)
 
@@ -80,18 +80,18 @@ func TestLeader_LeftServer(t *testing.T) {
 }
 
 func TestLeader_LeftLeader(t *testing.T) {
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
-	s3 := TestServer(t, func(c *Config) {
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
 	TestJoin(t, s1, s2, s3)
 
@@ -132,11 +132,11 @@ func TestLeader_LeftLeader(t *testing.T) {
 }
 
 func TestLeader_MultiBootstrap(t *testing.T) {
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 
-	s2 := TestServer(t, nil)
-	defer s2.Shutdown()
+	s2, cleanupS2 := TestServer(t, nil)
+	defer cleanupS2()
 	servers := []*Server{s1, s2}
 	TestJoin(t, s1, s2)
 
@@ -159,18 +159,18 @@ func TestLeader_MultiBootstrap(t *testing.T) {
 }
 
 func TestLeader_PlanQueue_Reset(t *testing.T) {
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
-	s3 := TestServer(t, func(c *Config) {
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
 	TestJoin(t, s1, s2, s3)
 
@@ -213,22 +213,22 @@ func TestLeader_PlanQueue_Reset(t *testing.T) {
 }
 
 func TestLeader_EvalBroker_Reset(t *testing.T) {
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
-	s3 := TestServer(t, func(c *Config) {
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.DevDisableBootstrap = true
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
 	TestJoin(t, s1, s2, s3)
 
@@ -271,22 +271,22 @@ func TestLeader_EvalBroker_Reset(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
-	s3 := TestServer(t, func(c *Config) {
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.DevDisableBootstrap = true
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
 	TestJoin(t, s1, s2, s3)
 
@@ -361,10 +361,10 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Inject a periodic job that will be triggered soon.
@@ -417,10 +417,10 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Inject a periodic job that triggered once in the past, should trigger now
@@ -474,11 +474,11 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 }
 
 func TestLeader_PeriodicDispatch(t *testing.T) {
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EvalGCInterval = 5 * time.Millisecond
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
 	// Wait for a periodic dispatch
 	testutil.WaitForResult(func() (bool, error) {
@@ -494,11 +494,11 @@ func TestLeader_PeriodicDispatch(t *testing.T) {
 }
 
 func TestLeader_ReapFailedEval(t *testing.T) {
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EvalDeliveryLimit = 1
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Wait for a periodic dispatch
@@ -572,10 +572,10 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 }
 
 func TestLeader_ReapDuplicateEval(t *testing.T) {
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create a duplicate blocked eval
@@ -602,10 +602,10 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 }
 
 func TestLeader_RestoreVaultAccessors(t *testing.T) {
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Insert a vault accessor that should be revoked
@@ -631,20 +631,21 @@ func TestLeader_RestoreVaultAccessors(t *testing.T) {
 
 func TestLeader_ReplicateACLPolicies(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, func(c *Config) {
+
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.Region = "region1"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
 	})
-	defer s1.Shutdown()
-	s2, _ := TestACLServer(t, func(c *Config) {
+	defer cleanupS1()
+	s2, _, cleanupS2 := TestACLServer(t, func(c *Config) {
 		c.Region = "region2"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
 		c.ReplicationBackoff = 20 * time.Millisecond
 		c.ReplicationToken = root.SecretID
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -699,20 +700,21 @@ func TestLeader_DiffACLPolicies(t *testing.T) {
 
 func TestLeader_ReplicateACLTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, func(c *Config) {
+
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.Region = "region1"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
 	})
-	defer s1.Shutdown()
-	s2, _ := TestACLServer(t, func(c *Config) {
+	defer cleanupS1()
+	s2, _, cleanupS2 := TestACLServer(t, func(c *Config) {
 		c.Region = "region2"
 		c.AuthoritativeRegion = "region1"
 		c.ACLEnabled = true
 		c.ReplicationBackoff = 20 * time.Millisecond
 		c.ReplicationToken = root.SecretID
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -774,23 +776,24 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 
 func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Datacenter = "dc1"
 		c.RaftConfig.ProtocolVersion = 2
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 1
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
-	s3 := TestServer(t, func(c *Config) {
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 2
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 
 	servers := []*Server{s1, s2, s3}
 
@@ -822,12 +825,12 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	}
 
 	// Replace the dead server with one running raft protocol v3
-	s4 := TestServer(t, func(c *Config) {
+	s4, cleanupS4 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.Datacenter = "dc1"
 		c.RaftConfig.ProtocolVersion = 3
 	})
-	defer s4.Shutdown()
+	defer cleanupS4()
 	TestJoin(t, s1, s4)
 	servers[1] = s4
 
@@ -872,24 +875,25 @@ func TestLeader_Reelection(t *testing.T) {
 }
 
 func leaderElectionTest(t *testing.T, raftProtocol raft.ProtocolVersion) {
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = raftProtocol
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = raftProtocol
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
-	s3 := TestServer(t, func(c *Config) {
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = raftProtocol
 	})
+	defer cleanupS3() // todo(shoenig) added this, should be here right??
 
 	servers := []*Server{s1, s2, s3}
 
@@ -931,22 +935,23 @@ func leaderElectionTest(t *testing.T, raftProtocol raft.ProtocolVersion) {
 
 func TestLeader_RollRaftServer(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 2
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 2
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
-	s3 := TestServer(t, func(c *Config) {
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 2
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 
 	servers := []*Server{s1, s2, s3}
 
@@ -973,11 +978,11 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	}
 
 	// Replace the dead server with one running raft protocol v3
-	s4 := TestServer(t, func(c *Config) {
+	s4, cleanupS4 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 3
 	})
-	defer s4.Shutdown()
+	defer cleanupS4()
 	TestJoin(t, s4, s2)
 	servers[0] = s4
 
@@ -996,11 +1001,11 @@ func TestLeader_RollRaftServer(t *testing.T) {
 		})
 	}
 	// Replace another dead server with one running raft protocol v3
-	s5 := TestServer(t, func(c *Config) {
+	s5, cleanupS5 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 3
 	})
-	defer s5.Shutdown()
+	defer cleanupS5()
 	TestJoin(t, s5, s4)
 	servers[1] = s5
 
@@ -1020,11 +1025,11 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	}
 
 	// Replace the last dead server with one running raft protocol v3
-	s6 := TestServer(t, func(c *Config) {
+	s6, cleanupS6 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 3
 	})
-	defer s6.Shutdown()
+	defer cleanupS6()
 	TestJoin(t, s6, s4)
 	servers[2] = s6
 
@@ -1055,8 +1060,8 @@ func TestLeader_RollRaftServer(t *testing.T) {
 }
 
 func TestLeader_RevokeLeadership_MultipleTimes(t *testing.T) {
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -1071,8 +1076,8 @@ func TestLeader_RevokeLeadership_MultipleTimes(t *testing.T) {
 }
 
 func TestLeader_TransitionsUpdateConsistencyRead(t *testing.T) {
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -1093,25 +1098,26 @@ func TestLeader_TransitionsUpdateConsistencyRead(t *testing.T) {
 // This verifies that removing the server and adding it back with a uuid works
 // even if the server's address stays the same.
 func TestServer_ReconcileMember(t *testing.T) {
-	// Create a three node cluster
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	// Create a three node cluster
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 3
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 3
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
-	s3 := TestServer(t, func(c *Config) {
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 2
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 	TestJoin(t, s1, s2, s3)
 	testutil.WaitForLeader(t, s1.RPC)
 

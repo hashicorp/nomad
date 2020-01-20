@@ -80,14 +80,14 @@ func TestFS_Stat(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Create and add an alloc
 	job := mock.BatchJob()
@@ -116,8 +116,8 @@ func TestFS_Stat_ACL(t *testing.T) {
 	t.Parallel()
 
 	// Start a server
-	s, root := nomad.TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	client, cleanup := TestClient(t, func(c *config.Config) {
@@ -213,14 +213,14 @@ func TestFS_List(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Create and add an alloc
 	job := mock.BatchJob()
@@ -249,8 +249,8 @@ func TestFS_List_ACL(t *testing.T) {
 	t.Parallel()
 
 	// Start a server
-	s, root := nomad.TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	client, cleanup := TestClient(t, func(c *config.Config) {
@@ -399,8 +399,8 @@ func TestFS_Stream_ACL(t *testing.T) {
 	t.Parallel()
 
 	// Start a server
-	s, root := nomad.TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	client, cleanup := TestClient(t, func(c *config.Config) {
@@ -528,14 +528,14 @@ func TestFS_Stream(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	expected := "Hello from the other side"
 	job := mock.BatchJob()
@@ -644,14 +644,14 @@ func TestFS_Stream_Follow(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	expectedBase := "Hello from the other side"
 	repeat := 10
@@ -741,8 +741,8 @@ func TestFS_Stream_Limit(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	c, cleanup := TestClient(t, func(c *config.Config) {
@@ -913,14 +913,14 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
@@ -1028,8 +1028,8 @@ func TestFS_Logs_ACL(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server
-	s, root := nomad.TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	client, cleanup := TestClient(t, func(c *config.Config) {
@@ -1159,14 +1159,14 @@ func TestFS_Logs(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	expected := "Hello from the other side\n"
 	job := mock.BatchJob()
@@ -1260,14 +1260,14 @@ func TestFS_Logs_Follow(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	expectedBase := "Hello from the other side\n"
 	repeat := 10
