@@ -2830,18 +2830,20 @@ func TestStateStore_RestoreJobSummary(t *testing.T) {
 func TestStateStore_CSIVolume(t *testing.T) {
 	state := testStateStore(t)
 
-	v0 := structs.CreateCSIVolume("foo")
-	v0.ID = "DEADBEEF-70AD-4672-9178-802BCA500C87"
+	id0, id1 := uuid.Generate(), uuid.Generate()
+
+	v0 := structs.NewCSIVolume("foo")
+	v0.ID = id0
 	v0.Namespace = "default"
-	v0.Driver = "minnie"
+	v0.PluginID = "minnie"
 	v0.Healthy = true
 	v0.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v0.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 
-	v1 := structs.CreateCSIVolume("foo")
-	v1.ID = "BAADF00D-70AD-4672-9178-802BCA500C87"
+	v1 := structs.NewCSIVolume("foo")
+	v1.ID = id1
 	v1.Namespace = "default"
-	v1.Driver = "adam"
+	v1.PluginID = "adam"
 	v1.Healthy = true
 	v1.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v1.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
@@ -2869,18 +2871,18 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Equal(t, 2, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByDriver(ws, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
 
 	err = state.CSIVolumeDeregister(1, []string{
-		"BAADF00D-70AD-4672-9178-802BCA500C87",
+		id1,
 	})
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByDriver(ws, "adam")
+	iter, err = state.CSIVolumesByPluginID(ws, "adam")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 0, len(vs))
@@ -2898,24 +2900,145 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	w := structs.CSIVolumeClaimWrite
 	u := structs.CSIVolumeClaimRelease
 
-	err = state.CSIVolumeClaim(2, "DEADBEEF-70AD-4672-9178-802BCA500C87", a0, r)
+	err = state.CSIVolumeClaim(2, id0, a0, r)
 	require.NoError(t, err)
-	err = state.CSIVolumeClaim(2, "DEADBEEF-70AD-4672-9178-802BCA500C87", a1, w)
+	err = state.CSIVolumeClaim(2, id0, a1, w)
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByDriver(ws, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.False(t, vs[0].CanWrite())
 
-	err = state.CSIVolumeClaim(2, "DEADBEEF-70AD-4672-9178-802BCA500C87", a0, u)
+	err = state.CSIVolumeClaim(2, id0, a0, u)
 	require.NoError(t, err)
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByDriver(ws, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.True(t, vs[0].CanReadOnly())
+}
+
+// TestStateStore_CSIPluginJobs creates plugin jobs and tests that they create a CSIPlugin
+func TestStateStore_CSIPluginJobs(t *testing.T) {
+	index := uint64(999)
+	state := testStateStore(t)
+	testStateStore_CSIPluginJobs(t, index, state)
+}
+
+func testStateStore_CSIPluginJobs(t *testing.T, index uint64, state *StateStore) (uint64, *StateStore) {
+	j0 := mock.Job()
+	j0.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
+		ID:   "foo",
+		Type: structs.CSIPluginTypeController,
+	}
+
+	j1 := mock.Job()
+	j1.Type = structs.JobTypeSystem
+	j1.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
+		ID:   "foo",
+		Type: structs.CSIPluginTypeNode,
+	}
+
+	index++
+	err := state.UpsertJob(index, j0)
+	require.NoError(t, err)
+
+	index++
+	err = state.UpsertJob(index, j1)
+	require.NoError(t, err)
+
+	// Get the plugin back out by id
+	ws := memdb.NewWatchSet()
+	plug, err := state.CSIPluginByID(ws, "foo")
+	require.NoError(t, err)
+
+	require.Equal(t, "foo", plug.ID)
+
+	jids := map[string]struct{}{j0.ID: struct{}{}, j1.ID: struct{}{}}
+	for jid := range plug.Jobs[structs.DefaultNamespace] {
+		delete(jids, jid)
+	}
+	require.Equal(t, 0, len(jids))
+
+	return index, state
+}
+
+// TestStateStore_CSIPluginNodes uses the state from jobs, and uses node fingerprinting to update health
+func TestStateStore_CSIPluginNodes(t *testing.T) {
+	index := uint64(999)
+	state := testStateStore(t)
+	index, state = testStateStore_CSIPluginJobs(t, index, state)
+	testStateStore_CSIPluginNodes(t, index, state)
+}
+
+func testStateStore_CSIPluginNodes(t *testing.T, index uint64, state *StateStore) (uint64, *StateStore) {
+	// Create Nodes fingerprinting the plugins
+	ns := []*structs.Node{mock.Node(), mock.Node(), mock.Node()}
+
+	for _, n := range ns {
+		index++
+		err := state.UpsertNode(index, n)
+		require.NoError(t, err)
+	}
+
+	// Fingerprint a running controller plugin
+	n0 := ns[0].Copy()
+	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID:                 "foo",
+			Healthy:                  true,
+			UpdateTime:               time.Now(),
+			RequiresControllerPlugin: true,
+			RequiresTopologies:       false,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsReadOnlyAttach: true,
+				SupportsListVolumes:    true,
+			},
+		},
+	}
+
+	index++
+	err := state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	// Fingerprint two running node plugins
+	for _, n := range ns[1:] {
+		n = n.Copy()
+		n.CSINodePlugins = map[string]*structs.CSIInfo{
+			"foo": {
+				PluginID:                 "foo",
+				Healthy:                  true,
+				UpdateTime:               time.Now(),
+				RequiresControllerPlugin: true,
+				RequiresTopologies:       false,
+				NodeInfo:                 &structs.CSINodeInfo{},
+			},
+		}
+
+		index++
+		err = state.UpsertNode(index, n)
+		require.NoError(t, err)
+	}
+
+	ws := memdb.NewWatchSet()
+	plug, err := state.CSIPluginByID(ws, "foo")
+	require.NoError(t, err)
+
+	require.Equal(t, "foo", plug.ID)
+	require.Equal(t, 1, plug.ControllersHealthy)
+	require.Equal(t, 2, plug.NodesHealthy)
+
+	return index, state
+}
+
+// TestStateStore_CSIPluginBackwards gets the node state first, and the job state second
+func TestStateStore_CSIPluginBackwards(t *testing.T) {
+	index := uint64(999)
+	state := testStateStore(t)
+	index, state = testStateStore_CSIPluginNodes(t, index, state)
+	testStateStore_CSIPluginJobs(t, index, state)
 }
 
 func TestStateStore_Indexes(t *testing.T) {

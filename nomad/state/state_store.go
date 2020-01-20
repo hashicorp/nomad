@@ -672,6 +672,9 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
+	if err := upsertNodeCSIPlugins(txn, node, index); err != nil {
+		return fmt.Errorf("csi plugin update failed: %v", err)
+	}
 
 	txn.Commit()
 	return nil
@@ -698,6 +701,11 @@ func (s *StateStore) DeleteNode(index uint64, nodes []string) error {
 		// Delete the node
 		if err := txn.Delete("nodes", existing); err != nil {
 			return fmt.Errorf("node delete failed: %s: %v", nodeID, err)
+		}
+
+		node := existing.(*structs.Node)
+		if err := deleteNodeCSIPlugins(txn, node, index); err != nil {
+			return fmt.Errorf("csi plugin delete failed: %v", err)
 		}
 	}
 
@@ -926,6 +934,95 @@ func appendNodeEvents(index uint64, node *structs.Node, events []*structs.NodeEv
 	}
 }
 
+// upsertNodeCSIPlugins indexes csi plugins for volume retrieval, with health. It's called
+// on upsertNodeEvents, so that event driven health changes are updated
+func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) error {
+	if len(node.CSIControllerPlugins) == 0 && len(node.CSINodePlugins) == 0 {
+		return nil
+	}
+
+	loop := func(info *structs.CSIInfo) error {
+		raw, err := txn.First("csi_plugins", "id", info.PluginID)
+		if err != nil {
+			return fmt.Errorf("csi_plugin lookup error: %s %v", info.PluginID, err)
+		}
+
+		var plug *structs.CSIPlugin
+		if raw != nil {
+			plug = raw.(*structs.CSIPlugin)
+		} else {
+			plug = structs.NewCSIPlugin(info.PluginID, index)
+		}
+
+		plug.AddPlugin(node.ID, info, index)
+
+		err = txn.Insert("csi_plugins", plug)
+		if err != nil {
+			return fmt.Errorf("csi_plugins insert error: %v", err)
+		}
+
+		return nil
+	}
+
+	for _, info := range node.CSIControllerPlugins {
+		err := loop(info)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, info := range node.CSINodePlugins {
+		err := loop(info)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// deleteNodeCSIPlugins cleans up CSIInfo node health status, called in DeleteNode
+func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) error {
+	if len(node.CSIControllerPlugins) == 0 && len(node.CSINodePlugins) == 0 {
+		return nil
+	}
+
+	names := map[string]struct{}{}
+	for _, info := range node.CSIControllerPlugins {
+		names[info.PluginID] = struct{}{}
+	}
+	for _, info := range node.CSINodePlugins {
+		names[info.PluginID] = struct{}{}
+	}
+
+	for id := range names {
+		raw, err := txn.First("csi_plugins", "id", id)
+		if err != nil {
+			return fmt.Errorf("csi_plugins lookup error %s: %v", id, err)
+		}
+		if raw == nil {
+			continue // FIXME error?
+		}
+
+		plug := raw.(*structs.CSIPlugin)
+		plug.DeleteNode(node.ID, index)
+
+		if plug.IsEmpty() {
+			err := txn.Delete("csi_plugins", plug)
+			if err != nil {
+				return fmt.Errorf("csi_plugins delete error: %v", err)
+			}
+		}
+
+		err = txn.Insert("csi_plugins", plug)
+		if err != nil {
+			return fmt.Errorf("csi_plugins update error %s: %v", id, err)
+		}
+	}
+
+	return nil
+}
+
 // NodeByID is used to lookup a node by ID
 func (s *StateStore) NodeByID(ws memdb.WatchSet, nodeID string) (*structs.Node, error) {
 	txn := s.db.Txn(false)
@@ -1063,6 +1160,10 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
 
+	if err := s.upsertJobCSIPlugins(index, job, txn); err != nil {
+		return fmt.Errorf("unable to upsert csi_plugins table: %v", err)
+	}
+
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
@@ -1154,6 +1255,11 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 
 	// Delete the job versions
 	if err := s.deleteJobVersions(index, job, txn); err != nil {
+		return err
+	}
+
+	// Delete the csi_plugins
+	if err := s.deleteJobCSIPlugins(index, job, txn); err != nil {
 		return err
 	}
 
@@ -1541,19 +1647,14 @@ func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, id string) (*structs.CSIVo
 	}
 	ws.Add(watchCh)
 
-	if obj != nil {
-		v := obj.(*structs.CSIVolume)
-		return v, nil
-	}
-
-	return nil, nil
+	return s.CSIVolumeDenormalize(ws, obj)
 }
 
-// CSIVolumes looks up the entire csi_volumes table
-func (s *StateStore) CSIVolumesByDriver(ws memdb.WatchSet, driver string) (memdb.ResultIterator, error) {
+// CSIVolumes looks up csi_volumes by pluginID
+func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, pluginID string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
-	iter, err := txn.Get("csi_volumes", "driver", driver)
+	iter, err := txn.Get("csi_volumes", "plugin_id", pluginID)
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %v", err)
 	}
@@ -1627,6 +1728,164 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, ids []string) error {
 
 	txn.Commit()
 	return nil
+}
+
+// upsertJobCSIPlugins is called on UpsertJob and maintains the csi_plugin index of jobs
+func (s *StateStore) upsertJobCSIPlugins(index uint64, job *structs.Job, txn *memdb.Txn) error {
+	ws := memdb.NewWatchSet()
+	plugs, err := s.csiPluginsByJob(ws, job, index)
+	if err != nil {
+		return fmt.Errorf("%v", err)
+	}
+
+	// Append this job to all of them
+	for _, plug := range plugs {
+		if _, ok := plug.Jobs[job.Namespace]; !ok {
+			plug.Jobs[job.Namespace] = map[string]*structs.Job{}
+		}
+		plug.Jobs[job.Namespace][job.ID] = job // FIXME need to lock this?
+		plug.ModifyIndex = index
+		err := txn.Insert("csi_plugins", plug)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// csiPluginsByJob finds or creates CSIPlugins identified by the configuration contained in job
+func (s *StateStore) csiPluginsByJob(ws memdb.WatchSet, job *structs.Job, index uint64) (map[string]*structs.CSIPlugin, error) {
+	txn := s.db.Txn(false)
+	defer txn.Abort()
+
+	plugs := map[string]*structs.CSIPlugin{}
+
+	for _, tg := range job.TaskGroups {
+		for _, t := range tg.Tasks {
+			if t.CSIPluginConfig == nil {
+				continue
+			}
+
+			plug, ok := plugs[t.CSIPluginConfig.ID]
+			if ok {
+				continue
+			}
+
+			plug, err := s.CSIPluginByID(ws, t.CSIPluginConfig.ID)
+			if err != nil {
+				return nil, err
+			}
+
+			if plug == nil {
+				plug = structs.NewCSIPlugin(t.CSIPluginConfig.ID, index)
+				plug.Type = t.CSIPluginConfig.Type
+			}
+
+			plugs[t.CSIPluginConfig.ID] = plug
+		}
+	}
+
+	return plugs, nil
+}
+
+// deleteJobCSIPlugins is called on DeleteJob
+func (s *StateStore) deleteJobCSIPlugins(index uint64, job *structs.Job, txn *memdb.Txn) error {
+	ws := memdb.NewWatchSet()
+	plugs, err := s.csiPluginsByJob(ws, job, index)
+	if err != nil {
+		return fmt.Errorf("%v", err)
+	}
+
+	// Remove this job from each plugin. If the plugin has no jobs left, remove it
+	for _, plug := range plugs {
+		delete(plug.Jobs[job.Namespace], job.ID)
+		if plug.IsEmpty() {
+			err = txn.Delete("csi_plugins", plug)
+		} else {
+			plug.ModifyIndex = index
+			err = txn.Insert("csi_plugins", plug)
+		}
+		if err != nil {
+			return fmt.Errorf("csi_plugins update: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// CSIVolumeDenormalize takes a raw CSIVolume interface, type casts it, and returns a CSIVolume
+// - with current Health
+// - with active Allocations
+func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol interface{}) (*structs.CSIVolume, error) {
+	if vol == nil {
+		return nil, nil
+	}
+
+	v, ok := vol.(*structs.CSIVolume)
+	if !ok {
+		return nil, fmt.Errorf("volume type assertion failed")
+	}
+
+	// Lookup CSIPlugin, the health records, and calculate volume health
+	txn := s.db.Txn(false)
+	defer txn.Abort()
+
+	plug, err := s.CSIPluginByID(ws, v.PluginID)
+	if err != nil {
+		return nil, fmt.Errorf("plugin lookup error: %s %v", v.PluginID, err)
+	}
+	if plug == nil {
+		v.ControllersHealthy = 0
+		v.NodesHealthy = 0
+		v.Healthy = false
+		return v, nil
+	}
+
+	v.ControllersHealthy = plug.ControllersHealthy
+	v.NodesHealthy = plug.NodesHealthy
+	// This number is incorrect! The expected number of node plugins is actually this +
+	// the number of blocked evaluations for the jobs controlling these plugins
+	v.ControllersExpected = len(plug.Controllers)
+	v.NodesExpected = len(plug.Nodes)
+
+	v.Healthy = v.ControllersHealthy > 0 && v.NodesHealthy > 0
+
+	// FIXME TODO determine if allocation data can be stale
+
+	return v, nil
+}
+
+// CSIPlugins returns the unfiltered list of all plugin health status
+func (s *StateStore) CSIPlugins(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+	defer txn.Abort()
+
+	iter, err := txn.Get("csi_plugins", "id")
+	if err != nil {
+		return nil, fmt.Errorf("csi_plugins lookup failed: %v", err)
+	}
+
+	return iter, nil
+}
+
+// CSIPluginByID returns the one named CSIPlugin
+func (s *StateStore) CSIPluginByID(ws memdb.WatchSet, id string) (*structs.CSIPlugin, error) {
+	txn := s.db.Txn(false)
+	defer txn.Abort()
+
+	raw, err := txn.First("csi_plugins", "id", id)
+	if err != nil {
+		return nil, fmt.Errorf("csi_plugin lookup failed: %s %v", id, err)
+	}
+
+	if raw == nil {
+		return nil, nil
+	}
+
+	plug := raw.(*structs.CSIPlugin)
+
+	return plug, nil
 }
 
 // UpsertPeriodicLaunch is used to register a launch or update it.
@@ -2443,8 +2702,8 @@ func (s *StateStore) AllocsByNodeTerminal(ws memdb.WatchSet, node string, termin
 	return out, nil
 }
 
-// AllocsByJob returns all the allocations by job id
-func (s *StateStore) AllocsByJob(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Allocation, error) {
+// AllocsByJob returns allocations by job id
+func (s *StateStore) AllocsByJob(ws memdb.WatchSet, namespace, jobID string, anyCreateIndex bool) ([]*structs.Allocation, error) {
 	txn := s.db.Txn(false)
 
 	// Get the job
@@ -2476,7 +2735,7 @@ func (s *StateStore) AllocsByJob(ws memdb.WatchSet, namespace, jobID string, all
 		// If the allocation belongs to a job with the same ID but a different
 		// create index and we are not getting all the allocations whose Jobs
 		// matches the same Job ID then we skip it
-		if !all && job != nil && alloc.Job.CreateIndex != job.CreateIndex {
+		if !anyCreateIndex && job != nil && alloc.Job.CreateIndex != job.CreateIndex {
 			continue
 		}
 		out = append(out, raw.(*structs.Allocation))
