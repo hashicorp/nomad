@@ -220,7 +220,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
     assert.equal(
       server.pretender.handledRequests
-        .reject(request => request.url.includes('policy'))
+        .filter(request => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/allocation/not-a-real-allocation',
       'A request to the nonexistent allocation is made'

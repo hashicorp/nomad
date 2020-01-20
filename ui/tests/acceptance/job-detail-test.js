@@ -48,7 +48,7 @@ moduleForJob(
 
       assert.equal(
         server.pretender.handledRequests
-          .reject(request => request.url.includes('policy'))
+          .filter(request => !request.url.includes('policy'))
           .findBy('status', 404).url,
         '/v1/job/not-a-real-job',
         'A request to the nonexistent job is made'

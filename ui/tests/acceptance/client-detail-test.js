@@ -324,7 +324,7 @@ module('Acceptance | client detail', function(hooks) {
 
     assert.equal(
       server.pretender.handledRequests
-        .reject(request => request.url.includes('policy'))
+        .filter(request => !request.url.includes('policy'))
         .findBy('status', 404).url,
       '/v1/node/not-a-real-node',
       'A request to the nonexistent node is made'
