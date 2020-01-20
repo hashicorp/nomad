@@ -10,12 +10,12 @@ type CSIVolumes struct {
 	client *Client
 }
 
-// CSIVolumes returns a handle on the allocs endpoints.
+// CSIVolumes returns a handle on the CSIVolumes endpoint
 func (c *Client) CSIVolumes() *CSIVolumes {
 	return &CSIVolumes{client: c}
 }
 
-// List returns all CSI volumes, ignoring driver
+// List returns all CSI volumes
 func (v *CSIVolumes) List(q *QueryOptions) ([]*CSIVolumeListStub, *QueryMeta, error) {
 	var resp []*CSIVolumeListStub
 	qm, err := v.client.query("/v1/csi/volumes", &resp, q)
@@ -26,12 +26,12 @@ func (v *CSIVolumes) List(q *QueryOptions) ([]*CSIVolumeListStub, *QueryMeta, er
 	return resp, qm, nil
 }
 
-// DriverList returns all CSI volumes for the specified driver
-func (v *CSIVolumes) DriverList(driver string) ([]*CSIVolumeListStub, *QueryMeta, error) {
-	return v.List(&QueryOptions{Prefix: driver})
+// PluginList returns all CSI volumes for the specified plugin id
+func (v *CSIVolumes) PluginList(pluginID string) ([]*CSIVolumeListStub, *QueryMeta, error) {
+	return v.List(&QueryOptions{Prefix: pluginID})
 }
 
-// Info is used to retrieve a single allocation.
+// Info is used to retrieve a single CSIVolume
 func (v *CSIVolumes) Info(id string, q *QueryOptions) (*CSIVolume, *QueryMeta, error) {
 	var resp CSIVolume
 	qm, err := v.client.query("/v1/csi/volume/"+id, &resp, q)
@@ -81,7 +81,6 @@ const (
 // CSIVolume is used for serialization, see also nomad/structs/csi.go
 type CSIVolume struct {
 	ID             string
-	Driver         string
 	Namespace      string
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode
@@ -92,16 +91,17 @@ type CSIVolume struct {
 
 	// Healthy is true iff all the denormalized plugin health fields are true, and the
 	// volume has not been marked for garbage collection
-	Healthy           bool
-	VolumeGC          time.Time
-	ControllerName    string
-	ControllerHealthy bool
-	NodeHealthy       int
-	NodeExpected      int
-	ResourceExhausted time.Time
+	Healthy             bool
+	VolumeGC            time.Time
+	PluginID            string
+	ControllersHealthy  int
+	ControllersExpected int
+	NodesHealthy        int
+	NodesExpected       int
+	ResourceExhausted   time.Time
 
-	CreatedIndex  uint64
-	ModifiedIndex uint64
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 type CSIVolumeIndexSort []*CSIVolumeListStub
@@ -111,7 +111,7 @@ func (v CSIVolumeIndexSort) Len() int {
 }
 
 func (v CSIVolumeIndexSort) Less(i, j int) bool {
-	return v[i].CreatedIndex > v[j].CreatedIndex
+	return v[i].CreateIndex > v[j].CreateIndex
 }
 
 func (v CSIVolumeIndexSort) Swap(i, j int) {
@@ -121,7 +121,6 @@ func (v CSIVolumeIndexSort) Swap(i, j int) {
 // CSIVolumeListStub omits allocations. See also nomad/structs/csi.go
 type CSIVolumeListStub struct {
 	ID             string
-	Driver         string
 	Namespace      string
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode
@@ -129,16 +128,17 @@ type CSIVolumeListStub struct {
 
 	// Healthy is true iff all the denormalized plugin health fields are true, and the
 	// volume has not been marked for garbage collection
-	Healthy           bool
-	VolumeGC          time.Time
-	ControllerName    string
-	ControllerHealthy bool
-	NodeHealthy       int
-	NodeExpected      int
-	ResourceExhausted time.Time
+	Healthy             bool
+	VolumeGC            time.Time
+	PluginID            string
+	ControllersHealthy  int
+	ControllersExpected int
+	NodesHealthy        int
+	NodesExpected       int
+	ResourceExhausted   time.Time
 
-	CreatedIndex  uint64
-	ModifiedIndex uint64
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
 type CSIVolumeRegisterRequest struct {
@@ -149,4 +149,76 @@ type CSIVolumeRegisterRequest struct {
 type CSIVolumeDeregisterRequest struct {
 	VolumeIDs []string
 	WriteRequest
+}
+
+// CSI Plugins are jobs with plugin specific data
+type CSIPlugins struct {
+	client *Client
+}
+
+type CSIPlugin struct {
+	ID        string
+	Type      CSIPluginType
+	Namespace string
+	Jobs      map[string]map[string]*Job
+
+	ControllersHealthy int
+	Controllers        map[string]*CSIInfo
+	NodesHealthy       int
+	Nodes              map[string]*CSIInfo
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+type CSIPluginListStub struct {
+	ID                  string
+	Type                CSIPluginType
+	JobIDs              map[string]map[string]struct{}
+	ControllersHealthy  int
+	ControllersExpected int
+	NodesHealthy        int
+	NodesExpected       int
+	CreateIndex         uint64
+	ModifyIndex         uint64
+}
+
+type CSIPluginIndexSort []*CSIPluginListStub
+
+func (v CSIPluginIndexSort) Len() int {
+	return len(v)
+}
+
+func (v CSIPluginIndexSort) Less(i, j int) bool {
+	return v[i].CreateIndex > v[j].CreateIndex
+}
+
+func (v CSIPluginIndexSort) Swap(i, j int) {
+	v[i], v[j] = v[j], v[i]
+}
+
+// CSIPlugins returns a handle on the CSIPlugins endpoint
+func (c *Client) CSIPlugins() *CSIPlugins {
+	return &CSIPlugins{client: c}
+}
+
+// List returns all CSI plugins
+func (v *CSIPlugins) List(q *QueryOptions) ([]*CSIPluginListStub, *QueryMeta, error) {
+	var resp []*CSIPluginListStub
+	qm, err := v.client.query("/v1/csi/plugins", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	sort.Sort(CSIPluginIndexSort(resp))
+	return resp, qm, nil
+}
+
+// Info is used to retrieve a single CSI Plugin Job
+func (v *CSIPlugins) Info(id string, q *QueryOptions) (*CSIPlugin, *QueryMeta, error) {
+	var resp *CSIPlugin
+	qm, err := v.client.query("/v1/csi/plugin/"+id, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
 }
