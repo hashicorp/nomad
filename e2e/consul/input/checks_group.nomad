@@ -51,7 +51,7 @@ job "group_check" {
         interval = "2s"
         timeout  = "2s"
         command  = "cat"
-        args     = ["${NOMAD_TASK_DIR}/alive-2b"]
+        args     = ["alive-2b"]
       }
     }
 
