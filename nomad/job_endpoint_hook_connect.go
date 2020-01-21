@@ -25,6 +25,7 @@ var (
 		"args": []interface{}{
 			"-c", structs.EnvoyBootstrapPath,
 			"-l", "${meta.connect.log_level}",
+			"--disable-hot-restart",
 		},
 	}
 

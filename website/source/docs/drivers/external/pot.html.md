@@ -6,7 +6,7 @@ description: |-
   The Pot task driver is used to run pot (https://github.com/pizzamig/pot) containers using FreeBSD jails.
 ---
 
-# Pot task Driver
+# Pot Task Driver
 
 Name: `pot`
 

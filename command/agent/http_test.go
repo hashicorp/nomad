@@ -218,6 +218,60 @@ func TestContentTypeIsJSON(t *testing.T) {
 	}
 }
 
+func TestWrapNonJSON(t *testing.T) {
+	t.Parallel()
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	resp := httptest.NewRecorder()
+
+	handler := func(resp http.ResponseWriter, req *http.Request) ([]byte, error) {
+		return []byte("test response"), nil
+	}
+
+	req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
+	s.Server.wrapNonJSON(handler)(resp, req)
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	require.Equal(t, respBody, []byte("test response"))
+
+}
+
+func TestWrapNonJSON_Error(t *testing.T) {
+	t.Parallel()
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	handlerRPCErr := func(resp http.ResponseWriter, req *http.Request) ([]byte, error) {
+		return nil, structs.NewErrRPCCoded(404, "not found")
+	}
+
+	handlerCodedErr := func(resp http.ResponseWriter, req *http.Request) ([]byte, error) {
+		return nil, CodedError(422, "unprocessable")
+	}
+
+	// RPC coded error
+	{
+		resp := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
+		s.Server.wrapNonJSON(handlerRPCErr)(resp, req)
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		require.Equal(t, []byte("not found"), respBody)
+		require.Equal(t, 404, resp.Code)
+	}
+
+	// CodedError
+	{
+		resp := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
+		s.Server.wrapNonJSON(handlerCodedErr)(resp, req)
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		require.Equal(t, []byte("unprocessable"), respBody)
+		require.Equal(t, 422, resp.Code)
+	}
+
+}
+
 func TestPrettyPrint(t *testing.T) {
 	t.Parallel()
 	testPrettyPrint("pretty=1", true, t)

@@ -203,7 +203,7 @@ func (ar *allocRunner) update(update *structs.Allocation) error {
 		var start time.Time
 		if ar.logger.IsTrace() {
 			start = time.Now()
-			ar.logger.Trace("running pre-run hook", "name", name, "start", start)
+			ar.logger.Trace("running update hook", "name", name, "start", start)
 		}
 
 		if err := h.Update(req); err != nil {
@@ -293,6 +293,29 @@ func (ar *allocRunner) destroy() error {
 	}
 
 	return merr.ErrorOrNil()
+}
+
+func (ar *allocRunner) preKillHooks() {
+	for _, hook := range ar.runnerHooks {
+		pre, ok := hook.(interfaces.RunnerPreKillHook)
+		if !ok {
+			continue
+		}
+
+		name := pre.Name()
+		var start time.Time
+		if ar.logger.IsTrace() {
+			start = time.Now()
+			ar.logger.Trace("running alloc pre shutdown hook", "name", name, "start", start)
+		}
+
+		pre.PreKill()
+
+		if ar.logger.IsTrace() {
+			end := time.Now()
+			ar.logger.Trace("finished alloc pre shutdown hook", "name", name, "end", end, "duration", end.Sub(start))
+		}
+	}
 }
 
 // shutdownHooks calls graceful shutdown hooks for when the agent is exiting.

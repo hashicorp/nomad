@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
@@ -260,6 +261,46 @@ func (q QueryOptions) IsRead() bool {
 
 func (q QueryOptions) AllowStaleRead() bool {
 	return q.AllowStale
+}
+
+// AgentPprofRequest is used to request a pprof report for a given node.
+type AgentPprofRequest struct {
+	// ReqType specifies the profile to use
+	ReqType pprof.ReqType
+
+	// Profile specifies the runtime/pprof profile to lookup and generate.
+	Profile string
+
+	// Seconds is the number of seconds to capture a profile
+	Seconds int
+
+	// Debug specifies if pprof profile should inclue debug output
+	Debug int
+
+	// GC specifies if the profile should call runtime.GC() before
+	// running its profile. This is only used for "heap" profiles
+	GC int
+
+	// NodeID is the node we want to track the logs of
+	NodeID string
+
+	// ServerID is the server we want to track the logs of
+	ServerID string
+
+	QueryOptions
+}
+
+// AgentPprofResponse is used to return a generated pprof profile
+type AgentPprofResponse struct {
+	// ID of the agent that fulfilled the request
+	AgentID string
+
+	// Payload is the generated pprof profile
+	Payload []byte
+
+	// HTTPHeaders are a set of key value pairs to be applied as
+	// HTTP headers for a specific runtime profile
+	HTTPHeaders map[string]string
 }
 
 type WriteRequest struct {
@@ -3547,6 +3588,10 @@ func (j *Job) Validate() error {
 			taskGroups[tg.Name] = idx
 		}
 
+		if tg.ShutdownDelay != nil && *tg.ShutdownDelay < 0 {
+			mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
+		}
+
 		if j.Type == "system" && tg.Count > 1 {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Job task group %s has count %d. Count cannot exceed 1 with system scheduler",
@@ -4736,6 +4781,10 @@ type TaskGroup struct {
 
 	// Volumes is a map of volumes that have been requested by the task group.
 	Volumes map[string]*VolumeRequest
+
+	// ShutdownDelay is the amount of time to wait between deregistering
+	// group services in consul and stopping tasks.
+	ShutdownDelay *time.Duration
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -4780,6 +4829,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 		for i, s := range tg.Services {
 			ntg.Services[i] = s.Copy()
 		}
+	}
+
+	if tg.ShutdownDelay != nil {
+		ntg.ShutdownDelay = tg.ShutdownDelay
 	}
 
 	return ntg

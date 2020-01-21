@@ -500,6 +500,9 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 	var mu sync.Mutex
 	states := make(map[string]*structs.TaskState, len(ar.tasks))
 
+	// run alloc prekill hooks
+	ar.preKillHooks()
+
 	// Kill leader first, synchronously
 	for name, tr := range ar.tasks {
 		if !tr.IsLeader() {

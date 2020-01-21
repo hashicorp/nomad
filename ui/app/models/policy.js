@@ -5,4 +5,5 @@ export default Model.extend({
   name: attr('string'),
   description: attr('string'),
   rules: attr('string'),
+  rulesJSON: attr(),
 });

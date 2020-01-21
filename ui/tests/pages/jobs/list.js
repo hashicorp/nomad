@@ -4,6 +4,7 @@ import {
   collection,
   clickable,
   fillable,
+  is,
   isPresent,
   text,
   visitable,
@@ -18,7 +19,10 @@ export default create({
 
   search: fillable('[data-test-jobs-search] input'),
 
-  runJob: clickable('[data-test-run-job]'),
+  runJobButton: {
+    scope: '[data-test-run-job]',
+    isDisabled: is('[disabled]'),
+  },
 
   jobs: collection('[data-test-job-row]', {
     id: attribute('data-test-job-row'),

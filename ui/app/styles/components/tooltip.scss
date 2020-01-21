@@ -46,6 +46,10 @@
   transition: top 0.1s ease-in-out;
 }
 
+.tooltip.is-right-aligned::after {
+  transform: translateX(-75%);
+}
+
 .tooltip:hover::after,
 .tooltip.always-active::after {
   opacity: 1;

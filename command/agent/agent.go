@@ -132,6 +132,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf = nomad.DefaultConfig()
 	}
 	conf.DevMode = agentConfig.DevMode
+	conf.EnableDebug = agentConfig.EnableDebug
+
 	conf.Build = agentConfig.Version.VersionNumber()
 	if agentConfig.Region != "" {
 		conf.Region = agentConfig.Region
@@ -433,6 +435,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.Servers = agentConfig.Client.Servers
 	conf.LogLevel = agentConfig.LogLevel
 	conf.DevMode = agentConfig.DevMode
+	conf.EnableDebug = agentConfig.EnableDebug
+
 	if agentConfig.Region != "" {
 		conf.Region = agentConfig.Region
 	}

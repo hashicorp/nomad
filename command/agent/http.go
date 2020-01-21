@@ -186,6 +186,8 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
 	s.mux.HandleFunc("/v1/agent/monitor", s.wrap(s.AgentMonitor))
 
+	s.mux.HandleFunc("/v1/agent/pprof/", s.wrapNonJSON(s.AgentPprofRequest))
+
 	s.mux.HandleFunc("/v1/metrics", s.wrap(s.MetricsRequest))
 
 	s.mux.HandleFunc("/v1/validate/job", s.wrap(s.ValidateJobRequest))
@@ -217,6 +219,9 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.Handle("/", handleRootFallthrough())
 
 	if enableDebug {
+		if !s.agent.config.DevMode {
+			s.logger.Warn("enable_debug is set to true. This is insecure and should not be enabled in production")
+		}
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
 		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		s.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -350,6 +355,55 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 			}
 			resp.Header().Set("Content-Type", "application/json")
 			resp.Write(buf.Bytes())
+		}
+	}
+	return f
+}
+
+// wrapNonJSON is used to wrap functions returning non JSON
+// serializeable data to make them more convenient. It is primarily
+// responsible for setting nomad headers and logging.
+// Handler functions are responsible for setting Content-Type Header
+func (s *HTTPServer) wrapNonJSON(handler func(resp http.ResponseWriter, req *http.Request) ([]byte, error)) func(resp http.ResponseWriter, req *http.Request) {
+	f := func(resp http.ResponseWriter, req *http.Request) {
+		setHeaders(resp, s.agent.config.HTTPAPIResponseHeaders)
+		// Invoke the handler
+		reqURL := req.URL.String()
+		start := time.Now()
+		defer func() {
+			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Now().Sub(start))
+		}()
+		obj, err := handler(resp, req)
+
+		// Check for an error
+		if err != nil {
+			code := 500
+			errMsg := err.Error()
+			if http, ok := err.(HTTPCodedError); ok {
+				code = http.Code()
+			} else if ecode, emsg, ok := structs.CodeFromRPCCodedErr(err); ok {
+				code = ecode
+				errMsg = emsg
+			} else {
+				// RPC errors get wrapped, so manually unwrap by only looking at their suffix
+				if strings.HasSuffix(errMsg, structs.ErrPermissionDenied.Error()) {
+					errMsg = structs.ErrPermissionDenied.Error()
+					code = 403
+				} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
+					errMsg = structs.ErrTokenNotFound.Error()
+					code = 403
+				}
+			}
+
+			resp.WriteHeader(code)
+			resp.Write([]byte(errMsg))
+			s.logger.Error("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
+			return
+		}
+
+		// write response
+		if obj != nil {
+			resp.Write(obj)
 		}
 	}
 	return f

@@ -49,7 +49,7 @@ Monitor Specific Options:
 }
 
 func (c *MonitorCommand) Synopsis() string {
-	return "stream logs from a Nomad agent"
+	return "Stream logs from a Nomad agent"
 }
 
 func (c *MonitorCommand) Name() string { return "monitor" }

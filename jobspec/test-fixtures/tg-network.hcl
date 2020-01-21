@@ -2,7 +2,8 @@ job "foo" {
   datacenters = ["dc1"]
 
   group "bar" {
-    count = 3
+    count          = 3
+    shutdown_delay = "14s"
 
     network {
       mode = "bridge"

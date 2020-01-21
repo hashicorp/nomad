@@ -89,7 +89,28 @@ func (tc *MetricsTest) TestMetricsLinux(f *framework.F) {
 	tc.queryAllocMetrics(t, workloads)
 }
 
-// Run workloads from and wait for allocations
+// TestMetricsWindows runs a collection of jobs that exercise alloc metrics.
+// Then we query prometheus to verify we're collecting client and alloc metrics
+// and correctly presenting them to the prometheus scraper.
+func (tc *MetricsTest) TestMetricsWindows(f *framework.F) {
+	t := f.T()
+	clientNodes, err := e2eutil.ListWindowsClientNodes(tc.Nomad())
+	require.Nil(t, err)
+	if len(clientNodes) == 0 {
+		t.Skip("no Windows clients")
+	}
+
+	workloads := map[string]string{
+		"factorial_windows": "nomad_client_allocs_cpu_user",
+		"mem_windows":       "nomad_client_allocs_memory_rss",
+	}
+
+	tc.runWorkloads(t, workloads)
+	tc.queryClientMetrics(t, clientNodes)
+	tc.queryAllocMetrics(t, workloads)
+}
+
+// run workloads and wait for allocations
 func (tc *MetricsTest) runWorkloads(t *testing.T, workloads map[string]string) {
 	for jobName := range workloads {
 		uuid := uuid.Generate()
@@ -125,23 +146,28 @@ func (tc *MetricsTest) queryClientMetrics(t *testing.T, clientNodes []string) {
 			if err != nil {
 				return false
 			}
-			instances := make(map[model.LabelValue]struct{})
+			instances := make(map[string]struct{})
 			for _, result := range results {
-				instances[result.Metric["instance"]] = struct{}{}
+				instances[string(result.Metric["node_id"])] = struct{}{}
 			}
-			if len(instances) != len(clientNodes) {
-				err = fmt.Errorf("expected metric '%s' for all clients. got:\n%v",
-					metric, results)
-				return false
+			// we're testing only clients for a specific OS, so we
+			// want to make sure we're checking for specific node_ids
+			// and not just equal lengths
+			for _, clientNode := range clientNodes {
+				if _, ok := instances[clientNode]; !ok {
+					err = fmt.Errorf("expected metric '%s' for all clients. got:\n%v",
+						metric, results)
+					return false
+				}
 			}
 			return true
 		}, timeout, 1*time.Second)
-		require.Truef(t, ok, "prometheus query failed: %v", err)
+		require.Truef(t, ok, "prometheus query failed (%s): %v", metric, err)
 
 		// shorten the timeout after the first workload is successfully
 		// queried so that we don't hang the whole test run if something's
 		// wrong with only one of the jobs
-		timeout = 10 * time.Second
+		timeout = 15 * time.Second
 	}
 }
 
@@ -160,33 +186,20 @@ func (tc *MetricsTest) queryAllocMetrics(t *testing.T, workloads map[string]stri
 			if err != nil {
 				return false
 			}
+
+			// make sure we didn't just collect a bunch of zero metrics
+			lastResult := results[len(results)-1]
+			if !(float64(lastResult.Value) > 0.0) {
+				err = fmt.Errorf("expected non-zero metrics, got: %v", results)
+				return false
+			}
 			return true
 		}, timeout, 1*time.Second)
-		require.Truef(t, ok, "prometheus query failed: %v", err)
-
-		// make sure we didn't just collect a bunch of zero metrics
-		lastResult := results[len(results)-1]
-		require.Greaterf(t, float64(lastResult.Value), 0.0,
-			"expected non-zero metrics: %v", results,
-		)
+		require.Truef(t, ok, "prometheus query failed (%s): %v", query, err)
 
 		// shorten the timeout after the first workload is successfully
 		// queried so that we don't hang the whole test run if something's
 		// wrong with only one of the jobs
-		timeout = 10 * time.Second
+		timeout = 15 * time.Second
 	}
-}
-
-// TestMetricsWindows runs a collection of jobs that exercise alloc metrics.
-// Then we query prometheus to verify we're collecting client and alloc metrics
-// and correctly presenting them to the prometheus scraper.
-func (tc *MetricsTest) TestMetricsWindows(f *framework.F) {
-	t := f.T()
-	clientNodes, err := e2eutil.ListWindowsClientNodes(tc.Nomad())
-	require.Nil(t, err)
-	if len(clientNodes) == 0 {
-		t.Skip("no Windows clients")
-	}
-
-	// TODO(tgross): run metrics on Windows, too
 }
