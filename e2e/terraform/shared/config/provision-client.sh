@@ -4,8 +4,7 @@ set -o errexit
 set -o nounset
 
 CLOUD="$1"
-NOMAD_SHA="$2"
-NOMAD_CONFIG="$3"
+NOMAD_CONFIG="$2"
 
 # Consul
 CONSUL_SRC=/ops/shared/consul
@@ -35,19 +34,17 @@ NOMAD_SRC=/ops/shared/nomad
 NOMAD_DEST=/etc/nomad.d
 NOMAD_CONFIG_FILENAME=$(basename "$NOMAD_CONFIG")
 
-# download
-aws s3 cp "s3://nomad-team-test-binary/builds-oss/nomad_linux_amd64_${NOMAD_SHA}.tar.gz" nomad.tar.gz
-
-# unpack and install
-sudo tar -zxvf nomad.tar.gz -C /usr/local/bin/
-sudo chmod 0755 /usr/local/bin/nomad
-sudo chown root:root /usr/local/bin/nomad
+# assert Nomad binary's permissions
+if [[ -f /usr/local/bin/nomad ]]; then
+    sudo chmod 0755 /usr/local/bin/nomad
+    sudo chown root:root /usr/local/bin/nomad
+fi
 
 sudo cp "$NOMAD_SRC/base.hcl" "$NOMAD_DEST/"
 sudo cp "$NOMAD_SRC/$NOMAD_CONFIG" "$NOMAD_DEST/$NOMAD_CONFIG_FILENAME"
 
 # Setup Host Volumes
-sudo mkdir /tmp/data
+sudo mkdir -p /tmp/data
 
 # Install CNI plugins
 sudo mkdir -p /opt/cni/bin
