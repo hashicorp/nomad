@@ -13,6 +13,8 @@
     "lint:hbs": "ember-template-lint .",
     "lint:js": "eslint .",
     "start": "./node_modules/ember-cli/bin/ember server",
+    "build-storybook": "STORYBOOK=true ember build && build-storybook -s dist",
+    "storybook": "STORYBOOK=true ember serve & start-storybook -p 6006 -s dist",
     "test": "./node_modules/ember-cli/bin/ember test"
   },
   "husky": {
@@ -21,7 +23,7 @@
     }
   },
   "lint-staged": {
-    "{app,tests,config,lib,mirage}/**/*.js": [
+    "{app,tests,config,lib,mirage,stories}/**/*.js": [
       "prettier --write",
       "git add"
     ],
@@ -35,6 +37,7 @@
     "@ember/jquery": "^0.6.0",
     "@ember/optional-features": "^0.7.0",
     "@hashicorp/structure-icons": "^1.3.0",
+    "@storybook/ember-cli-storybook": "^0.2.0",
     "anser": "^1.4.8",
     "broccoli-asset-rev": "^3.0.0",
     "bulma": "0.6.1",
@@ -108,6 +111,17 @@
     "query-string": "^5.0.0",
     "qunit-dom": "^0.9.0",
     "sass": "^1.17.3"
+  },
+  "optionalDependencies": {
+    "@babel/plugin-transform-member-expression-literals": "^7.2.0",
+    "@storybook/addon-knobs": "^5.2.5",
+    "@storybook/addon-storysource": "^5.2.5",
+    "@storybook/addon-viewport": "^5.2.5",
+    "@storybook/addons": "^5.2.5",
+    "@storybook/ember": "^5.2.5",
+    "babel-loader": "^8.0.6",
+    "ember-cli-get-component-path-option": "^1.0.0",
+    "ember-cli-string-utils": "^1.1.0"
   },
   "engines": {
     "node": "8.* || >= 10.*"

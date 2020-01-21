@@ -53,5 +53,18 @@ module.exports = {
         'node/no-unpublished-require': 'off'
       }),
     },
+    {
+      files: [
+        'stories/**/*.js'
+      ],
+      parserOptions: {
+        sourceType: 'module',
+      },
+      env: {
+        browser: false,
+        node: true,
+      },
+      plugins: ['node'],
+    },
   ],
 };

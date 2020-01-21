@@ -41,10 +41,6 @@ Router.map(function() {
     this.route('tokens');
   });
 
-  if (config.environment === 'development') {
-    this.route('freestyle');
-  }
-
   this.route('not-found', { path: '/*' });
 });
 
