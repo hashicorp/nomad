@@ -1,5 +1,7 @@
 package framework
 
+import "github.com/hashicorp/nomad/e2e/framework/provisioning"
+
 // TestCase is the interface which an E2E test case implements.
 // It is not meant to be implemented directly, instead the struct should embed
 // the 'framework.TC' struct
@@ -10,7 +12,7 @@ type TestCase interface {
 }
 
 type internalTestCase interface {
-	setClusterInfo(*ClusterInfo)
+	setClusterInfo(*provisioning.ClusterInfo)
 }
 
 // BeforeAllTests is used to define a method to be called before the execution
