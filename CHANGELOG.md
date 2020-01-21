@@ -11,6 +11,7 @@ IMPROVEMENTS:
 * cli: Included namespace in output when querying job stauts. [[GH-6912](https://github.com/hashicorp/nomad/issues/6912)]
 * scheduler: Removed penalty for allocation's previous node if the allocation did not fail. [[GH-6781](https://github.com/hashicorp/nomad/issues/6781)]
 * scheduler: Reduced logging verbosity during preemption [[GH-6849](https://github.com/hashicorp/nomad/issues/6849)]
+* ui: Updated Run Job button to be conditionally enabled according to ACLs [[GH-5944](https://github.com/hashicorp/nomad/pull/5944)]
 
 BUG FIXES:
 
