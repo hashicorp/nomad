@@ -3569,6 +3569,7 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 		alloc.DeploymentStatus.ModifyIndex = index
 	}
 
+
 	// Create a copy of the deployment object
 	deploymentCopy := deployment.Copy()
 	deploymentCopy.ModifyIndex = index
@@ -3577,6 +3578,21 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	state.PlacedAllocs += placed
 	state.HealthyAllocs += healthy
 	state.UnhealthyAllocs += unhealthy
+
+	// Ensure PlacedCanaries accurately reflects the alloc canary status
+	if alloc.DeploymentStatus != nil {
+		if alloc.DeploymentStatus.Canary {
+			found := false
+			for _, canary := range state.PlacedCanaries {
+				if alloc.ID == canary {
+					found = true
+				}
+			}
+			if !found {
+				state.PlacedCanaries = append(state.PlacedCanaries, alloc.ID)
+			}
+		}
+	}
 
 	// Update the progress deadline
 	if pd := state.ProgressDeadline; pd != 0 {
