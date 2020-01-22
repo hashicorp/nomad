@@ -1310,6 +1310,68 @@ func TestSystemSched_Queued_With_Constraints(t *testing.T) {
 
 }
 
+// No errors reported when no available nodes prevent placement
+func TestSystemSched_NoNodes(t *testing.T) {
+	h := NewHarness(t)
+
+	var node *structs.Node
+	// Create a node
+	node = mock.Node()
+	node.ComputeClass()
+	require.Nil(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Make a job
+	job := mock.SystemJob()
+	require.Nil(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Evaluate the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+
+	require.Nil(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.Nil(t, h.Process(NewSystemScheduler, eval))
+	require.Equal(t, "complete", h.Evals[0].Status)
+
+	// QueuedAllocations is drained
+	val, ok := h.Evals[0].QueuedAllocations["web"]
+	require.True(t, ok)
+	require.Equal(t, 0, val)
+
+	// The plan has one NodeAllocations
+	require.Equal(t, 1, len(h.Plans))
+
+	// Mark the node as ineligible
+	node.SchedulingEligibility = structs.NodeSchedulingIneligible
+
+	// Create a new job version, deploy
+	job2 := job.Copy()
+	job2.Meta["version"] = "2"
+	require.Nil(t, h.State.UpsertJob(h.NextIndex(), job2))
+
+	eval2 := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job2.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job2.ID,
+		Status:      structs.EvalStatusPending,
+	}
+
+	// Ensure New eval is complete
+	require.Nil(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval2}))
+	require.Nil(t, h.Process(NewSystemScheduler, eval2))
+	require.Equal(t, "complete", h.Evals[1].Status)
+
+	// Ensure there is a FailedTGAlloc metric
+	require.Equal(t, 1, len(h.Evals[1].FailedTGAllocs))
+}
+
 // No errors reported when constraints prevent placement
 func TestSystemSched_ConstraintErrors(t *testing.T) {
 	h := NewHarness(t)

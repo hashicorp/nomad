@@ -275,7 +275,13 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 	for _, missing := range place {
 		node, ok := nodeByID[missing.Alloc.NodeID]
 		if !ok {
-			return fmt.Errorf("could not find node %q", missing.Alloc.NodeID)
+			s.logger.Debug("could not find node %q", missing.Alloc.NodeID)
+			if s.failedTGAllocs == nil {
+				s.failedTGAllocs = make(map[string]*structs.AllocMetric)
+			}
+
+			s.failedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
+			continue
 		}
 
 		// Update the set of placement nodes
@@ -327,6 +333,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			// Actual failure to start this task on this candidate node, report it individually
 			s.failedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
 			s.addBlocked(node)
+
 			continue
 		}
 
