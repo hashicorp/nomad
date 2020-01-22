@@ -1,39 +1,84 @@
-Terraform provisioner for end to end tests
-==========================================
+# Terraform infrastructure
 
-This folder contains terraform resources for provisioning a nomad cluster on AWS for end to end tests.
-It uses a Nomad binary identified by its commit SHA that's stored in a shared s3 bucket that Nomad team
-developers can access. The commit SHA can be from any branch that's pushed to remote.
+This folder contains terraform resources for provisioning EC2 instances on AWS
+to use as the target of end-to-end tests.
 
-Use [envchain](https://github.com/sorah/envchain) to store your AWS credentials.
+Terraform provisions the AWS infrastructure only, whereas the Nomad
+cluster is deployed to that infrastructure by the e2e
+framework. Terraform's output will include a `provisioning` stanza
+that can be written to a JSON file used by the e2e framework's
+provisioning step.
 
+You can use Terraform to output the provisioning parameter JSON file the e2e
+framework uses by setting the `nomad_sha` variable.
 
+## Setup
+
+You'll need Terraform 0.12+, as well as AWS credentials (`AWS_ACCESS_KEY_ID`
+and `AWS_SECRET_ACCESS_KEY`) to create the Nomad cluster. Use
+[envchain](https://github.com/sorah/envchain) to store your AWS credentials.
+
+Optionally, edit the `terraform.tfvars` file to change the number of
+Linux clients, Windows clients, or the Nomad build. You'll usually
+want to have the `nomad_sha` variable set here (or via the
+`TF_VAR_nomad_sha` env var) so that `terraform output provisioning` is
+populated with the build you want.
+
+```hcl
+region               = "us-east-1"
+instance_type        = "t2.medium"
+server_count         = "3"
+client_count         = "4"
+windows_client_count = "1"
+
+# alternatively, set this via env var: TF_VAR_nomad_sha
+# nomad_sha            = ""
 ```
-$ cd e2e/terraform/
-$ TF_VAR_nomad_sha=<nomad_sha> envchain nomadaws terraform apply
+
+Run Terraform apply to deploy the infrastructure:
+
+```sh
+cd e2e/terraform/
+TF_VAR_nomad_sha=<nomad_sha> envchain nomadaws terraform apply
 ```
 
-After this step, you should have a nomad client address to point the end to end tests in the `e2e` folder to.
+## Outputs
+
+After deploying the infrastructure, you can get connection information
+about the cluster:
+
+- `$(terraform output environment)` will set your current shell's
+  `NOMAD_ADDR` and `CONSUL_HTTP_ADDR` to point to one of the cluster's
+  server nodes, and set the `NOMAD_E2E` variable.
+- `terraform output servers` will output the list of server node IPs.
+- `terraform output linux_clients` will output the list of Linux
+  client node IPs.
+- `terraform output windows_clients` will output the list of Windows
+  client node IPs.
+- `terraform output provisioning | jq .` will output the JSON used by
+  the e2e framework for provisioning.
 
 ## SSH
 
-Terraform will output node IPs that may be accessed via ssh:
+You can use Terraform outputs above to access nodes via ssh:
 
-```
+```sh
 ssh -i keys/nomad-e2e-*.pem ubuntu@${EC2_IP_ADDR}
 ```
 
-The Windows client runs OpenSSH for conveniences, but has a different user and will drop you into a Powershell shell instead of bash:
+The Windows client runs OpenSSH for convenience, but has a different
+user and will drop you into a Powershell shell instead of bash:
 
-```
+```sh
 ssh -i keys/nomad-e2e-*.pem Administrator@${EC2_IP_ADDR}
 ```
 
-
 ## Teardown
-The terraform state file stores all the info, so the nomad_sha doesn't need to be valid during teardown.
 
-```
-$ cd e2e/terraform/
-$ envchain nomadaws TF_VAR_nomad_sha=yyyzzz terraform destroy
+The terraform state file stores all the info, so the `nomad_sha`
+doesn't need to be valid during teardown.
+
+```sh
+cd e2e/terraform/
+envchain nomadaws TF_VAR_nomad_sha=yyyzzz terraform destroy
 ```
