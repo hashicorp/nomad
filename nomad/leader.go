@@ -59,37 +59,41 @@ var defaultSchedulerConfig = &structs.SchedulerConfiguration{
 func (s *Server) monitorLeadership() {
 	var weAreLeaderCh chan struct{}
 	var leaderLoop sync.WaitGroup
+
+	leaderStep := func(isLeader bool) {
+		switch {
+		case isLeader:
+			if weAreLeaderCh != nil {
+				s.logger.Error("attempted to start the leader loop while running")
+				return
+			}
+
+			weAreLeaderCh = make(chan struct{})
+			leaderLoop.Add(1)
+			go func(ch chan struct{}) {
+				defer leaderLoop.Done()
+				s.leaderLoop(ch)
+			}(weAreLeaderCh)
+			s.logger.Info("cluster leadership acquired")
+
+		default:
+			if weAreLeaderCh == nil {
+				s.logger.Error("attempted to stop the leader loop while not running")
+				return
+			}
+
+			s.logger.Debug("shutting down leader loop")
+			close(weAreLeaderCh)
+			leaderLoop.Wait()
+			weAreLeaderCh = nil
+			s.logger.Info("cluster leadership lost")
+		}
+	}
+
 	for {
 		select {
 		case isLeader := <-s.leaderCh:
-			switch {
-			case isLeader:
-				if weAreLeaderCh != nil {
-					s.logger.Error("attempted to start the leader loop while running")
-					continue
-				}
-
-				weAreLeaderCh = make(chan struct{})
-				leaderLoop.Add(1)
-				go func(ch chan struct{}) {
-					defer leaderLoop.Done()
-					s.leaderLoop(ch)
-				}(weAreLeaderCh)
-				s.logger.Info("cluster leadership acquired")
-
-			default:
-				if weAreLeaderCh == nil {
-					s.logger.Error("attempted to stop the leader loop while not running")
-					continue
-				}
-
-				s.logger.Debug("shutting down leader loop")
-				close(weAreLeaderCh)
-				leaderLoop.Wait()
-				weAreLeaderCh = nil
-				s.logger.Info("cluster leadership lost")
-			}
-
+			leaderStep(isLeader)
 		case <-s.shutdownCh:
 			return
 		}
