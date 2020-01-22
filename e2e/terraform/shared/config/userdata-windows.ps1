@@ -20,11 +20,4 @@ icacls $adminKey /inheritance:r
 icacls $adminKey /grant BUILTIN\Administrators:`(F`)
 icacls $adminKey /grant SYSTEM:`(F`)
 
-$archiveFile = "C:\ops\windows_configs.zip"
-while (!(Test-Path $archiveFile)) { Start-Sleep 10 }
-
-Expand-Archive $archiveFile "C:\ops\shared"
-
-& C:\ops\shared\config\provision-windows-client.ps1 -Cloud aws -NomadSha ${nomad_sha} -Index 1
-
 </powershell>
