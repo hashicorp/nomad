@@ -19,12 +19,12 @@ provisioned cluster.
 ## Provisioning Test Infrastructure on AWS
 
 You'll need Terraform and AWS credentials (`AWS_ACCESS_KEY_ID` and
-`AWS_SECRET_ACCESS_KEY`) to create the Nomad cluster. See the
-[README](https://github.com/hashicorp/nomad/blob/master/e2e/terraform/README.md)
-for details. The number of servers and clients is configurable, as is the
-configuration file for each client and server.
+`AWS_SECRET_ACCESS_KEY`) to setup AWS instances on which e2e tests
+will run. See the [README](https://github.com/hashicorp/nomad/blob/master/e2e/terraform/README.md)
+for details. The number of servers and clients is configurable, as is
+the configuration file for each client and server.
 
-## Provisioning
+## Provisioning e2e Framework Nomad Cluster
 
 You can use the Terraform output from the previous step to generate a
 provisioning configuration file for the e2e framework.
@@ -34,9 +34,11 @@ provisioning configuration file for the e2e framework.
 terraform output provisioning | jq . > ../provisioning.json
 ```
 
-By default the `provisioning.json` will include a `nomad_sha` field for each
-node. Because each node has its own value, you can create cluster of mixed
-versions. The provisioning framework accepts any of the following options:
+By default the `provisioning.json` will include a `nomad_sha` field
+for each node. You can edit this file to change the version of Nomad
+you want to deploy. Because each node has its own value, you can
+create cluster of mixed versions. The provisioning framework accepts
+any of the following options:
 
 - `nomad_sha`: This is a Nomad binary identified by its full commit SHA that's
   stored in a shared s3 bucket that Nomad team developers can access. That
@@ -46,6 +48,14 @@ versions. The provisioning framework accepts any of the following options:
   (Ex. `"nomad_local_binary": "/home/me/nomad"`)
 - `nomad_version`: This is a version number of Nomad that's been released to
   HashiCorp. (Ex. `"nomad_version": "0.10.2"`)
+
+You can pass the following flags to `go test` to override the values
+in `provisioning.json` for all nodes:
+
+- `-nomad.local_file=string`: provision this specific local binary of Nomad
+- `-nomad.sha=string`: provision this specific sha from S3
+- `-nomad.version=string`: provision this version from
+  [releases.hashicorp.com](https://releases.hashicorp.com/nomad)
 
 Deploy Nomad to the cluster:
 
