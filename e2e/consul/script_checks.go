@@ -50,7 +50,7 @@ func (tc *ScriptChecksE2ETest) TestGroupScriptCheck(f *framework.F) {
 
 	// Check in warning state becomes healthy after check passes
 	_, _, err := exec(nomadClient, allocs,
-		[]string{"/bin/sh", "-c", "touch ${NOMAD_TASK_DIR}/alive-2b"})
+		[]string{"/bin/sh", "-c", "touch /tmp/${NOMAD_ALLOC_ID}-alive-2b"})
 	require.NoError(err)
 	e2eutil.RequireConsulStatus(require, consulClient, "group-service-2", capi.HealthPassing)
 
