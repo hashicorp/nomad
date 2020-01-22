@@ -301,3 +301,68 @@ func getAlloc(state AllocGetter, allocID string) (*structs.Allocation, error) {
 
 	return alloc, nil
 }
+
+// dropButLastChannel returns a channel that drops all but last value from sourceCh.
+//
+// Useful for aggressively consuming sourceCh when intermediate values aren't relevant.
+//
+// This function propagates values to result quickly and drops intermediate messages
+// in best effort basis.  Golang scheduler may delay delivery or result in extra
+// deliveries.
+//
+// Consider this function for example:
+//
+// ```
+// src := make(chan bool)
+// dst := dropButLastChannel(src, nil)
+//
+// go func() {
+//   src <- true
+//   src <- false
+// }()
+//
+// // v can be `true` here but is very unlikely
+// v := <-dst
+// ```
+//
+func dropButLastChannel(sourceCh <-chan bool, shutdownCh <-chan struct{}) chan bool {
+	// buffer the most recent result
+	dst := make(chan bool)
+
+	go func() {
+		lv := false
+
+	DEQUE_SOURCE:
+		// wait for first message
+		select {
+		case lv = <-sourceCh:
+			goto ENQUEUE_DST
+		case <-shutdownCh:
+			return
+		}
+
+	ENQUEUE_DST:
+		// prioritize draining source first dequeue without blocking
+		for {
+			select {
+			case lv = <-sourceCh:
+			default:
+				break ENQUEUE_DST
+			}
+		}
+
+		// attempt to enqueue but keep monitoring source channel
+		select {
+		case lv = <-sourceCh:
+			goto ENQUEUE_DST
+		case dst <- lv:
+			// enqueued value; back to dequeing from source
+			goto DEQUE_SOURCE
+		case <-shutdownCh:
+			return
+		}
+	}()
+
+	return dst
+
+}

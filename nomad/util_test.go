@@ -4,6 +4,7 @@ import (
 	"net"
 	"reflect"
 	"testing"
+	"time"
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -257,4 +258,75 @@ func TestMaxUint64(t *testing.T) {
 	if maxUint64(2, 1) != 2 {
 		t.Fatalf("bad")
 	}
+}
+
+func TestDropButLastChannelDropsValues(t *testing.T) {
+	sourceCh := make(chan bool)
+	shutdownCh := make(chan struct{})
+
+	dstCh := dropButLastChannel(sourceCh, shutdownCh)
+
+	// timeout duration for any channel propagation delay
+	timeoutDuration := 5 * time.Millisecond
+
+	// test that dstCh doesn't emit anything initially
+	select {
+	case <-dstCh:
+		require.Fail(t, "received a message unexpectedly")
+	case <-time.After(timeoutDuration):
+		// yay no message - it could have been a default: but
+		// checking for goroutine effect
+	}
+
+	sourceCh <- false
+	select {
+	case v := <-dstCh:
+		require.False(t, v, "unexpected value from dstCh Ch")
+	case <-time.After(timeoutDuration):
+		require.Fail(t, "timed out waiting for source->dstCh propagation")
+	}
+
+	// channel is drained now
+	select {
+	case v := <-dstCh:
+		require.Failf(t, "received a message unexpectedly", "value: %v", v)
+	case <-time.After(timeoutDuration):
+		// yay no message - it could have been a default: but
+		// checking for goroutine effect
+	}
+
+	// now enqueue many messages and ensure only last one is received
+	// enqueueing should be fast!
+	sourceCh <- false
+	sourceCh <- false
+	sourceCh <- false
+	sourceCh <- false
+	sourceCh <- true
+
+	// I suspect that dstCh may contain a stale (i.e. `false`) value if golang executes
+	// this select before the implementation goroutine dequeues last value.
+	//
+	// However, never got it to fail in test - so leaving it now to see if it ever fails;
+	// and if/when test fails, we can learn of how much of an issue it is and adjust
+	select {
+	case v := <-dstCh:
+		require.True(t, v, "unexpected value from dstCh Ch")
+	case <-time.After(timeoutDuration):
+		require.Fail(t, "timed out waiting for source->dstCh propagation")
+	}
+
+	sourceCh <- true
+	sourceCh <- true
+	sourceCh <- true
+	sourceCh <- true
+	sourceCh <- true
+	sourceCh <- false
+	select {
+	case v := <-dstCh:
+		require.False(t, v, "unexpected value from dstCh Ch")
+	case <-time.After(timeoutDuration):
+		require.Fail(t, "timed out waiting for source->dstCh propagation")
+	}
+
+	close(shutdownCh)
 }

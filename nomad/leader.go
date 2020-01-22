@@ -90,10 +90,29 @@ func (s *Server) monitorLeadership() {
 		}
 	}
 
+	wasLeader := false
 	for {
 		select {
 		case isLeader := <-s.leaderCh:
-			leaderStep(isLeader)
+			if wasLeader != isLeader {
+				wasLeader = isLeader
+				// normal case where we went through a transition
+				leaderStep(isLeader)
+			} else if wasLeader && isLeader {
+				// Server lost but then gained leadership immediately.
+				// During this time, this server may have received
+				// Raft transitions that haven't been applied to the FSM
+				// yet.
+				// Ensure that that FSM caught up and eval queues are refreshed
+				s.logger.Error("cluster leadership flapped, lost and gained leadership immediately.  Leadership flaps indicate a cluster wide problems (e.g. networking).")
+
+				leaderStep(false)
+				leaderStep(true)
+			} else {
+				// Server gained but lost leadership immediately
+				// before it reacted; nothing to do, move on
+				s.logger.Error("cluster leadership flapped, gained and lost leadership immediately.  Leadership flaps indicate a cluster wide problems (e.g. networking).")
+			}
 		case <-s.shutdownCh:
 			return
 		}
