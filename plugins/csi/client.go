@@ -67,6 +67,8 @@ type CSIControllerClient interface {
 type CSINodeClient interface {
 	NodeGetCapabilities(ctx context.Context, in *csipbv1.NodeGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetCapabilitiesResponse, error)
 	NodeGetInfo(ctx context.Context, in *csipbv1.NodeGetInfoRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetInfoResponse, error)
+	NodeStageVolume(ctx context.Context, in *csipbv1.NodeStageVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeStageVolumeResponse, error)
+	// NodeUnstageVolume(ctx context.Context, in *NodeUnstageVolumeRequest, opts ...grpc.CallOption) (*NodeUnstageVolumeResponse, error)
 }
 
 type client struct {
