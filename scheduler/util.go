@@ -183,10 +183,12 @@ func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[
 		nodeAllocs[alloc.NodeID] = nallocs
 	}
 
+	knownNodes := make(map[string]struct{})
 	for _, node := range nodes {
 		if _, ok := nodeAllocs[node.ID]; !ok {
 			nodeAllocs[node.ID] = nil
 		}
+		knownNodes[node.ID] = struct{}{}
 	}
 
 	// Create the required task groups.
@@ -195,6 +197,26 @@ func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[
 	result := &diffResult{}
 	for nodeID, allocs := range nodeAllocs {
 		diff := diffAllocs(job, taintedNodes, required, allocs, terminalAllocs)
+
+		// If the current allocation nodeID is not in the list
+		// of known nodes to the scheduler, and diffAllocs is
+		// attempting to update or place an system alloc on an ineligible
+		// node the diff should be ignored.
+		if _, ok := knownNodes[nodeID]; !ok && ((len(diff.update) > 0) || (len(diff.place) > 0)) {
+			for _, existing := range allocs {
+				tg, ok := required[existing.Name]
+				if !ok {
+					continue
+				}
+				diff.place = nil
+				diff.update = nil
+				diff.ignore = append(diff.ignore, allocTuple{
+					Name:      existing.Name,
+					TaskGroup: tg,
+					Alloc:     existing,
+				})
+			}
+		}
 
 		// If the node is tainted there should be no placements made
 		if _, ok := taintedNodes[nodeID]; ok {
