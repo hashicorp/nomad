@@ -385,7 +385,7 @@ func LifecycleJob() *structs.Job {
 						Name:   "web",
 						Driver: "exec",
 						Config: map[string]interface{}{
-							"command": "/bin/date",
+							"command": "/bin/sleep 500",
 						},
 						LogConfig: structs.DefaultLogConfig(),
 						Resources: &structs.Resources{
@@ -439,6 +439,69 @@ func LifecycleJob() *structs.Job {
 	}
 	job.Canonicalize()
 	return job
+}
+func LifecycleAlloc() *structs.Allocation {
+	alloc := &structs.Allocation{
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
+		Namespace: structs.DefaultNamespace,
+		TaskGroup: "web",
+
+		// TODO Remove once clientv2 gets merged
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+		},
+		TaskResources: map[string]*structs.Resources{
+			"web": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
+			"init": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
+			"side": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
+		},
+
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
+				"init": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
+				"side": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
+			},
+		},
+		Job:           LifecycleJob(),
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+	}
+	alloc.JobID = alloc.Job.ID
+	return alloc
 }
 
 func MaxParallelJob() *structs.Job {

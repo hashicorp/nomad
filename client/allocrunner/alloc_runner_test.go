@@ -423,6 +423,8 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	// Wait for tasks to be stopped because leader is dead
 	testutil.WaitForResult(func() (bool, error) {
 		alloc := ar2.Alloc()
+		// TODO: this test does not test anything!!! alloc.TaskStates == map[]
+		t.Fatalf("%v", alloc.TaskStates)
 		for task, state := range alloc.TaskStates {
 			if state.State != structs.TaskStateDead {
 				return false, fmt.Errorf("Task %q should be dead: %v", task, state.State)
@@ -433,6 +435,69 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
+	// Make sure it GCs properly
+	ar2.Destroy()
+
+	select {
+	case <-ar2.DestroyCh():
+		// exited as expected
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timed out waiting for AR to GC")
+	}
+}
+
+func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.LifecycleAlloc()
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	// Use a memory backed statedb
+	conf.StateDB = state.NewMemDB(conf.Logger)
+
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+
+	// Mimic client dies while init task running, and client restarts after init task finished
+	ar.tasks["init"].UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskTerminated))
+	ar.tasks["side"].UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
+
+	// Create a new AllocRunner to test RestoreState and Run
+	ar2, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer destroy(ar2)
+
+	if err := ar2.Restore(); err != nil {
+		t.Fatalf("error restoring state: %v", err)
+	}
+	ar2.Run()
+
+	// We want to see Restore resume execution with correct hook ordering:
+	// i.e. we should see the "web" main task go from pending to running
+	testutil.WaitForResult(func() (bool, error) {
+		alloc := ar2.Alloc()
+
+		// TODO: debug why this alloc has no TaskStates
+		t.Fatalf("%v", alloc.TaskStates)
+		for task, state := range alloc.TaskStates {
+			t.Fatalf("\n\n\n\t\tTASK %q state %v", task, state.State)
+			if state.State != structs.TaskStateDead {
+				return false, fmt.Errorf("Task %q should be dead: %v", task, state.State)
+			}
+		}
+		// TODO: check for these states specifically
+		//	require.Equal(t, structs.TaskStateDead, restoredAlloc.TaskStates["init"])
+		//	require.Equal(t, structs.TaskStateRunning, restoredAlloc.TaskStates["side"])
+		//	require.Equal(t, structs.TaskStateRunning, restoredAlloc.TaskStates["web"])
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// TODO: debug why this destroy fails
 	// Make sure it GCs properly
 	ar2.Destroy()
 
