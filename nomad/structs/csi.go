@@ -155,7 +155,6 @@ type CSIVolume struct {
 	PluginID            string
 	ControllersHealthy  int
 	ControllersExpected int
-	Controller          []*Job
 	NodesHealthy        int
 	NodesExpected       int
 	ResourceExhausted   time.Time
@@ -184,14 +183,24 @@ type CSIVolListStub struct {
 	ModifyIndex         uint64
 }
 
+// NewCSIVolume creates the volume struct. No side-effects
 func NewCSIVolume(pluginID string) *CSIVolume {
-	return &CSIVolume{
-		ID:          pluginID,
-		ReadAllocs:  map[string]*Allocation{},
-		WriteAllocs: map[string]*Allocation{},
-		PastAllocs:  map[string]*Allocation{},
-		Topologies:  []*CSITopology{},
+	out := &CSIVolume{
+		ID: pluginID,
 	}
+
+	out.newStructs()
+	return out
+}
+
+func (v *CSIVolume) newStructs() {
+	if v.Topologies == nil {
+		v.Topologies = []*CSITopology{}
+	}
+
+	v.ReadAllocs = map[string]*Allocation{}
+	v.WriteAllocs = map[string]*Allocation{}
+	v.PastAllocs = map[string]*Allocation{}
 }
 
 func (v *CSIVolume) Stub() *CSIVolListStub {
@@ -239,6 +248,29 @@ func (v *CSIVolume) CanWrite() bool {
 	}
 }
 
+// Copy returns a copy of the volume, which shares only the Topologies slice
+func (v *CSIVolume) Copy(index uint64) *CSIVolume {
+	copy := *v
+	out := &copy
+	out.newStructs()
+	out.ModifyIndex = index
+
+	for k, v := range v.ReadAllocs {
+		out.ReadAllocs[k] = v
+	}
+
+	for k, v := range v.WriteAllocs {
+		out.WriteAllocs[k] = v
+	}
+
+	for k, v := range v.PastAllocs {
+		out.PastAllocs[k] = v
+	}
+
+	return out
+}
+
+// Claim updates the allocations and changes the volume state
 func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) bool {
 	switch claim {
 	case CSIVolumeClaimRead:
@@ -251,30 +283,39 @@ func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) bool {
 	return false
 }
 
+// ClaimRead marks an allocation as using a volume read-only
 func (v *CSIVolume) ClaimRead(alloc *Allocation) bool {
 	if !v.CanReadOnly() {
 		return false
 	}
-	v.ReadAllocs[alloc.ID] = alloc
+	// Allocations are copy on write, so we want to keep the id but don't need the
+	// pointer. We'll get it from the db in denormalize.
+	v.ReadAllocs[alloc.ID] = nil
 	delete(v.WriteAllocs, alloc.ID)
 	delete(v.PastAllocs, alloc.ID)
 	return true
 }
 
+// ClaimWrite marks an allocation as using a volume as a writer
 func (v *CSIVolume) ClaimWrite(alloc *Allocation) bool {
 	if !v.CanWrite() {
 		return false
 	}
-	v.WriteAllocs[alloc.ID] = alloc
+	// Allocations are copy on write, so we want to keep the id but don't need the
+	// pointer. We'll get it from the db in denormalize.
+	v.WriteAllocs[alloc.ID] = nil
 	delete(v.ReadAllocs, alloc.ID)
 	delete(v.PastAllocs, alloc.ID)
 	return true
 }
 
+// ClaimRelease is called when the allocation has terminated and already stopped using the volume
 func (v *CSIVolume) ClaimRelease(alloc *Allocation) bool {
 	delete(v.ReadAllocs, alloc.ID)
 	delete(v.WriteAllocs, alloc.ID)
-	v.PastAllocs[alloc.ID] = alloc
+	// Allocations are copy on write, so we want to keep the id but don't need the
+	// pointer. We'll get it from the db in denormalize.
+	v.PastAllocs[alloc.ID] = nil
 	return true
 }
 
@@ -425,15 +466,59 @@ type CSIPlugin struct {
 	ModifyIndex uint64
 }
 
+// NewCSIPlugin creates the plugin struct. No side-effects
 func NewCSIPlugin(id string, index uint64) *CSIPlugin {
-	return &CSIPlugin{
+	out := &CSIPlugin{
 		ID:          id,
-		Jobs:        map[string]map[string]*Job{},
-		Controllers: map[string]*CSIInfo{},
-		Nodes:       map[string]*CSIInfo{},
 		CreateIndex: index,
 		ModifyIndex: index,
 	}
+
+	out.newStructs()
+	return out
+}
+
+func (p *CSIPlugin) newStructs() {
+	p.Jobs = map[string]map[string]*Job{}
+	p.Controllers = map[string]*CSIInfo{}
+	p.Nodes = map[string]*CSIInfo{}
+}
+
+func (p *CSIPlugin) Copy(index uint64) *CSIPlugin {
+	copy := *p
+	out := &copy
+	out.newStructs()
+	out.ModifyIndex = index
+
+	for ns, js := range p.Jobs {
+		out.Jobs[ns] = map[string]*Job{}
+
+		for jid, j := range js {
+			out.Jobs[ns][jid] = j
+		}
+	}
+
+	for k, v := range p.Controllers {
+		out.Controllers[k] = v
+	}
+
+	for k, v := range p.Nodes {
+		out.Nodes[k] = v
+	}
+
+	return out
+}
+
+// AddJob adds a job entry to the plugin
+func (p *CSIPlugin) AddJob(job *Job) {
+	if _, ok := p.Jobs[job.Namespace]; !ok {
+		p.Jobs[job.Namespace] = map[string]*Job{}
+	}
+	p.Jobs[job.Namespace][job.ID] = nil
+}
+
+func (p *CSIPlugin) DeleteJob(job *Job) {
+	delete(p.Jobs[job.Namespace], job.ID)
 }
 
 // AddPlugin adds a single plugin running on the node. Called from state.NodeUpdate in a
