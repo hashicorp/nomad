@@ -95,6 +95,7 @@ func (f *NodeClient) Reset() {
 	f.NextErr = nil
 	f.NextCapabilitiesResponse = nil
 	f.NextGetInfoResponse = nil
+	f.NextStageVolumeResponse = nil
 }
 
 func (c *NodeClient) NodeGetCapabilities(ctx context.Context, in *csipbv1.NodeGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetCapabilitiesResponse, error) {
