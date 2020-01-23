@@ -949,7 +949,7 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 
 		var plug *structs.CSIPlugin
 		if raw != nil {
-			plug = raw.(*structs.CSIPlugin)
+			plug = raw.(*structs.CSIPlugin).Copy(index)
 		} else {
 			plug = structs.NewCSIPlugin(info.PluginID, index)
 		}
@@ -1004,7 +1004,7 @@ func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 			continue // FIXME error?
 		}
 
-		plug := raw.(*structs.CSIPlugin)
+		plug := raw.(*structs.CSIPlugin).Copy(index)
 		plug.DeleteNode(node.ID, index)
 
 		if plug.IsEmpty() {
@@ -1689,10 +1689,12 @@ func (s *StateStore) CSIVolumeClaim(index uint64, id string, alloc *structs.Allo
 		return fmt.Errorf("volume not found: %s", id)
 	}
 
-	volume, ok := row.(*structs.CSIVolume)
+	orig, ok := row.(*structs.CSIVolume)
 	if !ok {
 		return fmt.Errorf("volume row conversion error")
 	}
+
+	volume := orig.Copy(index)
 
 	if !volume.Claim(claim, alloc) {
 		return fmt.Errorf("volume max claim reached")
@@ -1740,10 +1742,11 @@ func (s *StateStore) upsertJobCSIPlugins(index uint64, job *structs.Job, txn *me
 
 	// Append this job to all of them
 	for _, plug := range plugs {
-		if _, ok := plug.Jobs[job.Namespace]; !ok {
-			plug.Jobs[job.Namespace] = map[string]*structs.Job{}
+		if plug.CreateIndex != index {
+			plug = plug.Copy(index)
 		}
-		plug.Jobs[job.Namespace][job.ID] = job // FIXME need to lock this?
+
+		plug.AddJob(job)
 		plug.ModifyIndex = index
 		err := txn.Insert("csi_plugins", plug)
 		if err != nil {
@@ -1799,7 +1802,11 @@ func (s *StateStore) deleteJobCSIPlugins(index uint64, job *structs.Job, txn *me
 
 	// Remove this job from each plugin. If the plugin has no jobs left, remove it
 	for _, plug := range plugs {
-		delete(plug.Jobs[job.Namespace], job.ID)
+		if plug.CreateIndex != index {
+			plug = plug.Copy(index)
+		}
+
+		plug.DeleteJob(job)
 		if plug.IsEmpty() {
 			err = txn.Delete("csi_plugins", plug)
 		} else {
@@ -1814,9 +1821,7 @@ func (s *StateStore) deleteJobCSIPlugins(index uint64, job *structs.Job, txn *me
 	return nil
 }
 
-// CSIVolumeDenormalize takes a raw CSIVolume interface, type casts it, and returns a CSIVolume
-// - with current Health
-// - with active Allocations
+// CSIVolumeDenormalize takes a CSIVolume raw interface, type casts it and denormalizes for the API
 func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol interface{}) (*structs.CSIVolume, error) {
 	if vol == nil {
 		return nil, nil
@@ -1827,33 +1832,74 @@ func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol interface{}) (*
 		return nil, fmt.Errorf("volume type assertion failed")
 	}
 
+	v, err := s.CSIVolumeDenormalizePlugins(ws, v)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.csiVolumeDenormalizeAllocs(ws, v)
+}
+
+// CSIVolumeDenormalize returns a CSIVolume with current health and plugins
+func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs.CSIVolume) (*structs.CSIVolume, error) {
+	if vol == nil {
+		return nil, nil
+	}
+
 	// Lookup CSIPlugin, the health records, and calculate volume health
 	txn := s.db.Txn(false)
 	defer txn.Abort()
 
-	plug, err := s.CSIPluginByID(ws, v.PluginID)
+	plug, err := s.CSIPluginByID(ws, vol.PluginID)
 	if err != nil {
-		return nil, fmt.Errorf("plugin lookup error: %s %v", v.PluginID, err)
+		return nil, fmt.Errorf("plugin lookup error: %s %v", vol.PluginID, err)
 	}
 	if plug == nil {
-		v.ControllersHealthy = 0
-		v.NodesHealthy = 0
-		v.Healthy = false
-		return v, nil
+		vol.ControllersHealthy = 0
+		vol.NodesHealthy = 0
+		vol.Healthy = false
+		return vol, nil
 	}
 
-	v.ControllersHealthy = plug.ControllersHealthy
-	v.NodesHealthy = plug.NodesHealthy
+	vol.ControllersHealthy = plug.ControllersHealthy
+	vol.NodesHealthy = plug.NodesHealthy
 	// This number is incorrect! The expected number of node plugins is actually this +
 	// the number of blocked evaluations for the jobs controlling these plugins
-	v.ControllersExpected = len(plug.Controllers)
-	v.NodesExpected = len(plug.Nodes)
+	vol.ControllersExpected = len(plug.Controllers)
+	vol.NodesExpected = len(plug.Nodes)
 
-	v.Healthy = v.ControllersHealthy > 0 && v.NodesHealthy > 0
+	vol.Healthy = vol.ControllersHealthy > 0 && vol.NodesHealthy > 0
 
-	// FIXME TODO determine if allocation data can be stale
+	return vol, nil
+}
 
-	return v, nil
+// csiVolumeDenormalizeAllocs returns a CSIVolume with allocations
+func (s *StateStore) csiVolumeDenormalizeAllocs(ws memdb.WatchSet, vol *structs.CSIVolume) (*structs.CSIVolume, error) {
+	for id := range vol.ReadAllocs {
+		a, err := s.AllocByID(ws, id)
+		if err != nil {
+			return nil, err
+		}
+		vol.ReadAllocs[id] = a
+	}
+
+	for id := range vol.WriteAllocs {
+		a, err := s.AllocByID(ws, id)
+		if err != nil {
+			return nil, err
+		}
+		vol.ReadAllocs[id] = a
+	}
+
+	for id := range vol.PastAllocs {
+		a, err := s.AllocByID(ws, id)
+		if err != nil {
+			return nil, err
+		}
+		vol.ReadAllocs[id] = a
+	}
+
+	return vol, nil
 }
 
 // CSIPlugins returns the unfiltered list of all plugin health status
@@ -1884,6 +1930,25 @@ func (s *StateStore) CSIPluginByID(ws memdb.WatchSet, id string) (*structs.CSIPl
 	}
 
 	plug := raw.(*structs.CSIPlugin)
+
+	return plug, nil
+}
+
+// CSIPluginDenormalize returns a CSIPlugin with jobs
+func (s *StateStore) CSIPluginDenormalize(ws memdb.WatchSet, plug *structs.CSIPlugin) (*structs.CSIPlugin, error) {
+	if plug == nil {
+		return nil, nil
+	}
+
+	for ns, js := range plug.Jobs {
+		for id := range js {
+			j, err := s.JobByID(ws, ns, id)
+			if err != nil {
+				return nil, err
+			}
+			plug.Jobs[ns][id] = j
+		}
+	}
 
 	return plug, nil
 }
