@@ -42,6 +42,11 @@ type CSIPlugin interface {
 	// respect to the SP.
 	NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error)
 
+	// NodeStageVolume is used when a plugin has the STAGE_UNSTAGE volume capability
+	// to prepare a volume for usage on a host. If err == nil, the response should
+	// be assumed to be successful.
+	NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *VolumeCapability) error
+
 	// Shutdown the client and ensure any connections are cleaned up.
 	Close() error
 }

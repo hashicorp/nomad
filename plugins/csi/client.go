@@ -296,3 +296,33 @@ func (c *client) NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error) 
 
 	return result, nil
 }
+
+func (c *client) NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *VolumeCapability) error {
+	if c == nil {
+		return fmt.Errorf("Client not initialized")
+	}
+	if c.nodeClient == nil {
+		return fmt.Errorf("Client not initialized")
+	}
+
+	// These errors should not be returned during production use but exist as aids
+	// during Nomad Development
+	if volumeID == "" {
+		return fmt.Errorf("missing volumeID")
+	}
+	if stagingTargetPath == "" {
+		return fmt.Errorf("missing stagingTargetPath")
+	}
+
+	req := &csipbv1.NodeStageVolumeRequest{
+		VolumeId:          volumeID,
+		PublishContext:    publishContext,
+		StagingTargetPath: stagingTargetPath,
+		VolumeCapability:  capabilities.ToCSIRepresentation(),
+	}
+
+	// NodeStageVolume's response contains no extra data. If err == nil, we were
+	// successful.
+	_, err := c.nodeClient.NodeStageVolume(ctx, req)
+	return err
+}
