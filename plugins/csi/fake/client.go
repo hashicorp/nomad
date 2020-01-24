@@ -56,6 +56,9 @@ type Client struct {
 
 	NextNodeUnstageVolumeErr   error
 	NodeUnstageVolumeCallCount int64
+
+	NextNodePublishVolumeErr   error
+	NodePublishVolumeCallCount int64
 }
 
 // PluginInfo describes the type and version of a plugin.
@@ -176,6 +179,15 @@ func (c *Client) NodeUnstageVolume(ctx context.Context, volumeID string, staging
 	c.NodeUnstageVolumeCallCount++
 
 	return c.NextNodeUnstageVolumeErr
+}
+
+func (c *Client) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) error {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.NodePublishVolumeCallCount++
+
+	return c.NextNodePublishVolumeErr
 }
 
 // Shutdown the client and ensure any connections are cleaned up.
