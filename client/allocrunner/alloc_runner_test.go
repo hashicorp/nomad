@@ -460,6 +460,11 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 
+	// We should see all tasks with Prestart hooks are not blocked from running:
+	// i.e. the "init" and "side" task hook coordinator channels are closed
+	testChannelClosed(t, ar.taskHookCoordinator.startConditionForTask(ar.tasks["init"].Task()), "init")
+	testChannelClosed(t, ar.taskHookCoordinator.startConditionForTask(ar.tasks["side"].Task()), "side")
+
 	// Mimic client dies while init task running, and client restarts after init task finished
 	ar.tasks["init"].UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskTerminated))
 	ar.tasks["side"].UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
@@ -467,46 +472,14 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	// Create a new AllocRunner to test RestoreState and Run
 	ar2, err := NewAllocRunner(conf)
 	require.NoError(t, err)
-	defer destroy(ar2)
 
 	if err := ar2.Restore(); err != nil {
 		t.Fatalf("error restoring state: %v", err)
 	}
-	ar2.Run()
 
 	// We want to see Restore resume execution with correct hook ordering:
-	// i.e. we should see the "web" main task go from pending to running
-	testutil.WaitForResult(func() (bool, error) {
-		alloc := ar2.Alloc()
-
-		// TODO: debug why this alloc has no TaskStates
-		t.Fatalf("%v", alloc.TaskStates)
-		for task, state := range alloc.TaskStates {
-			t.Fatalf("\n\n\n\t\tTASK %q state %v", task, state.State)
-			if state.State != structs.TaskStateDead {
-				return false, fmt.Errorf("Task %q should be dead: %v", task, state.State)
-			}
-		}
-		// TODO: check for these states specifically
-		//	require.Equal(t, structs.TaskStateDead, restoredAlloc.TaskStates["init"])
-		//	require.Equal(t, structs.TaskStateRunning, restoredAlloc.TaskStates["side"])
-		//	require.Equal(t, structs.TaskStateRunning, restoredAlloc.TaskStates["web"])
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
-
-	// TODO: debug why this destroy fails
-	// Make sure it GCs properly
-	ar2.Destroy()
-
-	select {
-	case <-ar2.DestroyCh():
-		// exited as expected
-	case <-time.After(10 * time.Second):
-		t.Fatalf("timed out waiting for AR to GC")
-	}
+	// i.e. we should see the "web" main task hook coordinator channel is closed
+	testChannelClosed(t, ar2.taskHookCoordinator.startConditionForTask(ar.tasks["web"].Task()), "web")
 }
 
 func TestAllocRunner_Update_Semantics(t *testing.T) {

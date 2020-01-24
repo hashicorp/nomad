@@ -365,7 +365,7 @@ func LifecycleJob() *structs.Job {
 		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
 		Name:        "my-job",
 		Namespace:   structs.DefaultNamespace,
-		Type:        structs.JobTypeService,
+		Type:        structs.JobTypeBatch,
 		Priority:    50,
 		AllAtOnce:   false,
 		Datacenters: []string{"dc1"},
@@ -380,12 +380,18 @@ func LifecycleJob() *structs.Job {
 			{
 				Name:  "web",
 				Count: 1,
+				RestartPolicy: &structs.RestartPolicy{
+					Attempts: 0,
+					Interval: 10 * time.Minute,
+					Delay:    1 * time.Minute,
+					Mode:     structs.RestartPolicyModeFail,
+				},
 				Tasks: []*structs.Task{
 					{
 						Name:   "web",
-						Driver: "exec",
+						Driver: "mock_driver",
 						Config: map[string]interface{}{
-							"command": "/bin/sleep 500",
+							"run_for": "1s",
 						},
 						LogConfig: structs.DefaultLogConfig(),
 						Resources: &structs.Resources{
@@ -395,9 +401,9 @@ func LifecycleJob() *structs.Job {
 					},
 					{
 						Name:   "side",
-						Driver: "exec",
+						Driver: "mock_driver",
 						Config: map[string]interface{}{
-							"command": "/bin/date",
+							"run_for": "1s",
 						},
 						Lifecycle: &structs.TaskLifecycleConfig{
 							Hook:       structs.TaskLifecycleHookPrestart,
@@ -411,9 +417,9 @@ func LifecycleJob() *structs.Job {
 					},
 					{
 						Name:   "init",
-						Driver: "exec",
+						Driver: "mock_driver",
 						Config: map[string]interface{}{
-							"command": "/bin/date",
+							"run_for": "1s",
 						},
 						Lifecycle: &structs.TaskLifecycleConfig{
 							Hook:       structs.TaskLifecycleHookPrestart,
