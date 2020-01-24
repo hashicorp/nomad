@@ -1,13 +1,16 @@
 $size: 1.3rem;
 
 .node-status-light {
-  display: inline-block;
+  display: inline-flex;
   height: $size;
   width: $size;
   border-radius: $size / 2;
   vertical-align: middle;
+  align-items: center;
+  justify-content: center;
 
   background: $black;
+  color: $white;
 
   &.ready {
     background: $primary;
@@ -18,17 +21,16 @@ $size: 1.3rem;
   }
 
   &.initializing {
-    background: repeating-linear-gradient(
-      -45deg,
-      $grey-lighter,
-      $grey-lighter 3px,
-      darken($grey-lighter, 25%) 3px,
-      darken($grey-lighter, 25%) 6px
-    );
+    background: $grey-lighter;
   }
 
   &.ineligible,
   &.draining {
     background: $warning;
+  }
+
+  .icon {
+    width: $size - 0.2rem;
+    height: $size - 0.2rem;
   }
 }
