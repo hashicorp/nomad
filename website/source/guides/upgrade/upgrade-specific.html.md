@@ -15,6 +15,30 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.10.3
+
+### Connection Limits Added
+
+Nomad 0.10.3 introduces the [limits][limits] agent configuration parameters for
+mitigating denial of service attacks from users who are not authenticated via
+mTLS. The default limits stanza is:
+
+```hcl
+limits {
+  https_handshake_timeout   = "5s"
+  http_max_conns_per_client = 100
+  rpc_handshake_timeout     = "5s"
+  rpc_max_conns_per_client  = 100
+}
+```
+
+If your Nomad agent's endpoints are protected from unauthenticated users via
+other mechanisms these limits may be safely disabled by setting them to `0`.
+
+However the defaults were chosen to be safe for a wide variety of Nomad
+deployments and may protect against accidental abuses of the Nomad API that
+could cause unintended resource usage.
+
 ## Nomad 0.10.2
 
 ### Preemption Panic Fixed
@@ -385,6 +409,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [dangling-containers]:  /docs/drivers/docker.html#dangling-containers
 [gh-6787]: https://github.com/hashicorp/nomad/issues/6787
 [hcl2]: https://github.com/hashicorp/hcl2
+[limits]: /docs/configuration/index.html#limits
 [lxc]: /docs/drivers/external/lxc.html
 [migrate]: /docs/job-specification/migrate.html
 [plugins]: /docs/drivers/external/index.html
