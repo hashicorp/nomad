@@ -68,7 +68,7 @@ type CSINodeClient interface {
 	NodeGetCapabilities(ctx context.Context, in *csipbv1.NodeGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetCapabilitiesResponse, error)
 	NodeGetInfo(ctx context.Context, in *csipbv1.NodeGetInfoRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetInfoResponse, error)
 	NodeStageVolume(ctx context.Context, in *csipbv1.NodeStageVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeStageVolumeResponse, error)
-	// NodeUnstageVolume(ctx context.Context, in *NodeUnstageVolumeRequest, opts ...grpc.CallOption) (*NodeUnstageVolumeResponse, error)
+	NodeUnstageVolume(ctx context.Context, in *csipbv1.NodeUnstageVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeUnstageVolumeResponse, error)
 }
 
 type client struct {
@@ -324,5 +324,33 @@ func (c *client) NodeStageVolume(ctx context.Context, volumeID string, publishCo
 	// NodeStageVolume's response contains no extra data. If err == nil, we were
 	// successful.
 	_, err := c.nodeClient.NodeStageVolume(ctx, req)
+	return err
+}
+
+func (c *client) NodeUnstageVolume(ctx context.Context, volumeID string, stagingTargetPath string) error {
+	if c == nil {
+		return fmt.Errorf("Client not initialized")
+	}
+	if c.nodeClient == nil {
+		return fmt.Errorf("Client not initialized")
+	}
+
+	// These errors should not be returned during production use but exist as aids
+	// during Nomad Development
+	if volumeID == "" {
+		return fmt.Errorf("missing volumeID")
+	}
+	if stagingTargetPath == "" {
+		return fmt.Errorf("missing stagingTargetPath")
+	}
+
+	req := &csipbv1.NodeUnstageVolumeRequest{
+		VolumeId:          volumeID,
+		StagingTargetPath: stagingTargetPath,
+	}
+
+	// NodeUnstageVolume's response contains no extra data. If err == nil, we were
+	// successful.
+	_, err := c.nodeClient.NodeUnstageVolume(ctx, req)
 	return err
 }

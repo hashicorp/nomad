@@ -53,6 +53,9 @@ type Client struct {
 
 	NextNodeStageVolumeErr   error
 	NodeStageVolumeCallCount int64
+
+	NextNodeUnstageVolumeErr   error
+	NodeUnstageVolumeCallCount int64
 }
 
 // PluginInfo describes the type and version of a plugin.
@@ -159,6 +162,20 @@ func (c *Client) NodeStageVolume(ctx context.Context, volumeID string, publishCo
 	c.NodeStageVolumeCallCount++
 
 	return c.NextNodeStageVolumeErr
+}
+
+// NodeUnstageVolume is used when a plugin has the STAGE_UNSTAGE volume capability
+// to undo the work performed by NodeStageVolume. If a volume has been staged,
+// this RPC must be called before freeing the volume.
+//
+// If err == nil, the response should be assumed to be successful.
+func (c *Client) NodeUnstageVolume(ctx context.Context, volumeID string, stagingTargetPath string) error {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.NodeUnstageVolumeCallCount++
+
+	return c.NextNodeUnstageVolumeErr
 }
 
 // Shutdown the client and ensure any connections are cleaned up.
