@@ -345,7 +345,6 @@ func (a *TestAgent) config() *Config {
 	config.RaftConfig.LeaderLeaseTimeout = 20 * time.Millisecond
 	config.RaftConfig.HeartbeatTimeout = 40 * time.Millisecond
 	config.RaftConfig.ElectionTimeout = 40 * time.Millisecond
-	config.RaftConfig.StartAsLeader = true
 	config.RaftTimeout = 500 * time.Millisecond
 
 	// Tighten the autopilot timing
