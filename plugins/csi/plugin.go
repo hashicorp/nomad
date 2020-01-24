@@ -47,6 +47,13 @@ type CSIPlugin interface {
 	// be assumed to be successful.
 	NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *VolumeCapability) error
 
+	// NodeUnstageVolume is used when a plugin has the STAGE_UNSTAGE volume capability
+	// to undo the work performed by NodeStageVolume. If a volume has been staged,
+	// this RPC must be called before freeing the volume.
+	//
+	// If err == nil, the response should be assumed to be successful.
+	NodeUnstageVolume(ctx context.Context, volumeID string, stagingTargetPath string) error
+
 	// Shutdown the client and ensure any connections are cleaned up.
 	Close() error
 }
