@@ -445,3 +445,40 @@ func TestClient_RPC_NodeStageVolume(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_RPC_NodeUnstageVolume(t *testing.T) {
+	cases := []struct {
+		Name        string
+		ResponseErr error
+		Response    *csipbv1.NodeUnstageVolumeResponse
+		ExpectedErr error
+	}{
+		{
+			Name:        "handles underlying grpc errors",
+			ResponseErr: fmt.Errorf("some grpc error"),
+			ExpectedErr: fmt.Errorf("some grpc error"),
+		},
+		{
+			Name:        "handles success",
+			ResponseErr: nil,
+			ExpectedErr: nil,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			_, _, nc, client := newTestClient()
+			defer client.Close()
+
+			nc.NextErr = c.ResponseErr
+			nc.NextUnstageVolumeResponse = c.Response
+
+			err := client.NodeUnstageVolume(context.TODO(), "foo", "/foo")
+			if c.ExpectedErr != nil {
+				require.Error(t, c.ExpectedErr, err)
+			} else {
+				require.Nil(t, err)
+			}
+		})
+	}
+}
