@@ -83,6 +83,7 @@ type NodeClient struct {
 	NextErr                  error
 	NextCapabilitiesResponse *csipbv1.NodeGetCapabilitiesResponse
 	NextGetInfoResponse      *csipbv1.NodeGetInfoResponse
+	NextStageVolumeResponse  *csipbv1.NodeStageVolumeResponse
 }
 
 // NewNodeClient returns a new ControllerClient
@@ -94,6 +95,7 @@ func (f *NodeClient) Reset() {
 	f.NextErr = nil
 	f.NextCapabilitiesResponse = nil
 	f.NextGetInfoResponse = nil
+	f.NextStageVolumeResponse = nil
 }
 
 func (c *NodeClient) NodeGetCapabilities(ctx context.Context, in *csipbv1.NodeGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetCapabilitiesResponse, error) {
@@ -102,4 +104,8 @@ func (c *NodeClient) NodeGetCapabilities(ctx context.Context, in *csipbv1.NodeGe
 
 func (c *NodeClient) NodeGetInfo(ctx context.Context, in *csipbv1.NodeGetInfoRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetInfoResponse, error) {
 	return c.NextGetInfoResponse, c.NextErr
+}
+
+func (c *NodeClient) NodeStageVolume(ctx context.Context, in *csipbv1.NodeStageVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeStageVolumeResponse, error) {
+	return c.NextStageVolumeResponse, c.NextErr
 }

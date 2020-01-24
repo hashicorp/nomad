@@ -2,6 +2,7 @@ package csi
 
 import (
 	"context"
+	"fmt"
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -40,6 +41,11 @@ type CSIPlugin interface {
 	// NodeGetInfo is used to return semantic data about the current node in
 	// respect to the SP.
 	NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error)
+
+	// NodeStageVolume is used when a plugin has the STAGE_UNSTAGE volume capability
+	// to prepare a volume for usage on a host. If err == nil, the response should
+	// be assumed to be successful.
+	NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *VolumeCapability) error
 
 	// Shutdown the client and ensure any connections are cleaned up.
 	Close() error
@@ -157,4 +163,107 @@ func NewNodeCapabilitySet(resp *csipbv1.NodeGetCapabilitiesResponse) *NodeCapabi
 	}
 
 	return cs
+}
+
+// VolumeAccessMode represents the desired access mode of the CSI Volume
+type VolumeAccessMode csipbv1.VolumeCapability_AccessMode_Mode
+
+var _ fmt.Stringer = VolumeAccessModeUnknown
+
+var (
+	VolumeAccessModeUnknown               = VolumeAccessMode(csipbv1.VolumeCapability_AccessMode_UNKNOWN)
+	VolumeAccessModeSingleNodeWriter      = VolumeAccessMode(csipbv1.VolumeCapability_AccessMode_SINGLE_NODE_WRITER)
+	VolumeAccessModeSingleNodeReaderOnly  = VolumeAccessMode(csipbv1.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY)
+	VolumeAccessModeMultiNodeReaderOnly   = VolumeAccessMode(csipbv1.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY)
+	VolumeAccessModeMultiNodeSingleWriter = VolumeAccessMode(csipbv1.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER)
+	VolumeAccessModeMultiNodeMultiWriter  = VolumeAccessMode(csipbv1.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER)
+)
+
+func (a VolumeAccessMode) String() string {
+	return a.ToCSIRepresentation().String()
+}
+
+func (a VolumeAccessMode) ToCSIRepresentation() csipbv1.VolumeCapability_AccessMode_Mode {
+	return csipbv1.VolumeCapability_AccessMode_Mode(a)
+}
+
+// VolumeAccessType represents the filesystem apis that the user intends to use
+// with the volume. E.g whether it will be used as a block device or if they wish
+// to have a mounted filesystem.
+type VolumeAccessType int32
+
+var _ fmt.Stringer = VolumeAccessTypeBlock
+
+var (
+	VolumeAccessTypeBlock VolumeAccessType = 1
+	VolumeAccessTypeMount VolumeAccessType = 2
+)
+
+func (v VolumeAccessType) String() string {
+	if v == VolumeAccessTypeBlock {
+		return "VolumeAccessType.Block"
+	} else if v == VolumeAccessTypeMount {
+		return "VolumeAccessType.Mount"
+	} else {
+		return "VolumeAccessType.Unspecified"
+	}
+}
+
+// VolumeMountOptions contain optional additional configuration that can be used
+// when specifying that a Volume should be used with VolumeAccessTypeMount.
+type VolumeMountOptions struct {
+	// FSType is an optional field that allows an operator to specify the type
+	// of the filesystem.
+	FSType string
+
+	// MountFlags contains additional options that may be used when mounting the
+	// volume by the plugin. This may contain sensitive data and should not be
+	// leaked.
+	MountFlags []string
+}
+
+// VolumeMountOptions implements the Stringer and GoStringer interfaces to prevent
+// accidental leakage of sensitive mount flags via logs.
+var _ fmt.Stringer = &VolumeMountOptions{}
+var _ fmt.GoStringer = &VolumeMountOptions{}
+
+func (v *VolumeMountOptions) String() string {
+	mountFlagsString := "nil"
+	if len(v.MountFlags) != 0 {
+		mountFlagsString = "[REDACTED]"
+	}
+
+	return fmt.Sprintf("csi.VolumeMountOptions(FSType: %s, MountFlags: %s)", v.FSType, mountFlagsString)
+}
+
+func (v *VolumeMountOptions) GoString() string {
+	return v.String()
+}
+
+// VolumeCapability describes the overall usage requirements for a given CSI Volume
+type VolumeCapability struct {
+	AccessType         VolumeAccessType
+	AccessMode         VolumeAccessMode
+	VolumeMountOptions *VolumeMountOptions
+}
+
+func (c *VolumeCapability) ToCSIRepresentation() *csipbv1.VolumeCapability {
+	vc := &csipbv1.VolumeCapability{
+		AccessMode: &csipbv1.VolumeCapability_AccessMode{
+			Mode: c.AccessMode.ToCSIRepresentation(),
+		},
+	}
+
+	if c.AccessType == VolumeAccessTypeMount {
+		vc.AccessType = &csipbv1.VolumeCapability_Mount{
+			Mount: &csipbv1.VolumeCapability_MountVolume{
+				FsType:     c.VolumeMountOptions.FSType,
+				MountFlags: c.VolumeMountOptions.MountFlags,
+			},
+		}
+	} else {
+		vc.AccessType = &csipbv1.VolumeCapability_Block{Block: &csipbv1.VolumeCapability_BlockVolume{}}
+	}
+
+	return vc
 }

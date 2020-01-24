@@ -50,6 +50,9 @@ type Client struct {
 	NextNodeGetInfoResponse *csi.NodeGetInfoResponse
 	NextNodeGetInfoErr      error
 	NodeGetInfoCallCount    int64
+
+	NextNodeStageVolumeErr   error
+	NodeStageVolumeCallCount int64
 }
 
 // PluginInfo describes the type and version of a plugin.
@@ -144,6 +147,18 @@ func (c *Client) NodeGetInfo(ctx context.Context) (*csi.NodeGetInfoResponse, err
 	c.NodeGetInfoCallCount++
 
 	return c.NextNodeGetInfoResponse, c.NextNodeGetInfoErr
+}
+
+// NodeStageVolume is used when a plugin has the STAGE_UNSTAGE volume capability
+// to prepare a volume for usage on a host. If err == nil, the response should
+// be assumed to be successful.
+func (c *Client) NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *csi.VolumeCapability) error {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.NodeStageVolumeCallCount++
+
+	return c.NextNodeStageVolumeErr
 }
 
 // Shutdown the client and ensure any connections are cleaned up.
