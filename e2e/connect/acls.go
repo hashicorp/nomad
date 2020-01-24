@@ -159,40 +159,31 @@ func (tc *ConnectACLsE2ETest) createOperatorToken(policyID string, f *framework.
 	return token.SecretID
 }
 
-// TODO: This is test is broken and requires an actual fix.
-//  We currently do not check if the provided operator token is a master token,
-//  and we need to do that to be consistent with the semantics of the Consul ACL
-//  system. Fix will be covered in a separate issue.
-//
-//func (tc *ConnectACLsE2ETest) TestConnectACLsRegister_MasterToken(f *framework.F) {
-//	t := f.T()
-//	r := require.New(t)
-//
-//	t.Log("test register Connect job w/ ACLs enabled w/ master token")
-//
-//	jobID := "connect" + uuid.Generate()[0:8]
-//	tc.jobIDs = append(tc.jobIDs, jobID)
-//
-//	jobAPI := tc.Nomad().Jobs()
-//
-//	job, err := jobspec.ParseFile(demoConnectJob)
-//	r.NoError(err)
-//
-//	// Set the job file to use the consul master token.
-//	// One should never do this in practice, but, it should work.
-//	// https://www.consul.io/docs/acl/acl-system.html#builtin-tokens
-//	//
-//	// note: We cannot just set the environment variable when using the API
-//	// directly - that only works when using the nomad CLI command which does
-//	// the step of converting the environment variable into a set option.
-//	job.ConsulToken = &tc.consulMasterToken
-//
-//	resp, _, err := jobAPI.Register(job, nil)
-//	r.NoError(err)
-//	r.NotNil(resp)
-//	r.Zero(resp.Warnings)
-//}
-//
+func (tc *ConnectACLsE2ETest) TestConnectACLsRegister_MasterToken(f *framework.F) {
+	t := f.T()
+	r := require.New(t)
+
+	t.Log("test register Connect job w/ ACLs enabled w/ master token")
+
+	jobID := "connect" + uuid.Generate()[0:8]
+	tc.jobIDs = append(tc.jobIDs, jobID)
+
+	jobAPI := tc.Nomad().Jobs()
+
+	job, err := jobspec.ParseFile(demoConnectJob)
+	r.NoError(err)
+
+	// Set the job file to use the consul master token.
+	// One should never do this in practice, but, it should work.
+	// https://www.consul.io/docs/acl/acl-system.html#builtin-tokens
+	job.ConsulToken = &tc.consulMasterToken
+
+	resp, _, err := jobAPI.Register(job, nil)
+	r.NoError(err)
+	r.NotNil(resp)
+	r.Zero(resp.Warnings)
+}
+
 func (tc *ConnectACLsE2ETest) TestConnectACLsRegister_MissingOperatorToken(f *framework.F) {
 	t := f.T()
 	r := require.New(t)
