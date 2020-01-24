@@ -1213,7 +1213,7 @@ func (s *Server) setupRaft() error {
 
 	// If we are in bootstrap or dev mode and the state is clean then we can
 	// bootstrap now.
-	if s.config.Bootstrap || s.config.DevMode {
+	if s.config.Bootstrap || (s.config.DevMode && !s.config.DevDisableBootstrap) {
 		hasState, err := raft.HasExistingState(log, stable, snap)
 		if err != nil {
 			return err
