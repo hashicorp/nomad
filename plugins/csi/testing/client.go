@@ -80,10 +80,11 @@ func (c *ControllerClient) ValidateVolumeCapabilities(ctx context.Context, in *c
 
 // NodeClient is a CSI Node client used for testing
 type NodeClient struct {
-	NextErr                  error
-	NextCapabilitiesResponse *csipbv1.NodeGetCapabilitiesResponse
-	NextGetInfoResponse      *csipbv1.NodeGetInfoResponse
-	NextStageVolumeResponse  *csipbv1.NodeStageVolumeResponse
+	NextErr                   error
+	NextCapabilitiesResponse  *csipbv1.NodeGetCapabilitiesResponse
+	NextGetInfoResponse       *csipbv1.NodeGetInfoResponse
+	NextStageVolumeResponse   *csipbv1.NodeStageVolumeResponse
+	NextUnstageVolumeResponse *csipbv1.NodeUnstageVolumeResponse
 }
 
 // NewNodeClient returns a new ControllerClient
@@ -96,6 +97,7 @@ func (f *NodeClient) Reset() {
 	f.NextCapabilitiesResponse = nil
 	f.NextGetInfoResponse = nil
 	f.NextStageVolumeResponse = nil
+	f.NextUnstageVolumeResponse = nil
 }
 
 func (c *NodeClient) NodeGetCapabilities(ctx context.Context, in *csipbv1.NodeGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetCapabilitiesResponse, error) {
@@ -108,4 +110,8 @@ func (c *NodeClient) NodeGetInfo(ctx context.Context, in *csipbv1.NodeGetInfoReq
 
 func (c *NodeClient) NodeStageVolume(ctx context.Context, in *csipbv1.NodeStageVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeStageVolumeResponse, error) {
 	return c.NextStageVolumeResponse, c.NextErr
+}
+
+func (c *NodeClient) NodeUnstageVolume(ctx context.Context, in *csipbv1.NodeUnstageVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeUnstageVolumeResponse, error) {
+	return c.NextUnstageVolumeResponse, c.NextErr
 }
