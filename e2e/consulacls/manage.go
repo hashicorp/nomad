@@ -37,7 +37,6 @@ type Manager interface {
 
 type tfManager struct {
 	serial int
-	token  string
 }
 
 func New(tfStateFile string) (*tfManager, error) {
