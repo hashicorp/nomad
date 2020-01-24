@@ -1612,16 +1612,16 @@ func (s *StateStore) JobSummaryByPrefix(ws memdb.WatchSet, namespace, id string)
 	return iter, nil
 }
 
-// CSIVolumeRegister adds a volume to the server store, iff it's not new
+// CSIVolumeRegister adds a volume to the server store, failing if it already exists
 func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolume) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
 	for _, v := range volumes {
 		// Check for volume existence
-		_, obj, err := txn.FirstWatch("csi_volumes", "id", v.ID)
+		obj, err := txn.First("csi_volumes", "id", v.ID)
 		if err != nil {
-			return fmt.Errorf("volume existence check: %v", err)
+			return fmt.Errorf("volume existence check error: %v", err)
 		}
 		if obj != nil {
 			return fmt.Errorf("volume exists: %s", v.ID)
@@ -1647,7 +1647,15 @@ func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, id string) (*structs.CSIVo
 	}
 	ws.Add(watchCh)
 
-	return s.CSIVolumeDenormalize(ws, obj)
+	if obj == nil {
+		return nil, nil
+	}
+
+	vol := obj.(*structs.CSIVolume)
+	// Health data is stale, so set this volume unhealthy until it's denormalized
+	vol.Healthy = false
+
+	return vol, nil
 }
 
 // CSIVolumes looks up csi_volumes by pluginID
@@ -1821,23 +1829,18 @@ func (s *StateStore) deleteJobCSIPlugins(index uint64, job *structs.Job, txn *me
 	return nil
 }
 
-// CSIVolumeDenormalize takes a CSIVolume raw interface, type casts it and denormalizes for the API
-func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol interface{}) (*structs.CSIVolume, error) {
+// CSIVolumeDenormalize takes a CSIVolume and denormalizes for the API
+func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol *structs.CSIVolume) (*structs.CSIVolume, error) {
 	if vol == nil {
 		return nil, nil
 	}
 
-	v, ok := vol.(*structs.CSIVolume)
-	if !ok {
-		return nil, fmt.Errorf("volume type assertion failed")
-	}
-
-	v, err := s.CSIVolumeDenormalizePlugins(ws, v)
+	vol, err := s.CSIVolumeDenormalizePlugins(ws, vol)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.csiVolumeDenormalizeAllocs(ws, v)
+	return s.csiVolumeDenormalizeAllocs(ws, vol)
 }
 
 // CSIVolumeDenormalize returns a CSIVolume with current health and plugins
