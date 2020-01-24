@@ -2,6 +2,7 @@ package csi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
@@ -54,8 +55,77 @@ type CSIPlugin interface {
 	// If err == nil, the response should be assumed to be successful.
 	NodeUnstageVolume(ctx context.Context, volumeID string, stagingTargetPath string) error
 
+	// NodePublishVolume is used to prepare a volume for use by an allocation.
+	// if err == nil the response should be assumed to be successful.
+	NodePublishVolume(ctx context.Context, req *NodePublishVolumeRequest) error
+
 	// Shutdown the client and ensure any connections are cleaned up.
 	Close() error
+}
+
+type NodePublishVolumeRequest struct {
+	// The ID of the volume to publish.
+	VolumeID string
+
+	// If the volume was attached via a call to `ControllerPublishVolume` then
+	// we need to provide the returned PublishContext here.
+	PublishContext map[string]string
+
+	// The path to which the volume was staged by `NodeStageVolume`.
+	// It MUST be an absolute path in the root filesystem of the process
+	// serving this request.
+	// E.g {the plugins internal mount path}/staging/volumeid/...
+	//
+	// It MUST be set if the Node Plugin implements the
+	// `STAGE_UNSTAGE_VOLUME` node capability.
+	StagingTargetPath string
+
+	// The path to which the volume will be published.
+	// It MUST be an absolute path in the root filesystem of the process serving this
+	// request.
+	// E.g {the plugins internal mount path}/per-alloc/allocid/volumeid/...
+	//
+	// The CO SHALL ensure uniqueness of target_path per volume.
+	// The CO SHALL ensure that the parent directory of this path exists
+	// and that the process serving the request has `read` and `write`
+	// permissions to that parent directory.
+	TargetPath string
+
+	// Volume capability describing how the CO intends to use this volume.
+	VolumeCapability *VolumeCapability
+
+	Readonly bool
+
+	// Reserved for future use.
+	Secrets map[string]string
+}
+
+func (r *NodePublishVolumeRequest) ToCSIRepresentation() *csipbv1.NodePublishVolumeRequest {
+	return &csipbv1.NodePublishVolumeRequest{
+		VolumeId:          r.VolumeID,
+		PublishContext:    r.PublishContext,
+		StagingTargetPath: r.StagingTargetPath,
+		TargetPath:        r.TargetPath,
+		VolumeCapability:  r.VolumeCapability.ToCSIRepresentation(),
+		Readonly:          r.Readonly,
+		Secrets:           r.Secrets,
+	}
+}
+
+func (r *NodePublishVolumeRequest) Validate() error {
+	if r.VolumeID == "" {
+		return errors.New("missing VolumeID")
+	}
+
+	if r.TargetPath == "" {
+		return errors.New("missing TargetPath")
+	}
+
+	if r.VolumeCapability == nil {
+		return errors.New("missing VolumeCapabilities")
+	}
+
+	return nil
 }
 
 type PluginCapabilitySet struct {
