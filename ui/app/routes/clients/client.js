@@ -29,6 +29,24 @@ export default Route.extend(WithWatchers, {
     return model && model.get('allocations');
   },
 
+  setupController(controller, model) {
+    controller.set('flagAsDraining', model && model.isDraining);
+
+    return this._super(...arguments);
+  },
+
+  resetController(controller) {
+    controller.setProperties({
+      eligibilityError: null,
+      stopDrainError: null,
+      drainError: null,
+      flagAsDraining: false,
+      showDrainNotification: false,
+      showDrainUpdateNotification: false,
+      showDrainStoppedNotification: false,
+    });
+  },
+
   startWatchers(controller, model) {
     if (model) {
       controller.set('watchModel', this.watch.perform(model));

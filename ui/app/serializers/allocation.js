@@ -40,6 +40,8 @@ export default ApplicationSerializer.extend({
 
     hash.RescheduleEvents = (hash.RescheduleTracker || {}).Events;
 
+    hash.IsMigrating = (hash.DesiredTransition || {}).Migrate;
+
     // API returns empty strings instead of null
     hash.PreviousAllocationID = hash.PreviousAllocation ? hash.PreviousAllocation : null;
     hash.NextAllocationID = hash.NextAllocation ? hash.NextAllocation : null;

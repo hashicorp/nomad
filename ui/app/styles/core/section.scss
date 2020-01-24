@@ -1,6 +1,10 @@
 .section {
   padding: 1.5rem;
   max-width: 1200px;
+
+  &.with-headspace {
+    margin-top: 1.5rem;
+  }
 }
 
 .full-width-section {

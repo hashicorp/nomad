@@ -207,6 +207,18 @@ export default function() {
     return this.serialize(allocations.where({ nodeId: params.id }));
   });
 
+  this.post('/node/:id/eligibility', function({ nodes }, { params, requestBody }) {
+    const body = JSON.parse(requestBody);
+    const node = nodes.find(params.id);
+
+    node.update({ schedulingEligibility: body.Elibility === 'eligible' });
+    return this.serialize(node);
+  });
+
+  this.post('/node/:id/drain', function({ nodes }, { params }) {
+    return this.serialize(nodes.find(params.id));
+  });
+
   this.get('/allocations');
 
   this.get('/allocation/:id');

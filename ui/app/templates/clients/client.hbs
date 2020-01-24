@@ -1,13 +1,131 @@
 {{title "Client " (or model.name model.shortId)}}
-<section class="section">
-  <h1 data-test-title class="title">
-    <span data-test-node-status="{{model.compositeStatus}}" class="node-status-light {{model.compositeStatus}}"></span>
-    {{or model.name model.shortId}}
-    <span class="tag is-hollow is-small no-text-transform">
-      {{model.id}}
-      {{copy-button clipboardText=model.id}}
-    </span>
-  </h1>
+<section class="section with-headspace">
+  {{#if eligibilityError}}
+    <div data-test-eligibility-error class="columns">
+      <div class="column">
+        <div class="notification is-danger">
+          <h3 data-test-title class="title is-4">Eligibility Error</h3>
+          <p data-test-message>{{eligibilityError}}</p>
+        </div>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button data-test-dismiss class="button is-danger" onclick={{action (mut eligibilityError) ""}}>Okay</button>
+      </div>
+    </div>
+  {{/if}}
+  {{#if stopDrainError}}
+    <div data-test-stop-drain-error class="columns">
+      <div class="column">
+        <div class="notification is-danger">
+          <h3 data-test-title class="title is-4">Stop Drain Error</h3>
+          <p data-test-message>{{stopDrainError}}</p>
+        </div>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button data-test-dismiss class="button is-danger" onclick={{action (mut stopDrainError) ""}}>Okay</button>
+      </div>
+    </div>
+  {{/if}}
+  {{#if drainError}}
+    <div data-test-drain-error class="columns">
+      <div class="column">
+        <div class="notification is-danger">
+          <h3 data-test-title class="title is-4">Drain Error</h3>
+          <p data-test-message>{{drainError}}</p>
+        </div>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button data-test-dismiss class="button is-danger" onclick={{action (mut drainError) ""}}>Okay</button>
+      </div>
+    </div>
+  {{/if}}
+  {{#if showDrainStoppedNotification}}
+    <div class="notification is-info">
+      <div data-test-drain-stopped-notification class="columns">
+        <div class="column">
+          <h3 data-test-title class="title is-4">Drain Stopped</h3>
+          <p data-test-message>The drain has been stopped and the node has been set to ineligible.</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button data-test-dismiss class="button is-info" onclick={{action (mut showDrainStoppedNotification) false}}>Okay</button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+  {{#if showDrainUpdateNotification}}
+    <div class="notification is-info">
+      <div data-test-drain-updated-notification class="columns">
+        <div class="column">
+          <h3 data-test-title class="title is-4">Drain Updated</h3>
+          <p data-test-message>The new drain specification has been applied.</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button data-test-dismiss class="button is-info" onclick={{action (mut showDrainUpdateNotification) false}}>Okay</button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+  {{#if showDrainNotification}}
+    <div class="notification is-info">
+      <div data-test-drain-complete-notification class="columns">
+        <div class="column">
+          <h3 data-test-title class="title is-4">Drain Complete</h3>
+          <p data-test-message>Allocations have been drained and the node has been set to ineligible.</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button data-test-dimiss class="button is-info" onclick={{action (mut showDrainNotification) false}}>Okay</button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+  <div class="toolbar">
+    <div class="toolbar-item is-top-aligned is-minimum">
+      <span class="title">
+        <span data-test-node-status="{{model.compositeStatus}}" class="node-status-light {{model.compositeStatus}}"></span>
+      </span>
+    </div>
+    <div class="toolbar-item">
+      <h1 data-test-title class="title with-subheading">
+        {{or model.name model.shortId}}
+      </h1>
+      <p>
+        <label class="is-interactive">
+          {{#toggle
+            data-test-eligibility-toggle
+            isActive=model.isEligible
+            isDisabled=(or setEligibility.isRunning model.isDraining)
+            onToggle=(perform setEligibility (not model.isEligible))}}
+            Eligible
+          {{/toggle}}
+          <span class="tooltip" aria-label="Only eligible clients can receive allocations">
+            {{x-icon "info-circle-outline" class="is-faded"}}
+          </span>
+        </label>
+        <span data-test-node-id class="tag is-hollow is-small no-text-transform">
+          {{model.id}}
+          {{copy-button clipboardText=model.id}}
+        </span>
+      </p>
+    </div>
+    <div class="toolbar-item is-right-aligned is-top-aligned">
+      {{#if model.isDraining}}
+        {{two-step-button
+          data-test-drain-stop
+          idleText="Stop Drain"
+          cancelText="Cancel"
+          confirmText="Yes, Stop"
+          confirmationMessage="Are you sure you want to stop this drain?"
+          awaitingConfirmation=stopDrain.isRunning
+          onConfirm=(perform stopDrain)}}
+      {{/if}}
+    </div>
+    <div class="toolbar-item is-right-aligned is-top-aligned">
+      {{drain-popover
+        client=model
+        onDrain=(action "drainNotify")
+        onError=(action "drainError")}}
+    </div>
+  </div>
 
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
@@ -19,22 +137,6 @@
       <span class="pair" data-test-address-definition>
         <span class="term">Address</span>
         {{model.httpAddr}}
-      </span>
-      <span class="pair" data-test-draining>
-        <span class="term">Draining</span>
-        {{#if model.isDraining}}
-          <span class="status-text is-info">true</span>
-        {{else}}
-          false
-        {{/if}}
-      </span>
-      <span class="pair" data-test-eligibility>
-        <span class="term">Eligibility</span>
-        {{#if model.isEligible}}
-          {{model.schedulingEligibility}}
-        {{else}}
-          <span class="status-text is-warning">{{model.schedulingEligibility}}</span>
-        {{/if}}
       </span>
       <span class="pair" data-test-datacenter-definition>
         <span class="term">Datacenter</span>
@@ -53,30 +155,95 @@
   </div>
 
   {{#if model.drainStrategy}}
-    <div class="boxed-section is-small is-info">
-      <div class="boxed-section-body inline-definitions">
-        <span class="label">Drain Strategy</span>
-        <span class="pair" data-test-drain-deadline>
-          <span class="term">Deadline</span>
-          {{#if model.drainStrategy.isForced}}
-            <span class="badge is-danger">Forced Drain</span>
-          {{else if model.drainStrategy.hasNoDeadline}}
-            No deadline
-          {{else}}
-            {{format-duration model.drainStrategy.deadline}}
+    <div data-test-drain-details class="boxed-section is-info">
+      <div class="boxed-section-head">
+        <div class="boxed-section-row">Drain Strategy</div>
+        <div class="boxed-section-row">
+          <div class="inline-definitions is-small">
+            {{#if (not model.drainStrategy.hasNoDeadline)}}
+              <span class="pair">
+                <span class="term">Duration</span>
+                {{#if model.drainStrategy.isForced}}
+                  <span data-test-duration>--</span>
+                {{else}}
+                  <span data-test-duration class="tooltip" aria-label={{format-duration model.drainStrategy.deadline}}>
+                    {{format-duration model.drainStrategy.deadline}}
+                  </span>
+                {{/if}}
+              </span>
+            {{/if}}
+            <span class="pair">
+              <span class="term">{{if model.drainStrategy.hasNoDeadline "Deadline" "Remaining"}}</span>
+              {{#if model.drainStrategy.hasNoDeadline}}
+                <span data-test-deadline>No deadline</span>
+              {{else if model.drainStrategy.isForced}}
+                <span data-test-deadline>--</span>
+              {{else}}
+                <span data-test-deadline class="tooltip" aria-label={{format-ts model.drainStrategy.forceDeadline}}>
+                  {{moment-from-now model.drainStrategy.forceDeadline interval=1000 hideAffix=true}}
+                </span>
+              {{/if}}
+            </span>
+            <span data-test-force-drain-text class="pair">
+              <span class="term">Force Drain</span>
+              {{#if model.drainStrategy.isForced}}
+                {{x-icon "warning" class="is-text is-warning"}} Yes
+              {{else}}
+                No
+              {{/if}}
+            </span>
+            <span data-test-drain-system-jobs-text class="pair">
+              <span class="term">Drain System Jobs</span>
+              {{if model.drainStrategy.ignoreSystemJobs "No" "Yes"}}
+            </span>
+          </div>
+          {{#if (not model.drainStrategy.isForced)}}
+            <div class="pull-right">
+              {{two-step-button
+                data-test-force
+                alignRight=true
+                isInfoAction=true
+                idleText="Force Drain"
+                cancelText="Cancel"
+                confirmText="Yes, Force Drain"
+                confirmationMessage="Are you sure you want to force drain?"
+                awaitingConfirmation=forceDrain.isRunning
+                onConfirm=(perform forceDrain)}}
+            </div>
           {{/if}}
-        </span>
-        {{#if model.drainStrategy.forceDeadline}}
-          <span class="pair" data-test-drain-forced-deadline>
-            <span class="term">Forced Deadline</span>
-            {{format-ts model.drainStrategy.forceDeadline}}
-            ({{moment-from-now model.drainStrategy.forceDeadline interval=1000}})
-          </span>
-        {{/if}}
-        <span class="pair" data-test-drain-ignore-system-jobs>
-          <span class="term">Ignore System Jobs?</span>
-          {{if model.drainStrategy.ignoreSystemJobs "Yes" "No"}}
-        </span>
+        </div>
+      </div>
+      <div class="boxed-section-body">
+        <div class="columns">
+          <div class="column nowrap is-minimum">
+            <div class="metric-group">
+              <div class="metric is-primary">
+                <h3 class="label">Complete</h3>
+                <p data-test-complete-count class="value">{{model.completeAllocations.length}}</p>
+              </div>
+            </div>
+            <div class="metric-group">
+              <div class="metric">
+                <h3 class="label">Migrating</h3>
+                <p data-test-migrating-count class="value">{{model.migratingAllocations.length}}</p>
+              </div>
+            </div>
+            <div class="metric-group">
+              <div class="metric">
+                <h3 class="label">Remaining</h3>
+                <p data-test-remaining-count class="value">{{model.runningAllocations.length}}</p>
+              </div>
+            </div>
+          </div>
+          <div class="column">
+            <h3 class="title is-4">Status</h3>
+            {{#if model.lastMigrateTime}}
+              <p data-test-status>{{moment-to-now model.lastMigrateTime interval=1000 hideAffix=true}} since an allocation was successfully migrated.</p>
+            {{else}}
+              <p data-test-status>No allocations migrated.</p>
+            {{/if}}
+          </div>
+        </div>
       </div>
     </div>
   {{/if}}
