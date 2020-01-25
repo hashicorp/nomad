@@ -2,6 +2,7 @@ package csi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -474,6 +475,62 @@ func TestClient_RPC_NodeUnstageVolume(t *testing.T) {
 			nc.NextUnstageVolumeResponse = c.Response
 
 			err := client.NodeUnstageVolume(context.TODO(), "foo", "/foo")
+			if c.ExpectedErr != nil {
+				require.Error(t, c.ExpectedErr, err)
+			} else {
+				require.Nil(t, err)
+			}
+		})
+	}
+}
+
+func TestClient_RPC_NodePublishVolume(t *testing.T) {
+	cases := []struct {
+		Name        string
+		Request     *NodePublishVolumeRequest
+		ResponseErr error
+		Response    *csipbv1.NodePublishVolumeResponse
+		ExpectedErr error
+	}{
+		{
+			Name: "handles underlying grpc errors",
+			Request: &NodePublishVolumeRequest{
+				VolumeID:         "foo",
+				TargetPath:       "/dev/null",
+				VolumeCapability: &VolumeCapability{},
+			},
+			ResponseErr: fmt.Errorf("some grpc error"),
+			ExpectedErr: fmt.Errorf("some grpc error"),
+		},
+		{
+			Name: "handles success",
+			Request: &NodePublishVolumeRequest{
+				VolumeID:         "foo",
+				TargetPath:       "/dev/null",
+				VolumeCapability: &VolumeCapability{},
+			},
+			ResponseErr: nil,
+			ExpectedErr: nil,
+		},
+		{
+			Name: "Performs validation of the publish volume request",
+			Request: &NodePublishVolumeRequest{
+				VolumeID: "",
+			},
+			ResponseErr: nil,
+			ExpectedErr: errors.New("missing VolumeID"),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			_, _, nc, client := newTestClient()
+			defer client.Close()
+
+			nc.NextErr = c.ResponseErr
+			nc.NextPublishVolumeResponse = c.Response
+
+			err := client.NodePublishVolume(context.TODO(), c.Request)
 			if c.ExpectedErr != nil {
 				require.Error(t, c.ExpectedErr, err)
 			} else {
