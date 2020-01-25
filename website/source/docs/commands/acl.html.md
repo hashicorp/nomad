@@ -25,6 +25,7 @@ subcommands are available:
 - [`acl token create`][tokencreate] - Create new ACL token
 - [`acl token delete`][tokendelete] - Delete an existing ACL token
 - [`acl token info`][tokeninfo] - Get info on an existing ACL token
+- [`acl token list`][tokenlist] - List available ACL tokens
 - [`acl token self`][tokenself] - Get info on self ACL token
 - [`acl token update`][tokenupdate] - Update existing ACL token
 
@@ -37,4 +38,5 @@ subcommands are available:
 [tokenupdate]: /docs/commands/acl/token-update.html
 [tokendelete]: /docs/commands/acl/token-delete.html
 [tokeninfo]: /docs/commands/acl/token-info.html
+[tokenlist]: /docs/commands/acl/token-list.html
 [tokenself]: /docs/commands/acl/token-self.html
