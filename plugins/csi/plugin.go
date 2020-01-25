@@ -101,6 +101,10 @@ type NodePublishVolumeRequest struct {
 }
 
 func (r *NodePublishVolumeRequest) ToCSIRepresentation() *csipbv1.NodePublishVolumeRequest {
+	if r == nil {
+		return nil
+	}
+
 	return &csipbv1.NodePublishVolumeRequest{
 		VolumeId:          r.VolumeID,
 		PublishContext:    r.PublishContext,
@@ -325,6 +329,10 @@ type VolumeCapability struct {
 }
 
 func (c *VolumeCapability) ToCSIRepresentation() *csipbv1.VolumeCapability {
+	if c == nil {
+		return nil
+	}
+
 	vc := &csipbv1.VolumeCapability{
 		AccessMode: &csipbv1.VolumeCapability_AccessMode{
 			Mode: c.AccessMode.ToCSIRepresentation(),
