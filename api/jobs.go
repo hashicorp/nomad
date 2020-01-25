@@ -153,6 +153,22 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	return &resp, qm, nil
 }
 
+// Scale is used to retrieve information about a particular
+// job given its unique ID.
+func (j *Jobs) Scale(jobID, group string, value interface{}, reason string, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
+	req := &ScalingRequest{
+		JobID:  jobID,
+		Value:  value,
+		Reason: reason,
+	}
+	var resp JobRegisterResponse
+	qm, err := j.client.write(fmt.Sprintf("/v1/job/%s/%s/scale", url.PathEscape(jobID), url.PathEscape(group)), req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
 // Versions is used to retrieve all versions of a particular job given its
 // unique ID.
 func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {
