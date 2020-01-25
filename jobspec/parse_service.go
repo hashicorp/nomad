@@ -289,7 +289,7 @@ func parseSidecarTask(item *ast.ObjectItem) (*api.SidecarTask, error) {
 		KillSignal:  task.KillSignal,
 	}
 
-	// Parse ShutdownDelay seperatly to get pointer
+	// Parse ShutdownDelay separatly to get pointer
 	var m map[string]interface{}
 	if err := hcl.DecodeObject(&m, item.Val); err != nil {
 		return nil, err

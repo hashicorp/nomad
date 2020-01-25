@@ -331,7 +331,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 
 // getDynamicPortsPrecise takes the nodes used port bitmap which may be nil if
 // no ports have been allocated yet, the network ask and returns a set of unused
-// ports to fullfil the ask's DynamicPorts or an error if it failed. An error
+// ports to fulfil the ask's DynamicPorts or an error if it failed. An error
 // means the ask can not be satisfied as the method does a precise search.
 func getDynamicPortsPrecise(nodeUsed Bitmap, ask *NetworkResource) ([]int, error) {
 	// Create a copy of the used ports and apply the new reserves
@@ -373,7 +373,7 @@ func getDynamicPortsPrecise(nodeUsed Bitmap, ask *NetworkResource) ([]int, error
 
 // getDynamicPortsStochastic takes the nodes used port bitmap which may be nil if
 // no ports have been allocated yet, the network ask and returns a set of unused
-// ports to fullfil the ask's DynamicPorts or an error if it failed. An error
+// ports to fulfil the ask's DynamicPorts or an error if it failed. An error
 // does not mean the ask can not be satisfied as the method has a fixed amount
 // of random probes and if these fail, the search is aborted.
 func getDynamicPortsStochastic(nodeUsed Bitmap, ask *NetworkResource) ([]int, error) {

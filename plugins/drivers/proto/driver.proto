@@ -109,7 +109,7 @@ message FingerprintResponse {
 
 
     // Attributes are key/value pairs that annotate the nomad client and can be
-    // used in scheduling contraints and affinities.
+    // used in scheduling constraints and affinities.
     map<string, hashicorp.nomad.plugins.shared.structs.Attribute> attributes = 1;
 
     enum HealthState {

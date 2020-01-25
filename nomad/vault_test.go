@@ -423,7 +423,7 @@ func TestVaultClient_ValidateRole_Deprecated_Success(t *testing.T) {
 	})
 }
 
-func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {
+func TestVaultClient_ValidateRole_NonExistent(t *testing.T) {
 	t.Parallel()
 	v := testutil.NewTestVault(t)
 	defer v.Stop()

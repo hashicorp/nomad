@@ -45,7 +45,7 @@ func (h *hookResources) getMounts() []*drivers.MountConfig {
 	return h.Mounts
 }
 
-// initHooks intializes the tasks hooks.
+// initHooks initializes the tasks hooks.
 func (tr *TaskRunner) initHooks() {
 	hookLogger := tr.logger.Named("task_hook")
 	task := tr.Task()
