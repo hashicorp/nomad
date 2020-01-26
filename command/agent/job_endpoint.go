@@ -459,6 +459,62 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request,
 	jobAndTarget string) (interface{}, error) {
+	switch req.Method {
+	case "GET":
+		return s.jobScaleStatus(resp, req, jobAndTarget)
+	case "PUT", "POST":
+		return s.jobScaleAction(resp, req, jobAndTarget)
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
+	jobAndTarget string) (interface{}, error) {
+
+	regJobGroup := regexp.MustCompile(`^(.+)/([^/]+)/scale$`)
+	var jobName, groupName string
+	if subMatch := regJobGroup.FindStringSubmatch(jobAndTarget); subMatch != nil {
+		jobName = subMatch[1]
+		groupName = subMatch[2]
+	}
+	if jobName == "" || groupName == "" {
+		return nil, CodedError(400, "Invalid scaling target")
+	}
+
+	args := structs.JobSpecificRequest{
+		JobID: jobName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.SingleJobResponse
+	if err := s.agent.RPC("Job.GetJob", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	if out.Job == nil {
+		return nil, CodedError(404, "job not found")
+	}
+
+	group := out.Job.LookupTaskGroup(groupName)
+	if group == nil {
+		return nil, CodedError(404, "group not found in job")
+	}
+	status := &api.ScaleStatusResponse{
+		JobID:          out.Job.ID,
+		Value:          group.Count,
+		JobModifyIndex: out.Job.ModifyIndex,
+	}
+
+	return status, nil
+}
+
+func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
+	jobAndTarget string) (interface{}, error) {
+
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
