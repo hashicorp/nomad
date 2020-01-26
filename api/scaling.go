@@ -20,3 +20,10 @@ type ScalingRequest struct {
 	WriteRequest
 	PolicyOverride bool
 }
+
+// ScaleStatusResponse is the payload for a generic scaling action
+type ScaleStatusResponse struct {
+	JobID          string
+	Value          interface{}
+	JobModifyIndex uint64
+}

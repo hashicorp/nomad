@@ -728,6 +728,45 @@ func TestHTTP_Job_GroupScale(t *testing.T) {
 	})
 }
 
+func TestHTTP_Job_GroupScaleStatus(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job, policy := mock.JobWithScalingPolicy()
+		args := structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var resp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request to scale the job group
+		req, err := http.NewRequest("GET", policy.Target, nil)
+		require.NoError(err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		require.NoError(err)
+
+		// Check the response
+		status := obj.(*api.ScaleStatusResponse)
+		require.NotEmpty(resp.EvalID)
+		require.Equal(job.TaskGroups[0].Count, status.Value.(int))
+
+		// Check for the index
+		require.NotEmpty(respW.Header().Get("X-Nomad-Index"))
+	})
+}
+
 func TestHTTP_JobForceEvaluate(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
