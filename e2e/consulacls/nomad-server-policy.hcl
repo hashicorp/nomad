@@ -2,5 +2,3 @@
 // will be requesting new SI tokens from Consul.
 
 acl = "write"
-
-

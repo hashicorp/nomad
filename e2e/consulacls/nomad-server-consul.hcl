@@ -4,5 +4,5 @@
 // The provided consul.token value must be blessed with acl=write ACLs.
 consul {
   allow_unauthenticated = false
-  token="CONSUL_TOKEN"
+  token                 = "CONSUL_TOKEN"
 }
