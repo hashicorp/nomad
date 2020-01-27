@@ -1627,6 +1627,11 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 			return fmt.Errorf("volume exists: %s", v.ID)
 		}
 
+		if v.CreateIndex == 0 {
+			v.CreateIndex = index
+			v.ModifyIndex = index
+		}
+
 		err = txn.Insert("csi_volumes", v)
 		if err != nil {
 			return fmt.Errorf("volume insert: %v", err)
