@@ -1,10 +1,9 @@
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, waitUntil } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
-import formatDuration from 'nomad-ui/utils/format-duration';
 import moment from 'moment';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Clients from 'nomad-ui/tests/pages/clients/list';
@@ -55,10 +54,12 @@ module('Acceptance | client detail', function(hooks) {
   });
 
   test('/clients/:id should list immediate details for the node in the title', async function(assert) {
+    node = server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible', drain: false });
+
     await ClientDetail.visit({ id: node.id });
 
     assert.ok(ClientDetail.title.includes(node.name), 'Title includes name');
-    assert.ok(ClientDetail.title.includes(node.id), 'Title includes id');
+    assert.ok(ClientDetail.clientId.includes(node.id), 'Title includes id');
     assert.equal(
       ClientDetail.statusLight.objectAt(0).id,
       node.status,
@@ -80,14 +81,6 @@ module('Acceptance | client detail', function(hooks) {
     assert.ok(
       ClientDetail.addressDefinition.includes(node.httpAddr),
       'Address is in additional details'
-    );
-    assert.ok(
-      ClientDetail.drainingDefinition.includes(node.drain + ''),
-      'Drain status is in additional details'
-    );
-    assert.ok(
-      ClientDetail.eligibilityDefinition.includes(node.schedulingEligibility),
-      'Scheduling eligibility is in additional details'
     );
     assert.ok(
       ClientDetail.datacenterDefinition.includes(node.datacenter),
@@ -328,7 +321,9 @@ module('Acceptance | client detail', function(hooks) {
     await ClientDetail.visit({ id: 'not-a-real-node' });
 
     assert.equal(
-      server.pretender.handledRequests.findBy('status', 404).url,
+      server.pretender.handledRequests
+        .filter(request => !request.url.includes('policy'))
+        .findBy('status', 404).url,
       '/v1/node/not-a-real-node',
       'A request to the nonexistent node is made'
     );
@@ -445,6 +440,7 @@ module('Acceptance | client detail', function(hooks) {
 
   test('the status light indicates when the node is ineligible for scheduling', async function(assert) {
     node = server.create('node', {
+      drain: false,
       schedulingEligibility: 'ineligible',
     });
 
@@ -474,23 +470,19 @@ module('Acceptance | client detail', function(hooks) {
     await ClientDetail.visit({ id: node.id });
 
     assert.ok(
-      ClientDetail.drain.deadline.includes(formatDuration(deadline)),
+      ClientDetail.drainDetails.deadline.includes(forceDeadline.fromNow(true)),
       'Deadline is shown in a human formatted way'
     );
 
-    assert.ok(
-      ClientDetail.drain.forcedDeadline.includes(forceDeadline.format("MMM DD, 'YY HH:mm:ss ZZ")),
-      'Force deadline is shown as an absolute date'
+    assert.equal(
+      ClientDetail.drainDetails.deadlineTooltip,
+      forceDeadline.format("MMM DD, 'YY HH:mm:ss ZZ"),
+      'The tooltip for deadline shows the force deadline as an absolute date'
     );
 
     assert.ok(
-      ClientDetail.drain.forcedDeadline.includes(forceDeadline.fromNow()),
-      'Force deadline is shown as a relative date'
-    );
-
-    assert.ok(
-      ClientDetail.drain.ignoreSystemJobs.endsWith('No'),
-      'Ignore System Jobs state is shown'
+      ClientDetail.drainDetails.drainSystemJobsText.endsWith('Yes'),
+      'Drain System Jobs state is shown'
     );
   });
 
@@ -509,19 +501,16 @@ module('Acceptance | client detail', function(hooks) {
 
     await ClientDetail.visit({ id: node.id });
 
+    assert.notOk(ClientDetail.drainDetails.durationIsShown, 'Duration is omitted');
+
     assert.ok(
-      ClientDetail.drain.deadline.includes('No deadline'),
+      ClientDetail.drainDetails.deadline.includes('No deadline'),
       'The value for Deadline is "no deadline"'
     );
 
-    assert.notOk(
-      ClientDetail.drain.hasForcedDeadline,
-      'Forced deadline is not shown since there is no forced deadline'
-    );
-
     assert.ok(
-      ClientDetail.drain.ignoreSystemJobs.endsWith('Yes'),
-      'Ignore System Jobs state is shown'
+      ClientDetail.drainDetails.drainSystemJobsText.endsWith('No'),
+      'Drain System Jobs state is shown'
     );
   });
 
@@ -540,18 +529,361 @@ module('Acceptance | client detail', function(hooks) {
 
     await ClientDetail.visit({ id: node.id });
 
-    assert.equal(ClientDetail.drain.badgeLabel, 'Forced Drain', 'Forced Drain badge is described');
-    assert.ok(ClientDetail.drain.badgeIsDangerous, 'Forced Drain is shown in a red badge');
-
-    assert.notOk(
-      ClientDetail.drain.hasForcedDeadline,
-      'Forced deadline is not shown since there is no forced deadline'
+    assert.ok(
+      ClientDetail.drainDetails.forceDrainText.endsWith('Yes'),
+      'Forced Drain is described'
     );
+
+    assert.ok(ClientDetail.drainDetails.duration.includes('--'), 'Duration is shown but unset');
+
+    assert.ok(ClientDetail.drainDetails.deadline.includes('--'), 'Deadline is shown but unset');
 
     assert.ok(
-      ClientDetail.drain.ignoreSystemJobs.endsWith('No'),
-      'Ignore System Jobs state is shown'
+      ClientDetail.drainDetails.drainSystemJobsText.endsWith('Yes'),
+      'Drain System Jobs state is shown'
     );
+  });
+
+  test('toggling node eligibility disables the toggle and sends the correct POST request', async function(assert) {
+    node = server.create('node', {
+      drain: false,
+      schedulingEligibility: 'eligible',
+    });
+
+    server.pretender.post('/v1/node/:id/eligibility', () => [200, {}, ''], true);
+
+    await ClientDetail.visit({ id: node.id });
+    assert.ok(ClientDetail.eligibilityToggle.isActive);
+
+    ClientDetail.eligibilityToggle.toggle();
+    await waitUntil(() => server.pretender.handledRequests.findBy('method', 'POST'));
+
+    assert.ok(ClientDetail.eligibilityToggle.isDisabled);
+    server.pretender.resolve(server.pretender.requestReferences[0].request);
+
+    assert.notOk(ClientDetail.eligibilityToggle.isActive);
+    assert.notOk(ClientDetail.eligibilityToggle.isDisabled);
+
+    const request = server.pretender.handledRequests.findBy('method', 'POST');
+    assert.equal(request.url, `/v1/node/${node.id}/eligibility`);
+    assert.deepEqual(JSON.parse(request.requestBody), {
+      NodeID: node.id,
+      Eligibility: 'ineligible',
+    });
+
+    ClientDetail.eligibilityToggle.toggle();
+    await waitUntil(() => server.pretender.handledRequests.filterBy('method', 'POST').length === 2);
+    server.pretender.resolve(server.pretender.requestReferences[0].request);
+
+    assert.ok(ClientDetail.eligibilityToggle.isActive);
+    const request2 = server.pretender.handledRequests.filterBy('method', 'POST')[1];
+
+    assert.equal(request2.url, `/v1/node/${node.id}/eligibility`);
+    assert.deepEqual(JSON.parse(request2.requestBody), {
+      NodeID: node.id,
+      Eligibility: 'eligible',
+    });
+  });
+
+  test('starting a drain sends the correct POST request', async function(assert) {
+    let request;
+
+    node = server.create('node', {
+      drain: false,
+      schedulingEligibility: 'eligible',
+    });
+
+    await ClientDetail.visit({ id: node.id });
+    await ClientDetail.drainPopover.toggle();
+    await ClientDetail.drainPopover.submit();
+
+    request = server.pretender.handledRequests.filterBy('method', 'POST').pop();
+
+    assert.equal(request.url, `/v1/node/${node.id}/drain`);
+    assert.deepEqual(
+      JSON.parse(request.requestBody),
+      {
+        NodeID: node.id,
+        DrainSpec: {
+          Deadline: 0,
+          IgnoreSystemJobs: false,
+        },
+      },
+      'Drain with default settings'
+    );
+
+    await ClientDetail.drainPopover.toggle();
+    await ClientDetail.drainPopover.deadlineToggle.toggle();
+    await ClientDetail.drainPopover.submit();
+
+    request = server.pretender.handledRequests.filterBy('method', 'POST').pop();
+
+    assert.deepEqual(
+      JSON.parse(request.requestBody),
+      {
+        NodeID: node.id,
+        DrainSpec: {
+          Deadline: 60 * 60 * 1000 * 1000000,
+          IgnoreSystemJobs: false,
+        },
+      },
+      'Drain with deadline toggled'
+    );
+
+    await ClientDetail.drainPopover.toggle();
+    await ClientDetail.drainPopover.deadlineOptions.open();
+    await ClientDetail.drainPopover.deadlineOptions.options[1].choose();
+    await ClientDetail.drainPopover.submit();
+
+    request = server.pretender.handledRequests.filterBy('method', 'POST').pop();
+
+    assert.deepEqual(
+      JSON.parse(request.requestBody),
+      {
+        NodeID: node.id,
+        DrainSpec: {
+          Deadline: 4 * 60 * 60 * 1000 * 1000000,
+          IgnoreSystemJobs: false,
+        },
+      },
+      'Drain with non-default preset deadline set'
+    );
+
+    await ClientDetail.drainPopover.toggle();
+    await ClientDetail.drainPopover.deadlineOptions.open();
+    const optionsCount = ClientDetail.drainPopover.deadlineOptions.options.length;
+    await ClientDetail.drainPopover.deadlineOptions.options.objectAt(optionsCount - 1).choose();
+    await ClientDetail.drainPopover.setCustomDeadline('1h40m20s');
+    await ClientDetail.drainPopover.submit();
+
+    request = server.pretender.handledRequests.filterBy('method', 'POST').pop();
+
+    assert.deepEqual(
+      JSON.parse(request.requestBody),
+      {
+        NodeID: node.id,
+        DrainSpec: {
+          Deadline: ((1 * 60 + 40) * 60 + 20) * 1000 * 1000000,
+          IgnoreSystemJobs: false,
+        },
+      },
+      'Drain with custom deadline set'
+    );
+
+    await ClientDetail.drainPopover.toggle();
+    await ClientDetail.drainPopover.deadlineToggle.toggle();
+    await ClientDetail.drainPopover.forceDrainToggle.toggle();
+    await ClientDetail.drainPopover.submit();
+
+    request = server.pretender.handledRequests.filterBy('method', 'POST').pop();
+
+    assert.deepEqual(
+      JSON.parse(request.requestBody),
+      {
+        NodeID: node.id,
+        DrainSpec: {
+          Deadline: -1,
+          IgnoreSystemJobs: false,
+        },
+      },
+      'Drain with force set'
+    );
+
+    await ClientDetail.drainPopover.toggle();
+    await ClientDetail.drainPopover.systemJobsToggle.toggle();
+    await ClientDetail.drainPopover.submit();
+
+    request = server.pretender.handledRequests.filterBy('method', 'POST').pop();
+
+    assert.deepEqual(
+      JSON.parse(request.requestBody),
+      {
+        NodeID: node.id,
+        DrainSpec: {
+          Deadline: -1,
+          IgnoreSystemJobs: true,
+        },
+      },
+      'Drain system jobs unset'
+    );
+  });
+
+  test('the drain popover cancel button closes the popover', async function(assert) {
+    node = server.create('node', {
+      drain: false,
+      schedulingEligibility: 'eligible',
+    });
+
+    await ClientDetail.visit({ id: node.id });
+    assert.notOk(ClientDetail.drainPopover.isOpen);
+
+    await ClientDetail.drainPopover.toggle();
+    assert.ok(ClientDetail.drainPopover.isOpen);
+
+    await ClientDetail.drainPopover.cancel();
+    assert.notOk(ClientDetail.drainPopover.isOpen);
+    assert.equal(server.pretender.handledRequests.filterBy('method', 'POST'), 0);
+  });
+
+  test('toggling eligibility is disabled while a drain is active', async function(assert) {
+    node = server.create('node', {
+      drain: true,
+      schedulingEligibility: 'ineligible',
+    });
+
+    await ClientDetail.visit({ id: node.id });
+    assert.ok(ClientDetail.eligibilityToggle.isDisabled);
+  });
+
+  test('stopping a drain sends the correct POST request', async function(assert) {
+    node = server.create('node', {
+      drain: true,
+      schedulingEligibility: 'ineligible',
+    });
+
+    await ClientDetail.visit({ id: node.id });
+    assert.ok(ClientDetail.stopDrainIsPresent);
+
+    await ClientDetail.stopDrain.idle();
+    await ClientDetail.stopDrain.confirm();
+
+    const request = server.pretender.handledRequests.findBy('method', 'POST');
+    assert.equal(request.url, `/v1/node/${node.id}/drain`);
+    assert.deepEqual(JSON.parse(request.requestBody), {
+      NodeID: node.id,
+      DrainSpec: null,
+    });
+  });
+
+  test('when a drain is active, the "drain" popover is labeled as the "update" popover', async function(assert) {
+    node = server.create('node', {
+      drain: true,
+      schedulingEligibility: 'ineligible',
+    });
+
+    await ClientDetail.visit({ id: node.id });
+    assert.equal(ClientDetail.drainPopover.label, 'Update Drain');
+  });
+
+  test('forcing a drain sends the correct POST request', async function(assert) {
+    node = server.create('node', {
+      drain: true,
+      schedulingEligibility: 'ineligible',
+      drainStrategy: {
+        Deadline: 0,
+        IgnoreSystemJobs: true,
+      },
+    });
+
+    await ClientDetail.visit({ id: node.id });
+    await ClientDetail.drainDetails.force.idle();
+    await ClientDetail.drainDetails.force.confirm();
+
+    const request = server.pretender.handledRequests.findBy('method', 'POST');
+    assert.equal(request.url, `/v1/node/${node.id}/drain`);
+    assert.deepEqual(JSON.parse(request.requestBody), {
+      NodeID: node.id,
+      DrainSpec: {
+        Deadline: -1,
+        IgnoreSystemJobs: true,
+      },
+    });
+  });
+
+  test('when stopping a drain fails, an error is shown', async function(assert) {
+    node = server.create('node', {
+      drain: true,
+      schedulingEligibility: 'ineligible',
+    });
+
+    server.pretender.post('/v1/node/:id/drain', () => [500, {}, '']);
+
+    await ClientDetail.visit({ id: node.id });
+    await ClientDetail.stopDrain.idle();
+    await ClientDetail.stopDrain.confirm();
+
+    assert.ok(ClientDetail.stopDrainError.isPresent);
+    assert.ok(ClientDetail.stopDrainError.title.includes('Stop Drain Error'));
+
+    await ClientDetail.stopDrainError.dismiss();
+    assert.notOk(ClientDetail.stopDrainError.isPresent);
+  });
+
+  test('when starting a drain fails, an error message is shown', async function(assert) {
+    node = server.create('node', {
+      drain: false,
+      schedulingEligibility: 'eligible',
+    });
+
+    server.pretender.post('/v1/node/:id/drain', () => [500, {}, '']);
+
+    await ClientDetail.visit({ id: node.id });
+    await ClientDetail.drainPopover.toggle();
+    await ClientDetail.drainPopover.submit();
+
+    assert.ok(ClientDetail.drainError.isPresent);
+    assert.ok(ClientDetail.drainError.title.includes('Drain Error'));
+
+    await ClientDetail.drainError.dismiss();
+    assert.notOk(ClientDetail.drainError.isPresent);
+  });
+
+  test('when updating a drain fails, an error message is shown', async function(assert) {
+    node = server.create('node', {
+      drain: true,
+      schedulingEligibility: 'ineligible',
+    });
+
+    server.pretender.post('/v1/node/:id/drain', () => [500, {}, '']);
+
+    await ClientDetail.visit({ id: node.id });
+    await ClientDetail.drainPopover.toggle();
+    await ClientDetail.drainPopover.submit();
+
+    assert.ok(ClientDetail.drainError.isPresent);
+    assert.ok(ClientDetail.drainError.title.includes('Drain Error'));
+
+    await ClientDetail.drainError.dismiss();
+    assert.notOk(ClientDetail.drainError.isPresent);
+  });
+
+  test('when toggling eligibility fails, an error message is shown', async function(assert) {
+    node = server.create('node', {
+      drain: false,
+      schedulingEligibility: 'eligible',
+    });
+
+    server.pretender.post('/v1/node/:id/eligibility', () => [500, {}, '']);
+
+    await ClientDetail.visit({ id: node.id });
+    await ClientDetail.eligibilityToggle.toggle();
+
+    assert.ok(ClientDetail.eligibilityError.isPresent);
+    assert.ok(ClientDetail.eligibilityError.title.includes('Eligibility Error'));
+
+    await ClientDetail.eligibilityError.dismiss();
+    assert.notOk(ClientDetail.eligibilityError.isPresent);
+  });
+
+  test('when navigating away from a client that has an error message to another client, the error is not shown', async function(assert) {
+    node = server.create('node', {
+      drain: false,
+      schedulingEligibility: 'eligible',
+    });
+
+    const node2 = server.create('node');
+
+    server.pretender.post('/v1/node/:id/eligibility', () => [500, {}, '']);
+
+    await ClientDetail.visit({ id: node.id });
+    await ClientDetail.eligibilityToggle.toggle();
+
+    assert.ok(ClientDetail.eligibilityError.isPresent);
+    assert.ok(ClientDetail.eligibilityError.title.includes('Eligibility Error'));
+
+    await ClientDetail.visit({ id: node2.id });
+
+    assert.notOk(ClientDetail.eligibilityError.isPresent);
   });
 });
 

@@ -17,14 +17,14 @@ func TestStatsFetcher(t *testing.T) {
 		c.BootstrapExpect = 3
 	}
 
-	s1 := TestServer(t, conf)
-	defer s1.Shutdown()
+	s1, cleanupS1 := TestServer(t, conf)
+	defer cleanupS1()
 
-	s2 := TestServer(t, conf)
-	defer s2.Shutdown()
+	s2, cleanupS2 := TestServer(t, conf)
+	defer cleanupS2()
 
-	s3 := TestServer(t, conf)
-	defer s3.Shutdown()
+	s3, cleanupS3 := TestServer(t, conf)
+	defer cleanupS3()
 
 	TestJoin(t, s1, s2, s3)
 	testutil.WaitForLeader(t, s1.RPC)

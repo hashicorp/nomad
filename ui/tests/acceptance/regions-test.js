@@ -147,6 +147,7 @@ module('Acceptance | regions (many)', function(hooks) {
   });
 
   test('when the region is not the default region, all api requests include the region query param', async function(assert) {
+    window.localStorage.removeItem('nomadTokenSecret');
     const region = server.db.regions[1].id;
 
     await JobsList.visit({ region });
@@ -154,7 +155,12 @@ module('Acceptance | regions (many)', function(hooks) {
     await JobsList.jobs.objectAt(0).clickRow();
     await PageLayout.gutter.visitClients();
     await PageLayout.gutter.visitServers();
-    const [regionsRequest, defaultRegionRequest, ...appRequests] = server.pretender.handledRequests;
+    const [
+      ,
+      regionsRequest,
+      defaultRegionRequest,
+      ...appRequests
+    ] = server.pretender.handledRequests;
 
     assert.notOk(
       regionsRequest.url.includes('region='),

@@ -16,6 +16,8 @@ Nomad is a flexible workload orchestrator that enables an organization to easily
 
 Nomad enables developers to use declarative infrastructure-as-code for deploying applications.  Nomad uses bin packing to efficiently schedule jobs and optimize for resource utilization.  Nomad is supported on macOS, Windows, and Linux.
 
+<iframe src="https://www.youtube.com/embed/s_Fm9UtL4YU" frameborder="0" allowfullscreen="true"  width="560" height="315" ></iframe>
+
 Nomad is widely adopted and used in production by PagerDuty, Target, Citadel, Trivago, SAP, Pandora, Roblox, eBay, Deluxe Entertainment, and more.   
 
 ## Key Features

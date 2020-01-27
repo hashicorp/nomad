@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -31,7 +30,7 @@ func TestACLPolicyInfoCommand(t *testing.T) {
 	// Create a test ACLPolicy
 	policy := &structs.ACLPolicy{
 		Name:  "testPolicy",
-		Rules: acl.PolicyWrite,
+		Rules: "node { policy = \"read\" }",
 	}
 	policy.SetHash()
 	assert.Nil(state.UpsertACLPolicies(1000, []*structs.ACLPolicy{policy}))

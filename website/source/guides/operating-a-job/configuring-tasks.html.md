@@ -109,7 +109,7 @@ applications through environment variables. Nomad supports custom environment
 variables in two ways:
 
 * Interpolation in an `env` stanza
-* Templated in the a `template` stanza
+* Templated in a `template` stanza
 
 ### `env` stanza
 

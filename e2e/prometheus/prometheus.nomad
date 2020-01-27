@@ -2,6 +2,11 @@ job "prometheus" {
   datacenters = ["dc1", "dc2"]
   type        = "service"
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "monitoring" {
     count = 1
 
@@ -64,7 +69,7 @@ EOH
       resources {
         network {
           mbits = 10
-          port "prometheus_ui" {}
+          port  "prometheus_ui"{}
         }
       }
 

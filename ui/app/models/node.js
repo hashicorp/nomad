@@ -4,6 +4,7 @@ import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { hasMany } from 'ember-data/relationships';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
+import RSVP from 'rsvp';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import ipParts from '../utils/ip-parts';
 
@@ -43,6 +44,25 @@ export default Model.extend({
   }),
 
   allocations: hasMany('allocations', { inverse: 'node' }),
+  completeAllocations: computed('allocations.@each.clientStatus', function() {
+    return this.allocations.filterBy('clientStatus', 'complete');
+  }),
+  runningAllocations: computed('allocations.@each.isRunning', function() {
+    return this.allocations.filterBy('isRunning');
+  }),
+  migratingAllocations: computed('allocations.@each.{isMigrating,isRunning}', function() {
+    return this.allocations.filter(alloc => alloc.isRunning && alloc.isMigrating);
+  }),
+  lastMigrateTime: computed('allocations.@each.{isMigrating,isRunning,modifyTime}', function() {
+    const allocation = this.allocations
+      .filterBy('isRunning', false)
+      .filterBy('isMigrating')
+      .sortBy('modifyTime')
+      .reverse()[0];
+    if (allocation) {
+      return allocation.modifyTime;
+    }
+  }),
 
   drivers: fragmentArray('node-driver'),
   events: fragmentArray('node-event'),
@@ -61,7 +81,39 @@ export default Model.extend({
 
   // A status attribute that includes states not included in node status.
   // Useful for coloring and sorting nodes
-  compositeStatus: computed('status', 'isEligible', function() {
-    return this.isEligible ? this.status : 'ineligible';
+  compositeStatus: computed('isDraining', 'isEligible', 'status', function() {
+    if (this.isDraining) {
+      return 'draining';
+    } else if (!this.isEligible) {
+      return 'ineligible';
+    } else {
+      return this.status;
+    }
   }),
+
+  setEligible() {
+    if (this.isEligible) return RSVP.resolve();
+    // Optimistically update schedulingEligibility for immediate feedback
+    this.set('schedulingEligibility', 'eligible');
+    return this.store.adapterFor('node').setEligible(this);
+  },
+
+  setIneligible() {
+    if (!this.isEligible) return RSVP.resolve();
+    // Optimistically update schedulingEligibility for immediate feedback
+    this.set('schedulingEligibility', 'ineligible');
+    return this.store.adapterFor('node').setIneligible(this);
+  },
+
+  drain(drainSpec) {
+    return this.store.adapterFor('node').drain(this, drainSpec);
+  },
+
+  forceDrain(drainSpec) {
+    return this.store.adapterFor('node').forceDrain(this, drainSpec);
+  },
+
+  cancelDrain() {
+    return this.store.adapterFor('node').cancelDrain(this);
+  },
 });

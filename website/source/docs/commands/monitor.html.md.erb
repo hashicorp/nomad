@@ -37,6 +37,10 @@ The monitor command also allows you to specify a single client node id to follow
 - `-node-id`: Specifies the client node-id to stream logs from. If no
 node-id is given the nomad server from the -address flag will be used.
 
+- `-server-id`: Specifies the nomad server id to stream logs from. Accepts
+server names from `nomad server members` and also a special `leader` option
+which will target the current leader.
+
 - `-json`: Stream logs in json format
 
 ## Examples

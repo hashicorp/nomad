@@ -105,8 +105,8 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 	flags.BoolVar(&stdinOpt, "i", true, "")
 
-	stdinTty := isStdinTty()
-	flags.BoolVar(&ttyOpt, "t", stdinTty, "")
+	inferredTty := isTty()
+	flags.BoolVar(&ttyOpt, "t", inferredTty, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -194,7 +194,6 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 		if err != nil {
 			l.Ui.Error(err.Error())
-			l.Ui.Error("\nPlease specify the task.")
 			return 1
 		}
 	}
@@ -292,9 +291,11 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 		alloc, task, tty, command, stdin, stdout, stderr, sizeCh, nil)
 }
 
-func isStdinTty() bool {
-	_, isTerminal := term.GetFdInfo(os.Stdin)
-	return isTerminal
+// isTty returns true if both stdin and stdout are a TTY
+func isTty() bool {
+	_, isStdinTerminal := term.GetFdInfo(os.Stdin)
+	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
+	return isStdinTerminal && isStdoutTerminal
 }
 
 // setRawTerminal sets the stream terminal in raw mode, so process captures

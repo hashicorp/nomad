@@ -5,17 +5,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEnvAWSFingerprint_nonAws(t *testing.T) {
-	os.Setenv("AWS_ENV_URL", "http://127.0.0.1/latest/meta-data/")
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = "http://127.0.0.1/latest"
+
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -23,43 +24,25 @@ func TestEnvAWSFingerprint_nonAws(t *testing.T) {
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if len(response.Attributes) > 0 {
-		t.Fatalf("Should not apply")
-	}
+	require.NoError(t, err)
+	require.Empty(t, response.Attributes)
 }
 
 func TestEnvAWSFingerprint_aws(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t)
+	defer cleanup()
+
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
 
-	// configure mock server with fixture routes, data
-	routes := routes{}
-	if err := json.Unmarshal([]byte(aws_routes), &routes); err != nil {
-		t.Fatalf("Failed to unmarshal JSON in AWS ENV test: %s", err)
-	}
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for _, e := range routes.Endpoints {
-			if r.RequestURI == e.Uri {
-				w.Header().Set("Content-Type", e.ContentType)
-				fmt.Fprintln(w, e.Body)
-			}
-		}
-	}))
-	defer ts.Close()
-	os.Setenv("AWS_ENV_URL", ts.URL+"/latest/meta-data/")
-
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	keys := []string{
 		"platform.aws.ami-id",
@@ -78,14 +61,121 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 		assertNodeAttributeContains(t, response.Attributes, k)
 	}
 
-	if len(response.Links) == 0 {
-		t.Fatalf("Empty links for Node in AWS Fingerprint test")
-	}
+	require.NotEmpty(t, response.Links)
 
 	// confirm we have at least instance-id and ami-id
 	for _, k := range []string{"aws.ec2"} {
 		assertNodeLinksContains(t, response.Links, k)
 	}
+}
+
+func TestNetworkFingerprint_AWS(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t)
+	defer cleanup()
+
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
+	node := &structs.Node{
+		Attributes: make(map[string]string),
+	}
+
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
+	err := f.Fingerprint(request, &response)
+	require.NoError(t, err)
+
+	assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
+
+	require.NotNil(t, response.NodeResources)
+	require.Len(t, response.NodeResources.Networks, 1)
+
+	// Test at least the first Network Resource
+	net := response.NodeResources.Networks[0]
+	require.NotEmpty(t, net.IP, "Expected Network Resource to have an IP")
+	require.NotEmpty(t, net.CIDR, "Expected Network Resource to have a CIDR")
+	require.NotEmpty(t, net.Device, "Expected Network Resource to have a Device Name")
+}
+
+func TestNetworkFingerprint_AWS_network(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t)
+	defer cleanup()
+
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
+	{
+		node := &structs.Node{
+			Attributes: make(map[string]string),
+		}
+
+		request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+		var response FingerprintResponse
+		err := f.Fingerprint(request, &response)
+		require.NoError(t, err)
+
+		require.True(t, response.Detected, "expected response to be applicable")
+
+		assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
+
+		require.NotNil(t, response.NodeResources)
+		require.Len(t, response.NodeResources.Networks, 1)
+
+		// Test at least the first Network Resource
+		net := response.NodeResources.Networks[0]
+		require.NotEmpty(t, net.IP, "Expected Network Resource to have an IP")
+		require.NotEmpty(t, net.CIDR, "Expected Network Resource to have a CIDR")
+		require.NotEmpty(t, net.Device, "Expected Network Resource to have a Device Name")
+		require.Equal(t, 1000, net.MBits)
+	}
+
+	// Try again this time setting a network speed in the config
+	{
+		node := &structs.Node{
+			Attributes: make(map[string]string),
+		}
+
+		cfg := &config.Config{
+			NetworkSpeed: 10,
+		}
+
+		request := &FingerprintRequest{Config: cfg, Node: node}
+		var response FingerprintResponse
+		err := f.Fingerprint(request, &response)
+		require.NoError(t, err)
+
+		assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
+
+		require.NotNil(t, response.NodeResources)
+		require.Len(t, response.NodeResources.Networks, 1)
+
+		// Test at least the first Network Resource
+		net := response.NodeResources.Networks[0]
+		require.NotEmpty(t, net.IP, "Expected Network Resource to have an IP")
+		require.NotEmpty(t, net.CIDR, "Expected Network Resource to have a CIDR")
+		require.NotEmpty(t, net.Device, "Expected Network Resource to have a Device Name")
+		require.Equal(t, 10, net.MBits)
+	}
+}
+
+/// Utility functions for tests
+
+func startFakeEC2Metadata(t *testing.T) (endpoint string, cleanup func()) {
+	routes := routes{}
+	if err := json.Unmarshal([]byte(aws_routes), &routes); err != nil {
+		t.Fatalf("Failed to unmarshal JSON in AWS ENV test: %s", err)
+	}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for _, e := range routes.Endpoints {
+			if r.RequestURI == e.Uri {
+				w.Header().Set("Content-Type", e.ContentType)
+				fmt.Fprintln(w, e.Body)
+			}
+		}
+	}))
+
+	return ts.URL + "/latest", ts.Close
 }
 
 type routes struct {
@@ -148,168 +238,3 @@ const aws_routes = `
   ]
 }
 `
-
-func TestNetworkFingerprint_AWS(t *testing.T) {
-	// configure mock server with fixture routes, data
-	routes := routes{}
-	if err := json.Unmarshal([]byte(aws_routes), &routes); err != nil {
-		t.Fatalf("Failed to unmarshal JSON in AWS ENV test: %s", err)
-	}
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for _, e := range routes.Endpoints {
-			if r.RequestURI == e.Uri {
-				w.Header().Set("Content-Type", e.ContentType)
-				fmt.Fprintln(w, e.Body)
-			}
-		}
-	}))
-
-	defer ts.Close()
-	os.Setenv("AWS_ENV_URL", ts.URL+"/latest/meta-data/")
-
-	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
-	node := &structs.Node{
-		Attributes: make(map[string]string),
-	}
-
-	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response FingerprintResponse
-	err := f.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
-
-	if response.NodeResources == nil || len(response.NodeResources.Networks) == 0 {
-		t.Fatal("Expected to find Network Resources")
-	}
-
-	// Test at least the first Network Resource
-	net := response.NodeResources.Networks[0]
-	if net.IP == "" {
-		t.Fatal("Expected Network Resource to have an IP")
-	}
-	if net.CIDR == "" {
-		t.Fatal("Expected Network Resource to have a CIDR")
-	}
-	if net.Device == "" {
-		t.Fatal("Expected Network Resource to have a Device Name")
-	}
-}
-
-func TestNetworkFingerprint_AWS_network(t *testing.T) {
-	// configure mock server with fixture routes, data
-	routes := routes{}
-	if err := json.Unmarshal([]byte(aws_routes), &routes); err != nil {
-		t.Fatalf("Failed to unmarshal JSON in AWS ENV test: %s", err)
-	}
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for _, e := range routes.Endpoints {
-			if r.RequestURI == e.Uri {
-				w.Header().Set("Content-Type", e.ContentType)
-				fmt.Fprintln(w, e.Body)
-			}
-		}
-	}))
-
-	defer ts.Close()
-	os.Setenv("AWS_ENV_URL", ts.URL+"/latest/meta-data/")
-
-	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
-	{
-		node := &structs.Node{
-			Attributes: make(map[string]string),
-		}
-
-		request := &FingerprintRequest{Config: &config.Config{}, Node: node}
-		var response FingerprintResponse
-		err := f.Fingerprint(request, &response)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-
-		if !response.Detected {
-			t.Fatalf("expected response to be applicable")
-		}
-
-		assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
-
-		if response.NodeResources == nil || len(response.NodeResources.Networks) == 0 {
-			t.Fatal("Expected to find Network Resources")
-		}
-
-		// Test at least the first Network Resource
-		net := response.NodeResources.Networks[0]
-		if net.IP == "" {
-			t.Fatal("Expected Network Resource to have an IP")
-		}
-		if net.CIDR == "" {
-			t.Fatal("Expected Network Resource to have a CIDR")
-		}
-		if net.Device == "" {
-			t.Fatal("Expected Network Resource to have a Device Name")
-		}
-		if net.MBits != 1000 {
-			t.Fatalf("Expected Network Resource to have speed %d; got %d", 1000, net.MBits)
-		}
-	}
-
-	// Try again this time setting a network speed in the config
-	{
-		node := &structs.Node{
-			Attributes: make(map[string]string),
-		}
-
-		cfg := &config.Config{
-			NetworkSpeed: 10,
-		}
-
-		request := &FingerprintRequest{Config: cfg, Node: node}
-		var response FingerprintResponse
-		err := f.Fingerprint(request, &response)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-
-		assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
-
-		if response.NodeResources == nil || len(response.NodeResources.Networks) == 0 {
-			t.Fatal("Expected to find Network Resources")
-		}
-
-		// Test at least the first Network Resource
-		net := response.NodeResources.Networks[0]
-		if net.IP == "" {
-			t.Fatal("Expected Network Resource to have an IP")
-		}
-		if net.CIDR == "" {
-			t.Fatal("Expected Network Resource to have a CIDR")
-		}
-		if net.Device == "" {
-			t.Fatal("Expected Network Resource to have a Device Name")
-		}
-		if net.MBits != 10 {
-			t.Fatalf("Expected Network Resource to have speed %d; got %d", 10, net.MBits)
-		}
-	}
-}
-
-func TestNetworkFingerprint_notAWS(t *testing.T) {
-	os.Setenv("AWS_ENV_URL", "http://127.0.0.1/latest/meta-data/")
-	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
-	node := &structs.Node{
-		Attributes: make(map[string]string),
-	}
-
-	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response FingerprintResponse
-	err := f.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if len(response.Attributes) > 0 {
-		t.Fatalf("Should not apply")
-	}
-}

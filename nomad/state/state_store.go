@@ -3581,25 +3581,6 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	return nil
 }
 
-// addEphemeralDiskToTaskGroups adds missing EphemeralDisk objects to TaskGroups
-func (s *StateStore) addEphemeralDiskToTaskGroups(job *structs.Job) {
-	for _, tg := range job.TaskGroups {
-		var diskMB int
-		for _, task := range tg.Tasks {
-			if task.Resources != nil {
-				diskMB += task.Resources.DiskMB
-				task.Resources.DiskMB = 0
-			}
-		}
-		if tg.EphemeralDisk != nil {
-			continue
-		}
-		tg.EphemeralDisk = &structs.EphemeralDisk{
-			SizeMB: diskMB,
-		}
-	}
-}
-
 // UpsertACLPolicies is used to create or update a set of ACL policies
 func (s *StateStore) UpsertACLPolicies(index uint64, policies []*structs.ACLPolicy) error {
 	txn := s.db.Txn(true)
@@ -3769,6 +3750,10 @@ func (s *StateStore) DeleteACLTokens(index uint64, ids []string) error {
 
 // ACLTokenByAccessorID is used to lookup a token by accessor ID
 func (s *StateStore) ACLTokenByAccessorID(ws memdb.WatchSet, id string) (*structs.ACLToken, error) {
+	if id == "" {
+		return nil, fmt.Errorf("acl token lookup failed: missing accessor id")
+	}
+
 	txn := s.db.Txn(false)
 
 	watchCh, existing, err := txn.FirstWatch("acl_token", "id", id)
@@ -3785,6 +3770,10 @@ func (s *StateStore) ACLTokenByAccessorID(ws memdb.WatchSet, id string) (*struct
 
 // ACLTokenBySecretID is used to lookup a token by secret ID
 func (s *StateStore) ACLTokenBySecretID(ws memdb.WatchSet, secretID string) (*structs.ACLToken, error) {
+	if secretID == "" {
+		return nil, fmt.Errorf("acl token lookup failed: missing secret id")
+	}
+
 	txn := s.db.Txn(false)
 
 	watchCh, existing, err := txn.FirstWatch("acl_token", "secret", secretID)
@@ -4187,23 +4176,4 @@ func (r *StateRestore) SchedulerConfigRestore(schedConfig *structs.SchedulerConf
 		return fmt.Errorf("inserting scheduler config failed: %s", err)
 	}
 	return nil
-}
-
-// addEphemeralDiskToTaskGroups adds missing EphemeralDisk objects to TaskGroups
-func (r *StateRestore) addEphemeralDiskToTaskGroups(job *structs.Job) {
-	for _, tg := range job.TaskGroups {
-		if tg.EphemeralDisk != nil {
-			continue
-		}
-		var sizeMB int
-		for _, task := range tg.Tasks {
-			if task.Resources != nil {
-				sizeMB += task.Resources.DiskMB
-				task.Resources.DiskMB = 0
-			}
-		}
-		tg.EphemeralDisk = &structs.EphemeralDisk{
-			SizeMB: sizeMB,
-		}
-	}
 }

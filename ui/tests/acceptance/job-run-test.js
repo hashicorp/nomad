@@ -9,6 +9,8 @@ import JobRun from 'nomad-ui/tests/pages/jobs/run';
 const newJobName = 'new-job';
 const newJobTaskGroupName = 'redis';
 
+let managementToken, clientToken;
+
 const jsonJob = overrides => {
   return JSON.stringify(
     assign(
@@ -45,6 +47,11 @@ module('Acceptance | job run', function(hooks) {
   hooks.beforeEach(function() {
     // Required for placing allocations (a result of creating jobs)
     server.create('node');
+
+    managementToken = server.create('token');
+    clientToken = server.create('token');
+
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
   });
 
   test('visiting /jobs/run', async function(assert) {
@@ -85,5 +92,12 @@ module('Acceptance | job run', function(hooks) {
       `/jobs/${newJobName}?namespace=${newNamespace}`,
       `Redirected to the job overview page for ${newJobName} and switched the namespace to ${newNamespace}`
     );
+  });
+
+  test('when the user doesn’t have permission to run a job, redirects to the job overview page', async function(assert) {
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    await JobRun.visit();
+    assert.equal(currentURL(), '/jobs');
   });
 });

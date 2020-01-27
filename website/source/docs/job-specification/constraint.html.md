@@ -85,6 +85,7 @@ all groups (and tasks) in the job.
     regexp
     set_contains
     version
+    semver
     is_set
     is_not_set
     ```
@@ -186,7 +187,10 @@ constraint {
 
 - `"version"` - Specifies a version constraint against the attribute. This
   supports a comma-separated list of constraints, including the pessimistic
-  operator. For more examples please see the [go-version
+  operator. `version` will not consider a prerelease (eg `1.6.0-beta`)
+  sufficient to match a non-prerelease constraint (eg `>= 1.0`). Use the
+  `semver` constraint for strict [Semantic Versioning 2.0][semver2] ordering.
+  For more examples please see the [go-version
   repository](https://github.com/hashicorp/go-version) for more specific
   examples.
 
@@ -194,6 +198,20 @@ constraint {
     constraint {
       attribute = "..."
       operator  = "version"
+      value     = ">= 0.1.0, < 0.2"
+    }
+    ```
+
+- `"semver"` - Specifies a version constraint against the attribute. Only
+  [Semantic Versioning 2.0][semver2] compliant versions and comparison
+  operators are supported, so there is no pessimistic operator. Unlike `version`,
+  this operator considers prereleases (eg `1.6.0-beta`) sufficient to satisfy
+  non-prerelease constraints (eg `>= 1.0`). _Added in Nomad v0.10.2._
+
+    ```hcl
+    constraint {
+      attribute = "..."
+      operator  = "semver"
       value     = ">= 0.1.0, < 0.2"
     }
     ```
@@ -289,3 +307,4 @@ constraint {
 [interpolation]: /docs/runtime/interpolation.html "Nomad interpolation"
 [node-variables]: /docs/runtime/interpolation.html#node-variables- "Nomad interpolation-Node variables"
 [client-meta]: /docs/configuration/client.html#custom-metadata-network-speed-and-node-class "Nomad Custom Metadata, Network Speed, and Node Class"
+[semver2]: https://semver.org/spec/v2.0.0.html "Semantic Versioning 2.0"

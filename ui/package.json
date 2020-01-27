@@ -13,6 +13,8 @@
     "lint:hbs": "ember-template-lint .",
     "lint:js": "eslint .",
     "start": "./node_modules/ember-cli/bin/ember server",
+    "build-storybook": "STORYBOOK=true ember build && build-storybook -s dist",
+    "storybook": "STORYBOOK=true ember serve & start-storybook -p 6006 -s dist",
     "test": "./node_modules/ember-cli/bin/ember test"
   },
   "husky": {
@@ -21,7 +23,7 @@
     }
   },
   "lint-staged": {
-    "{app,tests,config,lib,mirage}/**/*.js": [
+    "{app,tests,config,lib,mirage,stories}/**/*.js": [
       "prettier --write",
       "git add"
     ],
@@ -35,6 +37,7 @@
     "@ember/jquery": "^0.6.0",
     "@ember/optional-features": "^0.7.0",
     "@hashicorp/structure-icons": "^1.3.0",
+    "@storybook/ember-cli-storybook": "^0.2.0",
     "anser": "^1.4.8",
     "base64-js": "^1.3.1",
     "broccoli-asset-rev": "^3.0.0",
@@ -48,8 +51,10 @@
     "d3-shape": "^1.2.0",
     "d3-time-format": "^2.1.0",
     "d3-transition": "^1.1.0",
+    "duration-js": "^4.0.0",
     "ember-ajax": "^5.0.0",
     "ember-auto-import": "^1.2.21",
+    "ember-can": "^2.0.0",
     "ember-cli": "~3.12.0",
     "ember-cli-babel": "^7.7.3",
     "ember-cli-clipboard": "^0.13.0",
@@ -101,7 +106,7 @@
     "http-proxy": "^1.1.6",
     "husky": "^1.3.1",
     "is-ip": "^3.1.0",
-    "ivy-codemirror": "^2.1.0",
+    "ivy-codemirror": "IvyApp/ivy-codemirror#c3b7f49f8e6492878619f8055695581240cce21a",
     "lint-staged": "^8.1.5",
     "loader.js": "^4.7.0",
     "lodash.intersection": "^4.4.0",
@@ -113,6 +118,17 @@
     "sass": "^1.17.3",
     "text-encoder-lite": "^2.0.0",
     "xterm": "^4.2.0-vscode1"
+  },
+  "optionalDependencies": {
+    "@babel/plugin-transform-member-expression-literals": "^7.2.0",
+    "@storybook/addon-knobs": "^5.2.5",
+    "@storybook/addon-storysource": "^5.2.5",
+    "@storybook/addon-viewport": "^5.2.5",
+    "@storybook/addons": "^5.2.5",
+    "@storybook/ember": "^5.2.5",
+    "babel-loader": "^8.0.6",
+    "ember-cli-get-component-path-option": "^1.0.0",
+    "ember-cli-string-utils": "^1.1.0"
   },
   "engines": {
     "node": "8.* || >= 10.*"

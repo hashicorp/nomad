@@ -6,7 +6,7 @@ description: |-
   The Pot task driver is used to run pot (https://github.com/pizzamig/pot) containers using FreeBSD jails.
 ---
 
-# Pot task Driver
+# Pot Task Driver
 
 Name: `pot`
 
@@ -23,7 +23,10 @@ task "nginx-pot" {
       image = "https://pot-registry.zapto.org/registry/"
       pot = "FBSD120-nginx"
       tag = "1.0"
-      command = "nginx -g 'daemon off;'"
+      command = "nginx"
+      args = [ 
+        "-g 'daemon off;'"
+      ]
       network_mode = "public-bridge" 
       port_map = {
         http = "80"
@@ -38,6 +41,10 @@ task "nginx-pot" {
       mount_read_only = [
         "/tmp/test2:/root/test2"
       ]
+      extra_hosts = [
+        "artifactory.yourdomain.com:192.168.0.1",
+        "mail.yourdomain.com:192.168.0.2"
+      ]
    }
 }
 ```
@@ -51,6 +58,8 @@ The pot task driver supports the following parameters:
 * `tag` - Version of the image.
  
 * `command` - Command that is going to be executed once the jail is started.
+
+* `args` - (Optional) List of options for the command executed on the command argument.
 
 * `network_mode` - (Optional) Defines the network mode of the pot. Default: **"public-bridge"**
 
@@ -67,6 +76,8 @@ The pot task driver supports the following parameters:
 * `mount` - (Optional) Mounts a read/write folder from the host machine to the pot jail.
 
 * `mount_read_only` - (Optional) Mounts a read only directory inside the pot jail.
+
+* `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to /etc/hosts
 
 ## Client Requirements
 

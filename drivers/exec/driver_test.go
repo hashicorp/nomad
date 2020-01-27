@@ -7,9 +7,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -249,6 +252,106 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 
 	require.NoError(harness.StopTask(task.ID, 0, ""))
 	require.NoError(harness.DestroyTask(task.ID, true))
+}
+
+// TestExecDriver_DestroyKillsAll asserts that when TaskDestroy is called all
+// task processes are cleaned up.
+func TestExecDriver_DestroyKillsAll(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctestutils.ExecCompatible(t)
+
+	d := NewExecDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	task := &drivers.TaskConfig{
+		ID:   uuid.Generate(),
+		Name: "test",
+	}
+
+	cleanup := harness.MkAllocDir(task, true)
+	defer cleanup()
+
+	taskConfig := map[string]interface{}{}
+	taskConfig["command"] = "/bin/sh"
+	taskConfig["args"] = []string{"-c", fmt.Sprintf(`sleep 3600 & echo "SLEEP_PID=$!"`)}
+
+	require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
+
+	handle, _, err := harness.StartTask(task)
+	require.NoError(err)
+	defer harness.DestroyTask(task.ID, true)
+
+	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	require.NoError(err)
+
+	select {
+	case result := <-ch:
+		require.True(result.Successful(), "command failed: %#v", result)
+	case <-time.After(10 * time.Second):
+		require.Fail("timeout waiting for task to shutdown")
+	}
+
+	sleepPid := 0
+
+	// Ensure that the task is marked as dead, but account
+	// for WaitTask() closing channel before internal state is updated
+	testutil.WaitForResult(func() (bool, error) {
+		stdout, err := ioutil.ReadFile(filepath.Join(task.TaskDir().LogDir, "test.stdout.0"))
+		if err != nil {
+			return false, fmt.Errorf("failed to output pid file: %v", err)
+		}
+
+		pidMatch := regexp.MustCompile(`SLEEP_PID=(\d+)`).FindStringSubmatch(string(stdout))
+		if len(pidMatch) != 2 {
+			return false, fmt.Errorf("failed to find pid in %s", string(stdout))
+		}
+
+		pid, err := strconv.Atoi(pidMatch[1])
+		if err != nil {
+			return false, fmt.Errorf("pid parts aren't int: %s", pidMatch[1])
+		}
+
+		sleepPid = pid
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+
+	// isProcessRunning returns an error if process is not running
+	isProcessRunning := func(pid int) error {
+		process, err := os.FindProcess(pid)
+		if err != nil {
+			return fmt.Errorf("failed to find process: %s", err)
+		}
+
+		err = process.Signal(syscall.Signal(0))
+		if err != nil {
+			return fmt.Errorf("failed to signal process: %s", err)
+		}
+
+		return nil
+	}
+
+	require.NoError(isProcessRunning(sleepPid))
+
+	require.NoError(harness.DestroyTask(task.ID, true))
+
+	testutil.WaitForResult(func() (bool, error) {
+		err := isProcessRunning(sleepPid)
+		if err == nil {
+			return false, fmt.Errorf("child process is still running")
+		}
+
+		if !strings.Contains(err.Error(), "failed to signal process") {
+			return false, fmt.Errorf("unexpected error: %v", err)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
 }
 
 func TestExecDriver_Stats(t *testing.T) {

@@ -44,10 +44,32 @@
 /intro/getting-started/ui.html          https://learn.hashicorp.com/nomad/getting-started/ui
 /intro/getting-started/next-steps.html  https://learn.hashicorp.com/nomad/getting-started/next-steps
 
+/guides/load-balancing/fabio.html       https://learn.hashicorp.com/nomad/load-balancing/fabio
+/guides/load-balancing/nginx.html       https://learn.hashicorp.com/nomad/load-balancing/nginx
+/guides/load-balancing/haproxy.html     https://learn.hashicorp.com/nomad/load-balancing/haproxy
+/guides/load-balancing/traefik.html     https://learn.hashicorp.com/nomad/load-balancing/traefik
+
+/guides/stateful-workloads/host-volumes.html  https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes
+/guides/stateful-workloads/portworx.html      https://learn.hashicorp.com/nomad/stateful-workloads/portworx
+
+/guides/web-ui/access.html                  https://learn.hashicorp.com/nomad/web-ui/access
+/guides/web-ui/submitting-a-job.html        https://learn.hashicorp.com/nomad/web-ui/ui-workload
+/guides/web-ui/operating-a-job.html         https://learn.hashicorp.com/nomad/web-ui/submit-job
+/guides/web-ui/inspecting-the-cluster.html  https://learn.hashicorp.com/nomad/web-ui/inspecting-the-cluster
+/guides/web-ui/securing.html                https://learn.hashicorp.com/nomad/web-ui/access
+
+/guides/governance-and-policy/namespaces.html                https://learn.hashicorp.com/nomad/governance-and-policy/namespaces
+/guides/governance-and-policy/quotas.html                    https://learn.hashicorp.com/nomad/governance-and-policy/quotas
+/guides/governance-and-policy/sentinel/sentinel-policy.html  https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
+/guides/governance-and-policy/sentinel/job.html              https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
+
 # Website
 /community.html                               /resources.html
 
 # Docs
+/docs/index                                   /docs/index.html
+/api/index                                    /api/index.html
+/resources                                    /resources.html
 /docs/agent/config.html                       /docs/configuration/index.html
 /docs/jobops                                  /guides/operating-a-job/index.html
 /docs/jobops/                                 /guides/operating-a-job/index.html
@@ -193,11 +215,11 @@
 /guides/node-draining.html         /guides/operations/node-draining.html
 /guides/outage.html                /guides/operations/outage.html
 /guides/acl.html                   /guides/security/acl.html
-/guides/namespaces.html            /guides/security/namespaces.html
-/guides/quotas.html                /guides/security/quotas.html
+/guides/namespaces.html            https://learn.hashicorp.com/nomad/governance-and-policy/namespaces
+/guides/quotas.html                https://learn.hashicorp.com/nomad/governance-and-policy/quotas
 /guides/securing-nomad.html        /guides/security/securing-nomad.html
-/guides/sentinel-policy.html       /guides/security/sentinel-policy.html
-/guides/sentinel/job.html          /guides/governance-and-policy/sentinel/job.html
+/guides/sentinel-policy.html       https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
+/guides/sentinel/job.html          https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
 
 /guides/analytical-workloads/spark/spark.html     /guides/analytical-workloads/spark/index.html
 /guides/spark                                     /guides/analytical-workloads/spark/index.html
@@ -225,6 +247,9 @@
 /guides/operations/upgrade/                       /guides/upgrade/index.html
 /guides/operations/upgrade/index.html             /guides/upgrade/index.html
 /guides/operations/upgrade/upgrade-specific.html  /guides/upgrade/upgrade-specific.html
+
+# Multi-part UI guides
+/guides/ui.html  https://learn.hashicorp.com/nomad?track=web-ui#web-ui
 
 # Enterprise
 

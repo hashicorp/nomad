@@ -62,7 +62,17 @@ $ curl \
           "CPU": 2500,
           "DiskMB": 0,
           "MemoryMB": 2000,
-          "Networks": null
+          "Networks": [
+            {
+              "CIDR": "",
+              "Device": "",
+              "DynamicPorts": null,
+              "IP": "",
+              "MBits": 50,
+              "Mode": "",
+              "ReservedPorts": null
+            }
+          ]
         }
       }
     ],
@@ -115,7 +125,17 @@ $ curl \
         "CPU": 2500,
         "DiskMB": 0,
         "MemoryMB": 2000,
-        "Networks": null
+        "Networks": [
+          {
+            "CIDR": "",
+            "Device": "",
+            "DynamicPorts": null,
+            "IP": "",
+            "MBits": 50,
+            "Mode": "",
+            "ReservedPorts": null
+          }
+        ]
       }
     }
   ],
@@ -157,12 +177,17 @@ object](https://github.com/hashicorp/nomad/blob/master/api/quota.go#L100-L131).
       "Region": "global",
       "RegionLimit": {
         "CPU": 2500,
-        "MemoryMB": 1000
+        "MemoryMB": 1000,
+        "Networks": [
+          {
+            "Mbits": 50
+          }
+        ]
       }
     }
   ]
 }
-```      
+```
 
 ### Sample Request
 
@@ -305,7 +330,17 @@ $ curl \
         "CPU": 500,
         "MemoryMB": 256,
         "DiskMB": 0,
-        "Networks": null
+        "Networks": [
+          {
+            "CIDR": "",
+            "Device": "",
+            "DynamicPorts": null,
+            "IP": "",
+            "MBits": 50,
+            "Mode": "",
+            "ReservedPorts": null
+          }
+        ]
       },
       "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU="
     }

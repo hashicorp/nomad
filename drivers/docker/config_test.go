@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,9 +21,10 @@ func TestConfig_ParseHCL(t *testing.T) {
 				image = "redis:3.2"
 			}`,
 			&TaskConfig{
-				Image:   "redis:3.2",
-				Devices: []DockerDevice{},
-				Mounts:  []DockerMount{},
+				Image:        "redis:3.2",
+				Devices:      []DockerDevice{},
+				Mounts:       []DockerMount{},
+				CPUCFSPeriod: 100000,
 			},
 		},
 	}
@@ -51,36 +53,40 @@ func TestConfig_ParseJSON(t *testing.T) {
 			name:  "nil values for blocks are safe",
 			input: `{"Config": {"image": "bash:3", "mounts": null}}`,
 			expected: TaskConfig{
-				Image:   "bash:3",
-				Mounts:  []DockerMount{},
-				Devices: []DockerDevice{},
+				Image:        "bash:3",
+				Mounts:       []DockerMount{},
+				Devices:      []DockerDevice{},
+				CPUCFSPeriod: 100000,
 			},
 		},
 		{
 			name:  "nil values for 'volumes' field are safe",
 			input: `{"Config": {"image": "bash:3", "volumes": null}}`,
 			expected: TaskConfig{
-				Image:   "bash:3",
-				Mounts:  []DockerMount{},
-				Devices: []DockerDevice{},
+				Image:        "bash:3",
+				Mounts:       []DockerMount{},
+				Devices:      []DockerDevice{},
+				CPUCFSPeriod: 100000,
 			},
 		},
 		{
 			name:  "nil values for 'args' field are safe",
 			input: `{"Config": {"image": "bash:3", "args": null}}`,
 			expected: TaskConfig{
-				Image:   "bash:3",
-				Mounts:  []DockerMount{},
-				Devices: []DockerDevice{},
+				Image:        "bash:3",
+				Mounts:       []DockerMount{},
+				Devices:      []DockerDevice{},
+				CPUCFSPeriod: 100000,
 			},
 		},
 		{
 			name:  "nil values for string fields are safe",
 			input: `{"Config": {"image": "bash:3", "command": null}}`,
 			expected: TaskConfig{
-				Image:   "bash:3",
-				Mounts:  []DockerMount{},
-				Devices: []DockerDevice{},
+				Image:        "bash:3",
+				Mounts:       []DockerMount{},
+				Devices:      []DockerDevice{},
+				CPUCFSPeriod: 100000,
 			},
 		},
 	}
@@ -480,6 +486,68 @@ func TestConfig_DriverConfig_DanglingContainers(t *testing.T) {
 			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
 			require.EqualValues(t, c.expected, tc.GC.DanglingContainers)
 
+		})
+	}
+}
+
+func TestConfig_InternalCapabilities(t *testing.T) {
+	cases := []struct {
+		name     string
+		config   string
+		expected drivers.InternalCapabilities
+	}{
+		{
+			name:     "pure default",
+			config:   `{}`,
+			expected: drivers.InternalCapabilities{},
+		},
+		{
+			name:     "disabled",
+			config:   `{ disable_log_collection = true }`,
+			expected: drivers.InternalCapabilities{DisableLogCollection: true},
+		},
+		{
+			name:     "enabled explicitly",
+			config:   `{ disable_log_collection = false }`,
+			expected: drivers.InternalCapabilities{},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+
+			d := &Driver{config: &tc}
+			require.Equal(t, c.expected, d.InternalCapabilities())
+		})
+	}
+
+}
+
+func TestConfig_DriverConfig_PullActivityTimeout(t *testing.T) {
+	cases := []struct {
+		name     string
+		config   string
+		expected string
+	}{
+		{
+			name:     "default",
+			config:   `{}`,
+			expected: "2m",
+		},
+		{
+			name:     "set explicitly",
+			config:   `{ pull_activity_timeout = "5m" }`,
+			expected: "5m",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+			require.Equal(t, c.expected, tc.PullActivityTimeout)
 		})
 	}
 }

@@ -3,13 +3,16 @@ import {
   create,
   collection,
   clickable,
-  hasClass,
+  fillable,
   text,
   isPresent,
   visitable,
 } from 'ember-cli-page-object';
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
+import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
+import notification from 'nomad-ui/tests/pages/components/notification';
+import toggle from 'nomad-ui/tests/pages/components/toggle';
 
 export default create({
   visit: visitable('/clients/:id'),
@@ -25,6 +28,7 @@ export default create({
   },
 
   title: text('[data-test-title]'),
+  clientId: text('[data-test-node-id]'),
 
   statusLight: collection('[data-test-node-status]', {
     id: attribute('data-test-node-status'),
@@ -34,8 +38,6 @@ export default create({
   statusDefinition: text('[data-test-status-definition]'),
   statusDecorationClass: attribute('class', '[data-test-status-definition] .status-text'),
   addressDefinition: text('[data-test-address-definition]'),
-  drainingDefinition: text('[data-test-draining]'),
-  eligibilityDefinition: text('[data-test-eligibility]'),
   datacenterDefinition: text('[data-test-datacenter-definition]'),
 
   resourceCharts: collection('[data-test-primary-metric]', {
@@ -92,12 +94,65 @@ export default create({
     attributesAreShown: isPresent('[data-test-driver-attributes]'),
   }),
 
-  drain: {
-    deadline: text('[data-test-drain-deadline]'),
-    forcedDeadline: text('[data-test-drain-forced-deadline]'),
-    hasForcedDeadline: isPresent('[data-test-drain-forced-deadline]'),
-    ignoreSystemJobs: text('[data-test-drain-ignore-system-jobs]'),
-    badgeIsDangerous: hasClass('is-danger', '[data-test-drain-deadline] .badge'),
-    badgeLabel: text('[data-test-drain-deadline] .badge'),
+  drainDetails: {
+    scope: '[data-test-drain-details]',
+    durationIsPresent: isPresent('[data-test-duration]'),
+    duration: text('[data-test-duration]'),
+    durationTooltip: attribute('aria-label', '[data-test-duration]'),
+    durationIsShown: isPresent('[data-test-duration]'),
+    deadline: text('[data-test-deadline]'),
+    deadlineTooltip: attribute('aria-label', '[data-test-deadline]'),
+    deadlineIsShown: isPresent('[data-test-deadline]'),
+    forceDrainText: text('[data-test-force-drain-text]'),
+    drainSystemJobsText: text('[data-test-drain-system-jobs-text]'),
+
+    completeCount: text('[data-test-complete-count]'),
+    migratingCount: text('[data-test-migrating-count]'),
+    remainingCount: text('[data-test-remaining-count]'),
+    status: text('[data-test-status]'),
+    force: twoStepButton('[data-test-force]'),
   },
+
+  drainPopover: {
+    label: text('[data-test-drain-popover] [data-test-popover-trigger]'),
+    isOpen: isPresent('[data-test-drain-popover-form]'),
+    toggle: clickable('[data-test-drain-popover] [data-test-popover-trigger]'),
+
+    deadlineToggle: toggle('[data-test-drain-deadline-toggle]'),
+    deadlineOptions: {
+      open: clickable('[data-test-drain-deadline-option-select] .ember-power-select-trigger'),
+      options: collection('.ember-power-select-option', {
+        label: text(),
+        choose: clickable(),
+      }),
+    },
+
+    setCustomDeadline: fillable('[data-test-drain-custom-deadline]'),
+    customDeadline: attribute('value', '[data-test-drain-custom-deadline]'),
+    forceDrainToggle: toggle('[data-test-force-drain-toggle]'),
+    systemJobsToggle: toggle('[data-test-system-jobs-toggle]'),
+
+    submit: clickable('[data-test-drain-submit]'),
+    cancel: clickable('[data-test-drain-cancel]'),
+
+    setDeadline(label) {
+      this.deadlineOptions.open();
+      this.deadlineOptions.options
+        .toArray()
+        .findBy('label', label)
+        .choose();
+    },
+  },
+
+  stopDrain: twoStepButton('[data-test-drain-stop]'),
+  stopDrainIsPresent: isPresent('[data-test-drain-stop]'),
+
+  eligibilityToggle: toggle('[data-test-eligibility-toggle]'),
+
+  eligibilityError: notification('[data-test-eligibility-error]'),
+  stopDrainError: notification('[data-test-stop-drain-error]'),
+  drainError: notification('[data-test-drain-error]'),
+  drainStoppedNotification: notification('[data-test-drain-stopped-notification]'),
+  drainUpdatedNotification: notification('[data-test-drain-updated-notification]'),
+  drainCompleteNotification: notification('[data-test-drain-complete-notification]'),
 });

@@ -178,11 +178,21 @@ type TLSConfig struct {
 	// the Nomad server SSL certificate.
 	CAPath string
 
+	// CACertPem is the PEM-encoded CA cert to use to verify the Nomad server
+	// SSL certificate.
+	CACertPEM []byte
+
 	// ClientCert is the path to the certificate for Nomad communication
 	ClientCert string
 
+	// ClientCertPEM is the PEM-encoded certificate for Nomad communication
+	ClientCertPEM []byte
+
 	// ClientKey is the path to the private key for Nomad communication
 	ClientKey string
+
+	// ClientKeyPEM is the PEM-encoded private key for Nomad communication
+	ClientKeyPEM []byte
 
 	// TLSServerName, if set, is used to set the SNI host when connecting via
 	// TLS.
@@ -256,6 +266,9 @@ func DefaultConfig() *Config {
 	}
 	if v := os.Getenv("NOMAD_CLIENT_KEY"); v != "" {
 		config.TLSConfig.ClientKey = v
+	}
+	if v := os.Getenv("NOMAD_TLS_SERVER_NAME"); v != "" {
+		config.TLSConfig.TLSServerName = v
 	}
 	if v := os.Getenv("NOMAD_SKIP_VERIFY"); v != "" {
 		if insecure, err := strconv.ParseBool(v); err == nil {
@@ -341,12 +354,24 @@ func ConfigureTLS(httpClient *http.Client, tlsConfig *TLSConfig) error {
 		} else {
 			return fmt.Errorf("Both client cert and client key must be provided")
 		}
+	} else if len(tlsConfig.ClientCertPEM) != 0 || len(tlsConfig.ClientKeyPEM) != 0 {
+		if len(tlsConfig.ClientCertPEM) != 0 && len(tlsConfig.ClientKeyPEM) != 0 {
+			var err error
+			clientCert, err = tls.X509KeyPair(tlsConfig.ClientCertPEM, tlsConfig.ClientKeyPEM)
+			if err != nil {
+				return err
+			}
+			foundClientCert = true
+		} else {
+			return fmt.Errorf("Both client cert and client key must be provided")
+		}
 	}
 
 	clientTLSConfig := httpClient.Transport.(*http.Transport).TLSClientConfig
 	rootConfig := &rootcerts.Config{
-		CAFile: tlsConfig.CACert,
-		CAPath: tlsConfig.CAPath,
+		CAFile:        tlsConfig.CACert,
+		CAPath:        tlsConfig.CAPath,
+		CACertificate: tlsConfig.CACertPEM,
 	}
 	if err := rootcerts.ConfigureTLS(clientTLSConfig, rootConfig); err != nil {
 		return err

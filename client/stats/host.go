@@ -1,7 +1,6 @@
 package stats
 
 import (
-	"fmt"
 	"math"
 	"runtime"
 	"sync"
@@ -117,21 +116,25 @@ func (h *HostStatsCollector) collectLocked() error {
 	// Determine up-time
 	uptime, err := host.Uptime()
 	if err != nil {
-		return err
+		h.logger.Error("failed to collect upstime stats", "error", err)
+		uptime = 0
 	}
 	hs.Uptime = uptime
 
 	// Collect memory stats
 	mstats, err := h.collectMemoryStats()
 	if err != nil {
-		return err
+		h.logger.Error("failed to collect memory stats", "error", err)
+		mstats = &MemoryStats{}
 	}
 	hs.Memory = mstats
 
 	// Collect cpu stats
 	cpus, ticks, err := h.collectCPUStats()
 	if err != nil {
-		return err
+		h.logger.Error("failed to collect cpu stats", "error", err)
+		cpus = []*CPUStats{}
+		ticks = 0
 	}
 	hs.CPU = cpus
 	hs.CPUTicksConsumed = ticks
@@ -139,17 +142,19 @@ func (h *HostStatsCollector) collectLocked() error {
 	// Collect disk stats
 	diskStats, err := h.collectDiskStats()
 	if err != nil {
-		return err
+		h.logger.Error("failed to collect disk stats", "error", err)
+		hs.DiskStats = []*DiskStats{}
 	}
 	hs.DiskStats = diskStats
 
 	// Getting the disk stats for the allocation directory
 	usage, err := disk.Usage(h.allocDir)
 	if err != nil {
-		return fmt.Errorf("failed to find disk usage of alloc_dir %q: %v", h.allocDir, err)
+		h.logger.Error("failed to find disk usage of alloc", "alloc_dir", h.allocDir, "error", err)
+		hs.AllocDirStats = &DiskStats{}
+	} else {
+		hs.AllocDirStats = h.toDiskStats(usage, nil)
 	}
-	hs.AllocDirStats = h.toDiskStats(usage, nil)
-
 	// Collect devices stats
 	deviceStats := h.collectDeviceGroupStats()
 	hs.DeviceStats = deviceStats

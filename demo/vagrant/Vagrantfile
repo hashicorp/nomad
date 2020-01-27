@@ -5,6 +5,7 @@ $script = <<SCRIPT
 echo "Installing Docker..."
 sudo apt-get update
 sudo apt-get remove docker docker-engine docker.io
+echo '* libraries/restart-without-asking boolean true' | sudo debconf-set-selections
 sudo apt-get install apt-transport-https ca-certificates curl software-properties-common -y
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg |  sudo apt-key add -
 sudo apt-key fingerprint 0EBFCD88
@@ -24,7 +25,7 @@ sudo docker --version
 sudo apt-get install unzip curl vim -y
 
 echo "Installing Nomad..."
-NOMAD_VERSION=0.10.1
+NOMAD_VERSION=0.10.2
 cd /tmp/
 curl -sSL https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
 unzip nomad.zip

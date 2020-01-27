@@ -21,15 +21,15 @@ func TestClientStats_Stats_Local(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s.connectedNodes()
@@ -62,8 +62,8 @@ func TestClientStats_Stats_Local_ACL(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server
-	s, root := TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -122,8 +122,8 @@ func TestClientStats_Stats_NoNode(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -146,8 +146,8 @@ func TestClientStats_Stats_OldNode(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	state := s.State()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
@@ -173,12 +173,12 @@ func TestClientStats_Stats_Remote(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)

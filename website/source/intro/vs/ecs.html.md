@@ -8,7 +8,7 @@ description: |-
 
 # Nomad vs. AWS ECS
 
-Amazon Web Services provides the EC2 Container Service (ECS), which is
+Amazon Web Services provides the Elastic Container Service (ECS), which is
 a cluster manager. The ECS service is only available within AWS and
 can only be used for Docker workloads. Amazon provides customers with
 the agent that is installed on EC2 instances, but does not provide

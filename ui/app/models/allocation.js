@@ -41,6 +41,7 @@ export default Model.extend({
   }),
 
   isRunning: equal('clientStatus', 'running'),
+  isMigrating: attr('boolean'),
 
   // When allocations are server-side rescheduled, a paper trail
   // is left linking all reschedule attempts.

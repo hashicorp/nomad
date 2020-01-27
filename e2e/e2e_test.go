@@ -1,10 +1,14 @@
+// This package exists to wrap our e2e provisioning and test framework so that it
+// can be run via 'go test ./e2e'. See './framework/framework.go'
 package e2e
 
 import (
+	"os"
 	"testing"
 
+	"github.com/hashicorp/nomad/e2e/framework"
+
 	_ "github.com/hashicorp/nomad/e2e/affinities"
-	_ "github.com/hashicorp/nomad/e2e/allocstats"
 	_ "github.com/hashicorp/nomad/e2e/clientstate"
 	_ "github.com/hashicorp/nomad/e2e/connect"
 	_ "github.com/hashicorp/nomad/e2e/consul"
@@ -12,6 +16,7 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/deployment"
 	_ "github.com/hashicorp/nomad/e2e/example"
 	_ "github.com/hashicorp/nomad/e2e/hostvolumes"
+	_ "github.com/hashicorp/nomad/e2e/metrics"
 	_ "github.com/hashicorp/nomad/e2e/nomad09upgrade"
 	_ "github.com/hashicorp/nomad/e2e/nomadexec"
 	_ "github.com/hashicorp/nomad/e2e/spread"
@@ -19,5 +24,9 @@ import (
 )
 
 func TestE2E(t *testing.T) {
-	RunE2ETests(t)
+	if os.Getenv("NOMAD_E2E") == "" {
+		t.Skip("Skipping e2e tests, NOMAD_E2E not set")
+	} else {
+		framework.Run(t)
+	}
 }

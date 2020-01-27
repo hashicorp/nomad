@@ -23,11 +23,11 @@ type JobInitCommand struct {
 
 func (c *JobInitCommand) Help() string {
 	helpText := `
-Usage: nomad job init
-Alias: nomad init
+Usage: nomad job init <filename>
+Alias: nomad init <filename>
 
-  Creates an example job file that can be used as a starting
-  point to customize further.
+  Creates an example job file that can be used as a starting point to customize
+  further. If no filename is given, the default of "example.nomad" will be used.
 
 Init Options:
 
@@ -71,20 +71,27 @@ func (c *JobInitCommand) Run(args []string) int {
 	}
 
 	// Check for misuse
-	if len(flags.Args()) != 0 {
-		c.Ui.Error("This command takes no arguments")
+	// Check that we either got no filename or exactly one.
+	args = flags.Args()
+	if len(args) > 1 {
+		c.Ui.Error("This command takes either no arguments or one: <filename>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
+	filename := DefaultInitName
+	if len(args) == 1 {
+		filename = args[0]
+	}
+
 	// Check if the file already exists
-	_, err := os.Stat(DefaultInitName)
+	_, err := os.Stat(filename)
 	if err != nil && !os.IsNotExist(err) {
-		c.Ui.Error(fmt.Sprintf("Failed to stat '%s': %v", DefaultInitName, err))
+		c.Ui.Error(fmt.Sprintf("Failed to stat '%s': %v", filename, err))
 		return 1
 	}
 	if !os.IsNotExist(err) {
-		c.Ui.Error(fmt.Sprintf("Job '%s' already exists", DefaultInitName))
+		c.Ui.Error(fmt.Sprintf("Job '%s' already exists", filename))
 		return 1
 	}
 
@@ -107,13 +114,13 @@ func (c *JobInitCommand) Run(args []string) int {
 	}
 
 	// Write out the example
-	err = ioutil.WriteFile(DefaultInitName, jobSpec, 0660)
+	err = ioutil.WriteFile(filename, jobSpec, 0660)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to write '%s': %v", DefaultInitName, err))
+		c.Ui.Error(fmt.Sprintf("Failed to write '%s': %v", filename, err))
 		return 1
 	}
 
 	// Success
-	c.Ui.Output(fmt.Sprintf("Example job file written to %s", DefaultInitName))
+	c.Ui.Output(fmt.Sprintf("Example job file written to %s", filename))
 	return 0
 }

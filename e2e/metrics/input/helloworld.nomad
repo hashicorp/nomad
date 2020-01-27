@@ -1,10 +1,9 @@
-job "hello" {
+job "helloworld" {
   datacenters = ["dc1"]
 
-  update {
-    max_parallel     = 1
-    min_healthy_time = "15s"
-    auto_revert      = true
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
   }
 
   group "hello" {
@@ -29,7 +28,7 @@ job "hello" {
 
         network {
           mbits = 10
-          port "web" {}
+          port  "web" {}
         }
       }
 

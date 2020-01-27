@@ -1599,12 +1599,12 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 			Service: &Service{
 				Name: "redis",
 			},
-			ErrContains: "Connect proxy service name not found in services from task group",
+			ErrContains: `No Connect services in task group with Connect proxy ("redis:test")`,
 		},
 		{
 			Desc:        "Service name not found in group",
 			Kind:        "connect-proxy:redis",
-			ErrContains: "Connect proxy service name not found in services from task group",
+			ErrContains: `No Connect services in task group with Connect proxy ("redis")`,
 		},
 		{
 			Desc: "Connect stanza not configured in group",
@@ -1612,7 +1612,7 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 			TgService: []*Service{{
 				Name: "redis",
 			}},
-			ErrContains: "Connect proxy service name not found in services from task group",
+			ErrContains: `No Connect services in task group with Connect proxy ("redis")`,
 		},
 		{
 			Desc: "Valid connect proxy kind",
@@ -1640,12 +1640,8 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 				// Ok!
 				return
 			}
-			if err == nil {
-				t.Fatalf("no error returned. expected: %s", tc.ErrContains)
-			}
-			if !strings.Contains(err.Error(), tc.ErrContains) {
-				t.Fatalf("expected %q but found: %v", tc.ErrContains, err)
-			}
+			require.Errorf(t, err, "no error returned. expected: %s", tc.ErrContains)
+			require.Containsf(t, err.Error(), tc.ErrContains, "expected %q but found: %v", tc.ErrContains, err)
 		})
 	}
 
@@ -1827,9 +1823,7 @@ func TestConstraint_Validate(t *testing.T) {
 		Operand: "=",
 	}
 	err = c.Validate()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Perform additional regexp validation
 	c.Operand = ConstraintRegex
@@ -1848,6 +1842,15 @@ func TestConstraint_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[0].Error(), "Malformed constraint") {
 		t.Fatalf("err: %s", err)
 	}
+
+	// Perform semver validation
+	c.Operand = ConstraintSemver
+	err = c.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Malformed constraint")
+
+	c.RTarget = ">= 0.6.1"
+	require.NoError(t, c.Validate())
 
 	// Perform distinct_property validation
 	c.Operand = ConstraintDistinctProperty
@@ -2562,6 +2565,51 @@ func TestJob_ExpandServiceNames(t *testing.T) {
 	if service2Name != "jmx" {
 		t.Fatalf("Expected Service Name: %s, Actual: %s", "jmx", service2Name)
 	}
+
+}
+
+func TestJob_CombinedTaskMeta(t *testing.T) {
+	j := &Job{
+		Meta: map[string]string{
+			"job_test":   "job",
+			"group_test": "job",
+			"task_test":  "job",
+		},
+		TaskGroups: []*TaskGroup{
+			{
+				Name: "group",
+				Meta: map[string]string{
+					"group_test": "group",
+					"task_test":  "group",
+				},
+				Tasks: []*Task{
+					{
+						Name: "task",
+						Meta: map[string]string{
+							"task_test": "task",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	require := require.New(t)
+	require.EqualValues(map[string]string{
+		"job_test":   "job",
+		"group_test": "group",
+		"task_test":  "task",
+	}, j.CombinedTaskMeta("group", "task"))
+	require.EqualValues(map[string]string{
+		"job_test":   "job",
+		"group_test": "group",
+		"task_test":  "group",
+	}, j.CombinedTaskMeta("group", ""))
+	require.EqualValues(map[string]string{
+		"job_test":   "job",
+		"group_test": "job",
+		"task_test":  "job",
+	}, j.CombinedTaskMeta("", "task"))
 
 }
 

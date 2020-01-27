@@ -2,6 +2,11 @@ job "group_check" {
   datacenters = ["dc1"]
   type        = "service"
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "group_check" {
     network {
       mode = "bridge"
@@ -46,7 +51,7 @@ job "group_check" {
         interval = "2s"
         timeout  = "2s"
         command  = "cat"
-        args     = ["${NOMAD_TASK_DIR}/alive-2b"]
+        args     = ["/tmp/${NOMAD_ALLOC_ID}-alive-2b"]
       }
     }
 

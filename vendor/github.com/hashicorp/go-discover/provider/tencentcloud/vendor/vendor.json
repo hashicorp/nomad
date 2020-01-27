@@ -1,0 +1,37 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "ifNJy64Rl23Bo9KMkQPTygEM1fQ=",
+			"path": "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common",
+			"revision": "7fbfcf6be3e322b2a3d35f4df9fc53c339d991a2",
+			"revisionTime": "2019-08-30T03:48:19Z"
+		},
+		{
+			"checksumSHA1": "q+o6CYdmE6zUexIu50LJ8m5V9M8=",
+			"path": "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/errors",
+			"revision": "7fbfcf6be3e322b2a3d35f4df9fc53c339d991a2",
+			"revisionTime": "2019-08-30T03:48:19Z"
+		},
+		{
+			"checksumSHA1": "HIMpmn/RgpifmKOFdOgh0/9vBtY=",
+			"path": "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/http",
+			"revision": "7fbfcf6be3e322b2a3d35f4df9fc53c339d991a2",
+			"revisionTime": "2019-08-30T03:48:19Z"
+		},
+		{
+			"checksumSHA1": "LjtkxgcL4JvLEuLUE71G1v2z3Bg=",
+			"path": "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile",
+			"revision": "7fbfcf6be3e322b2a3d35f4df9fc53c339d991a2",
+			"revisionTime": "2019-08-30T03:48:19Z"
+		},
+		{
+			"checksumSHA1": "YPkw+lZhljqf2sgHchwD7yaNnoA=",
+			"path": "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm/v20170312",
+			"revision": "7fbfcf6be3e322b2a3d35f4df9fc53c339d991a2",
+			"revisionTime": "2019-08-30T03:48:19Z"
+		}
+	],
+	"rootPath": "github.com/hashicorp/go-discover/provider/tencentcloud"
+}

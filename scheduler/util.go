@@ -337,6 +337,8 @@ func shuffleNodes(nodes []*structs.Node) {
 // tasksUpdated does a diff between task groups to see if the
 // tasks, their drivers, environment variables or config have updated. The
 // inputs are the task group name to diff and two jobs to diff.
+// taskUpdated and functions called within assume that the given
+// taskGroup has already been checked to not be nil
 func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 	a := jobA.LookupTaskGroup(taskGroup)
 	b := jobB.LookupTaskGroup(taskGroup)
@@ -353,6 +355,16 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 
 	// Check that the network resources haven't changed
 	if networkUpdated(a.Networks, b.Networks) {
+		return true
+	}
+
+	// Check Affinities
+	if affinitiesUpdated(jobA, jobB, taskGroup) {
+		return true
+	}
+
+	// Check Spreads
+	if spreadsUpdated(jobA, jobB, taskGroup) {
 		return true
 	}
 
@@ -440,6 +452,61 @@ func networkPortMap(n *structs.NetworkResource) map[string]int {
 		m[p.Label] = -1
 	}
 	return m
+}
+
+func affinitiesUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
+	var aAffinities []*structs.Affinity
+	var bAffinities []*structs.Affinity
+
+	tgA := jobA.LookupTaskGroup(taskGroup)
+	tgB := jobB.LookupTaskGroup(taskGroup)
+
+	// Append jobA job and task group level affinities
+	aAffinities = append(aAffinities, jobA.Affinities...)
+	aAffinities = append(aAffinities, tgA.Affinities...)
+
+	// Append jobB job and task group level affinities
+	bAffinities = append(bAffinities, jobB.Affinities...)
+	bAffinities = append(bAffinities, tgB.Affinities...)
+
+	// append task affinities
+	for _, task := range tgA.Tasks {
+		aAffinities = append(aAffinities, task.Affinities...)
+	}
+
+	for _, task := range tgB.Tasks {
+		bAffinities = append(bAffinities, task.Affinities...)
+	}
+
+	// Check for equality
+	if len(aAffinities) != len(bAffinities) {
+		return true
+	}
+
+	return !reflect.DeepEqual(aAffinities, bAffinities)
+}
+
+func spreadsUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
+	var aSpreads []*structs.Spread
+	var bSpreads []*structs.Spread
+
+	tgA := jobA.LookupTaskGroup(taskGroup)
+	tgB := jobB.LookupTaskGroup(taskGroup)
+
+	// append jobA and task group level spreads
+	aSpreads = append(aSpreads, jobA.Spreads...)
+	aSpreads = append(aSpreads, tgA.Spreads...)
+
+	// append jobB and task group level spreads
+	bSpreads = append(bSpreads, jobB.Spreads...)
+	bSpreads = append(bSpreads, tgB.Spreads...)
+
+	// Check for equality
+	if len(aSpreads) != len(bSpreads) {
+		return true
+	}
+
+	return !reflect.DeepEqual(aSpreads, bSpreads)
 }
 
 // setStatus is used to update the status of the evaluation
@@ -742,9 +809,10 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 			continue
 		}
 
-		// If the scheduler has marked it as stop already but the alloc wasn't
-		// terminal on the client change the status to lost.
-		if alloc.DesiredStatus == structs.AllocDesiredStatusStop &&
+		// If the scheduler has marked it as stop or evict already but the alloc
+		// wasn't terminal on the client change the status to lost.
+		if (alloc.DesiredStatus == structs.AllocDesiredStatusStop ||
+			alloc.DesiredStatus == structs.AllocDesiredStatusEvict) &&
 			(alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusPending) {
 			plan.AppendStoppedAlloc(alloc, allocLost, structs.AllocClientStatusLost)

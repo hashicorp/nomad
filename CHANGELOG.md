@@ -1,28 +1,84 @@
-## 0.10.2 (Unreleased)
+## 0.10.3 (Unreleased)
 
 FEATURES:
- * core: Add `nomad monitor` command to stream logs at a specified level for debugging [[GH-6499](https://github.com/hashicorp/nomad/issues/6499)]
+
+* jobspec: Add `shutdown_delay` to task groups so task groups can delay shutdown
+  after deregistering from Consul [[GH-6746](https://github.com/hashicorp/nomad/issues/6746)]
 
 IMPROVEMENTS:
- * core: Add support for running under Windows Service Manager [[GH-6220](https://github.com/hashicorp/nomad/issues/6220)]
+
+* build: Updated to Go 1.12.15 [[GH-6950](https://github.com/hashicorp/nomad/issues/6950)]
+* cli: Added option to change the name of the file created by the `nomad init` command [[GH-6520]](https://github.com/hashicorp/nomad/pull/6520)
+* cli: Included namespace in output when querying job stauts. [[GH-6912](https://github.com/hashicorp/nomad/issues/6912)]
+* scheduler: Removed penalty for allocation's previous node if the allocation did not fail. [[GH-6781](https://github.com/hashicorp/nomad/issues/6781)]
+* scheduler: Reduced logging verbosity during preemption [[GH-6849](https://github.com/hashicorp/nomad/issues/6849)]
+* ui: Updated Run Job button to be conditionally enabled according to ACLs [[GH-5944](https://github.com/hashicorp/nomad/pull/5944)]
+
+BUG FIXES:
+
+ * agent: Fixed race condition in logging when using `nomad monitor` command [[GH-6872](https://github.com/hashicorp/nomad/issues/6872)]
+ * cli: Fixed a bug where `nomad monitor -node-id` would cause a cli panic when no nodes where found. [[GH-6828](https://github.com/hashicorp/nomad/issues/6828)]
+ * config: Fixed a bug where agent startup would fail if the `consul.timeout` configuration was set. [[GH-6907](https://github.com/hashicorp/nomad/issues/6907)]
+  * consul: Fixed a bug where script-based health checks would fail if the service configuration included interpolation. [[GH-6916](https://github.com/hashicorp/nomad/issues/6916)]
+ * consul/connect: Fixed a bug where Connect-enabled jobs failed to validate when service names used interpolation. [[GH-6855](https://github.com/hashicorp/nomad/issues/6855)]
+ * scheduler: Fixed a bug that caused evicted allocs on a lost node to be stuck in running. [[GH-6902](https://github.com/hashicorp/nomad/issues/6902)]
+ * scheduler: Fixed a bug where `nomad job plan/apply` returned errors instead of a partial placement warning for ineligible nodes. [[GH-6968](https://github.com/hashicorp/nomad/issues/6968)]
+
+## 0.10.2 (December 4, 2019)
+
+NOTES:
+
+* cli: Our [nomad_0.10.2_darwin_amd64_notarized](https://releases.hashicorp.com/nomad/0.10.2/nomad_0.10.2_darwin_amd64_notarized.zip) release has been signed and notarized according to Apple's requirements. In the future, darwin releases will be signed and notarized with our standard naming convention.
+
+    Prior to this release, MacOS 10.15+ users attempting to run our software may see the error: "'nomad' cannot be opened because the developer cannot be verified." This error affected all MacOS 10.15+ users who downloaded our software directly via web browsers, and was caused by [changes to Apple's third-party software requirements](https://developer.apple.com/news/?id=04102019a).
+
+    MacOS 10.15+ users should plan to upgrade to 0.10.2+.
+
+FEATURES:
+
+ * **Nomad Monitor**: New `nomad monitor` command allows remotely following
+   the logs of any Nomad Agent (clients or servers). See
+   https://nomadproject.io/docs/commands/monitor.html
+ * **Docker Container Cleanup**: Nomad will now automatically remove Docker
+   containers for tasks leaked due to Nomad or Docker crashes or bugs.
+
+IMPROVEMENTS:
+
+ * agent: Added support for running under Windows Service Manager [[GH-6220](https://github.com/hashicorp/nomad/issues/6220)]
+ * api: Added `StartedAt` field to `Node.DrainStrategy` [[GH-6698](https://github.com/hashicorp/nomad/issues/6698)]
+ * api: Added JSON representation of rules to policy endpoint response [[GH-6017](https://github.com/hashicorp/nomad/pull/6017)]
+ * api: Update policy endpoint to permit anonymous access [[GH-6021](https://github.com/hashicorp/nomad/issues/6021)]
+ * build: Updated to Go 1.12.13 [[GH-6606](https://github.com/hashicorp/nomad/issues/6606)]
  * cli: Show full ID in node and alloc individual status views [[GH-6425](https://github.com/hashicorp/nomad/issues/6425)]
  * client: Enable setting tags on Consul Connect sidecar service [[GH-6448](https://github.com/hashicorp/nomad/issues/6448)]
+ * client: Added support for downloading artifacts from Google Cloud Storage [[GH-6692](https://github.com/hashicorp/nomad/pull/6692)]
+ * command: Added -tls-server-name flag [[GH-6370](https://github.com/hashicorp/nomad/issues/6370)]
+ * command: Added `nomad monitor` command to stream logs at a specified level for debugging [[GH-6499](https://github.com/hashicorp/nomad/issues/6499)]
+ * quota: Added support for network bandwidth quota limits in Nomad enterprise
 
 BUG FIXES:
 
  * core: Ignore `server` config values if `server` is disabled [[GH-6047](https://github.com/hashicorp/nomad/issues/6047)]
+ * core: Added `semver` constraint for strict Semver 2.0 version comparisons [[GH-6699](https://github.com/hashicorp/nomad/issues/6699)]
+ * core: Fixed server panic caused by a plan evicting and preempting allocs on a node [[GH-6792](https://github.com/hashicorp/nomad/issues/6792)]
  * api: Return a 404 if endpoint not found instead of redirecting to /ui/ [[GH-6658](https://github.com/hashicorp/nomad/issues/6658)]
  * api: Decompress web socket response body if gzipped on error responses [[GH-6650](https://github.com/hashicorp/nomad/issues/6650)]
  * api: Fixed a bug where some FS/Allocation API endpoints didn't return error messages [[GH-6427](https://github.com/hashicorp/nomad/issues/6427)]
- * cli: Make scoring column orders consistent `nomad alloc status` [[GH-6609](https://github.com/hashicorp/nomad/issues/6609)]
+ * api: Return 40X status code for failing ACL requests, rather than 500 [[GH-6421](https://github.com/hashicorp/nomad/issues/6421)]
+ * cli: Made scoring column orders consistent `nomad alloc status` [[GH-6609](https://github.com/hashicorp/nomad/issues/6609)]
+ * cli: Fixed a bug where `nomad alloc exec` fails if stdout is being redirected and not a TTY [[GH-6684](https://github.com/hashicorp/nomad/issues/6684)]
  * cli: Fixed a bug where a cli user may fail to query FS/Allocation API endpoints if they lack `node:read` capability [[GH-6423](https://github.com/hashicorp/nomad/issues/6423)]
+ * client: client: Return empty values when host stats fail [[GH-6349](https://github.com/hashicorp/nomad/issues/6349)]
  * client: Fixed a bug where a client may not restart dead internal processes upon client's restart on Windows [[GH-6426](https://github.com/hashicorp/nomad/issues/6426)]
+ * consul/connect: Fixed registering multiple Connect-enabled services in the same task group [[GH-6646](https://github.com/hashicorp/nomad/issues/6646)]
+ * drivers: Fixed a bug where client may panic if a restored task failed to shutdown cleanly [[GH-6763](https://github.com/hashicorp/nomad/issues/6763)]
+ * driver/exec: Fixed a bug where exec tasks can spawn processes that live beyond task lifecycle [[GH-6722](https://github.com/hashicorp/nomad/issues/6722)]
  * driver/docker: Added mechanism for detecting running unexpectedly running docker containers [[GH-6325](https://github.com/hashicorp/nomad/issues/6325)]
- * nomad: Multiple connect enabled services in the same taskgroup failed to
-   register [[GH-6646](https://github.com/hashicorp/nomad/issues/6646)]
  * scheduler: Changes to devices in resource stanza should cause rescheduling [[GH-6644](https://github.com/hashicorp/nomad/issues/6644)]
+ * scheduler: Fixed a bug that allowed inplace updates after affinity or spread were changed [[GH-6703](https://github.com/hashicorp/nomad/issues/6703)]
+ * ui: Fixed client sorting [[GH-6817](https://github.com/hashicorp/nomad/issues/6817)]
  * vault: Allow overriding implicit Vault version constraint [[GH-6687](https://github.com/hashicorp/nomad/issues/6687)]
- * vault: Supported Vault auth role's new field, `token_period` [[GH-6574](https://github.com/hashicorp/nomad/issues/6574)]
+ * vault: Supported Vault auth role's new fields, `token_period` and `token_explicit_max_ttl` [[GH-6574](https://github.com/hashicorp/nomad/issues/6574)], [[GH-6580](https://github.com/hashicorp/nomad/issues/6580)]
 
 ## 0.10.1 (November 4, 2019)
 
@@ -77,6 +133,12 @@ BUG FIXES:
  * ui: Fixed navigation via clicking recent allocation row [[GH-6087](https://github.com/hashicorp/nomad/pull/6087)]
  * ui: Fixed a bug where the allocation log viewer would render HTML or hide content that matched XML syntax [[GH-6048](https://github.com/hashicorp/nomad/issues/6048)]
  * ui: Fixed a bug where allocation log viewer doesn't show all content in Firefox [[GH-6466](https://github.com/hashicorp/nomad/issues/6466)]
+
+## 0.9.7 (December 4, 2019)
+
+BUG FIXES:
+
+ * core: Fixed server panic caused by a plan evicting and preempting allocs on a node [[GH-6792](https://github.com/hashicorp/nomad/issues/6792)]
 
 ## 0.9.6 (October 7, 2019)
 

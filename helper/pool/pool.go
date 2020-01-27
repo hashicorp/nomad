@@ -426,6 +426,14 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 	if err != nil {
 		sc.Close()
 		p.releaseConn(conn)
+
+		// If the error is an RPC Coded error
+		// return the coded error without wrapping
+		if structs.IsErrRPCCoded(err) {
+			return err
+		}
+
+		// TODO wrap with RPCCoded error instead
 		return fmt.Errorf("rpc error: %v", err)
 	}
 

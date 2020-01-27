@@ -30,7 +30,7 @@ Usage: nomad monitor [options]
 General Options:
 
 	` + generalOptionsUsage() + `
-	
+
 Monitor Specific Options:
 
   -log-level <level>
@@ -39,6 +39,9 @@ Monitor Specific Options:
   -node-id <node-id>
     Sets the specific node to monitor
 
+  -server-id <server-id>
+    Sets the specific server to monitor
+
   -json
     Sets log output to JSON format
   `
@@ -46,7 +49,7 @@ Monitor Specific Options:
 }
 
 func (c *MonitorCommand) Synopsis() string {
-	return "stream logs from a Nomad agent"
+	return "Stream logs from a Nomad agent"
 }
 
 func (c *MonitorCommand) Name() string { return "monitor" }
@@ -61,12 +64,14 @@ func (c *MonitorCommand) Run(args []string) int {
 
 	var logLevel string
 	var nodeID string
+	var serverID string
 	var logJSON bool
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&logLevel, "log-level", "", "")
 	flags.StringVar(&nodeID, "node-id", "", "")
+	flags.StringVar(&serverID, "server-id", "", "")
 	flags.BoolVar(&logJSON, "json", false, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -87,9 +92,37 @@ func (c *MonitorCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Query the node info and lookup prefix
+	if len(nodeID) == 1 {
+		c.Ui.Error(fmt.Sprintf("Node identifier must contain at least two characters."))
+		return 1
+	}
+
+	if nodeID != "" {
+		nodeID = sanitizeUUIDPrefix(nodeID)
+		nodes, _, err := client.Nodes().PrefixList(nodeID)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying node: %v", err))
+			return 1
+		}
+
+		if len(nodes) == 0 {
+			c.Ui.Error(fmt.Sprintf("No node(s) with prefix or id %q found", nodeID))
+			return 1
+		}
+
+		if len(nodes) > 1 {
+			out := formatNodeStubList(nodes, false)
+			c.Ui.Output(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", out))
+			return 1
+		}
+		nodeID = nodes[0].ID
+	}
+
 	params := map[string]string{
 		"log_level": logLevel,
 		"node_id":   nodeID,
+		"server_id": serverID,
 		"log_json":  strconv.FormatBool(logJSON),
 	}
 

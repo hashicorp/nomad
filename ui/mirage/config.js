@@ -207,6 +207,18 @@ export default function() {
     return this.serialize(allocations.where({ nodeId: params.id }));
   });
 
+  this.post('/node/:id/eligibility', function({ nodes }, { params, requestBody }) {
+    const body = JSON.parse(requestBody);
+    const node = nodes.find(params.id);
+
+    node.update({ schedulingEligibility: body.Elibility === 'eligible' });
+    return this.serialize(node);
+  });
+
+  this.post('/node/:id/drain', function({ nodes }, { params }) {
+    return this.serialize(nodes.find(params.id));
+  });
+
   this.get('/allocations');
 
   this.get('/allocation/:id');
@@ -277,6 +289,14 @@ export default function() {
     const policy = policies.find(req.params.id);
     const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
+
+    if (req.params.id === 'anonymous') {
+      if (policy) {
+        return this.serialize(policy);
+      } else {
+        return new Response(404, {}, null);
+      }
+    }
 
     // Return the policy only if the token that matches the request header
     // includes the policy or if the token that matches the request header

@@ -67,6 +67,10 @@ type Config struct {
 	// use of persistence or state.
 	DevMode bool
 
+	// EnableDebug is used to enable debugging RPC endpoints
+	// in the absence of ACLs
+	EnableDebug bool
+
 	// DevDisableBootstrap is used to disable bootstrap mode while
 	// in DevMode. This is largely used for testing.
 	DevDisableBootstrap bool

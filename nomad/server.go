@@ -1067,6 +1067,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.ClientStats)
 	server.Register(s.staticEndpoints.ClientAllocations)
 	server.Register(s.staticEndpoints.FileSystem)
+	server.Register(s.staticEndpoints.Agent)
 
 	// Create new dynamic endpoints and add them to the RPC server.
 	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}
