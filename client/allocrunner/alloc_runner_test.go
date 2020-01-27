@@ -462,8 +462,10 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 
 	// We should see all tasks with Prestart hooks are not blocked from running:
 	// i.e. the "init" and "side" task hook coordinator channels are closed
-	testChannelClosed(t, ar.taskHookCoordinator.startConditionForTask(ar.tasks["init"].Task()), "init")
-	testChannelClosed(t, ar.taskHookCoordinator.startConditionForTask(ar.tasks["side"].Task()), "side")
+	require.Truef(t, isChannelClosed(ar.taskHookCoordinator.startConditionForTask(ar.tasks["init"].Task())), "init channel was open, should be closed")
+	require.Truef(t, isChannelClosed(ar.taskHookCoordinator.startConditionForTask(ar.tasks["side"].Task())), "side channel was open, should be closed")
+
+	isChannelClosed(ar.taskHookCoordinator.startConditionForTask(ar.tasks["side"].Task()))
 
 	// Mimic client dies while init task running, and client restarts after init task finished
 	ar.tasks["init"].UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskTerminated))
@@ -479,7 +481,7 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 
 	// We want to see Restore resume execution with correct hook ordering:
 	// i.e. we should see the "web" main task hook coordinator channel is closed
-	testChannelClosed(t, ar2.taskHookCoordinator.startConditionForTask(ar.tasks["web"].Task()), "web")
+	require.Truef(t, isChannelClosed(ar.taskHookCoordinator.startConditionForTask(ar.tasks["web"].Task())), "web channel was open, should be closed")
 }
 
 func TestAllocRunner_Update_Semantics(t *testing.T) {
