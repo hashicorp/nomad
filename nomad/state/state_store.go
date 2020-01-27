@@ -1891,7 +1891,7 @@ func (s *StateStore) csiVolumeDenormalizeAllocs(ws memdb.WatchSet, vol *structs.
 		if err != nil {
 			return nil, err
 		}
-		vol.ReadAllocs[id] = a
+		vol.WriteAllocs[id] = a
 	}
 
 	for id := range vol.PastAllocs {
@@ -1899,7 +1899,7 @@ func (s *StateStore) csiVolumeDenormalizeAllocs(ws memdb.WatchSet, vol *structs.
 		if err != nil {
 			return nil, err
 		}
-		vol.ReadAllocs[id] = a
+		vol.PastAllocs[id] = a
 	}
 
 	return vol, nil
