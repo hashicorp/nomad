@@ -179,8 +179,11 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 				return err
 			}
 
-			if vol == nil {
-				return structs.ErrMissingCSIVolumeID
+			if vol != nil {
+				vol, err = state.CSIVolumeDenormalize(ws, vol)
+			}
+			if err != nil {
+				return err
 			}
 
 			reply.Volume = vol
@@ -344,11 +347,9 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 				return err
 			}
 
-			if plug == nil {
-				return structs.ErrMissingCSIPluginID
+			if plug != nil {
+				plug, err = state.CSIPluginDenormalize(ws, plug)
 			}
-
-			plug, err = state.CSIPluginDenormalize(ws, plug)
 			if err != nil {
 				return err
 			}
