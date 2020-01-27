@@ -9,7 +9,9 @@ import (
 	"strings"
 
 	"github.com/docker/cli/cli/config/configfile"
+	"github.com/docker/cli/cli/config/types"
 	"github.com/docker/distribution/reference"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/registry"
 	docker "github.com/fsouza/go-dockerclient"
 )
@@ -115,7 +117,7 @@ func authFromDockerConfig(file string) authBackend {
 
 		return firstValidAuth(repo, []authBackend{
 			func(string) (*docker.AuthConfiguration, error) {
-				dockerAuthConfig := registry.ResolveAuthConfig(cfile.AuthConfigs, repoInfo.Index)
+				dockerAuthConfig := registryResolveAuthConfig(cfile.AuthConfigs, repoInfo.Index)
 				auth := &docker.AuthConfiguration{
 					Username:      dockerAuthConfig.Username,
 					Password:      dockerAuthConfig.Password,
@@ -267,4 +269,26 @@ func parseVolumeSpecLinux(volBind string) (hostPath string, containerPath string
 	}
 
 	return parts[0], parts[1], m, nil
+}
+
+// ResolveAuthConfig matches an auth configuration to a server address or a URL
+// copied from https://github.com/moby/moby/blob/ca20bc4214e6a13a5f134fb0d2f67c38065283a8/registry/auth.go#L217-L235
+// but with the CLI types.AuthConfig type rather than api/types
+func registryResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registrytypes.IndexInfo) types.AuthConfig {
+	configKey := registry.GetAuthConfigKey(index)
+	// First try the happy case
+	if c, found := authConfigs[configKey]; found || index.Official {
+		return c
+	}
+
+	// Maybe they have a legacy config file, we will iterate the keys converting
+	// them to the new format and testing
+	for r, ac := range authConfigs {
+		if configKey == registry.ConvertToHostname(r) {
+			return ac
+		}
+	}
+
+	// When all else fails, return an empty auth config
+	return types.AuthConfig{}
 }
