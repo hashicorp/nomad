@@ -539,3 +539,56 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 		})
 	}
 }
+func TestClient_RPC_NodeUnpublishVolume(t *testing.T) {
+	cases := []struct {
+		Name        string
+		VolumeID    string
+		TargetPath  string
+		ResponseErr error
+		Response    *csipbv1.NodeUnpublishVolumeResponse
+		ExpectedErr error
+	}{
+		{
+			Name:        "handles underlying grpc errors",
+			VolumeID:    "foo",
+			TargetPath:  "/dev/null",
+			ResponseErr: fmt.Errorf("some grpc error"),
+			ExpectedErr: fmt.Errorf("some grpc error"),
+		},
+		{
+			Name:        "handles success",
+			VolumeID:    "foo",
+			TargetPath:  "/dev/null",
+			ResponseErr: nil,
+			ExpectedErr: nil,
+		},
+		{
+			Name:        "Performs validation of the request args - VolumeID",
+			ResponseErr: nil,
+			ExpectedErr: errors.New("missing VolumeID"),
+		},
+		{
+			Name:        "Performs validation of the request args - TargetPath",
+			VolumeID:    "foo",
+			ResponseErr: nil,
+			ExpectedErr: errors.New("missing TargetPath"),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			_, _, nc, client := newTestClient()
+			defer client.Close()
+
+			nc.NextErr = c.ResponseErr
+			nc.NextUnpublishVolumeResponse = c.Response
+
+			err := client.NodeUnpublishVolume(context.TODO(), c.VolumeID, c.TargetPath)
+			if c.ExpectedErr != nil {
+				require.Error(t, c.ExpectedErr, err)
+			} else {
+				require.Nil(t, err)
+			}
+		})
+	}
+}

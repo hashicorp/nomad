@@ -80,12 +80,13 @@ func (c *ControllerClient) ValidateVolumeCapabilities(ctx context.Context, in *c
 
 // NodeClient is a CSI Node client used for testing
 type NodeClient struct {
-	NextErr                   error
-	NextCapabilitiesResponse  *csipbv1.NodeGetCapabilitiesResponse
-	NextGetInfoResponse       *csipbv1.NodeGetInfoResponse
-	NextStageVolumeResponse   *csipbv1.NodeStageVolumeResponse
-	NextUnstageVolumeResponse *csipbv1.NodeUnstageVolumeResponse
-	NextPublishVolumeResponse *csipbv1.NodePublishVolumeResponse
+	NextErr                     error
+	NextCapabilitiesResponse    *csipbv1.NodeGetCapabilitiesResponse
+	NextGetInfoResponse         *csipbv1.NodeGetInfoResponse
+	NextStageVolumeResponse     *csipbv1.NodeStageVolumeResponse
+	NextUnstageVolumeResponse   *csipbv1.NodeUnstageVolumeResponse
+	NextPublishVolumeResponse   *csipbv1.NodePublishVolumeResponse
+	NextUnpublishVolumeResponse *csipbv1.NodeUnpublishVolumeResponse
 }
 
 // NewNodeClient returns a new stub NodeClient
@@ -100,6 +101,7 @@ func (f *NodeClient) Reset() {
 	f.NextStageVolumeResponse = nil
 	f.NextUnstageVolumeResponse = nil
 	f.NextPublishVolumeResponse = nil
+	f.NextUnpublishVolumeResponse = nil
 }
 
 func (c *NodeClient) NodeGetCapabilities(ctx context.Context, in *csipbv1.NodeGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetCapabilitiesResponse, error) {
@@ -120,4 +122,8 @@ func (c *NodeClient) NodeUnstageVolume(ctx context.Context, in *csipbv1.NodeUnst
 
 func (c *NodeClient) NodePublishVolume(ctx context.Context, in *csipbv1.NodePublishVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodePublishVolumeResponse, error) {
 	return c.NextPublishVolumeResponse, c.NextErr
+}
+
+func (c *NodeClient) NodeUnpublishVolume(ctx context.Context, in *csipbv1.NodeUnpublishVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeUnpublishVolumeResponse, error) {
+	return c.NextUnpublishVolumeResponse, c.NextErr
 }
