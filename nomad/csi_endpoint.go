@@ -123,7 +123,9 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 				if raw == nil {
 					break
 				}
-				vol, err := state.CSIVolumeDenormalize(ws, raw)
+
+				vol := raw.(*structs.CSIVolume)
+				vol, err := state.CSIVolumeDenormalizePlugins(ws, vol)
 				if err != nil {
 					return err
 				}
@@ -344,6 +346,11 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 
 			if plug == nil {
 				return structs.ErrMissingCSIPluginID
+			}
+
+			plug, err = state.CSIPluginDenormalize(ws, plug)
+			if err != nil {
+				return err
 			}
 
 			// FIXME we should re-check the ACL access for the plugin's
