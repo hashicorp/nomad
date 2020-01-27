@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -27,114 +28,186 @@ import (
 	vapi "github.com/hashicorp/vault/api"
 )
 
-var integration = flag.Bool("integration", false, "run integration tests")
+var (
+	integration = flag.Bool("integration", false, "run integration tests")
+	minVaultVer = version.Must(version.NewVersion("0.6.2"))
+)
 
-// harness is used to retrieve the required Vault test binaries
-type harness struct {
-	t      *testing.T
-	binDir string
-	os     string
-	arch   string
-}
+// syncVault discovers available versions of Vault, downloads the binaries,
+// returns a map of version to binary path.
+func syncVault(t *testing.T) map[string]string {
 
-// newHarness returns a new Vault test harness.
-func newHarness(t *testing.T) *harness {
-	return &harness{
-		t:      t,
-		binDir: filepath.Join(os.TempDir(), "vault-bins/"),
-		os:     runtime.GOOS,
-		arch:   runtime.GOARCH,
-	}
-}
+	binDir := filepath.Join(os.TempDir(), "vault-bins/")
 
-// reconcile retrieves the desired binaries, returning a map of version to
-// binary path
-func (h *harness) reconcile() map[string]string {
+	versions := vaultVersions(t)
+
 	// Get the binaries we need to download
-	missing := h.diff()
+	missing, err := missingVault(binDir, versions)
+	require.NoError(t, err)
 
 	// Create the directory for the binaries
-	h.createBinDir()
+	require.NoError(t, createBinDir(binDir))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
+	// Limit to N concurrent downloads
+	sema := make(chan int, 5)
+
+	// Download in parallel
+	start := time.Now()
 	g, _ := errgroup.WithContext(ctx)
-	for _, v := range missing {
-		version := v
+	for ver, url := range missing {
+		dst := filepath.Join(binDir, ver)
 		g.Go(func() error {
-			return h.get(version)
+			sema <- 1
+			defer func() {
+				<-sema
+			}()
+			return getVault(dst, url)
 		})
 	}
-	if err := g.Wait(); err != nil {
-		h.t.Fatalf("failed getting versions: %v", err)
+	require.NoError(t, g.Wait())
+	if n := len(missing); n > 0 {
+		t.Logf("Downloaded %d versions of Vault in %s", n, time.Now().Sub(start))
 	}
 
 	binaries := make(map[string]string, len(versions))
-	for _, v := range versions {
-		binaries[v] = filepath.Join(h.binDir, v)
+	for ver, _ := range versions {
+		binaries[ver] = filepath.Join(binDir, ver)
 	}
 	return binaries
 }
 
+// vaultVersions discovers available Vault versions from releases.hashicorp.com
+// and returns a map of version to url.
+func vaultVersions(t *testing.T) map[string]string {
+	resp, err := http.Get("https://releases.hashicorp.com/vault/index.json")
+	require.NoError(t, err)
+
+	respJson := struct {
+		Versions map[string]struct {
+			Builds []struct {
+				Version string `json:"version"`
+				Os      string `json:"os"`
+				Arch    string `json:"arch"`
+				URL     string `json:"url"`
+			} `json:"builds"`
+		}
+	}{}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&respJson))
+	require.NoError(t, resp.Body.Close())
+
+	versions := map[string]string{}
+	for vk, vv := range respJson.Versions {
+		gover, err := version.NewVersion(vk)
+		if err != nil {
+			t.Logf("error parsing Vault version %q -> %v", vk, err)
+			continue
+		}
+
+		// Skip ancient versions
+		if gover.LessThan(minVaultVer) {
+			continue
+		}
+
+		// Skip prerelease and enterprise versions
+		if gover.Prerelease() != "" || gover.Metadata() != "" {
+			continue
+		}
+
+		url := ""
+		for _, b := range vv.Builds {
+			buildver, err := version.NewVersion(b.Version)
+			if err != nil {
+				t.Logf("error parsing Vault build version %q -> %v", b.Version, err)
+				continue
+			}
+
+			if buildver.Prerelease() != "" {
+				continue
+			}
+
+			if buildver.Metadata() != "" {
+				continue
+			}
+
+			if b.Os != runtime.GOOS {
+				continue
+			}
+
+			if b.Arch != runtime.GOARCH {
+				continue
+			}
+
+			// Match!
+			url = b.URL
+			break
+		}
+
+		if url != "" {
+			versions[vk] = url
+		}
+	}
+
+	return versions
+}
+
 // createBinDir creates the binary directory
-func (h *harness) createBinDir() {
+func createBinDir(binDir string) error {
 	// Check if the directory exists, otherwise create it
-	f, err := os.Stat(h.binDir)
+	f, err := os.Stat(binDir)
 	if err != nil && !os.IsNotExist(err) {
-		h.t.Fatalf("failed to stat directory: %v", err)
+		return fmt.Errorf("failed to stat directory: %v", err)
 	}
 
 	if f != nil && f.IsDir() {
-		return
+		return nil
 	} else if f != nil {
-		if err := os.RemoveAll(h.binDir); err != nil {
-			h.t.Fatalf("failed to remove file at directory path: %v", err)
+		if err := os.RemoveAll(binDir); err != nil {
+			return fmt.Errorf("failed to remove file at directory path: %v", err)
 		}
 	}
 
 	// Create the directory
-	if err := os.Mkdir(h.binDir, 0700); err != nil {
-		h.t.Fatalf("failed to make directory: %v", err)
+	if err := os.Mkdir(binDir, 075); err != nil {
+		return fmt.Errorf("failed to make directory: %v", err)
 	}
-	if err := os.Chmod(h.binDir, 0700); err != nil {
-		h.t.Fatalf("failed to chmod: %v", err)
+	if err := os.Chmod(binDir, 0755); err != nil {
+		return fmt.Errorf("failed to chmod: %v", err)
 	}
+
+	return nil
 }
 
-// diff returns the binaries that must be downloaded
-func (h *harness) diff() (missing []string) {
-	files, err := ioutil.ReadDir(h.binDir)
+// missingVault returns the binaries that must be downloaded. versions key must
+// be the Vault version.
+func missingVault(binDir string, versions map[string]string) (map[string]string, error) {
+	files, err := ioutil.ReadDir(binDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return versions
+			return versions, nil
 		}
 
-		h.t.Fatalf("failed to stat directory: %v", err)
+		return nil, fmt.Errorf("failed to stat directory: %v", err)
 	}
 
-	// Build the set we need
-	missingSet := make(map[string]struct{}, len(versions))
-	for _, v := range versions {
-		missingSet[v] = struct{}{}
+	// Copy versions so we don't mutate it
+	missingSet := make(map[string]string, len(versions))
+	for k, v := range versions {
+		missingSet[k] = v
 	}
 
 	for _, f := range files {
 		delete(missingSet, f.Name())
 	}
 
-	for k := range missingSet {
-		missing = append(missing, k)
-	}
-
-	return missing
+	return missingSet, nil
 }
 
-// get retrieves the given Vault binary
-func (h *harness) get(version string) error {
-	resp, err := http.Get(
-		fmt.Sprintf("https://releases.hashicorp.com/vault/%s/vault_%s_%s_%s.zip",
-			version, version, h.os, h.arch))
+// getVault downloads the given Vault binary
+func getVault(dst, url string) error {
+	resp, err := http.Get(url)
 	if err != nil {
 		return err
 	}
@@ -142,7 +215,9 @@ func (h *harness) get(version string) error {
 
 	// Wrap in an in-mem buffer
 	b := bytes.NewBuffer(nil)
-	io.Copy(b, resp.Body)
+	if _, err := io.Copy(b, resp.Body); err != nil {
+		return fmt.Errorf("error reading response body: %v", err)
+	}
 	resp.Body.Close()
 
 	zreader, err := zip.NewReader(bytes.NewReader(b.Bytes()), resp.ContentLength)
@@ -155,8 +230,7 @@ func (h *harness) get(version string) error {
 	}
 
 	// Copy the file to its destination
-	file := filepath.Join(h.binDir, version)
-	out, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0777)
+	out, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0777)
 	if err != nil {
 		return err
 	}
@@ -177,16 +251,16 @@ func (h *harness) get(version string) error {
 // TestVaultCompatibility tests compatibility across Vault versions
 func TestVaultCompatibility(t *testing.T) {
 	if !*integration {
-		t.Skip("skipping test in non-integration mode.")
+		t.Skip("skipping test in non-integration mode: add -integration flag to run")
 	}
 
-	h := newHarness(t)
-	vaultBinaries := h.reconcile()
+	vaultBinaries := syncVault(t)
 
 	for version, vaultBin := range vaultBinaries {
-		vbin := vaultBin
+		ver := version
+		bin := vaultBin
 		t.Run(version, func(t *testing.T) {
-			testVaultCompatibility(t, vbin, version)
+			testVaultCompatibility(t, bin, ver)
 		})
 	}
 }
