@@ -6,6 +6,7 @@ current_version=$(grep -o -e 'golang:[.0-9]*' .circleci/config.yml | head -n1 | 
 
 # To support both GNU and BSD sed, the regex is looser than it needs to be.
 # Specifically, we use "* instead of "?, which relies on GNU extension without much loss of
+# correctness in practice.
 sed -i'' -e "s|golang:[.0-9]*|golang:${golang_version}|g" \
        	.circleci/config/config.yml .circleci/config.yml
 sed -i'' -e "s|GOLANG_VERSION:[ \"]*[.0-9]*\"*|GOLANG_VERSION: ${golang_version}|g" \
