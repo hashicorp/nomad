@@ -70,6 +70,7 @@ type CSINodeClient interface {
 	NodeStageVolume(ctx context.Context, in *csipbv1.NodeStageVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeStageVolumeResponse, error)
 	NodeUnstageVolume(ctx context.Context, in *csipbv1.NodeUnstageVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeUnstageVolumeResponse, error)
 	NodePublishVolume(ctx context.Context, in *csipbv1.NodePublishVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodePublishVolumeResponse, error)
+	NodeUnpublishVolume(ctx context.Context, in *csipbv1.NodeUnpublishVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeUnpublishVolumeResponse, error)
 }
 
 type client struct {
@@ -370,5 +371,32 @@ func (c *client) NodePublishVolume(ctx context.Context, req *NodePublishVolumeRe
 	// NodePublishVolume's response contains no extra data. If err == nil, we were
 	// successful.
 	_, err := c.nodeClient.NodePublishVolume(ctx, req.ToCSIRepresentation())
+	return err
+}
+
+func (c *client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath string) error {
+	if c == nil {
+		return fmt.Errorf("Client not initialized")
+	}
+	if c.nodeClient == nil {
+		return fmt.Errorf("Client not initialized")
+	}
+
+	if volumeID == "" {
+		return fmt.Errorf("missing VolumeID")
+	}
+
+	if targetPath == "" {
+		return fmt.Errorf("missing TargetPath")
+	}
+
+	req := &csipbv1.NodeUnpublishVolumeRequest{
+		VolumeId:   volumeID,
+		TargetPath: targetPath,
+	}
+
+	// NodeUnpublishVolume's response contains no extra data. If err == nil, we were
+	// successful.
+	_, err := c.nodeClient.NodeUnpublishVolume(ctx, req)
 	return err
 }
