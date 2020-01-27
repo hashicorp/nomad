@@ -3,4 +3,3 @@
 service "" {
   policy = "write"
 }
-

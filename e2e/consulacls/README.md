@@ -7,7 +7,8 @@ provisioned e2e environment to enable Consul ACLs.
 
 The `consul-acls-manage.sh` script can be used to manipulate the Consul cluster
 to activate or de-activate Consul ACLs. There are 3 targets into the script, only
-2 of which should be used from e2e framework tests.
+2 of which should be used from e2e framework tests. The script should be run from
+the e2e directory (i.e. the directory from wich the e2e framework also runs).
 
 ### bootstrap
 
