@@ -33,7 +33,7 @@ func TestCSIVolumes_CRUD(t *testing.T) {
 
 	// Register a volume
 	id := "DEADBEEF-31B5-8F78-7986-DD404FDA0CD1"
-	err = v.Register(&CSIVolume{
+	_, err = v.Register(&CSIVolume{
 		ID:             id,
 		Namespace:      "default",
 		PluginID:       "adam",

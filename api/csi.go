@@ -41,13 +41,12 @@ func (v *CSIVolumes) Info(id string, q *QueryOptions) (*CSIVolume, *QueryMeta, e
 	return &resp, qm, nil
 }
 
-func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) error {
+func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, error) {
 	req := CSIVolumeRegisterRequest{
 		Volumes: []*CSIVolume{vol},
 	}
-	var resp struct{}
-	_, err := v.client.write("/v1/csi/volume/"+vol.ID, req, &resp, w)
-	return err
+	meta, err := v.client.write("/v1/csi/volume/"+vol.ID, req, nil, w)
+	return meta, err
 }
 
 func (v *CSIVolumes) Deregister(id string, w *WriteOptions) error {
