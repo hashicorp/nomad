@@ -63,6 +63,15 @@ var _ interfaces.TaskStopHook = &csiPluginSupervisorHook{}
 
 func newCSIPluginSupervisorHook(csiRootDir string, eventEmitter ti.EventEmitter, runner *TaskRunner, logger hclog.Logger) *csiPluginSupervisorHook {
 	task := runner.Task()
+
+	// The Plugin directory will look something like this:
+	// .
+	// ..
+	// csi.sock - A unix domain socket used to communicate with the CSI Plugin
+	// staging/
+	//  {volume-id}/{usage-mode-hash}/ - Intermediary mount point that will be used by plugins that support NODE_STAGE_UNSTAGE capabilities.
+	// per-alloc/
+	//  {alloc-id}/{volume-id}/{usage-mode-hash}/ - Mount Point that will be bind-mounted into tasks that utilise the volume
 	pluginRoot := filepath.Join(csiRootDir, string(task.CSIPluginConfig.Type), task.CSIPluginConfig.ID)
 
 	shutdownCtx, cancelFn := context.WithCancel(context.Background())
@@ -93,7 +102,7 @@ func (*csiPluginSupervisorHook) Name() string {
 func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	// Create the mount directory that the container will access if it doesn't
-	// already exist. Default to only user access.
+	// already exist. Default to only nomad user access.
 	if err := os.MkdirAll(h.mountPoint, 0700); err != nil && !os.IsExist(err) {
 		return fmt.Errorf("failed to create mount point: %v", err)
 	}
@@ -247,6 +256,9 @@ func (h *csiPluginSupervisorHook) registerPlugin(socketPath string) (func(), err
 			Version: "1.0.0",
 			ConnectionInfo: &dynamicplugins.PluginConnectionInfo{
 				SocketPath: socketPath,
+			},
+			Options: map[string]string{
+				"MountPoint": h.mountPoint,
 			},
 		}
 	}
