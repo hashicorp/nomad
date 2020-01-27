@@ -59,6 +59,11 @@ type CSIPlugin interface {
 	// if err == nil the response should be assumed to be successful.
 	NodePublishVolume(ctx context.Context, req *NodePublishVolumeRequest) error
 
+	// NodeUnpublishVolume is used to cleanup usage of a volume for an alloc. This
+	// MUST be called before calling NodeUnstageVolume or ControllerUnpublishVolume
+	// for the given volume.
+	NodeUnpublishVolume(ctx context.Context, volumeID, targetPath string) error
+
 	// Shutdown the client and ensure any connections are cleaned up.
 	Close() error
 }
