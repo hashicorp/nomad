@@ -7,6 +7,7 @@ FEATURES:
 
 IMPROVEMENTS:
 
+* build: Updated to Go 1.12.15 [[GH-6950](https://github.com/hashicorp/nomad/issues/6950)]
 * cli: Added option to change the name of the file created by the `nomad init` command [[GH-6520]](https://github.com/hashicorp/nomad/pull/6520)
 * cli: Included namespace in output when querying job stauts. [[GH-6912](https://github.com/hashicorp/nomad/issues/6912)]
 * scheduler: Removed penalty for allocation's previous node if the allocation did not fail. [[GH-6781](https://github.com/hashicorp/nomad/issues/6781)]
