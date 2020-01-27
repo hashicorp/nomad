@@ -1,0 +1,17 @@
+{{title "Exec"}}
+
+<div>
+  tasks
+  <ul>
+    {{#each model.taskGroups as |taskGroup|}}
+      <li data-test-task-group>
+        <span data-test-task-group-name>{{taskGroup.name}}</span>
+        <ul>
+          {{#each taskGroup.tasks as |task|}}
+            <li data-test-task>{{task.name}}</li>
+          {{/each}}
+        </ul>
+      </li>
+    {{/each}}
+  </ul>
+</div>
