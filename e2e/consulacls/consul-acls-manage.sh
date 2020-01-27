@@ -97,8 +97,8 @@ function doBootstrap() {
   stopConsul
 
   # Run the activation step, which uploads the ACLs-enabled acl.hcl file
-  # to each Consul Server's configuration directory, then (re)starts each
-  # Consul Server agent.
+  # to each Consul configuration directory, then (re)starts each
+  # Consul agent.
   doActivate
 
   echo "=== Bootstrap: Consul ACL Bootstrap ==="
@@ -122,28 +122,25 @@ function doBootstrap() {
     echo "---> will create agent token for server ${server}"
     server_agent_token=$(consul acl token create -description "consul server agent token" -policy-name server-policy | grep SecretID | awk '{print $2}')
     echo "---> setting token for server agent: ${server} -> ${server_agent_token}"
-    consul acl set-agent-token agent "${server_agent_token}"
+    (export CONSUL_HTTP_ADDR="${server}:8500";  consul acl set-agent-token agent "${server_agent_token}")
     echo "---> done setting agent token for server ${server}"
   done
 
   # Wait 10s before continuing with configuring consul clients.
-  echo "-> sleep 10s"
+  echo "-> sleep 10s before continuing with clients"
   sleep 10
-
-  # Start the Consul Clients back up so we can set their tokens now
-  startConsulClients
 
   # Create Consul Client Policy & Client agent tokens
   echo "-> configure consul client policy"
   consul acl policy create -name client-policy -rules @consulacls/consul-client-policy.hcl
 
-  # Create & Set agent token for each Consul Client (including windows)
-  for client in ${clients}; do
-    echo "---> will create consul agent token for client ${client}"
+  # Create & Set agent token for each Consul Client (excluding Windows)
+  for linux_client in ${linux_clients}; do
+    echo "---> will create consul agent token for client ${linux_client}"
     client_agent_token=$(consul acl token create -description "consul client agent token" -policy-name client-policy | grep SecretID | awk '{print $2}')
-    echo "---> setting consul token for consul client ${client} -> ${client_agent_token}"
-    consul acl set-agent-token agent "${client_agent_token}"
-    echo "---> done setting consul agent token for client ${client}"
+    echo "---> setting consul token for consul client ${linux_client} -> ${client_agent_token}"
+    (export CONSUL_HTTP_ADDR="${linux_client}:8500"; consul acl set-agent-token agent "${client_agent_token}")
+    echo "---> done setting consul agent token for client ${linux_client}"
   done
 
   echo "=== Bootstrap: Nomad Configs ==="
@@ -221,26 +218,21 @@ function doActivate() {
 
   stopConsul
 
-  # Upload acl-enable.hcl to each Consul Server agent's configuration directory.
-  for server in ${servers}; do
-    echo " activate: upload acl-enable.hcl to ${server}::acl.hcl"
-    doSCP "consulacls/acl-enable.hcl" "${user}" "${server}" "/tmp/acl.hcl"
-    doSSH "${server}" "sudo mv /tmp/acl.hcl ${consul_configs}/acl.hcl"
+  # Upload acl-enable.hcl to each Consul agent's configuration directory.
+  for agent in ${servers} ${linux_clients}; do
+    echo " activate: upload acl-enable.hcl to ${agent}::acl.hcl"
+    doSCP "consulacls/acl-enable.hcl" "${user}" "${agent}" "/tmp/acl.hcl"
+    doSSH "${agent}" "sudo mv /tmp/acl.hcl ${consul_configs}/acl.hcl"
   done
 
-  # Restart each Consul Server agent to pickup the new config.
-  for server in ${servers}; do
-    echo " activate: restart Consul Server on ${server} ..."
-    doSSH "${server}" "sudo systemctl start consul"
+  # Restart each Consul agent to pickup the new config.
+  for agent in ${servers} ${linux_clients}; do
+    echo " activate: restart Consul agent on ${agent} ..."
+    doSSH "${agent}" "sudo systemctl start consul"
     sleep 1
   done
 
   sleep 10
-
-  startConsulClients
-
-  sleep 10
-
   echo "=== Activate: DONE ==="
 }
 
