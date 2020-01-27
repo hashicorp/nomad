@@ -714,8 +714,9 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
 
+	// Determine whether to use meta or canary_meta
 	var meta map[string]string
-	if task.Canary && len(service.CanaryMeta) > 0 {
+	if workload.Canary && len(service.CanaryMeta) > 0 {
 		meta = make(map[string]string, len(service.CanaryMeta)+1)
 		for k, v := range service.CanaryMeta {
 			meta[k] = v
