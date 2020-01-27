@@ -3,7 +3,6 @@ package agent
 import (
 	"fmt"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -459,28 +458,29 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request,
 	jobAndTarget string) (interface{}, error) {
+
+	jobAndGroup := strings.TrimSuffix(jobAndTarget, "/scale")
+	var jobName, groupName string
+	if i := strings.LastIndex(jobAndGroup, "/"); i != -1 {
+		jobName = jobAndGroup[:i]
+		groupName = jobAndGroup[i+1:]
+	}
+	if jobName == "" || groupName == "" {
+		return nil, CodedError(400, "Invalid scaling target")
+	}
+
 	switch req.Method {
 	case "GET":
-		return s.jobScaleStatus(resp, req, jobAndTarget)
+		return s.jobScaleStatus(resp, req, jobName, groupName)
 	case "PUT", "POST":
-		return s.jobScaleAction(resp, req, jobAndTarget)
+		return s.jobScaleAction(resp, req, jobName, groupName)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 }
 
 func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
-	jobAndTarget string) (interface{}, error) {
-
-	regJobGroup := regexp.MustCompile(`^(.+)/([^/]+)/scale$`)
-	var jobName, groupName string
-	if subMatch := regJobGroup.FindStringSubmatch(jobAndTarget); subMatch != nil {
-		jobName = subMatch[1]
-		groupName = subMatch[2]
-	}
-	if jobName == "" || groupName == "" {
-		return nil, CodedError(400, "Invalid scaling target")
-	}
+	jobName, groupName string) (interface{}, error) {
 
 	args := structs.JobSpecificRequest{
 		JobID: jobName,
@@ -513,7 +513,7 @@ func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
-	jobAndTarget string) (interface{}, error) {
+	jobName, groupName string) (interface{}, error) {
 
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -527,17 +527,9 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 	if args.JobID == "" {
 		return nil, CodedError(400, "Job ID must be specified")
 	}
-	if !strings.HasPrefix(jobAndTarget, args.JobID) {
+
+	if args.JobID != jobName {
 		return nil, CodedError(400, "Job ID does not match")
-	}
-	subTarget := strings.TrimPrefix(jobAndTarget, args.JobID)
-	groupScale := regexp.MustCompile(`^/([^/]+)/scale$`)
-	var groupName string
-	if subMatch := groupScale.FindStringSubmatch(subTarget); subMatch != nil {
-		groupName = subMatch[1]
-	}
-	if groupName == "" {
-		return nil, CodedError(400, "Invalid scaling target")
 	}
 
 	scaleReq := structs.JobScaleRequest{

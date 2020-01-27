@@ -835,6 +835,9 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	if err != nil {
 		return err
 	}
+	if job == nil {
+		return fmt.Errorf("job %q not found", args.JobID)
+	}
 
 	found := false
 	for _, tg := range job.TaskGroups {
