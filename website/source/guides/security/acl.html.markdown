@@ -419,7 +419,7 @@ Error bootstrapping: Unexpected response code: 500 (Invalid bootstrap reset inde
 
 This is because the reset file is in place, but with the incorrect index. The reset file can be deleted, but Nomad will not reset the bootstrap until the index is corrected.
 
-Resetting ACL Bootstrap does not automatically invalidate previous ACL tokens: Previous bootstrap token remains a valid, and existing tools that utilize it remain functional. If the token is unused, or if a management token is suspected of being vulnerable, then we should invalidate it, update any existing system with new tokens, and audit all existing tokens.
+Resetting ACL Bootstrap does not automatically invalidate previous ACL tokens: the previous bootstrap token remains valid, and existing tools that utilize it remain functional. If the token is unused, or if a management token is suspected of being compromised, then we should invalidate it, update any existing system with new tokens, and audit all existing tokens.
 
 ## Vault Integration
 
