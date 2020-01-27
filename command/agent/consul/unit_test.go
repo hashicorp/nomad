@@ -1086,10 +1086,10 @@ func TestConsul_CanaryMeta(t *testing.T) {
 
 	canaryMeta := map[string]string{"meta1": "canary"}
 	canaryMeta["external-source"] = "nomad"
-	ctx.Task.Canary = true
-	ctx.Task.Services[0].CanaryMeta = canaryMeta
+	ctx.Workload.Canary = true
+	ctx.Workload.Services[0].CanaryMeta = canaryMeta
 
-	require.NoError(ctx.ServiceClient.RegisterTask(ctx.Task))
+	require.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
 	require.NoError(ctx.syncOnce())
 	require.Len(ctx.FakeConsul.services, 1)
 	for _, service := range ctx.FakeConsul.services {
@@ -1097,16 +1097,16 @@ func TestConsul_CanaryMeta(t *testing.T) {
 	}
 
 	// Disable canary and assert meta are not the canary meta
-	origTask := ctx.Task.Copy()
-	ctx.Task.Canary = false
-	require.NoError(ctx.ServiceClient.UpdateTask(origTask, ctx.Task))
+	origWorkload := ctx.Workload.Copy()
+	ctx.Workload.Canary = false
+	require.NoError(ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload))
 	require.NoError(ctx.syncOnce())
 	require.Len(ctx.FakeConsul.services, 1)
 	for _, service := range ctx.FakeConsul.services {
 		require.NotEqual(canaryMeta, service.Meta)
 	}
 
-	ctx.ServiceClient.RemoveTask(ctx.Task)
+	ctx.ServiceClient.RemoveWorkload(ctx.Workload)
 	require.NoError(ctx.syncOnce())
 	require.Len(ctx.FakeConsul.services, 0)
 }
@@ -1120,10 +1120,10 @@ func TestConsul_CanaryMeta_NoMeta(t *testing.T) {
 
 	meta := map[string]string{"meta1": "foo"}
 	meta["external-source"] = "nomad"
-	ctx.Task.Canary = true
-	ctx.Task.Services[0].Meta = meta
+	ctx.Workload.Canary = true
+	ctx.Workload.Services[0].Meta = meta
 
-	require.NoError(ctx.ServiceClient.RegisterTask(ctx.Task))
+	require.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
 	require.NoError(ctx.syncOnce())
 	require.Len(ctx.FakeConsul.services, 1)
 	for _, service := range ctx.FakeConsul.services {
@@ -1131,16 +1131,16 @@ func TestConsul_CanaryMeta_NoMeta(t *testing.T) {
 	}
 
 	// Disable canary and assert meta dont change
-	origTask := ctx.Task.Copy()
-	ctx.Task.Canary = false
-	require.NoError(ctx.ServiceClient.UpdateTask(origTask, ctx.Task))
+	origWorkload := ctx.Workload.Copy()
+	ctx.Workload.Canary = false
+	require.NoError(ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload))
 	require.NoError(ctx.syncOnce())
 	require.Len(ctx.FakeConsul.services, 1)
 	for _, service := range ctx.FakeConsul.services {
 		require.Equal(meta, service.Meta)
 	}
 
-	ctx.ServiceClient.RemoveTask(ctx.Task)
+	ctx.ServiceClient.RemoveWorkload(ctx.Workload)
 	require.NoError(ctx.syncOnce())
 	require.Len(ctx.FakeConsul.services, 0)
 }
