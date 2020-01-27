@@ -293,8 +293,10 @@ EVAL:
 	r.Len(eval.QueuedAllocations, 2, pretty.Sprint(eval.QueuedAllocations))
 
 	// === Assert allocs are running ===
+	var allocs []*napi.AllocationListStub
+
 	for i := 0; i < 20; i++ {
-		allocs, qMeta, err := evalAPI.Allocations(eval.ID, qOpts)
+		allocs, qMeta, err = evalAPI.Allocations(eval.ID, qOpts)
 		r.NoError(err)
 		r.Len(allocs, 2)
 		qOpts.WaitIndex = qMeta.LastIndex
@@ -318,8 +320,6 @@ EVAL:
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	allocs, _, err := evalAPI.Allocations(eval.ID, qOpts)
-	r.NoError(err)
 	allocIDs := make(map[string]bool, 2)
 	for _, a := range allocs {
 		if a.ClientStatus != "running" || a.DesiredStatus != "run" {
