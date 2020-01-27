@@ -1001,7 +1001,7 @@ func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 			return fmt.Errorf("csi_plugins lookup error %s: %v", id, err)
 		}
 		if raw == nil {
-			continue // FIXME error?
+			return fmt.Errorf("csi_plugins missing plugin %s", id)
 		}
 
 		plug := raw.(*structs.CSIPlugin).Copy(index)
