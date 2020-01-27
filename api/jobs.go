@@ -169,6 +169,18 @@ func (j *Jobs) Scale(jobID, group string, value interface{}, reason string, q *W
 	return &resp, qm, nil
 }
 
+// ScaleStatus is used to retrieve information about a particular
+// job given its unique ID.
+func (j *Jobs) ScaleStatus(jobID, group string, q *QueryOptions) (*ScaleStatusResponse, *QueryMeta, error) {
+	var resp ScaleStatusResponse
+	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/%s/scale", url.PathEscape(jobID), url.PathEscape(group)),
+		&resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
 // Versions is used to retrieve all versions of a particular job given its
 // unique ID.
 func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {

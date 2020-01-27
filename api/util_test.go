@@ -48,6 +48,15 @@ func testJob() *Job {
 	return job
 }
 
+func testJobWithScalingPolicy() *Job {
+	job := testJob()
+	job.TaskGroups[0].Scaling = &ScalingPolicy{
+		Policy:  map[string]interface{}{},
+		Enabled: boolToPtr(true),
+	}
+	return job
+}
+
 func testPeriodicJob() *Job {
 	job := testJob().AddPeriodicConfig(&PeriodicConfig{
 		Enabled:  boolToPtr(true),
