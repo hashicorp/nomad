@@ -2,7 +2,6 @@ package structs
 
 const (
 	VolumeTypeHost = "host"
-	VolumeTypeCSI  = "csi"
 )
 
 const (
