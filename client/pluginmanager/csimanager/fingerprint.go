@@ -25,6 +25,8 @@ type pluginFingerprinter struct {
 
 	fingerprintNode       bool
 	fingerprintController bool
+
+	hadFirstSuccessfulFingerprint bool
 }
 
 func (p *pluginFingerprinter) fingerprint(ctx context.Context) *structs.CSIInfo {
@@ -59,6 +61,7 @@ func (p *pluginFingerprinter) fingerprint(ctx context.Context) *structs.CSIInfo 
 		info.HealthDescription = fmt.Sprintf("failed fingerprinting with error: %v", err)
 	} else {
 		info = fp
+		p.hadFirstSuccessfulFingerprint = true
 	}
 
 	return info

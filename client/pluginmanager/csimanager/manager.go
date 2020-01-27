@@ -54,6 +54,10 @@ type csiManager struct {
 	// fn. It is a map of PluginType : [PluginName : instanceManager]
 	instances map[string]map[string]*instanceManager
 
+	// mounters holds a map of existing mounters for a given volume name
+	mounters   map[string]VolumeMounter
+	mountersMu sync.Mutex
+
 	registry           dynamicplugins.Registry
 	logger             hclog.Logger
 	pluginResyncPeriod time.Duration
@@ -67,6 +71,20 @@ type csiManager struct {
 
 func (c *csiManager) PluginManager() pluginmanager.PluginManager {
 	return c
+}
+
+func (c *csiManager) MounterForVolume(ctx context.Context, vol *structs.CSIVolume) (VolumeMounter, error) {
+	nodePlugins, hasAnyNodePlugins := c.instances["csi-node"]
+	if !hasAnyNodePlugins {
+		return nil, DriverNotFoundErr
+	}
+
+	mgr, hasDriver := nodePlugins[vol.Driver]
+	if !hasDriver {
+		return nil, DriverNotFoundErr
+	}
+
+	return mgr.VolumeMounter(ctx)
 }
 
 // Run starts a plugin manager and should return early
