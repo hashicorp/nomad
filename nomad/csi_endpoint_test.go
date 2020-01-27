@@ -143,7 +143,8 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 
 	// Volume is missing
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req2, resp2)
-	require.Error(t, err, "missing")
+	require.NoError(t, err)
+	require.Nil(t, resp2.Volume)
 }
 
 func TestCSIVolumeEndpoint_List(t *testing.T) {
@@ -325,5 +326,6 @@ func TestCSIPluginEndpoint_RegisterViaJob(t *testing.T) {
 
 	// Plugin is missing
 	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
-	require.Error(t, err, "missing")
+	require.NoError(t, err)
+	require.Nil(t, resp2.Plugin)
 }
