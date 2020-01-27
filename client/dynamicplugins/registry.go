@@ -52,6 +52,10 @@ type PluginInfo struct {
 	// ConnectionInfo should only be used externally during `RegisterPlugin` and
 	// may not be exposed in the future.
 	ConnectionInfo *PluginConnectionInfo
+
+	// Options is used for plugin registrations to pass further metadata along to
+	// other subsystems
+	Options map[string]string
 }
 
 // PluginConnectionInfo is the data required to connect to the plugin.
