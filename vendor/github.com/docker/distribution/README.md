@@ -9,7 +9,7 @@ project with a new API design, focused around security and performance.
 
 <img src="https://www.docker.com/sites/default/files/oyster-registry-3.png" width=200px/>
 
-[![Circle CI](https://circleci.com/gh/docker/distribution/tree/master.svg?style=svg)](https://circleci.com/gh/docker/distribution/tree/master)
+[![Build Status](https://travis-ci.org/docker/distribution.svg?branch=master)](https://travis-ci.org/docker/distribution)
 [![GoDoc](https://godoc.org/github.com/docker/distribution?status.svg)](https://godoc.org/github.com/docker/distribution)
 
 This repository contains the following components:

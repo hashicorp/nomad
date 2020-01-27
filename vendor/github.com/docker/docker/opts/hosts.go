@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/pkg/homedir"
 )
 
 var (
@@ -41,12 +45,20 @@ func ValidateHost(val string) (string, error) {
 	return val, nil
 }
 
-// ParseHost and set defaults for a Daemon host string
-func ParseHost(defaultToTLS bool, val string) (string, error) {
+// ParseHost and set defaults for a Daemon host string.
+// defaultToTLS is preferred over defaultToUnixXDG.
+func ParseHost(defaultToTLS, defaultToUnixXDG bool, val string) (string, error) {
 	host := strings.TrimSpace(val)
 	if host == "" {
 		if defaultToTLS {
 			host = DefaultTLSHost
+		} else if defaultToUnixXDG {
+			runtimeDir, err := homedir.GetRuntimeDir()
+			if err != nil {
+				return "", err
+			}
+			socket := filepath.Join(runtimeDir, "docker.sock")
+			host = "unix://" + socket
 		} else {
 			host = DefaultHost
 		}
@@ -158,8 +170,11 @@ func ValidateExtraHost(val string) (string, error) {
 	if len(arr) != 2 || len(arr[0]) == 0 {
 		return "", fmt.Errorf("bad format for add-host: %q", val)
 	}
-	if _, err := ValidateIPAddress(arr[1]); err != nil {
-		return "", fmt.Errorf("invalid IP address in add-host: %q", arr[1])
+	// Skip IPaddr validation for special "host-gateway" string
+	if arr[1] != network.HostGatewayName {
+		if _, err := ValidateIPAddress(arr[1]); err != nil {
+			return "", fmt.Errorf("invalid IP address in add-host: %q", arr[1])
+		}
 	}
 	return val, nil
 }

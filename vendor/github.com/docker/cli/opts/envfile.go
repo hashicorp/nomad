@@ -18,5 +18,5 @@ import (
 // environment variables, that's why we just strip leading whitespace and
 // nothing more.
 func ParseEnvFile(filename string) ([]string, error) {
-	return parseKeyValueFile(filename, os.Getenv)
+	return parseKeyValueFile(filename, os.LookupEnv)
 }

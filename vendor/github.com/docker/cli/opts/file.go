@@ -10,7 +10,7 @@ import (
 	"unicode/utf8"
 )
 
-var whiteSpaces = " \t"
+const whiteSpaces = " \t"
 
 // ErrBadKey typed error for bad environment variable
 type ErrBadKey struct {
@@ -21,7 +21,7 @@ func (e ErrBadKey) Error() string {
 	return fmt.Sprintf("poorly formatted environment: %s", e.msg)
 }
 
-func parseKeyValueFile(filename string, emptyFn func(string) string) ([]string, error) {
+func parseKeyValueFile(filename string, emptyFn func(string) (string, bool)) ([]string, error) {
 	fh, err := os.Open(filename)
 	if err != nil {
 		return []string{}, err
@@ -51,7 +51,10 @@ func parseKeyValueFile(filename string, emptyFn func(string) string) ([]string, 
 			// trim the front of a variable, but nothing else
 			variable := strings.TrimLeft(data[0], whiteSpaces)
 			if strings.ContainsAny(variable, whiteSpaces) {
-				return []string{}, ErrBadKey{fmt.Sprintf("variable '%s' has white spaces", variable)}
+				return []string{}, ErrBadKey{fmt.Sprintf("variable '%s' contains whitespaces", variable)}
+			}
+			if len(variable) == 0 {
+				return []string{}, ErrBadKey{fmt.Sprintf("no variable name on line '%s'", line)}
 			}
 
 			if len(data) > 1 {
@@ -59,11 +62,14 @@ func parseKeyValueFile(filename string, emptyFn func(string) string) ([]string, 
 				lines = append(lines, fmt.Sprintf("%s=%s", variable, data[1]))
 			} else {
 				var value string
+				var present bool
 				if emptyFn != nil {
-					value = emptyFn(line)
+					value, present = emptyFn(line)
 				}
-				// if only a pass-through variable is given, clean it up.
-				lines = append(lines, fmt.Sprintf("%s=%s", strings.TrimSpace(line), value))
+				if present {
+					// if only a pass-through variable is given, clean it up.
+					lines = append(lines, fmt.Sprintf("%s=%s", strings.TrimSpace(line), value))
+				}
 			}
 		}
 	}

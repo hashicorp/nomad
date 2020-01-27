@@ -68,7 +68,6 @@ func NewAuthorizer(manager challenge.Manager, handlers ...AuthenticationHandler)
 type endpointAuthorizer struct {
 	challenges challenge.Manager
 	handlers   []AuthenticationHandler
-	transport  http.RoundTripper
 }
 
 func (ea *endpointAuthorizer) ModifyRequest(req *http.Request) error {
@@ -121,7 +120,6 @@ type clock interface {
 }
 
 type tokenHandler struct {
-	header    http.Header
 	creds     CredentialStore
 	transport http.RoundTripper
 	clock     clock
@@ -366,6 +364,10 @@ func (th *tokenHandler) fetchTokenWithOAuth(realm *url.URL, refreshToken, servic
 	var tr postTokenResponse
 	if err = decoder.Decode(&tr); err != nil {
 		return "", time.Time{}, fmt.Errorf("unable to decode token response: %s", err)
+	}
+
+	if tr.AccessToken == "" {
+		return "", time.Time{}, ErrNoToken
 	}
 
 	if tr.RefreshToken != "" && tr.RefreshToken != refreshToken {

@@ -667,7 +667,28 @@ func (bs *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.Rea
 }
 
 func (bs *blobs) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
-	panic("not implemented")
+	desc, err := bs.statter.Stat(ctx, dgst)
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Length", strconv.FormatInt(desc.Size, 10))
+	w.Header().Set("Content-Type", desc.MediaType)
+	w.Header().Set("Docker-Content-Digest", dgst.String())
+	w.Header().Set("Etag", dgst.String())
+
+	if r.Method == http.MethodHead {
+		return nil
+	}
+
+	blob, err := bs.Open(ctx, dgst)
+	if err != nil {
+		return err
+	}
+	defer blob.Close()
+
+	_, err = io.CopyN(w, blob, desc.Size)
+	return err
 }
 
 func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribution.Descriptor, error) {
@@ -752,6 +773,14 @@ func (bs *blobs) Create(ctx context.Context, options ...distribution.BlobCreateO
 	case http.StatusAccepted:
 		// TODO(dmcgowan): Check for invalid UUID
 		uuid := resp.Header.Get("Docker-Upload-UUID")
+		if uuid == "" {
+			parts := strings.Split(resp.Header.Get("Location"), "/")
+			uuid = parts[len(parts)-1]
+		}
+		if uuid == "" {
+			return nil, errors.New("cannot retrieve docker upload UUID")
+		}
+
 		location, err := sanitizeLocation(resp.Header.Get("Location"), u)
 		if err != nil {
 			return nil, err
@@ -770,7 +799,18 @@ func (bs *blobs) Create(ctx context.Context, options ...distribution.BlobCreateO
 }
 
 func (bs *blobs) Resume(ctx context.Context, id string) (distribution.BlobWriter, error) {
-	panic("not implemented")
+	location, err := bs.ub.BuildBlobUploadChunkURL(bs.name, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &httpBlobUpload{
+		statter:   bs.statter,
+		client:    bs.client,
+		uuid:      id,
+		startedAt: time.Now(),
+		location:  location,
+	}, nil
 }
 
 func (bs *blobs) Delete(ctx context.Context, dgst digest.Digest) error {

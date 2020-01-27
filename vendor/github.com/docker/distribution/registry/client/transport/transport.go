@@ -6,6 +6,13 @@ import (
 	"sync"
 )
 
+func identityTransportWrapper(rt http.RoundTripper) http.RoundTripper {
+	return rt
+}
+
+// DefaultTransportWrapper allows a user to wrap every generated transport
+var DefaultTransportWrapper = identityTransportWrapper
+
 // RequestModifier represents an object which will do an inplace
 // modification of an HTTP request.
 type RequestModifier interface {
@@ -31,10 +38,11 @@ func (h headerModifier) ModifyRequest(req *http.Request) error {
 // NewTransport creates a new transport which will apply modifiers to
 // the request on a RoundTrip call.
 func NewTransport(base http.RoundTripper, modifiers ...RequestModifier) http.RoundTripper {
-	return &transport{
-		Modifiers: modifiers,
-		Base:      base,
-	}
+	return DefaultTransportWrapper(
+		&transport{
+			Modifiers: modifiers,
+			Base:      base,
+		})
 }
 
 // transport is an http.RoundTripper that makes HTTP requests after
