@@ -54,10 +54,6 @@ type csiManager struct {
 	// fn. It is a map of PluginType : [PluginName : instanceManager]
 	instances map[string]map[string]*instanceManager
 
-	// mounters holds a map of existing mounters for a given volume name
-	mounters   map[string]VolumeMounter
-	mountersMu sync.Mutex
-
 	registry           dynamicplugins.Registry
 	logger             hclog.Logger
 	pluginResyncPeriod time.Duration
