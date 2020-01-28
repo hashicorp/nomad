@@ -2,13 +2,11 @@ package csimanager
 
 import (
 	"context"
-	"fmt"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 )
 
@@ -26,22 +24,38 @@ type instanceManager struct {
 	shutdownCtxCancelFn context.CancelFunc
 	shutdownCh          chan struct{}
 
-	fingerprintNode       bool
-	fingerprintController bool
+	// mountPoint is the root of the mount dir where plugin specific data may be
+	// stored and where mount points will be created
+	mountPoint string
+
+	fp *pluginFingerprinter
+
+	volumeManager        *volumeManager
+	volumeManagerMu      sync.RWMutex
+	volumeManagerSetupCh chan struct{}
+	volumeManagerSetup   bool
 
 	client csi.CSIPlugin
 }
 
 func newInstanceManager(logger hclog.Logger, updater UpdateNodeCSIInfoFunc, p *dynamicplugins.PluginInfo) *instanceManager {
 	ctx, cancelFn := context.WithCancel(context.Background())
-
+	logger = logger.Named(p.Name)
 	return &instanceManager{
-		logger:  logger.Named(p.Name),
+		logger:  logger,
 		info:    p,
 		updater: updater,
 
-		fingerprintNode:       p.Type == dynamicplugins.PluginTypeCSINode,
-		fingerprintController: p.Type == dynamicplugins.PluginTypeCSIController,
+		fp: &pluginFingerprinter{
+			logger:                logger.Named("fingerprinter"),
+			info:                  p,
+			fingerprintNode:       p.Type == dynamicplugins.PluginTypeCSINode,
+			fingerprintController: p.Type == dynamicplugins.PluginTypeCSIController,
+		},
+
+		mountPoint: p.Options["MountPoint"],
+
+		volumeManagerSetupCh: make(chan struct{}),
 
 		shutdownCtx:         ctx,
 		shutdownCtxCancelFn: cancelFn,
@@ -50,7 +64,7 @@ func newInstanceManager(logger hclog.Logger, updater UpdateNodeCSIInfoFunc, p *d
 }
 
 func (i *instanceManager) run() {
-	c, err := csi.NewClient(i.info.ConnectionInfo.SocketPath, i.logger.Named("csi_client").With("plugin.name", i.info.Name, "plugin.type", i.info.Type))
+	c, err := csi.NewClient(i.info.ConnectionInfo.SocketPath, i.logger)
 	if err != nil {
 		i.logger.Error("failed to setup instance manager client", "error", err)
 		close(i.shutdownCh)
@@ -61,18 +75,37 @@ func (i *instanceManager) run() {
 	go i.runLoop()
 }
 
+// VolumeMounter returns the volume manager that is configured for the given plugin
+// instance. If called before the volume manager has been setup, it will block until
+// the volume manager is ready or the context is closed.
+func (i *instanceManager) VolumeMounter(ctx context.Context) (VolumeMounter, error) {
+	var vm VolumeMounter
+	i.volumeManagerMu.RLock()
+	if i.volumeManagerSetup {
+		vm = i.volumeManager
+	}
+	i.volumeManagerMu.RUnlock()
+
+	if vm != nil {
+		return vm, nil
+	}
+
+	select {
+	case <-i.volumeManagerSetupCh:
+		i.volumeManagerMu.RLock()
+		vm = i.volumeManager
+		i.volumeManagerMu.RUnlock()
+		return vm, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
 func (i *instanceManager) requestCtxWithTimeout(timeout time.Duration) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(i.shutdownCtx, timeout)
 }
 
 func (i *instanceManager) runLoop() {
-	// basicInfo holds a cache of data that should not change within a CSI plugin.
-	// This allows us to minimize the number of requests we make to plugins on each
-	// run of the fingerprinter, and reduces the chances of performing overly
-	// expensive actions repeatedly, and improves stability of data through
-	// transient failures.
-	var basicInfo *structs.CSIInfo
-
 	timer := time.NewTimer(0)
 	for {
 		select {
@@ -86,134 +119,28 @@ func (i *instanceManager) runLoop() {
 		case <-timer.C:
 			ctx, cancelFn := i.requestCtxWithTimeout(managerFingerprintInterval)
 
-			if basicInfo == nil {
-				info, err := i.buildBasicFingerprint(ctx)
-				if err != nil {
-					// If we receive a fingerprinting error, update the stats with as much
-					// info as possible and wait for the next fingerprint interval.
-					info.HealthDescription = fmt.Sprintf("failed initial fingerprint with err: %v", err)
-					cancelFn()
-					i.updater(i.info.Name, basicInfo)
-					timer.Reset(managerFingerprintInterval)
-					continue
-				}
-
-				// If fingerprinting succeeded, we don't need to repopulate the basic
-				// info and we can stop here.
-				basicInfo = info
-			}
-
-			info := basicInfo.Copy()
-			var fp *structs.CSIInfo
-			var err error
-
-			if i.fingerprintNode {
-				fp, err = i.buildNodeFingerprint(ctx, info)
-			} else if i.fingerprintController {
-				fp, err = i.buildControllerFingerprint(ctx, info)
-			}
-
-			if err != nil {
-				info.Healthy = false
-				info.HealthDescription = fmt.Sprintf("failed fingerprinting with error: %v", err)
-			} else {
-				info = fp
-			}
-
+			info := i.fp.fingerprint(ctx)
 			cancelFn()
 			i.updater(i.info.Name, info)
+
+			// TODO: refactor this lock into a faster, goroutine-local check
+			i.volumeManagerMu.RLock()
+			// When we've had a successful fingerprint, and the volume manager is not yet setup,
+			// and one is required (we're running a node plugin), then set one up now.
+			if i.fp.hadFirstSuccessfulFingerprint && !i.volumeManagerSetup && i.fp.fingerprintNode {
+				i.volumeManagerMu.RUnlock()
+				i.volumeManagerMu.Lock()
+				i.volumeManager = newVolumeManager(i.logger, i.client, i.mountPoint, info.NodeInfo.RequiresNodeStageVolume)
+				i.volumeManagerSetup = true
+				close(i.volumeManagerSetupCh)
+				i.volumeManagerMu.Unlock()
+			} else {
+				i.volumeManagerMu.RUnlock()
+			}
+
 			timer.Reset(managerFingerprintInterval)
 		}
 	}
-}
-
-func applyCapabilitySetToControllerInfo(cs *csi.ControllerCapabilitySet, info *structs.CSIControllerInfo) {
-	info.SupportsReadOnlyAttach = cs.HasPublishReadonly
-	info.SupportsAttachDetach = cs.HasPublishUnpublishVolume
-	info.SupportsListVolumes = cs.HasListVolumes
-	info.SupportsListVolumesAttachedNodes = cs.HasListVolumesPublishedNodes
-}
-
-func (i *instanceManager) buildControllerFingerprint(ctx context.Context, base *structs.CSIInfo) (*structs.CSIInfo, error) {
-	fp := base.Copy()
-
-	healthy, err := i.client.PluginProbe(ctx)
-	if err != nil {
-		return nil, err
-	}
-	fp.SetHealthy(healthy)
-
-	caps, err := i.client.ControllerGetCapabilities(ctx)
-	if err != nil {
-		return fp, err
-	}
-	applyCapabilitySetToControllerInfo(caps, fp.ControllerInfo)
-
-	return fp, nil
-}
-
-func (i *instanceManager) buildNodeFingerprint(ctx context.Context, base *structs.CSIInfo) (*structs.CSIInfo, error) {
-	fp := base.Copy()
-
-	healthy, err := i.client.PluginProbe(ctx)
-	if err != nil {
-		return nil, err
-	}
-	fp.SetHealthy(healthy)
-
-	caps, err := i.client.NodeGetCapabilities(ctx)
-	if err != nil {
-		return fp, err
-	}
-	fp.NodeInfo.RequiresNodeStageVolume = caps.HasStageUnstageVolume
-
-	return fp, nil
-}
-
-func structCSITopologyFromCSITopology(a *csi.Topology) *structs.CSITopology {
-	if a == nil {
-		return nil
-	}
-
-	return &structs.CSITopology{
-		Segments: helper.CopyMapStringString(a.Segments),
-	}
-}
-
-func (i *instanceManager) buildBasicFingerprint(ctx context.Context) (*structs.CSIInfo, error) {
-	info := &structs.CSIInfo{
-		PluginID:          i.info.Name,
-		Healthy:           false,
-		HealthDescription: "initial fingerprint not completed",
-	}
-
-	if i.fingerprintNode {
-		info.NodeInfo = &structs.CSINodeInfo{}
-	}
-	if i.fingerprintController {
-		info.ControllerInfo = &structs.CSIControllerInfo{}
-	}
-
-	capabilities, err := i.client.PluginGetCapabilities(ctx)
-	if err != nil {
-		return info, err
-	}
-
-	info.RequiresControllerPlugin = capabilities.HasControllerService()
-	info.RequiresTopologies = capabilities.HasToplogies()
-
-	if i.fingerprintNode {
-		nodeInfo, err := i.client.NodeGetInfo(ctx)
-		if err != nil {
-			return info, err
-		}
-
-		info.NodeInfo.ID = nodeInfo.NodeID
-		info.NodeInfo.MaxVolumes = nodeInfo.MaxVolumes
-		info.NodeInfo.AccessibleTopology = structCSITopologyFromCSITopology(nodeInfo.AccessibleTopology)
-	}
-
-	return info, nil
 }
 
 func (i *instanceManager) shutdown() {

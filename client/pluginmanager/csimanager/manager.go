@@ -28,10 +28,9 @@ type Config struct {
 
 // New returns a new PluginManager that will handle managing CSI plugins from
 // the dynamicRegistry from the provided Config.
-func New(config *Config) pluginmanager.PluginManager {
+func New(config *Config) Manager {
 	// Use a dedicated internal context for managing plugin shutdown.
 	ctx, cancelFn := context.WithCancel(context.Background())
-
 	if config.PluginResyncPeriod == 0 {
 		config.PluginResyncPeriod = defaultPluginResyncPeriod
 	}
@@ -64,6 +63,24 @@ type csiManager struct {
 	shutdownCtx         context.Context
 	shutdownCtxCancelFn context.CancelFunc
 	shutdownCh          chan struct{}
+}
+
+func (c *csiManager) PluginManager() pluginmanager.PluginManager {
+	return c
+}
+
+func (c *csiManager) MounterForVolume(ctx context.Context, vol *structs.CSIVolume) (VolumeMounter, error) {
+	nodePlugins, hasAnyNodePlugins := c.instances["csi-node"]
+	if !hasAnyNodePlugins {
+		return nil, DriverNotFoundErr
+	}
+
+	mgr, hasDriver := nodePlugins[vol.Driver]
+	if !hasDriver {
+		return nil, DriverNotFoundErr
+	}
+
+	return mgr.VolumeMounter(ctx)
 }
 
 // Run starts a plugin manager and should return early
