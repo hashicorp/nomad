@@ -124,7 +124,7 @@ type AutopilotConfig struct {
 type SchedulerConfiguration struct {
 	// PreemptionConfig specifies whether to enable eviction of lower
 	// priority jobs to place higher priority jobs.
-	PreemptionConfig PreemptionConfig
+	PreemptionConfig PreemptionConfig `hcl:"preemption_config"`
 
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
@@ -152,13 +152,13 @@ type SchedulerSetConfigurationResponse struct {
 // PreemptionConfig specifies whether preemption is enabled based on scheduler type
 type PreemptionConfig struct {
 	// SystemSchedulerEnabled specifies if preemption is enabled for system jobs
-	SystemSchedulerEnabled bool
+	SystemSchedulerEnabled bool `hcl:"system_scheduler_enabled"`
 
 	// BatchSchedulerEnabled specifies if preemption is enabled for batch jobs
-	BatchSchedulerEnabled bool
+	BatchSchedulerEnabled bool `hcl:"batch_scheduler_enabled"`
 
 	// ServiceSchedulerEnabled specifies if preemption is enabled for service jobs
-	ServiceSchedulerEnabled bool
+	ServiceSchedulerEnabled bool `hcl:"service_Scheduler_enabled"`
 }
 
 // SchedulerSetConfigRequest is used by the Operator endpoint to update the
