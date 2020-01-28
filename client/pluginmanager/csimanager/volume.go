@@ -3,9 +3,12 @@ package csimanager
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/mount"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 )
@@ -49,6 +52,34 @@ func newVolumeManager(logger hclog.Logger, plugin csi.CSIPlugin, rootDir string,
 		requiresStaging: requiresStaging,
 		volumes:         make(map[string]interface{}),
 	}
+}
+
+func (v *volumeManager) stagingDirForVolume(vol *structs.CSIVolume) string {
+	return filepath.Join(v.mountRoot, StagingDirName, vol.ID, "todo-provide-usage-options")
+}
+
+// ensureStagingDir attempts to create a directory for use when staging a volume
+// and then validates that the path is not already a mount point for e.g an
+// existing volume stage.
+//
+// Returns whether the directory is a pre-existing mountpoint, the staging path,
+// and any errors that occured.
+func (v *volumeManager) ensureStagingDir(vol *structs.CSIVolume) (bool, string, error) {
+	stagingPath := v.stagingDirForVolume(vol)
+
+	// Make the staging path, owned by the Nomad User
+	if err := os.MkdirAll(stagingPath, 0700); err != nil && !os.IsExist(err) {
+		return false, "", fmt.Errorf("failed to create staging directory for volume (%s): %v", vol.ID, err)
+	}
+
+	// Validate that it is not already a mount point
+	m := mount.New()
+	isNotMount, err := m.IsNotAMountPoint(stagingPath)
+	if err != nil {
+		return false, "", fmt.Errorf("mount point detection failed for volume (%s): %v", vol.ID, err)
+	}
+
+	return !isNotMount, stagingPath, nil
 }
 
 // MountVolume performs the steps required for using a given volume
