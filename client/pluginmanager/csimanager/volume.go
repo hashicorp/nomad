@@ -3,7 +3,6 @@ package csimanager
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -30,8 +29,8 @@ type volumeManager struct {
 	logger hclog.Logger
 	plugin csi.CSIPlugin
 
-	volumes   map[string]interface{}
-	volumesMu sync.Mutex
+	volumes map[string]interface{}
+	// volumesMu sync.Mutex
 
 	// mountRoot is the root of where plugin directories and mounts may be created
 	// e.g /opt/nomad.d/statedir/csi/my-csi-plugin/
@@ -42,11 +41,13 @@ type volumeManager struct {
 	requiresStaging bool
 }
 
-func newVolumeManager(logger hclog.Logger, plugin csi.CSIPlugin, rootDir string) *volumeManager {
+func newVolumeManager(logger hclog.Logger, plugin csi.CSIPlugin, rootDir string, requiresStaging bool) *volumeManager {
 	return &volumeManager{
-		logger:    logger.Named("volume_manager"),
-		plugin:    plugin,
-		mountRoot: rootDir,
+		logger:          logger.Named("volume_manager"),
+		plugin:          plugin,
+		mountRoot:       rootDir,
+		requiresStaging: requiresStaging,
+		volumes:         make(map[string]interface{}),
 	}
 }
 
