@@ -34,7 +34,7 @@ func validateHostVolumes(requestedByAlias map[string]*structs.VolumeRequest, cli
 	var result error
 
 	for _, req := range requestedByAlias {
-		// This is a defensive check, but this function should only ever recieve
+		// This is a defensive check, but this function should only ever receive
 		// host-type volumes.
 		if req.Type != structs.VolumeTypeHost {
 			continue
@@ -61,7 +61,7 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 			return nil, fmt.Errorf("No group volume declaration found named: %s", m.Volume)
 		}
 
-		// This is a defensive check, but this function should only ever recieve
+		// This is a defensive check, but this function should only ever receive
 		// host-type volumes.
 		if req.Type != structs.VolumeTypeHost {
 			continue
