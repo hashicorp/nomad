@@ -72,12 +72,12 @@ func (c *csiManager) PluginManager() pluginmanager.PluginManager {
 func (c *csiManager) MounterForVolume(ctx context.Context, vol *structs.CSIVolume) (VolumeMounter, error) {
 	nodePlugins, hasAnyNodePlugins := c.instances["csi-node"]
 	if !hasAnyNodePlugins {
-		return nil, DriverNotFoundErr
+		return nil, PluginNotFoundErr
 	}
 
-	mgr, hasDriver := nodePlugins[vol.Driver]
-	if !hasDriver {
-		return nil, DriverNotFoundErr
+	mgr, hasPlugin := nodePlugins[vol.PluginID]
+	if !hasPlugin {
+		return nil, PluginNotFoundErr
 	}
 
 	return mgr.VolumeMounter(ctx)
