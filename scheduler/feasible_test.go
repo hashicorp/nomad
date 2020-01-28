@@ -1972,7 +1972,7 @@ func TestFeasibilityWrapper_JobIneligible(t *testing.T) {
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
 	mocked := newMockFeasibilityChecker(false)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil)
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil, nil)
 
 	// Set the job to ineligible
 	ctx.Eligibility().SetJobEligibility(false, nodes[0].ComputedClass)
@@ -1990,7 +1990,7 @@ func TestFeasibilityWrapper_JobEscapes(t *testing.T) {
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
 	mocked := newMockFeasibilityChecker(false)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil)
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil, nil)
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass
@@ -2016,7 +2016,7 @@ func TestFeasibilityWrapper_JobAndTg_Eligible(t *testing.T) {
 	static := NewStaticIterator(ctx, nodes)
 	jobMock := newMockFeasibilityChecker(true)
 	tgMock := newMockFeasibilityChecker(false)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock}, nil)
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass
@@ -2038,7 +2038,7 @@ func TestFeasibilityWrapper_JobEligible_TgIneligible(t *testing.T) {
 	static := NewStaticIterator(ctx, nodes)
 	jobMock := newMockFeasibilityChecker(true)
 	tgMock := newMockFeasibilityChecker(false)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock}, nil)
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass
@@ -2060,7 +2060,7 @@ func TestFeasibilityWrapper_JobEligible_TgEscaped(t *testing.T) {
 	static := NewStaticIterator(ctx, nodes)
 	jobMock := newMockFeasibilityChecker(true)
 	tgMock := newMockFeasibilityChecker(true)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock}, nil)
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass

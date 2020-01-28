@@ -69,14 +69,14 @@ func (iter *StaticIterator) Next() *structs.Node {
 	// Check if exhausted
 	n := len(iter.nodes)
 	if iter.offset == n || iter.seen == n {
-		if iter.seen != n {
+		if iter.seen != n { // seen has been Reset() to 0
 			iter.offset = 0
 		} else {
 			return nil
 		}
 	}
 
-	// Return the next offset
+	// Return the next offset, use this one
 	offset := iter.offset
 	iter.offset += 1
 	iter.seen += 1
@@ -858,18 +858,20 @@ type FeasibilityWrapper struct {
 	source      FeasibleIterator
 	jobCheckers []FeasibilityChecker
 	tgCheckers  []FeasibilityChecker
+	tgAvailable []FeasibilityChecker
 	tg          string
 }
 
 // NewFeasibilityWrapper returns a FeasibleIterator based on the passed source
 // and FeasibilityCheckers.
 func NewFeasibilityWrapper(ctx Context, source FeasibleIterator,
-	jobCheckers, tgCheckers []FeasibilityChecker) *FeasibilityWrapper {
+	jobCheckers, tgCheckers, tgAvailable []FeasibilityChecker) *FeasibilityWrapper {
 	return &FeasibilityWrapper{
 		ctx:         ctx,
 		source:      source,
 		jobCheckers: jobCheckers,
 		tgCheckers:  tgCheckers,
+		tgAvailable: tgAvailable,
 	}
 }
 
@@ -936,7 +938,12 @@ OUTER:
 			continue
 		case EvalComputedClassEligible:
 			// Fast path the eligible case
-			return option
+			if w.available(option) {
+				return option
+			}
+			// We match the class but are temporarily unavailable, the eval
+			// should be blocked
+			return nil
 		case EvalComputedClassEscaped:
 			tgEscaped = true
 		case EvalComputedClassUnknown:
@@ -962,8 +969,30 @@ OUTER:
 			evalElig.SetTaskGroupEligibility(true, w.tg, option.ComputedClass)
 		}
 
+		// tgAvailable handlers are available transiently, so we test them without
+		// affecting the computed class
+		if !w.available(option) {
+			continue OUTER
+		}
+
 		return option
 	}
+}
+
+// available checks transient feasibility checkers which depend on changing conditions,
+// e.g. the health status of a plugin or driver
+func (w *FeasibilityWrapper) available(option *structs.Node) bool {
+	// If we don't have any availability checks, we're available
+	if len(w.tgAvailable) == 0 {
+		return true
+	}
+
+	for _, check := range w.tgAvailable {
+		if !check.Feasible(option) {
+			return false
+		}
+	}
+	return true
 }
 
 // DeviceChecker is a FeasibilityChecker which returns whether a node has the
