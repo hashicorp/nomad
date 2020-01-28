@@ -9,6 +9,10 @@
     font-size: 11px;
   }
 
+  .icon {
+    color: $ui-gray-500;
+  }
+
   .toggle-button {
     background: transparent;
     border: 0;
@@ -19,7 +23,6 @@
     padding-left: 0;
 
     .icon {
-      color: $ui-gray-500;
       padding: 3px 3px 0 0;
       margin-left: -3px;
     }
