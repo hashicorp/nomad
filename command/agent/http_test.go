@@ -971,7 +971,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		for _, conn := range conns {
 			conn.Close()
 		}
-		for _ = range conns {
+		for range conns {
 			err := <-errCh
 			require.Contains(t, err.Error(), "use of closed network connection")
 		}
