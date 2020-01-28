@@ -3,6 +3,8 @@ package nomad
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -11,6 +13,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -279,7 +282,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 	if err != nil {
 		return nil, err
 	}
-	incomingTLS, tlsWrap, err := getTLSConf(config.TLSConfig.EnableRPC, tlsConf)
+	incomingTLS, tlsWrap, err := getTLSConf(config.TLSConfig.EnableRPC, tlsConf, config.Region)
 	if err != nil {
 		return nil, err
 	}
@@ -447,23 +450,68 @@ func (s *Server) createRPCListener() (*net.TCPListener, error) {
 
 // getTLSConf gets the server's TLS configuration based on the config supplied
 // by the operator
-func getTLSConf(enableRPC bool, tlsConf *tlsutil.Config) (*tls.Config, tlsutil.RegionWrapper, error) {
+func getTLSConf(enableRPC bool, tlsConf *tlsutil.Config, region string) (*tls.Config, tlsutil.RegionWrapper, error) {
 	var tlsWrap tlsutil.RegionWrapper
 	var incomingTLS *tls.Config
-	if enableRPC {
-		tw, err := tlsConf.OutgoingTLSWrapper()
-		if err != nil {
-			return nil, nil, err
-		}
-		tlsWrap = tw
+	if !enableRPC {
+		return incomingTLS, tlsWrap, nil
+	}
 
-		itls, err := tlsConf.IncomingTLSConfig()
-		if err != nil {
-			return nil, nil, err
-		}
+	tlsWrap, err := tlsConf.OutgoingTLSWrapper()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	itls, err := tlsConf.IncomingTLSConfig()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if tlsConf.VerifyServerHostname {
+		incomingTLS = itls.Clone()
+		incomingTLS.VerifyPeerCertificate = rpcNameAndRegionValidator(region)
+	} else {
 		incomingTLS = itls
 	}
 	return incomingTLS, tlsWrap, nil
+}
+
+// implements signature of tls.Config.VerifyPeerCertificate which is called
+// after the certs have been verified. We'll ignore the raw certs and only
+// check the verified certs.
+func rpcNameAndRegionValidator(region string) func([][]byte, [][]*x509.Certificate) error {
+	return func(_ [][]byte, certificates [][]*x509.Certificate) error {
+		if len(certificates) > 0 && len(certificates[0]) > 0 {
+			cert := certificates[0][0]
+			for _, dnsName := range cert.DNSNames {
+				if validateRPCRegionPeer(dnsName, region) {
+					return nil
+				}
+			}
+			if validateRPCRegionPeer(cert.Subject.CommonName, region) {
+				return nil
+			}
+		}
+		return errors.New("invalid role or region for certificate")
+	}
+}
+
+func validateRPCRegionPeer(name, region string) bool {
+	parts := strings.Split(name, ".")
+	if len(parts) < 3 {
+		// Invalid SAN
+		return false
+	}
+	if parts[len(parts)-1] != "nomad" {
+		// Incorrect service
+		return false
+	}
+	if parts[0] == "client" {
+		// Clients may only connect to servers in their region
+		return name == "client."+region+".nomad"
+	}
+	// Servers may connect to any Nomad RPC service for federation.
+	return parts[0] == "server"
 }
 
 // reloadTLSConnections updates a server's TLS configuration and reloads RPC
@@ -483,7 +531,7 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 		return err
 	}
 
-	incomingTLS, tlsWrap, err := getTLSConf(newTLSConfig.EnableRPC, tlsConf)
+	incomingTLS, tlsWrap, err := getTLSConf(newTLSConfig.EnableRPC, tlsConf, s.config.Region)
 	if err != nil {
 		s.logger.Error("unable to reset TLS context", "error", err)
 		return err
