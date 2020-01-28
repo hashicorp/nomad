@@ -379,3 +379,55 @@ RECEIVE_LOOP:
 	require.Equal(t, 1, receivedFalse)
 	require.LessOrEqual(t, receivedTrue, sentMessages-1)
 }
+
+// TestDropButLastChannel_DeliversMessages_Close asserts that last
+// message is always delivered, some messages are dropped but never
+// introduce new messages, even with a closed signal.
+func TestDropButLastChannel_DeliversMessages_Close(t *testing.T) {
+	sourceCh := make(chan bool)
+	shutdownCh := make(chan struct{})
+
+	dstCh := dropButLastChannel(sourceCh, shutdownCh)
+
+	// timeout duration for any channel propagation delay
+	timeoutDuration := 5 * time.Millisecond
+
+	sentMessages := 100
+	go func() {
+		for i := 0; i < sentMessages-1; i++ {
+			sourceCh <- true
+		}
+		sourceCh <- false
+		close(sourceCh)
+	}()
+
+	receivedTrue, receivedFalse := 0, 0
+	var lastReceived *bool
+
+RECEIVE_LOOP:
+	for {
+		select {
+		case v, ok := <-dstCh:
+			if !ok {
+				break RECEIVE_LOOP
+			}
+			lastReceived = &v
+			if v {
+				receivedTrue++
+			} else {
+				receivedFalse++
+			}
+
+		case <-time.After(timeoutDuration):
+			require.Fail(t, "timed out while waiting for messages")
+		}
+	}
+
+	t.Logf("receiver got %v out %v true messages, and %v out of %v false messages",
+		receivedTrue, sentMessages-1, receivedFalse, 1)
+
+	require.NotNil(t, lastReceived)
+	require.False(t, *lastReceived)
+	require.Equal(t, 1, receivedFalse)
+	require.LessOrEqual(t, receivedTrue, sentMessages-1)
+}

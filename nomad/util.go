@@ -330,12 +330,21 @@ func dropButLastChannel(sourceCh <-chan bool, shutdownCh <-chan struct{}) chan b
 	dst := make(chan bool)
 
 	go func() {
+		// last value received
 		lv := false
+		// ok source was closed
+		ok := false
+		// received message since last delivery to destination
+		messageReceived := false
 
 	DEQUE_SOURCE:
 		// wait for first message
 		select {
-		case lv = <-sourceCh:
+		case lv, ok = <-sourceCh:
+			if !ok {
+				goto SOURCE_CLOSED
+			}
+			messageReceived = true
 			goto ENQUEUE_DST
 		case <-shutdownCh:
 			return
@@ -345,7 +354,11 @@ func dropButLastChannel(sourceCh <-chan bool, shutdownCh <-chan struct{}) chan b
 		// prioritize draining source first dequeue without blocking
 		for {
 			select {
-			case lv = <-sourceCh:
+			case lv, ok = <-sourceCh:
+				if !ok {
+					goto SOURCE_CLOSED
+				}
+				messageReceived = true
 			default:
 				break ENQUEUE_DST
 			}
@@ -353,14 +366,29 @@ func dropButLastChannel(sourceCh <-chan bool, shutdownCh <-chan struct{}) chan b
 
 		// attempt to enqueue but keep monitoring source channel
 		select {
-		case lv = <-sourceCh:
+		case lv, ok = <-sourceCh:
+			if !ok {
+				goto SOURCE_CLOSED
+			}
+			messageReceived = true
 			goto ENQUEUE_DST
 		case dst <- lv:
+			messageReceived = false
 			// enqueued value; back to dequeing from source
 			goto DEQUE_SOURCE
 		case <-shutdownCh:
 			return
 		}
+
+	SOURCE_CLOSED:
+		if messageReceived {
+			select {
+			case dst <- lv:
+			case <-shutdownCh:
+				return
+			}
+		}
+		close(dst)
 	}()
 
 	return dst
