@@ -305,8 +305,10 @@ type Config struct {
 	// dead servers.
 	AutopilotInterval time.Duration
 
-	// SystemSchedulerPreemptionEnabledDefault is used to determin whether to enable system preemption by default in a new cluster
-	SystemSchedulerPreemptionEnabledDefault bool
+	// DefaultSchedulerConfig configures the initial scheduler config to be persisted in Raft.
+	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API),
+	// This value is ignored.
+	DefaultSchedulerConfig structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
 
 	// PluginLoader is used to load plugins.
 	PluginLoader loader.PluginCatalog
@@ -380,9 +382,15 @@ func DefaultConfig() *Config {
 			MaxTrailingLogs:         250,
 			ServerStabilizationTime: 10 * time.Second,
 		},
-		ServerHealthInterval:                    2 * time.Second,
-		AutopilotInterval:                       10 * time.Second,
-		SystemSchedulerPreemptionEnabledDefault: true,
+		ServerHealthInterval: 2 * time.Second,
+		AutopilotInterval:    10 * time.Second,
+		DefaultSchedulerConfig: structs.SchedulerConfiguration{
+			PreemptionConfig: structs.PreemptionConfig{
+				SystemSchedulerEnabled:  true,
+				BatchSchedulerEnabled:   false,
+				ServiceSchedulerEnabled: false,
+			},
+		},
 	}
 
 	// Enable all known schedulers by default

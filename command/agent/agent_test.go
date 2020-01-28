@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -277,18 +276,51 @@ func TestAgent_ServerConfig(t *testing.T) {
 
 func TestAgent_ServerConfig_SchedulerFlags(t *testing.T) {
 	cases := []struct {
-		input    *bool
-		expected bool
+		name     string
+		input    *structs.SchedulerConfiguration
+		expected structs.SchedulerConfiguration
 	}{
-		{nil, true},
-		{helper.BoolToPtr(false), false},
-		{helper.BoolToPtr(true), true},
+		{
+			"default case",
+			nil,
+			structs.SchedulerConfiguration{
+				PreemptionConfig: structs.PreemptionConfig{
+					SystemSchedulerEnabled: true,
+				},
+			},
+		},
+		{
+			"empty value: preemption is disabled",
+			&structs.SchedulerConfiguration{},
+			structs.SchedulerConfiguration{
+				PreemptionConfig: structs.PreemptionConfig{
+					SystemSchedulerEnabled: false,
+				},
+			},
+		},
+		{
+			"all explicitly set",
+			&structs.SchedulerConfiguration{
+				PreemptionConfig: structs.PreemptionConfig{
+					SystemSchedulerEnabled:  true,
+					BatchSchedulerEnabled:   true,
+					ServiceSchedulerEnabled: true,
+				},
+			},
+			structs.SchedulerConfiguration{
+				PreemptionConfig: structs.PreemptionConfig{
+					SystemSchedulerEnabled:  true,
+					BatchSchedulerEnabled:   true,
+					ServiceSchedulerEnabled: true,
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
-		t.Run(fmt.Sprintf("case: %v", c.input), func(t *testing.T) {
+		t.Run(c.name, func(t *testing.T) {
 			conf := DefaultConfig()
-			conf.Server.SystemSchedulerPreemptionEnabledDefault = c.input
+			conf.Server.DefaultSchedulerConfig = c.input
 
 			a := &Agent{config: conf}
 			conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
@@ -299,7 +331,7 @@ func TestAgent_ServerConfig_SchedulerFlags(t *testing.T) {
 
 			out, err := a.serverConfig()
 			require.NoError(t, err)
-			require.Equal(t, c.expected, out.SystemSchedulerPreemptionEnabledDefault)
+			require.Equal(t, c.expected, out.DefaultSchedulerConfig)
 		})
 	}
 }

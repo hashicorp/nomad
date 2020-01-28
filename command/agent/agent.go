@@ -323,10 +323,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	}
 
 	// handle system scheduler preemption default
-	if agentConfig.Server.SystemSchedulerPreemptionEnabledDefault != nil {
-		conf.SystemSchedulerPreemptionEnabledDefault = *agentConfig.Server.SystemSchedulerPreemptionEnabledDefault
-	} else {
-		conf.SystemSchedulerPreemptionEnabledDefault = true
+	if agentConfig.Server.DefaultSchedulerConfig != nil {
+		conf.DefaultSchedulerConfig = *agentConfig.Server.DefaultSchedulerConfig
 	}
 
 	// Add the Consul and Vault configs
