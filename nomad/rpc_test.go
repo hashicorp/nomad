@@ -515,7 +515,7 @@ func TestRPC_TLS_in_TLS(t *testing.T) {
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
-	s, cleanup := TestServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.TLSConfig = &config.TLSConfig{
 			EnableRPC: true,
 			CAFile:    cafile,
@@ -524,7 +524,7 @@ func TestRPC_TLS_in_TLS(t *testing.T) {
 		}
 	})
 	defer func() {
-		cleanup()
+		s.Shutdown()
 
 		//TODO Avoid panics from logging during shutdown
 		time.Sleep(1 * time.Second)
@@ -810,7 +810,7 @@ func TestRPC_Limits_OK(t *testing.T) {
 				t.Fatalf("test fixture failure: cannot assert timeout when no timeout set (0)")
 			}
 
-			s, cleanup := TestServer(t, func(c *Config) {
+			s := TestServer(t, func(c *Config) {
 				if tc.tls {
 					c.TLSConfig = &config.TLSConfig{
 						EnableRPC: true,
@@ -823,7 +823,7 @@ func TestRPC_Limits_OK(t *testing.T) {
 				c.RPCMaxConnsPerClient = tc.limit
 			})
 			defer func() {
-				cleanup()
+				s.Shutdown()
 
 				//TODO Avoid panics from logging during shutdown
 				time.Sleep(1 * time.Second)
@@ -845,12 +845,12 @@ func TestRPC_Limits_OK(t *testing.T) {
 func TestRPC_Limits_Streaming(t *testing.T) {
 	t.Parallel()
 
-	s, cleanup := TestServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		limits := config.DefaultLimits()
 		c.RPCMaxConnsPerClient = *limits.RPCMaxConnsPerClient
 	})
 	defer func() {
-		cleanup()
+		s.Shutdown()
 
 		//TODO Avoid panics from logging during shutdown
 		time.Sleep(1 * time.Second)
