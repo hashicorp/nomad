@@ -311,6 +311,11 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
 	}
 
+	// handle system scheduler preemption default
+	if agentConfig.Server.DefaultSchedulerConfig != nil {
+		conf.DefaultSchedulerConfig = *agentConfig.Server.DefaultSchedulerConfig
+	}
+
 	// Add the Consul and Vault configs
 	conf.ConsulConfig = agentConfig.Consul
 	conf.VaultConfig = agentConfig.Vault

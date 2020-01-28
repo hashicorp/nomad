@@ -262,6 +262,67 @@ func TestAgent_ServerConfig(t *testing.T) {
 	}
 }
 
+func TestAgent_ServerConfig_SchedulerFlags(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    *structs.SchedulerConfiguration
+		expected structs.SchedulerConfiguration
+	}{
+		{
+			"default case",
+			nil,
+			structs.SchedulerConfiguration{
+				PreemptionConfig: structs.PreemptionConfig{
+					SystemSchedulerEnabled: true,
+				},
+			},
+		},
+		{
+			"empty value: preemption is disabled",
+			&structs.SchedulerConfiguration{},
+			structs.SchedulerConfiguration{
+				PreemptionConfig: structs.PreemptionConfig{
+					SystemSchedulerEnabled: false,
+				},
+			},
+		},
+		{
+			"all explicitly set",
+			&structs.SchedulerConfiguration{
+				PreemptionConfig: structs.PreemptionConfig{
+					SystemSchedulerEnabled:  true,
+					BatchSchedulerEnabled:   true,
+					ServiceSchedulerEnabled: true,
+				},
+			},
+			structs.SchedulerConfiguration{
+				PreemptionConfig: structs.PreemptionConfig{
+					SystemSchedulerEnabled:  true,
+					BatchSchedulerEnabled:   true,
+					ServiceSchedulerEnabled: true,
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			conf := DefaultConfig()
+			conf.Server.DefaultSchedulerConfig = c.input
+
+			a := &Agent{config: conf}
+			conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
+			conf.AdvertiseAddrs.RPC = "127.0.0.1:4001"
+			conf.AdvertiseAddrs.HTTP = "10.10.11.1:4005"
+			conf.ACL.Enabled = true
+			require.NoError(t, conf.normalizeAddrs())
+
+			out, err := a.serverConfig()
+			require.NoError(t, err)
+			require.Equal(t, c.expected, out.DefaultSchedulerConfig)
+		})
+	}
+}
 func TestAgent_ClientConfig(t *testing.T) {
 	t.Parallel()
 	conf := DefaultConfig()
