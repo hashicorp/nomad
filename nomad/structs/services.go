@@ -331,6 +331,7 @@ type Service struct {
 	Checks     []*ServiceCheck   // List of checks associated with the service
 	Connect    *ConsulConnect    // Consul Connect configuration
 	Meta       map[string]string // Consul service meta
+	CanaryMeta map[string]string // Consul service meta when it is a canary
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -354,6 +355,7 @@ func (s *Service) Copy() *Service {
 	ns.Connect = s.Connect.Copy()
 
 	ns.Meta = helper.CopyMapStringString(s.Meta)
+	ns.CanaryMeta = helper.CopyMapStringString(s.CanaryMeta)
 
 	return ns
 }
@@ -466,6 +468,9 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	if len(s.Meta) > 0 {
 		fmt.Fprintf(h, "%v", s.Meta)
 	}
+	if len(s.CanaryMeta) > 0 {
+		fmt.Fprintf(h, "%v", s.CanaryMeta)
+	}
 
 	// Vary ID on whether or not CanaryTags will be used
 	if canary {
@@ -523,6 +528,10 @@ OUTER:
 	}
 
 	if !reflect.DeepEqual(s.Meta, o.Meta) {
+		return false
+	}
+
+	if !reflect.DeepEqual(s.CanaryMeta, o.CanaryMeta) {
 		return false
 	}
 

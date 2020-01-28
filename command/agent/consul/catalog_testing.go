@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper"
 
 	"github.com/hashicorp/consul/api"
 )
@@ -111,6 +112,7 @@ func (c *MockAgent) Services() (map[string]*api.AgentService, error) {
 			ID:                v.ID,
 			Service:           v.Name,
 			Tags:              make([]string, len(v.Tags)),
+			Meta:              helper.CopyMapStringString(v.Meta),
 			Port:              v.Port,
 			Address:           v.Address,
 			EnableTagOverride: v.EnableTagOverride,
