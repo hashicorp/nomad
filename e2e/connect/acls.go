@@ -1,13 +1,14 @@
 package connect
 
 import (
+	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	capi "github.com/hashicorp/consul/api"
-	consulapi "github.com/hashicorp/consul/api"
 	napi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/consulacls"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
@@ -126,6 +127,14 @@ func (tc *ConnectACLsE2ETest) AfterEach(f *framework.F) {
 	err := tc.Nomad().System().GarbageCollect()
 	r.NoError(err)
 
+	// assert there are no leftover SI tokens, which may take a minute to be
+	// cleaned up
+	r.Eventually(func() bool {
+		siTokens := tc.countSITokens(t)
+		t.Log("cleanup: checking for remaining SI tokens:", siTokens)
+		return len(siTokens) == 0
+	}, 2*time.Minute, 2*time.Second, "SI tokens did not get removed")
+
 	tc.jobIDs = []string{}
 	tc.consulTokenIDs = []string{}
 	tc.consulPolicyIDs = []string{}
@@ -159,7 +168,7 @@ func (tc *ConnectACLsE2ETest) createOperatorToken(policyID string, f *framework.
 	return token.SecretID
 }
 
-func (tc *ConnectACLsE2ETest) TestConnectACLsRegister_MasterToken(f *framework.F) {
+func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMasterToken(f *framework.F) {
 	t := f.T()
 	r := require.New(t)
 
@@ -178,13 +187,17 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegister_MasterToken(f *framework.F
 	// https://www.consul.io/docs/acl/acl-system.html#builtin-tokens
 	job.ConsulToken = &tc.consulMasterToken
 
-	resp, _, err := jobAPI.Register(job, nil)
+	// Avoid using Register here, because that would actually create and run the
+	// Job which runs the task, creates the SI token, which all needs to be
+	// given time to settle and cleaned up. That is all covered in the big slow
+	// test at the bottom.
+	resp, _, err := jobAPI.Plan(job, false, nil)
 	r.NoError(err)
 	r.NotNil(resp)
-	r.Zero(resp.Warnings)
+	fmt.Println("resp:", resp)
 }
 
-func (tc *ConnectACLsE2ETest) TestConnectACLsRegister_MissingOperatorToken(f *framework.F) {
+func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMissingOperatorToken(f *framework.F) {
 	t := f.T()
 	r := require.New(t)
 
@@ -204,7 +217,7 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegister_MissingOperatorToken(f *fr
 	t.Log("job correctly rejected, with error:", err)
 }
 
-func (tc *ConnectACLsE2ETest) TestConnectACLsRegister_FakeOperatorToken(f *framework.F) {
+func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterFakeOperatorToken(f *framework.F) {
 	t := f.T()
 	r := require.New(t)
 
@@ -231,7 +244,7 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegister_FakeOperatorToken(f *frame
 	t.Log("job correctly rejected, with error:", err)
 }
 
-func (tc *ConnectACLsE2ETest) TestConnectACLs_ConnectDemo(f *framework.F) {
+func (tc *ConnectACLsE2ETest) TestConnectACLsConnectDemo(f *framework.F) {
 	t := f.T()
 	r := require.New(t)
 
@@ -251,81 +264,94 @@ func (tc *ConnectACLsE2ETest) TestConnectACLs_ConnectDemo(f *framework.F) {
 	t.Log("created operator token:", operatorToken)
 
 	// === Register the Nomad job ===
+	jobID := "connectACL_connect_demo"
+	//{
+	//
+	//	nomadClient := tc.Nomad()
+	//	allocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient, demoConnectJob, jobID, operatorToken)
+	//	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
+	//	e2eutil.WaitForAllocsRunning(t, nomadClient, allocIDs)
+	//}
 
-	// parse the example connect jobspec file
-	jobID := "connect" + uuid.Generate()[0:8]
-	tc.jobIDs = append(tc.jobIDs, jobID)
-	job := tc.parseJobSpecFile(t, demoConnectJob)
-	job.ID = &jobID
-	jobAPI := tc.Nomad().Jobs()
-
-	// set the valid consul operator token
-	job.ConsulToken = &operatorToken
-
-	// registering the job should succeed
-	resp, _, err := jobAPI.Register(job, nil)
-	r.NoError(err)
-	r.NotNil(resp)
-	r.Empty(resp.Warnings)
-	t.Log("job has been registered with evalID:", resp.EvalID)
-
-	// === Make sure the evaluation actually succeeds ===
-EVAL:
-	qOpts := &napi.QueryOptions{WaitIndex: resp.EvalCreateIndex}
-	evalAPI := tc.Nomad().Evaluations()
-	eval, qMeta, err := evalAPI.Info(resp.EvalID, qOpts)
-	r.NoError(err)
-	qOpts.WaitIndex = qMeta.LastIndex
-
-	switch eval.Status {
-	case "pending":
-		goto EVAL
-	case "complete":
-	// ok!
-	case "failed", "canceled", "blocked":
-		r.Failf("eval %s\n%s\n", eval.Status, pretty.Sprint(eval))
-	default:
-		r.Failf("unknown eval status: %s\n%s\n", eval.Status, pretty.Sprint(eval))
-	}
-
-	// assert there were no placement failures
-	r.Zero(eval.FailedTGAllocs, pretty.Sprint(eval.FailedTGAllocs))
-	r.Len(eval.QueuedAllocations, 2, pretty.Sprint(eval.QueuedAllocations))
-
-	// === Assert allocs are running ===
 	var allocs []*napi.AllocationListStub
+	allocIDs := make(map[string]bool, 2)
+	{
+		// jobID := "connect" + uuid.Generate()[0:8] (nicer name now)
 
-	for i := 0; i < 20; i++ {
-		allocs, qMeta, err = evalAPI.Allocations(eval.ID, qOpts)
+		// parse the example connect jobspec file
+		tc.jobIDs = append(tc.jobIDs, jobID)
+		job := tc.parseJobSpecFile(t, demoConnectJob)
+		job.ID = &jobID
+		jobAPI := tc.Nomad().Jobs()
+
+		// set the valid consul operator token
+		job.ConsulToken = &operatorToken
+
+		// registering the job should succeed
+		resp, _, err := jobAPI.Register(job, nil)
 		r.NoError(err)
-		r.Len(allocs, 2)
+		r.NotNil(resp)
+		r.Empty(resp.Warnings)
+		t.Log("job has been registered with evalID:", resp.EvalID)
+
+		// === Make sure the evaluation actually succeeds ===
+	EVAL:
+		qOpts := &napi.QueryOptions{WaitIndex: resp.EvalCreateIndex}
+		evalAPI := tc.Nomad().Evaluations()
+		eval, qMeta, err := evalAPI.Info(resp.EvalID, qOpts)
+		r.NoError(err)
 		qOpts.WaitIndex = qMeta.LastIndex
 
-		running := 0
-		for _, alloc := range allocs {
-			switch alloc.ClientStatus {
-			case "running":
-				running++
-			case "pending":
-				// keep trying
-			default:
-				r.Failf("alloc failed", "alloc: %s", pretty.Sprint(alloc))
+		switch eval.Status {
+		case "pending":
+			goto EVAL
+		case "complete":
+		// ok!
+		case "failed", "canceled", "blocked":
+			r.Failf("eval %s\n%s\n", eval.Status, pretty.Sprint(eval))
+		default:
+			r.Failf("unknown eval status: %s\n%s\n", eval.Status, pretty.Sprint(eval))
+		}
+
+		// assert there were no placement failures
+		r.Zero(eval.FailedTGAllocs, pretty.Sprint(eval.FailedTGAllocs))
+		r.Len(eval.QueuedAllocations, 2, pretty.Sprint(eval.QueuedAllocations))
+
+		// === Assert allocs are running ===
+		// var allocs []*napi.AllocationListStub // move scope
+
+		for i := 0; i < 20; i++ {
+			allocs, qMeta, err = evalAPI.Allocations(eval.ID, qOpts)
+			r.NoError(err)
+			r.Len(allocs, 2)
+			qOpts.WaitIndex = qMeta.LastIndex
+
+			running := 0
+			for _, alloc := range allocs {
+				switch alloc.ClientStatus {
+				case "running":
+					running++
+				case "pending":
+					// keep trying
+				default:
+					r.Failf("alloc failed", "alloc: %s", pretty.Sprint(alloc))
+				}
 			}
+
+			if running == len(allocs) {
+				t.Log("running:", running, "allocs:", allocs)
+				break
+			}
+
+			time.Sleep(500 * time.Millisecond)
 		}
 
-		if running == len(allocs) {
-			break
+		for _, a := range allocs {
+			if a.ClientStatus != "running" || a.DesiredStatus != "run" {
+				r.Failf("terminal alloc", "alloc %s (%s) terminal; client=%s desired=%s", a.TaskGroup, a.ID, a.ClientStatus, a.DesiredStatus)
+			}
+			allocIDs[a.ID] = true
 		}
-
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	allocIDs := make(map[string]bool, 2)
-	for _, a := range allocs {
-		if a.ClientStatus != "running" || a.DesiredStatus != "run" {
-			r.Failf("terminal alloc", "alloc %s (%s) terminal; client=%s desired=%s", a.TaskGroup, a.ID, a.ClientStatus, a.DesiredStatus)
-		}
-		allocIDs[a.ID] = true
 	}
 
 	// === Check Consul service health ===
@@ -339,7 +365,8 @@ EVAL:
 		// filter out checks for other services
 		for cid, check := range checks {
 			found := false
-			for allocID := range allocIDs {
+			// for _, allocID := range allocIDs { // list
+			for allocID := range allocIDs { // map
 				if strings.Contains(check.ServiceID, allocID) {
 					found = true
 					break
@@ -352,7 +379,7 @@ EVAL:
 		}
 
 		// ensure checks are all passing
-		failing = map[string]*consulapi.AgentCheck{}
+		failing = map[string]*capi.AgentCheck{}
 		for _, check := range checks {
 			if check.Status != "passing" {
 				failing[check.CheckID] = check
@@ -372,26 +399,41 @@ EVAL:
 	require.Len(t, failing, 0, pretty.Sprint(failing))
 
 	// === Check Consul SI tokens were generated for sidecars ===
-	aclAPI := tc.Consul().ACL()
-
-	entries, _, err := aclAPI.TokenList(&capi.QueryOptions{
-		Token: tc.consulMasterToken,
-	})
-	r.NoError(err)
-
-	foundSITokenForCountDash := false
-	foundSITokenForCountAPI := false
-	for _, entry := range entries {
-		if strings.Contains(entry.Description, "[connect-proxy-count-dashboard]") {
-			foundSITokenForCountDash = true
-		} else if strings.Contains(entry.Description, "[connect-proxy-count-api]") {
-			foundSITokenForCountAPI = true
-		}
-	}
-	r.True(foundSITokenForCountDash, "no SI token found for count-dash")
-	r.True(foundSITokenForCountAPI, "no SI token found for count-api")
+	foundSITokens := tc.countSITokens(t)
+	r.Equal(2, len(foundSITokens), "expected 2 SI tokens total: %v", foundSITokens)
+	r.Equal(1, foundSITokens["connect-proxy-count-api"], "expected 1 SI token for connect-proxy-count-api: %v", foundSITokens)
+	r.Equal(1, foundSITokens["connect-proxy-count-dashboard"], "expected 1 SI token for connect-proxy-count-dashboard: %v", foundSITokens)
 
 	t.Log("connect job with ACLs enable finished")
+}
+
+var (
+	siTokenRe = regexp.MustCompile(`_nomad_si \[[\w-]{36}] \[[\w-]{36}] \[([\S]+)]`)
+)
+
+func (tc *ConnectACLsE2ETest) serviceofSIToken(description string) string {
+	if m := siTokenRe.FindStringSubmatch(description); len(m) == 2 {
+		return m[1]
+	}
+	return ""
+}
+
+func (tc *ConnectACLsE2ETest) countSITokens(t *testing.T) map[string]int {
+	aclAPI := tc.Consul().ACL()
+	tokens, _, err := aclAPI.TokenList(&capi.QueryOptions{
+		Token: tc.consulMasterToken,
+	})
+	require.NoError(t, err)
+
+	// count the number of SI tokens matching each service name
+	foundSITokens := make(map[string]int)
+	for _, token := range tokens {
+		if service := tc.serviceofSIToken(token.Description); service != "" {
+			foundSITokens[service]++
+		}
+	}
+
+	return foundSITokens
 }
 
 func (tc *ConnectACLsE2ETest) parseJobSpecFile(t *testing.T, filename string) *napi.Job {

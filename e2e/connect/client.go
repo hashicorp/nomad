@@ -41,7 +41,7 @@ func (tc *ConnectClientStateE2ETest) TestClientRestart(f *framework.F) {
 	consulClient := tc.Consul()
 
 	allocs := e2eutil.RegisterAndWaitForAllocs(t, client,
-		"connect/input/demo.nomad", jobID)
+		"connect/input/demo.nomad", jobID, "")
 	require.Equal(2, len(allocs))
 
 	e2eutil.RequireConsulStatus(require, consulClient,
