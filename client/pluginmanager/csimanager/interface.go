@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	DriverNotFoundErr = errors.New("Driver not found")
+	PluginNotFoundErr = errors.New("Plugin not found")
 )
 
 type MountInfo struct {
@@ -25,7 +25,7 @@ type Manager interface {
 	PluginManager() pluginmanager.PluginManager
 
 	// MounterForVolume returns a VolumeMounter for the given requested volume.
-	// If there is no plugin registered for this volume type, a DriverNotFoundErr
+	// If there is no plugin registered for this volume type, a PluginNotFoundErr
 	// will be returned.
 	MounterForVolume(ctx context.Context, volume *structs.CSIVolume) (VolumeMounter, error)
 
