@@ -1379,6 +1379,45 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	}
 }
 
+// TestFSM_UpsertAllocs_Canonicalize asserts that allocations are Canonicalized
+// to handle logs emited by servers running old versions
+func TestFSM_UpsertAllocs_Canonicalize(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	alloc := mock.Alloc()
+	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
+	alloc.AllocatedResources = nil
+
+	// pre-assert that our mock populates old field
+	require.NotEmpty(t, alloc.TaskResources)
+
+	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
+	req := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{alloc},
+	}
+	buf, err := structs.Encode(structs.AllocUpdateRequestType, req)
+	require.NoError(t, err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(t, resp)
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().AllocByID(ws, alloc.ID)
+	require.NoError(t, err)
+
+	require.NotNil(t, out.AllocatedResources)
+	require.Contains(t, out.AllocatedResources.Tasks, "web")
+
+	expected := alloc.Copy()
+	expected.Canonicalize()
+	expected.CreateIndex = out.CreateIndex
+	expected.ModifyIndex = out.ModifyIndex
+	expected.AllocModifyIndex = out.AllocModifyIndex
+	require.Equal(t, expected, out)
+}
+
 func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
@@ -2451,6 +2490,33 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	if !reflect.DeepEqual(alloc2, out2) {
 		t.Fatalf("bad: \n%#v\n%#v", out2, alloc2)
 	}
+}
+
+func TestFSM_SnapshotRestore_Allocs_Canonicalize(t *testing.T) {
+	t.Parallel()
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	alloc := mock.Alloc()
+
+	// remove old versions to force migration path
+	alloc.AllocatedResources = nil
+
+	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
+	state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	ws := memdb.NewWatchSet()
+	out, err := state2.AllocByID(ws, alloc.ID)
+	require.NoError(t, err)
+
+	require.NotNil(t, out.AllocatedResources)
+	require.Contains(t, out.AllocatedResources.Tasks, "web")
+
+	alloc.Canonicalize()
+	require.Equal(t, alloc, out)
 }
 
 func TestFSM_SnapshotRestore_Indexes(t *testing.T) {

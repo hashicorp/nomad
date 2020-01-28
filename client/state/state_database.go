@@ -207,6 +207,10 @@ func (s *BoltStateDB) getAllAllocations(tx *boltdd.Tx) ([]*structs.Allocation, m
 			continue
 		}
 
+		// Handle upgrade path
+		ae.Alloc.Canonicalize()
+		ae.Alloc.Job.Canonicalize()
+
 		allocs = append(allocs, ae.Alloc)
 	}
 
