@@ -46,6 +46,7 @@ func init() {
 		autopilotConfigTableSchema,
 		schedulerConfigTableSchema,
 		csiVolumeTableSchema,
+		csiPluginTableSchema,
 	}...)
 }
 
@@ -621,13 +622,11 @@ func schedulerConfigTableSchema() *memdb.TableSchema {
 	}
 }
 
+// CSIVolumes are identified by id globally, and searchable by driver
 func csiVolumeTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "csi_volumes",
 		Indexes: map[string]*memdb.IndexSchema{
-			// Primary index is used for volume upsert
-			// and simple direct lookup. ID is required to be
-			// unique.
 			"id": {
 				Name:         "id",
 				AllowMissing: false,
@@ -636,12 +635,29 @@ func csiVolumeTableSchema() *memdb.TableSchema {
 					Field: "ID",
 				},
 			},
-			"driver": {
-				Name:         "driver",
+			"plugin_id": {
+				Name:         "plugin_id",
 				AllowMissing: false,
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
-					Field: "Driver",
+					Field: "PluginID",
+				},
+			},
+		},
+	}
+}
+
+// CSIPlugins are identified by id globally, and searchable by driver
+func csiPluginTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "csi_plugins",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
 				},
 			},
 		},
