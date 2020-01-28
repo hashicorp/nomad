@@ -24,7 +24,7 @@ const (
 // volumeManagers outlive the lifetime of a given allocation as volumes may be
 // shared by multiple allocations on the same node.
 //
-// volumes are stored by an eriched volume usage struct as the CSI Spec requires
+// volumes are stored by an enriched volume usage struct as the CSI Spec requires
 // slightly different usage based on the given usage model.
 type volumeManager struct {
 	logger hclog.Logger
