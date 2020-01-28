@@ -130,7 +130,7 @@ func (i *instanceManager) runLoop() {
 			if i.fp.hadFirstSuccessfulFingerprint && !i.volumeManagerSetup && i.fp.fingerprintNode {
 				i.volumeManagerMu.RUnlock()
 				i.volumeManagerMu.Lock()
-				i.volumeManager = newVolumeManager(i.logger, i.client, i.mountPoint)
+				i.volumeManager = newVolumeManager(i.logger, i.client, i.mountPoint, info.NodeInfo.RequiresNodeStageVolume)
 				i.volumeManagerSetup = true
 				close(i.volumeManagerSetupCh)
 				i.volumeManagerMu.Unlock()
