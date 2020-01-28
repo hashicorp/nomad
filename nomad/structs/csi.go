@@ -135,9 +135,9 @@ func ValidCSIVolumeWriteAccessMode(accessMode CSIVolumeAccessMode) bool {
 	}
 }
 
+// CSIVolume is the full representation of a CSI Volume
 type CSIVolume struct {
 	ID             string
-	Driver         string
 	Namespace      string
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode
@@ -150,66 +150,76 @@ type CSIVolume struct {
 
 	// Healthy is true if all the denormalized plugin health fields are true, and the
 	// volume has not been marked for garbage collection
-	Healthy           bool
-	VolumeGC          time.Time
-	ControllerName    string
-	ControllerHealthy bool
-	Controller        []*Job
-	NodeHealthy       int
-	NodeExpected      int
-	ResourceExhausted time.Time
+	Healthy             bool
+	VolumeGC            time.Time
+	PluginID            string
+	ControllersHealthy  int
+	ControllersExpected int
+	NodesHealthy        int
+	NodesExpected       int
+	ResourceExhausted   time.Time
 
-	CreatedIndex  uint64
-	ModifiedIndex uint64
+	CreateIndex uint64
+	ModifyIndex uint64
 }
 
+// CSIVolListStub is partial representation of a CSI Volume for inclusion in lists
 type CSIVolListStub struct {
-	ID                string
-	Driver            string
-	Namespace         string
-	Topologies        []*CSITopology
-	AccessMode        CSIVolumeAccessMode
-	AttachmentMode    CSIVolumeAttachmentMode
-	CurrentReaders    int
-	CurrentWriters    int
-	Healthy           bool
-	VolumeGC          time.Time
-	ControllerName    string
-	ControllerHealthy bool
-	NodeHealthy       int
-	NodeExpected      int
-	CreatedIndex      uint64
-	ModifiedIndex     uint64
+	ID                  string
+	Namespace           string
+	Topologies          []*CSITopology
+	AccessMode          CSIVolumeAccessMode
+	AttachmentMode      CSIVolumeAttachmentMode
+	CurrentReaders      int
+	CurrentWriters      int
+	Healthy             bool
+	VolumeGC            time.Time
+	PluginID            string
+	ControllersHealthy  int
+	ControllersExpected int
+	NodesHealthy        int
+	NodesExpected       int
+	CreateIndex         uint64
+	ModifyIndex         uint64
 }
 
-func CreateCSIVolume(controllerName string) *CSIVolume {
-	return &CSIVolume{
-		ControllerName: controllerName,
-		ReadAllocs:     map[string]*Allocation{},
-		WriteAllocs:    map[string]*Allocation{},
-		PastAllocs:     map[string]*Allocation{},
-		Topologies:     []*CSITopology{},
+// NewCSIVolume creates the volume struct. No side-effects
+func NewCSIVolume(pluginID string) *CSIVolume {
+	out := &CSIVolume{
+		ID: pluginID,
 	}
+
+	out.newStructs()
+	return out
+}
+
+func (v *CSIVolume) newStructs() {
+	if v.Topologies == nil {
+		v.Topologies = []*CSITopology{}
+	}
+
+	v.ReadAllocs = map[string]*Allocation{}
+	v.WriteAllocs = map[string]*Allocation{}
+	v.PastAllocs = map[string]*Allocation{}
 }
 
 func (v *CSIVolume) Stub() *CSIVolListStub {
 	stub := CSIVolListStub{
-		ID:                v.ID,
-		Driver:            v.Driver,
-		Namespace:         v.Namespace,
-		Topologies:        v.Topologies,
-		AccessMode:        v.AccessMode,
-		AttachmentMode:    v.AttachmentMode,
-		CurrentReaders:    len(v.ReadAllocs),
-		CurrentWriters:    len(v.WriteAllocs),
-		Healthy:           v.Healthy,
-		VolumeGC:          v.VolumeGC,
-		ControllerName:    v.ControllerName,
-		ControllerHealthy: v.ControllerHealthy,
-		NodeHealthy:       v.NodeHealthy,
-		NodeExpected:      v.NodeExpected,
-		CreatedIndex:      v.CreatedIndex,
-		ModifiedIndex:     v.ModifiedIndex,
+		ID:                 v.ID,
+		Namespace:          v.Namespace,
+		Topologies:         v.Topologies,
+		AccessMode:         v.AccessMode,
+		AttachmentMode:     v.AttachmentMode,
+		CurrentReaders:     len(v.ReadAllocs),
+		CurrentWriters:     len(v.WriteAllocs),
+		Healthy:            v.Healthy,
+		VolumeGC:           v.VolumeGC,
+		PluginID:           v.PluginID,
+		ControllersHealthy: v.ControllersHealthy,
+		NodesHealthy:       v.NodesHealthy,
+		NodesExpected:      v.NodesExpected,
+		CreateIndex:        v.CreateIndex,
+		ModifyIndex:        v.ModifyIndex,
 	}
 
 	return &stub
@@ -238,6 +248,29 @@ func (v *CSIVolume) CanWrite() bool {
 	}
 }
 
+// Copy returns a copy of the volume, which shares only the Topologies slice
+func (v *CSIVolume) Copy(index uint64) *CSIVolume {
+	copy := *v
+	out := &copy
+	out.newStructs()
+	out.ModifyIndex = index
+
+	for k, v := range v.ReadAllocs {
+		out.ReadAllocs[k] = v
+	}
+
+	for k, v := range v.WriteAllocs {
+		out.WriteAllocs[k] = v
+	}
+
+	for k, v := range v.PastAllocs {
+		out.PastAllocs[k] = v
+	}
+
+	return out
+}
+
+// Claim updates the allocations and changes the volume state
 func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) bool {
 	switch claim {
 	case CSIVolumeClaimRead:
@@ -250,30 +283,39 @@ func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) bool {
 	return false
 }
 
+// ClaimRead marks an allocation as using a volume read-only
 func (v *CSIVolume) ClaimRead(alloc *Allocation) bool {
 	if !v.CanReadOnly() {
 		return false
 	}
-	v.ReadAllocs[alloc.ID] = alloc
+	// Allocations are copy on write, so we want to keep the id but don't need the
+	// pointer. We'll get it from the db in denormalize.
+	v.ReadAllocs[alloc.ID] = nil
 	delete(v.WriteAllocs, alloc.ID)
 	delete(v.PastAllocs, alloc.ID)
 	return true
 }
 
+// ClaimWrite marks an allocation as using a volume as a writer
 func (v *CSIVolume) ClaimWrite(alloc *Allocation) bool {
 	if !v.CanWrite() {
 		return false
 	}
-	v.WriteAllocs[alloc.ID] = alloc
+	// Allocations are copy on write, so we want to keep the id but don't need the
+	// pointer. We'll get it from the db in denormalize.
+	v.WriteAllocs[alloc.ID] = nil
 	delete(v.ReadAllocs, alloc.ID)
 	delete(v.PastAllocs, alloc.ID)
 	return true
 }
 
+// ClaimRelease is called when the allocation has terminated and already stopped using the volume
 func (v *CSIVolume) ClaimRelease(alloc *Allocation) bool {
 	delete(v.ReadAllocs, alloc.ID)
 	delete(v.WriteAllocs, alloc.ID)
-	v.PastAllocs[alloc.ID] = alloc
+	// Allocations are copy on write, so we want to keep the id but don't need the
+	// pointer. We'll get it from the db in denormalize.
+	v.PastAllocs[alloc.ID] = nil
 	return true
 }
 
@@ -292,11 +334,10 @@ func (v *CSIVolume) Equal(o *CSIVolume) bool {
 
 	// Omit the plugin health fields, their values are controlled by plugin jobs
 	if v.ID == o.ID &&
-		v.Driver == o.Driver &&
 		v.Namespace == o.Namespace &&
 		v.AccessMode == o.AccessMode &&
 		v.AttachmentMode == o.AttachmentMode &&
-		v.ControllerName == o.ControllerName {
+		v.PluginID == o.PluginID {
 		// Setwise equality of topologies
 		var ok bool
 		for _, t := range v.Topologies {
@@ -323,8 +364,8 @@ func (v *CSIVolume) Validate() error {
 	if v.ID == "" {
 		errs = append(errs, "missing volume id")
 	}
-	if v.Driver == "" {
-		errs = append(errs, "missing driver")
+	if v.PluginID == "" {
+		errs = append(errs, "missing plugin id")
 	}
 	if v.Namespace == "" {
 		errs = append(errs, "missing namespace")
@@ -388,7 +429,7 @@ type CSIVolumeClaimRequest struct {
 }
 
 type CSIVolumeListRequest struct {
-	Driver string
+	PluginID string
 	QueryOptions
 }
 
@@ -404,5 +445,191 @@ type CSIVolumeGetRequest struct {
 
 type CSIVolumeGetResponse struct {
 	Volume *CSIVolume
+	QueryMeta
+}
+
+// CSIPlugin bundles job and info context for the plugin for clients
+type CSIPlugin struct {
+	ID   string
+	Type CSIPluginType
+
+	// Jobs is updated by UpsertJob, and keeps an index of jobs containing node or
+	// controller tasks for this plugin. It is addressed by [job.Namespace][job.ID]
+	Jobs map[string]map[string]*Job
+
+	ControllersHealthy int
+	Controllers        map[string]*CSIInfo
+	NodesHealthy       int
+	Nodes              map[string]*CSIInfo
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// NewCSIPlugin creates the plugin struct. No side-effects
+func NewCSIPlugin(id string, index uint64) *CSIPlugin {
+	out := &CSIPlugin{
+		ID:          id,
+		CreateIndex: index,
+		ModifyIndex: index,
+	}
+
+	out.newStructs()
+	return out
+}
+
+func (p *CSIPlugin) newStructs() {
+	p.Jobs = map[string]map[string]*Job{}
+	p.Controllers = map[string]*CSIInfo{}
+	p.Nodes = map[string]*CSIInfo{}
+}
+
+func (p *CSIPlugin) Copy(index uint64) *CSIPlugin {
+	copy := *p
+	out := &copy
+	out.newStructs()
+	out.ModifyIndex = index
+
+	for ns, js := range p.Jobs {
+		out.Jobs[ns] = map[string]*Job{}
+
+		for jid, j := range js {
+			out.Jobs[ns][jid] = j
+		}
+	}
+
+	for k, v := range p.Controllers {
+		out.Controllers[k] = v
+	}
+
+	for k, v := range p.Nodes {
+		out.Nodes[k] = v
+	}
+
+	return out
+}
+
+// AddJob adds a job entry to the plugin
+func (p *CSIPlugin) AddJob(job *Job) {
+	if _, ok := p.Jobs[job.Namespace]; !ok {
+		p.Jobs[job.Namespace] = map[string]*Job{}
+	}
+	p.Jobs[job.Namespace][job.ID] = nil
+}
+
+func (p *CSIPlugin) DeleteJob(job *Job) {
+	delete(p.Jobs[job.Namespace], job.ID)
+}
+
+// AddPlugin adds a single plugin running on the node. Called from state.NodeUpdate in a
+// transaction
+func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo, index uint64) {
+	if info.ControllerInfo != nil {
+		prev, ok := p.Controllers[nodeID]
+		if ok && prev.Healthy {
+			p.ControllersHealthy -= 1
+		}
+		p.Controllers[nodeID] = info
+		if info.Healthy {
+			p.ControllersHealthy += 1
+		}
+	}
+
+	if info.NodeInfo != nil {
+		prev, ok := p.Nodes[nodeID]
+		if ok && prev.Healthy {
+			p.NodesHealthy -= 1
+		}
+		p.Nodes[nodeID] = info
+		if info.Healthy {
+			p.NodesHealthy += 1
+		}
+	}
+
+	p.ModifyIndex = index
+}
+
+// DeleteNode removes all plugins from the node. Called from state.DeleteNode in a
+// transaction
+func (p *CSIPlugin) DeleteNode(nodeID string, index uint64) {
+	prev, ok := p.Controllers[nodeID]
+	if ok && prev.Healthy {
+		p.ControllersHealthy -= 1
+	}
+	delete(p.Controllers, nodeID)
+
+	prev, ok = p.Nodes[nodeID]
+	if ok && prev.Healthy {
+		p.NodesHealthy -= 1
+	}
+	delete(p.Nodes, nodeID)
+
+	p.ModifyIndex = index
+}
+
+type CSIPluginListStub struct {
+	ID                  string
+	Type                CSIPluginType
+	JobIDs              map[string]map[string]struct{}
+	ControllersHealthy  int
+	ControllersExpected int
+	NodesHealthy        int
+	NodesExpected       int
+	CreateIndex         uint64
+	ModifyIndex         uint64
+}
+
+func (p *CSIPlugin) Stub() *CSIPluginListStub {
+	ids := map[string]map[string]struct{}{}
+	for ns, js := range p.Jobs {
+		ids[ns] = map[string]struct{}{}
+		for id := range js {
+			ids[ns][id] = struct{}{}
+		}
+	}
+
+	return &CSIPluginListStub{
+		ID:                  p.ID,
+		Type:                p.Type,
+		JobIDs:              ids,
+		ControllersHealthy:  p.ControllersHealthy,
+		ControllersExpected: len(p.Controllers),
+		NodesHealthy:        p.NodesHealthy,
+		NodesExpected:       len(p.Nodes),
+		CreateIndex:         p.CreateIndex,
+		ModifyIndex:         p.ModifyIndex,
+	}
+}
+
+func (p *CSIPlugin) IsEmpty() bool {
+	if !(len(p.Controllers) == 0 && len(p.Nodes) == 0) {
+		return false
+	}
+
+	empty := true
+	for _, m := range p.Jobs {
+		if len(m) > 0 {
+			empty = false
+		}
+	}
+	return empty
+}
+
+type CSIPluginListRequest struct {
+	QueryOptions
+}
+
+type CSIPluginListResponse struct {
+	Plugins []*CSIPluginListStub
+	QueryMeta
+}
+
+type CSIPluginGetRequest struct {
+	ID string
+	QueryOptions
+}
+
+type CSIPluginGetResponse struct {
+	Plugin *CSIPlugin
 	QueryMeta
 }
