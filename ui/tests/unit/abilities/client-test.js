@@ -1,20 +1,11 @@
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import Service from '@ember/service';
-
-function setupAbility(ability, hooks) {
-  hooks.beforeEach(function() {
-    this.ability = this.owner.lookup(`ability:${ability}`);
-  });
-
-  hooks.afterEach(function() {
-    delete this.ability;
-  });
-}
+import setupAbility from 'nomad-ui/tests/helpers/setup-ability';
 
 module('Unit | Ability | client', function(hooks) {
   setupTest(hooks);
-  setupAbility('client', hooks);
+  setupAbility('client')(hooks);
 
   test('it permits client write for management tokens', function(assert) {
     const mockToken = Service.extend({
