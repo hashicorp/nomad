@@ -109,13 +109,18 @@ func (tr *TaskRunner) initHooks() {
 	// If this is a Connect sidecar proxy (or a Connect Native) service,
 	// add the sidsHook for requesting a Service Identity token (if ACLs).
 	if task.UsesConnect() {
-		tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
-			alloc:      tr.Alloc(),
-			task:       tr.Task(),
-			sidsClient: tr.siClient,
-			lifecycle:  tr,
-			logger:     hookLogger,
-		}))
+		// Enable the Service Identity hook only if the Nomad client is configured
+		// with a consul token, indicating that Consul ACLs are enabled
+		if tr.clientConfig.ConsulConfig.Token != "" {
+			tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
+				alloc:      tr.Alloc(),
+				task:       tr.Task(),
+				sidsClient: tr.siClient,
+				lifecycle:  tr,
+				logger:     hookLogger,
+			}))
+		}
+
 		// envoy bootstrap must execute after sidsHook maybe sets SI token
 		tr.runnerHooks = append(tr.runnerHooks, newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
 			alloc:          alloc,

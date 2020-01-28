@@ -1,25 +1,25 @@
 acl = "write"
 
-agent "" {
+agent_prefix "" {
   policy = "write"
 }
 
-event "" {
+event_prefix "" {
   policy = "write"
 }
 
-key "" {
+key_prefix "" {
   policy = "write"
 }
 
-node "" {
+node_prefix "" {
   policy = "write"
 }
 
-query "" {
+query_prefix "" {
   policy = "write"
 }
 
-service "" {
+service_prefix "" {
   policy = "write"
 }

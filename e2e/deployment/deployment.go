@@ -41,13 +41,13 @@ func (tc *DeploymentTest) TestDeploymentAutoPromote(f *framework.F) {
 	// unique each run, cluster could have previous jobs
 	jobId := "deployment" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, jobId)
-	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "deployment/input/deployment_auto0.nomad", jobId)
+	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "deployment/input/deployment_auto0.nomad", jobId, "")
 	ds := e2eutil.DeploymentsForJob(t, nomadClient, jobId)
 	require.Equal(t, 1, len(ds))
 	deploy := ds[0]
 
 	// Upgrade
-	e2eutil.RegisterAllocs(t, nomadClient, "deployment/input/deployment_auto1.nomad", jobId)
+	e2eutil.RegisterAllocs(t, nomadClient, "deployment/input/deployment_auto1.nomad", jobId, "")
 
 	// Find the deployment we don't already have
 	testutil.WaitForResult(func() (bool, error) {
