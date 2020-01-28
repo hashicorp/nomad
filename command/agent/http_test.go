@@ -15,6 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -676,6 +679,335 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	if assert.Nil(err) {
 		resp.Body.Close()
 		assert.Equal(resp.StatusCode, 200)
+	}
+}
+
+// TestHTTPServer_Limits_Error asserts invalid Limits cause errors. This is the
+// HTTP counterpart to TestAgent_ServerConfig_Limits_Error.
+func TestHTTPServer_Limits_Error(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		tls         bool
+		timeout     string
+		limit       *int
+		expectedErr string
+	}{
+		{
+			tls:         true,
+			timeout:     "",
+			limit:       nil,
+			expectedErr: "error parsing https_handshake_timeout: ",
+		},
+		{
+			tls:         false,
+			timeout:     "",
+			limit:       nil,
+			expectedErr: "error parsing https_handshake_timeout: ",
+		},
+		{
+			tls:         true,
+			timeout:     "-1s",
+			limit:       nil,
+			expectedErr: "https_handshake_timeout must be >= 0",
+		},
+		{
+			tls:         false,
+			timeout:     "-1s",
+			limit:       nil,
+			expectedErr: "https_handshake_timeout must be >= 0",
+		},
+		{
+			tls:         true,
+			timeout:     "5s",
+			limit:       helper.IntToPtr(-1),
+			expectedErr: "http_max_conns_per_client must be >= 0",
+		},
+		{
+			tls:         false,
+			timeout:     "5s",
+			limit:       helper.IntToPtr(-1),
+			expectedErr: "http_max_conns_per_client must be >= 0",
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		name := fmt.Sprintf("%d-tls-%t-timeout-%s-limit-%v", i, tc.tls, tc.timeout, tc.limit)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			// Use a fake agent since the HTTP server should never start
+			agent := &Agent{
+				logger: testlog.HCLogger(t),
+			}
+
+			conf := &Config{
+				normalizedAddrs: &Addresses{
+					HTTP: "localhost:0", // port is never used
+				},
+				TLSConfig: &config.TLSConfig{
+					EnableHTTP: tc.tls,
+				},
+				Limits: config.Limits{
+					HTTPSHandshakeTimeout: tc.timeout,
+					HTTPMaxConnsPerClient: tc.limit,
+				},
+			}
+
+			srv, err := NewHTTPServer(agent, conf)
+			require.Error(t, err)
+			require.Nil(t, srv)
+			require.Contains(t, err.Error(), tc.expectedErr)
+		})
+	}
+}
+
+// TestHTTPServer_Limits_OK asserts that all valid limits combinations
+// (tls/timeout/conns) work.
+func TestHTTPServer_Limits_OK(t *testing.T) {
+	t.Parallel()
+	const (
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		maxConns = 10 // limit must be < this for testing
+	)
+
+	cases := []struct {
+		tls           bool
+		timeout       string
+		limit         *int
+		assertTimeout bool
+		assertLimit   bool
+	}{
+		{
+			tls:           false,
+			timeout:       "5s",
+			limit:         nil,
+			assertTimeout: false,
+			assertLimit:   false,
+		},
+		{
+			tls:           true,
+			timeout:       "5s",
+			limit:         nil,
+			assertTimeout: true,
+			assertLimit:   false,
+		},
+		{
+			tls:           false,
+			timeout:       "0",
+			limit:         nil,
+			assertTimeout: false,
+			assertLimit:   false,
+		},
+		{
+			tls:           true,
+			timeout:       "0",
+			limit:         nil,
+			assertTimeout: false,
+			assertLimit:   false,
+		},
+		{
+			tls:           false,
+			timeout:       "0",
+			limit:         helper.IntToPtr(2),
+			assertTimeout: false,
+			assertLimit:   true,
+		},
+		{
+			tls:           true,
+			timeout:       "0",
+			limit:         helper.IntToPtr(2),
+			assertTimeout: false,
+			assertLimit:   true,
+		},
+		{
+			tls:           false,
+			timeout:       "5s",
+			limit:         helper.IntToPtr(2),
+			assertTimeout: false,
+			assertLimit:   true,
+		},
+		{
+			tls:           true,
+			timeout:       "5s",
+			limit:         helper.IntToPtr(2),
+			assertTimeout: true,
+			assertLimit:   true,
+		},
+	}
+
+	assertTimeout := func(t *testing.T, a *TestAgent, assertTimeout bool, timeout string) {
+		timeoutDeadline, err := time.ParseDuration(timeout)
+		require.NoError(t, err)
+
+		// Increase deadline to detect timeouts
+		deadline := timeoutDeadline + time.Second
+
+		conn, err := net.DialTimeout("tcp", a.Server.Addr, deadline)
+		require.NoError(t, err)
+		defer conn.Close()
+
+		buf := []byte{0}
+		readDeadline := time.Now().Add(deadline)
+		conn.SetReadDeadline(readDeadline)
+		n, err := conn.Read(buf)
+		require.Zero(t, n)
+		if assertTimeout {
+			// Server timeouts == EOF
+			require.Equal(t, io.EOF, err)
+
+			// Perform blocking query to assert timeout is not
+			// enabled post-TLS-handshake.
+			q := &api.QueryOptions{
+				WaitIndex: 10000, // wait a looong time
+				WaitTime:  deadline,
+			}
+
+			// Assertions don't require certificate validation
+			conf := api.DefaultConfig()
+			conf.Address = a.HTTPAddr()
+			conf.TLSConfig.Insecure = true
+			client, err := api.NewClient(conf)
+			require.NoError(t, err)
+
+			// Assert a blocking query isn't timed out by the
+			// handshake timeout
+			jobs, meta, err := client.Jobs().List(q)
+			require.NoError(t, err)
+			require.Len(t, jobs, 0)
+			require.Truef(t, meta.RequestTime >= deadline,
+				"expected RequestTime (%s) >= Deadline (%s)",
+				meta.RequestTime, deadline)
+
+			return
+		}
+
+		// HTTP Server should *not* have timed out.
+		// Now() should always be after the read deadline, but
+		// isn't a sufficient assertion for correctness as slow
+		// tests may cause this to be true even if the server
+		// timed out.
+		require.True(t, time.Now().After(readDeadline))
+
+		testutil.RequireDeadlineErr(t, err)
+	}
+
+	assertNoLimit := func(t *testing.T, addr string) {
+		var err error
+
+		// Create max connections
+		conns := make([]net.Conn, maxConns)
+		errCh := make(chan error, maxConns)
+		for i := 0; i < maxConns; i++ {
+			conns[i], err = net.DialTimeout("tcp", addr, 1*time.Second)
+			require.NoError(t, err)
+			defer conns[i].Close()
+
+			go func(i int) {
+				buf := []byte{0}
+				readDeadline := time.Now().Add(1 * time.Second)
+				conns[i].SetReadDeadline(readDeadline)
+				n, err := conns[i].Read(buf)
+				if n > 0 {
+					errCh <- fmt.Errorf("n > 0: %d", n)
+					return
+				}
+				errCh <- err
+			}(i)
+		}
+
+		// Now assert each error is a clientside read deadline error
+		for i := 0; i < maxConns; i++ {
+			select {
+			case <-time.After(1 * time.Second):
+				t.Fatalf("timed out waiting for conn error %d", i)
+			case err := <-errCh:
+				testutil.RequireDeadlineErr(t, err)
+			}
+		}
+	}
+
+	assertLimit := func(t *testing.T, addr string, limit int) {
+		var err error
+
+		// Create limit connections
+		conns := make([]net.Conn, limit)
+		errCh := make(chan error, limit)
+		for i := range conns {
+			conns[i], err = net.DialTimeout("tcp", addr, 1*time.Second)
+			require.NoError(t, err)
+			defer conns[i].Close()
+
+			go func(i int) {
+				buf := []byte{0}
+				n, err := conns[i].Read(buf)
+				if n > 0 {
+					errCh <- fmt.Errorf("n > 0: %d", n)
+					return
+				}
+				errCh <- err
+			}(i)
+		}
+
+		// Assert a new connection is dropped
+		conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
+		require.NoError(t, err)
+		defer conn.Close()
+
+		buf := []byte{0}
+		deadline := time.Now().Add(10 * time.Second)
+		conn.SetReadDeadline(deadline)
+		n, err := conn.Read(buf)
+		require.Zero(t, n)
+		require.Equal(t, io.EOF, err)
+
+		// Assert existing connections are ok
+		require.Len(t, errCh, 0)
+
+		// Cleanup
+		for _, conn := range conns {
+			conn.Close()
+		}
+		for _ = range conns {
+			err := <-errCh
+			require.Contains(t, err.Error(), "use of closed network connection")
+		}
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		name := fmt.Sprintf("%d-tls-%t-timeout-%s-limit-%v", i, tc.tls, tc.timeout, tc.limit)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if tc.limit != nil && *tc.limit >= maxConns {
+				t.Fatalf("test fixture failure: cannot assert limit (%d) >= max (%d)", *tc.limit, maxConns)
+			}
+
+			s := makeHTTPServer(t, func(c *Config) {
+				if tc.tls {
+					c.TLSConfig = &config.TLSConfig{
+						EnableHTTP: true,
+						CAFile:     cafile,
+						CertFile:   foocert,
+						KeyFile:    fookey,
+					}
+				}
+				c.Limits.HTTPSHandshakeTimeout = tc.timeout
+				c.Limits.HTTPMaxConnsPerClient = tc.limit
+			})
+			defer s.Shutdown()
+
+			assertTimeout(t, s, tc.assertTimeout, tc.timeout)
+			if tc.assertLimit {
+				assertLimit(t, s.Server.Addr, *tc.limit)
+			} else {
+				assertNoLimit(t, s.Server.Addr)
+			}
+		})
 	}
 }
 
