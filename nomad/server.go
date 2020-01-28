@@ -1234,10 +1234,10 @@ func (s *Server) setupRaft() error {
 		}
 	}
 
-	// Setup the leader channel
+	// Setup the leader channel; that keeps the latest leadership alone
 	leaderCh := make(chan bool, 1)
 	s.config.RaftConfig.NotifyCh = leaderCh
-	s.leaderCh = leaderCh
+	s.leaderCh = dropButLastChannel(leaderCh, s.shutdownCh)
 
 	// Setup the Raft store
 	s.raft, err = raft.NewRaft(s.config.RaftConfig, s.fsm, log, stable, snap, trans)

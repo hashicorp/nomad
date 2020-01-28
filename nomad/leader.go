@@ -59,37 +59,59 @@ var defaultSchedulerConfig = &structs.SchedulerConfiguration{
 func (s *Server) monitorLeadership() {
 	var weAreLeaderCh chan struct{}
 	var leaderLoop sync.WaitGroup
+
+	leaderStep := func(isLeader bool) {
+		if isLeader {
+			if weAreLeaderCh != nil {
+				s.logger.Error("attempted to start the leader loop while running")
+				return
+			}
+
+			weAreLeaderCh = make(chan struct{})
+			leaderLoop.Add(1)
+			go func(ch chan struct{}) {
+				defer leaderLoop.Done()
+				s.leaderLoop(ch)
+			}(weAreLeaderCh)
+			s.logger.Info("cluster leadership acquired")
+			return
+		}
+
+		if weAreLeaderCh == nil {
+			s.logger.Error("attempted to stop the leader loop while not running")
+			return
+		}
+
+		s.logger.Debug("shutting down leader loop")
+		close(weAreLeaderCh)
+		leaderLoop.Wait()
+		weAreLeaderCh = nil
+		s.logger.Info("cluster leadership lost")
+	}
+
+	wasLeader := false
 	for {
 		select {
 		case isLeader := <-s.leaderCh:
-			switch {
-			case isLeader:
-				if weAreLeaderCh != nil {
-					s.logger.Error("attempted to start the leader loop while running")
-					continue
-				}
+			if wasLeader != isLeader {
+				wasLeader = isLeader
+				// normal case where we went through a transition
+				leaderStep(isLeader)
+			} else if wasLeader && isLeader {
+				// Server lost but then gained leadership immediately.
+				// During this time, this server may have received
+				// Raft transitions that haven't been applied to the FSM
+				// yet.
+				// Ensure that that FSM caught up and eval queues are refreshed
+				s.logger.Warn("cluster leadership lost and gained leadership immediately.  Could indicate network issues, memory paging, or high CPU load.")
 
-				weAreLeaderCh = make(chan struct{})
-				leaderLoop.Add(1)
-				go func(ch chan struct{}) {
-					defer leaderLoop.Done()
-					s.leaderLoop(ch)
-				}(weAreLeaderCh)
-				s.logger.Info("cluster leadership acquired")
-
-			default:
-				if weAreLeaderCh == nil {
-					s.logger.Error("attempted to stop the leader loop while not running")
-					continue
-				}
-
-				s.logger.Debug("shutting down leader loop")
-				close(weAreLeaderCh)
-				leaderLoop.Wait()
-				weAreLeaderCh = nil
-				s.logger.Info("cluster leadership lost")
+				leaderStep(false)
+				leaderStep(true)
+			} else {
+				// Server gained but lost leadership immediately
+				// before it reacted; nothing to do, move on
+				s.logger.Warn("cluster leadership gained and lost leadership immediately.  Could indicate network issues, memory paging, or high CPU load.")
 			}
-
 		case <-s.shutdownCh:
 			return
 		}
