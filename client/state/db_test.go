@@ -76,12 +76,6 @@ func TestStateDB_Allocations(t *testing.T) {
 		alloc1 := mock.Alloc()
 		alloc2 := mock.BatchAlloc()
 
-		//XXX Sadly roundtripping allocs loses time.Duration type
-		//    information from the Config map[string]interface{}. As
-		//    the mock driver itself with unmarshal run_for into the
-		//    proper type, we can safely ignore it here.
-		delete(alloc2.Job.TaskGroups[0].Tasks[0].Config, "run_for")
-
 		require.NoError(db.PutAllocation(alloc1))
 		require.NoError(db.PutAllocation(alloc2))
 
