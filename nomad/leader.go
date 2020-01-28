@@ -61,8 +61,7 @@ func (s *Server) monitorLeadership() {
 	var leaderLoop sync.WaitGroup
 
 	leaderStep := func(isLeader bool) {
-		switch {
-		case isLeader:
+		if isLeader {
 			if weAreLeaderCh != nil {
 				s.logger.Error("attempted to start the leader loop while running")
 				return
@@ -75,19 +74,19 @@ func (s *Server) monitorLeadership() {
 				s.leaderLoop(ch)
 			}(weAreLeaderCh)
 			s.logger.Info("cluster leadership acquired")
-
-		default:
-			if weAreLeaderCh == nil {
-				s.logger.Error("attempted to stop the leader loop while not running")
-				return
-			}
-
-			s.logger.Debug("shutting down leader loop")
-			close(weAreLeaderCh)
-			leaderLoop.Wait()
-			weAreLeaderCh = nil
-			s.logger.Info("cluster leadership lost")
+			return
 		}
+
+		if weAreLeaderCh == nil {
+			s.logger.Error("attempted to stop the leader loop while not running")
+			return
+		}
+
+		s.logger.Debug("shutting down leader loop")
+		close(weAreLeaderCh)
+		leaderLoop.Wait()
+		weAreLeaderCh = nil
+		s.logger.Info("cluster leadership lost")
 	}
 
 	wasLeader := false
