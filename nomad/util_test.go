@@ -263,6 +263,7 @@ func TestMaxUint64(t *testing.T) {
 func TestDropButLastChannelDropsValues(t *testing.T) {
 	sourceCh := make(chan bool)
 	shutdownCh := make(chan struct{})
+	defer close(shutdownCh)
 
 	dstCh := dropButLastChannel(sourceCh, shutdownCh)
 
@@ -327,8 +328,6 @@ func TestDropButLastChannelDropsValues(t *testing.T) {
 	case <-time.After(timeoutDuration):
 		require.Fail(t, "timed out waiting for source->dstCh propagation")
 	}
-
-	close(shutdownCh)
 }
 
 // TestDropButLastChannel_DeliversMessages asserts that last
@@ -338,6 +337,7 @@ func TestDropButLastChannelDropsValues(t *testing.T) {
 func TestDropButLastChannel_DeliversMessages(t *testing.T) {
 	sourceCh := make(chan bool)
 	shutdownCh := make(chan struct{})
+	defer close(shutdownCh)
 
 	dstCh := dropButLastChannel(sourceCh, shutdownCh)
 
@@ -386,6 +386,7 @@ RECEIVE_LOOP:
 func TestDropButLastChannel_DeliversMessages_Close(t *testing.T) {
 	sourceCh := make(chan bool)
 	shutdownCh := make(chan struct{})
+	defer close(shutdownCh)
 
 	dstCh := dropButLastChannel(sourceCh, shutdownCh)
 
