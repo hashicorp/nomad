@@ -117,7 +117,7 @@ func (tc *MetricsTest) runWorkloads(t *testing.T, workloads map[string]string) {
 		jobID := "metrics-" + jobName + "-" + uuid[0:8]
 		tc.jobIDs = append(tc.jobIDs, jobID)
 		file := "metrics/input/" + jobName + ".nomad"
-		allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), file, jobID)
+		allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), file, jobID, "")
 		if len(allocs) == 0 {
 			t.Fatalf("failed to register %s", jobID)
 		}

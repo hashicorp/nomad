@@ -39,7 +39,7 @@ func (tc *BasicHostVolumeTest) TestSingleHostVolume(f *framework.F) {
 	uuid := uuid.Generate()
 	jobID := "hostvol" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, jobID)
-	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "hostvolumes/input/single_mount.nomad", jobID)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "hostvolumes/input/single_mount.nomad", jobID, "")
 
 	waitForTaskState := func(desiredState string) {
 		require.Eventually(func() bool {

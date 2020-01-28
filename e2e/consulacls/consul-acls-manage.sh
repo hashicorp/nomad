@@ -24,7 +24,7 @@ linux_clients=$(jq -r .outputs.linux_clients.value[] <"${tfstatefile}" | xargs)
 windows_clients=$(jq -r .outputs.windows_clients.value[] <"${tfstatefile}" | xargs)
 
 # Combine all the clients together
-clients="${linux_clients} ${windows_clients}"
+# clients="${linux_clients} ${windows_clients}"
 
 # Load Server Node IPs from terraform/terraform.tfstate
 servers=$(jq -r .outputs.servers.value[] <"${tfstatefile}" | xargs)
@@ -93,15 +93,14 @@ function doBootstrap() {
   # Stop all Nomad agents.
   stopNomad
 
-  # Stop all Consul agents.
-  stopConsul
-
-  # Run the activation step, which uploads the ACLs-enabled acl.hcl file
+  # Run the pre-activation step, which uploads an acl.hcl file (with default:allow)
   # to each Consul configuration directory, then (re)starts each
   # Consul agent.
-  doActivate
+  doPreActivateACLs
 
   echo "=== Bootstrap: Consul ACL Bootstrap ==="
+  echo "sleeping 2 minutes to let Consul agents settle (avoid Legacy mode error)..."
+  sleep 120
 
   # Bootstrap Consul ACLs on server[0]
   echo "-> bootstrap ACL using ${server0}"
@@ -126,9 +125,9 @@ function doBootstrap() {
     echo "---> done setting agent token for server ${server}"
   done
 
-  # Wait 10s before continuing with configuring consul clients.
-  echo "-> sleep 10s before continuing with clients"
-  sleep 10
+  # Wait 30s before continuing with configuring consul clients.
+  echo "-> sleep 3s before continuing with clients"
+  sleep 3
 
   # Create Consul Client Policy & Client agent tokens
   echo "-> configure consul client policy"
@@ -140,8 +139,12 @@ function doBootstrap() {
     client_agent_token=$(consul acl token create -description "consul client agent token" -policy-name client-policy | grep SecretID | awk '{print $2}')
     echo "---> setting consul token for consul client ${linux_client} -> ${client_agent_token}"
     (export CONSUL_HTTP_ADDR="${linux_client}:8500"; consul acl set-agent-token agent "${client_agent_token}")
-    echo "---> done setting consul agent token for client ${linux_client}"
+    echo "---> done setting agent token for client ${linux_client}"
   done
+
+  # Now, upload the ACL policy file with default:deny so that ACL are actually
+  # enforced.
+  doActivateACLs
 
   echo "=== Bootstrap: Nomad Configs ==="
 
@@ -178,13 +181,40 @@ function doBootstrap() {
   echo "=== Activate: DONE ==="
 }
 
-function doEnable() {
+function doSetAllowUnauthenticated {
+  value="${1}"
+  [ "${value}" == "true" ] || [ "${value}" == "false" ] || ( echo "allow_unauthenticated must be 'true' or 'false'" && exit 1)
+  for server in ${servers}; do
+    if [ "${value}" == "true" ]; then
+      echo "---> setting consul.allow_unauthenticated=true on ${server}"
+      doSSH "${server}" "sudo sed -i 's/allow_unauthenticated = false/allow_unauthenticated = true/g' ${nomad_configs}/nomad-server-consul.hcl"
+    else
+      echo "---> setting consul.allow_unauthenticated=false on ${server}"
+      doSSH "${server}" "sudo sed -i 's/allow_unauthenticated = true/allow_unauthenticated = false/g' ${nomad_configs}/nomad-server-consul.hcl"
+    fi
+    doSSH "${server}" "sudo systemctl restart nomad"
+  done
+
+  for linux_client in ${linux_clients}; do
+    if [ "${value}" == "true" ]; then
+      echo "---> comment out consul token for Nomad client ${linux_client}"
+      doSSH "${linux_client}" "sudo sed -i 's!token =!// token =!g' ${nomad_configs}/nomad-client-consul.hcl"
+    else
+      echo "---> un-comment consul token for Nomad client ${linux_client}"
+      doSSH "${linux_client}" "sudo sed -i 's!// token =!token =!g' ${nomad_configs}/nomad-client-consul.hcl"
+    fi
+    doSSH "${linux_client}" "sudo systemctl restart nomad"
+  done
+}
+
+function doEnable {
   if [ ! -f "${token_file}" ]; then
     echo "ENABLE: token file does not exist, doing a full ACL bootstrap"
     doBootstrap
   else
     echo "ENABLE: token file already exists, will activate ACLs"
-    doActivate
+    doSetAllowUnauthenticated "false"
+    doActivateACLs
   fi
 
   echo "=== Enable: DONE ==="
@@ -197,13 +227,14 @@ function doEnable() {
   doStatus
 }
 
-function doDisable() {
+function doDisable {
   if [ ! -f "${token_file}" ]; then
     echo "DISABLE: token file does not exist, did bootstrap ever happen?"
     exit 1
   else
     echo "DISABLE: token file exists, will deactivate ACLs"
-    doDeactivate
+    doSetAllowUnauthenticated "true"
+    doDeactivateACLs
   fi
 
   echo "=== Disable: DONE ==="
@@ -213,8 +244,29 @@ function doDisable() {
   doStatus
 }
 
-function doActivate() {
-  echo "=== Activate ==="
+function doPreActivateACLs {
+  echo "=== PreActivate (set default:allow) ==="
+
+  stopConsul
+
+  # Upload acl-pre-enable.hcl to each Consul agent's configuration directory.
+  for agent in ${servers} ${linux_clients}; do
+    echo " pre-activate: upload acl-pre-enable.hcl to ${agent}::acl.hcl"
+    doSCP "consulacls/acl-pre-enable.hcl" "${user}" "${agent}" "/tmp/acl.hcl"
+    doSSH "${agent}" "sudo mv /tmp/acl.hcl ${consul_configs}/acl.hcl"
+  done
+
+  # Start each Consul agent to pickup the new config.
+  for agent in ${servers} ${linux_clients}; do
+    echo " pre-activate: start Consul agent on ${agent}"
+    doSSH "${agent}" "sudo systemctl start consul"
+  done
+
+  echo "=== PreActivate: DONE ==="
+}
+
+function doActivateACLs {
+  echo "=== Activate (set default:deny) ==="
 
   stopConsul
 
@@ -225,14 +277,14 @@ function doActivate() {
     doSSH "${agent}" "sudo mv /tmp/acl.hcl ${consul_configs}/acl.hcl"
   done
 
-  # Restart each Consul agent to pickup the new config.
+  # Start each Consul agent to pickup the new config.
   for agent in ${servers} ${linux_clients}; do
     echo " activate: restart Consul agent on ${agent} ..."
     doSSH "${agent}" "sudo systemctl start consul"
-    sleep 1
   done
 
-  sleep 10
+  echo "--> activate ACLs sleep for 2 minutes to let Consul figure things out"
+  sleep 120
   echo "=== Activate: DONE ==="
 }
 
@@ -312,20 +364,19 @@ function startConsulClients {
     echo "... all consul clients started"
 }
 
-function doDeactivate {
+function doDeactivateACLs {
   echo "=== Deactivate ==="
-  # Upload acl-disable.hcl to each Consul Server agent's configuration directory.
-  for server in ${servers}; do
-    echo " deactivate: upload acl-disable.hcl to ${server}::acl.hcl"
-    doSCP "consulacls/acl-disable.hcl" "${user}" "${server}" "/tmp/acl.hcl"
-    doSSH "${server}" "sudo mv /tmp/acl.hcl ${consul_configs}/acl.hcl"
+  # Upload acl-disable.hcl to each Consul agent's configuration directory.
+  for agent in ${servers} ${linux_clients}; do
+    echo " deactivate: upload acl-disable.hcl to ${agent}::acl.hcl"
+    doSCP "consulacls/acl-disable.hcl" "${user}" "${agent}" "/tmp/acl.hcl"
+    doSSH "${agent}" "sudo mv /tmp/acl.hcl ${consul_configs}/acl.hcl"
   done
 
-  # Restart each Consul server agent to pickup the new config.
-  for server in ${servers}; do
-    echo " deactivate: restart Consul Server on ${server} ..."
-    doSSH "${server}" "sudo systemctl restart consul"
-    sleep 3 # let the agent settle
+  # Restart each Consul agent to pickup the new config.
+  for agent in ${servers} ${linux_clients}; do
+    echo " deactivate: restart Consul on ${agent} ..."
+    doSSH "${agent}" "sudo systemctl restart consul"
   done
 
   # Wait 10s before moving on, Consul needs a second to calm down.
@@ -348,12 +399,6 @@ function doStatus {
 
 # It's the entrypoint to our script!
 case "${subcommand}" in
-  bootstrap)
-    # The bootstrap target exists to make some local development easier. Test
-    # cases running from the e2e framework should always use "enable" which aims
-    # to be idempotent.
-    doBootstrap
-    ;;
   enable)
     doEnable
     ;;

@@ -1095,7 +1095,7 @@ func (_ *mockEnvoyBootstrapHook) Name() string {
 	return "mock_envoy_bootstrap"
 }
 
-func (m *mockEnvoyBootstrapHook) Prestart(_ context.Context, _ *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+func (_ *mockEnvoyBootstrapHook) Prestart(_ context.Context, _ *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	resp.Done = true
 	return nil
 }
@@ -1126,6 +1126,10 @@ func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
 
 	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
+
+	// set a consul token on the Nomad client's consul config, because that is
+	// what gates the action of requesting SI token(s)
+	trConfig.ClientConfig.ConsulConfig.Token = uuid.Generate()
 
 	// control when we get a Consul SI token
 	token := uuid.Generate()
@@ -1191,6 +1195,10 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
 
+	// set a consul token on the Nomad client's consul config, because that is
+	// what gates the action of requesting SI token(s)
+	trConfig.ClientConfig.ConsulConfig.Token = uuid.Generate()
+
 	// control when we get a Consul SI token (recoverable failure on first call)
 	token := uuid.Generate()
 	deriveCount := 0
@@ -1250,6 +1258,10 @@ func TestTaskRunner_DeriveSIToken_Unrecoverable(t *testing.T) {
 
 	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
+
+	// set a consul token on the Nomad client's consul config, because that is
+	// what gates the action of requesting SI token(s)
+	trConfig.ClientConfig.ConsulConfig.Token = uuid.Generate()
 
 	// SI token derivation suffers a non-retryable error
 	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
