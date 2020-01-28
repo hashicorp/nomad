@@ -103,14 +103,14 @@ func (s *Server) monitorLeadership() {
 				// Raft transitions that haven't been applied to the FSM
 				// yet.
 				// Ensure that that FSM caught up and eval queues are refreshed
-				s.logger.Error("cluster leadership flapped, lost and gained leadership immediately.  Leadership flaps indicate a cluster wide problems (e.g. networking).")
+				s.logger.Warn("cluster leadership lost and gained leadership immediately.  Could indicate network issues, memory paging, or high CPU load.")
 
 				leaderStep(false)
 				leaderStep(true)
 			} else {
 				// Server gained but lost leadership immediately
 				// before it reacted; nothing to do, move on
-				s.logger.Error("cluster leadership flapped, gained and lost leadership immediately.  Leadership flaps indicate a cluster wide problems (e.g. networking).")
+				s.logger.Warn("cluster leadership gained and lost leadership immediately.  Could indicate network issues, memory paging, or high CPU load.")
 			}
 		case <-s.shutdownCh:
 			return
