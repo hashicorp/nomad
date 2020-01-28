@@ -8,7 +8,7 @@ export default create({
     name: text('[data-test-task-group-name]'),
 
     chevron: {
-      scope: '.icon',
+      scope: '.toggle-button .icon',
       isDown: hasClass('icon-is-chevron-down'),
       isRight: hasClass('icon-is-chevron-right'),
     },
