@@ -1,0 +1,8 @@
+<button {{action "toggleOpen"}} data-test-task-group-name>{{taskGroup.name}}</button>
+{{#if isOpen}}
+  <ul>
+    {{#each taskGroup.tasks as |task|}}
+      <li data-test-task>{{task.name}}</li>
+    {{/each}}
+  </ul>
+{{/if}}

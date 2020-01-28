@@ -14,7 +14,7 @@ module('Acceptance | exec', function(hooks) {
     server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
   });
 
-  test('/exec/:job should show the task groups and tasks', async function(assert) {
+  test('/exec/:job should show the task groups and tasks and allow task groups to be collapsed', async function(assert) {
     await Exec.visit({ job: this.job.id });
 
     assert.equal(document.title, 'Exec - Nomad');
@@ -22,6 +22,12 @@ module('Acceptance | exec', function(hooks) {
     assert.equal(Exec.taskGroups.length, this.job.task_groups.length);
 
     assert.equal(Exec.taskGroups[0].name, this.job.task_groups.models[0].name);
+    assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
+
+    await Exec.taskGroups[0].click();
+    assert.equal(Exec.taskGroups[0].tasks.length, 0);
+
+    await Exec.taskGroups[0].click();
     assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
   });
 });
