@@ -15,6 +15,7 @@ Prefer adding a new message to changing any existing RPC messages.
   * RPCs are resolved by matching the method name for bound structs
 	[net/rpc](https://golang.org/pkg/net/rpc/)
   * Check ACLs for security, list endpoints filter by ACL
+  * Register new RPC struct in `nomad/server.go`
 * Wrapper for the HTTP request in `command/agent/foo_endpoint.go`
   * Backwards compatibility requires a new endpoint, an upgraded
     client or server may be forwarding this request to an old server,
