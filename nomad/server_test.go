@@ -548,3 +548,30 @@ func TestServer_InvalidSchedulers(t *testing.T) {
 	require.NotNil(err)
 	require.Contains(err.Error(), "foo")
 }
+
+func TestServer_RPCNameAndRegionValidation(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		region   string
+		expected bool
+	}{
+		// OK
+		{name: "client.global.nomad", region: "global", expected: true},
+		{name: "server.global.nomad", region: "global", expected: true},
+		{name: "server.other.nomad", region: "global", expected: true},
+		{name: "server.other.region.nomad", region: "other.region", expected: true},
+
+		// Bad
+		{name: "client.other.nomad", region: "global", expected: false},
+		{name: "client.global.nomad.other", region: "global", expected: false},
+		{name: "server.global.nomad.other", region: "global", expected: false},
+		{name: "other.global.nomad", region: "global", expected: false},
+		{name: "server.nomad", region: "global", expected: false},
+		{name: "localhost", region: "global", expected: false},
+	} {
+		assert.Equal(t, tc.expected, validateRPCRegionPeer(tc.name, tc.region),
+			"expected %q in region %q to validate as %v",
+			tc.name, tc.region, tc.expected)
+	}
+}
