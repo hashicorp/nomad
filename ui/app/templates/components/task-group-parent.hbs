@@ -1,8 +1,17 @@
-<button {{action "toggleOpen"}} data-test-task-group-name>{{taskGroup.name}}</button>
+<button {{action "toggleOpen"}} class="toggle-button" data-test-task-group-name>
+  {{x-icon (if isOpen "chevron-down" "chevron-right")}}
+  {{taskGroup.name}}
+</button>
 {{#if isOpen}}
-  <ul>
+  <ul class="task-list">
     {{#each taskGroup.tasks as |task|}}
-      <li data-test-task>{{task.name}}</li>
+      <li class="task-item" data-test-task>
+        <div class="border-and-label">
+          <div class="border"></div>
+          <div class="task-label">{{task.name}}</div>
+        </div>
+        {{x-icon "exit"}}
+      </li>
     {{/each}}
   </ul>
 {{/if}}

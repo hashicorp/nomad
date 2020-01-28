@@ -1,0 +1,74 @@
+.task-group-tree {
+  background-color: $ui-gray-900;
+  color: white;
+  padding: 16px;
+
+  .title {
+    text-transform: uppercase;
+    color: $grey-lighter; // This is lightness 86% but the design is 85%
+    font-size: 11px;
+  }
+
+  .toggle-button {
+    background: transparent;
+    border: 0;
+    color: white;
+    font-size: inherit;
+    width: 100%;
+    text-align: left;
+    padding-left: 0;
+
+    .icon {
+      color: $ui-gray-500;
+      padding: 3px 3px 0 0;
+      margin-left: -3px;
+    }
+  }
+
+  .task-list {
+    .task-item {
+      padding: 0 8px 0 19px;
+
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      .border-and-label {
+        display: flex;
+        align-items: center;
+        height: 100%;
+      }
+
+      .border {
+        padding-left: 8px;
+        padding-right: 5px;
+        border-left: 1px solid $ui-gray-700;
+        height: 100%;
+      }
+
+      .task-label {
+        padding-bottom: 1px;
+      }
+
+      .icon {
+        display: none;
+      }
+
+      &:hover .icon {
+        display: block;
+      }
+    }
+  }
+
+  .toggle-button,
+  .task-item {
+    height: 32px;
+    font-weight: 500;
+
+    &:hover {
+      background-color: $ui-gray-800;
+      border-radius: 4px;
+    }
+  }
+}

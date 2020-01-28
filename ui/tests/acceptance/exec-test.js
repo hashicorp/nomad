@@ -26,8 +26,10 @@ module('Acceptance | exec', function(hooks) {
 
     await Exec.taskGroups[0].click();
     assert.equal(Exec.taskGroups[0].tasks.length, 0);
+    assert.ok(Exec.taskGroups[0].chevron.isRight);
 
     await Exec.taskGroups[0].click();
     assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
+    assert.ok(Exec.taskGroups[0].chevron.isDown);
   });
 });
