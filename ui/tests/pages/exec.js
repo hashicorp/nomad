@@ -3,6 +3,12 @@ import { clickable, collection, create, hasClass, text, visitable } from 'ember-
 export default create({
   visit: visitable('/exec/:job'),
 
+  header: {
+    region: text('[data-test-region]'),
+    namespace: text('[data-test-namespace]'),
+    job: text('[data-test-job]'),
+  },
+
   taskGroups: collection('[data-test-task-group]', {
     click: clickable('[data-test-task-group-name]'),
     name: text('[data-test-task-group-name]'),
