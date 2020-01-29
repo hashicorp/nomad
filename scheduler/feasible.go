@@ -213,8 +213,7 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) bool {
 	// Have volume if
 	// - healthy controller plugin is running the driver
 	// - the volume has free claims
-	// - the node is running the node plugin (can we auto deploy?)
-	// - the node is in the right topology
+	// - the node is running the node plugin, implies matching topology
 
 	rLen := len(c.volumes)
 	hLen := len(n.CSINodePlugins)
