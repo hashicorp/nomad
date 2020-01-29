@@ -481,7 +481,7 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 
 	// We want to see Restore resume execution with correct hook ordering:
 	// i.e. we should see the "web" main task hook coordinator channel is closed
-	require.Truef(t, isChannelClosed(ar.taskHookCoordinator.startConditionForTask(ar.tasks["web"].Task())), "web channel was open, should be closed")
+	require.Truef(t, isChannelClosed(ar2.taskHookCoordinator.startConditionForTask(ar.tasks["web"].Task())), "web channel was open, should be closed")
 }
 
 func TestAllocRunner_Update_Semantics(t *testing.T) {
