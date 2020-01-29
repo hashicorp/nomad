@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -396,7 +394,7 @@ func TestTask_Canonicalize_TaskLifecycle(t *testing.T) {
 			expected: &TaskLifecycle{
 				Hook:       "prestart",
 				BlockUntil: "completed",
-				Deadline:   structs.TaskLifecycleDeadlineDefault,
+				Deadline:   TaskLifecycleDeadlineDefault,
 			},
 			task: &Task{
 				Lifecycle: &TaskLifecycle{
