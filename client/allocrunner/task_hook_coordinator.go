@@ -78,7 +78,7 @@ func (c *taskHookCoordinator) taskStateUpdated(states map[string]*structs.TaskSt
 		return
 	}
 
-	for task, _ := range c.prestartTasksUntilRunning {
+	for task := range c.prestartTasksUntilRunning {
 		st := states[task]
 		if st == nil || st.StartedAt.IsZero() {
 			continue
@@ -87,7 +87,7 @@ func (c *taskHookCoordinator) taskStateUpdated(states map[string]*structs.TaskSt
 		delete(c.prestartTasksUntilRunning, task)
 	}
 
-	for task, _ := range c.prestartTasksUntilCompleted {
+	for task := range c.prestartTasksUntilCompleted {
 		st := states[task]
 		if st == nil || !st.Successful() {
 			continue

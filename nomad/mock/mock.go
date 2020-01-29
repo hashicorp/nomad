@@ -272,7 +272,7 @@ func Job() *structs.Job {
 
 func LifecycleSideTask(resources structs.Resources, i int) *structs.Task {
 	return &structs.Task{
-		Name:   fmt.Sprintf("side-%s", i),
+		Name:   fmt.Sprintf("side-%d", i),
 		Driver: "exec",
 		Config: map[string]interface{}{
 			"command": "/bin/date",
@@ -288,7 +288,7 @@ func LifecycleSideTask(resources structs.Resources, i int) *structs.Task {
 
 func LifecycleInitTask(resources structs.Resources, i int) *structs.Task {
 	return &structs.Task{
-		Name:   fmt.Sprintf("init-%s", i),
+		Name:   fmt.Sprintf("init-%d", i),
 		Driver: "exec",
 		Config: map[string]interface{}{
 			"command": "/bin/date",
@@ -304,7 +304,7 @@ func LifecycleInitTask(resources structs.Resources, i int) *structs.Task {
 
 func LifecycleMainTask(resources structs.Resources, i int) *structs.Task {
 	return &structs.Task{
-		Name:   fmt.Sprintf("main-%s", i),
+		Name:   fmt.Sprintf("main-%d", i),
 		Driver: "exec",
 		Config: map[string]interface{}{
 			"command": "/bin/date",

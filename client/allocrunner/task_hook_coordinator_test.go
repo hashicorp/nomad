@@ -69,17 +69,17 @@ func TestTaskHookCoordinator_MainRunsAfterPrestart(t *testing.T) {
 	require.Truef(t, isChannelClosed(sideCh), "%s channel was open, should be closed", sideTaskName)
 
 	states := map[string]*structs.TaskState{
-		mainTaskName: &structs.TaskState{
+		mainTaskName: {
 			State:  structs.TaskStatePending,
 			Failed: false,
 		},
-		initTaskName: &structs.TaskState{
+		initTaskName: {
 			State:      structs.TaskStateDead,
 			Failed:     false,
 			StartedAt:  time.Now(),
 			FinishedAt: time.Now(),
 		},
-		sideTaskName: &structs.TaskState{
+		sideTaskName: {
 			State:     structs.TaskStateRunning,
 			Failed:    false,
 			StartedAt: time.Now(),
@@ -116,17 +116,17 @@ func TestTaskHookCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
 	require.Truef(t, isChannelClosed(init2Ch), "%s channel was open, should be closed", tasks[2].Name)
 
 	states := map[string]*structs.TaskState{
-		tasks[0].Name: &structs.TaskState{
+		tasks[0].Name: {
 			State:  structs.TaskStatePending,
 			Failed: false,
 		},
-		tasks[1].Name: &structs.TaskState{
+		tasks[1].Name: {
 			State:      structs.TaskStateDead,
 			Failed:     false,
 			StartedAt:  time.Now(),
 			FinishedAt: time.Now(),
 		},
-		tasks[2].Name: &structs.TaskState{
+		tasks[2].Name: {
 			State:     structs.TaskStateDead,
 			Failed:    false,
 			StartedAt: time.Now(),
