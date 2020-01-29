@@ -71,3 +71,26 @@ export let Sizes = () => {
       `,
   };
 };
+
+export let Disabled = () => {
+  return {
+    template: hbs`
+      <h5 class="title is-5">Buttons</h5>
+      <div class="block">
+        <a class="button is-disabled">Button</a>
+        <a class="button is-white is-disabled">White</a>
+        <a class="button is-light is-disabled">Light</a>
+        <a class="button is-dark is-disabled">Dark</a>
+        <a class="button is-black is-disabled">Black</a>
+        <a class="button is-link is-disabled">Link</a>
+      </div>
+      <div class="block">
+        <a class="button is-primary is-disabled">Primary</a>
+        <a class="button is-info is-disabled">Info</a>
+        <a class="button is-success is-disabled">Success</a>
+        <a class="button is-warning is-disabled">Warning</a>
+        <a class="button is-danger is-disabled">Danger</a>
+      </div>
+      `,
+  };
+};
