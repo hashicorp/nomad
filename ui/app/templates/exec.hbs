@@ -1,15 +1,34 @@
 {{title "Exec"}}
 
-<header>
-  {{#if system.shouldShowRegions}}
-    region: <span data-test-region>{{model.region}}</span>
-  {{/if}}
+<nav class="navbar is-popup">
+  <div class="navbar-brand">
+    <div class="navbar-item is-logo">
+      {{partial "partials/nomad-logo"}} {{!-- FIXME this is normally a link…? --}}
+    </div>
+  </div>
+    {{#if system.shouldShowRegions}}
+      <div class="navbar-item">
+        <span class="navbar-label">Region</span>
+        <span data-test-region>{{model.region}}</span>
+      </div>
+    {{/if}}
 
-  {{#if system.shouldShowNamespaces}}
-    namespace: <span data-test-namespace>{{model.namespace.id}}</span>
-  {{/if}}
-  job: <span data-test-job>{{model.name}}</span>
-</header>
+    {{#if system.shouldShowNamespaces}}
+      <div class="navbar-item">
+        <span class="navbar-label">Namespace</span>
+        <span data-test-namespace>{{model.namespace.id}}</span>
+      </div>
+    {{/if}}
+
+    <div class="navbar-item">
+      <span class="navbar-label">Job</span>
+      <span data-test-job>{{model.name}}</span>
+    </div>
+  <div class="navbar-end">
+    <a href="https://nomadproject.io/docs" class="navbar-item" target="_blank">Documentation</a>
+    {{x-icon "lock-closed"}} {{!-- FIXME this seems to be out of date…? --}}
+  </div>
+</nav>
 
 <div class="task-group-tree">
   <h4 class="title is-6">Tasks</h4>
