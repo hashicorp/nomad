@@ -93,6 +93,53 @@ func TestTaskHookCoordinator_MainRunsAfterPrestart(t *testing.T) {
 	require.Truef(t, isChannelClosed(sideCh), "%s channel was open, should be closed", sideTaskName)
 }
 
+func TestTaskHookCoordinator_MainRunsAfterManyInitTasks(t *testing.T) {
+	logger := testlog.HCLogger(t)
+
+	alloc := mock.Alloc()
+	tasks := alloc.Job.TaskGroups[0].Tasks
+	init1 := initTask()
+	init1.Name = "init-1"
+	init2 := initTask()
+	init2.Name = "init-2"
+
+	tasks = append(tasks, init1)
+	tasks = append(tasks, init2)
+
+	coord := newTaskHookCoordinator(logger, tasks)
+	mainCh := coord.startConditionForTask(tasks[0])
+	init1Ch := coord.startConditionForTask(tasks[1])
+	init2Ch := coord.startConditionForTask(tasks[2])
+
+	require.Falsef(t, isChannelClosed(mainCh), "%s channel was closed, should be open", tasks[0].Name)
+	require.Truef(t, isChannelClosed(init1Ch), "%s channel was open, should be closed", tasks[1].Name)
+	require.Truef(t, isChannelClosed(init2Ch), "%s channel was open, should be closed", tasks[2].Name)
+
+	states := map[string]*structs.TaskState{
+		tasks[0].Name: &structs.TaskState{
+			State:  structs.TaskStatePending,
+			Failed: false,
+		},
+		tasks[1].Name: &structs.TaskState{
+			State:      structs.TaskStateDead,
+			Failed:     false,
+			StartedAt:  time.Now(),
+			FinishedAt: time.Now(),
+		},
+		tasks[2].Name: &structs.TaskState{
+			State:     structs.TaskStateDead,
+			Failed:    false,
+			StartedAt: time.Now(),
+		},
+	}
+
+	coord.taskStateUpdated(states)
+
+	require.Truef(t, isChannelClosed(init1Ch), "%s channel was open, should be closed", tasks[0].Name)
+	require.Truef(t, isChannelClosed(init2Ch), "%s channel was open, should be closed", tasks[1].Name)
+	require.Truef(t, isChannelClosed(mainCh), "%s channel was open, should be closed", tasks[2].Name)
+}
+
 func isChannelClosed(ch <-chan struct{}) bool {
 	select {
 	case <-ch:
