@@ -221,9 +221,9 @@ func NewSystemStack(ctx Context) *SystemStack {
 	jobs := []FeasibilityChecker{s.jobConstraint}
 	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint,
 		s.taskGroupHostVolumes,
-		s.taskGroupCSIVolumes,
 		s.taskGroupDevices}
-	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs)
+	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
+	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs, avail)
 
 	// Filter on distinct property constraints.
 	s.distinctPropertyConstraint = NewDistinctPropertyIterator(ctx, s.wrappedChecks)

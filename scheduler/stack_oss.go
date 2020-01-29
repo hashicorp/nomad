@@ -45,9 +45,9 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	tgs := []FeasibilityChecker{s.taskGroupDrivers,
 		s.taskGroupConstraint,
 		s.taskGroupHostVolumes,
-		s.taskGroupCSIVolumes,
 		s.taskGroupDevices}
-	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs)
+	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
+	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs, avail)
 
 	// Filter on distinct host constraints.
 	s.distinctHostsConstraint = NewDistinctHostsIterator(ctx, s.wrappedChecks)
