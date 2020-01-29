@@ -7,6 +7,7 @@ import (
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/hashicorp/nomad/plugins/base"
+	"google.golang.org/grpc"
 )
 
 // CSIPlugin implements a lightweight abstraction layer around a CSI Plugin.
@@ -46,7 +47,7 @@ type CSIPlugin interface {
 	// NodeStageVolume is used when a plugin has the STAGE_UNSTAGE volume capability
 	// to prepare a volume for usage on a host. If err == nil, the response should
 	// be assumed to be successful.
-	NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *VolumeCapability) error
+	NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *VolumeCapability, opts ...grpc.CallOption) error
 
 	// NodeUnstageVolume is used when a plugin has the STAGE_UNSTAGE volume capability
 	// to undo the work performed by NodeStageVolume. If a volume has been staged,
