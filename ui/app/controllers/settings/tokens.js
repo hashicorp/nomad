@@ -38,22 +38,21 @@ export default Controller.extend({
       this.set('token.secret', secret);
 
       TokenAdapter.findSelf().then(
-        token => {
-          // Capture the token ID before clearing the store
-          const tokenId = token.get('id');
-
+        () => {
           // Clear out all data to ensure only data the new token is privileged to
           // see is shown
           this.system.reset();
           this.resetStore();
 
-          // Immediately refetch the token now that the store is empty
-          const newToken = this.store.findRecord('token', tokenId);
+          // Refetch the token and associated policies
+          this.get('token.fetchSelfTokenAndPolicies')
+            .perform()
+            .catch();
 
           this.setProperties({
             tokenIsValid: true,
             tokenIsInvalid: false,
-            tokenRecord: newToken,
+            tokenRecord: this.token.selfToken,
           });
         },
         () => {
