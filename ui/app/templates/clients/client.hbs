@@ -93,7 +93,7 @@
           {{#toggle
             data-test-eligibility-toggle
             isActive=model.isEligible
-            isDisabled=(or setEligibility.isRunning model.isDraining)
+            isDisabled=(or setEligibility.isRunning model.isDraining (cannot "write client"))
             onToggle=(perform setEligibility (not model.isEligible))}}
             Eligible
           {{/toggle}}
