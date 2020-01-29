@@ -50,6 +50,8 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 		return c.jobGC(eval)
 	case structs.CoreJobDeploymentGC:
 		return c.deploymentGC(eval)
+	case structs.CoreJobCSIVolumePublicationGC:
+		return c.csiVolumePublicationGC(eval)
 	case structs.CoreJobForceGC:
 		return c.forceGC(eval)
 	default:
@@ -702,4 +704,11 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, 
 	timeDiff := gcTime.UTC().UnixNano() - lastRescheduleEvent.RescheduleTime
 
 	return timeDiff > interval.Nanoseconds()
+}
+
+// csiVolumeGC is used to garbage collect CSI volume publications
+func (c *CoreScheduler) csiVolumePublicationGC(eval *structs.Evaluation) error {
+	// TODO: implement me!
+	c.logger.Trace("garbage collecting unclaimed CSI volume publications")
+	return nil
 }
