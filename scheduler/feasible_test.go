@@ -232,6 +232,7 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 }
 
 func TestCSIVolumeChecker(t *testing.T) {
+	t.Parallel()
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
