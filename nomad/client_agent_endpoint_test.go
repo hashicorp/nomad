@@ -330,6 +330,9 @@ func TestMonitor_MonitorServer(t *testing.T) {
 	// No node ID to monitor the remote server
 	req := cstructs.MonitorRequest{
 		LogLevel: "debug",
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
 	}
 
 	handler, err := s.StreamingRpcHandler("Agent.Monitor")
@@ -589,7 +592,7 @@ func TestAgentProfile_RemoteRegionMisMatch(t *testing.T) {
 	reply := structs.AgentPprofResponse{}
 
 	err := s1.RPC("Agent.Profile", &req, &reply)
-	require.Contains(err.Error(), "does not exist in requested region")
+	require.Contains(err.Error(), "unknown Nomad server")
 	require.Nil(reply.Payload)
 }
 
@@ -704,7 +707,7 @@ func TestAgentProfile_Server(t *testing.T) {
 			serverID:        uuid.Generate(),
 			origin:          nonLeader,
 			reqType:         pprof.CmdReq,
-			expectedErr:     "unknown nomad server",
+			expectedErr:     "unknown Nomad server",
 			expectedAgentID: "",
 		},
 	}
