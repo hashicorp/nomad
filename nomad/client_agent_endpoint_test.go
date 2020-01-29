@@ -122,6 +122,7 @@ OUTER:
 
 func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 	t.Parallel()
+	foreignRegion := "foo"
 
 	// start servers
 	s1, cleanupS1 := TestServer(t, nil)
@@ -130,9 +131,17 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 		c.DevDisableBootstrap = true
 	})
 	defer cleanupS2()
-	TestJoin(t, s1, s2)
+
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.Region = foreignRegion
+	})
+	defer cleanupS3()
+
+	TestJoin(t, s1, s2, s3)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
+	testutil.WaitForLeader(t, s3.RPC)
 
 	// determine leader and nonleader
 	servers := []*Server{s1, s2}
@@ -152,6 +161,8 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 		expectedLog string
 		logger      hclog.InterceptLogger
 		origin      *Server
+		region      string
+		expectedErr string
 	}{
 		{
 			desc:        "remote leader",
@@ -159,13 +170,23 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 			expectedLog: "leader log",
 			logger:      leader.logger,
 			origin:      nonLeader,
+			region:      "global",
 		},
 		{
-			desc:        "remote server",
+			desc:        "remote server, server name",
 			serverID:    nonLeader.serf.LocalMember().Name,
 			expectedLog: "nonleader log",
 			logger:      nonLeader.logger,
 			origin:      leader,
+			region:      "global",
+		},
+		{
+			desc:        "remote server, server UUID",
+			serverID:    nonLeader.serf.LocalMember().Tags["id"],
+			expectedLog: "nonleader log",
+			logger:      nonLeader.logger,
+			origin:      leader,
+			region:      "global",
 		},
 		{
 			desc:        "serverID is current leader",
@@ -173,6 +194,7 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 			expectedLog: "leader log",
 			logger:      leader.logger,
 			origin:      leader,
+			region:      "global",
 		},
 		{
 			desc:        "serverID is current server",
@@ -180,6 +202,24 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 			expectedLog: "non leader log",
 			logger:      nonLeader.logger,
 			origin:      nonLeader,
+			region:      "global",
+		},
+		{
+			desc:        "remote server, different region",
+			serverID:    s3.serf.LocalMember().Name,
+			expectedLog: "remote region logger",
+			logger:      s3.logger,
+			origin:      nonLeader,
+			region:      foreignRegion,
+		},
+		{
+			desc:        "different region, region mismatch",
+			serverID:    s3.serf.LocalMember().Name,
+			expectedLog: "remote region logger",
+			logger:      s3.logger,
+			origin:      nonLeader,
+			region:      "bar",
+			expectedErr: "No path to region",
 		},
 	}
 
@@ -204,6 +244,9 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 			req := cstructs.MonitorRequest{
 				LogLevel: "warn",
 				ServerID: tc.serverID,
+				QueryOptions: structs.QueryOptions{
+					Region: tc.region,
+				},
 			}
 
 			handler, err := tc.origin.StreamingRpcHandler("Agent.Monitor")
@@ -246,23 +289,28 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 			for {
 				select {
 				case <-timeout:
-					t.Fatal("timeout waiting for logs")
+					require.Fail("timeout waiting for logs")
 				case err := <-errCh:
-					t.Fatal(err)
+					require.Fail(err.Error())
 				case msg := <-streamMsg:
 					if msg.Error != nil {
-						t.Fatalf("Got error: %v", msg.Error.Error())
-					}
+						if tc.expectedErr != "" {
+							require.Contains(msg.Error.Error(), tc.expectedErr)
+							break OUTER
+						} else {
+							require.Failf("Got error: %v", msg.Error.Error())
+						}
+					} else {
+						var frame sframer.StreamFrame
+						err := json.Unmarshal(msg.Payload, &frame)
+						assert.NoError(t, err)
 
-					var frame sframer.StreamFrame
-					err := json.Unmarshal(msg.Payload, &frame)
-					assert.NoError(t, err)
-
-					received += string(frame.Data)
-					if strings.Contains(received, tc.expectedLog) {
-						close(doneCh)
-						require.Nil(p2.Close())
-						break OUTER
+						received += string(frame.Data)
+						if strings.Contains(received, tc.expectedLog) {
+							close(doneCh)
+							require.Nil(p2.Close())
+							break OUTER
+						}
 					}
 				}
 			}

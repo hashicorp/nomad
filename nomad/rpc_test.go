@@ -145,6 +145,32 @@ func TestRPC_forwardRegion(t *testing.T) {
 	}
 }
 
+func TestRPC_getServer(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
+		c.Region = "global"
+	})
+	defer cleanupS2()
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
+
+	// Lookup by name
+	srv, err := s1.getServer("global", s2.serf.LocalMember().Name)
+	require.NoError(t, err)
+
+	require.Equal(t, srv.Name, s2.serf.LocalMember().Name)
+
+	// Lookup by id
+	srv, err = s2.getServer("global", s1.serf.LocalMember().Tags["id"])
+	require.NoError(t, err)
+
+	require.Equal(t, srv.Name, s1.serf.LocalMember().Name)
+}
+
 func TestRPC_PlaintextRPCSucceedsWhenInUpgradeMode(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
