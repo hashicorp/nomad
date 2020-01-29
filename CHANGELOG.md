@@ -13,6 +13,7 @@ IMPROVEMENTS:
 * scheduler: Removed penalty for allocation's previous node if the allocation did not fail. [[GH-6781](https://github.com/hashicorp/nomad/issues/6781)]
 * scheduler: Reduced logging verbosity during preemption [[GH-6849](https://github.com/hashicorp/nomad/issues/6849)]
 * ui: Updated Run Job button to be conditionally enabled according to ACLs [[GH-5944](https://github.com/hashicorp/nomad/pull/5944)]
+* consul: Add support for service `canary_meta`
 
 BUG FIXES:
 
@@ -49,7 +50,6 @@ IMPROVEMENTS:
  * api: Added JSON representation of rules to policy endpoint response [[GH-6017](https://github.com/hashicorp/nomad/pull/6017)]
  * api: Update policy endpoint to permit anonymous access [[GH-6021](https://github.com/hashicorp/nomad/issues/6021)]
  * build: Updated to Go 1.12.13 [[GH-6606](https://github.com/hashicorp/nomad/issues/6606)]
- * consul: Add support for service `canary_meta`
  * cli: Show full ID in node and alloc individual status views [[GH-6425](https://github.com/hashicorp/nomad/issues/6425)]
  * client: Enable setting tags on Consul Connect sidecar service [[GH-6448](https://github.com/hashicorp/nomad/issues/6448)]
  * client: Added support for downloading artifacts from Google Cloud Storage [[GH-6692](https://github.com/hashicorp/nomad/pull/6692)]
