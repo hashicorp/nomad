@@ -423,8 +423,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	// Wait for tasks to be stopped because leader is dead
 	testutil.WaitForResult(func() (bool, error) {
 		alloc := ar2.Alloc()
-		// TODO: this test does not test anything!!! alloc.TaskStates == map[]
-		t.Fatalf("%v", alloc.TaskStates)
+		// TODO: this test does not test anything!!! alloc.TaskStates is an empty map
 		for task, state := range alloc.TaskStates {
 			if state.State != structs.TaskStateDead {
 				return false, fmt.Errorf("Task %q should be dead: %v", task, state.State)
