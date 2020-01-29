@@ -79,7 +79,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: golang:1.12.13
+      - image: golang:1.12.16
   go-machine:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     machine:
@@ -306,7 +306,7 @@ commands:
     parameters:
       version:
         type: string
-        default: "1.12.13"
+        default: "1.12.16"
     steps:
       - run:
           name: install golang << parameters.version >>
