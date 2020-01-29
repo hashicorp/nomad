@@ -528,6 +528,27 @@ func (r *rpcHandler) forwardRegion(region, method string, args interface{}, repl
 	return r.connPool.RPC(region, server.Addr, server.MajorVersion, method, args, reply)
 }
 
+func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
+	// Bail if we can't find any servers
+	r.peerLock.RLock()
+	defer r.peerLock.RUnlock()
+
+	servers := r.peers[region]
+	if len(servers) == 0 {
+		r.logger.Warn("no path found to region", "region", region)
+		return nil, structs.ErrNoRegionPath
+	}
+
+	// Lookup server by id or name
+	for _, server := range servers {
+		if server.Name == serverID || server.ID == serverID {
+			return server, nil
+		}
+	}
+
+	return nil, fmt.Errorf("unknown Nomad server %s", serverID)
+}
+
 // streamingRpc creates a connection to the given server and conducts the
 // initial handshake, returning the connection or an error. It is the callers
 // responsibility to close the connection if there is no returned error.
