@@ -1,6 +1,8 @@
 package csimanager
 
 import (
+	"context"
+	"errors"
 	"io/ioutil"
 	"os"
 	"runtime"
@@ -102,6 +104,75 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 				if runtime.GOOS != "windows" {
 					require.Equal(t, os.FileMode(0700), file.Mode().Perm())
 				}
+			}
+		})
+	}
+}
+
+func TestVolumeManager_stageVolume(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		Name        string
+		Volume      *structs.CSIVolume
+		PluginErr   error
+		ExpectedErr error
+	}{
+		{
+			Name: "Returns an error when an invalid AttachmentMode is provided",
+			Volume: &structs.CSIVolume{
+				ID:             "foo",
+				AttachmentMode: "nonsense",
+			},
+			ExpectedErr: errors.New("Unknown volume attachment mode: nonsense"),
+		},
+		{
+			Name: "Returns an error when an invalid AccessMode is provided",
+			Volume: &structs.CSIVolume{
+				ID:             "foo",
+				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
+				AccessMode:     "nonsense",
+			},
+			ExpectedErr: errors.New("Unknown volume access mode: nonsense"),
+		},
+		{
+			Name: "Returns an error when the plugin returns an error",
+			Volume: &structs.CSIVolume{
+				ID:             "foo",
+				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
+				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+			},
+			PluginErr:   errors.New("Some Unknown Error"),
+			ExpectedErr: errors.New("Some Unknown Error"),
+		},
+		{
+			Name: "Happy Path",
+			Volume: &structs.CSIVolume{
+				ID:             "foo",
+				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
+				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+			},
+			PluginErr:   nil,
+			ExpectedErr: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			tmpPath := tmpDir(t)
+			defer os.RemoveAll(tmpPath)
+
+			csiFake := &csifake.Client{}
+			csiFake.NextNodeStageVolumeErr = tc.PluginErr
+
+			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, true)
+			ctx := context.Background()
+
+			err := manager.stageVolume(ctx, tc.Volume)
+
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
