@@ -81,10 +81,17 @@ cd ..
 go test -v .
 ```
 
+If you want to run a specific suite, you can specify the `-suite` flag as
+shown below. Only the suite with a matching `Framework.TestSuite.Component`
+will be run, and all others will be skipped.
+```sh
+go test -v -suite=Consul .
+```
+
 If you want to run a specific test, you'll need to regex-escape some of the
 test's name so that the test runner doesn't skip over framework struct method
 names in the full name of the tests:
 
 ```sh
- go test -v . -run 'TestE2E/Consul/\*consul\.ScriptChecksE2ETest/TestGroup'
- ```
+go test -v . -run 'TestE2E/Consul/\*consul\.ScriptChecksE2ETest/TestGroup'
+```
