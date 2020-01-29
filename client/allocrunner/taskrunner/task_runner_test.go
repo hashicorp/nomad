@@ -96,20 +96,26 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		cleanup()
 	}
 
+	// Create a closed channel to mock TaskHookCoordinator.startConditionForTask.
+	// Closed channel indicates this task is not blocked on prestart hooks.
+	closedCh := make(chan struct{})
+	close(closedCh)
+
 	conf := &Config{
-		Alloc:              alloc,
-		ClientConfig:       clientConf,
-		Task:               thisTask,
-		TaskDir:            taskDir,
-		Logger:             clientConf.Logger,
-		Consul:             consulapi.NewMockConsulServiceClient(t, logger),
-		ConsulSI:           consulapi.NewMockServiceIdentitiesClient(),
-		Vault:              vaultclient.NewMockVaultClient(),
-		StateDB:            cstate.NoopDB{},
-		StateUpdater:       NewMockTaskStateUpdater(),
-		DeviceManager:      devicemanager.NoopMockManager(),
-		DriverManager:      drivermanager.TestDriverManager(t),
-		ServersContactedCh: make(chan struct{}),
+		Alloc:                alloc,
+		ClientConfig:         clientConf,
+		Task:                 thisTask,
+		TaskDir:              taskDir,
+		Logger:               clientConf.Logger,
+		Consul:               consulapi.NewMockConsulServiceClient(t, logger),
+		ConsulSI:             consulapi.NewMockServiceIdentitiesClient(),
+		Vault:                vaultclient.NewMockVaultClient(),
+		StateDB:              cstate.NoopDB{},
+		StateUpdater:         NewMockTaskStateUpdater(),
+		DeviceManager:        devicemanager.NoopMockManager(),
+		DriverManager:        drivermanager.TestDriverManager(t),
+		ServersContactedCh:   make(chan struct{}),
+		StartConditionMetCtx: closedCh,
 	}
 	return conf, trCleanup
 }
