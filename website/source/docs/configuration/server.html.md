@@ -98,6 +98,13 @@ server {
   deployment must be in the terminal state before it is eligible for garbage
   collection. This is specified using a label suffix like "30s" or "1h".
 
+- `default_scheduler_config` <code>([scheduler_configuration][update-scheduler-config]:
+  nil)</code> - Specifies the initial default scheduler config when
+  bootstrapping cluster. The parameter is ignored once the cluster is bootstrapped or
+  value is updated through the [API endpoint][update-scheduler-config]. See [the
+  example section](#configuring-scheduler-config) for more details
+  `default_scheduler_config` was introduced in Nomad 0.11.4.
+
 - `heartbeat_grace` `(string: "10s")` - Specifies the additional time given as a
   grace period beyond the heartbeat TTL of nodes to account for network and
   processing delays as well as clock skew. This is specified using a label
@@ -232,5 +239,28 @@ server {
 }
 ```
 
+### Configuring Scheduler Config
+
+This example shows enabling preemption for all schedulers.
+
+```hcl
+server {
+  default_scheduler_config {
+    preemption_config {
+      batch_scheduler_enabled   = true
+      system_scheduler_enabled  = true
+      service_scheduler_enabled = true
+    }
+  }
+}
+```
+
+The structure matches the [Update Scheduler Config][update-scheduler-config] endpoint,
+but adopted to hcl syntax (namely using snake case rather than camel case).
+
+Nomad servers check their `default_scheduler_config` during cluster bootstrap (or upgrades).
+Once the configuration is committed, it can only be updated through the API endpoint.
+
 [encryption]: /guides/security/encryption.html "Nomad Encryption Overview"
 [server-join]: /docs/configuration/server_join.html "Server Join"
+[update-scheduler-config]: /api/operator.html#update-scheduler-configuration "Scheduler Config"
