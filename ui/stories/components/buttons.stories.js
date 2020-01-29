@@ -75,7 +75,7 @@ export let Sizes = () => {
 export let Disabled = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Buttons</h5>
+      <h5 class="title is-5">Anchor elements as buttons</h5>
       <div class="block">
         <a class="button is-disabled">Button</a>
         <a class="button is-white is-disabled">White</a>
@@ -90,6 +90,40 @@ export let Disabled = () => {
         <a class="button is-success is-disabled">Success</a>
         <a class="button is-warning is-disabled">Warning</a>
         <a class="button is-danger is-disabled">Danger</a>
+      </div>
+
+      <h5 class="title is-5">Button elements with <code>disabled</code> attribute</h5>
+      <div class="block">
+        <button class="button is-disabled" disabled>Button</button>
+        <button class="button is-white is-disabled" disabled>White</button>
+        <button class="button is-light is-disabled" disabled>Light</button>
+        <button class="button is-dark is-disabled" disabled>Dark</button>
+        <button class="button is-black is-disabled" disabled>Black</button>
+        <button class="button is-link is-disabled" disabled>Link</button>
+      </div>
+      <div class="block">
+        <button class="button is-primary is-disabled" disabled>Primary</button>
+        <button class="button is-info is-disabled" disabled>Info</button>
+        <button class="button is-success is-disabled" disabled>Success</button>
+        <button class="button is-warning is-disabled" disabled>Warning</button>
+        <button class="button is-danger is-disabled" disabled>Danger</button>
+      </div>
+
+      <h5 class="title is-5">Button elements with <code>aria-disabled="true"</code></h5>
+      <div class="block">
+        <button class="button is-disabled" aria-disabled="true">Button</button>
+        <button class="button is-white is-disabled" aria-disabled="true">White</button>
+        <button class="button is-light is-disabled" aria-disabled="true">Light</button>
+        <button class="button is-dark is-disabled" aria-disabled="true">Dark</button>
+        <button class="button is-black is-disabled" aria-disabled="true">Black</button>
+        <button class="button is-link is-disabled" aria-disabled="true">Link</button>
+      </div>
+      <div class="block">
+        <button class="button is-primary is-disabled" aria-disabled="true">Primary</button>
+        <button class="button is-info is-disabled" aria-disabled="true">Info</button>
+        <button class="button is-success is-disabled" aria-disabled="true">Success</button>
+        <button class="button is-warning is-disabled" aria-disabled="true">Warning</button>
+        <button class="button is-danger is-disabled" aria-disabled="true">Danger</button>
       </div>
       `,
   };
