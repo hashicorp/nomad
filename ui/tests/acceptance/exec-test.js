@@ -8,31 +8,40 @@ module('Acceptance | exec', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function() {
-    server.create('namespace');
-    this.namespace = server.create('namespace');
-
     server.create('agent');
     server.create('node');
 
-    this.job = server.create('job', { createAllocations: false, namespaceId: this.namespace.id });
+    this.job = server.create('job', { createAllocations: false });
     server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
-
-    server.create('region', { id: 'global' });
-    server.create('region', { id: 'region-2' });
   });
 
   test('/exec/:job should show the region, namespace, and job name', async function(assert) {
-    await Exec.visit({ job: this.job.id, namespace: this.namespace.id, region: 'region-2' });
+    server.create('namespace');
+    const namespace = server.create('namespace');
+
+    server.create('region', { id: 'global' });
+    server.create('region', { id: 'region-2' });
+
+    this.job = server.create('job', { createAllocations: false, namespaceId: namespace.id });
+
+    await Exec.visit({ job: this.job.id, namespace: namespace.id, region: 'region-2' });
 
     assert.equal(document.title, 'Exec - region-2 - Nomad');
 
-    assert.equal(Exec.header.region, this.job.region);
-    assert.equal(Exec.header.namespace, this.job.namespace);
+    assert.equal(Exec.header.region.text, this.job.region);
+    assert.equal(Exec.header.namespace.text, this.job.namespace);
     assert.equal(Exec.header.job, this.job.name);
   });
 
+  test('/exec/:job should not show region and namespace when there are none', async function(assert) {
+    await Exec.visit({ job: this.job.id });
+
+    assert.ok(Exec.header.region.isHidden);
+    assert.ok(Exec.header.namespace.isHidden);
+  });
+
   test('/exec/:job should show the task groups and tasks and allow task groups to be collapsed', async function(assert) {
-    await Exec.visit({ job: this.job.id, namespace: this.namespace.id });
+    await Exec.visit({ job: this.job.id });
 
     assert.equal(Exec.taskGroups.length, this.job.task_groups.length);
 

@@ -4,8 +4,8 @@ export default create({
   visit: visitable('/exec/:job'),
 
   header: {
-    region: text('[data-test-region]'),
-    namespace: text('[data-test-namespace]'),
+    region: { scope: '[data-test-region]' },
+    namespace: { scope: '[data-test-namespace]' },
     job: text('[data-test-job]'),
   },
 

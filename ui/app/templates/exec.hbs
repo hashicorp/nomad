@@ -1,8 +1,13 @@
 {{title "Exec"}}
 
 <header>
-  region: <span data-test-region>{{model.region}}</span>
-  namespace: <span data-test-namespace>{{model.namespace.id}}</span>
+  {{#if system.shouldShowRegions}}
+    region: <span data-test-region>{{model.region}}</span>
+  {{/if}}
+
+  {{#if system.shouldShowNamespaces}}
+    namespace: <span data-test-namespace>{{model.namespace.id}}</span>
+  {{/if}}
   job: <span data-test-job>{{model.name}}</span>
 </header>
 
