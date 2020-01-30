@@ -37,12 +37,12 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://localhost:4646/v1/jobs
+    https://localhost:4646/v1/csi/plugins
 ```
 
 ```text
 $ curl \
-    https://localhost:4646/v1/jobs?prefix=team
+    https://localhost:4646/v1/csi/plugins?plugin_id=team
 ```
 
 ### Sample Response
@@ -51,46 +51,30 @@ $ curl \
 [
   {
     "ID": "example",
-    "ParentID": "",
-    "Name": "example",
-    "Type": "service",
-    "Priority": 50,
-    "Status": "pending",
-    "StatusDescription": "",
-    "JobSummary": {
-      "JobID": "example",
-      "Summary": {
-        "cache": {
-          "Queued": 1,
-          "Complete": 1,
-          "Failed": 0,
-          "Running": 0,
-          "Starting": 0,
-          "Lost": 0
-        }
-      },
-      "Children": {
-        "Pending": 0,
-        "Running": 0,
-        "Dead": 0
-      },
-      "CreateIndex": 52,
-      "ModifyIndex": 96
+    "JobIDs": {
+      "example_namespace": [
+        "example_job_id",
+        "example2_job_id"
+      ]
     },
+    "ControllersRequired": true,
+    "ControllersHealthy": 2,
+    "ControllersExpected": 3,
+    "NodesHealthy": 14,
+    "NodesExpected": 16,
     "CreateIndex": 52,
-    "ModifyIndex": 93,
-    "JobModifyIndex": 52
+    "ModifyIndex": 93
   }
 ]
 ```
 
-## Create Job
+## Get Plugin Info
 
-This endpoint creates (aka "registers") a new job in the system.
+This endpoint gets detailed information about one plugin
 
-| Method  | Path                      | Produces                   |
-| ------- | ------------------------- | -------------------------- |
-| `POST`  | `/v1/jobs`                | `application/json`         |
+| Method  | Path                       | Produces                   |
+| ------- | -------------------------  | -------------------------- |
+| `Get`   | `/v1/csi/plugin/plugin_id` | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -102,115 +86,87 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `Job` `(Job: <required>)` - Specifies the JSON definition of the job.
+No parameters.
 
-- `EnforceIndex` `(bool: false)` - If set, the job will only be registered if the
-  passed `JobModifyIndex` matches the current job's index. If the index is zero,
-  the register only occurs if the job is new. This paradigm allows check-and-set
-  style job updating.
+### Sample Request
 
-- `JobModifyIndex` `(int: 0)` - Specifies the `JobModifyIndex` to enforce the
-  current job is at.
+```text
+$ curl \
+    https://localhost:4646/v1/csi/plugin/plugin_id
+```
 
-- `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
-  will be overridden. This allows a job to be registered when it would be denied
-  by policy.
-
-### Sample Payload
+### Sample Response
 
 ```json
-{
-    "Job": {
+[
+  {
+    "ID": "example_plugin_id",
+    "Namespace": "fixme, not used",
+    "Topologies": [
+      {"key": "val"},
+      {"key": "val2"}
+    ],
+    "Jobs": [
+      {
         "ID": "example",
+        "ParentID": "",
         "Name": "example",
         "Type": "service",
         "Priority": 50,
-        "Datacenters": [
-            "dc1"
-        ],
-        "TaskGroups": [{
-            "Name": "cache",
-            "Count": 1,
-            "Tasks": [{
-                "Name": "redis",
-                "Driver": "docker",
-                "User": "",
-                "Config": {
-                    "image": "redis:3.2",
-                    "port_map": [{
-                        "db": 6379
-                    }]
-                },
-                "Services": [{
-                    "Id": "",
-                    "Name": "redis-cache",
-                    "Tags": [
-                        "global",
-                        "cache"
-                    ],
-                    "Meta": {
-                      "meta": "for my service"
-                    },
-                    "PortLabel": "db",
-                    "AddressMode": "",
-                    "Checks": [{
-                        "Id": "",
-                        "Name": "alive",
-                        "Type": "tcp",
-                        "Command": "",
-                        "Args": null,
-                        "Path": "",
-                        "Protocol": "",
-                        "PortLabel": "",
-                        "Interval": 10000000000,
-                        "Timeout": 2000000000,
-                        "InitialStatus": "",
-                        "TLSSkipVerify": false
-                    }]
-                }],
-                "Resources": {
-                    "CPU": 500,
-                    "MemoryMB": 256,
-                    "Networks": [{
-                        "Device": "",
-                        "CIDR": "",
-                        "IP": "",
-                        "MBits": 10,
-                        "DynamicPorts": [{
-                            "Label": "db",
-                            "Value": 0
-                        }]
-                    }]
-                },
-                "Leader": false
-            }],
-            "RestartPolicy": {
-                "Interval": 300000000000,
-                "Attempts": 10,
-                "Delay": 25000000000,
-                "Mode": "delay"
-            },
-            "ReschedulePolicy": {
-                "Attempts": 10,
-                "Delay": 30000000000,
-                "DelayFunction": "exponential",
-                "Interval": 36000000000000,
-                "MaxDelay": 3600000000000,
-                "Unlimited": false
-            },
-            "EphemeralDisk": {
-                "SizeMB": 300
+        "Status": "pending",
+        "StatusDescription": "",
+        "JobSummary": {
+          "JobID": "example",
+          "Summary": {
+            "cache": {
+              "Queued": 1,
+              "Complete": 1,
+              "Failed": 0,
+              "Running": 0,
+              "Starting": 0,
+              "Lost": 0
             }
-        }],
-        "Update": {
-            "MaxParallel": 1,
-            "MinHealthyTime": 10000000000,
-            "HealthyDeadline": 180000000000,
-            "AutoRevert": false,
-            "Canary": 0
+          },
+          "Children": {
+            "Pending": 0,
+            "Running": 0,
+            "Dead": 0
+          },
+          "CreateIndex": 52,
+          "ModifyIndex": 96
+        },
+        "CreateIndex": 52,
+        "ModifyIndex": 93,
+        "JobModifyIndex": 52
+      }
+    ],
+    "ControllersRequired": true,
+    "ControllersHealthy": 2,
+    "Controllers": {
+    },
+    "NodesHealthy": 14,
+    "Nodes": {
+      "example_node_id": {
+        "PluginID": "example_plugin_id",
+        "Healthy": true,
+        "HealthDescription": "healthy",
+        "UpdateTime": "2020-01-30T00:00:00.000Z",
+        "RequiresControllerPlugin": true,
+        "RequiresTopologies": true,
+        "NodeInfo": {
+          "ID": "example_node_id",
+          "MaxVolumes": 51,
+          "AccessibleTopology": {
+            "key": "val2"
+          },
+          "RequiresNodeStageVolume": true
         }
-    }
-}
+      },
+    },
+    "CreateIndex": 52,
+    "ModifyIndex": 93
+  }
+]
 ```
 
 ### Sample Request
