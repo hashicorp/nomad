@@ -1,4 +1,4 @@
-## 0.10.3 (Unreleased)
+## 0.10.4 (Unreleased)
 
 FEATURES:
 
@@ -25,6 +25,17 @@ BUG FIXES:
  * consul/connect: Fixed a bug where Connect-enabled jobs failed to validate when service names used interpolation. [[GH-6855](https://github.com/hashicorp/nomad/issues/6855)]
  * scheduler: Fixed a bug that caused evicted allocs on a lost node to be stuck in running. [[GH-6902](https://github.com/hashicorp/nomad/issues/6902)]
  * scheduler: Fixed a bug where `nomad job plan/apply` returned errors instead of a partial placement warning for ineligible nodes. [[GH-6968](https://github.com/hashicorp/nomad/issues/6968)]
+
+## 0.10.3 (January 29, 2020)
+
+SECURITY:
+
+ * agent: Added unauthenticated connection timeouts and limits to prevent resource exhaustion. CVE-2020-7218 [GH-7002]
+ * server: Fixed insufficient validation for role and region for RPC connections when TLS enabled. CVE-2020-7956 [GH-7003]
+
+IMPROVEMENTS:
+
+ * build: Updated to Go 1.12.16
 
 ## 0.10.2 (December 4, 2019)
 
