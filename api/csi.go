@@ -93,6 +93,7 @@ type CSIVolume struct {
 	Healthy             bool
 	VolumeGC            time.Time
 	PluginID            string
+	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
 	NodesHealthy        int
@@ -130,6 +131,7 @@ type CSIVolumeListStub struct {
 	Healthy             bool
 	VolumeGC            time.Time
 	PluginID            string
+	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
 	NodesHealthy        int
@@ -161,6 +163,7 @@ type CSIPlugin struct {
 	Namespace string
 	Jobs      map[string]map[string]*Job
 
+	ControllerRequired bool
 	ControllersHealthy int
 	Controllers        map[string]*CSIInfo
 	NodesHealthy       int
@@ -174,6 +177,7 @@ type CSIPluginListStub struct {
 	ID                  string
 	Type                CSIPluginType
 	JobIDs              map[string]map[string]struct{}
+	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
 	NodesHealthy        int
