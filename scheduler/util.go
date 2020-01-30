@@ -162,6 +162,8 @@ func diffSystemAllocsForNode(job *structs.Job, nodeID string,
 		// update or ignore above. Ignore placements for tainted or
 		// ineligible nodes
 		if !ok {
+			// Tainted and ineligible nodes for a non existing alloc
+			// should be filtered out and not count towards ignore or place
 			if _, tainted := taintedNodes[nodeID]; tainted {
 				continue
 			}
