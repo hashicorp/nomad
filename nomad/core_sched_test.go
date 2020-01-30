@@ -1836,6 +1836,37 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 	}
 }
 
+// TODO: this is an empty test until CoreScheduler.csiVolumePublicationGC is implemented
+func TestCoreScheduler_CSIVolumePublicationGC(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
+	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
+
+	// TODO: insert volumes for nodes
+	state := s1.fsm.State()
+
+	// Update the time tables to make this work
+	tt := s1.fsm.TimeTable()
+	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.CSIVolumePublicationGCInterval))
+
+	// Create a core scheduler
+	snap, err := state.Snapshot()
+	assert.Nil(err, "Snapshot")
+	core := NewCoreScheduler(s1, snap)
+
+	// Attempt the GC
+	gc := s1.coreJobEval(structs.CoreJobCSIVolumePublicationGC, 2000)
+	assert.Nil(core.Process(gc), "Process GC")
+
+	// TODO: assert state is cleaned up
+}
+
 func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 	t.Parallel()
 
