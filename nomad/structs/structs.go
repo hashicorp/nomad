@@ -5252,6 +5252,17 @@ func (tg *TaskGroup) LookupTask(name string) *Task {
 	return nil
 }
 
+func (tg *TaskGroup) UsesConnect() bool {
+	for _, service := range tg.Services {
+		if service.Connect != nil {
+			if service.Connect.Native || service.Connect.SidecarService != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (tg *TaskGroup) GoString() string {
 	return fmt.Sprintf("*%#v", *tg)
 }
