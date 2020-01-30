@@ -17,6 +17,25 @@ standard upgrade flow.
 
 ## Nomad 0.10.3
 
+### mTLS Certificate Validation
+
+Nomad 0.10.3 includes a fix for a privilege escalation vulnerability in
+validating TLS certificates for RPC with mTLS. Nomad RPC endpoints validated
+that TLS client certificates had not expired and were signed by the same CA as
+the Nomad node, but did not correctly check the certificate's name for the role
+and region as described in the [Securing Nomad with TLS][tls-guide] guide. This
+allows trusted operators with a client certificate signed by the CA to send RPC
+calls as a Nomad client or server node, bypassing access control and accessing
+any secrets available to a client.
+
+Nomad clusters configured for mTLS following the [Securing Nomad with TLS][tls-guide]
+guide or the [Vault PKI Secrets Engine Integration][tls-vault-guide] guide
+should already have certificates that will pass validation. Before upgrading to
+Nomad 0.10.3, operators using mTLS with `verify_server_hostname = true` should
+confirm that the common name or SAN of all Nomad client node certs is
+`client.<region>.nomad`, and that the common name or SAN of all Nomad server
+node certs is `server.<region>.nomad`.
+
 ### Connection Limits Added
 
 Nomad 0.10.3 introduces the [limits][limits] agent configuration parameters for
@@ -419,3 +438,5 @@ deleted and then Nomad 0.3.0 can be launched.
 [task-config]: /docs/job-specification/task.html#config
 [validate]: /docs/commands/job/validate.html
 [update]: /docs/job-specification/update.html
+[tls-guide]: /guides/security/securing-nomad.html
+[tls-vault-guide]: /guides/security/vault-pki-integration.html
