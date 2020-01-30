@@ -342,7 +342,6 @@ func TestParse(t *testing.T) {
 								Lifecycle: &api.TaskLifecycle{
 									Hook:       "prestart",
 									BlockUntil: "completed",
-									Deadline:   7 * time.Second,
 								},
 								Config: map[string]interface{}{
 									"image": "hashicorp/storagelocker",

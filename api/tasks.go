@@ -613,25 +613,16 @@ const (
 	TaskLifecycleHookPrestart        = "prestart"
 	TaskLifecycleBlockUntilRunning   = "running"
 	TaskLifecycleBlockUntilCompleted = "completed"
-	TaskLifecycleDeadlineMinimum     = 0 * time.Second
-	TaskLifecycleDeadlineDefault     = 120 * time.Second
 )
 
 type TaskLifecycle struct {
-	Hook       string        `mapstructure:"hook"`
-	BlockUntil string        `mapstructure:"block_until"`
-	Deadline   time.Duration `mapstructure:"deadline"`
-}
-
-func (l *TaskLifecycle) Canonicalize() {
-	if l.Deadline == 0 {
-		l.Deadline = TaskLifecycleDeadlineDefault
-	}
+	Hook       string `mapstructure:"hook"`
+	BlockUntil string `mapstructure:"block_until"`
 }
 
 // Determine if lifecycle has user-input values
 func (l *TaskLifecycle) Empty() bool {
-	return l == nil || (l.Hook == "" && l.BlockUntil == "" && l.Deadline == 0)
+	return l == nil || (l.Hook == "" && l.BlockUntil == "")
 }
 
 // Task is a single process in a task group.
@@ -693,8 +684,6 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	if t.Lifecycle.Empty() {
 		t.Lifecycle = nil
-	} else {
-		t.Lifecycle.Canonicalize()
 	}
 }
 

@@ -389,20 +389,6 @@ func TestTask_Canonicalize_TaskLifecycle(t *testing.T) {
 			},
 			expected: nil,
 		},
-		{
-			name: "deadline default",
-			expected: &TaskLifecycle{
-				Hook:       "prestart",
-				BlockUntil: "completed",
-				Deadline:   TaskLifecycleDeadlineDefault,
-			},
-			task: &Task{
-				Lifecycle: &TaskLifecycle{
-					Hook:       "prestart",
-					BlockUntil: "completed",
-				},
-			},
-		},
 	}
 
 	for _, tc := range testCases {
