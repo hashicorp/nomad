@@ -16,7 +16,7 @@ import (
 
 const (
 	FilterConstraintHostVolumes = "missing compatible host volumes"
-	FilterConstraintCSIVolumes  = "missing csi volume plugins"
+	FilterConstraintCSIVolumes  = "missing CSI plugins"
 	FilterConstraintDrivers     = "missing drivers"
 	FilterConstraintDevices     = "missing devices"
 )
