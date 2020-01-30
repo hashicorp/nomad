@@ -194,7 +194,8 @@ func (h *sidsHook) deriveSIToken(ctx context.Context) (string, error) {
 		select {
 		case result := <-resultCh:
 			if result.err != nil {
-				h.kill(ctx, errors.Wrap(result.err, "consul: failed to derive SI token"))
+				h.logger.Error("failed to derive SI token", "error", result.err)
+				h.kill(ctx, errors.Wrap(result.err, "failed to derive SI token"))
 				return "", result.err
 			}
 			return result.token, nil
@@ -204,13 +205,14 @@ func (h *sidsHook) deriveSIToken(ctx context.Context) (string, error) {
 	}
 }
 
-func (h *sidsHook) kill(ctx context.Context, err error) {
-	_ = h.lifecycle.Kill(
-		ctx,
+func (h *sidsHook) kill(ctx context.Context, reason error) {
+	if err := h.lifecycle.Kill(ctx,
 		structs.NewTaskEvent(structs.TaskKilling).
 			SetFailsTask().
-			SetDisplayMessage(err.Error()),
-	)
+			SetDisplayMessage(reason.Error()),
+	); err != nil {
+		h.logger.Error("failed to kill task", "kill_reason", reason, "error", err)
+	}
 }
 
 // tryDerive loops forever until a token is created, or ctx is done.
