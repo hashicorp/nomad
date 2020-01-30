@@ -1,3 +1,7 @@
+// +build !windows
+// todo(shoenig): Once Connect is supported on Windows, we'll need to make this
+//  set of tests work there too.
+
 package taskrunner
 
 import (
@@ -10,11 +14,15 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
+	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 var _ interfaces.TaskPrestartHook = (*sidsHook)(nil)
@@ -83,6 +91,13 @@ func TestSIDSHook_recoverToken_empty(t *testing.T) {
 }
 
 func TestSIDSHook_recoverToken_unReadable(t *testing.T) {
+	// This test fails when running as root because the test case for checking
+	// the error condition when the file is unreadable fails (root can read the
+	// file even though the permissions are set to 0200).
+	if unix.Geteuid() == 0 {
+		t.Skip("test only works as non-root")
+	}
+
 	t.Parallel()
 	r := require.New(t)
 
@@ -123,6 +138,13 @@ func TestSIDSHook_writeToken(t *testing.T) {
 }
 
 func TestSIDSHook_writeToken_unWritable(t *testing.T) {
+	// This test fails when running as root because the test case for checking
+	// the error condition when the file is unreadable fails (root can read the
+	// file even though the permissions are set to 0200).
+	if unix.Geteuid() == 0 {
+		t.Skip("test only works as non-root")
+	}
+
 	t.Parallel()
 	r := require.New(t)
 
@@ -237,4 +259,71 @@ func TestSIDSHook_backoffKilled(t *testing.T) {
 
 	stop := !backoff(ctx, 1000)
 	r.True(stop)
+}
+
+func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
+	// Normally this test would live in test_runner_test.go, but since it requires
+	// root and the check for root doesn't like Windows, we put this file in here
+	// for now.
+
+	// This test fails when running as root because the test case for checking
+	// the error condition when the file is unreadable fails (root can read the
+	// file even though the permissions are set to 0200).
+	if unix.Geteuid() == 0 {
+		t.Skip("test only works as non-root")
+	}
+
+	t.Parallel()
+	r := require.New(t)
+
+	alloc := mock.BatchConnectAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Config = map[string]interface{}{
+		"run_for": "0s",
+	}
+
+	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// make the si_token file un-writable, triggering a failure after a
+	// successful token derivation
+	secrets := tmpDir(t)
+	defer cleanupDir(t, secrets)
+	trConfig.TaskDir.SecretsDir = secrets
+	err := ioutil.WriteFile(filepath.Join(secrets, sidsTokenFile), nil, 0400)
+	r.NoError(err)
+
+	// derive token works just fine
+	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
+		return map[string]string{task.Name: uuid.Generate()}, nil
+	}
+	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
+	siClient.DeriveTokenFn = deriveFn
+
+	// start the task runner
+	tr, err := NewTaskRunner(trConfig)
+	r.NoError(err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	useMockEnvoyBootstrapHook(tr) // mock the envoy bootstrap
+
+	go tr.Run()
+
+	// wait for task runner to finish running
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		r.Fail("timed out waiting for task runner")
+	}
+
+	// assert task exited un-successfully
+	finalState := tr.TaskState()
+	r.Equal(structs.TaskStateDead, finalState.State)
+	r.True(finalState.Failed) // should have failed to write SI token
+	r.Contains(finalState.Events[2].DisplayMessage, "failed to write SI token")
+
+	// assert the token is *not* on disk, as secrets dir was un-writable
+	tokenPath := filepath.Join(trConfig.TaskDir.SecretsDir, sidsTokenFile)
+	token, err := ioutil.ReadFile(tokenPath)
+	r.NoError(err)
+	r.Empty(token)
 }

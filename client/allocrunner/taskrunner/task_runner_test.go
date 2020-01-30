@@ -1231,62 +1231,6 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 	r.Equal(token, string(data))
 }
 
-func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
-	t.Parallel()
-	r := require.New(t)
-
-	alloc := mock.BatchConnectAlloc()
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config = map[string]interface{}{
-		"run_for": "0s",
-	}
-
-	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
-	defer cleanup()
-
-	// make the si_token file un-writable, triggering a failure after a
-	// successful token derivation
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
-	trConfig.TaskDir.SecretsDir = secrets
-	err := ioutil.WriteFile(filepath.Join(secrets, sidsTokenFile), nil, 0400)
-	r.NoError(err)
-
-	// derive token works just fine
-	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
-		return map[string]string{task.Name: uuid.Generate()}, nil
-	}
-	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
-	siClient.DeriveTokenFn = deriveFn
-
-	// start the task runner
-	tr, err := NewTaskRunner(trConfig)
-	r.NoError(err)
-	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
-	useMockEnvoyBootstrapHook(tr) // mock the envoy bootstrap
-
-	go tr.Run()
-
-	// wait for task runner to finish running
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
-		r.Fail("timed out waiting for task runner")
-	}
-
-	// assert task exited un-successfully
-	finalState := tr.TaskState()
-	r.Equal(structs.TaskStateDead, finalState.State)
-	r.True(finalState.Failed) // should have failed to write SI token
-	r.Contains(finalState.Events[2].DisplayMessage, "failed to write SI token")
-
-	// assert the token is *not* on disk, as secrets dir was un-writable
-	tokenPath := filepath.Join(trConfig.TaskDir.SecretsDir, sidsTokenFile)
-	token, err := ioutil.ReadFile(tokenPath)
-	r.NoError(err)
-	r.Empty(token)
-}
-
 // TestTaskRunner_DeriveSIToken_Unrecoverable asserts that an unrecoverable error
 // from deriving a service identity token will fail a task.
 func TestTaskRunner_DeriveSIToken_Unrecoverable(t *testing.T) {
