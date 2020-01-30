@@ -6,7 +6,8 @@
 >
   <dd.Trigger
     data-test-popover-trigger
-    class={{concat "popover-trigger button is-primary " triggerClass (if isDisabled "is-disabled")}}
+    class={{concat "popover-trigger button is-primary " triggerClass (if isDisabled " is-disabled")}}
+    aria-label={{tooltip}}
     {{on "keydown" (action "openOnArrowDown" dd)}}
   >
     {{label}} {{x-icon "chevron-down" class="is-text"}}
