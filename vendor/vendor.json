@@ -216,6 +216,7 @@
 		{"path":"github.com/hashicorp/errwrap","checksumSHA1":"cdOCt0Yb+hdErz8NAQqayxPmRsY=","revision":"7554cd9344cec97297fa6649b055a8c98c2a1e55"},
 		{"path":"github.com/hashicorp/go-checkpoint","checksumSHA1":"D267IUMW2rcb+vNe3QU+xhfSrgY=","revision":"1545e56e46dec3bba264e41fde2c1e2aa65b5dd4","revisionTime":"2017-10-09T17:35:28Z"},
 		{"path":"github.com/hashicorp/go-cleanhttp","checksumSHA1":"6ihdHMkDfFx/rJ1A36com2F6bQk=","revision":"a45970658e51fea2c41445ff0f7e07106d007617","revisionTime":"2017-02-11T00:33:01Z"},
+		{"path":"github.com/hashicorp/go-connlimit","checksumSHA1":"hWFJgo9OJD+vwel31yaS1u7k3OU=","revision":"7b54d3380815c9b127c3d841df45951807b79ab8","revisionTime":"2020-01-28T15:55:23Z"},
 		{"path":"github.com/hashicorp/go-discover","checksumSHA1":"3m3SRZczpDY+fSN7oEUqoPJSZMg=","revision":"7698de1390a18e1d38f55ad02d4cab8917b9219d","revisionTime":"2020-01-08T19:47:35Z"},
 		{"path":"github.com/hashicorp/go-discover/provider/aliyun","checksumSHA1":"Jww5zrDwjMoFF31RqBapilTdi18=","revision":"7698de1390a18e1d38f55ad02d4cab8917b9219d","revisionTime":"2020-01-08T19:47:35Z","tree":true},
 		{"path":"github.com/hashicorp/go-discover/provider/aws","checksumSHA1":"mSoObM5f8c2FJW/09mNqDrMqvpw=","revision":"7698de1390a18e1d38f55ad02d4cab8917b9219d","revisionTime":"2020-01-08T19:47:35Z","tree":true},

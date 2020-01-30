@@ -316,6 +316,20 @@ type Config struct {
 	// PluginSingletonLoader is a plugin loader that will returns singleton
 	// instances of the plugins.
 	PluginSingletonLoader loader.PluginCatalog
+
+	// RPCHandshakeTimeout is the deadline by which RPC handshakes must
+	// complete. The RPC handshake includes the first byte read as well as
+	// the TLS handshake and subsequent byte read if TLS is enabled.
+	//
+	// The deadline is reset after the first byte is read so when TLS is
+	// enabled RPC connections may take (timeout * 2) to complete.
+	//
+	// 0 means no timeout.
+	RPCHandshakeTimeout time.Duration
+
+	// RPCMaxConnsPerClient is the maximum number of concurrent RPC
+	// connections from a single IP address. nil/0 means no limit.
+	RPCMaxConnsPerClient int
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -330,7 +344,8 @@ func (c *Config) CheckVersion() error {
 	return nil
 }
 
-// DefaultConfig returns the default configuration
+// DefaultConfig returns the default configuration. Only used as the basis for
+// merging agent or test parameters.
 func DefaultConfig() *Config {
 	hostname, err := os.Hostname()
 	if err != nil {
