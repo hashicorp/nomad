@@ -909,6 +909,64 @@ func TestJobs_Info(t *testing.T) {
 	}
 }
 
+func TestJobs_Scale(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Check if invalid inputs fail
+	tests := []struct {
+		jobID string
+		group string
+		value interface{}
+		want  string
+	}{
+		{"", "", 1, "404"},
+		{"i-dont-exist", "", 1, "400"},
+		{"", "i-dont-exist", 1, "400"},
+		{"i-dont-exist", "me-neither", 1, "EOF"}, // TODO: this should be a 404
+		{"id", "group", nil, "500"},
+		{"id", "group", "not-int", "500"},
+	}
+	for _, test := range tests {
+		_, _, err := jobs.Scale(test.jobID, test.group, test.value, "", nil)
+		if err == nil {
+			t.Errorf("expected jobs.Scale(%s, %s) to fail", test.jobID, test.group)
+		}
+		if !strings.Contains(err.Error(), test.want) {
+			t.Errorf("jobs.Scale(%s, %s) error doesn't contain %s, got: %s", test.jobID, test.group, test.want, err)
+		}
+	}
+
+	// Register test job
+	job := testJob()
+	job.ID = stringToPtr("TestJobs_Scale")
+	_, wm, err := jobs.Register(job, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Scale job task group
+	value := 2
+	_, wm, err = jobs.Scale(*job.ID, *job.TaskGroups[0].Name, value, "reason", nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	assertWriteMeta(t, wm)
+
+	// Query the job again
+	resp, _, err := jobs.Info(*job.ID, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if *resp.TaskGroups[0].Count != value {
+		t.Errorf("expected task group count to be %d, got: %d", value, *resp.TaskGroups[0].Count)
+	}
+	// TODO: check if reason is stored
+}
+
 func TestJobs_Versions(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)
