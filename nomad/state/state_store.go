@@ -957,6 +957,7 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 			plug = raw.(*structs.CSIPlugin).Copy(index)
 		} else {
 			plug = structs.NewCSIPlugin(info.PluginID, index)
+			plug.ControllerRequired = info.RequiresControllerPlugin
 		}
 
 		plug.AddPlugin(node.ID, info, index)
@@ -1860,6 +1861,7 @@ func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs
 		return vol, nil
 	}
 
+	vol.ControllerRequired = plug.ControllerRequired
 	vol.ControllersHealthy = plug.ControllersHealthy
 	vol.NodesHealthy = plug.NodesHealthy
 	// This number is incorrect! The expected number of node plugins is actually this +
@@ -1867,7 +1869,10 @@ func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs
 	vol.ControllersExpected = len(plug.Controllers)
 	vol.NodesExpected = len(plug.Nodes)
 
-	vol.Healthy = vol.ControllersHealthy > 0 && vol.NodesHealthy > 0
+	vol.Healthy = vol.NodesHealthy > 0
+	if vol.ControllerRequired {
+		vol.Healthy = vol.ControllersHealthy > 0 && vol.Healthy
+	}
 
 	return vol, nil
 }
