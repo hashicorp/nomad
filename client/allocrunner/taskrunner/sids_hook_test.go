@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -43,7 +44,6 @@ func TestSIDSHook_recoverToken(t *testing.T) {
 	defer cleanupDir(t, secrets)
 
 	taskName, taskKind := sidecar("foo")
-
 	h := newSIDSHook(sidsHookConfig{
 		task: &structs.Task{
 			Name: taskName,
@@ -69,7 +69,6 @@ func TestSIDSHook_recoverToken_empty(t *testing.T) {
 	defer cleanupDir(t, secrets)
 
 	taskName, taskKind := sidecar("foo")
-
 	h := newSIDSHook(sidsHookConfig{
 		task: &structs.Task{
 			Name: taskName,
@@ -83,15 +82,81 @@ func TestSIDSHook_recoverToken_empty(t *testing.T) {
 	r.Empty(token)
 }
 
-func TestSIDSHook_deriveSIToken(t *testing.T) {
+func TestSIDSHook_recoverToken_unReadable(t *testing.T) {
 	t.Parallel()
 	r := require.New(t)
 
 	secrets := tmpDir(t)
 	defer cleanupDir(t, secrets)
 
-	taskName, taskKind := sidecar("task1")
+	err := os.Chmod(secrets, 0000)
+	r.NoError(err)
 
+	taskName, taskKind := sidecar("foo")
+	h := newSIDSHook(sidsHookConfig{
+		task: &structs.Task{
+			Name: taskName,
+			Kind: taskKind,
+		},
+		logger: testlog.HCLogger(t),
+	})
+
+	_, err = h.recoverToken(secrets)
+	r.Error(err)
+}
+
+func TestSIDSHook_writeToken(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	secrets := tmpDir(t)
+	defer cleanupDir(t, secrets)
+
+	id := uuid.Generate()
+	h := new(sidsHook)
+	err := h.writeToken(secrets, id)
+	r.NoError(err)
+
+	content, err := ioutil.ReadFile(filepath.Join(secrets, sidsTokenFile))
+	r.NoError(err)
+	r.Equal(id, string(content))
+}
+
+func TestSIDSHook_writeToken_unWritable(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	secrets := tmpDir(t)
+	defer cleanupDir(t, secrets)
+
+	err := os.Chmod(secrets, 0000)
+	r.NoError(err)
+
+	id := uuid.Generate()
+	h := new(sidsHook)
+	err = h.writeToken(secrets, id)
+	r.Error(err)
+}
+
+func Test_SIDSHook_writeToken_nonExistent(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	base := tmpDir(t)
+	defer cleanupDir(t, base)
+	secrets := filepath.Join(base, "does/not/exist")
+
+	id := uuid.Generate()
+	h := new(sidsHook)
+	err := h.writeToken(secrets, id)
+	r.Error(err)
+}
+
+func TestSIDSHook_deriveSIToken(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	taskName, taskKind := sidecar("task1")
 	h := newSIDSHook(sidsHookConfig{
 		alloc: &structs.Allocation{ID: "a1"},
 		task: &structs.Task{
@@ -112,11 +177,6 @@ func TestSIDSHook_deriveSIToken_timeout(t *testing.T) {
 	t.Parallel()
 	r := require.New(t)
 
-	secrets := tmpDir(t)
-	defer cleanupDir(t, secrets)
-
-	taskName, taskKind := sidecar("task1")
-
 	siClient := consul.NewMockServiceIdentitiesClient()
 	siClient.DeriveTokenFn = func(allocation *structs.Allocation, strings []string) (m map[string]string, err error) {
 		select {
@@ -124,6 +184,7 @@ func TestSIDSHook_deriveSIToken_timeout(t *testing.T) {
 		}
 	}
 
+	taskName, taskKind := sidecar("task1")
 	h := newSIDSHook(sidsHookConfig{
 		alloc: &structs.Allocation{ID: "a1"},
 		task: &structs.Task{
