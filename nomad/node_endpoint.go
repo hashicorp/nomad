@@ -1702,7 +1702,7 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 		setError(errors.Errorf("Allocation %q does not contain TaskGroup %q", args.AllocID, alloc.TaskGroup), false)
 		return nil
 	}
-	if !tgUsesConnect(tg) {
+	if !tg.UsesConnect() {
 		setError(errors.Errorf("TaskGroup %q does not use Connect", tg.Name), false)
 		return nil
 	}
@@ -1829,17 +1829,6 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	reply.Tokens = tokens
 	n.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
-}
-
-func tgUsesConnect(tg *structs.TaskGroup) bool {
-	for _, service := range tg.Services {
-		if service.Connect != nil {
-			if service.Connect.Native || service.Connect.SidecarService != nil {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func tasksNotUsingConnect(tg *structs.TaskGroup, tasks []string) []string {

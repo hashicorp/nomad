@@ -754,6 +754,44 @@ func TestTask_UsesConnect(t *testing.T) {
 	// todo(shoenig): add native case
 }
 
+func TestTaskGroup_UsesConnect(t *testing.T) {
+	t.Parallel()
+
+	try := func(t *testing.T, tg *TaskGroup, exp bool) {
+		result := tg.UsesConnect()
+		require.Equal(t, exp, result)
+	}
+
+	t.Run("tg uses native", func(t *testing.T) {
+		try(t, &TaskGroup{
+			Services: []*Service{
+				{Connect: nil},
+				{Connect: &ConsulConnect{Native: true}},
+			},
+		}, true)
+	})
+
+	t.Run("tg uses sidecar", func(t *testing.T) {
+		try(t, &TaskGroup{
+			Services: []*Service{{
+				Connect: &ConsulConnect{
+					SidecarService: &ConsulSidecarService{
+						Port: "9090",
+					},
+				},
+			}},
+		}, true)
+	})
+
+	t.Run("tg does not use connect", func(t *testing.T) {
+		try(t, &TaskGroup{
+			Services: []*Service{
+				{Connect: nil},
+			},
+		}, false)
+	})
+}
+
 func TestTaskGroup_Validate(t *testing.T) {
 	j := testJob()
 	tg := &TaskGroup{

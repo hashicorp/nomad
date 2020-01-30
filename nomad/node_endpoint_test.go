@@ -3034,44 +3034,6 @@ func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 	}
 }
 
-func TestClientEndpoint_tgUsesConnect(t *testing.T) {
-	t.Parallel()
-
-	try := func(t *testing.T, tg *structs.TaskGroup, exp bool) {
-		result := tgUsesConnect(tg)
-		require.Equal(t, exp, result)
-	}
-
-	t.Run("tg uses native", func(t *testing.T) {
-		try(t, &structs.TaskGroup{
-			Services: []*structs.Service{
-				{Connect: nil},
-				{Connect: &structs.ConsulConnect{Native: true}},
-			},
-		}, true)
-	})
-
-	t.Run("tg uses sidecar", func(t *testing.T) {
-		try(t, &structs.TaskGroup{
-			Services: []*structs.Service{{
-				Connect: &structs.ConsulConnect{
-					SidecarService: &structs.ConsulSidecarService{
-						Port: "9090",
-					},
-				},
-			}},
-		}, true)
-	})
-
-	t.Run("tg does not use connect", func(t *testing.T) {
-		try(t, &structs.TaskGroup{
-			Services: []*structs.Service{
-				{Connect: nil},
-			},
-		}, false)
-	})
-}
-
 func TestClientEndpoint_taskUsesConnect(t *testing.T) {
 	t.Parallel()
 

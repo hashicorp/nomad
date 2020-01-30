@@ -202,15 +202,6 @@ func (h *envoyBootstrapHook) writeConfig(filename, config string) error {
 	return nil
 }
 
-func (_ *envoyBootstrapHook) retry(ctx context.Context) bool {
-	select {
-	case <-ctx.Done():
-		return false
-	case <-time.After(2 * time.Second):
-		return true
-	}
-}
-
 func (h *envoyBootstrapHook) execute(cmd *exec.Cmd) (string, error) {
 	var (
 		stdout bytes.Buffer
