@@ -16,6 +16,7 @@ export default Component.extend({
 
   triggerClass: '',
   isOpen: false,
+  isDisabled: false,
   label: '',
 
   dropdown: null,

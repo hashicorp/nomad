@@ -122,6 +122,7 @@
     <div class="toolbar-item is-right-aligned is-top-aligned">
       {{drain-popover
         client=model
+        isDisabled=(cannot "write client")
         onDrain=(action "drainNotify")
         onError=(action "drainError")}}
     </div>
