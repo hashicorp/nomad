@@ -1,4 +1,4 @@
-import { module, skip, test } from 'qunit';
+import { module, skip } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, triggerKeyEvent } from '@ember/test-helpers';
 import { next } from '@ember/runloop';
@@ -8,7 +8,7 @@ import sinon from 'sinon';
 module('Integration | Component | exec-terminal', function(hooks) {
   setupRenderingTest(hooks);
 
-  test('it renders an incoming message', async function(assert) {
+  skip('it renders an incoming message', async function(assert) {
     const done = assert.async();
 
     const socket = {
