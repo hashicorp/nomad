@@ -27,7 +27,7 @@ func TestMaterializeTaskGroups(t *testing.T) {
 	}
 }
 
-func TestDiffAllocs(t *testing.T) {
+func TestDiffSystemAllocsForNode(t *testing.T) {
 	job := mock.Job()
 	required := materializeTaskGroups(job)
 
@@ -156,6 +156,65 @@ func TestDiffAllocs(t *testing.T) {
 			}
 		}
 	}
+}
+
+// Test the desired diff for an updated system job running on a
+// ineligible node
+func TestDiffSystemAllocsForNode_ExistingAllocIneligibleNode(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	required := materializeTaskGroups(job)
+
+	// The "old" job has a previous modify index
+	oldJob := new(structs.Job)
+	*oldJob = *job
+	oldJob.JobModifyIndex -= 1
+
+	eligibleNode := mock.Node()
+	ineligibleNode := mock.Node()
+	ineligibleNode.SchedulingEligibility = structs.NodeSchedulingIneligible
+
+	tainted := map[string]*structs.Node{}
+
+	eligible := map[string]*structs.Node{
+		eligibleNode.ID: eligibleNode,
+	}
+
+	allocs := []*structs.Allocation{
+		// Update the TG alloc running on eligible node
+		{
+			ID:     uuid.Generate(),
+			NodeID: eligibleNode.ID,
+			Name:   "my-job.web[0]",
+			Job:    oldJob,
+		},
+
+		// Ignore the TG alloc running on ineligible node
+		{
+			ID:     uuid.Generate(),
+			NodeID: ineligibleNode.ID,
+			Name:   "my-job.web[0]",
+			Job:    job,
+		},
+	}
+
+	// No terminal allocs
+	terminalAllocs := map[string]*structs.Allocation{}
+
+	diff := diffSystemAllocsForNode(job, eligibleNode.ID, eligible, tainted, required, allocs, terminalAllocs)
+	place := diff.place
+	update := diff.update
+	migrate := diff.migrate
+	stop := diff.stop
+	ignore := diff.ignore
+	lost := diff.lost
+
+	require.Len(t, place, 0)
+	require.Len(t, update, 1)
+	require.Len(t, migrate, 0)
+	require.Len(t, stop, 0)
+	require.Len(t, ignore, 1)
+	require.Len(t, lost, 0)
 }
 
 func TestDiffSystemAllocs(t *testing.T) {
