@@ -181,13 +181,13 @@ type siDerivationResult struct {
 // derive an SI token until a token is successfully created, or ctx is signaled
 // done.
 func (h *sidsHook) deriveSIToken(ctx context.Context) (string, error) {
-	ctx2, cancel := context.WithTimeout(ctx, h.derivationTimeout)
+	ctx, cancel := context.WithTimeout(ctx, h.derivationTimeout)
 	defer cancel()
 
 	resultCh := make(chan siDerivationResult)
 
 	// keep trying to get the token in the background
-	go h.tryDerive(ctx2, resultCh)
+	go h.tryDerive(ctx, resultCh)
 
 	// wait until we get a token, or we get a signal to quit
 	for {
@@ -198,8 +198,8 @@ func (h *sidsHook) deriveSIToken(ctx context.Context) (string, error) {
 				return "", result.err
 			}
 			return result.token, nil
-		case <-ctx2.Done():
-			return "", ctx2.Err()
+		case <-ctx.Done():
+			return "", ctx.Err()
 		}
 	}
 }
