@@ -1310,6 +1310,11 @@ func TestSystemSched_Queued_With_Constraints(t *testing.T) {
 
 }
 
+// This test ensures that the scheduler correctly ignores ineligible
+// nodes when scheduling due to a new node being added. The job has two
+// task groups contrained to a particular node class. The desired behavior
+// should be that the TaskGroup constrained to the newly added node class is
+// added and that the TaskGroup constrained to the ineligible node is ignored.
 func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	h := NewHarness(t)
 
@@ -1376,8 +1381,8 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	require.Equal(t, 0, val)
 
 	// Single plan with two NodeAllocations
-	require.Equal(t, 1, len(h.Plans))
-	require.Equal(t, 2, len(h.Plans[0].NodeAllocation))
+	require.Len(t, h.Plans, 1)
+	require.Len(t, h.Plans[0].NodeAllocation, 2)
 
 	// Mark the node as ineligible
 	node.SchedulingEligibility = structs.NodeSchedulingIneligible
@@ -1402,7 +1407,7 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 
 	// Ensure all NodeAllocations are from first Eval
 	for _, allocs := range h.Plans[0].NodeAllocation {
-		require.Equal(t, 1, len(allocs))
+		require.Len(t, allocs, 1)
 		require.Equal(t, eval.ID, allocs[0].EvalID)
 	}
 
@@ -1432,11 +1437,11 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	// Ensure no failed TG allocs
 	require.Equal(t, 0, len(h.Evals[2].FailedTGAllocs))
 
-	require.Equal(t, 2, len(h.Plans))
-	require.Equal(t, 1, len(h.Plans[1].NodeAllocation))
+	require.Len(t, h.Plans, 2)
+	require.Len(t, h.Plans[1].NodeAllocation, 1)
 	// Ensure all NodeAllocations are from first Eval
 	for _, allocs := range h.Plans[1].NodeAllocation {
-		require.Equal(t, 1, len(allocs))
+		require.Len(t, allocs, 1)
 		require.Equal(t, eval3.ID, allocs[0].EvalID)
 	}
 
@@ -1444,15 +1449,15 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 
 	allocsNodeOne, err := h.State.AllocsByNode(ws, node.ID)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(allocsNodeOne))
+	require.Len(t, allocsNodeOne, 1)
 
 	allocsNodeTwo, err := h.State.AllocsByNode(ws, nodeB.ID)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(allocsNodeTwo))
+	require.Len(t, allocsNodeTwo, 1)
 
 	allocsNodeThree, err := h.State.AllocsByNode(ws, nodeBTwo.ID)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(allocsNodeThree))
+	require.Len(t, allocsNodeThree, 1)
 }
 
 // No errors reported when no available nodes prevent placement

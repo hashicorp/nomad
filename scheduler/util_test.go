@@ -36,6 +36,9 @@ func TestDiffAllocs(t *testing.T) {
 	*oldJob = *job
 	oldJob.JobModifyIndex -= 1
 
+	eligibleNode := mock.Node()
+	eligibleNode.ID = "zip"
+
 	drainNode := mock.Node()
 	drainNode.Drain = true
 
@@ -45,6 +48,10 @@ func TestDiffAllocs(t *testing.T) {
 	tainted := map[string]*structs.Node{
 		"dead":      deadNode,
 		"drainNode": drainNode,
+	}
+
+	eligible := map[string]*structs.Node{
+		eligibleNode.ID: eligibleNode,
 	}
 
 	allocs := []*structs.Allocation{
@@ -113,7 +120,7 @@ func TestDiffAllocs(t *testing.T) {
 		},
 	}
 
-	diff := diffAllocs(job, tainted, required, allocs, terminalAllocs)
+	diff := diffSystemAllocsForNode(job, "zip", eligible, tainted, required, allocs, terminalAllocs)
 	place := diff.place
 	update := diff.update
 	migrate := diff.migrate

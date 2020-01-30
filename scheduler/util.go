@@ -53,9 +53,9 @@ func (d *diffResult) Append(other *diffResult) {
 	d.lost = append(d.lost, other.lost...)
 }
 
-// diffAllocs is used to do a set difference between the target allocations
-// and the existing allocations. This returns 6 sets of results, the list of
-// named task groups that need to be placed (no existing allocation), the
+// diffSystemAllocsForNode is used to do a set difference between the target allocations
+// and the existing allocations for a particular node. This returns 6 sets of results,
+// the list of named task groups that need to be placed (no existing allocation), the
 // allocations that need to be updated (job definition is newer), allocs that
 // need to be migrated (node is draining), the allocs that need to be evicted
 // (no longer required), those that should be ignored and those that are lost
@@ -67,7 +67,8 @@ func (d *diffResult) Append(other *diffResult) {
 // required is a set of allocations that must exist.
 // allocs is a list of non terminal allocations.
 // terminalAllocs is an index of the latest terminal allocations by name.
-func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
+func diffSystemAllocsForNode(job *structs.Job, nodeID string,
+	eligibleNodes, taintedNodes map[string]*structs.Node,
 	required map[string]*structs.TaskGroup, allocs []*structs.Allocation,
 	terminalAllocs map[string]*structs.Allocation) *diffResult {
 	result := &diffResult{}
@@ -126,6 +127,12 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 			continue
 		}
 
+		// For an existing allocation, if the nodeID is no longer
+		// eligible, the diff should be ignored
+		if _, ok := eligibleNodes[nodeID]; !ok {
+			goto IGNORE
+		}
+
 		// If the definition is updated we need to update
 		if job.JobModifyIndex != exist.Job.JobModifyIndex {
 			result.update = append(result.update, allocTuple{
@@ -152,19 +159,35 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 
 		// Require a placement if no existing allocation. If there
 		// is an existing allocation, we would have checked for a potential
-		// update or ignore above.
+		// update or ignore above. Ignore placements for tainted or
+		// ineligible nodes
 		if !ok {
-			result.place = append(result.place, allocTuple{
+			if _, tainted := taintedNodes[nodeID]; tainted {
+				continue
+			}
+			if _, eligible := eligibleNodes[nodeID]; !eligible {
+				continue
+			}
+
+			allocTuple := allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     terminalAllocs[name],
-			})
+			}
+
+			// If the new allocation isn't annotated with a previous allocation
+			// or if the previous allocation isn't from the same node then we
+			// annotate the allocTuple with a new Allocation
+			if allocTuple.Alloc == nil || allocTuple.Alloc.NodeID != nodeID {
+				allocTuple.Alloc = &structs.Allocation{NodeID: nodeID}
+			}
+			result.place = append(result.place, allocTuple)
 		}
 	}
 	return result
 }
 
-// diffSystemAllocs is like diffAllocs however, the allocations in the
+// diffSystemAllocs is like diffSystemAllocsForNode however, the allocations in the
 // diffResult contain the specific nodeID they should be allocated on.
 //
 // job is the job whose allocs is going to be diff-ed.
@@ -183,12 +206,12 @@ func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[
 		nodeAllocs[alloc.NodeID] = nallocs
 	}
 
-	knownNodes := make(map[string]struct{})
+	eligibleNodes := make(map[string]*structs.Node)
 	for _, node := range nodes {
 		if _, ok := nodeAllocs[node.ID]; !ok {
 			nodeAllocs[node.ID] = nil
 		}
-		knownNodes[node.ID] = struct{}{}
+		eligibleNodes[node.ID] = node
 	}
 
 	// Create the required task groups.
@@ -196,45 +219,7 @@ func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[
 
 	result := &diffResult{}
 	for nodeID, allocs := range nodeAllocs {
-		diff := diffAllocs(job, taintedNodes, required, allocs, terminalAllocs)
-
-		// If the current allocation nodeID is not in the list
-		// of known nodes to the scheduler, and diffAllocs is
-		// attempting to update or place an system alloc on an ineligible
-		// node the diff should be ignored.
-		if _, ok := knownNodes[nodeID]; !ok && ((len(diff.update) > 0) || (len(diff.place) > 0)) {
-			for _, existing := range allocs {
-				tg, ok := required[existing.Name]
-				if !ok {
-					continue
-				}
-				diff.place = nil
-				diff.update = nil
-				diff.ignore = append(diff.ignore, allocTuple{
-					Name:      existing.Name,
-					TaskGroup: tg,
-					Alloc:     existing,
-				})
-			}
-		}
-
-		// If the node is tainted there should be no placements made
-		if _, ok := taintedNodes[nodeID]; ok {
-			diff.place = nil
-		} else {
-			// Mark the alloc as being for a specific node.
-			for i := range diff.place {
-				alloc := &diff.place[i]
-
-				// If the new allocation isn't annotated with a previous allocation
-				// or if the previous allocation isn't from the same node then we
-				// annotate the allocTuple with a new Allocation
-				if alloc.Alloc == nil || alloc.Alloc.NodeID != nodeID {
-					alloc.Alloc = &structs.Allocation{NodeID: nodeID}
-				}
-			}
-		}
-
+		diff := diffSystemAllocsForNode(job, nodeID, eligibleNodes, taintedNodes, required, allocs, terminalAllocs)
 		result.Append(diff)
 	}
 
