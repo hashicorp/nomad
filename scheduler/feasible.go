@@ -215,17 +215,9 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) bool {
 	// - the volume has free claims
 	// - the node is running the node plugin, implies matching topology
 
-	rLen := len(c.volumes)
-	hLen := len(n.CSINodePlugins)
-
 	// Fast path: Requested no volumes. No need to check further.
-	if rLen == 0 {
+	if len(c.volumes) == 0 {
 		return true
-	}
-
-	// Fast path: Requesting more volumes than the node has, can't meet the criteria.
-	if rLen > hLen {
-		return false
 	}
 
 	ws := memdb.NewWatchSet()
