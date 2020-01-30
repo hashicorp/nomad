@@ -258,8 +258,11 @@ server {
 The structure matches the [Update Scheduler Config][update-scheduler-config] endpoint,
 but adopted to hcl syntax (namely using snake case rather than camel case).
 
-Nomad servers check their `default_scheduler_config` during cluster bootstrap (or upgrades).
-Once the configuration is committed, it can only be updated through the API endpoint.
+Nomad servers check their `default_scheduler_config` only during cluster
+bootstrap. During upgrades, if a previously bootstrapped cluster already set
+scheduler configuration via the [Update Scheduler Config][update-scheduler-config]
+endpoint, that is always preferred.
+
 
 [encryption]: /guides/security/encryption.html "Nomad Encryption Overview"
 [server-join]: /docs/configuration/server_join.html "Server Join"
