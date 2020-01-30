@@ -1838,7 +1838,7 @@ func (s *StateStore) deleteJobCSIPlugins(index uint64, job *structs.Job, txn *me
 
 // CSIVolumeDenormalizePlugins returns a CSIVolume with current health and plugins, but
 // without allocations
-// Use this for current volume meta data, handling lists of volumes
+// Use this for current volume metadata, handling lists of volumes
 // Use CSIVolumeDenormalize for volumes containing both health and current allocations
 func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs.CSIVolume) (*structs.CSIVolume, error) {
 	if vol == nil {
