@@ -1,3 +1,11 @@
+.tree-and-terminal {
+  display: flex;
+
+  .terminal {
+    flex-grow: 1;
+  }
+}
+
 .task-group-tree {
   background-color: $ui-gray-900;
   color: white;

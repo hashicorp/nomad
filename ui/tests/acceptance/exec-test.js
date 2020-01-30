@@ -56,4 +56,16 @@ module('Acceptance | exec', function(hooks) {
     assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
   });
+
+  test('/exec/:job should require selecting a task', async function(assert) {
+    await Exec.visit({ job: this.job.id });
+
+    assert.equal(
+      window.execTerminal.buffer
+        .getLine(0)
+        .translateToString()
+        .trim(),
+      'Select a task to start your session.'
+    );
+  });
 });
