@@ -957,6 +957,7 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 			plug = raw.(*structs.CSIPlugin).Copy(index)
 		} else {
 			plug = structs.NewCSIPlugin(info.PluginID, index)
+			plug.ControllerRequired = info.RequiresControllerPlugin
 		}
 
 		plug.AddPlugin(node.ID, info, index)
@@ -1647,7 +1648,7 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 	return nil
 }
 
-// CSIVolumeByID is used to lookup a single volume
+// CSIVolumeByID is used to lookup a single volume. Its plugins are denormalized to provide accurate Health
 func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, id string) (*structs.CSIVolume, error) {
 	txn := s.db.Txn(false)
 
@@ -1662,10 +1663,7 @@ func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, id string) (*structs.CSIVo
 	}
 
 	vol := obj.(*structs.CSIVolume)
-	// Health data is stale, so set this volume unhealthy until it's denormalized
-	vol.Healthy = false
-
-	return vol, nil
+	return s.CSIVolumeDenormalizePlugins(ws, vol)
 }
 
 // CSIVolumes looks up csi_volumes by pluginID
@@ -1839,21 +1837,10 @@ func (s *StateStore) deleteJobCSIPlugins(index uint64, job *structs.Job, txn *me
 	return nil
 }
 
-// CSIVolumeDenormalize takes a CSIVolume and denormalizes for the API
-func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol *structs.CSIVolume) (*structs.CSIVolume, error) {
-	if vol == nil {
-		return nil, nil
-	}
-
-	vol, err := s.CSIVolumeDenormalizePlugins(ws, vol)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.csiVolumeDenormalizeAllocs(ws, vol)
-}
-
-// CSIVolumeDenormalize returns a CSIVolume with current health and plugins
+// CSIVolumeDenormalizePlugins returns a CSIVolume with current health and plugins, but
+// without allocations
+// Use this for current volume metadata, handling lists of volumes
+// Use CSIVolumeDenormalize for volumes containing both health and current allocations
 func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs.CSIVolume) (*structs.CSIVolume, error) {
 	if vol == nil {
 		return nil, nil
@@ -1874,6 +1861,7 @@ func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs
 		return vol, nil
 	}
 
+	vol.ControllerRequired = plug.ControllerRequired
 	vol.ControllersHealthy = plug.ControllersHealthy
 	vol.NodesHealthy = plug.NodesHealthy
 	// This number is incorrect! The expected number of node plugins is actually this +
@@ -1881,13 +1869,16 @@ func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs
 	vol.ControllersExpected = len(plug.Controllers)
 	vol.NodesExpected = len(plug.Nodes)
 
-	vol.Healthy = vol.ControllersHealthy > 0 && vol.NodesHealthy > 0
+	vol.Healthy = vol.NodesHealthy > 0
+	if vol.ControllerRequired {
+		vol.Healthy = vol.ControllersHealthy > 0 && vol.Healthy
+	}
 
 	return vol, nil
 }
 
 // csiVolumeDenormalizeAllocs returns a CSIVolume with allocations
-func (s *StateStore) csiVolumeDenormalizeAllocs(ws memdb.WatchSet, vol *structs.CSIVolume) (*structs.CSIVolume, error) {
+func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol *structs.CSIVolume) (*structs.CSIVolume, error) {
 	for id := range vol.ReadAllocs {
 		a, err := s.AllocByID(ws, id)
 		if err != nil {
