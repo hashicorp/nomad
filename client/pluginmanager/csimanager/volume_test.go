@@ -167,7 +167,7 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, true)
 			ctx := context.Background()
 
-			err := manager.stageVolume(ctx, tc.Volume)
+			_, err := manager.stageVolume(ctx, tc.Volume)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -227,6 +227,66 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 			}
 
 			require.Equal(t, tc.ExpectedCSICallCount, csiFake.NodeUnstageVolumeCallCount)
+		})
+	}
+}
+
+func TestVolumeManager_publishVolume(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		Name                 string
+		Allocation           *structs.Allocation
+		Volume               *structs.CSIVolume
+		PluginErr            error
+		ExpectedErr          error
+		ExpectedCSICallCount int64
+	}{
+		{
+			Name:       "Returns an error when the plugin returns an error",
+			Allocation: structs.MockAlloc(),
+			Volume: &structs.CSIVolume{
+				ID:             "foo",
+				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
+				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+			},
+			PluginErr:            errors.New("Some Unknown Error"),
+			ExpectedErr:          errors.New("Some Unknown Error"),
+			ExpectedCSICallCount: 1,
+		},
+		{
+			Name:       "Happy Path",
+			Allocation: structs.MockAlloc(),
+			Volume: &structs.CSIVolume{
+				ID:             "foo",
+				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
+				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+			},
+			PluginErr:            nil,
+			ExpectedErr:          nil,
+			ExpectedCSICallCount: 1,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			tmpPath := tmpDir(t)
+			defer os.RemoveAll(tmpPath)
+
+			csiFake := &csifake.Client{}
+			csiFake.NextNodePublishVolumeErr = tc.PluginErr
+
+			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, true)
+			ctx := context.Background()
+
+			_, err := manager.publishVolume(ctx, tc.Volume, tc.Allocation, "")
+
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
+			} else {
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.ExpectedCSICallCount, csiFake.NodePublishVolumeCallCount)
 		})
 	}
 }
