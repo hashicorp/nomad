@@ -46,15 +46,6 @@ var minSchedulerConfigVersion = version.Must(version.NewVersion("0.9.0"))
 
 var minClusterIDVersion = version.Must(version.NewVersion("0.10.4"))
 
-// Default configuration for scheduler with preemption enabled for system jobs
-var defaultSchedulerConfig = &structs.SchedulerConfiguration{
-	PreemptionConfig: structs.PreemptionConfig{
-		SystemSchedulerEnabled:  true,
-		BatchSchedulerEnabled:   false,
-		ServiceSchedulerEnabled: false,
-	},
-}
-
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
