@@ -7,8 +7,19 @@ module('Unit | Ability | job', function(hooks) {
   setupTest(hooks);
   setupAbility('job')(hooks);
 
+  test('it permits job run when ACLs are disabled', function(assert) {
+    const mockToken = Service.extend({
+      aclEnabled: false,
+    });
+
+    this.owner.register('service:token', mockToken);
+
+    assert.ok(this.ability.canRun);
+  });
+
   test('it permits job run for management tokens', function(assert) {
     const mockToken = Service.extend({
+      aclEnabled: true,
       selfToken: { type: 'management' },
     });
 
@@ -19,12 +30,14 @@ module('Unit | Ability | job', function(hooks) {
 
   test('it permits job run for client tokens with a policy that has namespace submit-job', function(assert) {
     const mockSystem = Service.extend({
+      aclEnabled: true,
       activeNamespace: {
         name: 'aNamespace',
       },
     });
 
     const mockToken = Service.extend({
+      aclEnabled: true,
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
@@ -48,12 +61,14 @@ module('Unit | Ability | job', function(hooks) {
 
   test('it permits job run for client tokens with a policy that has default namespace submit-job and no capabilities for active namespace', function(assert) {
     const mockSystem = Service.extend({
+      aclEnabled: true,
       activeNamespace: {
         name: 'anotherNamespace',
       },
     });
 
     const mockToken = Service.extend({
+      aclEnabled: true,
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
@@ -81,12 +96,14 @@ module('Unit | Ability | job', function(hooks) {
 
   test('it blocks job run for client tokens with a policy that has no submit-job capability', function(assert) {
     const mockSystem = Service.extend({
+      aclEnabled: true,
       activeNamespace: {
         name: 'aNamespace',
       },
     });
 
     const mockToken = Service.extend({
+      aclEnabled: true,
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
@@ -110,12 +127,14 @@ module('Unit | Ability | job', function(hooks) {
 
   test('it handles globs in namespace names', function(assert) {
     const mockSystem = Service.extend({
+      aclEnabled: true,
       activeNamespace: {
         name: 'aNamespace',
       },
     });
 
     const mockToken = Service.extend({
+      aclEnabled: true,
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
