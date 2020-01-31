@@ -2,6 +2,7 @@ import { inject as service } from '@ember/service';
 import { reads } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { getOwner } from '@ember/application';
+import { alias } from '@ember/object/computed';
 
 export default Controller.extend({
   token: service(),
@@ -12,7 +13,7 @@ export default Controller.extend({
 
   tokenIsValid: false,
   tokenIsInvalid: false,
-  tokenRecord: null,
+  tokenRecord: alias('token.selfToken'),
 
   resetStore() {
     this.store.unloadAll();
@@ -26,9 +27,9 @@ export default Controller.extend({
       this.setProperties({
         tokenIsValid: false,
         tokenIsInvalid: false,
-        tokenRecord: null,
       });
       this.resetStore();
+      this.token.reset();
     },
 
     verifyToken() {
@@ -52,7 +53,6 @@ export default Controller.extend({
           this.setProperties({
             tokenIsValid: true,
             tokenIsInvalid: false,
-            tokenRecord: this.token.selfToken,
           });
         },
         () => {
@@ -60,7 +60,6 @@ export default Controller.extend({
           this.setProperties({
             tokenIsValid: false,
             tokenIsInvalid: true,
-            tokenRecord: null,
           });
         }
       );

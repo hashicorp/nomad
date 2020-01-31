@@ -35,7 +35,9 @@ export default Service.extend({
     }
   }),
 
-  selfToken: alias('fetchSelfToken.lastSuccessful.value'),
+  selfToken: computed('secret', 'fetchSelfToken.lastSuccessful.value', function() {
+    if (this.secret) return this.get('fetchSelfToken.lastSuccessful.value');
+  }),
 
   fetchSelfTokenPolicies: task(function*() {
     try {
@@ -82,6 +84,12 @@ export default Service.extend({
     }
 
     return this.authorizedRawRequest(url, options);
+  },
+
+  reset() {
+    this.fetchSelfToken.cancelAll({ resetState: true });
+    this.fetchSelfTokenPolicies.cancelAll({ resetState: true });
+    this.fetchSelfTokenAndPolicies.cancelAll({ resetState: true });
   },
 });
 
