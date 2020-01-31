@@ -92,18 +92,14 @@ export default Model.extend({
   }),
 
   compositeStatusIcon: computed('isDraining', 'isEligible', 'status', function() {
-    // ineligible = exclamation point
-    // ready = checkmark
-    // down = x
-    // initializing = exclamation???
     if (this.isDraining || !this.isEligible) {
       return 'alert-circle-fill';
     } else if (this.status === 'down') {
-      return 'cancel-plain';
+      return 'cancel-circle-fill';
     } else if (this.status === 'initializing') {
-      return 'run';
+      return 'node-init-circle-fill';
     }
-    return 'check-plain';
+    return 'check-circle-fill';
   }),
 
   setEligible() {
