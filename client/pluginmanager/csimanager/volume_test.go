@@ -177,3 +177,56 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 		})
 	}
 }
+
+func TestVolumeManager_unstageVolume(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		Name                 string
+		Volume               *structs.CSIVolume
+		PluginErr            error
+		ExpectedErr          error
+		ExpectedCSICallCount int64
+	}{
+		{
+			Name: "Returns an error when the plugin returns an error",
+			Volume: &structs.CSIVolume{
+				ID: "foo",
+			},
+			PluginErr:            errors.New("Some Unknown Error"),
+			ExpectedErr:          errors.New("Some Unknown Error"),
+			ExpectedCSICallCount: 1,
+		},
+		{
+			Name: "Happy Path",
+			Volume: &structs.CSIVolume{
+				ID: "foo",
+			},
+			PluginErr:            nil,
+			ExpectedErr:          nil,
+			ExpectedCSICallCount: 1,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			tmpPath := tmpDir(t)
+			defer os.RemoveAll(tmpPath)
+
+			csiFake := &csifake.Client{}
+			csiFake.NextNodeUnstageVolumeErr = tc.PluginErr
+
+			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, true)
+			ctx := context.Background()
+
+			err := manager.unstageVolume(ctx, tc.Volume)
+
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
+			} else {
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.ExpectedCSICallCount, csiFake.NodeUnstageVolumeCallCount)
+		})
+	}
+}
