@@ -1,15 +1,16 @@
 import { Ability } from 'ember-can';
 import { inject as service } from '@ember/service';
 import { computed, get } from '@ember/object';
-import { equal, or } from '@ember/object/computed';
+import { equal, or, not } from '@ember/object/computed';
 
 export default Ability.extend({
   token: service(),
 
   // Map abilities to policy options (which are coarse for nodes)
   // instead of specific behaviors.
-  canWrite: or('selfTokenIsManagement', 'policiesIncludeNodeWrite'),
+  canWrite: or('bypassAuthorization', 'selfTokenIsManagement', 'policiesIncludeNodeWrite'),
 
+  bypassAuthorization: not('token.aclEnabled'),
   selfTokenIsManagement: equal('token.selfToken.type', 'management'),
 
   policiesIncludeNodeWrite: computed('token.selfTokenPolicies.[]', function() {

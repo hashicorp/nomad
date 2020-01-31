@@ -11,6 +11,8 @@ export default Service.extend({
   store: service(),
   system: service(),
 
+  aclEnabled: true,
+
   secret: computed({
     get() {
       return window.localStorage.nomadTokenSecret;
@@ -31,6 +33,10 @@ export default Service.extend({
     try {
       return yield TokenAdapter.findSelf();
     } catch (e) {
+      const errors = e.errors ? e.errors.mapBy('detail') : [];
+      if (errors.find(error => error === 'ACL support disabled')) {
+        this.set('aclEnabled', false);
+      }
       return null;
     }
   }),
@@ -56,7 +62,9 @@ export default Service.extend({
 
   fetchSelfTokenAndPolicies: task(function*() {
     yield this.fetchSelfToken.perform();
-    yield this.fetchSelfTokenPolicies.perform();
+    if (this.aclEnabled) {
+      yield this.fetchSelfTokenPolicies.perform();
+    }
   }),
 
   // All non Ember Data requests should go through authorizedRequest.
