@@ -1592,7 +1592,7 @@ func (s *Server) ReplicationToken() string {
 // be created now. Otherwise an error is returned.
 //
 // The ID will not be created until all participating servers have reached
-// a minimum version (0.10.3).
+// a minimum version (0.10.4).
 func (s *Server) ClusterID() (string, error) {
 	s.clusterIDLock.Lock()
 	defer s.clusterIDLock.Unlock()
