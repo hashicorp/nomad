@@ -117,6 +117,7 @@ export default create({
     label: text('[data-test-drain-popover] [data-test-popover-trigger]'),
     isOpen: isPresent('[data-test-drain-popover-form]'),
     toggle: clickable('[data-test-drain-popover] [data-test-popover-trigger]'),
+    isDisabled: attribute('aria-disabled', '[data-test-popover-trigger]'),
 
     deadlineToggle: toggle('[data-test-drain-deadline-toggle]'),
     deadlineOptions: {
