@@ -329,7 +329,7 @@ func (c *client) NodeStageVolume(ctx context.Context, volumeID string, publishCo
 	return err
 }
 
-func (c *client) NodeUnstageVolume(ctx context.Context, volumeID string, stagingTargetPath string) error {
+func (c *client) NodeUnstageVolume(ctx context.Context, volumeID string, stagingTargetPath string, opts ...grpc.CallOption) error {
 	if c == nil {
 		return fmt.Errorf("Client not initialized")
 	}
@@ -352,7 +352,7 @@ func (c *client) NodeUnstageVolume(ctx context.Context, volumeID string, staging
 
 	// NodeUnstageVolume's response contains no extra data. If err == nil, we were
 	// successful.
-	_, err := c.nodeClient.NodeUnstageVolume(ctx, req)
+	_, err := c.nodeClient.NodeUnstageVolume(ctx, req, opts...)
 	return err
 }
 
