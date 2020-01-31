@@ -1,4 +1,4 @@
-$size: 1.3rem;
+$size: 1.6rem;
 
 .node-status-light {
   display: inline-flex;
@@ -9,28 +9,30 @@ $size: 1.3rem;
   align-items: center;
   justify-content: center;
 
-  background: $black;
-  color: $white;
+  // Compensate for the padding within the SVG
+  // (between the circle paths and the viewBox)
+  margin-left: -1px;
+  margin-right: -1px;
 
   &.ready {
-    background: $primary;
+    color: $primary;
   }
 
   &.down {
-    background: $danger;
+    color: $danger;
   }
 
   &.initializing {
-    background: $grey-lighter;
+    color: $grey-light;
   }
 
   &.ineligible,
   &.draining {
-    background: $warning;
+    color: $warning;
   }
 
   .icon {
-    width: $size - 0.2rem;
-    height: $size - 0.2rem;
+    width: $size;
+    height: $size;
   }
 }
