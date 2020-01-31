@@ -13,6 +13,8 @@ var (
 )
 
 type MountInfo struct {
+	Source   string
+	IsDevice bool
 }
 
 type VolumeMounter interface {
