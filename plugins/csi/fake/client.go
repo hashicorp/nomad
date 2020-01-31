@@ -176,7 +176,7 @@ func (c *Client) NodeStageVolume(ctx context.Context, volumeID string, publishCo
 // this RPC must be called before freeing the volume.
 //
 // If err == nil, the response should be assumed to be successful.
-func (c *Client) NodeUnstageVolume(ctx context.Context, volumeID string, stagingTargetPath string) error {
+func (c *Client) NodeUnstageVolume(ctx context.Context, volumeID string, stagingTargetPath string, opts ...grpc.CallOption) error {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
 
