@@ -107,7 +107,9 @@ func (c *grpcExecutorClient) Version() (*ExecutorVersion, error) {
 }
 
 func (c *grpcExecutorClient) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
-	stream, err := c.client.Stats(ctx, &proto.StatsRequest{})
+	stream, err := c.client.Stats(ctx, &proto.StatsRequest{
+		Interval: int64(interval),
+	})
 	if err != nil {
 		return nil, err
 	}
