@@ -43,6 +43,17 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
     box-shadow: none;
   }
 
+  &.is-disabled {
+    opacity: 0.7;
+    box-shadow: none;
+    cursor: not-allowed;
+    border-color: transparent;
+
+    &:hover {
+      border-color: transparent;
+    }
+  }
+
   @each $name, $pair in $colors {
     $color: nth($pair, 1);
     $color-invert: nth($pair, 2);
@@ -113,6 +124,24 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
           background-color: rgba($color-invert, 0.1);
           border-color: $color-invert;
           color: $color-invert;
+          box-shadow: none;
+        }
+      }
+
+      // The is-disabled styles MUST trump other modifier specificites
+      &.is-disabled {
+        background-color: $color;
+        border-color: darken($color, 5%);
+        box-shadow: none;
+
+        &:hover,
+        &:active,
+        &:focus,
+        &.is-hovered,
+        &.is-active,
+        &.is-focused {
+          background-color: $color;
+          border-color: darken($color, 5%);
           box-shadow: none;
         }
       }

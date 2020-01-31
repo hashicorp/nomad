@@ -11,6 +11,8 @@ export default Service.extend({
   store: service(),
   system: service(),
 
+  aclEnabled: true,
+
   secret: computed({
     get() {
       return window.localStorage.nomadTokenSecret;
@@ -31,11 +33,17 @@ export default Service.extend({
     try {
       return yield TokenAdapter.findSelf();
     } catch (e) {
+      const errors = e.errors ? e.errors.mapBy('detail') : [];
+      if (errors.find(error => error === 'ACL support disabled')) {
+        this.set('aclEnabled', false);
+      }
       return null;
     }
   }),
 
-  selfToken: alias('fetchSelfToken.lastSuccessful.value'),
+  selfToken: computed('secret', 'fetchSelfToken.lastSuccessful.value', function() {
+    if (this.secret) return this.get('fetchSelfToken.lastSuccessful.value');
+  }),
 
   fetchSelfTokenPolicies: task(function*() {
     try {
@@ -54,7 +62,9 @@ export default Service.extend({
 
   fetchSelfTokenAndPolicies: task(function*() {
     yield this.fetchSelfToken.perform();
-    yield this.fetchSelfTokenPolicies.perform();
+    if (this.aclEnabled) {
+      yield this.fetchSelfTokenPolicies.perform();
+    }
   }),
 
   // All non Ember Data requests should go through authorizedRequest.
@@ -82,6 +92,12 @@ export default Service.extend({
     }
 
     return this.authorizedRawRequest(url, options);
+  },
+
+  reset() {
+    this.fetchSelfToken.cancelAll({ resetState: true });
+    this.fetchSelfTokenPolicies.cancelAll({ resetState: true });
+    this.fetchSelfTokenAndPolicies.cancelAll({ resetState: true });
   },
 });
 

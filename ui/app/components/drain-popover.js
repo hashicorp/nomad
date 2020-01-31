@@ -9,6 +9,7 @@ export default Component.extend({
   tagName: '',
 
   client: null,
+  isDisabled: false,
 
   onError() {},
   onDrain() {},

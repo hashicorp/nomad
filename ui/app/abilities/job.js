@@ -1,14 +1,15 @@
 import { Ability } from 'ember-can';
 import { inject as service } from '@ember/service';
 import { computed, get } from '@ember/object';
-import { equal, or } from '@ember/object/computed';
+import { equal, or, not } from '@ember/object/computed';
 
 export default Ability.extend({
   system: service(),
   token: service(),
 
-  canRun: or('selfTokenIsManagement', 'policiesSupportRunning'),
+  canRun: or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportRunning'),
 
+  bypassAuthorization: not('token.aclEnabled'),
   selfTokenIsManagement: equal('token.selfToken.type', 'management'),
 
   activeNamespace: computed('system.activeNamespace.name', function() {

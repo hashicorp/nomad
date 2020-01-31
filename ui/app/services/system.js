@@ -78,16 +78,13 @@ export default Service.extend({
     'defaultRegion.region',
     'shouldShowRegions',
     function() {
-      return this.shouldShowRegions &&
-      this.activeRegion !== this.get('defaultRegion.region');
+      return this.shouldShowRegions && this.activeRegion !== this.get('defaultRegion.region');
     }
   ),
 
   namespaces: computed('activeRegion', function() {
     return PromiseArray.create({
-      promise: this.store
-        .findAll('namespace')
-        .then(namespaces => namespaces.compact()),
+      promise: this.store.findAll('namespace').then(namespaces => namespaces.compact()),
     });
   }),
 

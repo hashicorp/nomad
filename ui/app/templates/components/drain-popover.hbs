@@ -1,7 +1,13 @@
 {{#popover-menu
   data-test-drain-popover
+  isDisabled=isDisabled
   label=(if client.isDraining "Update Drain" "Drain")
-  triggerClass=(concat "is-small " (if drain.isRunning "is-loading")) as |m|}}
+  tooltip=(if isDisabled "Not allowed to drain clients")
+  triggerClass=(concat
+    "is-small "
+    (if drain.isRunning "is-loading ")
+    (if isDisabled "tooltip is-right-aligned")
+  ) as |m|}}
   <form data-test-drain-popover-form onsubmit={{action (queue (action preventDefault) (perform drain m.actions.close))}} class="form is-small">
     <h4 class="group-heading">Drain Options</h4>
     <div class="field">
