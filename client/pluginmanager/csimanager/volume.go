@@ -161,7 +161,7 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume)
 //
 // TODO: Validate remote volume attachment and implement.
 func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation) (*MountInfo, error) {
-	logger := v.logger.With("volume_id", vol.ID)
+	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
 	ctx = hclog.WithContext(ctx, logger)
 
 	if v.requiresStaging {
@@ -174,6 +174,34 @@ func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume,
 	return nil, fmt.Errorf("Unimplemented")
 }
 
+// unstageVolume is the inverse operation of `stageVolume` and must be called
+// once for each staging path that a volume has been staged under.
+// It is safe to call multiple times and a plugin is required to return OK if
+// the volume has been unstaged or was never staged on the node.
+func (v *volumeManager) unstageVolume(ctx context.Context, vol *structs.CSIVolume) error {
+	logger := hclog.FromContext(ctx)
+	logger.Trace("Unstaging volume")
+	stagingPath := v.stagingDirForVolume(vol)
+	return v.plugin.NodeUnstageVolume(ctx,
+		vol.ID,
+		stagingPath,
+		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)),
+	)
+}
+
 func (v *volumeManager) UnmountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation) error {
-	return fmt.Errorf("Unimplemented")
+	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
+	ctx = hclog.WithContext(ctx, logger)
+
+	// TODO(GH-7030): NodeUnpublishVolume
+
+	if !v.requiresStaging {
+		return nil
+	}
+
+	// TODO(GH-7029): Implement volume usage tracking and only unstage volumes
+	//                when the last alloc stops using it.
+	return v.unstageVolume(ctx, vol)
 }
