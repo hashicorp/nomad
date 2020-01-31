@@ -719,6 +719,11 @@ plugin "docker" {
       `cert` and `key` to use a TLS client to connect to the docker daemon.
       `endpoint` must also be specified or this setting will be ignored.
 
+* `disable_log_collection` - Defaults to `false`. Setting this to true will
+   disable Nomad logs collection of Docker tasks. If you don't rely on nomad log
+   capabilities and exclusively use host based log aggregation, you may consider
+   this option to disable nomad log collection overhead.
+
 * `gc` stanza:
     * `image` - Defaults to `true`. Changing this to `false` will prevent Nomad
       from removing images from stopped tasks.
