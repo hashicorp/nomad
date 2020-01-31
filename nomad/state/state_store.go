@@ -1644,6 +1644,10 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 		}
 	}
 
+	if err := txn.Insert("index", &IndexEntry{"csi_volumes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	txn.Commit()
 	return nil
 }
@@ -1716,8 +1720,14 @@ func (s *StateStore) CSIVolumeClaim(index uint64, id string, alloc *structs.Allo
 		return fmt.Errorf("volume max claim reached")
 	}
 
+	volume.ModifyIndex = index
+
 	if err = txn.Insert("csi_volumes", volume); err != nil {
 		return fmt.Errorf("volume update failed: %s: %v", id, err)
+	}
+
+	if err = txn.Insert("index", &IndexEntry{"csi_volumes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	txn.Commit()
@@ -1744,6 +1754,10 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, ids []string) error {
 		}
 	}
 
+	if err := txn.Insert("index", &IndexEntry{"csi_volumes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	txn.Commit()
 	return nil
 }
@@ -1768,6 +1782,10 @@ func (s *StateStore) upsertJobCSIPlugins(index uint64, job *structs.Job, txn *me
 		if err != nil {
 			return err
 		}
+	}
+
+	if err = txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return nil
@@ -1832,6 +1850,10 @@ func (s *StateStore) deleteJobCSIPlugins(index uint64, job *structs.Job, txn *me
 		if err != nil {
 			return fmt.Errorf("csi_plugins update: %v", err)
 		}
+	}
+
+	if err = txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return nil
