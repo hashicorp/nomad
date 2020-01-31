@@ -55,7 +55,7 @@ EVAL:
 	require.Len(t, eval.QueuedAllocations, 1, pretty.Sprint(eval.QueuedAllocations))
 
 	// Assert allocs are running
-	require.Eventually(t, func() bool {
+	for i := 0; i < 20; i++ {
 		allocs, qmeta, err := evalapi.Allocations(eval.ID, qopts)
 		require.NoError(t, err)
 		require.Len(t, allocs, 1)
@@ -69,15 +69,16 @@ EVAL:
 			case "pending":
 				// keep trying
 			default:
-				t.Fatalf("alloc failed: %s", pretty.Sprint(alloc))
+				require.Failf(t, "alloc failed", "alloc: %s", pretty.Sprint(alloc))
 			}
 		}
 
 		if running == len(allocs) {
-			return true
+			break
 		}
-		return false
-	}, 10*time.Second, 500*time.Millisecond)
+
+		time.Sleep(500 * time.Millisecond)
+	}
 
 	allocs, _, err := evalapi.Allocations(eval.ID, qopts)
 	require.NoError(t, err)
