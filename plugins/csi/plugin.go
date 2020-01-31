@@ -54,7 +54,7 @@ type CSIPlugin interface {
 	// this RPC must be called before freeing the volume.
 	//
 	// If err == nil, the response should be assumed to be successful.
-	NodeUnstageVolume(ctx context.Context, volumeID string, stagingTargetPath string) error
+	NodeUnstageVolume(ctx context.Context, volumeID string, stagingTargetPath string, opts ...grpc.CallOption) error
 
 	// NodePublishVolume is used to prepare a volume for use by an allocation.
 	// if err == nil the response should be assumed to be successful.
