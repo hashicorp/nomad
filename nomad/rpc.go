@@ -653,52 +653,19 @@ func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
 // initial handshake, returning the connection or an error. It is the callers
 // responsibility to close the connection if there is no returned error.
 func (r *rpcHandler) streamingRpc(server *serverParts, method string) (net.Conn, error) {
-	// Try to dial the server
-	conn, err := net.DialTimeout("tcp", server.Addr.String(), 10*time.Second)
+	c, err := r.connPool.StreamingRPC(r.config.Region, server.Addr, server.MajorVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	// Cast to TCPConn
-	if tcp, ok := conn.(*net.TCPConn); ok {
-		tcp.SetKeepAlive(true)
-		tcp.SetNoDelay(true)
-	}
-
-	return r.streamingRpcImpl(conn, server.Region, method)
+	return r.streamingRpcImpl(c, method)
 }
 
 // streamingRpcImpl takes a pre-established connection to a server and conducts
 // the handshake to establish a streaming RPC for the given method. If an error
 // is returned, the underlying connection has been closed. Otherwise it is
 // assumed that the connection has been hijacked by the RPC method.
-func (r *rpcHandler) streamingRpcImpl(conn net.Conn, region, method string) (net.Conn, error) {
-	// Check if TLS is enabled
-	r.tlsWrapLock.RLock()
-	tlsWrap := r.tlsWrap
-	r.tlsWrapLock.RUnlock()
-
-	if tlsWrap != nil {
-		// Switch the connection into TLS mode
-		if _, err := conn.Write([]byte{byte(pool.RpcTLS)}); err != nil {
-			conn.Close()
-			return nil, err
-		}
-
-		// Wrap the connection in a TLS client
-		tlsConn, err := tlsWrap(region, conn)
-		if err != nil {
-			conn.Close()
-			return nil, err
-		}
-		conn = tlsConn
-	}
-
-	// Write the multiplex byte to set the mode
-	if _, err := conn.Write([]byte{byte(pool.RpcStreaming)}); err != nil {
-		conn.Close()
-		return nil, err
-	}
+func (r *rpcHandler) streamingRpcImpl(conn net.Conn, method string) (net.Conn, error) {
 
 	// Send the header
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)

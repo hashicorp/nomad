@@ -530,7 +530,10 @@ func TestRPC_handleMultiplexV2(t *testing.T) {
 	require.NotEmpty(l)
 
 	// Make a streaming RPC
-	_, err = s.streamingRpcImpl(s2, s.Region(), "Bogus")
+	_, err = s2.Write([]byte{byte(pool.RpcStreaming)})
+	require.Nil(err)
+
+	_, err = s.streamingRpcImpl(s2, "Bogus")
 	require.NotNil(err)
 	require.Contains(err.Error(), "Bogus")
 	require.True(structs.IsErrUnknownMethod(err))
