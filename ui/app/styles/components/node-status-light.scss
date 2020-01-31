@@ -24,6 +24,10 @@ $size: 1.6rem;
 
   &.initializing {
     color: $grey-light;
+
+    .blinking {
+      animation: node-status-light-initializing 0.7s infinite alternate ease-in-out;
+    }
   }
 
   &.ineligible,
@@ -34,5 +38,15 @@ $size: 1.6rem;
   .icon {
     width: $size;
     height: $size;
+  }
+}
+
+@keyframes node-status-light-initializing {
+  0% {
+    opacity: 0.2;
+  }
+
+  100% {
+    opacity: 0.7;
   }
 }
