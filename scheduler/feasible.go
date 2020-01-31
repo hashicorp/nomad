@@ -210,10 +210,10 @@ func (c *CSIVolumeChecker) Feasible(n *structs.Node) bool {
 }
 
 func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) bool {
-	// Have volume if
-	// - healthy controller plugin is running the driver
+	// We can mount the volume if
+	// - if required, a healthy controller plugin is running the driver
 	// - the volume has free claims
-	// - the node is running the node plugin, implies matching topology
+	// - this node is running the node plugin, implies matching topology
 
 	// Fast path: Requested no volumes. No need to check further.
 	if len(c.volumes) == 0 {
