@@ -185,7 +185,7 @@ func (c *Client) NodeUnstageVolume(ctx context.Context, volumeID string, staging
 	return c.NextNodeUnstageVolumeErr
 }
 
-func (c *Client) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) error {
+func (c *Client) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, opts ...grpc.CallOption) error {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
 
