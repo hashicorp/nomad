@@ -2136,7 +2136,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	start := time.Now()
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2)
 	require.Nil(err)
-	require.NotEqual(0, resp2.Index)
+	require.NotEqual(uint64(0), resp2.Index)
 
 	if diff := time.Since(start); diff < batchUpdateInterval {
 		t.Fatalf("too fast: %v", diff)
@@ -3061,7 +3061,7 @@ func TestClientEndpoint_EmitEvents(t *testing.T) {
 	var resp structs.GenericResponse
 	err = msgpackrpc.CallWithCodec(codec, "Node.EmitEvents", &req, &resp)
 	require.Nil(err)
-	require.NotEqual(0, resp.Index)
+	require.NotEqual(uint64(0), resp.Index)
 
 	// Check for the node in the FSM
 	ws := memdb.NewWatchSet()
