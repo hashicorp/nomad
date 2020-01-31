@@ -44,7 +44,7 @@ var minAutopilotVersion = version.Must(version.NewVersion("0.8.0"))
 
 var minSchedulerConfigVersion = version.Must(version.NewVersion("0.9.0"))
 
-var minClusterIDVersion = version.Must(version.NewVersion("0.10.3"))
+var minClusterIDVersion = version.Must(version.NewVersion("0.10.4"))
 
 // Default configuration for scheduler with preemption enabled for system jobs
 var defaultSchedulerConfig = &structs.SchedulerConfiguration{
