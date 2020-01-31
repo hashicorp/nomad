@@ -2,18 +2,18 @@
 
 FEATURES:
 
-* jobspec: Add `shutdown_delay` to task groups so task groups can delay shutdown
-  after deregistering from Consul [[GH-6746](https://github.com/hashicorp/nomad/issues/6746)]
+ * consul/connect: Nomad may now register Consul Connect services when Consul is configured with ACLs enabled [[GH-6701](https://github.com/hashicorp/nomad/issues/6701)]
+ * jobspec: Add `shutdown_delay` to task groups so task groups can delay shutdown after deregistering from Consul [[GH-6746](https://github.com/hashicorp/nomad/issues/6746)]
 
 IMPROVEMENTS:
 
-* build: Updated to Go 1.12.16 [[GH-7009](https://github.com/hashicorp/nomad/issues/7009)]
-* cli: Added option to change the name of the file created by the `nomad init` command [[GH-6520]](https://github.com/hashicorp/nomad/pull/6520)
-* cli: Included namespace in output when querying job stauts. [[GH-6912](https://github.com/hashicorp/nomad/issues/6912)]
-* scheduler: Removed penalty for allocation's previous node if the allocation did not fail. [[GH-6781](https://github.com/hashicorp/nomad/issues/6781)]
-* scheduler: Reduced logging verbosity during preemption [[GH-6849](https://github.com/hashicorp/nomad/issues/6849)]
-* ui: Updated Run Job button to be conditionally enabled according to ACLs [[GH-5944](https://github.com/hashicorp/nomad/pull/5944)]
-* consul: Add support for service `canary_meta`
+ * build: Updated to Go 1.12.16 [[GH-7009](https://github.com/hashicorp/nomad/issues/7009)]
+ * cli: Added option to change the name of the file created by the `nomad init` command [[GH-6520]](https://github.com/hashicorp/nomad/pull/6520)
+ * cli: Included namespace in output when querying job stauts. [[GH-6912](https://github.com/hashicorp/nomad/issues/6912)]
+ * scheduler: Removed penalty for allocation's previous node if the allocation did not fail. [[GH-6781](https://github.com/hashicorp/nomad/issues/6781)]
+ * scheduler: Reduced logging verbosity during preemption [[GH-6849](https://github.com/hashicorp/nomad/issues/6849)]
+ * ui: Updated Run Job button to be conditionally enabled according to ACLs [[GH-5944](https://github.com/hashicorp/nomad/pull/5944)]
+ * consul: Add support for service `canary_meta`
 
 BUG FIXES:
 
@@ -30,8 +30,8 @@ BUG FIXES:
 
 SECURITY:
 
- * agent: Added unauthenticated connection timeouts and limits to prevent resource exhaustion. CVE-2020-7218 [GH-7002]
- * server: Fixed insufficient validation for role and region for RPC connections when TLS enabled. CVE-2020-7956 [GH-7003]
+ * agent: Added unauthenticated connection timeouts and limits to prevent resource exhaustion. CVE-2020-7218 [[GH-7002](https://github.com/hashicorp/nomad/issues/7002)]
+ * server: Fixed insufficient validation for role and region for RPC connections when TLS enabled. CVE-2020-7956 [[GH-7003](https://github.com/hashicorp/nomad/issues/7003)]
 
 IMPROVEMENTS:
 
