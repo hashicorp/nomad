@@ -153,6 +153,7 @@ type CSIVolume struct {
 	Healthy             bool
 	VolumeGC            time.Time
 	PluginID            string
+	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
 	NodesHealthy        int
@@ -457,6 +458,7 @@ type CSIPlugin struct {
 	// controller tasks for this plugin. It is addressed by [job.Namespace][job.ID]
 	Jobs map[string]map[string]*Job
 
+	ControllerRequired bool
 	ControllersHealthy int
 	Controllers        map[string]*CSIInfo
 	NodesHealthy       int
