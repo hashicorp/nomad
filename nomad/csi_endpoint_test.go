@@ -40,7 +40,7 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		PluginID:       "minnie",
 	}}
-	err := state.CSIVolumeRegister(0, vols)
+	err := state.CSIVolumeRegister(999, vols)
 	require.NoError(t, err)
 
 	// Create the register request
@@ -56,7 +56,7 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 	var resp structs.CSIVolumeGetResponse
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req, &resp)
 	require.NoError(t, err)
-	require.NotEqual(t, uint64(0), resp.Index)
+	require.Equal(t, uint64(999), resp.Index)
 	require.Equal(t, vols[0].ID, resp.Volume.ID)
 }
 
@@ -190,7 +190,7 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		PluginID:       "paddy",
 	}}
-	err := state.CSIVolumeRegister(0, vols)
+	err := state.CSIVolumeRegister(999, vols)
 	require.NoError(t, err)
 
 	var resp structs.CSIVolumeListResponse
@@ -204,7 +204,7 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.List", req, &resp)
 	require.NoError(t, err)
-	require.NotEqual(t, uint64(0), resp.Index)
+	require.Equal(t, uint64(999), resp.Index)
 	require.Equal(t, 2, len(resp.Volumes))
 	ids := map[string]bool{vols[0].ID: true, vols[1].ID: true}
 	for _, v := range resp.Volumes {
