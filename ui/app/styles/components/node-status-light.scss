@@ -1,34 +1,52 @@
-$size: 1.3rem;
+$size: 1.6rem;
 
 .node-status-light {
-  display: inline-block;
+  display: inline-flex;
   height: $size;
   width: $size;
   border-radius: $size / 2;
   vertical-align: middle;
+  align-items: center;
+  justify-content: center;
 
-  background: $black;
+  // Compensate for the padding within the SVG
+  // (between the circle paths and the viewBox)
+  margin-left: -1px;
+  margin-right: -1px;
 
   &.ready {
-    background: $primary;
+    color: $primary;
   }
 
   &.down {
-    background: $danger;
+    color: $danger;
   }
 
   &.initializing {
-    background: repeating-linear-gradient(
-      -45deg,
-      $grey-lighter,
-      $grey-lighter 3px,
-      darken($grey-lighter, 25%) 3px,
-      darken($grey-lighter, 25%) 6px
-    );
+    color: $grey-light;
+
+    .blinking {
+      animation: node-status-light-initializing 0.7s infinite alternate ease-in-out;
+    }
   }
 
   &.ineligible,
   &.draining {
-    background: $warning;
+    color: $warning;
+  }
+
+  .icon {
+    width: $size;
+    height: $size;
+  }
+}
+
+@keyframes node-status-light-initializing {
+  0% {
+    opacity: 0.2;
+  }
+
+  100% {
+    opacity: 0.7;
   }
 }

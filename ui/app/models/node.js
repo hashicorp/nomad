@@ -91,6 +91,17 @@ export default Model.extend({
     }
   }),
 
+  compositeStatusIcon: computed('isDraining', 'isEligible', 'status', function() {
+    if (this.isDraining || !this.isEligible) {
+      return 'alert-circle-fill';
+    } else if (this.status === 'down') {
+      return 'cancel-circle-fill';
+    } else if (this.status === 'initializing') {
+      return 'node-init-circle-fill';
+    }
+    return 'check-circle-fill';
+  }),
+
   setEligible() {
     if (this.isEligible) return RSVP.resolve();
     // Optimistically update schedulingEligibility for immediate feedback

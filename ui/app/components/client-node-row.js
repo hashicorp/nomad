@@ -54,6 +54,8 @@ export default Component.extend(WithVisibilityDetection, {
       return 'status-text is-info';
     } else if (compositeStatus === 'ineligible') {
       return 'status-text is-warning';
+    } else if (compositeStatus === 'down') {
+      return 'status-text is-danger';
     } else {
       return '';
     }
