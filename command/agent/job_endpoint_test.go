@@ -1714,7 +1714,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 			},
 		},
-		VaultToken:        helper.StringToPtr("token"),
+		ConsulToken:       helper.StringToPtr("abc123"),
+		VaultToken:        helper.StringToPtr("def456"),
 		Status:            helper.StringToPtr("status"),
 		StatusDescription: helper.StringToPtr("status_desc"),
 		Version:           helper.Uint64ToPtr(10),
@@ -2060,7 +2061,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			},
 		},
 
-		VaultToken: "token",
+		ConsulToken: "abc123",
+		VaultToken:  "def456",
 	}
 
 	structsJob := ApiJobToStructJob(apiJob)

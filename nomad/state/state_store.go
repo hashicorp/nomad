@@ -3,16 +3,16 @@ package state
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sort"
 	"time"
-
-	"reflect"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/pkg/errors"
 )
 
 // Txn is a transaction against a state store.
@@ -2570,6 +2570,137 @@ func (s *StateStore) VaultAccessorsByNode(ws memdb.WatchSet, nodeID string) ([]*
 	return out, nil
 }
 
+func indexEntry(table string, index uint64) *IndexEntry {
+	return &IndexEntry{
+		Key:   table,
+		Value: index,
+	}
+}
+
+const siTokenAccessorTable = "si_token_accessors"
+
+// UpsertSITokenAccessors is used to register a set of Service Identity token accessors.
+func (s *StateStore) UpsertSITokenAccessors(index uint64, accessors []*structs.SITokenAccessor) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for _, accessor := range accessors {
+		// set the create index
+		accessor.CreateIndex = index
+
+		// insert the accessor
+		if err := txn.Insert(siTokenAccessorTable, accessor); err != nil {
+			return errors.Wrap(err, "accessor insert failed")
+		}
+	}
+
+	// update the index for this table
+	if err := txn.Insert("index", indexEntry(siTokenAccessorTable, index)); err != nil {
+		return errors.Wrap(err, "index update failed")
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// DeleteSITokenAccessors is used to delete a set of Service Identity token accessors.
+func (s *StateStore) DeleteSITokenAccessors(index uint64, accessors []*structs.SITokenAccessor) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup each accessor
+	for _, accessor := range accessors {
+		// Delete the accessor
+		if err := txn.Delete(siTokenAccessorTable, accessor); err != nil {
+			return errors.Wrap(err, "accessor delete failed")
+		}
+	}
+
+	// update the index for this table
+	if err := txn.Insert("index", indexEntry(siTokenAccessorTable, index)); err != nil {
+		return errors.Wrap(err, "index update failed")
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// SITokenAccessor returns the given Service Identity token accessor.
+func (s *StateStore) SITokenAccessor(ws memdb.WatchSet, accessorID string) (*structs.SITokenAccessor, error) {
+	txn := s.db.Txn(false)
+	defer txn.Abort()
+
+	watchCh, existing, err := txn.FirstWatch(siTokenAccessorTable, "id", accessorID)
+	if err != nil {
+		return nil, errors.Wrap(err, "accessor lookup failed")
+	}
+
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.SITokenAccessor), nil
+	}
+
+	return nil, nil
+}
+
+// SITokenAccessors returns an iterator of Service Identity token accessors.
+func (s *StateStore) SITokenAccessors(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+	defer txn.Abort()
+
+	iter, err := txn.Get(siTokenAccessorTable, "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// SITokenAccessorsByAlloc returns all the Service Identity token accessors by alloc ID.
+func (s *StateStore) SITokenAccessorsByAlloc(ws memdb.WatchSet, allocID string) ([]*structs.SITokenAccessor, error) {
+	txn := s.db.Txn(false)
+	defer txn.Abort()
+
+	// Get an iterator over the accessors
+	iter, err := txn.Get(siTokenAccessorTable, "alloc_id", allocID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	var result []*structs.SITokenAccessor
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		result = append(result, raw.(*structs.SITokenAccessor))
+	}
+
+	return result, nil
+}
+
+// SITokenAccessorsByNode returns all the Service Identity token accessors by node ID.
+func (s *StateStore) SITokenAccessorsByNode(ws memdb.WatchSet, nodeID string) ([]*structs.SITokenAccessor, error) {
+	txn := s.db.Txn(false)
+	defer txn.Abort()
+
+	// Get an iterator over the accessors
+	iter, err := txn.Get(siTokenAccessorTable, "node_id", nodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	var result []*structs.SITokenAccessor
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		result = append(result, raw.(*structs.SITokenAccessor))
+	}
+
+	return result, nil
+}
+
 // UpdateDeploymentStatus is used to make deployment status updates and
 // potentially make a evaluation
 func (s *StateStore) UpdateDeploymentStatus(index uint64, req *structs.DeploymentStatusUpdateRequest) error {
@@ -3918,6 +4049,35 @@ func (s *StateStore) SchedulerSetConfig(idx uint64, config *structs.SchedulerCon
 	return nil
 }
 
+func (s *StateStore) ClusterMetadata() (*structs.ClusterMetadata, error) {
+	txn := s.db.Txn(false)
+	defer txn.Abort()
+
+	// Get the cluster metadata
+	m, err := txn.First("cluster_meta", "id")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed cluster metadata lookup")
+	}
+
+	if m != nil {
+		return m.(*structs.ClusterMetadata), nil
+	}
+
+	return nil, nil
+}
+
+func (s *StateStore) ClusterSetMetadata(index uint64, meta *structs.ClusterMetadata) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	if err := s.setClusterMetadata(txn, meta); err != nil {
+		return errors.Wrap(err, "set cluster metadata failed")
+	}
+
+	txn.Commit()
+	return nil
+}
+
 // WithWriteTransaction executes the passed function within a write transaction,
 // and returns its result.  If the invocation returns no error, the transaction
 // is committed; otherwise, it's aborted.
@@ -3977,6 +4137,29 @@ func (s *StateStore) schedulerSetConfigTxn(idx uint64, tx *memdb.Txn, config *st
 	if err := tx.Insert("scheduler_config", config); err != nil {
 		return fmt.Errorf("failed updating scheduler config: %s", err)
 	}
+	return nil
+}
+
+func (s *StateStore) setClusterMetadata(txn *memdb.Txn, meta *structs.ClusterMetadata) error {
+	// Check for an existing config, if it exists, sanity check the cluster ID matches
+	existing, err := txn.First("cluster_meta", "id")
+	if err != nil {
+		return fmt.Errorf("failed cluster meta lookup: %v", err)
+	}
+
+	if existing != nil {
+		existingClusterID := existing.(*structs.ClusterMetadata).ClusterID
+		if meta.ClusterID != existingClusterID {
+			// there is a bug in cluster ID detection
+			return fmt.Errorf("refusing to set new cluster id, previous: %s, new: %s", existingClusterID, meta.ClusterID)
+		}
+	}
+
+	// update is technically a noop, unless someday we add more / mutable fields
+	if err := txn.Insert("cluster_meta", meta); err != nil {
+		return fmt.Errorf("set cluster metadata failed: %v", err)
+	}
+
 	return nil
 }
 
@@ -4160,6 +4343,14 @@ func (r *StateRestore) VaultAccessorRestore(accessor *structs.VaultAccessor) err
 	return nil
 }
 
+// SITokenAccessorRestore is used to restore an SI token accessor
+func (r *StateRestore) SITokenAccessorRestore(accessor *structs.SITokenAccessor) error {
+	if err := r.txn.Insert(siTokenAccessorTable, accessor); err != nil {
+		return errors.Wrap(err, "si token accessor insert failed")
+	}
+	return nil
+}
+
 // ACLPolicyRestore is used to restore an ACL policy
 func (r *StateRestore) ACLPolicyRestore(policy *structs.ACLPolicy) error {
 	if err := r.txn.Insert("acl_policy", policy); err != nil {
@@ -4179,6 +4370,13 @@ func (r *StateRestore) ACLTokenRestore(token *structs.ACLToken) error {
 func (r *StateRestore) SchedulerConfigRestore(schedConfig *structs.SchedulerConfiguration) error {
 	if err := r.txn.Insert("scheduler_config", schedConfig); err != nil {
 		return fmt.Errorf("inserting scheduler config failed: %s", err)
+	}
+	return nil
+}
+
+func (r *StateRestore) ClusterMetadataRestore(meta *structs.ClusterMetadata) error {
+	if err := r.txn.Insert("cluster_meta", meta); err != nil {
+		return fmt.Errorf("inserting cluster meta failed: %v", err)
 	}
 	return nil
 }

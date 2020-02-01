@@ -57,7 +57,7 @@ func (tc *NomadExecE2ETest) BeforeAll(f *framework.F) {
 
 	// register a job for execing into
 	tc.jobID = "nomad-exec" + uuid.Generate()[:8]
-	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), tc.Nomad(), tc.jobFilePath, tc.jobID)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), tc.Nomad(), tc.jobFilePath, tc.jobID, "")
 	f.Len(allocs, 1)
 
 	e2eutil.WaitForAllocRunning(f.T(), tc.Nomad(), allocs[0].ID)

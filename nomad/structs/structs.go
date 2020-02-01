@@ -83,6 +83,9 @@ const (
 	BatchNodeUpdateDrainRequestType
 	SchedulerConfigRequestType
 	NodeBatchDeregisterRequestType
+	ClusterMetadataRequestType
+	ServiceIdentityAccessorRegisterRequestType
+	ServiceIdentityAccessorDeregisterRequestType
 )
 
 const (
@@ -641,6 +644,12 @@ type JobRevertRequest struct {
 	// version before reverting.
 	EnforcePriorVersion *uint64
 
+	// ConsulToken is the Consul token that proves the submitter of the job revert
+	// has access to the Service Identity policies associated with the job's
+	// Consul Connect enabled services. This field is only used to transfer the
+	// token and is not stored after the Job revert.
+	ConsulToken string
+
 	// VaultToken is the Vault token that proves the submitter of the job revert
 	// has access to any Vault policies specified in the targeted job version. This
 	// field is only used to transfer the token and is not stored after the Job
@@ -873,6 +882,12 @@ type ServerMember struct {
 	DelegateCur uint8
 }
 
+// ClusterMetadata is used to store per-cluster metadata.
+type ClusterMetadata struct {
+	ClusterID  string
+	CreateTime int64
+}
+
 // DeriveVaultTokenRequest is used to request wrapped Vault tokens for the
 // following tasks in the given allocation
 type DeriveVaultTokenRequest struct {
@@ -907,7 +922,7 @@ type DeriveVaultTokenResponse struct {
 	Tasks map[string]string
 
 	// Error stores any error that occurred. Errors are stored here so we can
-	// communicate whether it is retriable
+	// communicate whether it is retryable
 	Error *RecoverableError
 
 	QueryMeta
@@ -3403,6 +3418,12 @@ type Job struct {
 	// job. This is opaque to Nomad.
 	Meta map[string]string
 
+	// ConsulToken is the Consul token that proves the submitter of the job has
+	// access to the Service Identity policies associated with the job's
+	// Consul Connect enabled services. This field is only used to transfer the
+	// token and is not stored after Job submission.
+	ConsulToken string
+
 	// VaultToken is the Vault token that proves the submitter of the job has
 	// access to the specified Vault policies. This field is only used to
 	// transfer the token and is not stored after Job submission.
@@ -3781,6 +3802,27 @@ func (j *Job) VaultPolicies() map[string]map[string]*Vault {
 	}
 
 	return policies
+}
+
+// Connect tasks returns the set of Consul Connect enabled tasks that will
+// require a Service Identity token, if Consul ACLs are enabled.
+//
+// This method is meaningful only after the Job has passed through the job
+// submission Mutator functions.
+//
+// task group -> []task
+func (j *Job) ConnectTasks() map[string][]string {
+	m := make(map[string][]string)
+	for _, tg := range j.TaskGroups {
+		for _, task := range tg.Tasks {
+			if task.Kind.IsConnectProxy() {
+				// todo(shoenig): when we support native, probably need to check
+				//  an additional TBD TaskKind as well.
+				m[tg.Name] = append(m[tg.Name], task.Name)
+			}
+		}
+	}
+	return m
 }
 
 // RequiredSignals returns a mapping of task groups to tasks to their required
@@ -5210,6 +5252,17 @@ func (tg *TaskGroup) LookupTask(name string) *Task {
 	return nil
 }
 
+func (tg *TaskGroup) UsesConnect() bool {
+	for _, service := range tg.Services {
+		if service.Connect != nil {
+			if service.Connect.Native || service.Connect.SidecarService != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (tg *TaskGroup) GoString() string {
 	return fmt.Sprintf("*%#v", *tg)
 }
@@ -5390,6 +5443,22 @@ type Task struct {
 	// Used internally to manage tasks according to their TaskKind. Initial use case
 	// is for Consul Connect
 	Kind TaskKind
+}
+
+// UsesConnect is for conveniently detecting if the Task is able to make use
+// of Consul Connect features. This will be indicated in the TaskKind of the
+// Task, which exports known types of Tasks.
+//
+// Currently only Consul Connect Proxy tasks are known.
+// (Consul Connect Native tasks will be supported soon).
+func (t *Task) UsesConnect() bool {
+	// todo(shoenig): native tasks
+	switch {
+	case t.Kind.IsConnectProxy():
+		return true
+	default:
+		return false
+	}
 }
 
 func (t *Task) Copy() *Task {
@@ -5765,7 +5834,7 @@ func (t *Task) Warnings() error {
 
 // TaskKind identifies the special kinds of tasks using the following format:
 // '<kind_name>(:<identifier>)`. The TaskKind can optionally include an identifier that
-// is opague to the Task. This identier can be used to relate the task to some
+// is opaque to the Task. This identifier can be used to relate the task to some
 // other entity based on the kind.
 //
 // For example, a task may have the TaskKind of `connect-proxy:service` where

@@ -30,6 +30,9 @@ type Config struct {
 	// Consul is the Consul client used to register task services and checks
 	Consul consul.ConsulServiceAPI
 
+	// ConsulSI is the Consul client used to manage service identity tokens.
+	ConsulSI consul.ServiceIdentityAPI
+
 	// Vault is the Vault client to use to retrieve Vault tokens
 	Vault vaultclient.VaultClient
 

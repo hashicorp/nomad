@@ -187,7 +187,6 @@ func (f *Framework) Run(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 // Run starts the package scoped Framework, running each TestSuite
@@ -313,6 +312,7 @@ func isTestMethod(m string) bool {
 	if !strings.HasPrefix(m, "Test") {
 		return false
 	}
+
 	// THINKING: adding flag to target a specific test or test regex?
 	return true
 }

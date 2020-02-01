@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
-
-	"strings"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
@@ -22,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -43,6 +43,8 @@ const (
 var minAutopilotVersion = version.Must(version.NewVersion("0.8.0"))
 
 var minSchedulerConfigVersion = version.Must(version.NewVersion("0.9.0"))
+
+var minClusterIDVersion = version.Must(version.NewVersion("0.10.4"))
 
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
@@ -214,6 +216,10 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Initialize scheduler configuration
 	s.getOrCreateSchedulerConfig()
 
+	// Initialize the ClusterID
+	_, _ = s.ClusterID()
+	// todo: use cluster ID for stuff, later!
+
 	// Enable the plan queue, since we are now the leader
 	s.planQueue.SetEnabled(true)
 
@@ -240,7 +246,13 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Activate the vault client
 	s.vault.SetActive(true)
-	if err := s.restoreRevokingAccessors(); err != nil {
+	// Cleanup orphaned Vault token accessors
+	if err := s.revokeVaultAccessorsOnRestore(); err != nil {
+		return err
+	}
+
+	// Cleanup orphaned Service Identity token accessors
+	if err := s.revokeSITokenAccessorsOnRestore(); err != nil {
 		return err
 	}
 
@@ -329,9 +341,9 @@ func (s *Server) restoreEvals() error {
 	return nil
 }
 
-// restoreRevokingAccessors is used to restore Vault accessors that should be
+// revokeVaultAccessorsOnRestore is used to restore Vault accessors that should be
 // revoked.
-func (s *Server) restoreRevokingAccessors() error {
+func (s *Server) revokeVaultAccessorsOnRestore() error {
 	// An accessor should be revoked if its allocation or node is terminal
 	ws := memdb.NewWatchSet()
 	state := s.fsm.State()
@@ -376,6 +388,51 @@ func (s *Server) restoreRevokingAccessors() error {
 		if err := s.vault.RevokeTokens(context.Background(), revoke, true); err != nil {
 			return fmt.Errorf("failed to revoke tokens: %v", err)
 		}
+	}
+
+	return nil
+}
+
+// revokeSITokenAccessorsOnRestore is used to revoke Service Identity token
+// accessors on behalf of allocs that are now gone / terminal.
+func (s *Server) revokeSITokenAccessorsOnRestore() error {
+	ws := memdb.NewWatchSet()
+	fsmState := s.fsm.State()
+	iter, err := fsmState.SITokenAccessors(ws)
+	if err != nil {
+		return errors.Wrap(err, "failed to get SI token accessors")
+	}
+
+	var toRevoke []*structs.SITokenAccessor
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		accessor := raw.(*structs.SITokenAccessor)
+
+		// Check the allocation
+		alloc, err := fsmState.AllocByID(ws, accessor.AllocID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to lookup alloc %q", accessor.AllocID)
+		}
+		if alloc == nil || alloc.Terminated() {
+			// no longer running and associated accessors should be revoked
+			toRevoke = append(toRevoke, accessor)
+			continue
+		}
+
+		// Check the node
+		node, err := fsmState.NodeByID(ws, accessor.NodeID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to lookup node %q", accessor.NodeID)
+		}
+		if node == nil || node.TerminalStatus() {
+			// node is terminal and associated accessors should be revoked
+			toRevoke = append(toRevoke, accessor)
+			continue
+		}
+	}
+
+	if len(toRevoke) > 0 {
+		ctx := context.Background()
+		s.consulACLs.RevokeTokens(ctx, toRevoke, true)
 	}
 
 	return nil
@@ -1339,4 +1396,20 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 	}
 
 	return config
+}
+
+func (s *Server) generateClusterID() (string, error) {
+	if !ServersMeetMinimumVersion(s.Members(), minClusterIDVersion, false) {
+		s.logger.Named("core").Warn("cannot initialize cluster ID until all servers are above minimum version", "min_version", minClusterIDVersion)
+		return "", errors.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
+	}
+
+	newMeta := structs.ClusterMetadata{ClusterID: uuid.Generate(), CreateTime: time.Now().UnixNano()}
+	if _, _, err := s.raftApply(structs.ClusterMetadataRequestType, newMeta); err != nil {
+		s.logger.Named("core").Error("failed to create cluster ID", "error", err)
+		return "", errors.Wrap(err, "failed to create cluster ID")
+	}
+
+	s.logger.Named("core").Info("established cluster id", "cluster_id", newMeta.ClusterID, "create_time", newMeta.CreateTime)
+	return newMeta.ClusterID, nil
 }

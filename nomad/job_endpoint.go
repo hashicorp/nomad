@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -33,7 +34,6 @@ const (
 )
 
 var (
-
 	// allowRescheduleTransition is the transition that allows failed
 	// allocations to be force rescheduled. We create a one off
 	// variable to avoid creating a new object for every request.
@@ -104,7 +104,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			return structs.ErrPermissionDenied
 		}
 
-		// Validate Volume Permsissions
+		// Validate Volume Permissions
 		for _, tg := range args.Job.TaskGroups {
 			for _, vol := range tg.Volumes {
 				if vol.Type != structs.VolumeTypeHost {
@@ -211,6 +211,33 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 					return fmt.Errorf("Passed Vault Token doesn't allow access to the following policies: %s",
 						strings.Join(offending, ", "))
 				}
+			}
+		}
+	}
+
+	// helper function that checks if the "operator token" supplied with the
+	// job has sufficient ACL permissions for establishing consul connect services
+	checkOperatorToken := func(task string) error {
+		if j.srv.config.ConsulConfig.AllowsUnauthenticated() {
+			// if consul.allow_unauthenticated is enabled (which is the default)
+			// just let the Job through without checking anything.
+			return nil
+		}
+		proxiedTask := strings.TrimPrefix(task, structs.ConnectProxyPrefix+"-")
+		ctx := context.Background()
+		if err := j.srv.consulACLs.CheckSIPolicy(ctx, proxiedTask, args.Job.ConsulToken); err != nil {
+			// not much in the way of exported error types, we could parse
+			// the content, but all errors are going to be failures anyway
+			return errors.Wrap(err, "operator token denied")
+		}
+		return nil
+	}
+
+	// Enforce that the operator has necessary Consul ACL permissions
+	for _, tg := range args.Job.ConnectTasks() {
+		for _, task := range tg {
+			if err := checkOperatorToken(task); err != nil {
+				return err
 			}
 		}
 	}
