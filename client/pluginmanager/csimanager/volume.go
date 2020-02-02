@@ -69,22 +69,23 @@ func (v *volumeManager) allocDirForVolume(vol *structs.CSIVolume, alloc *structs
 //
 // Returns whether the directory is a pre-existing mountpoint, the staging path,
 // and any errors that occurred.
-func (v *volumeManager) ensureStagingDir(vol *structs.CSIVolume) (bool, string, error) {
+func (v *volumeManager) ensureStagingDir(vol *structs.CSIVolume) (string, bool, error) {
 	stagingPath := v.stagingDirForVolume(vol)
 
 	// Make the staging path, owned by the Nomad User
 	if err := os.MkdirAll(stagingPath, 0700); err != nil && !os.IsExist(err) {
-		return false, "", fmt.Errorf("failed to create staging directory for volume (%s): %v", vol.ID, err)
+		return "", false, fmt.Errorf("failed to create staging directory for volume (%s): %v", vol.ID, err)
+
 	}
 
 	// Validate that it is not already a mount point
 	m := mount.New()
 	isNotMount, err := m.IsNotAMountPoint(stagingPath)
 	if err != nil {
-		return false, "", fmt.Errorf("mount point detection failed for volume (%s): %v", vol.ID, err)
+		return "", false, fmt.Errorf("mount point detection failed for volume (%s): %v", vol.ID, err)
 	}
 
-	return !isNotMount, stagingPath, nil
+	return stagingPath, !isNotMount, nil
 }
 
 // ensureAllocDir attempts to create a directory for use when publishing a volume
@@ -93,22 +94,22 @@ func (v *volumeManager) ensureStagingDir(vol *structs.CSIVolume) (bool, string, 
 //
 // Returns whether the directory is a pre-existing mountpoint, the publish path,
 // and any errors that occurred.
-func (v *volumeManager) ensureAllocDir(vol *structs.CSIVolume, alloc *structs.Allocation) (bool, string, error) {
+func (v *volumeManager) ensureAllocDir(vol *structs.CSIVolume, alloc *structs.Allocation) (string, bool, error) {
 	allocPath := v.allocDirForVolume(vol, alloc)
 
 	// Make the alloc path, owned by the Nomad User
 	if err := os.MkdirAll(allocPath, 0700); err != nil && !os.IsExist(err) {
-		return false, "", fmt.Errorf("failed to create allocation directory for volume (%s): %v", vol.ID, err)
+		return "", false, fmt.Errorf("failed to create allocation directory for volume (%s): %v", vol.ID, err)
 	}
 
 	// Validate that it is not already a mount point
 	m := mount.New()
 	isNotMount, err := m.IsNotAMountPoint(allocPath)
 	if err != nil {
-		return false, "", fmt.Errorf("mount point detection failed for volume (%s): %v", vol.ID, err)
+		return "", false, fmt.Errorf("mount point detection failed for volume (%s): %v", vol.ID, err)
 	}
 
-	return !isNotMount, allocPath, nil
+	return allocPath, !isNotMount, nil
 }
 
 func capabilitiesFromVolume(vol *structs.CSIVolume) (*csi.VolumeCapability, error) {
@@ -161,13 +162,13 @@ func capabilitiesFromVolume(vol *structs.CSIVolume) (*csi.VolumeCapability, erro
 func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume) (string, error) {
 	logger := hclog.FromContext(ctx)
 	logger.Trace("Preparing volume staging environment")
-	existingMount, stagingPath, err := v.ensureStagingDir(vol)
+	stagingPath, isMount, err := v.ensureStagingDir(vol)
 	if err != nil {
 		return "", err
 	}
-	logger.Trace("Volume staging environment", "pre-existing_mount", existingMount, "staging_path", stagingPath)
+	logger.Trace("Volume staging environment", "pre-existing_mount", isMount, "staging_path", stagingPath)
 
-	if existingMount {
+	if isMount {
 		logger.Debug("re-using existing staging mount for volume", "staging_path", stagingPath)
 		return stagingPath, nil
 	}
@@ -196,12 +197,12 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume)
 func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, stagingPath string) (*MountInfo, error) {
 	logger := hclog.FromContext(ctx)
 
-	preexistingMountForAlloc, targetPath, err := v.ensureAllocDir(vol, alloc)
+	targetPath, isMount, err := v.ensureAllocDir(vol, alloc)
 	if err != nil {
 		return nil, err
 	}
 
-	if preexistingMountForAlloc {
+	if isMount {
 		logger.Debug("Re-using existing published volume for allocation")
 		return &MountInfo{Source: targetPath}, nil
 	}
