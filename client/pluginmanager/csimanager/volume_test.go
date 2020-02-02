@@ -84,7 +84,7 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 
 			// Step 3: Now we can do some testing
 
-			detectedMount, path, testErr := manager.ensureStagingDir(tc.Volume)
+			path, detectedMount, testErr := manager.ensureStagingDir(tc.Volume)
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, testErr, tc.ExpectedErr.Error())
 				return // We don't perform extra validation if an error was detected.
