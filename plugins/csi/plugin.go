@@ -58,7 +58,7 @@ type CSIPlugin interface {
 
 	// NodePublishVolume is used to prepare a volume for use by an allocation.
 	// if err == nil the response should be assumed to be successful.
-	NodePublishVolume(ctx context.Context, req *NodePublishVolumeRequest) error
+	NodePublishVolume(ctx context.Context, req *NodePublishVolumeRequest, opts ...grpc.CallOption) error
 
 	// NodeUnpublishVolume is used to cleanup usage of a volume for an alloc. This
 	// MUST be called before calling NodeUnstageVolume or ControllerUnpublishVolume

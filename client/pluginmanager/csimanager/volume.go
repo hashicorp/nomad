@@ -59,47 +59,60 @@ func (v *volumeManager) stagingDirForVolume(vol *structs.CSIVolume) string {
 	return filepath.Join(v.mountRoot, StagingDirName, vol.ID, "todo-provide-usage-options")
 }
 
+func (v *volumeManager) allocDirForVolume(vol *structs.CSIVolume, alloc *structs.Allocation) string {
+	return filepath.Join(v.mountRoot, AllocSpecificDirName, alloc.ID, vol.ID, "todo-provide-usage-options")
+}
+
 // ensureStagingDir attempts to create a directory for use when staging a volume
 // and then validates that the path is not already a mount point for e.g an
 // existing volume stage.
 //
 // Returns whether the directory is a pre-existing mountpoint, the staging path,
 // and any errors that occurred.
-func (v *volumeManager) ensureStagingDir(vol *structs.CSIVolume) (bool, string, error) {
+func (v *volumeManager) ensureStagingDir(vol *structs.CSIVolume) (string, bool, error) {
 	stagingPath := v.stagingDirForVolume(vol)
 
 	// Make the staging path, owned by the Nomad User
 	if err := os.MkdirAll(stagingPath, 0700); err != nil && !os.IsExist(err) {
-		return false, "", fmt.Errorf("failed to create staging directory for volume (%s): %v", vol.ID, err)
+		return "", false, fmt.Errorf("failed to create staging directory for volume (%s): %v", vol.ID, err)
+
 	}
 
 	// Validate that it is not already a mount point
 	m := mount.New()
 	isNotMount, err := m.IsNotAMountPoint(stagingPath)
 	if err != nil {
-		return false, "", fmt.Errorf("mount point detection failed for volume (%s): %v", vol.ID, err)
+		return "", false, fmt.Errorf("mount point detection failed for volume (%s): %v", vol.ID, err)
 	}
 
-	return !isNotMount, stagingPath, nil
+	return stagingPath, !isNotMount, nil
 }
 
-// stageVolume prepares a volume for use by allocations. When a plugin exposes
-// the STAGE_UNSTAGE_VOLUME capability it MUST be called once-per-volume for a
-// given usage mode before the volume can be NodePublish-ed.
-func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume) error {
-	logger := hclog.FromContext(ctx)
-	logger.Trace("Preparing volume staging environment")
-	existingMount, stagingPath, err := v.ensureStagingDir(vol)
+// ensureAllocDir attempts to create a directory for use when publishing a volume
+// and then validates that the path is not already a mount point (e.g when reattaching
+// to existing allocs).
+//
+// Returns whether the directory is a pre-existing mountpoint, the publish path,
+// and any errors that occurred.
+func (v *volumeManager) ensureAllocDir(vol *structs.CSIVolume, alloc *structs.Allocation) (string, bool, error) {
+	allocPath := v.allocDirForVolume(vol, alloc)
+
+	// Make the alloc path, owned by the Nomad User
+	if err := os.MkdirAll(allocPath, 0700); err != nil && !os.IsExist(err) {
+		return "", false, fmt.Errorf("failed to create allocation directory for volume (%s): %v", vol.ID, err)
+	}
+
+	// Validate that it is not already a mount point
+	m := mount.New()
+	isNotMount, err := m.IsNotAMountPoint(allocPath)
 	if err != nil {
-		return err
-	}
-	logger.Trace("Volume staging environment", "pre-existing_mount", existingMount, "staging_path", stagingPath)
-
-	if existingMount {
-		logger.Debug("re-using existing staging mount for volume", "staging_path", stagingPath)
-		return nil
+		return "", false, fmt.Errorf("mount point detection failed for volume (%s): %v", vol.ID, err)
 	}
 
+	return allocPath, !isNotMount, nil
+}
+
+func capabilitiesFromVolume(vol *structs.CSIVolume) (*csi.VolumeCapability, error) {
 	var accessType csi.VolumeAccessType
 	switch vol.AttachmentMode {
 	case structs.CSIVolumeAttachmentModeBlockDevice:
@@ -111,7 +124,7 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume)
 		// final check during transformation into the requisite CSI Data type to
 		// defend against development bugs and corrupted state - and incompatible
 		// nomad versions in the future.
-		return fmt.Errorf("Unknown volume attachment mode: %s", vol.AttachmentMode)
+		return nil, fmt.Errorf("Unknown volume attachment mode: %s", vol.AttachmentMode)
 	}
 
 	var accessMode csi.VolumeAccessMode
@@ -131,7 +144,38 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume)
 		// final check during transformation into the requisite CSI Data type to
 		// defend against development bugs and corrupted state - and incompatible
 		// nomad versions in the future.
-		return fmt.Errorf("Unknown volume access mode: %v", vol.AccessMode)
+		return nil, fmt.Errorf("Unknown volume access mode: %v", vol.AccessMode)
+	}
+
+	return &csi.VolumeCapability{
+		AccessType:         accessType,
+		AccessMode:         accessMode,
+		VolumeMountOptions: &csi.VolumeMountOptions{
+			// GH-7007: Currently we have no way to provide these
+		},
+	}, nil
+}
+
+// stageVolume prepares a volume for use by allocations. When a plugin exposes
+// the STAGE_UNSTAGE_VOLUME capability it MUST be called once-per-volume for a
+// given usage mode before the volume can be NodePublish-ed.
+func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume) (string, error) {
+	logger := hclog.FromContext(ctx)
+	logger.Trace("Preparing volume staging environment")
+	stagingPath, isMount, err := v.ensureStagingDir(vol)
+	if err != nil {
+		return "", err
+	}
+	logger.Trace("Volume staging environment", "pre-existing_mount", isMount, "staging_path", stagingPath)
+
+	if isMount {
+		logger.Debug("re-using existing staging mount for volume", "staging_path", stagingPath)
+		return stagingPath, nil
+	}
+
+	capability, err := capabilitiesFromVolume(vol)
+	if err != nil {
+		return "", err
 	}
 
 	// We currently treat all explicit CSI NodeStageVolume errors (aside from timeouts, codes.ResourceExhausted, and codes.Unavailable)
@@ -139,21 +183,48 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume)
 	// In the future, we can provide more useful error messages based on
 	// different types of error. For error documentation see:
 	// https://github.com/container-storage-interface/spec/blob/4731db0e0bc53238b93850f43ab05d9355df0fd9/spec.md#nodestagevolume-errors
-	return v.plugin.NodeStageVolume(ctx,
+	return stagingPath, v.plugin.NodeStageVolume(ctx,
 		vol.ID,
 		nil, /* TODO: Get publishContext from Server */
 		stagingPath,
-		&csi.VolumeCapability{
-			AccessType:         accessType,
-			AccessMode:         accessMode,
-			VolumeMountOptions: &csi.VolumeMountOptions{
-				// GH-7007: Currently we have no way to provide these
-			},
-		},
+		capability,
 		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)),
 	)
+}
+
+func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, stagingPath string) (*MountInfo, error) {
+	logger := hclog.FromContext(ctx)
+
+	targetPath, isMount, err := v.ensureAllocDir(vol, alloc)
+	if err != nil {
+		return nil, err
+	}
+
+	if isMount {
+		logger.Debug("Re-using existing published volume for allocation")
+		return &MountInfo{Source: targetPath}, nil
+	}
+
+	capabilities, err := capabilitiesFromVolume(vol)
+	if err != nil {
+		return nil, err
+	}
+
+	err = v.plugin.NodePublishVolume(ctx, &csi.NodePublishVolumeRequest{
+		VolumeID:          vol.ID,
+		PublishContext:    nil, // TODO: get publishcontext from server
+		StagingTargetPath: stagingPath,
+		TargetPath:        targetPath,
+		VolumeCapability:  capabilities,
+	},
+		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)),
+	)
+
+	return &MountInfo{Source: targetPath}, err
 }
 
 // MountVolume performs the steps required for using a given volume
@@ -164,14 +235,17 @@ func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume,
 	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
 	ctx = hclog.WithContext(ctx, logger)
 
+	var stagingPath string
+	var err error
+
 	if v.requiresStaging {
-		err := v.stageVolume(ctx, vol)
+		stagingPath, err = v.stageVolume(ctx, vol)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return nil, fmt.Errorf("Unimplemented")
+	return v.publishVolume(ctx, vol, alloc, stagingPath)
 }
 
 // unstageVolume is the inverse operation of `stageVolume` and must be called
