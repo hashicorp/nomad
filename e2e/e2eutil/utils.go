@@ -105,7 +105,6 @@ func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile, jo
 	g.Eventually(func() []*api.AllocationListStub {
 		// Look for allocations
 		allocs, _, _ := jobs.Allocations(jobID, false, nil)
-		fmt.Println("!! Eventually Allocations:", allocs)
 		return allocs
 	}, 30*time.Second, time.Second).ShouldNot(BeEmpty())
 
