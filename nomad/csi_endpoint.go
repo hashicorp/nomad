@@ -232,6 +232,7 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 	}
 
 	reply.Index = index
+	v.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
 }
 
@@ -261,6 +262,7 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 	}
 
 	reply.Index = index
+	v.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
 }
 
