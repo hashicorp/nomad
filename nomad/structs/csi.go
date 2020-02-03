@@ -185,9 +185,11 @@ type CSIVolListStub struct {
 }
 
 // NewCSIVolume creates the volume struct. No side-effects
-func NewCSIVolume(pluginID string) *CSIVolume {
+func NewCSIVolume(pluginID string, index uint64) *CSIVolume {
 	out := &CSIVolume{
-		ID: pluginID,
+		ID:          pluginID,
+		CreateIndex: index,
+		ModifyIndex: index,
 	}
 
 	out.newStructs()
@@ -250,11 +252,10 @@ func (v *CSIVolume) CanWrite() bool {
 }
 
 // Copy returns a copy of the volume, which shares only the Topologies slice
-func (v *CSIVolume) Copy(index uint64) *CSIVolume {
+func (v *CSIVolume) Copy() *CSIVolume {
 	copy := *v
 	out := &copy
 	out.newStructs()
-	out.ModifyIndex = index
 
 	for k, v := range v.ReadAllocs {
 		out.ReadAllocs[k] = v
@@ -486,11 +487,10 @@ func (p *CSIPlugin) newStructs() {
 	p.Nodes = map[string]*CSIInfo{}
 }
 
-func (p *CSIPlugin) Copy(index uint64) *CSIPlugin {
+func (p *CSIPlugin) Copy() *CSIPlugin {
 	copy := *p
 	out := &copy
 	out.newStructs()
-	out.ModifyIndex = index
 
 	for ns, js := range p.Jobs {
 		out.Jobs[ns] = map[string]*Job{}
@@ -525,7 +525,7 @@ func (p *CSIPlugin) DeleteJob(job *Job) {
 
 // AddPlugin adds a single plugin running on the node. Called from state.NodeUpdate in a
 // transaction
-func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo, index uint64) {
+func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) {
 	if info.ControllerInfo != nil {
 		prev, ok := p.Controllers[nodeID]
 		if ok && prev.Healthy {
@@ -547,13 +547,11 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo, index uint64) {
 			p.NodesHealthy += 1
 		}
 	}
-
-	p.ModifyIndex = index
 }
 
 // DeleteNode removes all plugins from the node. Called from state.DeleteNode in a
 // transaction
-func (p *CSIPlugin) DeleteNode(nodeID string, index uint64) {
+func (p *CSIPlugin) DeleteNode(nodeID string) {
 	prev, ok := p.Controllers[nodeID]
 	if ok && prev.Healthy {
 		p.ControllersHealthy -= 1
@@ -565,8 +563,6 @@ func (p *CSIPlugin) DeleteNode(nodeID string, index uint64) {
 		p.NodesHealthy -= 1
 	}
 	delete(p.Nodes, nodeID)
-
-	p.ModifyIndex = index
 }
 
 type CSIPluginListStub struct {

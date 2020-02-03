@@ -7,7 +7,7 @@ import (
 )
 
 func TestCSIVolumeClaim(t *testing.T) {
-	vol := NewCSIVolume("")
+	vol := NewCSIVolume("", 0)
 	vol.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
 	vol.Healthy = true
 
