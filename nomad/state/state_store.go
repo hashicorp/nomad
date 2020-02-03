@@ -3578,6 +3578,20 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	state.HealthyAllocs += healthy
 	state.UnhealthyAllocs += unhealthy
 
+	// Ensure PlacedCanaries accurately reflects the alloc canary status
+	if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Canary {
+		found := false
+		for _, canary := range state.PlacedCanaries {
+			if alloc.ID == canary {
+				found = true
+				break
+			}
+		}
+		if !found {
+			state.PlacedCanaries = append(state.PlacedCanaries, alloc.ID)
+		}
+	}
+
 	// Update the progress deadline
 	if pd := state.ProgressDeadline; pd != 0 {
 		// If we are the first placed allocation for the deployment start the progress deadline.

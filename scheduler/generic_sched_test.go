@@ -2029,17 +2029,28 @@ func TestServiceSched_JobModify_Canaries(t *testing.T) {
 	if plan.Deployment == nil {
 		t.Fatalf("bad: %#v", plan)
 	}
-	state, ok := plan.Deployment.TaskGroups[job.TaskGroups[0].Name]
-	if !ok {
-		t.Fatalf("bad: %#v", plan)
-	}
-	if state.DesiredTotal != 10 && state.DesiredCanaries != desiredUpdates {
-		t.Fatalf("bad: %#v", state)
-	}
+
+	// Ensure local state was not altered in scheduler
+	staleState, ok := plan.Deployment.TaskGroups[job.TaskGroups[0].Name]
+	require.True(t, ok)
+
+	require.Equal(t, 0, len(staleState.PlacedCanaries))
+
+	ws := memdb.NewWatchSet()
+
+	// Grab the latest state
+	deploy, err := h.State.DeploymentByID(ws, plan.Deployment.ID)
+	require.NoError(t, err)
+
+	state, ok := deploy.TaskGroups[job.TaskGroups[0].Name]
+	require.True(t, ok)
+
+	require.Equal(t, 10, state.DesiredTotal)
+	require.Equal(t, state.DesiredCanaries, desiredUpdates)
 
 	// Assert the canaries were added to the placed list
 	if len(state.PlacedCanaries) != desiredUpdates {
-		t.Fatalf("bad: %#v", state)
+		assert.Fail(t, "expected PlacedCanaries to equal desiredUpdates", state)
 	}
 }
 
