@@ -2,7 +2,7 @@
 log_level = "DEBUG"
 
 # Setup data dir
-data_dir = "/tmp/server1"
+data_dir = "/tmp/nomad-dev-cluster/server1"
 
 # Give the agent a unique name. Defaults to hostname
 name = "server1"
