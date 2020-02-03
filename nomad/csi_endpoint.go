@@ -210,26 +210,30 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		return structs.ErrPermissionDenied
 	}
 
+	ws := memdb.NewWatchSet()
+
 	// This is the only namespace we ACL checked, force all the volumes to use it
-	for _, v := range args.Volumes {
-		v.Namespace = args.RequestNamespace()
-		if err = v.Validate(); err != nil {
+	for _, vol := range args.Volumes {
+		vol.Namespace = args.RequestNamespace()
+		if err = vol.Validate(); err != nil {
 			return err
+		}
+
+		exists, _ := v.srv.State().CSIVolumeByID(ws, vol.ID)
+		if exists != nil {
+			return fmt.Errorf("volume %s already exists", vol.ID)
 		}
 	}
 
-	state := v.srv.State()
-	index, err := state.LatestIndex()
+	_, index, err := v.srv.raftApply(structs.CSIVolumeRegisterRequestType, args)
 	if err != nil {
+		v.logger.Error("csi raft apply failed", "error", err, "method", "register")
 		return err
 	}
 
-	err = state.CSIVolumeRegister(index, args.Volumes)
-	if err != nil {
-		return err
-	}
-
-	return v.srv.replySetIndex(csiVolumeTable, &reply.QueryMeta)
+	reply.Index = index
+	v.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
 }
 
 // Deregister removes a set of volumes
@@ -251,18 +255,15 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 		return structs.ErrPermissionDenied
 	}
 
-	state := v.srv.State()
-	index, err := state.LatestIndex()
+	_, index, err := v.srv.raftApply(structs.CSIVolumeDeregisterRequestType, args)
 	if err != nil {
+		v.logger.Error("csi raft apply failed", "error", err, "method", "deregister")
 		return err
 	}
 
-	err = state.CSIVolumeDeregister(index, args.VolumeIDs)
-	if err != nil {
-		return err
-	}
-
-	return v.srv.replySetIndex(csiVolumeTable, &reply.QueryMeta)
+	reply.Index = index
+	v.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
 }
 
 // CSIPlugin wraps the structs.CSIPlugin with request data and server context
