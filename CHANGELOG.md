@@ -32,7 +32,7 @@ BUG FIXES:
  * drivers: Fixed a bug where exec, java, and raw_exec drivers collected and emited stats every second regardless of the telemetry config [[GH-7043](https://github.com/hashicorp/nomad/issues/7043)]
  * server: Fixed a deadlock that may occur when server leadership flaps very quickly [[GH-6977](https://github.com/hashicorp/nomad/issues/6977)]
  * scheduler: Fixed a bug that caused evicted allocs on a lost node to be stuck in running. [[GH-6902](https://github.com/hashicorp/nomad/issues/6902)]
- * scheduler: Fixed a bug where `nomad job plan/apply` returned errors instead of a partial placement warning for ineligible nodes. [[GH-6968](https://github.com/hashicorp/nomad/issues/6968)]
+ * scheduler: Fixed a bug where `nomad job plan/apply` returned errors instead of ignoring system job updates for ineligible nodes. [[GH-6996](https://github.com/hashicorp/nomad/issues/6996)]
 
 ## 0.10.3 (January 29, 2020)
 
