@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -255,35 +256,34 @@ func TestHTTP_AgentMembers_ACL(t *testing.T) {
 func TestHTTP_AgentMonitor(t *testing.T) {
 	t.Parallel()
 
-	httpTest(t, nil, func(s *TestAgent) {
-		// invalid log_json
-		{
+	t.Run("invalid log_json parameter", func(t *testing.T) {
+		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_json=no", nil)
 			require.Nil(t, err)
 			resp := newClosableRecorder()
 
 			// Make the request
 			_, err = s.Server.AgentMonitor(resp, req)
-			if err.(HTTPCodedError).Code() != 400 {
-				t.Fatalf("expected 400 response, got: %v", resp.Code)
-			}
-		}
+			httpErr := err.(HTTPCodedError).Code()
+			require.Equal(t, 400, httpErr)
+		})
+	})
 
-		// unknown log_level
-		{
+	t.Run("unknown log_level", func(t *testing.T) {
+		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=unknown", nil)
 			require.Nil(t, err)
 			resp := newClosableRecorder()
 
 			// Make the request
 			_, err = s.Server.AgentMonitor(resp, req)
-			if err.(HTTPCodedError).Code() != 400 {
-				t.Fatalf("expected 400 response, got: %v", resp.Code)
-			}
-		}
+			httpErr := err.(HTTPCodedError).Code()
+			require.Equal(t, 400, httpErr)
+		})
+	})
 
-		// check for a specific log
-		{
+	t.Run("check for specific log level", func(t *testing.T) {
+		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn", nil)
 			require.Nil(t, err)
 			resp := newClosableRecorder()
@@ -291,7 +291,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 
 			go func() {
 				_, err = s.Server.AgentMonitor(resp, req)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}()
 
 			// send the same log until monitor sink is set up
@@ -313,10 +313,11 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 			}, func(err error) {
 				require.Fail(t, err.Error())
 			})
-		}
+		})
+	})
 
-		// plain param set to true
-		{
+	t.Run("plain output", func(t *testing.T) {
+		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=debug&plain=true", nil)
 			require.Nil(t, err)
 			resp := newClosableRecorder()
@@ -324,7 +325,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 
 			go func() {
 				_, err = s.Server.AgentMonitor(resp, req)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}()
 
 			// send the same log until monitor sink is set up
@@ -346,10 +347,11 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 			}, func(err error) {
 				require.Fail(t, err.Error())
 			})
-		}
+		})
+	})
 
-		// stream logs for a given node
-		{
+	t.Run("logs for a specific node", func(t *testing.T) {
+		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn&node_id="+s.client.NodeID(), nil)
 			require.Nil(t, err)
 			resp := newClosableRecorder()
@@ -357,7 +359,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 
 			go func() {
 				_, err = s.Server.AgentMonitor(resp, req)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}()
 
 			// send the same log until monitor sink is set up
@@ -385,10 +387,11 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 			}, func(err error) {
 				require.Fail(t, err.Error())
 			})
-		}
+		})
+	})
 
-		// stream logs for a local client
-		{
+	t.Run("logs for a local client with no server running on agent", func(t *testing.T) {
+		httpTest(t, nil, func(s *TestAgent) {
 			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn", nil)
 			require.Nil(t, err)
 			resp := newClosableRecorder()
@@ -398,7 +401,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 				// set server to nil to monitor as client
 				s.Agent.server = nil
 				_, err = s.Server.AgentMonitor(resp, req)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}()
 
 			// send the same log until monitor sink is set up
@@ -425,7 +428,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 			}, func(err error) {
 				require.Fail(t, err.Error())
 			})
-		}
+		})
 	})
 }
 
@@ -521,10 +524,16 @@ func TestAgent_PprofRequest(t *testing.T) {
 		addNodeID   bool
 		addServerID bool
 		expectedErr string
+		clientOnly  bool
 	}{
 		{
-			desc: "cmdline local request",
+			desc: "cmdline local server request",
 			url:  "/v1/agent/pprof/cmdline",
+		},
+		{
+			desc:       "cmdline local node request",
+			url:        "/v1/agent/pprof/cmdline",
+			clientOnly: true,
 		},
 		{
 			desc:      "cmdline node request",
@@ -575,6 +584,10 @@ func TestAgent_PprofRequest(t *testing.T) {
 					url = url + "?node_id=" + s.client.NodeID()
 				} else if tc.addServerID {
 					url = url + "?server_id=" + s.server.LocalMember().Name
+				}
+
+				if tc.clientOnly {
+					s.Agent.server = nil
 				}
 
 				req, err := http.NewRequest("GET", url, nil)
