@@ -139,6 +139,7 @@ func ValidCSIVolumeWriteAccessMode(accessMode CSIVolumeAccessMode) bool {
 type CSIVolume struct {
 	ID             string
 	Namespace      string
+	Name           string
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
@@ -150,7 +151,6 @@ type CSIVolume struct {
 	// Healthy is true if all the denormalized plugin health fields are true, and the
 	// volume has not been marked for garbage collection
 	Healthy             bool
-	VolumeGC            time.Time
 	PluginID            string
 	ControllerRequired  bool
 	ControllersHealthy  int
@@ -172,8 +172,7 @@ type CSIVolListStub struct {
 	AttachmentMode      CSIVolumeAttachmentMode
 	CurrentReaders      int
 	CurrentWriters      int
-	Healthy             bool
-	VolumeGC            time.Time
+	Schedulable         bool
 	PluginID            string
 	ControllersHealthy  int
 	ControllersExpected int
@@ -213,8 +212,7 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 		AttachmentMode:     v.AttachmentMode,
 		CurrentReaders:     len(v.ReadAllocs),
 		CurrentWriters:     len(v.WriteAllocs),
-		Healthy:            v.Healthy,
-		VolumeGC:           v.VolumeGC,
+		Schedulable:        v.Healthy,
 		PluginID:           v.PluginID,
 		ControllersHealthy: v.ControllersHealthy,
 		NodesHealthy:       v.NodesHealthy,
@@ -555,6 +553,7 @@ func (p *CSIPlugin) DeleteNode(nodeID string) {
 
 type CSIPluginListStub struct {
 	ID                  string
+	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
 	NodesHealthy        int
@@ -566,6 +565,7 @@ type CSIPluginListStub struct {
 func (p *CSIPlugin) Stub() *CSIPluginListStub {
 	return &CSIPluginListStub{
 		ID:                  p.ID,
+		ControllerRequired:  p.ControllerRequired,
 		ControllersHealthy:  p.ControllersHealthy,
 		ControllersExpected: len(p.Controllers),
 		NodesHealthy:        p.NodesHealthy,
