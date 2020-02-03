@@ -11,12 +11,12 @@ IMPROVEMENTS:
  * cli: Added option to change the name of the file created by the `nomad init` command [[GH-6520]](https://github.com/hashicorp/nomad/pull/6520)
  * cli: Included namespace in output when querying job status. [[GH-6912](https://github.com/hashicorp/nomad/issues/6912)]
  * client: Supported AWS EC2 Instance Metadata Service Version 2 (IMDSv2) [[GH-6779](https://github.com/hashicorp/nomad/issues/6779)]
+  * consul: Add support for service `canary_meta` [[GH-6690](https://github.com/hashicorp/nomad/pull/6690)]
  * driver/docker: Added a `disable_log_collection` parameter to disable nomad log collection [[GH-6820](https://github.com/hashicorp/nomad/issues/6820)]
  * server: Introduced a `default_scheduler_config` config parameter to seed initial preemption configuration. [[GH-6935](https://github.com/hashicorp/nomad/issues/6935)]
  * scheduler: Removed penalty for allocation's previous node if the allocation did not fail. [[GH-6781](https://github.com/hashicorp/nomad/issues/6781)]
  * scheduler: Reduced logging verbosity during preemption [[GH-6849](https://github.com/hashicorp/nomad/issues/6849)]
  * ui: Updated Run Job button to be conditionally enabled according to ACLs [[GH-5944](https://github.com/hashicorp/nomad/pull/5944)]
- * consul: Add support for service `canary_meta`
 
 BUG FIXES:
 
