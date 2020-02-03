@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
@@ -144,6 +145,7 @@ func AllocIDsFromAllocationListStubs(allocs []*api.AllocationListStub) []string 
 func DeploymentsForJob(t *testing.T, nomadClient *api.Client, jobID string) []*api.Deployment {
 	ds, _, err := nomadClient.Deployments().List(nil)
 	require.NoError(t, err)
+	spew.Dump(ds)
 
 	out := []*api.Deployment{}
 	for _, d := range ds {
