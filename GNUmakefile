@@ -177,7 +177,7 @@ check: ## Lint the source code
 	@if (git status | grep -q .pb.go); then echo the following proto files are out of sync; git status |grep .pb.go; exit 1; fi
 
 	@echo "==> Check API package is isolated from rest"
-	@! go list --test -f '{{ join .Deps "\n" }}' ./api | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test
+	@if go list --test -f '{{ join .Deps "\n" }}' ./api | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
 
 .PHONY: checkscripts
 checkscripts: ## Lint shell scripts
