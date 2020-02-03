@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/consul/lib"
 	hclog "github.com/hashicorp/go-hclog"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -36,6 +37,7 @@ type StreamClient struct {
 
 func (sc *StreamClient) Close() {
 	sc.stream.Close()
+	sc.codec.Close()
 }
 
 // Conn is a pooled connection to a Nomad server
@@ -425,6 +427,14 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 	err = msgpackrpc.CallWithCodec(sc.codec, method, args, reply)
 	if err != nil {
 		sc.Close()
+
+		// If we read EOF, the session is toast. Clear it and open a
+		// new session next time
+		// See https://github.com/hashicorp/consul/blob/v1.6.3/agent/pool/pool.go#L471-L477
+		if lib.IsErrEOF(err) {
+			p.clearConn(conn)
+		}
+
 		p.releaseConn(conn)
 
 		// If the error is an RPC Coded error
