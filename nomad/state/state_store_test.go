@@ -2831,8 +2831,9 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	state := testStateStore(t)
 
 	id0, id1 := uuid.Generate(), uuid.Generate()
+	index := uint64(1000)
 
-	v0 := structs.NewCSIVolume("foo")
+	v0 := structs.NewCSIVolume("foo", index)
 	v0.ID = id0
 	v0.Namespace = "default"
 	v0.PluginID = "minnie"
@@ -2840,7 +2841,8 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	v0.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v0.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 
-	v1 := structs.NewCSIVolume("foo")
+	index++
+	v1 := structs.NewCSIVolume("foo", index)
 	v1.ID = id1
 	v1.Namespace = "default"
 	v1.PluginID = "adam"
