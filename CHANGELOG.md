@@ -20,9 +20,10 @@ IMPROVEMENTS:
 
 BUG FIXES:
 
- * core: Addressed an inconsistency where allocations created prior to 0.9 had missing fields [[GH-6922](https://github.com/hashicorp/nomad/issues/6922)]
- * agent: Fixed race condition in logging when using `nomad monitor` command [[GH-6872](https://github.com/hashicorp/nomad/issues/6872)]
+ * agent: Fixed a panic when using `nomad monitor` on a client node. [[GH-7053](https://github.com/hashicorp/nomad/issues/7053)]
+ * agent: Fixed race condition in logging when using `nomad monitor` command. [[GH-6872](https://github.com/hashicorp/nomad/issues/6872)]
  * agent: Fixed a bug where `nomad monitor -server-id` only work for a server's name instead of uuid or name. [[GH-7015](https://github.com/hashicorp/nomad/issues/7015)]
+ * core: Addressed an inconsistency where allocations created prior to 0.9 had missing fields [[GH-6922](https://github.com/hashicorp/nomad/issues/6922)]
  * cli: Fixed a bug where `nomad monitor -node-id` would cause a cli panic when no nodes where found. [[GH-6828](https://github.com/hashicorp/nomad/issues/6828)]
  * cli: Fixed a bug where error messages appeared interweived with help text inconsistently [[GH-6865](https://github.com/hashicorp/nomad/issues/6865)]
  * config: Fixed a bug where agent startup would fail if the `consul.timeout` configuration was set. [[GH-6907](https://github.com/hashicorp/nomad/issues/6907)]
