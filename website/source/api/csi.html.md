@@ -30,19 +30,13 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `prefix` `(string: "")` - Specifies a string to filter jobs on based on
-  an index prefix. This is specified as a query string parameter.
+No parameters.
 
 ### Sample Request
 
 ```text
 $ curl \
     https://localhost:4646/v1/csi/plugins
-```
-
-```text
-$ curl \
-    https://localhost:4646/v1/csi/plugins?plugin_id=team
 ```
 
 ### Sample Response
@@ -57,7 +51,7 @@ $ curl \
         "example2_job_id"
       ]
     },
-    "ControllersRequired": true,
+    "ControllerRequired": true,
     "ControllersHealthy": 2,
     "ControllersExpected": 3,
     "NodesHealthy": 14,
