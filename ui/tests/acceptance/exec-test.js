@@ -24,7 +24,7 @@ module('Acceptance | exec', function(hooks) {
 
     this.job = server.create('job', { createAllocations: false, namespaceId: namespace.id });
 
-    await Exec.visit({ job: this.job.id, namespace: namespace.id, region: 'region-2' });
+    await Exec.visitJob({ job: this.job.id, namespace: namespace.id, region: 'region-2' });
 
     assert.equal(document.title, 'Exec - region-2 - Nomad');
 
@@ -34,14 +34,14 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('/exec/:job should not show region and namespace when there are none', async function(assert) {
-    await Exec.visit({ job: this.job.id });
+    await Exec.visitJob({ job: this.job.id });
 
     assert.ok(Exec.header.region.isHidden);
     assert.ok(Exec.header.namespace.isHidden);
   });
 
   test('/exec/:job should show the task groups collapsed by default allow the tasks to be shown', async function(assert) {
-    await Exec.visit({ job: this.job.id });
+    await Exec.visitJob({ job: this.job.id });
 
     assert.equal(Exec.taskGroups.length, this.job.task_groups.length);
 
@@ -58,7 +58,7 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('/exec/:job should require selecting a task', async function(assert) {
-    await Exec.visit({ job: this.job.id });
+    await Exec.visitJob({ job: this.job.id });
 
     assert.equal(
       window.execTerminal.buffer
@@ -67,5 +67,13 @@ module('Acceptance | exec', function(hooks) {
         .trim(),
       'Select a task to start your session.'
     );
+  });
+
+  test('/exec/:job/:task_group should open that task group by default', async function(assert) {
+    const taskGroup = this.job.task_groups.models[0];
+    await Exec.visitTaskGroup({ job: this.job.id, task_group: taskGroup.name });
+
+    assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
+    assert.ok(Exec.taskGroups[0].chevron.isDown);
   });
 });

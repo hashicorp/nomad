@@ -7,7 +7,9 @@ const Router = EmberRouter.extend({
 });
 
 Router.map(function() {
-  this.route('exec', { path: '/exec/:job_name' });
+  this.route('exec', { path: '/exec/:job_name' }, function() {
+    this.route('task-group', { path: '/:task_group_name' });
+  });
 
   this.route('jobs', function() {
     this.route('run');

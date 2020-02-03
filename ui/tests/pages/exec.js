@@ -1,7 +1,8 @@
 import { clickable, collection, create, hasClass, text, visitable } from 'ember-cli-page-object';
 
 export default create({
-  visit: visitable('/exec/:job'),
+  visitJob: visitable('/exec/:job'),
+  visitTaskGroup: visitable('/exec/:job/:task_group'),
 
   header: {
     region: { scope: '[data-test-region]' },
