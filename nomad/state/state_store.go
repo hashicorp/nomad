@@ -1826,7 +1826,6 @@ func (s *StateStore) csiPluginsByJob(ws memdb.WatchSet, job *structs.Job, index 
 
 			if plug == nil {
 				plug = structs.NewCSIPlugin(t.CSIPluginConfig.ID, index)
-				plug.Type = t.CSIPluginConfig.Type
 			}
 
 			plugs[t.CSIPluginConfig.ID] = plug
