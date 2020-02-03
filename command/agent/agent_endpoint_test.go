@@ -386,6 +386,46 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 				require.Fail(t, err.Error())
 			})
 		}
+
+		// stream logs for a local client
+		{
+			req, err := http.NewRequest("GET", "/v1/agent/monitor?log_level=warn", nil)
+			require.Nil(t, err)
+			resp := newClosableRecorder()
+			defer resp.Close()
+
+			go func() {
+				// set server to nil to monitor as client
+				s.Agent.server = nil
+				_, err = s.Server.AgentMonitor(resp, req)
+				require.NoError(t, err)
+			}()
+
+			// send the same log until monitor sink is set up
+			maxLogAttempts := 10
+			tried := 0
+			out := ""
+			testutil.WaitForResult(func() (bool, error) {
+				if tried < maxLogAttempts {
+					s.Agent.logger.Warn("log that should be sent")
+					tried++
+				}
+				output, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					return false, err
+				}
+
+				out += string(output)
+				want := `{"Data":"`
+				if strings.Contains(out, want) {
+					return true, nil
+				}
+
+				return false, fmt.Errorf("missing expected log, got: %v, want: %v", out, want)
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+		}
 	})
 }
 
