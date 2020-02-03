@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 
 export default Component.extend({
-  isOpen: true,
+  isOpen: false,
 
   actions: {
     toggleOpen() {

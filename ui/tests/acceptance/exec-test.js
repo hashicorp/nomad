@@ -40,21 +40,21 @@ module('Acceptance | exec', function(hooks) {
     assert.ok(Exec.header.namespace.isHidden);
   });
 
-  test('/exec/:job should show the task groups and tasks and allow task groups to be collapsed', async function(assert) {
+  test('/exec/:job should show the task groups collapsed by default allow the tasks to be shown', async function(assert) {
     await Exec.visit({ job: this.job.id });
 
     assert.equal(Exec.taskGroups.length, this.job.task_groups.length);
 
     assert.equal(Exec.taskGroups[0].name, this.job.task_groups.models[0].name);
-    assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
-
-    await Exec.taskGroups[0].click();
     assert.equal(Exec.taskGroups[0].tasks.length, 0);
     assert.ok(Exec.taskGroups[0].chevron.isRight);
 
     await Exec.taskGroups[0].click();
     assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
+
+    await Exec.taskGroups[0].click();
+    assert.equal(Exec.taskGroups[0].tasks.length, 0);
   });
 
   test('/exec/:job should require selecting a task', async function(assert) {
