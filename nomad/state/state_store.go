@@ -954,13 +954,14 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 
 		var plug *structs.CSIPlugin
 		if raw != nil {
-			plug = raw.(*structs.CSIPlugin).Copy(index)
+			plug = raw.(*structs.CSIPlugin).Copy()
 		} else {
 			plug = structs.NewCSIPlugin(info.PluginID, index)
 			plug.ControllerRequired = info.RequiresControllerPlugin
 		}
 
-		plug.AddPlugin(node.ID, info, index)
+		plug.AddPlugin(node.ID, info)
+		plug.ModifyIndex = index
 
 		err = txn.Insert("csi_plugins", plug)
 		if err != nil {
@@ -982,6 +983,10 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		if err != nil {
 			return err
 		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return nil
@@ -1010,8 +1015,9 @@ func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 			return fmt.Errorf("csi_plugins missing plugin %s", id)
 		}
 
-		plug := raw.(*structs.CSIPlugin).Copy(index)
-		plug.DeleteNode(node.ID, index)
+		plug := raw.(*structs.CSIPlugin).Copy()
+		plug.DeleteNode(node.ID)
+		plug.ModifyIndex = index
 
 		if plug.IsEmpty() {
 			err := txn.Delete("csi_plugins", plug)
@@ -1024,6 +1030,10 @@ func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		if err != nil {
 			return fmt.Errorf("csi_plugins update error %s: %v", id, err)
 		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return nil
@@ -1644,6 +1654,10 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 		}
 	}
 
+	if err := txn.Insert("index", &IndexEntry{"csi_volumes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	txn.Commit()
 	return nil
 }
@@ -1710,14 +1724,20 @@ func (s *StateStore) CSIVolumeClaim(index uint64, id string, alloc *structs.Allo
 		return fmt.Errorf("volume row conversion error")
 	}
 
-	volume := orig.Copy(index)
+	volume := orig.Copy()
 
 	if !volume.Claim(claim, alloc) {
 		return fmt.Errorf("volume max claim reached")
 	}
 
+	volume.ModifyIndex = index
+
 	if err = txn.Insert("csi_volumes", volume); err != nil {
 		return fmt.Errorf("volume update failed: %s: %v", id, err)
+	}
+
+	if err = txn.Insert("index", &IndexEntry{"csi_volumes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	txn.Commit()
@@ -1744,6 +1764,10 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, ids []string) error {
 		}
 	}
 
+	if err := txn.Insert("index", &IndexEntry{"csi_volumes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	txn.Commit()
 	return nil
 }
@@ -1759,7 +1783,7 @@ func (s *StateStore) upsertJobCSIPlugins(index uint64, job *structs.Job, txn *me
 	// Append this job to all of them
 	for _, plug := range plugs {
 		if plug.CreateIndex != index {
-			plug = plug.Copy(index)
+			plug = plug.Copy()
 		}
 
 		plug.AddJob(job)
@@ -1768,6 +1792,10 @@ func (s *StateStore) upsertJobCSIPlugins(index uint64, job *structs.Job, txn *me
 		if err != nil {
 			return err
 		}
+	}
+
+	if err = txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return nil
@@ -1819,10 +1847,12 @@ func (s *StateStore) deleteJobCSIPlugins(index uint64, job *structs.Job, txn *me
 	// Remove this job from each plugin. If the plugin has no jobs left, remove it
 	for _, plug := range plugs {
 		if plug.CreateIndex != index {
-			plug = plug.Copy(index)
+			plug = plug.Copy()
 		}
 
 		plug.DeleteJob(job)
+		plug.ModifyIndex = index
+
 		if plug.IsEmpty() {
 			err = txn.Delete("csi_plugins", plug)
 		} else {
@@ -1832,6 +1862,10 @@ func (s *StateStore) deleteJobCSIPlugins(index uint64, job *structs.Job, txn *me
 		if err != nil {
 			return fmt.Errorf("csi_plugins update: %v", err)
 		}
+	}
+
+	if err = txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return nil

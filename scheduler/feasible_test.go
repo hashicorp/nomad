@@ -281,7 +281,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 
 	// Create the volume in the state store
 	vid := "volume-id"
-	vol := structs.NewCSIVolume(vid)
+	vol := structs.NewCSIVolume(vid, index)
 	vol.PluginID = "foo"
 	vol.Namespace = structs.DefaultNamespace
 	vol.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter

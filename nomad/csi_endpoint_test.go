@@ -40,7 +40,7 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		PluginID:       "minnie",
 	}}
-	err := state.CSIVolumeRegister(0, vols)
+	err := state.CSIVolumeRegister(999, vols)
 	require.NoError(t, err)
 
 	// Create the register request
@@ -56,7 +56,7 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 	var resp structs.CSIVolumeGetResponse
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req, &resp)
 	require.NoError(t, err)
-	require.NotEqual(t, 0, resp.Index)
+	require.Equal(t, uint64(999), resp.Index)
 	require.Equal(t, vols[0].ID, resp.Volume.ID)
 }
 
@@ -104,7 +104,7 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	resp1 := &structs.CSIVolumeRegisterResponse{}
 	err := msgpackrpc.CallWithCodec(codec, "CSIVolume.Register", req1, resp1)
 	require.NoError(t, err)
-	require.NotEqual(t, 0, resp1.Index)
+	require.NotEqual(t, uint64(0), resp1.Index)
 
 	// Get the volume back out
 	policy = mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIAccess})
@@ -120,7 +120,7 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	resp2 := &structs.CSIVolumeGetResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req2, resp2)
 	require.NoError(t, err)
-	require.NotEqual(t, 0, resp2.Index)
+	require.Equal(t, resp1.Index, resp2.Index)
 	require.Equal(t, vols[0].ID, resp2.Volume.ID)
 
 	// Registration does not update
@@ -190,7 +190,7 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		PluginID:       "paddy",
 	}}
-	err := state.CSIVolumeRegister(0, vols)
+	err := state.CSIVolumeRegister(999, vols)
 	require.NoError(t, err)
 
 	var resp structs.CSIVolumeListResponse
@@ -204,7 +204,7 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.List", req, &resp)
 	require.NoError(t, err)
-	require.NotEqual(t, 0, resp.Index)
+	require.Equal(t, uint64(999), resp.Index)
 	require.Equal(t, 2, len(resp.Volumes))
 	ids := map[string]bool{vols[0].ID: true, vols[1].ID: true}
 	for _, v := range resp.Volumes {
@@ -280,7 +280,7 @@ func TestCSIPluginEndpoint_RegisterViaJob(t *testing.T) {
 	resp1 := &structs.JobRegisterResponse{}
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req1, resp1)
 	require.NoError(t, err)
-	require.NotEqual(t, 0, resp1.Index)
+	require.NotEqual(t, uint64(0), resp1.Index)
 
 	// Get the plugin back out
 	policy = mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIAccess})
@@ -296,7 +296,8 @@ func TestCSIPluginEndpoint_RegisterViaJob(t *testing.T) {
 	resp2 := &structs.CSIPluginGetResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
 	require.NoError(t, err)
-	require.NotEqual(t, 0, resp2.Index)
+	// The job is created with a higher index than the plugin, there's an extra raft write
+	require.Greater(t, resp1.Index, resp2.Index)
 
 	// List plugins
 	req3 := &structs.CSIPluginListRequest{
@@ -323,6 +324,7 @@ func TestCSIPluginEndpoint_RegisterViaJob(t *testing.T) {
 	resp4 := &structs.JobDeregisterResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req4, resp4)
 	require.NoError(t, err)
+	require.Less(t, resp2.Index, resp4.Index)
 
 	// Plugin is missing
 	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
