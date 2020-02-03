@@ -88,10 +88,7 @@ type CSIVolume struct {
 	// Combine structs.{Read,Write,Past}Allocs
 	Allocations []*AllocationListStub
 
-	// Healthy is true iff all the denormalized plugin health fields are true, and the
-	// volume has not been marked for garbage collection
-	Healthy             bool
-	VolumeGC            time.Time
+	Schedulable         bool
 	PluginID            string
 	ControllerRequired  bool
 	ControllersHealthy  int
@@ -120,16 +117,12 @@ func (v CSIVolumeIndexSort) Swap(i, j int) {
 
 // CSIVolumeListStub omits allocations. See also nomad/structs/csi.go
 type CSIVolumeListStub struct {
-	ID             string
-	Namespace      string
-	Topologies     []*CSITopology
-	AccessMode     CSIVolumeAccessMode
-	AttachmentMode CSIVolumeAttachmentMode
-
-	// Healthy is true iff all the denormalized plugin health fields are true, and the
-	// volume has not been marked for garbage collection
-	Healthy             bool
-	VolumeGC            time.Time
+	ID                  string
+	Namespace           string
+	Topologies          []*CSITopology
+	AccessMode          CSIVolumeAccessMode
+	AttachmentMode      CSIVolumeAttachmentMode
+	Schedulable         bool
 	PluginID            string
 	ControllerRequired  bool
 	ControllersHealthy  int
