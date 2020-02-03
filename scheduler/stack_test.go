@@ -239,7 +239,8 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 	}
 
 	// Create a volume in the state store
-	v := structs.NewCSIVolume("foo")
+	index := uint64(999)
+	v := structs.NewCSIVolume("foo", index)
 	v.Namespace = structs.DefaultNamespace
 	v.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
