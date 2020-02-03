@@ -427,7 +427,6 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 	err = msgpackrpc.CallWithCodec(sc.codec, method, args, reply)
 	if err != nil {
 		sc.Close()
-		p.releaseConn(conn)
 
 		// If we read EOF, the session is toast. Clear it and open a
 		// new session next time
@@ -435,6 +434,8 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 		if lib.IsErrEOF(err) {
 			p.clearConn(conn)
 		}
+
+		p.releaseConn(conn)
 
 		// If the error is an RPC Coded error
 		// return the coded error without wrapping
