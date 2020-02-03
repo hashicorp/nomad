@@ -1,11 +1,11 @@
 job "binstore-storagelocker" {
-  region      = "global"
-  type        = "service"
-  priority    = 50
-  all_at_once = true
-  datacenters = ["us2", "eu1"]
+  region       = "global"
+  type         = "service"
+  priority     = 50
+  all_at_once  = true
+  datacenters  = ["us2", "eu1"]
   consul_token = "abc"
-  vault_token = "foo"
+  vault_token  = "foo"
 
   meta {
     foo = "bar"
