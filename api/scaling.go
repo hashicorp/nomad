@@ -17,13 +17,15 @@ type ScalingRequest struct {
 	JobID  string
 	Value  interface{}
 	Reason string
+	Error  string
 	WriteRequest
-	PolicyOverride bool
+	// why is PolicyOverride in here? was this a mistake
+	// PolicyOverride bool
 }
 
 // ScaleStatusResponse is the payload for a generic scaling action
 type ScaleStatusResponse struct {
 	JobID          string
-	Value          interface{}
 	JobModifyIndex uint64
+	Value          interface{}
 }
