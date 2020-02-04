@@ -34,38 +34,31 @@ provisioning configuration file for the e2e framework.
 terraform output provisioning | jq . > ../provisioning.json
 ```
 
-By default the `provisioning.json` will include a `nomad_sha` field
-for each node. You can edit this file to change the version of Nomad
-you want to deploy. Because each node has its own value, you can
-create cluster of mixed versions. The provisioning framework accepts
-any of the following options:
+By default the `provisioning.json` will not include the Nomad version
+that will be deployed to each node. You can pass the following flags
+to `go test` to set the version for all nodes:
 
-- `nomad_sha`: This is a Nomad binary identified by its full commit SHA that's
-  stored in a shared s3 bucket that Nomad team developers can access. That
-  commit SHA can be from any branch that's pushed to remote.  (Ex.
-  `"nomad_sha": "0b6b475e7da77fed25727ea9f01f155a58481b6c"`)
-- `nomad_local_binary`: This is a path to a Nomad binary on your own host.
-  (Ex. `"nomad_local_binary": "/home/me/nomad"`)
-- `nomad_version`: This is a version number of Nomad that's been released to
-  HashiCorp. (Ex. `"nomad_version": "0.10.2"`)
-
-You can pass the following flags to `go test` to override the values
-in `provisioning.json` for all nodes:
-
-- `-nomad.local_file=string`: provision this specific local binary of Nomad
-- `-nomad.sha=string`: provision this specific sha from S3
+- `-nomad.local_file=string`: provision this specific local binary of
+  Nomad. This is a path to a Nomad binary on your own
+  host. Ex. `-nomad.local_file=/home/me/nomad`
+- `-nomad.sha=string`: provision this specific sha from S3. This is a
+  Nomad binary identified by its full commit SHA that's stored in a
+  shared s3 bucket that Nomad team developers can access. That commit
+  SHA can be from any branch that's pushed to
+  remote. Ex. `-nomad.sha=0b6b475e7da77fed25727ea9f01f155a58481b6c`
 - `-nomad.version=string`: provision this version from
-  [releases.hashicorp.com](https://releases.hashicorp.com/nomad)
+  [releases.hashicorp.com](https://releases.hashicorp.com/nomad). Ex. `-nomad.version=0.10.2`
 
-Deploy Nomad to the cluster:
+Then deploy Nomad to the cluster by passing `-provision.terraform`
+without a Nomad version flag:
 
 ```sh
-# from the ./e2e/terraform directory, set your client environment
-$(terraform output environment)
-
-cd ..
-go test -v . -provision.terraform ./provisioning.json -skipTests
+go test -v . -nomad.version=0.10.2 -provision.terraform ./provisioning.json -skipTests
 ```
+
+Because it can take a little while for the cluster to settle, it's
+recommended to run this provisioning step (with `-skipTests`) first,
+and then run tests as separate step.
 
 ## Running
 
@@ -84,6 +77,7 @@ go test -v .
 If you want to run a specific suite, you can specify the `-suite` flag as
 shown below. Only the suite with a matching `Framework.TestSuite.Component`
 will be run, and all others will be skipped.
+
 ```sh
 go test -v -suite=Consul .
 ```
@@ -95,3 +89,63 @@ names in the full name of the tests:
 ```sh
 go test -v . -run 'TestE2E/Consul/\*consul\.ScriptChecksE2ETest/TestGroup'
 ```
+
+## I Want To...
+
+### ...SSH Into One Of The Test Machines
+
+You can use the Terraform output to find the IP address. The keys will
+in the `./terraform/keys/` directory.
+
+```sh
+ssh -i keys/nomad-e2e-*.pem ubuntu@${EC2_IP_ADDR}
+```
+
+### ...Deploy a Cluster of Mixed Nomad Versions
+
+The `provisioning.json` file output by Terraform has a blank field for
+`nomad_sha` for each node of the cluster (server and client). You can
+manually edit the file to replace this value with a `nomad_sha`,
+`nomad_local_binary`, or `nomad_version` for each node to create a
+cluster of mixed versions. The provisioning framework accepts any of
+the following options for those fields:
+
+- `nomad_sha`: This is a Nomad binary identified by its full commit
+  SHA that's stored in a shared s3 bucket that Nomad team developers
+  can access. That commit SHA can be from any branch that's pushed to
+  remote.  (Ex.  `"nomad_sha":
+  "0b6b475e7da77fed25727ea9f01f155a58481b6c"`)
+- `nomad_local_binary`: This is a path to a Nomad binary on your own
+  host.  (Ex. `"nomad_local_binary": "/home/me/nomad"`)
+- `nomad_version`: This is a version number of Nomad that's been
+  released to HashiCorp. (Ex. `"nomad_version": "0.10.2"`)
+
+Then deploy Nomad to the cluster by passing `-provision.terraform`
+without a Nomad version flag:
+
+```sh
+go test -v . -provision.terraform ./provisioning.json -skipTests
+```
+
+### ...Deploy Custom Configuration Files
+
+The `provisioning.json` file includes a `bundles` section for each
+node of the cluster (server and client). You can manually edit this
+file to add, remove, or replace
+
+```json
+"bundles": [
+  {
+    "destination": "/ops/shared/nomad/base.hcl",
+    "source": "/home/me/custom.hcl"
+  }
+]
+```
+
+### ...Deploy More Than 4 Linux Clients
+
+Right now the framework doesn't support this out-of-the-box because of
+the way the provisioning script adds specific client configurations to
+each client node (for constraint testing). You'll need to add
+additional configuration files to
+`./e2e/terraform/shared/nomad/indexed`.

@@ -34,7 +34,8 @@ variable "windows_client_count" {
 }
 
 variable "nomad_sha" {
-  description = "The sha of Nomad to run"
+  description = "The sha of Nomad to write to provisioning output"
+  default     = ""
 }
 
 provider "aws" {
