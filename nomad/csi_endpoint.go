@@ -210,25 +210,21 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		return structs.ErrPermissionDenied
 	}
 
-	ws := memdb.NewWatchSet()
-
 	// This is the only namespace we ACL checked, force all the volumes to use it
 	for _, vol := range args.Volumes {
 		vol.Namespace = args.RequestNamespace()
 		if err = vol.Validate(); err != nil {
 			return err
 		}
-
-		exists, _ := v.srv.State().CSIVolumeByID(ws, vol.ID)
-		if exists != nil {
-			return fmt.Errorf("volume %s already exists", vol.ID)
-		}
 	}
 
-	_, index, err := v.srv.raftApply(structs.CSIVolumeRegisterRequestType, args)
+	resp, index, err := v.srv.raftApply(structs.CSIVolumeRegisterRequestType, args)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "register")
 		return err
+	}
+	if respErr, ok := resp.(error); ok {
+		return respErr
 	}
 
 	reply.Index = index
@@ -255,10 +251,45 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 		return structs.ErrPermissionDenied
 	}
 
-	_, index, err := v.srv.raftApply(structs.CSIVolumeDeregisterRequestType, args)
+	resp, index, err := v.srv.raftApply(structs.CSIVolumeDeregisterRequestType, args)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "deregister")
 		return err
+	}
+	if respErr, ok := resp.(error); ok {
+		return respErr
+	}
+
+	reply.Index = index
+	v.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
+// Claim claims a volume
+func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CSIVolumeClaimResponse) error {
+	if done, err := v.srv.forward("CSIVolume.Claim", args, args, reply); done {
+		return err
+	}
+
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest)
+	if err != nil {
+		return err
+	}
+
+	metricsStart := time.Now()
+	defer metrics.MeasureSince([]string{"nomad", "volume", "claim"}, metricsStart)
+
+	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityCSIAccess) {
+		return structs.ErrPermissionDenied
+	}
+
+	resp, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, args)
+	if err != nil {
+		v.logger.Error("csi raft apply failed", "error", err, "method", "claim")
+		return err
+	}
+	if respErr, ok := resp.(error); ok {
+		return respErr
 	}
 
 	reply.Index = index
