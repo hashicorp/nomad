@@ -10,8 +10,7 @@ import (
 
 type SystemSchedTest struct {
 	framework.TC
-	jobIDs         []string
-	disabledNodeID string
+	jobIDs []string
 }
 
 func init() {
