@@ -1,7 +1,6 @@
 package connect
 
 import (
-	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -194,7 +193,6 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMasterToken(f *framework.F)
 	resp, _, err := jobAPI.Plan(job, false, nil)
 	r.NoError(err)
 	r.NotNil(resp)
-	fmt.Println("resp:", resp)
 }
 
 func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMissingOperatorToken(f *framework.F) {
@@ -265,18 +263,10 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsConnectDemo(f *framework.F) {
 
 	// === Register the Nomad job ===
 	jobID := "connectACL_connect_demo"
-	//{
-	//
-	//	nomadClient := tc.Nomad()
-	//	allocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient, demoConnectJob, jobID, operatorToken)
-	//	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
-	//	e2eutil.WaitForAllocsRunning(t, nomadClient, allocIDs)
-	//}
 
 	var allocs []*napi.AllocationListStub
 	allocIDs := make(map[string]bool, 2)
 	{
-		// jobID := "connect" + uuid.Generate()[0:8] (nicer name now)
 
 		// parse the example connect jobspec file
 		tc.jobIDs = append(tc.jobIDs, jobID)
@@ -318,8 +308,6 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsConnectDemo(f *framework.F) {
 		r.Len(eval.QueuedAllocations, 2, pretty.Sprint(eval.QueuedAllocations))
 
 		// === Assert allocs are running ===
-		// var allocs []*napi.AllocationListStub // move scope
-
 		for i := 0; i < 20; i++ {
 			allocs, qMeta, err = evalAPI.Allocations(eval.ID, qOpts)
 			r.NoError(err)

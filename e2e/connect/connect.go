@@ -22,15 +22,15 @@ type ConnectE2ETest struct {
 
 func init() {
 	// connect tests without Consul ACLs enabled
-	//framework.AddSuites(&framework.TestSuite{
-	//	Component:   "Connect",
-	//	CanRunLocal: true,
-	//	Consul:      true,
-	//	Cases: []framework.TestCase{
-	//		new(ConnectE2ETest),
-	//		new(ConnectClientStateE2ETest),
-	//	},
-	//})
+	framework.AddSuites(&framework.TestSuite{
+		Component:   "Connect",
+		CanRunLocal: true,
+		Consul:      true,
+		Cases: []framework.TestCase{
+			new(ConnectE2ETest),
+			new(ConnectClientStateE2ETest),
+		},
+	})
 
 	// connect tests with Consul ACLs enabled
 	framework.AddSuites(&framework.TestSuite{
