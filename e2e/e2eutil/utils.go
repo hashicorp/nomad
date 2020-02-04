@@ -147,7 +147,7 @@ func WaitForAllocNotPending(t *testing.T, nomadClient *api.Client, allocID strin
 			return false, err
 		}
 
-		return alloc.ClientStatus != structs.AllocClientStatusPending, fmt.Errorf("expected status running, but was: %s", alloc.ClientStatus)
+		return alloc.ClientStatus != structs.AllocClientStatusPending, fmt.Errorf("expected status not pending, but was: %s", alloc.ClientStatus)
 	}, func(err error) {
 		t.Fatalf("failed to wait on alloc: %v", err)
 	})

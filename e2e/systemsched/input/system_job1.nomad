@@ -1,4 +1,4 @@
-job "redis" {
+job "system_job" {
   datacenters = ["dc1"]
 
   type = "system"
@@ -8,7 +8,7 @@ job "redis" {
     value     = "linux"
   }
 
-  group "cache" {
+  group "system_job_group" {
     count = 1
 
     restart {
@@ -31,22 +31,6 @@ job "redis" {
 
       env {
         version = "2"
-      }
-
-      logs {
-        max_files     = 1
-        max_file_size = 9
-      }
-
-      resources {
-        cpu = 20 # 500 MHz    
-
-        memory = 40 # 256MB
-
-        network {
-          mbits = 1
-          port  "db"  {}
-        }
       }
     }
   }
