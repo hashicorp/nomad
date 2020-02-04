@@ -230,6 +230,7 @@ $ curl \
   "Warnings": "",
   "Index": 0,
   "LastContact": 0,
+  "JobVersion": 0,
   "KnownLeader": false
 }
 ```

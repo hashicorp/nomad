@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"strings"
@@ -31,6 +32,7 @@ func TestJobs_Register(t *testing.T) {
 	require.Nil(err)
 	require.NotNil(resp2)
 	require.NotEmpty(resp2.EvalID)
+	require.GreaterOrEqual(resp2.JobVersion, uint64(0))
 	assertWriteMeta(t, wm)
 
 	// Query the jobs back out again
@@ -41,6 +43,17 @@ func TestJobs_Register(t *testing.T) {
 	// Check that we got the expected response
 	if len(resp) != 1 || resp[0].ID != *job.ID {
 		t.Fatalf("bad: %#v", resp[0])
+	}
+
+	// Register more than once and check if updated job versions are returned.
+	for i := 0; i < 8; i++ {
+		job.Meta = map[string]string{"foo": fmt.Sprintf("bar-%d", i)}
+		respN, wm, err := jobs.Register(job, nil)
+		require.Nil(err)
+		require.NotNil(respN)
+		require.NotEmpty(respN.EvalID)
+		require.NotZero(respN.JobVersion)
+		assertWriteMeta(t, wm)
 	}
 }
 
