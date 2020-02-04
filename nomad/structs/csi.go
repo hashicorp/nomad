@@ -140,6 +140,7 @@ type CSIVolume struct {
 	ID             string
 	Namespace      string
 	Name           string
+	ExternalID     string
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
@@ -148,9 +149,9 @@ type CSIVolume struct {
 	ReadAllocs  map[string]*Allocation
 	WriteAllocs map[string]*Allocation
 
-	// Healthy is true if all the denormalized plugin health fields are true, and the
+	// Schedulable is true if all the denormalized plugin health fields are true, and the
 	// volume has not been marked for garbage collection
-	Healthy             bool
+	Schedulable         bool
 	PluginID            string
 	ControllerRequired  bool
 	ControllersHealthy  int
@@ -212,7 +213,7 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 		AttachmentMode:     v.AttachmentMode,
 		CurrentReaders:     len(v.ReadAllocs),
 		CurrentWriters:     len(v.WriteAllocs),
-		Schedulable:        v.Healthy,
+		Schedulable:        v.Schedulable,
 		PluginID:           v.PluginID,
 		ControllersHealthy: v.ControllersHealthy,
 		NodesHealthy:       v.NodesHealthy,
@@ -225,7 +226,7 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 }
 
 func (v *CSIVolume) CanReadOnly() bool {
-	if !v.Healthy {
+	if !v.Schedulable {
 		return false
 	}
 
@@ -233,7 +234,7 @@ func (v *CSIVolume) CanReadOnly() bool {
 }
 
 func (v *CSIVolume) CanWrite() bool {
-	if !v.Healthy {
+	if !v.Schedulable {
 		return false
 	}
 
