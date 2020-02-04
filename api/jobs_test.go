@@ -911,6 +911,8 @@ func TestJobs_Info(t *testing.T) {
 
 func TestJobs_Scale(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -931,39 +933,28 @@ func TestJobs_Scale(t *testing.T) {
 	}
 	for _, test := range tests {
 		_, _, err := jobs.Scale(test.jobID, test.group, test.value, "", nil)
-		if err == nil {
-			t.Errorf("expected jobs.Scale(%s, %s) to fail", test.jobID, test.group)
-		}
-		if !strings.Contains(err.Error(), test.want) {
-			t.Errorf("jobs.Scale(%s, %s) error doesn't contain %s, got: %s", test.jobID, test.group, test.want, err)
-		}
+		require.Errorf(err, "expected jobs.Scale(%s, %s) to fail", test.jobID, test.group)
+		require.Containsf(err.Error(), test.want, "jobs.Scale(%s, %s) error doesn't contain %s, got: %s", test.jobID, test.group, test.want, err)
 	}
 
 	// Register test job
 	job := testJob()
 	job.ID = stringToPtr("TestJobs_Scale")
 	_, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(err)
 	assertWriteMeta(t, wm)
 
 	// Scale job task group
 	value := 2
 	_, wm, err = jobs.Scale(*job.ID, *job.TaskGroups[0].Name, value, "reason", nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(err)
 	assertWriteMeta(t, wm)
 
 	// Query the job again
 	resp, _, err := jobs.Info(*job.ID, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if *resp.TaskGroups[0].Count != value {
-		t.Errorf("expected task group count to be %d, got: %d", value, *resp.TaskGroups[0].Count)
-	}
+	require.NoError(err)
+	require.Equal(*resp.TaskGroups[0].Count, value)
+
 	// TODO: check if reason is stored
 }
 
