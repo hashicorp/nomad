@@ -379,9 +379,9 @@ function doDeactivateACLs {
     doSSH "${agent}" "sudo systemctl restart consul"
   done
 
-  # Wait 10s before moving on, Consul needs a second to calm down.
-  echo " deactivate: sleep 10s ..."
-  sleep 10
+  # Wait 120s before moving on, Consul / Nomad need time to settle down.
+  echo " deactivate: sleep 2m ..."
+  sleep 120
 }
 
 function doStatus {
