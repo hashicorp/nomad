@@ -276,98 +276,22 @@ $ curl \
 
 ```json
 {
-  "Region": "global",
   "ID": "example",
-  "ParentID": "",
-  "Name": "example",
-  "Type": "batch",
-  "Priority": 50,
-  "AllAtOnce": false,
-  "Datacenters": [
-    "dc1"
-  ],
-  "Constraints": null,
+  "Namespace": "default",
+  [...] Job [...]
   "TaskGroups": [
     {
       "Name": "plugin",
-      "Count": 1,
-      "Constraints": null,
-      "Affinities": null,
-      "RestartPolicy": {
-        "Attempts": 10,
-        "Interval": 300000000000,
-        "Delay": 25000000000,
-        "Mode": "delay"
-      },
       "Tasks": [
         {
           "Name": "plugin-controller",
-          "Driver": "docker",
-          "User": "foo-user",
           "Config": {
             "image": "plugin:latest",
-            "port_map": [
-              {
-                "db": 6379
-              }
-            ]
           },
-          "Env": {
-            "foo": "bar",
-            "baz": "pipe"
-          },
-          "Services": null,
-          "Vault": null,
-          "Templates": null,
-          "Constraints": null,
-          "Affinities":null,
           "Resources": {
             "CPU": 500,
-            "MemoryMB": 256,
-            "DiskMB": 0,
-            "Networks": [
-              {
-                "Device": "",
-                "CIDR": "",
-                "IP": "",
-                "MBits": 10,
-                "ReservedPorts": [
-                  {
-                    "Label": "rpc",
-                    "Value": 25566
-                  }
-                ],
-                "DynamicPorts": [
-                  {
-                    "Label": "db",
-                    "Value": 0
-                  }
-                ]
-              }
-            ]
+            "MemoryMB": 256
           },
-          "DispatchPayload": {
-            "File": "config.json"
-          },
-          "Meta": {
-            "foo": "bar",
-            "baz": "pipe"
-          },
-          "KillTimeout": 5000000000,
-          "LogConfig": {
-            "MaxFiles": 10,
-            "MaxFileSizeMB": 10
-          },
-          "Artifacts": [
-            {
-              "GetterSource": "http://foo.com/artifact.tar.gz",
-              "GetterOptions": {
-                "checksum": "md5:c4aa853ad2215426eb7d70a21922e794"
-              },
-              "RelativeDest": "local/"
-            }
-          ],
-          "Leader": false
           "CSIPlugin": {
             "ID": "example-plugin",
             "Type": "controller",
@@ -381,40 +305,9 @@ $ curl \
             "ModifyIndex": 93
           }
         }
-      ],
-      "EphemeralDisk": {
-        "Sticky": false,
-        "SizeMB": 300,
-        "Migrate": false
-      },
-      "Meta": {
-        "foo": "bar",
-        "baz": "pipe"
-      }
+      ]
     }
-  ],
-  "Update": null,
-  "Periodic": null,
-  "ParameterizedJob": {
-    "Payload": "required",
-    "MetaRequired": [
-      "foo"
-    ],
-    "MetaOptional": [
-      "bar"
-    ]
-  },
-  "Payload": null,
-  "Meta": {
-    "foo": "bar",
-    "baz": "pipe"
-  },
-  "VaultToken": "",
-  "Status": "running",
-  "StatusDescription": "",
-  "CreateIndex": 7,
-  "ModifyIndex": 7,
-  "JobModifyIndex": 7
+  ]
 }
 ```
 ## List Volumes
