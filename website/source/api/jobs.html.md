@@ -347,6 +347,7 @@ $ curl \
 {
   "Region": "global",
   "ID": "example",
+  "Namespace": "default",
   "ParentID": "",
   "Name": "example",
   "Type": "batch",
