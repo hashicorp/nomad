@@ -1890,7 +1890,7 @@ func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs
 	if plug == nil {
 		vol.ControllersHealthy = 0
 		vol.NodesHealthy = 0
-		vol.Healthy = false
+		vol.Schedulable = false
 		return vol, nil
 	}
 
@@ -1902,9 +1902,9 @@ func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs
 	vol.ControllersExpected = len(plug.Controllers)
 	vol.NodesExpected = len(plug.Nodes)
 
-	vol.Healthy = vol.NodesHealthy > 0
+	vol.Schedulable = vol.NodesHealthy > 0
 	if vol.ControllerRequired {
-		vol.Healthy = vol.ControllersHealthy > 0 && vol.Healthy
+		vol.Schedulable = vol.ControllersHealthy > 0 && vol.Schedulable
 	}
 
 	return vol, nil
