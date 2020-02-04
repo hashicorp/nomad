@@ -76,25 +76,6 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 			allocForDisabledNode[alloc.ID] = alloc
 		}
 	}
-	// for _, alloc := range allocs {
-	// 	testutil.WaitForResultRetries(50, func() (bool, error) {
-	// 		time.Sleep(time.Millisecond * 100)
-	// 		alloc, _, err := nomadClient.Allocations().Info(alloc.ID, nil)
-	// 		if err != nil {
-	// 			return false, err
-	// 		}
-
-	// 		return alloc.ClientStatus != structs.AllocClientStatusPending,
-	// 			fmt.Errorf("expected status running, but was: %s", alloc.ClientStatus)
-	// 	}, func(err error) {
-	// 		t.Fatalf("failed to wait on alloc: %v", err)
-	// 	})
-
-	// 	// Due to task failures, restarts there could be multiple
-	// 	if alloc.NodeID == disabledNodeID {
-	// 		allocForDisabledNode[alloc.ID] = alloc
-	// 	}
-	// }
 
 	// Filter down to only our latest running alloc
 	for _, alloc := range allocForDisabledNode {
