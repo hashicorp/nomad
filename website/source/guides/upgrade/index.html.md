@@ -8,30 +8,44 @@ description: |-
 
 # Upgrading
 
-This page documents how to upgrade Nomad when a new version is released.
+Nomad is designed to be flexible and resilient when upgrading from one Nomad
+version to the next. Upgrades should cause neither a Nomad nor a service
+outage. However, there are some restrictions to be aware of before upgrading:
 
-~> **Upgrade Warning!** Both Nomad Clients and Servers are meant to be
-long-running processes that maintain communication with each other. Nomad
-Servers maintain quorum with other Servers and Clients are in constant
-communication with Servers. As such, care should be taken to properly
-upgrade Nomad to ensure minimal service disruption. Unsafe upgrades can
-cause a service outage.
+ * Nomad strives to be backward compatible for at least 1 point release, so
+   Nomad v0.10 hosts work with v0.9 hosts. Upgrading 2 point releases (eg v0.8
+   to v0.10) may work but is untested and unsupported.
 
-~> **Downgrade Warning!** We currently do not support safely downgrading
-Nomad servers. This is due to the fact that the data directory
-contains transaction logs which may not safely apply after a downgrade. To downgrade
-a Nomad server, its data directory must be wiped out. In general, Client downgrades are
-safe to do, however we recommend checking the [upgrade specific](/guides/upgrade/upgrade-specific.html)
-page which will highlight versions where a client downgrade is not supported.
+   * Nomad does *not* support downgrading at this time. Downgrading clients
+     requires draining allocations and removing the [data directory][data_dir].
+     Downgrading servers safely requires re-provisioning the cluster.
+
+   * New features are unlikely to work correctly until all nodes have been
+     upgraded.
+
+   * Check the [version upgrade details page][upgrade-specific] for important
+     changes and backward incompatibilities.
+
+ * When upgrading a Nomad Client, if it takes longer than the
+   [`heartbeat_grace`][heartbeat_grace] (10s by default) period to restart, all
+   allocations on that node may be rescheduled.
+
+Nomad supports upgrading in place or by rolling in new servers: 
+
+ * In Place: The Nomad binary can be updated on existing hosts. Running
+   allocations will continue running uninterrupted.
+ 
+ * Rolling: New hosts containing the new Nomad version may be added followed by
+   the removal of old hosts. The old nodes must be drained to migrate running
+   allocations to the new nodes.
+
+This guide describes both approaches.
 
 ## Upgrade Process
 
-For upgrades we strive to ensure backwards compatibility. For most upgrades, the
-process is as simple as upgrading the binary and restarting the service.
-
-Prior to starting the upgrade please check the
-[specific version details](/guides/upgrade/upgrade-specific.html) page as some
-version differences may require specific steps.
+Once you have checked the [upgrade details for the new
+version][upgrade-specific], the upgrade process is as simple as updating the
+binary on each host and restarting the Nomad service.
 
 At a high level we complete the following steps to upgrade Nomad:
 
@@ -43,22 +57,26 @@ At a high level we complete the following steps to upgrade Nomad:
 
 ### 1. Add the new version to the existing cluster
 
-Whether you are replacing the software in place on existing systems or bringing
-up new hosts you should make changes incrementally, verifying cluster health at
-each step of the upgrade  
+While it is possible to upgrade Nomad client nodes before servers, this guide
+recommends upgrading servers first as many new client features will not work
+until servers are upgraded.
 
-On a single server, install the new version of Nomad.  You can do this by
+Whether you are replacing Nomad in place on existing systems or bringing up new
+servers you should make changes incrementally, verifying cluster health at each
+step of the upgrade.
+
+On a single server, install the new version of Nomad. You can do this by
 joining a new server to the cluster or by replacing or upgrading the binary
-locally and restarting the service.
+locally and restarting the Nomad service.
 
 ### 2. Check cluster health
 
-Monitor the Nomad logs on the remaining nodes to check the new node has entered
-the cluster correctly.
+[Monitor the Nomad logs][monitor] on the remaining servers to check that the
+new server has joined the cluster correctly.
 
-Run `nomad agent-info` on the new server and check that the `last_log_index` is
-of a similar value to the other nodes.  This step ensures that changes have been
-replicated to the new node.
+Run `nomad agent-info` on the new servers and check that the `last_log_index`
+is of a similar value to the other servers. This step ensures that changes have
+been replicated to the new server.
 
 ```
 ubuntu@nomad-server-10-1-1-4:~$ nomad agent-info
@@ -80,10 +98,10 @@ raft
 ...
 ```
 
-Continue with the upgrades across the Server fleet making sure to do a single Nomad
-server at a time.  You can check state of the servers and clients with the
-`nomad server members` and `nomad node status` commands which indicate state of the
-nodes.
+Continue with the upgrades across the servers making sure to do a single Nomad
+server at a time.  You can check state of the servers with [`nomad server
+members`][server-members], and the state of the client nodes with [`nomad node
+status`][node-status].
 
 ### 3. Remove the old versions from servers
 
@@ -127,3 +145,10 @@ between versions of open source Nomad. The same guidance above should be
 followed and as always, prior to starting the upgrade please check the [specific
 version details](/guides/upgrade/upgrade-specific.html) page as some version
 differences may require specific steps.
+
+[data_dir]: /docs/configuration/index.html#data_dir
+[heartbeat_grace]: /docs/configuration/server.html#heartbeat_grace
+[monitor]: /docs/commands/monitor.html
+[node-status]: /docs/commands/node/status.html
+[server-members]: /docs/commands/server/members.html
+[upgrade-specific]: /guides/upgrade/upgrade-specific.html
