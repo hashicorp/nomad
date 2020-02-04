@@ -39,6 +39,7 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 
 	jobs := nomadClient.Jobs()
 	allocs, _, err := jobs.Allocations(jobID, true, nil)
+	require.NoError(t, err)
 
 	var allocIDs []string
 	for _, alloc := range allocs {
