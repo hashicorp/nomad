@@ -276,22 +276,145 @@ $ curl \
 
 ```json
 {
-  "ID": "example_id",
-  "Namespace": "default",
-  [...] Job Response [...]
-  "CSIPlugin": {
-    "example-plugin": {
-      "ID": "example-plugin",
-      "PluginType": "controller",
-      "ControllerRequired": true,
-      "ControllersHealthy": 2,
-      "ControllersExpected": 3,
-      "NodesHealthy": 14,
-      "NodesExpected": 16,
-      "CreateIndex": 52,
-      "ModifyIndex": 93
+  "Region": "global",
+  "ID": "example",
+  "ParentID": "",
+  "Name": "example",
+  "Type": "batch",
+  "Priority": 50,
+  "AllAtOnce": false,
+  "Datacenters": [
+    "dc1"
+  ],
+  "Constraints": null,
+  "TaskGroups": [
+    {
+      "Name": "plugin",
+      "Count": 1,
+      "Constraints": null,
+      "Affinities": null,
+      "RestartPolicy": {
+        "Attempts": 10,
+        "Interval": 300000000000,
+        "Delay": 25000000000,
+        "Mode": "delay"
+      },
+      "Tasks": [
+        {
+          "Name": "plugin-controller",
+          "Driver": "docker",
+          "User": "foo-user",
+          "Config": {
+            "image": "plugin:latest",
+            "port_map": [
+              {
+                "db": 6379
+              }
+            ]
+          },
+          "Env": {
+            "foo": "bar",
+            "baz": "pipe"
+          },
+          "Services": null,
+          "Vault": null,
+          "Templates": null,
+          "Constraints": null,
+          "Affinities":null,
+          "Resources": {
+            "CPU": 500,
+            "MemoryMB": 256,
+            "DiskMB": 0,
+            "Networks": [
+              {
+                "Device": "",
+                "CIDR": "",
+                "IP": "",
+                "MBits": 10,
+                "ReservedPorts": [
+                  {
+                    "Label": "rpc",
+                    "Value": 25566
+                  }
+                ],
+                "DynamicPorts": [
+                  {
+                    "Label": "db",
+                    "Value": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "DispatchPayload": {
+            "File": "config.json"
+          },
+          "Meta": {
+            "foo": "bar",
+            "baz": "pipe"
+          },
+          "KillTimeout": 5000000000,
+          "LogConfig": {
+            "MaxFiles": 10,
+            "MaxFileSizeMB": 10
+          },
+          "Artifacts": [
+            {
+              "GetterSource": "http://foo.com/artifact.tar.gz",
+              "GetterOptions": {
+                "checksum": "md5:c4aa853ad2215426eb7d70a21922e794"
+              },
+              "RelativeDest": "local/"
+            }
+          ],
+          "Leader": false
+          "CSIPlugin": {
+            "ID": "example-plugin",
+            "Type": "controller",
+            "MountDir": "/user/provided",
+            "ControllerRequired": true,
+            "ControllersHealthy": 1,
+            "ControllersExpected": 1,
+            "NodesHealthy": 14,
+            "NodesExpected": 16,
+            "CreateIndex": 52,
+            "ModifyIndex": 93
+          }
+        }
+      ],
+      "EphemeralDisk": {
+        "Sticky": false,
+        "SizeMB": 300,
+        "Migrate": false
+      },
+      "Meta": {
+        "foo": "bar",
+        "baz": "pipe"
+      }
     }
-  }
+  ],
+  "Update": null,
+  "Periodic": null,
+  "ParameterizedJob": {
+    "Payload": "required",
+    "MetaRequired": [
+      "foo"
+    ],
+    "MetaOptional": [
+      "bar"
+    ]
+  },
+  "Payload": null,
+  "Meta": {
+    "foo": "bar",
+    "baz": "pipe"
+  },
+  "VaultToken": "",
+  "Status": "running",
+  "StatusDescription": "",
+  "CreateIndex": 7,
+  "ModifyIndex": 7,
+  "JobModifyIndex": 7
 }
 ```
 ## List Volumes
@@ -389,38 +512,36 @@ $ curl \
 ### Sample Response
 
 ```json
-[
-  {
-    "ID": "volume-id1",
-    "Name": "volume id1",
-    "Namespace": "default",
-    "ExternalID": "volume-id1",
-    "Topologies": [
-      {"foo": "bar"}
-    ],
-    "AccessMode": "multi-node-single-writer",
-    "AttachmentMode": "file-system",
-    "Allocations": [
-      {
-        "ID": "a8198d79-cfdb-6593-a999-1e9adabcba2e",
-        "EvalID": "5456bd7a-9fc0-c0dd-6131-cbee77f57577",
-        "Name": "example.cache[0]",
-        "NodeID": "fb2170a8-257d-3c64-b14d-bc06cc94e34c",
-        [...] AllocListStub [...]
-      }
-    ],
-    "Schedulable": true,
-    "PluginID": "plugin-id1",
-    "ControllerRequired": true,
-    "ControllersHealthy": 3,
-    "ControllersExpected": 3,
-    "NodesHealthy": 15,
-    "NodesExpected": 18,
-    "ResourceExhausted": 0,
-    "CreateIndex": 42,
-    "ModifyIndex": 64,
-  }
-]
+{
+  "ID": "volume-id1",
+  "Name": "volume id1",
+  "Namespace": "default",
+  "ExternalID": "volume-id1",
+  "Topologies": [
+    {"foo": "bar"}
+  ],
+  "AccessMode": "multi-node-single-writer",
+  "AttachmentMode": "file-system",
+  "Allocations": [
+    {
+      "ID": "a8198d79-cfdb-6593-a999-1e9adabcba2e",
+      "EvalID": "5456bd7a-9fc0-c0dd-6131-cbee77f57577",
+      "Name": "example.cache[0]",
+      "NodeID": "fb2170a8-257d-3c64-b14d-bc06cc94e34c",
+      [...] AllocListStub [...]
+    }
+  ],
+  "Schedulable": true,
+  "PluginID": "plugin-id1",
+  "ControllerRequired": true,
+  "ControllersHealthy": 3,
+  "ControllersExpected": 3,
+  "NodesHealthy": 15,
+  "NodesExpected": 18,
+  "ResourceExhausted": 0,
+  "CreateIndex": 42,
+  "ModifyIndex": 64,
+}
 ```
 
 ## Register Volume
