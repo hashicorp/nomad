@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, settled } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Exec from 'nomad-ui/tests/pages/exec';
@@ -84,7 +84,7 @@ module('Acceptance | exec', function(hooks) {
     assert.ok(Exec.taskGroups[0].chevron.isDown);
   });
 
-  test('navigating to a task adds its name to the route', async function(assert) {
+  test('navigating to a task adds its name to the route and allows the command to be customised', async function(assert) {
     await Exec.visitJob({ job: this.job.id });
     await Exec.taskGroups[0].click();
     await Exec.taskGroups[0].tasks[0].click();
@@ -92,6 +92,24 @@ module('Acceptance | exec', function(hooks) {
     const taskGroup = this.job.task_groups.models[0];
     const task = taskGroup.tasks.models[0];
 
+    await settled();
+
     assert.equal(currentURL(), `/exec/${this.job.id}/${taskGroup.name}/${task.name}`);
+
+    assert.equal(
+      window.execTerminal.buffer
+        .getLine(2)
+        .translateToString()
+        .trim(),
+      'To start the session, customize your command, then hit ‘return’ to run.'
+    );
+
+    assert.equal(
+      window.execTerminal.buffer
+        .getLine(4)
+        .translateToString()
+        .trim(),
+      `$ nomad alloc exec -i -t -task ${task.name} ALLOCATION /bin/bash`
+    );
   });
 });
