@@ -3,6 +3,7 @@ import { clickable, collection, create, hasClass, text, visitable } from 'ember-
 export default create({
   visitJob: visitable('/exec/:job'),
   visitTaskGroup: visitable('/exec/:job/:task_group'),
+  visitTask: visitable('/exec/:job/:task_group/:task_name'),
 
   header: {
     region: { scope: '[data-test-region]' },

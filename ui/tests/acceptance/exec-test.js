@@ -1,4 +1,5 @@
 import { module, test } from 'qunit';
+import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Exec from 'nomad-ui/tests/pages/exec';
@@ -69,11 +70,28 @@ module('Acceptance | exec', function(hooks) {
     );
   });
 
-  test('/exec/:job/:task_group should open that task group by default', async function(assert) {
+  test('visiting a path with a task group should open the group by default', async function(assert) {
     const taskGroup = this.job.task_groups.models[0];
     await Exec.visitTaskGroup({ job: this.job.id, task_group: taskGroup.name });
 
     assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
+
+    const task = taskGroup.tasks.models[0];
+    await Exec.visitTask({ job: this.job.id, task_group: taskGroup.name, task_name: task.name });
+
+    assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
+    assert.ok(Exec.taskGroups[0].chevron.isDown);
+  });
+
+  test('navigating to a task adds its name to the route', async function(assert) {
+    await Exec.visitJob({ job: this.job.id });
+    await Exec.taskGroups[0].click();
+    await Exec.taskGroups[0].tasks[0].click();
+
+    const taskGroup = this.job.task_groups.models[0];
+    const task = taskGroup.tasks.models[0];
+
+    assert.equal(currentURL(), `/exec/${this.job.id}/${taskGroup.name}/${task.name}`);
   });
 });

@@ -5,13 +5,14 @@
 {{#if isOpen}}
   <ul class="task-list">
     {{#each taskGroup.tasks as |task|}}
-      <li class="task-item" data-test-task>
+      {{!-- FIXME this needs to include namespace etc query parameters --}}
+      {{#link-to "exec.task-group.task" taskGroup.job.name taskGroup.name task.name class="task-item" data-test-task=true}}
         <div class="border-and-label">
           <div class="border"></div>
           <div class="task-label">{{task.name}}</div>
         </div>
         {{x-icon "exit"}}
-      </li>
+      {{/link-to}}
     {{/each}}
   </ul>
 {{/if}}
