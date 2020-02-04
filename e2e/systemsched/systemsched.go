@@ -1,15 +1,10 @@
 package systemsched
 
 import (
-	"fmt"
-	"time"
-
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,6 +41,14 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 	jobs := nomadClient.Jobs()
 	allocs, _, err := jobs.Allocations(jobID, true, nil)
 
+	var allocIDs []string
+	for _, alloc := range allocs {
+		allocIDs = append(allocIDs, alloc.ID)
+	}
+
+	// Wait for allocations to get past initial pending state
+	e2eutil.WaitForAllocsNotPending(t, nomadClient, allocIDs)
+
 	// Mark one node as ineligible
 	nodesAPI := tc.Nomad().Nodes()
 	disabledNodeID := allocs[0].NodeID
@@ -55,62 +58,89 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 	// Assert all jobs still running
 	jobs = nomadClient.Jobs()
 	allocs, _, err = jobs.Allocations(jobID, true, nil)
-	require.NoError(t, err)
-	var disabledAlloc *api.AllocationListStub
 
+	allocIDs = nil
 	for _, alloc := range allocs {
-		// Ensure alloc is either running or complete
-		testutil.WaitForResultRetries(30, func() (bool, error) {
-			time.Sleep(time.Millisecond * 100)
-			alloc, _, err := nomadClient.Allocations().Info(alloc.ID, nil)
-			if err != nil {
-				return false, err
-			}
-
-			return (alloc.ClientStatus == structs.AllocClientStatusRunning ||
-					alloc.ClientStatus == structs.AllocClientStatusComplete),
-				fmt.Errorf("expected status running, but was: %s", alloc.ClientStatus)
-		}, func(err error) {
-			t.Fatalf("failed to wait on alloc: %v", err)
-		})
-		if alloc.NodeID == disabledNodeID {
-			require.Equal(t, "run", alloc.DesiredStatus)
-			disabledAlloc = alloc
-		}
+		allocIDs = append(allocIDs, alloc.ID)
 	}
 
-	require.NotNil(t, disabledAlloc)
+	require.NoError(t, err)
+	allocForDisabledNode := make(map[string]*api.AllocationListStub)
+
+	// Wait for allocs to run and collect allocs on ineligible node
+	// Allocation could have failed, ensure there is one thats running
+	// and that it is the correct version (0)
+	e2eutil.WaitForAllocsNotPending(t, nomadClient, allocIDs)
+	for _, alloc := range allocs {
+		if alloc.NodeID == disabledNodeID {
+			allocForDisabledNode[alloc.ID] = alloc
+		}
+	}
+	// for _, alloc := range allocs {
+	// 	testutil.WaitForResultRetries(50, func() (bool, error) {
+	// 		time.Sleep(time.Millisecond * 100)
+	// 		alloc, _, err := nomadClient.Allocations().Info(alloc.ID, nil)
+	// 		if err != nil {
+	// 			return false, err
+	// 		}
+
+	// 		return alloc.ClientStatus != structs.AllocClientStatusPending,
+	// 			fmt.Errorf("expected status running, but was: %s", alloc.ClientStatus)
+	// 	}, func(err error) {
+	// 		t.Fatalf("failed to wait on alloc: %v", err)
+	// 	})
+
+	// 	// Due to task failures, restarts there could be multiple
+	// 	if alloc.NodeID == disabledNodeID {
+	// 		allocForDisabledNode[alloc.ID] = alloc
+	// 	}
+	// }
+
+	// Filter down to only our latest running alloc
+	for _, alloc := range allocForDisabledNode {
+		require.Equal(t, uint64(0), alloc.JobVersion)
+		if alloc.ClientStatus == structs.AllocClientStatusComplete {
+			// remove the old complete alloc from map
+			delete(allocForDisabledNode, alloc.ID)
+		}
+	}
+	require.NotEmpty(t, allocForDisabledNode)
+	require.Len(t, allocForDisabledNode, 1)
 
 	// Update job
-	spew.Dump("DREW UPDATE JOB")
 	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "systemsched/input/system_job1.nomad", jobID, "")
 
 	// Get updated allocations
 	jobs = nomadClient.Jobs()
 	allocs, _, err = jobs.Allocations(jobID, false, nil)
 	require.NoError(t, err)
-	var allocIDs []string
+
+	allocIDs = nil
 	for _, alloc := range allocs {
 		allocIDs = append(allocIDs, alloc.ID)
 	}
 
-	e2eutil.WaitForAllocsRunning(t, nomadClient, allocIDs)
+	// Wait for allocs to start
+	e2eutil.WaitForAllocsNotPending(t, nomadClient, allocIDs)
 
+	// Get latest alloc status now that they are no longer pending
 	allocs, _, err = jobs.Allocations(jobID, false, nil)
 	require.NoError(t, err)
 
-	// Ensure disabled node alloc is still version 0
 	var foundPreviousAlloc bool
-	for _, alloc := range allocs {
-		spew.Dump(alloc)
-		if alloc.ID == disabledAlloc.ID {
-			foundPreviousAlloc = true
-			require.Equal(t, uint64(0), alloc.JobVersion)
-		} else {
-			spew.Dump(alloc)
-			require.Equal(t, uint64(1), alloc.JobVersion)
+	for _, dAlloc := range allocForDisabledNode {
+		for _, alloc := range allocs {
+			if alloc.ID == dAlloc.ID {
+				foundPreviousAlloc = true
+				require.Equal(t, uint64(0), alloc.JobVersion)
+			} else {
+				// Ensure allocs running on non disabled node are
+				// newer version
+				if alloc.ClientStatus == structs.AllocClientStatusRunning {
+					require.Equal(t, uint64(1), alloc.JobVersion)
+				}
+			}
 		}
-		require.Equal(t, "run", alloc.DesiredStatus)
 	}
 	require.True(t, foundPreviousAlloc, "unable to find previous alloc for ineligible node")
 }
