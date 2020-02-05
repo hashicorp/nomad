@@ -13,6 +13,8 @@ export default Controller.extend({
     this.terminal = new Terminal();
     window.execTerminal = this.terminal; // FIXME tragique, for acceptance tests…?
 
+    // Sets the foreground colour to Structure’s ui-gray-400
+    this.terminal.write('\x1b[1;38;2;142;150;163m');
     this.terminal.writeln('Select a task to start your session.');
   },
 
@@ -31,9 +33,12 @@ export default Controller.extend({
         'To start the session, customize your command, then hit ‘return’ to run.'
       );
       this.terminal.writeln('');
-      this.terminal.writeln(
-        `$ nomad alloc exec -i -t -task ${task_name} ${allocation.shortId} /bin/bash`
-      );
+      this.terminal.write(`$ nomad alloc exec -i -t -task ${task_name} ${allocation.shortId} `);
+
+      // Sets the foreground colour to white
+      this.terminal.write('\x1b[0m');
+
+      this.terminal.write('/bin/bash');
     },
   },
 });
