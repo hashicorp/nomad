@@ -4510,6 +4510,7 @@ func (p *ScalingPolicy) Stub() *ScalingPolicyListStub {
 		ID:          p.ID,
 		JobID:       p.JobID,
 		Target:      p.Target,
+		Enabled:     p.Enabled,
 		CreateIndex: p.CreateIndex,
 		ModifyIndex: p.ModifyIndex,
 	}
@@ -4534,6 +4535,7 @@ type ScalingPolicyListStub struct {
 	ID          string
 	JobID       string
 	Target      string
+	Enabled     bool
 	CreateIndex uint64
 	ModifyIndex uint64
 }
