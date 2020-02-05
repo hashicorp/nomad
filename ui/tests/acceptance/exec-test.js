@@ -152,8 +152,14 @@ module('Acceptance | exec', function(hooks) {
     );
   });
 
-  test('running the command opens the socket for reading', async function(assert) {
-    const mockSocket = {};
+  test('running the command opens the socket for reading/writing', async function(assert) {
+    const mockSocket = new Object({
+      sent: [],
+
+      send(message) {
+        this.sent.push(message);
+      },
+    });
 
     const mockSockets = Service.extend({
       getTaskStateSocket(taskState) {
@@ -185,7 +191,6 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     await Exec.terminal.pressEnter();
-
     await settled();
 
     assert.verifySteps(['Socket built']);
@@ -203,5 +208,10 @@ module('Acceptance | exec', function(hooks) {
         .trim(),
       'sh-3.2$'
     );
+
+    await Exec.terminal.pressEnter();
+    await settled();
+
+    assert.deepEqual(mockSocket.sent, ['{"stdin":{"data":"DQ=="}}']);
   });
 });

@@ -45,10 +45,15 @@ export default Controller.extend({
 
       this.terminal.write('/bin/bash');
 
+      let socketOpen = false;
+
       this.terminal.onKey(e => {
-        if (e.domEvent.key === 'Enter') {
+        if (e.domEvent.key === 'Enter' && !socketOpen) {
           this.openAndConnectSocket(taskState);
           this.terminal.writeln('');
+          socketOpen = true;
+        } else {
+          this.socket.send(JSON.stringify({ stdin: { data: btoa(e.key) } }));
         }
       });
     },
