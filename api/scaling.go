@@ -12,15 +12,14 @@ func (p *ScalingPolicy) Canonicalize() {
 	}
 }
 
-// ScalingRequeset is the payload for a generic scaling action
+// ScalingRequest is the payload for a generic scaling action
 type ScalingRequest struct {
-	JobID  string
 	Value  interface{}
 	Reason string
 	Error  string
 	WriteRequest
-	// why is PolicyOverride in here? was this a mistake
-	// PolicyOverride bool
+	// this is effectively a job update, so we need the ability to override policy.
+	PolicyOverride bool
 }
 
 // ScaleStatusResponse is the payload for a generic scaling action

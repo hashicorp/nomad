@@ -524,16 +524,8 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, err.Error())
 	}
 
-	if args.JobID == "" {
-		return nil, CodedError(400, "Job ID must be specified")
-	}
-
-	if args.JobID != jobName {
-		return nil, CodedError(400, "Job ID does not match")
-	}
-
 	scaleReq := structs.JobScaleRequest{
-		JobID:          args.JobID,
+		JobID:          jobName,
 		GroupName:      groupName,
 		Value:          args.Value,
 		PolicyOverride: args.PolicyOverride,
