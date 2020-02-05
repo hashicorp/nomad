@@ -34,6 +34,7 @@ export default Controller.extend({
       );
       this.terminal.writeln('');
       this.terminal.write(`$ nomad alloc exec -i -t -task ${task_name} ${allocation.shortId} `);
+      // FIXME task names might need quotes…?
 
       // Sets the foreground colour to white
       this.terminal.write('\x1b[0m');
