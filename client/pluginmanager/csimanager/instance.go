@@ -71,6 +71,7 @@ func (i *instanceManager) run() {
 		return
 	}
 	i.client = c
+	i.fp.client = c
 
 	go i.runLoop()
 }
