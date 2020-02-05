@@ -2307,6 +2307,112 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
+	t.Parallel()
+	srv, shutdown := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	codec := rpcClient(t, srv)
+	state := srv.fsm.State()
+	ws := memdb.NewWatchSet()
+
+	// Create a client node with a plugin
+	node := mock.Node()
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		"csi-plugin-example": {PluginID: "csi-plugin-example",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
+		},
+	}
+	plugin := structs.NewCSIPlugin("csi-plugin-example", 1)
+	plugin.ControllerRequired = false
+	plugin.AddPlugin(node.ID, &structs.CSIInfo{})
+	err := state.UpsertNode(99, node)
+	require.NoError(t, err)
+
+	// Create the volume for the plugin
+	volId0 := uuid.Generate()
+	vols := []*structs.CSIVolume{{
+		ID:             volId0,
+		Namespace:      "notTheNamespace",
+		PluginID:       "csi-plugin-example",
+		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		Topologies: []*structs.CSITopology{{
+			Segments: map[string]string{"foo": "bar"},
+		}},
+	}}
+	err = state.CSIVolumeRegister(4, vols)
+	require.NoError(t, err)
+
+	// Create a job with 2 allocations
+	job := mock.Job()
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"_": {
+			Name:     "someVolume",
+			Type:     "",
+			Source:   volId0,
+			ReadOnly: false,
+		},
+	}
+	err = state.UpsertJob(101, job)
+	require.NoError(t, err)
+
+	alloc1 := mock.Alloc()
+	alloc1.JobID = job.ID
+	alloc1.NodeID = node.ID
+	err = state.UpsertJobSummary(102, mock.JobSummary(alloc1.JobID))
+	require.NoError(t, err)
+	alloc1.TaskGroup = job.TaskGroups[0].Name
+
+	alloc2 := mock.Alloc()
+	alloc2.JobID = job.ID
+	alloc2.NodeID = node.ID
+	err = state.UpsertJobSummary(103, mock.JobSummary(alloc2.JobID))
+	require.NoError(t, err)
+	alloc2.TaskGroup = job.TaskGroups[0].Name
+
+	err = state.UpsertAllocs(104, []*structs.Allocation{alloc1, alloc2})
+	require.NoError(t, err)
+
+	// Verify no claims are set
+	vol, err := state.CSIVolumeByID(ws, volId0)
+	require.NoError(t, err)
+	require.Len(t, vol.ReadAllocs, 0)
+	require.Len(t, vol.WriteAllocs, 0)
+
+	// Claim the volumes and verify the claims were set
+	err = state.CSIVolumeClaim(105, volId0, alloc1, structs.CSIVolumeClaimWrite)
+	require.NoError(t, err)
+	err = state.CSIVolumeClaim(106, volId0, alloc2, structs.CSIVolumeClaimRead)
+	require.NoError(t, err)
+	vol, err = state.CSIVolumeByID(ws, volId0)
+	require.NoError(t, err)
+	require.Len(t, vol.ReadAllocs, 1)
+	require.Len(t, vol.WriteAllocs, 1)
+
+	// Update the 1st alloc as terminal/failed
+	alloc1.ClientStatus = structs.AllocClientStatusFailed
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc",
+		&structs.AllocUpdateRequest{
+			Alloc:        []*structs.Allocation{alloc1},
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}, &structs.NodeAllocsResponse{})
+	require.NoError(t, err)
+
+	// Lookup the alloc and verify status was updated
+	out, err := state.AllocByID(ws, alloc1.ID)
+	require.NoError(t, err)
+	require.Equal(t, structs.AllocClientStatusFailed, out.ClientStatus)
+
+	// Verify the claim was released
+	vol, err = state.CSIVolumeByID(ws, volId0)
+	require.NoError(t, err)
+	require.Len(t, vol.ReadAllocs, 1)
+	require.Len(t, vol.WriteAllocs, 0)
+}
+
 func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	t.Parallel()
 

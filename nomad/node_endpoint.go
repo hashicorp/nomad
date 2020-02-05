@@ -1062,39 +1062,54 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	now := time.Now()
 	var evals []*structs.Evaluation
 
-	for _, alloc := range args.Alloc {
-		alloc.ModifyTime = now.UTC().UnixNano()
+	for _, allocToUpdate := range args.Alloc {
+		allocToUpdate.ModifyTime = now.UTC().UnixNano()
+
+		if !allocToUpdate.TerminalStatus() {
+			continue
+		}
+
+		alloc, _ := n.srv.State().AllocByID(nil, allocToUpdate.ID)
+		if alloc == nil {
+			continue
+		}
+
+		job, err := n.srv.State().JobByID(nil, alloc.Namespace, alloc.JobID)
+		if err != nil {
+			n.logger.Error("UpdateAlloc unable to find job", "job", alloc.JobID, "error", err)
+			continue
+		}
+		if job == nil {
+			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID)
+			continue
+		}
+
+		taskGroup := job.LookupTaskGroup(alloc.TaskGroup)
+		if taskGroup == nil {
+			continue
+		}
+
+		err = n.unclaimVolumesForTerminalAllocs(args, alloc, taskGroup)
+		if err != nil {
+			n.logger.Error("UpdateAlloc unable to release CSI volume",
+				"alloc", alloc.ID, "error", err)
+			continue
+		}
 
 		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
-		if alloc.ClientStatus == structs.AllocClientStatusFailed {
-			// Only create evaluations if this is an existing alloc,
-			// and eligible as per its task group's ReschedulePolicy
-			if existingAlloc, _ := n.srv.State().AllocByID(nil, alloc.ID); existingAlloc != nil {
-				job, err := n.srv.State().JobByID(nil, existingAlloc.Namespace, existingAlloc.JobID)
-				if err != nil {
-					n.logger.Error("UpdateAlloc unable to find job", "job", existingAlloc.JobID, "error", err)
-					continue
-				}
-				if job == nil {
-					n.logger.Debug("UpdateAlloc unable to find job", "job", existingAlloc.JobID)
-					continue
-				}
-				taskGroup := job.LookupTaskGroup(existingAlloc.TaskGroup)
-				if taskGroup != nil && existingAlloc.FollowupEvalID == "" && existingAlloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
-					eval := &structs.Evaluation{
-						ID:          uuid.Generate(),
-						Namespace:   existingAlloc.Namespace,
-						TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
-						JobID:       existingAlloc.JobID,
-						Type:        job.Type,
-						Priority:    job.Priority,
-						Status:      structs.EvalStatusPending,
-						CreateTime:  now.UTC().UnixNano(),
-						ModifyTime:  now.UTC().UnixNano(),
-					}
-					evals = append(evals, eval)
-				}
+		if allocToUpdate.ClientStatus == structs.AllocClientStatusFailed && alloc.FollowupEvalID == "" && alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
+			eval := &structs.Evaluation{
+				ID:          uuid.Generate(),
+				Namespace:   alloc.Namespace,
+				TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
+				JobID:       alloc.JobID,
+				Type:        job.Type,
+				Priority:    job.Priority,
+				Status:      structs.EvalStatusPending,
+				CreateTime:  now.UTC().UnixNano(),
+				ModifyTime:  now.UTC().UnixNano(),
 			}
+			evals = append(evals, eval)
 		}
 	}
 
@@ -1133,6 +1148,32 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 	// Setup the response
 	reply.Index = future.Index()
+	return nil
+}
+
+// unclaimVolumesForTerminalAllocs unpublishes and unclaims CSI volumes
+// that belong to the alloc if it is terminal.
+func (n *Node) unclaimVolumesForTerminalAllocs(args *structs.AllocUpdateRequest, alloc *structs.Allocation, taskGroup *structs.TaskGroup) error {
+	for _, volume := range taskGroup.Volumes {
+
+		// TODO(tgross): we also need to call ControllerUnpublishVolume CSI RPC here
+		// but the server-side CSI client + routing hasn't been implemented yet
+
+		req := &structs.CSIVolumeClaimRequest{
+			VolumeID:     volume.Source,
+			Allocation:   alloc,
+			Claim:        structs.CSIVolumeClaimRelease,
+			WriteRequest: args.WriteRequest,
+		}
+
+		resp, _, err := n.srv.raftApply(structs.CSIVolumeClaimRequestType, req)
+		if err != nil {
+			return err
+		}
+		if respErr, ok := resp.(error); ok {
+			return respErr
+		}
+	}
 	return nil
 }
 
