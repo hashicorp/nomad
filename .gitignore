@@ -95,6 +95,9 @@ rkt-*
 /ui/bower.json.ember-try
 /ui/package.json.ember-try
 
+# storybook
+/ui.storybook/preview-head.html
+
 # generated routes file
 command/agent/bindata_assetfs.go
 
