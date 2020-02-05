@@ -8,28 +8,27 @@ export default Route.extend({
     const allocationQueryParam = this.paramsFor('exec').allocation;
 
     return this.modelFor('exec').allocations.then(allocations => {
+      let allocation;
+
       if (allocationQueryParam) {
-        return {
-          allocation: allocations.findBy('shortId', allocationQueryParam),
-          allocationSpecified: true,
-          task_name,
-        };
+        allocation = allocations.findBy('shortId', allocationQueryParam);
       } else {
-        return {
-          allocation: allocations.objectAt(0),
-          allocationSpecified: false,
-          task_name,
-        };
+        allocation = allocations.objectAt(0);
       }
+
+      return {
+        allocation,
+        allocationSpecified: allocationQueryParam ? true : false,
+        taskState: allocation.states.find(state => state.name === task_name), // FIXME is this enough?
+      };
     });
   },
 
   afterModel(model) {
-    // FIXME model doesn’t have a task, just a task_name
-    this.controllerFor('exec').send('setAllocationAndTask', model);
+    this.controllerFor('exec').send('setTaskState', model);
   },
 
-  setupController(controller, { allocation }) {
-    controller.setProperties({ allocation });
+  setupController(controller, { allocation, taskState }) {
+    controller.setProperties({ allocation, taskState });
   },
 });

@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import { currentURL, settled } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import Service from '@ember/service';
 import Exec from 'nomad-ui/tests/pages/exec';
 
 module('Acceptance | exec', function(hooks) {
@@ -148,6 +149,59 @@ module('Acceptance | exec', function(hooks) {
         .translateToString()
         .trim(),
       `$ nomad alloc exec -i -t -task ${task.name} ${allocation.id.split('-')[0]} /bin/bash`
+    );
+  });
+
+  test('running the command opens the socket for reading', async function(assert) {
+    const mockSocket = {};
+
+    const mockSockets = Service.extend({
+      getTaskStateSocket(taskState) {
+        assert.equal(taskState.name, task.name);
+        assert.equal(taskState.allocation.id, allocation.id);
+        assert.step('Socket built');
+
+        return mockSocket;
+      },
+    });
+
+    this.owner.register('service:sockets', mockSockets);
+
+    const taskGroup = this.job.task_groups.models[0];
+    const task = taskGroup.tasks.models[0];
+    const allocations = this.server.db.allocations.where({
+      jobId: this.job.id,
+      taskGroup: taskGroup.name,
+    });
+    const allocation = allocations[allocations.length - 1];
+
+    await Exec.visitTask({
+      job: this.job.id,
+      task_group: taskGroup.name,
+      task_name: task.name,
+      allocation: allocation.id.split('-')[0],
+    });
+
+    await settled();
+
+    await Exec.terminal.pressEnter();
+
+    await settled();
+
+    assert.verifySteps(['Socket built']);
+
+    mockSocket.onmessage({
+      data: '{"stdout":{"data":"c2gtMy4yJCA="}}',
+    });
+
+    await settled();
+
+    assert.equal(
+      window.execTerminal.buffer
+        .getLine(5)
+        .translateToString()
+        .trim(),
+      'sh-3.2$'
     );
   });
 });

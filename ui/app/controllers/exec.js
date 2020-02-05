@@ -3,6 +3,7 @@ import Controller from '@ember/controller';
 import { Terminal } from 'xterm';
 
 export default Controller.extend({
+  sockets: service(),
   system: service(),
 
   queryParams: ['allocation'],
@@ -20,7 +21,7 @@ export default Controller.extend({
   },
 
   actions: {
-    setAllocationAndTask({ allocation, allocationSpecified, task_name }) {
+    setTaskState({ allocationSpecified, taskState }) {
       this.terminal.writeln('');
 
       if (!allocationSpecified) {
@@ -34,13 +35,31 @@ export default Controller.extend({
         'To start the session, customize your command, then hit ‘return’ to run.'
       );
       this.terminal.writeln('');
-      this.terminal.write(`$ nomad alloc exec -i -t -task ${task_name} ${allocation.shortId} `);
+      this.terminal.write(
+        `$ nomad alloc exec -i -t -task ${taskState.name} ${taskState.allocation.shortId} `
+      );
       // FIXME task names might need quotes…?
 
       // Sets the foreground colour to white
       this.terminal.write('\x1b[0m');
 
       this.terminal.write('/bin/bash');
+
+      this.terminal.onKey(e => {
+        if (e.domEvent.key === 'Enter') {
+          this.openAndConnectSocket(taskState);
+          this.terminal.writeln('');
+        }
+      });
     },
+  },
+
+  openAndConnectSocket(taskState) {
+    this.socket = this.sockets.getTaskStateSocket(taskState);
+
+    this.socket.onmessage = e => {
+      const json = JSON.parse(e.data);
+      this.terminal.write(atob(json.stdout.data));
+    };
   },
 });

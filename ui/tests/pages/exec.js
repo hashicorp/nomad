@@ -1,4 +1,12 @@
-import { clickable, collection, create, hasClass, text, visitable } from 'ember-cli-page-object';
+import {
+  clickable,
+  collection,
+  create,
+  hasClass,
+  text,
+  triggerable,
+  visitable,
+} from 'ember-cli-page-object';
 
 export default create({
   visitJob: visitable('/exec/:job'),
@@ -25,4 +33,9 @@ export default create({
       name: text(),
     }),
   }),
+
+  terminal: {
+    scope: '.xterm-helper-textarea',
+    pressEnter: triggerable('keydown', '', { eventProperties: { keyCode: 13 } }),
+  },
 });
