@@ -157,7 +157,6 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 // job given its unique ID.
 func (j *Jobs) Scale(jobID, group string, value interface{}, reason string, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 	req := &ScalingRequest{
-		JobID:  jobID,
 		Value:  value,
 		Reason: reason,
 	}

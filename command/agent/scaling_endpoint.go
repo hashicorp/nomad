@@ -43,39 +43,6 @@ func (s *HTTPServer) ScalingPolicySpecificRequest(resp http.ResponseWriter, req 
 	}
 }
 
-// func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-// 	// Ensure request method is POST or PUT
-// 	if !(req.Method == "POST" || req.Method == "PUT") {
-// 		return nil, CodedError(405, ErrInvalidMethod)
-// 	}
-//
-// 	var validateRequest api.JobValidateRequest
-// 	if err := decodeBody(req, &validateRequest); err != nil {
-// 		return nil, CodedError(400, err.Error())
-// 	}
-// 	if validateRequest.Job == nil {
-// 		return nil, CodedError(400, "Job must be specified")
-// 	}
-//
-// 	job := ApiJobToStructJob(validateRequest.Job)
-//
-// 	args := structs.JobValidateRequest{
-// 		Job: job,
-// 		WriteRequest: structs.WriteRequest{
-// 			Region: validateRequest.Region,
-// 		},
-// 	}
-// 	s.parseWriteRequest(req, &args.WriteRequest)
-// 	args.Namespace = job.Namespace
-//
-// 	var out structs.JobValidateResponse
-// 	if err := s.agent.RPC("Job.Validate", &args, &out); err != nil {
-// 		return nil, err
-// 	}
-//
-// 	return out, nil
-// }
-
 func (s *HTTPServer) scalingPolicyCRUD(resp http.ResponseWriter, req *http.Request,
 	policyID string) (interface{}, error) {
 	switch req.Method {
