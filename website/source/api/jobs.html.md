@@ -760,16 +760,16 @@ $ curl \
     "Name": "example.cache[0]",
     "NodeID": "cb1f6030-a220-4f92-57dc-7baaabdc3823",
     "PreviousAllocation": "516d2753-0513-cfc7-57ac-2d6fac18b9dc",
-       "NextAllocation": "cd13d9b9-4f97-7184-c88b-7b451981616b",
-       "RescheduleTracker": {
-          "Events": [
-             {
-               "PrevAllocID": "516d2753-0513-cfc7-57ac-2d6fac18b9dc",
-               "PrevNodeID": "9230cd3b-3bda-9a3f-82f9-b2ea8dedb20e",
-               "RescheduleTime": 1517434161192946200,
-               "Delay":5000000000,
-              },
-            ]
+    "NextAllocation": "cd13d9b9-4f97-7184-c88b-7b451981616b",
+    "RescheduleTracker": {
+      "Events": [
+         {
+           "PrevAllocID": "516d2753-0513-cfc7-57ac-2d6fac18b9dc",
+           "PrevNodeID": "9230cd3b-3bda-9a3f-82f9-b2ea8dedb20e",
+           "RescheduleTime": 1517434161192946200,
+           "Delay":5000000000
+         }
+      ]
     },
     "JobID": "example",
     "TaskGroup": "cache",
@@ -1212,7 +1212,7 @@ $ curl \
 {
   "EvalID": "d092fdc0-e1fd-2536-67d8-43af8ca798ac",
   "EvalCreateIndex": 35,
-  "JobModifyIndex": 34,
+  "JobModifyIndex": 34
 }
 ```
 
@@ -1332,7 +1332,7 @@ $ curl \
 {
   "EvalID": "d092fdc0-e1fd-2536-67d8-43af8ca798ac",
   "EvalCreateIndex": 35,
-  "JobModifyIndex": 34,
+  "JobModifyIndex": 34
 }
 ```
 
@@ -1386,7 +1386,7 @@ $ curl \
 
 ```json
 {
-  "JobModifyIndex": 34,
+  "JobModifyIndex": 34
 }
 ```
 
@@ -1448,7 +1448,7 @@ $ curl \
 {
   "EvalID": "d092fdc0-e1fd-2536-67d8-43af8ca798ac",
   "EvalCreateIndex": 35,
-  "JobModifyIndex": 34,
+  "JobModifyIndex": 34
 }
 ```
 
@@ -1750,6 +1750,6 @@ $ curl \
 {
   "EvalID": "d092fdc0-e1fd-2536-67d8-43af8ca798ac",
   "EvalCreateIndex": 35,
-  "JobModifyIndex": 34,
+  "JobModifyIndex": 34
 }
 ```
