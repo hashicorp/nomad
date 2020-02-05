@@ -5,7 +5,7 @@
 {{#if isOpen}}
   <ul class="task-list">
     {{#each taskGroup.tasks as |task|}}
-      {{!-- FIXME this needs to include namespace etc query parameters --}}
+      {{!-- FIXME this needs to include namespace etc query parameters AND be blocked for wrong allocations etc --}}
       {{#link-to "exec.task-group.task" taskGroup.job.name taskGroup.name task.name class="task-item" data-test-task=true}}
         <div class="border-and-label">
           <div class="border"></div>
