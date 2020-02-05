@@ -5,6 +5,8 @@ import { Terminal } from 'xterm';
 export default Controller.extend({
   system: service(),
 
+  queryParams: ['allocation'],
+
   init() {
     this._super(...arguments);
 
@@ -15,13 +17,23 @@ export default Controller.extend({
   },
 
   actions: {
-    setTask({ task_name }) {
+    setAllocationAndTask({ allocation, allocationSpecified, task_name }) {
       this.terminal.writeln('');
+
+      if (!allocationSpecified) {
+        this.terminal.writeln(
+          'Multiple instances of this task are running. The allocation below was selected by random draw.'
+        );
+        this.terminal.writeln('');
+      }
+
       this.terminal.writeln(
         'To start the session, customize your command, then hit ‘return’ to run.'
       );
       this.terminal.writeln('');
-      this.terminal.writeln(`$ nomad alloc exec -i -t -task ${task_name} ALLOCATION /bin/bash`);
+      this.terminal.writeln(
+        `$ nomad alloc exec -i -t -task ${task_name} ${allocation.shortId} /bin/bash`
+      );
     },
   },
 });

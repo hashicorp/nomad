@@ -12,8 +12,8 @@ module('Acceptance | exec', function(hooks) {
     server.create('agent');
     server.create('node');
 
-    this.job = server.create('job', { createAllocations: false });
-    server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
+    this.job = server.create('job', { groupsCount: 2 });
+    // server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
   });
 
   test('/exec/:job should show the region, namespace, and job name', async function(assert) {
@@ -84,13 +84,17 @@ module('Acceptance | exec', function(hooks) {
     assert.ok(Exec.taskGroups[0].chevron.isDown);
   });
 
-  test('navigating to a task adds its name to the route and allows the command to be customised', async function(assert) {
+  test('navigating to a task adds its name to the route, chooses an allocation, and allows the command to be customised', async function(assert) {
     await Exec.visitJob({ job: this.job.id });
     await Exec.taskGroups[0].click();
     await Exec.taskGroups[0].tasks[0].click();
 
     const taskGroup = this.job.task_groups.models[0];
     const task = taskGroup.tasks.models[0];
+    const allocation = this.server.db.allocations.findBy({
+      jobId: this.job.id,
+      taskGroup: taskGroup.name,
+    });
 
     await settled();
 
@@ -101,7 +105,7 @@ module('Acceptance | exec', function(hooks) {
         .getLine(2)
         .translateToString()
         .trim(),
-      'To start the session, customize your command, then hit ‘return’ to run.'
+      'Multiple instances of this task are running. The allocation below was selected by random draw.'
     );
 
     assert.equal(
@@ -109,7 +113,42 @@ module('Acceptance | exec', function(hooks) {
         .getLine(4)
         .translateToString()
         .trim(),
-      `$ nomad alloc exec -i -t -task ${task.name} ALLOCATION /bin/bash`
+      'To start the session, customize your command, then hit ‘return’ to run.'
+    );
+
+    assert.equal(
+      window.execTerminal.buffer
+        .getLine(6)
+        .translateToString()
+        .trim(),
+      `$ nomad alloc exec -i -t -task ${task.name} ${allocation.id.split('-')[0]} /bin/bash`
+    );
+  });
+
+  test('an allocation can be specified', async function(assert) {
+    const taskGroup = this.job.task_groups.models[0];
+    const task = taskGroup.tasks.models[0];
+    const allocations = this.server.db.allocations.where({
+      jobId: this.job.id,
+      taskGroup: taskGroup.name,
+    });
+    const allocation = allocations[allocations.length - 1];
+
+    await Exec.visitTask({
+      job: this.job.id,
+      task_group: taskGroup.name,
+      task_name: task.name,
+      allocation: allocation.id.split('-')[0],
+    });
+
+    await settled();
+
+    assert.equal(
+      window.execTerminal.buffer
+        .getLine(4)
+        .translateToString()
+        .trim(),
+      `$ nomad alloc exec -i -t -task ${task.name} ${allocation.id.split('-')[0]} /bin/bash`
     );
   });
 });
