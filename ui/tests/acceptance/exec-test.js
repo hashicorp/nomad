@@ -13,7 +13,6 @@ module('Acceptance | exec', function(hooks) {
     server.create('node');
 
     this.job = server.create('job', { groupsCount: 2 });
-    // server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
   });
 
   test('/exec/:job should show the region, namespace, and job name', async function(assert) {
