@@ -229,7 +229,7 @@ module('Acceptance | exec', function(hooks) {
 
     const mockSockets = Service.extend({
       getTaskStateSocket(taskState, command) {
-        assert.equal(command, '/bin/sh');
+        assert.equal(command, '/sh');
 
         assert.step('Socket built');
 
@@ -243,13 +243,41 @@ module('Acceptance | exec', function(hooks) {
     await Exec.taskGroups[0].click();
     await Exec.taskGroups[0].tasks[0].click();
 
+    const taskGroup = this.job.task_groups.models[0];
+    const task = taskGroup.tasks.models[0];
+    const allocation = this.server.db.allocations.findBy({
+      jobId: this.job.id,
+      taskGroup: taskGroup.name,
+    });
+
     await settled();
 
+    // Delete /bash
     await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
     await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
     await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
     await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
     await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+
+    // Delete /bin and try to go beyond
+    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+
+    await settled();
+
+    assert.equal(
+      window.execTerminal.buffer
+        .getLine(6)
+        .translateToString()
+        .trim(),
+      `$ nomad alloc exec -i -t -task ${task.name} ${allocation.id.split('-')[0]}`
+    );
+
     await window.execTerminal.simulateCommandKeyEvent({ key: '/', domEvent: {} });
     await window.execTerminal.simulateCommandKeyEvent({ key: 's', domEvent: {} });
     await window.execTerminal.simulateCommandKeyEvent({ key: 'h', domEvent: {} });

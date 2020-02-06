@@ -77,8 +77,10 @@ export default Controller.extend({
       this.terminal.writeln('');
       this.socketOpen = true;
     } else if (e.domEvent.key === 'Backspace') {
-      this.terminal.write('\b \b');
-      this.command = this.command.slice(0, -1);
+      if (this.command.length > 0) {
+        this.terminal.write('\b \b');
+        this.command = this.command.slice(0, -1);
+      }
     } else if (e.key.length > 0) {
       this.terminal.write(e.key);
       this.command = `${this.command}${e.key}`;
