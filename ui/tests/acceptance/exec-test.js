@@ -84,7 +84,7 @@ module('Acceptance | exec', function(hooks) {
     assert.ok(Exec.taskGroups[0].chevron.isDown);
   });
 
-  test('navigating to a task adds its name to the route, chooses an allocation, and allows the command to be customised', async function(assert) {
+  test('navigating to a task adds its name to the route, chooses an allocation, and assigns a default command', async function(assert) {
     await Exec.visitJob({ job: this.job.id });
     await Exec.taskGroups[0].click();
     await Exec.taskGroups[0].tasks[0].click();
@@ -162,9 +162,12 @@ module('Acceptance | exec', function(hooks) {
     });
 
     const mockSockets = Service.extend({
-      getTaskStateSocket(taskState) {
+      getTaskStateSocket(taskState, command) {
         assert.equal(taskState.name, task.name);
         assert.equal(taskState.allocation.id, allocation.id);
+
+        assert.equal(command, '/bin/bash');
+
         assert.step('Socket built');
 
         return mockSocket;
@@ -213,5 +216,47 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.deepEqual(mockSocket.sent, ['{"stdin":{"data":"DQ=="}}']);
+  });
+
+  test('the command can be customised', async function(assert) {
+    const mockSocket = new Object({
+      sent: [],
+
+      send(message) {
+        this.sent.push(message);
+      },
+    });
+
+    const mockSockets = Service.extend({
+      getTaskStateSocket(taskState, command) {
+        assert.equal(command, '/bin/sh');
+
+        assert.step('Socket built');
+
+        return mockSocket;
+      },
+    });
+
+    this.owner.register('service:sockets', mockSockets);
+
+    await Exec.visitJob({ job: this.job.id });
+    await Exec.taskGroups[0].click();
+    await Exec.taskGroups[0].tasks[0].click();
+
+    await settled();
+
+    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await window.execTerminal.simulateCommandKeyEvent({ key: '/', domEvent: {} });
+    await window.execTerminal.simulateCommandKeyEvent({ key: 's', domEvent: {} });
+    await window.execTerminal.simulateCommandKeyEvent({ key: 'h', domEvent: {} });
+
+    await Exec.terminal.pressEnter();
+    await settled();
+
+    assert.verifySteps(['Socket built']);
   });
 });

@@ -8,6 +8,10 @@ export default Controller.extend({
 
   queryParams: ['allocation'],
 
+  command: '/bin/bash',
+  socketOpen: false,
+  taskState: null,
+
   init() {
     this._super(...arguments);
 
@@ -21,6 +25,8 @@ export default Controller.extend({
 
   actions: {
     setTaskState({ allocationSpecified, taskState }) {
+      this.taskState = taskState;
+
       this.terminal.writeln('');
 
       if (!allocationSpecified) {
@@ -44,26 +50,42 @@ export default Controller.extend({
 
       this.terminal.write('/bin/bash');
 
-      let socketOpen = false;
-
       this.terminal.onKey(e => {
-        if (e.domEvent.key === 'Enter' && !socketOpen) {
-          this.openAndConnectSocket(taskState);
-          this.terminal.writeln('');
-          socketOpen = true;
+        if (this.socketOpen) {
+          this.handleSocketKeyEvent(e);
         } else {
-          this.socket.send(JSON.stringify({ stdin: { data: btoa(e.key) } }));
+          this.handleCommandKeyEvent(e);
         }
       });
+
+      this.terminal.simulateCommandKeyEvent = this.handleCommandKeyEvent.bind(this);
     },
   },
 
-  openAndConnectSocket(taskState) {
-    this.socket = this.sockets.getTaskStateSocket(taskState);
+  openAndConnectSocket() {
+    this.socket = this.sockets.getTaskStateSocket(this.taskState, this.command);
 
     this.socket.onmessage = e => {
       const json = JSON.parse(e.data);
       this.terminal.write(atob(json.stdout.data));
     };
+  },
+
+  handleCommandKeyEvent(e) {
+    if (e.domEvent.key === 'Enter') {
+      this.openAndConnectSocket();
+      this.terminal.writeln('');
+      this.socketOpen = true;
+    } else if (e.domEvent.key === 'Backspace') {
+      this.terminal.write('\b \b');
+      this.command = this.command.slice(0, -1);
+    } else if (e.key.length > 0) {
+      this.terminal.write(e.key);
+      this.command = `${this.command}${e.key}`;
+    }
+  },
+
+  handleSocketKeyEvent(e) {
+    this.socket.send(JSON.stringify({ stdin: { data: btoa(e.key) } }));
   },
 });
