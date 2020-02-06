@@ -863,7 +863,16 @@ func TestRPC_Limits_OK(t *testing.T) {
 			}()
 
 			assertTimeout(t, s, tc.tls, tc.timeout)
+
 			if tc.assertLimit {
+				// There's a race between assertTimeout(false) closing
+				// its connection and the HTTP server noticing and
+				// untracking it. Since there's no way to coordiante
+				// when this occurs, sleeping is the only way to avoid
+				// asserting limits before the timed out connection is
+				// untracked.
+				time.Sleep(1 * time.Second)
+
 				assertLimit(t, s.config.RPCAddr.String(), tc.limit)
 			} else {
 				assertNoLimit(t, s.config.RPCAddr.String())
