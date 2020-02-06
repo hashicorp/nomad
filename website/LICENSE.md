@@ -1,7 +1,5 @@
 # Proprietary License
 
-This license is temporary while a more official one is drafted. However,
-this should make it clear:
 
 The text contents of this website are MPL 2.0 licensed.
 
