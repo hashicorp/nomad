@@ -1,0 +1,131 @@
+---
+layout: docs
+page_title: 'Drivers: firecracker-task-driver'
+sidebar_title: Firecracker driver
+description: >-
+  The Firecracker task driver is used to run
+  firecracker(https://firecracker-microvm.github.io/) microvms.
+---
+
+# Firecracker task Driver
+
+Name: `firecracker-task-driver`
+
+The Firecracker task driver provides an interface for creating Linux microvms.
+For more detailed instructions on how to set up and use this driver, please
+refer to the [documentation][firecracker-task-guide].
+
+## Task Configuration
+
+```hcl
+task "test01" {
+  driver = "firecracker-task-driver"
+
+  config {
+    KernelImage = "/home/build/hello-vmlinux.bin"
+    Firecracker = "/home/build/firecracker"
+    Vcpus       = 1
+    Mem         = 128
+    Network     = "default"
+  }
+}
+```
+
+The firecracker task driver supports the following parameters:
+
+- `KernelImage` - (Optional) Path to the kernel image to be used on the microvm.
+  Defaults to 'vmlinux' on nomad's allocation directory.
+
+- `BootDisk` - (Optional) Path to the ext4 rootfs to boot from.
+  Defaults to 'rootfs.ext4' on nomad's allocation directory.
+
+- `BootOptions` - (Optional) Kernel command line options to boot the microvm.
+  Defaults to "ro console=ttyS0 reboot=k panic=1 pci=off"
+
+- `Network` - (Optional) Network name of your container network configuration
+  file.
+
+- `Vcpus` - (Optional) Number of CPUs to assign to microvm.
+
+- `Cputype` - (Optional) CPU template to use, templates available are C3 or T2.
+
+- `Mem` - (Optional) Amount of memory in Megabytes to assign to microvm.
+  Defaults to 512
+
+- `Firecracker` Location of the firecracker binary, the option could be omitted
+  if the environment variable FIRECRACKER_BIN is setup. Defaults to
+  '/usr/bin/firecracker'
+
+- `DisableHt` - (Optional) Disable CPU Hyperthreading. Defaults to false
+
+- `Log` - (Optional) path to file where to write firecracker logs.
+
+## Networking
+
+Network configuration is setup using CNI plugins, the steps to setup firecracker
+task driver with cni are the following:
+
+- Build [cni plugins][container network plugins] and [tc-redirect-tap][tc-redirect-tap]
+  and copy them to `/opt/cni`.
+
+- Create a network configuration to be used by micro-vms on /etc/cni/conf.d/,
+  for example: default.conflist.
+
+### Example network configuration
+
+```json
+{
+  "name": "default",
+  "cniVersion": "0.4.0",
+  "plugins": [
+    {
+      "type": "ptp",
+      "ipMasq": true,
+      "ipam": {
+        "type": "host-local",
+        "subnet": "192.168.127.0/24",
+        "resolvConf": "/etc/resolv.conf"
+      }
+    },
+    {
+      "type": "firewall"
+    },
+    {
+      "type": "tc-redirect-tap"
+    }
+  ]
+}
+```
+
+In this example the name of this network is default and this name is the
+parameter used in Network on the task driver job spec. Also the filename must
+match the name of the network, and use the .conflist extension.
+
+## Client Requirements
+
+`firecracker-task-driver` requires the following:
+
+- Linux 4.14+ Firecracker currently supports physical Linux x86_64 and aarch64
+  hosts, running kernel version 4.14 or later. However, the aarch64 support is
+  not feature complete (alpha stage)
+
+- The [Firecracker binary][firecracker binary]
+
+- KVM enabled in your Linux kernel, and you have read/write access to /dev/kvm
+
+- tun kernel module
+
+- The firecracker-task-driver binary placed in the [plugin_dir][plugin_dir]
+  directory
+
+- ip6tables package
+
+- [Container network plugins][container network plugins]
+
+- [tc-redirect-tap][tc-redirect-tap]
+
+[plugin_dir]: /docs/configuration#plugin_dir
+[tc-redirect-tap]: https://github.com/firecracker-microvm/firecracker-go-sdk/tree/master/cni
+[container network plugins]: https://github.com/containernetworking/plugins
+[firecracker binary]: https://github.com/firecracker-microvm/firecracker/releases
+[firecracker-task-guide]: https://github.com/cneira/firecracker-task-driver
