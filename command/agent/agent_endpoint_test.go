@@ -1148,55 +1148,59 @@ func TestHTTP_AgentHealth_BadServer(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	// Enable ACLs to ensure they're not enforced
-	httpACLTest(t, nil, func(s *TestAgent) {
+	serverAgent := NewTestAgent(t, "server", nil)
+	defer serverAgent.Shutdown()
 
-		// Set s.Agent.server=nil to make server unhealthy if requested
-		s.Agent.server = nil
-
-		// No ?type= means server is just skipped
-		{
-			req, err := http.NewRequest("GET", "/v1/agent/health", nil)
-			require.Nil(err)
-
-			respW := httptest.NewRecorder()
-			healthI, err := s.Server.HealthRequest(respW, req)
-			require.Nil(err)
-			require.Equal(http.StatusOK, respW.Code)
-			require.NotNil(healthI)
-			health := healthI.(*healthResponse)
-			require.NotNil(health.Client)
-			require.True(health.Client.Ok)
-			require.Equal("ok", health.Client.Message)
-			require.Nil(health.Server)
-		}
-
-		// type=server means server is considered unhealthy
-		{
-			req, err := http.NewRequest("GET", "/v1/agent/health?type=server", nil)
-			require.Nil(err)
-
-			respW := httptest.NewRecorder()
-			_, err = s.Server.HealthRequest(respW, req)
-			require.NotNil(err)
-			httpErr, ok := err.(HTTPCodedError)
-			require.True(ok)
-			require.Equal(500, httpErr.Code())
-			require.Equal(`{"server":{"ok":false,"message":"server not enabled"}}`, err.Error())
-		}
+	s := makeHTTPServer(t, func(c *Config) {
+		// Disable server to make server health unhealthy if requested
+		c.Server.Enabled = false
+		c.Client.Servers = []string{fmt.Sprintf("localhost:%d", serverAgent.Config.Ports.RPC)}
 	})
+	defer s.Shutdown()
+
+	// No ?type= means server is just skipped
+	{
+		req, err := http.NewRequest("GET", "/v1/agent/health", nil)
+		require.Nil(err)
+
+		respW := httptest.NewRecorder()
+		healthI, err := s.Server.HealthRequest(respW, req)
+		require.Nil(err)
+		require.Equal(http.StatusOK, respW.Code)
+		require.NotNil(healthI)
+		health := healthI.(*healthResponse)
+		require.NotNil(health.Client)
+		require.True(health.Client.Ok)
+		require.Equal("ok", health.Client.Message)
+		require.Nil(health.Server)
+	}
+
+	// type=server means server is considered unhealthy
+	{
+		req, err := http.NewRequest("GET", "/v1/agent/health?type=server", nil)
+		require.Nil(err)
+
+		respW := httptest.NewRecorder()
+		_, err = s.Server.HealthRequest(respW, req)
+		require.NotNil(err)
+		httpErr, ok := err.(HTTPCodedError)
+		require.True(ok)
+		require.Equal(500, httpErr.Code())
+		require.Equal(`{"server":{"ok":false,"message":"server not enabled"}}`, err.Error())
+	}
 }
 
 func TestHTTP_AgentHealth_BadClient(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
+	// Disable client to make server unhealthy if requested
+	cb := func(c *Config) {
+		c.Client.Enabled = false
+	}
+
 	// Enable ACLs to ensure they're not enforced
-	httpACLTest(t, nil, func(s *TestAgent) {
-
-		// Set s.Agent.client=nil to make server unhealthy if requested
-		s.Agent.client = nil
-
+	httpACLTest(t, cb, func(s *TestAgent) {
 		// No ?type= means client is just skipped
 		{
 			req, err := http.NewRequest("GET", "/v1/agent/health", nil)
