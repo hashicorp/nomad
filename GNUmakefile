@@ -316,10 +316,6 @@ static-assets: ## Compile the static routes to serve alongside the API
 	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui -o bindata_assetfs.go ./ui/dist/...
 	@mv bindata_assetfs.go command/agent
 
-.PHONY: test-website
-test-website: ## Run Website Link Checks
-	@cd website && make test
-
 .PHONY: test-ui
 test-ui: ## Run Nomad UI test suite
 	@echo "--> Installing JavaScript assets"
