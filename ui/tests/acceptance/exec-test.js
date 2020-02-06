@@ -196,7 +196,7 @@ module('Acceptance | exec', function(hooks) {
     assert.verifySteps(['Socket built']);
 
     mockSocket.onmessage({
-      data: '{"stdout":{"data":"c2gtMy4yJCA="}}',
+      data: `{"stdout":{"data":"${btoa('sh-3.2$')}"}}`,
     });
 
     await settled();
