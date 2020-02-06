@@ -258,7 +258,8 @@ func (h *csiPluginSupervisorHook) registerPlugin(socketPath string) (func(), err
 				SocketPath: socketPath,
 			},
 			Options: map[string]string{
-				"MountPoint": h.mountPoint,
+				"MountPoint":          h.mountPoint,
+				"ContainerMountPoint": h.task.CSIPluginConfig.MountDir,
 			},
 		}
 	}

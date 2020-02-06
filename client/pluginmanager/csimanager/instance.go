@@ -27,6 +27,10 @@ type instanceManager struct {
 	// stored and where mount points will be created
 	mountPoint string
 
+	// containerMountPoint is the location _inside_ the plugin container that the
+	// `mountPoint` is bound in to.
+	containerMountPoint string
+
 	fp *pluginFingerprinter
 
 	volumeManager        *volumeManager
@@ -51,7 +55,8 @@ func newInstanceManager(logger hclog.Logger, updater UpdateNodeCSIInfoFunc, p *d
 			hadFirstSuccessfulFingerprintCh: make(chan struct{}),
 		},
 
-		mountPoint: p.Options["MountPoint"],
+		mountPoint:          p.Options["MountPoint"],
+		containerMountPoint: p.Options["ContainerMountPoint"],
 
 		volumeManagerSetupCh: make(chan struct{}),
 
