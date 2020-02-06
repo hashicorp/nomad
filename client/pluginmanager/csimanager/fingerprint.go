@@ -27,6 +27,15 @@ type pluginFingerprinter struct {
 	fingerprintController bool
 
 	hadFirstSuccessfulFingerprint bool
+	// hadFirstSuccessfulFingerprintCh is closed the first time a fingerprint
+	// is completed successfully.
+	hadFirstSuccessfulFingerprintCh chan struct{}
+
+	// requiresStaging is set on a first successful fingerprint. It allows the
+	// csimanager to efficiently query this as it shouldn't change after a plugin
+	// is started. Removing this bool will require storing a cache of recent successful
+	// results that can be used by subscribers of the `hadFirstSuccessfulFingerprintCh`.
+	requiresStaging bool
 }
 
 func (p *pluginFingerprinter) fingerprint(ctx context.Context) *structs.CSIInfo {
@@ -61,7 +70,13 @@ func (p *pluginFingerprinter) fingerprint(ctx context.Context) *structs.CSIInfo 
 		info.HealthDescription = fmt.Sprintf("failed fingerprinting with error: %v", err)
 	} else {
 		info = fp
-		p.hadFirstSuccessfulFingerprint = true
+		if !p.hadFirstSuccessfulFingerprint {
+			p.hadFirstSuccessfulFingerprint = true
+			if p.fingerprintNode {
+				p.requiresStaging = info.NodeInfo.RequiresNodeStageVolume
+			}
+			close(p.hadFirstSuccessfulFingerprintCh)
+		}
 	}
 
 	return info
