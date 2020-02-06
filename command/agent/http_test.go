@@ -976,7 +976,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		// Now assert each error is a clientside read deadline error
 		for i := 0; i < maxConns; i++ {
 			select {
-			case <-time.After(1 * time.Second):
+			case <-time.After(2 * time.Second):
 				t.Fatalf("timed out waiting for conn error %d", i)
 			case err := <-errCh:
 				testutil.RequireDeadlineErr(t, err)
