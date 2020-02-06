@@ -74,8 +74,8 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 			defer os.RemoveAll(tmpPath)
 
 			csiFake := &csifake.Client{}
-			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, true)
-			expectedStagingPath := manager.stagingDirForVolume(tc.Volume)
+			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
+			expectedStagingPath := manager.stagingDirForVolume(tmpPath, tc.Volume)
 
 			if tc.CreateDirAheadOfTime {
 				err := os.MkdirAll(expectedStagingPath, 0700)
@@ -164,10 +164,10 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 			csiFake := &csifake.Client{}
 			csiFake.NextNodeStageVolumeErr = tc.PluginErr
 
-			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, true)
+			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			_, err := manager.stageVolume(ctx, tc.Volume)
+			err := manager.stageVolume(ctx, tc.Volume)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -215,7 +215,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 			csiFake := &csifake.Client{}
 			csiFake.NextNodeUnstageVolumeErr = tc.PluginErr
 
-			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, true)
+			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
 			err := manager.unstageVolume(ctx, tc.Volume)
@@ -275,10 +275,10 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			csiFake := &csifake.Client{}
 			csiFake.NextNodePublishVolumeErr = tc.PluginErr
 
-			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, true)
+			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			_, err := manager.publishVolume(ctx, tc.Volume, tc.Allocation, "")
+			_, err := manager.publishVolume(ctx, tc.Volume, tc.Allocation)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
