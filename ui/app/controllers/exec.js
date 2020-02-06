@@ -11,8 +11,7 @@ export default Controller.extend({
   init() {
     this._super(...arguments);
 
-    // FIXME this hardcoding of a font is questionable, but can the monospace be determined from the CSS font stack? 🤔
-    this.terminal = new Terminal({ fontFamily: 'SF Mono', fontWeight: '400' });
+    this.terminal = new Terminal({ fontFamily: 'monospace', fontWeight: '400' });
     window.execTerminal = this.terminal; // FIXME tragique, for acceptance tests…?
 
     // Sets the foreground colour to Structure’s ui-gray-400
