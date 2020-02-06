@@ -43,9 +43,9 @@ func init() {
 	}
 }
 
-var (
-	DefaultRPCAddr = &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 4647}
-)
+func DefaultRPCAddr() *net.TCPAddr {
+	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 4647}
+}
 
 // Config is used to parameterize the server
 type Config struct {
@@ -362,7 +362,7 @@ func DefaultConfig() *Config {
 		RaftConfig:                       raft.DefaultConfig(),
 		RaftTimeout:                      10 * time.Second,
 		LogOutput:                        os.Stderr,
-		RPCAddr:                          DefaultRPCAddr,
+		RPCAddr:                          DefaultRPCAddr(),
 		SerfConfig:                       serf.DefaultConfig(),
 		NumSchedulers:                    1,
 		ReconcileInterval:                60 * time.Second,
