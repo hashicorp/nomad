@@ -421,7 +421,7 @@ START:
 }
 
 // StreamingRPC is used to make an streaming RPC call.  Callers must
-// close the channel when done.
+// close the connection when done.
 func (p *ConnPool) StreamingRPC(region string, addr net.Addr, version int) (net.Conn, error) {
 	conn, err := p.acquire(region, addr, version)
 	if err != nil {
