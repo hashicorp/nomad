@@ -379,16 +379,18 @@ func (v *CSIVolume) Validate() error {
 		errs = append(errs, "missing attachment mode")
 	}
 
-	var ok bool
-	for _, t := range v.Topologies {
-		if t != nil && len(t.Segments) > 0 {
-			ok = true
-			break
-		}
-	}
-	if !ok {
-		errs = append(errs, "missing topology")
-	}
+	// TODO: Volume Topologies are optional - We should check to see if the plugin
+	//       the volume is being registered with requires them.
+	// var ok bool
+	// for _, t := range v.Topologies {
+	// 	if t != nil && len(t.Segments) > 0 {
+	// 		ok = true
+	// 		break
+	// 	}
+	// }
+	// if !ok {
+	// 	errs = append(errs, "missing topology")
+	// }
 
 	if len(errs) > 0 {
 		return fmt.Errorf("validation: %s", strings.Join(errs, ", "))
