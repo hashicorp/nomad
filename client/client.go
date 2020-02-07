@@ -1088,6 +1088,7 @@ func (c *Client) restoreState() error {
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
+			RPCClient:           c,
 		}
 		c.configLock.RUnlock()
 
@@ -2351,6 +2352,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		CSIManager:          c.csimanager,
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
+		RPCClient:           c,
 	}
 	c.configLock.RUnlock()
 
