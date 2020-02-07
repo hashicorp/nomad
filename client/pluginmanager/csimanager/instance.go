@@ -90,7 +90,7 @@ func (i *instanceManager) setupVolumeManager() {
 	case <-i.shutdownCtx.Done():
 		return
 	case <-i.fp.hadFirstSuccessfulFingerprintCh:
-		i.volumeManager = newVolumeManager(i.logger, i.client, i.mountPoint, i.fp.requiresStaging)
+		i.volumeManager = newVolumeManager(i.logger, i.client, i.mountPoint, i.containerMountPoint, i.fp.requiresStaging)
 		i.logger.Debug("Setup volume manager")
 		close(i.volumeManagerSetupCh)
 		return
