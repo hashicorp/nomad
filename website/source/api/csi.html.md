@@ -279,35 +279,19 @@ $ curl \
   "ID": "example",
   "Namespace": "default",
   [...] Job [...]
-  "TaskGroups": [
-    {
-      "Name": "plugin",
-      "Tasks": [
-        {
-          "Name": "plugin-controller",
-          "Config": {
-            "image": "plugin:latest",
-          },
-          "Resources": {
-            "CPU": 500,
-            "MemoryMB": 256
-          },
-          "CSIPlugin": {
-            "ID": "example-plugin",
-            "Type": "controller",
-            "MountDir": "/user/provided",
-            "ControllerRequired": true,
-            "ControllersHealthy": 1,
-            "ControllersExpected": 1,
-            "NodesHealthy": 14,
-            "NodesExpected": 16,
-            "CreateIndex": 52,
-            "ModifyIndex": 93
-          }
-        }
-      ]
-    }
-  ]
+
+  "CSIPlugin": {
+    "ID": "example-plugin",
+    "Type": "controller",
+    "Provider": "provider",
+    "ControllerRequired": true,
+    "ControllersHealthy": 1,
+    "ControllersExpected": 1,
+    "NodesHealthy": 14,
+    "NodesExpected": 16,
+    "CreateIndex": 52,
+    "ModifyIndex": 93
+  }
 }
 ```
 ## List Volumes
