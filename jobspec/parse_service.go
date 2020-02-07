@@ -41,6 +41,7 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 		"name",
 		"tags",
 		"canary_tags",
+		"enable_tag_override",
 		"port",
 		"check",
 		"address_mode",

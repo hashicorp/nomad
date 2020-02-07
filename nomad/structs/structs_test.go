@@ -2621,6 +2621,9 @@ func TestService_Equals(t *testing.T) {
 
 	o.Connect = &ConsulConnect{Native: true}
 	assertDiff()
+
+	o.EnableTagOverride = true
+	assertDiff()
 }
 
 func TestJob_ExpandServiceNames(t *testing.T) {

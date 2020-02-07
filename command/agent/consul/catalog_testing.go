@@ -204,3 +204,17 @@ func (c *MockAgent) UpdateTTL(id string, output string, status string) error {
 	c.checkTTLs[id]++
 	return nil
 }
+
+// a convenience method for looking up a registered service by name
+func (c *MockAgent) lookupService(name string) []*api.AgentServiceRegistration {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var services []*api.AgentServiceRegistration
+	for _, service := range c.services {
+		if service.Name == name {
+			services = append(services, service)
+		}
+	}
+	return services
+}
