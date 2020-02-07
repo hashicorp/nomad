@@ -152,7 +152,7 @@ module('Acceptance | exec', function(hooks) {
     );
   });
 
-  test('running the command opens the socket for reading/writing', async function(assert) {
+  test('running the command opens the socket for reading/writing and detects it closing', async function(assert) {
     const mockSocket = new Object({
       sent: [],
 
@@ -216,6 +216,17 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.deepEqual(mockSocket.sent, ['{"stdin":{"data":"DQ=="}}']);
+
+    await mockSocket.onclose();
+    await settled();
+
+    assert.equal(
+      window.execTerminal.buffer
+        .getLine(6)
+        .translateToString()
+        .trim(),
+      'The connection has closed.'
+    );
   });
 
   test('the command can be customised', async function(assert) {

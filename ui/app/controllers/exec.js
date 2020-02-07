@@ -69,6 +69,13 @@ export default Controller.extend({
       const json = JSON.parse(e.data);
       this.terminal.write(atob(json.stdout.data));
     };
+
+    this.socket.onclose = e => {
+      this.terminal.writeln('');
+      this.terminal.write('\x1b[38;2;142;150;163m');
+      this.terminal.writeln('The connection has closed.');
+      // FIXME interpret different close events
+    };
   },
 
   handleCommandKeyEvent(e) {
