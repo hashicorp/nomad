@@ -298,6 +298,11 @@ func TestCSIVolumeChecker(t *testing.T) {
 			Name:   "foo",
 			Source: "volume-id",
 		},
+		"nonsense": {
+			Type:   "host",
+			Name:   "nonsense",
+			Source: "my-host-volume",
+		},
 	}
 
 	checker := NewCSIVolumeChecker(ctx)
