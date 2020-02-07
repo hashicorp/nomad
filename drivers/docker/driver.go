@@ -624,6 +624,15 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 		return nil, fmt.Errorf("volumes are not enabled; cannot use volume driver %q", driverConfig.VolumeDriver)
 	}
 
+	selinuxLabel := d.config.Volumes.SelinuxLabel
+
+	if selinuxLabel != "" {
+		// Apply SELinux Label to each volume
+		for i := range binds {
+			binds[i] = fmt.Sprintf("%s:%s", binds[i], selinuxLabel)
+		}
+	}
+
 	for _, userbind := range driverConfig.Volumes {
 		// This assumes host OS = docker container OS.
 		// Not true, when we support Linux containers on Windows
@@ -653,14 +662,8 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 		if mode != "" {
 			bind += ":" + mode
 		}
-		binds = append(binds, bind)
-	}
 
-	if selinuxLabel := d.config.Volumes.SelinuxLabel; selinuxLabel != "" {
-		// Apply SELinux Label to each volume
-		for i := range binds {
-			binds[i] = fmt.Sprintf("%s:%s", binds[i], selinuxLabel)
-		}
+		binds = append(binds, bind)
 	}
 
 	return binds, nil
