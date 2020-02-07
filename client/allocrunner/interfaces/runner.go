@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"github.com/hashicorp/nomad/client/allocrunner/state"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
@@ -31,4 +32,11 @@ type TaskStateHandler interface {
 // allocation
 type AllocStatsReporter interface {
 	LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsage, error)
+}
+
+// AllocHookResources contains data that is provided by AllocRunner Hooks for
+// consumption by TaskRunners
+type AllocHookResources struct {
+	// CSIVolumeMountPoints provides the CSIMountInfo for each CSI Volume by Alias.
+	CSIVolumeMountPoints map[string]*csimanager.MountInfo
 }

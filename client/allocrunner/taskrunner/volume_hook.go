@@ -57,8 +57,9 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 	for _, m := range taskMounts {
 		req, ok := taskVolumesByAlias[m.Volume]
 		if !ok {
-			// Should never happen unless we misvalidated on job submission
-			return nil, fmt.Errorf("No group volume declaration found named: %s", m.Volume)
+			// We're only passed the host volumes, so here we assume the volume is probably
+			// a CSI volume.
+			continue
 		}
 
 		// This is a defensive check, but this function should only ever receive
@@ -120,8 +121,44 @@ func (h *volumeHook) prepareHostVolumes(volumes map[string]*structs.VolumeReques
 	return hostVolumeMounts, nil
 }
 
-func (h *volumeHook) prepareCSIVolumes(req *interfaces.TaskPrestartRequest) ([]*drivers.MountConfig, error) {
-	return nil, nil
+// partitionMountsByVolume takes a list of volume mounts and returns them in the
+// form of volume-alias:[]volume-mount
+func partitionMountsByVolume(xs []*structs.VolumeMount) map[string][]*structs.VolumeMount {
+	result := make(map[string][]*structs.VolumeMount)
+	for _, mount := range xs {
+		result[mount.Volume] = append(result[mount.Volume], mount)
+	}
+
+	return result
+}
+
+func (h *volumeHook) prepareCSIVolumes(volumes map[string]*structs.VolumeRequest, req *interfaces.TaskPrestartRequest) ([]*drivers.MountConfig, error) {
+	var mounts []*drivers.MountConfig
+
+	mountRequests := partitionMountsByVolume(req.Task.VolumeMounts)
+	for alias, request := range volumes {
+		csiMountPoint, ok := h.runner.allocHookResources.CSIVolumeMountPoints[alias]
+		if !ok {
+			return nil, fmt.Errorf("No CSI Mount Point found for volume: %s", alias)
+		}
+
+		mountReqs, ok := mountRequests[alias]
+		if !ok {
+			// This task doesn't use the volume
+			continue
+		}
+
+		for _, m := range mountReqs {
+			mcfg := &drivers.MountConfig{
+				HostPath: csiMountPoint.Source,
+				TaskPath: m.Destination,
+				Readonly: request.ReadOnly || m.ReadOnly,
+			}
+			mounts = append(mounts, mcfg)
+		}
+	}
+
+	return mounts, nil
 }
 
 func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
@@ -132,7 +169,7 @@ func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 		return err
 	}
 
-	csiVolumeMounts, err := h.prepareCSIVolumes(req)
+	csiVolumeMounts, err := h.prepareCSIVolumes(volumes[structs.VolumeTypeCSI], req)
 	if err != nil {
 		return err
 	}

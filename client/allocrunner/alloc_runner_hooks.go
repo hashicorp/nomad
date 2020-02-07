@@ -29,6 +29,31 @@ func (a *allocNetworkIsolationSetter) SetNetworkIsolation(n *drivers.NetworkIsol
 	}
 }
 
+type allocResourceSetter interface {
+	SetAllocResources(*interfaces.AllocHookResources)
+	GetAllocResources() *interfaces.AllocHookResources
+}
+
+type allocResourceSetterImpl struct {
+	ar      *allocRunner
+	current *interfaces.AllocHookResources
+}
+
+func (a *allocResourceSetterImpl) SetAllocResources(resources *interfaces.AllocHookResources) {
+	a.ar.stateLock.Lock()
+	defer a.ar.stateLock.Unlock()
+	a.current = resources
+	for _, tr := range a.ar.tasks {
+		tr.SetAllocHookResources(resources)
+	}
+}
+
+func (a *allocResourceSetterImpl) GetAllocResources() *interfaces.AllocHookResources {
+	a.ar.stateLock.RLock()
+	defer a.ar.stateLock.RUnlock()
+	return a.current
+}
+
 // allocHealthSetter is a shim to allow the alloc health watcher hook to set
 // and clear the alloc health without full access to the alloc runner state
 type allocHealthSetter struct {
@@ -134,7 +159,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			logger:         hookLogger,
 		}),
 		newConsulSockHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
-		newCSIHook(hookLogger, alloc),
+		newCSIHook(hookLogger, ar.csiManager, ar.rpcClient, alloc, &allocResourceSetterImpl{ar: ar, current: &interfaces.AllocHookResources{}}),
 	}
 
 	return nil

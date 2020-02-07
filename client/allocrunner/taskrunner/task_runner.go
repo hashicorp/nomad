@@ -153,6 +153,8 @@ type TaskRunner struct {
 	// transistions.
 	runnerHooks []interfaces.TaskHook
 
+	allocHookResources *interfaces.AllocHookResources
+
 	// hookResources captures the resources provided by hooks
 	hookResources *hookResources
 
@@ -354,6 +356,10 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	tr.appendEvent(structs.NewTaskEvent(structs.TaskReceived))
 
 	return tr, nil
+}
+
+func (tr *TaskRunner) SetAllocHookResources(resources *interfaces.AllocHookResources) {
+	tr.allocHookResources = resources
 }
 
 func (tr *TaskRunner) initLabels() {
