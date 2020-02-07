@@ -230,17 +230,16 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) bool {
 
 	ws := memdb.NewWatchSet()
 	for _, req := range c.volumes {
-		// Check that this node has a healthy running plugin with the right PluginID
-		plugin, ok := n.CSINodePlugins[req.Name]
-		if !(ok && plugin.Healthy) {
-			return false
-		}
-
 		// Get the volume to check that it's healthy (there's a healthy controller
 		// and the volume hasn't encountered an error or been marked for GC
 		vol, err := c.ctx.State().CSIVolumeByID(ws, req.Source)
-
 		if err != nil || vol == nil {
+			return false
+		}
+
+		// Check that this node has a healthy running plugin with the right PluginID
+		plugin, ok := n.CSINodePlugins[vol.PluginID]
+		if !(ok && plugin.Healthy) {
 			return false
 		}
 
