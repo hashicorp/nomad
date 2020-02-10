@@ -36,6 +36,9 @@ type CSIPlugin interface {
 	// ControllerPublishVolume is used to attach a remote volume to a cluster node.
 	ControllerPublishVolume(ctx context.Context, req *ControllerPublishVolumeRequest) (*ControllerPublishVolumeResponse, error)
 
+	// ControllerUnpublishVolume is used to deattach a remote volume from a cluster node.
+	ControllerUnpublishVolume(ctx context.Context, req *ControllerUnpublishVolumeRequest) (*ControllerUnpublishVolumeResponse, error)
+
 	// NodeGetCapabilities is used to return the available capabilities from the
 	// Node Service.
 	NodeGetCapabilities(ctx context.Context) (*NodeCapabilitySet, error)
@@ -223,13 +226,65 @@ type ControllerPublishVolumeRequest struct {
 	VolumeID string
 	NodeID   string
 	ReadOnly bool
-
 	//TODO: Add Capabilities
+}
+
+func (r *ControllerPublishVolumeRequest) ToCSIRepresentation() *csipbv1.ControllerPublishVolumeRequest {
+	if r == nil {
+		return nil
+	}
+
+	return &csipbv1.ControllerPublishVolumeRequest{
+		VolumeId: r.VolumeID,
+		NodeId:   r.NodeID,
+		Readonly: r.ReadOnly,
+		// TODO: add capabilities
+	}
+}
+
+func (r *ControllerPublishVolumeRequest) Validate() error {
+	if r.VolumeID == "" {
+		return errors.New("missing VolumeID")
+	}
+	if r.NodeID == "" {
+		return errors.New("missing NodeID")
+	}
+	return nil
 }
 
 type ControllerPublishVolumeResponse struct {
 	PublishContext map[string]string
 }
+
+type ControllerUnpublishVolumeRequest struct {
+	VolumeID string
+	NodeID   string
+}
+
+func (r *ControllerUnpublishVolumeRequest) ToCSIRepresentation() *csipbv1.ControllerUnpublishVolumeRequest {
+	if r == nil {
+		return nil
+	}
+
+	return &csipbv1.ControllerUnpublishVolumeRequest{
+		VolumeId: r.VolumeID,
+		NodeId:   r.NodeID,
+	}
+}
+
+func (r *ControllerUnpublishVolumeRequest) Validate() error {
+	if r.VolumeID == "" {
+		return errors.New("missing VolumeID")
+	}
+	if r.NodeID == "" {
+		// the spec allows this but it would unpublish the
+		// volume from all nodes
+		return errors.New("missing NodeID")
+	}
+	return nil
+}
+
+type ControllerUnpublishVolumeResponse struct{}
 
 type NodeCapabilitySet struct {
 	HasStageUnstageVolume bool
