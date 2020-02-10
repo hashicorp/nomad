@@ -360,6 +360,7 @@ func TestClient_RPC_NodeGetCapabilities(t *testing.T) {
 func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
 	cases := []struct {
 		Name             string
+		Request          *ControllerPublishVolumeRequest
 		ResponseErr      error
 		Response         *csipbv1.ControllerPublishVolumeResponse
 		ExpectedResponse *ControllerPublishVolumeResponse
@@ -367,16 +368,26 @@ func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
 	}{
 		{
 			Name:        "handles underlying grpc errors",
+			Request:     &ControllerPublishVolumeRequest{},
 			ResponseErr: fmt.Errorf("some grpc error"),
 			ExpectedErr: fmt.Errorf("some grpc error"),
 		},
 		{
+			Name:        "Handles missing NodeID",
+			Request:     &ControllerPublishVolumeRequest{},
+			Response:    &csipbv1.ControllerPublishVolumeResponse{},
+			ExpectedErr: fmt.Errorf("missing NodeID"),
+		},
+
+		{
 			Name:             "Handles PublishContext == nil",
+			Request:          &ControllerPublishVolumeRequest{VolumeID: "vol", NodeID: "node"},
 			Response:         &csipbv1.ControllerPublishVolumeResponse{},
 			ExpectedResponse: &ControllerPublishVolumeResponse{},
 		},
 		{
-			Name: "Handles PublishContext != nil",
+			Name:    "Handles PublishContext != nil",
+			Request: &ControllerPublishVolumeRequest{VolumeID: "vol", NodeID: "node"},
 			Response: &csipbv1.ControllerPublishVolumeResponse{
 				PublishContext: map[string]string{
 					"com.hashicorp/nomad-node-id": "foobar",
@@ -400,7 +411,54 @@ func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
 			cc.NextErr = c.ResponseErr
 			cc.NextPublishVolumeResponse = c.Response
 
-			resp, err := client.ControllerPublishVolume(context.TODO(), &ControllerPublishVolumeRequest{})
+			resp, err := client.ControllerPublishVolume(context.TODO(), c.Request)
+			if c.ExpectedErr != nil {
+				require.Error(t, c.ExpectedErr, err)
+			}
+
+			require.Equal(t, c.ExpectedResponse, resp)
+		})
+	}
+}
+
+func TestClient_RPC_ControllerUnpublishVolume(t *testing.T) {
+	cases := []struct {
+		Name             string
+		Request          *ControllerUnpublishVolumeRequest
+		ResponseErr      error
+		Response         *csipbv1.ControllerUnpublishVolumeResponse
+		ExpectedResponse *ControllerUnpublishVolumeResponse
+		ExpectedErr      error
+	}{
+		{
+			Name:        "Handles underlying grpc errors",
+			Request:     &ControllerUnpublishVolumeRequest{},
+			ResponseErr: fmt.Errorf("some grpc error"),
+			ExpectedErr: fmt.Errorf("some grpc error"),
+		},
+		{
+			Name:             "Handles missing NodeID",
+			Request:          &ControllerUnpublishVolumeRequest{},
+			ExpectedErr:      fmt.Errorf("missing NodeID"),
+			ExpectedResponse: nil,
+		},
+		{
+			Name:             "Handles successful response",
+			Request:          &ControllerUnpublishVolumeRequest{VolumeID: "vol", NodeID: "node"},
+			ExpectedErr:      fmt.Errorf("missing NodeID"),
+			ExpectedResponse: &ControllerUnpublishVolumeResponse{},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			_, cc, _, client := newTestClient()
+			defer client.Close()
+
+			cc.NextErr = c.ResponseErr
+			cc.NextUnpublishVolumeResponse = c.Response
+
+			resp, err := client.ControllerUnpublishVolume(context.TODO(), c.Request)
 			if c.ExpectedErr != nil {
 				require.Error(t, c.ExpectedErr, err)
 			}

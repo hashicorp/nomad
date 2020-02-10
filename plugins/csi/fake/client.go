@@ -44,6 +44,10 @@ type Client struct {
 	NextControllerPublishVolumeErr      error
 	ControllerPublishVolumeCallCount    int64
 
+	NextControllerUnpublishVolumeResponse *csi.ControllerUnpublishVolumeResponse
+	NextControllerUnpublishVolumeErr      error
+	ControllerUnpublishVolumeCallCount    int64
+
 	NextNodeGetCapabilitiesResponse *csi.NodeCapabilitySet
 	NextNodeGetCapabilitiesErr      error
 	NodeGetCapabilitiesCallCount    int64
@@ -137,6 +141,16 @@ func (c *Client) ControllerPublishVolume(ctx context.Context, req *csi.Controlle
 	c.ControllerPublishVolumeCallCount++
 
 	return c.NextControllerPublishVolumeResponse, c.NextControllerPublishVolumeErr
+}
+
+// ControllerUnpublishVolume is used to attach a remote volume to a node
+func (c *Client) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.ControllerUnpublishVolumeCallCount++
+
+	return c.NextControllerUnpublishVolumeResponse, c.NextControllerUnpublishVolumeErr
 }
 
 func (c *Client) NodeGetCapabilities(ctx context.Context) (*csi.NodeCapabilitySet, error) {

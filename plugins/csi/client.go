@@ -237,13 +237,12 @@ func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPub
 		return nil, fmt.Errorf("controllerClient not initialized")
 	}
 
-	pbrequest := &csipbv1.ControllerPublishVolumeRequest{
-		VolumeId: req.VolumeID,
-		NodeId:   req.NodeID,
-		Readonly: req.ReadOnly,
-		//TODO: add capabilities
+	err := req.Validate()
+	if err != nil {
+		return nil, err
 	}
 
+	pbrequest := req.ToCSIRepresentation()
 	resp, err := c.controllerClient.ControllerPublishVolume(ctx, pbrequest)
 	if err != nil {
 		return nil, err
@@ -252,6 +251,27 @@ func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPub
 	return &ControllerPublishVolumeResponse{
 		PublishContext: helper.CopyMapStringString(resp.PublishContext),
 	}, nil
+}
+
+func (c *client) ControllerUnpublishVolume(ctx context.Context, req *ControllerUnpublishVolumeRequest) (*ControllerUnpublishVolumeResponse, error) {
+	if c == nil {
+		return nil, fmt.Errorf("Client not initialized")
+	}
+	if c.controllerClient == nil {
+		return nil, fmt.Errorf("controllerClient not initialized")
+	}
+	err := req.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	upbrequest := req.ToCSIRepresentation()
+	_, err = c.controllerClient.ControllerUnpublishVolume(ctx, upbrequest)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ControllerUnpublishVolumeResponse{}, nil
 }
 
 //
