@@ -448,7 +448,7 @@ func TestTaskUpdatedAffinity(t *testing.T) {
 	j2 := mock.Job()
 	name := j1.TaskGroups[0].Name
 
-	require.False(t, tasksUpdated(j1, j2, name))
+	require.False(t, affinitiesUpdated(j1, j2, name))
 
 	// TaskGroup Affinity
 	j2.TaskGroups[0].Affinities = []*structs.Affinity{
@@ -459,7 +459,7 @@ func TestTaskUpdatedAffinity(t *testing.T) {
 			Weight:  100,
 		},
 	}
-	require.True(t, tasksUpdated(j1, j2, name))
+	require.True(t, affinitiesUpdated(j1, j2, name))
 
 	// TaskGroup Task Affinity
 	j3 := mock.Job()
@@ -472,7 +472,7 @@ func TestTaskUpdatedAffinity(t *testing.T) {
 		},
 	}
 
-	require.True(t, tasksUpdated(j1, j3, name))
+	require.True(t, affinitiesUpdated(j1, j3, name))
 
 	j4 := mock.Job()
 	j4.TaskGroups[0].Tasks[0].Affinities = []*structs.Affinity{
@@ -484,7 +484,7 @@ func TestTaskUpdatedAffinity(t *testing.T) {
 		},
 	}
 
-	require.True(t, tasksUpdated(j1, j4, name))
+	require.True(t, affinitiesUpdated(j1, j4, name))
 
 	// check different level of same affinity
 	j5 := mock.Job()
@@ -508,7 +508,7 @@ func TestTaskUpdatedAffinity(t *testing.T) {
 		},
 	}
 
-	require.False(t, tasksUpdated(j5, j6, name))
+	require.False(t, affinitiesUpdated(j5, j6, name))
 }
 
 func TestTaskUpdatedSpread(t *testing.T) {
@@ -516,7 +516,7 @@ func TestTaskUpdatedSpread(t *testing.T) {
 	j2 := mock.Job()
 	name := j1.TaskGroups[0].Name
 
-	require.False(t, tasksUpdated(j1, j2, name))
+	require.False(t, spreadsUpdated(j1, j2, name))
 
 	// TaskGroup Spread
 	j2.TaskGroups[0].Spreads = []*structs.Spread{
@@ -535,7 +535,7 @@ func TestTaskUpdatedSpread(t *testing.T) {
 			},
 		},
 	}
-	require.True(t, tasksUpdated(j1, j2, name))
+	require.True(t, spreadsUpdated(j1, j2, name))
 
 	// check different level of same constraint
 	j5 := mock.Job()
@@ -574,7 +574,7 @@ func TestTaskUpdatedSpread(t *testing.T) {
 		},
 	}
 
-	require.False(t, tasksUpdated(j5, j6, name))
+	require.False(t, spreadsUpdated(j5, j6, name))
 }
 func TestTasksUpdated(t *testing.T) {
 	j1 := mock.Job()
