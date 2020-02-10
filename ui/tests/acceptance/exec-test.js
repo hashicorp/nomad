@@ -91,10 +91,11 @@ module('Acceptance | exec', function(hooks) {
 
     const taskGroup = this.job.task_groups.models[0];
     const task = taskGroup.tasks.models[0];
-    const allocation = this.server.db.allocations.findBy({
-      jobId: this.job.id,
-      taskGroup: taskGroup.name,
+
+    const taskStates = this.server.db.taskStates.where({
+      name: task.name,
     });
+    const allocationId = taskStates.find(ts => ts.allocationId).allocationId;
 
     await settled();
 
@@ -121,7 +122,7 @@ module('Acceptance | exec', function(hooks) {
         .getLine(6)
         .translateToString()
         .trim(),
-      `$ nomad alloc exec -i -t -task ${task.name} ${allocation.id.split('-')[0]} /bin/bash`
+      `$ nomad alloc exec -i -t -task ${task.name} ${allocationId.split('-')[0]} /bin/bash`
     );
   });
 

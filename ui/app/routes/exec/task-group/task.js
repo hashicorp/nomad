@@ -13,7 +13,9 @@ export default Route.extend({
       if (allocationQueryParam) {
         allocation = allocations.findBy('shortId', allocationQueryParam);
       } else {
-        allocation = allocations.objectAt(0);
+        allocation = allocations.find(allocation =>
+          allocation.states.mapBy('name').includes(task_name)
+        );
       }
 
       return {
