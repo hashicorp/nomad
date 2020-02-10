@@ -367,15 +367,9 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		return true
 	}
 
-	// Check Affinities
-	if affinitiesUpdated(jobA, jobB, taskGroup) {
-		return true
-	}
-
-	// Check Spreads
-	if spreadsUpdated(jobA, jobB, taskGroup) {
-		return true
-	}
+	// TODO: check affinities and spreads
+	// for tasks updated, but do not necessarily
+	// reschedule or re-create them.
 
 	// Check each task
 	for _, at := range a.Tasks {
