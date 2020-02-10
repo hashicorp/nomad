@@ -10,7 +10,7 @@ description: The Exec task driver is used to run binaries using OS isolation pri
 Name: `exec`
 
 The `exec` driver is used to simply execute a particular command for a task.
-However, unlike [`raw_exec`](raw_exec) it uses the underlying isolation
+However, unlike [`raw_exec`](/docs/drivers/raw_exec) it uses the underlying isolation
 primitives of the operating system to limit the task's access to resources. While
 simple, since the `exec` driver can invoke any command, it can be used to call
 scripts or other wrappers which provide higher level features.
@@ -32,7 +32,7 @@ The `exec` driver supports the following configuration in the job spec:
 
 - `command` - The command to execute. Must be provided. If executing a binary
   that exists on the host, the path must be absolute and within the task's
-  [chroot](exec#chroot). If executing a binary that is downloaded from
+  [chroot](#chroot). If executing a binary that is downloaded from
   an [`artifact`](/docs/job-specification/artifact), the path can be
   relative from the allocations's root directory.
 

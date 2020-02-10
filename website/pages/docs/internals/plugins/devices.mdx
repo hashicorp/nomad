@@ -32,7 +32,7 @@ A device plugin is long-lived. Nomad will ensure that one instance of the plugin
 running. If the plugin crashes or otherwise terminates, Nomad will launch another
 instance of it.
 
-However, unlike [task drivers](task-drivers), device plugins do not currently
+However, unlike [task drivers](/docs/internals/plugins/task-drivers), device plugins do not currently
 have an interface for persisting state to the Nomad client. Instead, the device
 plugin API emphasizes fingerprinting devices and reporting their status. After
 helping to provision a task with a scheduled device, a device plugin does not
