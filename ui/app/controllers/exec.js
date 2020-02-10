@@ -1,6 +1,8 @@
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
 import { Terminal } from 'xterm';
+import base64js from 'base64-js';
+import { TextDecoderLite, TextEncoderLite } from 'text-encoder-lite';
 
 export default Controller.extend({
   sockets: service(),
@@ -67,7 +69,7 @@ export default Controller.extend({
 
     this.socket.onmessage = e => {
       const json = JSON.parse(e.data);
-      this.terminal.write(atob(json.stdout.data));
+      this.terminal.write(decodeString(json.stdout.data));
     };
 
     this.socket.onclose = e => {
@@ -95,6 +97,17 @@ export default Controller.extend({
   },
 
   handleSocketKeyEvent(e) {
-    this.socket.send(JSON.stringify({ stdin: { data: btoa(e.key) } }));
+    this.socket.send(JSON.stringify({ stdin: { data: encodeString(e.key) } }));
+    // FIXME this is untested, difficult with restriction on simulating key events
   },
 });
+
+function encodeString(string) {
+  var encoded = new TextEncoderLite('utf-8').encode(string);
+  return base64js.fromByteArray(encoded);
+}
+
+function decodeString(b64String) {
+  var uint8array = base64js.toByteArray(b64String);
+  return new TextDecoderLite('utf-8').decode(uint8array);
+}

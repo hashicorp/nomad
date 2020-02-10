@@ -199,7 +199,7 @@ module('Acceptance | exec', function(hooks) {
     assert.verifySteps(['Socket built']);
 
     mockSocket.onmessage({
-      data: `{"stdout":{"data":"${btoa('sh-3.2$')}"}}`,
+      data: `{"stdout":{"data":"c2gtMy4yIPCfpbMk"}}`,
     });
 
     await settled();
@@ -209,7 +209,7 @@ module('Acceptance | exec', function(hooks) {
         .getLine(5)
         .translateToString()
         .trim(),
-      'sh-3.2$'
+      'sh-3.2 🥳$'
     );
 
     await Exec.terminal.pressEnter();
