@@ -40,6 +40,7 @@
     "stringify-object": "^3.3.0"
   },
   "devDependencies": {
+    "dart-linkcheck": "^2.0.12",
     "glob": "^7.1.6",
     "husky": "^4.2.1",
     "inquirer": "^7.0.4",
@@ -59,6 +60,7 @@
     "generate:component": "next-hashicorp generate component",
     "lint": "next-hashicorp lint",
     "start": "rm -rf .next/cache/next-babel-loader/ && next dev",
-    "static": "npm run build && npm run export && cp _redirects out/."
+    "static": "npm run build && npm run export && cp _redirects out/.",
+    "linkcheck": "linkcheck https://www.nomadproject.io"
   }
 }
