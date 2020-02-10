@@ -431,6 +431,20 @@ type CSIVolumeClaimRequest struct {
 }
 
 type CSIVolumeClaimResponse struct {
+	// Opaque static publish properties of the volume. SP MAY use this
+	// field to ensure subsequent `NodeStageVolume` or `NodePublishVolume`
+	// calls calls have contextual information.
+	// The contents of this field SHALL be opaque to nomad.
+	// The contents of this field SHALL NOT be mutable.
+	// The contents of this field SHALL be safe for the nomad to cache.
+	// The contents of this field SHOULD NOT contain sensitive
+	// information.
+	// The contents of this field SHOULD NOT be used for uniquely
+	// identifying a volume. The `volume_id` alone SHOULD be sufficient to
+	// identify the volume.
+	// This field is OPTIONAL and when present MUST be passed to
+	// `NodeStageVolume` or `NodePublishVolume` calls on the client
+	PublishContext map[string]string
 	QueryMeta
 }
 
