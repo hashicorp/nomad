@@ -34,6 +34,7 @@ BUG FIXES:
  * server: Fixed a deadlock that may occur when server leadership flaps very quickly [[GH-6977](https://github.com/hashicorp/nomad/issues/6977)]
  * scheduler: Fixed a bug that caused evicted allocs on a lost node to be stuck in running [[GH-6902](https://github.com/hashicorp/nomad/issues/6902)]
  * scheduler: Fixed a bug where `nomad job plan/apply` returned errors instead of ignoring system job updates for ineligible nodes. [[GH-6996](https://github.com/hashicorp/nomad/issues/6996)]
+ * scheduler: Reverted a change to the scheduler that caused spread/affinity updates to re-create all allocs. [[GH-6703](https://github.com/hashicorp/nomad/issues/6703)]
 
 ## 0.10.3 (January 29, 2020)
 
