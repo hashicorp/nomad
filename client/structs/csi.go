@@ -75,3 +75,28 @@ type ClientCSIControllerAttachVolumeResponse struct {
 	// subsequent `NodeStageVolume` or `NodePublishVolume` calls
 	PublishContext map[string]string
 }
+
+type ClientCSIControllerDetachVolumeRequest struct {
+	PluginName string
+
+	// The ID of the volume to be unpublished for the node
+	// This field is REQUIRED.
+	VolumeID string
+
+	// The ID of the node. This field is REQUIRED. This must match the NodeID that
+	// is fingerprinted by the target node for this plugin name.
+	NodeID string
+}
+
+func (c *ClientCSIControllerDetachVolumeRequest) ToCSIRequest() *csi.ControllerUnpublishVolumeRequest {
+	if c == nil {
+		return &csi.ControllerUnpublishVolumeRequest{}
+	}
+
+	return &csi.ControllerUnpublishVolumeRequest{
+		VolumeID: c.VolumeID,
+		NodeID:   c.NodeID,
+	}
+}
+
+type ClientCSIControllerDetachVolumeResponse struct{}
