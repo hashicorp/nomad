@@ -84,7 +84,7 @@ export default Controller.extend({
     if (e.domEvent.key === 'Enter') {
       this.openAndConnectSocket();
       this.terminal.writeln('');
-      this.socketOpen = true;
+      this.set('socketOpen', true);
     } else if (e.domEvent.key === 'Backspace') {
       if (this.command.length > 0) {
         this.terminal.write('\b \b');

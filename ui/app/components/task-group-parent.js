@@ -30,5 +30,14 @@ export default Component.extend({
     toggleOpen() {
       this.toggleProperty('clickedOpen');
     },
+
+    openInNewWindow(job, taskGroup, task) {
+      // FIXME any way to construct this path via the router?
+      window.open(
+        `/ui/exec/${job.name}/${taskGroup.name}/${task.name}`,
+        '_blank',
+        'width=973,height=490,location=1'
+      );
+    },
   },
 });

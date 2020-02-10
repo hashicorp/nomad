@@ -6,13 +6,23 @@
   <ul class="task-list">
     {{#each taskGroup.tasks as |task|}}
       {{!-- FIXME this needs to include namespace etc query parameters AND be blocked for wrong allocations etc --}}
-      {{#link-to "exec.task-group.task" taskGroup.job.name taskGroup.name task.name class="task-item" data-test-task=true}}
-        <div class="border-and-label">
-          <div class="border"></div>
-          <div class="task-label">{{task.name}}</div>
-        </div>
-        {{x-icon "exit"}}
-      {{/link-to}}
+      {{!-- also this should be when a task has been chosen, not when the socket is open… right? or…? --}}
+      {{#if openInNewWindow}}
+        <a {{on "click" (action "openInNewWindow" taskGroup.job taskGroup task)}} class="task-item" data-test-task>
+          <div class="border-and-label">
+            <div class="border"></div>
+            <div class="task-label">{{task.name}}</div>
+          </div>
+          {{x-icon "exit"}}
+        </a>
+      {{else}}
+        {{#link-to "exec.task-group.task" taskGroup.job.name taskGroup.name task.name class="task-item" data-test-task=true}}
+          <div class="border-and-label">
+            <div class="border"></div>
+            <div class="task-label">{{task.name}}</div>
+          </div>
+        {{/link-to}}
+      {{/if}}
     {{/each}}
   </ul>
 {{/if}}
