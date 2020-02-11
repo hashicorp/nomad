@@ -120,6 +120,10 @@ type allocRunner struct {
 	// transistions.
 	runnerHooks []interfaces.RunnerHook
 
+	// hookState is the output of allocrunner hooks
+	hookState   *cstructs.AllocHookResources
+	hookStateMu sync.RWMutex
+
 	// tasks are the set of task runners
 	tasks map[string]*taskrunner.TaskRunner
 
