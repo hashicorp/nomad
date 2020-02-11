@@ -457,61 +457,6 @@ func networkPortMap(n *structs.NetworkResource) map[string]int {
 	return m
 }
 
-func affinitiesUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
-	var aAffinities []*structs.Affinity
-	var bAffinities []*structs.Affinity
-
-	tgA := jobA.LookupTaskGroup(taskGroup)
-	tgB := jobB.LookupTaskGroup(taskGroup)
-
-	// Append jobA job and task group level affinities
-	aAffinities = append(aAffinities, jobA.Affinities...)
-	aAffinities = append(aAffinities, tgA.Affinities...)
-
-	// Append jobB job and task group level affinities
-	bAffinities = append(bAffinities, jobB.Affinities...)
-	bAffinities = append(bAffinities, tgB.Affinities...)
-
-	// append task affinities
-	for _, task := range tgA.Tasks {
-		aAffinities = append(aAffinities, task.Affinities...)
-	}
-
-	for _, task := range tgB.Tasks {
-		bAffinities = append(bAffinities, task.Affinities...)
-	}
-
-	// Check for equality
-	if len(aAffinities) != len(bAffinities) {
-		return true
-	}
-
-	return !reflect.DeepEqual(aAffinities, bAffinities)
-}
-
-func spreadsUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
-	var aSpreads []*structs.Spread
-	var bSpreads []*structs.Spread
-
-	tgA := jobA.LookupTaskGroup(taskGroup)
-	tgB := jobB.LookupTaskGroup(taskGroup)
-
-	// append jobA and task group level spreads
-	aSpreads = append(aSpreads, jobA.Spreads...)
-	aSpreads = append(aSpreads, tgA.Spreads...)
-
-	// append jobB and task group level spreads
-	bSpreads = append(bSpreads, jobB.Spreads...)
-	bSpreads = append(bSpreads, tgB.Spreads...)
-
-	// Check for equality
-	if len(aSpreads) != len(bSpreads) {
-		return true
-	}
-
-	return !reflect.DeepEqual(aSpreads, bSpreads)
-}
-
 // setStatus is used to update the status of the evaluation
 func setStatus(logger log.Logger, planner Planner,
 	eval, nextEval, spawnedBlocked *structs.Evaluation,
