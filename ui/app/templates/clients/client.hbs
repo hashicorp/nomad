@@ -361,6 +361,28 @@
     </div>
   </div>
 
+  <div data-test-client-host-volumes class="boxed-section">
+    <div class="boxed-section-head">
+      Host Volumes
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      {{#list-table source=sortedHostVolumes class="is-striped" as |t|}}
+        {{#t.head}}
+          <th>Name</th>
+          <th>Source</th>
+          <th>Mode</th>
+        {{/t.head}}
+        {{#t.body as |row|}}
+          <tr data-test-client-host-volume>
+            <td>{{row.model.name}}</td>
+            <td><code>{{row.model.path}}</code></td>
+            <td>{{if row.model.readOnly "read" "read/write"}}</td>
+          </tr>
+        {{/t.body}}
+      {{/list-table}}
+    </div>
+  </div>
+
   <div data-test-driver-status class="boxed-section">
     <div class="boxed-section-head">
       Driver Status

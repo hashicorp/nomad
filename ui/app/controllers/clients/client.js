@@ -62,6 +62,10 @@ export default Controller.extend(Sortable, Searchable, {
     return this.get('model.drivers').sortBy('name');
   }),
 
+  sortedHostVolumes: computed('model.hostVolumes.@each.name', function() {
+    return this.model.hostVolumes.sortBy('name');
+  }),
+
   setEligibility: task(function*(value) {
     try {
       yield value ? this.model.setEligible() : this.model.setIneligible();
