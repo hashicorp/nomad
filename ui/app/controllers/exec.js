@@ -76,6 +76,8 @@ export default Controller.extend({
       this.terminal.writeln('');
       this.terminal.write('\x1b[38;2;142;150;163m');
       this.terminal.writeln('The connection has closed.');
+      // eslint-disable-next-line
+      console.log('Socket close event', e);
       // FIXME interpret different close events
     };
   },
