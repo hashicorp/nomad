@@ -156,6 +156,15 @@ type allocRunner struct {
 	// servers have been contacted for the first time in case of a failed
 	// restore.
 	serversContactedCh chan struct{}
+
+	// rpcClient is the RPC Client that should be used by the allocrunner and its
+	// hooks to communicate with Nomad Servers.
+	rpcClient RPCer
+}
+
+// RPCer is the interface needed by hooks to make RPC calls.
+type RPCer interface {
+	RPC(method string, args interface{}, reply interface{}) error
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -191,6 +200,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		devicemanager:            config.DeviceManager,
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
+		rpcClient:                config.RPCClient,
 	}
 
 	// Create the logger based on the allocation ID

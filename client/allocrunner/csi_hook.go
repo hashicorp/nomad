@@ -10,8 +10,9 @@ import (
 //
 // It is a noop for allocs that do not depend on CSI Volumes.
 type csiHook struct {
-	alloc  *structs.Allocation
-	logger hclog.Logger
+	alloc     *structs.Allocation
+	logger    hclog.Logger
+	rpcClient RPCer
 }
 
 func (c *csiHook) Name() string {
@@ -27,10 +28,11 @@ func (c *csiHook) Prerun() error {
 	return nil
 }
 
-func newCSIHook(logger hclog.Logger, alloc *structs.Allocation) *csiHook {
+func newCSIHook(logger hclog.Logger, alloc *structs.Allocation, rpcClient RPCer) *csiHook {
 	return &csiHook{
-		alloc:  alloc,
-		logger: logger.Named("csi_hook"),
+		alloc:     alloc,
+		logger:    logger.Named("csi_hook"),
+		rpcClient: rpcClient,
 	}
 }
 
