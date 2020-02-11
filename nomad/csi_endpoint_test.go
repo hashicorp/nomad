@@ -24,6 +24,49 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 	ns := structs.DefaultNamespace
 
 	state := srv.fsm.State()
+
+	codec := rpcClient(t, srv)
+
+	id0 := uuid.Generate()
+
+	// Create the volume
+	vols := []*structs.CSIVolume{{
+		ID:             id0,
+		Namespace:      ns,
+		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		PluginID:       "minnie",
+	}}
+	err := state.CSIVolumeRegister(999, vols)
+	require.NoError(t, err)
+
+	// Create the register request
+	req := &structs.CSIVolumeGetRequest{
+		ID: id0,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: ns,
+		},
+	}
+
+	var resp structs.CSIVolumeGetResponse
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req, &resp)
+	require.NoError(t, err)
+	require.Equal(t, uint64(999), resp.Index)
+	require.Equal(t, vols[0].ID, resp.Volume.ID)
+}
+
+func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
+	t.Parallel()
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	ns := structs.DefaultNamespace
+
+	state := srv.fsm.State()
 	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
 	srv.config.ACLEnabled = true
 	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIAccess})
