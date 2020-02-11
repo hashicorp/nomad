@@ -13,6 +13,10 @@ export default function DownloadsPage({ downloadData }) {
         product="Nomad"
         version={VERSION}
         downloads={downloadData}
+        releaseCandidate={{
+          name: '0.10.4',
+          version: '0.10.4-rc1'
+        }}
       />
     </div>
   )
