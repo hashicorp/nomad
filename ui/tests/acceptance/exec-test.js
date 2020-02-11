@@ -202,7 +202,7 @@ module('Acceptance | exec', function(hooks) {
     assert.verifySteps(['Socket built']);
 
     mockSocket.onmessage({
-      data: `{"stdout":{"data":"c2gtMy4yIPCfpbMk"}}`,
+      data: '{"stdout":{"data":"c2gtMy4yIPCfpbMk"}}',
     });
 
     await settled();
