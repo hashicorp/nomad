@@ -281,6 +281,8 @@ func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) bool {
 		return v.ClaimWrite(alloc)
 	case CSIVolumeClaimRelease:
 		return v.ClaimRelease(alloc)
+	case CSIVolumeClaimGC:
+		return v.ClaimGC(alloc)
 	}
 	return false
 }
@@ -321,11 +323,12 @@ func (v *CSIVolume) ClaimRelease(alloc *Allocation) bool {
 	return true
 }
 
-// GCAlloc is called on Allocation gc, by following the alloc's pointer back to the volume
-func (v *CSIVolume) GCAlloc(alloc *Allocation) {
+// ClaimGC is called on Allocation gc, by following the alloc's pointer back to the volume
+func (v *CSIVolume) ClaimGC(alloc *Allocation) bool {
 	delete(v.ReadAllocs, alloc.ID)
 	delete(v.WriteAllocs, alloc.ID)
 	delete(v.PastAllocs, alloc.ID)
+	return true
 }
 
 // Equality by value
@@ -423,6 +426,7 @@ const (
 	CSIVolumeClaimRead CSIVolumeClaimMode = iota
 	CSIVolumeClaimWrite
 	CSIVolumeClaimRelease
+	CSIVolumeClaimGC
 )
 
 type CSIVolumeClaimRequest struct {

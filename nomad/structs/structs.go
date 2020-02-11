@@ -8557,10 +8557,10 @@ const (
 	// check if they are terminal. If so, we delete these out of the system.
 	CoreJobDeploymentGC = "deployment-gc"
 
-	// CoreJobCSIVolumePublicationGC is use for the garbage collection of CSI
-	// volume publications. We periodically scan volumes to see if no allocs are
-	// claiming them. If so, we unpublish the volume.
-	CoreJobCSIVolumePublicationGC = "csi-volume-publication-gc"
+	// CoreJobCSIVolumeClaimGC is use for the garbage collection of CSI
+	// volume claims. We periodically scan volumes to see if no allocs are
+	// claiming them. If so, we unclaim the volume.
+	CoreJobCSIVolumeClaimGC = "csi-volume-claim-gc"
 
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"
