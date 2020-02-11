@@ -15,6 +15,22 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.10.4
+
+### Same-Node Scheduling Penalty Removed
+
+Nomad 0.10.4 includes a fix to the scheduler that removes the
+same-node penalty for allocations that have not previously failed. In
+earlier versions of Nomad, the node where an allocation was running
+was penalized from receiving updated versions of that allocation,
+resulting in a higher chance of the allocation being placed on a new
+node. This was changed so that the penalty only applies to nodes where
+the previous allocation has failed or been rescheduled, to reduce the
+risk of correlated failures on a host. Scheduling weighs a number of
+factors, but this change should reduce movement of allocations that
+are being updated from a healthy state. You can view the placement
+metrics for an allocation with `nomad alloc status -verbose`.
+
 ## Nomad 0.10.3
 
 ### mTLS Certificate Validation
