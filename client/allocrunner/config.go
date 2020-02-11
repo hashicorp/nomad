@@ -68,4 +68,8 @@ type Config struct {
 	// ServersContactedCh is closed when the first GetClientAllocs call to
 	// servers succeeds and allocs are synced.
 	ServersContactedCh chan struct{}
+
+	// RPCClient is the RPC Client that should be used by the allocrunner and its
+	// hooks to communicate with Nomad Servers.
+	RPCClient RPCer
 }
