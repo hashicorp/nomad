@@ -77,6 +77,13 @@ export default create({
     message: text('[data-test-client-event-message]'),
   }),
 
+  hasHostVolumes: isPresent('[data-test-client-host-volumes'),
+  hostVolumes: collection('[data-test-client-host-volume]', {
+    name: text('[data-test-name]'),
+    path: text('[data-test-path]'),
+    permissions: text('[data-test-permissions]'),
+  }),
+
   driverHeads: collection('[data-test-driver-status] [data-test-accordion-head]', {
     name: text('[data-test-name]'),
     detected: text('[data-test-detected]'),

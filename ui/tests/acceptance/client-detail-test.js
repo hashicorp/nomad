@@ -900,6 +900,36 @@ module('Acceptance | client detail', function(hooks) {
     assert.ok(ClientDetail.eligibilityToggle.isDisabled);
     assert.ok(ClientDetail.drainPopover.isDisabled);
   });
+
+  test('the host volumes table lists all host volumes in alphabetical order by name', async function(assert) {
+    await ClientDetail.visit({ id: node.id });
+
+    assert.ok(ClientDetail.hasHostVolumes);
+    assert.equal(ClientDetail.hostVolumes.length, Object.keys(node.hostVolumes).length);
+  });
+
+  test('each host volume row contains information about the host volume', async function(assert) {
+    await ClientDetail.visit({ id: node.id });
+
+    const sortedHostVolumes = Object.keys(node.hostVolumes)
+      .map(key => node.hostVolumes[key])
+      .sortBy('Name');
+
+    ClientDetail.hostVolumes[0].as(volume => {
+      const volumeRow = sortedHostVolumes[0];
+      assert.equal(volume.name, volumeRow.Name);
+      assert.equal(volume.path, volumeRow.Path);
+      assert.equal(volume.permissions, volumeRow.ReadOnly ? 'Read' : 'Read/Write');
+    });
+  });
+
+  test('the host volumes table is not shown if the client has no host volumes', async function(assert) {
+    node = server.create('node', 'noHostVolumes');
+
+    await ClientDetail.visit({ id: node.id });
+
+    assert.notOk(ClientDetail.hasHostVolumes);
+  });
 });
 
 module('Acceptance | client detail (multi-namespace)', function(hooks) {

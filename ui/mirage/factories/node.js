@@ -64,9 +64,15 @@ export default Factory.extend({
     },
   }),
 
+  noHostVolumes: trait({
+    hostVolumes: () => ({}),
+  }),
+
   drainStrategy: null,
 
   drivers: makeDrivers,
+
+  hostVolumes: makeHostVolumes(),
 
   resources: generateResources,
 
@@ -156,4 +162,18 @@ function makeDrivers() {
     raw_exec: generate('raw_exec'),
     java: generate('java'),
   };
+}
+
+function makeHostVolumes() {
+  const generate = () => ({
+    Name: faker.internet.domainWord(),
+    Path: `/${faker.internet.userName()}/${faker.internet.domainWord()}/${faker.internet.color()}`,
+    ReadOnly: faker.random.boolean(),
+  });
+
+  const volumes = provide(faker.random.number(5), generate);
+  return volumes.reduce((hash, volume) => {
+    hash[volume.Name] = volume;
+    return hash;
+  }, {});
 }
