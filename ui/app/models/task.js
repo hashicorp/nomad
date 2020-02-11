@@ -1,5 +1,6 @@
 import attr from 'ember-data/attr';
 import Fragment from 'ember-data-model-fragments/fragment';
+import { fragmentArray } from 'ember-data-model-fragments/attributes';
 
 export default Fragment.extend({
   name: attr('string'),
@@ -10,4 +11,6 @@ export default Fragment.extend({
   reservedCPU: attr('number'),
   reservedDisk: attr('number'),
   reservedEphemeralDisk: attr('number'),
+
+  volumeMounts: fragmentArray('volume-mount', { defaultValue: () => [] }),
 });

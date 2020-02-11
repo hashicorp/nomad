@@ -11,11 +11,14 @@ export default ApplicationSerializer.extend({
   },
 
   normalize(modelClass, hash) {
-    // Transform the map-based Drivers object into an array-based NodeDriver fragment list
+    // Transform map-based objects into an array-based fragment lists
     const drivers = hash.Drivers || {};
     hash.Drivers = Object.keys(drivers).map(key => {
       return assign({}, drivers[key], { Name: key });
     });
+
+    const hostVolumes = hash.HostVolumes || {};
+    hash.HostVolumes = Object.keys(hostVolumes).map(key => hostVolumes[key]);
 
     return this._super(modelClass, hash);
   },

@@ -104,6 +104,7 @@ module('Unit | Serializer | Node', function(hooks) {
                 healthy: false,
               },
             ],
+            hostVolumes: [],
           },
           relationships: {
             allocations: {
@@ -152,6 +153,7 @@ module('Unit | Serializer | Node', function(hooks) {
                 healthy: false,
               },
             ],
+            hostVolumes: [],
           },
           relationships: {
             allocations: {
