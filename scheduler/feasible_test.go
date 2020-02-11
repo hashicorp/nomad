@@ -293,10 +293,15 @@ func TestCSIVolumeChecker(t *testing.T) {
 	noVolumes := map[string]*structs.VolumeRequest{}
 
 	volumes := map[string]*structs.VolumeRequest{
-		"foo": {
+		"baz": {
 			Type:   "csi",
-			Name:   "foo",
+			Name:   "baz",
 			Source: "volume-id",
+		},
+		"nonsense": {
+			Type:   "host",
+			Name:   "nonsense",
+			Source: "my-host-volume",
 		},
 	}
 

@@ -749,8 +749,9 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	if l := len(taskGroup.Volumes); l != 0 {
 		tg.Volumes = make(map[string]*structs.VolumeRequest, l)
 		for k, v := range taskGroup.Volumes {
-			if v.Type != structs.VolumeTypeHost {
-				// Ignore non-host volumes in this iteration currently.
+			if v.Type != structs.VolumeTypeHost && v.Type != structs.VolumeTypeCSI {
+				// Ignore volumes we don't understand in this iteration currently.
+				// - This is because we don't currently have a way to return errors here.
 				continue
 			}
 

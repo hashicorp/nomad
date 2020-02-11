@@ -125,7 +125,6 @@ func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 // SetVolumes takes the volumes required by a task group and updates the checker.
 func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
 	lookupMap := make(map[string][]*structs.VolumeRequest)
-
 	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
 	// lookup performance. Also filter non-host volumes.
 	for _, req := range volumes {
@@ -197,7 +196,16 @@ func NewCSIVolumeChecker(ctx Context) *CSIVolumeChecker {
 }
 
 func (c *CSIVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
-	c.volumes = volumes
+	xs := make(map[string]*structs.VolumeRequest)
+	// Filter to only CSI Volumes
+	for alias, req := range volumes {
+		if req.Type != structs.VolumeTypeCSI {
+			continue
+		}
+
+		xs[alias] = req
+	}
+	c.volumes = xs
 }
 
 func (c *CSIVolumeChecker) Feasible(n *structs.Node) bool {
@@ -222,17 +230,16 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) bool {
 
 	ws := memdb.NewWatchSet()
 	for _, req := range c.volumes {
-		// Check that this node has a healthy running plugin with the right PluginID
-		plugin, ok := n.CSINodePlugins[req.Name]
-		if !(ok && plugin.Healthy) {
-			return false
-		}
-
 		// Get the volume to check that it's healthy (there's a healthy controller
 		// and the volume hasn't encountered an error or been marked for GC
 		vol, err := c.ctx.State().CSIVolumeByID(ws, req.Source)
-
 		if err != nil || vol == nil {
+			return false
+		}
+
+		// Check that this node has a healthy running plugin with the right PluginID
+		plugin, ok := n.CSINodePlugins[vol.PluginID]
+		if !(ok && plugin.Healthy) {
 			return false
 		}
 
