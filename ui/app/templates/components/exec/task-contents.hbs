@@ -1,0 +1,12 @@
+<div class="border-and-label">
+  <div class="border"></div>
+  <div class="task-label">{{task.name}}</div>
+  {{#if active}}
+    <svg width="20" height="20" class="active" data-test-task-active>
+      <circle cx="10" cy="10" r="6" />
+    </svg>
+  {{/if}}
+</div>
+{{#if openInNewWindow}}
+  {{x-icon "exit"}}
+{{/if}}
