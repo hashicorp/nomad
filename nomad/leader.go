@@ -53,6 +53,8 @@ func (s *Server) monitorLeadership() {
 	var weAreLeaderCh chan struct{}
 	var leaderLoop sync.WaitGroup
 
+	leaderCh := s.raft.LeaderCh()
+
 	leaderStep := func(isLeader bool) {
 		if isLeader {
 			if weAreLeaderCh != nil {
@@ -85,7 +87,7 @@ func (s *Server) monitorLeadership() {
 	wasLeader := false
 	for {
 		select {
-		case isLeader := <-s.leaderCh:
+		case isLeader := <-leaderCh:
 			if wasLeader != isLeader {
 				wasLeader = isLeader
 				// normal case where we went through a transition

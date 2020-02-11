@@ -87,8 +87,6 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	}
 
 	// Enable raft as leader if we have bootstrap on
-	config.RaftConfig.StartAsLeader = !config.DevDisableBootstrap
-
 	catalog := consul.NewMockCatalog(config.Logger)
 
 	acls := consul.NewMockACLsAPI(config.Logger)
