@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -21,20 +20,24 @@ type CSIVolume struct {
 
 // QueryACLObj looks up the ACL token in the request and returns the acl.ACL object
 // - fallback to node secret ids
-func (srv *Server) QueryACLObj(args *structs.QueryOptions) (*acl.ACL, error) {
-	if args.AuthToken == "" {
-		return nil, fmt.Errorf("authorization required")
-	}
-
+func (srv *Server) QueryACLObj(args *structs.QueryOptions, allowNodeAccess bool) (*acl.ACL, error) {
 	// Lookup the token
 	aclObj, err := srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		// If ResolveToken had an unexpected error return that
-		return nil, err
-	}
+		if !structs.IsErrTokenNotFound(err) {
+			return nil, err
+		}
 
-	if aclObj == nil {
+		// If we don't allow access to this endpoint from Nodes, then return token
+		// not found.
+		if !allowNodeAccess {
+			return nil, structs.ErrTokenNotFound
+		}
+
 		ws := memdb.NewWatchSet()
+		// Attempt to lookup AuthToken as a Node.SecretID since nodes may call
+		// call this endpoint and don't have an ACL token.
 		node, stateErr := srv.fsm.State().NodeBySecretID(ws, args.AuthToken)
 		if stateErr != nil {
 			// Return the original ResolveToken error with this err
@@ -43,22 +46,24 @@ func (srv *Server) QueryACLObj(args *structs.QueryOptions) (*acl.ACL, error) {
 			return nil, merr.ErrorOrNil()
 		}
 
+		// We did not find a Node for this ID, so return Token Not Found.
 		if node == nil {
 			return nil, structs.ErrTokenNotFound
 		}
 	}
 
+	// Return either the users aclObj, or nil if ACLs are disabled.
 	return aclObj, nil
 }
 
 // WriteACLObj calls QueryACLObj for a WriteRequest
-func (srv *Server) WriteACLObj(args *structs.WriteRequest) (*acl.ACL, error) {
+func (srv *Server) WriteACLObj(args *structs.WriteRequest, allowNodeAccess bool) (*acl.ACL, error) {
 	opts := &structs.QueryOptions{
 		Region:    args.RequestRegion(),
 		Namespace: args.RequestNamespace(),
 		AuthToken: args.AuthToken,
 	}
-	return srv.QueryACLObj(opts)
+	return srv.QueryACLObj(opts, allowNodeAccess)
 }
 
 const (
@@ -87,7 +92,8 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 		return err
 	}
 
-	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions)
+	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIAccess)
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
 	if err != nil {
 		return err
 	}
@@ -138,7 +144,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 				// Cache ACL checks QUESTION: are they expensive?
 				allowed, ok := cache[vol.Namespace]
 				if !ok {
-					allowed = aclObj.AllowNsOp(vol.Namespace, acl.NamespaceCapabilityCSIAccess)
+					allowed = allowCSIAccess(aclObj, vol.Namespace)
 					cache[vol.Namespace] = allowed
 				}
 
@@ -158,12 +164,13 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 		return err
 	}
 
-	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions)
+	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIAccess)
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, true)
 	if err != nil {
 		return err
 	}
 
-	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityCSIAccess) {
+	if !allowCSIAccess(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -198,7 +205,8 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		return err
 	}
 
-	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest)
+	allowCSIVolumeManagement := acl.NamespaceValidator(acl.NamespaceCapabilityCSICreateVolume)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
 	if err != nil {
 		return err
 	}
@@ -206,7 +214,7 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "volume", "register"}, metricsStart)
 
-	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityCSICreateVolume) {
+	if !allowCSIVolumeManagement(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -238,7 +246,8 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 		return err
 	}
 
-	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest)
+	allowCSIVolumeManagement := acl.NamespaceValidator(acl.NamespaceCapabilityCSICreateVolume)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
 	if err != nil {
 		return err
 	}
@@ -247,7 +256,7 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 	defer metrics.MeasureSince([]string{"nomad", "volume", "deregister"}, metricsStart)
 
 	ns := args.RequestNamespace()
-	if !aclObj.AllowNsOp(ns, acl.NamespaceCapabilityCSICreateVolume) {
+	if !allowCSIVolumeManagement(aclObj, ns) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -271,7 +280,8 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		return err
 	}
 
-	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest)
+	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIAccess)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, true)
 	if err != nil {
 		return err
 	}
@@ -279,7 +289,7 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "volume", "claim"}, metricsStart)
 
-	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityCSIAccess) {
+	if !allowCSIAccess(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -309,12 +319,13 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 		return err
 	}
 
-	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions)
+	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIAccess)
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
 	if err != nil {
 		return err
 	}
 
-	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityCSIAccess) {
+	if !allowCSIAccess(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -358,12 +369,13 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 		return err
 	}
 
-	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions)
+	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIAccess)
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
 	if err != nil {
 		return err
 	}
 
-	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityCSIAccess) {
+	if !allowCSIAccess(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
 
