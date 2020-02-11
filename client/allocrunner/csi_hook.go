@@ -18,6 +18,7 @@ type csiHook struct {
 	logger     hclog.Logger
 	csimanager csimanager.Manager
 	rpcClient  RPCer
+	updater    hookResourceSetter
 }
 
 func (c *csiHook) Name() string {
@@ -50,7 +51,9 @@ func (c *csiHook) Prerun() error {
 		mounts[alias] = mountInfo
 	}
 
-	// TODO: Propagate mounts back to the tasks.
+	res := c.updater.GetAllocHookResources()
+	res.CSIMounts = mounts
+	c.updater.SetAllocHookResources(res)
 
 	return nil
 }
@@ -91,12 +94,13 @@ func (c *csiHook) csiVolumesFromAlloc() (map[string]*structs.CSIVolume, error) {
 	return csiVols, nil
 }
 
-func newCSIHook(logger hclog.Logger, alloc *structs.Allocation, rpcClient RPCer, csi csimanager.Manager) *csiHook {
+func newCSIHook(logger hclog.Logger, alloc *structs.Allocation, rpcClient RPCer, csi csimanager.Manager, updater hookResourceSetter) *csiHook {
 	return &csiHook{
 		alloc:      alloc,
 		logger:     logger.Named("csi_hook"),
 		rpcClient:  rpcClient,
 		csimanager: csi,
+		updater:    updater,
 	}
 }
 

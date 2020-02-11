@@ -220,6 +220,8 @@ type TaskRunner struct {
 
 	networkIsolationLock sync.Mutex
 	networkIsolationSpec *drivers.NetworkIsolationSpec
+
+	allocHookResources *cstructs.AllocHookResources
 }
 
 type Config struct {
@@ -1407,4 +1409,8 @@ func (tr *TaskRunner) TaskExecHandler() drivermanager.TaskExecHandler {
 
 func (tr *TaskRunner) DriverCapabilities() (*drivers.Capabilities, error) {
 	return tr.driver.Capabilities()
+}
+
+func (tr *TaskRunner) SetAllocHookResources(res *cstructs.AllocHookResources) {
+	tr.allocHookResources = res
 }
