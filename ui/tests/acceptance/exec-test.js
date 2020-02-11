@@ -52,6 +52,7 @@ module('Acceptance | exec', function(hooks) {
 
     await Exec.taskGroups[0].click();
     assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
+    assert.notOk(Exec.taskGroups[0].tasks[0].isActive);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
 
     await Exec.taskGroups[0].click();
@@ -100,6 +101,7 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.equal(currentURL(), `/exec/${this.job.id}/${taskGroup.name}/${task.name}`);
+    assert.ok(Exec.taskGroups[0].tasks[0].isActive);
 
     assert.equal(
       window.execTerminal.buffer

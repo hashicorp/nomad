@@ -3,6 +3,7 @@ import {
   collection,
   create,
   hasClass,
+  isPresent,
   text,
   triggerable,
   visitable,
@@ -31,6 +32,7 @@ export default create({
 
     tasks: collection('[data-test-task]', {
       name: text(),
+      isActive: isPresent('[data-test-task-active]'),
     }),
   }),
 

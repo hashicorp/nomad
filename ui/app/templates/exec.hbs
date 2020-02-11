@@ -36,7 +36,7 @@
     <ul>
       {{#each model.taskGroups as |taskGroup|}}
         <li data-test-task-group>
-          {{task-group-parent taskGroup=taskGroup openInNewWindow=socketOpen}}
+          {{task-group-parent taskGroup=taskGroup openInNewWindow=socketOpen activeTaskState=taskState}}
         </li>
       {{/each}}
     </ul>

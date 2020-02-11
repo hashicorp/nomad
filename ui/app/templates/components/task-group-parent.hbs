@@ -12,6 +12,11 @@
           <div class="border-and-label">
             <div class="border"></div>
             <div class="task-label">{{task.name}}</div>
+            {{#if (eq task activeTaskState.task)}}
+              <svg width="20" height="20" class="active" data-test-task-active>
+                <circle cx="10" cy="10" r="6" />
+              </svg>
+            {{/if}}
           </div>
           {{x-icon "exit"}}
         </a>
@@ -20,6 +25,11 @@
           <div class="border-and-label">
             <div class="border"></div>
             <div class="task-label">{{task.name}}</div>
+            {{#if (eq task activeTaskState.task)}}
+              <svg width="20" height="20" class="active" data-test-task-active>
+                <circle cx="10" cy="10" r="6" />
+              </svg>
+            {{/if}}
           </div>
         {{/link-to}}
       {{/if}}

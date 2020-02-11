@@ -27,7 +27,7 @@ export default Controller.extend({
 
   actions: {
     setTaskState({ allocationSpecified, taskState }) {
-      this.taskState = taskState;
+      this.set('taskState', taskState);
 
       this.terminal.writeln('');
 

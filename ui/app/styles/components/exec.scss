@@ -53,6 +53,7 @@
         display: flex;
         align-items: center;
         height: 100%;
+        position: relative;
       }
 
       .border {
@@ -60,6 +61,16 @@
         padding-right: 5px;
         border-left: 1px solid $ui-gray-700;
         height: 100%;
+      }
+
+      .active {
+        position: absolute;
+        top: 6.5px;
+        left: -9.75px;
+
+        stroke: $ui-gray-900;
+        stroke-width: 5px;
+        fill: white;
       }
 
       .task-label {
@@ -84,6 +95,10 @@
     &:hover {
       background-color: $ui-gray-800;
       border-radius: 4px;
+
+      .active {
+        stroke: $ui-gray-800;
+      }
     }
   }
 }
