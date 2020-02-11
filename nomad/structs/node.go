@@ -200,6 +200,20 @@ func (c *CSIInfo) Equal(o *CSIInfo) bool {
 	return reflect.DeepEqual(nc, no)
 }
 
+func (c *CSIInfo) IsController() bool {
+	if c == nil || c.ControllerInfo == nil {
+		return false
+	}
+	return true
+}
+
+func (c *CSIInfo) IsNode() bool {
+	if c == nil || c.NodeInfo == nil {
+		return false
+	}
+	return true
+}
+
 // DriverInfo is the current state of a single driver. This is updated
 // regularly as driver health changes on the node.
 type DriverInfo struct {
