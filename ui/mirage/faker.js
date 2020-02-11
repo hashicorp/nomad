@@ -11,6 +11,9 @@ if (config.environment !== 'test' || searchIncludesSeed) {
   } else {
     faker.seed(1);
   }
+} else {
+  // FIXME
+  faker.seed(3);
 }
 
 export default faker;
