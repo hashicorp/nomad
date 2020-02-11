@@ -134,7 +134,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			logger:         hookLogger,
 		}),
 		newConsulSockHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
-		newCSIHook(hookLogger, alloc, ar.rpcClient),
+		newCSIHook(hookLogger, alloc, ar.rpcClient, ar.csiManager),
 	}
 
 	return nil
