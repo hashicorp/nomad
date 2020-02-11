@@ -101,7 +101,6 @@ type Server struct {
 
 	// The raft instance is used among Nomad nodes within the
 	// region to protect operations that require strong consistency
-	leaderCh      <-chan bool
 	raft          *raft.Raft
 	raftLayer     *RaftLayer
 	raftStore     *raftboltdb.BoltStore
@@ -1173,8 +1172,7 @@ func (s *Server) setupRaft() error {
 	s.raftTransport = trans
 
 	// Make sure we set the Logger.
-	logger := s.logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true})
-	s.config.RaftConfig.Logger = logger
+	s.config.RaftConfig.Logger = s.logger.Named("raft")
 	s.config.RaftConfig.LogOutput = nil
 
 	// Our version of Raft protocol 2 requires the LocalID to match the network
@@ -1299,11 +1297,6 @@ func (s *Server) setupRaft() error {
 			}
 		}
 	}
-
-	// Setup the leader channel; that keeps the latest leadership alone
-	leaderCh := make(chan bool, 1)
-	s.config.RaftConfig.NotifyCh = leaderCh
-	s.leaderCh = dropButLastChannel(leaderCh, s.shutdownCh)
 
 	// Setup the Raft store
 	s.raft, err = raft.NewRaft(s.config.RaftConfig, s.fsm, log, stable, snap, trans)
