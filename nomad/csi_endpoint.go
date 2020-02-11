@@ -406,3 +406,17 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 		}}
 	return v.srv.blockingRPC(&opts)
 }
+
+// controllerPublishVolume sends publish request to the CSI controller
+// plugin associated with a volume, if any.
+func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, resp *structs.CSIVolumeClaimResponse) error {
+	// TODO(tgross): implement me!
+	return nil
+}
+
+// controllerUnpublishVolume sends an unpublish request to the CSI
+// controller plugin associated with a volume, if any.
+func (srv *Server) controllerUnpublishVolume(req *structs.CSIVolumeClaimRequest, nodeID string) error {
+	// TODO(tgross): implement me!
+	return nil
+}
