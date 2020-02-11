@@ -272,7 +272,7 @@
 		{"path":"github.com/hashicorp/logutils","checksumSHA1":"vt+P9D2yWDO3gdvdgCzwqunlhxU=","revision":"0dc08b1671f34c4250ce212759ebd880f743d883"},
 		{"path":"github.com/hashicorp/memberlist","checksumSHA1":"yAu2gPVXIh28yJ2If5gZPrf04kU=","revision":"1a62499c21db33d57691001d5e08a71ec857b18f","revisionTime":"2019-01-03T22:22:36Z"},
 		{"path":"github.com/hashicorp/net-rpc-msgpackrpc","checksumSHA1":"qnlqWJYV81ENr61SZk9c65R1mDo=","revision":"a14192a58a694c123d8fe5481d4a4727d6ae82f3"},
-		{"path":"github.com/hashicorp/raft","checksumSHA1":"ujL3Sc5iqc28/En2ndmc2R7oUQM=","revision":"9c733b2b7f53115c5ef261a90ce912a1bb49e970","revisionTime":"2019-01-04T13:37:20Z"},
+		{"path":"github.com/hashicorp/raft","checksumSHA1":"XF6VI1oc4g23vYbPC+7S962KAGI=","revision":"365023de17e6d480adc4f51f454477e7298bf8aa","revisionTime":"2020-02-11T19:22:30Z"},
 		{"path":"github.com/hashicorp/raft-boltdb","checksumSHA1":"QAxukkv54/iIvLfsUP6IK4R0m/A=","revision":"d1e82c1ec3f15ee991f7cc7ffd5b67ff6f5bbaee","revisionTime":"2015-02-01T20:08:39Z"},
 		{"path":"github.com/hashicorp/serf","checksumSHA1":"9omt7lEuhBNSdgT32ThEzXn/aTU=","revision":"c7f3bc96b40972e67dfbe007c1fa825cf59ac8c2","revisionTime":"2019-01-04T15:39:47Z"},
 		{"path":"github.com/hashicorp/serf/coordinate","checksumSHA1":"0PeWsO2aI+2PgVYlYlDPKfzCLEQ=","revision":"c7f3bc96b40972e67dfbe007c1fa825cf59ac8c2","revisionTime":"2019-01-04T15:39:47Z"},
