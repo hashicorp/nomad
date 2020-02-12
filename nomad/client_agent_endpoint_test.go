@@ -515,9 +515,7 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 	require := require.New(t)
 
 	// start server and client
-	s1, cleanup := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
-	})
+	s1, cleanup := TestServer(t, nil)
 	defer cleanup()
 
 	s2, cleanup := TestServer(t, func(c *Config) {
