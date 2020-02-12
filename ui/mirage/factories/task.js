@@ -8,6 +8,9 @@ export default Factory.extend({
   // Hidden property used to compute the Summary hash
   groupNames: [],
 
+  // Set in the TaskGroup factory
+  volumeMounts: [],
+
   JobID: '',
 
   name: id => `task-${faker.hacker.noun().dasherize()}-${id}`,

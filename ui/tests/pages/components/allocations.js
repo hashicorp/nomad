@@ -12,6 +12,7 @@ export default function(selector = '[data-test-allocation]', propKey = 'allocati
       taskGroup: text('[data-test-task-group]'),
       client: text('[data-test-client]'),
       jobVersion: text('[data-test-job-version]'),
+      volume: text('[data-test-volume]'),
       cpu: text('[data-test-cpu]'),
       cpuTooltip: attribute('aria-label', '[data-test-cpu] .tooltip'),
       mem: text('[data-test-mem]'),

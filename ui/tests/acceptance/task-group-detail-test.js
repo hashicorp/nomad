@@ -161,6 +161,11 @@ module('Acceptance | task group detail', function(hooks) {
       server.db.nodes.find(allocation.nodeId).id.split('-')[0],
       'Node ID'
     );
+    assert.equal(
+      allocationRow.volume,
+      Object.keys(taskGroup.volumes).length ? 'Yes' : '',
+      'Volumes'
+    );
 
     await allocationRow.visitClient();
 

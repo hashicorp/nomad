@@ -150,6 +150,7 @@ module('Acceptance | client detail', function(hooks) {
     assert.equal(allocationRow.job, server.db.jobs.find(allocation.jobId).name, 'Job name');
     assert.ok(allocationRow.taskGroup, 'Task group name');
     assert.ok(allocationRow.jobVersion, 'Job Version');
+    assert.equal(allocationRow.volume, 'Yes', 'Volume');
     assert.equal(
       allocationRow.cpu,
       Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
