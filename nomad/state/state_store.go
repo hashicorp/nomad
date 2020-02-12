@@ -1020,15 +1020,15 @@ func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		plug.ModifyIndex = index
 
 		if plug.IsEmpty() {
-			err := txn.Delete("csi_plugins", plug)
+			err = txn.Delete("csi_plugins", plug)
 			if err != nil {
 				return fmt.Errorf("csi_plugins delete error: %v", err)
 			}
-		}
-
-		err = txn.Insert("csi_plugins", plug)
-		if err != nil {
-			return fmt.Errorf("csi_plugins update error %s: %v", id, err)
+		} else {
+			err = txn.Insert("csi_plugins", plug)
+			if err != nil {
+				return fmt.Errorf("csi_plugins update error %s: %v", id, err)
+			}
 		}
 	}
 
@@ -1176,10 +1176,6 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
 
-	if err := s.upsertJobCSIPlugins(index, job, txn); err != nil {
-		return fmt.Errorf("unable to upsert csi_plugins table: %v", err)
-	}
-
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
@@ -1271,11 +1267,6 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 
 	// Delete the job versions
 	if err := s.deleteJobVersions(index, job, txn); err != nil {
-		return err
-	}
-
-	// Delete the csi_plugins
-	if err := s.deleteJobCSIPlugins(index, job, txn); err != nil {
 		return err
 	}
 
@@ -1772,105 +1763,6 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, ids []string) error {
 	return nil
 }
 
-// upsertJobCSIPlugins is called on UpsertJob and maintains the csi_plugin index of jobs
-func (s *StateStore) upsertJobCSIPlugins(index uint64, job *structs.Job, txn *memdb.Txn) error {
-	ws := memdb.NewWatchSet()
-	plugs, err := s.csiPluginsByJob(ws, job, index)
-	if err != nil {
-		return fmt.Errorf("%v", err)
-	}
-
-	// Append this job to all of them
-	for _, plug := range plugs {
-		if plug.CreateIndex != index {
-			plug = plug.Copy()
-		}
-
-		plug.AddJob(job)
-		plug.ModifyIndex = index
-		err := txn.Insert("csi_plugins", plug)
-		if err != nil {
-			return err
-		}
-	}
-
-	if err = txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
-	}
-
-	return nil
-}
-
-// csiPluginsByJob finds or creates CSIPlugins identified by the configuration contained in job
-func (s *StateStore) csiPluginsByJob(ws memdb.WatchSet, job *structs.Job, index uint64) (map[string]*structs.CSIPlugin, error) {
-	txn := s.db.Txn(false)
-	defer txn.Abort()
-
-	plugs := map[string]*structs.CSIPlugin{}
-
-	for _, tg := range job.TaskGroups {
-		for _, t := range tg.Tasks {
-			if t.CSIPluginConfig == nil {
-				continue
-			}
-
-			plug, ok := plugs[t.CSIPluginConfig.ID]
-			if ok {
-				continue
-			}
-
-			plug, err := s.CSIPluginByID(ws, t.CSIPluginConfig.ID)
-			if err != nil {
-				return nil, err
-			}
-
-			if plug == nil {
-				plug = structs.NewCSIPlugin(t.CSIPluginConfig.ID, index)
-				plug.Type = t.CSIPluginConfig.Type
-			}
-
-			plugs[t.CSIPluginConfig.ID] = plug
-		}
-	}
-
-	return plugs, nil
-}
-
-// deleteJobCSIPlugins is called on DeleteJob
-func (s *StateStore) deleteJobCSIPlugins(index uint64, job *structs.Job, txn *memdb.Txn) error {
-	ws := memdb.NewWatchSet()
-	plugs, err := s.csiPluginsByJob(ws, job, index)
-	if err != nil {
-		return fmt.Errorf("%v", err)
-	}
-
-	// Remove this job from each plugin. If the plugin has no jobs left, remove it
-	for _, plug := range plugs {
-		if plug.CreateIndex != index {
-			plug = plug.Copy()
-		}
-
-		plug.DeleteJob(job)
-		plug.ModifyIndex = index
-
-		if plug.IsEmpty() {
-			err = txn.Delete("csi_plugins", plug)
-		} else {
-			plug.ModifyIndex = index
-			err = txn.Insert("csi_plugins", plug)
-		}
-		if err != nil {
-			return fmt.Errorf("csi_plugins update: %v", err)
-		}
-	}
-
-	if err = txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
-	}
-
-	return nil
-}
-
 // CSIVolumeDenormalizePlugins returns a CSIVolume with current health and plugins, but
 // without allocations
 // Use this for current volume metadata, handling lists of volumes
@@ -1964,21 +1856,13 @@ func (s *StateStore) CSIPluginByID(ws memdb.WatchSet, id string) (*structs.CSIPl
 	return plug, nil
 }
 
-// CSIPluginDenormalize returns a CSIPlugin with jobs
+// CSIPluginDenormalize returns a CSIPlugin with allocation details
 func (s *StateStore) CSIPluginDenormalize(ws memdb.WatchSet, plug *structs.CSIPlugin) (*structs.CSIPlugin, error) {
 	if plug == nil {
 		return nil, nil
 	}
 
-	for ns, js := range plug.Jobs {
-		for id := range js {
-			j, err := s.JobByID(ws, ns, id)
-			if err != nil {
-				return nil, err
-			}
-			plug.Jobs[ns][id] = j
-		}
-	}
+	// FIXME do we need allocation details?
 
 	return plug, nil
 }
