@@ -171,7 +171,7 @@ function makeHostVolumes() {
     ReadOnly: faker.random.boolean(),
   });
 
-  const volumes = provide(faker.random.number(5), generate);
+  const volumes = provide(faker.random.number({ min: 1, max: 5 }), generate);
   return volumes.reduce((hash, volume) => {
     hash[volume.Name] = volume;
     return hash;

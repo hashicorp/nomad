@@ -77,7 +77,7 @@ export default create({
     message: text('[data-test-client-event-message]'),
   }),
 
-  hasHostVolumes: isPresent('[data-test-client-host-volumes'),
+  hasHostVolumes: isPresent('[data-test-client-host-volumes]'),
   hostVolumes: collection('[data-test-client-host-volume]', {
     name: text('[data-test-name]'),
     path: text('[data-test-path]'),
