@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -472,7 +473,7 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	require.Equal(t, 0, len(resp.Volumes))
 }
 
-func TestCSIPluginEndpoint_RegisterViaJob(t *testing.T) {
+func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -482,40 +483,15 @@ func TestCSIPluginEndpoint_RegisterViaJob(t *testing.T) {
 
 	ns := structs.DefaultNamespace
 
-	job := mock.Job()
-	job.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
-		ID:       "foo",
-		Type:     structs.CSIPluginTypeMonolith,
-		MountDir: "non-empty",
-	}
+	deleteNodes := CreateTestPlugin(srv.fsm.State(), "foo")
 
 	state := srv.fsm.State()
 	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
 	srv.config.ACLEnabled = true
-	policy := mock.NamespacePolicy(ns, "", []string{
-		acl.NamespaceCapabilityCSICreateVolume,
-		acl.NamespaceCapabilitySubmitJob,
-	})
-	validToken := mock.CreatePolicyAndToken(t, state, 1001, acl.NamespaceCapabilityCSICreateVolume, policy)
-
 	codec := rpcClient(t, srv)
 
-	// Create the register request
-	req1 := &structs.JobRegisterRequest{
-		Job: job,
-		WriteRequest: structs.WriteRequest{
-			Region:    "global",
-			Namespace: ns,
-			AuthToken: validToken.SecretID,
-		},
-	}
-	resp1 := &structs.JobRegisterResponse{}
-	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req1, resp1)
-	require.NoError(t, err)
-	require.NotEqual(t, uint64(0), resp1.Index)
-
 	// Get the plugin back out
-	policy = mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIAccess})
+	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIAccess})
 	getToken := mock.CreatePolicyAndToken(t, state, 1001, "csi-access", policy)
 
 	req2 := &structs.CSIPluginGetRequest{
@@ -526,10 +502,8 @@ func TestCSIPluginEndpoint_RegisterViaJob(t *testing.T) {
 		},
 	}
 	resp2 := &structs.CSIPluginGetResponse{}
-	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
+	err := msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
 	require.NoError(t, err)
-	// The job is created with a higher index than the plugin, there's an extra raft write
-	require.Greater(t, resp1.Index, resp2.Index)
 
 	// List plugins
 	req3 := &structs.CSIPluginListRequest{
@@ -544,24 +518,80 @@ func TestCSIPluginEndpoint_RegisterViaJob(t *testing.T) {
 	require.Equal(t, 1, len(resp3.Plugins))
 
 	// Deregistration works
-	req4 := &structs.JobDeregisterRequest{
-		JobID: job.ID,
-		Purge: true,
-		WriteRequest: structs.WriteRequest{
-			Region:    "global",
-			Namespace: ns,
-			AuthToken: validToken.SecretID,
-		},
-	}
-	resp4 := &structs.JobDeregisterResponse{}
-	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req4, resp4)
-	require.NoError(t, err)
-	require.Less(t, resp2.Index, resp4.Index)
+	deleteNodes()
 
 	// Plugin is missing
 	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
 	require.NoError(t, err)
 	require.Nil(t, resp2.Plugin)
+}
+
+// CreateTestPlugin is a helper that generates the node + fingerprint results necessary to
+// create a CSIPlugin by directly inserting into the state store. It's exported for use in
+// other test packages
+func CreateTestPlugin(s *state.StateStore, id string) func() {
+	// Create some nodes
+	ns := make([]*structs.Node, 3)
+	for i := range ns {
+		n := mock.Node()
+		ns[i] = n
+	}
+
+	// Install healthy plugin fingerprinting results
+	ns[0].CSIControllerPlugins = map[string]*structs.CSIInfo{
+		id: {
+			PluginID:                 id,
+			AllocID:                  uuid.Generate(),
+			Healthy:                  true,
+			HealthDescription:        "healthy",
+			RequiresControllerPlugin: true,
+			RequiresTopologies:       false,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsReadOnlyAttach:           true,
+				SupportsAttachDetach:             true,
+				SupportsListVolumes:              true,
+				SupportsListVolumesAttachedNodes: false,
+			},
+		},
+	}
+
+	// Install healthy plugin fingerprinting results
+	allocID := uuid.Generate()
+	for _, n := range ns[1:] {
+		n.CSINodePlugins = map[string]*structs.CSIInfo{
+			id: {
+				PluginID:                 id,
+				AllocID:                  allocID,
+				Healthy:                  true,
+				HealthDescription:        "healthy",
+				RequiresControllerPlugin: true,
+				RequiresTopologies:       false,
+				NodeInfo: &structs.CSINodeInfo{
+					ID:                      n.ID,
+					MaxVolumes:              64,
+					RequiresNodeStageVolume: true,
+				},
+			},
+		}
+	}
+
+	// Insert them into the state store
+	index := uint64(999)
+	for _, n := range ns {
+		index++
+		s.UpsertNode(index, n)
+	}
+
+	// Return cleanup function that deletes the nodes
+	return func() {
+		ids := make([]string, len(ns))
+		for i, n := range ns {
+			ids[i] = n.ID
+		}
+
+		index++
+		s.DeleteNode(index, ids)
+	}
 }
 
 func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
