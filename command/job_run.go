@@ -54,7 +54,7 @@ Alias: nomad run
 
   The run command will set the consul_token of the job based on the following
   precedence, going from highest to lowest: the -consul-token flag, the
-  $CONSUL_TOKEN environment variable and finally the value in the job file.
+  $CONSUL_HTTP_TOKEN environment variable and finally the value in the job file.
 
   The run command will set the vault_token of the job based on the following
   precedence, going from highest to lowest: the -vault-token flag, the
@@ -89,7 +89,7 @@ Run Options:
   -consul-token
     If set, the passed Consul token is stored in the job before sending to the
     Nomad servers. This allows passing the Consul token without storing it in
-    the job file. This overrides the token found in $CONSUL_TOKEN environment
+    the job file. This overrides the token found in $CONSUL_HTTP_TOKEN environment
     variable and that found in the job.
 
   -vault-token
@@ -190,7 +190,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	// Parse the Consul token
 	if consulToken == "" {
 		// Check the environment variable
-		consulToken = os.Getenv("CONSUL_TOKEN")
+		consulToken = os.Getenv("CONSUL_HTTP_TOKEN")
 	}
 
 	if consulToken != "" {

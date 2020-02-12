@@ -113,7 +113,7 @@ func (c *JobRevertCommand) Run(args []string) int {
 	// Parse the Consul token
 	if consulToken == "" {
 		// Check the environment variable
-		consulToken = os.Getenv("CONSUL_TOKEN")
+		consulToken = os.Getenv("CONSUL_HTTP_TOKEN")
 	}
 
 	// Parse the Vault token

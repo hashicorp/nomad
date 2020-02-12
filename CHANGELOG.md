@@ -37,6 +37,10 @@ BUG FIXES:
  * scheduler: Fixed a bug that caused evicted allocs on a lost node to be stuck in running [[GH-6902](https://github.com/hashicorp/nomad/issues/6902)]
  * scheduler: Fixed a bug where `nomad job plan/apply` returned errors instead of ignoring system job updates for ineligible nodes. [[GH-6996](https://github.com/hashicorp/nomad/issues/6996)]
 
+SECURITY:
+
+ * client: Nomad will no longer pass through the `CONSUL_HTTP_TOKEN` environment variable when launching a task. [[GH-7131](https://github.com/hashicorp/nomad/issues/7131)]
+
 ## 0.10.3 (January 29, 2020)
 
 SECURITY:
