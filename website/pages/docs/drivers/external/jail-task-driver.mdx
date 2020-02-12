@@ -1,0 +1,149 @@
+---
+layout: docs
+page_title: 'Drivers: jail-task-driver'
+sidebar_title: Jailtask driver
+description: >-
+  The Jail task driver is used to run application containers using FreeBSD
+  jails.
+---
+
+# Jail task Driver
+
+Name: `jail-task-driver`
+
+The Jail task driver provides an interface for using FreeBSD jails for running application
+containers. You can download the external jail-task-driver [here][jail-task-driver]. For more detailed instructions on how to set up and use this driver, please refer to the [guide][jail-task-guide].
+
+## Task Configuration
+
+```hcl
+task "http-echo-jail" {
+		driver = "jail-task-driver"
+		config {
+			Path  = "/zroot/iocage/jails/myjail/root"
+			Allow_raw_sockets = true
+			Allow_chflags     = true
+			Ip4_addr          = "em1|192.168.1.102"
+			Exec_start        = "/usr/local/bin/http-echo -listen :9999 -text hello"
+			Rctl =  {
+				Vmemoryuse = {
+					Action = "deny"
+					Amount = "1G"
+					Per = "process"
+				}
+				Openfiles = {
+					Action = "deny"
+					Amount = "500"
+				}
+			}
+		}
+	}
+```
+
+The Jail task driver supports most of [JAIL(8)][jail(8)] parameters, for a list of the currently supported parameters, please refer to the [Parameter Documentation][parameter-doc].
+
+- `Path` - (Optional) The directory which is to be the root of the jail.
+  Defaults to nomad's allocation directory.
+
+- `Ip4` - (Optional) Control the availability of IPv4 addresses. Possible values are
+  **"inherit"** to allow unrestricted access to all system addresses,
+  **"new"** to restrict addresses via Ip4_addr, and "**disable"** to stop
+  the jail from using IPv4 entirely.
+
+~> Note : Setting the Ip4_addr parameter implies a value of **"new"**
+
+- `Ip4_addr` - (Optional) A list of IPv4 addresses assigned to the jail. If this is set,
+  the jail is restricted to using only these addresses. Any attempts to use other addresses fail,
+  and attempts to use wildcard addresses silently use the jailed address instead. For
+  IPv4 the first address given will be used as the source address when source address selection on
+  unbound sockets cannot find a better match. It is only possible to start multiple jails with
+  the same IP address if none of the jails has more than this
+  single overlapping IP address assigned to itself.
+
+- `Allow_raw_sockets` - (Optional) The jail root is allowed to create raw sockets. Setting
+  this parameter allows utilities like ping(8) and traceroute(8) to operate inside the jail.
+  If this is set, the source IP addresses are enforced to comply with the IP address bound to the jail,
+  regardless of whether or not the IP_HDRINCL flag has been set on the socket.
+  Since raw sockets can be used to configure and interact with various network subsystems, extra caution
+  should be used where privileged access to jails is given out to untrusted parties.
+
+## Resource Isolation
+
+Resource isolation on jails is enforced by [RCTL(8)][rctl-doc] all parameters for resource control
+are supported.
+
+- `Rctl` - (Optional) Set resource limits on the jail, for a list of currently supported parameters, please refer to the [Parameter Documentation][parameter-doc].
+
+      	* `Vmemoryuse`   - (Optional) Address space limit,in bytes
+      	* `Cputime`      - (Optional) CPU time, in seconds
+      	* `Datasize`     - (Optional)  data	size, in bytes
+      	* `Stacksize`    - (Optional   stack size, in bytes
+      	* `Coredumpsize` - (Optional)	   core	dump size, in bytes
+      	* `Memoryuse`    - (Optional)	   resident set size, in bytes
+      	* `Memorylocked` - (Optional)	   locked memory, in bytes
+      	* `Maxproc`      - (Optional)		   number of processes
+      	* `Openfiles`    - (Optional)	   file	descriptor table size
+      	* `Vmemoryuse`   - (Optional) 	   address space limit,in bytes
+      	* `Pseudoterminals`  - (Optional)	   number of PTYs
+      	* `Swapuse`  - (Optional)		   swap	space that may be reserved or used, in bytes
+      	* `Nthr`  - (Optional)		   number of threads
+      	* `Msgqqueued`  - (Optional) 	   number of queued SysV messages
+      	* `Msgqsize`  - (Optional)	   SysV	message	queue size, in bytes
+      	* `Nmsgq`  - (Optional)		   number of SysV message queues
+      	* `Nsem`  - (Optional)		   number of SysV semaphores
+      	* `Nsemop`  - (Optional)		   number of SysV semaphores modified in a single semop(2) call
+      	* `Nshm`  - (Optional)		   number of SysV shared memory	segments
+      	* `Shmsize`  - (Optional)		   SysV	shared memory size, in bytes
+      	* `Wallclock`  - (Optional)	   wallclock time, in seconds
+      	* `Pcpu`  - (Optional)		   %CPU, in percents of	a single CPU core
+      	* `Readbps`  - (Optional)		   filesystem reads, in	bytes per second
+      	* `Writebps`  - (Optional)	   filesystem writes, in bytes per second
+      	* `Readiops`  - (Optional)	   filesystem reads, in	operations per second
+      	* `Writeiops`  - (Optional)	   filesystem writes, in operations per	second
+
+## Networking
+
+The job spec could specify the `Ip4addr` parameter to add the jail's ip address to an specific interface at jail
+startup or the `Vnet` parameter to create a virtual network stack. Please refer to [JAIL(8)][jail(8)] for more details.
+
+- `vnet jail` - Example taken from Lucas, Michael W. FreeBSD Mastery: Jails (IT Mastery Book 15).
+
+```hcl
+ task "test01" {
+      driver = "jail-task-driver"
+      config {
+		Path    = "/zroot/iocage/jails/myjail/root"
+		Host_hostname = "nomad00"
+		Exec_clean = true
+		Exec_start = "sh /etc/rc"
+		Exec_stop = "sh /etc/rc.shutdown"
+		Mount_devfs = true
+		Exec_prestart = "logger trying to start "
+		Exec_poststart = "logger jail has started"
+		Exec_prestop = "logger shutting down jail "
+		Exec_poststop = "logger has shut down jail "
+		Exec_consolelog ="/var/tmp/vnet-example"
+		Vnet = true
+		Vnet_nic = "e0b_loghost"
+		Exec_prestart = "/usr/share/examples/jails/jib addm loghost em1"
+		Exec_poststop = "/usr/share/examples/jails/jib destroy loghost "
+      }
+    }
+```
+
+## Client Requirements
+
+`jail-task-driver` requires the following:
+
+- 64-bit FreeBSD 12.0-RELEASE host
+- The FreeBSD's Nomad binary
+- The jail-task-driver binary placed in the [plugin_dir][plugin_dir] directory.
+- If resource control is going be used then [RACCT][racct-doc] must be enabled
+
+[jail-task-driver]: https://github.com/cneira/jail-task-driver/releases
+[jail-task-guide]: https://github.com/cneira/jail-task-driver#installation
+[jail(8)]: https://www.freebsd.org/cgi/man.cgi?jail(8)
+[racct-doc]: https://www.freebsd.org/doc/handbook/security-resourcelimits.html
+[rctl-doc]: https://www.freebsd.org/doc/handbook/security-resourcelimits.html
+[parameter-doc]: https://github.com/cneira/jail-task-driver/blob/master/Parameters.md
+[plugin_dir]: /docs/configuration#plugin_dir

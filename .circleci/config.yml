@@ -443,28 +443,29 @@ jobs:
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
-  build-website:
+  website-docker-image:
     docker:
-    - image: hashicorp/middleman-hashicorp:0.3.35
+    - image: circleci/buildpack-deps
+    shell: /usr/bin/env bash -euo pipefail -c
     steps:
-    - checkout:
-        path: ~/project
-    - restore_cache:
-        key: static-site-gems-v1-{{ checksum "Gemfile.lock" }}
+    - checkout
+    - setup_remote_docker
     - run:
-        command: bundle check || bundle install --path vendor/bundle --retry=3
-        name: install gems
-    - save_cache:
-        key: static-site-gems-v1-{{ checksum "Gemfile.lock" }}
-        paths:
-        - ~/project/website/vendor/bundle
+        command: |
+          echo 'export PACKAGE_LOCK_CHANGED=$(git diff --name-only $(git log --pretty=format:'%h' -n1 HEAD~1)...HEAD | grep -c website/package-lock.json)' >> $BASH_ENV
+        name: Diff package-lock.json
     - run:
-        command: bundle exec middleman build
-        name: middleman build
-    - run:
-        command: ./scripts/deploy.sh
-        name: website deploy
-    working_directory: ~/project/website
+        command: |
+          if [ "$CIRCLE_BRANCH" = "master" ] && [ $PACKAGE_LOCK_CHANGED -gt 0 ]; then
+            cd website/
+            docker build -t hashicorp/nomad-website:$CIRCLE_SHA1 .
+            docker tag hashicorp/nomad-website:$CIRCLE_SHA1 hashicorp/nomad-website:latest
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker push hashicorp/nomad-website
+          else
+            echo "Not building a new website docker image - branch is not master and/or dependencies have not changed."
+          fi
+        name: Build Docker Image if Necessary
   test-other:
     machine:
       image: ubuntu-1604:201903-01
@@ -600,22 +601,6 @@ jobs:
         path: /tmp/test-reports
     - store_artifacts:
         path: /tmp/test-reports
-  test-website:
-    machine:
-      image: ubuntu-1604:201903-01
-    working_directory: ~/go/src/github.com/hashicorp/nomad
-    steps:
-    - checkout
-    - run:
-        command: make test-website
-    environment:
-    - GIT_PAGER: cat
-    - GOLANG_VERSION: 1.12.16
-    - GOMAXPROCS: 1
-    - GOPATH: /home/circleci/go
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
-    - NOMAD_SLOW_TEST: 1
-    - PAGER: cat
   test-docker:
     machine:
       image: circleci/classic:201808-01
@@ -919,18 +904,8 @@ workflows:
             ignore:
             - stable-website
             - /^docs-.*/
-    - test-website:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
   website:
     jobs:
-    - build-website:
-        filters:
-          branches:
-            only: stable-website
+    - website-docker-image:
         context: static-sites
   version: 2

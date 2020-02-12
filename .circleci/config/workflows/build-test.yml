@@ -66,5 +66,3 @@ jobs:
         ignore:
         - stable-website
         - /^docs-.*/
-- test-website:
-    filters: *backend_branches_filter

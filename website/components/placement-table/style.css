@@ -1,0 +1,13 @@
+.g-placement-table {
+  box-sizing: border-box;
+
+  & td,
+  & th {
+    padding: 8px 20px;
+    border-right: 1px solid #ddd;
+  }
+
+  & .head {
+    font-weight: bold;
+  }
+}
