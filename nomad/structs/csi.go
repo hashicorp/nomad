@@ -459,18 +459,17 @@ type CSIVolumeGetResponse struct {
 
 // CSIPlugin bundles job and info context for the plugin for clients
 type CSIPlugin struct {
-	ID   string
-	Type CSIPluginType
-
-	// Jobs is updated by UpsertJob, and keeps an index of jobs containing node or
-	// controller tasks for this plugin. It is addressed by [job.Namespace][job.ID]
-	Jobs map[string]map[string]*Job
-
+	ID                 string
 	ControllerRequired bool
+
+	// Map Node.IDs to fingerprint results, split by type. Monolith type plugins have
+	// both sets of fingerprinting results.
+	Controllers map[string]*CSIInfo
+	Nodes       map[string]*CSIInfo
+
+	// Cache the count of healthy plugins
 	ControllersHealthy int
-	Controllers        map[string]*CSIInfo // map of client IDs to CSI Controllers
 	NodesHealthy       int
-	Nodes              map[string]*CSIInfo // map of client IDs to CSI Nodes
 
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -489,7 +488,6 @@ func NewCSIPlugin(id string, index uint64) *CSIPlugin {
 }
 
 func (p *CSIPlugin) newStructs() {
-	p.Jobs = map[string]map[string]*Job{}
 	p.Controllers = map[string]*CSIInfo{}
 	p.Nodes = map[string]*CSIInfo{}
 }
@@ -498,14 +496,6 @@ func (p *CSIPlugin) Copy() *CSIPlugin {
 	copy := *p
 	out := &copy
 	out.newStructs()
-
-	for ns, js := range p.Jobs {
-		out.Jobs[ns] = map[string]*Job{}
-
-		for jid, j := range js {
-			out.Jobs[ns][jid] = j
-		}
-	}
 
 	for k, v := range p.Controllers {
 		out.Controllers[k] = v
@@ -516,18 +506,6 @@ func (p *CSIPlugin) Copy() *CSIPlugin {
 	}
 
 	return out
-}
-
-// AddJob adds a job entry to the plugin
-func (p *CSIPlugin) AddJob(job *Job) {
-	if _, ok := p.Jobs[job.Namespace]; !ok {
-		p.Jobs[job.Namespace] = map[string]*Job{}
-	}
-	p.Jobs[job.Namespace][job.ID] = nil
-}
-
-func (p *CSIPlugin) DeleteJob(job *Job) {
-	delete(p.Jobs[job.Namespace], job.ID)
 }
 
 // AddPlugin adds a single plugin running on the node. Called from state.NodeUpdate in a
@@ -574,8 +552,6 @@ func (p *CSIPlugin) DeleteNode(nodeID string) {
 
 type CSIPluginListStub struct {
 	ID                  string
-	Type                CSIPluginType
-	JobIDs              map[string]map[string]struct{}
 	ControllersHealthy  int
 	ControllersExpected int
 	NodesHealthy        int
@@ -585,18 +561,8 @@ type CSIPluginListStub struct {
 }
 
 func (p *CSIPlugin) Stub() *CSIPluginListStub {
-	ids := map[string]map[string]struct{}{}
-	for ns, js := range p.Jobs {
-		ids[ns] = map[string]struct{}{}
-		for id := range js {
-			ids[ns][id] = struct{}{}
-		}
-	}
-
 	return &CSIPluginListStub{
 		ID:                  p.ID,
-		Type:                p.Type,
-		JobIDs:              ids,
 		ControllersHealthy:  p.ControllersHealthy,
 		ControllersExpected: len(p.Controllers),
 		NodesHealthy:        p.NodesHealthy,
@@ -607,17 +573,7 @@ func (p *CSIPlugin) Stub() *CSIPluginListStub {
 }
 
 func (p *CSIPlugin) IsEmpty() bool {
-	if !(len(p.Controllers) == 0 && len(p.Nodes) == 0) {
-		return false
-	}
-
-	empty := true
-	for _, m := range p.Jobs {
-		if len(m) > 0 {
-			empty = false
-		}
-	}
-	return empty
+	return !(len(p.Controllers) == 0 && len(p.Nodes) == 0)
 }
 
 type CSIPluginListRequest struct {
