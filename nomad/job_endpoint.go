@@ -256,6 +256,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Clear the Vault token
 	args.Job.VaultToken = ""
 
+	// Clear the Consul token
+	args.Job.ConsulToken = ""
+
 	// Check if the job has changed at all
 	if existingJob == nil || existingJob.SpecChanged(args.Job) {
 		// Set the submit time

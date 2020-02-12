@@ -317,6 +317,15 @@ func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse(t *testing.T) {
 		}
 	}
 
+	noTokenOnJob := func(t *testing.T) {
+		fsmState := s1.State()
+		ws := memdb.NewWatchSet()
+		storedJob, err := fsmState.JobByID(ws, job.Namespace, job.ID)
+		require.NoError(t, err)
+		require.NotNil(t, storedJob)
+		require.Empty(t, storedJob.ConsulToken)
+	}
+
 	// Each variation of the provided Consul operator token
 	noOpToken := ""
 	unrecognizedOpToken := uuid.Generate()
@@ -353,6 +362,7 @@ func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse(t *testing.T) {
 		var response structs.JobRegisterResponse
 		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
 		require.NoError(t, err)
+		noTokenOnJob(t)
 	})
 }
 
