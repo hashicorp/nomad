@@ -211,6 +211,13 @@ func TestClient_RestartTracker_Lifecycle(t *testing.T) {
 		shouldRestartOnFailure bool
 	}{
 		{
+			name:                   "system job no lifecycle",
+			taskLifecycleConfig:    nil,
+			jobType:                structs.JobTypeSystem,
+			shouldRestartOnSuccess: true,
+			shouldRestartOnFailure: true,
+		},
+		{
 			name:                   "service job no lifecycle",
 			taskLifecycleConfig:    nil,
 			jobType:                structs.JobTypeService,
@@ -222,6 +229,26 @@ func TestClient_RestartTracker_Lifecycle(t *testing.T) {
 			taskLifecycleConfig:    nil,
 			jobType:                structs.JobTypeBatch,
 			shouldRestartOnSuccess: false,
+			shouldRestartOnFailure: true,
+		},
+		{
+			name: "system job w/ lifecycle completed",
+			taskLifecycleConfig: &structs.TaskLifecycleConfig{
+				Hook:       structs.TaskLifecycleHookPrestart,
+				BlockUntil: structs.TaskLifecycleBlockUntilCompleted,
+			},
+			jobType:                structs.JobTypeSystem,
+			shouldRestartOnSuccess: false,
+			shouldRestartOnFailure: true,
+		},
+		{
+			name: "system job w/ lifecycle running",
+			taskLifecycleConfig: &structs.TaskLifecycleConfig{
+				Hook:       structs.TaskLifecycleHookPrestart,
+				BlockUntil: structs.TaskLifecycleBlockUntilRunning,
+			},
+			jobType:                structs.JobTypeSystem,
+			shouldRestartOnSuccess: true,
 			shouldRestartOnFailure: true,
 		},
 		{
