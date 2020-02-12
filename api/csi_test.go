@@ -81,6 +81,7 @@ func TestCSIVolumes_CRUD(t *testing.T) {
 	require.Error(t, err, "missing")
 }
 
+/* This is obsolete, but plugin creation via fingerprinting is an e2e test
 func TestCSIPlugins_viaJob(t *testing.T) {
 	t.Parallel()
 	c, s, root := makeACLClient(t, nil, nil)
@@ -130,3 +131,4 @@ func TestCSIPlugins_viaJob(t *testing.T) {
 	require.NotNil(t, plug.Jobs[*job.Namespace][*job.ID])
 	require.Equal(t, *job.ID, *plug.Jobs[*job.Namespace][*job.ID].ID)
 }
+*/
