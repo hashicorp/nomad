@@ -31,6 +31,9 @@ type instanceManager struct {
 	// `mountPoint` is bound in to.
 	containerMountPoint string
 
+	// AllocID is the allocation id of the task group running the dynamic plugin
+	allocID string
+
 	fp *pluginFingerprinter
 
 	volumeManager        *volumeManager
@@ -57,6 +60,7 @@ func newInstanceManager(logger hclog.Logger, updater UpdateNodeCSIInfoFunc, p *d
 
 		mountPoint:          p.Options["MountPoint"],
 		containerMountPoint: p.Options["ContainerMountPoint"],
+		allocID:             p.Options["AllocID"],
 
 		volumeManagerSetupCh: make(chan struct{}),
 
