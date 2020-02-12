@@ -145,7 +145,7 @@ func DefaultConsulConfig() *ConsulConfig {
 // creation of Consul Service Identity tokens for Consul Connect enabled Tasks.
 //
 // If allow_unauthenticated is false, the operator must provide a token on
-// job submission (i.e. -consul-token or $CONSUL_TOKEN).
+// job submission (i.e. -consul-token or $CONSUL_HTTP_TOKEN).
 func (c *ConsulConfig) AllowsUnauthenticated() bool {
 	return c.AllowUnauthenticated != nil && *c.AllowUnauthenticated
 }
