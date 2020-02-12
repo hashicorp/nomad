@@ -25,7 +25,6 @@ export default Controller.extend({
     this.terminal = new Terminal({ fontFamily: 'monospace', fontWeight: '400' });
     window.execTerminal = this.terminal; // FIXME tragique, for acceptance tests…?
 
-    // Sets the foreground colour to Structure’s ui-gray-400
     this.terminal.write(ANSI_UI_GRAY_400);
     this.terminal.writeln('Select a task to start your session.');
   },
@@ -53,7 +52,6 @@ export default Controller.extend({
         } `
       );
 
-      // Sets the foreground colour to white
       this.terminal.write(ANSI_WHITE);
 
       this.terminal.write('/bin/bash');
