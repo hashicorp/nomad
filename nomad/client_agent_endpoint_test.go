@@ -133,7 +133,6 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
 		c.Region = foreignRegion
 	})
 	defer cleanupS3()
