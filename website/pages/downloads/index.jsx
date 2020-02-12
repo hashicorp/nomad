@@ -13,6 +13,7 @@ export default function DownloadsPage({ downloadData }) {
         product="Nomad"
         version={VERSION}
         downloads={downloadData}
+        community="/resources"
       />
     </div>
   )
