@@ -137,6 +137,12 @@ module('Acceptance | exec', function(hooks) {
     });
     const allocation = allocations[allocations.length - 1];
 
+    const oldName = task.name;
+    task.name = 'spaced name!';
+    task.save();
+
+    const taskState = this.server.db.taskStates.update({ name: oldName }, { name: 'spaced name!' });
+
     await Exec.visitTask({
       job: this.job.id,
       task_group: taskGroup.name,
@@ -151,7 +157,7 @@ module('Acceptance | exec', function(hooks) {
         .getLine(4)
         .translateToString()
         .trim(),
-      `$ nomad alloc exec -i -t -task ${task.name} ${allocation.id.split('-')[0]} /bin/bash`
+      `$ nomad alloc exec -i -t -task spaced\\ name\\! ${allocation.id.split('-')[0]} /bin/bash`
     );
   });
 

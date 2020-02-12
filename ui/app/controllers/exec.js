@@ -1,5 +1,7 @@
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
+import escapeTaskName from 'nomad-ui/utils/escape-task-name';
+
 import { Terminal } from 'xterm';
 import base64js from 'base64-js';
 import { TextDecoderLite, TextEncoderLite } from 'text-encoder-lite';
@@ -46,9 +48,10 @@ export default Controller.extend({
       );
       this.terminal.writeln('');
       this.terminal.write(
-        `$ nomad alloc exec -i -t -task ${taskState.name} ${taskState.allocation.shortId} `
+        `$ nomad alloc exec -i -t -task ${escapeTaskName(taskState.name)} ${
+          taskState.allocation.shortId
+        } `
       );
-      // FIXME task names might need quotes…?
 
       // Sets the foreground colour to white
       this.terminal.write(ANSI_WHITE);
