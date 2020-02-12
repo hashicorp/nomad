@@ -4,6 +4,9 @@ import { Terminal } from 'xterm';
 import base64js from 'base64-js';
 import { TextDecoderLite, TextEncoderLite } from 'text-encoder-lite';
 
+const ANSI_UI_GRAY_400 = '\x1b[38;2;142;150;163m';
+const ANSI_WHITE = '\x1b[0m';
+
 export default Controller.extend({
   sockets: service(),
   system: service(),
@@ -21,7 +24,7 @@ export default Controller.extend({
     window.execTerminal = this.terminal; // FIXME tragique, for acceptance tests…?
 
     // Sets the foreground colour to Structure’s ui-gray-400
-    this.terminal.write('\x1b[38;2;142;150;163m');
+    this.terminal.write(ANSI_UI_GRAY_400);
     this.terminal.writeln('Select a task to start your session.');
   },
 
@@ -48,7 +51,7 @@ export default Controller.extend({
       // FIXME task names might need quotes…?
 
       // Sets the foreground colour to white
-      this.terminal.write('\x1b[0m');
+      this.terminal.write(ANSI_WHITE);
 
       this.terminal.write('/bin/bash');
 
@@ -74,7 +77,7 @@ export default Controller.extend({
 
     this.socket.onclose = e => {
       this.terminal.writeln('');
-      this.terminal.write('\x1b[38;2;142;150;163m');
+      this.terminal.write(ANSI_UI_GRAY_400);
       this.terminal.writeln('The connection has closed.');
       // eslint-disable-next-line
       console.log('Socket close event', e);
