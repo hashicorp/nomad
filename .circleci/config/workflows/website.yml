@@ -1,3 +1,8 @@
 jobs:
   - website-docker-image:
       context: static-sites
+      filters:
+        branches:
+          only:
+            - master
+            - website-ci-updates
