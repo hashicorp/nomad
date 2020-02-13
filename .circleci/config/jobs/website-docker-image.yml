@@ -8,6 +8,7 @@ steps:
       name: Build Docker Image if Necessary
       command: |
         IMAGE_TAG=$(cat website/Dockerfile website/package-lock.json | sha256sum | awk '{print $1;}')
+        echo "Using $IMAGE_TAG"
         if ! curl https://hub.docker.com/v2/repositories/hashicorp/nomad-website/tags/$IMAGE_TAG -fsL > /dev/null; then
           cd website/
           docker build -t hashicorp/nomad-website:$IMAGE_TAG .
@@ -15,5 +16,5 @@ steps:
           docker login -u $WEBSITE_DOCKER_USER -p $WEBSITE_DOCKER_PASS
           docker push hashicorp/nomad-website
         else
-          echo "Not building a new website docker image - branch is not master and/or dependencies have not changed."
+          echo "Dependencies have not changed, not building a new website docker image."
         fi
