@@ -418,12 +418,10 @@ func TestNomad_BadExpect(t *testing.T) {
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
-		c.DevDisableBootstrap = true
 	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
-		c.DevDisableBootstrap = true
 	})
 	defer cleanupS2()
 	servers := []*Server{s1, s2}
@@ -452,6 +450,6 @@ func TestNomad_BadExpect(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("should have 0 peers: %v", err)
+		t.Fatalf("should have 1 peers: %v", err)
 	})
 }
