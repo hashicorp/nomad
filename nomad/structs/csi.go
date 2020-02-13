@@ -573,7 +573,7 @@ func (p *CSIPlugin) Stub() *CSIPluginListStub {
 }
 
 func (p *CSIPlugin) IsEmpty() bool {
-	return !(len(p.Controllers) == 0 && len(p.Nodes) == 0)
+	return len(p.Controllers) == 0 && len(p.Nodes) == 0
 }
 
 type CSIPluginListRequest struct {
