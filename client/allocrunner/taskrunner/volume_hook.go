@@ -122,8 +122,50 @@ func (h *volumeHook) prepareHostVolumes(volumes map[string]*structs.VolumeReques
 	return hostVolumeMounts, nil
 }
 
-func (h *volumeHook) prepareCSIVolumes(req *interfaces.TaskPrestartRequest) ([]*drivers.MountConfig, error) {
-	return nil, nil
+// partitionMountsByVolume takes a list of volume mounts and returns them in the
+// form of volume-alias:[]volume-mount because one volume may be mounted multiple
+// times.
+func partitionMountsByVolume(xs []*structs.VolumeMount) map[string][]*structs.VolumeMount {
+	result := make(map[string][]*structs.VolumeMount)
+	for _, mount := range xs {
+		result[mount.Volume] = append(result[mount.Volume], mount)
+	}
+
+	return result
+}
+
+func (h *volumeHook) prepareCSIVolumes(req *interfaces.TaskPrestartRequest, volumes map[string]*structs.VolumeRequest) ([]*drivers.MountConfig, error) {
+	if len(volumes) == 0 {
+		return nil, nil
+	}
+
+	var mounts []*drivers.MountConfig
+
+	mountRequests := partitionMountsByVolume(req.Task.VolumeMounts)
+	csiMountPoints := h.runner.allocHookResources.GetCSIMounts()
+	for alias, request := range volumes {
+		mountsForAlias, ok := mountRequests[alias]
+		if !ok {
+			// This task doesn't use the volume
+			continue
+		}
+
+		csiMountPoint, ok := csiMountPoints[alias]
+		if !ok {
+			return nil, fmt.Errorf("No CSI Mount Point found for volume: %s", alias)
+		}
+
+		for _, m := range mountsForAlias {
+			mcfg := &drivers.MountConfig{
+				HostPath: csiMountPoint.Source,
+				TaskPath: m.Destination,
+				Readonly: request.ReadOnly || m.ReadOnly,
+			}
+			mounts = append(mounts, mcfg)
+		}
+	}
+
+	return mounts, nil
 }
 
 func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
@@ -134,7 +176,7 @@ func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 		return err
 	}
 
-	csiVolumeMounts, err := h.prepareCSIVolumes(req)
+	csiVolumeMounts, err := h.prepareCSIVolumes(req, volumes[structs.VolumeTypeCSI])
 	if err != nil {
 		return err
 	}
