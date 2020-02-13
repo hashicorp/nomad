@@ -6,6 +6,7 @@ import { or } from '@ember/object/computed';
 export default Component.extend({
   router: service(),
 
+  // FIXME this shouldn’t auto-close when switching to another task group if it has been manually opened already
   isOpen: or('clickedOpen', 'currentRouteIsThisTaskGroup'),
 
   currentRouteIsThisTaskGroup: computed('router.currentRoute', function() {
