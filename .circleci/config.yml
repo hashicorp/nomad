@@ -452,7 +452,11 @@ jobs:
     - setup_remote_docker
     - run:
         command: |
+          # There is an edge case that would cause an issue here - if dependencies are updated to an exact copy
+          # of a previous version, for example if packge-lock.json is reverted, we need to manually push the new
+          # image to the "latest" tag
           IMAGE_TAG=$(cat website/Dockerfile website/package-lock.json | sha256sum | awk '{print $1;}')
+          echo "Using $IMAGE_TAG"
           if ! curl https://hub.docker.com/v2/repositories/hashicorp/nomad-website/tags/$IMAGE_TAG -fsL > /dev/null; then
             cd website/
             docker build -t hashicorp/nomad-website:$IMAGE_TAG .
@@ -460,7 +464,7 @@ jobs:
             docker login -u $WEBSITE_DOCKER_USER -p $WEBSITE_DOCKER_PASS
             docker push hashicorp/nomad-website
           else
-            echo "Not building a new website docker image - branch is not master and/or dependencies have not changed."
+            echo "Dependencies have not changed, not building a new website docker image."
           fi
         name: Build Docker Image if Necessary
   test-other:
@@ -908,6 +912,5 @@ workflows:
           branches:
             only:
             - master
-            - website-ci-updates
         context: static-sites
   version: 2

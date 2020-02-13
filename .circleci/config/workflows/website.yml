@@ -5,4 +5,3 @@ jobs:
         branches:
           only:
             - master
-            - website-ci-updates
