@@ -1503,10 +1503,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 				Services: []*api.Service{
 					{
-						Name:       "groupserviceA",
-						Tags:       []string{"a", "b"},
-						CanaryTags: []string{"d", "e"},
-						PortLabel:  "1234",
+						Name:              "groupserviceA",
+						Tags:              []string{"a", "b"},
+						CanaryTags:        []string{"d", "e"},
+						EnableTagOverride: true,
+						PortLabel:         "1234",
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
@@ -1576,11 +1577,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 
 						Services: []*api.Service{
 							{
-								Id:         "id",
-								Name:       "serviceA",
-								Tags:       []string{"1", "2"},
-								CanaryTags: []string{"3", "4"},
-								PortLabel:  "foo",
+								Id:                "id",
+								Name:              "serviceA",
+								Tags:              []string{"1", "2"},
+								CanaryTags:        []string{"3", "4"},
+								EnableTagOverride: true,
+								PortLabel:         "foo",
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
@@ -1854,11 +1856,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 				Services: []*structs.Service{
 					{
-						Name:        "groupserviceA",
-						Tags:        []string{"a", "b"},
-						CanaryTags:  []string{"d", "e"},
-						PortLabel:   "1234",
-						AddressMode: "auto",
+						Name:              "groupserviceA",
+						Tags:              []string{"a", "b"},
+						CanaryTags:        []string{"d", "e"},
+						EnableTagOverride: true,
+						PortLabel:         "1234",
+						AddressMode:       "auto",
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
@@ -1923,11 +1926,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 						Services: []*structs.Service{
 							{
-								Name:        "serviceA",
-								Tags:        []string{"1", "2"},
-								CanaryTags:  []string{"3", "4"},
-								PortLabel:   "foo",
-								AddressMode: "auto",
+								Name:              "serviceA",
+								Tags:              []string{"1", "2"},
+								CanaryTags:        []string{"3", "4"},
+								EnableTagOverride: true,
+								PortLabel:         "foo",
+								AddressMode:       "auto",
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
