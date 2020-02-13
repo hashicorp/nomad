@@ -976,7 +976,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		// Now assert each error is a clientside read deadline error
 		for i := 0; i < maxConns; i++ {
 			select {
-			case <-time.After(1 * time.Second):
+			case <-time.After(2 * time.Second):
 				t.Fatalf("timed out waiting for conn error %d", i)
 			case err := <-errCh:
 				testutil.RequireDeadlineErr(t, err)
@@ -1006,6 +1006,12 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 			}(i)
 		}
 
+		select {
+		case err := <-errCh:
+			t.Fatalf("unexpected error from connection prior to limit: %T %v", err, err)
+		case <-time.After(500 * time.Millisecond):
+		}
+
 		// Assert a new connection is dropped
 		conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
 		require.NoError(t, err)
@@ -1016,7 +1022,9 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		conn.SetReadDeadline(deadline)
 		n, err := conn.Read(buf)
 		require.Zero(t, n)
-		require.Equal(t, io.EOF, err)
+
+		// Soft-fail as following assertion helps with debugging
+		assert.Equal(t, io.EOF, err)
 
 		// Assert existing connections are ok
 		require.Len(t, errCh, 0)
@@ -1056,7 +1064,16 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 			defer s.Shutdown()
 
 			assertTimeout(t, s, tc.assertTimeout, tc.timeout)
+
 			if tc.assertLimit {
+				// There's a race between assertTimeout(false) closing
+				// its connection and the HTTP server noticing and
+				// untracking it. Since there's no way to coordiante
+				// when this occurs, sleeping is the only way to avoid
+				// asserting limits before the timed out connection is
+				// untracked.
+				time.Sleep(1 * time.Second)
+
 				assertLimit(t, s.Server.Addr, *tc.limit)
 			} else {
 				assertNoLimit(t, s.Server.Addr)

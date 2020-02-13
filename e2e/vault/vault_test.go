@@ -342,7 +342,7 @@ func setupVault(t *testing.T, client *vapi.Client, vaultVersion string) string {
 		body := map[string]string{
 			"rules": policy,
 		}
-		request := client.NewRequest("PUT", fmt.Sprintf("/v1/sys/policy/%s", "nomad-server"))
+		request := client.NewRequest("PUT", "/v1/sys/policy/nomad-server")
 		if err := request.SetJSONBody(body); err != nil {
 			t.Fatalf("failed to set JSON body on legacy policy creation: %v", err)
 		}

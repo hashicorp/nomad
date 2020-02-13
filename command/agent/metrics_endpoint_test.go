@@ -64,8 +64,9 @@ func TestHTTP_Metrics(t *testing.T) {
 
 // When emitting metrics, the client should use the local copy of the allocs with
 // updated task states (not the copy submitted by the server).
+//
+// **Cannot** be run in parallel as metrics are global.
 func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	numTasks := 10
 

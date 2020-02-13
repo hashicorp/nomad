@@ -521,6 +521,9 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	// Set up the HTTP advertise address
 	conf.Node.HTTPAddr = agentConfig.AdvertiseAddrs.HTTP
 
+	// Canonicalize Node struct
+	conf.Node.Canonicalize()
+
 	// Reserve resources on the node.
 	// COMPAT(0.10): Remove in 0.10
 	r := conf.Node.Reserved

@@ -808,7 +808,7 @@ func TestRPC_Limits_OK(t *testing.T) {
 		defer conn.Close()
 
 		buf := []byte{0}
-		deadline := time.Now().Add(10 * time.Second)
+		deadline := time.Now().Add(6 * time.Second)
 		conn.SetReadDeadline(deadline)
 		n, err := conn.Read(buf)
 		require.Zero(t, n)
@@ -827,9 +827,13 @@ func TestRPC_Limits_OK(t *testing.T) {
 		for _, conn := range conns {
 			conn.Close()
 		}
-		for range conns {
-			err := <-errCh
-			require.Contains(t, err.Error(), "use of closed network connection")
+		for i := range conns {
+			select {
+			case err := <-errCh:
+				require.Contains(t, err.Error(), "use of closed network connection")
+			case <-time.After(10 * time.Second):
+				t.Fatalf("timed out waiting for connection %d/%d to close", i, len(conns))
+			}
 		}
 	}
 
@@ -866,7 +870,16 @@ func TestRPC_Limits_OK(t *testing.T) {
 			}()
 
 			assertTimeout(t, s, tc.tls, tc.timeout)
+
 			if tc.assertLimit {
+				// There's a race between assertTimeout(false) closing
+				// its connection and the HTTP server noticing and
+				// untracking it. Since there's no way to coordiante
+				// when this occurs, sleeping is the only way to avoid
+				// asserting limits before the timed out connection is
+				// untracked.
+				time.Sleep(1 * time.Second)
+
 				assertLimit(t, s.config.RPCAddr.String(), tc.limit)
 			} else {
 				assertNoLimit(t, s.config.RPCAddr.String())

@@ -2847,12 +2847,15 @@ func (c *Client) setGaugeForUptime(hStats *stats.HostStats, baseLabels []metrics
 func (c *Client) emitHostStats() {
 	nodeID := c.NodeID()
 	hStats := c.hostStatsCollector.Stats()
-	node := c.Node()
 
-	node.Canonicalize()
+	c.configLock.RLock()
+	nodeStatus := c.configCopy.Node.Status
+	nodeEligibility := c.configCopy.Node.SchedulingEligibility
+	c.configLock.RUnlock()
+
 	labels := append(c.baseLabels,
-		metrics.Label{Name: "node_status", Value: node.Status},
-		metrics.Label{Name: "node_scheduling_eligibility", Value: node.SchedulingEligibility},
+		metrics.Label{Name: "node_status", Value: nodeStatus},
+		metrics.Label{Name: "node_scheduling_eligibility", Value: nodeEligibility},
 	)
 
 	c.setGaugeForMemoryStats(nodeID, hStats, labels)
