@@ -31,7 +31,7 @@
     font-size: inherit;
     width: 100%;
     text-align: left;
-    padding-left: 0;
+    padding: 6px 0 5px 0;
 
     .icon {
       padding: 3px 3px 0 0;
@@ -57,15 +57,14 @@
       }
 
       .border {
-        padding-left: 8px;
-        padding-right: 5px;
+        position: absolute;
         border-left: 1px solid $ui-gray-700;
         height: 100%;
       }
 
       .active {
         position: absolute;
-        top: 6.5px;
+        top: 7.5px;
         left: -9.75px;
 
         stroke: $ui-gray-900;
@@ -74,7 +73,7 @@
       }
 
       .task-label {
-        padding-bottom: 1px;
+        padding: 6px 0 5px 13px;
       }
 
       .icon {
@@ -89,7 +88,6 @@
 
   .toggle-button,
   .task-item {
-    height: 32px;
     font-weight: 500;
 
     &:hover {
