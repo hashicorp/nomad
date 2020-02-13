@@ -54,7 +54,7 @@ export default function DocsPage({
       </div>
       <div id="edit-this-page" className="g-container">
         <a
-          href={`https://github.com/hashicorp/vault/blob/master/website/pages/${pageMeta.__resourcePath}`}
+          href={`https://github.com/hashicorp/nomad/blob/master/website/pages/${pageMeta.__resourcePath}`}
         >
           <InlineSvg src={githubIcon} />
           <span>Edit this page</span>
