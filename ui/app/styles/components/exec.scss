@@ -25,15 +25,19 @@
   }
 
   .toggle-button {
+    position: relative;
     background: transparent;
     border: 0;
     color: white;
     font-size: inherit;
+    line-height: 1.5;
     width: 100%;
     text-align: left;
-    padding: 6px 0 5px 0;
+    padding: 6px 0 5px 17px;
 
     .icon {
+      position: absolute;
+      left: 0;
       padding: 3px 3px 0 0;
       margin-left: -3px;
     }
