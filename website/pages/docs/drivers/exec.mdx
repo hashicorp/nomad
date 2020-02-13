@@ -93,6 +93,12 @@ If you are receiving the error:
 and using the exec driver, check to ensure that you are running Nomad as root.
 This also applies for running Nomad in -dev mode.
 
+## Plugin Options
+
+* `no_pivot_root` - Defaults to `false`. When `true`, the driver uses `chroot`
+  for file system isolation without `pivot_root`. This is useful for systems
+  where the root is on a ramdisk.
+
 ## Client Attributes
 
 The `exec` driver will set the following client attributes:
