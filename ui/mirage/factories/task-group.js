@@ -15,7 +15,7 @@ export default Factory.extend({
   }),
 
   noHostVolumes: trait({
-    hostVolumes: () => ({}),
+    volumes: () => ({}),
   }),
 
   volumes: makeHostVolumes(),
@@ -40,7 +40,9 @@ export default Factory.extend({
 
     if (!group.shallow) {
       const tasks = provide(group.count, () => {
-        const mounts = faker.helpers.shuffle(volumes).slice(0, faker.random.number(2));
+        const mounts = faker.helpers
+          .shuffle(volumes)
+          .slice(0, faker.random.number({ min: 1, max: 3 }));
         return server.create('task', {
           taskGroup: group,
           volumeMounts: mounts.map(mount => ({
@@ -98,7 +100,7 @@ function makeHostVolumes() {
   const generate = () => ({
     Name: faker.internet.domainWord(),
     Type: 'host',
-    source: faker.internet.domainWord(),
+    Source: faker.internet.domainWord(),
     ReadOnly: faker.random.boolean(),
   });
 
