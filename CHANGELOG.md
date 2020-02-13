@@ -1,3 +1,9 @@
+## 0.11.0 (Unreleased)
+
+IMPROVEMENTS:
+
+ * consul: Added support for configuring `enable_tag_override` on service stanzas. [[GH-2057](https://github.com/hashicorp/nomad/issues/2057)]
+
 ## 0.10.4 (Unreleased)
 
 FEATURES:
