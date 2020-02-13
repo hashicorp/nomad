@@ -123,6 +123,12 @@ Connect][connect] integration.
   those specified in the `tags` parameter. If this is not supplied, the
   registered tags will be equal to that of the `tags` parameter.
 
+- `enable_tag_override` `(bool: false)` - Enables users of Consul's Catalog API
+  to make changes to the tags of a service without having those changes be
+  overwritten by Consul's anti-entropy mechanism. See Consul
+  [documentation](https://www.consul.io/docs/internals/anti-entropy.html#enable-tag-override)
+  for more information.
+
 - `address_mode` `(string: "auto")` - Specifies what address (host or
   driver-specific) this service should advertise. This setting is supported in
   Docker since Nomad 0.6 and rkt since Nomad 0.7. See [below for
