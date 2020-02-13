@@ -17,8 +17,10 @@ export default ApplicationSerializer.extend({
       return assign({}, drivers[key], { Name: key });
     });
 
-    const hostVolumes = hash.HostVolumes || {};
-    hash.HostVolumes = Object.keys(hostVolumes).map(key => hostVolumes[key]);
+    if (hash.HostVolumes) {
+      const hostVolumes = hash.HostVolumes;
+      hash.HostVolumes = Object.keys(hostVolumes).map(key => hostVolumes[key]);
+    }
 
     return this._super(modelClass, hash);
   },
