@@ -1,8 +1,10 @@
 import attr from 'ember-data/attr';
 import Fragment from 'ember-data-model-fragments/fragment';
-import { fragmentArray } from 'ember-data-model-fragments/attributes';
+import { fragmentArray, fragmentOwner } from 'ember-data-model-fragments/attributes';
 
 export default Fragment.extend({
+  taskGroup: fragmentOwner(),
+
   name: attr('string'),
   driver: attr('string'),
   kind: attr('string'),
