@@ -1,6 +1,7 @@
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
 import escapeTaskName from 'nomad-ui/utils/escape-task-name';
+import ExecCommandEditorXtermAdapter from 'nomad-ui/utils/classes/exec-command-editor-xterm-adapter';
 
 import { Terminal } from 'xterm';
 import base64js from 'base64-js';
@@ -25,6 +26,7 @@ export default Controller.extend({
     this.terminal = new Terminal({ fontFamily: 'monospace', fontWeight: '400' });
     window.execTerminal = this.terminal; // FIXME tragique, for acceptance tests…?
 
+    // this.terminal.write('\x1b[?45h;');
     this.terminal.write(ANSI_UI_GRAY_400);
     this.terminal.writeln('Select a task to start your session.');
   },
@@ -57,20 +59,20 @@ export default Controller.extend({
 
       this.terminal.write('/bin/bash');
 
-      this.terminal.onKey(e => {
-        if (this.socketOpen) {
-          this.handleSocketKeyEvent(e);
-        } else {
-          this.handleCommandKeyEvent(e);
-        }
-      });
+      new ExecCommandEditorXtermAdapter(this.terminal, this.openAndConnectSocket.bind(this));
 
-      this.terminal.simulateCommandKeyEvent = this.handleCommandKeyEvent.bind(this);
+      // FIXME
+      // this.terminal.simulateCommandKeyEvent = this.handleCommandKeyEvent.bind(this);
     },
   },
 
-  openAndConnectSocket() {
-    this.socket = this.sockets.getTaskStateSocket(this.taskState, this.command);
+  openAndConnectSocket(command) {
+    this.set('socketOpen', true);
+    this.socket = this.sockets.getTaskStateSocket(this.taskState, command);
+
+    this.terminal.onKey(e => {
+      this.handleSocketKeyEvent(e);
+    });
 
     this.socket.onmessage = e => {
       const json = JSON.parse(e.data);
@@ -85,22 +87,6 @@ export default Controller.extend({
       console.log('Socket close event', e);
       // FIXME interpret different close events
     };
-  },
-
-  handleCommandKeyEvent(e) {
-    if (e.domEvent.key === 'Enter') {
-      this.openAndConnectSocket();
-      this.terminal.writeln('');
-      this.set('socketOpen', true);
-    } else if (e.domEvent.key === 'Backspace') {
-      if (this.command.length > 0) {
-        this.terminal.write('\b \b');
-        this.command = this.command.slice(0, -1);
-      }
-    } else if (e.key.length > 0) {
-      this.terminal.write(e.key);
-      this.command = `${this.command}${e.key}`;
-    }
   },
 
   handleSocketKeyEvent(e) {
