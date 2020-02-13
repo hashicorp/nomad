@@ -1330,7 +1330,6 @@ func TestServer_ReconcileMember(t *testing.T) {
 
 	// Create a three node cluster
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS1()
