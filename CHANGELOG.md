@@ -1,3 +1,9 @@
+## 0.11.0 (Unreleased)
+
+IMPROVEMENTS:
+
+ * build: Updated to Go 1.13.8 [[GH-7147](https://github.com/hashicorp/nomad/issues/7147)]
+
 ## 0.10.4 (Unreleased)
 
 FEATURES:
