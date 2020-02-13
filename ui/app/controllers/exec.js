@@ -33,6 +33,7 @@ export default Controller.extend({
     setTaskState({ allocationSpecified, taskState }) {
       this.set('taskState', taskState);
 
+      this.terminal.write(ANSI_UI_GRAY_400);
       this.terminal.writeln('');
 
       if (!allocationSpecified) {
