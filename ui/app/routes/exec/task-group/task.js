@@ -14,7 +14,10 @@ export default Route.extend({
         allocation = allocations.findBy('shortId', allocationQueryParam);
       } else {
         allocation = allocations.find(allocation =>
-          allocation.states.mapBy('name').includes(task_name)
+          allocation.states
+            .filterBy('isActive')
+            .mapBy('name')
+            .includes(task_name)
         );
       }
 
