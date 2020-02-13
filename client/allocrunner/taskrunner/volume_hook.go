@@ -57,8 +57,10 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 	for _, m := range taskMounts {
 		req, ok := taskVolumesByAlias[m.Volume]
 		if !ok {
-			// Should never happen unless we misvalidated on job submission
-			return nil, fmt.Errorf("No group volume declaration found named: %s", m.Volume)
+			// This function receives only the task volumes that are of type Host,
+			// if we can't find a group volume then we assume the mount is for another
+			// type.
+			continue
 		}
 
 		// This is a defensive check, but this function should only ever receive
