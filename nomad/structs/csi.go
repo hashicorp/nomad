@@ -481,9 +481,9 @@ type CSIPlugin struct {
 
 	ControllerRequired bool
 	ControllersHealthy int
-	Controllers        map[string]*CSIInfo
+	Controllers        map[string]*CSIInfo // map of client IDs to CSI Controllers
 	NodesHealthy       int
-	Nodes              map[string]*CSIInfo
+	Nodes              map[string]*CSIInfo // map of client IDs to CSI Nodes
 
 	CreateIndex uint64
 	ModifyIndex uint64
