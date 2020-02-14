@@ -146,7 +146,6 @@ type CSIVolume struct {
 	// Allocations, tracking claim status
 	ReadAllocs  map[string]*Allocation
 	WriteAllocs map[string]*Allocation
-	PastAllocs  map[string]*Allocation
 
 	// Healthy is true if all the denormalized plugin health fields are true, and the
 	// volume has not been marked for garbage collection
@@ -203,7 +202,6 @@ func (v *CSIVolume) newStructs() {
 
 	v.ReadAllocs = map[string]*Allocation{}
 	v.WriteAllocs = map[string]*Allocation{}
-	v.PastAllocs = map[string]*Allocation{}
 }
 
 func (v *CSIVolume) Stub() *CSIVolListStub {
@@ -265,10 +263,6 @@ func (v *CSIVolume) Copy() *CSIVolume {
 		out.WriteAllocs[k] = v
 	}
 
-	for k, v := range v.PastAllocs {
-		out.PastAllocs[k] = v
-	}
-
 	return out
 }
 
@@ -281,8 +275,6 @@ func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) bool {
 		return v.ClaimWrite(alloc)
 	case CSIVolumeClaimRelease:
 		return v.ClaimRelease(alloc)
-	case CSIVolumeClaimGC:
-		return v.ClaimGC(alloc)
 	}
 	return false
 }
@@ -296,7 +288,6 @@ func (v *CSIVolume) ClaimRead(alloc *Allocation) bool {
 	// pointer. We'll get it from the db in denormalize.
 	v.ReadAllocs[alloc.ID] = nil
 	delete(v.WriteAllocs, alloc.ID)
-	delete(v.PastAllocs, alloc.ID)
 	return true
 }
 
@@ -309,7 +300,6 @@ func (v *CSIVolume) ClaimWrite(alloc *Allocation) bool {
 	// pointer. We'll get it from the db in denormalize.
 	v.WriteAllocs[alloc.ID] = nil
 	delete(v.ReadAllocs, alloc.ID)
-	delete(v.PastAllocs, alloc.ID)
 	return true
 }
 
@@ -317,17 +307,6 @@ func (v *CSIVolume) ClaimWrite(alloc *Allocation) bool {
 func (v *CSIVolume) ClaimRelease(alloc *Allocation) bool {
 	delete(v.ReadAllocs, alloc.ID)
 	delete(v.WriteAllocs, alloc.ID)
-	// Allocations are copy on write, so we want to keep the id but don't need the
-	// pointer. We'll get it from the db in denormalize.
-	v.PastAllocs[alloc.ID] = nil
-	return true
-}
-
-// ClaimGC is called on Allocation gc, by following the alloc's pointer back to the volume
-func (v *CSIVolume) ClaimGC(alloc *Allocation) bool {
-	delete(v.ReadAllocs, alloc.ID)
-	delete(v.WriteAllocs, alloc.ID)
-	delete(v.PastAllocs, alloc.ID)
 	return true
 }
 
@@ -426,7 +405,6 @@ const (
 	CSIVolumeClaimRead CSIVolumeClaimMode = iota
 	CSIVolumeClaimWrite
 	CSIVolumeClaimRelease
-	CSIVolumeClaimGC
 )
 
 type CSIVolumeClaimRequest struct {

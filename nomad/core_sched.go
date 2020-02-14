@@ -774,10 +774,10 @@ func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) e
 
 				collectFunc := func(allocs map[string]*structs.Allocation) {
 					for _, alloc := range allocs {
-						// we call denormalize on the volume above to make sure the Allocation
-						// pointer in PastAllocs isn't nil. But the alloc might have been
-						// garbage collected concurrently, so if the alloc is still nil we can
-						// safely skip it.
+						// we call denormalize on the volume above to populate
+						// Allocation pointers. But the alloc might have been
+						// garbage collected concurrently, so if the alloc is
+						// still nil we can safely skip it.
 						if alloc == nil {
 							continue
 						}
@@ -796,7 +796,7 @@ func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) e
 				req := &structs.CSIVolumeClaimRequest{
 					VolumeID:   volID,
 					Allocation: nil, // unpublish never uses this field
-					Claim:      structs.CSIVolumeClaimGC,
+					Claim:      structs.CSIVolumeClaimRelease,
 					WriteRequest: structs.WriteRequest{
 						Region:    job.Region,
 						Namespace: job.Namespace,
