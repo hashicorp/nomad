@@ -3,7 +3,6 @@ package vault
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -24,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -51,27 +49,24 @@ func syncVault(t *testing.T) ([]*version.Version, map[string]string) {
 	// Create the directory for the binaries
 	require.NoError(t, createBinDir(binDir))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-
-	// Limit to N concurrent downloads
-	sema := make(chan int, 5)
-
 	// Download in parallel
 	start := time.Now()
-	g, _ := errgroup.WithContext(ctx)
+	errCh := make(chan error, len(missing))
 	for ver, url := range missing {
 		dst := filepath.Join(binDir, ver)
 		url := url
-		g.Go(func() error {
-			sema <- 1
-			defer func() {
-				<-sema
-			}()
-			return getVault(dst, url)
-		})
+		go func() {
+			errCh <- getVault(dst, url)
+		}()
 	}
-	require.NoError(t, g.Wait())
+	for i := 0; i < len(missing); i++ {
+		select {
+		case err := <-errCh:
+			require.NoError(t, err)
+		case <-time.After(5 * time.Minute):
+			t.Fatalf("timed out downloading Vault binaries")
+		}
+	}
 	if n := len(missing); n > 0 {
 		t.Logf("Downloaded %d versions of Vault in %s", n, time.Now().Sub(start))
 	}
