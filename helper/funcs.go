@@ -3,7 +3,9 @@ package helper
 import (
 	"crypto/sha512"
 	"fmt"
+	"reflect"
 	"regexp"
+	"strings"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -386,4 +388,56 @@ func CheckHCLKeys(node ast.Node, valid []string) error {
 	}
 
 	return result
+}
+
+// UnusedKeys returns a pretty-printed error if any "hcl:unusedKeys" is not empty
+func UnusedKeys(obj interface{}) error {
+	val := reflect.ValueOf(obj)
+	if val.Kind() == reflect.Ptr {
+		val = reflect.Indirect(val)
+	}
+	return unusedKeysImpl([]string{}, val)
+}
+
+func unusedKeysImpl(path []string, val reflect.Value) error {
+	stype := val.Type()
+	for i := 0; i < stype.NumField(); i++ {
+		ftype := stype.Field(i)
+		fval := val.Field(i)
+		tags := strings.Split(ftype.Tag.Get("hcl"), ",")
+		name := tags[0]
+		tags = tags[1:]
+
+		if fval.Kind() == reflect.Ptr {
+			fval = reflect.Indirect(fval)
+		}
+
+		// struct? recurse. Add the struct's key to the path
+		if fval.Kind() == reflect.Struct {
+			err := unusedKeysImpl(append([]string{name}, path...), fval)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		// Search the hcl tags for "unusedKeys"
+		unusedKeys := false
+		for _, p := range tags {
+			if p == "unusedKeys" {
+				unusedKeys = true
+				break
+			}
+		}
+
+		if unusedKeys {
+			ks, ok := fval.Interface().([]string)
+			if ok && len(ks) != 0 {
+				return fmt.Errorf("%s unexpected keys %s",
+					strings.Join(path, "."),
+					strings.Join(ks, ", "))
+			}
+		}
+	}
+	return nil
 }
