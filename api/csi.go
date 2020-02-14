@@ -79,19 +79,21 @@ const (
 
 // CSIVolume is used for serialization, see also nomad/structs/csi.go
 type CSIVolume struct {
-	ID             string
-	Namespace      string
-	Name           string
-	ExternalID     string
-	Topologies     []*CSITopology
-	AccessMode     CSIVolumeAccessMode
-	AttachmentMode CSIVolumeAttachmentMode
+	ID             string                  `hcl:"id"`
+	Name           string                  `hcl:"name"`
+	ExternalID     string                  `hcl:"external_id"`
+	Namespace      string                  `hcl:"namespace"`
+	Topologies     []*CSITopology          `hcl:"topologies"`
+	AccessMode     CSIVolumeAccessMode     `hcl:"access_mode"`
+	AttachmentMode CSIVolumeAttachmentMode `hcl:"attachment_mode"`
 
 	// Combine structs.{Read,Write,Past}Allocs
 	Allocations []*AllocationListStub
 
+	// Healthy is true iff all the denormalized plugin health fields are true, and the
+	// volume has not been marked for garbage collection
 	Schedulable         bool
-	PluginID            string
+	PluginID            string `hcl:"plugin_id"`
 	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
@@ -101,6 +103,9 @@ type CSIVolume struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	// ExtraKeysHCL is used by the hcl parser to report unexpected keys
+	ExtraKeysHCL []string `hcl:"unusedKeys",json:"-"`
 }
 
 type CSIVolumeIndexSort []*CSIVolumeListStub
