@@ -4,7 +4,6 @@ package nomad
 
 import (
 	"github.com/hashicorp/consul/agent/consul/autopilot"
-	log "github.com/hashicorp/go-hclog"
 )
 
 type EnterpriseState struct{}
@@ -12,7 +11,7 @@ type EnterpriseState struct{}
 func (s *Server) setupEnterprise(config *Config) error {
 	// Set up the OSS version of autopilot
 	apDelegate := &AutopilotDelegate{s}
-	s.autopilot = autopilot.NewAutopilot(s.logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true}), apDelegate, config.AutopilotInterval, config.ServerHealthInterval)
+	s.autopilot = autopilot.NewAutopilot(s.logger, apDelegate, config.AutopilotInterval, config.ServerHealthInterval)
 
 	return nil
 }
