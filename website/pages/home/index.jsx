@@ -1,350 +1,294 @@
-import Alert from '@hashicorp/react-alert'
-import Button from '@hashicorp/react-button'
-import VERSION from '../../data/version'
+import FeaturesList from '../../components/features-list'
+import HomepageHero from '../../components/homepage-hero'
+import CaseStudyCarousel from '../../components/case-study-carousel'
+import UseCases from '@hashicorp/react-use-cases'
+import MiniCTA from '../../components/mini-cta'
+import NomadEnterpriseInfo from '../../components/enterprise-info/nomad'
+import LearnNomad from '../../components/learn-nomad'
+import CallToAction from '@hashicorp/react-call-to-action'
 
 export default function Homepage() {
   return (
     <div id="p-home">
-      <section className="hero g-grid-container">
-        <Alert
-          url="https://www.hashicorp.com/blog/hashicorp-nomad-0-10-general-availability"
-          tagColor="nomad-green"
-          tag="New"
-          text="Announcing the general availability of Nomad 0.10. Read more"
-          textColor="dark"
-        />
+      <HomepageHero
+        title="Workload Orchestration Made Easy"
+        description="A simple and flexible workload orchestrator to deploy and manage containers and non-containerized applications across on-prem and clouds at scale."
+        links={[
+          {
+            text: 'Download',
+            url: '/downloads',
+            type: 'download'
+          },
+          {
+            text: 'Get Started',
+            url: 'https://learn.hashicorp.com/nomad',
+            type: 'outbound'
+          }
+        ]}
+      />
 
-        <img
-          className="logo"
-          src={require('./img/logo.svg')}
-          alt="HashiCorp Nomad Logo"
-        />
+      <FeaturesList
+        title="Why Nomad?"
+        items={[
+          {
+            title: 'Simple and Lightweight',
+            content:
+              'Single 35MB binary that integrates into existing infrastructure.  Easy to operate on-prem or in the cloud with minimal overhead.',
+            icon: require('./img/why-nomad/simple-and-lightweight.svg')
+          },
+          {
+            title: 'Flexible Workload Support',
+            content:
+              'Orchestrate applications of any type - not just containers. First class support for Docker, Windows, Java, VMs, and more.',
+            icon: require('./img/why-nomad/flexible-workload-support.svg')
+          },
+          {
+            title: 'Modernize Legacy Applications without Rewrite',
+            content:
+              'Bring orchestration benefits to existing services. Achieve zero downtime deployments, improved resilience, higher resource utilization, and more without containerization.',
+            icon: require('./img/why-nomad/modernize-legacy-applications.svg')
+          },
+          {
+            title: 'Easy Federation at Scale',
+            content:
+              'Single command for multi-region, multi-cloud federation. Deploy applications globally to any region using Nomad as a single unified control plane.',
+            icon: require('./img/why-nomad/federation.svg')
+          },
+          {
+            title: 'Multi-Cloud with Ease',
+            content:
+              'One single unified workflow for deploying to bare metal or cloud environments. Enable multi-cloud applications with ease.',
+            icon: require('./img/why-nomad/servers.svg')
+          },
+          {
+            title: 'Native Integrations with Terraform, Consul, and Vault',
+            content:
+              'Nomad integrates seamlessly with Terraform, Consul and Vault for provisioning, service networking, and secrets management.',
+            icon: require('./img/why-nomad/native-integration.svg')
+          }
+        ]}
+      />
 
-        <h1 className="g-type-display-3">
-          Deploy and Manage Any Containerized, Legacy, or Batch Application
-        </h1>
-        <div className="buttons">
-          <Button url="/intro" title="Get Started" theme={{ brand: 'nomad' }} />
-          <Button
-            url="/downloads"
-            title={`Download ${VERSION}`}
-            theme={{ variant: 'secondary' }}
-          />
-        </div>
-      </section>
+      <CaseStudyCarousel
+        title="Trusted by startups and the world’s largest organizations"
+        caseStudies={[
+          {
+            quote:
+              'Kubernetes is the 800-pound gorilla of container orchestration, coming with a price tag. So we looked into alternatives - and fell in love with Nomad.',
+            caseStudyURL:
+              'https://endler.dev/2019/maybe-you-dont-need-kubernetes/',
+            person: {
+              firstName: 'Matthias',
+              lastName: 'Endler',
+              photo:
+                'https://www.datocms-assets.com/2885/1582163422-matthias-endler.png',
+              title: 'Backend Engineer'
+            },
+            company: {
+              name: 'Trivago',
+              logo: 'https://www.datocms-assets.com/2885/1582162145-trivago.svg'
+            }
+          },
+          {
+            quote:
+              'We have people who are first-time system administrators deploying applications. There is a guy on our team who worked in IT help desk for 8 years - just today he upgraded an entire cluster himself.',
+            caseStudyURL: 'https://www.hashicorp.com/case-studies/roblox/',
+            person: {
+              firstName: 'Rob',
+              lastName: 'Cameron',
+              photo:
+                'https://www.datocms-assets.com/2885/1582180216-rob-cameron.jpeg',
+              title: 'Technical Director of Infrastructure'
+            },
+            company: {
+              name: 'Roblox',
+              logo:
+                'https://www.datocms-assets.com/2885/1582180369-roblox-color.svg'
+            }
+          },
+          {
+            quote:
+              'Our customers’ jobs are changing constantly. It’s challenging to dynamically predict demand, what types of jobs, and the resource requirements. We found that Nomad excelled in this area.',
+            caseStudyURL:
+              'https://www.hashicorp.com/resources/nomad-vault-circleci-security-scheduling',
+            person: {
+              firstName: 'Rob',
+              lastName: 'Zuber',
+              photo:
+                'https://www.datocms-assets.com/2885/1582180618-rob-zuber.jpeg',
+              title: 'CTO'
+            },
+            company: {
+              name: 'CircleCI',
+              logo:
+                'https://www.datocms-assets.com/2885/1582180745-circleci-logo.svg'
+            }
+          },
+          {
+            quote:
+              'Adopting Nomad did not require us to change our packaging format — we could continue to package Python in Docker and build binaries for the rest of our applications.',
+            caseStudyURL:
+              'https://medium.com/@copyconstruct/schedulers-kubernetes-and-nomad-b0f2e14a896',
+            person: {
+              firstName: 'Cindy',
+              lastName: 'Sridharan',
+              photo:
+                'https://www.datocms-assets.com/2885/1582181517-cindy-sridharan.png',
+              title: 'Engineer'
+            },
+            company: {
+              name: 'imgix',
+              logo: 'https://www.datocms-assets.com/2885/1582181250-imgix.svg'
+            }
+          }
+        ]}
+        featuredLogos={[
+          {
+            companyName: 'Trivago',
+            url:
+              'https://www.datocms-assets.com/2885/1582162317-trivago-monochromatic.svg'
+          },
+          {
+            companyName: 'Roblox',
+            url:
+              'https://www.datocms-assets.com/2885/1582180373-roblox-monochrome.svg'
+          },
+          {
+            companyName: 'CircleCI',
+            url:
+              'https://www.datocms-assets.com/2885/1582180745-circleci-logo.svg'
+          },
+          {
+            companyName: 'SAP Ariba',
+            url:
+              'https://www.datocms-assets.com/2885/1580419436-logosap-ariba.svg'
+          },
+          {
+            companyName: 'Pandora',
+            url:
+              'https://www.datocms-assets.com/2885/1523044075-pandora-black.svg'
+          },
+          {
+            companyName: 'Citadel',
+            url:
+              'https://www.datocms-assets.com/2885/1582323352-logocitadelwhite-knockout.svg'
+          },
+          {
+            companyName: 'Jet',
+            url: 'https://www.datocms-assets.com/2885/1522341143-jet-black.svg'
+          },
+          {
+            companyName: 'Deluxe',
+            url:
+              'https://www.datocms-assets.com/2885/1582323254-deluxe-logo.svg'
+          }
+        ]}
+      />
 
-      <section className="simple-lightweight">
-        <div className="g-grid-container">
-          <Headline
-            text="Simple and Lightweight"
-            details="Nomad is an easy-to-use, flexible, and performant workload orchestrator that can deploy a mix of microservice, batch, containerized, and non-containerized applications. Nomad is easy to operate and scale and has native Consul and Vault integrations."
-          />
+      <MiniCTA
+        title="Are you using Nomad in production?"
+        link={{
+          text: 'Share your success story and receive special Nomad swag.',
+          url: 'https://forms.gle/rdaLSuMGpvbomgYk9',
+          type: 'outbound'
+        }}
+      />
 
-          <TwoColumnList
-            items={[
-              {
-                title: '1. Declare Jobs',
-                details:
-                  '<p>Users compose and submit high-level job files. Nomad handles the scheduling and upgrading of the applications over time.</p><p>This flexibility makes it easy to deploy one container, dozens of containers, or even <a href="https://www.hashicorp.com/c1m/">millions</a>.</p>'
-              },
-              {
-                title: '2. Plan Changes',
-                details:
-                  'With built-in dry-run execution, Nomad shows what scheduling decisions it will take before it takes them. Operators can approve or deny these changes to create a safe and reproducible workflow.'
-              },
-              {
-                title: '3. Run Applications',
-                details:
-                  'Nomad runs applications and ensures they keep running in failure scenarios. In addition to long-running services, Nomad can schedule batch jobs, distributed cron jobs, and parameterized jobs.'
-              },
-              {
-                title: '4. Monitor Progress',
-                details:
-                  'Stream logs, send signals, and interact with the file system of scheduled applications. These operator-friendly commands bring the familiar debugging tools to a scheduled world.'
-              }
-            ]}
-          />
-        </div>
-      </section>
-
-      <section className="hybrid-multi-cloud g-grid-container">
-        <Headline
-          tag="Combine"
-          text="Hybrid &amp; Multi-Cloud"
-          details="As more organizations adopt cloud technologies, the desire to run in multiple datacenters and multiple regions becomes critical. Nomad can span public and private clouds and treat all your infrastructure as a pool of resources."
-        />
-
-        <img
-          src={require('./img/hybrid-multi-cloud.svg')}
-          alt="List of cloud service provider logos"
-        />
-
-        <TwoColumnList
+      <div className="use-cases g-grid-container">
+        <h2 className="g-type-display-2">Use Cases</h2>
+        <UseCases
+          theme="nomad"
           items={[
             {
-              title: 'Hybrid Cloud',
-              details:
-                'Nomad bridges the gap between the public and private cloud, creating a unified interface for developers to run any application on any infrastructure. Easily run services across your internal private cloud and external public cloud transparently to application developers.'
+              title: 'Simple Container Orchestration',
+              description:
+                'Deploy, manage, and scale enterprise containers in production with ease.',
+              image: {
+                alt: null,
+                format: 'png',
+                url: require('./img/use-cases/simple-container-orchestration.svg')
+              },
+              link: {
+                external: false,
+                title: 'Learn more',
+                url: '/use-cases/simple-container-orchestration'
+              }
             },
             {
-              title: 'Multi Cloud',
-              details:
-                'As more organizations adopt cloud technologies, the desire to run applications simultaneously across multiple clouds increases. Nomad combines the power of all cloud providers into a single, unified interface for deploying applications and running services.'
+              title: 'Non Containerized Application Orchestration',
+              description:
+                'Modernize non-containerized applications without rewrite.',
+              image: {
+                alt: null,
+                format: 'png',
+                url: require('./img/use-cases/non-containerized-application-orchestration.svg')
+              },
+              link: {
+                external: false,
+                title: 'Learn more',
+                url: '/use-cases/non-containerized-application-orchestration'
+              }
+            },
+            {
+              title: 'Automated Service Networking with Consul',
+              description:
+                'Service discovery and service mesh with HashiCorp Consul to ensure secure service-to-service communication.',
+              image: {
+                alt: null,
+                format: 'png',
+                url: require('./img/use-cases/automated-service-networking-with-consul.svg')
+              },
+              link: {
+                external: false,
+                title: 'Learn more',
+                url: '/use-cases/automated-service-networking-with-consul'
+              }
             }
           ]}
         />
-      </section>
-
-      <section className="simplify-operations">
-        <div className="g-grid-container">
-          <Headline
-            tag="Maintain"
-            text="Simplify Operations"
-            details="Nomad simplifies operations by supporting several deployment strategies to safely upgrade jobs, automatically handling machine failures, and providing a single workflow to deploy applications."
-            themeColor="green"
-          />
-
-          <ul className="left-right-list">
-            <li>
-              <div className="image">
-                <img src={require('./img/maintain-1.svg')} alt="illustration" />
-              </div>
-              <div className="text">
-                <h3 className="g-type-display-4">Rolling Deploys</h3>
-                <p className="g-type-body">
-                  In order to update an application while reducing downtime,
-                  Nomad provides a built-in mechanism for rolling upgrades.
-                  Operators specify the rate at which they would like to upgrade
-                  their service in the declarative job file, plan the changes,
-                  and submit the new job. Nomad then updates the service to the
-                  newest version using task health and Consul health check
-                  information to ensure replacement allocations are healthy.
-                  With full control over the update strategy, rolling upgrades
-                  make application deployments simple and safe.
-                </p>
-              </div>
-            </li>
-            <li>
-              <div className="image">
-                <img src={require('./img/maintain-2.svg')} alt="illustration" />
-              </div>
-              <div className="text">
-                <h3 className="g-type-display-4">Blue/Green Deployments</h3>
-                <p className="g-type-body">
-                  Nomad supports native blue/green and canary deployments
-                  through the declarative job file syntax. Instead of doing a
-                  rolling upgrade of the existing allocations, the new version
-                  of the group is deployed along side the existing set. While
-                  this duplicates the resources required during the upgrade
-                  process, it allows very safe deployments as the original
-                  version of the group is untouched till the operator promotes
-                  the new version.
-                </p>
-              </div>
-            </li>
-            <li>
-              <div className="image">
-                <img src={require('./img/maintain-3.svg')} alt="illustration" />
-              </div>
-              <div className="text">
-                <h3 className="g-type-display-4">Automatic Machine Failures</h3>
-                <p className="g-type-body">
-                  Because it knows the state of all nodes and applications, if a
-                  node becomes unhealthy, Nomad will automatically reschedule
-                  the applications that were previously running on the unhealthy
-                  host onto a new, healthy host if capacity exists. As new
-                  clients are added to the cluster, they can share the
-                  responsibility of running applications and services.
-                </p>
-              </div>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <section className="flexible-workloads g-grid-container">
-        <Headline
-          tag="Support"
-          text="Flexible Workloads"
-          details="In addition to supporting Linux, Windows, and Mac, Nomad has
-          extensible support for containerized, virtualized, and standalone
-          applications. Easily start Docker containers, VMs, or application
-          runtimes like Java."
-        />
-
-        <img
-          src={require('./img/flexible-workloads.svg')}
-          alt="List of container and runtime service and operating system logos"
-        />
-
-        <TwoColumnList
-          items={[
-            {
-              title: 'Diverse Technologies',
-              details:
-                'By supporting a wide range of technologies such as Docker, rkt, and LXC, Nomad does not force you into a single technology. Easily use multiple container or virtualization runtimes simultaneously. Applications with their own runtime such as Java or Go can be scheduled directly without the overhead of a container.'
-            },
-            {
-              title: 'Multi OS',
-              details:
-                'The Nomad client runs on Linux, Windows, and Mac OS. This diverse operating system support enables using the same application scheduler for all your scheduling and runtime needs.'
-            }
-          ]}
-        />
-      </section>
-
-      <section className="utilization-costs">
-        <div className="g-grid-container">
-          <Headline
-            tag="Maximize"
-            text="Increase Utilization &amp; Reduce Costs"
-            details="Nomad uses bin packing to optimize application placement onto servers to maximize resource utilization, increase density, and help reduce costs."
-            themeColor="dark"
-          />
-
-          <img
-            src={require('./img/utilization-costs.svg')}
-            alt="illustration - increase density by using nomad"
-          />
-
-          <TwoColumnList
-            items={[
-              {
-                title: 'Increase Density',
-                details:
-                  'Nomad places applications and services based on a bin packing algorithm, which is used to optimize the resource utilization and density of applications. Nomad automatically augments the bin-packing algorithm with anti-affinity rules to avoid colocating instances of the same service to reduce the probability of correlated failures. '
-              },
-              {
-                title: 'Reduce Costs',
-                details:
-                  'By maximizing resource utilization, Nomad can help remove unused or under-utilized machines in the cluster, reducing overall costs. Additionally, Nomad enables organizations to utilize larger, more cost-effective compute devices which can be less expensive at scale. '
-              }
-            ]}
-          />
-        </div>
-      </section>
-
-      <section className="examples">
-        <div className="g-grid-container">
-          <Headline text="Examples" />
-
-          <h3 className="g-type-display-4">Create and Submit Jobs</h3>
-          <p className="g-type-body">
-            Easily create, validate, submit, and check the status of jobs using
-            the Nomad CLI.
-          </p>
-          <CodeSample>{`<span class='green'>admin@hashicorp.com:</span> nomad init
-Example job file written to example.nomad
-
-<span class='green'>admin@hashicorp.com:</span> nomad job validate example.nomad
-Job validation successful
-
-<span class='green'>admin@hashicorp.com:</span> nomad job run example.nomad
-==> Monitoring evaluation "feb23392
-    Evaluation triggered by job "example"
-    Evaluation within deployment: "7ffa7ed1"
-    Allocation "a2f24fcf" created: node "3714a84a", group "cache"
-    Evaluation status changed: "pending" -> "complete"
-==> Evaluation "feb23392" finished with status "complete"
-
-<span class='green'>admin@hashicorp.com:</span> nomad status
-ID       Type     Priority  Status   Submit Date
-example  service  50        running  12/20/19 16:29:47 UTC
-        `}</CodeSample>
-
-          <h3 className="g-type-display-4">Plan Changes</h3>
-          <p className="g-type-body">
-            Perform a dry-run to check application placement, scheduling
-            decisions, and visualize failures before they happen.
-          </p>
-          <CodeSample>{`<span class='green'>admin@hashicorp.com:</span> nomad job plan example.nomad
-<span class='yellow'>+/-</span> <span class='bold'>Job: "example"</span>
-<span class='yellow'>+/-</span> <span class='bold'>Task Group: "cache"</span> (<span class='green'>2 create</span>, <span class='blue'>1 in-place update</span>)
-  <span class='yellow'>+/-</span> Count: "1" => "3" (<span class='green'>forces create</span>)
-      Task: "redis"
-
-<span class='bold'>Scheduler dry-run:</span>
-- <span class='green bold'>All tasks successfully allocated.</span>
-
-<span class='bold'>Job Modify Index: 7</span>
-
-<span class='green'>admin@hashicorp.com</span>: nomad job run -check-index 7 example.nomad
-==> Monitoring evaluation "e338a6ae"
-    Evaluation triggered by job "example"
-    Evaluation within deployment: "43310206"
-    Allocation "991a0d89" created: node "c5916a99", group "cache"
-    Allocation "daee8be1" created: node "c5916a99", group "cache"
-    Allocation "83f29312" modified: node "c5916a99", group "cache"
-    Evaluation status changed: "pending" -> "complete"
-==> Evaluation "e338a6ae" finished with status "complete"
-        `}</CodeSample>
-
-          <h3 className="g-type-display-4">View Application Logs</h3>
-          <p className="g-type-body">
-            Stream application logs directly in the terminal to help analyze and
-            debug applications.
-          </p>
-          <CodeSample>{`<span class='green'>admin@hashicorp.com:</span> nomad alloc logs -tail -job example
-20 Dec 16:29:47 # Server started, Redis version 3.2.9
-20 Dec 16:29:47* The server is now ready to accept connections on port 6379
-        `}</CodeSample>
-
-          <div className="centered">
-            <h5 className="g-type-body-large">
-              The introduction contains a walkthrough guide, glossary, and a
-              range of examples for learning and experimenting with Nomad.{' '}
-            </h5>
-            <Button
-              url="/intro"
-              title="Get Started"
-              theme={{ brand: 'nomad' }}
-            />
-          </div>
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function Headline({ tag, text, details, themeColor }) {
-  return (
-    <div className="headline">
-      {tag && <span className={`tag g-type-label ${themeColor}`}>{tag}</span>}
-      <h1 className="g-type-display-2">{text}</h1>
-      <h5 className="g-type-body-large lead">{details}</h5>
-    </div>
-  )
-}
-
-function TwoColumnList({ items }) {
-  return (
-    <ul className="two-column-list">
-      {items.map(item => (
-        <li key={item.title}>
-          <h3 className="g-type-display-4">{item.title}</h3>
-          {item.details[0] === '<' ? (
-            <span
-              className="g-type-body"
-              dangerouslySetInnerHTML={{ __html: item.details }}
-            />
-          ) : (
-            <p className="g-type-body">{item.details}</p>
-          )}
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function CodeSample({ children }) {
-  return (
-    <pre className="code-sample">
-      <div className="chrome">
-        <span />
-        <span />
-        <span />
       </div>
-      <code dangerouslySetInnerHTML={{ __html: children }}></code>
-    </pre>
+
+      <LearnNomad
+        items={[
+          {
+            title: 'Getting Started',
+            category: 'Step-by-Step Guides',
+            time: '24 mins',
+            link:
+              'https://learn.hashicorp.com/nomad?track=getting-started#getting-started',
+            image: require('./img/learn-nomad/cap.svg')
+          },
+          {
+            title: 'Deploy and Manage Nomad Jobs',
+            category: 'Step-by-Step Guides',
+            time: '36 mins',
+            link:
+              'https://learn.hashicorp.com/nomad?track=managing-jobs#getting-started',
+            image: require('./img/learn-nomad/cubes.svg')
+          }
+        ]}
+      />
+
+      <NomadEnterpriseInfo />
+
+      <CallToAction
+        variant="compact"
+        heading="Ready to get started?"
+        content="Nomad Open Source addresses the technical complexity of managing a mixed type of workloads in production at scale by providing a simple and flexible workload orchestrator across distributed infrastructure and clouds."
+        brand="nomad"
+        links={[
+          {
+            text: 'Explore HashiCorp Learn',
+            type: 'outbound',
+            url: 'https://learn.hashicorp.com/nomad'
+          },
+          {
+            text: 'Explore Documentation',
+            type: 'inbound',
+            url: '/docs'
+          }
+        ]}
+      />
+    </div>
   )
 }
