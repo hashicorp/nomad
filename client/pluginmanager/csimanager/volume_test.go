@@ -290,3 +290,59 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 		})
 	}
 }
+
+func TestVolumeManager_unpublishVolume(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		Name                 string
+		Allocation           *structs.Allocation
+		Volume               *structs.CSIVolume
+		PluginErr            error
+		ExpectedErr          error
+		ExpectedCSICallCount int64
+	}{
+		{
+			Name:       "Returns an error when the plugin returns an error",
+			Allocation: structs.MockAlloc(),
+			Volume: &structs.CSIVolume{
+				ID: "foo",
+			},
+			PluginErr:            errors.New("Some Unknown Error"),
+			ExpectedErr:          errors.New("Some Unknown Error"),
+			ExpectedCSICallCount: 1,
+		},
+		{
+			Name:       "Happy Path",
+			Allocation: structs.MockAlloc(),
+			Volume: &structs.CSIVolume{
+				ID: "foo",
+			},
+			PluginErr:            nil,
+			ExpectedErr:          nil,
+			ExpectedCSICallCount: 1,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			tmpPath := tmpDir(t)
+			defer os.RemoveAll(tmpPath)
+
+			csiFake := &csifake.Client{}
+			csiFake.NextNodeUnpublishVolumeErr = tc.PluginErr
+
+			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
+			ctx := context.Background()
+
+			err := manager.unpublishVolume(ctx, tc.Volume, tc.Allocation)
+
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
+			} else {
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.ExpectedCSICallCount, csiFake.NodeUnpublishVolumeCallCount)
+		})
+	}
+}

@@ -9,6 +9,7 @@ import (
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/mount"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
@@ -273,11 +274,57 @@ func (v *volumeManager) unstageVolume(ctx context.Context, vol *structs.CSIVolum
 	)
 }
 
+func combineErrors(maybeErrs ...error) error {
+	var result *multierror.Error
+	for _, err := range maybeErrs {
+		if err == nil {
+			continue
+		}
+
+		result = multierror.Append(result, err)
+	}
+
+	return result.ErrorOrNil()
+}
+
+func (v *volumeManager) unpublishVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation) error {
+	pluginTargetPath := v.allocDirForVolume(v.containerMountPoint, vol, alloc)
+
+	rpcErr := v.plugin.NodeUnpublishVolume(ctx, vol.ID, pluginTargetPath,
+		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)),
+	)
+
+	hostTargetPath := v.allocDirForVolume(v.mountRoot, vol, alloc)
+	if _, err := os.Stat(hostTargetPath); os.IsNotExist(err) {
+		// Host Target Path already got destroyed, just return any rpcErr
+		return rpcErr
+	}
+
+	// Host Target Path was not cleaned up, attempt to do so here. If it's still
+	// a mount then removing the dir will fail and we'll return any rpcErr and the
+	// file error.
+	rmErr := os.Remove(hostTargetPath)
+	if rmErr != nil {
+		return combineErrors(rpcErr, rmErr)
+	}
+
+	// We successfully removed the directory, return any rpcErrors that were
+	// encountered, but because we got here, they were probably flaky or was
+	// cleaned up externally. We might want to just return `nil` here in the
+	// future.
+	return rpcErr
+}
+
 func (v *volumeManager) UnmountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation) error {
 	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
 	ctx = hclog.WithContext(ctx, logger)
 
-	// TODO(GH-7030): NodeUnpublishVolume
+	err := v.unpublishVolume(ctx, vol, alloc)
+	if err != nil {
+		return err
+	}
 
 	if !v.requiresStaging {
 		return nil
