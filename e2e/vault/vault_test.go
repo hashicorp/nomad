@@ -3,7 +3,6 @@ package vault
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -13,19 +12,17 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/go-version"
-
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
-
 	vapi "github.com/hashicorp/vault/api"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -34,12 +31,16 @@ var (
 )
 
 // syncVault discovers available versions of Vault, downloads the binaries,
-// returns a map of version to binary path.
-func syncVault(t *testing.T) map[string]string {
+// returns a map of version to binary path as well as a sorted list of
+// versions.
+func syncVault(t *testing.T) ([]*version.Version, map[string]string) {
 
 	binDir := filepath.Join(os.TempDir(), "vault-bins/")
 
-	versions := vaultVersions(t)
+	urls := vaultVersions(t)
+
+	sorted, versions, err := pruneVersions(urls)
+	require.NoError(t, err)
 
 	// Get the binaries we need to download
 	missing, err := missingVault(binDir, versions)
@@ -48,26 +49,22 @@ func syncVault(t *testing.T) map[string]string {
 	// Create the directory for the binaries
 	require.NoError(t, createBinDir(binDir))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-
-	// Limit to N concurrent downloads
-	sema := make(chan int, 5)
-
 	// Download in parallel
 	start := time.Now()
-	g, _ := errgroup.WithContext(ctx)
+	errCh := make(chan error, len(missing))
 	for ver, url := range missing {
-		dst := filepath.Join(binDir, ver)
-		g.Go(func() error {
-			sema <- 1
-			defer func() {
-				<-sema
-			}()
-			return getVault(dst, url)
-		})
+		go func(dst, url string) {
+			errCh <- getVault(dst, url)
+		}(filepath.Join(binDir, ver), url)
 	}
-	require.NoError(t, g.Wait())
+	for i := 0; i < len(missing); i++ {
+		select {
+		case err := <-errCh:
+			require.NoError(t, err)
+		case <-time.After(5 * time.Minute):
+			t.Fatalf("timed out downloading Vault binaries")
+		}
+	}
 	if n := len(missing); n > 0 {
 		t.Logf("Downloaded %d versions of Vault in %s", n, time.Now().Sub(start))
 	}
@@ -76,7 +73,7 @@ func syncVault(t *testing.T) map[string]string {
 	for ver, _ := range versions {
 		binaries[ver] = filepath.Join(binDir, ver)
 	}
-	return binaries
+	return sorted, binaries
 }
 
 // vaultVersions discovers available Vault versions from releases.hashicorp.com
@@ -151,6 +148,59 @@ func vaultVersions(t *testing.T) map[string]string {
 	}
 
 	return versions
+}
+
+// pruneVersions only takes the latest Z for each X.Y.Z release. Returns a
+// sorted list and map of kept versions.
+func pruneVersions(all map[string]string) ([]*version.Version, map[string]string, error) {
+	if len(all) == 0 {
+		return nil, nil, fmt.Errorf("0 Vault versions")
+	}
+
+	sorted := make([]*version.Version, 0, len(all))
+
+	for k := range all {
+		sorted = append(sorted, version.Must(version.NewVersion(k)))
+	}
+
+	sort.Sort(version.Collection(sorted))
+
+	keep := make([]*version.Version, 0, len(all))
+
+	for _, v := range sorted {
+		segments := v.Segments()
+		if len(segments) < 3 {
+			// Drop malformed versions
+			continue
+		}
+
+		if len(keep) == 0 {
+			keep = append(keep, v)
+			continue
+		}
+
+		last := keep[len(keep)-1].Segments()
+
+		if segments[0] == last[0] && segments[1] == last[1] {
+			// current X.Y == last X.Y, replace last with current
+			keep[len(keep)-1] = v
+		} else {
+			// current X.Y != last X.Y, append
+			keep = append(keep, v)
+		}
+	}
+
+	// Create a new map of canonicalized versions to urls
+	urls := make(map[string]string, len(keep))
+	for _, v := range keep {
+		origURL := all[v.Original()]
+		if origURL == "" {
+			return nil, nil, fmt.Errorf("missing version %s", v.Original())
+		}
+		urls[v.String()] = origURL
+	}
+
+	return keep, urls, nil
 }
 
 // createBinDir creates the binary directory
@@ -254,12 +304,13 @@ func TestVaultCompatibility(t *testing.T) {
 		t.Skip("skipping test in non-integration mode: add -integration flag to run")
 	}
 
-	vaultBinaries := syncVault(t)
+	sorted, vaultBinaries := syncVault(t)
 
-	for version, vaultBin := range vaultBinaries {
-		ver := version
-		bin := vaultBin
-		t.Run(version, func(t *testing.T) {
+	for _, v := range sorted {
+		ver := v.String()
+		bin := vaultBinaries[ver]
+		require.NotZerof(t, bin, "missing version: %s", ver)
+		t.Run(ver, func(t *testing.T) {
 			testVaultCompatibility(t, bin, ver)
 		})
 	}
@@ -333,11 +384,8 @@ func setupVault(t *testing.T, client *vapi.Client, vaultVersion string) string {
 
 	// pre-0.9.0 vault servers do not work with our new vault client for the policy endpoint
 	// perform this using a raw HTTP request
-	newApi, _ := version.NewVersion("0.9.0")
-	testVersion, err := version.NewVersion(vaultVersion)
-	if err != nil {
-		t.Fatalf("failed to parse test version from '%v': %v", t.Name(), err)
-	}
+	newApi := version.Must(version.NewVersion("0.9.0"))
+	testVersion := version.Must(version.NewVersion(vaultVersion))
 	if testVersion.LessThan(newApi) {
 		body := map[string]string{
 			"rules": policy,
