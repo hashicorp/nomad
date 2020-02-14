@@ -33,14 +33,15 @@ var (
 )
 
 // syncVault discovers available versions of Vault, downloads the binaries,
-// returns a map of version to binary path.
-func syncVault(t *testing.T) map[string]string {
+// returns a map of version to binary path as well as a sorted list of
+// versions.
+func syncVault(t *testing.T) ([]*version.Version, map[string]string) {
 
 	binDir := filepath.Join(os.TempDir(), "vault-bins/")
 
 	urls := vaultVersions(t)
 
-	_, versions, err := pruneVersions(urls)
+	sorted, versions, err := pruneVersions(urls)
 	require.NoError(t, err)
 
 	// Get the binaries we need to download
@@ -79,7 +80,7 @@ func syncVault(t *testing.T) map[string]string {
 	for ver, _ := range versions {
 		binaries[ver] = filepath.Join(binDir, ver)
 	}
-	return binaries
+	return sorted, binaries
 }
 
 // vaultVersions discovers available Vault versions from releases.hashicorp.com
@@ -310,12 +311,13 @@ func TestVaultCompatibility(t *testing.T) {
 		t.Skip("skipping test in non-integration mode: add -integration flag to run")
 	}
 
-	vaultBinaries := syncVault(t)
+	sorted, vaultBinaries := syncVault(t)
 
-	for version, vaultBin := range vaultBinaries {
-		ver := version
-		bin := vaultBin
-		t.Run(version, func(t *testing.T) {
+	for _, v := range sorted {
+		ver := v.String()
+		bin := vaultBinaries[ver]
+		require.NotZerof(t, bin, "missing version: %s", ver)
+		t.Run(ver, func(t *testing.T) {
 			testVaultCompatibility(t, bin, ver)
 		})
 	}
@@ -389,11 +391,8 @@ func setupVault(t *testing.T, client *vapi.Client, vaultVersion string) string {
 
 	// pre-0.9.0 vault servers do not work with our new vault client for the policy endpoint
 	// perform this using a raw HTTP request
-	newApi, _ := version.NewVersion("0.9.0")
-	testVersion, err := version.NewVersion(vaultVersion)
-	if err != nil {
-		t.Fatalf("failed to parse test version from '%v': %v", t.Name(), err)
-	}
+	newApi := version.Must(version.NewVersion("0.9.0"))
+	testVersion := version.Must(version.NewVersion(vaultVersion))
 	if testVersion.LessThan(newApi) {
 		body := map[string]string{
 			"rules": policy,
