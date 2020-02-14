@@ -394,7 +394,7 @@ func (c *client) NodePublishVolume(ctx context.Context, req *NodePublishVolumeRe
 	return err
 }
 
-func (c *client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath string) error {
+func (c *client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath string, opts ...grpc.CallOption) error {
 	if c == nil {
 		return fmt.Errorf("Client not initialized")
 	}
@@ -417,6 +417,6 @@ func (c *client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath s
 
 	// NodeUnpublishVolume's response contains no extra data. If err == nil, we were
 	// successful.
-	_, err := c.nodeClient.NodeUnpublishVolume(ctx, req)
+	_, err := c.nodeClient.NodeUnpublishVolume(ctx, req, opts...)
 	return err
 }
