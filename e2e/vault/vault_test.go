@@ -61,6 +61,7 @@ func syncVault(t *testing.T) map[string]string {
 	g, _ := errgroup.WithContext(ctx)
 	for ver, url := range missing {
 		dst := filepath.Join(binDir, ver)
+		url := url
 		g.Go(func() error {
 			sema <- 1
 			defer func() {
