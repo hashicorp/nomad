@@ -4,7 +4,7 @@ import NProgress from 'nprogress'
 import Router from 'next/router'
 import DefaultHeadTags from '../components/default-head-tags'
 import ProductSubnav from '../components/subnav'
-import MegaNav from '@hashicorp/react-mega-nav'
+import MegaNav from '../components/mega-nav'
 import Footer from '@hashicorp/react-footer'
 import { ConsentManager, open } from '@hashicorp/react-consent-manager'
 import consentManagerConfig from '../lib/consent-manager-config'
@@ -46,11 +46,7 @@ class NextApp extends App {
       <ErrorBoundary FallbackComponent={Error}>
         <DefaultHeadTags />
         <MegaNav product="Nomad" />
-        <ProductSubnav
-          links={subnavLinks}
-          currentPath={path}
-          rootUrl="nomadproject.io"
-        />
+        <ProductSubnav />
         <Component {...pageProps} />
         <Footer openConsentManager={open} />
         <ConsentManager {...consentManagerConfig} />
