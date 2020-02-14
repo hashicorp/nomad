@@ -42,6 +42,7 @@ export default create({
     message: text('[data-test-message]'),
     time: text('[data-test-time]'),
     ports: text('[data-test-ports]'),
+    volumes: text('[data-test-volumes]'),
 
     hasUnhealthyDriver: isPresent('[data-test-icon="unhealthy-driver"]'),
     hasProxyTag: isPresent('[data-test-proxy-tag]'),

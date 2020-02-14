@@ -91,6 +91,17 @@ module('Acceptance | allocation detail', function(hooks) {
     const events = server.db.taskEvents.where({ taskStateId: task.id });
     const event = events[events.length - 1];
 
+    const taskGroup = server.schema.taskGroups.where({
+      jobId: allocation.jobId,
+      name: allocation.taskGroup,
+    }).models[0];
+
+    const jobTask = taskGroup.tasks.models.find(m => m.name === task.name);
+    const volumes = jobTask.volumeMounts.map(volume => ({
+      name: volume.Volume,
+      source: taskGroup.volumes[volume.Volume].Source,
+    }));
+
     Allocation.tasks[0].as(taskRow => {
       assert.equal(taskRow.name, task.name, 'Name');
       assert.equal(taskRow.state, task.state, 'State');
@@ -112,6 +123,12 @@ module('Acceptance | allocation detail', function(hooks) {
       dynamicPorts.forEach(port => {
         assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
         assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
+      });
+
+      const volumesText = taskRow.volumes;
+      volumes.forEach(volume => {
+        assert.ok(volumesText.includes(volume.name), `Found label ${volume.name}`);
+        assert.ok(volumesText.includes(volume.source), `Found value ${volume.source}`);
       });
     });
   });
