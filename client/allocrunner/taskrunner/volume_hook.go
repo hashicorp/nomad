@@ -103,7 +103,7 @@ func partitionVolumesByType(xs map[string]*structs.VolumeRequest) map[string]map
 	return result
 }
 
-func (h *volumeHook) prepareHostVolumes(volumes map[string]*structs.VolumeRequest, req *interfaces.TaskPrestartRequest) ([]*drivers.MountConfig, error) {
+func (h *volumeHook) prepareHostVolumes(req *interfaces.TaskPrestartRequest, volumes map[string]*structs.VolumeRequest) ([]*drivers.MountConfig, error) {
 	hostVolumes := h.runner.clientConfig.Node.HostVolumes
 
 	// Always validate volumes to ensure that we do not allow volumes to be used
@@ -171,7 +171,7 @@ func (h *volumeHook) prepareCSIVolumes(req *interfaces.TaskPrestartRequest, volu
 func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	volumes := partitionVolumesByType(h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup).Volumes)
 
-	hostVolumeMounts, err := h.prepareHostVolumes(volumes[structs.VolumeTypeHost], req)
+	hostVolumeMounts, err := h.prepareHostVolumes(req, volumes[structs.VolumeTypeHost])
 	if err != nil {
 		return err
 	}
