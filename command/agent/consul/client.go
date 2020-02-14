@@ -109,7 +109,17 @@ type ACLsAPI interface {
 // agentServiceUpdateRequired checks if any critical fields in Nomad's version
 // of a service definition are different from the existing service definition as
 // known by Consul.
-func agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegistration, existing *api.AgentService) bool {
+//
+//  reason - The syncReason that triggered this synchronization with the consul
+//           agent API.
+//  wanted - Nomad's view of what the service definition is intended to be.
+//           Not nil.
+//  existing - Consul's view (agent, not catalog) of the actual service definition.
+//           Not nil.
+//  sidecar - Consul's view (agent, not catalog) of the service definition of the sidecar
+//           associated with existing that may or may not exist.
+//           May be nil.
+func agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
 	switch reason {
 	case syncPeriodic:
 		// In a periodic sync with Consul, we need to respect the value of
@@ -123,31 +133,39 @@ func agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegis
 		//
 		// We do so by over-writing the nomad service registration by the value
 		// of the tags that Consul contains, if enable_tag_override = true.
-		maybeTweakTags(wanted, existing)
-		return different(wanted, existing)
+		maybeTweakTags(wanted, existing, sidecar)
+		return different(wanted, existing, sidecar)
 
 	default:
 		// A non-periodic sync with Consul indicates an operation has been set
 		// on the queue. This happens when service has been added / removed / modified
 		// and implies the Consul agent should be sync'd with nomad, because
 		// nomad is the ultimate source of truth for the service definition.
-		return different(wanted, existing)
+		return different(wanted, existing, sidecar)
 	}
 }
 
 // maybeTweakTags will override wanted.Tags with a copy of existing.Tags only if
 // EnableTagOverride is true. Otherwise the wanted service registration is left
 // unchanged.
-func maybeTweakTags(wanted *api.AgentServiceRegistration, existing *api.AgentService) {
+func maybeTweakTags(wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) {
 	if wanted.EnableTagOverride {
 		wanted.Tags = helper.CopySliceString(existing.Tags)
+		// If the service registration also defines a sidecar service, use the ETO
+		// setting for the parent service to also apply to the sidecar.
+		if wanted.Connect != nil && wanted.Connect.SidecarService != nil {
+			if sidecar != nil {
+				wanted.Connect.SidecarService.Tags = helper.CopySliceString(sidecar.Tags)
+			}
+		}
 	}
 }
 
 // different compares the wanted state of the service registration with the actual
 // (cached) state of the service registration reported by Consul. If any of the
 // critical fields are not deeply equal, they considered different.
-func different(wanted *api.AgentServiceRegistration, existing *api.AgentService) bool {
+func different(wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
+
 	return !(wanted.Kind == existing.Kind &&
 		wanted.ID == existing.ID &&
 		wanted.Port == existing.Port &&
@@ -155,7 +173,25 @@ func different(wanted *api.AgentServiceRegistration, existing *api.AgentService)
 		wanted.Name == existing.Service &&
 		wanted.EnableTagOverride == existing.EnableTagOverride &&
 		reflect.DeepEqual(wanted.Meta, existing.Meta) &&
-		reflect.DeepEqual(wanted.Tags, existing.Tags))
+		reflect.DeepEqual(wanted.Tags, existing.Tags) &&
+		!connectSidecarDifferent(wanted, sidecar))
+}
+
+func connectSidecarDifferent(wanted *api.AgentServiceRegistration, sidecar *api.AgentService) bool {
+	if wanted.Connect != nil && wanted.Connect.SidecarService != nil {
+		if sidecar == nil {
+			// consul lost our sidecar (?)
+			return true
+		}
+		if !reflect.DeepEqual(wanted.Connect.SidecarService.Tags, sidecar.Tags) {
+			// tags on the nomad definition have been modified
+			return true
+		}
+	}
+
+	// There is no connect sidecar the nomad side; let consul anti-entropy worry
+	// about any registration on the consul side.
+	return false
 }
 
 // operations are submitted to the main loop via commit() for synchronizing
@@ -365,7 +401,8 @@ func (c *ServiceClient) hasSeen() bool {
 // syncReason indicates why a sync operation with consul is about to happen.
 //
 // The trigger for a sync may have implications on the behavior of the sync itself.
-// In particular, if a service is defined with enable_tag_override=true
+// In particular if a service is defined with enable_tag_override=true, the sync
+// should ignore changes to the service's Tags field.
 type syncReason byte
 
 const (
@@ -579,25 +616,20 @@ func (c *ServiceClient) sync(reason syncReason) error {
 	}
 
 	// Add Nomad services missing from Consul, or where the service has been updated.
-	for id, local := range c.services {
-		existingSvc, ok := consulServices[id]
+	for id, serviceInNomad := range c.services {
 
-		if ok {
-			// There is an existing registration of this service in Consul, so here
-			// we validate to see if the service has been invalidated to see if it
-			// should be updated.
-			if !agentServiceUpdateRequired(reason, local, existingSvc) {
-				// No Need to update services that have not changed
-				continue
+		serviceInConsul, exists := consulServices[id]
+		sidecarInConsul := getNomadSidecar(id, consulServices)
+
+		if !exists || agentServiceUpdateRequired(reason, serviceInNomad, serviceInConsul, sidecarInConsul) {
+			if err = c.client.ServiceRegister(serviceInNomad); err != nil {
+				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
+				return err
 			}
+			sreg++
+			metrics.IncrCounter([]string{"client", "consul", "service_registrations"}, 1)
 		}
 
-		if err = c.client.ServiceRegister(local); err != nil {
-			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-			return err
-		}
-		sreg++
-		metrics.IncrCounter([]string{"client", "consul", "service_registrations"}, 1)
 	}
 
 	// Remove Nomad checks in Consul but unknown locally
@@ -1318,6 +1350,10 @@ func isOldNomadService(id string) bool {
 	return strings.HasPrefix(id, prefix)
 }
 
+const (
+	sidecarSuffix = "-sidecar-proxy"
+)
+
 // isNomadSidecar returns true if the ID matches a sidecar proxy for a Nomad
 // managed service.
 //
@@ -1330,14 +1366,27 @@ func isOldNomadService(id string) bool {
 //	_nomad-task-5229c7f8-376b-3ccc-edd9-981e238f7033-cache-redis-cache-db-sidecar-proxy
 //
 func isNomadSidecar(id string, services map[string]*api.AgentServiceRegistration) bool {
-	const suffix = "-sidecar-proxy"
-	if !strings.HasSuffix(id, suffix) {
+	if !strings.HasSuffix(id, sidecarSuffix) {
 		return false
 	}
 
 	// Make sure the Nomad managed service for this proxy still exists.
-	_, ok := services[id[:len(id)-len(suffix)]]
+	_, ok := services[id[:len(id)-len(sidecarSuffix)]]
 	return ok
+}
+
+// getNomadSidecar returns the service registration of the sidecar for the managed
+// service with the specified id.
+//
+// If the managed service of the specified id does not exist, or the service does
+// not have a sidecar proxy, nil is returned.
+func getNomadSidecar(id string, services map[string]*api.AgentService) *api.AgentService {
+	if _, exists := services[id]; !exists {
+		return nil
+	}
+
+	sidecarID := id + sidecarSuffix
+	return services[sidecarID]
 }
 
 // getAddress returns the IP and port to use for a service or check. If no port

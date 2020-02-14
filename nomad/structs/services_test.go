@@ -8,6 +8,113 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestService_Hash(t *testing.T) {
+	t.Parallel()
+
+	original := &Service{
+		Name:      "myService",
+		PortLabel: "portLabel",
+		// AddressMode: "bridge", // not hashed
+		Tags:       []string{"original", "tags"},
+		CanaryTags: []string{"canary", "tags"},
+		// Checks:      nil, // not hashed (managed independently)
+		Connect: &ConsulConnect{
+			// Native: false, // not hashed
+			SidecarService: &ConsulSidecarService{
+				Tags: []string{"original", "sidecar", "tags"},
+				Port: "9000",
+				Proxy: &ConsulProxy{
+					LocalServiceAddress: "127.0.0.1",
+					LocalServicePort:    24000,
+					Config:              map[string]interface{}{"foo": "bar"},
+					Upstreams: []ConsulUpstream{{
+						DestinationName: "upstream1",
+						LocalBindPort:   29000,
+					}},
+				},
+			},
+			// SidecarTask: nil // not hashed
+		}}
+
+	type svc = Service
+	type tweaker = func(service *svc)
+
+	hash := func(s *svc, canary bool) string {
+		return s.Hash("AllocID", "TaskName", canary)
+	}
+
+	t.Run("matching and is canary", func(t *testing.T) {
+		require.Equal(t, hash(original, true), hash(original, true))
+	})
+
+	t.Run("matching and is not canary", func(t *testing.T) {
+		require.Equal(t, hash(original, false), hash(original, false))
+	})
+
+	t.Run("matching mod canary", func(t *testing.T) {
+		require.NotEqual(t, hash(original, true), hash(original, false))
+	})
+
+	try := func(t *testing.T, tweak tweaker) {
+		originalHash := hash(original, true)
+		modifiable := original.Copy()
+		tweak(modifiable)
+		tweakedHash := hash(modifiable, true)
+		require.NotEqual(t, originalHash, tweakedHash)
+	}
+
+	// these tests use tweaker to modify 1 field and make the false assertion
+	// on comparing the resulting hash output
+
+	t.Run("mod name", func(t *testing.T) {
+		try(t, func(s *svc) { s.Name = "newName" })
+	})
+
+	t.Run("mod port label", func(t *testing.T) {
+		try(t, func(s *svc) { s.PortLabel = "newPortLabel" })
+	})
+
+	t.Run("mod tags", func(t *testing.T) {
+		try(t, func(s *svc) { s.Tags = []string{"new", "tags"} })
+	})
+
+	t.Run("mod canary tags", func(t *testing.T) {
+		try(t, func(s *svc) { s.CanaryTags = []string{"new", "tags"} })
+	})
+
+	t.Run("mod enable tag override", func(t *testing.T) {
+		try(t, func(s *svc) { s.EnableTagOverride = true })
+	})
+
+	t.Run("mod connect sidecar tags", func(t *testing.T) {
+		try(t, func(s *svc) { s.Connect.SidecarService.Tags = []string{"new", "tags"} })
+	})
+
+	t.Run("mod connect sidecar port", func(t *testing.T) {
+		try(t, func(s *svc) { s.Connect.SidecarService.Port = "9090" })
+	})
+
+	t.Run("mod connect sidecar proxy local service address", func(t *testing.T) {
+		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.LocalServiceAddress = "1.1.1.1" })
+	})
+
+	t.Run("mod connect sidecar proxy local service port", func(t *testing.T) {
+		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.LocalServicePort = 9999 })
+	})
+
+	t.Run("mod connect sidecar proxy config", func(t *testing.T) {
+		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Config = map[string]interface{}{"foo": "baz"} })
+	})
+
+	t.Run("mod connect sidecar proxy upstream dest name", func(t *testing.T) {
+		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Upstreams[0].DestinationName = "dest2" })
+	})
+
+	t.Run("mod connect sidecar proxy upstream dest local bind port", func(t *testing.T) {
+		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Upstreams[0].LocalBindPort = 29999 })
+	})
+}
+
 func TestConsulConnect_Validate(t *testing.T) {
 	t.Parallel()
 
