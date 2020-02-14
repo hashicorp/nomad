@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	hclog "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -56,6 +57,41 @@ func (c *csiHook) Prerun() error {
 	c.updater.SetAllocHookResources(res)
 
 	return nil
+}
+
+func (c *csiHook) Postrun() error {
+	if !c.shouldRun() {
+		return nil
+	}
+
+	ctx := context.TODO()
+	volumes, err := c.csiVolumesFromAlloc()
+	if err != nil {
+		return err
+	}
+
+	// For Postrun, we accumulate all unmount errors, rather than stopping on the
+	// first failure. This is because we want to make a best effort to free all
+	// storage, and in some cases there may be incorrect errors from volumes that
+	// never mounted correctly during prerun when an alloc is failed. It may also
+	// fail because a volume was externally deleted while in use by this alloc.
+	var result *multierror.Error
+
+	for _, volume := range volumes {
+		mounter, err := c.csimanager.MounterForVolume(ctx, volume)
+		if err != nil {
+			result = multierror.Append(result, err)
+			continue
+		}
+
+		err = mounter.UnmountVolume(ctx, volume, c.alloc)
+		if err != nil {
+			result = multierror.Append(result, err)
+			continue
+		}
+	}
+
+	return result.ErrorOrNil()
 }
 
 // csiVolumesFromAlloc finds all the CSI Volume requests from the allocation's
