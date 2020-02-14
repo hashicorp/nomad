@@ -57,8 +57,10 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 	for _, m := range taskMounts {
 		req, ok := taskVolumesByAlias[m.Volume]
 		if !ok {
-			// Should never happen unless we misvalidated on job submission
-			return nil, fmt.Errorf("No group volume declaration found named: %s", m.Volume)
+			// This function receives only the task volumes that are of type Host,
+			// if we can't find a group volume then we assume the mount is for another
+			// type.
+			continue
 		}
 
 		// This is a defensive check, but this function should only ever receive
@@ -101,7 +103,7 @@ func partitionVolumesByType(xs map[string]*structs.VolumeRequest) map[string]map
 	return result
 }
 
-func (h *volumeHook) prepareHostVolumes(volumes map[string]*structs.VolumeRequest, req *interfaces.TaskPrestartRequest) ([]*drivers.MountConfig, error) {
+func (h *volumeHook) prepareHostVolumes(req *interfaces.TaskPrestartRequest, volumes map[string]*structs.VolumeRequest) ([]*drivers.MountConfig, error) {
 	hostVolumes := h.runner.clientConfig.Node.HostVolumes
 
 	// Always validate volumes to ensure that we do not allow volumes to be used
@@ -120,19 +122,61 @@ func (h *volumeHook) prepareHostVolumes(volumes map[string]*structs.VolumeReques
 	return hostVolumeMounts, nil
 }
 
-func (h *volumeHook) prepareCSIVolumes(req *interfaces.TaskPrestartRequest) ([]*drivers.MountConfig, error) {
-	return nil, nil
+// partitionMountsByVolume takes a list of volume mounts and returns them in the
+// form of volume-alias:[]volume-mount because one volume may be mounted multiple
+// times.
+func partitionMountsByVolume(xs []*structs.VolumeMount) map[string][]*structs.VolumeMount {
+	result := make(map[string][]*structs.VolumeMount)
+	for _, mount := range xs {
+		result[mount.Volume] = append(result[mount.Volume], mount)
+	}
+
+	return result
+}
+
+func (h *volumeHook) prepareCSIVolumes(req *interfaces.TaskPrestartRequest, volumes map[string]*structs.VolumeRequest) ([]*drivers.MountConfig, error) {
+	if len(volumes) == 0 {
+		return nil, nil
+	}
+
+	var mounts []*drivers.MountConfig
+
+	mountRequests := partitionMountsByVolume(req.Task.VolumeMounts)
+	csiMountPoints := h.runner.allocHookResources.GetCSIMounts()
+	for alias, request := range volumes {
+		mountsForAlias, ok := mountRequests[alias]
+		if !ok {
+			// This task doesn't use the volume
+			continue
+		}
+
+		csiMountPoint, ok := csiMountPoints[alias]
+		if !ok {
+			return nil, fmt.Errorf("No CSI Mount Point found for volume: %s", alias)
+		}
+
+		for _, m := range mountsForAlias {
+			mcfg := &drivers.MountConfig{
+				HostPath: csiMountPoint.Source,
+				TaskPath: m.Destination,
+				Readonly: request.ReadOnly || m.ReadOnly,
+			}
+			mounts = append(mounts, mcfg)
+		}
+	}
+
+	return mounts, nil
 }
 
 func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	volumes := partitionVolumesByType(h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup).Volumes)
 
-	hostVolumeMounts, err := h.prepareHostVolumes(volumes[structs.VolumeTypeHost], req)
+	hostVolumeMounts, err := h.prepareHostVolumes(req, volumes[structs.VolumeTypeHost])
 	if err != nil {
 		return err
 	}
 
-	csiVolumeMounts, err := h.prepareCSIVolumes(req)
+	csiVolumeMounts, err := h.prepareCSIVolumes(req, volumes[structs.VolumeTypeCSI])
 	if err != nil {
 		return err
 	}
