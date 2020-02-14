@@ -6,11 +6,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/hcl"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
@@ -154,51 +154,5 @@ func extraKeys(c *Config) error {
 		removeEqualFold(&c.ExtraKeysHCL, "telemetry")
 	}
 
-	return extraKeysImpl([]string{}, reflect.ValueOf(*c))
-}
-
-// extraKeysImpl returns an error if any extraKeys array is not empty
-func extraKeysImpl(path []string, val reflect.Value) error {
-	stype := val.Type()
-	for i := 0; i < stype.NumField(); i++ {
-		ftype := stype.Field(i)
-		fval := val.Field(i)
-
-		name := ftype.Name
-		prop := ""
-		tagSplit(ftype, "hcl", &name, &prop)
-
-		if fval.Kind() == reflect.Ptr {
-			fval = reflect.Indirect(fval)
-		}
-
-		// struct? recurse. add the struct's key to the path
-		if fval.Kind() == reflect.Struct {
-			err := extraKeysImpl(append([]string{name}, path...), fval)
-			if err != nil {
-				return err
-			}
-		}
-
-		if "unusedKeys" == prop {
-			if ks, ok := fval.Interface().([]string); ok && len(ks) != 0 {
-				return fmt.Errorf("%s unexpected keys %s",
-					strings.Join(path, "."),
-					strings.Join(ks, ", "))
-			}
-		}
-	}
-	return nil
-}
-
-// tagSplit reads the named tag from the structfield and splits its values into strings
-func tagSplit(field reflect.StructField, tagName string, vars ...*string) {
-	tag := strings.Split(field.Tag.Get(tagName), ",")
-	end := len(tag) - 1
-	for i, s := range vars {
-		if i > end {
-			return
-		}
-		*s = tag[i]
-	}
+	return helper.UnusedKeys(c)
 }
