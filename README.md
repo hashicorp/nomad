@@ -2,7 +2,7 @@ Nomad [![Build Status](https://circleci.com/gh/hashicorp/nomad.svg?style=svg)](h
 =========
 
 <p align="center" style="text-align:center;">
-  <img src="https://cdn.rawgit.com/hashicorp/nomad/master/website/source/assets/images/logo-text.svg" width="500" />
+  <img src="https://github.com/hashicorp/nomad/blob/19c404ca791d6ebe95a81738d7dc6623ab28564d/website/public/img/logo-hashicorp.svg" width="500" />
 </p>
 
 Overview
