@@ -53,11 +53,9 @@ func syncVault(t *testing.T) ([]*version.Version, map[string]string) {
 	start := time.Now()
 	errCh := make(chan error, len(missing))
 	for ver, url := range missing {
-		dst := filepath.Join(binDir, ver)
-		url := url
-		go func() {
+		go func(dst, url string) {
 			errCh <- getVault(dst, url)
-		}()
+		}(filepath.Join(binDir, ver), url)
 	}
 	for i := 0; i < len(missing); i++ {
 		select {
