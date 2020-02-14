@@ -208,7 +208,7 @@ func (c *Client) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	return c.NextNodePublishVolumeErr
 }
 
-func (c *Client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath string) error {
+func (c *Client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath string, opts ...grpc.CallOption) error {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
 
