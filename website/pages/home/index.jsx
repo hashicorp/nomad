@@ -163,63 +163,62 @@ export default function Homepage() {
         }}
       />
 
-      <section>
-        <div className="g-container">
-          <UseCases
-            theme="nomad"
-            items={[
-              {
-                title: 'Simple Container Orchestration',
-                description:
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                image: {
-                  alt: null,
-                  format: 'png',
-                  url:
-                    'https://www.datocms-assets.com/2885/1575422126-secrets.png?TODO'
-                },
-                link: {
-                  external: false,
-                  title: 'Learn more',
-                  url: '#TODO'
-                }
+      <div className="use-cases g-grid-container">
+        <h2 className="g-type-display-2">Use Cases</h2>
+        <UseCases
+          theme="nomad"
+          items={[
+            {
+              title: 'Simple Container Orchestration',
+              description:
+                'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+              image: {
+                alt: null,
+                format: 'png',
+                url:
+                  'https://www.datocms-assets.com/2885/1575422126-secrets.png?TODO'
               },
-              {
-                title: 'Non Containerized Application Orchestration',
-                description:
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                image: {
-                  alt: null,
-                  format: 'png',
-                  url:
-                    'https://www.datocms-assets.com/2885/1575422126-secrets.png?TODO'
-                },
-                link: {
-                  external: false,
-                  title: 'Learn more',
-                  url: '#TODO'
-                }
-              },
-              {
-                title: 'Automated Service Networking with Consul',
-                description:
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                image: {
-                  alt: null,
-                  format: 'png',
-                  url:
-                    'https://www.datocms-assets.com/2885/1575422126-secrets.png?TODO'
-                },
-                link: {
-                  external: false,
-                  title: 'Learn more',
-                  url: '#TODO'
-                }
+              link: {
+                external: false,
+                title: 'Learn more',
+                url: '#TODO'
               }
-            ]}
-          />
-        </div>
-      </section>
+            },
+            {
+              title: 'Non Containerized Application Orchestration',
+              description:
+                'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+              image: {
+                alt: null,
+                format: 'png',
+                url:
+                  'https://www.datocms-assets.com/2885/1575422126-secrets.png?TODO'
+              },
+              link: {
+                external: false,
+                title: 'Learn more',
+                url: '#TODO'
+              }
+            },
+            {
+              title: 'Automated Service Networking with Consul',
+              description:
+                'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+              image: {
+                alt: null,
+                format: 'png',
+                url:
+                  'https://www.datocms-assets.com/2885/1575422126-secrets.png?TODO'
+              },
+              link: {
+                external: false,
+                title: 'Learn more',
+                url: '#TODO'
+              }
+            }
+          ]}
+        />
+      </div>
 
       <LearnNomad props="TODO (Design WIP)" />
 
