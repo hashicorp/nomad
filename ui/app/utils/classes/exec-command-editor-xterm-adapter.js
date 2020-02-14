@@ -1,9 +1,9 @@
 export default class ExecCommandEditorXtermAdapter {
-  constructor(terminal, setCommandCallback) {
+  constructor(terminal, setCommandCallback, command) {
     this.terminal = terminal;
     this.setCommandCallback = setCommandCallback;
 
-    this.command = '/bin/bash';
+    this.command = command;
 
     this.keyListener = terminal.onKey(e => {
       this.handleKeyEvent(e);

@@ -59,7 +59,11 @@ export default Controller.extend({
 
       this.terminal.write('/bin/bash');
 
-      new ExecCommandEditorXtermAdapter(this.terminal, this.openAndConnectSocket.bind(this));
+      new ExecCommandEditorXtermAdapter(
+        this.terminal,
+        this.openAndConnectSocket.bind(this),
+        '/bin/bash'
+      );
 
       // FIXME
       // this.terminal.simulateCommandKeyEvent = this.handleCommandKeyEvent.bind(this);
