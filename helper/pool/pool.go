@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/consul/lib"
 	hclog "github.com/hashicorp/go-hclog"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -36,6 +37,7 @@ type StreamClient struct {
 
 func (sc *StreamClient) Close() {
 	sc.stream.Close()
+	sc.codec.Close()
 }
 
 // Conn is a pooled connection to a Nomad server
@@ -65,7 +67,7 @@ func (c *Conn) Close() error {
 }
 
 // getClient is used to get a cached or new client
-func (c *Conn) getClient() (*StreamClient, error) {
+func (c *Conn) getRPCClient() (*StreamClient, error) {
 	// Check for cached client
 	c.clientLock.Lock()
 	front := c.clients.Front()
@@ -80,6 +82,11 @@ func (c *Conn) getClient() (*StreamClient, error) {
 	// Open a new session
 	stream, err := c.session.Open()
 	if err != nil {
+		return nil, err
+	}
+
+	if _, err := stream.Write([]byte{byte(RpcNomad)}); err != nil {
+		stream.Close()
 		return nil, err
 	}
 
@@ -330,7 +337,7 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn,
 	}
 
 	// Write the multiplex byte to set the mode
-	if _, err := conn.Write([]byte{byte(RpcMultiplex)}); err != nil {
+	if _, err := conn.Write([]byte{byte(RpcMultiplexV2)}); err != nil {
 		conn.Close()
 		return nil, err
 	}
@@ -388,7 +395,7 @@ func (p *ConnPool) releaseConn(conn *Conn) {
 }
 
 // getClient is used to get a usable client for an address and protocol version
-func (p *ConnPool) getClient(region string, addr net.Addr, version int) (*Conn, *StreamClient, error) {
+func (p *ConnPool) getRPCClient(region string, addr net.Addr, version int) (*Conn, *StreamClient, error) {
 	retries := 0
 START:
 	// Try to get a conn first
@@ -398,7 +405,7 @@ START:
 	}
 
 	// Get a client
-	client, err := conn.getClient()
+	client, err := conn.getRPCClient()
 	if err != nil {
 		p.clearConn(conn)
 		p.releaseConn(conn)
@@ -413,10 +420,31 @@ START:
 	return conn, client, nil
 }
 
+// StreamingRPC is used to make an streaming RPC call.  Callers must
+// close the connection when done.
+func (p *ConnPool) StreamingRPC(region string, addr net.Addr, version int) (net.Conn, error) {
+	conn, err := p.acquire(region, addr, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get conn: %v", err)
+	}
+
+	s, err := conn.session.Open()
+	if err != nil {
+		return nil, fmt.Errorf("failed to open a streaming connection: %v", err)
+	}
+
+	if _, err := s.Write([]byte{byte(RpcStreaming)}); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	return s, nil
+}
+
 // RPC is used to make an RPC call to a remote host
 func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string, args interface{}, reply interface{}) error {
 	// Get a usable client
-	conn, sc, err := p.getClient(region, addr, version)
+	conn, sc, err := p.getRPCClient(region, addr, version)
 	if err != nil {
 		return fmt.Errorf("rpc error: %v", err)
 	}
@@ -425,6 +453,14 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 	err = msgpackrpc.CallWithCodec(sc.codec, method, args, reply)
 	if err != nil {
 		sc.Close()
+
+		// If we read EOF, the session is toast. Clear it and open a
+		// new session next time
+		// See https://github.com/hashicorp/consul/blob/v1.6.3/agent/pool/pool.go#L471-L477
+		if lib.IsErrEOF(err) {
+			p.clearConn(conn)
+		}
+
 		p.releaseConn(conn)
 
 		// If the error is an RPC Coded error

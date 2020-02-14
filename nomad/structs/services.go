@@ -326,11 +326,20 @@ type Service struct {
 	// this service.
 	AddressMode string
 
+	// EnableTagOverride will disable Consul's anti-entropy mechanism for the
+	// tags of this service. External updates to the service definition via
+	// Consul will not be corrected to match the service definition set in the
+	// Nomad job specification.
+	//
+	// https://www.consul.io/docs/agent/services.html#service-definition
+	EnableTagOverride bool
+
 	Tags       []string          // List of tags for the service
 	CanaryTags []string          // List of tags for the service when it is a canary
 	Checks     []*ServiceCheck   // List of checks associated with the service
 	Connect    *ConsulConnect    // Consul Connect configuration
 	Meta       map[string]string // Consul service meta
+	CanaryMeta map[string]string // Consul service meta when it is a canary
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -354,6 +363,7 @@ func (s *Service) Copy() *Service {
 	ns.Connect = s.Connect.Copy()
 
 	ns.Meta = helper.CopyMapStringString(s.Meta)
+	ns.CanaryMeta = helper.CopyMapStringString(s.CanaryMeta)
 
 	return ns
 }
@@ -386,7 +396,7 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 	}
 }
 
-// Validate checks if the Check definition is valid
+// Validate checks if the Service definition is valid
 func (s *Service) Validate() error {
 	var mErr multierror.Error
 
@@ -434,7 +444,7 @@ func (s *Service) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-// ValidateName checks if the services Name is valid and should be called after
+// ValidateName checks if the service Name is valid and should be called after
 // the name has been interpolated
 func (s *Service) ValidateName(name string) error {
 	// Ensure the service name is valid per RFC-952 §1
@@ -466,6 +476,10 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	if len(s.Meta) > 0 {
 		fmt.Fprintf(h, "%v", s.Meta)
 	}
+	if len(s.CanaryMeta) > 0 {
+		fmt.Fprintf(h, "%v", s.CanaryMeta)
+	}
+	fmt.Fprintf(h, "%t", s.EnableTagOverride)
 
 	// Vary ID on whether or not CanaryTags will be used
 	if canary {
@@ -526,7 +540,15 @@ OUTER:
 		return false
 	}
 
+	if !reflect.DeepEqual(s.CanaryMeta, o.CanaryMeta) {
+		return false
+	}
+
 	if !helper.CompareSliceSetString(s.Tags, o.Tags) {
+		return false
+	}
+
+	if s.EnableTagOverride != o.EnableTagOverride {
 		return false
 	}
 

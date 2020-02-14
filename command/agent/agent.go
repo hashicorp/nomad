@@ -64,6 +64,9 @@ type Agent struct {
 	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
 	consulCatalog consul.CatalogAPI
 
+	// consulACLs is Nomad's subset of Consul's ACL API Nomad uses.
+	consulACLs consul.ACLsAPI
+
 	// client is the launched Nomad Client. Can be nil if the agent isn't
 	// configured to run a client.
 	client *client.Client
@@ -322,6 +325,11 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
 	}
 
+	// handle system scheduler preemption default
+	if agentConfig.Server.DefaultSchedulerConfig != nil {
+		conf.DefaultSchedulerConfig = *agentConfig.Server.DefaultSchedulerConfig
+	}
+
 	// Add the Consul and Vault configs
 	conf.ConsulConfig = agentConfig.Consul
 	conf.VaultConfig = agentConfig.Vault
@@ -334,6 +342,26 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.DisableTaggedMetrics = agentConfig.Telemetry.DisableTaggedMetrics
 	conf.DisableDispatchedJobSummaryMetrics = agentConfig.Telemetry.DisableDispatchedJobSummaryMetrics
 	conf.BackwardsCompatibleMetrics = agentConfig.Telemetry.BackwardsCompatibleMetrics
+
+	// Parse Limits timeout from a string into durations
+	if d, err := time.ParseDuration(agentConfig.Limits.RPCHandshakeTimeout); err != nil {
+		return nil, fmt.Errorf("error parsing rpc_handshake_timeout: %v", err)
+	} else if d < 0 {
+		return nil, fmt.Errorf("rpc_handshake_timeout must be >= 0")
+	} else {
+		conf.RPCHandshakeTimeout = d
+	}
+
+	// Set max rpc conns; nil/0 == unlimited
+	// Leave a little room for streaming RPCs
+	minLimit := config.LimitsNonStreamingConnsPerClient + 5
+	if agentConfig.Limits.RPCMaxConnsPerClient == nil || *agentConfig.Limits.RPCMaxConnsPerClient == 0 {
+		conf.RPCMaxConnsPerClient = 0
+	} else if limit := *agentConfig.Limits.RPCMaxConnsPerClient; limit <= minLimit {
+		return nil, fmt.Errorf("rpc_max_conns_per_client must be > %d; found: %d", minLimit, limit)
+	} else {
+		conf.RPCMaxConnsPerClient = limit
+	}
 
 	return conf, nil
 }
@@ -493,6 +521,9 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	// Set up the HTTP advertise address
 	conf.Node.HTTPAddr = agentConfig.AdvertiseAddrs.HTTP
 
+	// Canonicalize Node struct
+	conf.Node.Canonicalize()
+
 	// Reserve resources on the node.
 	// COMPAT(0.10): Remove in 0.10
 	r := conf.Node.Reserved
@@ -584,7 +615,7 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Create the server
-	server, err := nomad.NewServer(conf, a.consulCatalog)
+	server, err := nomad.NewServer(conf, a.consulCatalog, a.consulACLs)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
@@ -1023,10 +1054,11 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 		return err
 	}
 
-	// Determine version for TLSSkipVerify
-
 	// Create Consul Catalog client for service discovery.
 	a.consulCatalog = client.Catalog()
+
+	// Create Consul ACL client for managing tokens.
+	a.consulACLs = client.ACL()
 
 	// Create Consul Service client for service advertisement and checks.
 	isClient := false

@@ -2,6 +2,7 @@ import { inject as service } from '@ember/service';
 import { reads } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { getOwner } from '@ember/application';
+import { alias } from '@ember/object/computed';
 
 export default Controller.extend({
   token: service(),
@@ -12,7 +13,7 @@ export default Controller.extend({
 
   tokenIsValid: false,
   tokenIsInvalid: false,
-  tokenRecord: null,
+  tokenRecord: alias('token.selfToken'),
 
   resetStore() {
     this.store.unloadAll();
@@ -26,9 +27,9 @@ export default Controller.extend({
       this.setProperties({
         tokenIsValid: false,
         tokenIsInvalid: false,
-        tokenRecord: null,
       });
       this.resetStore();
+      this.token.reset();
     },
 
     verifyToken() {
@@ -38,22 +39,20 @@ export default Controller.extend({
       this.set('token.secret', secret);
 
       TokenAdapter.findSelf().then(
-        token => {
-          // Capture the token ID before clearing the store
-          const tokenId = token.get('id');
-
+        () => {
           // Clear out all data to ensure only data the new token is privileged to
           // see is shown
           this.system.reset();
           this.resetStore();
 
-          // Immediately refetch the token now that the store is empty
-          const newToken = this.store.findRecord('token', tokenId);
+          // Refetch the token and associated policies
+          this.get('token.fetchSelfTokenAndPolicies')
+            .perform()
+            .catch();
 
           this.setProperties({
             tokenIsValid: true,
             tokenIsInvalid: false,
-            tokenRecord: newToken,
           });
         },
         () => {
@@ -61,7 +60,6 @@ export default Controller.extend({
           this.setProperties({
             tokenIsValid: false,
             tokenIsInvalid: true,
-            tokenRecord: null,
           });
         }
       );

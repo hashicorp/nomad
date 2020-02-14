@@ -81,7 +81,9 @@
   <div class="toolbar">
     <div class="toolbar-item is-top-aligned is-minimum">
       <span class="title">
-        <span data-test-node-status="{{model.compositeStatus}}" class="node-status-light {{model.compositeStatus}}"></span>
+        <span data-test-node-status="{{model.compositeStatus}}" class="node-status-light {{model.compositeStatus}}">
+          {{x-icon model.compositeStatusIcon}}
+        </span>
       </span>
     </div>
     <div class="toolbar-item">
@@ -93,7 +95,7 @@
           {{#toggle
             data-test-eligibility-toggle
             isActive=model.isEligible
-            isDisabled=(or setEligibility.isRunning model.isDraining)
+            isDisabled=(or setEligibility.isRunning model.isDraining (cannot "write client"))
             onToggle=(perform setEligibility (not model.isEligible))}}
             Eligible
           {{/toggle}}
@@ -122,6 +124,7 @@
     <div class="toolbar-item is-right-aligned is-top-aligned">
       {{drain-popover
         client=model
+        isDisabled=(cannot "write client")
         onDrain=(action "drainNotify")
         onError=(action "drainError")}}
     </div>

@@ -183,7 +183,7 @@ def configureProviders(vmCfg, cpus: "2", memory: "2048")
 	end
 
 	vmCfg.vm.provider "virtualbox" do |v|
-		v.customize ["modifyvm", :id, "--cableconnected1", "on"]
+		v.customize ["modifyvm", :id, "--cableconnected1", "on", "--audio", "none"]
 		v.memory = memory
 		v.cpus = cpus
 	end

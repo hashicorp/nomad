@@ -54,12 +54,25 @@ func WaitForNodesReady(t *testing.T, nomadClient *api.Client, nodes int) {
 	})
 }
 
-func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile string, jobID string) []*api.AllocationListStub {
+func stringToPtrOrNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return helper.StringToPtr(s)
+}
+
+func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToken string) []*api.AllocationListStub {
+	r := require.New(t)
+
 	// Parse job
 	job, err := jobspec.ParseFile(jobFile)
-	require := require.New(t)
-	require.Nil(err)
+	r.Nil(err)
+
+	// Set custom job ID (distinguish among tests)
 	job.ID = helper.StringToPtr(jobID)
+
+	// Set a Consul "operator" token for the job, if provided.
+	job.ConsulToken = stringToPtrOrNil(cToken)
 
 	// Register job
 	var idx uint64
@@ -72,20 +85,21 @@ func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile string, jobID
 		idx = meta.LastIndex
 		return resp.EvalID != "", fmt.Errorf("expected EvalID:%s", pretty.Sprint(resp))
 	}, func(err error) {
-		require.NoError(err)
+		r.NoError(err)
 	})
 
-	allocs, _, _ := jobs.Allocations(jobID, false, &api.QueryOptions{WaitIndex: idx})
+	allocs, _, err := jobs.Allocations(jobID, false, &api.QueryOptions{WaitIndex: idx})
+	require.NoError(t, err)
 	return allocs
 }
 
-func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile string, jobID string) []*api.AllocationListStub {
-	require := require.New(t)
+func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToken string) []*api.AllocationListStub {
+	r := require.New(t)
 	g := NewGomegaWithT(t)
 	jobs := nomadClient.Jobs()
 
 	// Start allocations
-	RegisterAllocs(t, nomadClient, jobFile, jobID)
+	RegisterAllocs(t, nomadClient, jobFile, jobID, cToken)
 
 	// Wrap in retry to wait until placement
 	g.Eventually(func() []*api.AllocationListStub {
@@ -95,7 +109,7 @@ func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile str
 	}, 30*time.Second, time.Second).ShouldNot(BeEmpty())
 
 	allocs, _, err := jobs.Allocations(jobID, false, nil)
-	require.NoError(err)
+	r.NoError(err)
 	return allocs
 }
 
@@ -111,6 +125,40 @@ func WaitForAllocRunning(t *testing.T, nomadClient *api.Client, allocID string) 
 	}, func(err error) {
 		t.Fatalf("failed to wait on alloc: %v", err)
 	})
+}
+
+func WaitForAllocsRunning(t *testing.T, nomadClient *api.Client, allocIDs []string) {
+	for _, allocID := range allocIDs {
+		WaitForAllocRunning(t, nomadClient, allocID)
+	}
+}
+
+func WaitForAllocsNotPending(t *testing.T, nomadClient *api.Client, allocIDs []string) {
+	for _, allocID := range allocIDs {
+		WaitForAllocNotPending(t, nomadClient, allocID)
+	}
+}
+
+func WaitForAllocNotPending(t *testing.T, nomadClient *api.Client, allocID string) {
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(time.Millisecond * 100)
+		alloc, _, err := nomadClient.Allocations().Info(allocID, nil)
+		if err != nil {
+			return false, err
+		}
+
+		return alloc.ClientStatus != structs.AllocClientStatusPending, fmt.Errorf("expected status not pending, but was: %s", alloc.ClientStatus)
+	}, func(err error) {
+		t.Fatalf("failed to wait on alloc: %v", err)
+	})
+}
+
+func AllocIDsFromAllocationListStubs(allocs []*api.AllocationListStub) []string {
+	allocIDs := make([]string, 0, len(allocs))
+	for _, alloc := range allocs {
+		allocIDs = append(allocIDs, alloc.ID)
+	}
+	return allocIDs
 }
 
 func DeploymentsForJob(t *testing.T, nomadClient *api.Client, jobID string) []*api.Deployment {

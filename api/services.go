@@ -97,16 +97,18 @@ type ServiceCheck struct {
 // Service represents a Consul service definition.
 type Service struct {
 	//FIXME Id is unused. Remove?
-	Id           string
-	Name         string
-	Tags         []string
-	CanaryTags   []string `mapstructure:"canary_tags"`
-	PortLabel    string   `mapstructure:"port"`
-	AddressMode  string   `mapstructure:"address_mode"`
-	Checks       []ServiceCheck
-	CheckRestart *CheckRestart `mapstructure:"check_restart"`
-	Connect      *ConsulConnect
-	Meta         map[string]string
+	Id                string
+	Name              string
+	Tags              []string
+	CanaryTags        []string `mapstructure:"canary_tags"`
+	EnableTagOverride bool     `mapstructure:"enable_tag_override"`
+	PortLabel         string   `mapstructure:"port"`
+	AddressMode       string   `mapstructure:"address_mode"`
+	Checks            []ServiceCheck
+	CheckRestart      *CheckRestart `mapstructure:"check_restart"`
+	Connect           *ConsulConnect
+	Meta              map[string]string
+	CanaryMeta        map[string]string
 }
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task

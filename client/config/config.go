@@ -23,6 +23,7 @@ var (
 	// filtered when passing the environment variables of the host to a task.
 	DefaultEnvBlacklist = strings.Join([]string{
 		"CONSUL_TOKEN",
+		"CONSUL_HTTP_TOKEN",
 		"VAULT_TOKEN",
 		"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
 		"GOOGLE_APPLICATION_CREDENTIALS",

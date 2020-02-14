@@ -407,7 +407,7 @@ func TestAgentCPUProfile(t *testing.T) {
 		}
 		resp, err := agent.CPUProfile(opts, q)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "500 (unknown nomad server unknown.global)")
+		require.Contains(t, err.Error(), "500 (unknown Nomad server unknown.global)")
 		require.Nil(t, resp)
 	}
 

@@ -45,7 +45,7 @@ func deployLinux(t *testing.T, target *ProvisioningTarget) error {
 			deployment.Platform, deployment.NomadSha,
 		)
 		remoteDir := filepath.Dir(deployment.RemoteBinaryPath)
-		script := fmt.Sprintf(`aws s3 cp %s nomad.tar.gz
+		script := fmt.Sprintf(`aws s3 cp --quiet %s nomad.tar.gz
 			sudo tar -zxvf nomad.tar.gz -C %s
 			sudo chmod 0755 %s
 			sudo chown root:root %s`,

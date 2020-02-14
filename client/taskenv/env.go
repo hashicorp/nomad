@@ -603,8 +603,10 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 
-	// COMPAT(0.11): Remove in 0.11
 	b.otherPorts = make(map[string]string, len(tg.Tasks)*2)
+
+	// Protect against invalid allocs where AllocatedResources isn't set.
+	// TestClient_AddAllocError explicitly tests for this condition
 	if alloc.AllocatedResources != nil {
 		// Populate task resources
 		if tr, ok := alloc.AllocatedResources.Tasks[b.taskName]; ok {
@@ -643,30 +645,6 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 			}
 			for _, p := range nw.DynamicPorts {
 				addGroupPort(b.otherPorts, p)
-			}
-		}
-	} else if alloc.TaskResources != nil {
-		if tr, ok := alloc.TaskResources[b.taskName]; ok {
-			// Copy networks to prevent sharing
-			b.networks = make([]*structs.NetworkResource, len(tr.Networks))
-			for i, n := range tr.Networks {
-				b.networks[i] = n.Copy()
-			}
-
-		}
-
-		for taskName, resources := range alloc.TaskResources {
-			// Add ports from other tasks
-			if taskName == b.taskName {
-				continue
-			}
-			for _, nw := range resources.Networks {
-				for _, p := range nw.ReservedPorts {
-					addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
-				}
-				for _, p := range nw.DynamicPorts {
-					addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
-				}
 			}
 		}
 	}

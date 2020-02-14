@@ -31,6 +31,7 @@ func TestParse(t *testing.T) {
 				Datacenters: []string{"us2", "eu1"},
 				Region:      helper.StringToPtr("fooregion"),
 				Namespace:   helper.StringToPtr("foonamespace"),
+				ConsulToken: helper.StringToPtr("abc"),
 				VaultToken:  helper.StringToPtr("foo"),
 
 				Meta: map[string]string{
@@ -218,7 +219,13 @@ func TestParse(t *testing.T) {
 									{
 										Tags:       []string{"foo", "bar"},
 										CanaryTags: []string{"canary", "bam"},
-										PortLabel:  "http",
+										Meta: map[string]string{
+											"abc": "123",
+										},
+										CanaryMeta: map[string]string{
+											"canary": "boom",
+										},
+										PortLabel: "http",
 										Checks: []api.ServiceCheck{
 											{
 												Name:        "check-name",
@@ -817,6 +824,25 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"service-enable-tag-override.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("service_eto"),
+				Name: helper.StringToPtr("service_eto"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Tasks: []*api.Task{{
+						Name: "task",
+						Services: []*api.Service{{
+							Name:              "example",
+							EnableTagOverride: true,
+						}},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"reschedule-job.hcl",
 			&api.Job{
 				ID:          helper.StringToPtr("foo"),
@@ -1036,6 +1062,21 @@ func TestParse(t *testing.T) {
 						Tasks: []*api.Task{{Name: "foo"}},
 					},
 				},
+			},
+			false,
+		},
+		{
+			"tg-service-enable-tag-override.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("group_service_eto"),
+				Name: helper.StringToPtr("group_service_eto"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name:              "example",
+						EnableTagOverride: true,
+					}},
+				}},
 			},
 			false,
 		},

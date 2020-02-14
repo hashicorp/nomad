@@ -99,6 +99,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ParentID:          stringToPtr(""),
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
+				ConsulToken:       stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				Status:            stringToPtr(""),
 				StatusDescription: stringToPtr(""),
@@ -186,6 +187,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ParentID:          stringToPtr(""),
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
+				ConsulToken:       stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				Status:            stringToPtr(""),
 				StatusDescription: stringToPtr(""),
@@ -256,6 +258,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ParentID:          stringToPtr("lol"),
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
+				ConsulToken:       stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
@@ -416,6 +419,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Region:            stringToPtr("global"),
 				Type:              stringToPtr("service"),
 				AllAtOnce:         boolToPtr(false),
+				ConsulToken:       stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
@@ -566,6 +570,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Type:              stringToPtr("service"),
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
+				ConsulToken:       stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
@@ -650,6 +655,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ParentID:          stringToPtr("lol"),
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
+				ConsulToken:       stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
@@ -846,13 +852,13 @@ func TestJobs_Revert(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Fail revert at incorrect enforce
-	_, _, err = jobs.Revert(*job.ID, 0, uint64ToPtr(10), nil, "")
+	_, _, err = jobs.Revert(*job.ID, 0, uint64ToPtr(10), nil, "", "")
 	if err == nil || !strings.Contains(err.Error(), "enforcing version") {
 		t.Fatalf("expected enforcement error: %v", err)
 	}
 
 	// Works at correct index
-	revertResp, wm, err := jobs.Revert(*job.ID, 0, uint64ToPtr(1), nil, "")
+	revertResp, wm, err := jobs.Revert(*job.ID, 0, uint64ToPtr(1), nil, "", "")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

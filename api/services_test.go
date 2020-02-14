@@ -5,11 +5,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestService_CheckRestart asserts Service.CheckRestart settings are properly
 // inherited by Checks.
 func TestService_CheckRestart(t *testing.T) {
+	t.Parallel()
+
 	job := &Job{Name: stringToPtr("job")}
 	tg := &TaskGroup{Name: stringToPtr("group")}
 	task := &Task{Name: "task"}
@@ -58,6 +61,8 @@ func TestService_CheckRestart(t *testing.T) {
 // TestService_Connect asserts Service.Connect settings are properly
 // inherited by Checks.
 func TestService_Connect(t *testing.T) {
+	t.Parallel()
+
 	job := &Job{Name: stringToPtr("job")}
 	tg := &TaskGroup{Name: stringToPtr("group")}
 	task := &Task{Name: "task"}
@@ -82,4 +87,24 @@ func TestService_Connect(t *testing.T) {
 	assert.Equal(t, proxy.Upstreams[0].LocalBindPort, 80)
 	assert.Equal(t, proxy.Upstreams[0].DestinationName, "upstream")
 	assert.Equal(t, proxy.LocalServicePort, 8000)
+}
+
+func TestService_Tags(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	// canonicalize does not modify eto or tags
+	job := &Job{Name: stringToPtr("job")}
+	tg := &TaskGroup{Name: stringToPtr("group")}
+	task := &Task{Name: "task"}
+	service := &Service{
+		Tags:              []string{"a", "b"},
+		CanaryTags:        []string{"c", "d"},
+		EnableTagOverride: true,
+	}
+
+	service.Canonicalize(task, tg, job)
+	r.True(service.EnableTagOverride)
+	r.Equal([]string{"a", "b"}, service.Tags)
+	r.Equal([]string{"c", "d"}, service.CanaryTags)
 }

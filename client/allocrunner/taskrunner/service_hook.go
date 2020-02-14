@@ -63,16 +63,8 @@ func newServiceHook(c serviceHookConfig) *serviceHook {
 		delay:     c.task.ShutdownDelay,
 	}
 
-	// COMPAT(0.11): AllocatedResources was added in 0.9 so assume its set
-	//               in 0.11.
-	if c.alloc.AllocatedResources != nil {
-		if res := c.alloc.AllocatedResources.Tasks[c.task.Name]; res != nil {
-			h.networks = res.Networks
-		}
-	} else {
-		if res := c.alloc.TaskResources[c.task.Name]; res != nil {
-			h.networks = res.Networks
-		}
+	if res := c.alloc.AllocatedResources.Tasks[c.task.Name]; res != nil {
+		h.networks = res.Networks
 	}
 
 	if c.alloc.DeploymentStatus != nil && c.alloc.DeploymentStatus.Canary {
@@ -116,17 +108,9 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 		canary = req.Alloc.DeploymentStatus.Canary
 	}
 
-	// COMPAT(0.11): AllocatedResources was added in 0.9 so assume its set
-	//               in 0.11.
 	var networks structs.Networks
-	if req.Alloc.AllocatedResources != nil {
-		if res := req.Alloc.AllocatedResources.Tasks[h.taskName]; res != nil {
-			networks = res.Networks
-		}
-	} else {
-		if res := req.Alloc.TaskResources[h.taskName]; res != nil {
-			networks = res.Networks
-		}
+	if res := req.Alloc.AllocatedResources.Tasks[h.taskName]; res != nil {
+		networks = res.Networks
 	}
 
 	task := req.Alloc.LookupTask(h.taskName)

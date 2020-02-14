@@ -97,6 +97,7 @@ func (h *groupServiceHook) Prerun() error {
 func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
 	oldWorkloadServices := h.getWorkloadServices()
 
 	// Store new updated values out of request

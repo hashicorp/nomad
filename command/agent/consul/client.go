@@ -93,13 +93,69 @@ type AgentAPI interface {
 	UpdateTTL(id, output, status string) error
 }
 
-func agentServiceUpdateRequired(reg *api.AgentServiceRegistration, svc *api.AgentService) bool {
-	return !(reg.Kind == svc.Kind &&
-		reg.ID == svc.ID &&
-		reg.Port == svc.Port &&
-		reg.Address == svc.Address &&
-		reg.Name == svc.Service &&
-		reflect.DeepEqual(reg.Tags, svc.Tags))
+// ACLsAPI is the consul/api.ACL API subset used by Nomad Server.
+type ACLsAPI interface {
+	// We are looking up by [operator token] SecretID, which implies we need
+	// to use this method instead of the normal TokenRead, which can only be
+	// used to lookup tokens by their AccessorID.
+	TokenReadSelf(q *api.QueryOptions) (*api.ACLToken, *api.QueryMeta, error)
+	PolicyRead(policyID string, q *api.QueryOptions) (*api.ACLPolicy, *api.QueryMeta, error)
+	RoleRead(roleID string, q *api.QueryOptions) (*api.ACLRole, *api.QueryMeta, error)
+	TokenCreate(partial *api.ACLToken, q *api.WriteOptions) (*api.ACLToken, *api.WriteMeta, error)
+	TokenDelete(accessorID string, q *api.WriteOptions) (*api.WriteMeta, error)
+	TokenList(q *api.QueryOptions) ([]*api.ACLTokenListEntry, *api.QueryMeta, error)
+}
+
+// agentServiceUpdateRequired checks if any critical fields in Nomad's version
+// of a service definition are different from the existing service definition as
+// known by Consul.
+func agentServiceUpdateRequired(reason syncReason, wanted *api.AgentServiceRegistration, existing *api.AgentService) bool {
+	switch reason {
+	case syncPeriodic:
+		// In a periodic sync with Consul, we need to respect the value of
+		// the enable_tag_override field so that we maintain the illusion that the
+		// user is in control of the Consul tags, as they may be externally edited
+		// via the Consul catalog API (e.g. a user manually sets them).
+		//
+		// As Consul does by disabling anti-entropy for the tags field, Nomad will
+		// ignore differences in the tags field during the periodic syncs with
+		// the Consul agent API.
+		//
+		// We do so by over-writing the nomad service registration by the value
+		// of the tags that Consul contains, if enable_tag_override = true.
+		maybeTweakTags(wanted, existing)
+		return different(wanted, existing)
+
+	default:
+		// A non-periodic sync with Consul indicates an operation has been set
+		// on the queue. This happens when service has been added / removed / modified
+		// and implies the Consul agent should be sync'd with nomad, because
+		// nomad is the ultimate source of truth for the service definition.
+		return different(wanted, existing)
+	}
+}
+
+// maybeTweakTags will override wanted.Tags with a copy of existing.Tags only if
+// EnableTagOverride is true. Otherwise the wanted service registration is left
+// unchanged.
+func maybeTweakTags(wanted *api.AgentServiceRegistration, existing *api.AgentService) {
+	if wanted.EnableTagOverride {
+		wanted.Tags = helper.CopySliceString(existing.Tags)
+	}
+}
+
+// different compares the wanted state of the service registration with the actual
+// (cached) state of the service registration reported by Consul. If any of the
+// critical fields are not deeply equal, they considered different.
+func different(wanted *api.AgentServiceRegistration, existing *api.AgentService) bool {
+	return !(wanted.Kind == existing.Kind &&
+		wanted.ID == existing.ID &&
+		wanted.Port == existing.Port &&
+		wanted.Address == existing.Address &&
+		wanted.Name == existing.Service &&
+		wanted.EnableTagOverride == existing.EnableTagOverride &&
+		reflect.DeepEqual(wanted.Meta, existing.Meta) &&
+		reflect.DeepEqual(wanted.Tags, existing.Tags))
 }
 
 // operations are submitted to the main loop via commit() for synchronizing
@@ -306,6 +362,18 @@ func (c *ServiceClient) hasSeen() bool {
 	return atomic.LoadInt32(&c.seen) == seen
 }
 
+// syncReason indicates why a sync operation with consul is about to happen.
+//
+// The trigger for a sync may have implications on the behavior of the sync itself.
+// In particular, if a service is defined with enable_tag_override=true
+type syncReason byte
+
+const (
+	syncPeriodic = iota
+	syncShutdown
+	syncNewOps
+)
+
 // Run the Consul main loop which retries operations against Consul. It should
 // be called exactly once.
 func (c *ServiceClient) Run() {
@@ -343,16 +411,23 @@ INIT:
 
 	failures := 0
 	for {
+		// On every iteration take note of what the trigger for the next sync
+		// was, so that it may be referenced during the sync itself.
+		var reasonForSync syncReason
+
 		select {
 		case <-retryTimer.C:
+			reasonForSync = syncPeriodic
 		case <-c.shutdownCh:
+			reasonForSync = syncShutdown
 			// Cancel check watcher but sync one last time
 			cancel()
 		case ops := <-c.opCh:
+			reasonForSync = syncNewOps
 			c.merge(ops)
 		}
 
-		if err := c.sync(); err != nil {
+		if err := c.sync(reasonForSync); err != nil {
 			if failures == 0 {
 				// Log on the first failure
 				c.logger.Warn("failed to update services in Consul", "error", err)
@@ -446,7 +521,7 @@ func (c *ServiceClient) merge(ops *operations) {
 }
 
 // sync enqueued operations.
-func (c *ServiceClient) sync() error {
+func (c *ServiceClient) sync(reason syncReason) error {
 	sreg, creg, sdereg, cdereg := 0, 0, 0, 0
 
 	consulServices, err := c.client.Services()
@@ -504,20 +579,20 @@ func (c *ServiceClient) sync() error {
 	}
 
 	// Add Nomad services missing from Consul, or where the service has been updated.
-	for id, locals := range c.services {
+	for id, local := range c.services {
 		existingSvc, ok := consulServices[id]
 
 		if ok {
 			// There is an existing registration of this service in Consul, so here
 			// we validate to see if the service has been invalidated to see if it
 			// should be updated.
-			if !agentServiceUpdateRequired(locals, existingSvc) {
+			if !agentServiceUpdateRequired(reason, local, existingSvc) {
 				// No Need to update services that have not changed
 				continue
 			}
 		}
 
-		if err = c.client.ServiceRegister(locals); err != nil {
+		if err = c.client.ServiceRegister(local); err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
 		}
@@ -713,9 +788,18 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
 
-	meta := make(map[string]string, len(service.Meta))
-	for k, v := range service.Meta {
-		meta[k] = v
+	// Determine whether to use meta or canary_meta
+	var meta map[string]string
+	if workload.Canary && len(service.CanaryMeta) > 0 {
+		meta = make(map[string]string, len(service.CanaryMeta)+1)
+		for k, v := range service.CanaryMeta {
+			meta[k] = v
+		}
+	} else {
+		meta = make(map[string]string, len(service.Meta)+1)
+		for k, v := range service.Meta {
+			meta[k] = v
+		}
 	}
 
 	// This enables the consul UI to show that Nomad registered this service
@@ -723,13 +807,14 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 
 	// Build the Consul Service registration request
 	serviceReg := &api.AgentServiceRegistration{
-		ID:      id,
-		Name:    service.Name,
-		Tags:    tags,
-		Address: ip,
-		Port:    port,
-		Meta:    meta,
-		Connect: connect, // will be nil if no Connect stanza
+		ID:                id,
+		Name:              service.Name,
+		Tags:              tags,
+		EnableTagOverride: service.EnableTagOverride,
+		Address:           ip,
+		Port:              port,
+		Meta:              meta,
+		Connect:           connect, // will be nil if no Connect stanza
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 
@@ -845,8 +930,7 @@ func (c *ServiceClient) RegisterWorkload(workload *WorkloadServices) error {
 //
 // DriverNetwork must not change between invocations for the same allocation.
 func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error {
-	ops := &operations{}
-
+	ops := new(operations)
 	regs := new(ServiceRegistrations)
 	regs.Services = make(map[string]*ServiceRegistration, len(newWorkload.Services))
 
@@ -961,6 +1045,7 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 			}
 		}
 	}
+
 	return nil
 }
 

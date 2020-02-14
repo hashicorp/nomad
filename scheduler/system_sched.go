@@ -276,11 +276,6 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		node, ok := nodeByID[missing.Alloc.NodeID]
 		if !ok {
 			s.logger.Debug("could not find node %q", missing.Alloc.NodeID)
-			if s.failedTGAllocs == nil {
-				s.failedTGAllocs = make(map[string]*structs.AllocMetric)
-			}
-
-			s.failedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
 			continue
 		}
 

@@ -16,9 +16,6 @@
       },
       "instance_type": "t2.medium",
       "ami_name": "nomad-e2e-windows-2016-{{timestamp}}",
-      "ami_groups": [
-        "all"
-      ],
       "communicator": "winrm",
       "user_data_file": "windows/setupwinrm.ps1",
       "winrm_username": "Administrator",

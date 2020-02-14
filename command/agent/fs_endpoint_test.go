@@ -481,7 +481,7 @@ func TestHTTP_FS_Logs_Follow(t *testing.T) {
 		req, err := http.NewRequest("GET", path, nil)
 		require.Nil(err)
 		respW := testutil.NewResponseRecorder()
-		errCh := make(chan error)
+		errCh := make(chan error, 1)
 		go func() {
 			_, err := s.Server.Logs(respW, req)
 			errCh <- err

@@ -10,6 +10,8 @@ import Clients from 'nomad-ui/tests/pages/clients/list';
 import Jobs from 'nomad-ui/tests/pages/jobs/list';
 
 let node;
+let managementToken;
+let clientToken;
 
 const wasPreemptedFilter = allocation => !!allocation.preemptedByAllocation;
 
@@ -20,6 +22,11 @@ module('Acceptance | client detail', function(hooks) {
   hooks.beforeEach(function() {
     server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
     node = server.db.nodes[0];
+
+    managementToken = server.create('token');
+    clientToken = server.create('token');
+
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
 
     // Related models
     server.create('agent');
@@ -884,6 +891,14 @@ module('Acceptance | client detail', function(hooks) {
     await ClientDetail.visit({ id: node2.id });
 
     assert.notOk(ClientDetail.eligibilityError.isPresent);
+  });
+
+  test('toggling eligibility and node drain are disabled when the active ACL token does not permit node write', async function(assert) {
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    await ClientDetail.visit({ id: node.id });
+    assert.ok(ClientDetail.eligibilityToggle.isDisabled);
+    assert.ok(ClientDetail.drainPopover.isDisabled);
   });
 });
 

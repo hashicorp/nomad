@@ -177,7 +177,7 @@ check: ## Lint the source code
 	@if (git status | grep -q .pb.go); then echo the following proto files are out of sync; git status |grep .pb.go; exit 1; fi
 
 	@echo "==> Check API package is isolated from rest"
-	@! go list --test -f '{{ join .Deps "\n" }}' ./api | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test
+	@if go list --test -f '{{ join .Deps "\n" }}' ./api | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
 
 .PHONY: checkscripts
 checkscripts: ## Lint shell scripts
@@ -315,10 +315,6 @@ static-assets: ## Compile the static routes to serve alongside the API
 	@echo "--> Generating static assets"
 	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui -o bindata_assetfs.go ./ui/dist/...
 	@mv bindata_assetfs.go command/agent
-
-.PHONY: test-website
-test-website: ## Run Website Link Checks
-	@cd website && make test
 
 .PHONY: test-ui
 test-ui: ## Run Nomad UI test suite

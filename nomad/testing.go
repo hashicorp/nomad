@@ -91,6 +91,8 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 
 	catalog := consul.NewMockCatalog(config.Logger)
 
+	acls := consul.NewMockACLsAPI(config.Logger)
+
 	for i := 10; i >= 0; i-- {
 		// Get random ports, need to cleanup later
 		ports := freeport.MustTake(2)
@@ -102,7 +104,7 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 		config.SerfConfig.MemberlistConfig.BindPort = ports[1]
 
 		// Create server
-		server, err := NewServer(config, catalog)
+		server, err := NewServer(config, catalog, acls)
 		if err == nil {
 			return server, func() {
 				ch := make(chan error)

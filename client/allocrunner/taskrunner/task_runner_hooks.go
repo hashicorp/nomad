@@ -45,7 +45,7 @@ func (h *hookResources) getMounts() []*drivers.MountConfig {
 	return h.Mounts
 }
 
-// initHooks intializes the tasks hooks.
+// initHooks initializes the tasks hooks.
 func (tr *TaskRunner) initHooks() {
 	hookLogger := tr.logger.Named("task_hook")
 	task := tr.Task()
@@ -67,7 +67,6 @@ func (tr *TaskRunner) initHooks() {
 		newArtifactHook(tr, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
-		newEnvoyBootstrapHook(alloc, tr.clientConfig.ConsulConfig.Addr, hookLogger),
 	}
 
 	// If Vault is enabled, add the hook
@@ -96,7 +95,7 @@ func (tr *TaskRunner) initHooks() {
 		}))
 	}
 
-	// If there are any services, add the hook
+	// If there are any services, add the service hook
 	if len(task.Services) != 0 {
 		tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
 			alloc:     tr.Alloc(),
@@ -104,6 +103,29 @@ func (tr *TaskRunner) initHooks() {
 			consul:    tr.consulClient,
 			restarter: tr,
 			logger:    hookLogger,
+		}))
+	}
+
+	// If this is a Connect sidecar proxy (or a Connect Native) service,
+	// add the sidsHook for requesting a Service Identity token (if ACLs).
+	if task.UsesConnect() {
+		// Enable the Service Identity hook only if the Nomad client is configured
+		// with a consul token, indicating that Consul ACLs are enabled
+		if tr.clientConfig.ConsulConfig.Token != "" {
+			tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
+				alloc:      tr.Alloc(),
+				task:       tr.Task(),
+				sidsClient: tr.siClient,
+				lifecycle:  tr,
+				logger:     hookLogger,
+			}))
+		}
+
+		// envoy bootstrap must execute after sidsHook maybe sets SI token
+		tr.runnerHooks = append(tr.runnerHooks, newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
+			alloc:          alloc,
+			consulHTTPAddr: tr.clientConfig.ConsulConfig.Addr,
+			logger:         hookLogger,
 		}))
 	}
 
@@ -131,7 +153,7 @@ func (tr *TaskRunner) emitHookError(err error, hookName string) {
 
 // prestart is used to run the runners prestart hooks.
 func (tr *TaskRunner) prestart() error {
-	// Determine if the allocation is terminaland we should avoid running
+	// Determine if the allocation is terminal and we should avoid running
 	// prestart hooks.
 	alloc := tr.Alloc()
 	if alloc.TerminalStatus() {

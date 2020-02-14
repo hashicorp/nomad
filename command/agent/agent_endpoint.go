@@ -156,16 +156,6 @@ func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Req
 }
 
 func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	var secret string
-	s.parseToken(req, &secret)
-
-	// Check agent read permissions
-	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
-		return nil, err
-	} else if aclObj != nil && !aclObj.AllowAgentRead() {
-		return nil, structs.ErrPermissionDenied
-	}
-
 	// Get the provided loglevel.
 	logLevel := req.URL.Query().Get("log_level")
 	if logLevel == "" {
@@ -228,9 +218,11 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 		} else {
 			handlerErr = CodedError(400, "No local Node and node_id not provided")
 		}
+		// No node id monitor current server/client
+	} else if srv := s.agent.Server(); srv != nil {
+		handler, handlerErr = srv.StreamingRpcHandler("Agent.Monitor")
 	} else {
-		// No node id monitor server
-		handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.Monitor")
+		handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.Monitor")
 	}
 
 	if handlerErr != nil {
@@ -401,9 +393,11 @@ func (s *HTTPServer) agentPprof(reqType pprof.ReqType, resp http.ResponseWriter,
 		} else if localServer {
 			rpcErr = s.agent.Server().RPC("Agent.Profile", &args, &reply)
 		}
+		// No node id, profile current server/client
+	} else if srv := s.agent.Server(); srv != nil {
+		rpcErr = srv.RPC("Agent.Profile", &args, &reply)
 	} else {
-		// No node id target server
-		rpcErr = s.agent.Server().RPC("Agent.Profile", &args, &reply)
+		rpcErr = s.agent.Client().RPC("Agent.Profile", &args, &reply)
 	}
 
 	if rpcErr != nil {

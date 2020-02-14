@@ -166,6 +166,9 @@ type Config struct {
 	// Plugins is the set of configured plugins
 	Plugins []*config.PluginConfig `hcl:"plugin"`
 
+	// Limits contains the configuration for timeouts.
+	Limits config.Limits `hcl:"limits"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -443,6 +446,11 @@ type ServerConfig struct {
 
 	// ServerJoin contains information that is used to attempt to join servers
 	ServerJoin *ServerJoin `hcl:"server_join"`
+
+	// DefaultSchedulerConfig configures the initial scheduler config to be persisted in Raft.
+	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API),
+	// This value is ignored.
+	DefaultSchedulerConfig *structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
@@ -857,6 +865,7 @@ func DefaultConfig() *Config {
 		Version:            version.GetVersion(),
 		Autopilot:          config.DefaultAutopilotConfig(),
 		DisableUpdateCheck: helper.BoolToPtr(false),
+		Limits:             config.DefaultLimits(),
 	}
 }
 
@@ -1060,6 +1069,8 @@ func (c *Config) Merge(b *Config) *Config {
 	for k, v := range b.HTTPAPIResponseHeaders {
 		result.HTTPAPIResponseHeaders[k] = v
 	}
+
+	result.Limits = c.Limits.Merge(b.Limits)
 
 	return &result
 }
@@ -1335,6 +1346,11 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.ServerJoin != nil {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
+	}
+
+	if b.DefaultSchedulerConfig != nil {
+		c := *b.DefaultSchedulerConfig
+		result.DefaultSchedulerConfig = &c
 	}
 
 	// Add the schedulers

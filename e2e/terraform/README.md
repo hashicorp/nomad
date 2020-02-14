@@ -10,7 +10,7 @@ that can be written to a JSON file used by the e2e framework's
 provisioning step.
 
 You can use Terraform to output the provisioning parameter JSON file the e2e
-framework uses by setting the `nomad_sha` variable.
+framework uses.
 
 ## Setup
 
@@ -19,10 +19,7 @@ and `AWS_SECRET_ACCESS_KEY`) to create the Nomad cluster. Use
 [envchain](https://github.com/sorah/envchain) to store your AWS credentials.
 
 Optionally, edit the `terraform.tfvars` file to change the number of
-Linux clients, Windows clients, or the Nomad build. You'll usually
-want to have the `nomad_sha` variable set here (or via the
-`TF_VAR_nomad_sha` env var) so that `terraform output provisioning` is
-populated with the build you want.
+Linux clients or Windows clients.
 
 ```hcl
 region               = "us-east-1"
@@ -30,16 +27,13 @@ instance_type        = "t2.medium"
 server_count         = "3"
 client_count         = "4"
 windows_client_count = "1"
-
-# alternatively, set this via env var: TF_VAR_nomad_sha
-# nomad_sha            = ""
 ```
 
 Run Terraform apply to deploy the infrastructure:
 
 ```sh
 cd e2e/terraform/
-TF_VAR_nomad_sha=<nomad_sha> envchain nomadaws terraform apply
+envchain nomadaws terraform apply
 ```
 
 ## Outputs
@@ -75,10 +69,9 @@ ssh -i keys/nomad-e2e-*.pem Administrator@${EC2_IP_ADDR}
 
 ## Teardown
 
-The terraform state file stores all the info, so the `nomad_sha`
-doesn't need to be valid during teardown.
+The terraform state file stores all the info.
 
 ```sh
 cd e2e/terraform/
-envchain nomadaws TF_VAR_nomad_sha=yyyzzz terraform destroy
+envchain nomadaws terraform destroy
 ```
