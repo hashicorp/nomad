@@ -75,7 +75,7 @@ export default Controller.extend({
     });
 
     this.socket.onmessage = e => {
-      const json = JSON.parse(e.data);
+      let json = JSON.parse(e.data);
       this.terminal.write(decodeString(json.stdout.data));
     };
 
