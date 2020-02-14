@@ -13,19 +13,18 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/go-version"
-
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	vapi "github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
-
-	vapi "github.com/hashicorp/vault/api"
 )
 
 var (
@@ -39,7 +38,10 @@ func syncVault(t *testing.T) map[string]string {
 
 	binDir := filepath.Join(os.TempDir(), "vault-bins/")
 
-	versions := vaultVersions(t)
+	urls := vaultVersions(t)
+
+	_, versions, err := pruneVersions(urls)
+	require.NoError(t, err)
 
 	// Get the binaries we need to download
 	missing, err := missingVault(binDir, versions)
@@ -151,6 +153,59 @@ func vaultVersions(t *testing.T) map[string]string {
 	}
 
 	return versions
+}
+
+// pruneVersions only takes the latest Z for each X.Y.Z release. Returns a
+// sorted list and map of kept versions.
+func pruneVersions(all map[string]string) ([]*version.Version, map[string]string, error) {
+	if len(all) == 0 {
+		return nil, nil, fmt.Errorf("0 Vault versions")
+	}
+
+	sorted := make([]*version.Version, 0, len(all))
+
+	for k := range all {
+		sorted = append(sorted, version.Must(version.NewVersion(k)))
+	}
+
+	sort.Sort(version.Collection(sorted))
+
+	keep := make([]*version.Version, 0, len(all))
+
+	for _, v := range sorted {
+		segments := v.Segments()
+		if len(segments) < 3 {
+			// Drop malformed versions
+			continue
+		}
+
+		if len(keep) == 0 {
+			keep = append(keep, v)
+			continue
+		}
+
+		last := keep[len(keep)-1].Segments()
+
+		if segments[0] == last[0] && segments[1] == last[1] {
+			// current X.Y == last X.Y, replace last with current
+			keep[len(keep)-1] = v
+		} else {
+			// current X.Y != last X.Y, append
+			keep = append(keep, v)
+		}
+	}
+
+	// Create a new map of canonicalized versions to urls
+	urls := make(map[string]string, len(keep))
+	for _, v := range keep {
+		origURL := all[v.Original()]
+		if origURL == "" {
+			return nil, nil, fmt.Errorf("missing version %s", v.Original())
+		}
+		urls[v.String()] = origURL
+	}
+
+	return keep, urls, nil
 }
 
 // createBinDir creates the binary directory
