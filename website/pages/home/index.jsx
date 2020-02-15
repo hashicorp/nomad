@@ -125,7 +125,7 @@ export default function Homepage() {
                 <img src={require('./img/maintain-2.svg')} alt="illustration" />
               </div>
               <div className="text">
-                <h3 className="g-type-display-4">Blue/Green Deploments</h3>
+                <h3 className="g-type-display-4">Blue/Green Deployments</h3>
                 <p className="g-type-body">
                   Nomad supports native blue/green and canary deployments
                   through the declarative job file syntax. Instead of doing a
