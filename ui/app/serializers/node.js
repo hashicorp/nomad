@@ -11,7 +11,7 @@ export default ApplicationSerializer.extend({
   },
 
   normalize(modelClass, hash) {
-    // Transform map-based objects into an array-based fragment lists
+    // Transform map-based objects into array-based fragment lists
     const drivers = hash.Drivers || {};
     hash.Drivers = Object.keys(drivers).map(key => {
       return assign({}, drivers[key], { Name: key });

@@ -905,8 +905,16 @@ module('Acceptance | client detail', function(hooks) {
   test('the host volumes table lists all host volumes in alphabetical order by name', async function(assert) {
     await ClientDetail.visit({ id: node.id });
 
+    const sortedHostVolumes = Object.keys(node.hostVolumes)
+      .map(key => node.hostVolumes[key])
+      .sortBy('Name');
+
     assert.ok(ClientDetail.hasHostVolumes);
     assert.equal(ClientDetail.hostVolumes.length, Object.keys(node.hostVolumes).length);
+
+    ClientDetail.hostVolumes.forEach((volume, index) => {
+      assert.equal(volume.name, sortedHostVolumes[index].Name);
+    });
   });
 
   test('each host volume row contains information about the host volume', async function(assert) {

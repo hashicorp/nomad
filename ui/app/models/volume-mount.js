@@ -7,7 +7,7 @@ export default Fragment.extend({
   task: fragmentOwner(),
 
   volume: attr('string'),
-  source: computed('task.taskGroup.volumes.@each.{name,source}', function() {
+  source: computed('volume', 'task.taskGroup.volumes.@each.{name,source}', function() {
     return this.task.taskGroup.volumes.findBy('name', this.volume).source;
   }),
 
