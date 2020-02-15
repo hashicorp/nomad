@@ -66,6 +66,7 @@ export default Model.extend({
 
   drivers: fragmentArray('node-driver'),
   events: fragmentArray('node-event'),
+  hostVolumes: fragmentArray('host-volume'),
 
   detectedDrivers: computed('drivers.@each.detected', function() {
     return this.drivers.filterBy('detected');

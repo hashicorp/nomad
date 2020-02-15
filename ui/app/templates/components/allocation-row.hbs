@@ -50,6 +50,7 @@
   </td>
   <td data-test-job-version class="is-1">{{allocation.jobVersion}}</td>
 {{/if}}
+<td data-test-volume>{{if allocation.taskGroup.volumes.length "Yes"}}</td>
 <td data-test-cpu class="is-1 has-text-centered">
   {{#if allocation.isRunning}}
     {{#if (and (not cpu) fetchStats.isRunning)}}
