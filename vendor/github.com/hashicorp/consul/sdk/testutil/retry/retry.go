@@ -56,6 +56,11 @@ func (r *R) Error(args ...interface{}) {
 	r.fail = true
 }
 
+func (r *R) Errorf(format string, args ...interface{}) {
+	r.log(fmt.Sprintf(format, args...))
+	r.fail = true
+}
+
 func (r *R) Check(err error) {
 	if err != nil {
 		r.log(err.Error())
@@ -105,7 +110,7 @@ func dedup(a []string) string {
 			delete(m, s)
 		}
 	}
-	return string(b.Bytes())
+	return b.String()
 }
 
 func run(r Retryer, t Failer, f func(r *R)) {

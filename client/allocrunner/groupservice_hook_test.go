@@ -6,7 +6,7 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
-	ctestutil "github.com/hashicorp/consul/testutil"
+	ctestutil "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
