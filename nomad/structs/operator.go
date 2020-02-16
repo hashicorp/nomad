@@ -103,6 +103,10 @@ type AutopilotConfig struct {
 	// be behind before being considered unhealthy.
 	MaxTrailingLogs uint64
 
+	// MinQuorum sets the minimum number of servers required in a cluster
+	// before autopilot can prune dead servers.
+	MinQuorum uint
+
 	// (Enterprise-only) EnableRedundancyZones specifies whether to enable redundancy zones.
 	EnableRedundancyZones bool
 

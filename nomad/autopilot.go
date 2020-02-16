@@ -35,6 +35,7 @@ func (d *AutopilotDelegate) AutopilotConfig() *autopilot.Config {
 		CleanupDeadServers:      c.CleanupDeadServers,
 		LastContactThreshold:    c.LastContactThreshold,
 		MaxTrailingLogs:         c.MaxTrailingLogs,
+		MinQuorum:               c.MinQuorum,
 		ServerStabilizationTime: c.ServerStabilizationTime,
 		DisableUpgradeMigration: c.DisableUpgradeMigration,
 		ModifyIndex:             c.ModifyIndex,

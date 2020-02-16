@@ -234,6 +234,7 @@ autopilot {
   disable_upgrade_migration = true
   last_contact_threshold    = "12705s"
   max_trailing_logs         = 17849
+  min_quorum                = 3
   enable_redundancy_zones   = true
   server_stabilization_time = "23057s"
   enable_custom_upgrades    = true

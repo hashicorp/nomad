@@ -3033,6 +3033,7 @@ func TestFSM_Autopilot(t *testing.T) {
 			CleanupDeadServers:   true,
 			LastContactThreshold: 10 * time.Second,
 			MaxTrailingLogs:      300,
+			MinQuorum:            3,
 		},
 	}
 	buf, err := structs.Encode(structs.AutopilotRequestType, req)
@@ -3057,6 +3058,9 @@ func TestFSM_Autopilot(t *testing.T) {
 	}
 	if config.MaxTrailingLogs != req.Config.MaxTrailingLogs {
 		t.Fatalf("bad: %v", config.MaxTrailingLogs)
+	}
+	if config.MinQuorum != req.Config.MinQuorum {
+		t.Fatalf("bad: %v", config.MinQuorum)
 	}
 
 	// Now use CAS and provide an old index

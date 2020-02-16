@@ -225,6 +225,9 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		if agentConfig.Autopilot.MaxTrailingLogs != 0 {
 			conf.AutopilotConfig.MaxTrailingLogs = uint64(agentConfig.Autopilot.MaxTrailingLogs)
 		}
+		if agentConfig.Autopilot.MinQuorum != 0 {
+			conf.AutopilotConfig.MinQuorum = uint(agentConfig.Autopilot.MinQuorum)
+		}
 		if agentConfig.Autopilot.EnableRedundancyZones != nil {
 			conf.AutopilotConfig.EnableRedundancyZones = *agentConfig.Autopilot.EnableRedundancyZones
 		}
