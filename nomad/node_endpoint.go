@@ -1177,7 +1177,7 @@ func (n *Node) unclaimVolumesForTerminalAllocs(args *structs.AllocUpdateRequest,
 
 		req := &structs.CSIVolumeClaimRequest{
 			VolumeID:     volume.Source,
-			Allocation:   alloc,
+			AllocationID: alloc.ID,
 			Claim:        structs.CSIVolumeClaimRelease,
 			WriteRequest: args.WriteRequest,
 		}
