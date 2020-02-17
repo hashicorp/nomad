@@ -1157,7 +1157,22 @@ func (n *nomadFSM) applyCSIVolumeClaim(buf []byte, index uint64) interface{} {
 	}
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_claim"}, time.Now())
 
-	if err := n.state.CSIVolumeClaim(index, req.VolumeID, req.Allocation, req.Claim); err != nil {
+	ws := memdb.NewWatchSet()
+	alloc, err := n.state.AllocByID(ws, req.AllocationID)
+	if err != nil {
+		n.logger.Error("AllocByID failed", "error", err)
+		return err
+	}
+	if alloc == nil {
+		n.logger.Error("AllocByID failed to find alloc", "alloc_id", req.AllocationID)
+		if err != nil {
+			return err
+		}
+
+		return structs.ErrUnknownAllocationPrefix
+	}
+
+	if err := n.state.CSIVolumeClaim(index, req.VolumeID, alloc, req.Claim); err != nil {
 		n.logger.Error("CSIVolumeClaim failed", "error", err)
 		return err
 	}
