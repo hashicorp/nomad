@@ -426,9 +426,9 @@ const (
 )
 
 type CSIVolumeClaimRequest struct {
-	VolumeID   string
-	Allocation *Allocation
-	Claim      CSIVolumeClaimMode
+	VolumeID     string
+	AllocationID string
+	Claim        CSIVolumeClaimMode
 	WriteRequest
 }
 
@@ -447,6 +447,11 @@ type CSIVolumeClaimResponse struct {
 	// This field is OPTIONAL and when present MUST be passed to
 	// `NodeStageVolume` or `NodePublishVolume` calls on the client
 	PublishContext map[string]string
+
+	// Volume contains the expanded CSIVolume for use on the client after a Claim
+	// has completed.
+	Volume *CSIVolume
+
 	QueryMeta
 }
 
