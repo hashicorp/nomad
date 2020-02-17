@@ -27,6 +27,7 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 	cases := []struct {
 		Name                 string
 		Volume               *structs.CSIVolume
+		UsageOptions         *UsageOptions
 		CreateDirAheadOfTime bool
 		MountDirAheadOfTime  bool
 
@@ -34,21 +35,25 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 		ExpectedMountState bool
 	}{
 		{
-			Name:   "Creates a directory when one does not exist",
-			Volume: &structs.CSIVolume{ID: "foo"},
+			Name:         "Creates a directory when one does not exist",
+			Volume:       &structs.CSIVolume{ID: "foo"},
+			UsageOptions: &UsageOptions{},
 		},
 		{
 			Name:                 "Does not fail because of a pre-existing directory",
 			Volume:               &structs.CSIVolume{ID: "foo"},
+			UsageOptions:         &UsageOptions{},
 			CreateDirAheadOfTime: true,
 		},
 		{
-			Name:   "Returns negative mount info",
-			Volume: &structs.CSIVolume{ID: "foo"},
+			Name:         "Returns negative mount info",
+			UsageOptions: &UsageOptions{},
+			Volume:       &structs.CSIVolume{ID: "foo"},
 		},
 		{
 			Name:                 "Returns positive mount info",
 			Volume:               &structs.CSIVolume{ID: "foo"},
+			UsageOptions:         &UsageOptions{},
 			CreateDirAheadOfTime: true,
 			MountDirAheadOfTime:  true,
 			ExpectedMountState:   true,
@@ -75,7 +80,7 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 
 			csiFake := &csifake.Client{}
 			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
-			expectedStagingPath := manager.stagingDirForVolume(tmpPath, tc.Volume)
+			expectedStagingPath := manager.stagingDirForVolume(tmpPath, tc.Volume, tc.UsageOptions)
 
 			if tc.CreateDirAheadOfTime {
 				err := os.MkdirAll(expectedStagingPath, 0700)
@@ -84,7 +89,7 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 
 			// Step 3: Now we can do some testing
 
-			path, detectedMount, testErr := manager.ensureStagingDir(tc.Volume)
+			path, detectedMount, testErr := manager.ensureStagingDir(tc.Volume, tc.UsageOptions)
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, testErr, tc.ExpectedErr.Error())
 				return // We don't perform extra validation if an error was detected.
@@ -112,10 +117,11 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 func TestVolumeManager_stageVolume(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		Name        string
-		Volume      *structs.CSIVolume
-		PluginErr   error
-		ExpectedErr error
+		Name         string
+		Volume       *structs.CSIVolume
+		UsageOptions *UsageOptions
+		PluginErr    error
+		ExpectedErr  error
 	}{
 		{
 			Name: "Returns an error when an invalid AttachmentMode is provided",
@@ -123,7 +129,8 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 				ID:             "foo",
 				AttachmentMode: "nonsense",
 			},
-			ExpectedErr: errors.New("Unknown volume attachment mode: nonsense"),
+			UsageOptions: &UsageOptions{},
+			ExpectedErr:  errors.New("Unknown volume attachment mode: nonsense"),
 		},
 		{
 			Name: "Returns an error when an invalid AccessMode is provided",
@@ -132,7 +139,8 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     "nonsense",
 			},
-			ExpectedErr: errors.New("Unknown volume access mode: nonsense"),
+			UsageOptions: &UsageOptions{},
+			ExpectedErr:  errors.New("Unknown volume access mode: nonsense"),
 		},
 		{
 			Name: "Returns an error when the plugin returns an error",
@@ -141,8 +149,9 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 			},
-			PluginErr:   errors.New("Some Unknown Error"),
-			ExpectedErr: errors.New("Some Unknown Error"),
+			UsageOptions: &UsageOptions{},
+			PluginErr:    errors.New("Some Unknown Error"),
+			ExpectedErr:  errors.New("Some Unknown Error"),
 		},
 		{
 			Name: "Happy Path",
@@ -151,8 +160,9 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 			},
-			PluginErr:   nil,
-			ExpectedErr: nil,
+			UsageOptions: &UsageOptions{},
+			PluginErr:    nil,
+			ExpectedErr:  nil,
 		},
 	}
 
@@ -167,7 +177,7 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			err := manager.stageVolume(ctx, tc.Volume)
+			err := manager.stageVolume(ctx, tc.Volume, tc.UsageOptions)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -183,6 +193,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 	cases := []struct {
 		Name                 string
 		Volume               *structs.CSIVolume
+		UsageOptions         *UsageOptions
 		PluginErr            error
 		ExpectedErr          error
 		ExpectedCSICallCount int64
@@ -192,6 +203,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 			Volume: &structs.CSIVolume{
 				ID: "foo",
 			},
+			UsageOptions:         &UsageOptions{},
 			PluginErr:            errors.New("Some Unknown Error"),
 			ExpectedErr:          errors.New("Some Unknown Error"),
 			ExpectedCSICallCount: 1,
@@ -201,6 +213,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 			Volume: &structs.CSIVolume{
 				ID: "foo",
 			},
+			UsageOptions:         &UsageOptions{},
 			PluginErr:            nil,
 			ExpectedErr:          nil,
 			ExpectedCSICallCount: 1,
@@ -218,7 +231,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			err := manager.unstageVolume(ctx, tc.Volume)
+			err := manager.unstageVolume(ctx, tc.Volume, tc.UsageOptions)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -237,6 +250,7 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 		Name                 string
 		Allocation           *structs.Allocation
 		Volume               *structs.CSIVolume
+		UsageOptions         *UsageOptions
 		PluginErr            error
 		ExpectedErr          error
 		ExpectedCSICallCount int64
@@ -249,6 +263,7 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 			},
+			UsageOptions:         &UsageOptions{},
 			PluginErr:            errors.New("Some Unknown Error"),
 			ExpectedErr:          errors.New("Some Unknown Error"),
 			ExpectedCSICallCount: 1,
@@ -261,6 +276,7 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 			},
+			UsageOptions:         &UsageOptions{},
 			PluginErr:            nil,
 			ExpectedErr:          nil,
 			ExpectedCSICallCount: 1,
@@ -278,7 +294,7 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			_, err := manager.publishVolume(ctx, tc.Volume, tc.Allocation)
+			_, err := manager.publishVolume(ctx, tc.Volume, tc.Allocation, tc.UsageOptions)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -297,6 +313,7 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 		Name                 string
 		Allocation           *structs.Allocation
 		Volume               *structs.CSIVolume
+		UsageOptions         *UsageOptions
 		PluginErr            error
 		ExpectedErr          error
 		ExpectedCSICallCount int64
@@ -307,6 +324,7 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 			Volume: &structs.CSIVolume{
 				ID: "foo",
 			},
+			UsageOptions:         &UsageOptions{},
 			PluginErr:            errors.New("Some Unknown Error"),
 			ExpectedErr:          errors.New("Some Unknown Error"),
 			ExpectedCSICallCount: 1,
@@ -317,6 +335,7 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 			Volume: &structs.CSIVolume{
 				ID: "foo",
 			},
+			UsageOptions:         &UsageOptions{},
 			PluginErr:            nil,
 			ExpectedErr:          nil,
 			ExpectedCSICallCount: 1,
@@ -334,7 +353,7 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			err := manager.unpublishVolume(ctx, tc.Volume, tc.Allocation)
+			err := manager.unpublishVolume(ctx, tc.Volume, tc.Allocation, tc.UsageOptions)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
