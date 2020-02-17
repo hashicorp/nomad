@@ -15,10 +15,13 @@ import (
 )
 
 const (
-	FilterConstraintHostVolumes = "missing compatible host volumes"
-	FilterConstraintCSIVolumes  = "missing CSI plugins"
-	FilterConstraintDrivers     = "missing drivers"
-	FilterConstraintDevices     = "missing devices"
+	FilterConstraintHostVolumes                = "missing compatible host volumes"
+	FilterConstraintCSIPlugins                 = "missing CSI plugins"
+	FilterConstraintCSIVolumesLookupFailed     = "CSI volume lookup failed"
+	FilterConstraintCSIVolumeNotFoundTemplate  = "missing CSI Volume %s"
+	FilterConstraintCSIVolumeExhaustedTemplate = "CSI Volume %s has exhausted its available claims"
+	FilterConstraintDrivers                    = "missing drivers"
+	FilterConstraintDevices                    = "missing devices"
 )
 
 // FeasibleIterator is used to iteratively yield nodes that
@@ -209,15 +212,17 @@ func (c *CSIVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest)
 }
 
 func (c *CSIVolumeChecker) Feasible(n *structs.Node) bool {
-	if c.hasPlugins(n) {
+	hasPlugins, failReason := c.hasPlugins(n)
+
+	if hasPlugins {
 		return true
 	}
 
-	c.ctx.Metrics().FilterNode(n, FilterConstraintCSIVolumes)
+	c.ctx.Metrics().FilterNode(n, failReason)
 	return false
 }
 
-func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) bool {
+func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 	// We can mount the volume if
 	// - if required, a healthy controller plugin is running the driver
 	// - the volume has free claims
@@ -225,7 +230,7 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) bool {
 
 	// Fast path: Requested no volumes. No need to check further.
 	if len(c.volumes) == 0 {
-		return true
+		return true, ""
 	}
 
 	ws := memdb.NewWatchSet()
@@ -233,24 +238,27 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) bool {
 		// Get the volume to check that it's healthy (there's a healthy controller
 		// and the volume hasn't encountered an error or been marked for GC
 		vol, err := c.ctx.State().CSIVolumeByID(ws, req.Source)
-		if err != nil || vol == nil {
-			return false
+		if err != nil {
+			return false, FilterConstraintCSIVolumesLookupFailed
+		}
+		if vol == nil {
+			return false, fmt.Sprintf(FilterConstraintCSIVolumeNotFoundTemplate, req.Source)
 		}
 
 		// Check that this node has a healthy running plugin with the right PluginID
 		plugin, ok := n.CSINodePlugins[vol.PluginID]
 		if !(ok && plugin.Healthy) {
-			return false
+			return false, FilterConstraintCSIPlugins
 		}
 
 		if (req.ReadOnly && !vol.CanReadOnly()) ||
 			!vol.CanWrite() {
-			return false
+			return false, FilterConstraintCSIPlugins
 		}
 
 	}
 
-	return true
+	return true, ""
 }
 
 // DriverChecker is a FeasibilityChecker which returns whether a node has the
