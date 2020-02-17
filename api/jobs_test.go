@@ -402,7 +402,6 @@ func TestJobs_Canonicalize(t *testing.T) {
 										EmbeddedTmpl: stringToPtr("FOO=bar\n"),
 										DestPath:     stringToPtr("local/file.env"),
 										Envvars:      boolToPtr(true),
-										VaultGrace:   timeToPtr(3 * time.Second),
 									},
 								},
 							},
@@ -532,7 +531,6 @@ func TestJobs_Canonicalize(t *testing.T) {
 										LeftDelim:    stringToPtr("{{"),
 										RightDelim:   stringToPtr("}}"),
 										Envvars:      boolToPtr(false),
-										VaultGrace:   timeToPtr(15 * time.Second),
 									},
 									{
 										SourcePath:   stringToPtr(""),
@@ -545,7 +543,6 @@ func TestJobs_Canonicalize(t *testing.T) {
 										LeftDelim:    stringToPtr("{{"),
 										RightDelim:   stringToPtr("}}"),
 										Envvars:      boolToPtr(true),
-										VaultGrace:   timeToPtr(3 * time.Second),
 									},
 								},
 							},

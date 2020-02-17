@@ -15,6 +15,16 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.11.0
+
+### client.template: `vault_grace` deprecation
+
+Nomad 0.11.0 includes an update to [consul-template](https://github.com/hashicorp/consul-template) v0.24.1.
+This library deprecates the `vault_grace` option for templating included in nomad.
+The feature has been ignored since vault 0.5 and as long as you are running
+a more recent version of vault, you can safely remove vault_grace from your
+nomad jobs.
+
 ## Nomad 0.10.4
 
 ### Same-Node Scheduling Penalty Removed

@@ -237,9 +237,12 @@ func funcMap(i *funcMapInput) template.FuncMap {
 		"secret":       secretFunc(i.brain, i.used, i.missing),
 		"secrets":      secretsFunc(i.brain, i.used, i.missing),
 		"service":      serviceFunc(i.brain, i.used, i.missing),
+		"connect":      connectFunc(i.brain, i.used, i.missing),
 		"services":     servicesFunc(i.brain, i.used, i.missing),
 		"tree":         treeFunc(i.brain, i.used, i.missing, true),
 		"safeTree":     safeTreeFunc(i.brain, i.used, i.missing),
+		"caRoots":      connectCARootsFunc(i.brain, i.used, i.missing),
+		"caLeaf":       connectLeafFunc(i.brain, i.used, i.missing),
 
 		// Scratch
 		"scratch": func() *Scratch { return &scratch },
