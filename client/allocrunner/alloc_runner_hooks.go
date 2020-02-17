@@ -137,6 +137,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 
 	// create hook resource setting shim
 	hrs := &allocHookResourceSetter{ar: ar}
+	hrs.SetAllocHookResources(&cstructs.AllocHookResources{})
 
 	// build the network manager
 	nm, err := newNetworkManager(ar.Alloc(), ar.driverManager)
