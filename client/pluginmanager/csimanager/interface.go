@@ -3,6 +3,7 @@ package csimanager
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -17,9 +18,31 @@ type MountInfo struct {
 	IsDevice bool
 }
 
+type UsageOptions struct {
+	ReadOnly       bool
+	AttachmentMode string
+	AccessMode     string
+}
+
+func (u *UsageOptions) ToFS() string {
+	var sb strings.Builder
+
+	if u.ReadOnly {
+		sb.WriteString("ro-")
+	} else {
+		sb.WriteString("rw-")
+	}
+
+	sb.WriteString(u.AttachmentMode)
+	sb.WriteString("-")
+	sb.WriteString(u.AccessMode)
+
+	return sb.String()
+}
+
 type VolumeMounter interface {
-	MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation) (*MountInfo, error)
-	UnmountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation) error
+	MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usageOpts *UsageOptions) (*MountInfo, error)
+	UnmountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usageOpts *UsageOptions) error
 }
 
 type Manager interface {
