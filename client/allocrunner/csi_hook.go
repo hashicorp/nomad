@@ -32,7 +32,7 @@ func (c *csiHook) Prerun() error {
 	}
 
 	ctx := context.TODO()
-	volumes, err := c.csiVolumesFromAlloc()
+	volumes, err := c.claimVolumesFromAlloc()
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (c *csiHook) Prerun() error {
 			AccessMode:     string(pair.volume.AccessMode),
 		}
 
-		mountInfo, err := mounter.MountVolume(ctx, pair.volume, c.alloc, usageOpts)
+		mountInfo, err := mounter.MountVolume(ctx, pair.volume, c.alloc, usageOpts, pair.publishContext)
 		if err != nil {
 			return err
 		}
@@ -109,11 +109,60 @@ func (c *csiHook) Postrun() error {
 type volumeAndRequest struct {
 	volume  *structs.CSIVolume
 	request *structs.VolumeRequest
+
+	// When volumeAndRequest was returned from a volume claim, this field will be
+	// populated for plugins that require it.
+	publishContext map[string]string
+}
+
+// claimVolumesFromAlloc is used by the pre-run hook to fetch all of the volume
+// metadata and claim it for use by this alloc/node at the same time.
+func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) {
+	result := make(map[string]*volumeAndRequest)
+	tg := c.alloc.Job.LookupTaskGroup(c.alloc.TaskGroup)
+
+	// Initially, populate the result map with all of the requests
+	for alias, volumeRequest := range tg.Volumes {
+		if volumeRequest.Type == structs.VolumeTypeCSI {
+			result[alias] = &volumeAndRequest{request: volumeRequest}
+		}
+	}
+
+	// Iterate over the result map and upsert the volume field as each volume gets
+	// claimed by the server.
+	for alias, pair := range result {
+		claimType := structs.CSIVolumeClaimWrite
+		if pair.request.ReadOnly {
+			claimType = structs.CSIVolumeClaimRead
+		}
+
+		req := &structs.CSIVolumeClaimRequest{
+			VolumeID:     pair.request.Source,
+			AllocationID: c.alloc.ID,
+			Claim:        claimType,
+		}
+		req.Region = c.alloc.Job.Region
+
+		var resp structs.CSIVolumeClaimResponse
+		if err := c.rpcClient.RPC("CSIVolume.Claim", req, &resp); err != nil {
+			return nil, err
+		}
+
+		if resp.Volume == nil {
+			return nil, fmt.Errorf("Unexpected nil volume returned for ID: %v", pair.request.Source)
+		}
+
+		result[alias].volume = resp.Volume
+		result[alias].publishContext = resp.PublishContext
+	}
+
+	return result, nil
 }
 
 // csiVolumesFromAlloc finds all the CSI Volume requests from the allocation's
 // task group and then fetches them from the Nomad Server, before returning
-// them in the form of map[RequestedAlias]*structs.CSIVolume.
+// them in the form of map[RequestedAlias]*volumeAndReqest. This allows us to
+// thread the request context through to determine usage options for each volume.
 //
 // If any volume fails to validate then we return an error.
 func (c *csiHook) csiVolumesFromAlloc() (map[string]*volumeAndRequest, error) {
