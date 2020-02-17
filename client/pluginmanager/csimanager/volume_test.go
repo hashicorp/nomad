@@ -177,7 +177,7 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			err := manager.stageVolume(ctx, tc.Volume, tc.UsageOptions)
+			err := manager.stageVolume(ctx, tc.Volume, tc.UsageOptions, nil)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -294,7 +294,7 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			_, err := manager.publishVolume(ctx, tc.Volume, tc.Allocation, tc.UsageOptions)
+			_, err := manager.publishVolume(ctx, tc.Volume, tc.Allocation, tc.UsageOptions, nil)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
