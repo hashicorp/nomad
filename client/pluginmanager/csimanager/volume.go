@@ -120,7 +120,7 @@ func (v *volumeManager) ensureAllocDir(vol *structs.CSIVolume, alloc *structs.Al
 // stageVolume prepares a volume for use by allocations. When a plugin exposes
 // the STAGE_UNSTAGE_VOLUME capability it MUST be called once-per-volume for a
 // given usage mode before the volume can be NodePublish-ed.
-func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume, usage *UsageOptions) error {
+func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume, usage *UsageOptions, publishContext map[string]string) error {
 	logger := hclog.FromContext(ctx)
 	logger.Trace("Preparing volume staging environment")
 	hostStagingPath, isMount, err := v.ensureStagingDir(vol, usage)
@@ -148,7 +148,7 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume,
 	// https://github.com/container-storage-interface/spec/blob/4731db0e0bc53238b93850f43ab05d9355df0fd9/spec.md#nodestagevolume-errors
 	return v.plugin.NodeStageVolume(ctx,
 		vol.ID,
-		nil, /* TODO: Get publishContext from Server */
+		publishContext,
 		pluginStagingPath,
 		capability,
 		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
@@ -157,7 +157,7 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume,
 	)
 }
 
-func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions) (*MountInfo, error) {
+func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions, publishContext map[string]string) (*MountInfo, error) {
 	logger := hclog.FromContext(ctx)
 	var pluginStagingPath string
 	if v.requiresStaging {
@@ -182,7 +182,7 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 
 	err = v.plugin.NodePublishVolume(ctx, &csi.NodePublishVolumeRequest{
 		VolumeID:          vol.ID,
-		PublishContext:    nil, // TODO: get publishcontext from server
+		PublishContext:    publishContext,
 		StagingTargetPath: pluginStagingPath,
 		TargetPath:        pluginTargetPath,
 		VolumeCapability:  capabilities,
@@ -200,17 +200,17 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 // configuration for the provided allocation.
 //
 // TODO: Validate remote volume attachment and implement.
-func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions) (*MountInfo, error) {
+func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions, publishContext map[string]string) (*MountInfo, error) {
 	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
 	ctx = hclog.WithContext(ctx, logger)
 
 	if v.requiresStaging {
-		if err := v.stageVolume(ctx, vol, usage); err != nil {
+		if err := v.stageVolume(ctx, vol, usage, publishContext); err != nil {
 			return nil, err
 		}
 	}
 
-	mountInfo, err := v.publishVolume(ctx, vol, alloc, usage)
+	mountInfo, err := v.publishVolume(ctx, vol, alloc, usage, publishContext)
 	if err != nil {
 		return nil, err
 	}
