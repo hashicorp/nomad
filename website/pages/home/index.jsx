@@ -14,7 +14,11 @@ export default function Homepage() {
           textColor="dark"
         />
 
-        <img src={require('./img/logo.svg')} alt="HashiCorp Nomad Logo" />
+        <img
+          className="logo"
+          src={require('./img/logo.svg')}
+          alt="HashiCorp Nomad Logo"
+        />
 
         <h1 className="g-type-display-3">
           Deploy and Manage Any Containerized, Legacy, or Batch Application
