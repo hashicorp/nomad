@@ -770,7 +770,8 @@ func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) e
 				}
 
 				gcAllocs := []*structs.Allocation{}
-				unclaimedNodes := map[string]struct{}{}
+				claimedNodes := map[string]struct{}{}
+				knownNodes := []string{}
 
 				collectFunc := func(allocs map[string]*structs.Allocation) {
 					for _, alloc := range allocs {
@@ -781,12 +782,15 @@ func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) e
 						if alloc == nil {
 							continue
 						}
+						knownNodes = append(knownNodes, alloc.NodeID)
 						if !alloc.Terminated() {
-							unclaimedNodes[alloc.NodeID] = struct{}{}
+							// if there are any unterminated allocs, we
+							// don't want to unpublish the volume, just
+							// release the alloc's claim
+							claimedNodes[alloc.NodeID] = struct{}{}
 							continue
 						}
 						gcAllocs = append(gcAllocs, alloc)
-						delete(unclaimedNodes, alloc.NodeID)
 					}
 				}
 
@@ -795,7 +799,7 @@ func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) e
 
 				req := &structs.CSIVolumeClaimRequest{
 					VolumeID:   volID,
-					Allocation: nil, // unpublish never uses this field
+					Allocation: nil, // controller unpublish never uses this field
 					Claim:      structs.CSIVolumeClaimRelease,
 					WriteRequest: structs.WriteRequest{
 						Region:    job.Region,
@@ -807,7 +811,10 @@ func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) e
 				// we only emit the controller unpublish if no other allocs
 				// on the node need it, but we also only want to make this
 				// call at most once per node
-				for node := range unclaimedNodes {
+				for _, node := range knownNodes {
+					if _, isClaimed := claimedNodes[node]; isClaimed {
+						continue
+					}
 					err = c.srv.controllerUnpublishVolume(req, node)
 					if err != nil {
 						result = multierror.Append(result, err)
