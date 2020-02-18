@@ -118,50 +118,6 @@ func (v *volumeManager) ensureAllocDir(vol *structs.CSIVolume, alloc *structs.Al
 	return allocPath, !isNotMount, nil
 }
 
-func capabilitiesFromVolume(vol *structs.CSIVolume) (*csi.VolumeCapability, error) {
-	var accessType csi.VolumeAccessType
-	switch vol.AttachmentMode {
-	case structs.CSIVolumeAttachmentModeBlockDevice:
-		accessType = csi.VolumeAccessTypeBlock
-	case structs.CSIVolumeAttachmentModeFilesystem:
-		accessType = csi.VolumeAccessTypeMount
-	default:
-		// These fields are validated during job submission, but here we perform a
-		// final check during transformation into the requisite CSI Data type to
-		// defend against development bugs and corrupted state - and incompatible
-		// nomad versions in the future.
-		return nil, fmt.Errorf("Unknown volume attachment mode: %s", vol.AttachmentMode)
-	}
-
-	var accessMode csi.VolumeAccessMode
-	switch vol.AccessMode {
-	case structs.CSIVolumeAccessModeSingleNodeReader:
-		accessMode = csi.VolumeAccessModeSingleNodeReaderOnly
-	case structs.CSIVolumeAccessModeSingleNodeWriter:
-		accessMode = csi.VolumeAccessModeSingleNodeWriter
-	case structs.CSIVolumeAccessModeMultiNodeMultiWriter:
-		accessMode = csi.VolumeAccessModeMultiNodeMultiWriter
-	case structs.CSIVolumeAccessModeMultiNodeSingleWriter:
-		accessMode = csi.VolumeAccessModeMultiNodeSingleWriter
-	case structs.CSIVolumeAccessModeMultiNodeReader:
-		accessMode = csi.VolumeAccessModeMultiNodeReaderOnly
-	default:
-		// These fields are validated during job submission, but here we perform a
-		// final check during transformation into the requisite CSI Data type to
-		// defend against development bugs and corrupted state - and incompatible
-		// nomad versions in the future.
-		return nil, fmt.Errorf("Unknown volume access mode: %v", vol.AccessMode)
-	}
-
-	return &csi.VolumeCapability{
-		AccessType:         accessType,
-		AccessMode:         accessMode,
-		VolumeMountOptions: &csi.VolumeMountOptions{
-			// GH-7007: Currently we have no way to provide these
-		},
-	}, nil
-}
-
 // stageVolume prepares a volume for use by allocations. When a plugin exposes
 // the STAGE_UNSTAGE_VOLUME capability it MUST be called once-per-volume for a
 // given usage mode before the volume can be NodePublish-ed.
@@ -181,7 +137,7 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume)
 		return nil
 	}
 
-	capability, err := capabilitiesFromVolume(vol)
+	capability, err := csi.VolumeCapabilityFromStructs(vol.AttachmentMode, vol.AccessMode)
 	if err != nil {
 		return err
 	}
@@ -220,7 +176,7 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 		return &MountInfo{Source: hostTargetPath}, nil
 	}
 
-	capabilities, err := capabilitiesFromVolume(vol)
+	capabilities, err := csi.VolumeCapabilityFromStructs(vol.AttachmentMode, vol.AccessMode)
 	if err != nil {
 		return nil, err
 	}
