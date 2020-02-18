@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"google.golang.org/grpc"
 )
@@ -387,6 +388,50 @@ type VolumeCapability struct {
 	AccessType         VolumeAccessType
 	AccessMode         VolumeAccessMode
 	VolumeMountOptions *VolumeMountOptions
+}
+
+func VolumeCapabilityFromStructs(sAccessType structs.CSIVolumeAttachmentMode, sAccessMode structs.CSIVolumeAccessMode) (*VolumeCapability, error) {
+	var accessType VolumeAccessType
+	switch sAccessType {
+	case structs.CSIVolumeAttachmentModeBlockDevice:
+		accessType = VolumeAccessTypeBlock
+	case structs.CSIVolumeAttachmentModeFilesystem:
+		accessType = VolumeAccessTypeMount
+	default:
+		// These fields are validated during job submission, but here we perform a
+		// final check during transformation into the requisite CSI Data type to
+		// defend against development bugs and corrupted state - and incompatible
+		// nomad versions in the future.
+		return nil, fmt.Errorf("Unknown volume attachment mode: %s", sAccessType)
+	}
+
+	var accessMode VolumeAccessMode
+	switch sAccessMode {
+	case structs.CSIVolumeAccessModeSingleNodeReader:
+		accessMode = VolumeAccessModeSingleNodeReaderOnly
+	case structs.CSIVolumeAccessModeSingleNodeWriter:
+		accessMode = VolumeAccessModeSingleNodeWriter
+	case structs.CSIVolumeAccessModeMultiNodeMultiWriter:
+		accessMode = VolumeAccessModeMultiNodeMultiWriter
+	case structs.CSIVolumeAccessModeMultiNodeSingleWriter:
+		accessMode = VolumeAccessModeMultiNodeSingleWriter
+	case structs.CSIVolumeAccessModeMultiNodeReader:
+		accessMode = VolumeAccessModeMultiNodeReaderOnly
+	default:
+		// These fields are validated during job submission, but here we perform a
+		// final check during transformation into the requisite CSI Data type to
+		// defend against development bugs and corrupted state - and incompatible
+		// nomad versions in the future.
+		return nil, fmt.Errorf("Unknown volume access mode: %v", sAccessMode)
+	}
+
+	return &VolumeCapability{
+		AccessType:         accessType,
+		AccessMode:         accessMode,
+		VolumeMountOptions: &VolumeMountOptions{
+			// GH-7007: Currently we have no way to provide these
+		},
+	}, nil
 }
 
 func (c *VolumeCapability) ToCSIRepresentation() *csipbv1.VolumeCapability {
