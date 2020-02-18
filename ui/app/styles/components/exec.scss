@@ -13,6 +13,7 @@
   color: white;
   padding: 16px;
   width: 200px; // these px sizes… 🧐
+  flex-shrink: 0;
 
   .title {
     text-transform: uppercase;
