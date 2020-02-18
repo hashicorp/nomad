@@ -201,6 +201,39 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 	return v.srv.blockingRPC(&opts)
 }
 
+func (srv *Server) controllerValidateVolume(req *structs.CSIVolumeRegisterRequest, vol *structs.CSIVolume) error {
+	state := srv.fsm.State()
+	ws := memdb.NewWatchSet()
+
+	plugin, err := state.CSIPluginByID(ws, vol.PluginID)
+	if err != nil {
+		return err
+	}
+	if plugin == nil {
+		return fmt.Errorf("no CSI plugin named: %s could be found", vol.PluginID)
+	}
+
+	if !plugin.ControllerRequired {
+		// The plugin does not require a controller, so for now we won't do any
+		// further validation of the volume.
+		return nil
+	}
+
+	// The plugin requires a controller. Now we do some validation of the Volume
+	// to ensure that the registered capabilities are valid and that the volume
+	// exists.
+	method := "ClientCSI.CSIControllerValidateVolume"
+	cReq := &cstructs.ClientCSIControllerValidateVolumeRequest{
+		PluginID:       plugin.ID,
+		VolumeID:       vol.ID,
+		AttachmentMode: vol.AttachmentMode,
+		AccessMode:     vol.AccessMode,
+	}
+	cResp := &cstructs.ClientCSIControllerValidateVolumeResponse{}
+
+	return srv.csiControllerRPC(plugin, method, cReq, cResp)
+}
+
 // Register registers a new volume
 func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *structs.CSIVolumeRegisterResponse) error {
 	if done, err := v.srv.forward("CSIVolume.Register", args, args, reply); done {
@@ -220,10 +253,16 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		return structs.ErrPermissionDenied
 	}
 
-	// This is the only namespace we ACL checked, force all the volumes to use it
+	// This is the only namespace we ACL checked, force all the volumes to use it.
+	// We also validate that the plugin exists for each plugin, and validate the
+	// capabilities when the plugin has a controller.
 	for _, vol := range args.Volumes {
 		vol.Namespace = args.RequestNamespace()
 		if err = vol.Validate(); err != nil {
+			return err
+		}
+
+		if err := v.srv.controllerValidateVolume(args, vol); err != nil {
 			return err
 		}
 	}
