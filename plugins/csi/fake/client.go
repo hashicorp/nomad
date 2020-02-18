@@ -48,6 +48,9 @@ type Client struct {
 	NextControllerUnpublishVolumeErr      error
 	ControllerUnpublishVolumeCallCount    int64
 
+	NextControllerValidateVolumeErr   error
+	ControllerValidateVolumeCallCount int64
+
 	NextNodeGetCapabilitiesResponse *csi.NodeCapabilitySet
 	NextNodeGetCapabilitiesErr      error
 	NodeGetCapabilitiesCallCount    int64
@@ -151,6 +154,15 @@ func (c *Client) ControllerUnpublishVolume(ctx context.Context, req *csi.Control
 	c.ControllerUnpublishVolumeCallCount++
 
 	return c.NextControllerUnpublishVolumeResponse, c.NextControllerUnpublishVolumeErr
+}
+
+func (c *Client) ControllerValidateCapabilties(ctx context.Context, volumeID string, capabilities *csi.VolumeCapability) error {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.ControllerValidateVolumeCallCount++
+
+	return c.NextControllerValidateVolumeErr
 }
 
 func (c *Client) NodeGetCapabilities(ctx context.Context) (*csi.NodeCapabilitySet, error) {

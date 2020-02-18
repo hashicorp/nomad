@@ -40,6 +40,10 @@ type CSIPlugin interface {
 	// ControllerUnpublishVolume is used to deattach a remote volume from a cluster node.
 	ControllerUnpublishVolume(ctx context.Context, req *ControllerUnpublishVolumeRequest) (*ControllerUnpublishVolumeResponse, error)
 
+	// ControllerValidateCapabilities is used to validate that a volume exists and
+	// supports the requested capability.
+	ControllerValidateCapabilties(ctx context.Context, volumeID string, capabilities *VolumeCapability) error
+
 	// NodeGetCapabilities is used to return the available capabilities from the
 	// Node Service.
 	NodeGetCapabilities(ctx context.Context) (*NodeCapabilitySet, error)
