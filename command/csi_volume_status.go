@@ -2,20 +2,11 @@ package command
 
 import (
 	"fmt"
-	"sort"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
-)
-
-const (
-	// maxFailedTGs is the maximum number of task groups we show failure reasons
-	// for before deferring to eval-status
-	maxFailedTGs = 5
 )
 
 type CSIVolumeStatusCommand struct {
@@ -40,7 +31,7 @@ General Options:
 Status Options:
 
   -short
-    Display short output. Used only when a single job is being
+    Display short output. Used only when a single volume is being
     queried, and drops verbose information about allocations.
 
   -evals
@@ -57,7 +48,7 @@ Status Options:
 }
 
 func (c *CSIVolumeStatusCommand) Synopsis() string {
-	return "Display status information about a job"
+	return "Display status information about a volume"
 }
 
 func (c *CSIVolumeStatusCommand) AutocompleteFlags() complete.Flags {
@@ -77,15 +68,15 @@ func (c *CSIVolumeStatusCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.CSIVolumes, nil)
 		if err != nil {
 			return []string{}
 		}
-		return resp.Matches[contexts.Jobs]
+		return resp.Matches[contexts.CSIVolumes]
 	})
 }
 
-func (c *CSIVolumeStatusCommand) Name() string { return "status" }
+func (c *CSIVolumeStatusCommand) Name() string { return "csi volume status" }
 
 func (c *CSIVolumeStatusCommand) Run(args []string) int {
 	var short bool
@@ -134,7 +125,7 @@ func (c *CSIVolumeStatusCommand) Run(args []string) int {
 			// No output if we have no jobs
 			c.Ui.Output("No CSI volumes")
 		} else {
-			c.Ui.Output(csiVolListOutput(vols))
+			c.Ui.Output(formatCSIVolumeList(vols))
 		}
 		return 0
 	}
@@ -149,7 +140,7 @@ func (c *CSIVolumeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Output(c.formatBasic())
+	c.Ui.Output(c.formatBasic(vol))
 
 	// Exit early
 	if short {
@@ -159,35 +150,32 @@ func (c *CSIVolumeStatusCommand) Run(args []string) int {
 	return 0
 }
 
-func csiVolListOutput(vols []*api.CSIVolumeListStub) string {
-}
-
-func (v *CSIVolumeStatusCommand) formatBasic() string {
+func (v *CSIVolumeStatusCommand) formatBasic(vol *api.CSIVolume) string {
 	output := []string{
-		fmt.Sprintf("Name|%s", *v.Name),
-		fmt.Sprintf("ID|%s", *v.ID),
-		fmt.Sprintf("External ID|%s", *v.ExternalID),
+		fmt.Sprintf("ID|%s", vol.ID),
+		// fmt.Sprintf("Name|%s", vol.Name),
+		// fmt.Sprintf("External ID|%s", vol.ExternalID),
 
-		fmt.Sprintf("Healthy|%t", *v.Healthy),
-		fmt.Sprintf("Controllers Healthy|%d", *v.ControllersHealthy),
-		fmt.Sprintf("Controllers Expected|%d", *v.ControllersExpected),
-		fmt.Sprintf("Nodes Healthy|%d", *v.NodesHealthy),
-		fmt.Sprintf("Nodes Expected|%d", *v.NodesExpected),
+		fmt.Sprintf("Healthy|%t", vol.Healthy),
+		fmt.Sprintf("Controllers Healthy|%d", vol.ControllersHealthy),
+		fmt.Sprintf("Controllers Expected|%d", vol.ControllersExpected),
+		fmt.Sprintf("Nodes Healthy|%d", vol.NodesHealthy),
+		fmt.Sprintf("Nodes Expected|%d", vol.NodesExpected),
 
-		fmt.Sprintf("Access Mode|%s", *v.AccessMode),
-		fmt.Sprintf("Attachment Mode|%s", *v.AttachmentMode),
-		fmt.Sprintf("Namespace|%s", *job.Namespace),
+		fmt.Sprintf("Access Mode|%s", vol.AccessMode),
+		fmt.Sprintf("Attachment Mode|%s", vol.AttachmentMode),
+		fmt.Sprintf("Namespace|%s", vol.Namespace),
 	}
 
 	return strings.Join(output, "\n")
 }
 
-func (v *CSIVolumeStatusCommand) formatTopologies(d *api.Deployment) string {
+func (v *CSIVolumeStatusCommand) formatTopologies(vol *api.CSIVolume) string {
 	var out []string
 
 	// Find the union of all the keys
 	head := map[string]string{}
-	for _, t := range v.Topologies {
+	for _, t := range vol.Topologies {
 		for key := range t.Segments {
 			if _, ok := head[key]; !ok {
 				head[key] = ""
@@ -203,7 +191,7 @@ func (v *CSIVolumeStatusCommand) formatTopologies(d *api.Deployment) string {
 	out = append(out, strings.Join(line, " "))
 
 	// Append each topology
-	for _, t := range v.Topologies {
+	for _, t := range vol.Topologies {
 		line = []string{}
 		for key := range head {
 			line = append(line, t.Segments[key])
