@@ -166,6 +166,10 @@
       margin: 32px 0;
     }
 
+    & .logo {
+      max-width: 100%;
+    }
+
     & .g-alert {
       margin-bottom: 32px;
     }
