@@ -20,6 +20,17 @@ type CSIVolumeMountOptions struct {
 	MountFlags []string
 }
 
+type ClientCSIControllerValidateVolumeRequest struct {
+	PluginID string
+	VolumeID string
+
+	AttachmentMode structs.CSIVolumeAttachmentMode
+	AccessMode     structs.CSIVolumeAccessMode
+}
+
+type ClientCSIControllerValidateVolumeResponse struct {
+}
+
 type ClientCSIControllerAttachVolumeRequest struct {
 	PluginName string
 
