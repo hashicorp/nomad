@@ -257,10 +257,10 @@ func (h *csiPluginSupervisorHook) registerPlugin(socketPath string) (func(), err
 			ConnectionInfo: &dynamicplugins.PluginConnectionInfo{
 				SocketPath: socketPath,
 			},
+			AllocID: h.alloc.ID,
 			Options: map[string]string{
 				"MountPoint":          h.mountPoint,
 				"ContainerMountPoint": h.task.CSIPluginConfig.MountDir,
-				"AllocID":             h.alloc.ID,
 			},
 		}
 	}

@@ -60,7 +60,7 @@ func newInstanceManager(logger hclog.Logger, updater UpdateNodeCSIInfoFunc, p *d
 
 		mountPoint:          p.Options["MountPoint"],
 		containerMountPoint: p.Options["ContainerMountPoint"],
-		allocID:             p.Options["AllocID"],
+		allocID:             p.AllocID,
 
 		volumeManagerSetupCh: make(chan struct{}),
 
