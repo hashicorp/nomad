@@ -2,10 +2,9 @@ import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
 import escapeTaskName from 'nomad-ui/utils/escape-task-name';
 import ExecCommandEditorXtermAdapter from 'nomad-ui/utils/classes/exec-command-editor-xterm-adapter';
+import ExecSocketXtermAdapter from 'nomad-ui/utils/classes/exec-socket-xterm-adapter';
 
 import { Terminal } from 'xterm';
-import base64js from 'base64-js';
-import { TextDecoderLite, TextEncoderLite } from 'text-encoder-lite';
 
 const ANSI_UI_GRAY_400 = '\x1b[38;2;142;150;163m';
 const ANSI_WHITE = '\x1b[0m';
@@ -74,37 +73,6 @@ export default Controller.extend({
     this.set('socketOpen', true);
     this.socket = this.sockets.getTaskStateSocket(this.taskState, command);
 
-    this.terminal.onKey(e => {
-      this.handleSocketKeyEvent(e);
-    });
-
-    this.socket.onmessage = e => {
-      let json = JSON.parse(e.data);
-      this.terminal.write(decodeString(json.stdout.data));
-    };
-
-    this.socket.onclose = e => {
-      this.terminal.writeln('');
-      this.terminal.write(ANSI_UI_GRAY_400);
-      this.terminal.writeln('The connection has closed.');
-      // eslint-disable-next-line
-      console.log('Socket close event', e);
-      // FIXME interpret different close events
-    };
-  },
-
-  handleSocketKeyEvent(e) {
-    this.socket.send(JSON.stringify({ stdin: { data: encodeString(e.key) } }));
-    // FIXME this is untested, difficult with restriction on simulating key events
+    new ExecSocketXtermAdapter(this.terminal, this.socket);
   },
 });
-
-function encodeString(string) {
-  var encoded = new TextEncoderLite('utf-8').encode(string);
-  return base64js.fromByteArray(encoded);
-}
-
-function decodeString(b64String) {
-  var uint8array = base64js.toByteArray(b64String);
-  return new TextDecoderLite('utf-8').decode(uint8array);
-}
