@@ -769,7 +769,7 @@ func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) e
 					continue
 				}
 
-				gcAllocs := []*structs.Allocation{}
+				gcAllocs := []string{} // alloc IDs
 				claimedNodes := map[string]struct{}{}
 				knownNodes := []string{}
 
@@ -790,7 +790,7 @@ func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) e
 							claimedNodes[alloc.NodeID] = struct{}{}
 							continue
 						}
-						gcAllocs = append(gcAllocs, alloc)
+						gcAllocs = append(gcAllocs, alloc.ID)
 					}
 				}
 
@@ -798,9 +798,9 @@ func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) e
 				collectFunc(vol.ReadAllocs)
 
 				req := &structs.CSIVolumeClaimRequest{
-					VolumeID:   volID,
-					Allocation: nil, // controller unpublish never uses this field
-					Claim:      structs.CSIVolumeClaimRelease,
+					VolumeID:     volID,
+					AllocationID: "", // controller unpublish never uses this field
+					Claim:        structs.CSIVolumeClaimRelease,
 					WriteRequest: structs.WriteRequest{
 						Region:    job.Region,
 						Namespace: job.Namespace,
@@ -822,8 +822,8 @@ func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) e
 					}
 				}
 
-				for _, alloc := range gcAllocs {
-					req.Allocation = alloc
+				for _, allocID := range gcAllocs {
+					req.AllocationID = allocID
 					err = c.srv.RPC("CSIVolume.Claim", req, &structs.CSIVolumeClaimResponse{})
 					if err != nil {
 						c.logger.Error("volume claim release failed", "error", err)
