@@ -472,6 +472,7 @@ func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, r
 
 // controllerUnpublishVolume sends an unpublish request to the CSI
 // controller plugin associated with a volume, if any.
+// TODO: the only caller of this won't have an alloc pointer handy, should it be its own request arg type?
 func (srv *Server) controllerUnpublishVolume(req *structs.CSIVolumeClaimRequest, nodeID string) error {
 	plug, vol, err := srv.volAndPluginLookup(req.VolumeID)
 	if plug == nil || vol == nil || err != nil {

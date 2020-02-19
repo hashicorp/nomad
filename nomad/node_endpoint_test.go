@@ -2320,21 +2320,18 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 	state := srv.fsm.State()
 	ws := memdb.NewWatchSet()
 
-	// Create a client node with a plugin
+	// Create a client node, plugin, and volume
 	node := mock.Node()
+	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early version
 	node.CSINodePlugins = map[string]*structs.CSIInfo{
 		"csi-plugin-example": {PluginID: "csi-plugin-example",
-			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{},
+			Healthy:        true,
+			NodeInfo:       &structs.CSINodeInfo{},
+			ControllerInfo: &structs.CSIControllerInfo{},
 		},
 	}
-	plugin := structs.NewCSIPlugin("csi-plugin-example", 1)
-	plugin.ControllerRequired = false
-	plugin.AddPlugin(node.ID, &structs.CSIInfo{})
 	err := state.UpsertNode(99, node)
 	require.NoError(t, err)
-
-	// Create the volume for the plugin
 	volId0 := uuid.Generate()
 	vols := []*structs.CSIVolume{{
 		ID:             volId0,
@@ -2342,19 +2339,20 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 		PluginID:       "csi-plugin-example",
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-		Topologies: []*structs.CSITopology{{
-			Segments: map[string]string{"foo": "bar"},
-		}},
 	}}
-	err = state.CSIVolumeRegister(4, vols)
+	err = state.CSIVolumeRegister(100, vols)
 	require.NoError(t, err)
+	vol, err := state.CSIVolumeByID(ws, volId0)
+	require.NoError(t, err)
+	require.Len(t, vol.ReadAllocs, 0)
+	require.Len(t, vol.WriteAllocs, 0)
 
 	// Create a job with 2 allocations
 	job := mock.Job()
 	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
 		"_": {
 			Name:     "someVolume",
-			Type:     "",
+			Type:     structs.VolumeTypeCSI,
 			Source:   volId0,
 			ReadOnly: false,
 		},
@@ -2378,12 +2376,6 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 
 	err = state.UpsertAllocs(104, []*structs.Allocation{alloc1, alloc2})
 	require.NoError(t, err)
-
-	// Verify no claims are set
-	vol, err := state.CSIVolumeByID(ws, volId0)
-	require.NoError(t, err)
-	require.Len(t, vol.ReadAllocs, 0)
-	require.Len(t, vol.WriteAllocs, 0)
 
 	// Claim the volumes and verify the claims were set
 	err = state.CSIVolumeClaim(105, volId0, alloc1, structs.CSIVolumeClaimWrite)
@@ -2409,11 +2401,11 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, structs.AllocClientStatusFailed, out.ClientStatus)
 
-	// Verify the claim was released
-	vol, err = state.CSIVolumeByID(ws, volId0)
-	require.NoError(t, err)
-	require.Len(t, vol.ReadAllocs, 1)
-	require.Len(t, vol.WriteAllocs, 0)
+	// Verify the eval for the claim GC was emitted
+	// Lookup the evaluations
+	eval, err := state.EvalsByJob(ws, job.Namespace, structs.CoreJobCSIVolumeClaimGC+":"+job.ID)
+	require.NotNil(t, eval)
+	require.Nil(t, err)
 }
 
 func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
