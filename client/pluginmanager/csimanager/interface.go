@@ -24,6 +24,10 @@ type UsageOptions struct {
 	AccessMode     string
 }
 
+// ToFS is used by a VolumeManager to construct the path to where a volume
+// should be staged/published. It should always return a string that is easy
+// enough to manage as a filesystem path segment (e.g avoid starting the string
+// with a special character).
 func (u *UsageOptions) ToFS() string {
 	var sb strings.Builder
 
