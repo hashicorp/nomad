@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	basePlug "github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
@@ -670,4 +671,37 @@ config {
 	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
 
 	require.EqualValues(t, expected, tc)
+}
+
+func TestExecDriver_NoPivotRoot(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctestutils.ExecCompatible(t)
+
+	d := NewExecDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+
+	config := &Config{NoPivotRoot: true}
+	var data []byte
+	require.NoError(basePlug.MsgPackEncode(&data, config))
+	bconfig := &basePlug.Config{PluginConfig: data}
+	require.NoError(harness.SetConfig(bconfig))
+
+	task := &drivers.TaskConfig{
+		ID:        uuid.Generate(),
+		Name:      "sleep",
+		Resources: testResources,
+	}
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	tc := &TaskConfig{
+		Command: "/bin/sleep",
+		Args:    []string{"100"},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+
+	handle, _, err := harness.StartTask(task)
+	require.NoError(err)
+	require.NotNil(handle)
 }

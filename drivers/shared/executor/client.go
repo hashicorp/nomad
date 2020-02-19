@@ -41,6 +41,7 @@ func (c *grpcExecutorClient) Launch(cmd *ExecCommand) (*ProcessState, error) {
 		TaskDir:            cmd.TaskDir,
 		ResourceLimits:     cmd.ResourceLimits,
 		BasicProcessCgroup: cmd.BasicProcessCgroup,
+		NoPivotRoot:        cmd.NoPivotRoot,
 		Mounts:             drivers.MountsToProto(cmd.Mounts),
 		Devices:            drivers.DevicesToProto(cmd.Devices),
 		NetworkIsolation:   drivers.NetworkIsolationSpecToProto(cmd.NetworkIsolation),
