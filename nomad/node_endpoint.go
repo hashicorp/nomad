@@ -1078,6 +1078,10 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	now := time.Now()
 	var evals []*structs.Evaluation
 
+	// A set of de-duplicated IDs for jobs that need volume claim GC.
+	// Later we'll create a gc eval for each job.
+	jobsWithVolumeGCs := make(map[string]*structs.Job)
+
 	for _, allocToUpdate := range args.Alloc {
 		allocToUpdate.ModifyTime = now.UTC().UnixNano()
 
@@ -1105,11 +1109,12 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			continue
 		}
 
-		err = n.unclaimVolumesForTerminalAllocs(args, alloc, taskGroup)
-		if err != nil {
-			n.logger.Error("UpdateAlloc unable to release CSI volume",
-				"alloc", alloc.ID, "error", err)
-			continue
+		// If the terminal alloc has CSI volumes, add its job to the list
+		// of jobs we're going to call volume claim GC on.
+		for _, vol := range taskGroup.Volumes {
+			if vol.Type == structs.VolumeTypeCSI {
+				jobsWithVolumeGCs[job.ID] = job
+			}
 		}
 
 		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
@@ -1127,6 +1132,26 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			}
 			evals = append(evals, eval)
 		}
+	}
+
+	// Add an evaluation for garbage collecting the the CSI volume claims
+	// of jobs with terminal allocs
+	for _, job := range jobsWithVolumeGCs {
+		// we have to build this eval by hand rather than calling srv.CoreJob
+		// here because we need to use the alloc's namespace
+		eval := &structs.Evaluation{
+			ID:          uuid.Generate(),
+			Namespace:   job.Namespace,
+			Priority:    structs.CoreJobPriority,
+			Type:        structs.JobTypeCore,
+			TriggeredBy: structs.EvalTriggerAllocStop,
+			JobID:       structs.CoreJobCSIVolumeClaimGC + ":" + job.ID,
+			LeaderACL:   n.srv.getLeaderAcl(),
+			Status:      structs.EvalStatusPending,
+			CreateTime:  now.UTC().UnixNano(),
+			ModifyTime:  now.UTC().UnixNano(),
+		}
+		evals = append(evals, eval)
 	}
 
 	// Add this to the batch
@@ -1164,32 +1189,6 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 	// Setup the response
 	reply.Index = future.Index()
-	return nil
-}
-
-// unclaimVolumesForTerminalAllocs unpublishes and unclaims CSI volumes
-// that belong to the alloc if it is terminal.
-func (n *Node) unclaimVolumesForTerminalAllocs(args *structs.AllocUpdateRequest, alloc *structs.Allocation, taskGroup *structs.TaskGroup) error {
-	for _, volume := range taskGroup.Volumes {
-
-		// TODO(tgross): we also need to call ControllerUnpublishVolume CSI RPC here
-		// but the server-side CSI client + routing hasn't been implemented yet
-
-		req := &structs.CSIVolumeClaimRequest{
-			VolumeID:     volume.Source,
-			AllocationID: alloc.ID,
-			Claim:        structs.CSIVolumeClaimRelease,
-			WriteRequest: args.WriteRequest,
-		}
-
-		resp, _, err := n.srv.raftApply(structs.CSIVolumeClaimRequestType, req)
-		if err != nil {
-			return err
-		}
-		if respErr, ok := resp.(error); ok {
-			return respErr
-		}
-	}
 	return nil
 }
 
