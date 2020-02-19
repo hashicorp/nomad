@@ -11,10 +11,6 @@ import (
 
 type CSIVolumeListCommand struct {
 	Meta
-	length    int
-	evals     bool
-	allAllocs bool
-	verbose   bool
 }
 
 func (c *CSIVolumeListCommand) Help() string {
