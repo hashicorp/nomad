@@ -31,6 +31,13 @@ factors, but this change should reduce movement of allocations that
 are being updated from a healthy state. You can view the placement
 metrics for an allocation with `nomad alloc status -verbose`.
 
+### Additional Environment Variable Filtering
+
+Nomad will by default prevent certain environment variables set in the client
+process from being passed along into launched tasks. The `CONSUL_HTTP_TOKEN`
+environment variable has been added to the default list. More information can
+be found in the `env.blacklist` [configuration](/docs/configuration/client#inlinecode-envblacklist) .
+
 ## Nomad 0.10.3
 
 ### mTLS Certificate Validation
