@@ -11,10 +11,6 @@ import (
 
 type CSIPluginListCommand struct {
 	Meta
-	length    int
-	evals     bool
-	allAllocs bool
-	verbose   bool
 }
 
 func (c *CSIPluginListCommand) Help() string {
