@@ -34,3 +34,7 @@ Usage: nomad csi volume <subcommand> [options]
 func (c *CSIPluginCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }
+
+func (c *CSIPluginCommand) Synopsis() string {
+	return "Inspect CSI plugins"
+}
