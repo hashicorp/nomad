@@ -271,11 +271,12 @@ Nomad manages registering, updating, and deregistering services with Consul. It
 is important to understand when each of these steps happens and how they can be
 customized.
 
-**Registration**: Nomad will only register a service and its checks into
-Consul after the task has started.
+**Registration**: Nomad will register `group` services and checks *before*
+starting any tasks. Services and checks for a specific `task` are registered
+*after* the task has started.
 
-**Updating**: If the service or check definition is updated Nomad will update
-the service in Consul as well. This occurs without restarting a task.
+**Updating**: If a service or check definition is updated, Nomad will update
+the service in Consul as well. Consul is updated without restarting a task.
 
 **Deregistering**: If a running task with a service stanza exits, the services
 and checks are immediately deregistered from Consul without delay. If however
@@ -294,8 +295,8 @@ Nomad needs to kill a running task, the task is killed in the following order:
 3. Send the [`kill_signal`][killsignal] to the task and wait for the task to
    exit. The task should use this time to gracefully drain and finish any
    existing requests.
-4. If the task hasn't exited itself after the [`kill_timeout`][killtimeout],
-   Nomad will force kill the application.
+4. If the task has not exited after the [`kill_timeout`][killtimeout], Nomad
+   will force kill the application.
 
 ## `service` Examples
 
