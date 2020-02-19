@@ -224,6 +224,7 @@ var basicConfig = &Config{
 		LastContactThreshold:       12705 * time.Second,
 		LastContactThresholdHCL:    "12705s",
 		MaxTrailingLogs:            17849,
+		MinQuorum:                  3,
 		EnableRedundancyZones:      &trueValue,
 		DisableUpgradeMigration:    &trueValue,
 		EnableCustomUpgrades:       &trueValue,

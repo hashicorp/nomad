@@ -1,6 +1,8 @@
 package lib
 
 import (
+	"time"
+
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -16,5 +18,27 @@ func SerfDefaultConfig() *serf.Config {
 	// cluster size.
 	base.MinQueueDepth = 4096
 
+	// This gives leaves some time to propagate through the cluster before
+	// we shut down. The value was chosen to be reasonably short, but to
+	// allow a leave to get to over 99.99% of the cluster with 100k nodes
+	// (using https://www.serf.io/docs/internals/simulator.html).
+	base.LeavePropagateDelay = 3 * time.Second
+
 	return base
+}
+
+func GetSerfTags(serf *serf.Serf) map[string]string {
+	tags := make(map[string]string)
+	for tag, value := range serf.LocalMember().Tags {
+		tags[tag] = value
+	}
+
+	return tags
+}
+
+func UpdateSerfTag(serf *serf.Serf, tag, value string) {
+	tags := GetSerfTags(serf)
+	tags[tag] = value
+
+	serf.SetTags(tags)
 }

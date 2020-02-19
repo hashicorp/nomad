@@ -28,6 +28,7 @@
       "enable_redundancy_zones": true,
       "last_contact_threshold": "12705s",
       "max_trailing_logs": 17849,
+      "min_quorum": 3,
       "server_stabilization_time": "23057s"
     }
   ],
