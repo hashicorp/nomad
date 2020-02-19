@@ -1862,7 +1862,22 @@ func (s *StateStore) CSIPluginDenormalize(ws memdb.WatchSet, plug *structs.CSIPl
 		return nil, nil
 	}
 
-	// FIXME do we need allocation details?
+	// Get the unique list of allocation ids
+	ids := map[string]struct{}{}
+	for _, info := range plug.Controllers {
+		ids[info.AllocID] = struct{}{}
+	}
+	for _, info := range plug.Nodes {
+		ids[info.AllocID] = struct{}{}
+	}
+
+	for id := range ids {
+		alloc, err := s.AllocByID(ws, id)
+		if err != nil {
+			return nil, err
+		}
+		plug.Allocations = append(plug.Allocations, alloc.Stub())
+	}
 
 	return plug, nil
 }
