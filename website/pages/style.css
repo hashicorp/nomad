@@ -170,6 +170,7 @@
   /* @todo: remove alongside @hashicorp/react-global-styles/_temporary-to-remove/layout.css */
   .g-container {
     max-width: 34em;
+    word-break: break-word;
   }
 
   /* @todo: remove alongside @hashicorp/react-global-styles/_temporary-to-remove/tables.css */
