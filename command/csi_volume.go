@@ -42,3 +42,7 @@ Usage: nomad csi volume <subcommand> [options]
 func (c *CSIVolumeCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }
+
+func (c *CSIVolumeCommand) Synopsis() string {
+	return "Interact with CSI volumes"
+}
