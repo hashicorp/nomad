@@ -116,14 +116,21 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	ns := structs.DefaultNamespace
 
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
-	srv.config.ACLEnabled = true
-	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSICreateVolume})
-	validToken := mock.CreatePolicyAndToken(t, state, 1001, acl.NamespaceCapabilityCSICreateVolume, policy)
-
 	codec := rpcClient(t, srv)
 
 	id0 := uuid.Generate()
+
+	// Create the node and plugin
+	node := mock.Node()
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		"minnie": {PluginID: "minnie",
+			Healthy: true,
+			// Registers as node plugin that does not require a controller to skip
+			// the client RPC during registration.
+			NodeInfo: &structs.CSINodeInfo{},
+		},
+	}
+	require.NoError(t, state.UpsertNode(1000, node))
 
 	// Create the volume
 	vols := []*structs.CSIVolume{{
@@ -132,9 +139,6 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 		PluginID:       "minnie",
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-		Topologies: []*structs.CSITopology{{
-			Segments: map[string]string{"foo": "bar"},
-		}},
 	}}
 
 	// Create the register request
@@ -143,7 +147,6 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: ns,
-			AuthToken: validToken.SecretID,
 		},
 	}
 	resp1 := &structs.CSIVolumeRegisterResponse{}
@@ -152,14 +155,10 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	require.NotEqual(t, uint64(0), resp1.Index)
 
 	// Get the volume back out
-	policy = mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIAccess})
-	getToken := mock.CreatePolicyAndToken(t, state, 1001, "csi-access", policy)
-
 	req2 := &structs.CSIVolumeGetRequest{
 		ID: id0,
 		QueryOptions: structs.QueryOptions{
-			Region:    "global",
-			AuthToken: getToken.SecretID,
+			Region: "global",
 		},
 	}
 	resp2 := &structs.CSIVolumeGetResponse{}
@@ -179,7 +178,6 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: ns,
-			AuthToken: validToken.SecretID,
 		},
 	}
 	resp3 := &structs.CSIVolumeDeregisterResponse{}

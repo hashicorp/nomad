@@ -274,6 +274,45 @@ func (c *client) ControllerUnpublishVolume(ctx context.Context, req *ControllerU
 	return &ControllerUnpublishVolumeResponse{}, nil
 }
 
+func (c *client) ControllerValidateCapabilties(ctx context.Context, volumeID string, capabilities *VolumeCapability) error {
+	if c == nil {
+		return fmt.Errorf("Client not initialized")
+	}
+	if c.controllerClient == nil {
+		return fmt.Errorf("controllerClient not initialized")
+	}
+
+	if volumeID == "" {
+		return fmt.Errorf("missing VolumeID")
+	}
+
+	if capabilities == nil {
+		return fmt.Errorf("missing Capabilities")
+	}
+
+	req := &csipbv1.ValidateVolumeCapabilitiesRequest{
+		VolumeId: volumeID,
+		VolumeCapabilities: []*csipbv1.VolumeCapability{
+			capabilities.ToCSIRepresentation(),
+		},
+	}
+
+	resp, err := c.controllerClient.ValidateVolumeCapabilities(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	if resp.Confirmed == nil {
+		if resp.Message != "" {
+			return fmt.Errorf("Volume validation failed, message: %s", resp.Message)
+		}
+
+		return fmt.Errorf("Volume validation failed")
+	}
+
+	return nil
+}
+
 //
 // Node Endpoints
 //
