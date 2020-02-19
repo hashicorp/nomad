@@ -7,6 +7,4 @@
     </svg>
   {{/if}}
 </div>
-{{#if openInNewWindow}}
-  {{x-icon "exit"}}
-{{/if}}
+{{x-icon "exit" class=(if openInNewWindow "show-on-hover")}}

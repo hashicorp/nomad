@@ -87,7 +87,7 @@
         flex-shrink: 0;
       }
 
-      &:hover .icon {
+      &:hover .icon.show-on-hover {
         visibility: visible;
       }
     }
