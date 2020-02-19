@@ -198,8 +198,10 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 
 // MountVolume performs the steps required for using a given volume
 // configuration for the provided allocation.
-//
-// TODO: Validate remote volume attachment and implement.
+// It is passed the publishContext from remote attachment, and specific usage
+// modes from the CSI Hook.
+// It then uses this state to stage and publish the volume as required for use
+// by the given allocation.
 func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions, publishContext map[string]string) (*MountInfo, error) {
 	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
 	ctx = hclog.WithContext(ctx, logger)
