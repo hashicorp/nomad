@@ -457,7 +457,7 @@ type CSIVolumeGetResponse struct {
 	QueryMeta
 }
 
-// CSIPlugin bundles job and info context for the plugin for clients
+// CSIPlugin collects fingerprint info context for the plugin for clients
 type CSIPlugin struct {
 	ID                 string
 	ControllerRequired bool
@@ -466,6 +466,9 @@ type CSIPlugin struct {
 	// both sets of fingerprinting results.
 	Controllers map[string]*CSIInfo
 	Nodes       map[string]*CSIInfo
+
+	// Allocations are populated by denormalize to show running allocations
+	Allocations []*AllocListStub
 
 	// Cache the count of healthy plugins
 	ControllersHealthy int
