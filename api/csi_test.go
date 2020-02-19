@@ -31,12 +31,24 @@ func TestCSIVolumes_CRUD(t *testing.T) {
 		AuthToken: root.SecretID,
 	}
 
+	// Register a plugin job
+	j := c.Jobs()
+	job := testJob()
+	job.Namespace = stringToPtr("default")
+	job.TaskGroups[0].Tasks[0].CSIPluginConfig = &TaskCSIPluginConfig{
+		ID:       "foo",
+		Type:     "monolith",
+		MountDir: "/not-empty",
+	}
+	_, _, err = j.Register(job, wpts)
+	require.NoError(t, err)
+
 	// Register a volume
 	id := "DEADBEEF-31B5-8F78-7986-DD404FDA0CD1"
 	_, err = v.Register(&CSIVolume{
 		ID:             id,
 		Namespace:      "default",
-		PluginID:       "adam",
+		PluginID:       "foo",
 		AccessMode:     CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode: CSIVolumeAttachmentModeFilesystem,
 		Topologies:     []*CSITopology{{Segments: map[string]string{"foo": "bar"}}},
