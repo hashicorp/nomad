@@ -6,19 +6,6 @@
 @import '~@hashicorp/react-global-styles/_temporary-to-remove/layout.css';
 @import '~@hashicorp/react-global-styles/_temporary-to-remove/tables.css';
 
-@media print {
-  /* @todo: remove alongside ~@hashicorp/react-global-styles/_temporary-to-remove/layout.css */
-  .g-container {
-    max-width: 34em;
-  }
-
-  /* @todo: remove alongside ~@hashicorp/react-global-styles/_temporary-to-remove/tables.css */
-  table {
-    margin-bottom: 0;
-    margin-top: 20px;
-  }
-}
-
 :root {
   --highlight-color: var(--nomad);
 }
@@ -179,7 +166,20 @@
   }
 }
 
-/* Print Styles - Override @hashicorp/react-global-styles/global.css */
+@media print {
+  /* @todo: remove alongside @hashicorp/react-global-styles/_temporary-to-remove/layout.css */
+  .g-container {
+    max-width: 34em;
+  }
+
+  /* @todo: remove alongside @hashicorp/react-global-styles/_temporary-to-remove/tables.css */
+  table {
+    margin-bottom: 0;
+    margin-top: 20px;
+  }
+}
+
+/* @todo: move print styles to @hashicorp/react-global-styles/global.css */
 @media print {
   pre code,
   code,
@@ -199,7 +199,7 @@
   }
 }
 
-/* Print Styles - Override ~@hashicorp/react-content/dist/style.css */
+/* @todo: move print styles to @hashicorp/react-content/dist/style.css */
 @media print {
   .g-content {
     & a {
@@ -318,11 +318,9 @@
   }
 }
 
-/* Print Styles - Override highlight.js */
+/* @todo: move print styles to @hashicorp/react-global-styles/code-highlighting.css */
 @media print {
   .hljs {
-    overflow-x: auto;
-
     & * {
       color: inherit;
     }
