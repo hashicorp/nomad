@@ -198,7 +198,6 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {
-		c.ACLEnabled = true
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
@@ -206,24 +205,19 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 
 	ns := structs.DefaultNamespace
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
-	policy := mock.NamespacePolicy(ns, "",
-		[]string{acl.NamespaceCapabilityCSICreateVolume, acl.NamespaceCapabilityCSIAccess})
-	accessToken := mock.CreatePolicyAndToken(t, state, 1001,
-		acl.NamespaceCapabilityCSIAccess, policy)
 	codec := rpcClient(t, srv)
 	id0 := uuid.Generate()
+	alloc := mock.BatchAlloc()
 
 	// Create an initial volume claim request; we expect it to fail
 	// because there's no such volume yet.
 	claimReq := &structs.CSIVolumeClaimRequest{
-		VolumeID:   id0,
-		Allocation: mock.BatchAlloc(),
-		Claim:      structs.CSIVolumeClaimWrite,
+		VolumeID:     id0,
+		AllocationID: alloc.ID,
+		Claim:        structs.CSIVolumeClaimWrite,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: ns,
-			AuthToken: accessToken.SecretID,
 		},
 	}
 	claimResp := &structs.CSIVolumeClaimResponse{}
@@ -231,16 +225,18 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	require.EqualError(t, err, fmt.Sprintf("volume not found: %s", id0),
 		"expected 'volume not found' error because volume hasn't yet been created")
 
-	// Create a client node, plugin, and volume
+	// Create a client node, plugin, alloc, and volume
 	node := mock.Node()
 	node.CSINodePlugins = map[string]*structs.CSIInfo{
-		"minnie": {PluginID: "minnie",
+		"minnie": {
+			PluginID: "minnie",
 			Healthy:  true,
 			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
 	err = state.UpsertNode(1002, node)
 	require.NoError(t, err)
+
 	vols := []*structs.CSIVolume{{
 		ID:             id0,
 		Namespace:      "notTheNamespace",
@@ -252,19 +248,23 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 		}},
 	}}
 	err = state.CSIVolumeRegister(1003, vols)
+	require.NoError(t, err)
+
+	// Upsert the job and alloc
+	alloc.NodeID = node.ID
+	summary := mock.JobSummary(alloc.JobID)
+	require.NoError(t, state.UpsertJobSummary(1004, summary))
+	require.NoError(t, state.UpsertAllocs(1005, []*structs.Allocation{alloc}))
 
 	// Now our claim should succeed
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	require.NoError(t, err)
 
 	// Verify the claim was set
-	getToken := mock.CreatePolicyAndToken(t, state, 1004,
-		acl.NamespaceCapabilityCSIAccess, policy)
 	volGetReq := &structs.CSIVolumeGetRequest{
 		ID: id0,
 		QueryOptions: structs.QueryOptions{
-			Region:    "global",
-			AuthToken: getToken.SecretID,
+			Region: "global",
 		},
 	}
 	volGetResp := &structs.CSIVolumeGetResponse{}
@@ -275,7 +275,11 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	require.Len(t, volGetResp.Volume.WriteAllocs, 1)
 
 	// Make another writer claim for a different alloc
-	claimReq.Allocation = mock.BatchAlloc()
+	alloc2 := mock.Alloc()
+	summary = mock.JobSummary(alloc2.JobID)
+	require.NoError(t, state.UpsertJobSummary(1005, summary))
+	require.NoError(t, state.UpsertAllocs(1006, []*structs.Allocation{alloc2}))
+	claimReq.AllocationID = alloc2.ID
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	require.EqualError(t, err, "volume max claim reached",
 		"expected 'volume max claim reached' because we only allow 1 writer")
@@ -323,7 +327,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	codec := rpcClient(t, srv)
 	id0 := uuid.Generate()
 
-	// Create a client node, plugin, and volume
+	// Create a client node, plugin, alloc, and volume
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early version
 	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
@@ -346,11 +350,17 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	}}
 	err = state.CSIVolumeRegister(1003, vols)
 
+	alloc := mock.BatchAlloc()
+	alloc.NodeID = node.ID
+	summary := mock.JobSummary(alloc.JobID)
+	require.NoError(t, state.UpsertJobSummary(1004, summary))
+	require.NoError(t, state.UpsertAllocs(1005, []*structs.Allocation{alloc}))
+
 	// Make the volume claim
 	claimReq := &structs.CSIVolumeClaimRequest{
-		VolumeID:   id0,
-		Allocation: mock.BatchAlloc(),
-		Claim:      structs.CSIVolumeClaimWrite,
+		VolumeID:     id0,
+		AllocationID: alloc.ID,
+		Claim:        structs.CSIVolumeClaimWrite,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: ns,
@@ -597,7 +607,7 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	// no controller
 	plugin, vol, err = srv.volAndPluginLookup(id1)
 	require.Nil(t, plugin)
-	require.Nil(t, vol)
+	require.NotNil(t, vol)
 	require.NoError(t, err)
 
 	// doesn't exist

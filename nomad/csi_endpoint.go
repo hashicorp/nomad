@@ -295,7 +295,7 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		return structs.ErrPermissionDenied
 	}
 
-	// adds a PublishContext from the controller (if any) to the reply
+	// adds a Volume and PublishContext from the controller (if any) to the reply
 	err = v.srv.controllerPublishVolume(args, reply)
 	if err != nil {
 		return err
@@ -419,15 +419,36 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 // plugin associated with a volume, if any.
 func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, resp *structs.CSIVolumeClaimResponse) error {
 	plug, vol, err := srv.volAndPluginLookup(req.VolumeID)
-	if plug == nil || vol == nil || err != nil {
-		return err // possibly nil if no controller required
+	if err != nil {
+		return err
 	}
 
-	method := "ClientCSI.AttachVolume"
+	// Set the Response volume from the lookup
+	resp.Volume = vol
+
+	// Validate the existence of the allocation, regardless of whether we need it
+	// now.
+	state := srv.fsm.State()
+	ws := memdb.NewWatchSet()
+	alloc, err := state.AllocByID(ws, req.AllocationID)
+	if err != nil {
+		return err
+	}
+	if alloc == nil {
+		return fmt.Errorf("%s: %s", structs.ErrUnknownAllocationPrefix, req.AllocationID)
+	}
+
+	// if no plugin was returned then controller validation is not required.
+	// Here we can return nil.
+	if plug == nil {
+		return nil
+	}
+
+	method := "ClientCSI.CSIControllerAttachVolume"
 	cReq := &cstructs.ClientCSIControllerAttachVolumeRequest{
 		PluginName:     plug.ID,
 		VolumeID:       req.VolumeID,
-		NodeID:         req.Allocation.NodeID,
+		NodeID:         alloc.NodeID,
 		AttachmentMode: vol.AttachmentMode,
 		AccessMode:     vol.AccessMode,
 		ReadOnly:       req.Claim == structs.CSIVolumeClaimRead,
@@ -483,7 +504,7 @@ func (srv *Server) volAndPluginLookup(volID string) (*structs.CSIPlugin, *struct
 		return nil, nil, fmt.Errorf("volume not found: %s", volID)
 	}
 	if !vol.ControllerRequired {
-		return nil, nil, nil
+		return nil, vol, nil
 	}
 
 	// note: we do this same lookup in CSIVolumeByID but then throw
