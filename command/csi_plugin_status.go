@@ -11,10 +11,8 @@ import (
 
 type CSIPluginStatusCommand struct {
 	Meta
-	length    int
-	evals     bool
-	allAllocs bool
-	verbose   bool
+	length  int
+	verbose bool
 }
 
 func (c *CSIPluginStatusCommand) Help() string {
