@@ -219,19 +219,28 @@ func (srv *Server) controllerValidateVolume(req *structs.CSIVolumeRegisterReques
 		return nil
 	}
 
+	// plugin IDs are not scoped to region/DC but volumes are.
+	// so any node we get for a controller is already in the same region/DC
+	// for the volume.
+	nodeID, err := srv.nodeForControllerPlugin(plugin)
+	if err != nil || nodeID == "" {
+		return err
+	}
+
 	// The plugin requires a controller. Now we do some validation of the Volume
 	// to ensure that the registered capabilities are valid and that the volume
 	// exists.
-	method := "ClientCSI.CSIControllerValidateVolume"
+	method := "ClientCSIController.ValidateVolume"
 	cReq := &cstructs.ClientCSIControllerValidateVolumeRequest{
 		PluginID:       plugin.ID,
 		VolumeID:       vol.ID,
 		AttachmentMode: vol.AttachmentMode,
 		AccessMode:     vol.AccessMode,
+		NodeID:         nodeID,
 	}
 	cResp := &cstructs.ClientCSIControllerValidateVolumeResponse{}
 
-	return srv.csiControllerRPC(plugin, method, cReq, cResp)
+	return srv.RPC(method, cReq, cResp)
 }
 
 // Register registers a new volume
@@ -480,6 +489,7 @@ func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, r
 	// if no plugin was returned then controller validation is not required.
 	// Here we can return nil.
 	if plug == nil {
+		srv.logger.Warn("Skipping controller publish volume", "volume_id", req.VolumeID)
 		return nil
 	}
 
@@ -490,12 +500,20 @@ func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, r
 	if err != nil || nodeID == "" {
 		return err
 	}
+	srv.logger.Warn("Forwarding to Node", "volume_id", req.VolumeID, "node_id", nodeID)
+
+	destNode, err := state.NodeByID(ws, alloc.NodeID)
+	if destNode == nil || err != nil {
+		return err
+	}
+	// TODO: safely access this
+	csiNodeID := destNode.CSINodePlugins[plug.ID].NodeInfo.ID
 
 	method := "ClientCSIController.AttachVolume"
 	cReq := &cstructs.ClientCSIControllerAttachVolumeRequest{
 		PluginName:     plug.ID,
 		VolumeID:       req.VolumeID,
-		NodeID:         alloc.NodeID,
+		CSINodeID:      csiNodeID,
 		AttachmentMode: vol.AttachmentMode,
 		AccessMode:     vol.AccessMode,
 		ReadOnly:       req.Claim == structs.CSIVolumeClaimRead,

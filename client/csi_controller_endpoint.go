@@ -30,6 +30,7 @@ var (
 	ErrPluginTypeError = errors.New("CSI Plugin loaded incorrectly")
 )
 
+// AttachVolume uses the CSIPlugin to perform an external volume attachment to
 // the storage node provided in the request.
 //
 // The controller attachment flow currently works as follows:
@@ -54,8 +55,8 @@ func (c *CSIController) AttachVolume(req *structs.ClientCSIControllerAttachVolum
 		return errors.New("VolumeID is required")
 	}
 
-	if req.NodeID == "" {
-		return errors.New("NodeID is required")
+	if req.CSINodeID == "" {
+		return errors.New("CSINodeID is required")
 	}
 
 	if !nstructs.ValidCSIVolumeAccessMode(req.AccessMode) {
@@ -76,6 +77,36 @@ func (c *CSIController) AttachVolume(req *structs.ClientCSIControllerAttachVolum
 
 	resp.PublishContext = cresp.PublishContext
 	return nil
+}
+
+// ValidateVolume is used during volume registration to validate
+// that a volume exists and that the capabilities it was registered with are
+// supported by the CSI Plugin and external volume configuration.
+func (c *CSIController) ValidateVolume(req *structs.ClientCSIControllerValidateVolumeRequest, resp *structs.ClientCSIControllerValidateVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"client", "csi_controller", "validate_volume"}, time.Now())
+
+	if req.VolumeID == "" {
+		return errors.New("VolumeID is required")
+	}
+
+	if req.PluginID == "" {
+		return errors.New("PluginID is required")
+	}
+
+	plugin, err := c.findControllerPlugin(req.PluginID)
+	if err != nil {
+		return err
+	}
+	defer plugin.Close()
+
+	caps, err := csi.VolumeCapabilityFromStructs(req.AttachmentMode, req.AccessMode)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancelFn := c.requestContext()
+	defer cancelFn()
+	return plugin.ControllerValidateCapabilties(ctx, req.VolumeID, caps)
 }
 
 func (c *CSIController) findControllerPlugin(name string) (csi.CSIPlugin, error) {

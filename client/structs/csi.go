@@ -26,6 +26,10 @@ type ClientCSIControllerValidateVolumeRequest struct {
 
 	AttachmentMode structs.CSIVolumeAttachmentMode
 	AccessMode     structs.CSIVolumeAccessMode
+
+	NodeID string
+
+	structs.QueryOptions
 }
 
 type ClientCSIControllerValidateVolumeResponse struct {
@@ -38,9 +42,9 @@ type ClientCSIControllerAttachVolumeRequest struct {
 	// This field is REQUIRED.
 	VolumeID string
 
-	// The ID of the node. This field is REQUIRED. This must match the NodeID that
+	// The ID of the node in CSI Terms. This field is REQUIRED. This must match the NodeID that
 	// is fingerprinted by the target node for this plugin name.
-	NodeID string
+	CSINodeID string
 
 	// AttachmentMode indicates how the volume should be attached and mounted into
 	// a task.
@@ -57,6 +61,10 @@ type ClientCSIControllerAttachVolumeRequest struct {
 	// only works when the Controller has the PublishReadonly capability.
 	ReadOnly bool
 
+	// NodeID is the target ID of the CSIController node that should recieve the
+	// RPC
+	NodeID string
+
 	structs.QueryOptions
 }
 
@@ -65,10 +73,16 @@ func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() *csi.ControllerP
 		return &csi.ControllerPublishVolumeRequest{}
 	}
 
+	caps, err := csi.VolumeCapabilityFromStructs(c.AttachmentMode, c.AccessMode)
+	if err != nil {
+		return nil // TODO(dani): Return errors here
+	}
+
 	return &csi.ControllerPublishVolumeRequest{
-		VolumeID: c.VolumeID,
-		NodeID:   c.NodeID,
-		ReadOnly: c.ReadOnly,
+		VolumeID:         c.VolumeID,
+		NodeID:           c.CSINodeID,
+		ReadOnly:         c.ReadOnly,
+		VolumeCapability: caps,
 	}
 }
 
