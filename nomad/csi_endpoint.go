@@ -580,6 +580,7 @@ func (srv *Server) volAndPluginLookup(volID string) (*structs.CSIPlugin, *struct
 	}
 
 	if !plug.ControllerRequired {
+		srv.logger.Warn("Controller not required", "vol", vol.ID, "plugin", fmt.Sprintf("%#v", plug))
 		return nil, vol, nil
 	}
 
