@@ -208,7 +208,6 @@
 		{"path":"github.com/hashicorp/consul/api","checksumSHA1":"N8Br+KaZ4HRAmTYIpAKOzuk+hHo=","revision":"b137060630b463d7ad5360f0d8f32f9347ae3b7d","revisionTime":"2020-02-13T19:55:27Z"},
 		{"path":"github.com/hashicorp/consul/command/flags","checksumSHA1":"wC8+MhTwWmFDdSOHv1anqBo06GA=","revision":"b137060630b463d7ad5360f0d8f32f9347ae3b7d","revisionTime":"2020-02-13T19:55:27Z"},
 		{"path":"github.com/hashicorp/consul/lib","checksumSHA1":"qdXwmZL03jqKB4Q2Fhb+2jFw1iE=","revision":"b137060630b463d7ad5360f0d8f32f9347ae3b7d","revisionTime":"2020-02-13T19:55:27Z"},
-		{"path":"github.com/hashicorp/consul/logging","checksumSHA1":"xddCR1b2SU/XPi3UrLGz7Ns5HiQ=","revision":"b137060630b463d7ad5360f0d8f32f9347ae3b7d","revisionTime":"2020-02-13T19:55:27Z"},
 		{"path":"github.com/hashicorp/consul/sdk/freeport","checksumSHA1":"KlKviCDDfFY+6YNXEt+DnNKCfOs=","revision":"b137060630b463d7ad5360f0d8f32f9347ae3b7d","revisionTime":"2020-02-13T19:55:27Z"},
 		{"path":"github.com/hashicorp/consul/sdk/testutil","checksumSHA1":"BdbalXv3cKiFTZpRCy4fgIzHBEU=","revision":"b137060630b463d7ad5360f0d8f32f9347ae3b7d","revisionTime":"2020-02-13T19:55:27Z"},
 		{"path":"github.com/hashicorp/consul/sdk/testutil/retry","checksumSHA1":"d3PJhffDKar25kzK0iEqssVMkck=","revision":"b137060630b463d7ad5360f0d8f32f9347ae3b7d","revisionTime":"2020-02-13T19:55:27Z"},

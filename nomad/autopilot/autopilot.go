@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/consul/logging"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/raft"
@@ -57,7 +56,7 @@ type ServerInfo struct {
 
 func NewAutopilot(logger hclog.Logger, delegate Delegate, interval, healthInterval time.Duration) *Autopilot {
 	return &Autopilot{
-		logger:         logger.Named(logging.Autopilot),
+		logger:         logger.Named("autopilot"),
 		delegate:       delegate,
 		interval:       interval,
 		healthInterval: healthInterval,
