@@ -2,9 +2,7 @@
 
 package nomad
 
-import (
-	"github.com/hashicorp/consul/agent/consul/autopilot"
-)
+import "github.com/hashicorp/nomad/nomad/autopilot"
 
 type EnterpriseState struct{}
 

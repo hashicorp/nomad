@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/agent/consul/autopilot"
+	"github.com/hashicorp/nomad/nomad/autopilot"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 )

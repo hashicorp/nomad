@@ -6,8 +6,8 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 
-	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/nomad/autopilot"
 	"github.com/hashicorp/serf/serf"
 )
 

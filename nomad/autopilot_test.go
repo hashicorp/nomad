@@ -6,8 +6,8 @@ import (
 
 	"fmt"
 
-	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/consul/sdk/testutil/retry"
+	"github.com/hashicorp/nomad/nomad/autopilot"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"

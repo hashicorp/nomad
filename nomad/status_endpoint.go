@@ -7,7 +7,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 
-	"github.com/hashicorp/consul/agent/consul/autopilot"
+	"github.com/hashicorp/nomad/nomad/autopilot"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
