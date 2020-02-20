@@ -484,6 +484,7 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	ns := structs.DefaultNamespace
 
 	deleteNodes := CreateTestPlugin(srv.fsm.State(), "foo")
+	defer deleteNodes()
 
 	state := srv.fsm.State()
 	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
