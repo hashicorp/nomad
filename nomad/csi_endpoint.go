@@ -568,6 +568,9 @@ func (srv *Server) volAndPluginLookup(volID string) (*structs.CSIPlugin, *struct
 		return nil, nil, fmt.Errorf("volume not found: %s", volID)
 	}
 
+	//TODO: Check controller required state. This is currently skipped bc the bool
+	//      was not being set by registered plugins.
+
 	// note: we do this same lookup in CSIVolumeByID but then throw
 	// away the pointer to the plugin rather than attaching it to
 	// the volume so we have to do it again here.
@@ -577,11 +580,6 @@ func (srv *Server) volAndPluginLookup(volID string) (*structs.CSIPlugin, *struct
 	}
 	if plug == nil {
 		return nil, nil, fmt.Errorf("plugin not found: %s", vol.PluginID)
-	}
-
-	if !plug.ControllerRequired {
-		srv.logger.Warn("Controller not required", "vol", vol.ID, "plugin", fmt.Sprintf("%#v", plug))
-		return nil, vol, nil
 	}
 
 	return plug, vol, nil
