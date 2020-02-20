@@ -7,4 +7,10 @@
     </svg>
   {{/if}}
 </div>
-{{x-icon "exit" class=(if openInNewWindow "show-on-hover")}}
+{{#if openInNewWindow}}
+  <span class="tooltip" aria-label="Open in a new window">
+    {{x-icon "exit" class="show-on-hover"}}
+  </span>
+{{else}}
+  {{x-icon "exit"}}
+{{/if}}
