@@ -165,6 +165,7 @@ type CSIPlugin struct {
 	// Map Node.ID to CSIInfo fingerprint results
 	Controllers        map[string]*CSIInfo
 	Nodes              map[string]*CSIInfo
+	Allocations        []*AllocationListStub
 	ControllersHealthy int
 	NodesHealthy       int
 	CreateIndex        uint64
