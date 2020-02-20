@@ -127,17 +127,21 @@ func (c *CSIPluginStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Output(c.formatBasic(plug))
+	c.Ui.Output(formatKV(c.formatBasic(plug)))
 
 	// Exit early
 	if short {
 		return 0
 	}
 
+	// Format the allocs
+	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
+	c.Ui.Output(formatAllocListStubs(plug.Allocations, c.verbose, c.length))
+
 	return 0
 }
 
-func (v *CSIPluginStatusCommand) formatBasic(plug *api.CSIPlugin) string {
+func (v *CSIPluginStatusCommand) formatBasic(plug *api.CSIPlugin) []string {
 	output := []string{
 		fmt.Sprintf("ID|%s", plug.ID),
 		fmt.Sprintf("Controllers Healthy|%d", plug.ControllersHealthy),
@@ -146,5 +150,5 @@ func (v *CSIPluginStatusCommand) formatBasic(plug *api.CSIPlugin) string {
 		fmt.Sprintf("Nodes Expected|%d", len(plug.Nodes)),
 	}
 
-	return strings.Join(output, "\n")
+	return output
 }
