@@ -121,7 +121,7 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	}
 
 	mounts := ensureMountpointInserted(h.runner.hookResources.getMounts(), configMount)
-	mounts := ensureMountpointInserted(h.runner.hookResources.getMounts(), devMount)
+	mounts = ensureMountpointInserted(mounts, devMount)
 	h.runner.hookResources.setMounts(mounts)
 
 	resp.Done = true
