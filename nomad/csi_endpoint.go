@@ -567,9 +567,6 @@ func (srv *Server) volAndPluginLookup(volID string) (*structs.CSIPlugin, *struct
 	if vol == nil {
 		return nil, nil, fmt.Errorf("volume not found: %s", volID)
 	}
-	if !vol.ControllerRequired {
-		return nil, vol, nil
-	}
 
 	// note: we do this same lookup in CSIVolumeByID but then throw
 	// away the pointer to the plugin rather than attaching it to
@@ -581,6 +578,11 @@ func (srv *Server) volAndPluginLookup(volID string) (*structs.CSIPlugin, *struct
 	if plug == nil {
 		return nil, nil, fmt.Errorf("plugin not found: %s", vol.PluginID)
 	}
+
+	if !plug.ControllerRequired {
+		return nil, vol, nil
+	}
+
 	return plug, vol, nil
 }
 
