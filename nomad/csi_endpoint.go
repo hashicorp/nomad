@@ -522,9 +522,9 @@ func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, r
 		// MountOptions:   vol.MountOptions,
 	}
 	cReq.NodeID = nodeID
-	cResp := &cstructs.ClientCSIControllerAttachVolumeResponse{}
 
-	err = srv.RPC(method, cReq, cResp)
+	var cResp cstructs.ClientCSIControllerAttachVolumeResponse
+	err = srv.RPC(method, cReq, &cResp)
 	if err != nil {
 		return err
 	}
