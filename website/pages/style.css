@@ -165,7 +165,16 @@
 @media print {
   /* @todo: remove alongside @hashicorp/react-global-styles/_temporary-to-remove/layout.css */
   .g-container {
-    max-width: 34em;
+    /*
+    * A “measure” is the number of characters in a line of text.
+    * Long lines fatique readers as they find the start of a new line of text.
+    * It seems widely accepted that an ideal measure is 66 characters per line.
+    * An average character takes up .5em, and so we define a measure of 33em.
+    * See: https://webtypography.net/2.1.2
+    */
+    max-width: 33em;
+    padding-left: 0;
+    padding-right: 0;
     word-break: break-word;
   }
 
