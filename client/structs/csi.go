@@ -56,6 +56,8 @@ type ClientCSIControllerAttachVolumeRequest struct {
 	// ReadOnly indicates that the volume will be used in a readonly fashion. This
 	// only works when the Controller has the PublishReadonly capability.
 	ReadOnly bool
+
+	structs.QueryOptions
 }
 
 func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() *csi.ControllerPublishVolumeRequest {

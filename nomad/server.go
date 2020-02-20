@@ -261,10 +261,11 @@ type endpoints struct {
 	Enterprise *EnterpriseEndpoints
 
 	// Client endpoints
-	ClientStats       *ClientStats
-	FileSystem        *FileSystem
-	Agent             *Agent
-	ClientAllocations *ClientAllocations
+	ClientStats         *ClientStats
+	FileSystem          *FileSystem
+	Agent               *Agent
+	ClientAllocations   *ClientAllocations
+	ClientCSIController *ClientCSIController
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -1110,6 +1111,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats")}
 		s.staticEndpoints.ClientAllocations = &ClientAllocations{srv: s, logger: s.logger.Named("client_allocs")}
 		s.staticEndpoints.ClientAllocations.register()
+		s.staticEndpoints.ClientCSIController = &ClientCSIController{srv: s, logger: s.logger.Named("client_csi")}
 
 		// Streaming endpoints
 		s.staticEndpoints.FileSystem = &FileSystem{srv: s, logger: s.logger.Named("client_fs")}

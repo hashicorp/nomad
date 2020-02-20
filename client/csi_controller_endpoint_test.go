@@ -18,7 +18,7 @@ var fakePlugin = &dynamicplugins.PluginInfo{
 	ConnectionInfo: &dynamicplugins.PluginConnectionInfo{},
 }
 
-func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
+func TestCSIController_AttachVolume(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -139,7 +139,7 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 			require.Nil(err)
 
 			var resp structs.ClientCSIControllerAttachVolumeResponse
-			err = client.ClientRPC("ClientCSI.CSIControllerAttachVolume", tc.Request, &resp)
+			err = client.ClientRPC("CSIController.AttachVolume", tc.Request, &resp)
 			require.Equal(tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
 				require.Equal(tc.ExpectedResponse, &resp)

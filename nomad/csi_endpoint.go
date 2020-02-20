@@ -483,7 +483,15 @@ func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, r
 		return nil
 	}
 
-	method := "ClientCSI.CSIControllerAttachVolume"
+	// plugin IDs are not scoped to region/DC but volumes are.
+	// so any node we get for a controller is already in the same region/DC
+	// for the volume.
+	nodeID, err := srv.nodeForControllerPlugin(plug)
+	if err != nil || nodeID == "" {
+		return err
+	}
+
+	method := "ClientCSIController.AttachVolume"
 	cReq := &cstructs.ClientCSIControllerAttachVolumeRequest{
 		PluginName:     plug.ID,
 		VolumeID:       req.VolumeID,
@@ -495,16 +503,14 @@ func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, r
 		// ref https://github.com/hashicorp/nomad/issues/7007
 		// MountOptions:   vol.MountOptions,
 	}
+	cReq.NodeID = nodeID
 	cResp := &cstructs.ClientCSIControllerAttachVolumeResponse{}
 
-	// CSI controller plugins can block for arbitrarily long times,
-	// but we need to make sure it completes before we can safely
-	// mark the volume as claimed and return to the client so it
-	// can do a `NodePublish`.
-	err = srv.csiControllerRPC(plug, method, cReq, cResp)
+	err = srv.RPC(method, cReq, cResp)
 	if err != nil {
 		return err
 	}
+
 	resp.PublishContext = cResp.PublishContext
 	return nil
 }
@@ -518,17 +524,17 @@ func (srv *Server) controllerUnpublishVolume(req *structs.CSIVolumeClaimRequest,
 		return err // possibly nil if no controller required
 	}
 
-	method := "ClientCSI.DetachVolume"
-	cReq := &cstructs.ClientCSIControllerDetachVolumeRequest{
-		PluginName: plug.ID,
-		VolumeID:   req.VolumeID,
-		NodeID:     nodeID,
-	}
-	err = srv.csiControllerRPC(plug, method, cReq,
-		&cstructs.ClientCSIControllerDetachVolumeResponse{})
-	if err != nil {
-		return err
-	}
+	// method := "ClientCSI.DetachVolume"
+	// cReq := &cstructs.ClientCSIControllerDetachVolumeRequest{
+	// 	PluginName: plug.ID,
+	// 	VolumeID:   req.VolumeID,
+	// 	NodeID:     nodeID,
+	// }
+	// err = srv.csiControllerRPC(plug, method, cReq,
+	// 	&cstructs.ClientCSIControllerDetachVolumeResponse{})
+	// if err != nil {
+	// 	return err
+	// }
 	return nil
 }
 
@@ -558,24 +564,6 @@ func (srv *Server) volAndPluginLookup(volID string) (*structs.CSIPlugin, *struct
 		return nil, nil, fmt.Errorf("plugin not found: %s", vol.PluginID)
 	}
 	return plug, vol, nil
-}
-
-func (srv *Server) csiControllerRPC(plugin *structs.CSIPlugin, method string, args, reply interface{}) error {
-	// plugin IDs are not scoped to region/DC but volumes are.
-	// so any node we get for a controller is already in the same region/DC
-	// for the volume.
-	nodeID, err := srv.nodeForControllerPlugin(plugin)
-	if err != nil || nodeID == "" {
-		return err
-	}
-	err = findNodeConnAndForward(srv, nodeID, method, args, reply)
-	if err != nil {
-		return err
-	}
-	if replyErr, ok := reply.(error); ok {
-		return replyErr
-	}
-	return nil
 }
 
 // nodeForControllerPlugin returns the node ID for a random controller
