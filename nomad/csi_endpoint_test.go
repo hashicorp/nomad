@@ -336,6 +336,14 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 			RequiresControllerPlugin: true,
 		},
 	}
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		"minnie": {PluginID: "minnie",
+			Healthy:                  true,
+			ControllerInfo:           &structs.CSIControllerInfo{},
+			NodeInfo:                 &structs.CSINodeInfo{},
+			RequiresControllerPlugin: true,
+		},
+	}
 	err := state.UpsertNode(1002, node)
 	require.NoError(t, err)
 	vols := []*structs.CSIVolume{{

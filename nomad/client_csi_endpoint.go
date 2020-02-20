@@ -21,11 +21,6 @@ func (a *ClientCSIController) AttachVolume(args *cstructs.ClientCSIControllerAtt
 	// the Node registration and the cost is fairly high for adding another hop
 	// in the forwarding chain.
 	args.QueryOptions.AllowStale = true
-
-	// Potentially forward to a different region.
-	if done, err := a.srv.forward("ClientCSIController.AttachVolume", args, args, reply); done {
-		return err
-	}
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "attach_volume"}, time.Now())
 
 	// Verify the arguments.
@@ -59,11 +54,6 @@ func (a *ClientCSIController) ValidateVolume(args *cstructs.ClientCSIControllerV
 	// the Node registration and the cost is fairly high for adding another hop
 	// in the forwarding chain.
 	args.QueryOptions.AllowStale = true
-
-	// Potentially forward to a different region.
-	if done, err := a.srv.forward("ClientCSIController.ValidateVolume", args, args, reply); done {
-		return err
-	}
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "validate_volume"}, time.Now())
 
 	// Verify the arguments.

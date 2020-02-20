@@ -509,8 +509,7 @@ func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, r
 	// TODO: safely access this
 	csiNodeID := destNode.CSINodePlugins[plug.ID].NodeInfo.ID
 
-	method := "ClientCSIController.AttachVolume"
-	cReq := &cstructs.ClientCSIControllerAttachVolumeRequest{
+	cReq := cstructs.ClientCSIControllerAttachVolumeRequest{
 		PluginName:     plug.ID,
 		VolumeID:       req.VolumeID,
 		CSINodeID:      csiNodeID,
@@ -519,12 +518,12 @@ func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, r
 		ReadOnly:       req.Claim == structs.CSIVolumeClaimRead,
 		// TODO(tgross): we don't have a way of setting these yet.
 		// ref https://github.com/hashicorp/nomad/issues/7007
-		// MountOptions:   vol.MountOptions,
+		MountOptions: &cstructs.CSIVolumeMountOptions{},
 	}
 	cReq.NodeID = nodeID
 
-	var cResp cstructs.ClientCSIControllerAttachVolumeResponse
-	err = srv.RPC(method, cReq, &cResp)
+	cResp := &cstructs.ClientCSIControllerAttachVolumeResponse{}
+	err = srv.RPC("ClientCSIController.AttachVolume", &cReq, cResp)
 	if err != nil {
 		return err
 	}
