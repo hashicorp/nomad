@@ -113,8 +113,15 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 		Readonly:        false,
 		PropagationMode: "bidirectional",
 	}
+	devMount := &drivers.MountConfig{
+		TaskPath: "/dev",
+		HostPath: "/dev",
+		Readonly: false,
+	}
 
 	mounts := ensureMountpointInserted(h.runner.hookResources.getMounts(), configMount)
+	mounts = ensureMountpointInserted(mounts, devMount)
+
 	h.runner.hookResources.setMounts(mounts)
 
 	resp.Done = true
