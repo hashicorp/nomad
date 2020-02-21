@@ -228,10 +228,10 @@ func NewControllerCapabilitySet(resp *csipbv1.ControllerGetCapabilitiesResponse)
 }
 
 type ControllerPublishVolumeRequest struct {
-	VolumeID string
-	NodeID   string
-	ReadOnly bool
-	//TODO: Add Capabilities
+	VolumeID         string
+	NodeID           string
+	ReadOnly         bool
+	VolumeCapability *VolumeCapability
 }
 
 func (r *ControllerPublishVolumeRequest) ToCSIRepresentation() *csipbv1.ControllerPublishVolumeRequest {
@@ -240,10 +240,10 @@ func (r *ControllerPublishVolumeRequest) ToCSIRepresentation() *csipbv1.Controll
 	}
 
 	return &csipbv1.ControllerPublishVolumeRequest{
-		VolumeId: r.VolumeID,
-		NodeId:   r.NodeID,
-		Readonly: r.ReadOnly,
-		// TODO: add capabilities
+		VolumeId:         r.VolumeID,
+		NodeId:           r.NodeID,
+		Readonly:         r.ReadOnly,
+		VolumeCapability: r.VolumeCapability.ToCSIRepresentation(),
 	}
 }
 

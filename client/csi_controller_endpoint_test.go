@@ -64,9 +64,10 @@ func TestCSIController_AttachVolume(t *testing.T) {
 				},
 				VolumeID:        "1234-4321-1234-4321",
 				ClientCSINodeID: "abcde",
+				AttachmentMode:  nstructs.CSIVolumeAttachmentModeFilesystem,
 				AccessMode:      nstructs.CSIVolumeAccessMode("foo"),
 			},
-			ExpectedErr: errors.New("Unknown access mode: foo"),
+			ExpectedErr: errors.New("Unknown volume access mode: foo"),
 		},
 		{
 			Name: "validates attachmentmode is not empty",
@@ -79,7 +80,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 				AccessMode:      nstructs.CSIVolumeAccessModeMultiNodeReader,
 				AttachmentMode:  nstructs.CSIVolumeAttachmentMode("bar"),
 			},
-			ExpectedErr: errors.New("Unknown attachment mode: bar"),
+			ExpectedErr: errors.New("Unknown volume attachment mode: bar"),
 		},
 		{
 			Name: "returns transitive errors",
