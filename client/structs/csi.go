@@ -69,16 +69,22 @@ type ClientCSIControllerAttachVolumeRequest struct {
 	CSIControllerQuery
 }
 
-func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() *csi.ControllerPublishVolumeRequest {
+func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() (*csi.ControllerPublishVolumeRequest, error) {
 	if c == nil {
-		return &csi.ControllerPublishVolumeRequest{}
+		return &csi.ControllerPublishVolumeRequest{}, nil
+	}
+
+	caps, err := csi.VolumeCapabilityFromStructs(c.AttachmentMode, c.AccessMode)
+	if err != nil {
+		return nil, err
 	}
 
 	return &csi.ControllerPublishVolumeRequest{
-		VolumeID: c.VolumeID,
-		NodeID:   c.ClientCSINodeID,
-		ReadOnly: c.ReadOnly,
-	}
+		VolumeID:         c.VolumeID,
+		NodeID:           c.ClientCSINodeID,
+		ReadOnly:         c.ReadOnly,
+		VolumeCapability: caps,
+	}, nil
 }
 
 type ClientCSIControllerAttachVolumeResponse struct {
