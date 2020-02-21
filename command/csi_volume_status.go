@@ -11,10 +11,8 @@ import (
 
 type CSIVolumeStatusCommand struct {
 	Meta
-	length    int
-	evals     bool
-	allAllocs bool
-	verbose   bool
+	length  int
+	verbose bool
 }
 
 func (c *CSIVolumeStatusCommand) Help() string {
@@ -33,13 +31,6 @@ Status Options:
   -short
     Display short output. Used only when a single volume is being
     queried, and drops verbose information about allocations.
-
-  -evals
-    Display the evaluations using the volume.
-
-  -all-allocs
-    Display all allocations using the volume, including those that are no
-    longer running.
 
   -verbose
     Display full information.
@@ -84,8 +75,6 @@ func (c *CSIVolumeStatusCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
-	flags.BoolVar(&c.evals, "evals", false, "")
-	flags.BoolVar(&c.allAllocs, "all-allocs", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -140,18 +129,22 @@ func (c *CSIVolumeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Output(c.formatBasic(vol))
+	c.Ui.Output(formatKV(c.formatBasic(vol)))
 
 	// Exit early
 	if short {
 		return 0
 	}
 
+	// Format the allocs
+	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
+	c.Ui.Output(formatAllocListStubs(vol.Allocations, c.verbose, c.length))
+
 	return 0
 }
 
-func (v *CSIVolumeStatusCommand) formatBasic(vol *api.CSIVolume) string {
-	output := []string{
+func (v *CSIVolumeStatusCommand) formatBasic(vol *api.CSIVolume) []string {
+	return []string{
 		fmt.Sprintf("ID|%s", vol.ID),
 		// fmt.Sprintf("Name|%s", vol.Name),
 		// fmt.Sprintf("External ID|%s", vol.ExternalID),
@@ -166,8 +159,6 @@ func (v *CSIVolumeStatusCommand) formatBasic(vol *api.CSIVolume) string {
 		fmt.Sprintf("Attachment Mode|%s", vol.AttachmentMode),
 		fmt.Sprintf("Namespace|%s", vol.Namespace),
 	}
-
-	return strings.Join(output, "\n")
 }
 
 func (v *CSIVolumeStatusCommand) formatTopologies(vol *api.CSIVolume) string {
