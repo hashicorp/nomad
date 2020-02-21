@@ -153,7 +153,7 @@ const mockConsulResponse = `
       "expect": "3",
       "port": "8300",
       "role": "consul",
-      "segment": "mysegment"
+      "segment": "mysegment",
       "vsn": "2"
     },
     "Status": 1,
