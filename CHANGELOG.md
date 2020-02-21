@@ -4,6 +4,10 @@ IMPROVEMENTS:
 
  * consul: Added support for configuring `enable_tag_override` on service stanzas. [[GH-2057](https://github.com/hashicorp/nomad/issues/2057)]
 
+BUG FIXES:
+
+ * api: Fixed a panic when canonicalizing a jobspec with an incorrect job type [[GH-7207]](https://github.com/hashicorp/nomad/pull/7207)
+
 ## 0.10.4 (February 19, 2020)
 
 FEATURES:
