@@ -336,6 +336,14 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 			RequiresControllerPlugin: true,
 		},
 	}
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		"minnie": {PluginID: "minnie",
+			Healthy:                  true,
+			ControllerInfo:           &structs.CSIControllerInfo{},
+			NodeInfo:                 &structs.CSINodeInfo{},
+			RequiresControllerPlugin: true,
+		},
+	}
 	err := state.UpsertNode(1002, node)
 	require.NoError(t, err)
 	vols := []*structs.CSIVolume{{
@@ -367,6 +375,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	}
 	claimResp := &structs.CSIVolumeClaimResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
+	// Because the node is not registered
 	require.EqualError(t, err, "No path to node")
 }
 

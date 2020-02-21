@@ -20,27 +20,36 @@ type CSIVolumeMountOptions struct {
 	MountFlags []string
 }
 
-type ClientCSIControllerValidateVolumeRequest struct {
+// CSIControllerQuery is used to specify various flags for queries against CSI
+// Controllers
+type CSIControllerQuery struct {
+	// ControllerNodeID is the node that should be targeted by the request
+	ControllerNodeID string
+
+	// PluginID is the plugin that should be targeted on the given node.
 	PluginID string
+}
+
+type ClientCSIControllerValidateVolumeRequest struct {
 	VolumeID string
 
 	AttachmentMode structs.CSIVolumeAttachmentMode
 	AccessMode     structs.CSIVolumeAccessMode
+
+	CSIControllerQuery
 }
 
 type ClientCSIControllerValidateVolumeResponse struct {
 }
 
 type ClientCSIControllerAttachVolumeRequest struct {
-	PluginName string
-
 	// The ID of the volume to be used on a node.
 	// This field is REQUIRED.
 	VolumeID string
 
 	// The ID of the node. This field is REQUIRED. This must match the NodeID that
 	// is fingerprinted by the target node for this plugin name.
-	NodeID string
+	ClientCSINodeID string
 
 	// AttachmentMode indicates how the volume should be attached and mounted into
 	// a task.
@@ -56,6 +65,8 @@ type ClientCSIControllerAttachVolumeRequest struct {
 	// ReadOnly indicates that the volume will be used in a readonly fashion. This
 	// only works when the Controller has the PublishReadonly capability.
 	ReadOnly bool
+
+	CSIControllerQuery
 }
 
 func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() *csi.ControllerPublishVolumeRequest {
@@ -65,7 +76,7 @@ func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() *csi.ControllerP
 
 	return &csi.ControllerPublishVolumeRequest{
 		VolumeID: c.VolumeID,
-		NodeID:   c.NodeID,
+		NodeID:   c.ClientCSINodeID,
 		ReadOnly: c.ReadOnly,
 	}
 }
@@ -88,15 +99,16 @@ type ClientCSIControllerAttachVolumeResponse struct {
 }
 
 type ClientCSIControllerDetachVolumeRequest struct {
-	PluginName string
-
 	// The ID of the volume to be unpublished for the node
 	// This field is REQUIRED.
 	VolumeID string
 
-	// The ID of the node. This field is REQUIRED. This must match the NodeID that
-	// is fingerprinted by the target node for this plugin name.
-	NodeID string
+	// The CSI Node ID for the Node that the volume should be detached from.
+	// This field is REQUIRED. This must match the NodeID that is fingerprinted
+	// by the target node for this plugin name.
+	ClientCSINodeID string
+
+	CSIControllerQuery
 }
 
 func (c *ClientCSIControllerDetachVolumeRequest) ToCSIRequest() *csi.ControllerUnpublishVolumeRequest {
@@ -106,7 +118,7 @@ func (c *ClientCSIControllerDetachVolumeRequest) ToCSIRequest() *csi.ControllerU
 
 	return &csi.ControllerUnpublishVolumeRequest{
 		VolumeID: c.VolumeID,
-		NodeID:   c.NodeID,
+		NodeID:   c.ClientCSINodeID,
 	}
 }
 
