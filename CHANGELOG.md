@@ -4,6 +4,10 @@ SECURITY:
 
 * server: Override content-type headers for unsafe content. CVE-TBD [GH-7468](https://github.com/hashicorp/nomad/issues/7468)
 
+BUG FIXES:
+
+ * api: Fixed a panic when canonicalizing a jobspec with an incorrect job type [[GH-7207]](https://github.com/hashicorp/nomad/pull/7207)
+
 ## 0.10.4 (February 19, 2020)
 
 FEATURES:
