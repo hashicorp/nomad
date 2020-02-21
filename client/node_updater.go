@@ -346,9 +346,7 @@ func newBatchNodeUpdates(
 }
 
 // updateNodeFromCSI implements csimanager.UpdateNodeCSIInfoFunc and is used in
-// the csi manager to send csi fingerprints to the server. Currently it registers
-// all plugins as both controller and node plugins.
-// TODO: separate node and controller plugin handling.
+// the csi manager to send csi fingerprints to the server.
 func (b *batchNodeUpdates) updateNodeFromCSI(plugin string, info *structs.CSIInfo) {
 	b.csiMu.Lock()
 	defer b.csiMu.Unlock()
@@ -357,8 +355,15 @@ func (b *batchNodeUpdates) updateNodeFromCSI(plugin string, info *structs.CSIInf
 		return
 	}
 
-	b.csiNodePlugins[plugin] = info
-	b.csiControllerPlugins[plugin] = info
+	// Only one of these is expected to be set, but a future implementation that
+	// explicitly models monolith plugins with a single fingerprinter may set both
+	if info.ControllerInfo != nil {
+		b.csiControllerPlugins[plugin] = info
+	}
+
+	if info.NodeInfo != nil {
+		b.csiNodePlugins[plugin] = info
+	}
 }
 
 // batchCSIUpdates sends all of the batched CSI updates by calling f  for each
