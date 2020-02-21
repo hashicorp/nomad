@@ -10,10 +10,10 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/pkg/errors"
+
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // Txn is a transaction against a state store.
@@ -1175,12 +1175,15 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	// Delete the job scaling policies
-	if _, err := txn.DeleteAll("scaling_policy", "job", namespace, jobID); err != nil {
+	// Delete any job scaling policies
+	numDeletedScalingPolicies, err := txn.DeleteAll("scaling_policy", "target_prefix", namespace, jobID)
+	if err != nil {
 		return fmt.Errorf("deleting job scaling policies failed: %v", err)
 	}
-	if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
+	if numDeletedScalingPolicies > 0 {
+		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
 	}
 
 	return nil
@@ -3529,7 +3532,7 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 	scalingPolicies := job.GetScalingPolicies()
 	newTargets := map[string]struct{}{}
 	for _, p := range scalingPolicies {
-		newTargets[p.Target] = struct{}{}
+		newTargets[p.Target[structs.ScalingTargetGroup]] = struct{}{}
 	}
 	// find existing policies that need to be deleted
 	deletedPolicies := []string{}
@@ -3543,7 +3546,7 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 			break
 		}
 		oldPolicy := raw.(*structs.ScalingPolicy)
-		if _, ok := newTargets[oldPolicy.Target]; !ok {
+		if _, ok := newTargets[oldPolicy.Target[structs.ScalingTargetGroup]]; !ok {
 			deletedPolicies = append(deletedPolicies, oldPolicy.ID)
 		}
 	}
@@ -4247,35 +4250,45 @@ func (s *StateStore) UpsertScalingPolicies(index uint64, scalingPolicies []*stru
 func (s *StateStore) UpsertScalingPoliciesTxn(index uint64, scalingPolicies []*structs.ScalingPolicy,
 	txn *memdb.Txn) error {
 
-	for _, scalingPolicy := range scalingPolicies {
+	hadUpdates := false
+
+	for _, policy := range scalingPolicies {
 		// Check if the scaling policy already exists
-		existing, err := txn.First("scaling_policy", "target", scalingPolicy.Namespace, scalingPolicy.Target)
+		existing, err := txn.First("scaling_policy", "target",
+			policy.Target[structs.ScalingTargetNamespace],
+			policy.Target[structs.ScalingTargetJob],
+			policy.Target[structs.ScalingTargetGroup])
 		if err != nil {
 			return fmt.Errorf("scaling policy lookup failed: %v", err)
 		}
 
 		// Setup the indexes correctly
 		if existing != nil {
-			scalingPolicy.CreateIndex = existing.(*structs.ScalingPolicy).CreateIndex
-			scalingPolicy.ModifyIndex = index
-			scalingPolicy.ID = existing.(*structs.ScalingPolicy).ID
-		} else {
-			scalingPolicy.CreateIndex = index
-			scalingPolicy.ModifyIndex = index
-			if scalingPolicy.ID == "" {
-				scalingPolicy.ID = uuid.Generate()
+			p := existing.(*structs.ScalingPolicy)
+			if !p.Diff(policy) {
+				continue
 			}
+			policy.ID = p.ID
+			policy.CreateIndex = p.CreateIndex
+			policy.ModifyIndex = index
+		} else {
+			// policy.ID must have been set already in Job.Register before log apply
+			policy.CreateIndex = index
+			policy.ModifyIndex = index
 		}
 
 		// Insert the scaling policy
-		if err := txn.Insert("scaling_policy", scalingPolicy); err != nil {
+		hadUpdates = true
+		if err := txn.Insert("scaling_policy", policy); err != nil {
 			return err
 		}
 	}
 
 	// Update the indexes table for scaling policy
-	if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
+	if hadUpdates {
+		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
 	}
 
 	return nil
@@ -4342,7 +4355,7 @@ func (s *StateStore) ScalingPoliciesByJob(ws memdb.WatchSet, namespace, jobID st
 func (s *StateStore) ScalingPoliciesByJobTxn(ws memdb.WatchSet, namespace, jobID string,
 	txn *memdb.Txn) (memdb.ResultIterator, error) {
 
-	iter, err := txn.Get("scaling_policy", "job", namespace, jobID)
+	iter, err := txn.Get("scaling_policy", "target_prefix", namespace, jobID)
 	if err != nil {
 		return nil, err
 	}
@@ -4367,10 +4380,16 @@ func (s *StateStore) ScalingPolicyByID(ws memdb.WatchSet, id string) (*structs.S
 	return nil, nil
 }
 
-func (s *StateStore) ScalingPolicyByTarget(ws memdb.WatchSet, namespace, target string) (*structs.ScalingPolicy, error) {
+func (s *StateStore) ScalingPolicyByTarget(ws memdb.WatchSet, target map[string]string) (*structs.ScalingPolicy,
+	error) {
 	txn := s.db.Txn(false)
 
-	watchCh, existing, err := txn.FirstWatch("scaling_policy", "target", namespace, target)
+	// currently, only scaling policy type is against a task group
+	namespace := target[structs.ScalingTargetNamespace]
+	job := target[structs.ScalingTargetJob]
+	group := target[structs.ScalingTargetGroup]
+
+	watchCh, existing, err := txn.FirstWatch("scaling_policy", "target", namespace, job, group)
 	if err != nil {
 		return nil, fmt.Errorf("scaling_policy lookup failed: %v", err)
 	}

@@ -4481,17 +4481,17 @@ type ScalingPolicy struct {
 	// ID is a generated UUID used for looking up the scaling policy
 	ID string
 
-	// Namespace is the namespace for the containing job
-	Namespace string
-
-	// Target is the scaling target; there can be only one policy per scaling target
-	Target string
-
-	// JobID is the ID of the parent job; there can be multiple policies per job
-	JobID string
+	// Target contains information about the target of the scaling policy, like job and group
+	Target map[string]string
 
 	// Policy is an opaque description of the scaling policy, passed to the autoscaler
 	Policy map[string]interface{}
+
+	// Min is the minimum allowable scaling count for this target
+	Min int64
+
+	// Max is the maximum allowable scaling count for this target
+	Max int64
 
 	// Enabled indicates whether this policy has been enabled/disabled
 	Enabled bool
@@ -4500,20 +4500,42 @@ type ScalingPolicy struct {
 	ModifyIndex uint64
 }
 
+const (
+	ScalingTargetNamespace = "Namespace"
+	ScalingTargetJob       = "Job"
+	ScalingTargetGroup     = "Group"
+)
+
+// Diff indicates whether the specification for a given scaling policy has changed
+func (p *ScalingPolicy) Diff(p2 *ScalingPolicy) bool {
+	copy := *p2
+	copy.ID = p.ID
+	copy.CreateIndex = p.CreateIndex
+	copy.ModifyIndex = p.ModifyIndex
+	return !reflect.DeepEqual(*p, copy)
+}
+
 func (p *ScalingPolicy) TargetTaskGroup(job *Job, tg *TaskGroup) *ScalingPolicy {
-	p.Target = fmt.Sprintf("/v1/job/%s/%s/scale", job.ID, tg.Name)
+	p.Target = map[string]string{
+		ScalingTargetNamespace: job.Namespace,
+		ScalingTargetJob:       job.ID,
+		ScalingTargetGroup:     tg.Name,
+	}
 	return p
 }
 
 func (p *ScalingPolicy) Stub() *ScalingPolicyListStub {
-	return &ScalingPolicyListStub{
+	stub := &ScalingPolicyListStub{
 		ID:          p.ID,
-		JobID:       p.JobID,
-		Target:      p.Target,
+		Target:      make(map[string]string),
 		Enabled:     p.Enabled,
 		CreateIndex: p.CreateIndex,
 		ModifyIndex: p.ModifyIndex,
 	}
+	for k, v := range p.Target {
+		stub.Target[k] = v
+	}
+	return stub
 }
 
 // GetScalingPolicies returns a slice of all scaling scaling policies for this job
@@ -4533,9 +4555,8 @@ func (j *Job) GetScalingPolicies() []*ScalingPolicy {
 // for the scaling policy list
 type ScalingPolicyListStub struct {
 	ID          string
-	JobID       string
-	Target      string
 	Enabled     bool
+	Target      map[string]string
 	CreateIndex uint64
 	ModifyIndex uint64
 }

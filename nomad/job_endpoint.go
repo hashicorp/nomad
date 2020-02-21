@@ -14,13 +14,14 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul/lib"
+	"github.com/pkg/errors"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -178,6 +179,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
+	// Ensure that all scaling policies have an appropriate ID
+	if err := propagateScalingPolicyIDs(existingJob, args.Job); err != nil {
+		return err
+	}
+
 	// Ensure that the job has permissions for the requested Vault tokens
 	policies := args.Job.VaultPolicies()
 	if len(policies) != 0 {
@@ -318,6 +324,31 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.EvalID = eval.ID
 	reply.EvalCreateIndex = evalIndex
 	reply.Index = evalIndex
+	return nil
+}
+
+// propagateScalingPolicyIDs propagates scaling policy IDs from existing job
+// to updated job, or generates random IDs in new job
+func propagateScalingPolicyIDs(old, new *structs.Job) error {
+
+	oldIDs := make(map[string]string)
+	if old != nil {
+		// jobs currently only have scaling policies on task groups, so we can
+		// find correspondences using task group names
+		for _, p := range old.GetScalingPolicies() {
+			oldIDs[p.Target[structs.ScalingTargetGroup]] = p.ID
+		}
+	}
+
+	// ignore any existing ID in the policy, they should be empty
+	for _, p := range new.GetScalingPolicies() {
+		if id, ok := oldIDs[p.Target[structs.ScalingTargetGroup]]; ok {
+			p.ID = id
+		} else {
+			p.ID = uuid.Generate()
+		}
+	}
+
 	return nil
 }
 
