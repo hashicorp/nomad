@@ -204,6 +204,7 @@ module('Acceptance | exec', function(hooks) {
 
     await Exec.terminal.pressEnter();
     await settled();
+    mockSocket.onopen();
 
     assert.verifySteps(['Socket built']);
 
@@ -224,7 +225,10 @@ module('Acceptance | exec', function(hooks) {
     await Exec.terminal.pressEnter();
     await settled();
 
-    assert.deepEqual(mockSocket.sent, ['{"stdin":{"data":"DQ=="}}']);
+    assert.deepEqual(mockSocket.sent, [
+      '{"tty_size":{"width":228,"height":24}}',
+      '{"stdin":{"data":"DQ=="}}',
+    ]);
 
     await mockSocket.onclose();
     await settled();
