@@ -2922,56 +2922,10 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.True(t, vs[0].CanReadOnly())
 }
 
-// TestStateStore_CSIPluginJobs creates plugin jobs and tests that they create a CSIPlugin
-func TestStateStore_CSIPluginJobs(t *testing.T) {
-	index := uint64(999)
-	state := testStateStore(t)
-	testStateStore_CSIPluginJobs(t, index, state)
-}
-
-func testStateStore_CSIPluginJobs(t *testing.T, index uint64, state *StateStore) (uint64, *StateStore) {
-	j0 := mock.Job()
-	j0.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
-		ID:   "foo",
-		Type: structs.CSIPluginTypeController,
-	}
-
-	j1 := mock.Job()
-	j1.Type = structs.JobTypeSystem
-	j1.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
-		ID:   "foo",
-		Type: structs.CSIPluginTypeNode,
-	}
-
-	index++
-	err := state.UpsertJob(index, j0)
-	require.NoError(t, err)
-
-	index++
-	err = state.UpsertJob(index, j1)
-	require.NoError(t, err)
-
-	// Get the plugin back out by id
-	ws := memdb.NewWatchSet()
-	plug, err := state.CSIPluginByID(ws, "foo")
-	require.NoError(t, err)
-
-	require.Equal(t, "foo", plug.ID)
-
-	jids := map[string]struct{}{j0.ID: struct{}{}, j1.ID: struct{}{}}
-	for jid := range plug.Jobs[structs.DefaultNamespace] {
-		delete(jids, jid)
-	}
-	require.Equal(t, 0, len(jids))
-
-	return index, state
-}
-
 // TestStateStore_CSIPluginNodes uses the state from jobs, and uses node fingerprinting to update health
 func TestStateStore_CSIPluginNodes(t *testing.T) {
 	index := uint64(999)
 	state := testStateStore(t)
-	index, state = testStateStore_CSIPluginJobs(t, index, state)
 	testStateStore_CSIPluginNodes(t, index, state)
 }
 
@@ -3040,7 +2994,6 @@ func TestStateStore_CSIPluginBackwards(t *testing.T) {
 	index := uint64(999)
 	state := testStateStore(t)
 	index, state = testStateStore_CSIPluginNodes(t, index, state)
-	testStateStore_CSIPluginJobs(t, index, state)
 }
 
 func TestStateStore_Indexes(t *testing.T) {
