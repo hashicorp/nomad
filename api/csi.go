@@ -156,24 +156,18 @@ type CSIPlugins struct {
 }
 
 type CSIPlugin struct {
-	ID        string
-	Type      CSIPluginType
-	Namespace string
-	Jobs      map[string]map[string]*Job
-
-	ControllersHealthy int
+	ID string
+	// Map Node.ID to CSIInfo fingerprint results
 	Controllers        map[string]*CSIInfo
-	NodesHealthy       int
 	Nodes              map[string]*CSIInfo
-
-	CreateIndex uint64
-	ModifyIndex uint64
+	ControllersHealthy int
+	NodesHealthy       int
+	CreateIndex        uint64
+	ModifyIndex        uint64
 }
 
 type CSIPluginListStub struct {
 	ID                  string
-	Type                CSIPluginType
-	JobIDs              map[string]map[string]struct{}
 	ControllersHealthy  int
 	ControllersExpected int
 	NodesHealthy        int

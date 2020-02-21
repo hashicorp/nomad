@@ -146,6 +146,7 @@ func (c *CSIControllerInfo) Copy() *CSIControllerInfo {
 // as plugin health changes on the node.
 type CSIInfo struct {
 	PluginID          string
+	AllocID           string
 	Healthy           bool
 	HealthDescription string
 	UpdateTime        time.Time
