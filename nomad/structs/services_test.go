@@ -14,7 +14,7 @@ func TestService_Hash(t *testing.T) {
 	original := &Service{
 		Name:      "myService",
 		PortLabel: "portLabel",
-		// AddressMode: "bridge", // not hashed
+		// AddressMode: "bridge", // not hashed (used internally by Nomad)
 		Tags:       []string{"original", "tags"},
 		CanaryTags: []string{"canary", "tags"},
 		// Checks:      nil, // not hashed (managed independently)
