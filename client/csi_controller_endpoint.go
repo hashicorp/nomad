@@ -70,7 +70,7 @@ func (c *CSIController) ValidateVolume(req *structs.ClientCSIControllerValidateV
 // In the future this may be expanded to request dynamic secrets for attachement.
 func (c *CSIController) AttachVolume(req *structs.ClientCSIControllerAttachVolumeRequest, resp *structs.ClientCSIControllerAttachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"client", "csi_controller", "publish_volume"}, time.Now())
-	plugin, err := c.findControllerPlugin(req.PluginName)
+	plugin, err := c.findControllerPlugin(req.PluginID)
 	if err != nil {
 		return err
 	}
@@ -85,8 +85,8 @@ func (c *CSIController) AttachVolume(req *structs.ClientCSIControllerAttachVolum
 		return errors.New("VolumeID is required")
 	}
 
-	if req.NodeID == "" {
-		return errors.New("NodeID is required")
+	if req.ClientCSINodeID == "" {
+		return errors.New("ClientCSINodeID is required")
 	}
 
 	if !nstructs.ValidCSIVolumeAccessMode(req.AccessMode) {
@@ -107,6 +107,10 @@ func (c *CSIController) AttachVolume(req *structs.ClientCSIControllerAttachVolum
 
 	resp.PublishContext = cresp.PublishContext
 	return nil
+}
+
+func (c *CSIController) DetachVolume(req *structs.ClientCSIControllerDetachVolumeRequest, resp *structs.ClientCSIControllerDetachVolumeResponse) error {
+	return fmt.Errorf("Unimplemented")
 }
 
 func (c *CSIController) findControllerPlugin(name string) (csi.CSIPlugin, error) {
