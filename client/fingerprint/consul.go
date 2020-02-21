@@ -81,6 +81,11 @@ func (f *ConsulFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 	} else {
 		f.logger.Warn("unable to fingerprint consul.datacenter")
 	}
+	if g, ok := info["Member"]["Tags"]["segment"].(string); ok {
+		resp.AddAttribute("consul.segment", g)
+	} else {
+		resp.AddAttribute("consul.segment", "default")
+	}
 
 	if dc, ok := resp.Attributes["consul.datacenter"]; ok {
 		if name, ok2 := resp.Attributes["unique.consul.name"]; ok2 {
@@ -108,6 +113,7 @@ func (f *ConsulFingerprint) clearConsulAttributes(r *FingerprintResponse) {
 	r.RemoveAttribute("consul.revision")
 	r.RemoveAttribute("unique.consul.name")
 	r.RemoveAttribute("consul.datacenter")
+	r.RemoveAttribute("consul.segment")
 	r.RemoveLink("consul")
 }
 
