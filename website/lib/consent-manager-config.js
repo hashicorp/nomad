@@ -1,7 +1,7 @@
 const isProd = process.env.NODE_ENV === 'production'
 
 const segmentWriteKey = isProd
-  ? 'OdSFDq9PfujQpmkZf03dFpcUlywme4sC'
+  ? 'qW11yxgipKMsKFKQUCpTVgQUYftYsJj0'
   : '0EXTgkNx0Ydje2PGXVbRhpKKoe5wtzcE'
 
 // TODO: refactor into web components
