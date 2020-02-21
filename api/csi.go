@@ -38,6 +38,10 @@ func (v *CSIVolumes) Info(id string, q *QueryOptions) (*CSIVolume, *QueryMeta, e
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// Cleanup allocation representation for the ui
+	resp.allocs()
+
 	return &resp, qm, nil
 }
 
@@ -87,7 +91,11 @@ type CSIVolume struct {
 	AccessMode     CSIVolumeAccessMode     `hcl:"access_mode"`
 	AttachmentMode CSIVolumeAttachmentMode `hcl:"attachment_mode"`
 
-	// Combine structs.{Read,Write,Past}Allocs
+	// Allocations, tracking claim status
+	ReadAllocs  map[string]*Allocation
+	WriteAllocs map[string]*Allocation
+
+	// Combine structs.{Read,Write}Allocs
 	Allocations []*AllocationListStub
 
 	// Healthy is true iff all the denormalized plugin health fields are true, and the
@@ -106,6 +114,16 @@ type CSIVolume struct {
 
 	// ExtraKeysHCL is used by the hcl parser to report unexpected keys
 	ExtraKeysHCL []string `hcl:"unusedKeys" json:"-"`
+}
+
+// allocs is called after volume creation to collapse allocations for the UI
+func (v *CSIVolume) allocs() {
+	for _, a := range v.WriteAllocs {
+		v.Allocations = append(v.Allocations, a.Stub())
+	}
+	for _, a := range v.ReadAllocs {
+		v.Allocations = append(v.Allocations, a.Stub())
+	}
 }
 
 type CSIVolumeIndexSort []*CSIVolumeListStub
