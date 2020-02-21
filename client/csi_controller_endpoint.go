@@ -9,7 +9,6 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/structs"
-	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 )
 
@@ -89,18 +88,15 @@ func (c *CSIController) AttachVolume(req *structs.ClientCSIControllerAttachVolum
 		return errors.New("ClientCSINodeID is required")
 	}
 
-	if !nstructs.ValidCSIVolumeAccessMode(req.AccessMode) {
-		return fmt.Errorf("Unknown access mode: %v", req.AccessMode)
-	}
-
-	if !nstructs.ValidCSIVolumeAttachmentMode(req.AttachmentMode) {
-		return fmt.Errorf("Unknown attachment mode: %v", req.AttachmentMode)
+	csiReq, err := req.ToCSIRequest()
+	if err != nil {
+		return err
 	}
 
 	// Submit the request for a volume to the CSI Plugin.
 	ctx, cancelFn := c.requestContext()
 	defer cancelFn()
-	cresp, err := plugin.ControllerPublishVolume(ctx, req.ToCSIRequest())
+	cresp, err := plugin.ControllerPublishVolume(ctx, csiReq)
 	if err != nil {
 		return err
 	}
