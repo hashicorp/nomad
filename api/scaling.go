@@ -39,6 +39,7 @@ type ScalingRequest struct {
 	Value  interface{}
 	Reason string
 	Error  string
+	Meta   map[string]interface{}
 	WriteRequest
 	// this is effectively a job update, so we need the ability to override policy.
 	PolicyOverride bool
@@ -48,8 +49,9 @@ type ScalingRequest struct {
 type ScalingPolicy struct {
 	ID          string
 	Namespace   string
-	Target      string
-	JobID       string
+	Target      map[string]string
+	Min         int64
+	Max         int64
 	Policy      map[string]interface{}
 	Enabled     *bool
 	CreateIndex uint64
@@ -60,8 +62,8 @@ type ScalingPolicy struct {
 // for the scaling policy list
 type ScalingPolicyListStub struct {
 	ID          string
-	JobID       string
-	Target      string
+	Enabled     bool
+	Target      map[string]string
 	CreateIndex uint64
 	ModifyIndex uint64
 }

@@ -1,13 +1,12 @@
 package api
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestScalingPolicies_List(t *testing.T) {
+func TestScalingPolicies_ListPolicies(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -36,12 +35,18 @@ func TestScalingPolicies_List(t *testing.T) {
 
 	policy := policies[0]
 
-	// Check that the scaling policy references the right job
-	require.Equalf(policy.JobID, *job.ID, "expected JobID=%s, got: %s", *job.ID, policy.JobID)
+	// Check that the scaling policy references the right namespace
+	namespace := DefaultNamespace
+	if job.Namespace != nil && *job.Namespace != "" {
+		namespace = *job.Namespace
+	}
+	require.Equal(policy.Target["Namespace"], namespace)
 
-	// Check that the scaling policy references the right target
-	expectedTarget := fmt.Sprintf("/v1/job/%s/%s/scale", *job.ID, *job.TaskGroups[0].Name)
-	require.Equalf(expectedTarget, policy.Target, "expected Target=%s, got: %s", expectedTarget, policy.Target)
+	// Check that the scaling policy references the right job
+	require.Equal(policy.Target["Job"], *job.ID)
+
+	// Check that the scaling policy references the right group
+	require.Equal(policy.Target["Group"], *job.TaskGroups[0].Name)
 }
 
 func TestScalingPolicies_GetPolicy(t *testing.T) {
@@ -80,7 +85,7 @@ func TestScalingPolicies_GetPolicy(t *testing.T) {
 	policies, _, err := scaling.ListPolicies(nil)
 	require.NoError(err)
 	for _, p := range policies {
-		if p.JobID == *job.ID {
+		if p.Target["Job"] == *job.ID {
 			policyID = p.ID
 			break
 		}
@@ -94,8 +99,16 @@ func TestScalingPolicies_GetPolicy(t *testing.T) {
 	require.NoError(err)
 
 	// Check that the scaling policy fields match
-	expectedTarget := fmt.Sprintf("/v1/job/%s/%s/scale", *job.ID, *job.TaskGroups[0].Name)
-	require.Equalf(expectedTarget, resp.Target, "expected Target=%s, got: %s", expectedTarget, policy.Target)
+	namespace := DefaultNamespace
+	if job.Namespace != nil && *job.Namespace != "" {
+		namespace = *job.Namespace
+	}
+	expectedTarget := map[string]string{
+		"Namespace": namespace,
+		"Job":       *job.ID,
+		"Group":     *job.TaskGroups[0].Name,
+	}
+	require.Equal(expectedTarget, resp.Target)
 	require.Equal(policy.Policy, resp.Policy)
 	require.Equal(policy.Enabled, resp.Enabled)
 }
