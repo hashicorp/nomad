@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func testStateStore(t *testing.T) *StateStore {
@@ -7705,10 +7706,10 @@ func TestStateStore_UpsertScalingPolicy(t *testing.T) {
 	policy2 := mock.ScalingPolicy()
 
 	ws := memdb.NewWatchSet()
-	_, err := state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	_, err := state.ScalingPolicyByTarget(ws, policy.Target)
 	require.NoError(err)
 
-	_, err = state.ScalingPolicyByTarget(ws, policy.Namespace, policy2.Target)
+	_, err = state.ScalingPolicyByTarget(ws, policy2.Target)
 	require.NoError(err)
 
 	err = state.UpsertScalingPolicies(1000, []*structs.ScalingPolicy{policy, policy2})
@@ -7716,15 +7717,15 @@ func TestStateStore_UpsertScalingPolicy(t *testing.T) {
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
-	out, err := state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
 	require.NoError(err)
 	require.Equal(policy, out)
 
-	out, err = state.ScalingPolicyByTarget(ws, policy2.Namespace, policy2.Target)
+	out, err = state.ScalingPolicyByTarget(ws, policy2.Target)
 	require.NoError(err)
 	require.Equal(policy2, out)
 
-	iter, err := state.ScalingPoliciesByNamespace(ws, policy.Namespace)
+	iter, err := state.ScalingPoliciesByNamespace(ws, policy.Target[structs.ScalingTargetNamespace])
 	require.NoError(err)
 
 	// Ensure we see both policies
@@ -7754,7 +7755,7 @@ func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
 
 	// Create a watchset so we can test that upsert fires the watch
 	ws := memdb.NewWatchSet()
-	out, err := state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
 	require.NoError(err)
 	require.Nil(out)
 
@@ -7764,7 +7765,7 @@ func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
 	require.True(watchFired(ws), "watch did not fire")
 
 	ws = memdb.NewWatchSet()
-	out, err = state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	out, err = state.ScalingPolicyByTarget(ws, policy.Target)
 	require.NoError(err)
 	require.NotNil(out)
 	require.Equal(newIndex, out.CreateIndex)
@@ -7772,6 +7773,94 @@ func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
 
 	index, err := state.Index("scaling_policy")
 	require.Equal(newIndex, index)
+}
+
+// Scaling Policy IDs are generated randomly during Job.Register
+// Subsequent updates of the job should preserve the ID for the scaling policy
+// associated with a given target.
+func TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+	job, policy := mock.JobWithScalingPolicy()
+
+	var newIndex uint64 = 1000
+	err := state.UpsertJob(newIndex, job)
+	require.NoError(err)
+
+	ws := memdb.NewWatchSet()
+	p1, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	require.NoError(err)
+	require.NotNil(p1)
+	require.Equal(newIndex, p1.CreateIndex)
+	require.Equal(newIndex, p1.ModifyIndex)
+
+	index, err := state.Index("scaling_policy")
+	require.Equal(newIndex, index)
+	require.NotEmpty(p1.ID)
+
+	// update the job
+	job.Meta["new-meta"] = "new-value"
+	newIndex += 100
+	err = state.UpsertJob(newIndex, job)
+	require.NoError(err)
+	require.False(watchFired(ws), "watch should not have fired")
+
+	p2, err := state.ScalingPolicyByTarget(nil, policy.Target)
+	require.NoError(err)
+	require.NotNil(p2)
+	require.Equal(p1.ID, p2.ID, "ID should not have changed")
+	require.Equal(p1.CreateIndex, p2.CreateIndex)
+	require.Equal(p1.ModifyIndex, p2.ModifyIndex)
+
+	index, err = state.Index("scaling_policy")
+	require.Equal(index, p1.CreateIndex, "table index should not have changed")
+}
+
+// Updating the scaling policy for a job should update the index table and fire the watch.
+// This test is the converse of TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex
+func TestStateStore_UpsertJob_UpdateScalingPolicy(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+	job, policy := mock.JobWithScalingPolicy()
+
+	var oldIndex uint64 = 1000
+	require.NoError(state.UpsertJob(oldIndex, job))
+
+	ws := memdb.NewWatchSet()
+	p1, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	require.NoError(err)
+	require.NotNil(p1)
+	require.Equal(oldIndex, p1.CreateIndex)
+	require.Equal(oldIndex, p1.ModifyIndex)
+	prevId := p1.ID
+
+	index, err := state.Index("scaling_policy")
+	require.Equal(oldIndex, index)
+	require.NotEmpty(p1.ID)
+
+	// update the job with the updated scaling policy; make sure to use a different object
+	newPolicy := structs.CopyScalingPolicy(p1)
+	newPolicy.Policy["new-field"] = "new-value"
+	job.TaskGroups[0].Scaling = newPolicy
+	require.NoError(state.UpsertJob(oldIndex+100, job))
+	require.True(watchFired(ws), "watch should have fired")
+
+	p2, err := state.ScalingPolicyByTarget(nil, policy.Target)
+	require.NoError(err)
+	require.NotNil(p2)
+	require.Equal(p2.Policy["new-field"], "new-value")
+	require.Equal(prevId, p2.ID, "ID should not have changed")
+	require.Equal(oldIndex, p2.CreateIndex)
+	require.Greater(p2.ModifyIndex, oldIndex, "ModifyIndex should have advanced")
+
+	index, err = state.Index("scaling_policy")
+	require.Greater(index, oldIndex, "table index should have advanced")
 }
 
 func TestStateStore_DeleteScalingPolicies(t *testing.T) {
@@ -7789,7 +7878,7 @@ func TestStateStore_DeleteScalingPolicies(t *testing.T) {
 
 	// Create a watcher
 	ws := memdb.NewWatchSet()
-	_, err = state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	_, err = state.ScalingPolicyByTarget(ws, policy.Target)
 	require.NoError(err)
 
 	// Delete the policy
@@ -7801,17 +7890,17 @@ func TestStateStore_DeleteScalingPolicies(t *testing.T) {
 
 	// Ensure we don't get the objects back
 	ws = memdb.NewWatchSet()
-	out, err := state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
 	require.NoError(err)
 	require.Nil(out)
 
 	ws = memdb.NewWatchSet()
-	out, err = state.ScalingPolicyByTarget(ws, policy2.Namespace, policy2.Target)
+	out, err = state.ScalingPolicyByTarget(ws, policy2.Target)
 	require.NoError(err)
 	require.Nil(out)
 
 	// Ensure we see both policies
-	iter, err := state.ScalingPoliciesByNamespace(ws, policy.Namespace)
+	iter, err := state.ScalingPoliciesByNamespace(ws, policy.Target[structs.ScalingTargetNamespace])
 	require.NoError(err)
 	count := 0
 	for {
@@ -7842,7 +7931,7 @@ func TestStateStore_DeleteJob_ChildScalingPolicies(t *testing.T) {
 	require.NoError(err)
 
 	policy := mock.ScalingPolicy()
-	policy.JobID = job.ID
+	policy.Target[structs.ScalingTargetJob] = job.ID
 	err = state.UpsertScalingPolicies(1001, []*structs.ScalingPolicy{policy})
 	require.NoError(err)
 
@@ -7852,11 +7941,42 @@ func TestStateStore_DeleteJob_ChildScalingPolicies(t *testing.T) {
 
 	// Ensure the scaling policy was deleted
 	ws := memdb.NewWatchSet()
-	out, err := state.ScalingPolicyByTarget(ws, policy.Namespace, policy.Target)
+	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
 	require.NoError(err)
 	require.Nil(out)
 	index, err := state.Index("scaling_policy")
 	require.True(index > 1001)
+}
+
+// This test ensures that deleting a job that doesn't have any scaling policies
+// will not cause the scaling_policy table index to increase, on either job
+// registration or deletion.
+func TestStateStore_DeleteJob_ScalingPolicyIndexNoop(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+
+	job := mock.Job()
+
+	prevIndex, err := state.Index("scaling_policy")
+	require.NoError(err)
+
+	err = state.UpsertJob(1000, job)
+	require.NoError(err)
+
+	newIndex, err := state.Index("scaling_policy")
+	require.NoError(err)
+	require.Equal(prevIndex, newIndex)
+
+	// Delete the job
+	err = state.DeleteJob(1002, job.Namespace, job.ID)
+	require.NoError(err)
+
+	newIndex, err = state.Index("scaling_policy")
+	require.NoError(err)
+	require.Equal(prevIndex, newIndex)
 }
 
 func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
@@ -7868,14 +7988,16 @@ func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
 	policyA := mock.ScalingPolicy()
 	policyB1 := mock.ScalingPolicy()
 	policyB2 := mock.ScalingPolicy()
-	policyB1.JobID = policyB2.JobID
+	policyB1.Target[structs.ScalingTargetJob] = policyB2.Target[structs.ScalingTargetJob]
 
 	// Create the policies
 	var baseIndex uint64 = 1000
 	err := state.UpsertScalingPolicies(baseIndex, []*structs.ScalingPolicy{policyA, policyB1, policyB2})
 	require.NoError(err)
 
-	iter, err := state.ScalingPoliciesByJob(nil, policyA.Namespace, policyA.JobID)
+	iter, err := state.ScalingPoliciesByJob(nil,
+		policyA.Target[structs.ScalingTargetNamespace],
+		policyA.Target[structs.ScalingTargetJob])
 	require.NoError(err)
 
 	// Ensure we see expected policies
@@ -7887,15 +8009,17 @@ func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
 			break
 		}
 		count++
-		found = append(found, raw.(*structs.ScalingPolicy).Target)
+		found = append(found, raw.(*structs.ScalingPolicy).Target[structs.ScalingTargetGroup])
 	}
 	require.Equal(1, count)
 	sort.Strings(found)
-	expect := []string{policyA.Target}
+	expect := []string{policyA.Target[structs.ScalingTargetGroup]}
 	sort.Strings(expect)
 	require.Equal(expect, found)
 
-	iter, err = state.ScalingPoliciesByJob(nil, policyB1.Namespace, policyB1.JobID)
+	iter, err = state.ScalingPoliciesByJob(nil,
+		policyB1.Target[structs.ScalingTargetNamespace],
+		policyB1.Target[structs.ScalingTargetJob])
 	require.NoError(err)
 
 	// Ensure we see expected policies
@@ -7907,11 +8031,14 @@ func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
 			break
 		}
 		count++
-		found = append(found, raw.(*structs.ScalingPolicy).Target)
+		found = append(found, raw.(*structs.ScalingPolicy).Target[structs.ScalingTargetGroup])
 	}
 	require.Equal(2, count)
 	sort.Strings(found)
-	expect = []string{policyB1.Target, policyB2.Target}
+	expect = []string{
+		policyB1.Target[structs.ScalingTargetGroup],
+		policyB2.Target[structs.ScalingTargetGroup],
+	}
 	sort.Strings(expect)
 	require.Equal(expect, found)
 }

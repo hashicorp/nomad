@@ -75,11 +75,12 @@ func (s *HTTPServer) scalingPolicyQuery(resp http.ResponseWriter, req *http.Requ
 	return out.Policy, nil
 }
 
-func ApiScalingPolicyToStructs(job *structs.Job, a1 *api.ScalingPolicy) *structs.ScalingPolicy {
+func ApiScalingPolicyToStructs(ap *api.ScalingPolicy) *structs.ScalingPolicy {
 	return &structs.ScalingPolicy{
-		Namespace: job.Namespace,
-		JobID:     job.ID,
-		Enabled:   *a1.Enabled,
-		Policy:    a1.Policy,
+		Enabled: *ap.Enabled,
+		Min:     ap.Min,
+		Max:     ap.Max,
+		Policy:  ap.Policy,
+		Target:  map[string]string{},
 	}
 }
