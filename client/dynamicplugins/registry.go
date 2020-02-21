@@ -53,6 +53,9 @@ type PluginInfo struct {
 	// may not be exposed in the future.
 	ConnectionInfo *PluginConnectionInfo
 
+	// AllocID tracks the allocation running the plugin
+	AllocID string
+
 	// Options is used for plugin registrations to pass further metadata along to
 	// other subsystems
 	Options map[string]string
