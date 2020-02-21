@@ -18,7 +18,7 @@ var fakePlugin = &dynamicplugins.PluginInfo{
 	ConnectionInfo: &dynamicplugins.PluginConnectionInfo{},
 }
 
-func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
+func TestCSIController_AttachVolume(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -31,43 +31,53 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 		{
 			Name: "returns plugin not found errors",
 			Request: &structs.ClientCSIControllerAttachVolumeRequest{
-				PluginName: "some-garbage",
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: "some-garbage",
+				},
 			},
 			ExpectedErr: errors.New("plugin some-garbage for type csi-controller not found"),
 		},
 		{
 			Name: "validates volumeid is not empty",
 			Request: &structs.ClientCSIControllerAttachVolumeRequest{
-				PluginName: fakePlugin.Name,
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
 			},
 			ExpectedErr: errors.New("VolumeID is required"),
 		},
 		{
 			Name: "validates nodeid is not empty",
 			Request: &structs.ClientCSIControllerAttachVolumeRequest{
-				PluginName: fakePlugin.Name,
-				VolumeID:   "1234-4321-1234-4321",
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				VolumeID: "1234-4321-1234-4321",
 			},
-			ExpectedErr: errors.New("NodeID is required"),
+			ExpectedErr: errors.New("ClientCSINodeID is required"),
 		},
 		{
 			Name: "validates AccessMode",
 			Request: &structs.ClientCSIControllerAttachVolumeRequest{
-				PluginName: fakePlugin.Name,
-				VolumeID:   "1234-4321-1234-4321",
-				NodeID:     "abcde",
-				AccessMode: nstructs.CSIVolumeAccessMode("foo"),
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				VolumeID:        "1234-4321-1234-4321",
+				ClientCSINodeID: "abcde",
+				AccessMode:      nstructs.CSIVolumeAccessMode("foo"),
 			},
 			ExpectedErr: errors.New("Unknown access mode: foo"),
 		},
 		{
 			Name: "validates attachmentmode is not empty",
 			Request: &structs.ClientCSIControllerAttachVolumeRequest{
-				PluginName:     fakePlugin.Name,
-				VolumeID:       "1234-4321-1234-4321",
-				NodeID:         "abcde",
-				AccessMode:     nstructs.CSIVolumeAccessModeMultiNodeReader,
-				AttachmentMode: nstructs.CSIVolumeAttachmentMode("bar"),
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				VolumeID:        "1234-4321-1234-4321",
+				ClientCSINodeID: "abcde",
+				AccessMode:      nstructs.CSIVolumeAccessModeMultiNodeReader,
+				AttachmentMode:  nstructs.CSIVolumeAttachmentMode("bar"),
 			},
 			ExpectedErr: errors.New("Unknown attachment mode: bar"),
 		},
@@ -77,11 +87,13 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 				fc.NextControllerPublishVolumeErr = errors.New("hello")
 			},
 			Request: &structs.ClientCSIControllerAttachVolumeRequest{
-				PluginName:     fakePlugin.Name,
-				VolumeID:       "1234-4321-1234-4321",
-				NodeID:         "abcde",
-				AccessMode:     nstructs.CSIVolumeAccessModeSingleNodeWriter,
-				AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				VolumeID:        "1234-4321-1234-4321",
+				ClientCSINodeID: "abcde",
+				AccessMode:      nstructs.CSIVolumeAccessModeSingleNodeWriter,
+				AttachmentMode:  nstructs.CSIVolumeAttachmentModeFilesystem,
 			},
 			ExpectedErr: errors.New("hello"),
 		},
@@ -91,11 +103,13 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 				fc.NextControllerPublishVolumeResponse = &csi.ControllerPublishVolumeResponse{}
 			},
 			Request: &structs.ClientCSIControllerAttachVolumeRequest{
-				PluginName:     fakePlugin.Name,
-				VolumeID:       "1234-4321-1234-4321",
-				NodeID:         "abcde",
-				AccessMode:     nstructs.CSIVolumeAccessModeSingleNodeWriter,
-				AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				VolumeID:        "1234-4321-1234-4321",
+				ClientCSINodeID: "abcde",
+				AccessMode:      nstructs.CSIVolumeAccessModeSingleNodeWriter,
+				AttachmentMode:  nstructs.CSIVolumeAttachmentModeFilesystem,
 			},
 			ExpectedResponse: &structs.ClientCSIControllerAttachVolumeResponse{},
 		},
@@ -107,11 +121,13 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 				}
 			},
 			Request: &structs.ClientCSIControllerAttachVolumeRequest{
-				PluginName:     fakePlugin.Name,
-				VolumeID:       "1234-4321-1234-4321",
-				NodeID:         "abcde",
-				AccessMode:     nstructs.CSIVolumeAccessModeSingleNodeWriter,
-				AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				VolumeID:        "1234-4321-1234-4321",
+				ClientCSINodeID: "abcde",
+				AccessMode:      nstructs.CSIVolumeAccessModeSingleNodeWriter,
+				AttachmentMode:  nstructs.CSIVolumeAttachmentModeFilesystem,
 			},
 			ExpectedResponse: &structs.ClientCSIControllerAttachVolumeResponse{
 				PublishContext: map[string]string{"foo": "bar"},
@@ -139,7 +155,7 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 			require.Nil(err)
 
 			var resp structs.ClientCSIControllerAttachVolumeResponse
-			err = client.ClientRPC("ClientCSI.CSIControllerAttachVolume", tc.Request, &resp)
+			err = client.ClientRPC("CSIController.AttachVolume", tc.Request, &resp)
 			require.Equal(tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
 				require.Equal(tc.ExpectedResponse, &resp)
@@ -148,7 +164,7 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 	}
 }
 
-func TestClientCSI_CSIControllerValidateVolume(t *testing.T) {
+func TestCSIController_ValidateVolume(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -161,14 +177,18 @@ func TestClientCSI_CSIControllerValidateVolume(t *testing.T) {
 		{
 			Name: "validates volumeid is not empty",
 			Request: &structs.ClientCSIControllerValidateVolumeRequest{
-				PluginID: fakePlugin.Name,
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
 			},
 			ExpectedErr: errors.New("VolumeID is required"),
 		},
 		{
 			Name: "returns plugin not found errors",
 			Request: &structs.ClientCSIControllerValidateVolumeRequest{
-				PluginID: "some-garbage",
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: "some-garbage",
+				},
 				VolumeID: "foo",
 			},
 			ExpectedErr: errors.New("plugin some-garbage for type csi-controller not found"),
@@ -176,7 +196,9 @@ func TestClientCSI_CSIControllerValidateVolume(t *testing.T) {
 		{
 			Name: "validates attachmentmode",
 			Request: &structs.ClientCSIControllerValidateVolumeRequest{
-				PluginID:       fakePlugin.Name,
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
 				VolumeID:       "1234-4321-1234-4321",
 				AttachmentMode: nstructs.CSIVolumeAttachmentMode("bar"),
 				AccessMode:     nstructs.CSIVolumeAccessModeMultiNodeReader,
@@ -186,7 +208,9 @@ func TestClientCSI_CSIControllerValidateVolume(t *testing.T) {
 		{
 			Name: "validates AccessMode",
 			Request: &structs.ClientCSIControllerValidateVolumeRequest{
-				PluginID:       fakePlugin.Name,
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
 				VolumeID:       "1234-4321-1234-4321",
 				AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
 				AccessMode:     nstructs.CSIVolumeAccessMode("foo"),
@@ -199,7 +223,9 @@ func TestClientCSI_CSIControllerValidateVolume(t *testing.T) {
 				fc.NextControllerValidateVolumeErr = errors.New("hello")
 			},
 			Request: &structs.ClientCSIControllerValidateVolumeRequest{
-				PluginID:       fakePlugin.Name,
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
 				VolumeID:       "1234-4321-1234-4321",
 				AccessMode:     nstructs.CSIVolumeAccessModeSingleNodeWriter,
 				AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
@@ -228,7 +254,7 @@ func TestClientCSI_CSIControllerValidateVolume(t *testing.T) {
 			require.Nil(err)
 
 			var resp structs.ClientCSIControllerValidateVolumeResponse
-			err = client.ClientRPC("ClientCSI.CSIControllerValidateVolume", tc.Request, &resp)
+			err = client.ClientRPC("CSIController.ValidateVolume", tc.Request, &resp)
 			require.Equal(tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
 				require.Equal(tc.ExpectedResponse, &resp)
