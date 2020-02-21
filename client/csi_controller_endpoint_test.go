@@ -18,7 +18,7 @@ var fakePlugin = &dynamicplugins.PluginInfo{
 	ConnectionInfo: &dynamicplugins.PluginConnectionInfo{},
 }
 
-func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
+func TestCSIController_AttachVolume(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -139,7 +139,7 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 			require.Nil(err)
 
 			var resp structs.ClientCSIControllerAttachVolumeResponse
-			err = client.ClientRPC("ClientCSI.CSIControllerAttachVolume", tc.Request, &resp)
+			err = client.ClientRPC("CSIController.AttachVolume", tc.Request, &resp)
 			require.Equal(tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
 				require.Equal(tc.ExpectedResponse, &resp)
@@ -148,7 +148,7 @@ func TestClientCSI_CSIControllerAttachVolume(t *testing.T) {
 	}
 }
 
-func TestClientCSI_CSIControllerValidateVolume(t *testing.T) {
+func TestCSIController_ValidateVolume(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -228,7 +228,7 @@ func TestClientCSI_CSIControllerValidateVolume(t *testing.T) {
 			require.Nil(err)
 
 			var resp structs.ClientCSIControllerValidateVolumeResponse
-			err = client.ClientRPC("ClientCSI.CSIControllerValidateVolume", tc.Request, &resp)
+			err = client.ClientRPC("CSIController.ValidateVolume", tc.Request, &resp)
 			require.Equal(tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
 				require.Equal(tc.ExpectedResponse, &resp)
