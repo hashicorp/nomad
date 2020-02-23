@@ -49,7 +49,7 @@ export default function Homepage() {
             icon: require('./img/why-nomad/modernize-legacy-applications.svg')
           },
           {
-            title: 'Easy Federation at scale',
+            title: 'Easy Federation at Scale',
             content:
               'Single command for multi-region, multi-cloud federation. Deploy applications globally to any region using Nomad as a single unified control plane.',
             icon: require('./img/why-nomad/federation.svg')
