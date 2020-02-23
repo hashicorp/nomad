@@ -6,7 +6,7 @@ export default function MiniCTA({ title, description, link }) {
       <div className="g-grid-container">
         <hr />
         <h5 className="g-type-display-4">{title}</h5>
-        {description ? <p className="g-type-body">{description}</p> : null}
+        {description && <p className="g-type-body">{description}</p>}
         <Button
           title={link.text}
           url={link.url}
