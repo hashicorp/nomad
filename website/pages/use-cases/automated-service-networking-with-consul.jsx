@@ -54,7 +54,7 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
 
       <TextSplitWithImage
         textSplit={{
-          heading: 'Secure service-to-service communication',
+          heading: 'Secure Service-to-Service Communication',
           content:
             'Enable seamless deployments of sidecar proxies and segmented microservices through Consul Connect.',
           textSide: 'right',
