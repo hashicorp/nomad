@@ -64,7 +64,7 @@ export default function NonContainerizedApplicationOrchestrationPage() {
 
       <TextSplitWithImage
         textSplit={{
-          heading: 'Run on-premise with ease',
+          heading: 'Run On-Premise with Ease',
           textSide: 'left',
           content:
             'Install and run Nomad easily on bare metal as a single binary and with the same ease as on cloud.'
