@@ -11,7 +11,7 @@
     padding-bottom: 64px;
   }
 
-  & .g-grid-container {
+  & .learn-container {
     @media (max-width: 1200px) {
       display: flex;
       flex-wrap: wrap;
