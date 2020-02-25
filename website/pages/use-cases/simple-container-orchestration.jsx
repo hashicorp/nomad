@@ -27,12 +27,13 @@ export default function SimpleContainerOrchestrationPage() {
           code: `
 task "webservice" {
   driver = "docker"
+
   config {
-        image = "redis:3.2"
-        labels {
-                group = "webservice-cache"
-              }
-      }
+    image = "redis:3.2"
+    labels {
+      group = "webservice-cache"
+    }
+  }
 }`,
           language: 'hcl'
         }}
