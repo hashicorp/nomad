@@ -3,9 +3,10 @@ import Button from '@hashicorp/react-button'
 export default function LearnNomad({ items }) {
   return (
     <div className="g-learn-nomad">
-      <div className="g-grid-container">
+      <div className="g-grid-container learn-container">
         <div className="column-container">
-          <div className="column info">
+          {/* need this wrapper to flex center the .column-content */}
+          <div>
             <div className="column-content">
               <h2 className="g-type-display-2">
                 Learn the latest Nomad skills
@@ -27,7 +28,7 @@ export default function LearnNomad({ items }) {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <div className="column course">
+                <div className="course">
                   <div className="image">
                     <div className="g-type-label-strong time">{item.time}</div>
                     <img src={item.image} alt={item.title} />
