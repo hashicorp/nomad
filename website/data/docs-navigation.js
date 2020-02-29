@@ -172,7 +172,8 @@ export default [
           'singularity',
           'jail-task-driver',
           'pot',
-          'firecracker-task-driver'
+          'firecracker-task-driver',
+          'nspawn'
         ]
       }
     ]
