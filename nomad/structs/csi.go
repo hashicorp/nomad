@@ -168,6 +168,8 @@ type CSIVolume struct {
 type CSIVolListStub struct {
 	ID                  string
 	Namespace           string
+	Name                string
+	ExternalID          string
 	Topologies          []*CSITopology
 	AccessMode          CSIVolumeAccessMode
 	AttachmentMode      CSIVolumeAttachmentMode
@@ -208,6 +210,8 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 	stub := CSIVolListStub{
 		ID:                 v.ID,
 		Namespace:          v.Namespace,
+		Name:               v.Name,
+		ExternalID:         v.ExternalID,
 		Topologies:         v.Topologies,
 		AccessMode:         v.AccessMode,
 		AttachmentMode:     v.AttachmentMode,
