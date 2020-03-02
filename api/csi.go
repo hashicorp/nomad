@@ -81,6 +81,8 @@ const (
 type CSIVolume struct {
 	ID             string
 	Namespace      string
+	Name           string
+	ExternalID     string
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
@@ -119,6 +121,8 @@ func (v CSIVolumeIndexSort) Swap(i, j int) {
 type CSIVolumeListStub struct {
 	ID                  string
 	Namespace           string
+	Name                string
+	ExternalID          string
 	Topologies          []*CSITopology
 	AccessMode          CSIVolumeAccessMode
 	AttachmentMode      CSIVolumeAttachmentMode
