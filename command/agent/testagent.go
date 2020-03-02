@@ -168,7 +168,7 @@ RETRY:
 	}
 
 	failed := false
-	if a.Config.NomadConfig.Bootstrap && a.Config.Server.Enabled {
+	if a.Config.NomadConfig.BootstrapExpect == 1 && a.Config.Server.Enabled {
 		testutil.WaitForResult(func() (bool, error) {
 			args := &structs.GenericRequest{}
 			var leader string
@@ -357,10 +357,6 @@ func (a *TestAgent) config() *Config {
 	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
 	config.ServerHealthInterval = 50 * time.Millisecond
 	config.AutopilotInterval = 100 * time.Millisecond
-
-	// Bootstrap ourselves
-	config.Bootstrap = true
-	config.BootstrapExpect = 1
 
 	// Tighten the fingerprinter timeouts
 	if conf.Client.Options == nil {

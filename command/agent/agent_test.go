@@ -166,14 +166,12 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.Server.BootstrapExpect = 1
 	out, err = a.serverConfig()
 	require.NoError(t, err)
-	require.True(t, out.Bootstrap)
-	require.Equal(t, int32(0), out.BootstrapExpect)
+	require.Equal(t, 1, out.BootstrapExpect)
 
 	conf.Server.BootstrapExpect = 3
 	out, err = a.serverConfig()
 	require.NoError(t, err)
-	require.False(t, out.Bootstrap)
-	require.Equal(t, int32(3), out.BootstrapExpect)
+	require.Equal(t, 3, out.BootstrapExpect)
 }
 
 func TestAgent_ServerConfig_SchedulerFlags(t *testing.T) {

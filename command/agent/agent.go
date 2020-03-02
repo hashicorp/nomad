@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -157,11 +156,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.NodeName = agentConfig.NodeName
 	}
 	if agentConfig.Server.BootstrapExpect > 0 {
-		if agentConfig.Server.BootstrapExpect == 1 {
-			conf.Bootstrap = true
-		} else {
-			atomic.StoreInt32(&conf.BootstrapExpect, int32(agentConfig.Server.BootstrapExpect))
-		}
+		conf.BootstrapExpect = agentConfig.Server.BootstrapExpect
 	}
 	if agentConfig.DataDir != "" {
 		conf.DataDir = filepath.Join(agentConfig.DataDir, "server")
