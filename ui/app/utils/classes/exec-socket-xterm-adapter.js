@@ -31,6 +31,10 @@ export default class ExecSocketXtermAdapter {
       console.log('Socket close event', e);
       // FIXME interpret different close events
     };
+
+    terminal.resized = () => {
+      this.sendTtySize();
+    };
   }
 
   sendTtySize() {
