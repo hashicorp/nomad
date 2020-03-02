@@ -109,12 +109,13 @@ func formatCSIVolumeList(vols []*api.CSIVolumeListStub) string {
 	sort.Slice(vols, func(i, j int) bool { return vols[i].ID < vols[j].ID })
 
 	rows := make([]string, len(vols)+1)
-	rows[0] = "ID|Plugin ID|Healthy|Access Mode"
+	rows[0] = "ID|Name|Plugin ID|Schedulable|Access Mode"
 	for i, v := range vols {
 		rows[i+1] = fmt.Sprintf("%s|%s|%t|%s",
 			v.ID,
+			v.Name,
 			v.PluginID,
-			v.Healthy,
+			v.Schedulable,
 			v.AccessMode,
 		)
 	}
