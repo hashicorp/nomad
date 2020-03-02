@@ -1,14 +1,15 @@
 /* Print Styles - Hide Elements */
 @media print {
   iframe,
+  .g-footer,
   .g-mega-nav,
   .g-product-subnav,
-  .g-footer,
+  .g-subnav,
   [aria-hidden='true'],
-  [id='sidebar'],
+  [id='__next-build-watcher'],
   [id='edit-this-page'],
   [id='jump-to-section'],
-  [id='__next-build-watcher'] {
+  [id='sidebar'] {
     display: none !important;
   }
 }
@@ -234,6 +235,16 @@
   .hljs {
     & * {
       color: inherit;
+    }
+  }
+}
+
+/* @todo: remove when working on website/components/docs-page/style.css */
+@media print {
+  #p-docs {
+    & #inner {
+      overflow: visible;
+      width: auto;
     }
   }
 }

@@ -15,11 +15,9 @@
   }
 
   & #inner {
-    @media screen {
-      margin: 64px 0;
-      overflow: auto;
-      width: 100%;
-    }
+    margin: 64px 0;
+    overflow: auto;
+    width: 100%;
 
     @media (min-width: 940px) {
       flex: 1;
