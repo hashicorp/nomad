@@ -33,7 +33,7 @@ Status Options:
     queried, and drops verbose information about allocations.
 
   -verbose
-    Display full information.
+    Display full allocation information.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -45,10 +45,8 @@ func (c *CSIVolumeStatusCommand) Synopsis() string {
 func (c *CSIVolumeStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-all-allocs": complete.PredictNothing,
-			"-evals":      complete.PredictNothing,
-			"-short":      complete.PredictNothing,
-			"-verbose":    complete.PredictNothing,
+			"-short":   complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
 		})
 }
 
@@ -81,7 +79,7 @@ func (c *CSIVolumeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we either got no jobs or exactly one.
+	// Check that we either got no volume ids or exactly one
 	args = flags.Args()
 	if len(args) > 1 {
 		c.Ui.Error("This command takes either no arguments or one: <volume id>")
@@ -102,16 +100,16 @@ func (c *CSIVolumeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Invoke list mode if no job ID.
+	// Invoke list mode if no volume id
 	if len(args) == 0 {
 		vols, _, err := client.CSIVolumes().List(nil)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying jobs: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
 			return 1
 		}
 
 		if len(vols) == 0 {
-			// No output if we have no jobs
+			// No output if we have no volumes
 			c.Ui.Output("No CSI volumes")
 		} else {
 			c.Ui.Output(formatCSIVolumeList(vols))
@@ -119,10 +117,8 @@ func (c *CSIVolumeStatusCommand) Run(args []string) int {
 		return 0
 	}
 
-	// Try querying the job
+	// Try querying the volume
 	volID := args[0]
-
-	// Lookup matched a single job
 	vol, _, err := client.CSIVolumes().Info(volID, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying volume: %s", err))
@@ -146,10 +142,10 @@ func (c *CSIVolumeStatusCommand) Run(args []string) int {
 func (v *CSIVolumeStatusCommand) formatBasic(vol *api.CSIVolume) []string {
 	return []string{
 		fmt.Sprintf("ID|%s", vol.ID),
-		// fmt.Sprintf("Name|%s", vol.Name),
-		// fmt.Sprintf("External ID|%s", vol.ExternalID),
+		fmt.Sprintf("Name|%s", vol.Name),
+		fmt.Sprintf("External ID|%s", vol.ExternalID),
 
-		fmt.Sprintf("Healthy|%t", vol.Healthy),
+		fmt.Sprintf("Schedulable|%t", vol.Schedulable),
 		fmt.Sprintf("Controllers Healthy|%d", vol.ControllersHealthy),
 		fmt.Sprintf("Controllers Expected|%d", vol.ControllersExpected),
 		fmt.Sprintf("Nodes Healthy|%d", vol.NodesHealthy),
