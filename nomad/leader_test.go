@@ -714,6 +714,7 @@ func TestLeader_ClusterID_upgradePath(t *testing.T) {
 		s, cleanup := TestServer(t, func(c *Config) {
 			c.NumSchedulers = 0
 			c.Build = after
+			c.BootstrapExpect = 0
 			c.Logger.SetLevel(hclog.Trace)
 		})
 		return server{s: s, cleanup: cleanup}
