@@ -245,6 +245,11 @@
     & #inner {
       overflow: visible;
       width: auto;
+
+      & pre,
+      & code {
+        font-size: 0.844rem;
+      }
     }
   }
 }
