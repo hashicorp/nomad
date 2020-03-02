@@ -186,10 +186,12 @@ func TestClientAllocations_GarbageCollectAll_Remote(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
@@ -432,10 +434,12 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
@@ -720,10 +724,12 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
@@ -915,10 +921,12 @@ func TestClientAllocations_Restart_Remote(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
@@ -1071,11 +1079,13 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	t.Parallel()
 
 	////// Nomad clusters topology - not specific to test
-	localServer, cleanupLS := TestServer(t, nil)
+	localServer, cleanupLS := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupLS()
 
 	remoteServer, cleanupRS := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupRS()
 

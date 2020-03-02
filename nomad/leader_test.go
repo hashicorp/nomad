@@ -23,16 +23,18 @@ import (
 )
 
 func TestLeader_LeftServer(t *testing.T) {
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
@@ -83,16 +85,18 @@ func TestLeader_LeftServer(t *testing.T) {
 }
 
 func TestLeader_LeftLeader(t *testing.T) {
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
@@ -135,10 +139,14 @@ func TestLeader_LeftLeader(t *testing.T) {
 }
 
 func TestLeader_MultiBootstrap(t *testing.T) {
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS1()
 
-	s2, cleanupS2 := TestServer(t, nil)
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS2()
 	servers := []*Server{s1, s2}
 	TestJoin(t, s1, s2)
@@ -162,16 +170,18 @@ func TestLeader_MultiBootstrap(t *testing.T) {
 }
 
 func TestLeader_PlanQueue_Reset(t *testing.T) {
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
@@ -223,13 +233,13 @@ func TestLeader_EvalBroker_Reset(t *testing.T) {
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
@@ -281,13 +291,13 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
@@ -691,29 +701,26 @@ func TestLeader_ClusterID_upgradePath(t *testing.T) {
 		cleanup func()
 	}
 
-	outdated := func(bootstrap bool) server {
+	outdated := func() server {
 		s, cleanup := TestServer(t, func(c *Config) {
 			c.NumSchedulers = 0
 			c.Build = before
-			c.DevDisableBootstrap = bootstrap
 			c.BootstrapExpect = 3
 			c.Logger.SetLevel(hclog.Trace)
 		})
 		return server{s: s, cleanup: cleanup}
 	}
 
-	upgraded := func(bootstrap bool) server {
+	upgraded := func() server {
 		s, cleanup := TestServer(t, func(c *Config) {
 			c.NumSchedulers = 0
 			c.Build = after
-			c.DevDisableBootstrap = bootstrap
-			c.BootstrapExpect = 3
 			c.Logger.SetLevel(hclog.Trace)
 		})
 		return server{s: s, cleanup: cleanup}
 	}
 
-	servers := []server{outdated(false), outdated(true), outdated(true)}
+	servers := []server{outdated(), outdated(), outdated()}
 	// fallback shutdown attempt in case testing fails
 	defer servers[0].cleanup()
 	defer servers[1].cleanup()
@@ -722,7 +729,7 @@ func TestLeader_ClusterID_upgradePath(t *testing.T) {
 	upgrade := func(i int) {
 		previous := servers[i]
 
-		servers[i] = upgraded(true)
+		servers[i] = upgraded()
 		TestJoin(t, servers[i].s, servers[(i+1)%3].s, servers[(i+2)%3].s)
 		testutil.WaitForLeader(t, servers[i].s.RPC)
 
@@ -809,7 +816,6 @@ func TestLeader_ClusterID_noUpgrade(t *testing.T) {
 		c.Logger.SetLevel(hclog.Trace)
 		c.NumSchedulers = 0
 		c.Build = minClusterIDVersion.String()
-		c.DevDisableBootstrap = true
 		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
@@ -817,7 +823,6 @@ func TestLeader_ClusterID_noUpgrade(t *testing.T) {
 		c.Logger.SetLevel(hclog.Trace)
 		c.NumSchedulers = 0
 		c.Build = minClusterIDVersion.String()
-		c.DevDisableBootstrap = true
 		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
@@ -1012,13 +1017,13 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 1
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer cleanupS3()
@@ -1054,7 +1059,7 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 
 	// Replace the dead server with one running raft protocol v3
 	s4, cleanupS4 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.Datacenter = "dc1"
 		c.RaftConfig.ProtocolVersion = 3
 	})
@@ -1111,14 +1116,12 @@ func leaderElectionTest(t *testing.T, raftProtocol raft.ProtocolVersion) {
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
-		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = raftProtocol
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
-		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = raftProtocol
 	})
 	defer cleanupS3() // todo(shoenig) added this, should be here right??
@@ -1170,13 +1173,13 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer cleanupS3()
@@ -1207,7 +1210,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 
 	// Replace the dead server with one running raft protocol v3
 	s4, cleanupS4 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS4()
@@ -1230,7 +1233,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	}
 	// Replace another dead server with one running raft protocol v3
 	s5, cleanupS5 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS5()
@@ -1254,7 +1257,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 
 	// Replace the last dead server with one running raft protocol v3
 	s6, cleanupS6 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS6()
@@ -1330,19 +1333,19 @@ func TestServer_ReconcileMember(t *testing.T) {
 
 	// Create a three node cluster
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer cleanupS3()
