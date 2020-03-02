@@ -2,6 +2,7 @@
   background: var(--gray-7);
   text-align: center;
   padding-bottom: 64px;
+  padding-top: 48px;
 
   & hr {
     width: 64px;
