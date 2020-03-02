@@ -433,7 +433,7 @@ func TestNomad_BadExpect(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		for _, s := range servers {
 			p, _ := s.numPeers()
-			if p != 1 {
+			if p != 0 {
 				return false, fmt.Errorf("%d", p)
 			}
 		}

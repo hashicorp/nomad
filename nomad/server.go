@@ -848,7 +848,7 @@ func (s *Server) setupBootstrapHandler() error {
 			// quorum has been reached, we do not need to poll
 			// Consul.  Let the normal timeout-based strategy
 			// take over.
-			if raftPeers >= int(bootstrapExpect) {
+			if raftPeers >= bootstrapExpect {
 				peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
 				return nil
 			}

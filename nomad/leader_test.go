@@ -139,14 +139,10 @@ func TestLeader_LeftLeader(t *testing.T) {
 }
 
 func TestLeader_MultiBootstrap(t *testing.T) {
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 2
-	})
+	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 
-	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 2
-	})
+	s2, cleanupS2 := TestServer(t, nil)
 	defer cleanupS2()
 	servers := []*Server{s1, s2}
 	TestJoin(t, s1, s2)
@@ -162,9 +158,12 @@ func TestLeader_MultiBootstrap(t *testing.T) {
 
 	// Ensure we don't have multiple raft peers
 	for _, s := range servers {
-		peers, _ := s.numPeers()
+		peers, err := s.numPeers()
+		if err != nil {
+			t.Fatalf("failed: %v", err)
+		}
 		if peers != 1 {
-			t.Fatalf("should only have 1 raft peer!")
+			t.Fatalf("should only have 1 raft peer! %v", peers)
 		}
 	}
 }
