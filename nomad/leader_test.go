@@ -1333,19 +1333,19 @@ func TestServer_ReconcileMember(t *testing.T) {
 
 	// Create a three node cluster
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 3
+		c.BootstrapExpect = 0
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 3
+		c.BootstrapExpect = 0
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 3
+		c.BootstrapExpect = 0
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer cleanupS3()
