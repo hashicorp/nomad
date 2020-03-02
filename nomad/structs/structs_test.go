@@ -2876,32 +2876,25 @@ func TestTaskLifecycleConfig_Validate(t *testing.T) {
 		{
 			name: "prestart completed",
 			tlc: &TaskLifecycleConfig{
-				Hook:       "prestart",
-				BlockUntil: "completed",
+				Hook:    "prestart",
+				Sidecar: false,
 			},
 			err: nil,
 		},
 		{
 			name: "prestart running",
 			tlc: &TaskLifecycleConfig{
-				Hook:       "prestart",
-				BlockUntil: "running",
+				Hook:    "prestart",
+				Sidecar: true,
 			},
 			err: nil,
 		},
 		{
 			name: "no hook",
 			tlc: &TaskLifecycleConfig{
-				BlockUntil: "completed",
+				Sidecar: true,
 			},
 			err: fmt.Errorf("no lifecycle hook provided"),
-		},
-		{
-			name: "no block until",
-			tlc: &TaskLifecycleConfig{
-				Hook: "prestart",
-			},
-			err: fmt.Errorf("no lifecycle block_until provided"),
 		},
 	}
 

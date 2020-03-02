@@ -278,8 +278,8 @@ func LifecycleSideTask(resources structs.Resources, i int) *structs.Task {
 			"command": "/bin/date",
 		},
 		Lifecycle: &structs.TaskLifecycleConfig{
-			Hook:       structs.TaskLifecycleHookPrestart,
-			BlockUntil: structs.TaskLifecycleBlockUntilRunning,
+			Hook:    structs.TaskLifecycleHookPrestart,
+			Sidecar: true,
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &resources,
@@ -294,8 +294,8 @@ func LifecycleInitTask(resources structs.Resources, i int) *structs.Task {
 			"command": "/bin/date",
 		},
 		Lifecycle: &structs.TaskLifecycleConfig{
-			Hook:       structs.TaskLifecycleHookPrestart,
-			BlockUntil: structs.TaskLifecycleBlockUntilCompleted,
+			Hook:    structs.TaskLifecycleHookPrestart,
+			Sidecar: false,
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &resources,
@@ -406,8 +406,8 @@ func LifecycleJob() *structs.Job {
 							"run_for": "1s",
 						},
 						Lifecycle: &structs.TaskLifecycleConfig{
-							Hook:       structs.TaskLifecycleHookPrestart,
-							BlockUntil: structs.TaskLifecycleBlockUntilRunning,
+							Hook:    structs.TaskLifecycleHookPrestart,
+							Sidecar: true,
 						},
 						LogConfig: structs.DefaultLogConfig(),
 						Resources: &structs.Resources{
@@ -422,8 +422,8 @@ func LifecycleJob() *structs.Job {
 							"run_for": "1s",
 						},
 						Lifecycle: &structs.TaskLifecycleConfig{
-							Hook:       structs.TaskLifecycleHookPrestart,
-							BlockUntil: structs.TaskLifecycleBlockUntilCompleted,
+							Hook:    structs.TaskLifecycleHookPrestart,
+							Sidecar: false,
 						},
 						LogConfig: structs.DefaultLogConfig(),
 						Resources: &structs.Resources{

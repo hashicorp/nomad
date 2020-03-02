@@ -2981,27 +2981,27 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 		Shared: a.Shared,
 	}
 
-	prestartUntilRunning := &AllocatedTaskResources{}
-	prestartUntilCompleted := &AllocatedTaskResources{}
+	prestartSidecarTasks := &AllocatedTaskResources{}
+	prestartEphemeralTasks := &AllocatedTaskResources{}
 	main := &AllocatedTaskResources{}
 
 	for taskName, r := range a.Tasks {
 		lc := a.TaskLifecycles[taskName]
 		if lc == nil {
 			main.Add(r)
-		} else if lc.Hook == TaskLifecycleHookPrestart && lc.BlockUntil == TaskLifecycleBlockUntilRunning {
-			prestartUntilRunning.Add(r)
-		} else if lc.Hook == TaskLifecycleHookPrestart && lc.BlockUntil == TaskLifecycleBlockUntilCompleted {
-			prestartUntilCompleted.Add(r)
-		} else {
-			panic("Unexpected type")
+		} else if lc.Hook == TaskLifecycleHookPrestart {
+			if lc.Sidecar {
+				prestartSidecarTasks.Add(r)
+			} else {
+				prestartEphemeralTasks.Add(r)
+			}
 		}
 	}
 
 	// update this loop to account for lifecycle hook
-	prestartUntilCompleted.Max(main)
-	prestartUntilRunning.Add(prestartUntilCompleted)
-	c.Flattened.Add(prestartUntilRunning)
+	prestartEphemeralTasks.Max(main)
+	prestartSidecarTasks.Add(prestartEphemeralTasks)
+	c.Flattened.Add(prestartSidecarTasks)
 
 	// Add network resources that are at the task group level
 	for _, network := range a.Shared.Networks {
@@ -4463,14 +4463,12 @@ func (d *DispatchPayloadConfig) Validate() error {
 }
 
 const (
-	TaskLifecycleHookPrestart        = "prestart"
-	TaskLifecycleBlockUntilRunning   = "running"
-	TaskLifecycleBlockUntilCompleted = "completed"
+	TaskLifecycleHookPrestart = "prestart"
 )
 
 type TaskLifecycleConfig struct {
-	Hook       string
-	BlockUntil string
+	Hook    string
+	Sidecar bool
 }
 
 func (d *TaskLifecycleConfig) Copy() *TaskLifecycleConfig {
@@ -4493,14 +4491,6 @@ func (d *TaskLifecycleConfig) Validate() error {
 		return fmt.Errorf("no lifecycle hook provided")
 	default:
 		return fmt.Errorf("invalid hook: %v", d.Hook)
-	}
-
-	switch d.BlockUntil {
-	case TaskLifecycleBlockUntilRunning, TaskLifecycleBlockUntilCompleted:
-	case "":
-		return fmt.Errorf("no lifecycle block_until provided")
-	default:
-		return fmt.Errorf("invalid block_until: %v", d.BlockUntil)
 	}
 
 	return nil

@@ -610,19 +610,17 @@ type DispatchPayloadConfig struct {
 }
 
 const (
-	TaskLifecycleHookPrestart        = "prestart"
-	TaskLifecycleBlockUntilRunning   = "running"
-	TaskLifecycleBlockUntilCompleted = "completed"
+	TaskLifecycleHookPrestart = "prestart"
 )
 
 type TaskLifecycle struct {
-	Hook       string `mapstructure:"hook"`
-	BlockUntil string `mapstructure:"block_until"`
+	Hook    string `mapstructure:"hook"`
+	Sidecar bool   `mapstructure:"sidecar"`
 }
 
 // Determine if lifecycle has user-input values
 func (l *TaskLifecycle) Empty() bool {
-	return l == nil || (l.Hook == "" && l.BlockUntil == "")
+	return l == nil || (l.Hook == "")
 }
 
 // Task is a single process in a task group.

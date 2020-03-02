@@ -673,7 +673,11 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 	for _, t := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks {
 		lc := "main"
 		if t.Lifecycle != nil {
-			lc = fmt.Sprintf("%s/%s", t.Lifecycle.Hook, t.Lifecycle.BlockUntil)
+			sidecar := ""
+			if t.Lifecycle.Sidecar {
+				sidecar = "sidecar"
+			}
+			lc = fmt.Sprintf("%s %s", t.Lifecycle.Hook, sidecar)
 		}
 		taskLifecycles[t.Name] = lc
 	}
