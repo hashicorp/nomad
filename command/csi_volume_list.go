@@ -111,7 +111,7 @@ func formatCSIVolumeList(vols []*api.CSIVolumeListStub) string {
 	rows := make([]string, len(vols)+1)
 	rows[0] = "ID|Name|Plugin ID|Schedulable|Access Mode"
 	for i, v := range vols {
-		rows[i+1] = fmt.Sprintf("%s|%s|%t|%s",
+		rows[i+1] = fmt.Sprintf("%s|%s|%s|%t|%s",
 			v.ID,
 			v.Name,
 			v.PluginID,
