@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-GIT_TAG="v1.2.0" # change as needed
+GIT_TAG="v1.3.4" # change as needed
 echo "Installing protobuf/protoc-gen-go@${GIT_TAG} ..."
 
 # Either fetch in existing repo or use go get to clone

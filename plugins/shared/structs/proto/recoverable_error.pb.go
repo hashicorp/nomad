@@ -3,9 +3,11 @@
 
 package proto
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -16,7 +18,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // RecoverableError is used with a grpc Status to indicate if the error is one
 // which is recoverable and can be reattempted by the client.
@@ -31,16 +33,17 @@ func (m *RecoverableError) Reset()         { *m = RecoverableError{} }
 func (m *RecoverableError) String() string { return proto.CompactTextString(m) }
 func (*RecoverableError) ProtoMessage()    {}
 func (*RecoverableError) Descriptor() ([]byte, []int) {
-	return fileDescriptor_recoverable_error_f746254fd69675b0, []int{0}
+	return fileDescriptor_82d0e8d3a57dbb3c, []int{0}
 }
+
 func (m *RecoverableError) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RecoverableError.Unmarshal(m, b)
 }
 func (m *RecoverableError) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_RecoverableError.Marshal(b, m, deterministic)
 }
-func (dst *RecoverableError) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RecoverableError.Merge(dst, src)
+func (m *RecoverableError) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RecoverableError.Merge(m, src)
 }
 func (m *RecoverableError) XXX_Size() int {
 	return xxx_messageInfo_RecoverableError.Size(m)
@@ -63,10 +66,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("plugins/shared/structs/proto/recoverable_error.proto", fileDescriptor_recoverable_error_f746254fd69675b0)
+	proto.RegisterFile("plugins/shared/structs/proto/recoverable_error.proto", fileDescriptor_82d0e8d3a57dbb3c)
 }
 
-var fileDescriptor_recoverable_error_f746254fd69675b0 = []byte{
+var fileDescriptor_82d0e8d3a57dbb3c = []byte{
 	// 138 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x32, 0x29, 0xc8, 0x29, 0x4d,
 	0xcf, 0xcc, 0x2b, 0xd6, 0x2f, 0xce, 0x48, 0x2c, 0x4a, 0x4d, 0xd1, 0x2f, 0x2e, 0x29, 0x2a, 0x4d,
