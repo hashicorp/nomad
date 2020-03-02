@@ -4,13 +4,12 @@ import NProgress from 'nprogress'
 import Router from 'next/router'
 import DefaultHeadTags from '../components/default-head-tags'
 import ProductSubnav from '../components/subnav'
-import MegaNav from '../components/mega-nav'
+import MegaNav from '@hashicorp/react-mega-nav'
 import Footer from '@hashicorp/react-footer'
 import { ConsentManager, open } from '@hashicorp/react-consent-manager'
 import consentManagerConfig from '../lib/consent-manager-config'
 import bugsnagClient from '../lib/bugsnag'
 import Error from './_error'
-import subnavLinks from '../data/subnav'
 
 Router.events.on('routeChangeStart', NProgress.start)
 Router.events.on('routeChangeError', NProgress.done)
@@ -40,7 +39,7 @@ class NextApp extends App {
   }
 
   render() {
-    const { Component, pageProps, path } = this.props
+    const { Component, pageProps } = this.props
 
     return (
       <ErrorBoundary FallbackComponent={Error}>
