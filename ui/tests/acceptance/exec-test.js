@@ -18,7 +18,7 @@ module('Acceptance | exec', function(hooks) {
 
   test('/exec/:job should show the region, namespace, and job name', async function(assert) {
     server.create('namespace');
-    const namespace = server.create('namespace');
+    let namespace = server.create('namespace');
 
     server.create('region', { id: 'global' });
     server.create('region', { id: 'region-2' });
@@ -72,13 +72,13 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('visiting a path with a task group should open the group by default', async function(assert) {
-    const taskGroup = this.job.task_groups.models[0];
+    let taskGroup = this.job.task_groups.models[0];
     await Exec.visitTaskGroup({ job: this.job.id, task_group: taskGroup.name });
 
     assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
 
-    const task = taskGroup.tasks.models[0];
+    let task = taskGroup.tasks.models[0];
     await Exec.visitTask({ job: this.job.id, task_group: taskGroup.name, task_name: task.name });
 
     assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
@@ -90,13 +90,13 @@ module('Acceptance | exec', function(hooks) {
     await Exec.taskGroups[0].click();
     await Exec.taskGroups[0].tasks[0].click();
 
-    const taskGroup = this.job.task_groups.models[0];
-    const task = taskGroup.tasks.models[0];
+    let taskGroup = this.job.task_groups.models[0];
+    let task = taskGroup.tasks.models[0];
 
-    const taskStates = this.server.db.taskStates.where({
+    let taskStates = this.server.db.taskStates.where({
       name: task.name,
     });
-    const allocationId = taskStates.find(ts => ts.allocationId).allocationId;
+    let allocationId = taskStates.find(ts => ts.allocationId).allocationId;
 
     await settled();
 
@@ -129,19 +129,19 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('an allocation can be specified', async function(assert) {
-    const taskGroup = this.job.task_groups.models[0];
-    const task = taskGroup.tasks.models[0];
-    const allocations = this.server.db.allocations.where({
+    let taskGroup = this.job.task_groups.models[0];
+    let task = taskGroup.tasks.models[0];
+    let allocations = this.server.db.allocations.where({
       jobId: this.job.id,
       taskGroup: taskGroup.name,
     });
-    const allocation = allocations[allocations.length - 1];
+    let allocation = allocations[allocations.length - 1];
 
-    const oldName = task.name;
+    let oldName = task.name;
     task.name = 'spaced name!';
     task.save();
 
-    const taskState = this.server.db.taskStates.update({ name: oldName }, { name: 'spaced name!' });
+    let taskState = this.server.db.taskStates.update({ name: oldName }, { name: 'spaced name!' });
 
     await Exec.visitTask({
       job: this.job.id,
@@ -162,7 +162,7 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('running the command opens the socket for reading/writing and detects it closing', async function(assert) {
-    const mockSocket = new Object({
+    let mockSocket = new Object({
       sent: [],
 
       send(message) {
@@ -170,7 +170,7 @@ module('Acceptance | exec', function(hooks) {
       },
     });
 
-    const mockSockets = Service.extend({
+    let mockSockets = Service.extend({
       getTaskStateSocket(taskState, command) {
         assert.equal(taskState.name, task.name);
         assert.equal(taskState.allocation.id, allocation.id);
@@ -185,13 +185,13 @@ module('Acceptance | exec', function(hooks) {
 
     this.owner.register('service:sockets', mockSockets);
 
-    const taskGroup = this.job.task_groups.models[0];
-    const task = taskGroup.tasks.models[0];
-    const allocations = this.server.db.allocations.where({
+    let taskGroup = this.job.task_groups.models[0];
+    let task = taskGroup.tasks.models[0];
+    let allocations = this.server.db.allocations.where({
       jobId: this.job.id,
       taskGroup: taskGroup.name,
     });
-    const allocation = allocations[allocations.length - 1];
+    let allocation = allocations[allocations.length - 1];
 
     await Exec.visitTask({
       job: this.job.id,
@@ -243,7 +243,7 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('the command can be customised', async function(assert) {
-    const mockSocket = new Object({
+    let mockSocket = new Object({
       sent: [],
 
       send(message) {
@@ -251,7 +251,7 @@ module('Acceptance | exec', function(hooks) {
       },
     });
 
-    const mockSockets = Service.extend({
+    let mockSockets = Service.extend({
       getTaskStateSocket(taskState, command) {
         assert.equal(command, '/sh');
 
@@ -267,9 +267,9 @@ module('Acceptance | exec', function(hooks) {
     await Exec.taskGroups[0].click();
     await Exec.taskGroups[0].tasks[0].click();
 
-    const taskGroup = this.job.task_groups.models[0];
-    const task = taskGroup.tasks.models[0];
-    const allocation = this.server.db.allocations.findBy({
+    let taskGroup = this.job.task_groups.models[0];
+    let task = taskGroup.tasks.models[0];
+    let allocation = this.server.db.allocations.findBy({
       jobId: this.job.id,
       taskGroup: taskGroup.name,
     });

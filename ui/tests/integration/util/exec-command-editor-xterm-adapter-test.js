@@ -15,7 +15,7 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
       <div id='terminal'></div>
     `);
 
-    const terminal = new Terminal({ cols: 10 });
+    let terminal = new Terminal({ cols: 10 });
     terminal.open(document.getElementById('terminal'));
 
     terminal.write('/bin/long-command');

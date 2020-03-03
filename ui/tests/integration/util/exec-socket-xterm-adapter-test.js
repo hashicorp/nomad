@@ -22,7 +22,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
 
     await settled();
 
-    const mockSocket = new Object({
+    let mockSocket = new Object({
       send(message) {
         assert.deepEqual(message, JSON.stringify({ tty_size: { width: 138, height: 24 } }));
         assert.equal(terminal.cols, 138);
