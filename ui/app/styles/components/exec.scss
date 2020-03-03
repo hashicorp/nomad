@@ -1,10 +1,19 @@
 .tree-and-terminal {
   display: flex;
+  height: 100%;
 
   .terminal-container {
     flex-grow: 1;
     background: black;
     padding: 16px;
+    height: 100%;
+    box-sizing: border-box;
+
+    .terminal {
+      box-sizing: border-box;
+      height: 100%;
+      // FIXME this produces a scrollbar when terminal output reaches the final lines 😞
+    }
   }
 }
 

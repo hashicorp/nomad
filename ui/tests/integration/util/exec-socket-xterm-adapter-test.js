@@ -24,7 +24,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
 
     let mockSocket = new Object({
       send(message) {
-        assert.deepEqual(message, JSON.stringify({ tty_size: { width: 138, height: 24 } }));
+        assert.deepEqual(message, JSON.stringify({ tty_size: { width: 138, height: 12 } }));
         assert.equal(terminal.cols, 138);
         done();
       },
@@ -34,7 +34,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
 
     let terminalElement = find('.terminal');
     terminalElement.style.width = '50%';
-    // FIXME height doesn’t work yet
+    terminalElement.style.height = '110px';
     window.dispatchEvent(new Event('resize'));
 
     await settled();
