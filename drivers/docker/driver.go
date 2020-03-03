@@ -636,7 +636,7 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 		// Otherwise, we assume we receive a relative path binding in the format
 		// relative/to/task:/also/in/container
 		if taskLocalBindVolume {
-			src = expandPath(task.TaskDir().Dir, src)
+			src = expandPath(task.TaskDir().Dir, src, runtime.GOOS)
 		} else {
 			// Resolve dotted path segments
 			src = filepath.Clean(src)
