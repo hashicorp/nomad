@@ -162,14 +162,7 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('running the command opens the socket for reading/writing and detects it closing', async function(assert) {
-    let mockSocket = new Object({
-      sent: [],
-
-      send(message) {
-        this.sent.push(message);
-      },
-    });
-
+    let mockSocket = new MockSocket();
     let mockSockets = Service.extend({
       getTaskStateSocket(taskState, command) {
         assert.equal(taskState.name, task.name);
@@ -243,18 +236,10 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('only one socket is opened after switching between tasks', async function(assert) {
-    let mockSocket = new Object({
-      sent: [],
-
-      send(message) {
-        this.sent.push(message);
-      },
-    });
-
     let mockSockets = Service.extend({
       getTaskStateSocket() {
         assert.step('Socket built');
-        return mockSocket;
+        return new MockSocket();
       },
     });
 
@@ -278,21 +263,13 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('the command can be customised', async function(assert) {
-    let mockSocket = new Object({
-      sent: [],
-
-      send(message) {
-        this.sent.push(message);
-      },
-    });
-
     let mockSockets = Service.extend({
       getTaskStateSocket(taskState, command) {
         assert.equal(command, '/sh');
 
         assert.step('Socket built');
 
-        return mockSocket;
+        return new MockSocket();
       },
     });
 
@@ -347,3 +324,11 @@ module('Acceptance | exec', function(hooks) {
     assert.verifySteps(['Socket built']);
   });
 });
+
+class MockSocket {
+  sent = [];
+
+  send(message) {
+    this.sent.push(message);
+  }
+}
