@@ -68,6 +68,47 @@ To nest sidebar items, you'll want to add a new `category` key/value accompanied
 
 There is currently a small bug with new page creation - if you create a new page and link it up via subnav data while the server is running, it will report an error saying the page was not found. This can be resolved by restarting the server.
 
+### Changing the Release Version
+
+To change the version of Nomad displayed for download on the website, head over to `data/version.js` and change the number there. It's important to note that the version number must match a version that has been released and is live on `releases.hashicorp.com` -- if it does not, the website will be unable to fetch links to the binaries and will not compile. So this version number should be changed _only after a release_.
+
+### Displaying a Prerelease
+
+If there is a prerelease of any type that should be displayed on the downloads page, this can be done by editing `pages/downloads/index.jsx`. By default, the download component might look something like this:
+
+```jsx
+<ProductDownloader
+  product="Nomad"
+  version={VERSION}
+  downloads={downloadData}
+  community="/resources"
+/>
+```
+
+To add a prerelease, an extra `prerelease` property can be added to the component as such:
+
+```jsx
+<ProductDownloader
+  product="Nomad"
+  version={VERSION}
+  downloads={downloadData}
+  community="/resources"
+  prerelease={{
+    type: 'release candidate', // the type of prerelease: beta, release candidate, etc.
+    name: 'v1.0.0', // the name displayed in text on the website
+    version: '1.0.0-rc1' // the actual version tag that was pushed to releases.hashicorp.com
+  }}
+/>
+```
+
+This configuration would display something like the following text on the website, emphasis added to the configurable parameters:
+
+```
+A {{ release candidate }} for Nomad {{ v1.0.0 }} is available! The release can be <a href='https://releases.hashicorp.com/nomad/{{ 1.0.0-rc1 }}'>downloaded here</a>.
+```
+
+You may customize the parameters in any way you'd like. To remove a prerelease from the website, simply delete the `prerelease` paremeter from the above component.
+
 ### Deployment
 
 This website is hosted on Netlify and configured to automatically deploy anytime you push code to the `stable-website` branch. Any time a pull request is submitted that changes files within the `website` folder, a deployment preview will appear in the github checks which can be used to validate the way docs changes will look live. Deployments from `stable-website` will look and behave the same way as deployment previews.
