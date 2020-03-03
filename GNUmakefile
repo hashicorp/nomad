@@ -124,12 +124,12 @@ pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 		-o "$@.exe"
 
 pkg/linux_ppc64le/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
-        @echo "==> Building $@ with tags $(GO_TAGS)..."
-        @CGO_ENABLED=1 GOOS=linux \
-                go build \
-                -ldflags $(GO_LDFLAGS) \
-                -tags "$(GO_TAGS)" \
-                -o "$@"
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
+	@CGO_ENABLED=1 GOOS=linux \
+		go build \
+		-ldflags $(GO_LDFLAGS) \
+		-tags "$(GO_TAGS)" \
+		-o "$@"
 
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget
