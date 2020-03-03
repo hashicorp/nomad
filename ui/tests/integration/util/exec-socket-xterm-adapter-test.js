@@ -26,6 +26,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
       send(message) {
         assert.deepEqual(message, JSON.stringify({ tty_size: { width: 138, height: 12 } }));
         assert.equal(terminal.cols, 138);
+        assert.equal(terminal.rows, 12);
         done();
       },
     });
