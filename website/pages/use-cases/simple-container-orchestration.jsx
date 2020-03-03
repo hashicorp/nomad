@@ -7,7 +7,7 @@ export default function SimpleContainerOrchestrationPage() {
   return (
     <UseCasesLayout
       title="Simple Container Orchestration"
-      description="Nomad runs as a 35 MB single binary with a small resource footprint. Developers use a declarative job specification to define how an application should be deployed.  Nomad handles deployment and automatically recovers applications from failures."
+      description="Nomad runs as a single binary with a small resource footprint. Developers use a declarative job specification to define how an application should be deployed.  Nomad handles deployment and automatically recovers applications from failures."
     >
       <TextSplitWithCode
         textSplit={{
