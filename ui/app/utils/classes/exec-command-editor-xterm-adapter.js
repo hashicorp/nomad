@@ -42,4 +42,8 @@ export default class ExecCommandEditorXtermAdapter {
       this.command = `${this.command}${e.key}`;
     }
   }
+
+  destroy() {
+    this.keyListener.dispose();
+  }
 }

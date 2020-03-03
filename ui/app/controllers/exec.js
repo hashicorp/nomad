@@ -58,7 +58,11 @@ export default Controller.extend({
 
       this.terminal.write('/bin/bash');
 
-      new ExecCommandEditorXtermAdapter(
+      if (this.commandEditorAdapter) {
+        this.commandEditorAdapter.destroy();
+      }
+
+      this.commandEditorAdapter = new ExecCommandEditorXtermAdapter(
         this.terminal,
         this.openAndConnectSocket.bind(this),
         '/bin/bash'

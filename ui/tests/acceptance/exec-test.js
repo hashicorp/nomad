@@ -242,6 +242,41 @@ module('Acceptance | exec', function(hooks) {
     );
   });
 
+  test('only one socket is opened after switching between tasks', async function(assert) {
+    let mockSocket = new Object({
+      sent: [],
+
+      send(message) {
+        this.sent.push(message);
+      },
+    });
+
+    let mockSockets = Service.extend({
+      getTaskStateSocket() {
+        assert.step('Socket built');
+        return mockSocket;
+      },
+    });
+
+    this.owner.register('service:sockets', mockSockets);
+
+    await Exec.visitJob({
+      job: this.job.id,
+    });
+
+    await settled();
+
+    await Exec.taskGroups[0].click();
+    await Exec.taskGroups[0].tasks[0].click();
+
+    await Exec.taskGroups[1].click();
+    await Exec.taskGroups[1].tasks[0].click();
+
+    await Exec.terminal.pressEnter();
+
+    assert.verifySteps(['Socket built']);
+  });
+
   test('the command can be customised', async function(assert) {
     let mockSocket = new Object({
       sent: [],
