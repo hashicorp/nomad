@@ -9,7 +9,7 @@ import (
 func TestCSIVolumeClaim(t *testing.T) {
 	vol := NewCSIVolume("", 0)
 	vol.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
-	vol.Healthy = true
+	vol.Schedulable = true
 
 	alloc := &Allocation{ID: "al"}
 
