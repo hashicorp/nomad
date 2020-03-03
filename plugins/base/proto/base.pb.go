@@ -560,7 +560,9 @@ var _BasePlugin_serviceDesc = grpc.ServiceDesc{
 	Metadata: "plugins/base/proto/base.proto",
 }
 
-func init() { proto.RegisterFile("plugins/base/proto/base.proto", fileDescriptor_base_6a1a5ff99a0b9e5d) }
+func init() {
+	proto.RegisterFile("plugins/base/proto/base.proto", fileDescriptor_base_6a1a5ff99a0b9e5d)
+}
 
 var fileDescriptor_base_6a1a5ff99a0b9e5d = []byte{
 	// 535 bytes of a gzipped FileDescriptorProto

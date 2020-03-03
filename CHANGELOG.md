@@ -2,6 +2,7 @@
 
 IMPROVEMENTS:
 
+ * build: Updated to Go 1.14 [[GH-7247](https://github.com/hashicorp/nomad/issues/7247)]
  * consul: Added support for configuring `enable_tag_override` on service stanzas. [[GH-2057](https://github.com/hashicorp/nomad/issues/2057)]
 
 BUG FIXES:
