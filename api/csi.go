@@ -81,6 +81,8 @@ const (
 type CSIVolume struct {
 	ID             string
 	Namespace      string
+	Name           string
+	ExternalID     string
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
@@ -88,11 +90,9 @@ type CSIVolume struct {
 	// Combine structs.{Read,Write,Past}Allocs
 	Allocations []*AllocationListStub
 
-	// Healthy is true iff all the denormalized plugin health fields are true, and the
-	// volume has not been marked for garbage collection
-	Healthy             bool
-	VolumeGC            time.Time
+	Schedulable         bool
 	PluginID            string
+	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
 	NodesHealthy        int
@@ -119,17 +119,16 @@ func (v CSIVolumeIndexSort) Swap(i, j int) {
 
 // CSIVolumeListStub omits allocations. See also nomad/structs/csi.go
 type CSIVolumeListStub struct {
-	ID             string
-	Namespace      string
-	Topologies     []*CSITopology
-	AccessMode     CSIVolumeAccessMode
-	AttachmentMode CSIVolumeAttachmentMode
-
-	// Healthy is true iff all the denormalized plugin health fields are true, and the
-	// volume has not been marked for garbage collection
-	Healthy             bool
-	VolumeGC            time.Time
+	ID                  string
+	Namespace           string
+	Name                string
+	ExternalID          string
+	Topologies          []*CSITopology
+	AccessMode          CSIVolumeAccessMode
+	AttachmentMode      CSIVolumeAttachmentMode
+	Schedulable         bool
 	PluginID            string
+	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
 	NodesHealthy        int
@@ -156,7 +155,8 @@ type CSIPlugins struct {
 }
 
 type CSIPlugin struct {
-	ID string
+	ID                 string
+	ControllerRequired bool
 	// Map Node.ID to CSIInfo fingerprint results
 	Controllers        map[string]*CSIInfo
 	Nodes              map[string]*CSIInfo
@@ -168,6 +168,7 @@ type CSIPlugin struct {
 
 type CSIPluginListStub struct {
 	ID                  string
+	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
 	NodesHealthy        int
