@@ -88,10 +88,12 @@ func TestServerWithNodeConn_NoPath(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
@@ -122,10 +124,12 @@ func TestServerWithNodeConn_Path(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
@@ -174,14 +178,16 @@ func TestServerWithNodeConn_Path_Newest(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	TestJoin(t, s1, s2, s3)
@@ -208,14 +214,16 @@ func TestServerWithNodeConn_PathAndErr(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	TestJoin(t, s1, s2, s3)
@@ -242,14 +250,16 @@ func TestServerWithNodeConn_NoPathAndErr(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	TestJoin(t, s1, s2, s3)

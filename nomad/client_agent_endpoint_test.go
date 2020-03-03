@@ -30,10 +30,12 @@ func TestMonitor_Monitor_Remote_Client(t *testing.T) {
 	require := require.New(t)
 
 	// start server and client
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
@@ -125,15 +127,16 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 	foreignRegion := "foo"
 
 	// start servers
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
 		c.Region = foreignRegion
 	})
 	defer cleanupS3()
@@ -516,12 +519,12 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 
 	// start server and client
 	s1, cleanup := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanup()
 
 	s2, cleanup := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanup()
 
@@ -640,12 +643,13 @@ func TestAgentProfile_Server(t *testing.T) {
 
 	// start servers
 	s1, cleanup := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
 		c.EnableDebug = true
 	})
 	defer cleanup()
 
 	s2, cleanup := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 		c.EnableDebug = true
 	})
 	defer cleanup()

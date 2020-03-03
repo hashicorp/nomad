@@ -822,7 +822,7 @@ func (s *Server) setupBootstrapHandler() error {
 
 		// (ab)use serf.go's behavior of setting BootstrapExpect to
 		// zero if we have bootstrapped.  If we have bootstrapped
-		bootstrapExpect := atomic.LoadInt32(&s.config.BootstrapExpect)
+		bootstrapExpect := s.config.BootstrapExpect
 		if bootstrapExpect == 0 {
 			// This Nomad Server has been bootstrapped.  Rely on
 			// the peersTimeout firing as a guard to prevent
@@ -848,7 +848,7 @@ func (s *Server) setupBootstrapHandler() error {
 			// quorum has been reached, we do not need to poll
 			// Consul.  Let the normal timeout-based strategy
 			// take over.
-			if raftPeers >= int(bootstrapExpect) {
+			if raftPeers >= bootstrapExpect {
 				peersTimeout.Reset(peersPollInterval + lib.RandomStagger(peersPollInterval/peersPollJitterFactor))
 				return nil
 			}
@@ -1275,9 +1275,9 @@ func (s *Server) setupRaft() error {
 		}
 	}
 
-	// If we are in bootstrap or dev mode and the state is clean then we can
+	// If we are a single server cluster and the state is clean then we can
 	// bootstrap now.
-	if s.config.Bootstrap || s.config.DevMode {
+	if s.isSingleServerCluster() {
 		hasState, err := raft.HasExistingState(log, stable, snap)
 		if err != nil {
 			return err
@@ -1320,10 +1320,10 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	conf.Tags["id"] = s.config.NodeID
 	conf.Tags["rpc_addr"] = s.clientRpcAdvertise.(*net.TCPAddr).IP.String()         // Address that clients will use to RPC to servers
 	conf.Tags["port"] = fmt.Sprintf("%d", s.serverRpcAdvertise.(*net.TCPAddr).Port) // Port servers use to RPC to one and another
-	if s.config.Bootstrap || (s.config.DevMode && !s.config.DevDisableBootstrap) {
+	if s.isSingleServerCluster() {
 		conf.Tags["bootstrap"] = "1"
 	}
-	bootstrapExpect := atomic.LoadInt32(&s.config.BootstrapExpect)
+	bootstrapExpect := s.config.BootstrapExpect
 	if bootstrapExpect != 0 {
 		conf.Tags["expect"] = fmt.Sprintf("%d", bootstrapExpect)
 	}
@@ -1524,7 +1524,7 @@ func (s *Server) Stats() map[string]map[string]string {
 			"server":        "true",
 			"leader":        fmt.Sprintf("%v", s.IsLeader()),
 			"leader_addr":   string(s.raft.Leader()),
-			"bootstrap":     fmt.Sprintf("%v", s.config.Bootstrap),
+			"bootstrap":     fmt.Sprintf("%v", s.isSingleServerCluster()),
 			"known_regions": toString(uint64(len(s.peers))),
 		},
 		"raft":    s.raft.Stats(),
@@ -1615,6 +1615,10 @@ func (s *Server) ClusterID() (string, error) {
 	}
 
 	return generatedID, nil
+}
+
+func (s *Server) isSingleServerCluster() bool {
+	return s.config.BootstrapExpect == 1
 }
 
 // peersInfoContent is used to help operators understand what happened to the
