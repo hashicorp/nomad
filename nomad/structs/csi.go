@@ -137,7 +137,12 @@ func ValidCSIVolumeWriteAccessMode(accessMode CSIVolumeAccessMode) bool {
 
 // CSIVolume is the full representation of a CSI Volume
 type CSIVolume struct {
-	ID             string
+	// ID is a namespace unique URL safe identifier for the volume
+	ID string
+	// Name is a display name for the volume, not required to be unique
+	Name string
+	// ExternalID identifies the volume for the CSI interface, may be URL unsafe
+	ExternalID     string
 	Namespace      string
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode
@@ -147,10 +152,9 @@ type CSIVolume struct {
 	ReadAllocs  map[string]*Allocation
 	WriteAllocs map[string]*Allocation
 
-	// Healthy is true if all the denormalized plugin health fields are true, and the
+	// Schedulable is true if all the denormalized plugin health fields are true, and the
 	// volume has not been marked for garbage collection
-	Healthy             bool
-	VolumeGC            time.Time
+	Schedulable         bool
 	PluginID            string
 	ControllerRequired  bool
 	ControllersHealthy  int
@@ -167,13 +171,14 @@ type CSIVolume struct {
 type CSIVolListStub struct {
 	ID                  string
 	Namespace           string
+	Name                string
+	ExternalID          string
 	Topologies          []*CSITopology
 	AccessMode          CSIVolumeAccessMode
 	AttachmentMode      CSIVolumeAttachmentMode
 	CurrentReaders      int
 	CurrentWriters      int
-	Healthy             bool
-	VolumeGC            time.Time
+	Schedulable         bool
 	PluginID            string
 	ControllersHealthy  int
 	ControllersExpected int
@@ -208,13 +213,14 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 	stub := CSIVolListStub{
 		ID:                 v.ID,
 		Namespace:          v.Namespace,
+		Name:               v.Name,
+		ExternalID:         v.ExternalID,
 		Topologies:         v.Topologies,
 		AccessMode:         v.AccessMode,
 		AttachmentMode:     v.AttachmentMode,
 		CurrentReaders:     len(v.ReadAllocs),
 		CurrentWriters:     len(v.WriteAllocs),
-		Healthy:            v.Healthy,
-		VolumeGC:           v.VolumeGC,
+		Schedulable:        v.Schedulable,
 		PluginID:           v.PluginID,
 		ControllersHealthy: v.ControllersHealthy,
 		NodesHealthy:       v.NodesHealthy,
@@ -227,7 +233,7 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 }
 
 func (v *CSIVolume) CanReadOnly() bool {
-	if !v.Healthy {
+	if !v.Schedulable {
 		return false
 	}
 
@@ -235,7 +241,7 @@ func (v *CSIVolume) CanReadOnly() bool {
 }
 
 func (v *CSIVolume) CanWrite() bool {
-	if !v.Healthy {
+	if !v.Schedulable {
 		return false
 	}
 
@@ -555,6 +561,7 @@ func (p *CSIPlugin) DeleteNode(nodeID string) {
 
 type CSIPluginListStub struct {
 	ID                  string
+	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
 	NodesHealthy        int
@@ -566,6 +573,7 @@ type CSIPluginListStub struct {
 func (p *CSIPlugin) Stub() *CSIPluginListStub {
 	return &CSIPluginListStub{
 		ID:                  p.ID,
+		ControllerRequired:  p.ControllerRequired,
 		ControllersHealthy:  p.ControllersHealthy,
 		ControllersExpected: len(p.Controllers),
 		NodesHealthy:        p.NodesHealthy,

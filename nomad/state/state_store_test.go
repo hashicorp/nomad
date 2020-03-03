@@ -2837,7 +2837,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	v0.ID = id0
 	v0.Namespace = "default"
 	v0.PluginID = "minnie"
-	v0.Healthy = true
+	v0.Schedulable = true
 	v0.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v0.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 
@@ -2846,7 +2846,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	v1.ID = id1
 	v1.Namespace = "default"
 	v1.PluginID = "adam"
-	v1.Healthy = true
+	v1.Schedulable = true
 	v1.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v1.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 
