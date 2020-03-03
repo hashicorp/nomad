@@ -49,7 +49,7 @@ func DefaultRPCAddr() *net.TCPAddr {
 
 // Config is used to parameterize the server
 type Config struct {
-	// Bootstrapped indictes if Server has bootstrapped or not.
+	// Bootstrapped indicates if Server has bootstrapped or not.
 	// Its value must be 0 (not bootstrapped) or 1 (bootstrapped).
 	// All operations on Bootstrapped must be handled via `atomic.*Int32()` calls
 	Bootstrapped int32
