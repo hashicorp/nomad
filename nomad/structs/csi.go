@@ -137,10 +137,13 @@ func ValidCSIVolumeWriteAccessMode(accessMode CSIVolumeAccessMode) bool {
 
 // CSIVolume is the full representation of a CSI Volume
 type CSIVolume struct {
-	ID             string
-	Namespace      string
-	Name           string
+	// ID is a namespace unique URL safe identifier for the volume
+	ID string
+	// Name is a display name for the volume, not required to be unique
+	Name string
+	// ExternalID identifies the volume for the CSI interface, may be URL unsafe
 	ExternalID     string
+	Namespace      string
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
