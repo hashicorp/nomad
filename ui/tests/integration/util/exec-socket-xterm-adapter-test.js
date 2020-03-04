@@ -18,8 +18,6 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
       {{exec-terminal terminal=terminal}}
     `);
 
-    terminal.write('/bin/long-command');
-
     await settled();
 
     let mockSocket = new Object({
