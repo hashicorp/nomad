@@ -4,50 +4,54 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
 
-type CSIVolumeDeregisterCommand struct {
+type VolumeDeregisterCommand struct {
 	Meta
 }
 
-func (c *CSIVolumeDeregisterCommand) Help() string {
+func (c *VolumeDeregisterCommand) Help() string {
 	helpText := `
-Usage: nomad csi volume deregister [options] <input>
+Usage: nomad volume deregister [options] <id>
 
-  Deregister is used to create or update a CSI volume specification. The volume
-  must exist on the remote storage provider before it can be used by a task.
-  The specification file will be read from stdin by specifying "-", otherwise
-  a path to the file is expected.
+  Deregister is used to remove a volume from the server.
 
 General Options:
 
-  ` + generalOptionsUsage() + `
-
-Deregister Options:
-`
+  ` + generalOptionsUsage()
 
 	return strings.TrimSpace(helpText)
 }
 
-func (c *CSIVolumeDeregisterCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{
-			"-json": complete.PredictNothing,
-		})
+func (c *VolumeDeregisterCommand) AutocompleteFlags() complete.Flags {
+	return c.Meta.AutocompleteFlags(FlagSetClient)
 }
 
-func (c *CSIVolumeDeregisterCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFiles("*")
+func (c *VolumeDeregisterCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		// When multiple volume types are implemented, this search should merge contexts
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.CSIVolumes, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.CSIVolumes]
+	})
 }
 
-func (c *CSIVolumeDeregisterCommand) Synopsis() string {
-	return "Create or update a CSI volume specification"
+func (c *VolumeDeregisterCommand) Synopsis() string {
+	return "Remove a volume specification"
 }
 
-func (c *CSIVolumeDeregisterCommand) Name() string { return "csi volume deregister" }
+func (c *VolumeDeregisterCommand) Name() string { return "volume deregister" }
 
-func (c *CSIVolumeDeregisterCommand) Run(args []string) int {
+func (c *VolumeDeregisterCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
@@ -58,7 +62,7 @@ func (c *CSIVolumeDeregisterCommand) Run(args []string) int {
 	// Check that we get exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error("This command takes one argument: <volume id>")
+		c.Ui.Error("This command takes one argument: <id>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -71,6 +75,8 @@ func (c *CSIVolumeDeregisterCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Deregister only works on CSI volumes, but could be extended to support other
+	// network interfaces or host volumes
 	err = client.CSIVolumes().Deregister(volID, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deregistering volume: %s", err))
