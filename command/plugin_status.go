@@ -36,6 +36,7 @@ Status Options:
   -verbose
     Display full information.
 `
+	return helpText
 }
 
 func (c *PluginStatusCommand) Synopsis() string {
@@ -45,7 +46,7 @@ func (c *PluginStatusCommand) Synopsis() string {
 func (c *PluginStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-type":    complete.PredictAnything,
+			"-type":    complete.PredictAnything, // FIXME predict type
 			"-short":   complete.PredictNothing,
 			"-verbose": complete.PredictNothing,
 		})
@@ -66,7 +67,7 @@ func (c *PluginStatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (c *PluginStatusCommand) Name() string { return "plugin-status" }
+func (c *PluginStatusCommand) Name() string { return "plugin status" }
 
 func (c *PluginStatusCommand) Run(args []string) int {
 	var short bool
@@ -106,10 +107,9 @@ func (c *PluginStatusCommand) Run(args []string) int {
 	}
 
 	c.Ui.Output(c.Colorize().Color("\n[bold]Container Storage Interface[reset]"))
-	err := c.csiStatus(client, short, args[0])
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
+	code := c.csiStatus(client, short, args[0])
+	if code != 0 {
+		return code
 	}
 
 	if typeArg == "csi" {

@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 )
 
-func (c *CSIPluginStatusCommand) csiStatus(client *api.Client, short bool, id string) int {
+func (c *PluginStatusCommand) csiStatus(client *api.Client, short bool, id string) int {
 	if id == "" {
 		plugs, _, err := client.CSIPlugins().List(nil)
 		if err != nil {
@@ -19,7 +19,7 @@ func (c *CSIPluginStatusCommand) csiStatus(client *api.Client, short bool, id st
 			// No output if we have no jobs
 			c.Ui.Output("No CSI plugins")
 		} else {
-			c.Ui.Output(formatCSIPluginList(plugs))
+			c.Ui.Output(c.csiFormatPlugins(plugs))
 		}
 		return 0
 	}
@@ -31,7 +31,7 @@ func (c *CSIPluginStatusCommand) csiStatus(client *api.Client, short bool, id st
 		return 1
 	}
 
-	c.Ui.Output(formatKV(c.formatBasic(plug)))
+	c.Ui.Output(formatKV(c.csiFormatPlugin(plug)))
 
 	// Exit early
 	if short {
