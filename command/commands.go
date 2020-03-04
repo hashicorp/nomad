@@ -201,51 +201,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"csi": func() (cli.Command, error) {
-			return &CSICommand{
-				Meta: meta,
-			}, nil
-		},
-		"csi plugin": func() (cli.Command, error) {
-			return &CSIPluginCommand{
-				Meta: meta,
-			}, nil
-		},
-		"csi plugin list": func() (cli.Command, error) {
-			return &CSIPluginListCommand{
-				Meta: meta,
-			}, nil
-		},
-		"csi plugin status": func() (cli.Command, error) {
-			return &CSIPluginStatusCommand{
-				Meta: meta,
-			}, nil
-		},
-		"csi volume": func() (cli.Command, error) {
-			return &CSIVolumeCommand{
-				Meta: meta,
-			}, nil
-		},
-		"csi volume list": func() (cli.Command, error) {
-			return &CSIVolumeListCommand{
-				Meta: meta,
-			}, nil
-		},
-		"csi volume status": func() (cli.Command, error) {
-			return &CSIVolumeStatusCommand{
-				Meta: meta,
-			}, nil
-		},
-		"csi volume register": func() (cli.Command, error) {
-			return &CSIVolumeRegisterCommand{
-				Meta: meta,
-			}, nil
-		},
-		"csi volume deregister": func() (cli.Command, error) {
-			return &CSIVolumeDeregisterCommand{
-				Meta: meta,
-			}, nil
-		},
 		"deployment": func() (cli.Command, error) {
 			return &DeploymentCommand{
 				Meta: meta,
@@ -538,6 +493,17 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"plugin": func() (cli.Command, error) {
+			return &PluginCommand{
+				Meta: meta,
+			}, nil
+		},
+		"plugin status": func() (cli.Command, error) {
+			return &PluginStatusCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"quota": func() (cli.Command, error) {
 			return &QuotaCommand{
 				Meta: meta,
@@ -689,6 +655,26 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 			return &VersionCommand{
 				Version: version.GetVersion(),
 				Ui:      meta.Ui,
+			}, nil
+		},
+		"volume": func() (cli.Command, error) {
+			return &VolumeCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume status": func() (cli.Command, error) {
+			return &VolumeStatusCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume register": func() (cli.Command, error) {
+			return &VolumeRegisterCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume deregister": func() (cli.Command, error) {
+			return &VolumeDeregisterCommand{
+				Meta: meta,
 			}, nil
 		},
 	}
