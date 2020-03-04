@@ -50,6 +50,14 @@ export default create({
     address: text('[data-test-task-address-address]'),
   }),
 
+  hasVolumes: isPresent('[data-test-volumes]'),
+  volumes: collection('[data-test-volume]', {
+    name: text('[data-test-volume-name]'),
+    destination: text('[data-test-volume-destination]'),
+    permissions: text('[data-test-volume-permissions]'),
+    clientSource: text('[data-test-volume-client-source]'),
+  }),
+
   events: collection('[data-test-task-event]', {
     time: text('[data-test-task-event-time]'),
     type: text('[data-test-task-event-type]'),

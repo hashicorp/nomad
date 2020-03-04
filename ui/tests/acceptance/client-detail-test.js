@@ -150,6 +150,7 @@ module('Acceptance | client detail', function(hooks) {
     assert.equal(allocationRow.job, server.db.jobs.find(allocation.jobId).name, 'Job name');
     assert.ok(allocationRow.taskGroup, 'Task group name');
     assert.ok(allocationRow.jobVersion, 'Job Version');
+    assert.equal(allocationRow.volume, 'Yes', 'Volume');
     assert.equal(
       allocationRow.cpu,
       Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
@@ -899,6 +900,44 @@ module('Acceptance | client detail', function(hooks) {
     await ClientDetail.visit({ id: node.id });
     assert.ok(ClientDetail.eligibilityToggle.isDisabled);
     assert.ok(ClientDetail.drainPopover.isDisabled);
+  });
+
+  test('the host volumes table lists all host volumes in alphabetical order by name', async function(assert) {
+    await ClientDetail.visit({ id: node.id });
+
+    const sortedHostVolumes = Object.keys(node.hostVolumes)
+      .map(key => node.hostVolumes[key])
+      .sortBy('Name');
+
+    assert.ok(ClientDetail.hasHostVolumes);
+    assert.equal(ClientDetail.hostVolumes.length, Object.keys(node.hostVolumes).length);
+
+    ClientDetail.hostVolumes.forEach((volume, index) => {
+      assert.equal(volume.name, sortedHostVolumes[index].Name);
+    });
+  });
+
+  test('each host volume row contains information about the host volume', async function(assert) {
+    await ClientDetail.visit({ id: node.id });
+
+    const sortedHostVolumes = Object.keys(node.hostVolumes)
+      .map(key => node.hostVolumes[key])
+      .sortBy('Name');
+
+    ClientDetail.hostVolumes[0].as(volume => {
+      const volumeRow = sortedHostVolumes[0];
+      assert.equal(volume.name, volumeRow.Name);
+      assert.equal(volume.path, volumeRow.Path);
+      assert.equal(volume.permissions, volumeRow.ReadOnly ? 'Read' : 'Read/Write');
+    });
+  });
+
+  test('the host volumes table is not shown if the client has no host volumes', async function(assert) {
+    node = server.create('node', 'noHostVolumes');
+
+    await ClientDetail.visit({ id: node.id });
+
+    assert.notOk(ClientDetail.hasHostVolumes);
   });
 });
 

@@ -45,10 +45,12 @@ func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
 func TestRPC_forwardLeader(t *testing.T) {
 	t.Parallel()
 
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
@@ -259,10 +261,12 @@ func TestRPC_streamingRpcConn_badMethod(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
@@ -298,7 +302,6 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
@@ -315,7 +318,6 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
@@ -354,7 +356,6 @@ func TestRPC_streamingRpcConn_goodMethod_Plaintext(t *testing.T) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 	})
 	defer cleanupS1()
@@ -363,7 +364,6 @@ func TestRPC_streamingRpcConn_goodMethod_Plaintext(t *testing.T) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 	})
 	defer cleanupS2()
@@ -414,7 +414,6 @@ func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
@@ -431,7 +430,6 @@ func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,

@@ -217,6 +217,19 @@ func NewDefaultReschedulePolicy(jobType string) *ReschedulePolicy {
 			MaxDelay:      timeToPtr(0),
 			Unlimited:     boolToPtr(false),
 		}
+
+	default:
+		// GH-7203: it is possible an unknown job type is passed to this
+		// function and we need to ensure a non-nil object is returned so that
+		// the canonicalization runs without panicking.
+		dp = &ReschedulePolicy{
+			Attempts:      intToPtr(0),
+			Interval:      timeToPtr(0),
+			Delay:         timeToPtr(0),
+			DelayFunction: stringToPtr(""),
+			MaxDelay:      timeToPtr(0),
+			Unlimited:     boolToPtr(false),
+		}
 	}
 	return dp
 }

@@ -3,11 +3,13 @@ package structs
 import (
 	"crypto/sha1"
 	"fmt"
+	"hash"
 	"io"
 	"net/url"
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -462,35 +464,64 @@ func (s *Service) ValidateName(name string) error {
 // as they're hashed independently.
 func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	h := sha1.New()
-	io.WriteString(h, allocID)
-	io.WriteString(h, taskName)
-	io.WriteString(h, s.Name)
-	io.WriteString(h, s.PortLabel)
-	io.WriteString(h, s.AddressMode)
-	for _, tag := range s.Tags {
-		io.WriteString(h, tag)
-	}
-	for _, tag := range s.CanaryTags {
-		io.WriteString(h, tag)
-	}
-	if len(s.Meta) > 0 {
-		fmt.Fprintf(h, "%v", s.Meta)
-	}
-	if len(s.CanaryMeta) > 0 {
-		fmt.Fprintf(h, "%v", s.CanaryMeta)
-	}
-	fmt.Fprintf(h, "%t", s.EnableTagOverride)
-
-	// Vary ID on whether or not CanaryTags will be used
-	if canary {
-		h.Write([]byte("Canary"))
-	}
+	hashString(h, allocID)
+	hashString(h, taskName)
+	hashString(h, s.Name)
+	hashString(h, s.PortLabel)
+	hashString(h, s.AddressMode)
+	hashTags(h, s.Tags)
+	hashTags(h, s.CanaryTags)
+	hashBool(h, canary, "Canary")
+	hashBool(h, s.EnableTagOverride, "ETO")
+	hashMeta(h, s.Meta)
+	hashMeta(h, s.CanaryMeta)
+	hashConnect(h, s.Connect)
 
 	// Base32 is used for encoding the hash as sha1 hashes can always be
 	// encoded without padding, only 4 bytes larger than base64, and saves
 	// 8 bytes vs hex. Since these hashes are used in Consul URLs it's nice
 	// to have a reasonably compact URL-safe representation.
 	return b32.EncodeToString(h.Sum(nil))
+}
+
+func hashConnect(h hash.Hash, connect *ConsulConnect) {
+	if connect != nil && connect.SidecarService != nil {
+		hashString(h, connect.SidecarService.Port)
+		hashTags(h, connect.SidecarService.Tags)
+		if p := connect.SidecarService.Proxy; p != nil {
+			hashString(h, p.LocalServiceAddress)
+			hashString(h, strconv.Itoa(p.LocalServicePort))
+			hashConfig(h, p.Config)
+			for _, upstream := range p.Upstreams {
+				hashString(h, upstream.DestinationName)
+				hashString(h, strconv.Itoa(upstream.LocalBindPort))
+			}
+		}
+	}
+}
+
+func hashString(h hash.Hash, s string) {
+	_, _ = io.WriteString(h, s)
+}
+
+func hashBool(h hash.Hash, b bool, name string) {
+	if b {
+		hashString(h, name)
+	}
+}
+
+func hashTags(h hash.Hash, tags []string) {
+	for _, tag := range tags {
+		hashString(h, tag)
+	}
+}
+
+func hashMeta(h hash.Hash, m map[string]string) {
+	_, _ = fmt.Fprintf(h, "%v", m)
+}
+
+func hashConfig(h hash.Hash, c map[string]interface{}) {
+	_, _ = fmt.Fprintf(h, "%v", c)
 }
 
 // Equals returns true if the structs are recursively equal.

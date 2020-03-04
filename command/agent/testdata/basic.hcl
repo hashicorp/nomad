@@ -95,6 +95,10 @@ client {
   host_volume "tmp" {
     path = "/tmp"
   }
+
+  cni_path              = "/tmp/cni_path"
+  bridge_network_name   = "custom_bridge_name"
+  bridge_network_subnet = "custom_bridge_subnet"
 }
 
 server {
@@ -234,6 +238,7 @@ autopilot {
   disable_upgrade_migration = true
   last_contact_threshold    = "12705s"
   max_trailing_logs         = 17849
+  min_quorum                = 3
   enable_redundancy_zones   = true
   server_stabilization_time = "23057s"
   enable_custom_upgrades    = true

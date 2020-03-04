@@ -85,6 +85,7 @@ type rpcFn func(string, interface{}, interface{}) error
 func WaitForLeader(t testing.T, rpc rpcFn) {
 	WaitForResult(func() (bool, error) {
 		args := &structs.GenericRequest{}
+		args.AllowStale = true
 		var leader string
 		err := rpc("Status.Leader", args, &leader)
 		return leader != "", err

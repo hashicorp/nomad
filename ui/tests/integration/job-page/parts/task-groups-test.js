@@ -96,6 +96,11 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
       'Count'
     );
     assert.equal(
+      taskGroupRow.querySelector('[data-test-task-group-volume]').textContent.trim(),
+      taskGroup.get('volumes.length') ? 'Yes' : '',
+      'Volumes'
+    );
+    assert.equal(
       taskGroupRow.querySelector('[data-test-task-group-cpu]').textContent.trim(),
       `${taskGroup.get('reservedCPU')} MHz`,
       'Reserved CPU'

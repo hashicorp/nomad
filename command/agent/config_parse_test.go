@@ -86,6 +86,9 @@ var basicConfig = &Config{
 		HostVolumes: []*structs.ClientHostVolumeConfig{
 			{Name: "tmp", Path: "/tmp"},
 		},
+		CNIPath:             "/tmp/cni_path",
+		BridgeNetworkName:   "custom_bridge_name",
+		BridgeNetworkSubnet: "custom_bridge_subnet",
 	},
 	Server: &ServerConfig{
 		Enabled:                true,
@@ -224,6 +227,7 @@ var basicConfig = &Config{
 		LastContactThreshold:       12705 * time.Second,
 		LastContactThresholdHCL:    "12705s",
 		MaxTrailingLogs:            17849,
+		MinQuorum:                  3,
 		EnableRedundancyZones:      &trueValue,
 		DisableUpgradeMigration:    &trueValue,
 		EnableCustomUpgrades:       &trueValue,
@@ -366,6 +370,29 @@ var nonoptConfig = &Config{
 	TLSConfig:                 nil,
 	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
+}
+
+func TestConfig_ParseMerge(t *testing.T) {
+	t.Parallel()
+
+	path, err := filepath.Abs(filepath.Join(".", "testdata", "basic.hcl"))
+	require.NoError(t, err)
+
+	actual, err := ParseConfigFile(path)
+	require.NoError(t, err)
+
+	require.Equal(t, basicConfig.Client, actual.Client)
+
+	oldDefault := &Config{
+		Consul:    config.DefaultConsulConfig(),
+		Vault:     config.DefaultVaultConfig(),
+		Autopilot: config.DefaultAutopilotConfig(),
+		Client:    &ClientConfig{},
+		Server:    &ServerConfig{},
+	}
+	merged := oldDefault.Merge(actual)
+	require.Equal(t, basicConfig.Client, merged.Client)
+
 }
 
 func TestConfig_Parse(t *testing.T) {

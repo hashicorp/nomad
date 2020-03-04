@@ -31,6 +31,7 @@ func (s *grpcExecutorServer) Launch(ctx context.Context, req *proto.LaunchReques
 		TaskDir:            req.TaskDir,
 		ResourceLimits:     req.ResourceLimits,
 		BasicProcessCgroup: req.BasicProcessCgroup,
+		NoPivotRoot:        req.NoPivotRoot,
 		Mounts:             drivers.MountsFromProto(req.Mounts),
 		Devices:            drivers.DevicesFromProto(req.Devices),
 		NetworkIsolation:   drivers.NetworkIsolationSpecFromProto(req.NetworkIsolation),

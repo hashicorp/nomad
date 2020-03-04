@@ -22,16 +22,26 @@
   {{/if}}
 </td>
 <td data-test-time>{{format-ts task.events.lastObject.time}}</td>
+<td data-test-volumes>
+  <ul>
+    {{#each task.task.volumeMounts as |volume|}}
+      <li data-test-volume>
+        <strong>{{volume.volume}}:</strong>
+        {{volume.source}}
+      </li>
+    {{/each}}
+  </ul>
+</td>
 <td data-test-ports>
   <ul>
-    {{#with task.resources.networks.firstObject as |network|}}
+    {{#let task.resources.networks.firstObject as |network|}}
       {{#each network.ports as |port|}}
         <li data-test-port>
           <strong>{{port.name}}:</strong>
           <a href="http://{{network.ip}}:{{port.port}}" target="_blank" rel="noopener noreferrer">{{network.ip}}:{{port.port}}</a>
         </li>
       {{/each}}
-    {{/with}}
+    {{/let}}
   </ul>
 </td>
 <td data-test-cpu class="is-1 has-text-centered">

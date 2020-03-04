@@ -2,6 +2,11 @@ data "aws_vpc" "default" {
   default = true
 }
 
+data "aws_subnet" "default" {
+  availability_zone = var.availability_zone
+  vpc_id            = data.aws_vpc.default.id
+}
+
 resource "aws_security_group" "primary" {
   name   = local.random_name
   vpc_id = data.aws_vpc.default.id
@@ -76,3 +81,14 @@ resource "aws_security_group" "primary" {
   }
 }
 
+resource "aws_security_group" "nfs" {
+  name   = "${local.random_name}-nfs"
+  vpc_id = data.aws_vpc.default.id
+
+  ingress {
+    from_port       = 2049
+    to_port         = 2049
+    protocol        = "tcp"
+    security_groups = [aws_security_group.primary.id]
+  }
+}

@@ -49,16 +49,23 @@ func DefaultRPCAddr() *net.TCPAddr {
 
 // Config is used to parameterize the server
 type Config struct {
-	// Bootstrap mode is used to bring up the first Nomad server.  It is
-	// required so that it can elect a leader without any other nodes
-	// being present
-	Bootstrap bool
+	// Bootstrapped indicates if Server has bootstrapped or not.
+	// Its value must be 0 (not bootstrapped) or 1 (bootstrapped).
+	// All operations on Bootstrapped must be handled via `atomic.*Int32()` calls
+	Bootstrapped int32
 
 	// BootstrapExpect mode is used to automatically bring up a
 	// collection of Nomad servers. This can be used to automatically
-	// bring up a collection of nodes.  All operations on BootstrapExpect
-	// must be handled via `atomic.*Int32()` calls.
-	BootstrapExpect int32
+	// bring up a collection of nodes.
+	//
+	// The BootstrapExpect can be of any of the following values:
+	//  1: Server will form a single node cluster and become a leader immediately
+	//  N, larger than 1: Server will wait until it's connected to N servers
+	//      before attempting leadership and forming the cluster.  No Raft Log operation
+	//      will succeed until then.
+	//  0: Server will wait to get a Raft configuration from another node and may not
+	//      attempt to form a cluster or establish leadership on its own.
+	BootstrapExpect int
 
 	// DataDir is the directory to store our state in
 	DataDir string
@@ -70,10 +77,6 @@ type Config struct {
 	// EnableDebug is used to enable debugging RPC endpoints
 	// in the absence of ACLs
 	EnableDebug bool
-
-	// DevDisableBootstrap is used to disable bootstrap mode while
-	// in DevMode. This is largely used for testing.
-	DevDisableBootstrap bool
 
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.

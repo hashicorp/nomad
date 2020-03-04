@@ -38,6 +38,14 @@ export default create({
 
   isEmpty: isPresent('[data-test-empty-allocations-list]'),
 
+  hasVolumes: isPresent('[data-test-volumes]'),
+  volumes: collection('[data-test-volumes] [data-test-volume]', {
+    name: text('[data-test-volume-name]'),
+    type: text('[data-test-volume-type]'),
+    source: text('[data-test-volume-source]'),
+    permissions: text('[data-test-volume-permissions]'),
+  }),
+
   error: error(),
 
   emptyState: {

@@ -2,9 +2,14 @@
 
 IMPROVEMENTS:
 
+ * build: Updated to Go 1.14 [[GH-7247](https://github.com/hashicorp/nomad/issues/7247)]
  * consul: Added support for configuring `enable_tag_override` on service stanzas. [[GH-2057](https://github.com/hashicorp/nomad/issues/2057)]
 
-## 0.10.4 (Unreleased)
+BUG FIXES:
+
+ * api: Fixed a panic when canonicalizing a jobspec with an incorrect job type [[GH-7207]](https://github.com/hashicorp/nomad/pull/7207)
+
+## 0.10.4 (February 19, 2020)
 
 FEATURES:
 

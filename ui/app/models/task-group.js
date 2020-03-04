@@ -16,6 +16,8 @@ export default Fragment.extend({
 
   services: fragmentArray('service'),
 
+  volumes: fragmentArray('volume'),
+
   drivers: computed('tasks.@each.driver', function() {
     return this.tasks.mapBy('driver').uniq();
   }),

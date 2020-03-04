@@ -45,6 +45,7 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	config.Logger = testlog.HCLogger(t)
 	config.Build = version.Version + "+unittest"
 	config.DevMode = true
+	config.BootstrapExpect = 1
 	nodeNum := atomic.AddUint32(&nodeNumber, 1)
 	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNum)
 
@@ -85,9 +86,6 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	if cb != nil {
 		cb(config)
 	}
-
-	// Enable raft as leader if we have bootstrap on
-	config.RaftConfig.StartAsLeader = !config.DevDisableBootstrap
 
 	catalog := consul.NewMockCatalog(config.Logger)
 

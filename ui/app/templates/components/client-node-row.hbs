@@ -14,6 +14,7 @@
 </td>
 <td data-test-client-address>{{node.httpAddr}}</td>
 <td data-test-client-datacenter>{{node.datacenter}}</td>
+<td data-test-client-volumes>{{if node.hostVolumes.length node.hostVolumes.length}}</td>
 <td data-test-client-allocations>
   {{#if node.allocations.isPending}}
     ...

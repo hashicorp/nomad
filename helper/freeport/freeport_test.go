@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/hashicorp/consul/testutil/retry"
+	"github.com/hashicorp/consul/sdk/testutil/retry"
 )
 
 // reset will reverse the setup from initialize() and then redo it (for tests)

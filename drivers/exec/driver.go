@@ -59,7 +59,12 @@ var (
 	}
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
-	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{})
+	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"no_pivot_root": hclspec.NewDefault(
+			hclspec.NewAttr("no_pivot_root", "bool", false),
+			hclspec.NewLiteral("false"),
+		),
+	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a task within a job. It is returned in the TaskConfigSchema RPC
@@ -88,6 +93,9 @@ type Driver struct {
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
 
+	// config is the driver configuration set by the SetConfig RPC
+	config Config
+
 	// nomadConfig is the client config from nomad
 	nomadConfig *base.ClientDriverConfig
 
@@ -109,6 +117,13 @@ type Driver struct {
 	// whether it has been successful
 	fingerprintSuccess *bool
 	fingerprintLock    sync.Mutex
+}
+
+// Config is the driver configuration set by the SetConfig RPC call
+type Config struct {
+	// NoPivotRoot disables the use of pivot_root, useful when the root partition
+	// is on ramdisk
+	NoPivotRoot bool `codec:"no_pivot_root"`
 }
 
 // TaskConfig is the driver configuration of a task within a job
@@ -171,6 +186,14 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 func (d *Driver) SetConfig(cfg *base.Config) error {
+	var config Config
+	if len(cfg.PluginConfig) != 0 {
+		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
+			return err
+		}
+	}
+
+	d.config = config
 	if cfg != nil && cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
 	}
@@ -352,6 +375,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		Env:              cfg.EnvList(),
 		User:             user,
 		ResourceLimits:   true,
+		NoPivotRoot:      d.config.NoPivotRoot,
 		Resources:        cfg.Resources,
 		TaskDir:          cfg.TaskDir().Dir,
 		StdoutPath:       cfg.StdoutPath,

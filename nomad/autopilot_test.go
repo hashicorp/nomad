@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
-	"github.com/hashicorp/consul/testutil/retry"
+	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -73,7 +73,6 @@ func TestAutopilot_CleanupDeadServer(t *testing.T) {
 
 func testCleanupDeadServer(t *testing.T, raftVersion int) {
 	conf := func(c *Config) {
-		c.DevDisableBootstrap = true
 		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(raftVersion)
 	}
@@ -127,12 +126,12 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 	t.Parallel()
 
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-
 	conf := func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 5
 	}
+
+	s1, cleanupS1 := TestServer(t, conf)
+	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, conf)
 	defer cleanupS2()
@@ -174,15 +173,13 @@ func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 func TestAutopilot_RollingUpdate(t *testing.T) {
 	t.Parallel()
 
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.RaftConfig.ProtocolVersion = 3
-	})
-	defer cleanupS1()
-
 	conf := func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	}
+
+	s1, cleanupS1 := TestServer(t, conf)
+	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, conf)
 	defer cleanupS2()
@@ -248,19 +245,21 @@ func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 	t.Skip("TestAutopilot_CleanupDeadServer is very flaky, removing it for now")
 	t.Parallel()
 
-	s1, cleanupS1 := TestServer(t, nil)
+	conf := func(c *Config) {
+		c.BootstrapExpect = 3
+	}
+	s1, cleanupS1 := TestServer(t, conf)
 	defer cleanupS1()
 
-	conf := func(c *Config) {
-		c.DevDisableBootstrap = true
-	}
 	s2, cleanupS2 := TestServer(t, conf)
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, conf)
 	defer cleanupS3()
 
-	s4, cleanupS4 := TestServer(t, conf)
+	s4, cleanupS4 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 0
+	})
 	defer cleanupS4()
 
 	servers := []*Server{s1, s2, s3}
@@ -304,7 +303,7 @@ func TestAutopilot_PromoteNonVoter(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 0
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS2()
