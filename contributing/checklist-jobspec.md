@@ -16,6 +16,7 @@
   * Validation happens in this package and must be implemented
   * Implement other methods and tests from `api/` package
 * [ ] Add conversion between `api/` and `nomad/structs` in `command/agent/job_endpoint.go`
+* [ ] Add check for job diff in `nomad/structs/diff.go`
 * [ ] Test conversion
 
 ## Docs
