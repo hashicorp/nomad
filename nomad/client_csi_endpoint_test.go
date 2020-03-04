@@ -51,11 +51,9 @@ func TestClientCSIController_AttachVolume_Forwarded(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) { c.BootstrapExpect = 2 })
 	defer cleanupS1()
-	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
-	})
+	s2, cleanupS2 := TestServer(t, func(c *Config) { c.BootstrapExpect = 2 })
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
