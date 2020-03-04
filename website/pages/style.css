@@ -47,6 +47,7 @@
 @import '../components/featured-slider-section/style.css';
 @import '../components/learn-nomad/style.css';
 @import '../components/basic-hero/style.css';
+@import '../components/subnav/style.css';
 
 /* Local Pages */
 @import './home/style.css';
@@ -60,11 +61,6 @@
 
 /* Layout Styles */
 
-/* TEMPORARY - only here until all sites convert to full width nav */
-.max-width {
-  max-width: 1288px;
-  margin: 0 auto;
-}
 .g-section-block section {
   padding-top: 96px;
   padding-bottom: 96px;

@@ -5,7 +5,7 @@ import { useRouter } from 'next/router'
 export default function NomadSubnav() {
   const router = useRouter()
   return (
-    <div className="max-width">
+    <div className="g-constrained-nav">
       <Subnav
         titleLink={{
           text: 'nomad',

@@ -1,0 +1,15 @@
+/* TEMPORARY - only here until all sites convert to full width nav */
+
+.g-constrained-nav {
+  position: sticky;
+  top: -1px;
+  z-index: 900;
+
+  & .g-subnav-inner {
+    padding: 0 calc(50% - 1288px / 2 + 32px);
+
+    @media (max-width: 1288px) {
+      padding: 0 32px;
+    }
+  }
+}
