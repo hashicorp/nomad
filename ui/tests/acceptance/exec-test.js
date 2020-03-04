@@ -326,7 +326,9 @@ module('Acceptance | exec', function(hooks) {
 });
 
 class MockSocket {
-  sent = [];
+  constructor() {
+    this.sent = [];
+  }
 
   send(message) {
     this.sent.push(message);
