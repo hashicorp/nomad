@@ -113,7 +113,7 @@ type CSIVolume struct {
 	ModifyIndex uint64
 
 	// ExtraKeysHCL is used by the hcl parser to report unexpected keys
-	ExtraKeysHCL []string `hcl:"unusedKeys" json:"-"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // allocs is called after volume creation to collapse allocations for the UI
