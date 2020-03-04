@@ -4,20 +4,19 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
 
-type CSIVolumeStatusCommand struct {
+type VolumeStatusCommand struct {
 	Meta
 	length  int
 	verbose bool
 }
 
-func (c *CSIVolumeStatusCommand) Help() string {
+func (c *VolumeStatusCommand) Help() string {
 	helpText := `
-Usage: nomad csi volume status [options] <id>
+Usage: nomad volume status [options] <id>
 
   Display status information about a CSI volume. If no volume id is given, a
   list of all volumes will be displayed.
@@ -27,6 +26,9 @@ General Options:
   ` + generalOptionsUsage() + `
 
 Status Options:
+
+  -type <type>
+    List only volumes of type <type>.
 
   -short
     Display short output. Used only when a single volume is being
@@ -38,25 +40,27 @@ Status Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *CSIVolumeStatusCommand) Synopsis() string {
+func (c *VolumeStatusCommand) Synopsis() string {
 	return "Display status information about a volume"
 }
 
-func (c *CSIVolumeStatusCommand) AutocompleteFlags() complete.Flags {
+func (c *VolumeStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
+			"-type":    complete.PredictAnything, // FIXME predict type
 			"-short":   complete.PredictNothing,
 			"-verbose": complete.PredictNothing,
 		})
 }
 
-func (c *CSIVolumeStatusCommand) AutocompleteArgs() complete.Predictor {
+func (c *VolumeStatusCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := c.Meta.Client()
 		if err != nil {
 			return nil
 		}
 
+		// When multiple volume types are implemented, this search should merge contexts
 		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.CSIVolumes, nil)
 		if err != nil {
 			return []string{}
@@ -65,13 +69,15 @@ func (c *CSIVolumeStatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (c *CSIVolumeStatusCommand) Name() string { return "csi volume status" }
+func (c *VolumeStatusCommand) Name() string { return "volume status" }
 
-func (c *CSIVolumeStatusCommand) Run(args []string) int {
+func (c *VolumeStatusCommand) Run(args []string) int {
 	var short bool
+	var typeArg string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.StringVar(&typeArg, "type", "", "")
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 
@@ -79,10 +85,10 @@ func (c *CSIVolumeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we either got no volume ids or exactly one
+	// Check that we either got no arguments or exactly one
 	args = flags.Args()
 	if len(args) > 1 {
-		c.Ui.Error("This command takes either no arguments or one: <volume id>")
+		c.Ui.Error("This command takes either no arguments or one: <id>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -100,91 +106,15 @@ func (c *CSIVolumeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Invoke list mode if no volume id
-	if len(args) == 0 {
-		vols, _, err := client.CSIVolumes().List(nil)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
-			return 1
-		}
+	c.Ui.Output(c.Colorize().Color("\n[bold]Container Storage Interface[reset]"))
+	code := c.csiStatus(client, short, args[0])
+	if code != 0 {
+		return code
+	}
 
-		if len(vols) == 0 {
-			// No output if we have no volumes
-			c.Ui.Output("No CSI volumes")
-		} else {
-			c.Ui.Output(formatCSIVolumeList(vols))
-		}
+	if typeArg == "csi" {
 		return 0
 	}
-
-	// Try querying the volume
-	volID := args[0]
-	vol, _, err := client.CSIVolumes().Info(volID, nil)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying volume: %s", err))
-		return 1
-	}
-
-	c.Ui.Output(formatKV(c.formatBasic(vol)))
-
-	// Exit early
-	if short {
-		return 0
-	}
-
-	// Format the allocs
-	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
-	c.Ui.Output(formatAllocListStubs(vol.Allocations, c.verbose, c.length))
 
 	return 0
-}
-
-func (v *CSIVolumeStatusCommand) formatBasic(vol *api.CSIVolume) []string {
-	return []string{
-		fmt.Sprintf("ID|%s", vol.ID),
-		fmt.Sprintf("Name|%s", vol.Name),
-		fmt.Sprintf("External ID|%s", vol.ExternalID),
-
-		fmt.Sprintf("Schedulable|%t", vol.Schedulable),
-		fmt.Sprintf("Controllers Healthy|%d", vol.ControllersHealthy),
-		fmt.Sprintf("Controllers Expected|%d", vol.ControllersExpected),
-		fmt.Sprintf("Nodes Healthy|%d", vol.NodesHealthy),
-		fmt.Sprintf("Nodes Expected|%d", vol.NodesExpected),
-
-		fmt.Sprintf("Access Mode|%s", vol.AccessMode),
-		fmt.Sprintf("Attachment Mode|%s", vol.AttachmentMode),
-		fmt.Sprintf("Namespace|%s", vol.Namespace),
-	}
-}
-
-func (v *CSIVolumeStatusCommand) formatTopologies(vol *api.CSIVolume) string {
-	var out []string
-
-	// Find the union of all the keys
-	head := map[string]string{}
-	for _, t := range vol.Topologies {
-		for key := range t.Segments {
-			if _, ok := head[key]; !ok {
-				head[key] = ""
-			}
-		}
-	}
-
-	// Append the header
-	var line []string
-	for key := range head {
-		line = append(line, key)
-	}
-	out = append(out, strings.Join(line, " "))
-
-	// Append each topology
-	for _, t := range vol.Topologies {
-		line = []string{}
-		for key := range head {
-			line = append(line, t.Segments[key])
-		}
-		out = append(out, strings.Join(line, " "))
-	}
-
-	return strings.Join(out, "\n")
 }

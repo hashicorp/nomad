@@ -12,13 +12,13 @@ import (
 
 func TestCSIVolumeStatusCommand_Implements(t *testing.T) {
 	t.Parallel()
-	var _ cli.Command = &CSIVolumeStatusCommand{}
+	var _ cli.Command = &VolumeStatusCommand{}
 }
 
 func TestCSIVolumeStatusCommand_Fails(t *testing.T) {
 	t.Parallel()
 	ui := new(cli.MockUi)
-	cmd := &CSIVolumeStatusCommand{Meta: Meta{Ui: ui}}
+	cmd := &VolumeStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	code := cmd.Run([]string{"some", "bad", "args"})
@@ -36,7 +36,7 @@ func TestCSIVolumeStatusCommand_AutocompleteArgs(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &CSIVolumeStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+	cmd := &VolumeStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	state := srv.Agent.Server().State()
 
