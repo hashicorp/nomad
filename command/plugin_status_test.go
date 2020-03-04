@@ -7,15 +7,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCSIPluginStatusCommand_Implements(t *testing.T) {
+func TestPluginStatusCommand_Implements(t *testing.T) {
 	t.Parallel()
-	var _ cli.Command = &CSIPluginStatusCommand{}
+	var _ cli.Command = &PluginStatusCommand{}
 }
 
-func TestCSIPluginStatusCommand_Fails(t *testing.T) {
+func TestPluginStatusCommand_Fails(t *testing.T) {
 	t.Parallel()
 	ui := new(cli.MockUi)
-	cmd := &CSIPluginStatusCommand{Meta: Meta{Ui: ui}}
+	cmd := &PluginStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	code := cmd.Run([]string{"some", "bad", "args"})
@@ -26,7 +26,7 @@ func TestCSIPluginStatusCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 }
 
-func TestCSIPluginStatusCommand_AutocompleteArgs(t *testing.T) {
+func TestPluginStatusCommand_AutocompleteArgs(t *testing.T) {
 	/*
 		t.Parallel()
 
@@ -34,7 +34,7 @@ func TestCSIPluginStatusCommand_AutocompleteArgs(t *testing.T) {
 		defer srv.Shutdown()
 
 		ui := new(cli.MockUi)
-		cmd := &CSIPluginStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+		cmd := &PluginStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 		state := srv.Agent.Server().State()
 		plug, err := nomad.CreateTestPlugin(state, "glade")
 		require.NoError(err)

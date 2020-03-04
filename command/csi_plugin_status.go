@@ -2,109 +2,16 @@ package command
 
 import (
 	"fmt"
-	"strings"
+	"sort"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/posener/complete"
 )
 
-type CSIPluginStatusCommand struct {
-	Meta
-	length  int
-	verbose bool
-}
-
-func (c *CSIPluginStatusCommand) Help() string {
-	helpText := `
-Usage: nomad csi plugin status [options] <id>
-
-  Display status information about a CSI plugin. If no plugin id is given, a
-  list of all plugins will be displayed.
-
-General Options:
-
-  ` + generalOptionsUsage() + `
-
-Status Options:
-
-  -short
-    Display short output. Used only when a single job is being
-    queried, and drops verbose information about allocations.
-
-  -verbose
-    Display full information.
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (c *CSIPluginStatusCommand) Synopsis() string {
-	return "Display status information about a job"
-}
-
-func (c *CSIPluginStatusCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{
-			"-short":   complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
-		})
-}
-
-func (c *CSIPluginStatusCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.CSIPlugins, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.CSIPlugins]
-	})
-}
-
-func (c *CSIPluginStatusCommand) Name() string { return "csi plugin status" }
-
-func (c *CSIPluginStatusCommand) Run(args []string) int {
-	var short bool
-
-	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
-	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&short, "short", false, "")
-	flags.BoolVar(&c.verbose, "verbose", false, "")
-
-	if err := flags.Parse(args); err != nil {
-		return 1
-	}
-
-	// Check that we either got no jobs or exactly one.
-	args = flags.Args()
-	if len(args) > 1 {
-		c.Ui.Error("This command takes either no arguments or one: <plugin id>")
-		c.Ui.Error(commandErrorText(c))
-		return 1
-	}
-
-	// Truncate the id unless full length is requested
-	c.length = shortId
-	if c.verbose {
-		c.length = fullId
-	}
-
-	// Get the HTTP client
-	client, err := c.Meta.Client()
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
-		return 1
-	}
-
-	// Invoke list mode if no job ID.
-	if len(args) == 0 {
+func (c *CSIPluginStatusCommand) csiStatus(client *api.Client, short bool, id string) int {
+	if id == "" {
 		plugs, _, err := client.CSIPlugins().List(nil)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying plugins: %s", err))
+			c.Ui.Error(fmt.Sprintf("Error querying CSI plugins: %s", err))
 			return 1
 		}
 
@@ -117,11 +24,8 @@ func (c *CSIPluginStatusCommand) Run(args []string) int {
 		return 0
 	}
 
-	// Try querying the job
-	plugID := args[0]
-
 	// Lookup matched a single job
-	plug, _, err := client.CSIPlugins().Info(plugID, nil)
+	plug, _, err := client.CSIPlugins().Info(id, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying plugin: %s", err))
 		return 1
@@ -141,7 +45,29 @@ func (c *CSIPluginStatusCommand) Run(args []string) int {
 	return 0
 }
 
-func (v *CSIPluginStatusCommand) formatBasic(plug *api.CSIPlugin) []string {
+func (c *PluginStatusCommand) csiFormatPlugins(plugs []*api.CSIPluginListStub) string {
+	if len(plugs) == 0 {
+		return "No plugins found"
+	}
+
+	// Sort the output by quota name
+	sort.Slice(plugs, func(i, j int) bool { return plugs[i].ID < plugs[j].ID })
+
+	rows := make([]string, len(plugs)+1)
+	rows[0] = "ID|Controllers Healthy|Controllers Expected|Nodes Healthy|Nodes Expected"
+	for i, p := range plugs {
+		rows[i+1] = fmt.Sprintf("%s|%d|%d|%d|%d",
+			p.ID,
+			p.ControllersHealthy,
+			p.ControllersExpected,
+			p.NodesHealthy,
+			p.NodesExpected,
+		)
+	}
+	return formatList(rows)
+}
+
+func (v *PluginStatusCommand) csiFormatPlugin(plug *api.CSIPlugin) []string {
 	output := []string{
 		fmt.Sprintf("ID|%s", plug.ID),
 		fmt.Sprintf("Controllers Healthy|%d", plug.ControllersHealthy),
