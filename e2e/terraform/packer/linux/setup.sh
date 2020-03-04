@@ -29,7 +29,7 @@ NOMADDIR=/opt/nomad
 # Dependencies
 sudo apt-get install -y software-properties-common
 sudo apt-get update
-sudo apt-get install -y unzip tree redis-tools jq curl tmux awscli
+sudo apt-get install -y unzip tree redis-tools jq curl tmux awscli nfs-common
 
 # Numpy (for Spark)
 sudo apt-get install -y python-setuptools
