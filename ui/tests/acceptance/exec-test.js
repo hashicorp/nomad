@@ -216,7 +216,7 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.deepEqual(mockSocket.sent, [
-      '{"tty_size":{"width":228,"height":24}}',
+      '{"tty_size":{"width":228,"height":75}}',
       '{"stdin":{"data":"DQ=="}}',
     ]);
 
