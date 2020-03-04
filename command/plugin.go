@@ -1,5 +1,7 @@
 package command
 
+import "github.com/mitchellh/cli"
+
 type PluginCommand struct {
 	Meta
 }
@@ -10,4 +12,15 @@ Usage nomad plugin status [options] [plugin]
 
     This command groups subcommands for interacting with plugins.
 `
+	return helpText
+}
+
+func (c *PluginCommand) Synopsis() string {
+	return "Inspect plugins"
+}
+
+func (c *PluginCommand) Name() string { return "plugin" }
+
+func (c *PluginCommand) Run(args []string) int {
+	return cli.RunResultHelp
 }
