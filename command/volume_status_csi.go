@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -20,7 +21,7 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, short bool, id strin
 			// No output if we have no volumes
 			c.Ui.Output("No CSI volumes")
 		} else {
-			c.Ui.Output(formatCSIVolumeList(vols))
+			c.Ui.Output(csiFormatVolumes(vols))
 		}
 		return 0
 	}
@@ -44,6 +45,28 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, short bool, id strin
 	c.Ui.Output(formatAllocListStubs(vol.Allocations, c.verbose, c.length))
 
 	return 0
+}
+
+func csiFormatVolumes(vols []*api.CSIVolumeListStub) string {
+	if len(vols) == 0 {
+		return "No volumes found"
+	}
+
+	// Sort the output by volume id
+	sort.Slice(vols, func(i, j int) bool { return vols[i].ID < vols[j].ID })
+
+	rows := make([]string, len(vols)+1)
+	rows[0] = "ID|Name|Plugin ID|Schedulable|Access Mode"
+	for i, v := range vols {
+		rows[i+1] = fmt.Sprintf("%s|%s|%s|%t|%s",
+			v.ID,
+			v.Name,
+			v.PluginID,
+			v.Schedulable,
+			v.AccessMode,
+		)
+	}
+	return formatList(rows)
 }
 
 func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) []string {
