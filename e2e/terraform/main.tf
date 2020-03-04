@@ -8,6 +8,11 @@ variable "region" {
   default     = "us-east-1"
 }
 
+variable "availability_zone" {
+  description = "The AWS availability zone to deploy to."
+  default     = "us-east-1a"
+}
+
 variable "indexed" {
   description = "Different configurations per client/server"
   default     = true

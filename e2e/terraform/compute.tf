@@ -4,6 +4,7 @@ resource "aws_instance" "server" {
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.server_count
+  availability_zone      = var.availability_zone
 
   # Instance tags
   tags = {
@@ -23,6 +24,7 @@ resource "aws_instance" "client_linux" {
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.client_count
   depends_on             = [aws_instance.server]
+  availability_zone      = var.availability_zone
 
   # Instance tags
   tags = {
@@ -50,6 +52,7 @@ resource "aws_instance" "client_windows" {
   count                  = var.windows_client_count
   depends_on             = [aws_instance.server]
   iam_instance_profile   = aws_iam_instance_profile.instance_profile.name
+  availability_zone      = var.availability_zone
 
   # Instance tags
   tags = {
