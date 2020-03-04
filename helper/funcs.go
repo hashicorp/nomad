@@ -390,7 +390,7 @@ func CheckHCLKeys(node ast.Node, valid []string) error {
 	return result
 }
 
-// UnusedKeys returns a pretty-printed error if any "hcl:unusedKeys" is not empty
+// UnusedKeys returns a pretty-printed error if any `hcl:",unusedKeys"` is not empty
 func UnusedKeys(obj interface{}) error {
 	val := reflect.ValueOf(obj)
 	if val.Kind() == reflect.Ptr {
@@ -433,11 +433,31 @@ func unusedKeysImpl(path []string, val reflect.Value) error {
 		if unusedKeys {
 			ks, ok := fval.Interface().([]string)
 			if ok && len(ks) != 0 {
-				return fmt.Errorf("%s unexpected keys %s",
-					strings.Join(path, "."),
+				ps := ""
+				if len(path) > 0 {
+					ps = strings.Join(path, ".") + " "
+				}
+				return fmt.Errorf("%sunexpected keys %s",
+					ps,
 					strings.Join(ks, ", "))
 			}
 		}
 	}
 	return nil
+}
+
+// RemoveEqualFold removes the first string that EqualFold matches. It updates xs in place
+func RemoveEqualFold(xs *[]string, search string) {
+	sl := *xs
+	for i, x := range sl {
+		if strings.EqualFold(x, search) {
+			sl = append(sl[:i], sl[i+1:]...)
+			if len(sl) == 0 {
+				*xs = nil
+			} else {
+				*xs = sl
+			}
+			return
+		}
+	}
 }
