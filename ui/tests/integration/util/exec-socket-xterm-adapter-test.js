@@ -1,7 +1,7 @@
 import ExecSocketXtermAdapter from 'nomad-ui/utils/classes/exec-socket-xterm-adapter';
 import { setupRenderingTest } from 'ember-qunit';
 import { module, test } from 'qunit';
-import { find, render, settled } from '@ember/test-helpers';
+import { render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { Terminal } from 'xterm';
 
@@ -32,9 +32,6 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
 
     new ExecSocketXtermAdapter(terminal, mockSocket);
 
-    let terminalElement = find('.terminal');
-    terminalElement.style.width = '50%';
-    terminalElement.style.height = '110px';
     window.dispatchEvent(new Event('resize'));
 
     await settled();
