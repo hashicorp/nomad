@@ -137,11 +137,8 @@ module('Acceptance | exec', function(hooks) {
     });
     let allocation = allocations[allocations.length - 1];
 
-    let oldName = task.name;
     task.name = 'spaced name!';
     task.save();
-
-    let taskState = this.server.db.taskStates.update({ name: oldName }, { name: 'spaced name!' });
 
     await Exec.visitTask({
       job: this.job.id,
