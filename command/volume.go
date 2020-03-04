@@ -6,43 +6,41 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-type CSIVolumeCommand struct {
+type VolumeCommand struct {
 	Meta
 }
 
-func (c *CSIVolumeCommand) Help() string {
+func (c *VolumeCommand) Help() string {
 	helpText := `
-Usage: nomad csi volume <subcommand> [options]
+Usage: nomad volume <subcommand> [options]
 
-  csi volume groups all the CSI (Container Storage Interface) commands that
-  operate on volumes. CSI Volumes must be created in the remote provider before
-  the volume is available to a nomad task.
+  volume groups commands that interact with volumes.
 
   Register a new volume or update an existing volume:
 
-      $ nomad csi volume register <input>
+      $ nomad volume register <input>
 
   Examine the status of a volume:
 
-      $ nomad csi volume status <id>
-
-  List existing volumes:
-
-      $ nomad csi volume list
+      $ nomad volume status <id>
 
   Deregister a volume, removing it from the system:
 
-      $ nomad csi volume deregister <id>
+      $ nomad volume deregister <id>
 
   Please see the individual subcommand help for detailed usage information.
 `
 	return strings.TrimSpace(helpText)
 }
 
-func (c *CSIVolumeCommand) Run(args []string) int {
-	return cli.RunResultHelp
+func (c *VolumeCommand) Name() string {
+	return "volume"
 }
 
-func (c *CSIVolumeCommand) Synopsis() string {
-	return "Interact with CSI volumes"
+func (c *VolumeCommand) Synopsis() string {
+	return "Interact with volumes"
+}
+
+func (c *VolumeCommand) Run(args []string) int {
+	return cli.RunResultHelp
 }
