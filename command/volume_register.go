@@ -7,52 +7,45 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl"
-	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/posener/complete"
 )
 
-type CSIVolumeRegisterCommand struct {
+type VolumeRegisterCommand struct {
 	Meta
 }
 
-func (c *CSIVolumeRegisterCommand) Help() string {
+func (c *VolumeRegisterCommand) Help() string {
 	helpText := `
-Usage: nomad csi volume register [options] <input>
+Usage: nomad volume register [options] <input>
 
-  Register is used to create or update a CSI volume specification. The volume
+  Register is used to create or update a volume specification. The volume
   must exist on the remote storage provider before it can be used by a task.
   The specification file will be read from stdin by specifying "-", otherwise
   a path to the file is expected. The specification may be in HCL or JSON.
 
 General Options:
 
-  ` + generalOptionsUsage() + `
-
-Register Options:
-`
+  ` + generalOptionsUsage()
 
 	return strings.TrimSpace(helpText)
 }
 
-func (c *CSIVolumeRegisterCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{
-			"-json": complete.PredictNothing,
-		})
+func (c *VolumeRegisterCommand) AutocompleteFlags() complete.Flags {
+	return c.Meta.AutocompleteFlags(FlagSetClient)
 }
 
-func (c *CSIVolumeRegisterCommand) AutocompleteArgs() complete.Predictor {
+func (c *VolumeRegisterCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFiles("*")
 }
 
-func (c *CSIVolumeRegisterCommand) Synopsis() string {
-	return "Create or update a CSI volume specification"
+func (c *VolumeRegisterCommand) Synopsis() string {
+	return "Create or update a volume specification"
 }
 
-func (c *CSIVolumeRegisterCommand) Name() string { return "csi volume register" }
+func (c *VolumeRegisterCommand) Name() string { return "volume register" }
 
-func (c *CSIVolumeRegisterCommand) Run(args []string) int {
+func (c *VolumeRegisterCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
@@ -86,11 +79,12 @@ func (c *CSIVolumeRegisterCommand) Run(args []string) int {
 		}
 	}
 
-	vol, err := parseCSIVolume(string(rawVolume))
+	ast, volType, err := parseVolumeType(string(rawVolume))
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing the volume: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error parsing the volume type: %s", err))
 		return 1
 	}
+	volType = strings.ToLower(volType)
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -99,28 +93,36 @@ func (c *CSIVolumeRegisterCommand) Run(args []string) int {
 		return 1
 	}
 
-	_, err = client.CSIVolumes().Register(vol, nil)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error registering volume: %s", err))
+	switch volType {
+	case "csi":
+		code := c.csiRegister(client, ast)
+		if code != 0 {
+			return code
+		}
+	default:
+		c.Ui.Error(fmt.Sprintf("Error unknown volume type: %s", volType))
 		return 1
 	}
 
-	// c.Ui.Output(fmt.Sprintf("Successfully applied quota specification %q!", spec.Name))
 	return 0
 }
 
-// parseCSIVolume is used to parse the quota specification from HCL
-func parseCSIVolume(input string) (*api.CSIVolume, error) {
-	output := &api.CSIVolume{}
-	err := hcl.Decode(output, input)
+// parseVolume is used to parse the quota specification from HCL
+func parseVolumeType(input string) (*ast.File, string, error) {
+	// Parse the AST first
+	ast, err := hcl.Parse(input)
 	if err != nil {
-		return nil, err
+		return nil, "", fmt.Errorf("parse error: %v", err)
 	}
 
-	err = helper.UnusedKeys(output)
+	// Decode the type, so we can dispatch on it
+	dispatch := &struct {
+		T string `hcl:"type"`
+	}{}
+	err = hcl.DecodeObject(dispatch, ast)
 	if err != nil {
-		return nil, err
+		return nil, "", fmt.Errorf("dispatch error: %v", err)
 	}
 
-	return output, nil
+	return ast, dispatch.T, nil
 }
