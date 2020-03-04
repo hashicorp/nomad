@@ -19,8 +19,12 @@ export default class ExecSocketXtermAdapter {
 
     socket.onmessage = e => {
       let json = JSON.parse(e.data);
-      // FIXME could be stderr, or stdout.close/sterr.close, or exited, or even {}!
-      terminal.write(decodeString(json.stdout.data));
+
+      // FIXME what to do with stdout.close/sterr.close, or exited, or even {}!
+      // stderr messages will not be produced as the socket is opened with the tty flag
+      if (json.stdout) {
+        terminal.write(decodeString(json.stdout.data));
+      }
     };
 
     socket.onclose = e => {

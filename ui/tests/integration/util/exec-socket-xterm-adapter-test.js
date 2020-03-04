@@ -38,4 +38,39 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
 
     await settled();
   });
+
+  test('stderr frames are ignored', async function(assert) {
+    let terminal = new Terminal();
+    this.set('terminal', terminal);
+
+    await render(hbs`
+      {{exec-terminal terminal=terminal}}
+    `);
+
+    await settled();
+
+    let mockSocket = new Object({
+      send() {},
+    });
+
+    new ExecSocketXtermAdapter(terminal, mockSocket);
+
+    mockSocket.onmessage({
+      data: '{"stdout":{"data":"c2gtMy4yIPCfpbMk"}}',
+    });
+
+    mockSocket.onmessage({
+      data: '{"stderr":{"data":"c2gtMy4yIPCfpbMk"}}',
+    });
+
+    await settled();
+
+    assert.equal(
+      terminal.buffer
+        .getLine(0)
+        .translateToString()
+        .trim(),
+      'sh-3.2 🥳$'
+    );
+  });
 });
