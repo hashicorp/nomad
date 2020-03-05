@@ -60,7 +60,6 @@ func (c *VolumeStatusCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		// When multiple volume types are implemented, this search should merge contexts
 		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Volumes, nil)
 		if err != nil {
 			return []string{}

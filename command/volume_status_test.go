@@ -53,6 +53,6 @@ func TestCSIVolumeStatusCommand_AutocompleteArgs(t *testing.T) {
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	require.Equal(t, 0, len(res))
-	// require.Equal(t, vol.ID, res[0])
+	require.Equal(t, 1, len(res))
+	require.Equal(t, vol.ID, res[0])
 }
