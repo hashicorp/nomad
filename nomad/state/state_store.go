@@ -1880,7 +1880,7 @@ func (s *StateStore) CSIPluginByID(ws memdb.WatchSet, id string) (*structs.CSIPl
 	txn := s.db.Txn(false)
 	defer txn.Abort()
 
-	raw, err := txn.First("csi_plugins", "id", id)
+	raw, err := txn.First("csi_plugins", "id_prefix", id)
 	if err != nil {
 		return nil, fmt.Errorf("csi_plugin lookup failed: %s %v", id, err)
 	}
