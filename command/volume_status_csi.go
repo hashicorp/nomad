@@ -11,6 +11,7 @@ import (
 func (c *VolumeStatusCommand) csiStatus(client *api.Client, short bool, id string) int {
 	// Invoke list mode if no volume id
 	if id == "" {
+		c.Ui.Output(c.Colorize().Color("[bold]Container Storage Interface[reset]"))
 		vols, _, err := client.CSIVolumes().List(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
