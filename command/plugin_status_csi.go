@@ -24,7 +24,7 @@ func (c *PluginStatusCommand) csiStatus(client *api.Client, id string) int {
 		}
 
 		if len(plugs) == 0 {
-			// No output if we have no jobs
+			// No output if we have no plugins
 			c.Ui.Error("No CSI plugins")
 		} else {
 			str, err := c.csiFormatPlugins(plugs)
@@ -37,7 +37,7 @@ func (c *PluginStatusCommand) csiStatus(client *api.Client, id string) int {
 		return 0
 	}
 
-	// Lookup matched a single job
+	// Lookup matched a single plugin
 	plug, _, err := client.CSIPlugins().Info(id, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying plugin: %s", err))
