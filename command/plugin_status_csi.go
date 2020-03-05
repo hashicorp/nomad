@@ -9,6 +9,7 @@ import (
 
 func (c *PluginStatusCommand) csiStatus(client *api.Client, short bool, id string) int {
 	if id == "" {
+		c.Ui.Output(c.Colorize().Color("[bold]Container Storage Interface[reset]"))
 		plugs, _, err := client.CSIPlugins().List(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying CSI plugins: %s", err))

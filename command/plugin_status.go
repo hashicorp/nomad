@@ -117,7 +117,6 @@ func (c *PluginStatusCommand) Run(args []string) int {
 		id = args[0]
 	}
 
-	c.Ui.Output(c.Colorize().Color("[bold]Container Storage Interface[reset]"))
 	code := c.csiStatus(client, short, id)
 	if code != 0 {
 		return code
