@@ -162,6 +162,10 @@ func (c *StatusCommand) Run(args []string) int {
 		cmd = &NamespaceStatusCommand{Meta: c.Meta}
 	case contexts.Quotas:
 		cmd = &QuotaStatusCommand{Meta: c.Meta}
+	case contexts.Plugins:
+		cmd = &PluginStatusCommand{Meta: c.Meta}
+	case contexts.Volumes:
+		cmd = &VolumeStatusCommand{Meta: c.Meta}
 	default:
 		c.Ui.Error(fmt.Sprintf("Unable to resolve ID: %q", id))
 		return 1

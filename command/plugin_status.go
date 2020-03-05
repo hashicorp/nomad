@@ -71,11 +71,11 @@ func (c *PluginStatusCommand) AutocompleteArgs() complete.Predictor {
 		}
 
 		// When multiple plugin types are implemented, this search should merge contexts
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.CSIPlugins, nil)
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Plugins, nil)
 		if err != nil {
 			return []string{}
 		}
-		return resp.Matches[contexts.CSIPlugins]
+		return resp.Matches[contexts.Plugins]
 	})
 }
 
