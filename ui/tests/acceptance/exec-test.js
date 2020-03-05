@@ -13,7 +13,15 @@ module('Acceptance | exec', function(hooks) {
     server.create('agent');
     server.create('node');
 
-    this.job = server.create('job', { groupsCount: 2 });
+    this.job = server.create('job', { groupsCount: 2, createAllocations: false });
+
+    this.job.task_group_ids.forEach(taskGroupId => {
+      server.create('allocation', {
+        jobId: this.job.id,
+        taskGroup: server.db.taskGroups.find(taskGroupId).name,
+        allowPendingClientStatus: false,
+      });
+    });
   });
 
   test('/exec/:job should show the region, namespace, and job name', async function(assert) {

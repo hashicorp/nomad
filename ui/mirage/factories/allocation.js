@@ -6,8 +6,8 @@ import { provide, pickOne } from '../utils';
 import { generateResources } from '../common';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
-const CLIENT_STATUSES = [/*'pending', */ 'running', 'complete', 'failed', 'lost'];
-// FIXME restore pending
+const CLIENT_STATUSES = ['pending', 'running', 'complete', 'failed', 'lost'];
+const NON_PENDING_CLIENT_STATUSES = ['running', 'complete', 'failed', 'lost'];
 const DESIRED_STATUSES = ['run', 'stop', 'evict'];
 const REF_TIME = new Date();
 
@@ -26,11 +26,19 @@ export default Factory.extend({
 
   namespace: null,
 
-  clientStatus: () => faker.helpers.randomize(CLIENT_STATUSES),
+  clientStatus() {
+    return this.allowPendingClientStatus
+      ? faker.helpers.randomize(CLIENT_STATUSES)
+      : faker.helpers.randomize(NON_PENDING_CLIENT_STATUSES);
+  },
+
   desiredStatus: () => faker.helpers.randomize(DESIRED_STATUSES),
 
   // When true, doesn't create any resources, state, or events
   shallow: false,
+
+  // When true, allows the client status to be pending
+  allowPendingClientStatus: true,
 
   withTaskWithPorts: trait({
     afterCreate(allocation, server) {
