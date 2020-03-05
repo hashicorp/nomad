@@ -39,7 +39,6 @@ Router.map(function() {
         this.route('logs');
         this.route('fs-root', { path: '/fs' });
         this.route('fs', { path: '/fs/*path' });
-        this.route('exec');
       });
     });
   });
