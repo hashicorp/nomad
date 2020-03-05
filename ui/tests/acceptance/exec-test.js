@@ -137,6 +137,8 @@ module('Acceptance | exec', function(hooks) {
     });
     let allocation = allocations[allocations.length - 1];
 
+    this.server.db.taskStates.update({ name: task.name }, { name: 'spaced name!' });
+
     task.name = 'spaced name!';
     task.save();
 
