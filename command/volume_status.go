@@ -93,6 +93,7 @@ func (c *VolumeStatusCommand) Run(args []string) int {
 	flags.StringVar(&c.template, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
 		return 1
 	}
 

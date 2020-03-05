@@ -49,7 +49,7 @@ Status Options:
 }
 
 func (c *PluginStatusCommand) Synopsis() string {
-	return "Display status information about a plugin, or a list of plugins"
+	return "Display status information about a plugin"
 }
 
 // predictVolumeType is also used in volume_status
@@ -103,6 +103,7 @@ func (c *PluginStatusCommand) Run(args []string) int {
 	flags.StringVar(&c.template, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
 		return 1
 	}
 

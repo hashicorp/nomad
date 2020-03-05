@@ -16,7 +16,7 @@ func (c *VolumeDeregisterCommand) Help() string {
 	helpText := `
 Usage: nomad volume deregister [options] <id>
 
-  Deregister is used to remove a volume from the server.
+  Remove a volume from Nomad.
 
 General Options:
 
@@ -46,7 +46,7 @@ func (c *VolumeDeregisterCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *VolumeDeregisterCommand) Synopsis() string {
-	return "Remove a volume specification"
+	return "Remove a volume"
 }
 
 func (c *VolumeDeregisterCommand) Name() string { return "volume deregister" }
@@ -56,6 +56,7 @@ func (c *VolumeDeregisterCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
 		return 1
 	}
 

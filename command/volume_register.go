@@ -19,10 +19,11 @@ func (c *VolumeRegisterCommand) Help() string {
 	helpText := `
 Usage: nomad volume register [options] <input>
 
-  Register is used to create or update a volume specification. The volume
-  must exist on the remote storage provider before it can be used by a task.
-  The specification file will be read from stdin by specifying "-", otherwise
-  a path to the file is expected. The specification may be in HCL or JSON.
+  Creates or updates a volume in Nomad. The volume must exist on the remote
+  storage provider before it can be used by a task.
+
+  If the supplied path is "-" the volume file is read from stdin. Otherwise, it
+  is read from the file at the supplied path.
 
 General Options:
 
@@ -40,7 +41,7 @@ func (c *VolumeRegisterCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *VolumeRegisterCommand) Synopsis() string {
-	return "Create or update a volume specification"
+	return "Create or update a volume"
 }
 
 func (c *VolumeRegisterCommand) Name() string { return "volume register" }
@@ -50,6 +51,7 @@ func (c *VolumeRegisterCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
 		return 1
 	}
 
