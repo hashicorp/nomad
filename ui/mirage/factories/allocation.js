@@ -6,7 +6,8 @@ import { provide, pickOne } from '../utils';
 import { generateResources } from '../common';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
-const CLIENT_STATUSES = ['pending', 'running', 'complete', 'failed', 'lost'];
+const CLIENT_STATUSES = [/*'pending', */ 'running', 'complete', 'failed', 'lost'];
+// FIXME restore pending
 const DESIRED_STATUSES = ['run', 'stop', 'evict'];
 const REF_TIME = new Date();
 
