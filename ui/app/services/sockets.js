@@ -21,6 +21,7 @@ export default Service.extend({
       });
     } else {
       return new WebSocket(
+        // FIXME parameterise host
         `ws://localhost:4200/v1/client/allocation/${taskState.allocation.id}` +
           `/exec?task=${taskState.name}&tty=true` +
           `&command=${encodeURIComponent(`["${command}"]`)}`
