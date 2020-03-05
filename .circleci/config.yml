@@ -825,6 +825,7 @@ workflows:
           branches:
             ignore:
             - stable-website
+            - /^.-ui\b.*/
     - lint-go:
         filters:
           branches:

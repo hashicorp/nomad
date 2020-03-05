@@ -6,6 +6,7 @@ jobs:
       branches:
         ignore:
           - stable-website
+          - /^.-ui\b.*/
 - lint-go:
     filters: &backend_branches_filter
       branches:
