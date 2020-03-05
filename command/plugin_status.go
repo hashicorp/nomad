@@ -10,13 +10,16 @@ import (
 
 type PluginStatusCommand struct {
 	Meta
-	length  int
-	verbose bool
+	length   int
+	short    bool
+	verbose  bool
+	json     bool
+	template string
 }
 
 func (c *PluginStatusCommand) Help() string {
 	helpText := `
-Usage nomad plugin status [options] [plugin]
+Usage nomad plugin status [options] <plugin>
 
     Display status information about a plugin. If no plugin id is given,
     a list of all plugins will be displayed.
@@ -35,6 +38,12 @@ Status Options:
 
   -verbose
     Display full information.
+
+  -json
+    Output the allocation in its JSON format.
+
+  -t
+    Format and display allocation using a Go template.
 `
 	return helpText
 }
@@ -60,6 +69,8 @@ func (c *PluginStatusCommand) AutocompleteFlags() complete.Flags {
 			"-type":    predictVolumeType,
 			"-short":   complete.PredictNothing,
 			"-verbose": complete.PredictNothing,
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
 		})
 }
 
@@ -81,14 +92,15 @@ func (c *PluginStatusCommand) AutocompleteArgs() complete.Predictor {
 func (c *PluginStatusCommand) Name() string { return "plugin status" }
 
 func (c *PluginStatusCommand) Run(args []string) int {
-	var short bool
 	var typeArg string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&typeArg, "type", "", "")
-	flags.BoolVar(&short, "short", false, "")
+	flags.BoolVar(&c.short, "short", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
+	flags.BoolVar(&c.json, "json", false, "")
+	flags.StringVar(&c.template, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -116,13 +128,9 @@ func (c *PluginStatusCommand) Run(args []string) int {
 		id = args[0]
 	}
 
-	code := c.csiStatus(client, short, id)
+	code := c.csiStatus(client, id)
 	if code != 0 {
 		return code
-	}
-
-	if typeArg == "csi" {
-		return 0
 	}
 
 	// Extend this section with other plugin implementations

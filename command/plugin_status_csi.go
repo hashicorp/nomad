@@ -3,13 +3,20 @@ package command
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/hashicorp/nomad/api"
 )
 
-func (c *PluginStatusCommand) csiStatus(client *api.Client, short bool, id string) int {
-	if id == "" {
+func (c *PluginStatusCommand) csiBanner() {
+	if !(c.json || len(c.template) > 0) {
 		c.Ui.Output(c.Colorize().Color("[bold]Container Storage Interface[reset]"))
+	}
+}
+
+func (c *PluginStatusCommand) csiStatus(client *api.Client, id string) int {
+	if id == "" {
+		c.csiBanner()
 		plugs, _, err := client.CSIPlugins().List(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying CSI plugins: %s", err))
@@ -18,9 +25,14 @@ func (c *PluginStatusCommand) csiStatus(client *api.Client, short bool, id strin
 
 		if len(plugs) == 0 {
 			// No output if we have no jobs
-			c.Ui.Output("No CSI plugins")
+			c.Ui.Error("No CSI plugins")
 		} else {
-			c.Ui.Output(c.csiFormatPlugins(plugs))
+			str, err := c.csiFormatPlugins(plugs)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
+				return 1
+			}
+			c.Ui.Output(str)
 		}
 		return 0
 	}
@@ -32,43 +44,51 @@ func (c *PluginStatusCommand) csiStatus(client *api.Client, short bool, id strin
 		return 1
 	}
 
-	c.Ui.Output(formatKV(c.csiFormatPlugin(plug)))
-
-	// Exit early
-	if short {
-		return 0
+	str, err := c.csiFormatPlugin(plug)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error formatting plugin: %s", err))
+		return 1
 	}
 
-	// Format the allocs
-	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
-	c.Ui.Output(formatAllocListStubs(plug.Allocations, c.verbose, c.length))
-
+	c.Ui.Output(str)
 	return 0
 }
 
-func (c *PluginStatusCommand) csiFormatPlugins(plugs []*api.CSIPluginListStub) string {
-	if len(plugs) == 0 {
-		return "No plugins found"
-	}
-
+func (c *PluginStatusCommand) csiFormatPlugins(plugs []*api.CSIPluginListStub) (string, error) {
 	// Sort the output by quota name
 	sort.Slice(plugs, func(i, j int) bool { return plugs[i].ID < plugs[j].ID })
+
+	if c.json || len(c.template) > 0 {
+		out, err := Format(c.json, c.template, plugs)
+		if err != nil {
+			return "", fmt.Errorf("format error: %v", err)
+		}
+		return out, nil
+	}
 
 	rows := make([]string, len(plugs)+1)
 	rows[0] = "ID|Controllers Healthy|Controllers Expected|Nodes Healthy|Nodes Expected"
 	for i, p := range plugs {
 		rows[i+1] = fmt.Sprintf("%s|%d|%d|%d|%d",
-			p.ID,
+			limit(p.ID, c.length),
 			p.ControllersHealthy,
 			p.ControllersExpected,
 			p.NodesHealthy,
 			p.NodesExpected,
 		)
 	}
-	return formatList(rows)
+	return formatList(rows), nil
 }
 
-func (v *PluginStatusCommand) csiFormatPlugin(plug *api.CSIPlugin) []string {
+func (c *PluginStatusCommand) csiFormatPlugin(plug *api.CSIPlugin) (string, error) {
+	if c.json || len(c.template) > 0 {
+		out, err := Format(c.json, c.template, plug)
+		if err != nil {
+			return "", fmt.Errorf("format error: %v", err)
+		}
+		return out, nil
+	}
+
 	output := []string{
 		fmt.Sprintf("ID|%s", plug.ID),
 		fmt.Sprintf("Controllers Healthy|%d", plug.ControllersHealthy),
@@ -77,5 +97,14 @@ func (v *PluginStatusCommand) csiFormatPlugin(plug *api.CSIPlugin) []string {
 		fmt.Sprintf("Nodes Expected|%d", len(plug.Nodes)),
 	}
 
-	return output
+	// Exit early
+	if c.short {
+		return formatKV(output), nil
+	}
+
+	// Format the allocs
+	banner := c.Colorize().Color("\n[bold]Allocations[reset]")
+	allocs := formatAllocListStubs(plug.Allocations, c.verbose, c.length)
+	full := []string{formatKV(output), banner, allocs}
+	return strings.Join(full, "\n"), nil
 }
