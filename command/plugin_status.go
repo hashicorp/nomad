@@ -43,10 +43,21 @@ func (c *PluginStatusCommand) Synopsis() string {
 	return "Display status information about a plugin, or a list of plugins"
 }
 
+// predictVolumeType is also used in volume_status
+var predictVolumeType = complete.PredictFunc(func(a complete.Args) []string {
+	types := []string{"csi"}
+	for _, t := range types {
+		if strings.Contains(t, a.Last) {
+			return []string{t}
+		}
+	}
+	return nil
+})
+
 func (c *PluginStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-type":    complete.PredictAnything, // FIXME predict type
+			"-type":    predictVolumeType,
 			"-short":   complete.PredictNothing,
 			"-verbose": complete.PredictNothing,
 		})
@@ -59,6 +70,7 @@ func (c *PluginStatusCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
+		// When multiple plugin types are implemented, this search should merge contexts
 		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.CSIPlugins, nil)
 		if err != nil {
 			return []string{}
@@ -93,12 +105,6 @@ func (c *PluginStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Truncate the id unless full length is requested
-	c.length = shortId
-	if c.verbose {
-		c.length = fullId
-	}
-
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
@@ -111,7 +117,7 @@ func (c *PluginStatusCommand) Run(args []string) int {
 		id = args[0]
 	}
 
-	c.Ui.Output(c.Colorize().Color("\n[bold]Container Storage Interface[reset]"))
+	c.Ui.Output(c.Colorize().Color("[bold]Container Storage Interface[reset]"))
 	code := c.csiStatus(client, short, id)
 	if code != 0 {
 		return code
