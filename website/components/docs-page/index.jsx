@@ -3,7 +3,6 @@ import DocsSidenav from '@hashicorp/react-docs-sidenav'
 import Content from '@hashicorp/react-content'
 import InlineSvg from '@hashicorp/react-inline-svg'
 import githubIcon from './img/github-icon.svg?include'
-import Link from 'next/link'
 import Head from 'next/head'
 
 export default function DocsPage({
@@ -42,7 +41,6 @@ export default function DocsPage({
               category={category}
               order={orderData}
               data={frontMatter}
-              Link={Link}
               product="nomad"
             />
           </div>
