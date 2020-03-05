@@ -3,7 +3,10 @@ package command
 import (
 	"testing"
 
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,24 +30,28 @@ func TestPluginStatusCommand_Fails(t *testing.T) {
 }
 
 func TestPluginStatusCommand_AutocompleteArgs(t *testing.T) {
-	/*
-		t.Parallel()
+	t.Parallel()
 
-		srv, _, url := testServer(t, true, nil)
-		defer srv.Shutdown()
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
 
-		ui := new(cli.MockUi)
-		cmd := &PluginStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
-		state := srv.Agent.Server().State()
-		plug, err := nomad.CreateTestPlugin(state, "glade")
-		require.NoError(err)
+	ui := new(cli.MockUi)
+	cmd := &PluginStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
-		prefix := plug.ID[:len(plug.ID)-5]
-		args := complete.Args{Last: prefix}
-		predictor := cmd.AutocompleteArgs()
+	// Create a plugin
+	id := "long-plugin-id"
+	state := srv.Agent.Server().State()
+	cleanup := nomad.CreateTestCSIPlugin(state, id)
+	defer cleanup()
+	ws := memdb.NewWatchSet()
+	plug, err := state.CSIPluginByID(ws, id)
+	require.NoError(t, err)
 
-		res := predictor.Predict(args)
-		require.Equal(t, 0, len(res))
-		// require.Equal(t, plug.ID, res[0])
-	*/
+	prefix := plug.ID[:len(plug.ID)-5]
+	args := complete.Args{Last: prefix}
+	predictor := cmd.AutocompleteArgs()
+
+	res := predictor.Predict(args)
+	require.Equal(t, 0, len(res))
+	// require.Equal(t, plug.ID, res[0])
 }
