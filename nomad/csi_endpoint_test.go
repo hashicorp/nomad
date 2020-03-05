@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -483,7 +482,7 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 
 	ns := structs.DefaultNamespace
 
-	deleteNodes := CreateTestPlugin(srv.fsm.State(), "foo")
+	deleteNodes := CreateTestCSIPlugin(srv.fsm.State(), "foo")
 	defer deleteNodes()
 
 	state := srv.fsm.State()
@@ -525,74 +524,6 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
 	require.NoError(t, err)
 	require.Nil(t, resp2.Plugin)
-}
-
-// CreateTestPlugin is a helper that generates the node + fingerprint results necessary to
-// create a CSIPlugin by directly inserting into the state store. It's exported for use in
-// other test packages
-func CreateTestPlugin(s *state.StateStore, id string) func() {
-	// Create some nodes
-	ns := make([]*structs.Node, 3)
-	for i := range ns {
-		n := mock.Node()
-		ns[i] = n
-	}
-
-	// Install healthy plugin fingerprinting results
-	ns[0].CSIControllerPlugins = map[string]*structs.CSIInfo{
-		id: {
-			PluginID:                 id,
-			AllocID:                  uuid.Generate(),
-			Healthy:                  true,
-			HealthDescription:        "healthy",
-			RequiresControllerPlugin: true,
-			RequiresTopologies:       false,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsReadOnlyAttach:           true,
-				SupportsAttachDetach:             true,
-				SupportsListVolumes:              true,
-				SupportsListVolumesAttachedNodes: false,
-			},
-		},
-	}
-
-	// Install healthy plugin fingerprinting results
-	allocID := uuid.Generate()
-	for _, n := range ns[1:] {
-		n.CSINodePlugins = map[string]*structs.CSIInfo{
-			id: {
-				PluginID:                 id,
-				AllocID:                  allocID,
-				Healthy:                  true,
-				HealthDescription:        "healthy",
-				RequiresControllerPlugin: true,
-				RequiresTopologies:       false,
-				NodeInfo: &structs.CSINodeInfo{
-					ID:                      n.ID,
-					MaxVolumes:              64,
-					RequiresNodeStageVolume: true,
-				},
-			},
-		}
-	}
-
-	// Insert them into the state store
-	index := uint64(999)
-	for _, n := range ns {
-		index++
-		s.UpsertNode(index, n)
-	}
-
-	// Return cleanup function that deletes the nodes
-	return func() {
-		ids := make([]string, len(ns))
-		for i, n := range ns {
-			ids[i] = n.ID
-		}
-
-		index++
-		s.DeleteNode(index, ids)
-	}
 }
 
 func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
