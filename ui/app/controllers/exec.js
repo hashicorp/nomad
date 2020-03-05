@@ -67,9 +67,6 @@ export default Controller.extend({
         this.openAndConnectSocket.bind(this),
         '/bin/bash'
       );
-
-      // FIXME
-      // this.terminal.simulateCommandKeyEvent = this.handleCommandKeyEvent.bind(this);
     },
   },
 
