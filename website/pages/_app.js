@@ -10,7 +10,7 @@ import { ConsentManager, open } from '@hashicorp/react-consent-manager'
 import consentManagerConfig from '../lib/consent-manager-config'
 import bugsnagClient from '../lib/bugsnag'
 import Error from './_error'
-import subnavLinks from '../data/subnav'
+import CtaAlert from '../components/cta-alert'
 
 Router.events.on('routeChangeStart', NProgress.start)
 Router.events.on('routeChangeError', NProgress.done)
@@ -40,11 +40,16 @@ class NextApp extends App {
   }
 
   render() {
-    const { Component, pageProps, path } = this.props
+    const { Component, pageProps } = this.props
 
     return (
       <ErrorBoundary FallbackComponent={Error}>
         <DefaultHeadTags />
+        <CtaAlert
+          url="https://docs.google.com/forms/d/e/1FAIpQLSeTre9Uvsfohl3yKLdTf0jUACT2GQgvGBsbp4fZvARpFwdv-g/viewform"
+          tag="Share Your Story"
+          message="Free Nomad Goodie Pack"
+        />
         <MegaNav product="Nomad" />
         <ProductSubnav />
         <Component {...pageProps} />

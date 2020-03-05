@@ -1,0 +1,31 @@
+.g-cta-alert {
+  align-items: center;
+  background: var(--nomad);
+  color: var(--white);
+  display: flex;
+  justify-content: center;
+  padding: 18px;
+  position: relative;
+
+  & .tag {
+    margin-right: 16px;
+    opacity: 0.73;
+  }
+
+  & .g-btn.variant-tertiary-neutral.background-dark .icon svg [stroke] {
+    stroke: #c1f1e0;
+  }
+
+  & .close-button {
+    border: none;
+    background: none;
+    cursor: pointer;
+    position: absolute;
+    right: 18px;
+
+    & svg {
+      height: 24px;
+      width: 24px;
+    }
+  }
+}
