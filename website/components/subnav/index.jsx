@@ -5,20 +5,19 @@ import { useRouter } from 'next/router'
 export default function NomadSubnav() {
   const router = useRouter()
   return (
-    <div className="g-constrained-nav">
-      <Subnav
-        titleLink={{
-          text: 'nomad',
-          url: '/'
-        }}
-        ctaLinks={[
-          { text: 'GitHub', url: 'https://www.github.com/hashicorp/nomad' },
-          { text: 'Download', url: '/downloads' }
-        ]}
-        currentPath={router.pathname}
-        menuItemsAlign="right"
-        menuItems={subnavItems}
-      />
-    </div>
+    // Currently targeting .g-subnav in style.css to constrain subnav from full-width
+    <Subnav
+      titleLink={{
+        text: 'nomad',
+        url: '/'
+      }}
+      ctaLinks={[
+        { text: 'GitHub', url: 'https://www.github.com/hashicorp/nomad' },
+        { text: 'Download', url: '/downloads' }
+      ]}
+      currentPath={router.pathname}
+      menuItemsAlign="right"
+      menuItems={subnavItems}
+    />
   )
 }
