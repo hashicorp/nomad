@@ -44,6 +44,9 @@ export default Controller.extend({
   }),
 
   throwError: observer('error', function() {
+    // FIXME committing because it keeps getting erased…?
+    // eslint-disable-next-line
+    console.log('error!', this.error);
     if (this.get('config.isDev')) {
       run.next(() => {
         throw this.error;
