@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"sort"
 	"strconv"
 	"sync"
@@ -234,11 +233,7 @@ func (a *Allocations) execFrames(ctx context.Context, alloc *Allocation, task st
 	var conn *websocket.Conn
 
 	if nodeClient != nil {
-		conn, _, err = nodeClient.websocket(reqPath, q)
-		if _, ok := err.(net.Error); err != nil && !ok {
-			errCh <- err
-			return nil, nil
-		}
+		conn, _, _ = nodeClient.websocket(reqPath, q)
 	}
 
 	if conn == nil {
