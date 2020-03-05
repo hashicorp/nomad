@@ -8,10 +8,16 @@ import (
 	"github.com/hashicorp/nomad/api"
 )
 
-func (c *VolumeStatusCommand) csiStatus(client *api.Client, short bool, id string) int {
+func (c *VolumeStatusCommand) csiBanner() {
+	if !(c.json || len(c.template) > 0) {
+		c.Ui.Output(c.Colorize().Color("[bold]Container Storage Interface[reset]"))
+	}
+}
+
+func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 	// Invoke list mode if no volume id
 	if id == "" {
-		c.Ui.Output(c.Colorize().Color("[bold]Container Storage Interface[reset]"))
+		c.csiBanner()
 		vols, _, err := client.CSIVolumes().List(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
@@ -20,9 +26,14 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, short bool, id strin
 
 		if len(vols) == 0 {
 			// No output if we have no volumes
-			c.Ui.Output("No CSI volumes")
+			c.Ui.Error("No CSI volumes")
 		} else {
-			c.Ui.Output(csiFormatVolumes(vols))
+			str, err := c.csiFormatVolumes(vols)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
+				return 1
+			}
+			c.Ui.Output(str)
 		}
 		return 0
 	}
@@ -34,44 +45,52 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, short bool, id strin
 		return 1
 	}
 
-	c.Ui.Output(formatKV(c.formatBasic(vol)))
-
-	// Exit early
-	if short {
-		return 0
+	str, err := c.formatBasic(vol)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error formatting volume: %s", err))
+		return 1
 	}
-
-	// Format the allocs
-	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
-	c.Ui.Output(formatAllocListStubs(vol.Allocations, c.verbose, c.length))
+	c.Ui.Output(str)
 
 	return 0
 }
 
-func csiFormatVolumes(vols []*api.CSIVolumeListStub) string {
-	if len(vols) == 0 {
-		return "No volumes found"
-	}
-
+func (c *VolumeStatusCommand) csiFormatVolumes(vols []*api.CSIVolumeListStub) (string, error) {
 	// Sort the output by volume id
 	sort.Slice(vols, func(i, j int) bool { return vols[i].ID < vols[j].ID })
+
+	if c.json || len(c.template) > 0 {
+		out, err := Format(c.json, c.template, vols)
+		if err != nil {
+			return "", fmt.Errorf("format error: %v", err)
+		}
+		return out, nil
+	}
 
 	rows := make([]string, len(vols)+1)
 	rows[0] = "ID|Name|Plugin ID|Schedulable|Access Mode"
 	for i, v := range vols {
 		rows[i+1] = fmt.Sprintf("%s|%s|%s|%t|%s",
-			v.ID,
+			limit(v.ID, c.length),
 			v.Name,
 			v.PluginID,
 			v.Schedulable,
 			v.AccessMode,
 		)
 	}
-	return formatList(rows)
+	return formatList(rows), nil
 }
 
-func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) []string {
-	return []string{
+func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) (string, error) {
+	if c.json || len(c.template) > 0 {
+		out, err := Format(c.json, c.template, vol)
+		if err != nil {
+			return "", fmt.Errorf("format error: %v", err)
+		}
+		return out, nil
+	}
+
+	output := []string{
 		fmt.Sprintf("ID|%s", vol.ID),
 		fmt.Sprintf("Name|%s", vol.Name),
 		fmt.Sprintf("External ID|%s", vol.ExternalID),
@@ -86,6 +105,17 @@ func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) []string {
 		fmt.Sprintf("Attachment Mode|%s", vol.AttachmentMode),
 		fmt.Sprintf("Namespace|%s", vol.Namespace),
 	}
+
+	// Exit early
+	if c.short {
+		return formatKV(output), nil
+	}
+
+	// Format the allocs
+	banner := c.Colorize().Color("\n[bold]Allocations[reset]")
+	allocs := formatAllocListStubs(vol.Allocations, c.verbose, c.length)
+	full := []string{formatKV(output), banner, allocs}
+	return strings.Join(full, "\n"), nil
 }
 
 func (c *VolumeStatusCommand) formatTopologies(vol *api.CSIVolume) string {

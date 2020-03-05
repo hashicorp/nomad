@@ -10,8 +10,11 @@ import (
 
 type VolumeStatusCommand struct {
 	Meta
-	length  int
-	verbose bool
+	length   int
+	short    bool
+	verbose  bool
+	json     bool
+	template string
 }
 
 func (c *VolumeStatusCommand) Help() string {
@@ -36,6 +39,12 @@ Status Options:
 
   -verbose
     Display full allocation information.
+
+  -json
+    Output the allocation in its JSON format.
+
+  -t
+    Format and display allocation using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -50,6 +59,8 @@ func (c *VolumeStatusCommand) AutocompleteFlags() complete.Flags {
 			"-type":    predictVolumeType,
 			"-short":   complete.PredictNothing,
 			"-verbose": complete.PredictNothing,
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
 		})
 }
 
@@ -71,14 +82,15 @@ func (c *VolumeStatusCommand) AutocompleteArgs() complete.Predictor {
 func (c *VolumeStatusCommand) Name() string { return "volume status" }
 
 func (c *VolumeStatusCommand) Run(args []string) int {
-	var short bool
 	var typeArg string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&typeArg, "type", "", "")
-	flags.BoolVar(&short, "short", false, "")
+	flags.BoolVar(&c.short, "short", false, "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
+	flags.BoolVar(&c.json, "json", false, "")
+	flags.StringVar(&c.template, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -110,14 +122,12 @@ func (c *VolumeStatusCommand) Run(args []string) int {
 		id = args[0]
 	}
 
-	code := c.csiStatus(client, short, id)
+	code := c.csiStatus(client, id)
 	if code != 0 {
 		return code
 	}
 
-	if typeArg == "csi" {
-		return 0
-	}
+	// Extend this section with other volume implementations
 
 	return 0
 }
