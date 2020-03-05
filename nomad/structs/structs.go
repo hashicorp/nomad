@@ -163,8 +163,8 @@ const (
 	Namespaces  Context = "namespaces"
 	Quotas      Context = "quotas"
 	All         Context = "all"
-	CSIPlugins  Context = "csi_plugins"
-	CSIVolumes  Context = "csi_volumes"
+	Plugins     Context = "plugins"
+	Volumes     Context = "volumes"
 )
 
 // NamespacedID is a tuple of an ID and a namespace

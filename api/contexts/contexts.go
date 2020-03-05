@@ -11,7 +11,7 @@ const (
 	Nodes       Context = "nodes"
 	Namespaces  Context = "namespaces"
 	Quotas      Context = "quotas"
-	Plugins     Context = "csi_plugins"
-	Volumes     Context = "csi_volumes"
+	Plugins     Context = "plugins"
+	Volumes     Context = "volumes"
 	All         Context = "all"
 )

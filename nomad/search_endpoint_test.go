@@ -767,7 +767,7 @@ func TestSearch_PrefixSearch_CSIPlugin(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: structs.CSIPlugins,
+		Context: structs.Plugins,
 		QueryOptions: structs.QueryOptions{
 			Region: "global",
 		},
@@ -778,9 +778,9 @@ func TestSearch_PrefixSearch_CSIPlugin(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches[structs.CSIPlugins]))
-	assert.Equal(id, resp.Matches[structs.CSIPlugins][0])
-	assert.Equal(resp.Truncations[structs.CSIPlugins], false)
+	assert.Equal(1, len(resp.Matches[structs.Plugins]))
+	assert.Equal(id, resp.Matches[structs.Plugins][0])
+	assert.Equal(resp.Truncations[structs.Plugins], false)
 }
 
 func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
@@ -806,7 +806,7 @@ func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
-		Context: structs.CSIVolumes,
+		Context: structs.Volumes,
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
 			Namespace: structs.DefaultNamespace,
@@ -818,7 +818,7 @@ func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	assert.Equal(1, len(resp.Matches[structs.CSIVolumes]))
-	assert.Equal(id, resp.Matches[structs.CSIVolumes][0])
-	assert.Equal(resp.Truncations[structs.CSIVolumes], false)
+	assert.Equal(1, len(resp.Matches[structs.Volumes]))
+	assert.Equal(id, resp.Matches[structs.Volumes][0])
+	assert.Equal(resp.Truncations[structs.Volumes], false)
 }

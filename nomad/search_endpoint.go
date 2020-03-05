@@ -29,8 +29,8 @@ var (
 		structs.Nodes,
 		structs.Evals,
 		structs.Deployments,
-		structs.CSIPlugins,
-		structs.CSIVolumes,
+		structs.Plugins,
+		structs.Volumes,
 	}
 )
 
@@ -101,9 +101,9 @@ func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix
 		return state.NodesByIDPrefix(ws, prefix)
 	case structs.Deployments:
 		return state.DeploymentsByIDPrefix(ws, namespace, prefix)
-	case structs.CSIPlugins:
+	case structs.Plugins:
 		return state.CSIPluginsByIDPrefix(ws, prefix)
-	case structs.CSIVolumes:
+	case structs.Volumes:
 		return state.CSIVolumesByIDPrefix(ws, namespace, prefix)
 	default:
 		return getEnterpriseResourceIter(context, aclObj, namespace, prefix, ws, state)
