@@ -44,9 +44,7 @@ export default Controller.extend({
         this.terminal.writeln('');
       }
 
-      this.terminal.writeln(
-        'To start the session, customize your command, then hit ‘return’ to run.'
-      );
+      this.terminal.writeln('Customize your command, then hit ‘return’ to run.');
       this.terminal.writeln('');
       this.terminal.write(
         `$ nomad alloc exec -i -t -task ${escapeTaskName(taskState.name)} ${

@@ -124,7 +124,7 @@ module('Acceptance | exec', function(hooks) {
         .getLine(4)
         .translateToString()
         .trim(),
-      'To start the session, customize your command, then hit ‘return’ to run.'
+      'Customize your command, then hit ‘return’ to run.'
     );
 
     assert.equal(
