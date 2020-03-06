@@ -1,0 +1,126 @@
+.g-alert-banner {
+  background: linear-gradient(90deg, var(--brand) 1.56%, #08368b 100%);
+  color: var(--white);
+  display: none;
+  overflow: hidden;
+  position: relative;
+  transition: height 0.3s ease-out;
+
+  &.show {
+    display: block;
+  }
+
+  &.consul {
+    background: linear-gradient(90deg, var(--consul) 1.56%, #8e134a 100%);
+
+    & svg path {
+      stroke: #f8d9e7;
+    }
+  }
+
+  &.nomad {
+    background: linear-gradient(90deg, var(--nomad) 1.56%, #005738 100%);
+
+    & svg path {
+      stroke: #6bd8b4;
+    }
+  }
+
+  &.terraform {
+    background: linear-gradient(90deg, var(--terraform) 1.56%, #2a1c73 100%);
+
+    & svg path {
+      stroke: #a291f2;
+    }
+  }
+
+  &.vault {
+    background: linear-gradient(90deg, var(--vault) 1.56%, #373942 100%);
+
+    & svg path {
+      stroke: #e5e6eb;
+    }
+  }
+
+  &.has-large-tag {
+    & > div {
+      @media (max-width: 575px) {
+        flex-direction: column;
+      }
+    }
+
+    & .text {
+      @media (max-width: 575px) {
+        margin-right: 0;
+        margin-top: 8px;
+      }
+    }
+  }
+
+  & > a {
+    bottom: 0;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    z-index: 1;
+  }
+
+  & > div {
+    align-items: flex-start;
+    display: flex;
+    justify-content: center;
+    padding-bottom: 15px;
+    padding-top: 15px;
+    position: relative;
+  }
+
+  & .tag {
+    margin: 5px 28px 0 0;
+    flex-shrink: 0;
+
+    & span {
+      border: 1px solid var(--white);
+      border-radius: 4px;
+      color: var(--white);
+      padding: 3px 7px;
+    }
+
+    @media (max-width: 768px) {
+      margin-right: 18px;
+    }
+  }
+
+  & .text {
+    margin-right: 38px;
+
+    & span {
+      margin-right: 28px;
+    }
+  }
+
+  & .link-text {
+    text-decoration: underline;
+    white-space: nowrap;
+
+    @media (max-width: 992px) {
+      display: none;
+    }
+  }
+
+  & .close {
+    cursor: pointer;
+    position: absolute;
+    right: 24px;
+    top: 16px;
+    z-index: 2;
+
+    & path {
+      stroke: #66a2ff;
+    }
+
+    @media (max-width: 768px) {
+      right: 24px;
+    }
+  }
+}

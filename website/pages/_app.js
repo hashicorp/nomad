@@ -10,7 +10,7 @@ import { ConsentManager, open } from '@hashicorp/react-consent-manager'
 import consentManagerConfig from '../lib/consent-manager-config'
 import bugsnagClient from '../lib/bugsnag'
 import Error from './_error'
-import CtaAlert from '../components/cta-alert'
+import AlertBanner from '../components/alert-banner'
 
 Router.events.on('routeChangeStart', NProgress.start)
 Router.events.on('routeChangeError', NProgress.done)
@@ -45,10 +45,12 @@ class NextApp extends App {
     return (
       <ErrorBoundary FallbackComponent={Error}>
         <DefaultHeadTags />
-        <CtaAlert
+        <AlertBanner
           url="https://docs.google.com/forms/d/e/1FAIpQLSeTre9Uvsfohl3yKLdTf0jUACT2GQgvGBsbp4fZvARpFwdv-g/viewform"
           tag="Share Your Story"
-          message="Free Nomad Goodie Pack"
+          text=""
+          linkText="Free Nomad Goodie Pack"
+          theme="nomad"
         />
         <MegaNav product="Nomad" />
         <ProductSubnav />
