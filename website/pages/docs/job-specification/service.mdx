@@ -271,9 +271,9 @@ Nomad manages registering, updating, and deregistering services with Consul. It
 is important to understand when each of these steps happens and how they can be
 customized.
 
-**Registration**: Nomad will register `group` services and checks *before*
+**Registration**: Nomad will register `group` services and checks _before_
 starting any tasks. Services and checks for a specific `task` are registered
-*after* the task has started.
+_after_ the task has started.
 
 **Updating**: If a service or check definition is updated, Nomad will update
 the service in Consul as well. Consul is updated without restarting a task.
@@ -678,7 +678,7 @@ advertise and check directly since Nomad isn't managing any port assignments.
 
 [check_restart_stanza]: /docs/job-specification/check_restart 'check_restart stanza'
 [consul_grpc]: https://www.consul.io/api/agent/check.html#grpc
-[service-discovery]: /guides/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
+[service-discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
 [interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
 [network]: /docs/job-specification/network 'Nomad network Job Specification'
 [qemu]: /docs/drivers/qemu 'Nomad qemu Driver'

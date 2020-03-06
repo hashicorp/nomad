@@ -30,10 +30,11 @@ server {
 
 ## `server` Parameters
 
-- `authoritative_region` `(string: "")` - Specifies the authoritative region, which
-  provides a single source of truth for global configurations such as ACL Policies and
-  global ACL tokens. Non-authoritative regions will replicate from the authoritative
-  to act as a mirror. By default, the local region is assumed to be authoritative.
+- `authoritative_region` `(string: "")` - Specifies the authoritative region,
+  which provides a single source of truth for global configurations such as ACL
+  Policies and global ACL tokens. Non-authoritative regions will replicate from
+  the authoritative to act as a mirror. By default, the local region is assumed
+  to be authoritative.
 
 - `bootstrap_expect` `(int: required)` - Specifies the number of server nodes to
   wait for before bootstrapping. It is most common to use the odd-numbered
@@ -72,11 +73,11 @@ server {
 - `job_gc_interval` `(string: "5m")` - Specifies the interval between the job
   garbage collections. Only jobs who have been terminal for at least
   `job_gc_threshold` will be collected. Lowering the interval will perform more
-  frequent but smaller collections. Raising the interval will perform collections
-  less frequently but collect more jobs at a time. Reducing this interval is
-  useful if there is a large throughput of tasks, leading to a large set of
-  dead jobs. This is specified using a label suffix like "30s" or "3m". `job_gc_interval`
-  was introduced in Nomad 0.10.0.
+  frequent but smaller collections. Raising the interval will perform
+  collections less frequently but collect more jobs at a time. Reducing this
+  interval is useful if there is a large throughput of tasks, leading to a large
+  set of dead jobs. This is specified using a label suffix like "30s" or "3m".
+  `job_gc_interval` was introduced in Nomad 0.10.0.
 
 - `job_gc_threshold` `(string: "4h")` - Specifies the minimum time a job must be
   in the terminal state before it is eligible for garbage collection. This is
@@ -90,12 +91,12 @@ server {
   deployment must be in the terminal state before it is eligible for garbage
   collection. This is specified using a label suffix like "30s" or "1h".
 
-- `default_scheduler_config` <code>([scheduler_configuration][update-scheduler-config]:
-  nil)</code> - Specifies the initial default scheduler config when
-  bootstrapping cluster. The parameter is ignored once the cluster is bootstrapped or
-  value is updated through the [API endpoint][update-scheduler-config]. See [the
-  example section](#configuring-scheduler-config) for more details
-  `default_scheduler_config` was introduced in Nomad 0.11.4.
+- `default_scheduler_config` <code>([scheduler_configuration][Update scheduler
+  config]: nil)</code> - Specifies the initial default scheduler config when
+  bootstrapping cluster. The parameter is ignored once the cluster is
+  bootstrapped or value is updated through the [API endpoint][[Update scheduler
+  config]]. See [the example section](#configuring-scheduler-config) for more
+  details `default_scheduler_config` was introduced in Nomad 0.11.4.
 
 - `heartbeat_grace` `(string: "10s")` - Specifies the additional time given as a
   grace period beyond the heartbeat TTL of nodes to account for network and
@@ -135,7 +136,7 @@ server {
 
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
   zone that this server will be a part of for Autopilot management. For more
-  information, see the [Autopilot Guide](/guides/operations/autopilot).
+  information, see the [Autopilot Guide].
 
 - `rejoin_after_leave` `(bool: false)` - Specifies if Nomad will ignore a
   previous leave and attempt to rejoin the cluster when starting. By default,
@@ -143,14 +144,15 @@ server {
   cluster again when starting. This flag allows the previous state to be used to
   rejoin the cluster.
 
-- `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
-  how the Nomad server will connect to other Nomad servers. The `retry_join`
-  fields may directly specify the server address or use go-discover syntax for
-  auto-discovery. See the [server_join documentation][server-join] for more detail.
+- `server_join` <code>([server_join][server-join]: nil)</code> - Specifies how
+  the Nomad server will connect to other Nomad servers. The `retry_join` fields
+  may directly specify the server address or use go-discover syntax for
+  auto-discovery. See the [server_join documentation][server-join] for more
+  detail.
 
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
-  For more information, see the [Autopilot Guide](/guides/operations/autopilot).
+  For more information, see the [Autopilot Guide].
 
 ### Deprecated Parameters
 
@@ -161,9 +163,9 @@ server {
   succeeds. After one succeeds, no further addresses will be contacted. This is
   useful for cases where we know the address will become available eventually.
   Use `retry_join` with an array as a replacement for `start_join`, **do not use
-  both options**. See the [server_join][server-join]
-  section for more information on the format of the string. This field is
-  deprecated in favor of the [server_join stanza][server-join].
+  both options**. See the [server_join][server-join] section for more
+  information on the format of the string. This field is deprecated in favor of
+  the [server_join stanza][server-join].
 
 - `retry_interval` `(string: "30s")` - Specifies the time to wait between retry
   join attempts. This field is deprecated in favor of the [server_join
@@ -215,8 +217,8 @@ server {
 ### Automatic Bootstrapping
 
 The Nomad servers can automatically bootstrap if Consul is configured. For a
-more detailed explanation, please see the
-[automatic Nomad bootstrapping documentation](/guides/operations/cluster/automatic).
+more detailed explanation, please see the [automatic Nomad bootstrapping]
+documentation.
 
 ### Restricting Schedulers
 
@@ -247,14 +249,16 @@ server {
 }
 ```
 
-The structure matches the [Update Scheduler Config][update-scheduler-config] endpoint,
-but adopted to hcl syntax (namely using snake case rather than camel case).
+The structure matches the [Update Scheduler Config] endpoint, but adopted to hcl
+syntax (namely using snake case rather than camel case).
 
 Nomad servers check their `default_scheduler_config` only during cluster
 bootstrap. During upgrades, if a previously bootstrapped cluster already set
-scheduler configuration via the [Update Scheduler Config][update-scheduler-config]
-endpoint, that is always preferred.
+scheduler configuration via the [Update Scheduler Config] endpoint, that is
+always preferred.
 
-[encryption]: /guides/security/encryption 'Nomad Encryption Overview'
+[encryption]: https://learn.hashicorp.com/nomad/transport-security/concepts 'Nomad Encryption Overview'
 [server-join]: /docs/configuration/server_join 'Server Join'
-[update-scheduler-config]: /api/operator#update-scheduler-configuration 'Scheduler Config'
+[Update Scheduler Config]: /api/operator#update-scheduler-configuration 'Scheduler Config'
+[Autopilot Guide]: https://learn.hashicorp.com/nomad/operating-nomad/autopilot
+[automatic Nomad bootstrapping documentation]: https://learn.hashicorp.com/nomad/operating-nomad/clustering
