@@ -7,10 +7,12 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const jobIndex = 1000
@@ -745,4 +747,78 @@ func TestSearch_PrefixSearch_MultiRegion(t *testing.T) {
 	assert.Equal(1, len(resp.Matches[structs.Jobs]))
 	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
 	assert.Equal(uint64(jobIndex), resp.Index)
+}
+
+func TestSearch_PrefixSearch_CSIPlugin(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s, cleanupS := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanupS()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	id := uuid.Generate()
+	CreateTestCSIPlugin(s.fsm.State(), id)
+
+	prefix := id[:len(id)-2]
+
+	req := &structs.SearchRequest{
+		Prefix:  prefix,
+		Context: structs.Plugins,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Plugins]))
+	assert.Equal(id, resp.Matches[structs.Plugins][0])
+	assert.Equal(resp.Truncations[structs.Plugins], false)
+}
+
+func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s, cleanupS := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanupS()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	id := uuid.Generate()
+	err := s.fsm.State().CSIVolumeRegister(1000, []*structs.CSIVolume{{
+		ID:        id,
+		Namespace: structs.DefaultNamespace,
+		PluginID:  "glade",
+	}})
+	require.NoError(t, err)
+
+	prefix := id[:len(id)-2]
+
+	req := &structs.SearchRequest{
+		Prefix:  prefix,
+		Context: structs.Volumes,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Volumes]))
+	assert.Equal(id, resp.Matches[structs.Volumes][0])
+	assert.Equal(resp.Truncations[structs.Volumes], false)
 }
