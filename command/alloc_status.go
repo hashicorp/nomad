@@ -721,9 +721,9 @@ FOUND:
 	hostVolumesOutput = append(hostVolumesOutput, "ID|Read Only")
 	if verbose {
 		csiVolumesOutput = append(csiVolumesOutput,
-			"ID|Plugin|Provider|Schedulable|Mount Options")
+			"ID|Plugin|Provider|Schedulable|Read Only|Mount Options")
 	} else {
-		csiVolumesOutput = append(csiVolumesOutput, "ID")
+		csiVolumesOutput = append(csiVolumesOutput, "ID|Read Only")
 	}
 
 	for _, volMount := range task.VolumeMounts {
@@ -743,14 +743,16 @@ FOUND:
 					continue
 				}
 				csiVolumesOutput = append(csiVolumesOutput,
-					fmt.Sprintf("%s|%s|%s|%v|%s",
+					fmt.Sprintf("%s|%s|%s|%v|%v|%s",
 						volReq.Name, vol.PluginID,
 						"n/a", // TODO(tgross): https://github.com/hashicorp/nomad/issues/7248
 						vol.Schedulable,
+						volReq.ReadOnly,
 						"n/a", // TODO(tgross): https://github.com/hashicorp/nomad/issues/7007
 					))
 			} else {
-				csiVolumesOutput = append(csiVolumesOutput, volReq.Name)
+				csiVolumesOutput = append(csiVolumesOutput,
+					fmt.Sprintf("%s|%v", volReq.Name, volReq.ReadOnly))
 			}
 		}
 	}
