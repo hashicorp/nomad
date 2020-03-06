@@ -1333,27 +1333,29 @@ func TestServer_ReconcileMember(t *testing.T) {
 
 	// Create a three node cluster
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		// disable bootstrapping
-		c.BootstrapExpect = 0
+		c.BootstrapExpect = 2
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		// disable bootstrapping
-		c.BootstrapExpect = 0
+		c.BootstrapExpect = 2
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS2()
 
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// test relies on s3 not being the leader, so adding it
+	// after leadership has been established to reduce
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		// disable bootstrapping
 		c.BootstrapExpect = 0
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer cleanupS3()
-	TestJoin(t, s1, s2, s3)
-	testutil.WaitForLeader(t, s1.RPC)
+
+	TestJoin(t, s1, s3)
 
 	// Create a memberlist object for s3, with raft protocol upgraded to 3
 	upgradedS3Member := serf.Member{
@@ -1373,24 +1375,34 @@ func TestServer_ReconcileMember(t *testing.T) {
 	upgradedS3Member.Tags["mvn"] = "1"
 	upgradedS3Member.Tags["raft_vsn"] = "3"
 
-	// Find the leader so that we can call reconcile member on it
-	var leader *Server
-	for _, s := range []*Server{s1, s2, s3} {
-		if s.IsLeader() {
-			leader = s
+	findLeader := func(t *testing.T) *Server {
+		t.Helper()
+		for _, s := range []*Server{s1, s2, s3} {
+			if s.IsLeader() {
+				t.Logf("found leader: %v %v", s.config.NodeID, s.config.RPCAddr)
+				return s
+			}
 		}
+
+		t.Fatalf("no leader found")
+		return nil
 	}
-	leader.reconcileMember(upgradedS3Member)
+
+	// Find the leader so that we can call reconcile member on it
+	leader := findLeader(t)
+	if err := leader.reconcileMember(upgradedS3Member); err != nil {
+		t.Fatalf("failed to reconcile member: %v", err)
+	}
+
 	// This should remove s3 from the config and potentially cause a leader election
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Figure out the new leader and call reconcile again, this should add s3 with the new ID format
-	for _, s := range []*Server{s1, s2, s3} {
-		if s.IsLeader() {
-			leader = s
-		}
+	leader = findLeader(t)
+	if err := leader.reconcileMember(upgradedS3Member); err != nil {
+		t.Fatalf("failed to reconcile member: %v", err)
 	}
-	leader.reconcileMember(upgradedS3Member)
+
 	testutil.WaitForLeader(t, s1.RPC)
 	future := s2.raft.GetConfiguration()
 	if err := future.Error(); err != nil {
@@ -1410,7 +1422,7 @@ func TestServer_ReconcileMember(t *testing.T) {
 		t.Fatalf("got %d server addresses want %d", got, want)
 	}
 	if got, want := ids, 3; got != want {
-		t.Fatalf("got %d server ids want %d", got, want)
+		t.Fatalf("got %d server ids want %d: %#v", got, want, future.Configuration().Servers)
 	}
 }
 
