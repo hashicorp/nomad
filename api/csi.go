@@ -38,6 +38,10 @@ func (v *CSIVolumes) Info(id string, q *QueryOptions) (*CSIVolume, *QueryMeta, e
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// Cleanup allocation representation for the ui
+	resp.allocs()
+
 	return &resp, qm, nil
 }
 
@@ -79,19 +83,24 @@ const (
 
 // CSIVolume is used for serialization, see also nomad/structs/csi.go
 type CSIVolume struct {
-	ID             string
-	Namespace      string
-	Name           string
-	ExternalID     string
-	Topologies     []*CSITopology
-	AccessMode     CSIVolumeAccessMode
-	AttachmentMode CSIVolumeAttachmentMode
+	ID             string                  `hcl:"id"`
+	Name           string                  `hcl:"name"`
+	ExternalID     string                  `hcl:"external_id"`
+	Namespace      string                  `hcl:"namespace"`
+	Topologies     []*CSITopology          `hcl:"topologies"`
+	AccessMode     CSIVolumeAccessMode     `hcl:"access_mode"`
+	AttachmentMode CSIVolumeAttachmentMode `hcl:"attachment_mode"`
 
-	// Combine structs.{Read,Write,Past}Allocs
+	// Allocations, tracking claim status
+	ReadAllocs  map[string]*Allocation
+	WriteAllocs map[string]*Allocation
+
+	// Combine structs.{Read,Write}Allocs
 	Allocations []*AllocationListStub
 
+	// Schedulable is true if all the denormalized plugin health fields are true
 	Schedulable         bool
-	PluginID            string
+	PluginID            string `hcl:"plugin_id"`
 	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
@@ -101,6 +110,20 @@ type CSIVolume struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	// ExtraKeysHCL is used by the hcl parser to report unexpected keys
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+}
+
+// allocs is called after we query the volume (creating this CSIVolume struct) to collapse
+// allocations for the UI
+func (v *CSIVolume) allocs() {
+	for _, a := range v.WriteAllocs {
+		v.Allocations = append(v.Allocations, a.Stub())
+	}
+	for _, a := range v.ReadAllocs {
+		v.Allocations = append(v.Allocations, a.Stub())
+	}
 }
 
 type CSIVolumeIndexSort []*CSIVolumeListStub
@@ -160,6 +183,7 @@ type CSIPlugin struct {
 	// Map Node.ID to CSIInfo fingerprint results
 	Controllers        map[string]*CSIInfo
 	Nodes              map[string]*CSIInfo
+	Allocations        []*AllocationListStub
 	ControllersHealthy int
 	NodesHealthy       int
 	CreateIndex        uint64
