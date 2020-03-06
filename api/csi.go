@@ -98,8 +98,7 @@ type CSIVolume struct {
 	// Combine structs.{Read,Write}Allocs
 	Allocations []*AllocationListStub
 
-	// Healthy is true iff all the denormalized plugin health fields are true, and the
-	// volume has not been marked for garbage collection
+	// Schedulable is true if all the denormalized plugin health fields are true
 	Schedulable         bool
 	PluginID            string `hcl:"plugin_id"`
 	ControllerRequired  bool
@@ -116,7 +115,8 @@ type CSIVolume struct {
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
-// allocs is called after volume creation to collapse allocations for the UI
+// allocs is called after we query the volume (creating this CSIVolume struct) to collapse
+// allocations for the UI
 func (v *CSIVolume) allocs() {
 	for _, a := range v.WriteAllocs {
 		v.Allocations = append(v.Allocations, a.Stub())
