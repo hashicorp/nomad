@@ -16,7 +16,7 @@ func (c *VolumeDeregisterCommand) Help() string {
 	helpText := `
 Usage: nomad volume deregister [options] <id>
 
-  Remove a volume from Nomad.
+  Remove an unused volume from Nomad.
 
 General Options:
 

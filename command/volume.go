@@ -24,7 +24,7 @@ Usage: nomad volume <subcommand> [options]
 
       $ nomad volume status <id>
 
-  Deregister a volume, removing it from the system:
+  Deregister an unused volume:
 
       $ nomad volume deregister <id>
 
