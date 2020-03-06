@@ -90,6 +90,7 @@ func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) (string, error) {
 		return out, nil
 	}
 
+	// TODO(langmartin) add Provider https://github.com/hashicorp/nomad/issues/7248
 	output := []string{
 		fmt.Sprintf("ID|%s", vol.ID),
 		fmt.Sprintf("Name|%s", vol.Name),

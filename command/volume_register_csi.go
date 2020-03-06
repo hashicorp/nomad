@@ -12,7 +12,7 @@ import (
 func (c *VolumeRegisterCommand) csiRegister(client *api.Client, ast *ast.File) int {
 	vol, err := csiDecodeVolume(ast)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error decoding the volume: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error decoding the volume definition: %s", err))
 		return 1
 	}
 	_, err = client.CSIVolumes().Register(vol, nil)
