@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
@@ -210,7 +211,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 				c.Ui.Output("Omitting resource statistics since the node is down.")
 			}
 		}
-		c.outputTaskDetails(alloc, stats, displayStats)
+		c.outputTaskDetails(alloc, stats, displayStats, verbose)
 	}
 
 	// Format the detailed status
@@ -344,12 +345,13 @@ func futureEvalTimePretty(evalID string, client *api.Client) string {
 
 // outputTaskDetails prints task details for each task in the allocation,
 // optionally printing verbose statistics if displayStats is set
-func (c *AllocStatusCommand) outputTaskDetails(alloc *api.Allocation, stats *api.AllocResourceUsage, displayStats bool) {
+func (c *AllocStatusCommand) outputTaskDetails(alloc *api.Allocation, stats *api.AllocResourceUsage, displayStats bool, verbose bool) {
 	for task := range c.sortedTaskStateIterator(alloc.TaskStates) {
 		state := alloc.TaskStates[task]
 		c.Ui.Output(c.Colorize().Color(fmt.Sprintf("\n[bold]Task %q is %q[reset]", task, state.State)))
 		c.outputTaskResources(alloc, task, stats, displayStats)
 		c.Ui.Output("")
+		c.outputTaskVolumes(alloc, task, verbose)
 		c.outputTaskStatus(state)
 	}
 }
@@ -688,4 +690,80 @@ func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState
 
 	close(output)
 	return output
+}
+
+func (c *AllocStatusCommand) outputTaskVolumes(alloc *api.Allocation, taskName string, verbose bool) {
+	var task *api.Task
+	var tg *api.TaskGroup
+FOUND:
+	for _, tg = range alloc.Job.TaskGroups {
+		for _, task = range tg.Tasks {
+			if task.Name == taskName {
+				break FOUND
+			}
+		}
+	}
+	if task == nil || tg == nil {
+		c.Ui.Error(fmt.Sprintf("Could not find task data for %q", taskName))
+		return
+	}
+	if len(task.VolumeMounts) == 0 {
+		return
+	}
+	client, err := c.Meta.Client()
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		return
+	}
+
+	var hostVolumesOutput []string
+	var csiVolumesOutput []string
+	hostVolumesOutput = append(hostVolumesOutput, "ID|Read Only")
+	if verbose {
+		csiVolumesOutput = append(csiVolumesOutput,
+			"ID|Plugin|Provider|Schedulable|Read Only|Mount Options")
+	} else {
+		csiVolumesOutput = append(csiVolumesOutput, "ID|Read Only")
+	}
+
+	for _, volMount := range task.VolumeMounts {
+		volReq := tg.Volumes[*volMount.Volume]
+		switch volReq.Type {
+		case structs.VolumeTypeHost:
+			hostVolumesOutput = append(hostVolumesOutput,
+				fmt.Sprintf("%s|%v", volReq.Name, *volMount.ReadOnly))
+		case structs.VolumeTypeCSI:
+			if verbose {
+				// there's an extra API call per volume here so we toggle it
+				// off with the -verbose flag
+				vol, _, err := client.CSIVolumes().Info(volReq.Name, nil)
+				if err != nil {
+					c.Ui.Error(fmt.Sprintf("Error retrieving volume info for %q: %s",
+						volReq.Name, err))
+					continue
+				}
+				csiVolumesOutput = append(csiVolumesOutput,
+					fmt.Sprintf("%s|%s|%s|%v|%v|%s",
+						volReq.Name, vol.PluginID,
+						"n/a", // TODO(tgross): https://github.com/hashicorp/nomad/issues/7248
+						vol.Schedulable,
+						volReq.ReadOnly,
+						"n/a", // TODO(tgross): https://github.com/hashicorp/nomad/issues/7007
+					))
+			} else {
+				csiVolumesOutput = append(csiVolumesOutput,
+					fmt.Sprintf("%s|%v", volReq.Name, volReq.ReadOnly))
+			}
+		}
+	}
+	if len(hostVolumesOutput) > 1 {
+		c.Ui.Output("Host Volumes:")
+		c.Ui.Output(formatList(hostVolumesOutput))
+		c.Ui.Output("") // line padding to next stanza
+	}
+	if len(csiVolumesOutput) > 1 {
+		c.Ui.Output("CSI Volumes:")
+		c.Ui.Output(formatList(csiVolumesOutput))
+		c.Ui.Output("") // line padding to next stanza
+	}
 }
