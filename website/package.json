@@ -67,6 +67,6 @@
     "lint": "next-hashicorp lint",
     "start": "rm -rf .next/cache/next-babel-loader/ && next dev",
     "static": "npm run build && npm run export && cp _redirects out/.",
-    "linkcheck": "linkcheck https://www.nomadproject.io"
+    "linkcheck": "linkcheck https://nomadproject.io"
   }
 }
