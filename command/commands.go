@@ -493,6 +493,17 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"plugin": func() (cli.Command, error) {
+			return &PluginCommand{
+				Meta: meta,
+			}, nil
+		},
+		"plugin status": func() (cli.Command, error) {
+			return &PluginStatusCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"quota": func() (cli.Command, error) {
 			return &QuotaCommand{
 				Meta: meta,
@@ -644,6 +655,26 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 			return &VersionCommand{
 				Version: version.GetVersion(),
 				Ui:      meta.Ui,
+			}, nil
+		},
+		"volume": func() (cli.Command, error) {
+			return &VolumeCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume status": func() (cli.Command, error) {
+			return &VolumeStatusCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume register": func() (cli.Command, error) {
+			return &VolumeRegisterCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume deregister": func() (cli.Command, error) {
+			return &VolumeDeregisterCommand{
+				Meta: meta,
 			}, nil
 		},
 	}

@@ -163,6 +163,8 @@ const (
 	Namespaces  Context = "namespaces"
 	Quotas      Context = "quotas"
 	All         Context = "all"
+	Plugins     Context = "plugins"
+	Volumes     Context = "volumes"
 )
 
 // NamespacedID is a tuple of an ID and a namespace

@@ -219,20 +219,20 @@ func NodeRpc(session *yamux.Session, method string, args, reply interface{}) err
 	// Open a new session
 	stream, err := session.Open()
 	if err != nil {
-		return err
+		return fmt.Errorf("session open: %v", err)
 	}
 	defer stream.Close()
 
 	// Write the RpcNomad byte to set the mode
 	if _, err := stream.Write([]byte{byte(pool.RpcNomad)}); err != nil {
 		stream.Close()
-		return err
+		return fmt.Errorf("set mode: %v", err)
 	}
 
 	// Make the RPC
 	err = msgpackrpc.CallWithCodec(pool.NewClientCodec(stream), method, args, reply)
 	if err != nil {
-		return err
+		return fmt.Errorf("rpc call: %v", err)
 	}
 
 	return nil
