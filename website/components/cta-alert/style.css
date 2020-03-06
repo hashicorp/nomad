@@ -7,9 +7,16 @@
   padding: 18px;
   position: relative;
 
+  @media (width < 600px) {
+    flex-direction: column;
+  }
+
   & .tag {
-    margin-right: 16px;
     opacity: 0.73;
+
+    @media (width >= 600px) {
+      margin-right: 16px;
+    }
   }
 
   & .g-btn.variant-tertiary-neutral.background-dark .icon svg [stroke] {
