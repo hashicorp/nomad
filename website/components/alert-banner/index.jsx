@@ -19,7 +19,7 @@ class AlertBanner extends Component {
   }
 
   render() {
-    const { url, tag, theme, text, linkText } = { ...this.props }
+    const { url, tag, theme, linkText } = { ...this.props }
     const classes = ['g-alert-banner']
 
     // add theme class
@@ -46,7 +46,6 @@ class AlertBanner extends Component {
             <span>{tag}</span>
           </div>
           <div className="text g-type-body-small-strong">
-            <span>{text}</span>{' '}
             {linkText && (
               <Button
                 url={url}

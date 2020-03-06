@@ -76,14 +76,12 @@
   }
 
   & .tag {
-    margin: 5px 28px 0 0;
+    margin: 5px 16px 0 0;
     flex-shrink: 0;
 
     & span {
-      border: 1px solid var(--white);
-      border-radius: 4px;
       color: var(--white);
-      padding: 3px 7px;
+      opacity: 0.73;
     }
 
     @media (max-width: 768px) {
@@ -96,6 +94,20 @@
 
     & span {
       margin-right: 28px;
+    }
+  }
+
+  & .g-btn {
+    & .text {
+      margin: 0;
+
+      & span {
+        margin: 0;
+      }
+    }
+
+    &.variant-tertiary-neutral.background-dark .icon svg [stroke] {
+      stroke: #c1f1e0;
     }
   }
 
