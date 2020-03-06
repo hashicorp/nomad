@@ -83,9 +83,9 @@ type rpcFn func(string, interface{}, interface{}) error
 
 // WaitForLeader blocks until a leader is elected.
 func WaitForLeader(t testing.T, rpc rpcFn) {
+	t.Helper()
 	WaitForResult(func() (bool, error) {
 		args := &structs.GenericRequest{}
-		args.AllowStale = true
 		var leader string
 		err := rpc("Status.Leader", args, &leader)
 		return leader != "", err
