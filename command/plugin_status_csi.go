@@ -66,12 +66,12 @@ func (c *PluginStatusCommand) csiFormatPlugins(plugs []*api.CSIPluginListStub) (
 		return out, nil
 	}
 
-	// TODO(langmartin) add Provider https://github.com/hashicorp/nomad/issues/7248
 	rows := make([]string, len(plugs)+1)
-	rows[0] = "ID|Controllers Healthy/Expected|Nodes Healthy/Expected"
+	rows[0] = "ID|Provider|Controllers Healthy/Expected|Nodes Healthy/Expected"
 	for i, p := range plugs {
-		rows[i+1] = fmt.Sprintf("%s|%d/%d|%d/%d",
+		rows[i+1] = fmt.Sprintf("%s|%s|%d/%d|%d/%d",
 			limit(p.ID, c.length),
+			p.Provider,
 			p.ControllersHealthy,
 			p.ControllersExpected,
 			p.NodesHealthy,
@@ -92,6 +92,8 @@ func (c *PluginStatusCommand) csiFormatPlugin(plug *api.CSIPlugin) (string, erro
 
 	output := []string{
 		fmt.Sprintf("ID|%s", plug.ID),
+		fmt.Sprintf("Provider|%s", plug.Provider),
+		fmt.Sprintf("Version|%s", plug.Version),
 		fmt.Sprintf("Controllers Healthy|%d", plug.ControllersHealthy),
 		fmt.Sprintf("Controllers Expected|%d", len(plug.Controllers)),
 		fmt.Sprintf("Nodes Healthy|%d", plug.NodesHealthy),

@@ -85,11 +85,12 @@ func TestClient_RPC_PluginProbe(t *testing.T) {
 
 func TestClient_RPC_PluginInfo(t *testing.T) {
 	cases := []struct {
-		Name             string
-		ResponseErr      error
-		InfoResponse     *csipbv1.GetPluginInfoResponse
-		ExpectedResponse string
-		ExpectedErr      error
+		Name                    string
+		ResponseErr             error
+		InfoResponse            *csipbv1.GetPluginInfoResponse
+		ExpectedResponseName    string
+		ExpectedResponseVersion string
+		ExpectedErr             error
 	}{
 		{
 			Name:        "handles underlying grpc errors",
@@ -99,16 +100,19 @@ func TestClient_RPC_PluginInfo(t *testing.T) {
 		{
 			Name: "returns an error if we receive an empty `name`",
 			InfoResponse: &csipbv1.GetPluginInfoResponse{
-				Name: "",
+				Name:          "",
+				VendorVersion: "",
 			},
 			ExpectedErr: fmt.Errorf("PluginGetInfo: plugin returned empty name field"),
 		},
 		{
 			Name: "returns the name when successfully retrieved and not empty",
 			InfoResponse: &csipbv1.GetPluginInfoResponse{
-				Name: "com.hashicorp.storage",
+				Name:          "com.hashicorp.storage",
+				VendorVersion: "1.0.1",
 			},
-			ExpectedResponse: "com.hashicorp.storage",
+			ExpectedResponseName:    "com.hashicorp.storage",
+			ExpectedResponseVersion: "1.0.1",
 		},
 	}
 
@@ -120,12 +124,13 @@ func TestClient_RPC_PluginInfo(t *testing.T) {
 			ic.NextErr = c.ResponseErr
 			ic.NextPluginInfo = c.InfoResponse
 
-			resp, err := client.PluginGetInfo(context.TODO())
+			name, version, err := client.PluginGetInfo(context.TODO())
 			if c.ExpectedErr != nil {
 				require.Error(t, c.ExpectedErr, err)
 			}
 
-			require.Equal(t, c.ExpectedResponse, resp)
+			require.Equal(t, c.ExpectedResponseName, name)
+			require.Equal(t, c.ExpectedResponseVersion, version)
 		})
 	}
 

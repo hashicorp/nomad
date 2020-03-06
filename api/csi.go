@@ -101,6 +101,8 @@ type CSIVolume struct {
 	// Schedulable is true if all the denormalized plugin health fields are true
 	Schedulable         bool
 	PluginID            string `hcl:"plugin_id"`
+	Provider            string
+	ProviderVersion     string
 	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
@@ -151,6 +153,7 @@ type CSIVolumeListStub struct {
 	AttachmentMode      CSIVolumeAttachmentMode
 	Schedulable         bool
 	PluginID            string
+	Provider            string
 	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
@@ -179,6 +182,8 @@ type CSIPlugins struct {
 
 type CSIPlugin struct {
 	ID                 string
+	Provider           string
+	Version            string
 	ControllerRequired bool
 	// Map Node.ID to CSIInfo fingerprint results
 	Controllers        map[string]*CSIInfo
@@ -192,6 +197,7 @@ type CSIPlugin struct {
 
 type CSIPluginListStub struct {
 	ID                  string
+	Provider            string
 	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int

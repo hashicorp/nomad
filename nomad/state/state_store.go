@@ -958,6 +958,8 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		} else {
 			plug = structs.NewCSIPlugin(info.PluginID, index)
 			plug.ControllerRequired = info.RequiresControllerPlugin
+			plug.Provider = info.Provider
+			plug.Version = info.ProviderVersion
 		}
 
 		plug.AddPlugin(node.ID, info)
@@ -1811,6 +1813,8 @@ func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs
 		return vol, nil
 	}
 
+	vol.Provider = plug.Provider
+	vol.ProviderVersion = plug.Version
 	vol.ControllerRequired = plug.ControllerRequired
 	vol.ControllersHealthy = plug.ControllersHealthy
 	vol.NodesHealthy = plug.NodesHealthy
