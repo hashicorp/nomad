@@ -1657,7 +1657,7 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, id string) (*structs.CSIVolume, error) {
 	txn := s.db.Txn(false)
 
-	watchCh, obj, err := txn.FirstWatch("csi_volumes", "id", id)
+	watchCh, obj, err := txn.FirstWatch("csi_volumes", "id_prefix", id)
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
 	}
@@ -1682,6 +1682,30 @@ func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, pluginID string) (m
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
+}
+
+// CSIVolumesByIDPrefix supports search
+func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("csi_volumes", "id_prefix", volumeID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	// Filter the iterator by namespace
+	f := func(raw interface{}) bool {
+		v, ok := raw.(*structs.CSIVolume)
+		if !ok {
+			return false
+		}
+		return v.Namespace != namespace
+	}
+
+	wrap := memdb.NewFilterIterator(iter, f)
+	return wrap, nil
 }
 
 // CSIVolumes looks up the entire csi_volumes table
@@ -1741,7 +1765,7 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, ids []string) error {
 	defer txn.Abort()
 
 	for _, id := range ids {
-		existing, err := txn.First("csi_volumes", "id", id)
+		existing, err := txn.First("csi_volumes", "id_prefix", id)
 		if err != nil {
 			return fmt.Errorf("volume lookup failed: %s: %v", id, err)
 		}
@@ -1837,12 +1861,26 @@ func (s *StateStore) CSIPlugins(ws memdb.WatchSet) (memdb.ResultIterator, error)
 	return iter, nil
 }
 
+// CSIPluginsByIDPrefix supports search
+func (s *StateStore) CSIPluginsByIDPrefix(ws memdb.WatchSet, pluginID string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("csi_plugins", "id_prefix", pluginID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 // CSIPluginByID returns the one named CSIPlugin
 func (s *StateStore) CSIPluginByID(ws memdb.WatchSet, id string) (*structs.CSIPlugin, error) {
 	txn := s.db.Txn(false)
 	defer txn.Abort()
 
-	raw, err := txn.First("csi_plugins", "id", id)
+	raw, err := txn.First("csi_plugins", "id_prefix", id)
 	if err != nil {
 		return nil, fmt.Errorf("csi_plugin lookup failed: %s %v", id, err)
 	}
