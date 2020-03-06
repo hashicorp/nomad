@@ -259,6 +259,39 @@ service {
 }
 ```
 
+## `service` Lifecycle
+
+Nomad manages registering, updating, and deregistering services with Consul. It
+is important to understand when each of these steps happens and how they can be
+customized.
+
+**Registration**: Nomad will register `group` services and checks _before_
+starting any tasks. Services and checks for a specific `task` are registered
+_after_ the task has started.
+
+**Updating**: If a service or check definition is updated, Nomad will update
+the service in Consul as well. Consul is updated without restarting a task.
+
+**Deregistering**: If a running task with a service stanza exits, the services
+and checks are immediately deregistered from Consul without delay. If however
+Nomad needs to kill a running task, the task is killed in the following order:
+
+1. Immediately remove the services and checks from Consul. This stops new
+   traffic from being routed to the task that is being killed.
+2. If [`shutdown_delay`][shutdowndelay] is set, wait the configured duration
+   before proceeding to step 3. Setting a [`shutdown_delay`][shutdowndelay] can
+   be useful if the application itself doesn't handle graceful shutdowns based
+   on the [`kill_signal`][killsignal]. The configured delay will provide a
+   period of time in which the service is no longer registered in Consul, and
+   thus is not receiving additional requests, but hasn't been signalled to
+   shutdown. This allows the application time to complete the requests and
+   become idle.
+3. Send the [`kill_signal`][killsignal] to the task and wait for the task to
+   exit. The task should use this time to gracefully drain and finish any
+   existing requests.
+4. If the task has not exited after the [`kill_timeout`][killtimeout], Nomad
+   will force kill the application.
+
 ## `service` Examples
 
 The following examples only show the `service` stanzas. Remember that the
@@ -639,7 +672,7 @@ advertise and check directly since Nomad isn't managing any port assignments.
 
 [check_restart_stanza]: /docs/job-specification/check_restart 'check_restart stanza'
 [consul_grpc]: https://www.consul.io/api/agent/check.html#grpc
-[service-discovery]: /guides/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
+[service-discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
 [interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
 [network]: /docs/job-specification/network 'Nomad network Job Specification'
 [qemu]: /docs/drivers/qemu 'Nomad qemu Driver'
