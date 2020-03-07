@@ -2341,7 +2341,7 @@ type RequestedDevice struct {
 	// to use.
 	Constraints Constraints
 
-	// Affinities are a set of affinites to apply when selecting the device
+	// Affinities are a set of affinities to apply when selecting the device
 	// to use.
 	Affinities Affinities
 }
@@ -2534,18 +2534,18 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 }
 
 // Equals equates Networks as a set
-func (n *Networks) Equals(o *Networks) bool {
-	if n == o {
+func (ns *Networks) Equals(o *Networks) bool {
+	if ns == o {
 		return true
 	}
-	if n == nil || o == nil {
+	if ns == nil || o == nil {
 		return false
 	}
-	if len(*n) != len(*o) {
+	if len(*ns) != len(*o) {
 		return false
 	}
 SETEQUALS:
-	for _, ne := range *n {
+	for _, ne := range *ns {
 		for _, oe := range *o {
 			if ne.Equals(oe) {
 				continue SETEQUALS
