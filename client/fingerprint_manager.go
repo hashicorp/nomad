@@ -24,6 +24,8 @@ type FingerprintManager struct {
 	// associated node
 	updateNodeAttributes func(*fingerprint.FingerprintResponse) *structs.Node
 
+	reloadableFps map[string]fingerprint.ReloadableFingerprint
+
 	logger log.Logger
 }
 
@@ -44,6 +46,7 @@ func NewFingerprintManager(
 		node:                 node,
 		shutdownCh:           shutdownCh,
 		logger:               logger.Named("fingerprint_mgr"),
+		reloadableFps:        make(map[string]fingerprint.ReloadableFingerprint),
 	}
 }
 
@@ -103,6 +106,17 @@ func (fp *FingerprintManager) Run() error {
 	return nil
 }
 
+// Reload will reload any registered ReloadableFingerprinters and immediatly call Fingerprint
+func (fm *FingerprintManager) Reload() {
+	for name, fp := range fm.reloadableFps {
+		fm.logger.Info("reloading fingerprinter", "fingerprinter", name)
+		fp.Reload()
+		if _, err := fm.fingerprint(name, fp); err != nil {
+			fm.logger.Warn("error fingerprinting after reload", "fingerprinter", name, "error", err)
+		}
+	}
+}
+
 // setupFingerprints is used to fingerprint the node to see if these attributes are
 // supported
 func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
@@ -129,6 +143,10 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 		p, period := f.Periodic()
 		if p {
 			go fm.runFingerprint(f, period, name)
+		}
+
+		if rfp, ok := f.(fingerprint.ReloadableFingerprint); ok {
+			fm.reloadableFps[name] = rfp
 		}
 	}
 

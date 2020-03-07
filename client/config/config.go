@@ -234,6 +234,10 @@ type Config struct {
 	// be specified with colon delimited
 	CNIPath string
 
+	// CNIConfigDir is the directory where CNI network configuration is located. The
+	// client will use this path when fingerprinting CNI networks.
+	CNIConfigDir string
+
 	// BridgeNetworkName is the name to use for the bridge created in bridge
 	// networking mode. This defaults to 'nomad' if not set
 	BridgeNetworkName string
