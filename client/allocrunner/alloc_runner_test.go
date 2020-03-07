@@ -54,6 +54,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 
 	// Create two tasks in the task group
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -147,6 +148,7 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 
 	// Create a group service
 	tg := alloc.Job.TaskGroups[0]
@@ -276,6 +278,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 
 	// Create 3 tasks in the task group
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -374,6 +377,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 
 	// Create a leader and follower task in the task group
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -900,12 +904,14 @@ func TestAllocRunner_HandlesArtifactFailure(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.BatchAlloc()
-	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+	rp := &structs.RestartPolicy{
 		Mode:     structs.RestartPolicyModeFail,
 		Attempts: 1,
 		Delay:    time.Nanosecond,
 		Interval: time.Hour,
 	}
+	alloc.Job.TaskGroups[0].RestartPolicy = rp
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy = rp
 
 	// Create a new task with a bad artifact
 	badtask := alloc.Job.TaskGroups[0].Tasks[0].Copy()
@@ -958,6 +964,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 
 	// Create two tasks in the task group
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -1087,6 +1094,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 	// Ensure task takes some time
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
