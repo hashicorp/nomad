@@ -587,7 +587,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ACLTokenTTL = agentConfig.ACL.TokenTTL
 	conf.ACLPolicyTTL = agentConfig.ACL.PolicyTTL
 
-	// Setup networking configration
+	// Setup networking configuration
 	conf.CNIPath = agentConfig.Client.CNIPath
 	conf.BridgeNetworkName = agentConfig.Client.BridgeNetworkName
 	conf.BridgeNetworkAllocSubnet = agentConfig.Client.BridgeNetworkSubnet

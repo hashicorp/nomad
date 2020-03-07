@@ -86,8 +86,6 @@ func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange, cniPath
 
 // ensureForwardingRules ensures that a forwarding rule is added to iptables
 // to allow traffic inbound to the bridge network
-// // ensureForwardingRules ensures that a forwarding rule is added to iptables
-// to allow traffic inbound to the bridge network
 func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
 	ipt, err := iptables.New()
 	if err != nil {
@@ -154,9 +152,9 @@ func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Al
 		return err
 	}
 
-	// Depending on the version of bridge cni plugin used, a known race could occure
+	// Depending on the version of bridge cni plugin (< 0.8.4) a known race could occur
 	// where two alloc attempt to create the nomad bridge at the same time, resulting
-	// in one of them to fail. This rety attempts to overcome any
+	// in one of them to fail. This retry attempts to overcome those erroneous failures.
 	const retry = 3
 	for attempt := 1; ; attempt++ {
 		//TODO eventually returning the IP from the result would be nice to have in the alloc
