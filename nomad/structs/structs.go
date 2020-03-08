@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorhill/cronexpr"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
@@ -36,6 +35,7 @@ import (
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/mitchellh/copystructure"
+	"github.com/robfig/cron"
 	"github.com/ugorji/go/codec"
 	"golang.org/x/crypto/blake2b"
 )
@@ -4194,7 +4194,7 @@ func (p *PeriodicConfig) Validate() error {
 	switch p.SpecType {
 	case PeriodicSpecCron:
 		// Validate the cron spec
-		if _, err := cronexpr.Parse(p.Spec); err != nil {
+		if _, err := cron.ParseStandard(p.Spec); err != nil {
 			multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err))
 		}
 	case PeriodicSpecTest:
@@ -4216,19 +4216,6 @@ func (p *PeriodicConfig) Canonicalize() {
 	p.location = l
 }
 
-// CronParseNext is a helper that parses the next time for the given expression
-// but captures any panic that may occur in the underlying library.
-func CronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t time.Time, err error) {
-	defer func() {
-		if recover() != nil {
-			t = time.Time{}
-			err = fmt.Errorf("failed parsing cron expression: %q", spec)
-		}
-	}()
-
-	return e.Next(fromTime), nil
-}
-
 // Next returns the closest time instant matching the spec that is after the
 // passed time. If no matching instance exists, the zero value of time.Time is
 // returned. The `time.Location` of the returned value matches that of the
@@ -4236,8 +4223,8 @@ func CronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t t
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	switch p.SpecType {
 	case PeriodicSpecCron:
-		if e, err := cronexpr.Parse(p.Spec); err == nil {
-			return CronParseNext(e, fromTime, p.Spec)
+		if s, err := cron.ParseStandard(p.Spec); err == nil {
+			return s.Next(fromTime), nil
 		}
 	case PeriodicSpecTest:
 		split := strings.Split(p.Spec, ",")
