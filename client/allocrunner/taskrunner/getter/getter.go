@@ -1,8 +1,12 @@
 package getter
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -90,14 +94,11 @@ func getGetterUrl(taskEnv EnvReplacer, artifact *structs.TaskArtifact) (string, 
 }
 
 // GetArtifact downloads an artifact into the specified task directory.
-func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir string) error {
+func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir string, cacheDir string) error {
 	url, err := getGetterUrl(taskEnv, artifact)
 	if err != nil {
 		return newGetError(artifact.GetterSource, err, false)
 	}
-
-	// Download the artifact
-	dest := filepath.Join(taskDir, artifact.RelativeDest)
 
 	// Convert from string getter mode to go-getter const
 	mode := gg.ClientModeAny
@@ -108,8 +109,42 @@ func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir st
 		mode = gg.ClientModeDir
 	}
 
-	if err := getClient(url, mode, dest).Get(); err != nil {
-		return newGetError(url, err, true)
+	dest := filepath.Join(taskDir, artifact.RelativeDest)
+	if len(cacheDir) > 0 {
+		// a cache directory has been provided, so check it for the resource
+		// compute the cache key (sha1)
+		hash := sha1.New()
+		hash.Write([]byte(url))
+		cacheKey := hex.EncodeToString(hash.Sum(nil))
+		cacheFolder := filepath.Join(cacheDir, cacheKey)
+
+		if _, err := os.Stat(cacheFolder); os.IsNotExist(err) {
+			// file has not been cached yet, so download it
+			if err := getClient(url, mode, cacheFolder).Get(); err != nil {
+				return newGetError(url, err, true)
+			}
+		}
+
+		// copy the cached asset over to the taskDir
+		if fi, err := os.Stat(cacheFolder); err != nil {
+			return newGetError(url, err, true)
+		} else if fi.IsDir() {
+			// we got a folder to replicate
+			err = copyDir(cacheFolder, dest)
+			if err != nil {
+				return newGetError(url, err, true)
+			}
+		} else {
+			// we got a single file to copy
+			err = copyFile(cacheFolder, dest)
+			if err != nil {
+				return newGetError(url, err, true)
+			}
+		}
+	} else {
+		if err := getClient(url, mode, dest).Get(); err != nil {
+			return newGetError(url, err, true)
+		}
 	}
 
 	return nil
@@ -137,4 +172,77 @@ func (g *GetError) Error() string {
 
 func (g *GetError) IsRecoverable() bool {
 	return g.recoverable
+}
+
+// copy a single file from src to dst
+func copyFile(src, dst string) error {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	srcF, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcF.Close()
+
+	dstF, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstF.Close()
+
+	_, err = io.Copy(dstF, srcF)
+	if err != nil {
+		return err
+	}
+
+	// Chmod it
+	return os.Chmod(dst, srcInfo.Mode())
+}
+
+// copy an entire folder (including sub-folders) from src to dst
+func copyDir(src, dst string) error {
+	src, err := filepath.EvalSymlinks(src)
+	if err != nil {
+		return err
+	}
+
+	walkFn := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == src {
+			return nil
+		}
+
+		// The "path" has the src prefixed to it. We need to join our
+		// destination with the path without the src on it.
+		dstPath := filepath.Join(dst, path[len(src):])
+
+		// If we have a directory, make that subdirectory, then continue
+		// the walk.
+		if info.IsDir() {
+			if path == filepath.Join(src, dst) {
+				// dst is in src; don't walk it.
+				return nil
+			}
+
+			if err := os.MkdirAll(dstPath, 0755); err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		// If we have a file, copy the contents.
+		if err := copyFile(path, dstPath); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return filepath.Walk(src, walkFn)
 }

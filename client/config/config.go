@@ -245,6 +245,10 @@ type Config struct {
 
 	// HostVolumes is a map of the configured host volumes by name.
 	HostVolumes map[string]*structs.ClientHostVolumeConfig
+
+	// ArtifactCachingPath is the path to folder used to cache artifact downloads.
+	// A single path can be provided that defaults to "" (i.e. no caching) if not set
+	ArtifactCachingPath string
 }
 
 type ClientTemplateConfig struct {
@@ -301,6 +305,7 @@ func DefaultConfig() *Config {
 		},
 		BackwardsCompatibleMetrics: false,
 		RPCHoldTimeout:             5 * time.Second,
+		ArtifactCachingPath:        "",
 	}
 }
 

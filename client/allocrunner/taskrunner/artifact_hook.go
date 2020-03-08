@@ -15,11 +15,13 @@ import (
 type artifactHook struct {
 	eventEmitter ti.EventEmitter
 	logger       log.Logger
+	cacheDir     string
 }
 
-func newArtifactHook(e ti.EventEmitter, logger log.Logger) *artifactHook {
+func newArtifactHook(e ti.EventEmitter, cacheDir string, logger log.Logger) *artifactHook {
 	h := &artifactHook{
 		eventEmitter: e,
+		cacheDir:     cacheDir,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -52,7 +54,7 @@ func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 
 		h.logger.Debug("downloading artifact", "artifact", artifact.GetterSource)
 		//XXX add ctx to GetArtifact to allow cancelling long downloads
-		if err := getter.GetArtifact(req.TaskEnv, artifact, req.TaskDir.Dir); err != nil {
+		if err := getter.GetArtifact(req.TaskEnv, artifact, req.TaskDir.Dir, h.cacheDir); err != nil {
 			wrapped := structs.NewRecoverableError(
 				fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err),
 				true,

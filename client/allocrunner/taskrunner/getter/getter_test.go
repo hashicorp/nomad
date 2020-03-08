@@ -49,7 +49,7 @@ func TestGetArtifact_FileAndChecksum(t *testing.T) {
 	}
 
 	// Download the artifact
-	if err := GetArtifact(taskEnv, artifact, taskDir); err != nil {
+	if err := GetArtifact(taskEnv, artifact, taskDir, ""); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -83,7 +83,7 @@ func TestGetArtifact_File_RelativeDest(t *testing.T) {
 	}
 
 	// Download the artifact
-	if err := GetArtifact(taskEnv, artifact, taskDir); err != nil {
+	if err := GetArtifact(taskEnv, artifact, taskDir, ""); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -137,7 +137,7 @@ func TestGetArtifact_InvalidChecksum(t *testing.T) {
 	}
 
 	// Download the artifact and expect an error
-	if err := GetArtifact(taskEnv, artifact, taskDir); err == nil {
+	if err := GetArtifact(taskEnv, artifact, taskDir, ""); err == nil {
 		t.Fatalf("GetArtifact should have failed")
 	}
 }
@@ -202,7 +202,7 @@ func TestGetArtifact_Archive(t *testing.T) {
 		},
 	}
 
-	if err := GetArtifact(taskEnv, artifact, taskDir); err != nil {
+	if err := GetArtifact(taskEnv, artifact, taskDir, ""); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -235,7 +235,7 @@ func TestGetArtifact_Setuid(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, GetArtifact(taskEnv, artifact, taskDir))
+	require.NoError(t, GetArtifact(taskEnv, artifact, taskDir, ""))
 
 	var expected map[string]int
 
@@ -368,4 +368,112 @@ func TestGetGetterUrl_Queries(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetArtifact_CachingFileAndChecksum(t *testing.T) {
+	// Create the test server hosting the file to download
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("./test-fixtures/"))))
+
+	// Create a temp directory to download into
+	taskDir, err := ioutil.TempDir("", "nomad-test")
+	if err != nil {
+		t.Fatalf("failed to make temp directory: %v", err)
+	}
+	defer os.RemoveAll(taskDir)
+
+	// Create a temp directory as cache folder
+	cacheDir, err := ioutil.TempDir("", "nomad-test-cache")
+	if err != nil {
+		t.Fatalf("failed to make temp directory: %v", err)
+	}
+	defer os.RemoveAll(cacheDir)
+
+	// Create the artifact
+	file := "test.sh"
+	artifact := &structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, file),
+		GetterOptions: map[string]string{
+			"checksum": "md5:bce963762aa2dbfed13caf492a45fb72",
+		},
+	}
+
+	// Download the artifact
+	if err := GetArtifact(taskEnv, artifact, taskDir, cacheDir); err != nil {
+		t.Fatalf("GetArtifact failed: %v", err)
+	}
+
+	// Verify artifact exists
+	if _, err := os.Stat(filepath.Join(taskDir, file)); err != nil {
+		t.Fatalf("file not found: %s", err)
+	}
+
+	ts.Close()
+	os.Remove(filepath.Join(taskDir, file))
+
+	// Download the artifact again, but without server
+	if err := GetArtifact(taskEnv, artifact, taskDir, cacheDir); err != nil {
+		t.Fatalf("GetArtifact failed: %v", err)
+	}
+
+	// Verify artifact exists
+	if _, err := os.Stat(filepath.Join(taskDir, file)); err != nil {
+		t.Fatalf("file not found: %s", err)
+	}
+}
+
+func TestGetArtifact_CachingArchive(t *testing.T) {
+	// Create the test server hosting the file to download
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("./test-fixtures/"))))
+
+	// Create a temp directory to download into and create some of the same
+	// files that exist in the artifact to ensure they are overridden
+	taskDir, err := ioutil.TempDir("", "nomad-test")
+	if err != nil {
+		t.Fatalf("failed to make temp directory: %v", err)
+	}
+	defer os.RemoveAll(taskDir)
+
+	// Create a temp directory as cache folder
+	cacheDir, err := ioutil.TempDir("", "nomad-test-cache")
+	if err != nil {
+		t.Fatalf("failed to make temp directory: %v", err)
+	}
+	defer os.RemoveAll(cacheDir)
+
+	create := map[string]string{
+		"exist/my.config": "to be replaced",
+		"untouched":       "existing top-level",
+	}
+	createContents(taskDir, create, t)
+
+	file := "archive.tar.gz"
+	artifact := &structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, file),
+		GetterOptions: map[string]string{
+			"checksum": "sha1:20bab73c72c56490856f913cf594bad9a4d730f6",
+		},
+	}
+
+	if err := GetArtifact(taskEnv, artifact, taskDir, cacheDir); err != nil {
+		t.Fatalf("GetArtifact failed: %v", err)
+	}
+
+	// Verify the unarchiving overrode files properly.
+	expected := map[string]string{
+		"untouched":       "existing top-level",
+		"exist/my.config": "hello world\n",
+		"new/my.config":   "hello world\n",
+		"test.sh":         "sleep 1\n",
+	}
+	checkContents(taskDir, expected, t)
+
+	ts.Close()
+	os.Remove(filepath.Join(taskDir, "exist/my.config"))
+	os.Remove(filepath.Join(taskDir, "new/my.config"))
+	os.Remove(filepath.Join(taskDir, "test.sh"))
+
+	if err := GetArtifact(taskEnv, artifact, taskDir, cacheDir); err != nil {
+		t.Fatalf("GetArtifact failed: %v", err)
+	}
+	checkContents(taskDir, expected, t)
 }

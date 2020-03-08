@@ -36,7 +36,7 @@ func TestTaskRunner_ArtifactHook_Recoverable(t *testing.T) {
 	t.Parallel()
 
 	me := &mockEmitter{}
-	artifactHook := newArtifactHook(me, testlog.HCLogger(t))
+	artifactHook := newArtifactHook(me, "", testlog.HCLogger(t))
 
 	req := &interfaces.TaskPrestartRequest{
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
@@ -69,7 +69,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	t.Parallel()
 
 	me := &mockEmitter{}
-	artifactHook := newArtifactHook(me, testlog.HCLogger(t))
+	artifactHook := newArtifactHook(me, "", testlog.HCLogger(t))
 
 	// Create a source directory with 1 of the 2 artifacts
 	srcdir, err := ioutil.TempDir("", "nomadtest-src")
