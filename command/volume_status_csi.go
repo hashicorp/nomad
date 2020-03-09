@@ -90,12 +90,13 @@ func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) (string, error) {
 		return out, nil
 	}
 
-	// TODO(langmartin) add Provider https://github.com/hashicorp/nomad/issues/7248
 	output := []string{
 		fmt.Sprintf("ID|%s", vol.ID),
 		fmt.Sprintf("Name|%s", vol.Name),
 		fmt.Sprintf("External ID|%s", vol.ExternalID),
-
+		fmt.Sprintf("Plugin ID|%s", vol.PluginID),
+		fmt.Sprintf("Provider|%s", vol.Provider),
+		fmt.Sprintf("Version|%s", vol.ProviderVersion),
 		fmt.Sprintf("Schedulable|%t", vol.Schedulable),
 		fmt.Sprintf("Controllers Healthy|%d", vol.ControllersHealthy),
 		fmt.Sprintf("Controllers Expected|%d", vol.ControllersExpected),

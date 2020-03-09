@@ -86,6 +86,8 @@ func (p *pluginFingerprinter) buildBasicFingerprint(ctx context.Context) (*struc
 	info := &structs.CSIInfo{
 		PluginID:          p.info.Name,
 		AllocID:           p.info.AllocID,
+		Provider:          p.info.Options["Provider"],
+		ProviderVersion:   p.info.Version,
 		Healthy:           false,
 		HealthDescription: "initial fingerprint not completed",
 	}
