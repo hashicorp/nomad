@@ -957,7 +957,6 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 			plug = raw.(*structs.CSIPlugin).Copy()
 		} else {
 			plug = structs.NewCSIPlugin(info.PluginID, index)
-			plug.ControllerRequired = info.RequiresControllerPlugin
 			plug.Provider = info.Provider
 			plug.Version = info.ProviderVersion
 		}

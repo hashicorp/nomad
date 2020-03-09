@@ -527,6 +527,9 @@ func (p *CSIPlugin) Copy() *CSIPlugin {
 // transaction
 func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) {
 	if info.ControllerInfo != nil {
+		p.ControllerRequired = info.RequiresControllerPlugin &&
+			info.ControllerInfo.SupportsAttachDetach
+
 		prev, ok := p.Controllers[nodeID]
 		if ok && prev.Healthy {
 			p.ControllersHealthy -= 1
