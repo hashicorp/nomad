@@ -517,6 +517,11 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(resp3.Plugins))
 
+	// ensure that plugin->alloc denormalization does COW correctly
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.List", req3, resp3)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(resp3.Plugins))
+
 	// Deregistration works
 	deleteNodes()
 
