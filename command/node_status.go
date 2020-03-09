@@ -317,6 +317,22 @@ func nodeCSINodeNames(n *api.Node) []string {
 	return names
 }
 
+func nodeCSIVolumeNames(n *api.Node, allocs []*api.Allocation) []string {
+	var names []string
+	for _, alloc := range allocs {
+		tg := alloc.GetTaskGroup()
+		if tg == nil || len(tg.Volumes) == 0 {
+			continue
+		}
+
+		for _, v := range tg.Volumes {
+			names = append(names, v.Name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
 func nodeVolumeNames(n *api.Node) []string {
 	var volumes []string
 	for name := range n.HostVolumes {
@@ -349,6 +365,20 @@ func formatDrain(n *api.Node) string {
 }
 
 func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
+	// Make one API call for allocations
+	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
+		return 1
+	}
+
+	var runningAllocs []*api.Allocation
+	for _, alloc := range nodeAllocs {
+		if alloc.ClientStatus == "running" {
+			runningAllocs = append(runningAllocs, alloc)
+		}
+	}
+
 	// Format the header output
 	basic := []string{
 		fmt.Sprintf("ID|%s", node.ID),
@@ -364,11 +394,12 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 
 	if c.short {
 		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
+		basic = append(basic, fmt.Sprintf("CSI Volumes|%s", strings.Join(nodeCSIVolumeNames(node, runningAllocs), ",")))
 		basic = append(basic, fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")))
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
 		// Output alloc info
-		if err := c.outputAllocInfo(client, node); err != nil {
+		if err := c.outputAllocInfo(node, nodeAllocs); err != nil {
 			c.Ui.Error(fmt.Sprintf("%s", err))
 			return 1
 		}
@@ -409,12 +440,6 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	c.outputNodeStatusEvents(node)
 
 	// Get list of running allocations on the node
-	runningAllocs, err := getRunningAllocs(client, node.ID)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying node for running allocations: %s", err))
-		return 1
-	}
-
 	allocatedResources := getAllocatedResources(client, runningAllocs, node)
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocated Resources[reset]"))
 	c.Ui.Output(formatList(allocatedResources))
@@ -452,7 +477,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		}
 	}
 
-	if err := c.outputAllocInfo(client, node); err != nil {
+	if err := c.outputAllocInfo(node, nodeAllocs); err != nil {
 		c.Ui.Error(fmt.Sprintf("%s", err))
 		return 1
 	}
@@ -460,12 +485,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	return 0
 }
 
-func (c *NodeStatusCommand) outputAllocInfo(client *api.Client, node *api.Node) error {
-	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
-	if err != nil {
-		return fmt.Errorf("Error querying node allocations: %s", err)
-	}
-
+func (c *NodeStatusCommand) outputAllocInfo(node *api.Node, nodeAllocs []*api.Allocation) error {
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
 	c.Ui.Output(formatAllocList(nodeAllocs, c.verbose, c.length))
 
