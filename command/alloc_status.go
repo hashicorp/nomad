@@ -744,8 +744,9 @@ FOUND:
 				}
 				csiVolumesOutput = append(csiVolumesOutput,
 					fmt.Sprintf("%s|%s|%s|%v|%v|%s",
-						volReq.Name, vol.PluginID,
-						"n/a", // TODO(tgross): https://github.com/hashicorp/nomad/issues/7248
+						volReq.Name,
+						vol.PluginID,
+						vol.Provider,
 						vol.Schedulable,
 						volReq.ReadOnly,
 						"n/a", // TODO(tgross): https://github.com/hashicorp/nomad/issues/7007

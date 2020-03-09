@@ -151,6 +151,9 @@ type CSIInfo struct {
 	HealthDescription string
 	UpdateTime        time.Time
 
+	Provider        string // vendor name from CSI GetPluginInfoResponse
+	ProviderVersion string // vendor version from CSI GetPluginInfoResponse
+
 	// RequiresControllerPlugin is set when the CSI Plugin returns the
 	// CONTROLLER_SERVICE capability. When this is true, the volumes should not be
 	// scheduled on this client until a matching controller plugin is available.

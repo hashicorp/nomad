@@ -23,7 +23,8 @@ type CSIPlugin interface {
 	// PluginGetInfo is used to return semantic data about the plugin.
 	// Response:
 	//  - string: name, the name of the plugin in domain notation format.
-	PluginGetInfo(ctx context.Context) (string, error)
+	//  - string: version, the vendor version of the plugin
+	PluginGetInfo(ctx context.Context) (string, string, error)
 
 	// PluginGetCapabilities is used to return the available capabilities from the
 	// identity service. This currently only looks for the CONTROLLER_SERVICE and
