@@ -676,6 +676,8 @@ type StatValue struct {
 
 func (v *StatValue) String() string {
 	switch {
+	case v == nil:
+		return "<none>"
 	case v.BoolVal != nil:
 		return strconv.FormatBool(*v.BoolVal)
 	case v.StringVal != nil:
