@@ -2829,9 +2829,34 @@ func TestStateStore_RestoreJobSummary(t *testing.T) {
 // TestStateStore_CSIVolume checks register, list and deregister for csi_volumes
 func TestStateStore_CSIVolume(t *testing.T) {
 	state := testStateStore(t)
+	index := uint64(1000)
+
+	// Create a node running a healthy instance of the plugin
+	node := mock.Node()
+	pluginID := "minnie"
+	allocID := uuid.Generate()
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		pluginID: {
+			PluginID:                 pluginID,
+			AllocID:                  allocID,
+			Healthy:                  true,
+			HealthDescription:        "healthy",
+			RequiresControllerPlugin: false,
+			RequiresTopologies:       false,
+			NodeInfo: &structs.CSINodeInfo{
+				ID:                      node.ID,
+				MaxVolumes:              64,
+				RequiresNodeStageVolume: true,
+			},
+		},
+	}
+
+	index++
+	state.UpsertNode(index, node)
+
+	defer state.DeleteNode(9999, []string{pluginID})
 
 	id0, id1 := uuid.Generate(), uuid.Generate()
-	index := uint64(1000)
 
 	v0 := structs.NewCSIVolume("foo", index)
 	v0.ID = id0
@@ -2850,7 +2875,8 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	v1.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v1.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 
-	err := state.CSIVolumeRegister(0, []*structs.CSIVolume{v0, v1})
+	index++
+	err := state.CSIVolumeRegister(index, []*structs.CSIVolume{v0, v1})
 	require.NoError(t, err)
 
 	ws := memdb.NewWatchSet()
@@ -2878,7 +2904,8 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
 
-	err = state.CSIVolumeDeregister(1, []string{
+	index++
+	err = state.CSIVolumeDeregister(index, []string{
 		id1,
 	})
 	require.NoError(t, err)
@@ -2902,9 +2929,11 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	w := structs.CSIVolumeClaimWrite
 	u := structs.CSIVolumeClaimRelease
 
-	err = state.CSIVolumeClaim(2, id0, a0, r)
+	index++
+	err = state.CSIVolumeClaim(index, id0, a0, r)
 	require.NoError(t, err)
-	err = state.CSIVolumeClaim(2, id0, a1, w)
+	index++
+	err = state.CSIVolumeClaim(index, id0, a1, w)
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
