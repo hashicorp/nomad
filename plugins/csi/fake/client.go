@@ -28,9 +28,10 @@ type Client struct {
 	NextPluginProbeErr      error
 	PluginProbeCallCount    int64
 
-	NextPluginGetInfoResponse string
-	NextPluginGetInfoErr      error
-	PluginGetInfoCallCount    int64
+	NextPluginGetInfoNameResponse    string
+	NextPluginGetInfoVersionResponse string
+	NextPluginGetInfoErr             error
+	PluginGetInfoCallCount           int64
 
 	NextPluginGetCapabilitiesResponse *csi.PluginCapabilitySet
 	NextPluginGetCapabilitiesErr      error
@@ -106,13 +107,13 @@ func (c *Client) PluginProbe(ctx context.Context) (bool, error) {
 // PluginGetInfo is used to return semantic data about the plugin.
 // Response:
 //  - string: name, the name of the plugin in domain notation format.
-func (c *Client) PluginGetInfo(ctx context.Context) (string, error) {
+func (c *Client) PluginGetInfo(ctx context.Context) (string, string, error) {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
 
 	c.PluginGetInfoCallCount++
 
-	return c.NextPluginGetInfoResponse, c.NextPluginGetInfoErr
+	return c.NextPluginGetInfoNameResponse, c.NextPluginGetInfoVersionResponse, c.NextPluginGetInfoErr
 }
 
 // PluginGetCapabilities is used to return the available capabilities from the

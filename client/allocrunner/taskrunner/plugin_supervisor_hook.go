@@ -256,16 +256,31 @@ WAITFORREADY:
 }
 
 func (h *csiPluginSupervisorHook) registerPlugin(socketPath string) (func(), error) {
+
+	// At this point we know the plugin is ready and we can fingerprint it
+	// to get its vendor name and version
+	client, err := csi.NewClient(socketPath, h.logger.Named("csi_client").With("plugin.name", h.task.CSIPluginConfig.ID, "plugin.type", h.task.CSIPluginConfig.Type))
+	defer client.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create csi client: %v", err)
+	}
+
+	info, err := client.PluginInfo()
+	if err != nil {
+		return nil, fmt.Errorf("failed to probe plugin: %v", err)
+	}
+
 	mkInfoFn := func(pluginType string) *dynamicplugins.PluginInfo {
 		return &dynamicplugins.PluginInfo{
 			Type:    pluginType,
 			Name:    h.task.CSIPluginConfig.ID,
-			Version: "1.0.0",
+			Version: info.PluginVersion,
 			ConnectionInfo: &dynamicplugins.PluginConnectionInfo{
 				SocketPath: socketPath,
 			},
 			AllocID: h.alloc.ID,
 			Options: map[string]string{
+				"Provider":            info.Name, // vendor name
 				"MountPoint":          h.mountPoint,
 				"ContainerMountPoint": h.task.CSIPluginConfig.MountDir,
 			},
