@@ -45,6 +45,7 @@
     line-height: 1.5;
     width: 100%;
     text-align: left;
+    overflow-wrap: break-word;
     padding: 6px 0 5px 17px;
 
     .icon {
@@ -90,6 +91,8 @@
 
       .task-label {
         padding: 6px 0 5px 13px;
+        overflow-wrap: break-word;
+        // FIXME this doesn’t truly fix it, the container is unconstrained…?
       }
 
       .icon {
