@@ -459,7 +459,7 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 			}
 
 			if plug != nil {
-				plug, err = state.CSIPluginDenormalize(ws, plug)
+				plug, err = state.CSIPluginDenormalize(ws, plug.Copy())
 			}
 			if err != nil {
 				return err
