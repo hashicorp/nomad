@@ -134,7 +134,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 				}
 
 				vol := raw.(*structs.CSIVolume)
-				vol, err := state.CSIVolumeDenormalizePlugins(ws, vol)
+				vol, err := state.CSIVolumeDenormalizePlugins(ws, vol.Copy())
 				if err != nil {
 					return err
 				}
