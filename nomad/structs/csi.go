@@ -156,6 +156,8 @@ type CSIVolume struct {
 	// volume has not been marked for garbage collection
 	Schedulable         bool
 	PluginID            string
+	Provider            string
+	ProviderVersion     string
 	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
@@ -180,6 +182,7 @@ type CSIVolListStub struct {
 	CurrentWriters      int
 	Schedulable         bool
 	PluginID            string
+	Provider            string
 	ControllersHealthy  int
 	ControllersExpected int
 	NodesHealthy        int
@@ -222,6 +225,7 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 		CurrentWriters:     len(v.WriteAllocs),
 		Schedulable:        v.Schedulable,
 		PluginID:           v.PluginID,
+		Provider:           v.Provider,
 		ControllersHealthy: v.ControllersHealthy,
 		NodesHealthy:       v.NodesHealthy,
 		NodesExpected:      v.NodesExpected,
@@ -466,6 +470,8 @@ type CSIVolumeGetResponse struct {
 // CSIPlugin collects fingerprint info context for the plugin for clients
 type CSIPlugin struct {
 	ID                 string
+	Provider           string // the vendor name from CSI GetPluginInfoResponse
+	Version            string // the vendor verson from  CSI GetPluginInfoResponse
 	ControllerRequired bool
 
 	// Map Node.IDs to fingerprint results, split by type. Monolith type plugins have
@@ -561,6 +567,7 @@ func (p *CSIPlugin) DeleteNode(nodeID string) {
 
 type CSIPluginListStub struct {
 	ID                  string
+	Provider            string
 	ControllerRequired  bool
 	ControllersHealthy  int
 	ControllersExpected int
@@ -573,6 +580,7 @@ type CSIPluginListStub struct {
 func (p *CSIPlugin) Stub() *CSIPluginListStub {
 	return &CSIPluginListStub{
 		ID:                  p.ID,
+		Provider:            p.Provider,
 		ControllerRequired:  p.ControllerRequired,
 		ControllersHealthy:  p.ControllersHealthy,
 		ControllersExpected: len(p.Controllers),
