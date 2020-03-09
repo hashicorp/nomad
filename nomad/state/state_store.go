@@ -1655,7 +1655,8 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 	return nil
 }
 
-// CSIVolumeByID is used to lookup a single volume. Its plugins are denormalized to provide accurate Health
+// CSIVolumeByID is used to lookup a single volume. Returns a copy of the volume
+// because its plugins are denormalized to provide accurate Health.
 func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, id string) (*structs.CSIVolume, error) {
 	txn := s.db.Txn(false)
 
@@ -1670,7 +1671,7 @@ func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, id string) (*structs.CSIVo
 	}
 
 	vol := obj.(*structs.CSIVolume)
-	return s.CSIVolumeDenormalizePlugins(ws, vol)
+	return s.CSIVolumeDenormalizePlugins(ws, vol.Copy())
 }
 
 // CSIVolumes looks up csi_volumes by pluginID
@@ -1741,8 +1742,11 @@ func (s *StateStore) CSIVolumeClaim(index uint64, id string, alloc *structs.Allo
 		return fmt.Errorf("volume row conversion error")
 	}
 
-	volume := orig.Copy()
-
+	ws := memdb.NewWatchSet()
+	volume, err := s.CSIVolumeDenormalizePlugins(ws, orig.Copy())
+	if err != nil {
+		return err
+	}
 	if !volume.Claim(claim, alloc) {
 		return fmt.Errorf("volume max claim reached")
 	}
