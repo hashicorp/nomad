@@ -8,6 +8,7 @@ IMPROVEMENTS:
 BUG FIXES:
 
  * api: Fixed a panic when canonicalizing a jobspec with an incorrect job type [[GH-7207]](https://github.com/hashicorp/nomad/pull/7207)
+ * cli: Fixed a panic when displaying device plugins without stats [[GH-7231](https://github.com/hashicorp/nomad/issues/7231)]
 
 ## 0.10.4 (February 19, 2020)
 
