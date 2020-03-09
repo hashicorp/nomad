@@ -15,6 +15,9 @@ import (
 	"google.golang.org/grpc"
 )
 
+// PluginTypeCSI implements the CSI plugin interface
+const PluginTypeCSI = "csi"
+
 type NodeGetInfoResponse struct {
 	NodeID             string
 	MaxVolumes         int64
@@ -126,15 +129,15 @@ func newGrpcConn(addr string, logger hclog.Logger) (*grpc.ClientConn, error) {
 // PluginInfo describes the type and version of a plugin as required by the nomad
 // base.BasePlugin interface.
 func (c *client) PluginInfo() (*base.PluginInfoResponse, error) {
-	name, err := c.PluginGetInfo(context.TODO())
+	name, version, err := c.PluginGetInfo(context.TODO())
 	if err != nil {
 		return nil, err
 	}
 
 	return &base.PluginInfoResponse{
-		Type:              "csi",
-		PluginApiVersions: []string{"1.0.0"}, // TODO: fingerprint csi version
-		PluginVersion:     "1.0.0",           // TODO: get plugin version from somewhere?!
+		Type:              PluginTypeCSI,     // note: this isn't a Nomad go-plugin type
+		PluginApiVersions: []string{"1.0.0"}, // TODO(tgross): we want to fingerprint spec version, but this isn't included as a field from the plugins
+		PluginVersion:     version,
 		Name:              name,
 	}, nil
 }
@@ -172,25 +175,26 @@ func (c *client) PluginProbe(ctx context.Context) (bool, error) {
 	return ready, nil
 }
 
-func (c *client) PluginGetInfo(ctx context.Context) (string, error) {
+func (c *client) PluginGetInfo(ctx context.Context) (string, string, error) {
 	if c == nil {
-		return "", fmt.Errorf("Client not initialized")
+		return "", "", fmt.Errorf("Client not initialized")
 	}
 	if c.identityClient == nil {
-		return "", fmt.Errorf("Client not initialized")
+		return "", "", fmt.Errorf("Client not initialized")
 	}
 
-	req, err := c.identityClient.GetPluginInfo(ctx, &csipbv1.GetPluginInfoRequest{})
+	resp, err := c.identityClient.GetPluginInfo(ctx, &csipbv1.GetPluginInfoRequest{})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	name := req.GetName()
+	name := resp.GetName()
 	if name == "" {
-		return "", fmt.Errorf("PluginGetInfo: plugin returned empty name field")
+		return "", "", fmt.Errorf("PluginGetInfo: plugin returned empty name field")
 	}
+	version := resp.GetVendorVersion()
 
-	return name, nil
+	return name, version, nil
 }
 
 func (c *client) PluginGetCapabilities(ctx context.Context) (*PluginCapabilitySet, error) {

@@ -201,17 +201,24 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 	return v.srv.blockingRPC(&opts)
 }
 
-func (srv *Server) controllerValidateVolume(req *structs.CSIVolumeRegisterRequest, vol *structs.CSIVolume) error {
+func (srv *Server) pluginValidateVolume(req *structs.CSIVolumeRegisterRequest, vol *structs.CSIVolume) (*structs.CSIPlugin, error) {
 	state := srv.fsm.State()
 	ws := memdb.NewWatchSet()
 
 	plugin, err := state.CSIPluginByID(ws, vol.PluginID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if plugin == nil {
-		return fmt.Errorf("no CSI plugin named: %s could be found", vol.PluginID)
+		return nil, fmt.Errorf("no CSI plugin named: %s could be found", vol.PluginID)
 	}
+
+	vol.Provider = plugin.Provider
+	vol.ProviderVersion = plugin.Version
+	return plugin, nil
+}
+
+func (srv *Server) controllerValidateVolume(req *structs.CSIVolumeRegisterRequest, vol *structs.CSIVolume, plugin *structs.CSIPlugin) error {
 
 	if !plugin.ControllerRequired {
 		// The plugin does not require a controller, so for now we won't do any
@@ -271,8 +278,11 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		if err = vol.Validate(); err != nil {
 			return err
 		}
-
-		if err := v.srv.controllerValidateVolume(args, vol); err != nil {
+		plugin, err := v.srv.pluginValidateVolume(args, vol)
+		if err != nil {
+			return err
+		}
+		if err := v.srv.controllerValidateVolume(args, vol, plugin); err != nil {
 			return err
 		}
 	}
