@@ -357,7 +357,7 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	// adds a Volume and PublishContext from the controller (if any) to the reply
 	err = v.srv.controllerPublishVolume(args, reply)
 	if err != nil {
-		return err
+		return fmt.Errorf("controllerPublish: %v", err)
 	}
 
 	resp, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, args)
@@ -540,7 +540,7 @@ func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, r
 
 	err = srv.RPC(method, cReq, cResp)
 	if err != nil {
-		return err
+		return fmt.Errorf("attach volume: %v", err)
 	}
 	resp.PublishContext = cResp.PublishContext
 	return nil
