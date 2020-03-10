@@ -19,6 +19,7 @@ export default class ExecCommandEditorXtermAdapter {
   }
 
   handleKeyEvent(e) {
+    // FIXME handle arrow keys, but how?
     if (e.domEvent.key === 'Enter') {
       this.terminal.writeln('');
       this.setCommandCallback(this.command);
