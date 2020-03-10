@@ -112,9 +112,12 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			// Query all volumes
 			var err error
 			var iter memdb.ResultIterator
+			var vols []*structs.CSIVolume
 
 			if args.PluginID != "" {
 				iter, err = state.CSIVolumesByPluginID(ws, args.PluginID)
+			} else if args.NodeID != "" {
+				vols, err = state.CSIVolumesByNodeID(ws, args.PluginID)
 			} else {
 				iter, err = state.CSIVolumes(ws)
 			}
@@ -124,19 +127,29 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			}
 
 			// Collect results, filter by ACL access
+			var vol *structs.CSIVolume
 			var vs []*structs.CSIVolListStub
 			cache := map[string]bool{}
+			i := 0
 
 			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
+				// Iterate through either the iterator or the slice of volumes
+				if iter != nil {
+					raw := iter.Next()
+					if raw == nil {
+						break
+					}
 
-				vol := raw.(*structs.CSIVolume)
-				vol, err := state.CSIVolumeDenormalizePlugins(ws, vol.Copy())
-				if err != nil {
-					return err
+					vol = raw.(*structs.CSIVolume)
+					vol, err = state.CSIVolumeDenormalizePlugins(ws, vol.Copy())
+					if err != nil {
+						return err
+					}
+				} else {
+					if i == len(vs) {
+						break
+					}
+					vol = vols[i]
 				}
 
 				// Filter on the request namespace to avoid ACL checks by volume
