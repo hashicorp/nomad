@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -42,7 +43,11 @@ func (a *ClientCSIController) AttachVolume(args *cstructs.ClientCSIControllerAtt
 	}
 
 	// Make the RPC
-	return NodeRpc(state.Session, "CSIController.AttachVolume", args, reply)
+	err = NodeRpc(state.Session, "CSIController.AttachVolume", args, reply)
+	if err != nil {
+		return fmt.Errorf("attach volume: %v", err)
+	}
+	return nil
 }
 
 func (a *ClientCSIController) ValidateVolume(args *cstructs.ClientCSIControllerValidateVolumeRequest, reply *cstructs.ClientCSIControllerValidateVolumeResponse) error {
@@ -71,5 +76,9 @@ func (a *ClientCSIController) ValidateVolume(args *cstructs.ClientCSIControllerV
 	}
 
 	// Make the RPC
-	return NodeRpc(state.Session, "CSIController.ValidateVolume", args, reply)
+	err = NodeRpc(state.Session, "CSIController.ValidateVolume", args, reply)
+	if err != nil {
+		return fmt.Errorf("validate volume: %v", err)
+	}
+	return nil
 }
