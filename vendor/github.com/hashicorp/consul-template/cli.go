@@ -423,11 +423,6 @@ func (cli *CLI) ParseFlags(args []string) (
 		return nil
 	}), "vault-addr", "")
 
-	flags.Var((funcDurationVar)(func(t time.Duration) error {
-		c.Vault.Grace = config.TimeDuration(t)
-		return nil
-	}), "vault-grace", "")
-
 	flags.Var((funcBoolVar)(func(b bool) error {
 		c.Vault.RenewToken = config.Bool(b)
 		return nil

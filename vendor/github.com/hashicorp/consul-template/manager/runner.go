@@ -691,12 +691,20 @@ func (r *Runner) runTemplate(tmpl *template.Template, runCtx *templateRunCtx) (*
 	// Grab the list of used and missing dependencies.
 	missing, used := result.Missing, result.Used
 
+	if l := missing.Len(); l > 0 {
+		log.Printf("[DEBUG] (runner) missing data for %d dependencies", l)
+		for _, missingDependency := range missing.List() {
+			log.Printf("[DEBUG] (runner) missing dependency: %s", missingDependency)
+		}
+	}
+
 	// Add the dependency to the list of dependencies for this runner.
 	for _, d := range used.List() {
 		// If we've taken over leadership for a template, we may have data
 		// that is cached, but not have the watcher. We must treat this as
 		// missing so that we create the watcher and re-run the template.
 		if isLeader && !r.watcher.Watching(d) {
+			log.Printf("[DEBUG] (runner) add used dependency %s to missing since isLeader but do not have a watcher", d)
 			missing.Add(d)
 		}
 		if _, ok := runCtx.depsMap[d.String()]; !ok {
@@ -1295,7 +1303,6 @@ func newWatcher(c *config.Config, clients *dep.ClientSet, once bool) (*watch.Wat
 		// dependencies like reading a file from disk.
 		RetryFuncDefault: nil,
 		RetryFuncVault:   watch.RetryFunc(c.Vault.Retry.RetryFunc()),
-		VaultGrace:       config.TimeDurationVal(c.Vault.Grace),
 		VaultToken:       clients.Vault().Token(),
 	})
 	if err != nil {

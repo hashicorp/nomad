@@ -4,6 +4,7 @@ IMPROVEMENTS:
 
  * build: Updated to Go 1.14 [[GH-7247](https://github.com/hashicorp/nomad/issues/7247)]
  * consul: Added support for configuring `enable_tag_override` on service stanzas. [[GH-2057](https://github.com/hashicorp/nomad/issues/2057)]
+ * client: Updated consul-template library to v0.24.1 - added support for working with consul connect. [Deprecated vault_grace](https://nomadproject.io/guides/upgrade/upgrade-specific/#nomad-0110) [[GH-7170](https://github.com/hashicorp/nomad/pull/7170)]
 
 BUG FIXES:
 

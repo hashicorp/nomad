@@ -1,8 +1,39 @@
+## v0.24.1 (Jan 24, 2020)
+
+BUG FIXES:
+
+* Make user non-numeric to satisfy PSP [GH-1332](https://github.com/hashicorp/consul-template/pull/1332)
+* fatal error: PowerRegisterSuspendResumeNotification failure on windows [GH-1335](https://github.com/hashicorp/consul-template/issues/1335)
+
+## v0.24.0 (Jan 08, 2020)
+
+BREAKING CHANGES:
+
+* Alpine Docker image no longer runs as root and so doesn't change ownership of the /consul-template/data and /consul-template/config directories to the consul-template user. See the [Docker Image Use](https://github.com/hashicorp/consul-template#docker-image-use) topic in the documentation for more.
+
+BUG FIXES:
+
+* arm builds are linked against wrong library [[GH-1317](https://github.com/hashicorp/consul-template/issues/1317), [GH-1326](https://github.com/hashicorp/consul-template/pull/1326)]
+* consul-template container runs as root - breaks CISO compliance [[GH-1321](https://github.com/hashicorp/consul-template/issues/1321), [GH-1324](https://github.com/hashicorp/consul-template/pull/1324)]
+* 'sockaddr' function returning whitespace after address [[GH-1314](https://github.com/hashicorp/consul-template/issues/1314), [GH-1315](https://github.com/hashicorp/consul-template/pull/1315)]
+* runTemplate - DEBUG logging is needed to identify missing dependencies [[GH-1308](https://github.com/hashicorp/consul-template/issues/1308), [GH-1309](https://github.com/hashicorp/consul-template/pull/1309)]
+* Remove code/logic for working with (long deprecated) Vault grace [[GH-1284](https://github.com/hashicorp/consul-template/pull/1284)]
+
+## v0.23.0 (Nov 13, 2019)
+
+IMPROVEMENTS:
+
+* Support Configuring Consul Connect Clients [[GH-1262](https://github.com/hashicorp/consul-template/issues/1262), [GH-1304](https://github.com/hashicorp/consul-template/pull/1304), [GH-1306](https://github.com/hashicorp/consul-template/pull/1306)]
+
 ## v0.22.1 (Nov 08, 2019)
 
 SECURITY:
 
 * curl is vulnerable in the latest alpine docker image [[GH-1302](https://github.com/hashicorp/consul-template/issues/1302)]
+
+BUG FIXES:
+
+* fix breaking change for loop [[GH-1285](https://github.com/hashicorp/consul-template/issues/1285)]
 
 ## v0.22.0 (September 10, 2019)
 

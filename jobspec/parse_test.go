@@ -320,7 +320,6 @@ func TestParse(t *testing.T) {
 										Splay:        helper.TimeToPtr(10 * time.Second),
 										Perms:        helper.StringToPtr("0644"),
 										Envvars:      helper.BoolToPtr(true),
-										VaultGrace:   helper.TimeToPtr(33 * time.Second),
 									},
 									{
 										SourcePath: helper.StringToPtr("bar"),

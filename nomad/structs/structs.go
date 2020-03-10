@@ -5829,6 +5829,24 @@ func (t *Task) Warnings() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("IOPS has been deprecated as of Nomad 0.9.0. Please remove IOPS from resource stanza."))
 	}
 
+	for idx, tmpl := range t.Templates {
+		if err := tmpl.Warnings(); err != nil {
+			err = multierror.Prefix(err, fmt.Sprintf("Template[%d]", idx))
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (t *Template) Warnings() error {
+	var mErr multierror.Error
+
+	// Deprecation notice for vault_grace
+	if t.VaultGrace > 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("VaultGrace has been deprecated as of Nomad 0.11 and ignored since Vault 0.5. Please remove VaultGrace / vault_grace from template stanza."))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -5964,6 +5982,7 @@ type Template struct {
 	// VaultGrace is the grace duration between lease renewal and reacquiring a
 	// secret. If the lease of a secret is less than the grace, a new secret is
 	// acquired.
+	// COMPAT(0.12) VaultGrace has been ignored by Vault since Vault v0.5.
 	VaultGrace time.Duration
 }
 
@@ -6036,10 +6055,6 @@ func (t *Template) Validate() error {
 		if _, err := strconv.ParseUint(t.Perms, 8, 12); err != nil {
 			multierror.Append(&mErr, fmt.Errorf("Failed to parse %q as octal: %v", t.Perms, err))
 		}
-	}
-
-	if t.VaultGrace.Nanoseconds() < 0 {
-		multierror.Append(&mErr, fmt.Errorf("Vault grace must be greater than zero: %v < 0", t.VaultGrace))
 	}
 
 	return mErr.ErrorOrNil()

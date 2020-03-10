@@ -1340,51 +1340,6 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 	}
 }
 
-// TestTaskTemplateManager_Config_VaultGrace asserts the vault_grace setting is
-// propagated to consul-template's configuration.
-func TestTaskTemplateManager_Config_VaultGrace(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
-	c := config.DefaultConfig()
-	c.Node = mock.Node()
-	c.VaultConfig = &sconfig.VaultConfig{
-		Enabled:       helper.BoolToPtr(true),
-		Addr:          "https://localhost/",
-		TLSServerName: "notlocalhost",
-	}
-
-	alloc := mock.Alloc()
-	config := &TaskTemplateManagerConfig{
-		ClientConfig: c,
-		VaultToken:   "token",
-
-		// Make a template that will render immediately
-		Templates: []*structs.Template{
-			{
-				EmbeddedTmpl: "bar",
-				DestPath:     "foo",
-				ChangeMode:   structs.TemplateChangeModeNoop,
-				VaultGrace:   10 * time.Second,
-			},
-			{
-				EmbeddedTmpl: "baz",
-				DestPath:     "bam",
-				ChangeMode:   structs.TemplateChangeModeNoop,
-				VaultGrace:   100 * time.Second,
-			},
-		},
-		EnvBuilder: taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
-	}
-
-	ctmplMapping, err := parseTemplateConfigs(config)
-	assert.Nil(err, "Parsing Templates")
-
-	ctconf, err := newRunnerConfig(config, ctmplMapping)
-	assert.Nil(err, "Building Runner Config")
-	assert.NotNil(ctconf.Vault.Grace, "Vault Grace Pointer")
-	assert.Equal(10*time.Second, *ctconf.Vault.Grace, "Vault Grace Value")
-}
-
 // TestTaskTemplateManager_Config_VaultNamespace asserts the Vault namespace setting is
 // propagated to consul-template's configuration.
 func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
@@ -1413,7 +1368,6 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 
 	ctconf, err := newRunnerConfig(config, ctmplMapping)
 	assert.Nil(err, "Building Runner Config")
-	assert.NotNil(ctconf.Vault.Grace, "Vault Grace Pointer")
 	assert.Equal(testNS, *ctconf.Vault.Namespace, "Vault Namespace Value")
 }
 
