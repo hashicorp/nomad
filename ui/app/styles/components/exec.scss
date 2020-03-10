@@ -70,6 +70,7 @@
         display: flex;
         align-items: center;
         height: 100%;
+        width: 100%;
         position: relative;
       }
 
@@ -92,7 +93,7 @@
       .task-label {
         padding: 6px 0 5px 13px;
         overflow-wrap: break-word;
-        // FIXME this doesn’t truly fix it, the container is unconstrained…?
+        width: 100%;
       }
 
       .icon {
