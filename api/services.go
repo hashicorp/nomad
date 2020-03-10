@@ -137,7 +137,7 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 
 // ConsulConnect represents a Consul Connect jobspec stanza.
 type ConsulConnect struct {
-	Native         bool
+	Native         bool                  `javaName:"connectNative"`
 	SidecarService *ConsulSidecarService `mapstructure:"sidecar_service"`
 	SidecarTask    *SidecarTask          `mapstructure:"sidecar_task"`
 }

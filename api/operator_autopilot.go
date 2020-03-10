@@ -16,7 +16,7 @@ type AutopilotConfiguration struct {
 
 	// LastContactThreshold is the limit on the amount of time a server can go
 	// without leader contact before being considered unhealthy.
-	LastContactThreshold time.Duration
+	LastContactThreshold time.Duration `javaType:"String"`
 
 	// MaxTrailingLogs is the amount of entries in the Raft Log that a server can
 	// be behind before being considered unhealthy.
@@ -29,7 +29,7 @@ type AutopilotConfiguration struct {
 	// ServerStabilizationTime is the minimum amount of time a server must be
 	// in a stable, healthy state before it can be added to the cluster. Only
 	// applicable with Raft protocol version 3 or higher.
-	ServerStabilizationTime time.Duration
+	ServerStabilizationTime time.Duration `javaType:"String"`
 
 	// (Enterprise-only) EnableRedundancyZones specifies whether to enable redundancy zones.
 	EnableRedundancyZones bool

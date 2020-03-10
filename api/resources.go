@@ -159,16 +159,16 @@ type NodeDevice struct {
 // specifying units
 type Attribute struct {
 	// Float is the float value for the attribute
-	FloatVal *float64 `json:"Float,omitempty"`
+	FloatVal *float64 `json:"Float,omitempty" javaName:"floatVal"`
 
 	// Int is the int value for the attribute
-	IntVal *int64 `json:"Int,omitempty"`
+	IntVal *int64 `json:"Int,omitempty" javaName:"intVal"`
 
 	// String is the string value for the attribute
-	StringVal *string `json:"String,omitempty"`
+	StringVal *string `json:"String,omitempty" javaName:"stringVal"`
 
 	// Bool is the bool value for the attribute
-	BoolVal *bool `json:"Bool,omitempty"`
+	BoolVal *bool `json:"Bool,omitempty" javaName:"boolVal"`
 
 	// Unit is the optional unit for the set int or float value
 	Unit string
