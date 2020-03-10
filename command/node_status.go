@@ -422,7 +422,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	// driver info in the basic output
 	if !c.verbose {
 		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
-
+		basic = append(basic, fmt.Sprintf("CSI Volumes|%s", strings.Join(nodeCSIVolumeNames(node, runningAllocs), ",")))
 		driverStatus := fmt.Sprintf("Driver Status| %s", c.outputTruncatedNodeDriverInfo(node))
 		basic = append(basic, driverStatus)
 	}
@@ -433,6 +433,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	// If we're running in verbose mode, include full host volume and driver info
 	if c.verbose {
 		c.outputNodeVolumeInfo(node)
+		c.outputNodeCSIVolumeInfo(client, node, runningAllocs)
 		c.outputNodeDriverInfo(node)
 	}
 
@@ -532,6 +533,52 @@ func (c *NodeStatusCommand) outputNodeVolumeInfo(node *api.Node) {
 		info := node.HostVolumes[volName]
 		output = append(output, fmt.Sprintf("%s|%v|%s", volName, info.ReadOnly, info.Path))
 	}
+	c.Ui.Output(formatList(output))
+}
+
+func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *api.Node, runningAllocs []*api.Allocation) {
+	c.Ui.Output(c.Colorize().Color("\n[bold]CSI Volumes"))
+
+	// Duplicate nodeCSIVolumeNames to sort by name but also index volume names to ids
+	var names []string
+	volNames := map[string]string{}
+	for _, alloc := range runningAllocs {
+		tg := alloc.GetTaskGroup()
+		if tg == nil || len(tg.Volumes) == 0 {
+			continue
+		}
+
+		for _, v := range tg.Volumes {
+			names = append(names, v.Name)
+			volNames[v.Source] = v.Name
+		}
+	}
+	sort.Strings(names)
+
+	// Fetch the volume objects with current status
+	// Ignore an error, all we're going to do is omit the volumes
+	volumes := map[string]*api.CSIVolumeListStub{}
+	vs, _ := client.Nodes().CSIVolumes(node.ID, nil)
+	for _, v := range vs {
+		n := volNames[v.ID]
+		volumes[n] = v
+	}
+
+	// Output the volumes in name order
+	output := make([]string, 0, len(names)+1)
+	output = append(output, "ID|Name|Plugin ID|Schedulable|Access Mode")
+	for _, name := range names {
+		v := volumes[name]
+		output = append(output, fmt.Sprintf(
+			"%s|%s|%s|%t|%s",
+			v.ID,
+			name,
+			v.PluginID,
+			v.Schedulable,
+			v.AccessMode,
+		))
+	}
+
 	c.Ui.Output(formatList(output))
 }
 
