@@ -1710,26 +1710,28 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 	return wrap, nil
 }
 
-func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) ([]*CSIVolume, error) {
+// CSIVolumesByNodeID looks up CSIVolumes in use on a node
+func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb.ResultIterator, error) {
 	allocs, err := s.AllocsByNode(ws, nodeID)
 	if err != nil {
-		return fmt.Errorf("alloc lookup failed: %v", err)
+		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 	snap, err := s.Snapshot()
 	if err != nil {
-		return fmt.Errorf("snapshot failed: %v", err)
+		return nil, fmt.Errorf("snapshot failed: %v", err)
 	}
 
 	allocs, err = snap.DenormalizeAllocationSlice(allocs)
 	if err != nil {
-		return fmt.Errorf("alloc denormalize failed: %v", err)
+		return nil, fmt.Errorf("alloc denormalize failed: %v", err)
 	}
 
-	// Find volume ids for CSI volumes in running allocs that should be running
+	// Find volume ids for CSI volumes in running allocs, or allocs that we desire to run
 	ids := map[string]struct{}{}
 	for _, a := range allocs {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
-		if !(a.DesiredStatus == structs.AllocDesiredStatusRun &&
+
+		if !(a.DesiredStatus == structs.AllocDesiredStatusRun ||
 			a.ClientStatus == structs.AllocClientStatusRunning) ||
 			len(tg.Volumes) == 0 {
 			continue
@@ -1739,21 +1741,22 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) ([]*CS
 			if v.Type != structs.VolumeTypeCSI {
 				continue
 			}
-			vols[v.Source] = struct{}{}
+			ids[v.Source] = struct{}{}
 		}
 	}
 
-	// Lookup the CSIVolumes
-	var vs []*CSIVolume
+	// Lookup the raw CSIVolumes to match the other list interfaces
+	iter := NewSliceIterator()
+	txn := s.db.Txn(false)
 	for id := range ids {
-		v, err := s.CSIVolumeByID(ws, id)
+		raw, err := txn.First("csi_volumes", "id", id)
 		if err != nil {
-			return nil, fmt.Errorf("volume lookup failed: %v", err)
+			return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
 		}
-		vs = append(vs, v)
+		iter.Add(raw)
 	}
 
-	return vs, nil
+	return iter, nil
 }
 
 // CSIVolumes looks up the entire csi_volumes table
