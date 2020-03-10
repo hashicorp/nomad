@@ -2963,7 +2963,7 @@ func TestPeriodicConfig_DST(t *testing.T) {
 	p := &PeriodicConfig{
 		Enabled:  true,
 		SpecType: PeriodicSpecCron,
-		Spec:     "0 2 11-12 3 * 2017",
+		Spec:     "30 2 11-12 3 * 2017",
 		TimeZone: "America/Los_Angeles",
 	}
 	p.Canonicalize()
@@ -3026,7 +3026,279 @@ func TestTaskLifecycleConfig_Validate(t *testing.T) {
 				require.Nil(t, err)
 			}
 		})
+	}
+}
 
+func TestPeriodicConfig_DSTChange_Transitions(t *testing.T) {
+	locName := "America/Los_Angeles"
+	loc, err := time.LoadLocation(locName)
+	require.NoError(t, err)
+
+	cases := []struct {
+		name     string
+		pattern  string
+		initTime time.Time
+		expected []time.Time
+	}{
+		{
+			"normal time",
+			"0 2 * * * 2020",
+			time.Date(2020, time.February, 7, 1, 0, 0, 0, loc),
+			[]time.Time{
+				time.Date(2020, time.February, 7, 2, 0, 0, 0, loc),
+				time.Date(2020, time.February, 8, 2, 0, 0, 0, loc),
+				time.Date(2020, time.February, 9, 2, 0, 0, 0, loc),
+			},
+		},
+		{
+			"Spring forward but not in switch time",
+			"0 4 * * * 2020",
+			time.Date(2020, time.March, 7, 1, 0, 0, 0, loc),
+			[]time.Time{
+				time.Date(2020, time.March, 7, 4, 0, 0, 0, loc),
+				time.Date(2020, time.March, 8, 4, 0, 0, 0, loc),
+				time.Date(2020, time.March, 9, 4, 0, 0, 0, loc),
+			},
+		},
+		{
+			"Spring forward at a skipped time odd",
+			"2 2 * * * 2020",
+			time.Date(2020, time.March, 7, 1, 0, 0, 0, loc),
+			[]time.Time{
+				time.Date(2020, time.March, 7, 2, 2, 0, 0, loc),
+				time.Date(2020, time.March, 8, 0, 2, 0, 0, loc).Add(2 * time.Hour),
+				time.Date(2020, time.March, 9, 2, 2, 0, 0, loc),
+			},
+		},
+		{
+			"Spring forward at a skipped time",
+			"1 2 * * * 2020",
+			time.Date(2020, time.March, 7, 1, 0, 0, 0, loc),
+			[]time.Time{
+				time.Date(2020, time.March, 7, 2, 1, 0, 0, loc),
+				time.Date(2020, time.March, 8, 3, 1, 0, 0, loc),
+				time.Date(2020, time.March, 9, 2, 1, 0, 0, loc),
+			},
+		},
+		{
+			"Spring forward at a skipped time boundary",
+			"0 2 * * * 2020",
+			time.Date(2020, time.March, 7, 1, 0, 0, 0, loc),
+			[]time.Time{
+				time.Date(2020, time.March, 7, 2, 0, 0, 0, loc),
+				time.Date(2020, time.March, 8, 3, 0, 0, 0, loc),
+				time.Date(2020, time.March, 9, 2, 0, 0, 0, loc),
+				time.Date(2020, time.March, 10, 2, 0, 0, 0, loc),
+			},
+		},
+		{
+			"Spring forward at a boundary of repeating time",
+			"0 1 * * * 2020",
+			time.Date(2020, time.March, 7, 0, 0, 0, 0, loc),
+			[]time.Time{
+				time.Date(2020, time.March, 7, 1, 0, 0, 0, loc),
+				time.Date(2020, time.March, 8, 0, 0, 0, 0, loc).Add(1 * time.Hour),
+				time.Date(2020, time.March, 9, 1, 0, 0, 0, loc),
+				time.Date(2020, time.March, 10, 1, 0, 0, 0, loc),
+			},
+		},
+		{
+			"Spring forward at a boundary of repeating time",
+			"0 1 * * * 2020",
+			time.Date(2020, time.March, 7, 0, 0, 0, 0, loc),
+			[]time.Time{
+				time.Date(2020, time.March, 7, 1, 0, 0, 0, loc),
+				time.Date(2020, time.March, 8, 0, 0, 0, 0, loc).Add(1 * time.Hour),
+				time.Date(2020, time.March, 9, 1, 0, 0, 0, loc),
+				time.Date(2020, time.March, 10, 1, 0, 0, 0, loc),
+			},
+		},
+
+		{
+			"Fall back: before transition",
+			"30 0 * * * 2020",
+			time.Date(2020, time.November, 1, 0, 0, 0, 0, loc),
+			[]time.Time{
+				time.Date(2020, time.November, 1, 0, 30, 0, 0, loc),
+				time.Date(2020, time.November, 2, 0, 30, 0, 0, loc),
+				time.Date(2020, time.November, 3, 0, 30, 0, 0, loc),
+				time.Date(2020, time.November, 4, 0, 30, 0, 0, loc),
+			},
+		},
+		{
+			"Fall back: after transition",
+			"30 3 * * * 2020",
+			time.Date(2020, time.November, 1, 0, 0, 0, 0, loc),
+			[]time.Time{
+				time.Date(2020, time.November, 1, 3, 30, 0, 0, loc),
+				time.Date(2020, time.November, 2, 3, 30, 0, 0, loc),
+				time.Date(2020, time.November, 3, 3, 30, 0, 0, loc),
+				time.Date(2020, time.November, 4, 3, 30, 0, 0, loc),
+			},
+		},
+		{
+			"Fall back: after transition starting in repeated span before",
+			"30 3 * * * 2020",
+			time.Date(2020, time.November, 1, 0, 10, 0, 0, loc).Add(1 * time.Hour),
+			[]time.Time{
+				time.Date(2020, time.November, 1, 3, 30, 0, 0, loc),
+				time.Date(2020, time.November, 2, 3, 30, 0, 0, loc),
+				time.Date(2020, time.November, 3, 3, 30, 0, 0, loc),
+				time.Date(2020, time.November, 4, 3, 30, 0, 0, loc),
+			},
+		},
+		{
+			"Fall back: after transition starting in repeated span after",
+			"30 3 * * * 2020",
+			time.Date(2020, time.November, 1, 0, 10, 0, 0, loc).Add(2 * time.Hour),
+			[]time.Time{
+				time.Date(2020, time.November, 1, 3, 30, 0, 0, loc),
+				time.Date(2020, time.November, 2, 3, 30, 0, 0, loc),
+				time.Date(2020, time.November, 3, 3, 30, 0, 0, loc),
+				time.Date(2020, time.November, 4, 3, 30, 0, 0, loc),
+			},
+		},
+		{
+			"Fall back: in repeated region",
+			"30 1 * * * 2020",
+			time.Date(2020, time.November, 1, 0, 0, 0, 0, loc),
+			[]time.Time{
+				time.Date(2020, time.November, 1, 0, 30, 0, 0, loc).Add(1 * time.Hour),
+				time.Date(2020, time.November, 2, 1, 30, 0, 0, loc),
+				time.Date(2020, time.November, 3, 1, 30, 0, 0, loc),
+				time.Date(2020, time.November, 4, 1, 30, 0, 0, loc),
+			},
+		},
+		{
+			"Fall back: in repeated region boundary",
+			"0 1 * * * 2020",
+			time.Date(2020, time.November, 1, 0, 0, 0, 0, loc),
+			[]time.Time{
+				time.Date(2020, time.November, 1, 0, 0, 0, 0, loc).Add(1 * time.Hour),
+				time.Date(2020, time.November, 2, 1, 0, 0, 0, loc),
+				time.Date(2020, time.November, 3, 1, 0, 0, 0, loc),
+				time.Date(2020, time.November, 4, 1, 0, 0, 0, loc),
+			},
+		},
+		{
+			"Fall back: in repeated region boundary 2",
+			"0 2 * * * 2020",
+			time.Date(2020, time.November, 1, 0, 0, 0, 0, loc),
+			[]time.Time{
+				time.Date(2020, time.November, 1, 0, 0, 0, 0, loc).Add(3 * time.Hour),
+				time.Date(2020, time.November, 2, 1, 0, 0, 0, loc),
+				time.Date(2020, time.November, 3, 1, 0, 0, 0, loc),
+				time.Date(2020, time.November, 4, 1, 0, 0, 0, loc),
+			},
+		},
+		{
+			"Fall back: in repeated region, starting from within region",
+			"30 1 * * * 2020",
+			time.Date(2020, time.November, 1, 0, 40, 0, 0, loc).Add(1 * time.Hour),
+			[]time.Time{
+				time.Date(2020, time.November, 2, 1, 30, 0, 0, loc),
+				time.Date(2020, time.November, 3, 1, 30, 0, 0, loc),
+				time.Date(2020, time.November, 4, 1, 30, 0, 0, loc),
+			},
+		},
+		{
+			"Fall back: in repeated region, starting from within region 2",
+			"30 1 * * * 2020",
+			time.Date(2020, time.November, 1, 0, 40, 0, 0, loc).Add(2 * time.Hour),
+			[]time.Time{
+				time.Date(2020, time.November, 2, 1, 30, 0, 0, loc),
+				time.Date(2020, time.November, 3, 1, 30, 0, 0, loc),
+				time.Date(2020, time.November, 4, 1, 30, 0, 0, loc),
+			},
+		},
+		{
+			"Fall back: wildcard",
+			"30 * * * * 2020",
+			time.Date(2020, time.November, 1, 0, 0, 0, 0, loc),
+			[]time.Time{
+				time.Date(2020, time.November, 1, 0, 30, 0, 0, loc),
+				time.Date(2020, time.November, 1, 0, 30, 0, 0, loc).Add(1 * time.Hour),
+				//time.Date(2020, time.November, 1, 0, 30, 0, 0, loc).Add(2 * time.Hour),
+				time.Date(2020, time.November, 1, 2, 30, 0, 0, loc),
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			p := &PeriodicConfig{
+				Enabled:  true,
+				SpecType: PeriodicSpecCron,
+				Spec:     c.pattern,
+				TimeZone: locName,
+			}
+			p.Canonicalize()
+
+			starting := c.initTime
+			for _, next := range c.expected {
+				n, err := p.Next(starting)
+				assert.NoError(t, err)
+				assert.Equalf(t, next, n, "next time of %v", starting)
+
+				starting = next
+			}
+		})
+	}
+}
+
+func TestPeriodConfig_DSTSprintForward_Property(t *testing.T) {
+	locName := "America/Los_Angeles"
+	loc, err := time.LoadLocation(locName)
+	require.NoError(t, err)
+
+	cronExprs := []string{
+		"* * * * *",
+		"0 2 * * *",
+		"* 1 * * *",
+	}
+
+	times := []time.Time{
+		// spring forward
+		time.Date(2020, time.March, 7, 0, 0, 0, 0, loc),
+		time.Date(2020, time.March, 8, 0, 0, 0, 0, loc),
+		time.Date(2016, time.March, 14, 0, 0, 0, 0, loc),
+
+		// leap backwards
+		time.Date(2020, time.November, 1, 0, 0, 0, 0, loc),
+		time.Date(2020, time.November, 2, 0, 0, 0, 0, loc),
+		time.Date(2016, time.November, 6, 0, 0, 0, 0, loc),
+	}
+
+	testSpan := 4 * time.Hour
+
+	testCase := func(t *testing.T, cronExpr string, init time.Time) {
+		p := &PeriodicConfig{
+			Enabled:  true,
+			SpecType: PeriodicSpecCron,
+			Spec:     cronExpr,
+			TimeZone: "America/Los_Angeles",
+		}
+		p.Canonicalize()
+
+		for start := init; start.Before(init.Add(testSpan)); start = start.Add(1 * time.Minute) {
+			next, err := p.Next(start)
+			require.NoError(t, err)
+			require.Truef(t, next.After(start),
+				"next(%v) = %v is not after init time", start, next)
+
+			if strings.HasPrefix(cronExpr, "* * ") {
+				require.Equalf(t, next.Sub(start), 1*time.Minute,
+					"next(%v) = %v is the next minute", start, next)
+			}
+		}
+	}
+
+	for _, cron := range cronExprs {
+		for _, startTime := range times {
+			t.Run(fmt.Sprintf("%v: %v", cron, startTime), func(t *testing.T) {
+				testCase(t, cron, startTime)
+			})
+		}
 	}
 }
 
