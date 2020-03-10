@@ -8,7 +8,7 @@ GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 GO_TAGS ?= codegen_generated
 
-GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
+GO_TEST_CMD = go test
 
 ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
 GOTEST_PKGS ?= "./..."
