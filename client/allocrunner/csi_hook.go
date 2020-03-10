@@ -34,7 +34,7 @@ func (c *csiHook) Prerun() error {
 	ctx := context.TODO()
 	volumes, err := c.claimVolumesFromAlloc()
 	if err != nil {
-		return err
+		return fmt.Errorf("claim volumes: %v", err)
 	}
 
 	mounts := make(map[string]*csimanager.MountInfo, len(volumes))

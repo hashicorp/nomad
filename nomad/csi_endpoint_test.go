@@ -220,7 +220,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	}
 	claimResp := &structs.CSIVolumeClaimResponse{}
 	err := msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
-	require.EqualError(t, err, fmt.Sprintf("volume not found: %s", id0),
+	require.EqualError(t, err, fmt.Sprintf("controllerPublish: volume not found: %s", id0),
 		"expected 'volume not found' error because volume hasn't yet been created")
 
 	// Create a client node, plugin, alloc, and volume
@@ -329,19 +329,20 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early version
 	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"minnie": {PluginID: "minnie",
-			Healthy:                  true,
-			ControllerInfo:           &structs.CSIControllerInfo{},
-			NodeInfo:                 &structs.CSINodeInfo{},
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsAttachDetach: true,
+			},
 			RequiresControllerPlugin: true,
 		},
 	}
 	node.CSINodePlugins = map[string]*structs.CSIInfo{
-		"minnie": {PluginID: "minnie",
-			Healthy:                  true,
-			ControllerInfo:           &structs.CSIControllerInfo{},
-			NodeInfo:                 &structs.CSINodeInfo{},
-			RequiresControllerPlugin: true,
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
 	err := state.UpsertNode(1002, node)
@@ -376,7 +377,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	claimResp := &structs.CSIVolumeClaimResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	// Because the node is not registered
-	require.EqualError(t, err, "No path to node")
+	require.EqualError(t, err, "controllerPublish: attach volume: No path to node")
 }
 
 func TestCSIVolumeEndpoint_List(t *testing.T) {
@@ -544,8 +545,10 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	// Create a client node with a plugin
 	node := mock.Node()
 	node.CSINodePlugins = map[string]*structs.CSIInfo{
-		"minnie": {PluginID: "minnie", Healthy: true, RequiresControllerPlugin: true},
-		"adam":   {PluginID: "adam", Healthy: true},
+		"minnie": {PluginID: "minnie", Healthy: true, RequiresControllerPlugin: true,
+			ControllerInfo: &structs.CSIControllerInfo{SupportsAttachDetach: true},
+		},
+		"adam": {PluginID: "adam", Healthy: true},
 	}
 	err := state.UpsertNode(3, node)
 	require.NoError(t, err)
