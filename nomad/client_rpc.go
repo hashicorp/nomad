@@ -232,7 +232,7 @@ func NodeRpc(session *yamux.Session, method string, args, reply interface{}) err
 	// Make the RPC
 	err = msgpackrpc.CallWithCodec(pool.NewClientCodec(stream), method, args, reply)
 	if err != nil {
-		return fmt.Errorf("rpc call: %v", err)
+		return err
 	}
 
 	return nil
