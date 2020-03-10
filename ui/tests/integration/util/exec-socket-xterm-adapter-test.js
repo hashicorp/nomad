@@ -3,7 +3,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
-import { Terminal } from 'xterm';
+import { Terminal } from 'xterm-vendor';
 
 module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
   setupRenderingTest(hooks);

@@ -1,8 +1,4 @@
-const ANSI_MOVE_CURSOR_UP_ONE = '\x1b[1A';
-
-function ansi_move_cursor_right_n(n) {
-  return `\x1b[${n}C`;
-}
+const REVERSE_WRAPAROUND_MODE = '\x1b[?45h';
 
 export default class ExecCommandEditorXtermAdapter {
   constructor(terminal, setCommandCallback, command) {
@@ -16,6 +12,7 @@ export default class ExecCommandEditorXtermAdapter {
     });
 
     terminal.simulateCommandKeyEvent = this.handleKeyEvent.bind(this);
+    terminal.write(REVERSE_WRAPAROUND_MODE);
   }
 
   handleKeyEvent(e) {
@@ -26,16 +23,7 @@ export default class ExecCommandEditorXtermAdapter {
       this.keyListener.dispose();
     } else if (e.domEvent.key === 'Backspace') {
       if (this.command.length > 0) {
-        const cursorX = this.terminal.buffer.cursorX;
-
-        if (cursorX === 0) {
-          this.terminal.write(ANSI_MOVE_CURSOR_UP_ONE);
-          this.terminal.write(ansi_move_cursor_right_n(this.terminal.cols));
-          this.terminal.write(' ');
-        } else {
-          this.terminal.write('\b \b');
-        }
-
+        this.terminal.write('\x08 \x08');
         this.command = this.command.slice(0, -1);
       }
     } else if (e.key.length > 0) {
