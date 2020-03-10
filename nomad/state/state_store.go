@@ -1710,6 +1710,52 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 	return wrap, nil
 }
 
+func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) ([]*CSIVolume, error) {
+	allocs, err := s.AllocsByNode(ws, nodeID)
+	if err != nil {
+		return fmt.Errorf("alloc lookup failed: %v", err)
+	}
+	snap, err := s.Snapshot()
+	if err != nil {
+		return fmt.Errorf("snapshot failed: %v", err)
+	}
+
+	allocs, err = snap.DenormalizeAllocationSlice(allocs)
+	if err != nil {
+		return fmt.Errorf("alloc denormalize failed: %v", err)
+	}
+
+	// Find volume ids for CSI volumes in running allocs that should be running
+	ids := map[string]struct{}{}
+	for _, a := range allocs {
+		tg := a.Job.LookupTaskGroup(a.TaskGroup)
+		if !(a.DesiredStatus == structs.AllocDesiredStatusRun &&
+			a.ClientStatus == structs.AllocClientStatusRunning) ||
+			len(tg.Volumes) == 0 {
+			continue
+		}
+
+		for _, v := range tg.Volumes {
+			if v.Type != structs.VolumeTypeCSI {
+				continue
+			}
+			vols[v.Source] = struct{}{}
+		}
+	}
+
+	// Lookup the CSIVolumes
+	var vs []*CSIVolume
+	for id := range ids {
+		v, err := s.CSIVolumeByID(ws, id)
+		if err != nil {
+			return nil, fmt.Errorf("volume lookup failed: %v", err)
+		}
+		vs = append(vs, v)
+	}
+
+	return vs, nil
+}
+
 // CSIVolumes looks up the entire csi_volumes table
 func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
