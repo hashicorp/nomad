@@ -750,6 +750,11 @@ func (tmpl *Template) Canonicalize() {
 	if tmpl.Envvars == nil {
 		tmpl.Envvars = boolToPtr(false)
 	}
+
+	//COMPAT(0.12) VaultGrace is deprecated and unused as of Vault 0.5
+	if tmpl.VaultGrace == nil {
+		tmpl.VaultGrace = timeToPtr(0)
+	}
 }
 
 type Vault struct {

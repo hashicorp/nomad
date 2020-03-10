@@ -19,11 +19,12 @@ standard upgrade flow.
 
 ### client.template: `vault_grace` deprecation
 
-Nomad 0.11.0 includes an update to [consul-template](https://github.com/hashicorp/consul-template) v0.24.1.
-This library deprecates the `vault_grace` option for templating included in nomad.
-The feature has been ignored since vault 0.5 and as long as you are running
-a more recent version of vault, you can safely remove vault_grace from your
-nomad jobs.
+Nomad 0.11.0 updates
+[consul-template](https://github.com/hashicorp/consul-template) to v0.24.1.
+This library deprecates the [`vault_grace`][vault_grace] option for templating
+included in Nomad. The feature has been ignored since Vault 0.5 and as long as
+you are running a more recent version of Vault, you can safely remove
+`vault_grace` from your Nomad jobs.
 
 ## Nomad 0.10.4
 
@@ -470,6 +471,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [preemption-api]: /api/operator#update-scheduler-configuration
 [task-config]: /docs/job-specification/task#config
 [validate]: /docs/commands/job/validate
+[vault_grace]: /docs/job-specification/template
 [update]: /docs/job-specification/update
 [tls-guide]: /guides/security/securing-nomad
 [tls-vault-guide]: /guides/security/vault-pki-integration
