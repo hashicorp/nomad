@@ -8,10 +8,20 @@ export default Component.extend({
 
   actions: {
     open() {
-      let job = this.job;
-      let url = this.router.urlFor('exec', job.name);
       // FIXME adapted from components#task-group-parent
-      window.open(url, '_blank', 'width=973,height=490,location=1');
+      window.open(this.generateUrl(), '_blank', 'width=973,height=490,location=1');
     },
+  },
+
+  generateUrl() {
+    let urlOptions = {};
+
+    if (this.allocation) {
+      urlOptions.queryParams = {
+        allocation: this.allocation.shortId,
+      };
+    }
+
+    return this.router.urlFor('exec', this.job.get('name'), urlOptions);
   },
 });
