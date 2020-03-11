@@ -128,7 +128,7 @@ func New(c *Config) *manager {
 // PluginType identifies this manager to the plugin manager and satisfies the PluginManager interface.
 func (*manager) PluginType() string { return base.PluginTypeDevice }
 
-// Run starts thed device manager. The manager will shutdown any previously
+// Run starts the device manager. The manager will shutdown any previously
 // launched plugin and then begin fingerprinting and stats collection on all new
 // device plugins.
 func (m *manager) Run() {
