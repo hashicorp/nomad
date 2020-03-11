@@ -18,6 +18,14 @@ func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Reque
 		return nil, nil
 	}
 
+	query := req.URL.Query()
+	if plugin, ok := query["plugin_id"]; ok {
+		args.PluginID = plugin[0]
+	}
+	if node, ok := query["node_id"]; ok {
+		args.NodeID = node[0]
+	}
+
 	var out structs.CSIVolumeListResponse
 	if err := s.agent.RPC("CSIVolume.List", &args, &out); err != nil {
 		return nil, err
