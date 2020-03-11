@@ -374,7 +374,6 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			ChangeMode: helper.StringToPtr("restart"),
 			Splay:      helper.TimeToPtr(5 * time.Second),
 			Perms:      helper.StringToPtr("0644"),
-			VaultGrace: helper.TimeToPtr(0),
 		}
 
 		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{

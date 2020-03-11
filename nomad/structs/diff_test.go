@@ -5756,6 +5756,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "",
 								New:  "3",
 							},
+							{
+								Type: DiffTypeAdded,
+								Name: "VaultGrace",
+								Old:  "",
+								New:  "0",
+							},
 						},
 					},
 					{
@@ -5808,6 +5814,12 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Splay",
 								Old:  "2",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "VaultGrace",
+								Old:  "0",
 								New:  "",
 							},
 						},

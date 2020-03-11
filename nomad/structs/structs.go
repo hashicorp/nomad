@@ -5839,17 +5839,6 @@ func (t *Task) Warnings() error {
 	return mErr.ErrorOrNil()
 }
 
-func (t *Template) Warnings() error {
-	var mErr multierror.Error
-
-	// Deprecation notice for vault_grace
-	if t.VaultGrace > 0 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("VaultGrace has been deprecated as of Nomad 0.11 and ignored since Vault 0.5. Please remove VaultGrace / vault_grace from template stanza."))
-	}
-
-	return mErr.ErrorOrNil()
-}
-
 // TaskKind identifies the special kinds of tasks using the following format:
 // '<kind_name>(:<identifier>)`. The TaskKind can optionally include an identifier that
 // is opaque to the Task. This identifier can be used to relate the task to some
@@ -6055,6 +6044,17 @@ func (t *Template) Validate() error {
 		if _, err := strconv.ParseUint(t.Perms, 8, 12); err != nil {
 			multierror.Append(&mErr, fmt.Errorf("Failed to parse %q as octal: %v", t.Perms, err))
 		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (t *Template) Warnings() error {
+	var mErr multierror.Error
+
+	// Deprecation notice for vault_grace
+	if t.VaultGrace != 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("VaultGrace has been deprecated as of Nomad 0.11 and ignored since Vault 0.5. Please remove VaultGrace / vault_grace from template stanza."))
 	}
 
 	return mErr.ErrorOrNil()

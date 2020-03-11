@@ -531,6 +531,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										LeftDelim:    stringToPtr("{{"),
 										RightDelim:   stringToPtr("}}"),
 										Envvars:      boolToPtr(false),
+										VaultGrace:   timeToPtr(0),
 									},
 									{
 										SourcePath:   stringToPtr(""),
@@ -543,6 +544,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										LeftDelim:    stringToPtr("{{"),
 										RightDelim:   stringToPtr("}}"),
 										Envvars:      boolToPtr(true),
+										VaultGrace:   timeToPtr(0),
 									},
 								},
 							},

@@ -163,6 +163,26 @@ func TestJob_Warnings(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:     "Template.VaultGrace Deprecated",
+			Expected: []string{"VaultGrace has been deprecated as of Nomad 0.11 and ignored since Vault 0.5. Please remove VaultGrace / vault_grace from template stanza."},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Tasks: []*Task{
+							{
+								Templates: []*Template{
+									{
+										VaultGrace: 1,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
