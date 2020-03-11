@@ -7,9 +7,21 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const errRequiresType = "Missing required parameter type"
+
 func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	// Type filters volume lists to a specific type. When support for non-CSI volumes is
+	// introduced, we'll need to dispatch here
+	query := req.URL.Query()
+	if qtype, ok := query["type"]; !ok {
+		return nil, CodedError(400, errRequiresType)
+		if qtype[0] != "csi" {
+			return nil, nil
+		}
 	}
 
 	args := structs.CSIVolumeListRequest{}
@@ -18,7 +30,6 @@ func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Reque
 		return nil, nil
 	}
 
-	query := req.URL.Query()
 	if plugin, ok := query["plugin_id"]; ok {
 		args.PluginID = plugin[0]
 	}
@@ -38,7 +49,7 @@ func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Reque
 // CSIVolumeSpecificRequest dispatches GET and PUT
 func (s *HTTPServer) CSIVolumeSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Tokenize the suffix of the path to get the volume id
-	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/csi/volume/")
+	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/volume/csi/")
 	tokens := strings.Split(reqSuffix, "/")
 	if len(tokens) > 2 || len(tokens) < 1 {
 		return nil, CodedError(404, resourceNotFoundErr)
@@ -129,6 +140,16 @@ func (s *HTTPServer) CSIPluginsRequest(resp http.ResponseWriter, req *http.Reque
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
+	// Type filters plugin lists to a specific type. When support for non-CSI plugins is
+	// introduced, we'll need to dispatch here
+	query := req.URL.Query()
+	if qtype, ok := query["type"]; !ok {
+		return nil, CodedError(400, errRequiresType)
+		if qtype[0] != "csi" {
+			return nil, nil
+		}
+	}
+
 	args := structs.CSIPluginListRequest{}
 
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
@@ -151,7 +172,7 @@ func (s *HTTPServer) CSIPluginSpecificRequest(resp http.ResponseWriter, req *htt
 	}
 
 	// Tokenize the suffix of the path to get the plugin id
-	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/csi/plugin/")
+	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/plugin/csi/")
 	tokens := strings.Split(reqSuffix, "/")
 	if len(tokens) > 2 || len(tokens) < 1 {
 		return nil, CodedError(404, resourceNotFoundErr)
