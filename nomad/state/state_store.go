@@ -1710,6 +1710,55 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 	return wrap, nil
 }
 
+// CSIVolumesByNodeID looks up CSIVolumes in use on a node
+func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb.ResultIterator, error) {
+	allocs, err := s.AllocsByNode(ws, nodeID)
+	if err != nil {
+		return nil, fmt.Errorf("alloc lookup failed: %v", err)
+	}
+	snap, err := s.Snapshot()
+	if err != nil {
+		return nil, fmt.Errorf("alloc lookup failed: %v", err)
+	}
+
+	allocs, err = snap.DenormalizeAllocationSlice(allocs)
+	if err != nil {
+		return nil, fmt.Errorf("alloc lookup failed: %v", err)
+	}
+
+	// Find volume ids for CSI volumes in running allocs, or allocs that we desire to run
+	ids := map[string]struct{}{}
+	for _, a := range allocs {
+		tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+		if !(a.DesiredStatus == structs.AllocDesiredStatusRun ||
+			a.ClientStatus == structs.AllocClientStatusRunning) ||
+			len(tg.Volumes) == 0 {
+			continue
+		}
+
+		for _, v := range tg.Volumes {
+			if v.Type != structs.VolumeTypeCSI {
+				continue
+			}
+			ids[v.Source] = struct{}{}
+		}
+	}
+
+	// Lookup the raw CSIVolumes to match the other list interfaces
+	iter := NewSliceIterator()
+	txn := s.db.Txn(false)
+	for id := range ids {
+		raw, err := txn.First("csi_volumes", "id", id)
+		if err != nil {
+			return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
+		}
+		iter.Add(raw)
+	}
+
+	return iter, nil
+}
+
 // CSIVolumes looks up the entire csi_volumes table
 func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
