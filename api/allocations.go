@@ -507,18 +507,23 @@ func (a AllocIndexSort) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
+func (a Allocation) GetTaskGroup() *TaskGroup {
+	for _, tg := range a.Job.TaskGroups {
+		if *tg.Name == a.TaskGroup {
+			return tg
+		}
+	}
+	return nil
+}
+
 // RescheduleInfo is used to calculate remaining reschedule attempts
 // according to the given time and the task groups reschedule policy
 func (a Allocation) RescheduleInfo(t time.Time) (int, int) {
-	var reschedulePolicy *ReschedulePolicy
-	for _, tg := range a.Job.TaskGroups {
-		if *tg.Name == a.TaskGroup {
-			reschedulePolicy = tg.ReschedulePolicy
-		}
-	}
-	if reschedulePolicy == nil {
+	tg := a.GetTaskGroup()
+	if tg == nil || tg.ReschedulePolicy == nil {
 		return 0, 0
 	}
+	reschedulePolicy := tg.ReschedulePolicy
 	availableAttempts := *reschedulePolicy.Attempts
 	interval := *reschedulePolicy.Interval
 	attempted := 0
