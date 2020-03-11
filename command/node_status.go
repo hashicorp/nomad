@@ -553,6 +553,9 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 			volNames[v.Source] = v.Name
 		}
 	}
+	if len(names) == 0 {
+		return
+	}
 	sort.Strings(names)
 
 	// Fetch the volume objects with current status
@@ -566,15 +569,16 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 
 	// Output the volumes in name order
 	output := make([]string, 0, len(names)+1)
-	output = append(output, "ID|Name|Plugin ID|Schedulable|Access Mode")
+	output = append(output, "ID|Name|Plugin ID|Schedulable|Provider|Access Mode")
 	for _, name := range names {
 		v := volumes[name]
 		output = append(output, fmt.Sprintf(
-			"%s|%s|%s|%t|%s",
+			"%s|%s|%s|%t|%s|%s",
 			v.ID,
 			name,
 			v.PluginID,
 			v.Schedulable,
+			v.Provider,
 			v.AccessMode,
 		))
 	}
