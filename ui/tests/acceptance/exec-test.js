@@ -49,7 +49,7 @@ module('Acceptance | exec', function(hooks) {
     assert.ok(Exec.header.namespace.isHidden);
   });
 
-  test('/exec/:job should show the task groups collapsed by default allow the tasks to be shown', async function(assert) {
+  test('/exec/:job should show the task groups collapsed by default and allow the tasks to be shown', async function(assert) {
     await Exec.visitJob({ job: this.job.id });
 
     assert.equal(Exec.taskGroups.length, this.job.task_groups.length);
