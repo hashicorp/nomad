@@ -25,7 +25,6 @@ export default Controller.extend({
     this.terminal = new Terminal({ fontFamily: 'monospace', fontWeight: '400' });
     window.execTerminal = this.terminal; // FIXME tragique, for acceptance tests…?
 
-    // this.terminal.write('\x1b[?45h;');
     this.terminal.write(ANSI_UI_GRAY_400);
     this.terminal.writeln('Select a task to start your session.');
   },
