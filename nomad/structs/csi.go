@@ -449,6 +449,7 @@ type CSIVolumeClaimResponse struct {
 
 type CSIVolumeListRequest struct {
 	PluginID string
+	NodeID   string
 	QueryOptions
 }
 
