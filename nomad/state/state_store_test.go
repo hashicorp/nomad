@@ -2831,14 +2831,28 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	state := testStateStore(t)
 	index := uint64(1000)
 
+	// Volume IDs
+	vol0, vol1 := uuid.Generate(), uuid.Generate()
+
 	// Create a node running a healthy instance of the plugin
 	node := mock.Node()
 	pluginID := "minnie"
-	allocID := uuid.Generate()
+	alloc := mock.Alloc()
+	alloc.DesiredStatus = "run"
+	alloc.ClientStatus = "running"
+	alloc.NodeID = node.ID
+	alloc.Job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"foo": {
+			Name:   "foo",
+			Source: vol0,
+			Type:   "csi",
+		},
+	}
+
 	node.CSINodePlugins = map[string]*structs.CSIInfo{
 		pluginID: {
 			PluginID:                 pluginID,
-			AllocID:                  allocID,
+			AllocID:                  alloc.ID,
 			Healthy:                  true,
 			HealthDescription:        "healthy",
 			RequiresControllerPlugin: false,
@@ -2852,14 +2866,16 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	}
 
 	index++
-	state.UpsertNode(index, node)
-
+	err := state.UpsertNode(index, node)
+	require.NoError(t, err)
 	defer state.DeleteNode(9999, []string{pluginID})
 
-	id0, id1 := uuid.Generate(), uuid.Generate()
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{alloc})
+	require.NoError(t, err)
 
 	v0 := structs.NewCSIVolume("foo", index)
-	v0.ID = id0
+	v0.ID = vol0
 	v0.Namespace = "default"
 	v0.PluginID = "minnie"
 	v0.Schedulable = true
@@ -2868,7 +2884,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 
 	index++
 	v1 := structs.NewCSIVolume("foo", index)
-	v1.ID = id1
+	v1.ID = vol1
 	v1.Namespace = "default"
 	v1.PluginID = "adam"
 	v1.Schedulable = true
@@ -2876,7 +2892,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	v1.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 
 	index++
-	err := state.CSIVolumeRegister(index, []*structs.CSIVolume{v0, v1})
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0, v1})
 	require.NoError(t, err)
 
 	ws := memdb.NewWatchSet()
@@ -2904,9 +2920,15 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
 
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByNodeID(ws, node.ID)
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.Equal(t, 1, len(vs))
+
 	index++
 	err = state.CSIVolumeDeregister(index, []string{
-		id1,
+		vol1,
 	})
 	require.NoError(t, err)
 
@@ -2930,10 +2952,10 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	u := structs.CSIVolumeClaimRelease
 
 	index++
-	err = state.CSIVolumeClaim(index, id0, a0, r)
+	err = state.CSIVolumeClaim(index, vol0, a0, r)
 	require.NoError(t, err)
 	index++
-	err = state.CSIVolumeClaim(index, id0, a1, w)
+	err = state.CSIVolumeClaim(index, vol0, a1, w)
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
@@ -2942,7 +2964,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	vs = slurp(iter)
 	require.False(t, vs[0].CanWrite())
 
-	err = state.CSIVolumeClaim(2, id0, a0, u)
+	err = state.CSIVolumeClaim(2, vol0, a0, u)
 	require.NoError(t, err)
 	ws = memdb.NewWatchSet()
 	iter, err = state.CSIVolumesByPluginID(ws, "minnie")

@@ -113,7 +113,9 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			var err error
 			var iter memdb.ResultIterator
 
-			if args.PluginID != "" {
+			if args.NodeID != "" {
+				iter, err = state.CSIVolumesByNodeID(ws, args.NodeID)
+			} else if args.PluginID != "" {
 				iter, err = state.CSIVolumesByPluginID(ws, args.PluginID)
 			} else {
 				iter, err = state.CSIVolumes(ws)
@@ -141,6 +143,11 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 
 				// Filter on the request namespace to avoid ACL checks by volume
 				if ns != "" && vol.Namespace != args.RequestNamespace() {
+					continue
+				}
+
+				// Filter (possibly again) on PluginID to handle passing both NodeID and PluginID
+				if args.PluginID != "" && args.PluginID != vol.PluginID {
 					continue
 				}
 

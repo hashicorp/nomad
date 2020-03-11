@@ -392,6 +392,16 @@ func (n *Nodes) Allocations(nodeID string, q *QueryOptions) ([]*Allocation, *Que
 	return resp, qm, nil
 }
 
+func (n *Nodes) CSIVolumes(nodeID string, q *QueryOptions) ([]*CSIVolumeListStub, error) {
+	var resp []*CSIVolumeListStub
+	path := fmt.Sprintf("/v1/csi/volumes?node_id=%s", nodeID)
+	if _, err := n.client.query(path, &resp, q); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
 // ForceEvaluate is used to force-evaluate an existing node.
 func (n *Nodes) ForceEvaluate(nodeID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp nodeEvalResponse
