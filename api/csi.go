@@ -18,7 +18,7 @@ func (c *Client) CSIVolumes() *CSIVolumes {
 // List returns all CSI volumes
 func (v *CSIVolumes) List(q *QueryOptions) ([]*CSIVolumeListStub, *QueryMeta, error) {
 	var resp []*CSIVolumeListStub
-	qm, err := v.client.query("/v1/csi/volumes", &resp, q)
+	qm, err := v.client.query("/v1/volumes?type=csi", &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -34,7 +34,7 @@ func (v *CSIVolumes) PluginList(pluginID string) ([]*CSIVolumeListStub, *QueryMe
 // Info is used to retrieve a single CSIVolume
 func (v *CSIVolumes) Info(id string, q *QueryOptions) (*CSIVolume, *QueryMeta, error) {
 	var resp CSIVolume
-	qm, err := v.client.query("/v1/csi/volume/"+id, &resp, q)
+	qm, err := v.client.query("/v1/volume/csi/"+id, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -49,12 +49,12 @@ func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, erro
 	req := CSIVolumeRegisterRequest{
 		Volumes: []*CSIVolume{vol},
 	}
-	meta, err := v.client.write("/v1/csi/volume/"+vol.ID, req, nil, w)
+	meta, err := v.client.write("/v1/volume/csi/"+vol.ID, req, nil, w)
 	return meta, err
 }
 
 func (v *CSIVolumes) Deregister(id string, w *WriteOptions) error {
-	_, err := v.client.delete("/v1/csi/volume/"+id, nil, w)
+	_, err := v.client.delete("/v1/volume/csi/"+id, nil, w)
 	return err
 }
 
@@ -229,7 +229,7 @@ func (c *Client) CSIPlugins() *CSIPlugins {
 // List returns all CSI plugins
 func (v *CSIPlugins) List(q *QueryOptions) ([]*CSIPluginListStub, *QueryMeta, error) {
 	var resp []*CSIPluginListStub
-	qm, err := v.client.query("/v1/csi/plugins", &resp, q)
+	qm, err := v.client.query("/v1/plugins?type=csi", &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -240,7 +240,7 @@ func (v *CSIPlugins) List(q *QueryOptions) ([]*CSIPluginListStub, *QueryMeta, er
 // Info is used to retrieve a single CSI Plugin Job
 func (v *CSIPlugins) Info(id string, q *QueryOptions) (*CSIPlugin, *QueryMeta, error) {
 	var resp *CSIPlugin
-	qm, err := v.client.query("/v1/csi/plugin/"+id, &resp, q)
+	qm, err := v.client.query("/v1/plugin/csi/"+id, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
