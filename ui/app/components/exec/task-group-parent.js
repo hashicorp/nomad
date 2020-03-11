@@ -33,12 +33,9 @@ export default Component.extend({
     },
 
     openInNewWindow(job, taskGroup, task) {
-      // FIXME any way to construct this path via the router?
-      window.open(
-        `/ui/exec/${job.name}/${taskGroup.name}/${task.name}`,
-        '_blank',
-        'width=973,height=490,location=1'
-      );
+      let url = this.router.urlFor('exec.task-group.task', job.name, taskGroup.name, task.name);
+
+      window.open(url, '_blank', 'width=973,height=490,location=1');
     },
   },
 });
