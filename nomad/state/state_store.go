@@ -1718,12 +1718,12 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb
 	}
 	snap, err := s.Snapshot()
 	if err != nil {
-		return nil, fmt.Errorf("snapshot failed: %v", err)
+		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 
 	allocs, err = snap.DenormalizeAllocationSlice(allocs)
 	if err != nil {
-		return nil, fmt.Errorf("alloc denormalize failed: %v", err)
+		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 
 	// Find volume ids for CSI volumes in running allocs, or allocs that we desire to run
