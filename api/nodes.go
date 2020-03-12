@@ -394,7 +394,7 @@ func (n *Nodes) Allocations(nodeID string, q *QueryOptions) ([]*Allocation, *Que
 
 func (n *Nodes) CSIVolumes(nodeID string, q *QueryOptions) ([]*CSIVolumeListStub, error) {
 	var resp []*CSIVolumeListStub
-	path := fmt.Sprintf("/v1/csi/volumes?node_id=%s", nodeID)
+	path := fmt.Sprintf("/v1/volumes?type=csi&node_id=%s", nodeID)
 	if _, err := n.client.query(path, &resp, q); err != nil {
 		return nil, err
 	}
