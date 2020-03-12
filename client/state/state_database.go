@@ -34,7 +34,7 @@ devicemanager/
 |--> plugin_state -> *dmstate.PluginState
 
 drivermanager/
-|--> plugin_state -> *dmstate.PluginState
+|--> plugin_state -> *driverstate.PluginState
 */
 
 var (
