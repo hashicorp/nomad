@@ -18,8 +18,7 @@ export default function SimpleContainerOrchestrationPage() {
           links: [
             {
               text: 'Read More',
-              url:
-                'https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs',
+              url: '/guides/operating-a-job',
               type: 'inbound'
             }
           ]
@@ -27,7 +26,7 @@ export default function SimpleContainerOrchestrationPage() {
         codeBlock={{
           code: `
 task "webservice" {
-  driver = "docker"
+  driver = "docker" 
 ‍
   config {
     image = "redis:3.2"
@@ -94,8 +93,7 @@ SERVICE_NAME: Nomad
           links: [
             {
               text: 'Read more',
-              url:
-                'https://learn.hashicorp.com/nomad/operating-nomad/federation',
+              url: '/guides/operations/federation',
               type: 'inbound'
             }
           ]
@@ -130,7 +128,7 @@ SERVICE_NAME: Nomad
           links: [
             {
               text: 'Read more',
-              url: 'https://learn.hashicorp.com/nomad/update-strategies/',
+              url: '/guides/operating-a-job/update-strategies',
               type: 'inbound'
             }
           ]
