@@ -17,11 +17,12 @@ func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Reque
 	// Type filters volume lists to a specific type. When support for non-CSI volumes is
 	// introduced, we'll need to dispatch here
 	query := req.URL.Query()
-	if qtype, ok := query["type"]; !ok {
+	qtype, ok := query["type"]
+	if !ok {
 		return nil, CodedError(400, errRequiresType)
-		if qtype[0] != "csi" {
-			return nil, nil
-		}
+	}
+	if qtype[0] != "csi" {
+		return nil, nil
 	}
 
 	args := structs.CSIVolumeListRequest{}
@@ -143,11 +144,12 @@ func (s *HTTPServer) CSIPluginsRequest(resp http.ResponseWriter, req *http.Reque
 	// Type filters plugin lists to a specific type. When support for non-CSI plugins is
 	// introduced, we'll need to dispatch here
 	query := req.URL.Query()
-	if qtype, ok := query["type"]; !ok {
+	qtype, ok := query["type"]
+	if !ok {
 		return nil, CodedError(400, errRequiresType)
-		if qtype[0] != "csi" {
-			return nil, nil
-		}
+	}
+	if qtype[0] != "csi" {
+		return nil, nil
 	}
 
 	args := structs.CSIPluginListRequest{}
