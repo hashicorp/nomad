@@ -31,16 +31,48 @@ type Registry interface {
 	StubDispenserForType(ptype string, dispenser PluginDispenser)
 }
 
+// RegistryState is what we persist in the client state store. It contains
+// a map of plugin types to maps of plugin name -> PluginInfo.
+type RegistryState struct {
+	Plugins map[string]map[string]*PluginInfo
+}
+
 type PluginDispenser func(info *PluginInfo) (interface{}, error)
 
 // NewRegistry takes a map of `plugintype` to PluginDispenser functions
 // that should be used to vend clients for plugins to be used.
-func NewRegistry(dispensers map[string]PluginDispenser) Registry {
-	return &dynamicRegistry{
+func NewRegistry(state StateStorage, dispensers map[string]PluginDispenser) Registry {
+
+	registry := &dynamicRegistry{
 		plugins:      make(map[string]map[string]*PluginInfo),
 		broadcasters: make(map[string]*pluginEventBroadcaster),
 		dispensers:   dispensers,
+		state:        state,
 	}
+
+	// populate the state and initial broadcasters if we have an
+	// existing state DB to restore
+	if state != nil {
+		storedState, err := state.GetDynamicPluginRegistryState()
+		if err == nil && storedState != nil {
+			registry.plugins = storedState.Plugins
+			for ptype := range registry.plugins {
+				registry.broadcasterForPluginType(ptype)
+			}
+		}
+	}
+
+	return registry
+}
+
+// StateStorage is used to persist the dynamic plugin registry's state
+// across agent restarts.
+type StateStorage interface {
+	// GetDynamicPluginRegistryState is used to restore the registry state
+	GetDynamicPluginRegistryState() (*RegistryState, error)
+
+	// PutDynamicPluginRegistryState is used to store the registry state
+	PutDynamicPluginRegistryState(state *RegistryState) error
 }
 
 // PluginInfo is the metadata that is stored by the registry for a given plugin.
@@ -98,6 +130,8 @@ type dynamicRegistry struct {
 
 	dispensers     map[string]PluginDispenser
 	stubDispensers map[string]PluginDispenser
+
+	state StateStorage
 }
 
 // StubDispenserForType allows test functions to provide alternative plugin
@@ -159,7 +193,7 @@ func (d *dynamicRegistry) RegisterPlugin(info *PluginInfo) error {
 	}
 	broadcaster.broadcast(event)
 
-	return nil
+	return d.sync()
 }
 
 func (d *dynamicRegistry) broadcasterForPluginType(ptype string) *pluginEventBroadcaster {
@@ -210,7 +244,7 @@ func (d *dynamicRegistry) DeregisterPlugin(ptype, name string) error {
 	}
 	broadcaster.broadcast(event)
 
-	return nil
+	return d.sync()
 }
 
 func (d *dynamicRegistry) ListPlugins(ptype string) []*PluginInfo {
@@ -294,6 +328,14 @@ func (d *dynamicRegistry) PluginsUpdatedCh(ctx context.Context, ptype string) <-
 	}()
 
 	return ch
+}
+
+func (d *dynamicRegistry) sync() error {
+	if d.state != nil {
+		storedState := &RegistryState{Plugins: d.plugins}
+		return d.state.PutDynamicPluginRegistryState(storedState)
+	}
+	return nil
 }
 
 func (d *dynamicRegistry) Shutdown() {
