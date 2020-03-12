@@ -81,8 +81,10 @@ function temporary_injectJumpToSection(node) {
   if (otherH2s.length < 3) return
 
   const headlines = otherH2s.map(h2 => {
-    // slice removes the anchor link character
-    return { id: h2.id, text: h2.innerText.slice(1) }
+    return {
+      id: h2.querySelector('.__target-h').id, // get the anchor from the target element
+      text: h2.innerText.slice(1) // slice removes the anchor link character
+    }
   })
 
   // build the html
