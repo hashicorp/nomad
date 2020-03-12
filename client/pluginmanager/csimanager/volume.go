@@ -181,7 +181,7 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 	}
 
 	err = v.plugin.NodePublishVolume(ctx, &csi.NodePublishVolumeRequest{
-		VolumeID:          vol.ID,
+		VolumeID:          vol.RemoteID(),
 		PublishContext:    publishContext,
 		StagingTargetPath: pluginStagingPath,
 		TargetPath:        pluginTargetPath,
