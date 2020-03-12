@@ -18,7 +18,7 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
             {
               text: 'Read More',
               url:
-                '/docs/integrations/consul-integration#automatic-clustering-with-consul',
+                '/guides/integrations/consul-integration#automatic-clustering-with-consul',
               type: 'inbound'
             }
           ]
@@ -39,7 +39,8 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
             links: [
               {
                 text: 'Read More',
-                url: '/docs/integrations/consul-integration#service-discovery',
+                url:
+                  '/guides/integrations/consul-integration#service-discovery',
                 type: 'inbound'
               }
             ]
@@ -60,7 +61,7 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
           links: [
             {
               text: 'Learn More',
-              url: '/docs/integrations/consul-connect',
+              url: '/guides/integrations/consul-connect',
               type: 'inbound'
             }
           ]
