@@ -186,7 +186,7 @@ WAITFORREADY:
 		case <-t.C:
 			pluginHealthy, err := h.supervisorLoopOnce(ctx, socketPath)
 			if err != nil || !pluginHealthy {
-				h.logger.Info("CSI Plugin not ready", "error", err)
+				h.logger.Debug("CSI Plugin not ready", "error", err)
 
 				// Plugin is not yet returning healthy, because we want to optimise for
 				// quickly bringing a plugin online, we use a short timeout here.
