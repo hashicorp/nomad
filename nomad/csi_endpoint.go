@@ -247,7 +247,7 @@ func (srv *Server) controllerValidateVolume(req *structs.CSIVolumeRegisterReques
 
 	method := "ClientCSIController.ValidateVolume"
 	cReq := &cstructs.ClientCSIControllerValidateVolumeRequest{
-		VolumeID:       vol.ID,
+		VolumeID:       vol.RemoteID(),
 		AttachmentMode: vol.AttachmentMode,
 		AccessMode:     vol.AccessMode,
 	}
@@ -532,7 +532,7 @@ func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, r
 
 	method := "ClientCSIController.AttachVolume"
 	cReq := &cstructs.ClientCSIControllerAttachVolumeRequest{
-		VolumeID:        req.VolumeID,
+		VolumeID:        vol.RemoteID(),
 		ClientCSINodeID: targetCSIInfo.NodeInfo.ID,
 		AttachmentMode:  vol.AttachmentMode,
 		AccessMode:      vol.AccessMode,
@@ -587,7 +587,7 @@ func (srv *Server) controllerUnpublishVolume(req *structs.CSIVolumeClaimRequest,
 
 	method := "ClientCSIController.DetachVolume"
 	cReq := &cstructs.ClientCSIControllerDetachVolumeRequest{
-		VolumeID:        req.VolumeID,
+		VolumeID:        vol.RemoteID(),
 		ClientCSINodeID: targetCSIInfo.NodeInfo.ID,
 	}
 	cReq.PluginID = plug.ID
