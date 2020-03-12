@@ -85,6 +85,9 @@ func (c *csiManager) MounterForVolume(ctx context.Context, vol *structs.CSIVolum
 
 // Run starts a plugin manager and should return early
 func (c *csiManager) Run() {
+	// Ensure we have at least one full sync before starting
+	c.resyncPluginsFromRegistry("csi-controller")
+	c.resyncPluginsFromRegistry("csi-node")
 	go c.runLoop()
 }
 
