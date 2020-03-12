@@ -253,10 +253,10 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/deployments", s.wrap(s.DeploymentsRequest))
 	s.mux.HandleFunc("/v1/deployment/", s.wrap(s.DeploymentSpecificRequest))
 
-	s.mux.HandleFunc("/v1/csi/volumes", s.wrap(s.CSIVolumesRequest))
-	s.mux.HandleFunc("/v1/csi/volume/", s.wrap(s.CSIVolumeSpecificRequest))
-	s.mux.HandleFunc("/v1/csi/plugins", s.wrap(s.CSIPluginsRequest))
-	s.mux.HandleFunc("/v1/csi/plugin/", s.wrap(s.CSIPluginSpecificRequest))
+	s.mux.HandleFunc("/v1/volumes", s.wrap(s.CSIVolumesRequest))
+	s.mux.HandleFunc("/v1/volume/csi/", s.wrap(s.CSIVolumeSpecificRequest))
+	s.mux.HandleFunc("/v1/plugins", s.wrap(s.CSIPluginsRequest))
+	s.mux.HandleFunc("/v1/plugin/csi/", s.wrap(s.CSIPluginSpecificRequest))
 
 	s.mux.HandleFunc("/v1/acl/policies", s.wrap(s.ACLPoliciesRequest))
 	s.mux.HandleFunc("/v1/acl/policy/", s.wrap(s.ACLPolicySpecificRequest))
