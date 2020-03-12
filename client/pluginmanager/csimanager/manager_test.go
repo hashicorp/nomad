@@ -21,6 +21,7 @@ var fakePlugin = &dynamicplugins.PluginInfo{
 
 func setupRegistry() dynamicplugins.Registry {
 	return dynamicplugins.NewRegistry(
+		nil,
 		map[string]dynamicplugins.PluginDispenser{
 			"csi-controller": func(*dynamicplugins.PluginInfo) (interface{}, error) {
 				return nil, nil
