@@ -13,7 +13,7 @@
     "@hashicorp/react-case-study-slider": "^2.0.6",
     "@hashicorp/react-code-block": "^1.2.6",
     "@hashicorp/react-consent-manager": "^2.0.5",
-    "@hashicorp/react-content": "^2.2.0",
+    "@hashicorp/react-content": "^3.0.0-0",
     "@hashicorp/react-docs-sidenav": "^3.0.3",
     "@hashicorp/react-docs-sitemap": "^1.0.0",
     "@hashicorp/react-footer": "^3.1.10",

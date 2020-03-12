@@ -52,6 +52,20 @@
     & pre code {
       font-size: 1em;
     }
+
+    & h1,
+    & h2,
+    & h3,
+    & h4,
+    & h5,
+    & h6 {
+      position: relative;
+    }
+
+    & .__target-h {
+      position: absolute;
+      top: -85px;
+    }
   }
 
   & #edit-this-page {
