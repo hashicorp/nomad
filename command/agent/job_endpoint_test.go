@@ -2514,7 +2514,7 @@ func TestConversion_apiConsulExposeConfigToStructs(t *testing.T) {
 	require.Equal(t, &structs.ConsulExposeConfig{
 		Paths: []structs.ConsulExposePath{{Path: "/health"}},
 	}, apiConsulExposeConfigToStructs(&api.ConsulExposeConfig{
-		Paths: []*api.ConsulExposePath{{Path: "/health"}},
+		Path: []*api.ConsulExposePath{{Path: "/health"}},
 	}))
 }
 
@@ -2553,7 +2553,7 @@ func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
 			DestinationName: "upstream",
 		}},
 		ExposeConfig: &api.ConsulExposeConfig{
-			Paths: []*api.ConsulExposePath{{
+			Path: []*api.ConsulExposePath{{
 				Path: "/health",
 			}},
 		},

@@ -1127,11 +1127,16 @@ func TestParse(t *testing.T) {
 							SidecarService: &api.ConsulSidecarService{
 								Proxy: &api.ConsulProxy{
 									ExposeConfig: &api.ConsulExposeConfig{
-										Paths: []*api.ConsulExposePath{{
+										Path: []*api.ConsulExposePath{{
 											Path:          "/health",
 											Protocol:      "http",
 											LocalPathPort: 2222,
 											ListenerPort:  "healthcheck",
+										}, {
+											Path:          "/metrics",
+											Protocol:      "grpc",
+											LocalPathPort: 3000,
+											ListenerPort:  "metrics",
 										}},
 									},
 								},

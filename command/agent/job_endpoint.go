@@ -1142,7 +1142,7 @@ func apiConsulExposeConfigToStructs(in *api.ConsulExposeConfig) *structs.ConsulE
 		return nil
 	}
 	return &structs.ConsulExposeConfig{
-		Paths: apiConsulExposePathsToStructs(in.Paths),
+		Paths: apiConsulExposePathsToStructs(in.Path),
 	}
 }
 
