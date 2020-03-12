@@ -51,7 +51,7 @@ export default function NonContainerizedApplicationOrchestrationPage() {
           links: [
             {
               text: 'Read more',
-              url: 'https://learn.hashicorp.com/nomad/update-strategies/',
+              url: '/guides/operating-a-job/update-strategies',
               type: 'inbound'
             }
           ]
