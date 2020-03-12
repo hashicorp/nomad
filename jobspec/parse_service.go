@@ -403,6 +403,17 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 }
 
 func parseExpose(eo *ast.ObjectItem) (*api.ConsulExposeConfig, error) {
+	valid := []string{
+		"path", // an array of path blocks
+		// todo(shoenig) checks boolean
+	}
+
+	if err := helper.CheckHCLKeys(eo.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "expose ->")
+	}
+
+	var expose api.ConsulExposeConfig
+
 	var listVal *ast.ObjectList
 	if eoType, ok := eo.Val.(*ast.ObjectType); ok {
 		listVal = eoType.List
@@ -410,32 +421,53 @@ func parseExpose(eo *ast.ObjectItem) (*api.ConsulExposeConfig, error) {
 		return nil, fmt.Errorf("expose: should be an object")
 	}
 
+	// Parse the expose block
+
+	po := listVal.Filter("path") // array
+	if len(po.Items) > 0 {
+		expose.Path = make([]*api.ConsulExposePath, len(po.Items))
+		for i := range po.Items {
+			p, err := parseExposePath(po.Items[i])
+			if err != nil {
+				return nil, err
+			}
+			expose.Path[i] = p
+		}
+	}
+
+	return &expose, nil
+}
+
+func parseExposePath(epo *ast.ObjectItem) (*api.ConsulExposePath, error) {
 	valid := []string{
-		"paths",
+		"path",
+		"protocol",
+		"local_path_port",
+		"listener_port",
 	}
 
-	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
-		return nil, multierror.Prefix(err, "expose ->")
+	if err := helper.CheckHCLKeys(epo.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "path ->")
 	}
 
+	var path api.ConsulExposePath
 	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, eo.Val); err != nil {
+	if err := hcl.DecodeObject(&m, epo.Val); err != nil {
 		return nil, err
 	}
 
-	// Build the expose block
-	var expose api.ConsulExposeConfig
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		Result: &expose,
+		Result: &path,
 	})
 	if err != nil {
 		return nil, err
 	}
+
 	if err := dec.Decode(m); err != nil {
 		return nil, err
 	}
 
-	return &expose, nil
+	return &path, nil
 }
 
 func parseUpstream(uo *ast.ObjectItem) (*api.ConsulUpstream, error) {
