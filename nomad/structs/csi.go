@@ -212,6 +212,13 @@ func (v *CSIVolume) newStructs() {
 	v.WriteAllocs = map[string]*Allocation{}
 }
 
+func (v *CSIVolume) RemoteID() string {
+	if v.ExternalID != "" {
+		return v.ExternalID
+	}
+	return v.ID
+}
+
 func (v *CSIVolume) Stub() *CSIVolListStub {
 	stub := CSIVolListStub{
 		ID:                 v.ID,
