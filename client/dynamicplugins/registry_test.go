@@ -2,6 +2,7 @@ package dynamicplugins
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -65,7 +66,7 @@ func TestPluginEventBroadcaster_UnsubscribeWorks(t *testing.T) {
 
 func TestDynamicRegistry_RegisterPlugin_SendsUpdateEvents(t *testing.T) {
 	t.Parallel()
-	r := NewRegistry(nil)
+	r := NewRegistry(nil, nil)
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
@@ -103,7 +104,7 @@ func TestDynamicRegistry_RegisterPlugin_SendsUpdateEvents(t *testing.T) {
 
 func TestDynamicRegistry_DeregisterPlugin_SendsUpdateEvents(t *testing.T) {
 	t.Parallel()
-	r := NewRegistry(nil)
+	r := NewRegistry(nil, nil)
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
@@ -148,7 +149,7 @@ func TestDynamicRegistry_DispensePlugin_Works(t *testing.T) {
 		return struct{}{}, nil
 	}
 
-	registry := NewRegistry(map[string]PluginDispenser{"csi": dispenseFn})
+	registry := NewRegistry(nil, map[string]PluginDispenser{"csi": dispenseFn})
 
 	err := registry.RegisterPlugin(&PluginInfo{
 		Type:           "csi",
@@ -168,4 +169,52 @@ func TestDynamicRegistry_DispensePlugin_Works(t *testing.T) {
 	result, err = registry.DispensePlugin("csi", "my-plugin")
 	require.NotNil(t, result)
 	require.NoError(t, err)
+}
+
+func TestDynamicRegistry_StateStore(t *testing.T) {
+	t.Parallel()
+	dispenseFn := func(i *PluginInfo) (interface{}, error) {
+		return i, nil
+	}
+
+	memdb := &MemDB{}
+	oldR := NewRegistry(memdb, map[string]PluginDispenser{"csi": dispenseFn})
+
+	err := oldR.RegisterPlugin(&PluginInfo{
+		Type:           "csi",
+		Name:           "my-plugin",
+		ConnectionInfo: &PluginConnectionInfo{},
+	})
+	require.NoError(t, err)
+	result, err := oldR.DispensePlugin("csi", "my-plugin")
+	require.NotNil(t, result)
+	require.NoError(t, err)
+
+	// recreate the registry from the state store and query again
+	newR := NewRegistry(memdb, map[string]PluginDispenser{"csi": dispenseFn})
+	result, err = newR.DispensePlugin("csi", "my-plugin")
+	require.NotNil(t, result)
+	require.NoError(t, err)
+}
+
+// MemDB implements a StateDB that stores data in memory and should only be
+// used for testing. All methods are safe for concurrent use. This is a
+// partial implementation of the MemDB in the client/state package, copied
+// here to avoid circular dependencies.
+type MemDB struct {
+	dynamicManagerPs *RegistryState
+	mu               sync.RWMutex
+}
+
+func (m *MemDB) GetDynamicPluginRegistryState() (*RegistryState, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.dynamicManagerPs, nil
+}
+
+func (m *MemDB) PutDynamicPluginRegistryState(ps *RegistryState) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.dynamicManagerPs = ps
+	return nil
 }
