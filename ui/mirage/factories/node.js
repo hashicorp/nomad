@@ -72,7 +72,7 @@ export default Factory.extend({
 
   drivers: makeDrivers,
 
-  hostVolumes: makeHostVolumes(),
+  hostVolumes: makeHostVolumes,
 
   resources: generateResources,
 

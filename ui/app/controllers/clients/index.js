@@ -24,6 +24,7 @@ export default Controller.extend(
       qpClass: 'class',
       qpState: 'state',
       qpDatacenter: 'dc',
+      qpVolume: 'volume',
     },
 
     currentPage: 1,
@@ -37,10 +38,12 @@ export default Controller.extend(
     qpClass: '',
     qpState: '',
     qpDatacenter: '',
+    qpVolume: '',
 
     selectionClass: selection('qpClass'),
     selectionState: selection('qpState'),
     selectionDatacenter: selection('qpDatacenter'),
+    selectionVolume: selection('qpVolume'),
 
     optionsClass: computed('nodes.[]', function() {
       const classes = Array.from(new Set(this.nodes.mapBy('nodeClass'))).compact();
@@ -72,16 +75,31 @@ export default Controller.extend(
       return datacenters.sort().map(dc => ({ key: dc, label: dc }));
     }),
 
+    optionsVolume: computed('nodes.[]', function() {
+      const flatten = (acc, val) => acc.concat(val.toArray());
+
+      const allVolumes = this.nodes.mapBy('hostVolumes').reduce(flatten, []);
+      const volumes = Array.from(new Set(allVolumes.mapBy('name')));
+
+      scheduleOnce('actions', () => {
+        this.set('qpVolume', serialize(intersection(volumes, this.selectionVolume)));
+      });
+
+      return volumes.sort().map(volume => ({ key: volume, label: volume }));
+    }),
+
     filteredNodes: computed(
       'nodes.[]',
       'selectionClass',
       'selectionState',
       'selectionDatacenter',
+      'selectionVolume',
       function() {
         const {
           selectionClass: classes,
           selectionState: states,
           selectionDatacenter: datacenters,
+          selectionVolume: volumes,
         } = this;
 
         const onlyIneligible = states.includes('ineligible');
@@ -94,6 +112,8 @@ export default Controller.extend(
           if (classes.length && !classes.includes(node.get('nodeClass'))) return false;
           if (statuses.length && !statuses.includes(node.get('status'))) return false;
           if (datacenters.length && !datacenters.includes(node.get('datacenter'))) return false;
+          if (volumes.length && !node.hostVolumes.find(volume => volumes.includes(volume.name)))
+            return false;
 
           if (onlyIneligible && node.get('isEligible')) return false;
           if (onlyDraining && !node.get('isDraining')) return false;
