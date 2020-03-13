@@ -24,7 +24,7 @@ The reference documentation for this implementation is found at
     Year           No           1970–2099         * / , -
 
 #### Asterisk ( * )
-The asterisk indicates that the cron expression matches for all values of the field. E.g., using an asterisk in the 4th field (month) indicates every month. 
+The asterisk indicates that the cron expression matches for all values of the field. E.g., using an asterisk in the 4th field (month) indicates every month.
 
 #### Slash ( / )
 Slashes describe increments of ranges. For example `3-59/15` in the minute field indicate the third minute of the hour and every 15 minutes thereafter. The form `*/...` is equivalent to the form "first-last/...", that is, an increment over the largest possible range of the field.
@@ -52,7 +52,7 @@ The `W` character can also be combined with `L`, i.e. `LW` to mean "the last bus
 
 Predefined cron expressions
 ---------------------------
-(Copied from <https://en.wikipedia.org/wiki/Cron#Predefined_scheduling_definitions>, with text modified according to this implementation) 
+(Copied from <https://en.wikipedia.org/wiki/Cron#Predefined_scheduling_definitions>, with text modified according to this implementation)
 
     Entry       Description                                                             Equivalent to
     @annually   Run once a year at midnight in the morning of January 1                 0 0 0 1 1 * *
@@ -69,6 +69,7 @@ Other details
 * If only five fields are present, a `0` second field is prepended and a wildcard year field is appended, that is, `* * * * Mon` internally become `0 * * * * Mon *`.
 * Domain for day-of-week field is [0-7] instead of [0-6], 7 being Sunday (like 0). This to comply with http://linux.die.net/man/5/crontab#.
 * As of now, the behavior of the code is undetermined if a malformed cron expression is supplied
+* By default, on a DST change, it returns the times that would have been skipped when the clock moves forward and returns only once the times that would have been repeated when the clock moves backwards. For customized behavior, see the godoc documentation.
 
 Install
 -------
@@ -131,4 +132,3 @@ License: pick the one which suits you best:
 
 - GPL v3 see <https://www.gnu.org/licenses/gpl.html>
 - APL v2 see <http://www.apache.org/licenses/LICENSE-2.0>
-

@@ -53,7 +53,8 @@ func (expr *Expression) nextYear(t time.Time) time.Time {
 			0,
 			t.Location()))
 	}
-	return time.Date(
+
+	next := time.Date(
 		expr.yearList[i],
 		time.Month(expr.monthList[0]),
 		expr.actualDaysOfMonthList[0],
@@ -61,7 +62,9 @@ func (expr *Expression) nextYear(t time.Time) time.Time {
 		expr.minuteList[0],
 		expr.secondList[0],
 		0,
-		t.Location())
+		time.UTC)
+
+	return expr.nextTime(t, next)
 }
 
 /******************************************************************************/
@@ -87,7 +90,7 @@ func (expr *Expression) nextMonth(t time.Time) time.Time {
 			t.Location()))
 	}
 
-	return time.Date(
+	next := time.Date(
 		t.Year(),
 		time.Month(expr.monthList[i]),
 		expr.actualDaysOfMonthList[0],
@@ -95,7 +98,9 @@ func (expr *Expression) nextMonth(t time.Time) time.Time {
 		expr.minuteList[0],
 		expr.secondList[0],
 		0,
-		t.Location())
+		time.UTC)
+
+	return expr.nextTime(t, next)
 }
 
 /******************************************************************************/
@@ -108,7 +113,7 @@ func (expr *Expression) nextDayOfMonth(t time.Time) time.Time {
 		return expr.nextMonth(t)
 	}
 
-	return time.Date(
+	next := time.Date(
 		t.Year(),
 		t.Month(),
 		expr.actualDaysOfMonthList[i],
@@ -116,7 +121,9 @@ func (expr *Expression) nextDayOfMonth(t time.Time) time.Time {
 		expr.minuteList[0],
 		expr.secondList[0],
 		0,
-		t.Location())
+		time.UTC)
+
+	return expr.nextTime(t, next)
 }
 
 /******************************************************************************/
@@ -129,7 +136,7 @@ func (expr *Expression) nextHour(t time.Time) time.Time {
 		return expr.nextDayOfMonth(t)
 	}
 
-	return time.Date(
+	next := time.Date(
 		t.Year(),
 		t.Month(),
 		t.Day(),
@@ -137,7 +144,9 @@ func (expr *Expression) nextHour(t time.Time) time.Time {
 		expr.minuteList[0],
 		expr.secondList[0],
 		0,
-		t.Location())
+		time.UTC)
+
+	return expr.nextTime(t, next)
 }
 
 /******************************************************************************/
@@ -150,7 +159,7 @@ func (expr *Expression) nextMinute(t time.Time) time.Time {
 		return expr.nextHour(t)
 	}
 
-	return time.Date(
+	next := time.Date(
 		t.Year(),
 		t.Month(),
 		t.Day(),
@@ -158,7 +167,9 @@ func (expr *Expression) nextMinute(t time.Time) time.Time {
 		expr.minuteList[i],
 		expr.secondList[0],
 		0,
-		t.Location())
+		time.UTC)
+
+	return expr.nextTime(t, next)
 }
 
 /******************************************************************************/
@@ -174,7 +185,7 @@ func (expr *Expression) nextSecond(t time.Time) time.Time {
 		return expr.nextMinute(t)
 	}
 
-	return time.Date(
+	next := time.Date(
 		t.Year(),
 		t.Month(),
 		t.Day(),
@@ -182,7 +193,118 @@ func (expr *Expression) nextSecond(t time.Time) time.Time {
 		t.Minute(),
 		expr.secondList[i],
 		0,
-		t.Location())
+		time.UTC)
+
+	return expr.nextTime(t, next)
+}
+
+func (expr *Expression) roundTime(t time.Time) time.Time {
+	roundingExpr := new(Expression)
+	*roundingExpr = *expr
+	roundingExpr.rounding = true
+
+	i := sort.SearchInts(expr.hourList, t.Hour())
+	if i == len(expr.hourList) || expr.hourList[i] != t.Hour() {
+		return roundingExpr.nextHour(t)
+	}
+
+	i = sort.SearchInts(expr.minuteList, t.Minute())
+	if i == len(expr.minuteList) || expr.minuteList[i] != t.Minute() {
+		return roundingExpr.nextMinute(t)
+	}
+
+	i = sort.SearchInts(expr.secondList, t.Second())
+	if i == len(expr.secondList) || expr.secondList[i] != t.Second() {
+		return roundingExpr.nextSecond(t)
+	}
+
+	return t
+}
+
+func (expr *Expression) isRounded(t time.Time) bool {
+	i := sort.SearchInts(expr.hourList, t.Hour())
+	if i == len(expr.hourList) || expr.hourList[i] != t.Hour() {
+		return false
+	}
+
+	i = sort.SearchInts(expr.minuteList, t.Minute())
+	if i == len(expr.minuteList) || expr.minuteList[i] != t.Minute() {
+		return false
+	}
+
+	i = sort.SearchInts(expr.secondList, t.Second())
+	if i == len(expr.secondList) || expr.secondList[i] != t.Second() {
+		return false
+	}
+
+	return true
+}
+
+func (expr *Expression) nextTime(prev, next time.Time) time.Time {
+	dstFlags := expr.options.DSTFlags
+	t := prev.Add(noTZDiff(prev, next))
+	offsetDiff := utcOffset(t) - utcOffset(prev)
+
+	// a dst leap occurred
+	if offsetDiff > 0 {
+		dstChangeTime := findTimeOfDSTChange(prev, t)
+
+		// since a dst leap occured, t is offsetDiff seconds ahead
+		t = t.Add(-1 * offsetDiff)
+
+		// check if t is within the skipped interval (offsetDiff)
+		if noTZDiff(dstChangeTime, t) < offsetDiff {
+			if dstFlags&DSTLeapUnskip != 0 {
+				// return the earliest time right after the leap
+				return dstChangeTime.Add(1 * time.Second)
+			}
+
+			// return the next scheduled time right after the leap
+			return expr.roundTime(dstChangeTime.Add(1 * time.Second))
+		}
+
+		return t
+	}
+
+	// a dst fall occurred
+	if offsetDiff < 0 {
+		twinT := findTwinTime(prev)
+
+		if !twinT.IsZero() {
+			if dstFlags&DSTFallFireLate != 0 {
+				return twinT
+			}
+			if dstFlags&DSTFallFireEarly != 0 {
+				// skip the twin time
+				return expr.Next(expr.roundTime(twinT))
+			}
+		}
+
+		if dstFlags&DSTFallFireEarly != 0 {
+			return t
+		}
+
+		return expr.roundTime(t)
+	}
+
+	twinT := findTwinTime(t)
+	if !twinT.IsZero() {
+		if dstFlags&DSTFallFireEarly != 0 {
+			return t
+		}
+		if dstFlags&DSTFallFireLate != 0 {
+			return twinT
+		}
+	}
+
+	if dstFlags&DSTFallFireLate == 0 && !expr.rounding {
+		twinT = findTwinTime(prev)
+		if !twinT.IsZero() && twinT.Before(prev) && !expr.isRounded(prev) {
+			return expr.Next(t)
+		}
+	}
+
+	return t
 }
 
 /******************************************************************************/
@@ -289,4 +411,84 @@ func workdayOfMonth(targetDom, lastDom time.Time) int {
 		}
 	}
 	return dom
+}
+
+func utcOffset(t time.Time) time.Duration {
+	_, offset := t.Zone()
+	return time.Duration(offset) * time.Second
+}
+
+func noTZ(t time.Time) time.Time {
+	return t.UTC().Add(utcOffset(t))
+}
+
+func noTZDiff(t1, t2 time.Time) time.Duration {
+	t1 = noTZ(t1)
+	t2 = noTZ(t2)
+	return t2.Sub(t1)
+}
+
+// findTimeOfDSTChange returns the time a second before a DST change occurs,
+// and returns zero time in case there's no DST change.
+func findTimeOfDSTChange(t1, t2 time.Time) time.Time {
+	if t1.Location() != t2.Location() || utcOffset(t1) == utcOffset(t2) || t1.Location() == time.UTC {
+		return time.Time{}
+	}
+
+	// make sure t2 > t1
+	if t2.Before(t1) {
+		t := t2
+		t1 = t2
+		t2 = t
+	}
+
+	// do a binary search to find the time one second before the dst change
+	len := t2.Unix() - t1.Unix()
+	var a int64
+	b := len
+	for len > 1 {
+		len = (b - a + 1) / 2
+		if utcOffset(t1.Add(time.Duration(a+len)*time.Second)) != utcOffset(t1) {
+			b = a + len
+		} else {
+			a = a + len
+		}
+	}
+
+	return t1.Add(time.Duration(a) * time.Second)
+}
+
+// When a DST fall accurs, a certain interval of time is repeated. Once
+// in DST time and once in standard time.
+// findTwinTime tries to find the repated "twin" time if one exists.
+func findTwinTime(t time.Time) time.Time {
+	offsetDiff := utcOffset(t.Add(12*time.Hour)) - utcOffset(t)
+	// a fall occurs within the next 12 hours
+	if offsetDiff < 0 {
+		border := findTimeOfDSTChange(t, t.Add(12*time.Hour))
+		t0 := border.Add(offsetDiff)
+
+		if t0.After(t) {
+			return t
+		}
+
+		dur := t.Sub(t0)
+		return border.Add(dur)
+	}
+
+	offsetDiff = utcOffset(t) - utcOffset(t.Add(-12*time.Second))
+	// a fall occurred in the past 12 hours
+	if offsetDiff < 0 {
+		border := findTimeOfDSTChange(t.Add(-12*time.Hour), t)
+		t0 := border.Add(offsetDiff)
+
+		if t0.Add(-2 * offsetDiff).Before(t) {
+			return t
+		}
+
+		dur := t.Sub(border)
+		return t0.Add(dur)
+	}
+
+	return time.Time{}
 }

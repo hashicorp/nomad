@@ -27,6 +27,7 @@ import (
 // <https://github.com/gorhill/cronexpr#implementation>
 type Expression struct {
 	expression             string
+	options                Options
 	secondList             []int
 	minuteList             []int
 	hourList               []int
@@ -42,6 +43,30 @@ type Expression struct {
 	lastWeekDaysOfWeek     map[int]bool
 	daysOfWeekRestricted   bool
 	yearList               []int
+
+	// indicates an instance of a expression used internally
+	// for rounding a time
+	rounding bool
+}
+
+type DSTFlags uint
+
+const (
+	// DSTLeapUnskip indicates the parser to not skip times that would have been
+	// been skipped when the clock moves forward on a DST change.
+	DSTLeapUnskip = 1 << iota
+
+	// DSTFallFireEarly indicates the parser to return the earliest time
+	// when a time is repeated due to a DST fall.
+	DSTFallFireEarly
+
+	// DSTFallFireLate indicates the parser to return the latest time
+	// when a time is repeated due to a DST fall.
+	DSTFallFireLate
+)
+
+type Options struct {
+	DSTFlags DSTFlags
 }
 
 /******************************************************************************/
@@ -67,6 +92,14 @@ func MustParse(cronLine string) *Expression {
 // about what is a well-formed cron expression from this library's point of
 // view.
 func Parse(cronLine string) (*Expression, error) {
+	return ParseWithOptions(cronLine, Options{DSTFlags: DSTLeapUnskip | DSTFallFireEarly})
+}
+
+// ParseWithOptions is used to build a Expression pointer with custom options.
+func ParseWithOptions(cronLine string, options Options) (*Expression, error) {
+	if options.DSTFlags == 0 {
+		return nil, fmt.Errorf("missing DST flags")
+	}
 
 	// Maybe one of the built-in aliases is being used
 	cron := cronNormalizer.Replace(cronLine)
@@ -81,7 +114,7 @@ func Parse(cronLine string) (*Expression, error) {
 		fieldCount = 7
 	}
 
-	var expr = Expression{}
+	var expr = Expression{options: options}
 	var field = 0
 	var err error
 
