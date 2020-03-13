@@ -298,6 +298,10 @@ func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) bool {
 
 // ClaimRead marks an allocation as using a volume read-only
 func (v *CSIVolume) ClaimRead(alloc *Allocation) bool {
+	if _, ok := v.ReadAllocs[alloc.ID]; ok {
+		return true
+	}
+
 	if !v.CanReadOnly() {
 		return false
 	}
@@ -310,6 +314,10 @@ func (v *CSIVolume) ClaimRead(alloc *Allocation) bool {
 
 // ClaimWrite marks an allocation as using a volume as a writer
 func (v *CSIVolume) ClaimWrite(alloc *Allocation) bool {
+	if _, ok := v.WriteAllocs[alloc.ID]; ok {
+		return true
+	}
+
 	if !v.CanWrite() {
 		return false
 	}
