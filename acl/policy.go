@@ -35,7 +35,6 @@ const (
 	NamespaceCapabilitySentinelOverride = "sentinel-override"
 	NamespaceCapabilityPrivilegedTask   = "privileged-task"
 	NamespaceCapabilityCSIAccess        = "csi-access"
-	NamespaceCapabilityCSIReadPlugin    = "csi-read-plugin"
 	NamespaceCapabilityCSIWriteVolume   = "csi-write-volume"
 	NamespaceCapabilityCSIReadVolume    = "csi-read-volume"
 	NamespaceCapabilityCSIListVolume    = "csi-list-volume"
@@ -69,6 +68,7 @@ type Policy struct {
 	Node        *NodePolicy         `hcl:"node"`
 	Operator    *OperatorPolicy     `hcl:"operator"`
 	Quota       *QuotaPolicy        `hcl:"quota"`
+	Plugin      *PluginPolicy       `hcl:"plugin"`
 	Raw         string              `hcl:"-"`
 }
 
@@ -80,7 +80,8 @@ func (p *Policy) IsEmpty() bool {
 		p.Agent == nil &&
 		p.Node == nil &&
 		p.Operator == nil &&
-		p.Quota == nil
+		p.Quota == nil &&
+		p.Plugin == nil
 }
 
 // NamespacePolicy is the policy for a specific namespace
@@ -113,6 +114,10 @@ type QuotaPolicy struct {
 	Policy string
 }
 
+type PluginPolicy struct {
+	Policy string
+}
+
 // isPolicyValid makes sure the given string matches one of the valid policies.
 func isPolicyValid(policy string) bool {
 	switch policy {
@@ -131,7 +136,6 @@ func isNamespaceCapabilityValid(cap string) bool {
 		NamespaceCapabilityReadFS, NamespaceCapabilityAllocLifecycle,
 		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec,
 		NamespaceCapabilityCSIAccess, // TODO(langmartin): remove after plugin caps are done
-		NamespaceCapabilityCSIReadPlugin,
 		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIWriteVolume, NamespaceCapabilityCSIListVolume, NamespaceCapabilityCSIMountVolume:
 		return true
 	// Separate the enterprise-only capabilities
@@ -148,7 +152,6 @@ func expandNamespacePolicy(policy string) []string {
 	read := []string{
 		NamespaceCapabilityListJobs,
 		NamespaceCapabilityReadJob,
-		NamespaceCapabilityCSIReadPlugin,
 		NamespaceCapabilityCSIListVolume,
 		NamespaceCapabilityCSIReadVolume,
 	}
@@ -277,6 +280,10 @@ func Parse(rules string) (*Policy, error) {
 
 	if p.Quota != nil && !isPolicyValid(p.Quota.Policy) {
 		return nil, fmt.Errorf("Invalid quota policy: %#v", p.Quota)
+	}
+
+	if p.Plugin != nil && !isPolicyValid(p.Plugin.Policy) {
+		return nil, fmt.Errorf("Invalid plugin policy: %#v", p.Plugin)
 	}
 	return p, nil
 }

@@ -30,6 +30,8 @@ func TestParse(t *testing.T) {
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
 							NamespaceCapabilityReadJob,
+							NamespaceCapabilityCSIListVolume,
+							NamespaceCapabilityCSIReadVolume,
 						},
 					},
 				},
@@ -58,6 +60,9 @@ func TestParse(t *testing.T) {
 			quota {
 				policy = "read"
 			}
+			plugin {
+				policy = "read"
+			}
 			`,
 			"",
 			&Policy{
@@ -68,6 +73,8 @@ func TestParse(t *testing.T) {
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
 							NamespaceCapabilityReadJob,
+							NamespaceCapabilityCSIListVolume,
+							NamespaceCapabilityCSIReadVolume,
 						},
 					},
 					{
@@ -76,12 +83,16 @@ func TestParse(t *testing.T) {
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
 							NamespaceCapabilityReadJob,
+							NamespaceCapabilityCSIListVolume,
+							NamespaceCapabilityCSIReadVolume,
 							NamespaceCapabilitySubmitJob,
 							NamespaceCapabilityDispatchJob,
 							NamespaceCapabilityReadLogs,
 							NamespaceCapabilityReadFS,
 							NamespaceCapabilityAllocExec,
 							NamespaceCapabilityAllocLifecycle,
+							NamespaceCapabilityCSIMountVolume,
+							NamespaceCapabilityCSIWriteVolume,
 						},
 					},
 					{
@@ -102,6 +113,9 @@ func TestParse(t *testing.T) {
 					Policy: PolicyDeny,
 				},
 				Quota: &QuotaPolicy{
+					Policy: PolicyRead,
+				},
+				Plugin: &PluginPolicy{
 					Policy: PolicyRead,
 				},
 			},
