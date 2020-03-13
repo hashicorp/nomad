@@ -46,7 +46,9 @@ export default Controller.extend(
     selectionVolume: selection('qpVolume'),
 
     optionsClass: computed('nodes.[]', function() {
-      const classes = Array.from(new Set(this.nodes.mapBy('nodeClass'))).compact();
+      const classes = Array.from(new Set(this.nodes.mapBy('nodeClass')))
+        .compact()
+        .without('');
 
       // Remove any invalid node classes from the query param/selection
       scheduleOnce('actions', () => {
