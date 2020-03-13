@@ -35,7 +35,11 @@ const (
 	NamespaceCapabilitySentinelOverride = "sentinel-override"
 	NamespaceCapabilityPrivilegedTask   = "privileged-task"
 	NamespaceCapabilityCSIAccess        = "csi-access"
-	NamespaceCapabilityCSICreateVolume  = "csi-create-volume"
+	NamespaceCapabilityCSIReadPlugin    = "csi-read-plugin"
+	NamespaceCapabilityCSIWriteVolume   = "csi-write-volume"
+	NamespaceCapabilityCSIReadVolume    = "csi-read-volume"
+	NamespaceCapabilityCSIListVolume    = "csi-list-volume"
+	NamespaceCapabilityCSIMountVolume   = "csi-mount-volume"
 )
 
 var (
@@ -126,7 +130,9 @@ func isNamespaceCapabilityValid(cap string) bool {
 		NamespaceCapabilitySubmitJob, NamespaceCapabilityDispatchJob, NamespaceCapabilityReadLogs,
 		NamespaceCapabilityReadFS, NamespaceCapabilityAllocLifecycle,
 		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec,
-		NamespaceCapabilityCSIAccess, NamespaceCapabilityCSICreateVolume:
+		NamespaceCapabilityCSIAccess, // TODO(langmartin): remove after plugin caps are done
+		NamespaceCapabilityCSIReadPlugin,
+		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIWriteVolume, NamespaceCapabilityCSIListVolume, NamespaceCapabilityCSIMountVolume:
 		return true
 	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride:
@@ -139,25 +145,32 @@ func isNamespaceCapabilityValid(cap string) bool {
 // expandNamespacePolicy provides the equivalent set of capabilities for
 // a namespace policy
 func expandNamespacePolicy(policy string) []string {
+	read := []string{
+		NamespaceCapabilityListJobs,
+		NamespaceCapabilityReadJob,
+		NamespaceCapabilityCSIReadPlugin,
+		NamespaceCapabilityCSIListVolume,
+		NamespaceCapabilityCSIReadVolume,
+	}
+
+	write := append(read, []string{
+		NamespaceCapabilitySubmitJob,
+		NamespaceCapabilityDispatchJob,
+		NamespaceCapabilityReadLogs,
+		NamespaceCapabilityReadFS,
+		NamespaceCapabilityAllocExec,
+		NamespaceCapabilityAllocLifecycle,
+		NamespaceCapabilityCSIMountVolume,
+		NamespaceCapabilityCSIWriteVolume,
+	}...)
+
 	switch policy {
 	case PolicyDeny:
 		return []string{NamespaceCapabilityDeny}
 	case PolicyRead:
-		return []string{
-			NamespaceCapabilityListJobs,
-			NamespaceCapabilityReadJob,
-		}
+		return read
 	case PolicyWrite:
-		return []string{
-			NamespaceCapabilityListJobs,
-			NamespaceCapabilityReadJob,
-			NamespaceCapabilitySubmitJob,
-			NamespaceCapabilityDispatchJob,
-			NamespaceCapabilityReadLogs,
-			NamespaceCapabilityReadFS,
-			NamespaceCapabilityAllocExec,
-			NamespaceCapabilityAllocLifecycle,
-		}
+		return write
 	default:
 		return nil
 	}
