@@ -1,18 +1,15 @@
 import Head from 'next/head'
+import HashiHead from '@hashicorp/react-head'
 import Content from '@hashicorp/react-content'
 
 export default function ResourcesPage() {
   return (
     <>
-      <Head>
-        <title key="title">Resources | Nomad by HashiCorp</title>
-        <meta
-          name="description"
-          property="og:description"
-          content="Nomad is widely deployed across a range of enterprises and business verticals."
-          key="description"
-        />
-      </Head>
+      <HashiHead
+        is={Head}
+        title="Resources | Nomad by HashiCorp"
+        description="Nomad is widely deployed across a range of enterprises and business verticals."
+      />
       <div id="p-resources" className="g-grid-container">
         <Content
           product="nomad"

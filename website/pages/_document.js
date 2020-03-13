@@ -1,4 +1,5 @@
 import Document, { Head, Main, NextScript } from 'next/document'
+import HashiHead from '@hashicorp/react-head'
 
 export default class MyDocument extends Document {
   static async getInitialProps(ctx) {
@@ -9,10 +10,7 @@ export default class MyDocument extends Document {
   render() {
     return (
       <html>
-        <Head>
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <link rel="stylesheet" type="text/css" href="/css/nprogress.css" />
-        </Head>
+        <HashiHead is={Head} />
         <body>
           <Main />
           <NextScript />
