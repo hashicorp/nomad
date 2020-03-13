@@ -33,6 +33,10 @@ func TestWatcher_WatchDeployments(t *testing.T) {
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
+
 	// Create three jobs
 	j1, j2, j3 := mock.Job(), mock.Job(), mock.Job()
 	require.Nil(m.state.UpsertJob(100, j1))
@@ -86,6 +90,10 @@ func TestWatcher_UnknownDeployment(t *testing.T) {
 	w, m := defaultTestDeploymentWatcher(t)
 	w.SetEnabled(true, m.state)
 
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
+
 	// The expected error is that it should be an unknown deployment
 	dID := uuid.Generate()
 	expected := fmt.Sprintf("unknown deployment %q", dID)
@@ -138,6 +146,10 @@ func TestWatcher_SetAllocHealth_Unknown(t *testing.T) {
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
+
 	// Create a job, and a deployment
 	j := mock.Job()
 	d := mock.Deployment()
@@ -177,6 +189,10 @@ func TestWatcher_SetAllocHealth_Healthy(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
+
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
 
 	// Create a job, alloc, and a deployment
 	j := mock.Job()
@@ -218,6 +234,10 @@ func TestWatcher_SetAllocHealth_Unhealthy(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
+
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
 
 	// Create a job, alloc, and a deployment
 	j := mock.Job()
@@ -266,6 +286,10 @@ func TestWatcher_SetAllocHealth_Unhealthy_Rollback(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
+
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
 
 	// Create a job, alloc, and a deployment
 	j := mock.Job()
@@ -330,6 +354,10 @@ func TestWatcher_SetAllocHealth_Unhealthy_NoRollback(t *testing.T) {
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
+
 	// Create a job, alloc, and a deployment
 	j := mock.Job()
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
@@ -391,6 +419,10 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
+
 	// Create a job, canary alloc, and a deployment
 	j := mock.Job()
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
@@ -446,6 +478,10 @@ func TestWatcher_PromoteDeployment_UnhealthyCanaries(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
+
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
 
 	// Create a job, canary alloc, and a deployment
 	j := mock.Job()
@@ -544,6 +580,10 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 
 	// =============================================================
 	// Support method calls
+
+	// clear UpdateDeploymentStatus default expectation
+	m.Mock.ExpectedCalls = nil
+
 	matchConfig0 := &matchDeploymentStatusUpdateConfig{
 		DeploymentID:      d.ID,
 		Status:            structs.DeploymentStatusFailed,
@@ -620,6 +660,9 @@ func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
 
+	// clear UpdateDeploymentStatus default expectation
+	m.Mock.ExpectedCalls = nil
+
 	// Create a job and a deployment
 	j := mock.Job()
 	d := mock.Deployment()
@@ -658,6 +701,9 @@ func TestWatcher_PauseDeployment_Pause_Paused(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	w, m := defaultTestDeploymentWatcher(t)
+
+	// clear UpdateDeploymentStatus default expectation
+	m.Mock.ExpectedCalls = nil
 
 	// Create a job and a deployment
 	j := mock.Job()
@@ -1016,6 +1062,10 @@ func TestDeploymentWatcher_ProgressCutoff(t *testing.T) {
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
+
 	// Create a job, alloc, and a deployment
 	j := mock.Job()
 	j.TaskGroups[0].Count = 1
@@ -1118,6 +1168,10 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
 
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
+
 	// Create a job, alloc, and a deployment
 	j := mock.Job()
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
@@ -1195,6 +1249,10 @@ func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
+
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
 
 	// Create a job, alloc, and a deployment
 	j := mock.Job()
@@ -1282,6 +1340,10 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
+
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
 
 	// Create a job, and a deployment
 	j := mock.Job()
@@ -1450,6 +1512,10 @@ func TestWatcher_BatchAllocUpdates(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Second)
+
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(func(args *structs.DeploymentStatusUpdateRequest) bool {
+		return true
+	})).Return(nil).Maybe()
 
 	// Create a job, alloc, for two deployments
 	j1 := mock.Job()

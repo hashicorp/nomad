@@ -19,10 +19,12 @@ type mockBackend struct {
 }
 
 func newMockBackend(t *testing.T) *mockBackend {
-	return &mockBackend{
+	m := &mockBackend{
 		index: 10000,
 		state: state.TestStateStore(t),
 	}
+	m.Test(t)
+	return m
 }
 
 func (m *mockBackend) nextIndex() uint64 {
