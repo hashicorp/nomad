@@ -102,7 +102,7 @@ either A or B and to restart the remaining node in bootstrap mode.
 A Raft cluster of 3 nodes can tolerate a single node failure while a cluster
 of 5 can tolerate 2 node failures. The recommended configuration is to either
 run 3 or 5 Nomad servers per region. This maximizes availability without
-greatly sacrificing performance. The [deployment table](#deployment_table) below
+greatly sacrificing performance. The [deployment table](#deployment-table) below
 summarizes the potential cluster size options and the fault tolerance of each.
 
 In terms of performance, Raft is comparable to Paxos. Assuming stable leadership,
@@ -157,7 +157,7 @@ The two read modes are:
   reads but with stale values. This mode allows reads without a leader meaning
   a cluster that is unavailable will still be able to respond.
 
-## Deployment Table ((#deployment_table))
+## Deployment Table
 
 Below is a table that shows quorum size and failure tolerance for various
 cluster sizes. The recommended deployment is either 3 or 5 servers. A single
