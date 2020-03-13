@@ -3280,16 +3280,23 @@ func TestPeriodConfig_DSTSprintForward_Property(t *testing.T) {
 		}
 		p.Canonicalize()
 
+		lastNext := init
 		for start := init; start.Before(init.Add(testSpan)); start = start.Add(1 * time.Minute) {
 			next, err := p.Next(start)
 			require.NoError(t, err)
 			require.Truef(t, next.After(start),
 				"next(%v) = %v is not after init time", start, next)
 
+			if start.Before(lastNext) {
+				require.Equalf(t, lastNext, next, "next(%v) = %v is earlier than previously known next %v",
+					start, next, lastNext)
+			}
 			if strings.HasPrefix(cronExpr, "* * ") {
 				require.Equalf(t, next.Sub(start), 1*time.Minute,
 					"next(%v) = %v is the next minute", start, next)
 			}
+
+			lastNext = next
 		}
 	}
 
