@@ -350,10 +350,10 @@ func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix strin
 
 	// Print filter info
 	for class, num := range metrics.ClassFiltered {
-		out += fmt.Sprintf("%s* Class %q filtered %d nodes\n", prefix, class, num)
+		out += fmt.Sprintf("%s* Class %q: %d nodes excluded by filter\n", prefix, class, num)
 	}
 	for cs, num := range metrics.ConstraintFiltered {
-		out += fmt.Sprintf("%s* Constraint %q filtered %d nodes\n", prefix, cs, num)
+		out += fmt.Sprintf("%s* Constraint %q: %d nodes excluded by filter\n", prefix, cs, num)
 	}
 
 	// Print exhaustion info
