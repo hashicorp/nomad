@@ -48,3 +48,4 @@ In order to execute the 'make lint' recipe the 'golint' tool is needed, it
 can be found at:
 
 	-> https://github.com/golang/lint
+

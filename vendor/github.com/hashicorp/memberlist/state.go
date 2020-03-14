@@ -953,7 +953,7 @@ func (m *Memberlist) aliveNode(a *alive, notify chan struct{}, bootstrap bool) {
 		// possible for the following situation to happen:
 		// 1) Start with configuration C, join cluster
 		// 2) Hard fail / Kill / Shutdown
-		// 3) Retarttart with configuration C', join cluster
+		// 3) Restart with configuration C', join cluster
 		//
 		// In this case, other nodes and the local node see the same incarnation,
 		// but the values may not be the same. For this reason, we always
