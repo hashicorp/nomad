@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,7 +27,6 @@ type TimesStat struct {
 	Steal     float64 `json:"steal"`
 	Guest     float64 `json:"guest"`
 	GuestNice float64 `json:"guestNice"`
-	Stolen    float64 `json:"stolen"`
 }
 
 type InfoStat struct {
@@ -54,22 +52,18 @@ type lastPercent struct {
 }
 
 var lastCPUPercent lastPercent
-var invoke common.Invoker
+var invoke common.Invoker = common.Invoke{}
 
 func init() {
-	invoke = common.Invoke{}
 	lastCPUPercent.Lock()
 	lastCPUPercent.lastCPUTimes, _ = Times(false)
 	lastCPUPercent.lastPerCPUTimes, _ = Times(true)
 	lastCPUPercent.Unlock()
 }
 
+// Counts returns the number of physical or logical cores in the system
 func Counts(logical bool) (int, error) {
 	return CountsWithContext(context.Background(), logical)
-}
-
-func CountsWithContext(ctx context.Context, logical bool) (int, error) {
-	return runtime.NumCPU(), nil
 }
 
 func (c TimesStat) String() string {
@@ -85,7 +79,6 @@ func (c TimesStat) String() string {
 		`"steal":` + strconv.FormatFloat(c.Steal, 'f', 1, 64),
 		`"guest":` + strconv.FormatFloat(c.Guest, 'f', 1, 64),
 		`"guestNice":` + strconv.FormatFloat(c.GuestNice, 'f', 1, 64),
-		`"stolen":` + strconv.FormatFloat(c.Stolen, 'f', 1, 64),
 	}
 
 	return `{` + strings.Join(v, ",") + `}`
@@ -94,7 +87,7 @@ func (c TimesStat) String() string {
 // Total returns the total number of seconds in a CPUTimesStat
 func (c TimesStat) Total() float64 {
 	total := c.User + c.System + c.Nice + c.Iowait + c.Irq + c.Softirq + c.Steal +
-		c.Guest + c.GuestNice + c.Idle + c.Stolen
+		c.Guest + c.GuestNice + c.Idle
 	return total
 }
 
@@ -105,7 +98,7 @@ func (c InfoStat) String() string {
 
 func getAllBusy(t TimesStat) (float64, float64) {
 	busy := t.User + t.System + t.Nice + t.Iowait + t.Irq +
-		t.Softirq + t.Steal + t.Guest + t.GuestNice + t.Stolen
+		t.Softirq + t.Steal + t.Guest + t.GuestNice
 	return busy + t.Idle, busy
 }
 

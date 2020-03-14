@@ -5,6 +5,7 @@ package cpu
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"unsafe"
 
 	"github.com/StackExchange/wmi"
@@ -23,19 +24,18 @@ type Win32_Processor struct {
 	MaxClockSpeed             uint32
 }
 
-// Win32_PerfFormattedData_Counters_ProcessorInformation stores instance value of the perf counters
-type Win32_PerfFormattedData_Counters_ProcessorInformation struct {
-	Name                  string
-	PercentDPCTime        uint64
-	PercentIdleTime       uint64
-	PercentUserTime       uint64
-	PercentProcessorTime  uint64
-	PercentInterruptTime  uint64
-	PercentPriorityTime   uint64
-	PercentPrivilegedTime uint64
-	InterruptsPerSec      uint32
-	ProcessorFrequency    uint32
-	DPCRate               uint32
+// SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION
+// defined in windows api doc with the following
+// https://docs.microsoft.com/en-us/windows/desktop/api/winternl/nf-winternl-ntquerysysteminformation#system_processor_performance_information
+// additional fields documented here
+// https://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/ex/sysinfo/processor_performance.htm
+type win32_SystemProcessorPerformanceInformation struct {
+	IdleTime       int64 // idle time in 100ns (this is not a filetime).
+	KernelTime     int64 // kernel time in 100ns.  kernel time includes idle time. (this is not a filetime).
+	UserTime       int64 // usertime in 100ns (this is not a filetime).
+	DpcTime        int64 // dpc time in 100ns (this is not a filetime).
+	InterruptTime  int64 // interrupt time in 100ns
+	InterruptCount uint32
 }
 
 // Win32_PerfFormattedData_PerfOS_System struct to have count of processes and processor queue length
@@ -43,6 +43,17 @@ type Win32_PerfFormattedData_PerfOS_System struct {
 	Processes            uint32
 	ProcessorQueueLength uint32
 }
+
+const (
+	win32_TicksPerSecond = 10000000.0
+
+	// systemProcessorPerformanceInformationClass information class to query with NTQuerySystemInformation
+	// https://processhacker.sourceforge.io/doc/ntexapi_8h.html#ad5d815b48e8f4da1ef2eb7a2f18a54e0
+	win32_SystemProcessorPerformanceInformationClass = 8
+
+	// size of systemProcessorPerformanceInfoSize in memory
+	win32_SystemProcessorPerformanceInfoSize = uint32(unsafe.Sizeof(win32_SystemProcessorPerformanceInformation{}))
+)
 
 // Times returns times stat per cpu and combined for all CPUs
 func Times(percpu bool) ([]TimesStat, error) {
@@ -117,24 +128,6 @@ func InfoWithContext(ctx context.Context) ([]InfoStat, error) {
 	return ret, nil
 }
 
-// PerfInfo returns the performance counter's instance value for ProcessorInformation.
-// Name property is the key by which overall, per cpu and per core metric is known.
-func PerfInfo() ([]Win32_PerfFormattedData_Counters_ProcessorInformation, error) {
-	return PerfInfoWithContext(context.Background())
-}
-
-func PerfInfoWithContext(ctx context.Context) ([]Win32_PerfFormattedData_Counters_ProcessorInformation, error) {
-	var ret []Win32_PerfFormattedData_Counters_ProcessorInformation
-
-	q := wmi.CreateQuery(&ret, "")
-	err := common.WMIQueryWithContext(ctx, q, &ret)
-	if err != nil {
-		return []Win32_PerfFormattedData_Counters_ProcessorInformation{}, err
-	}
-
-	return ret, err
-}
-
 // ProcInfo returns processes count and processor queue length in the system.
 // There is a single queue for processor even on multiprocessors systems.
 func ProcInfo() ([]Win32_PerfFormattedData_PerfOS_System, error) {
@@ -154,19 +147,60 @@ func ProcInfoWithContext(ctx context.Context) ([]Win32_PerfFormattedData_PerfOS_
 // perCPUTimes returns times stat per cpu, per core and overall for all CPUs
 func perCPUTimes() ([]TimesStat, error) {
 	var ret []TimesStat
-	stats, err := PerfInfo()
+	stats, err := perfInfo()
 	if err != nil {
 		return nil, err
 	}
-	for _, v := range stats {
+	for core, v := range stats {
 		c := TimesStat{
-			CPU:    v.Name,
-			User:   float64(v.PercentUserTime),
-			System: float64(v.PercentPrivilegedTime),
-			Idle:   float64(v.PercentIdleTime),
-			Irq:    float64(v.PercentInterruptTime),
+			CPU:    fmt.Sprintf("cpu%d", core),
+			User:   float64(v.UserTime) / win32_TicksPerSecond,
+			System: float64(v.KernelTime-v.IdleTime) / win32_TicksPerSecond,
+			Idle:   float64(v.IdleTime) / win32_TicksPerSecond,
+			Irq:    float64(v.InterruptTime) / win32_TicksPerSecond,
 		}
 		ret = append(ret, c)
 	}
 	return ret, nil
+}
+
+// makes call to Windows API function to retrieve performance information for each core
+func perfInfo() ([]win32_SystemProcessorPerformanceInformation, error) {
+	// Make maxResults large for safety.
+	// We can't invoke the api call with a results array that's too small.
+	// If we have more than 2056 cores on a single host, then it's probably the future.
+	maxBuffer := 2056
+	// buffer for results from the windows proc
+	resultBuffer := make([]win32_SystemProcessorPerformanceInformation, maxBuffer)
+	// size of the buffer in memory
+	bufferSize := uintptr(win32_SystemProcessorPerformanceInfoSize) * uintptr(maxBuffer)
+	// size of the returned response
+	var retSize uint32
+
+	// Invoke windows api proc.
+	// The returned err from the windows dll proc will always be non-nil even when successful.
+	// See https://godoc.org/golang.org/x/sys/windows#LazyProc.Call for more information
+	retCode, _, err := common.ProcNtQuerySystemInformation.Call(
+		win32_SystemProcessorPerformanceInformationClass, // System Information Class -> SystemProcessorPerformanceInformation
+		uintptr(unsafe.Pointer(&resultBuffer[0])),        // pointer to first element in result buffer
+		bufferSize,                        // size of the buffer in memory
+		uintptr(unsafe.Pointer(&retSize)), // pointer to the size of the returned results the windows proc will set this
+	)
+
+	// check return code for errors
+	if retCode != 0 {
+		return nil, fmt.Errorf("call to NtQuerySystemInformation returned %d. err: %s", retCode, err.Error())
+	}
+
+	// calculate the number of returned elements based on the returned size
+	numReturnedElements := retSize / win32_SystemProcessorPerformanceInfoSize
+
+	// trim results to the number of returned elements
+	resultBuffer = resultBuffer[:numReturnedElements]
+
+	return resultBuffer, nil
+}
+
+func CountsWithContext(ctx context.Context, logical bool) (int, error) {
+	return runtime.NumCPU(), nil
 }
