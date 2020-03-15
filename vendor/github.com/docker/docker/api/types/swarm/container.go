@@ -71,5 +71,4 @@ type ContainerSpec struct {
 	Secrets   []*SecretReference  `json:",omitempty"`
 	Configs   []*ConfigReference  `json:",omitempty"`
 	Isolation container.Isolation `json:",omitempty"`
-	Sysctls   map[string]string   `json:",omitempty"`
 }

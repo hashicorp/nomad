@@ -3,8 +3,8 @@
 package docker
 
 import (
+	"github.com/docker/docker/daemon/caps"
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/moby/moby/daemon/caps"
 )
 
 func getPortBinding(ip string, port string) []docker.PortBinding {
