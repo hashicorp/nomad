@@ -35,7 +35,7 @@ sudo chmod a+w /etc/nomad.d
 
 
 echo "Installing Consul..."
-CONSUL_VERSION=1.6.1
+CONSUL_VERSION=1.6.4
 curl -sSL https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip > consul.zip
 unzip /tmp/consul.zip
 sudo install consul /usr/bin/consul

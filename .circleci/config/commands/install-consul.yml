@@ -1,7 +1,7 @@
 parameters:
   version:
     type: string
-    default: 1.6.1
+    default: 1.6.4
 steps:
   - run:
       name: Install Consul << parameters.version >>
