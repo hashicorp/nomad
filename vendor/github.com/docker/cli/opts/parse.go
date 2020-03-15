@@ -19,10 +19,10 @@ func ReadKVStrings(files []string, override []string) ([]string, error) {
 // present in the file with additional pairs specified in the override parameter.
 // If a key has no value, it will get the value from the environment.
 func ReadKVEnvStrings(files []string, override []string) ([]string, error) {
-	return readKVStrings(files, override, os.Getenv)
+	return readKVStrings(files, override, os.LookupEnv)
 }
 
-func readKVStrings(files []string, override []string, emptyFn func(string) string) ([]string, error) {
+func readKVStrings(files []string, override []string, emptyFn func(string) (string, bool)) ([]string, error) {
 	variables := []string{}
 	for _, ef := range files {
 		parsedVars, err := parseKeyValueFile(ef, emptyFn)
