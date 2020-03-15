@@ -7,8 +7,8 @@ import (
 	"context"
 	"encoding/binary"
 	"io/ioutil"
+	"math"
 	"os"
-	"os/exec"
 	"runtime"
 	"strings"
 	"sync/atomic"
@@ -48,6 +48,11 @@ func InfoWithContext(ctx context.Context) (*InfoStat, error) {
 		ret.PlatformFamily = family
 		ret.PlatformVersion = version
 		ret.KernelVersion = version
+	}
+
+	kernelArch, err := kernelArch()
+	if err == nil {
+		ret.KernelArch = kernelArch
 	}
 
 	system, role, err := Virtualization()
@@ -144,11 +149,11 @@ func UsersWithContext(ctx context.Context) ([]UserStat, error) {
 		b := buf[i*sizeOfUtmpx : (i+1)*sizeOfUtmpx]
 		var u Utmpx
 		br := bytes.NewReader(b)
-		err := binary.Read(br, binary.LittleEndian, &u)
+		err := binary.Read(br, binary.BigEndian, &u)
 		if err != nil || u.Type != 4 {
 			continue
 		}
-		sec := (binary.LittleEndian.Uint32(u.Tv.Sec[:])) / 2 // TODO:
+		sec := math.Floor(float64(u.Tv) / 1000000)
 		user := UserStat{
 			User:     common.IntToString(u.User[:]),
 			Terminal: common.IntToString(u.Line[:]),
@@ -168,25 +173,17 @@ func PlatformInformation() (string, string, string, error) {
 }
 
 func PlatformInformationWithContext(ctx context.Context) (string, string, string, error) {
-	platform := ""
-	family := ""
-	version := ""
-	uname, err := exec.LookPath("uname")
+	platform, err := unix.Sysctl("kern.ostype")
 	if err != nil {
 		return "", "", "", err
 	}
 
-	out, err := invoke.Command(uname, "-s")
-	if err == nil {
-		platform = strings.ToLower(strings.TrimSpace(string(out)))
+	version, err := unix.Sysctl("kern.osrelease")
+	if err != nil {
+		return "", "", "", err
 	}
 
-	out, err = invoke.Command(uname, "-r")
-	if err == nil {
-		version = strings.ToLower(strings.TrimSpace(string(out)))
-	}
-
-	return platform, family, version, nil
+	return strings.ToLower(platform), "", strings.ToLower(version), nil
 }
 
 func Virtualization() (string, string, error) {
