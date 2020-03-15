@@ -90,7 +90,7 @@
 		{"path":"github.com/containerd/console","checksumSHA1":"IGtuR58l2zmYRcNf8sPDlCSgovE=","origin":"github.com/opencontainers/runc/vendor/github.com/containerd/console","revision":"459bfaec1fc6c17d8bfb12d0a0f69e7e7271ed2a","revisionTime":"2018-08-23T14:46:37Z"},
 		{"path":"github.com/containerd/containerd/errdefs","checksumSHA1":"ru5eKWdLzXfpNRL+Mi1bxbmY8DU=","revision":"14fbcd886f6e971d86f6e3bed43298491d89f393","revisionTime":"2020-03-14T00:01:32Z"},
 		{"path":"github.com/containerd/continuity/fs","checksumSHA1":"NCbMhsHDjvCTNYw10fV7deTC8/4=","revision":"0f16d7a0959cac64d7a54ce015e50cf4839d1970","revisionTime":"2020-02-28T18:24:28Z"},
-		{"path":"github.com/containerd/continuity/pathdriver","checksumSHA1":"GqIrOttKaO7k6HIaHQLPr3cY7rY=","origin":"github.com/docker/docker/vendor/github.com/containerd/continuity/pathdriver","revision":"320063a2ad06a1d8ada61c94c29dbe44e2d87473","revisionTime":"2018-08-16T08:14:46Z"},
+		{"path":"github.com/containerd/continuity/pathdriver","checksumSHA1":"6aGvzibOCGGTbCFKOHRWIASC+Us=","revision":"0f16d7a0959cac64d7a54ce015e50cf4839d1970","revisionTime":"2020-02-28T18:24:28Z"},
 		{"path":"github.com/containerd/continuity/syscallx","checksumSHA1":"za2TXa2xq+zMGLTZT/RPsUz/17s=","revision":"0f16d7a0959cac64d7a54ce015e50cf4839d1970","revisionTime":"2020-02-28T18:24:28Z"},
 		{"path":"github.com/containerd/continuity/sysx","checksumSHA1":"bN0qvDjOSs6SoVo/4NfnddOdtGY=","revision":"0f16d7a0959cac64d7a54ce015e50cf4839d1970","revisionTime":"2020-02-28T18:24:28Z"},
 		{"path":"github.com/containerd/fifo","checksumSHA1":"Ur3lVmFp+HTGUzQU+/ZBolKe8FU=","revision":"3d5202aec260678c48179c56f40e6f38a095738c","revisionTime":"2018-03-07T16:51:37Z"},
