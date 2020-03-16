@@ -220,7 +220,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	}
 	claimResp := &structs.CSIVolumeClaimResponse{}
 	err := msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
-	require.EqualError(t, err, fmt.Sprintf("controllerPublish: volume not found: %s", id0),
+	require.EqualError(t, err, fmt.Sprintf("controller publish: volume not found: %s", id0),
 		"expected 'volume not found' error because volume hasn't yet been created")
 
 	// Create a client node, plugin, alloc, and volume
@@ -377,7 +377,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	claimResp := &structs.CSIVolumeClaimResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	// Because the node is not registered
-	require.EqualError(t, err, "controllerPublish: attach volume: No path to node")
+	require.EqualError(t, err, "controller publish: attach volume: No path to node")
 }
 
 func TestCSIVolumeEndpoint_List(t *testing.T) {
