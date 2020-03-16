@@ -342,7 +342,7 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 	return nil
 }
 
-// Claim claims a volume
+// Claim submits a change to a volume claim
 func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CSIVolumeClaimResponse) error {
 	if done, err := v.srv.forward("CSIVolume.Claim", args, args, reply); done {
 		return err
@@ -361,10 +361,13 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		return structs.ErrPermissionDenied
 	}
 
-	// adds a Volume and PublishContext from the controller (if any) to the reply
-	err = v.srv.controllerPublishVolume(args, reply)
-	if err != nil {
-		return fmt.Errorf("controllerPublish: %v", err)
+	// if this is a new claim, add a Volume and PublishContext from the
+	// controller (if any) to the reply
+	if args.Claim != structs.CSIVolumeClaimRelease {
+		err = v.srv.controllerPublishVolume(args, reply)
+		if err != nil {
+			return fmt.Errorf("controller publish: %v", err)
+		}
 	}
 
 	resp, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, args)

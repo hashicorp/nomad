@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -66,7 +65,7 @@ func (c *CSIController) ValidateVolume(req *structs.ClientCSIControllerValidateV
 // 1. Validate the volume request
 // 2. Call ControllerPublishVolume on the CSI Plugin to trigger a remote attachment
 //
-// In the future this may be expanded to request dynamic secrets for attachement.
+// In the future this may be expanded to request dynamic secrets for attachment.
 func (c *CSIController) AttachVolume(req *structs.ClientCSIControllerAttachVolumeRequest, resp *structs.ClientCSIControllerAttachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"client", "csi_controller", "publish_volume"}, time.Now())
 	plugin, err := c.findControllerPlugin(req.PluginID)
@@ -105,8 +104,40 @@ func (c *CSIController) AttachVolume(req *structs.ClientCSIControllerAttachVolum
 	return nil
 }
 
+// DetachVolume is used to detach a volume from a CSI Cluster from
+// the storage node provided in the request.
 func (c *CSIController) DetachVolume(req *structs.ClientCSIControllerDetachVolumeRequest, resp *structs.ClientCSIControllerDetachVolumeResponse) error {
-	return fmt.Errorf("Unimplemented")
+	defer metrics.MeasureSince([]string{"client", "csi_controller", "unpublish_volume"}, time.Now())
+	plugin, err := c.findControllerPlugin(req.PluginID)
+	if err != nil {
+		return err
+	}
+	defer plugin.Close()
+
+	// The following block of validation checks should not be reached on a
+	// real Nomad cluster as all of this data should be validated when registering
+	// volumes with the cluster. They serve as a defensive check before forwarding
+	// requests to plugins, and to aid with development.
+
+	if req.VolumeID == "" {
+		return errors.New("VolumeID is required")
+	}
+
+	if req.ClientCSINodeID == "" {
+		return errors.New("ClientCSINodeID is required")
+	}
+
+	csiReq := req.ToCSIRequest()
+
+	// Submit the request for a volume to the CSI Plugin.
+	ctx, cancelFn := c.requestContext()
+	defer cancelFn()
+	_, err = plugin.ControllerUnpublishVolume(ctx, csiReq)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *CSIController) findControllerPlugin(name string) (csi.CSIPlugin, error) {
