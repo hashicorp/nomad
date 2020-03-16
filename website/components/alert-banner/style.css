@@ -1,5 +1,5 @@
 .g-alert-banner {
-  background: linear-gradient(90deg, var(--brand) 1.56%, #08368b 100%);
+  background: var(--nomad);
   color: var(--white);
   display: none;
   overflow: hidden;
@@ -10,36 +10,8 @@
     display: block;
   }
 
-  &.consul {
-    background: linear-gradient(90deg, var(--consul) 1.56%, #8e134a 100%);
-
-    & svg path {
-      stroke: #f8d9e7;
-    }
-  }
-
-  &.nomad {
-    background: linear-gradient(90deg, var(--nomad) 1.56%, #005738 100%);
-
-    & svg path {
-      stroke: #6bd8b4;
-    }
-  }
-
-  &.terraform {
-    background: linear-gradient(90deg, var(--terraform) 1.56%, #2a1c73 100%);
-
-    & svg path {
-      stroke: #a291f2;
-    }
-  }
-
-  &.vault {
-    background: linear-gradient(90deg, var(--vault) 1.56%, #373942 100%);
-
-    & svg path {
-      stroke: #e5e6eb;
-    }
+  & svg path {
+    stroke: var(--nomad-l1);
   }
 
   &.has-large-tag {
@@ -107,7 +79,7 @@
     }
 
     &.variant-tertiary-neutral.background-dark .icon svg [stroke] {
-      stroke: #c1f1e0;
+      stroke: var(--nomad-l2);
     }
   }
 
@@ -128,7 +100,7 @@
     z-index: 2;
 
     & path {
-      stroke: #66a2ff;
+      stroke: var(--nomad-l2);
     }
 
     @media (max-width: 768px) {
