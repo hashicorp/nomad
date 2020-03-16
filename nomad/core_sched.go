@@ -753,7 +753,7 @@ func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) e
 					continue // filter to just CSI volumes
 				}
 				volID := tgVolume.Source
-				vol, err := c.srv.State().CSIVolumeByID(ws, volID)
+				vol, err := c.srv.State().CSIVolumeByID(ws, job.Namespace, volID)
 				if err != nil {
 					result = multierror.Append(result, err)
 					continue
