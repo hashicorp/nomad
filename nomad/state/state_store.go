@@ -1839,15 +1839,6 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []s
 			return fmt.Errorf("volume not found: %s", id)
 		}
 
-		vol, ok := existing.(*structs.CSIVolume)
-		if !ok {
-			return fmt.Errorf("volume not found: %s", id)
-		}
-
-		if namespace != vol.Namespace {
-
-		}
-
 		if err = txn.Delete("csi_volumes", existing); err != nil {
 			return fmt.Errorf("volume delete failed: %s: %v", id, err)
 		}
