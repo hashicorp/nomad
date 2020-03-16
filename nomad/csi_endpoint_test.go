@@ -350,7 +350,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	require.NoError(t, err)
 	vols := []*structs.CSIVolume{{
 		ID:                 id0,
-		Namespace:          "notTheNamespace",
+		Namespace:          ns,
 		PluginID:           "minnie",
 		ControllerRequired: true,
 		AccessMode:         structs.CSIVolumeAccessModeMultiNodeSingleWriter,
