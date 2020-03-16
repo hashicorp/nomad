@@ -101,6 +101,10 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 		return err
 	}
 
+	if !allowCSIAccess(aclObj, vol.Namespace) {
+		return structs.ErrPermissionDenied
+	}
+
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "volume", "list"}, metricsStart)
 
@@ -141,21 +145,9 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 					return err
 				}
 
-				// Filter on the request namespace to avoid ACL checks by volume
-				if ns != "" && vol.Namespace != ns {
-					continue
-				}
-
 				// Filter (possibly again) on PluginID to handle passing both NodeID and PluginID
 				if args.PluginID != "" && args.PluginID != vol.PluginID {
 					continue
-				}
-
-				// Cache ACL checks QUESTION: are they expensive?
-				allowed, ok := cache[vol.Namespace]
-				if !ok {
-					allowed = allowCSIAccess(aclObj, vol.Namespace)
-					cache[vol.Namespace] = allowed
 				}
 
 				if allowed {
