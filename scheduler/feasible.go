@@ -188,14 +188,19 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 }
 
 type CSIVolumeChecker struct {
-	ctx     Context
-	volumes map[string]*structs.VolumeRequest
+	ctx       Context
+	namespace string
+	volumes   map[string]*structs.VolumeRequest
 }
 
 func NewCSIVolumeChecker(ctx Context) *CSIVolumeChecker {
 	return &CSIVolumeChecker{
 		ctx: ctx,
 	}
+}
+
+func (c *CSIVolumeChecker) SetJob(job *structs.Job) {
+	c.namespace = job.Namespace
 }
 
 func (c *CSIVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
@@ -237,7 +242,7 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 	for _, req := range c.volumes {
 		// Get the volume to check that it's healthy (there's a healthy controller
 		// and the volume hasn't encountered an error or been marked for GC
-		vol, err := c.ctx.State().CSIVolumeByID(ws, req.Source)
+		vol, err := c.ctx.State().CSIVolumeByID(ws, c.namespace, req.Source)
 		if err != nil {
 			return false, FilterConstraintCSIVolumesLookupFailed
 		}
