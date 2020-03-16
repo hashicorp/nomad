@@ -2352,7 +2352,6 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 
 	// Create a job with 2 allocations
 	job := mock.Job()
-	job.Namespace = ns
 	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
 		"_": {
 			Name:     "someVolume",
