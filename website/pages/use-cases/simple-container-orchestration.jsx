@@ -24,10 +24,9 @@ export default function SimpleContainerOrchestrationPage() {
           ]
         }}
         codeBlock={{
-          code: `
-task "webservice" {
-  driver = "docker" 
-‍
+          code: `task "webservice" {
+  driver = "docker"
+
   config {
     image = "redis:3.2"
     labels {
@@ -68,8 +67,7 @@ task "webservice" {
           ]
         }}
         codeBlock={{
-          code: `
-sc.exe start "Nomad"
+          code: `sc.exe start "Nomad"
 
 SERVICE_NAME: Nomad
       TYPE               : 10  WIN32_OWN_PROCESS
