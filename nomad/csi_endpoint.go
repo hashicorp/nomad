@@ -260,7 +260,6 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 	}
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
-	allowPlugin := acl.NamespaceValidator(acl.NamespaceCapabilityCSIReadPlugin)
 	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
 	if err != nil {
 		return err
@@ -269,7 +268,7 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "volume", "register"}, metricsStart)
 
-	if !allowVolume(aclObj, args.RequestNamespace()) {
+	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -280,10 +279,6 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		vol.Namespace = args.RequestNamespace()
 		if err = vol.Validate(); err != nil {
 			return err
-		}
-
-		if !allowPlugin(aclObj, vol.PluginID) {
-			return structs.ErrPermissionDenied
 		}
 
 		plugin, err := v.srv.pluginValidateVolume(args, vol)
@@ -349,10 +344,7 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		return err
 	}
 
-	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIMountVolume,
-		acl.NamespaceCapabilityCSIWriteVolume)
-	allowPlugin := acl.NamespaceValidator(acl.NamespaceCapabilityCSIReadPlugin)
-
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIMountVolume)
 	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, true)
 	if err != nil {
 		return err
@@ -361,17 +353,7 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "volume", "claim"}, metricsStart)
 
-	if !allowVolume(aclObj, args.RequestNamespace()) {
-		return structs.ErrPermissionDenied
-	}
-
-	ws := memdb.NewWatchSet()
-	vol, err := v.srv.fsm.State().CSIVolumeByID(ws, args.VolumeID)
-	if err != nil {
-		return fmt.Errorf("%v", err)
-	}
-
-	if !allowPlugin(aclObj, vol.PluginID) {
+	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
 

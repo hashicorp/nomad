@@ -70,7 +70,7 @@ func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
 	state := srv.fsm.State()
 	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
 	srv.config.ACLEnabled = true
-	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIAccess})
+	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIReadVolume})
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "csi-access", policy)
 
 	codec := rpcClient(t, srv)
@@ -319,10 +319,11 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	ns := structs.DefaultNamespace
 	state := srv.fsm.State()
 	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
-	policy := mock.NamespacePolicy(ns, "",
-		[]string{acl.NamespaceCapabilityCSICreateVolume, acl.NamespaceCapabilityCSIAccess})
-	accessToken := mock.CreatePolicyAndToken(t, state, 1001,
-		acl.NamespaceCapabilityCSIAccess, policy)
+
+	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
+		mock.PluginPolicy("read")
+	accessToken := mock.CreatePolicyAndToken(t, state, 1001, "claim", policy)
+
 	codec := rpcClient(t, srv)
 	id0 := uuid.Generate()
 
@@ -397,7 +398,8 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	srv.config.ACLEnabled = true
 	codec := rpcClient(t, srv)
 
-	nsPolicy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIAccess})
+	nsPolicy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIAccess}) +
+		mock.PluginPolicy("read")
 	nsTok := mock.CreatePolicyAndToken(t, state, 1000, "csi-access", nsPolicy)
 
 	id0 := uuid.Generate()
@@ -463,7 +465,8 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	require.Equal(t, vols[1].ID, resp.Volumes[0].ID)
 
 	// Query by PluginID in ms
-	msPolicy := mock.NamespacePolicy(ms, "", []string{acl.NamespaceCapabilityCSIAccess})
+	msPolicy := mock.NamespacePolicy(ms, "", []string{acl.NamespaceCapabilityCSIAccess}) +
+		mock.PluginPolicy("read")
 	msTok := mock.CreatePolicyAndToken(t, state, 1003, "csi-access", msPolicy)
 
 	req = &structs.CSIVolumeListRequest{
