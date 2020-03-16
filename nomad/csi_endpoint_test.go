@@ -490,8 +490,6 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)
 
-	ns := structs.DefaultNamespace
-
 	deleteNodes := CreateTestCSIPlugin(srv.fsm.State(), "foo")
 	defer deleteNodes()
 
@@ -501,8 +499,9 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	codec := rpcClient(t, srv)
 
 	// Get the plugin back out
-	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIAccess})
-	getToken := mock.CreatePolicyAndToken(t, state, 1001, "csi-access", policy)
+	listJob := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})
+	policy := mock.PluginPolicy("read") + listJob
+	getToken := mock.CreatePolicyAndToken(t, state, 1001, "plugin-read", policy)
 
 	req2 := &structs.CSIPluginGetRequest{
 		ID: "foo",
@@ -514,6 +513,13 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	resp2 := &structs.CSIPluginGetResponse{}
 	err := msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
 	require.NoError(t, err)
+
+	// Get requires plugin-read, not plugin-list
+	lPolicy := mock.PluginPolicy("list")
+	lTok := mock.CreatePolicyAndToken(t, state, 1003, "plugin-list", lPolicy)
+	req2.AuthToken = lTok.SecretID
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
+	require.Error(t, err, "Permission denied")
 
 	// List plugins
 	req3 := &structs.CSIPluginListRequest{
@@ -532,10 +538,17 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(resp3.Plugins))
 
+	// List allows plugin-list
+	req3.AuthToken = lTok.SecretID
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.List", req3, resp3)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(resp3.Plugins))
+
 	// Deregistration works
 	deleteNodes()
 
 	// Plugin is missing
+	req2.AuthToken = getToken.SecretID
 	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
 	require.NoError(t, err)
 	require.Nil(t, resp2.Plugin)

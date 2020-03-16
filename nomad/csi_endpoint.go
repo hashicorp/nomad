@@ -398,13 +398,12 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 		return err
 	}
 
-	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIAccess)
 	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
 	if err != nil {
 		return err
 	}
 
-	if !allowCSIAccess(aclObj, args.RequestNamespace()) {
+	if !aclObj.AllowPluginList() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -430,9 +429,6 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 				}
 
 				plug := raw.(*structs.CSIPlugin)
-
-				// FIXME we should filter the ACL access for the plugin's
-				// namespace, but plugins don't currently have namespaces
 				ps = append(ps, plug.Stub())
 			}
 
@@ -448,15 +444,17 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 		return err
 	}
 
-	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIAccess)
 	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
 	if err != nil {
 		return err
 	}
 
-	if !allowCSIAccess(aclObj, args.RequestNamespace()) {
+	if !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
+
+	withAllocs := aclObj == nil ||
+		aclObj.AllowNsOp(acl.NamespaceCapabilityReadJob, args.RequestNamespace())
 
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "plugin", "get"}, metricsStart)
@@ -470,15 +468,26 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 				return err
 			}
 
-			if plug != nil {
-				plug, err = state.CSIPluginDenormalize(ws, plug.Copy())
-			}
-			if err != nil {
-				return err
+			if plug == nil {
+				return nil
 			}
 
-			// FIXME we should re-check the ACL access for the plugin's
-			// namespace, but plugins don't currently have namespaces
+			if withAllocs {
+				plug, err = state.CSIPluginDenormalize(ws, plug.Copy())
+				if err != nil {
+					return err
+				}
+
+				// Filter the allocation stubs by our namespace. withAllocs
+				// means we're allowed
+				var as []*structs.AllocListStub
+				for _, a := range plug.Allocations {
+					if a.Namespace == args.RequestNamespace() {
+						as = append(as, a)
+					}
+				}
+				plug.Allocations = as
+			}
 
 			reply.Plugin = plug
 			return v.srv.replySetIndex(csiPluginTable, &reply.QueryMeta)
