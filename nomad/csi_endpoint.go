@@ -114,11 +114,11 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			var iter memdb.ResultIterator
 
 			if args.NodeID != "" {
-				iter, err = state.CSIVolumesByNodeID(ws, args.NodeID)
+				iter, err = state.CSIVolumesByNodeID(ws, ns, args.NodeID)
 			} else if args.PluginID != "" {
-				iter, err = state.CSIVolumesByPluginID(ws, args.PluginID)
+				iter, err = state.CSIVolumesByPluginID(ws, ns, args.PluginID)
 			} else {
-				iter, err = state.CSIVolumes(ws)
+				iter, err = state.CSIVolumesByNamespace(ws, ns)
 			}
 
 			if err != nil {
@@ -142,7 +142,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 				}
 
 				// Filter on the request namespace to avoid ACL checks by volume
-				if ns != "" && vol.Namespace != args.RequestNamespace() {
+				if ns != "" && vol.Namespace != ns {
 					continue
 				}
 
@@ -180,7 +180,8 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 		return err
 	}
 
-	if !allowCSIAccess(aclObj, args.RequestNamespace()) {
+	ns := args.RequestNamespace()
+	if !allowCSIAccess(aclObj, ns) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -191,7 +192,7 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			vol, err := state.CSIVolumeByID(ws, args.ID)
+			vol, err := state.CSIVolumeByID(ws, ns, args.ID)
 			if err != nil {
 				return err
 			}
@@ -484,7 +485,7 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 // controllerPublishVolume sends publish request to the CSI controller
 // plugin associated with a volume, if any.
 func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, resp *structs.CSIVolumeClaimResponse) error {
-	plug, vol, err := srv.volAndPluginLookup(req.VolumeID)
+	plug, vol, err := srv.volAndPluginLookup(req.RequestNamespace(), req.VolumeID)
 	if err != nil {
 		return err
 	}
@@ -557,7 +558,7 @@ func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, r
 // controller plugin associated with a volume, if any.
 // TODO: the only caller of this won't have an alloc pointer handy, should it be its own request arg type?
 func (srv *Server) controllerUnpublishVolume(req *structs.CSIVolumeClaimRequest, targetNomadNodeID string) error {
-	plug, vol, err := srv.volAndPluginLookup(req.VolumeID)
+	plug, vol, err := srv.volAndPluginLookup(req.RequestNamespace(), req.VolumeID)
 	if plug == nil || vol == nil || err != nil {
 		return err // possibly nil if no controller required
 	}
@@ -595,11 +596,11 @@ func (srv *Server) controllerUnpublishVolume(req *structs.CSIVolumeClaimRequest,
 	return srv.RPC(method, cReq, &cstructs.ClientCSIControllerDetachVolumeResponse{})
 }
 
-func (srv *Server) volAndPluginLookup(volID string) (*structs.CSIPlugin, *structs.CSIVolume, error) {
+func (srv *Server) volAndPluginLookup(namespace, volID string) (*structs.CSIPlugin, *structs.CSIVolume, error) {
 	state := srv.fsm.State()
 	ws := memdb.NewWatchSet()
 
-	vol, err := state.CSIVolumeByID(ws, volID)
+	vol, err := state.CSIVolumeByID(ws, namespace, volID)
 	if err != nil {
 		return nil, nil, err
 	}
