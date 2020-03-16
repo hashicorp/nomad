@@ -1,5 +1,5 @@
 resource "aws_efs_file_system" "csi" {
-  creation_token = "CSI"
+  creation_token = "${local.random_name}-CSI"
 
   tags = {
     Name = "${local.random_name}-efs"
