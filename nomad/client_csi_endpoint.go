@@ -82,3 +82,37 @@ func (a *ClientCSIController) ValidateVolume(args *cstructs.ClientCSIControllerV
 	}
 	return nil
 }
+
+func (a *ClientCSIController) DetachVolume(args *cstructs.ClientCSIControllerDetachVolumeRequest, reply *cstructs.ClientCSIControllerDetachVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "detach_volume"}, time.Now())
+
+	// Verify the arguments.
+	if args.ControllerNodeID == "" {
+		return errors.New("missing ControllerNodeID")
+	}
+
+	// Make sure Node is valid and new enough to support RPC
+	snap, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	_, err = getNodeForRpc(snap, args.ControllerNodeID)
+	if err != nil {
+		return err
+	}
+
+	// Get the connection to the client
+	state, ok := a.srv.getNodeConn(args.ControllerNodeID)
+	if !ok {
+		return findNodeConnAndForward(a.srv, args.ControllerNodeID, "ClientCSIController.DetachVolume", args, reply)
+	}
+
+	// Make the RPC
+	err = NodeRpc(state.Session, "CSIController.DetachVolume", args, reply)
+	if err != nil {
+		return fmt.Errorf("detach volume: %v", err)
+	}
+	return nil
+
+}

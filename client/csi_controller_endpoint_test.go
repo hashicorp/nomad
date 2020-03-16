@@ -263,3 +263,86 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 		})
 	}
 }
+
+func TestCSIController_DetachVolume(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name             string
+		ClientSetupFunc  func(*fake.Client)
+		Request          *structs.ClientCSIControllerDetachVolumeRequest
+		ExpectedErr      error
+		ExpectedResponse *structs.ClientCSIControllerDetachVolumeResponse
+	}{
+		{
+			Name: "returns plugin not found errors",
+			Request: &structs.ClientCSIControllerDetachVolumeRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: "some-garbage",
+				},
+			},
+			ExpectedErr: errors.New("plugin some-garbage for type csi-controller not found"),
+		},
+		{
+			Name: "validates volumeid is not empty",
+			Request: &structs.ClientCSIControllerDetachVolumeRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+			},
+			ExpectedErr: errors.New("VolumeID is required"),
+		},
+		{
+			Name: "validates nodeid is not empty",
+			Request: &structs.ClientCSIControllerDetachVolumeRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				VolumeID: "1234-4321-1234-4321",
+			},
+			ExpectedErr: errors.New("ClientCSINodeID is required"),
+		},
+		{
+			Name: "returns transitive errors",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerUnpublishVolumeErr = errors.New("hello")
+			},
+			Request: &structs.ClientCSIControllerDetachVolumeRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				VolumeID:        "1234-4321-1234-4321",
+				ClientCSINodeID: "abcde",
+			},
+			ExpectedErr: errors.New("hello"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			require := require.New(t)
+			client, cleanup := TestClient(t, nil)
+			defer cleanup()
+
+			fakeClient := &fake.Client{}
+			if tc.ClientSetupFunc != nil {
+				tc.ClientSetupFunc(fakeClient)
+			}
+
+			dispenserFunc := func(*dynamicplugins.PluginInfo) (interface{}, error) {
+				return fakeClient, nil
+			}
+			client.dynamicRegistry.StubDispenserForType(dynamicplugins.PluginTypeCSIController, dispenserFunc)
+
+			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
+			require.Nil(err)
+
+			var resp structs.ClientCSIControllerDetachVolumeResponse
+			err = client.ClientRPC("CSIController.DetachVolume", tc.Request, &resp)
+			require.Equal(tc.ExpectedErr, err)
+			if tc.ExpectedResponse != nil {
+				require.Equal(tc.ExpectedResponse, &resp)
+			}
+		})
+	}
+}
