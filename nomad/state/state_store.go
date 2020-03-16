@@ -1770,19 +1770,6 @@ func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace string) 
 	return iter, nil
 }
 
-// CSIVolumes looks up the entire csi_volumes table
-func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
-	txn := s.db.Txn(false)
-
-	iter, err := txn.Get("csi_volumes", "id")
-	if err != nil {
-		return nil, fmt.Errorf("volume lookup failed: %v", err)
-	}
-	ws.Add(iter.WatchCh())
-
-	return iter, nil
-}
-
 // CSIVolumeClaim updates the volume's claim count and allocation list
 func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, alloc *structs.Allocation, claim structs.CSIVolumeClaimMode) error {
 	txn := s.db.Txn(true)
