@@ -96,6 +96,7 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 	s.nodeAffinity.SetJob(job)
 	s.spread.SetJob(job)
 	s.ctx.Eligibility().SetJob(job)
+	s.taskGroupCSIVolumes.SetJob(job)
 
 	if contextual, ok := s.quota.(ContextualIterator); ok {
 		contextual.SetJob(job)
