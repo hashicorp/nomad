@@ -101,7 +101,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 		return err
 	}
 
-	if !allowCSIAccess(aclObj, vol.Namespace) {
+	if !allowCSIAccess(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -131,7 +131,6 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 
 			// Collect results, filter by ACL access
 			var vs []*structs.CSIVolListStub
-			cache := map[string]bool{}
 
 			for {
 				raw := iter.Next()
@@ -150,9 +149,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 					continue
 				}
 
-				if allowed {
-					vs = append(vs, vol.Stub())
-				}
+				vs = append(vs, vol.Stub())
 			}
 			reply.Volumes = vs
 			return v.srv.replySetIndex(csiVolumeTable, &reply.QueryMeta)
