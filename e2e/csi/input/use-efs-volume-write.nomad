@@ -13,13 +13,13 @@ job "use-efs-volume" {
 
       config {
         image   = "busybox:1"
-        command = "bash"
-        args    = ["-c", "touch /test/${NOMAD_JOB_NAME}; sleep 3600"]
+        command = "/bin/sh"
+        args    = ["-c", "touch /local/test/${NOMAD_ALLOC_ID}; sleep 3600"]
       }
 
       volume_mount {
         volume      = "test"
-        destination = "/test"
+        destination = "${NOMAD_TASK_DIR}/test"
         read_only   = false
       }
 
