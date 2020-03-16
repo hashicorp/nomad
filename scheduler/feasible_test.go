@@ -306,7 +306,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 	}
 
 	checker := NewCSIVolumeChecker(ctx)
-	checker.SetJob(&structs.Job{Namespace: structs.DefaultNamespace})
+	checker.SetNamespace(structs.DefaultNamespace)
 
 	cases := []struct {
 		Node             *structs.Node

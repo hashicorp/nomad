@@ -199,8 +199,8 @@ func NewCSIVolumeChecker(ctx Context) *CSIVolumeChecker {
 	}
 }
 
-func (c *CSIVolumeChecker) SetJob(job *structs.Job) {
-	c.namespace = job.Namespace
+func (c *CSIVolumeChecker) SetNamespace(namespace string) {
+	c.namespace = namespace
 }
 
 func (c *CSIVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
