@@ -5,6 +5,7 @@ import InlineSvg from '@hashicorp/react-inline-svg'
 import githubIcon from './img/github-icon.svg?include'
 import Link from 'next/link'
 import Head from 'next/head'
+import HashiHead from '@hashicorp/react-head'
 
 export default function DocsPage({
   children,
@@ -23,17 +24,11 @@ export default function DocsPage({
 
   return (
     <div id="p-docs">
-      <Head>
-        <title key="title">{pageMeta.page_title} | Nomad by HashiCorp</title>
-        {pageMeta.description && (
-          <meta
-            name="description"
-            property="og:description"
-            content={pageMeta.description}
-            key="description"
-          />
-        )}
-      </Head>
+      <HashiHead
+        is={Head}
+        title={`${pageMeta.page_title} | Nomad by HashiCorp`}
+        description={pageMeta.description}
+      />
       <div className="content-wrap g-container">
         <div id="sidebar" role="complementary">
           <div className="nav docs-nav">
