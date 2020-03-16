@@ -408,7 +408,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 
 	vols := []*structs.CSIVolume{{
 		ID:             vol0,
-		Namespace:      "notTheNamespace",
+		Namespace:      structs.DefaultNamespace,
 		PluginID:       "minnie",
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
