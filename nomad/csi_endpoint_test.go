@@ -201,7 +201,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)
 
-	ns := structs.DefaultNamespace
+	ns := "not-default-ns"
 	state := srv.fsm.State()
 	codec := rpcClient(t, srv)
 	id0 := uuid.Generate()
@@ -237,7 +237,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 
 	vols := []*structs.CSIVolume{{
 		ID:             id0,
-		Namespace:      "notTheNamespace",
+		Namespace:      ns,
 		PluginID:       "minnie",
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
@@ -262,7 +262,8 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	volGetReq := &structs.CSIVolumeGetRequest{
 		ID: id0,
 		QueryOptions: structs.QueryOptions{
-			Region: "global",
+			Region:    "global",
+			Namespace: ns,
 		},
 	}
 	volGetResp := &structs.CSIVolumeGetResponse{}
@@ -349,7 +350,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	require.NoError(t, err)
 	vols := []*structs.CSIVolume{{
 		ID:                 id0,
-		Namespace:          "notTheNamespace",
+		Namespace:          ns,
 		PluginID:           "minnie",
 		ControllerRequired: true,
 		AccessMode:         structs.CSIVolumeAccessModeMultiNodeSingleWriter,
@@ -394,10 +395,10 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	state := srv.fsm.State()
 	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
 	srv.config.ACLEnabled = true
-
-	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIAccess})
-	nsTok := mock.CreatePolicyAndToken(t, state, 1001, "csi-access", policy)
 	codec := rpcClient(t, srv)
+
+	nsPolicy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIAccess})
+	nsTok := mock.CreatePolicyAndToken(t, state, 1000, "csi-access", nsPolicy)
 
 	id0 := uuid.Generate()
 	id1 := uuid.Generate()
@@ -423,21 +424,23 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		PluginID:       "paddy",
 	}}
-	err := state.CSIVolumeRegister(999, vols)
+	err := state.CSIVolumeRegister(1002, vols)
 	require.NoError(t, err)
 
 	var resp structs.CSIVolumeListResponse
 
-	// Query all, ACL only allows ns
+	// Query everything in the namespace
 	req := &structs.CSIVolumeListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
 			AuthToken: nsTok.SecretID,
+			Namespace: ns,
 		},
 	}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.List", req, &resp)
 	require.NoError(t, err)
-	require.Equal(t, uint64(999), resp.Index)
+
+	require.Equal(t, uint64(1002), resp.Index)
 	require.Equal(t, 2, len(resp.Volumes))
 	ids := map[string]bool{vols[0].ID: true, vols[1].ID: true}
 	for _, v := range resp.Volumes {
@@ -445,7 +448,7 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	}
 	require.Equal(t, 0, len(ids))
 
-	// Query by PluginID
+	// Query by PluginID in ns
 	req = &structs.CSIVolumeListRequest{
 		PluginID: "adam",
 		QueryOptions: structs.QueryOptions{
@@ -459,18 +462,21 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	require.Equal(t, 1, len(resp.Volumes))
 	require.Equal(t, vols[1].ID, resp.Volumes[0].ID)
 
-	// Query by PluginID, ACL filters all results
+	// Query by PluginID in ms
+	msPolicy := mock.NamespacePolicy(ms, "", []string{acl.NamespaceCapabilityCSIAccess})
+	msTok := mock.CreatePolicyAndToken(t, state, 1003, "csi-access", msPolicy)
+
 	req = &structs.CSIVolumeListRequest{
 		PluginID: "paddy",
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
 			Namespace: ms,
-			AuthToken: nsTok.SecretID,
+			AuthToken: msTok.SecretID,
 		},
 	}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.List", req, &resp)
 	require.NoError(t, err)
-	require.Equal(t, 0, len(resp.Volumes))
+	require.Equal(t, 1, len(resp.Volumes))
 }
 
 func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
@@ -541,6 +547,7 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	id0 := uuid.Generate()
 	id1 := uuid.Generate()
 	id2 := uuid.Generate()
+	ns := "notTheNamespace"
 
 	// Create a client node with a plugin
 	node := mock.Node()
@@ -557,7 +564,7 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	vols := []*structs.CSIVolume{
 		{
 			ID:                 id0,
-			Namespace:          "notTheNamespace",
+			Namespace:          ns,
 			PluginID:           "minnie",
 			AccessMode:         structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 			AttachmentMode:     structs.CSIVolumeAttachmentModeFilesystem,
@@ -565,7 +572,7 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 		},
 		{
 			ID:                 id1,
-			Namespace:          "notTheNamespace",
+			Namespace:          ns,
 			PluginID:           "adam",
 			AccessMode:         structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 			AttachmentMode:     structs.CSIVolumeAttachmentModeFilesystem,
@@ -576,19 +583,19 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	require.NoError(t, err)
 
 	// has controller
-	plugin, vol, err := srv.volAndPluginLookup(id0)
+	plugin, vol, err := srv.volAndPluginLookup(ns, id0)
 	require.NotNil(t, plugin)
 	require.NotNil(t, vol)
 	require.NoError(t, err)
 
 	// no controller
-	plugin, vol, err = srv.volAndPluginLookup(id1)
+	plugin, vol, err = srv.volAndPluginLookup(ns, id1)
 	require.Nil(t, plugin)
 	require.NotNil(t, vol)
 	require.NoError(t, err)
 
 	// doesn't exist
-	plugin, vol, err = srv.volAndPluginLookup(id2)
+	plugin, vol, err = srv.volAndPluginLookup(ns, id2)
 	require.Nil(t, plugin)
 	require.Nil(t, vol)
 	require.EqualError(t, err, fmt.Sprintf("volume not found: %s", id2))
