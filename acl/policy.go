@@ -35,7 +35,10 @@ const (
 	NamespaceCapabilitySentinelOverride = "sentinel-override"
 	NamespaceCapabilityPrivilegedTask   = "privileged-task"
 	NamespaceCapabilityCSIAccess        = "csi-access"
-	NamespaceCapabilityCSICreateVolume  = "csi-create-volume"
+	NamespaceCapabilityCSIWriteVolume   = "csi-write-volume"
+	NamespaceCapabilityCSIReadVolume    = "csi-read-volume"
+	NamespaceCapabilityCSIListVolume    = "csi-list-volume"
+	NamespaceCapabilityCSIMountVolume   = "csi-mount-volume"
 )
 
 var (
@@ -65,6 +68,7 @@ type Policy struct {
 	Node        *NodePolicy         `hcl:"node"`
 	Operator    *OperatorPolicy     `hcl:"operator"`
 	Quota       *QuotaPolicy        `hcl:"quota"`
+	Plugin      *PluginPolicy       `hcl:"plugin"`
 	Raw         string              `hcl:"-"`
 }
 
@@ -76,7 +80,8 @@ func (p *Policy) IsEmpty() bool {
 		p.Agent == nil &&
 		p.Node == nil &&
 		p.Operator == nil &&
-		p.Quota == nil
+		p.Quota == nil &&
+		p.Plugin == nil
 }
 
 // NamespacePolicy is the policy for a specific namespace
@@ -109,6 +114,10 @@ type QuotaPolicy struct {
 	Policy string
 }
 
+type PluginPolicy struct {
+	Policy string
+}
+
 // isPolicyValid makes sure the given string matches one of the valid policies.
 func isPolicyValid(policy string) bool {
 	switch policy {
@@ -126,7 +135,8 @@ func isNamespaceCapabilityValid(cap string) bool {
 		NamespaceCapabilitySubmitJob, NamespaceCapabilityDispatchJob, NamespaceCapabilityReadLogs,
 		NamespaceCapabilityReadFS, NamespaceCapabilityAllocLifecycle,
 		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec,
-		NamespaceCapabilityCSIAccess, NamespaceCapabilityCSICreateVolume:
+		NamespaceCapabilityCSIAccess, // TODO(langmartin): remove after plugin caps are done
+		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIWriteVolume, NamespaceCapabilityCSIListVolume, NamespaceCapabilityCSIMountVolume:
 		return true
 	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride:
@@ -139,25 +149,31 @@ func isNamespaceCapabilityValid(cap string) bool {
 // expandNamespacePolicy provides the equivalent set of capabilities for
 // a namespace policy
 func expandNamespacePolicy(policy string) []string {
+	read := []string{
+		NamespaceCapabilityListJobs,
+		NamespaceCapabilityReadJob,
+		NamespaceCapabilityCSIListVolume,
+		NamespaceCapabilityCSIReadVolume,
+	}
+
+	write := append(read, []string{
+		NamespaceCapabilitySubmitJob,
+		NamespaceCapabilityDispatchJob,
+		NamespaceCapabilityReadLogs,
+		NamespaceCapabilityReadFS,
+		NamespaceCapabilityAllocExec,
+		NamespaceCapabilityAllocLifecycle,
+		NamespaceCapabilityCSIMountVolume,
+		NamespaceCapabilityCSIWriteVolume,
+	}...)
+
 	switch policy {
 	case PolicyDeny:
 		return []string{NamespaceCapabilityDeny}
 	case PolicyRead:
-		return []string{
-			NamespaceCapabilityListJobs,
-			NamespaceCapabilityReadJob,
-		}
+		return read
 	case PolicyWrite:
-		return []string{
-			NamespaceCapabilityListJobs,
-			NamespaceCapabilityReadJob,
-			NamespaceCapabilitySubmitJob,
-			NamespaceCapabilityDispatchJob,
-			NamespaceCapabilityReadLogs,
-			NamespaceCapabilityReadFS,
-			NamespaceCapabilityAllocExec,
-			NamespaceCapabilityAllocLifecycle,
-		}
+		return write
 	default:
 		return nil
 	}
@@ -264,6 +280,10 @@ func Parse(rules string) (*Policy, error) {
 
 	if p.Quota != nil && !isPolicyValid(p.Quota.Policy) {
 		return nil, fmt.Errorf("Invalid quota policy: %#v", p.Quota)
+	}
+
+	if p.Plugin != nil && !isPolicyValid(p.Plugin.Policy) {
+		return nil, fmt.Errorf("Invalid plugin policy: %#v", p.Plugin)
 	}
 	return p, nil
 }
