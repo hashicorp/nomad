@@ -1142,7 +1142,7 @@ func (n *nomadFSM) applyCSIVolumeDeregister(buf []byte, index uint64) interface{
 	}
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_deregister"}, time.Now())
 
-	if err := n.state.CSIVolumeDeregister(index, req.VolumeIDs); err != nil {
+	if err := n.state.CSIVolumeDeregister(index, req.RequestNamespace(), req.VolumeIDs); err != nil {
 		n.logger.Error("CSIVolumeDeregister failed", "error", err)
 		return err
 	}
@@ -1172,7 +1172,7 @@ func (n *nomadFSM) applyCSIVolumeClaim(buf []byte, index uint64) interface{} {
 		return structs.ErrUnknownAllocationPrefix
 	}
 
-	if err := n.state.CSIVolumeClaim(index, req.VolumeID, alloc, req.Claim); err != nil {
+	if err := n.state.CSIVolumeClaim(index, req.RequestNamespace(), req.VolumeID, alloc, req.Claim); err != nil {
 		n.logger.Error("CSIVolumeClaim failed", "error", err)
 		return err
 	}

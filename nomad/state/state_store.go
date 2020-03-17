@@ -1627,7 +1627,7 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 
 	for _, v := range volumes {
 		// Check for volume existence
-		obj, err := txn.First("csi_volumes", "id", v.ID)
+		obj, err := txn.First("csi_volumes", "id", v.Namespace, v.ID)
 		if err != nil {
 			return fmt.Errorf("volume existence check error: %v", err)
 		}
@@ -1656,10 +1656,10 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 
 // CSIVolumeByID is used to lookup a single volume. Returns a copy of the volume
 // because its plugins are denormalized to provide accurate Health.
-func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, id string) (*structs.CSIVolume, error) {
+func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*structs.CSIVolume, error) {
 	txn := s.db.Txn(false)
 
-	watchCh, obj, err := txn.FirstWatch("csi_volumes", "id_prefix", id)
+	watchCh, obj, err := txn.FirstWatch("csi_volumes", "id_prefix", namespace, id)
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
 	}
@@ -1674,28 +1674,13 @@ func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, id string) (*structs.CSIVo
 }
 
 // CSIVolumes looks up csi_volumes by pluginID
-func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, pluginID string) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, pluginID string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
 	iter, err := txn.Get("csi_volumes", "plugin_id", pluginID)
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %v", err)
 	}
-	ws.Add(iter.WatchCh())
-
-	return iter, nil
-}
-
-// CSIVolumesByIDPrefix supports search
-func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID string) (memdb.ResultIterator, error) {
-	txn := s.db.Txn(false)
-
-	iter, err := txn.Get("csi_volumes", "id_prefix", volumeID)
-	if err != nil {
-		return nil, err
-	}
-
-	ws.Add(iter.WatchCh())
 
 	// Filter the iterator by namespace
 	f := func(raw interface{}) bool {
@@ -1710,8 +1695,21 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 	return wrap, nil
 }
 
+// CSIVolumesByIDPrefix supports search
+func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, volumeID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
 // CSIVolumesByNodeID looks up CSIVolumes in use on a node
-func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, namespace, nodeID string) (memdb.ResultIterator, error) {
 	allocs, err := s.AllocsByNode(ws, nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("alloc lookup failed: %v", err)
@@ -1749,7 +1747,7 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb
 	iter := NewSliceIterator()
 	txn := s.db.Txn(false)
 	for id := range ids {
-		raw, err := txn.First("csi_volumes", "id", id)
+		raw, err := txn.First("csi_volumes", "id", namespace, id)
 		if err != nil {
 			return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
 		}
@@ -1759,11 +1757,11 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb
 	return iter, nil
 }
 
-// CSIVolumes looks up the entire csi_volumes table
-func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+// CSIVolumesByNamespace looks up the entire csi_volumes table
+func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
-	iter, err := txn.Get("csi_volumes", "id")
+	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, "")
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %v", err)
 	}
@@ -1773,11 +1771,11 @@ func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error)
 }
 
 // CSIVolumeClaim updates the volume's claim count and allocation list
-func (s *StateStore) CSIVolumeClaim(index uint64, id string, alloc *structs.Allocation, claim structs.CSIVolumeClaimMode) error {
+func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, alloc *structs.Allocation, claim structs.CSIVolumeClaimMode) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	row, err := txn.First("csi_volumes", "id", id)
+	row, err := txn.First("csi_volumes", "id", namespace, id)
 	if err != nil {
 		return fmt.Errorf("volume lookup failed: %s: %v", id, err)
 	}
@@ -1814,12 +1812,12 @@ func (s *StateStore) CSIVolumeClaim(index uint64, id string, alloc *structs.Allo
 }
 
 // CSIVolumeDeregister removes the volume from the server
-func (s *StateStore) CSIVolumeDeregister(index uint64, ids []string) error {
+func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
 	for _, id := range ids {
-		existing, err := txn.First("csi_volumes", "id_prefix", id)
+		existing, err := txn.First("csi_volumes", "id_prefix", namespace, id)
 		if err != nil {
 			return fmt.Errorf("volume lookup failed: %s: %v", id, err)
 		}

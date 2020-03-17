@@ -2874,9 +2874,11 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	err = state.UpsertAllocs(index, []*structs.Allocation{alloc})
 	require.NoError(t, err)
 
+	ns := structs.DefaultNamespace
+
 	v0 := structs.NewCSIVolume("foo", index)
 	v0.ID = vol0
-	v0.Namespace = "default"
+	v0.Namespace = ns
 	v0.PluginID = "minnie"
 	v0.Schedulable = true
 	v0.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
@@ -2885,7 +2887,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	index++
 	v1 := structs.NewCSIVolume("foo", index)
 	v1.ID = vol1
-	v1.Namespace = "default"
+	v1.Namespace = ns
 	v1.PluginID = "adam"
 	v1.Schedulable = true
 	v1.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
@@ -2896,7 +2898,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.NoError(t, err)
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.CSIVolumes(ws)
+	iter, err := state.CSIVolumesByNamespace(ws, ns)
 	require.NoError(t, err)
 
 	slurp := func(iter memdb.ResultIterator) (vs []*structs.CSIVolume) {
@@ -2915,31 +2917,31 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Equal(t, 2, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByPluginID(ws, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByNodeID(ws, node.ID)
+	iter, err = state.CSIVolumesByNodeID(ws, ns, node.ID)
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
 
 	index++
-	err = state.CSIVolumeDeregister(index, []string{
+	err = state.CSIVolumeDeregister(index, ns, []string{
 		vol1,
 	})
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByPluginID(ws, "adam")
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "adam")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 0, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumes(ws)
+	iter, err = state.CSIVolumesByNamespace(ws, ns)
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
@@ -2952,22 +2954,22 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	u := structs.CSIVolumeClaimRelease
 
 	index++
-	err = state.CSIVolumeClaim(index, vol0, a0, r)
+	err = state.CSIVolumeClaim(index, ns, vol0, a0, r)
 	require.NoError(t, err)
 	index++
-	err = state.CSIVolumeClaim(index, vol0, a1, w)
+	err = state.CSIVolumeClaim(index, ns, vol0, a1, w)
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByPluginID(ws, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.False(t, vs[0].CanWrite())
 
-	err = state.CSIVolumeClaim(2, vol0, a0, u)
+	err = state.CSIVolumeClaim(2, ns, vol0, a0, u)
 	require.NoError(t, err)
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByPluginID(ws, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.True(t, vs[0].CanReadOnly())
