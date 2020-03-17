@@ -2335,16 +2335,17 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 	err := state.UpsertNode(99, node)
 	require.NoError(t, err)
 	volId0 := uuid.Generate()
+	ns := "notTheNamespace"
 	vols := []*structs.CSIVolume{{
 		ID:             volId0,
-		Namespace:      "notTheNamespace",
+		Namespace:      ns,
 		PluginID:       "csi-plugin-example",
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 	}}
 	err = state.CSIVolumeRegister(100, vols)
 	require.NoError(t, err)
-	vol, err := state.CSIVolumeByID(ws, volId0)
+	vol, err := state.CSIVolumeByID(ws, ns, volId0)
 	require.NoError(t, err)
 	require.Len(t, vol.ReadAllocs, 0)
 	require.Len(t, vol.WriteAllocs, 0)
@@ -2380,11 +2381,11 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 	require.NoError(t, err)
 
 	// Claim the volumes and verify the claims were set
-	err = state.CSIVolumeClaim(105, volId0, alloc1, structs.CSIVolumeClaimWrite)
+	err = state.CSIVolumeClaim(105, ns, volId0, alloc1, structs.CSIVolumeClaimWrite)
 	require.NoError(t, err)
-	err = state.CSIVolumeClaim(106, volId0, alloc2, structs.CSIVolumeClaimRead)
+	err = state.CSIVolumeClaim(106, ns, volId0, alloc2, structs.CSIVolumeClaimRead)
 	require.NoError(t, err)
-	vol, err = state.CSIVolumeByID(ws, volId0)
+	vol, err = state.CSIVolumeByID(ws, ns, volId0)
 	require.NoError(t, err)
 	require.Len(t, vol.ReadAllocs, 1)
 	require.Len(t, vol.WriteAllocs, 1)

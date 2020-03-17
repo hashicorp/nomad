@@ -306,6 +306,8 @@ func TestCSIVolumeChecker(t *testing.T) {
 	}
 
 	checker := NewCSIVolumeChecker(ctx)
+	checker.SetNamespace(structs.DefaultNamespace)
+
 	cases := []struct {
 		Node             *structs.Node
 		RequestedVolumes map[string]*structs.VolumeRequest
