@@ -11,7 +11,9 @@ description: >-
 
 <Placement groups={['acl']} />
 
-The `acl` stanza configures the Nomad agent to enable ACLs and tunes various ACL parameters.
+The `acl` stanza configures the Nomad agent to enable ACLs and tunes various
+ACL parameters. Learn more about configuring Nomad's ACL system in the [Secure
+Nomad with Access Control guide][secure-guide].
 
 ```hcl
 acl {
@@ -41,3 +43,5 @@ acl {
 - `replication_token` `(string: "")` - Specifies the Secret ID of the ACL token
   to use for replicating policies and tokens. This is used by servers in non-authoritative
   region to mirror the policies and tokens into the local region.
+
+[secure-guide]: https://learn.hashicorp.com/nomad/acls/fundamentals
