@@ -372,10 +372,14 @@ OUTER:
 		// Detect if all the checks are passing
 		passed := true
 
+		foundChecks := 0
+
 	CHECKS:
 		for _, treg := range allocReg.Tasks {
 			for _, sreg := range treg.Services {
 				for _, check := range sreg.Checks {
+					foundChecks++
+
 					if check.Status == api.HealthPassing {
 						continue
 					}
@@ -385,6 +389,13 @@ OUTER:
 					break CHECKS
 				}
 			}
+		}
+
+		if foundChecks < t.consulCheckCount {
+			// didn't see all the checks we expect, task might be slow to start
+			// or restarting tasks that had their service hooks deregistered
+			passed = false
+			t.setCheckHealth(false)
 		}
 
 		if !passed {
