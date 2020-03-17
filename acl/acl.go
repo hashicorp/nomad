@@ -62,6 +62,7 @@ type ACL struct {
 	node     string
 	operator string
 	quota    string
+	plugin   string
 }
 
 // maxPrivilege returns the policy which grants the most privilege
@@ -192,6 +193,9 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 		}
 		if policy.Quota != nil {
 			acl.quota = maxPrivilege(acl.quota, policy.Quota.Policy)
+		}
+		if policy.Plugin != nil {
+			acl.plugin = maxPrivilege(acl.plugin, policy.Plugin.Policy)
 		}
 	}
 
@@ -471,6 +475,22 @@ func (a *ACL) AllowQuotaWrite() bool {
 	case a.management:
 		return true
 	case a.quota == PolicyWrite:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowPluginRead checks if read operations are allowed for all plugins
+func (a *ACL) AllowPluginRead() bool {
+	// ACL is nil only if ACLs are disabled
+	if a == nil {
+		return true
+	}
+	switch {
+	case a.management:
+		return true
+	case a.plugin == PolicyRead:
 		return true
 	default:
 		return false

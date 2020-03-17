@@ -384,6 +384,10 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 				Source:   "prod-ca-certs",
 				ReadOnly: readonlyVolume,
 			},
+			"csi": {
+				Type:   structs.VolumeTypeCSI,
+				Source: "prod-db",
+			},
 		}
 
 		tg.Tasks[0].VolumeMounts = []*structs.VolumeMount{
@@ -404,11 +408,18 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 
 	volumesPolicyReadWrite := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadWrite})
 
-	submitJobWithVolumesReadWriteToken := mock.CreatePolicyAndToken(t, s1.State(), 1002, "test-submit-volumes", submitJobPolicy+"\n"+volumesPolicyReadWrite)
+	volumesPolicyCSIMount := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
+		mock.PluginPolicy("read")
+
+	submitJobWithVolumesReadWriteToken := mock.CreatePolicyAndToken(t, s1.State(), 1002, "test-submit-volumes", submitJobPolicy+
+		volumesPolicyReadWrite+
+		volumesPolicyCSIMount)
 
 	volumesPolicyReadOnly := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadOnly})
 
-	submitJobWithVolumesReadOnlyToken := mock.CreatePolicyAndToken(t, s1.State(), 1003, "test-submit-volumes-readonly", submitJobPolicy+"\n"+volumesPolicyReadOnly)
+	submitJobWithVolumesReadOnlyToken := mock.CreatePolicyAndToken(t, s1.State(), 1003, "test-submit-volumes-readonly", submitJobPolicy+
+		volumesPolicyReadOnly+
+		volumesPolicyCSIMount)
 
 	cases := []struct {
 		Name        string
