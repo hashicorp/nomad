@@ -1,0 +1,15 @@
+name: HashiCorp PR Bot
+on: [deployment_status]
+jobs:
+  check_links:
+    if: github.event.deployment.environment == 'Netlify Preview' && github.event.deployment_status.state == 'success' && github.event.deployment.payload.context == 'deploy-preview'
+    name: Check links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - run: npm install
+      - uses: ./.github/actions/check-links
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          baseUrl: ${{ github.event.deployment.payload.environment_url }}
