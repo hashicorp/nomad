@@ -408,7 +408,8 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 
 	volumesPolicyReadWrite := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadWrite})
 
-	volumesPolicyCSIMount := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob, acl.NamespaceCapabilityCSIMountVolume})
+	volumesPolicyCSIMount := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
+		mock.PluginPolicy("read")
 
 	submitJobWithVolumesReadWriteToken := mock.CreatePolicyAndToken(t, s1.State(), 1002, "test-submit-volumes", submitJobPolicy+
 		volumesPolicyReadWrite+
