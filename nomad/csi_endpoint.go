@@ -380,6 +380,12 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	return nil
 }
 
+// allowCSIMount is called on Job register to check mount permission
+func allowCSIMount(aclObj *acl.ACL, namespace string) bool {
+	return aclObj.AllowPluginRead() &&
+		aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityCSIMountVolume)
+}
+
 // CSIPlugin wraps the structs.CSIPlugin with request data and server context
 type CSIPlugin struct {
 	srv    *Server
