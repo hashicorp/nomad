@@ -104,7 +104,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 		return err
 	}
 
-	if !allowCSIAccess(aclObj, args.RequestNamespace()) {
+	if !allowVolume(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
 
