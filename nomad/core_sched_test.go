@@ -2216,7 +2216,7 @@ func TestCSI_GCVolumeClaims(t *testing.T) {
 	err := state.UpsertNode(99, node)
 	require.NoError(t, err)
 	volId0 := uuid.Generate()
-	ns := "notTheNamespace"
+	ns := structs.DefaultNamespace
 	vols := []*structs.CSIVolume{{
 		ID:             volId0,
 		Namespace:      ns,
@@ -2299,7 +2299,7 @@ func TestCSI_GCVolumeClaims(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the claim was released
-	vol, err = state.CSIVolumeByID(ws, job.Namespace, volId0)
+	vol, err = state.CSIVolumeByID(ws, ns, volId0)
 	require.NoError(t, err)
 	require.Len(t, vol.ReadAllocs, 1)
 	require.Len(t, vol.WriteAllocs, 0)
