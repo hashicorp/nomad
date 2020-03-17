@@ -122,6 +122,12 @@ func TestParse(t *testing.T) {
 							"foo": {
 								Name: "foo",
 								Type: "host",
+								MountOptions: &api.CSIOptions{
+									MountFlags: []string{
+										"ro",
+									},
+								},
+								ExtraKeysHCL: nil,
 							},
 						},
 						Affinities: []*api.Affinity{
