@@ -1,0 +1,5 @@
+name: "Check for broken links"
+description: "Ensure links are properly resolving"
+runs:
+  using: "node12"
+  main: "index.js"
