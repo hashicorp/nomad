@@ -6,7 +6,9 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/stretchr/testify/require"
@@ -86,7 +88,7 @@ func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
 	tr := &TaskRunner{
 		allocHookResources: &cstructs.AllocHookResources{
 			CSIMounts: map[string]*csimanager.MountInfo{
-				"foo": &csimanager.MountInfo{
+				"foo": {
 					Source: "/mnt/my-test-volume",
 				},
 			},
@@ -107,5 +109,74 @@ func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
 	}
 	mounts, err := hook.prepareCSIVolumes(req, volumes)
 	require.NoError(t, err)
+	require.Equal(t, expected, mounts)
+}
+
+func TestVolumeHook_Interpolation(t *testing.T) {
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, "global").SetHookEnv("volume",
+		map[string]string{
+			"PROPAGATION_MODE": "private",
+			"VOLUME_ID":        "my-other-volume",
+		},
+	).Build()
+
+	mounts := []*structs.VolumeMount{
+		{
+			Volume:          "foo",
+			Destination:     "/tmp",
+			ReadOnly:        false,
+			PropagationMode: "bidirectional",
+		},
+		{
+			Volume:          "foo",
+			Destination:     "/bar-${NOMAD_JOB_NAME}",
+			ReadOnly:        false,
+			PropagationMode: "bidirectional",
+		},
+		{
+			Volume:          "${VOLUME_ID}",
+			Destination:     "/baz",
+			ReadOnly:        false,
+			PropagationMode: "bidirectional",
+		},
+		{
+			Volume:          "foo",
+			Destination:     "/quux",
+			ReadOnly:        false,
+			PropagationMode: "${PROPAGATION_MODE}",
+		},
+	}
+
+	expected := []*structs.VolumeMount{
+		{
+			Volume:          "foo",
+			Destination:     "/tmp",
+			ReadOnly:        false,
+			PropagationMode: "bidirectional",
+		},
+		{
+			Volume:          "foo",
+			Destination:     "/bar-my-job",
+			ReadOnly:        false,
+			PropagationMode: "bidirectional",
+		},
+		{
+			Volume:          "my-other-volume",
+			Destination:     "/baz",
+			ReadOnly:        false,
+			PropagationMode: "bidirectional",
+		},
+		{
+			Volume:          "foo",
+			Destination:     "/quux",
+			ReadOnly:        false,
+			PropagationMode: "private",
+		},
+	}
+
+	interpolateVolumeMounts(mounts, taskEnv)
 	require.Equal(t, expected, mounts)
 }
