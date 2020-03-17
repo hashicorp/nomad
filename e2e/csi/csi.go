@@ -1,8 +1,11 @@
 package csi
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
@@ -35,25 +38,25 @@ type volumeConfig struct {
 }
 
 func (tc *CSIVolumesTest) BeforeAll(f *framework.F) {
-
+	t := f.T()
 	// The volume IDs come from the external provider, so we need
 	// to read the configuration out of our Terraform output.
 	rawjson, err := ioutil.ReadFile("csi/input/volumes.json")
 	if err != nil {
-		f.T().Skip("volume ID configuration not found, try running 'terraform output volumes > ../csi/input/volumes.json'")
+		t.Skip("volume ID configuration not found, try running 'terraform output volumes > ../csi/input/volumes.json'")
 	}
 	volumeIDs := &volumeConfig{}
 	err = json.Unmarshal(rawjson, volumeIDs)
 	if err != nil {
-		f.T().Fatal("volume ID configuration could not be read")
+		t.Fatal("volume ID configuration could not be read")
 	}
 
 	tc.volumeIDs = volumeIDs
 
 	// Ensure cluster has leader and at least two client
 	// nodes in a ready state before running tests
-	e2eutil.WaitForLeader(f.T(), tc.Nomad())
-	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 2)
+	e2eutil.WaitForLeader(t, tc.Nomad())
+	e2eutil.WaitForNodesReady(t, tc.Nomad(), 2)
 }
 
 // TestEBSVolumeClaim launches AWS EBS plugins and registers an EBS volume
@@ -61,20 +64,21 @@ func (tc *CSIVolumesTest) BeforeAll(f *framework.F) {
 // stop that job, and reuse the volume for another job which should be able
 // to read the data written by the first job.
 func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
-	require := require.New(f.T())
+	t := f.T()
+	require := require.New(t)
 	nomadClient := tc.Nomad()
 	uuid := uuid.Generate()
 
 	// deploy the controller plugin job
-	controllerJobID := "aws-ebs-plugin-controller" + uuid[0:8]
+	controllerJobID := "aws-ebs-plugin-controller-" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, controllerJobID)
-	e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient,
+	e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/plugin-aws-ebs-controller.nomad", controllerJobID, "")
 
 	// deploy the node plugins job
-	nodesJobID := "aws-ebs-plugin-nodes" + uuid[0:8]
+	nodesJobID := "aws-ebs-plugin-nodes-" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, nodesJobID)
-	e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient,
+	e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/plugin-aws-ebs-nodes.nomad", nodesJobID, "")
 
 	// wait for plugin to become healthy
@@ -106,25 +110,40 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 	defer nomadClient.CSIVolumes().Deregister(volID, nil)
 
 	// deploy a job that writes to the volume
-	writeJobID := "write-" + uuid[0:8]
-	e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient,
+	writeJobID := "write-ebs-" + uuid[0:8]
+	tc.jobIds = append(tc.jobIds, writeJobID)
+	writeAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-ebs-volume.nomad", writeJobID, "")
+	writeAllocID := writeAllocs[0].ID
+	e2eutil.WaitForAllocRunning(t, nomadClient, writeAllocID)
 
+	// read data from volume and assert the writer wrote a file to it
+	writeAlloc, _, err := nomadClient.Allocations().Info(writeAllocID, nil)
+	require.NoError(err)
+	expectedPath := "/local/test/" + writeAllocID
+	_, err = readFile(nomadClient, writeAlloc, expectedPath)
+	require.NoError(err)
+
+	// Shutdown the writer so we can run a reader.
 	// we could mount the EBS volume with multi-attach, but we
 	// want this test to exercise the unpublish workflow.
 	nomadClient.Jobs().Deregister(writeJobID, true, nil)
 
 	// deploy a job so we can read from the volume
-	readJobID := "read-" + uuid[0:8]
-	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient,
+	readJobID := "read-ebs-" + uuid[0:8]
+	tc.jobIds = append(tc.jobIds, readJobID)
+	readAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-ebs-volume.nomad", readJobID, "")
+	readAllocID := readAllocs[0].ID
+	e2eutil.WaitForAllocRunning(t, nomadClient, readAllocID)
+
+	// ensure we clean up claim before we deregister volumes
 	defer nomadClient.Jobs().Deregister(readJobID, true, nil)
 
 	// read data from volume and assert the writer wrote a file to it
-	alloc, _, err := nomadClient.Allocations().Info(allocs[0].ID, nil)
+	readAlloc, _, err := nomadClient.Allocations().Info(readAllocID, nil)
 	require.NoError(err)
-	expectedPath := "/test/" + writeJobID
-	_, _, err = nomadClient.AllocFS().Stat(alloc, expectedPath, nil)
+	_, err = readFile(nomadClient, readAlloc, expectedPath)
 	require.NoError(err)
 }
 
@@ -133,14 +152,15 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 // and share the volume with another job which should be able to read the
 // data written by the first job.
 func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
-	require := require.New(f.T())
+	t := f.T()
+	require := require.New(t)
 	nomadClient := tc.Nomad()
 	uuid := uuid.Generate()
 
 	// deploy the node plugins job (no need for a controller for EFS)
-	nodesJobID := "aws-efs-plugin-nodes" + uuid[0:8]
+	nodesJobID := "aws-efs-plugin-nodes-" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, nodesJobID)
-	e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient,
+	e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/plugin-aws-efs-nodes.nomad", nodesJobID, "")
 
 	// wait for plugin to become healthy
@@ -172,24 +192,26 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 	defer nomadClient.CSIVolumes().Deregister(volID, nil)
 
 	// deploy a job that writes to the volume
-	writeJobID := "write-" + uuid[0:8]
-	e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient,
+	writeJobID := "write-efs-" + uuid[0:8]
+	writeAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-efs-volume-write.nomad", writeJobID, "")
 	defer nomadClient.Jobs().Deregister(writeJobID, true, nil)
+	e2eutil.WaitForAllocRunning(t, nomadClient, writeAllocs[0].ID)
 
 	// deploy a job that reads from the volume. we don't stop the
 	// writer job in this case because we want to exercise
 	// a multiple-access mode
-	readJobID := "read-" + uuid[0:8]
-	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient,
+	readJobID := "read-efs-" + uuid[0:8]
+	readAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-efs-volume-read.nomad", readJobID, "")
 	defer nomadClient.Jobs().Deregister(readJobID, true, nil)
+	e2eutil.WaitForAllocRunning(t, nomadClient, readAllocs[0].ID)
 
 	// read data from volume and assert the writer wrote a file to it
-	alloc, _, err := nomadClient.Allocations().Info(allocs[0].ID, nil)
+	readAlloc, _, err := nomadClient.Allocations().Info(readAllocs[0].ID, nil)
 	require.NoError(err)
-	expectedPath := "/test/" + writeJobID
-	_, _, err = nomadClient.AllocFS().Stat(alloc, expectedPath, nil)
+	expectedPath := "/local/test/" + writeAllocs[0].ID
+	_, err = readFile(nomadClient, readAlloc, expectedPath)
 	require.NoError(err)
 }
 
@@ -202,4 +224,19 @@ func (tc *CSIVolumesTest) AfterEach(f *framework.F) {
 	}
 	// Garbage collect
 	nomadClient.System().GarbageCollect()
+}
+
+// TODO(tgross): replace this w/ AllocFS().Stat() after
+// https://github.com/hashicorp/nomad/issues/7365 is fixed
+func readFile(client *api.Client, alloc *api.Allocation, path string) (bytes.Buffer, error) {
+	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFn()
+
+	var stdout, stderr bytes.Buffer
+	_, err := client.Allocations().Exec(ctx,
+		alloc, "task", false,
+		[]string{"cat", path},
+		os.Stdin, &stdout, &stderr,
+		make(chan api.TerminalSize), nil)
+	return stdout, err
 }
