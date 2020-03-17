@@ -7,14 +7,16 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type volumeHook struct {
-	alloc  *structs.Allocation
-	runner *TaskRunner
-	logger log.Logger
+	alloc   *structs.Allocation
+	runner  *TaskRunner
+	logger  log.Logger
+	taskEnv *taskenv.TaskEnv
 }
 
 func newVolumeHook(runner *TaskRunner, logger log.Logger) *volumeHook {
@@ -169,6 +171,9 @@ func (h *volumeHook) prepareCSIVolumes(req *interfaces.TaskPrestartRequest, volu
 }
 
 func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	h.taskEnv = req.TaskEnv
+	interpolateVolumeMounts(req.Task.VolumeMounts, h.taskEnv)
+
 	volumes := partitionVolumesByType(h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup).Volumes)
 
 	hostVolumeMounts, err := h.prepareHostVolumes(req, volumes[structs.VolumeTypeHost])
@@ -195,4 +200,12 @@ func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 	h.runner.hookResources.setMounts(mounts)
 
 	return nil
+}
+
+func interpolateVolumeMounts(mounts []*structs.VolumeMount, taskEnv *taskenv.TaskEnv) {
+	for _, mount := range mounts {
+		mount.Volume = taskEnv.ReplaceEnv(mount.Volume)
+		mount.Destination = taskEnv.ReplaceEnv(mount.Destination)
+		mount.PropagationMode = taskEnv.ReplaceEnv(mount.PropagationMode)
+	}
 }
