@@ -86,10 +86,11 @@ func HostVolumeSliceMerge(a, b []*ClientHostVolumeConfig) []*ClientHostVolumeCon
 
 // VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
 type VolumeRequest struct {
-	Name     string
-	Type     string
-	Source   string
-	ReadOnly bool
+	Name         string
+	Type         string
+	Source       string
+	ReadOnly     bool
+	MountOptions *CSIOptions
 }
 
 func (v *VolumeRequest) Copy() *VolumeRequest {
@@ -98,6 +99,8 @@ func (v *VolumeRequest) Copy() *VolumeRequest {
 	}
 	nv := new(VolumeRequest)
 	*nv = *v
+
+	nv.MountOptions = &(*v.MountOptions)
 
 	return nv
 }
