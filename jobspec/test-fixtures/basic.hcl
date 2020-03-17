@@ -72,6 +72,9 @@ job "binstore-storagelocker" {
 
     volume "foo" {
       type = "host"
+      mount_options {
+	mount_flags = ["ro"]
+      }
     }
 
     restart {
@@ -156,7 +159,7 @@ job "binstore-storagelocker" {
 
       volume_mount {
         volume      = "foo"
-        destination = "/mnt/foo"
+	destination = "/mnt/foo"
       }
 
       logs {
