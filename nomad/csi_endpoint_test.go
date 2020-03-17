@@ -398,7 +398,7 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	srv.config.ACLEnabled = true
 	codec := rpcClient(t, srv)
 
-	nsPolicy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIAccess}) +
+	nsPolicy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIReadVolume}) +
 		mock.PluginPolicy("read")
 	nsTok := mock.CreatePolicyAndToken(t, state, 1000, "csi-access", nsPolicy)
 
@@ -465,9 +465,9 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	require.Equal(t, vols[1].ID, resp.Volumes[0].ID)
 
 	// Query by PluginID in ms
-	msPolicy := mock.NamespacePolicy(ms, "", []string{acl.NamespaceCapabilityCSIAccess}) +
+	msPolicy := mock.NamespacePolicy(ms, "", []string{acl.NamespaceCapabilityCSIListVolume}) +
 		mock.PluginPolicy("read")
-	msTok := mock.CreatePolicyAndToken(t, state, 1003, "csi-access", msPolicy)
+	msTok := mock.CreatePolicyAndToken(t, state, 1003, "csi-access2", msPolicy)
 
 	req = &structs.CSIVolumeListRequest{
 		PluginID: "paddy",
