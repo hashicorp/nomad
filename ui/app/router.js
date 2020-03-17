@@ -27,6 +27,12 @@ Router.map(function() {
     this.route('server', { path: '/:agent_id' });
   });
 
+  this.route('csi', function() {
+    this.route('volumes', function() {
+      this.route('volume', { path: '/:volume_id' });
+    });
+  });
+
   this.route('allocations', function() {
     this.route('allocation', { path: '/:allocation_id' }, function() {
       this.route('task', { path: '/:name' }, function() {
