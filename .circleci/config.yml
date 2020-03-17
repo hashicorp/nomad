@@ -483,7 +483,7 @@ jobs:
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ''
-    - GOTEST_PKGS_EXCLUDE: ./api|./client|./drivers/docker|./drivers/exec|./drivers/rkt|./drivers/shared/executor|./nomad|./devices
+    - GOTEST_PKGS_EXCLUDE: ./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices
     - GOTESTARCH: amd64
     steps:
     - checkout

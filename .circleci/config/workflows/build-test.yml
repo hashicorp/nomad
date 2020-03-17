@@ -34,7 +34,7 @@ jobs:
     filters: *backend_branches_filter
 - test-machine:
     name: "test-other"
-    exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/rkt|./drivers/shared/executor|./nomad|./devices"
+    exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices"
     filters: *backend_branches_filter
 - test-machine:
     name: "test-docker"

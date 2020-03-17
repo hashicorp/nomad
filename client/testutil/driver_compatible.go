@@ -3,7 +3,6 @@ package testutil
 import (
 	"os/exec"
 	"runtime"
-	"sync"
 	"syscall"
 	"testing"
 
@@ -54,27 +53,6 @@ func CgroupCompatible(t *testing.T) {
 	mount, err := fingerprint.FindCgroupMountpointDir()
 	if err != nil || mount == "" {
 		t.Skipf("Failed to find cgroup mount: %v %v", mount, err)
-	}
-}
-
-var rktExists bool
-var rktOnce sync.Once
-
-func RktCompatible(t *testing.T) {
-	if runtime.GOOS != "linux" || syscall.Geteuid() != 0 {
-		t.Skip("Must be root on Linux to run test")
-	}
-
-	// else see if rkt exists
-	rktOnce.Do(func() {
-		_, err := exec.Command("rkt", "version").CombinedOutput()
-		if err == nil {
-			rktExists = true
-		}
-	})
-
-	if !rktExists {
-		t.Skip("Must have rkt installed for rkt specific tests to run")
 	}
 }
 
