@@ -191,6 +191,9 @@ func buildEnvoyAdminBind(alloc *structs.Allocation, taskName string) string {
 			break
 		}
 	}
+
+	// note: bind to 0.0.0.0 and create a port-map to 19001 for envoy debugging
+
 	return fmt.Sprintf("localhost:%d", port)
 }
 

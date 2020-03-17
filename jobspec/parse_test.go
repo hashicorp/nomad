@@ -1127,6 +1127,7 @@ func TestParse(t *testing.T) {
 							SidecarService: &api.ConsulSidecarService{
 								Proxy: &api.ConsulProxy{
 									ExposeConfig: &api.ConsulExposeConfig{
+										Checks: true,
 										Path: []*api.ConsulExposePath{{
 											Path:          "/health",
 											Protocol:      "http",

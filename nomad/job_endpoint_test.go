@@ -120,19 +120,15 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 
 	// Create the register request
 	job := mock.Job()
-	job.TaskGroups[0].Networks = structs.Networks{
-		{
-			Mode: "bridge",
-		},
-	}
-	job.TaskGroups[0].Services = []*structs.Service{
-		{
-			Name:      "backend",
-			PortLabel: "8080",
-			Connect: &structs.ConsulConnect{
-				SidecarService: &structs.ConsulSidecarService{},
-			},
-		},
+	job.TaskGroups[0].Networks = structs.Networks{{
+		Mode: "bridge",
+	}}
+	job.TaskGroups[0].Services = []*structs.Service{{
+		Name:      "backend",
+		PortLabel: "8080",
+		Connect: &structs.ConsulConnect{
+			SidecarService: &structs.ConsulSidecarService{},
+		}},
 	}
 	req := &structs.JobRegisterRequest{
 		Job: job,
@@ -177,7 +173,112 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 
 	require.Len(out.TaskGroups[0].Tasks, 2)
 	require.Exactly(sidecarTask, out.TaskGroups[0].Tasks[1])
+}
 
+func TestJobEndpoint_Register_ConnectProxyExposeChecks(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.TaskGroups[0].Networks = structs.Networks{{
+		Mode: "bridge",
+		DynamicPorts: []structs.Port{{
+			Label: "hcPort",
+			To:    -1,
+		}, {
+			Label: "v2Port",
+			To:    -1,
+		}},
+	}}
+	job.TaskGroups[0].Services = []*structs.Service{{
+		Name:      "backend",
+		PortLabel: "8080",
+		Checks: []*structs.ServiceCheck{{
+			Name:      "check1",
+			Type:      "http",
+			Protocol:  "http",
+			Path:      "/health",
+			PortLabel: "hcPort",
+			Interval:  1 * time.Second,
+			Timeout:   1 * time.Second,
+		}, {
+			Name:      "check2",
+			Type:      "grpc",
+			Protocol:  "grpc",
+			Path:      "/v2/health",
+			PortLabel: "v2Port",
+			Interval:  1 * time.Second,
+			Timeout:   1 * time.Second,
+		}},
+		Connect: &structs.ConsulConnect{
+			SidecarService: &structs.ConsulSidecarService{
+				Proxy: &structs.ConsulProxy{
+					Expose: &structs.ConsulExposeConfig{
+						Checks: true,
+					}}}},
+	}}
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	r.NotZero(resp.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	r.NoError(err)
+	r.NotNil(out)
+	r.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// Check that the new expose paths got created
+	r.Len(out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths, 2)
+	httpPath := out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths[0]
+	r.Equal(structs.ConsulExposePath{
+		Path:          "/health",
+		Protocol:      "http",
+		LocalPathPort: 8080,
+		ListenerPort:  "hcPort",
+	}, httpPath)
+	grpcPath := out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths[1]
+	r.Equal(structs.ConsulExposePath{
+		Path:          "/v2/health",
+		Protocol:      "grpc",
+		LocalPathPort: 8080,
+		ListenerPort:  "v2Port",
+	}, grpcPath)
+
+	// todo: round tripping is probably gonna duplicate since we only append
+	out.Meta["test"] = "abc"
+	req.Job = out
+	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	r.NotZero(resp.Index)
+
+	// Check for the new node in the FSM
+	state = s1.fsm.State()
+	ws = memdb.NewWatchSet()
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
+	r.NoError(err)
+	r.NotNil(out)
+	r.Equal(resp.JobModifyIndex, out.CreateIndex) // todo uhh
+
+	// make sure we are not re-adding what has already been added
+	r.Len(out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths, 2)
 }
 
 func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {

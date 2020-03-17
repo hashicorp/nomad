@@ -1,11 +1,12 @@
 job "group_service_proxy_expose" {
   group "group" {
     service {
-      name = "example"
       connect {
         sidecar_service {
           proxy {
             expose {
+              checks = true
+
               path = {
                 path = "/health"
                 protocol = "http"

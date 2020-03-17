@@ -47,7 +47,7 @@ type ServiceCheck struct {
 	Path          string              // path of the health check url for http type check
 	Protocol      string              // Protocol to use if check is http, defaults to http
 	PortLabel     string              // The port to use for tcp/http checks
-	AddressMode   string              // 'host' to use host ip:port or 'driver' to use driver's
+	AddressMode   string              // 'host' to use host ip:port or 'driver' to use driver'
 	Interval      time.Duration       // Interval of the check
 	Timeout       time.Duration       // Timeout of the response from the check before consul fails the check
 	InitialStatus string              // Initial status of the check
@@ -974,7 +974,8 @@ func (u *ConsulUpstream) Equals(o *ConsulUpstream) bool {
 
 // ExposeConfig represents a Consul Connect expose jobspec stanza.
 type ConsulExposeConfig struct {
-	Paths []ConsulExposePath
+	Checks bool
+	Paths  []ConsulExposePath
 }
 
 type ConsulExposePath struct {
@@ -982,6 +983,10 @@ type ConsulExposePath struct {
 	Protocol      string
 	LocalPathPort int
 	ListenerPort  string
+}
+
+func (p *ConsulExposePath) String() string {
+	return fmt.Sprintf("<protocol:%q path:%q lport:%d mport%q>", p.Protocol, p.Path, p.LocalPathPort, p.ListenerPort)
 }
 
 func exposePathsEqual(pathsA, pathsB []ConsulExposePath) bool {
@@ -1011,7 +1016,8 @@ func (e *ConsulExposeConfig) Copy() *ConsulExposeConfig {
 		paths[i] = e.Paths[i]
 	}
 	return &ConsulExposeConfig{
-		Paths: paths,
+		Checks: e.Checks,
+		Paths:  paths,
 	}
 }
 
@@ -1019,6 +1025,9 @@ func (e *ConsulExposeConfig) Copy() *ConsulExposeConfig {
 func (e *ConsulExposeConfig) Equals(o *ConsulExposeConfig) bool {
 	if e == nil || o == nil {
 		return e == o
+	}
+	if e.Checks != o.Checks {
+		return false
 	}
 	return exposePathsEqual(e.Paths, o.Paths)
 }

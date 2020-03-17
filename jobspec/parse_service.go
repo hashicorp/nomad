@@ -404,8 +404,8 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 
 func parseExpose(eo *ast.ObjectItem) (*api.ConsulExposeConfig, error) {
 	valid := []string{
-		"path", // an array of path blocks
-		// todo(shoenig) checks boolean
+		"path",   // an array of path blocks
+		"checks", // single boolean
 	}
 
 	if err := helper.CheckHCLKeys(eo.Val, valid); err != nil {
@@ -414,14 +414,31 @@ func parseExpose(eo *ast.ObjectItem) (*api.ConsulExposeConfig, error) {
 
 	var expose api.ConsulExposeConfig
 
+	// Parse the checks boolean
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, eo.Val); err != nil {
+		return nil, err
+	}
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result: &expose,
+	})
+	if err != nil {
+		return nil, err
+	}
+	delete(m, "path") // skip for now
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+
+	// Parse the expose block
+
 	var listVal *ast.ObjectList
 	if eoType, ok := eo.Val.(*ast.ObjectType); ok {
 		listVal = eoType.List
 	} else {
 		return nil, fmt.Errorf("expose: should be an object")
 	}
-
-	// Parse the expose block
 
 	po := listVal.Filter("path") // array
 	if len(po.Items) > 0 {

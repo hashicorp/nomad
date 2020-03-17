@@ -182,8 +182,8 @@ type ConsulUpstream struct {
 }
 
 type ConsulExposeConfig struct {
-	Path []*ConsulExposePath `mapstructure:"path"`
-	// todo(shoenig): add magic for 'checks' option
+	Checks bool                `mapstructure:"checks"`
+	Path   []*ConsulExposePath `mapstructure:"path"`
 }
 
 type ConsulExposePath struct {
