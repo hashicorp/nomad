@@ -32,9 +32,9 @@
 @import '~@hashicorp/react-call-to-action/dist/style.css';
 @import '~@hashicorp/react-text-split/dist/style.css';
 @import '~@hashicorp/react-text-split-with-code/dist/style.css';
+@import '~@hashicorp/react-docs-page/dist/style.css';
 
 /* Local Components */
-@import '../components/docs-page/style.css';
 @import '../components/placement-table/style.css';
 @import '../components/case-study-carousel/style.css';
 @import '../components/features-list/style.css';
