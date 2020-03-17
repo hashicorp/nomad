@@ -95,13 +95,16 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 		return err
 	}
 
-	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIAccess)
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
+		acl.NamespaceCapabilityCSIReadVolume,
+		acl.NamespaceCapabilityCSIMountVolume,
+		acl.NamespaceCapabilityListJobs)
 	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
 	if err != nil {
 		return err
 	}
 
-	if !allowCSIAccess(aclObj, args.RequestNamespace()) {
+	if !allowVolume(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -163,7 +166,9 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 		return err
 	}
 
-	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIAccess)
+	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIReadVolume,
+		acl.NamespaceCapabilityCSIMountVolume,
+		acl.NamespaceCapabilityReadJob)
 	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, true)
 	if err != nil {
 		return err
@@ -254,7 +259,7 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		return err
 	}
 
-	allowCSIVolumeManagement := acl.NamespaceValidator(acl.NamespaceCapabilityCSICreateVolume)
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
 	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
 	if err != nil {
 		return err
@@ -263,7 +268,7 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "volume", "register"}, metricsStart)
 
-	if !allowCSIVolumeManagement(aclObj, args.RequestNamespace()) {
+	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -275,6 +280,7 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		if err = vol.Validate(); err != nil {
 			return err
 		}
+
 		plugin, err := v.srv.pluginValidateVolume(args, vol)
 		if err != nil {
 			return err
@@ -304,7 +310,7 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 		return err
 	}
 
-	allowCSIVolumeManagement := acl.NamespaceValidator(acl.NamespaceCapabilityCSICreateVolume)
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
 	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
 	if err != nil {
 		return err
@@ -314,7 +320,7 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 	defer metrics.MeasureSince([]string{"nomad", "volume", "deregister"}, metricsStart)
 
 	ns := args.RequestNamespace()
-	if !allowCSIVolumeManagement(aclObj, ns) {
+	if !allowVolume(aclObj, ns) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -338,7 +344,7 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		return err
 	}
 
-	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIAccess)
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIMountVolume)
 	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, true)
 	if err != nil {
 		return err
@@ -347,7 +353,7 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "volume", "claim"}, metricsStart)
 
-	if !allowCSIAccess(aclObj, args.RequestNamespace()) {
+	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -372,6 +378,12 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	reply.Index = index
 	v.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
+}
+
+// allowCSIMount is called on Job register to check mount permission
+func allowCSIMount(aclObj *acl.ACL, namespace string) bool {
+	return aclObj.AllowPluginRead() &&
+		aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityCSIMountVolume)
 }
 
 // CSIPlugin wraps the structs.CSIPlugin with request data and server context
