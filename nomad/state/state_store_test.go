@@ -2898,7 +2898,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.NoError(t, err)
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.CSIVolumes(ws)
+	iter, err := state.CSIVolumesByNamespace(ws, ns)
 	require.NoError(t, err)
 
 	slurp := func(iter memdb.ResultIterator) (vs []*structs.CSIVolume) {
@@ -2941,7 +2941,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Equal(t, 0, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumes(ws)
+	iter, err = state.CSIVolumesByNamespace(ws, ns)
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
