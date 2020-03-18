@@ -2,7 +2,6 @@ name: HashiCorp PR Bot
 on: [push]
 jobs:
   check_links:
-    if: github.event.deployment.environment == 'Netlify Preview' && github.event.deployment_status.state == 'success' && github.event.deployment.payload.context == 'deploy-preview'
     name: Check links
     runs-on: ubuntu-latest
     steps:
