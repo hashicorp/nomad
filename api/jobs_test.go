@@ -909,7 +909,7 @@ func TestJobs_Info(t *testing.T) {
 	}
 }
 
-func TestJobs_Scale(t *testing.T) {
+func TestJobs_ScaleInvalidAction(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -921,18 +921,16 @@ func TestJobs_Scale(t *testing.T) {
 	tests := []struct {
 		jobID string
 		group string
-		value interface{}
+		value int
 		want  string
 	}{
 		{"", "", 1, "404"},
 		{"i-dont-exist", "", 1, "400"},
-		{"", "i-dont-exist", 1, "400"},
-		{"i-dont-exist", "me-neither", 1, "EOF"}, // TODO: this should be a 404
-		{"id", "group", nil, "500"},
-		{"id", "group", "not-int", "500"},
+		{"", "i-dont-exist", 1, "404"},
+		{"i-dont-exist", "me-neither", 1, "404"},
 	}
 	for _, test := range tests {
-		_, _, err := jobs.Scale(test.jobID, test.group, test.value, "", nil)
+		_, _, err := jobs.Scale(test.jobID, test.group, test.value, stringToPtr("reason"), nil, nil, nil)
 		require.Errorf(err, "expected jobs.Scale(%s, %s) to fail", test.jobID, test.group)
 		require.Containsf(err.Error(), test.want, "jobs.Scale(%s, %s) error doesn't contain %s, got: %s", test.jobID, test.group, test.want, err)
 	}
@@ -944,18 +942,11 @@ func TestJobs_Scale(t *testing.T) {
 	require.NoError(err)
 	assertWriteMeta(t, wm)
 
-	// Scale job task group
-	value := 2
-	_, wm, err = jobs.Scale(*job.ID, *job.TaskGroups[0].Name, value, "reason", nil)
-	require.NoError(err)
-	assertWriteMeta(t, wm)
-
-	// Query the job again
-	resp, _, err := jobs.Info(*job.ID, nil)
-	require.NoError(err)
-	require.Equal(*resp.TaskGroups[0].Count, value)
-
-	// TODO: check if reason is stored
+	// Perform a scaling action with bad group name, verify error
+	_, _, err = jobs.Scale(*job.ID, "incorrect-group-name", 2,
+		stringToPtr("because"), nil, nil, nil)
+	require.Error(err)
+	require.Contains(err.Error(), "does not exist")
 }
 
 func TestJobs_Versions(t *testing.T) {
@@ -1586,7 +1577,6 @@ func TestJobs_AddSpread(t *testing.T) {
 // TestJobs_ScaleAction tests the scale target for task group count
 func TestJobs_ScaleAction(t *testing.T) {
 	t.Parallel()
-
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -1600,32 +1590,31 @@ func TestJobs_ScaleAction(t *testing.T) {
 	groupCount := *job.TaskGroups[0].Count
 
 	// Trying to scale against a target before it exists returns an error
-	_, _, err := jobs.Scale(id, "missing",
-		groupCount+1, "this won't work", nil)
+	_, _, err := jobs.Scale(id, "missing", groupCount+1, stringToPtr("this won't work"), nil, nil, nil)
 	require.Error(err)
 	require.Contains(err.Error(), "not found")
 
 	// Register the job
 	_, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(err)
 	assertWriteMeta(t, wm)
 
-	// Perform a scaling action with bad group name, verify error
-	_, _, err = jobs.Scale(id, "incorrect-group-name",
-		groupCount+1, "this won't work", nil)
-	require.Error(err)
-	require.Contains(err.Error(), "does not exist")
-
-	// Query the scaling endpoint and verify success
+	// Perform scaling action
+	newCount := groupCount + 1
 	resp1, wm, err := jobs.Scale(id, groupName,
-		groupCount+1, "need more instances", nil)
+		newCount, stringToPtr("need more instances"), nil, nil, nil)
 
 	require.NoError(err)
 	require.NotNil(resp1)
 	require.NotEmpty(resp1.EvalID)
 	assertWriteMeta(t, wm)
+
+	// Query the job again
+	resp, _, err := jobs.Info(*job.ID, nil)
+	require.NoError(err)
+	require.Equal(*resp.TaskGroups[0].Count, newCount)
+
+	// TODO: check if reason is stored
 }
 
 // TestJobs_ScaleStatus tests the /scale status endpoint for task group count
@@ -1640,7 +1629,7 @@ func TestJobs_ScaleStatus(t *testing.T) {
 
 	// Trying to retrieve a status before it exists returns an error
 	id := "job-id/with\\troublesome:characters\n?&字\000"
-	_, _, err := jobs.ScaleStatus(id, "missing", nil)
+	_, _, err := jobs.ScaleStatus(id, nil)
 	require.Error(err)
 	require.Contains(err.Error(), "not found")
 
@@ -1655,16 +1644,11 @@ func TestJobs_ScaleStatus(t *testing.T) {
 	}
 	assertWriteMeta(t, wm)
 
-	// Query the scaling endpoint with bad group name, verify error
-	_, _, err = jobs.ScaleStatus(id, "incorrect-group-name", nil)
-	require.Error(err)
-	require.Contains(err.Error(), "not found")
-
 	// Query the scaling endpoint and verify success
-	result, qm, err := jobs.ScaleStatus(id, groupName, nil)
+	result, qm, err := jobs.ScaleStatus(id, nil)
 	require.NoError(err)
 	assertQueryMeta(t, qm)
 
 	// Check that the result is what we expect
-	require.Equal(groupCount, int(result.Value.(float64)))
+	require.Equal(groupCount, result.TaskGroups[groupName].Desired)
 }
