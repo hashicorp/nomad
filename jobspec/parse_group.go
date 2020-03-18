@@ -295,41 +295,17 @@ func parseRestartPolicy(final **api.RestartPolicy, list *ast.ObjectList) error {
 }
 
 func parseVolumes(out *map[string]*api.VolumeRequest, list *ast.ObjectList) error {
-	volumes := make(map[string]*api.VolumeRequest, len(list.Items))
+	hcl.DecodeObject(out, list)
 
-	for _, item := range list.Items {
-		n := item.Keys[0].Token.Value().(string)
-		valid := []string{
-			"type",
-			"read_only",
-			"hidden",
-			"source",
-		}
-		if err := helper.CheckHCLKeys(item.Val, valid); err != nil {
-			return err
-		}
-
-		var m map[string]interface{}
-		if err := hcl.DecodeObject(&m, item.Val); err != nil {
-			return err
-		}
-
-		var result api.VolumeRequest
-		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-			WeaklyTypedInput: true,
-			Result:           &result,
-		})
+	for k, v := range *out {
+		err := helper.UnusedKeys(v)
 		if err != nil {
 			return err
 		}
-		if err := dec.Decode(m); err != nil {
-			return err
-		}
-
-		result.Name = n
-		volumes[n] = &result
+		// This is supported by `hcl:",key"`, but that only works if we start at the
+		// parent ast.ObjectItem
+		v.Name = k
 	}
 
-	*out = volumes
 	return nil
 }
