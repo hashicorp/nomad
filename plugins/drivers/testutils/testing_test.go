@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/require"
-	"github.com/ugorji/go/codec"
+	"github.com/hashicorp/go-msgpack/codec"
 )
 
 var _ drivers.DriverPlugin = (*MockDriver)(nil)

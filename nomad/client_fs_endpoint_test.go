@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
-	codec "github.com/ugorji/go/codec"
+	codec "github.com/hashicorp/go-msgpack/codec"
 )
 
 func TestClientFS_List_Local(t *testing.T) {

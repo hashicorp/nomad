@@ -22,7 +22,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
-	"github.com/ugorji/go/codec"
+	"github.com/hashicorp/go-msgpack/codec"
 )
 
 func TestClientAllocations_GarbageCollectAll_Local(t *testing.T) {

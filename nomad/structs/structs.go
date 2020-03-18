@@ -36,7 +36,7 @@ import (
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/mitchellh/copystructure"
-	"github.com/ugorji/go/codec"
+	"github.com/hashicorp/go-msgpack/codec"
 	"golang.org/x/crypto/blake2b"
 )
 

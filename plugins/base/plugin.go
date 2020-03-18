@@ -7,7 +7,7 @@ import (
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/plugins/base/proto"
-	"github.com/ugorji/go/codec"
+	"github.com/hashicorp/go-msgpack/codec"
 	"google.golang.org/grpc"
 )
 

@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/mitchellh/mapstructure"
 	"github.com/stretchr/testify/require"
-	"github.com/ugorji/go/codec"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/zclconf/go-cty/cty"
 )
 
