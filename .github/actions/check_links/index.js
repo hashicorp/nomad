@@ -40,7 +40,7 @@ async function run() {
     // Run the link check against the PR preview link
     const output = String(
       execSync(
-        `./website/node_modules/linkcheck/bin/linkcheck-linux.exe ${deployUrl}`
+        `./website/node_modules/dart-linkcheck/bin/linkcheck-linux.exe ${deployUrl}`
       )
     );
 
