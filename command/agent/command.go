@@ -1216,9 +1216,9 @@ General Options (clients and servers):
     list of mode configurations:
 
   -dev-connect
-	Start the agent in development mode, but bind to a public network
-	interface rather than localhost for using Consul Connect. This
-	mode is supported only on Linux as root.
+    Start the agent in development mode, but bind to a public network
+    interface rather than localhost for using Consul Connect. This
+    mode is supported only on Linux as root.
 
 Server Options:
 
