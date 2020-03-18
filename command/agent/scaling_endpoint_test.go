@@ -1164,7 +1164,7 @@ func TestHTTP_ScalingPolicyGet(t *testing.T) {
 // 				Weight:    helper.Int8ToPtr(100),
 // 				SpreadTarget: []*api.SpreadTarget{
 // 					{
-// 						Value:   "r1",
+// 						Count:   "r1",
 // 						Percent: 50,
 // 					},
 // 				},
@@ -1231,7 +1231,7 @@ func TestHTTP_ScalingPolicyGet(t *testing.T) {
 // 						Weight:    helper.Int8ToPtr(100),
 // 						SpreadTarget: []*api.SpreadTarget{
 // 							{
-// 								Value:   "dc1",
+// 								Count:   "dc1",
 // 								Percent: 100,
 // 							},
 // 						},
@@ -1381,13 +1381,13 @@ func TestHTTP_ScalingPolicyGet(t *testing.T) {
 // 									ReservedPorts: []api.Port{
 // 										{
 // 											Label: "http",
-// 											Value: 80,
+// 											Count: 80,
 // 										},
 // 									},
 // 									DynamicPorts: []api.Port{
 // 										{
 // 											Label: "ssh",
-// 											Value: 2000,
+// 											Count: 2000,
 // 										},
 // 									},
 // 								},
@@ -1506,7 +1506,7 @@ func TestHTTP_ScalingPolicyGet(t *testing.T) {
 // 				Weight:    100,
 // 				SpreadTarget: []*structs.SpreadTarget{
 // 					{
-// 						Value:   "r1",
+// 						Count:   "r1",
 // 						Percent: 50,
 // 					},
 // 				},
@@ -1563,7 +1563,7 @@ func TestHTTP_ScalingPolicyGet(t *testing.T) {
 // 						Weight:    100,
 // 						SpreadTarget: []*structs.SpreadTarget{
 // 							{
-// 								Value:   "dc1",
+// 								Count:   "dc1",
 // 								Percent: 100,
 // 							},
 // 						},
@@ -1726,13 +1726,13 @@ func TestHTTP_ScalingPolicyGet(t *testing.T) {
 // 									ReservedPorts: []structs.Port{
 // 										{
 // 											Label: "http",
-// 											Value: 80,
+// 											Count: 80,
 // 										},
 // 									},
 // 									DynamicPorts: []structs.Port{
 // 										{
 // 											Label: "ssh",
-// 											Value: 2000,
+// 											Count: 2000,
 // 										},
 // 									},
 // 								},
@@ -1892,13 +1892,13 @@ func TestHTTP_ScalingPolicyGet(t *testing.T) {
 // 									ReservedPorts: []api.Port{
 // 										{
 // 											Label: "http",
-// 											Value: 80,
+// 											Count: 80,
 // 										},
 // 									},
 // 									DynamicPorts: []api.Port{
 // 										{
 // 											Label: "ssh",
-// 											Value: 2000,
+// 											Count: 2000,
 // 										},
 // 									},
 // 								},
@@ -2010,13 +2010,13 @@ func TestHTTP_ScalingPolicyGet(t *testing.T) {
 // 									ReservedPorts: []structs.Port{
 // 										{
 // 											Label: "http",
-// 											Value: 80,
+// 											Count: 80,
 // 										},
 // 									},
 // 									DynamicPorts: []structs.Port{
 // 										{
 // 											Label: "ssh",
-// 											Value: 2000,
+// 											Count: 2000,
 // 										},
 // 									},
 // 								},

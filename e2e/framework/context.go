@@ -63,7 +63,7 @@ func (f *F) Set(key, val interface{}) {
 	f.data[key] = val
 }
 
-// Value retrives values set by the F.Set method
+// Count retrives values set by the F.Set method
 func (f *F) Value(key interface{}) interface{} {
 	return f.data[key]
 }

@@ -48,7 +48,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		return err
 	}
 
-	// Value should be an object
+	// Count should be an object
 	var listVal *ast.ObjectList
 	if ot, ok := obj.Val.(*ast.ObjectType); ok {
 		listVal = ot.List

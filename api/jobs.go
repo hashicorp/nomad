@@ -155,13 +155,20 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 
 // Scale is used to retrieve information about a particular
 // job given its unique ID.
-func (j *Jobs) Scale(jobID, group string, value interface{}, reason string, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
+func (j *Jobs) Scale(jobID, group string, count int,
+	reason, error *string, meta map[string]interface{}, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 	req := &ScalingRequest{
-		Value:  value,
+		Count: int64(count),
+		Target: map[string]string{
+			"Job":   jobID,
+			"Group": group,
+		},
+		Error:  error,
 		Reason: reason,
+		Meta:   meta,
 	}
 	var resp JobRegisterResponse
-	qm, err := j.client.write(fmt.Sprintf("/v1/job/%s/%s/scale", url.PathEscape(jobID), url.PathEscape(group)), req, &resp, q)
+	qm, err := j.client.write(fmt.Sprintf("/v1/job/%s/scale", url.PathEscape(jobID)), req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -170,10 +177,9 @@ func (j *Jobs) Scale(jobID, group string, value interface{}, reason string, q *W
 
 // ScaleStatus is used to retrieve information about a particular
 // job given its unique ID.
-func (j *Jobs) ScaleStatus(jobID, group string, q *QueryOptions) (*ScaleStatusResponse, *QueryMeta, error) {
+func (j *Jobs) ScaleStatus(jobID string, q *QueryOptions) (*ScaleStatusResponse, *QueryMeta, error) {
 	var resp ScaleStatusResponse
-	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/%s/scale", url.PathEscape(jobID), url.PathEscape(group)),
-		&resp, q)
+	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/scale", url.PathEscape(jobID)), &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}

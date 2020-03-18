@@ -1368,7 +1368,7 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 
 	ctconf, err := newRunnerConfig(config, ctmplMapping)
 	assert.Nil(err, "Building Runner Config")
-	assert.Equal(testNS, *ctconf.Vault.Namespace, "Vault Namespace Value")
+	assert.Equal(testNS, *ctconf.Vault.Namespace, "Vault Namespace Count")
 }
 
 func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
