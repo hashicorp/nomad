@@ -139,6 +139,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 						return structs.ErrPermissionDenied
 					}
 				}
+
+				if t.CSIPluginConfig != nil {
+					if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityCSIRegisterPlugin) {
+						return structs.ErrPermissionDenied
+					}
+				}
 			}
 		}
 
