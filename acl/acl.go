@@ -75,6 +75,8 @@ func maxPrivilege(a, b string) string {
 		return PolicyWrite
 	case a == PolicyRead || b == PolicyRead:
 		return PolicyRead
+	case a == PolicyList || b == PolicyList:
+		return PolicyList
 	default:
 		return ""
 	}
