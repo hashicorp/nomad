@@ -23,22 +23,22 @@ const (
 	// combined we take the union of all capabilities. If the deny capability is present, it
 	// takes precedence and overwrites all other capabilities.
 
-	NamespaceCapabilityDeny             = "deny"
-	NamespaceCapabilityListJobs         = "list-jobs"
-	NamespaceCapabilityReadJob          = "read-job"
-	NamespaceCapabilitySubmitJob        = "submit-job"
-	NamespaceCapabilityDispatchJob      = "dispatch-job"
-	NamespaceCapabilityReadLogs         = "read-logs"
-	NamespaceCapabilityReadFS           = "read-fs"
-	NamespaceCapabilityAllocExec        = "alloc-exec"
-	NamespaceCapabilityAllocNodeExec    = "alloc-node-exec"
-	NamespaceCapabilityAllocLifecycle   = "alloc-lifecycle"
-	NamespaceCapabilitySentinelOverride = "sentinel-override"
-	NamespaceCapabilityPrivilegedTask   = "privileged-task"
-	NamespaceCapabilityCSIWriteVolume   = "csi-write-volume"
-	NamespaceCapabilityCSIReadVolume    = "csi-read-volume"
-	NamespaceCapabilityCSIListVolume    = "csi-list-volume"
-	NamespaceCapabilityCSIMountVolume   = "csi-mount-volume"
+	NamespaceCapabilityDeny              = "deny"
+	NamespaceCapabilityListJobs          = "list-jobs"
+	NamespaceCapabilityReadJob           = "read-job"
+	NamespaceCapabilitySubmitJob         = "submit-job"
+	NamespaceCapabilityDispatchJob       = "dispatch-job"
+	NamespaceCapabilityReadLogs          = "read-logs"
+	NamespaceCapabilityReadFS            = "read-fs"
+	NamespaceCapabilityAllocExec         = "alloc-exec"
+	NamespaceCapabilityAllocNodeExec     = "alloc-node-exec"
+	NamespaceCapabilityAllocLifecycle    = "alloc-lifecycle"
+	NamespaceCapabilitySentinelOverride  = "sentinel-override"
+	NamespaceCapabilityCSIRegisterPlugin = "csi-register-plugin"
+	NamespaceCapabilityCSIWriteVolume    = "csi-write-volume"
+	NamespaceCapabilityCSIReadVolume     = "csi-read-volume"
+	NamespaceCapabilityCSIListVolume     = "csi-list-volume"
+	NamespaceCapabilityCSIMountVolume    = "csi-mount-volume"
 )
 
 var (
@@ -144,7 +144,7 @@ func isNamespaceCapabilityValid(cap string) bool {
 		NamespaceCapabilitySubmitJob, NamespaceCapabilityDispatchJob, NamespaceCapabilityReadLogs,
 		NamespaceCapabilityReadFS, NamespaceCapabilityAllocLifecycle,
 		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec,
-		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIWriteVolume, NamespaceCapabilityCSIListVolume, NamespaceCapabilityCSIMountVolume:
+		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIWriteVolume, NamespaceCapabilityCSIListVolume, NamespaceCapabilityCSIMountVolume, NamespaceCapabilityCSIRegisterPlugin:
 		return true
 	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride:
