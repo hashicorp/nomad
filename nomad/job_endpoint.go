@@ -836,24 +836,27 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "scale"}, time.Now())
 
+	// Validate the arguments
+	namespace := args.Target[structs.ScalingTargetNamespace]
+	jobID := args.Target[structs.ScalingTargetJob]
+	groupName := args.Target[structs.ScalingTargetGroup]
+	if namespace != "" && namespace != args.RequestNamespace() {
+		return structs.NewErrRPCCoded(400, "namespace in payload did not match header")
+	} else if namespace == "" {
+		namespace = args.RequestNamespace()
+	}
+	if jobID != "" && jobID != args.JobID {
+		return fmt.Errorf("job ID in payload did not match URL")
+	}
+	if groupName == "" {
+		return structs.NewErrRPCCoded(400, "missing task group name for scaling action")
+	}
+
 	// Check for submit-job permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityScaleJob) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityScaleJob) {
 		return structs.ErrPermissionDenied
-	}
-
-	// Validate the arguments
-	if args.JobID == "" {
-		return fmt.Errorf("missing job ID for scaling")
-	} else if args.GroupName == "" {
-		return fmt.Errorf("missing task group name for scaling")
-	} else if args.Value == nil {
-		return fmt.Errorf("missing new scaling value")
-	}
-	newCount, ok := args.Value.(float64)
-	if !ok {
-		return fmt.Errorf("scaling value for task group must be int: %t %v", args.Value, args.Value)
 	}
 
 	// Lookup the job
@@ -862,24 +865,25 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return err
 	}
 	ws := memdb.NewWatchSet()
-	job, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
+	job, err := snap.JobByID(ws, namespace, args.JobID)
 	if err != nil {
 		return err
 	}
 	if job == nil {
-		return fmt.Errorf("job %q not found", args.JobID)
+		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
 	}
 
 	found := false
 	for _, tg := range job.TaskGroups {
-		if args.GroupName == tg.Name {
-			tg.Count = int(newCount)
+		if groupName == tg.Name {
+			tg.Count = int(args.Count) // TODO: not safe, check this above
 			found = true
 			break
 		}
 	}
 	if !found {
-		return fmt.Errorf("task group %q specified for scaling does not exist in job", args.GroupName)
+		return structs.NewErrRPCCoded(400,
+			fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
 	}
 	registerReq := structs.JobRegisterRequest{
 		Job:            job,
@@ -896,6 +900,9 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return err
 	}
 
+	// FINISH:
+	// register the scaling event to the scaling_event table, once that exists
+
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
 
@@ -905,8 +912,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	}
 
 	// Create a new evaluation
-	// XXX: The job priority / type is strange for this, since it's not a high
-	// priority even if the job was.
+	// FINISH: only do this if args.Error == nil || ""
 	now := time.Now().UTC().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),

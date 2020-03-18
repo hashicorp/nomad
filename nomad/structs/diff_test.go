@@ -2894,7 +2894,7 @@ func TestTaskGroupDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeDeleted,
-										Name: "Value",
+										Name: "Count",
 										Old:  "80",
 										New:  "",
 									},
@@ -3855,7 +3855,7 @@ func TestTaskDiff(t *testing.T) {
 											},
 											{
 												Type: DiffTypeAdded,
-												Name: "Value",
+												Name: "Count",
 												Old:  "",
 												New:  "81",
 											},
@@ -3911,7 +3911,7 @@ func TestTaskDiff(t *testing.T) {
 											},
 											{
 												Type: DiffTypeDeleted,
-												Name: "Value",
+												Name: "Count",
 												Old:  "80",
 												New:  "",
 											},
@@ -4383,7 +4383,7 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
-								Name: "boom.Value",
+								Name: "boom.Count",
 								Old:  "0",
 								New:  "0",
 							},

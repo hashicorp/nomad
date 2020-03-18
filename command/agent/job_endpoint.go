@@ -83,7 +83,8 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 		jobName := strings.TrimSuffix(path, "/stable")
 		return s.jobStable(resp, req, jobName)
 	case strings.HasSuffix(path, "/scale"):
-		return s.jobScale(resp, req, path)
+		jobName := strings.TrimSuffix(path, "/scale")
+		return s.jobScale(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -457,30 +458,20 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request,
-	jobAndTarget string) (interface{}, error) {
-
-	jobAndGroup := strings.TrimSuffix(jobAndTarget, "/scale")
-	var jobName, groupName string
-	if i := strings.LastIndex(jobAndGroup, "/"); i != -1 {
-		jobName = jobAndGroup[:i]
-		groupName = jobAndGroup[i+1:]
-	}
-	if jobName == "" || groupName == "" {
-		return nil, CodedError(400, "Invalid scaling target")
-	}
+	jobName string) (interface{}, error) {
 
 	switch req.Method {
 	case "GET":
-		return s.jobScaleStatus(resp, req, jobName, groupName)
+		return s.jobScaleStatus(resp, req, jobName)
 	case "PUT", "POST":
-		return s.jobScaleAction(resp, req, jobName, groupName)
+		return s.jobScaleAction(resp, req, jobName)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 }
 
 func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
-	jobName, groupName string) (interface{}, error) {
+	jobName string) (interface{}, error) {
 
 	args := structs.JobSpecificRequest{
 		JobID: jobName,
@@ -499,21 +490,19 @@ func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(404, "job not found")
 	}
 
-	group := out.Job.LookupTaskGroup(groupName)
-	if group == nil {
-		return nil, CodedError(404, "group not found in job")
-	}
 	status := &api.ScaleStatusResponse{
 		JobID:          out.Job.ID,
-		Value:          group.Count,
+		JobCreateIndex: out.Job.CreateIndex,
 		JobModifyIndex: out.Job.ModifyIndex,
+		Stopped:        out.Job.Stop,
+		TaskGroups:     nil, // TODO
 	}
 
 	return status, nil
 }
 
 func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
-	jobName, groupName string) (interface{}, error) {
+	jobName string) (interface{}, error) {
 
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -524,12 +513,21 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, err.Error())
 	}
 
+	namespace := args.Target[structs.ScalingTargetNamespace]
+	targetJob := args.Target[structs.ScalingTargetJob]
+	if targetJob != "" && targetJob != jobName {
+		return nil, CodedError(400, "job ID in payload did not match URL")
+	}
+
 	scaleReq := structs.JobScaleRequest{
 		JobID:          jobName,
-		GroupName:      groupName,
-		Value:          args.Value,
+		Namespace:      namespace,
+		Target:         args.Target,
+		Count:          args.Count,
 		PolicyOverride: args.PolicyOverride,
 		Reason:         args.Reason,
+		Error:          args.Error,
+		Meta:           args.Meta,
 	}
 	// parseWriteRequest overrides Namespace, Region and AuthToken
 	// based on values from the original http request

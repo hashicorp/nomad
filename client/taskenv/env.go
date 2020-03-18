@@ -193,7 +193,7 @@ func (t *TaskEnv) All() map[string]string {
 }
 
 // AllValues is a map of the task's environment variables and the node's
-// attributes with cty.Value (String) values. Errors including keys are
+// attributes with cty.Count (String) values. Errors including keys are
 // returned in a map by key name.
 //
 // In the rare case of a fatal error, only an error value is returned. This is

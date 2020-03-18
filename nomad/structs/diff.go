@@ -1117,7 +1117,7 @@ func portDiffs(old, new []Port, dynamic bool, contextual bool) []*ObjectDiff {
 	var filter []string
 	name := "Static Port"
 	if dynamic {
-		filter = []string{"Value"}
+		filter = []string{"Count"}
 		name = "Dynamic Port"
 	}
 

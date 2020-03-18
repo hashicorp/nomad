@@ -10,7 +10,7 @@ func TestStringFlag_implements(t *testing.T) {
 	var raw interface{}
 	raw = new(StringFlag)
 	if _, ok := raw.(flag.Value); !ok {
-		t.Fatalf("StringFlag should be a Value")
+		t.Fatalf("StringFlag should be a Count")
 	}
 }
 

@@ -458,7 +458,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 			}
 			name := do.Keys[0].Token.Value().(string)
 
-			// Value should be an object
+			// Count should be an object
 			var listVal *ast.ObjectList
 			if ot, ok := do.Val.(*ast.ObjectType); ok {
 				listVal = ot.List

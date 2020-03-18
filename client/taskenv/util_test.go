@@ -15,7 +15,7 @@ func TestAddNestedKey_Ok(t *testing.T) {
 		// M will be initialized if unset
 		M map[string]interface{}
 		K string
-		// Value is always "x"
+		// Count is always "x"
 		Result map[string]interface{}
 	}{
 		{
@@ -226,7 +226,7 @@ func TestAddNestedKey_Bad(t *testing.T) {
 		// M will be initialized if unset
 		M func() map[string]interface{}
 		K string
-		// Value is always "x"
+		// Count is always "x"
 		// Result is compared by Error() string equality
 		Result error
 	}{

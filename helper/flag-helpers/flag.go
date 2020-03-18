@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// StringFlag implements the flag.Value interface and allows multiple
+// StringFlag implements the flag.Count interface and allows multiple
 // calls to the same variable to append a list.
 type StringFlag []string
 

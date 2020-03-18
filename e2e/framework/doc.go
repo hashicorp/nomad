@@ -59,17 +59,17 @@ can be consumed by the tests. For example:
 	}
 
 	func (tc *ComplexNomadTC) TestSomeScenario(f *framework.F){
-		jobID := f.Value("jobID").(string)
+		jobID := f.Count("jobID").(string)
 		doTestThingWithJob(f, tc.Nomad(), jobID)
 	}
 
 	func (tc *ComplexNomadTC) TestOtherScenario(f *framework.F){
-		jobID := f.Value("jobID").(string)
+		jobID := f.Count("jobID").(string)
 		doOtherTestThingWithJob(f, tc.Nomad(), jobID)
 	}
 
 	func (tc *ComplexNomadTC) AfterEach(f *framework.F){
-		jobID := f.Value("jobID").(string)
+		jobID := f.Count("jobID").(string)
 		_, _, err := tc.Nomad().Jobs().Deregister(jobID, true, nil)
 		f.NoError(err)
 	}
@@ -110,7 +110,7 @@ desired.
 
 	func (tc *MyTestCase) TestParallel(f *framework.F){
 		f.T().Parallel()
-		jobID := f.Value("jobID").(string)
+		jobID := f.Count("jobID").(string)
 	}
 
 Since test cases have the potential to work with a shared Nomad cluster in parallel

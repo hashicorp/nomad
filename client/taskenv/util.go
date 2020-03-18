@@ -94,7 +94,7 @@ func addNestedKey(dst map[string]interface{}, k, v string) error {
 	return nil
 }
 
-// ctyify converts nested map[string]interfaces to a map[string]cty.Value. An
+// ctyify converts nested map[string]interfaces to a map[string]cty.Count. An
 // error is returned if an unsupported type is encountered.
 //
 // Currently only strings, cty.Values, and nested maps are supported.

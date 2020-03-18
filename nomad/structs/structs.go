@@ -616,10 +616,13 @@ type JobPlanRequest struct {
 // JobScaleRequest is used for the Job.Scale endpoint to scale one of the
 // scaling targets in a job
 type JobScaleRequest struct {
+	Namespace string
 	JobID     string
-	GroupName string
-	Value     interface{}
-	Reason    string
+	Target    map[string]string
+	Count     int64
+	Reason    *string
+	Error     *string
+	Meta      map[string]interface{}
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
 	WriteRequest
@@ -5981,7 +5984,7 @@ func (k TaskKind) Name() string {
 	return strings.Split(string(k), ":")[0]
 }
 
-// Value returns the identifier of the TaskKind or an empty string if it doesn't
+// Count returns the identifier of the TaskKind or an empty string if it doesn't
 // include one.
 func (k TaskKind) Value() string {
 	if s := strings.SplitN(string(k), ":", 2); len(s) > 1 {
@@ -7209,7 +7212,7 @@ func (s *Spread) Validate() error {
 
 // SpreadTarget is used to specify desired percentages for each attribute value
 type SpreadTarget struct {
-	// Value is a single attribute value, like "dc1"
+	// Count is a single attribute value, like "dc1"
 	Value string
 
 	// Percent is the desired percentage of allocs

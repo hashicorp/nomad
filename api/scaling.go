@@ -36,9 +36,10 @@ func (p *ScalingPolicy) Canonicalize() {
 
 // ScalingRequest is the payload for a generic scaling action
 type ScalingRequest struct {
-	Value  interface{}
-	Reason string
-	Error  string
+	Count  int64
+	Target map[string]string
+	Reason *string
+	Error  *string
 	Meta   map[string]interface{}
 	WriteRequest
 	// this is effectively a job update, so we need the ability to override policy.
@@ -71,6 +72,24 @@ type ScalingPolicyListStub struct {
 // ScaleStatusResponse is the payload for a generic scaling action
 type ScaleStatusResponse struct {
 	JobID          string
+	JobCreateIndex uint64
 	JobModifyIndex uint64
-	Value          interface{}
+	Stopped        bool
+	TaskGroups     map[string]TaskGroupScaleStatus
+}
+
+type TaskGroupScaleStatus struct {
+	Desired uint64
+	Running uint64
+	Started uint64
+	Healthy uint64
+	Events  []ScalingEvent
+}
+
+type ScalingEvent struct {
+	Reason *string
+	Error  *string
+	Meta   map[string]interface{}
+	Time   uint64
+	EvalID *string
 }
