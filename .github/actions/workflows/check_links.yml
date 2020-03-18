@@ -8,7 +8,7 @@ jobs:
       - uses: actions/checkout@master
       - run: npm install
         working-directory: ./website
-      - uses: ./.github/actions/check-links
+      - uses: ./.github/actions/check_links
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
