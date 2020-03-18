@@ -39,7 +39,9 @@ async function run() {
   try {
     // Run the link check against the PR preview link
     const output = String(
-      execSync(`./website/node_modules/.bin/linkcheck ${deployUrl}`)
+      execSync(
+        `./website/node_modules//linkcheck/bin/linkcheck-linux.exe ${deployUrl}`
+      )
     );
 
     // WIP
