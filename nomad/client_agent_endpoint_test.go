@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
@@ -23,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/hashicorp/go-msgpack/codec"
 )
 
 func TestMonitor_Monitor_Remote_Client(t *testing.T) {

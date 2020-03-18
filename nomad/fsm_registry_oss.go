@@ -3,8 +3,8 @@
 package nomad
 
 import (
-	"github.com/hashicorp/raft"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/raft"
 )
 
 // registerLogAppliers is a no-op for open-source only FSMs.
