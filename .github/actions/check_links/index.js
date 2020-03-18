@@ -1,7 +1,7 @@
 const path = require("path");
 const { execSync } = require("child_process");
-const core = require("./website/node_modules/@actions/core");
-const github = require("./website/node_modules/@actions/github");
+const core = require("../../../website/node_modules/@actions/core");
+const github = require("../../../website/node_modules/@actions/github");
 
 const { GITHUB_TOKEN, GITHUB_SHA } = process.env;
 
@@ -38,12 +38,9 @@ async function run() {
 
   try {
     // Run the link check against the PR preview link
-    const output = execSync(
-      `./website/node_modules/.bin/linkcheck ${deployUrl}`,
-      {
-        cwd: root
-      }
-    );
+    const output = execSync(`./node_modules/.bin/linkcheck ${deployUrl}`, {
+      cwd: root
+    });
 
     // WIP
     console.log(output);
