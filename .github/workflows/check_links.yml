@@ -11,7 +11,7 @@ jobs:
         uses: actions/checkout@master
       - name: Install Dependencies
         working-directory: ./website
-        run: npm ci
+        run: npm install
       - name: Check Links
         uses: ./.github/actions/check_links
         env:
