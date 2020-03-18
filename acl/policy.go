@@ -13,6 +13,7 @@ const (
 	// which always takes precedence and supercedes.
 	PolicyDeny  = "deny"
 	PolicyRead  = "read"
+	PolicyList  = "list"
 	PolicyWrite = "write"
 )
 
@@ -22,23 +23,22 @@ const (
 	// combined we take the union of all capabilities. If the deny capability is present, it
 	// takes precedence and overwrites all other capabilities.
 
-	NamespaceCapabilityDeny             = "deny"
-	NamespaceCapabilityListJobs         = "list-jobs"
-	NamespaceCapabilityReadJob          = "read-job"
-	NamespaceCapabilitySubmitJob        = "submit-job"
-	NamespaceCapabilityDispatchJob      = "dispatch-job"
-	NamespaceCapabilityReadLogs         = "read-logs"
-	NamespaceCapabilityReadFS           = "read-fs"
-	NamespaceCapabilityAllocExec        = "alloc-exec"
-	NamespaceCapabilityAllocNodeExec    = "alloc-node-exec"
-	NamespaceCapabilityAllocLifecycle   = "alloc-lifecycle"
-	NamespaceCapabilitySentinelOverride = "sentinel-override"
-	NamespaceCapabilityPrivilegedTask   = "privileged-task"
-	NamespaceCapabilityCSIAccess        = "csi-access"
-	NamespaceCapabilityCSIWriteVolume   = "csi-write-volume"
-	NamespaceCapabilityCSIReadVolume    = "csi-read-volume"
-	NamespaceCapabilityCSIListVolume    = "csi-list-volume"
-	NamespaceCapabilityCSIMountVolume   = "csi-mount-volume"
+	NamespaceCapabilityDeny              = "deny"
+	NamespaceCapabilityListJobs          = "list-jobs"
+	NamespaceCapabilityReadJob           = "read-job"
+	NamespaceCapabilitySubmitJob         = "submit-job"
+	NamespaceCapabilityDispatchJob       = "dispatch-job"
+	NamespaceCapabilityReadLogs          = "read-logs"
+	NamespaceCapabilityReadFS            = "read-fs"
+	NamespaceCapabilityAllocExec         = "alloc-exec"
+	NamespaceCapabilityAllocNodeExec     = "alloc-node-exec"
+	NamespaceCapabilityAllocLifecycle    = "alloc-lifecycle"
+	NamespaceCapabilitySentinelOverride  = "sentinel-override"
+	NamespaceCapabilityCSIRegisterPlugin = "csi-register-plugin"
+	NamespaceCapabilityCSIWriteVolume    = "csi-write-volume"
+	NamespaceCapabilityCSIReadVolume     = "csi-read-volume"
+	NamespaceCapabilityCSIListVolume     = "csi-list-volume"
+	NamespaceCapabilityCSIMountVolume    = "csi-mount-volume"
 )
 
 var (
@@ -128,6 +128,15 @@ func isPolicyValid(policy string) bool {
 	}
 }
 
+func (p *PluginPolicy) isValid() bool {
+	switch p.Policy {
+	case PolicyDeny, PolicyRead, PolicyList:
+		return true
+	default:
+		return false
+	}
+}
+
 // isNamespaceCapabilityValid ensures the given capability is valid for a namespace policy
 func isNamespaceCapabilityValid(cap string) bool {
 	switch cap {
@@ -135,8 +144,7 @@ func isNamespaceCapabilityValid(cap string) bool {
 		NamespaceCapabilitySubmitJob, NamespaceCapabilityDispatchJob, NamespaceCapabilityReadLogs,
 		NamespaceCapabilityReadFS, NamespaceCapabilityAllocLifecycle,
 		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec,
-		NamespaceCapabilityCSIAccess, // TODO(langmartin): remove after plugin caps are done
-		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIWriteVolume, NamespaceCapabilityCSIListVolume, NamespaceCapabilityCSIMountVolume:
+		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIWriteVolume, NamespaceCapabilityCSIListVolume, NamespaceCapabilityCSIMountVolume, NamespaceCapabilityCSIRegisterPlugin:
 		return true
 	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride:
@@ -282,7 +290,7 @@ func Parse(rules string) (*Policy, error) {
 		return nil, fmt.Errorf("Invalid quota policy: %#v", p.Quota)
 	}
 
-	if p.Plugin != nil && !isPolicyValid(p.Plugin.Policy) {
+	if p.Plugin != nil && !p.Plugin.isValid() {
 		return nil, fmt.Errorf("Invalid plugin policy: %#v", p.Plugin)
 	}
 	return p, nil

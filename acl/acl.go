@@ -75,6 +75,8 @@ func maxPrivilege(a, b string) string {
 		return PolicyWrite
 	case a == PolicyRead || b == PolicyRead:
 		return PolicyRead
+	case a == PolicyList || b == PolicyList:
+		return PolicyList
 	default:
 		return ""
 	}
@@ -483,12 +485,28 @@ func (a *ACL) AllowQuotaWrite() bool {
 
 // AllowPluginRead checks if read operations are allowed for all plugins
 func (a *ACL) AllowPluginRead() bool {
-	// ACL is nil only if ACLs are disabled
-	if a == nil {
-		return true
-	}
 	switch {
+	// ACL is nil only if ACLs are disabled
+	case a == nil:
+		return true
 	case a.management:
+		return true
+	case a.plugin == PolicyRead:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowPluginList checks if list operations are allowed for all plugins
+func (a *ACL) AllowPluginList() bool {
+	switch {
+	// ACL is nil only if ACLs are disabled
+	case a == nil:
+		return true
+	case a.management:
+		return true
+	case a.plugin == PolicyList:
 		return true
 	case a.plugin == PolicyRead:
 		return true
