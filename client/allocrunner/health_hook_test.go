@@ -328,7 +328,7 @@ func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
 		Status: consulapi.HealthPassing,
 	}
 	checksUnhealthy := &consulapi.AgentCheck{
-		Name :task.Services[0].Checks[1].Name,
+		Name:   task.Services[0].Checks[1].Name,
 		Status: consulapi.HealthCritical,
 	}
 	taskRegs := map[string]*agentconsul.ServiceRegistrations{
@@ -374,14 +374,10 @@ func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
 
 	// Wait to ensure we don't get a healthy status
 	select {
-	case <-time.After(5 * time.Second):
+	case <-time.After(2 * time.Second):
 		// great no healthy status
 	case health := <-hs.healthCh:
-		require.False(health.healthy)
-
-		// Unhealthy allocs shouldn't emit task events
-		ev := health.taskEvents[task.Name]
-		require.NotNilf(ev, "%#v", health.taskEvents)
+		require.Fail("expected no health event", "got %v", health)
 	}
 
 	// Postrun
@@ -425,7 +421,7 @@ func TestHealthHook_SetHealth_missingchecks(t *testing.T) {
 						Service: task.Services[0].Name,
 					},
 					// notice missing check
-					Checks: []*consulapi.AgentCheck{checkHealthy },
+					Checks: []*consulapi.AgentCheck{checkHealthy},
 				},
 			},
 		},
@@ -460,20 +456,15 @@ func TestHealthHook_SetHealth_missingchecks(t *testing.T) {
 
 	// Wait to ensure we don't get a healthy status
 	select {
-	case <-time.After(5 * time.Second):
+	case <-time.After(2 * time.Second):
 		// great no healthy status
 	case health := <-hs.healthCh:
-		require.False(health.healthy)
-
-		// Unhealthy allocs shouldn't emit task events
-		ev := health.taskEvents[task.Name]
-		require.NotNilf(ev, "%#v", health.taskEvents)
+		require.Fail("expected no health event", "got %v", health)
 	}
 
 	// Postrun
 	require.NoError(h.Postrun())
 }
-
 
 // TestHealthHook_SystemNoop asserts that system jobs return the noop tracker.
 func TestHealthHook_SystemNoop(t *testing.T) {

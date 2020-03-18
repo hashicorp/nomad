@@ -41,6 +41,10 @@ type Tracker struct {
 	// considered healthy
 	minHealthyTime time.Duration
 
+	// checkLookupInterval is the interval at which we check if the
+	// Consul checks are healthy or unhealthy.
+	checkLookupInterval time.Duration
+
 	// useChecks specifies whether to use Consul healh checks or not
 	useChecks bool
 
@@ -92,15 +96,16 @@ func NewTracker(parentCtx context.Context, logger hclog.Logger, alloc *structs.A
 	// this struct should pass in an appropriately named
 	// sub-logger.
 	t := &Tracker{
-		healthy:        make(chan bool, 1),
-		allocStopped:   make(chan struct{}),
-		alloc:          alloc,
-		tg:             alloc.Job.LookupTaskGroup(alloc.TaskGroup),
-		minHealthyTime: minHealthyTime,
-		useChecks:      useChecks,
-		allocUpdates:   allocUpdates,
-		consulClient:   consulClient,
-		logger:         logger,
+		healthy:             make(chan bool, 1),
+		allocStopped:        make(chan struct{}),
+		alloc:               alloc,
+		tg:                  alloc.Job.LookupTaskGroup(alloc.TaskGroup),
+		minHealthyTime:      minHealthyTime,
+		useChecks:           useChecks,
+		allocUpdates:        allocUpdates,
+		consulClient:        consulClient,
+		checkLookupInterval: consulCheckLookupInterval,
+		logger:              logger,
 	}
 
 	t.taskHealth = make(map[string]*taskHealthState, len(t.tg.Tasks))
@@ -310,7 +315,7 @@ func (t *Tracker) watchTaskEvents() {
 func (t *Tracker) watchConsulEvents() {
 	// checkTicker is the ticker that triggers us to look at the checks in
 	// Consul
-	checkTicker := time.NewTicker(consulCheckLookupInterval)
+	checkTicker := time.NewTicker(t.checkLookupInterval)
 	defer checkTicker.Stop()
 
 	// healthyTimer fires when the checks have been healthy for the
