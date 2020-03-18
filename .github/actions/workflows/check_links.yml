@@ -1,5 +1,5 @@
 name: HashiCorp PR Bot
-on: [deployment_status]
+on: [pull_request]
 jobs:
   check_links:
     if: github.event.deployment.environment == 'Netlify Preview' && github.event.deployment_status.state == 'success' && github.event.deployment.payload.context == 'deploy-preview'
