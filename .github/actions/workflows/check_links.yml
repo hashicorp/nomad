@@ -1,5 +1,5 @@
 name: HashiCorp PR Bot
-on: [push]
+on: push
 jobs:
   check_links:
     name: Check links
