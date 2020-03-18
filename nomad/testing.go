@@ -187,12 +187,11 @@ func CreateTestCSIPlugin(s *state.StateStore, id string) func() {
 	}
 
 	// Install healthy plugin fingerprinting results
-	allocID := uuid.Generate()
 	for _, n := range ns[1:] {
 		n.CSINodePlugins = map[string]*structs.CSIInfo{
 			id: {
 				PluginID:                 id,
-				AllocID:                  allocID,
+				AllocID:                  uuid.Generate(),
 				Healthy:                  true,
 				HealthDescription:        "healthy",
 				RequiresControllerPlugin: true,

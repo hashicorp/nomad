@@ -260,6 +260,28 @@ func TestParse(t *testing.T) {
 			"Invalid host volume name",
 			nil,
 		},
+		{
+			`
+			plugin {
+				policy = "list"
+			}
+			`,
+			"",
+			&Policy{
+				Plugin: &PluginPolicy{
+					Policy: PolicyList,
+				},
+			},
+		},
+		{
+			`
+			plugin {
+				policy = "reader"
+			}
+			`,
+			"Invalid plugin policy",
+			nil,
+		},
 	}
 
 	for idx, tc := range tcases {
