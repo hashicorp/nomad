@@ -51,7 +51,7 @@
   "devDependencies": {
     "@actions/core": "^1.2.3",
     "@actions/github": "^2.1.1",
-    "dart-linkcheck": "^2.0.13",
+    "dart-linkcheck": "^2.0.14",
     "glob": "^7.1.6",
     "husky": "^4.2.3",
     "inquirer": "^7.0.5",
