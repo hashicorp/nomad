@@ -1,5 +1,7 @@
 name: HashiCorp PR Bot
-on: [push]
+
+on: [pull_request]
+
 jobs:
   check_links:
     name: Check links
@@ -11,7 +13,6 @@ jobs:
         working-directory: ./website
         run: npm ci
       - name: Check Links
-        working-directory: ./website
         uses: ./.github/actions/check_links
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
