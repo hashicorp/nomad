@@ -123,6 +123,8 @@ func (c *csiManager) resyncPluginsFromRegistry(ptype string) {
 
 	// For every plugin in the registry, ensure that we have an existing plugin
 	// running. Also build the map of valid plugin names.
+	// Note: monolith plugins that run as both controllers and nodes get a
+	// separate instance manager for both modes.
 	for _, plugin := range plugins {
 		seen[plugin.Name] = struct{}{}
 		if _, ok := pluginMap[plugin.Name]; !ok {
@@ -137,7 +139,7 @@ func (c *csiManager) resyncPluginsFromRegistry(ptype string) {
 	// iterator, shut it down and remove it from the table.
 	for name, mgr := range pluginMap {
 		if _, ok := seen[name]; !ok {
-			c.logger.Info("shutting down CSI plugin", "name", name, "type", ptype)
+			c.logger.Debug("shutting down CSI plugin", "name", name, "type", ptype)
 			mgr.shutdown()
 			delete(pluginMap, name)
 		}
@@ -150,7 +152,9 @@ func (c *csiManager) Shutdown() {
 	// Shut down the run loop
 	c.shutdownCtxCancelFn()
 
-	// Wait for plugin manager shutdown to complete
+	// Wait for plugin manager shutdown to complete so that we
+	// don't try to shutdown instance managers while runLoop is
+	// doing a resync
 	<-c.shutdownCh
 
 	// Shutdown all the instance managers in parallel
