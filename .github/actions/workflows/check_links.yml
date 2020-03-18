@@ -1,14 +1,18 @@
 name: HashiCorp PR Bot
-on: push
+on: [push]
 jobs:
   check_links:
     name: Check links
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
-      - run: npm install
+      - name: Checkout Code
+        uses: actions/checkout@master
+      - name: Install Dependencies
         working-directory: ./website
-      - uses: ./.github/actions/check_links
+        run: npm ci
+      - name: Check Links
+        working-directory: ./website
+        uses: ./.github/actions/check_links
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
