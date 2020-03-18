@@ -5,9 +5,9 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/hashicorp/go-msgpack/codec"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/plugins/base/proto"
-	"github.com/hashicorp/go-msgpack/codec"
 	"google.golang.org/grpc"
 )
 

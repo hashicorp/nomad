@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestTimeTable(t *testing.T) {

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/gorhill/cronexpr"
+	"github.com/hashicorp/go-msgpack/codec"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
@@ -36,7 +37,6 @@ import (
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/mitchellh/copystructure"
-	"github.com/hashicorp/go-msgpack/codec"
 	"golang.org/x/crypto/blake2b"
 )
 
