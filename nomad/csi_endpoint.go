@@ -454,7 +454,7 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 	}
 
 	withAllocs := aclObj == nil ||
-		aclObj.AllowNsOp(acl.NamespaceCapabilityReadJob, args.RequestNamespace())
+		aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
 
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "plugin", "get"}, metricsStart)
