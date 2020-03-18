@@ -41,7 +41,9 @@ async function run() {
     // const output = execSync(
     //   `../../../website/node_modules/.bin/linkcheck ${deployUrl}`
     // );
-    const output = execSync(`ls ../../../website/node_modules/.bin`);
+    console.log(execSync(`pwd`));
+    console.log(execSync(`ls`));
+    const output = execSync(`ls ./website/node_modules/.bin`);
 
     // WIP
     console.log(output);
