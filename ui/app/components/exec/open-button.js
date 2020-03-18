@@ -14,14 +14,16 @@ export default Component.extend({
   },
 
   generateUrl() {
-    let urlOptions = {};
-
     if (this.allocation) {
-      urlOptions.queryParams = {
-        allocation: this.allocation.shortId,
+      let urlOptions = {
+        queryParams: {
+          allocation: this.allocation.shortId,
+        },
       };
-    }
 
-    return this.router.urlFor('exec', this.job.get('name'), urlOptions);
+      return this.router.urlFor('exec', this.job.get('name'), urlOptions);
+    } else {
+      return this.router.urlFor('exec', this.job.get('name'));
+    }
   },
 });
