@@ -41,6 +41,7 @@ async function run() {
       cwd: root
     });
 
+    // WIP
     console.log(output);
     await updateCheck(id, { output: { summary: output } });
   } catch (error) {
