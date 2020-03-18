@@ -38,9 +38,10 @@ async function run() {
 
   try {
     // Run the link check against the PR preview link
-    const output = execSync(
-      `../../../website/node_modules/.bin/linkcheck ${deployUrl}`
-    );
+    // const output = execSync(
+    //   `../../../website/node_modules/.bin/linkcheck ${deployUrl}`
+    // );
+    const output = execSync(`ls ../../../website/node_modules/.bin`);
 
     // WIP
     console.log(output);
