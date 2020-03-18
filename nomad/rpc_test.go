@@ -26,7 +26,7 @@ import (
 	"github.com/hashicorp/yamux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ugorji/go/codec"
+	"github.com/hashicorp/go-msgpack/codec"
 )
 
 // rpcClient is a test helper method to return a ClientCodec to use to make rpc

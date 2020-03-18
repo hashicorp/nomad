@@ -10,7 +10,7 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/ugorji/go/codec"
+	"github.com/hashicorp/go-msgpack/codec"
 	"golang.org/x/crypto/blake2b"
 )
 

@@ -24,11 +24,11 @@ import (
 	"time"
 
 	"github.com/gorhill/cronexpr"
+	"github.com/hashicorp/go-msgpack/codec"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/copystructure"
-	"github.com/ugorji/go/codec"
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/hashicorp/nomad/acl"
