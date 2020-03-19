@@ -90,7 +90,7 @@ module('Acceptance | exec', function(hooks) {
     assert.notEqual(Exec.taskGroups[0].name, taskGroup.name);
   });
 
-  skip('an inactive task should not be shown', async function(assert) {
+  skip('an inactive task should not be shown', async function() {
     // I’m not sure how to make a task group have more than one task so there can be at least one active task
   });
 
