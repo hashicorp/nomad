@@ -183,7 +183,7 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 		ID:             volID,
 		Name:           volID,
 		ExternalID:     tc.volumeIDs.EFSVolumeID,
-		AccessMode:     "multi-node-single-writer",
+		AccessMode:     "single-node-writer",
 		AttachmentMode: "file-system",
 		PluginID:       "aws-efs0",
 	}
