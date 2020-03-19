@@ -81,15 +81,21 @@ const (
 	CSIVolumeAccessModeMultiNodeMultiWriter  CSIVolumeAccessMode = "multi-node-multi-writer"
 )
 
+type CSIOptions struct {
+	FSType     string
+	MountFlags []string
+}
+
 // CSIVolume is used for serialization, see also nomad/structs/csi.go
 type CSIVolume struct {
-	ID             string                  `hcl:"id"`
-	Name           string                  `hcl:"name"`
-	ExternalID     string                  `hcl:"external_id"`
-	Namespace      string                  `hcl:"namespace"`
-	Topologies     []*CSITopology          `hcl:"topologies"`
+	ID             string
+	Name           string
+	ExternalID     string `hcl:"external_id"`
+	Namespace      string
+	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode     `hcl:"access_mode"`
 	AttachmentMode CSIVolumeAttachmentMode `hcl:"attachment_mode"`
+	Options        *CSIOptions
 
 	// Allocations, tracking claim status
 	ReadAllocs  map[string]*Allocation
