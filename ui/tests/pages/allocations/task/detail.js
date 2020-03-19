@@ -26,6 +26,10 @@ export default create({
 
   restart: twoStepButton('[data-test-restart]'),
 
+  execButton: {
+    scope: '[data-test-exec-button]',
+  },
+
   breadcrumbs: collection('[data-test-breadcrumb]', {
     id: attribute('data-test-breadcrumb'),
     text: text(),

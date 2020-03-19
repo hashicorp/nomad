@@ -14,7 +14,19 @@ export default Component.extend({
   },
 
   generateUrl() {
-    if (this.taskGroup) {
+    if (this.task) {
+      return this.router.urlFor(
+        'exec.task-group.task',
+        this.job.get('name'),
+        this.taskGroup.get('name'),
+        this.task.get('name'),
+        {
+          queryParams: {
+            allocation: this.allocation.shortId,
+          },
+        }
+      );
+    } else if (this.taskGroup) {
       return this.router.urlFor(
         'exec.task-group',
         this.job.get('name'),
