@@ -1,4 +1,4 @@
-import { module, test } from 'qunit';
+import { module, skip, test } from 'qunit';
 import { currentURL, settled } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -77,6 +77,21 @@ module('Acceptance | exec', function(hooks) {
         .trim(),
       'Select a task to start your session.'
     );
+  });
+
+  skip('a task group with no active task states should not be shown', async function(assert) {
+    let taskGroup = this.job.task_groups.models[0];
+
+    taskGroup.tasks.models.forEach(task => {
+      this.server.db.taskStates.update({ name: task.name }, { finishedAt: new Date() });
+    });
+
+    await Exec.visitJob({ job: this.job.id });
+    assert.notEqual(Exec.taskGroups[0].name, taskGroup.name);
+  });
+
+  skip('an inactive task should not be shown', async function(assert) {
+    // I’m not sure how to make a task group have more than one task so there can be at least one active task
   });
 
   test('visiting a path with a task group should open the group by default', async function(assert) {
