@@ -85,41 +85,36 @@ func (c *csiManager) MounterForVolume(ctx context.Context, vol *structs.CSIVolum
 
 // Run starts a plugin manager and should return early
 func (c *csiManager) Run() {
-	// Ensure we have at least one full sync before starting
-	c.resyncPluginsFromRegistry("csi-controller")
-	c.resyncPluginsFromRegistry("csi-node")
 	go c.runLoop()
 }
 
 func (c *csiManager) runLoop() {
-	// TODO: Subscribe to the events channel from the registry to receive dynamic
-	//       updates without a full resync
-	timer := time.NewTimer(0)
+	timer := time.NewTimer(0) // ensure we sync immediately in first pass
+	controllerUpdates := c.registry.PluginsUpdatedCh(c.shutdownCtx, "csi-controller")
+	nodeUpdates := c.registry.PluginsUpdatedCh(c.shutdownCtx, "csi-node")
 	for {
 		select {
-		case <-c.shutdownCtx.Done():
-			close(c.shutdownCh)
-			return
 		case <-timer.C:
 			c.resyncPluginsFromRegistry("csi-controller")
 			c.resyncPluginsFromRegistry("csi-node")
 			timer.Reset(c.pluginResyncPeriod)
+		case event := <-controllerUpdates:
+			c.handlePluginEvent(event)
+		case event := <-nodeUpdates:
+			c.handlePluginEvent(event)
+		case <-c.shutdownCtx.Done():
+			close(c.shutdownCh)
+			return
 		}
 	}
 }
 
-// resyncPluginsFromRegistry does a full sync of the running instance managers
-// against those in the registry. Eventually we should primarily be using
-// update events from the registry, but this is an ok fallback for now.
+// resyncPluginsFromRegistry does a full sync of the running instance
+// managers against those in the registry. we primarily will use update
+// events from the registry.
 func (c *csiManager) resyncPluginsFromRegistry(ptype string) {
 	plugins := c.registry.ListPlugins(ptype)
 	seen := make(map[string]struct{}, len(plugins))
-
-	pluginMap, ok := c.instances[ptype]
-	if !ok {
-		pluginMap = make(map[string]*instanceManager)
-		c.instances[ptype] = pluginMap
-	}
 
 	// For every plugin in the registry, ensure that we have an existing plugin
 	// running. Also build the map of valid plugin names.
@@ -127,23 +122,76 @@ func (c *csiManager) resyncPluginsFromRegistry(ptype string) {
 	// separate instance manager for both modes.
 	for _, plugin := range plugins {
 		seen[plugin.Name] = struct{}{}
-		if _, ok := pluginMap[plugin.Name]; !ok {
-			c.logger.Debug("detected new CSI plugin", "name", plugin.Name, "type", ptype)
-			mgr := newInstanceManager(c.logger, c.updateNodeCSIInfoFunc, plugin)
-			pluginMap[plugin.Name] = mgr
-			mgr.run()
-		}
+		c.ensureInstance(plugin)
 	}
 
 	// For every instance manager, if we did not find it during the plugin
 	// iterator, shut it down and remove it from the table.
-	for name, mgr := range pluginMap {
+	instances := c.instancesForType(ptype)
+	for name, mgr := range instances {
 		if _, ok := seen[name]; !ok {
-			c.logger.Debug("shutting down CSI plugin", "name", name, "type", ptype)
-			mgr.shutdown()
-			delete(pluginMap, name)
+			c.ensureNoInstance(mgr.info)
 		}
 	}
+}
+
+// handlePluginEvent syncs a single event against the plugin registry
+func (c *csiManager) handlePluginEvent(event *dynamicplugins.PluginUpdateEvent) {
+	if event == nil {
+		return
+	}
+	c.logger.Trace("dynamic plugin event",
+		"event", event.EventType,
+		"plugin_id", event.Info.Name,
+		"plugin_alloc_id", event.Info.AllocID)
+
+	switch event.EventType {
+	case dynamicplugins.EventTypeRegistered:
+		c.ensureInstance(event.Info)
+	case dynamicplugins.EventTypeDeregistered:
+		c.ensureNoInstance(event.Info)
+	default:
+		c.logger.Error("received unknown dynamic plugin event type",
+			"type", event.EventType)
+	}
+}
+
+// Ensure we have an instance manager for the plugin and add it to
+// the CSI manager's tracking table for that plugin type.
+func (c *csiManager) ensureInstance(plugin *dynamicplugins.PluginInfo) {
+	name := plugin.Name
+	ptype := plugin.Type
+	instances := c.instancesForType(ptype)
+	if _, ok := instances[name]; !ok {
+		c.logger.Debug("detected new CSI plugin", "name", name, "type", ptype)
+		mgr := newInstanceManager(c.logger, c.updateNodeCSIInfoFunc, plugin)
+		instances[name] = mgr
+		mgr.run()
+	}
+}
+
+// Shut down the instance manager for a plugin and remove it from
+// the CSI manager's tracking table for that plugin type.
+func (c *csiManager) ensureNoInstance(plugin *dynamicplugins.PluginInfo) {
+	name := plugin.Name
+	ptype := plugin.Type
+	instances := c.instancesForType(ptype)
+	if mgr, ok := instances[name]; ok {
+		c.logger.Debug("shutting down CSI plugin", "name", name, "type", ptype)
+		mgr.shutdown()
+		delete(instances, name)
+	}
+}
+
+// Get the instance managers table for a specific plugin type,
+// ensuring it's been initialized if it doesn't exist.
+func (c *csiManager) instancesForType(ptype string) map[string]*instanceManager {
+	pluginMap, ok := c.instances[ptype]
+	if !ok {
+		pluginMap = make(map[string]*instanceManager)
+		c.instances[ptype] = pluginMap
+	}
+	return pluginMap
 }
 
 // Shutdown should gracefully shutdown all plugins managed by the manager.
