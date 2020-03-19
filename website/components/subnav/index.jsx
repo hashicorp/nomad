@@ -18,6 +18,7 @@ export default function NomadSubnav() {
       currentPath={router.pathname}
       menuItemsAlign="right"
       menuItems={subnavItems}
+      constrainWidth
     />
   )
 }
