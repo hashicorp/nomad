@@ -309,10 +309,14 @@ func (h *csiPluginSupervisorHook) registerPlugin(socketPath string) (func(), err
 			return nil, err
 		}
 
+		// need to rebind these so that each deregistration function
+		// closes over its own registration
+		rname := reg.Name
+		rtype := reg.Type
 		deregistrationFns = append(deregistrationFns, func() {
-			err := h.runner.dynamicRegistry.DeregisterPlugin(reg.Type, reg.Name)
+			err := h.runner.dynamicRegistry.DeregisterPlugin(rtype, rname)
 			if err != nil {
-				h.logger.Error("failed to deregister csi plugin", "name", reg.Name, "type", reg.Type, "error", err)
+				h.logger.Error("failed to deregister csi plugin", "name", rname, "type", rtype, "error", err)
 			}
 		})
 	}
