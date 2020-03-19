@@ -7,7 +7,7 @@ const { GITHUB_TOKEN, GITHUB_SHA } = process.env;
 
 const CHECK_NAME = "[Check] Broken links";
 
-const octokit = new github.GitHub(GITHUB_TOKEN);
+// const octokit = new github.GitHub(GITHUB_TOKEN);
 
 async function createCheck() {
   const { data } = await octokit.checks.create({
@@ -31,12 +31,15 @@ async function updateCheck(id, checkResults) {
 }
 
 async function run() {
-  const id = await createCheck();
+  // const id = await createCheck();
   const root = path.join(__dirname, "../../..");
   // const deployUrl = core.getInput("baseUrl", { required: true });
   const deployUrl = "https://nomadproject.io";
 
   try {
+    console.log(
+      String(execSync("cat ./website/node_modules/dart-linkcheck/package.json"))
+    );
     // Run the link check against the PR preview link
     const output = String(
       execSync(
@@ -46,10 +49,14 @@ async function run() {
 
     // WIP
     console.log(output);
-    await updateCheck(id, { output: { summary: output } });
+    // await updateCheck(id, { output: { summary: output } });
   } catch (error) {
-    core.setFailed(`Action failed with message: ${error.message}`);
+    console.log(error);
+    // core.setFailed(`Action failed with message: ${error.message}`);
   }
 }
 
-run().catch(error => core.setFailed(error.message));
+run().catch(error => {
+  console.log(error);
+  // core.setFailed(error.message)
+});
