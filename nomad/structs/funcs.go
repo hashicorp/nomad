@@ -267,6 +267,8 @@ func CopyScalingPolicy(p *ScalingPolicy) *ScalingPolicy {
 		ID:          p.ID,
 		Policy:      opaquePolicyConfig.(map[string]interface{}),
 		Enabled:     p.Enabled,
+		Min:         p.Min,
+		Max:         p.Max,
 		CreateIndex: p.CreateIndex,
 		ModifyIndex: p.ModifyIndex,
 	}

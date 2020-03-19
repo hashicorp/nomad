@@ -361,6 +361,8 @@ func parseScalingPolicy(out **api.ScalingPolicy, list *ast.ObjectList) error {
 	}
 
 	valid := []string{
+		"min",
+		"max",
 		"policy",
 		"enabled",
 	}
