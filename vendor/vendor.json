@@ -2,7 +2,6 @@
 	"comment": "",
 	"ignore": "test",
 	"package": [
-		{"path":"appengine","revision":""},
 		{"path":"cloud.google.com/go/compute/metadata","checksumSHA1":"b1KgRkWqz0RmrEBK6IJ8kOJva6w=","revision":"4bdb329835f9d945a6dad7b2ed60534497faa857","revisionTime":"2019-08-08T17:09:53Z"},
 		{"path":"cloud.google.com/go/iam","checksumSHA1":"+S/9jBntS1iHZwxkR64vsy97Gh8=","revision":"511b7f3f2624e2d3c4bf2697da4ab69ed5359aac","revisionTime":"2019-08-21T09:16:34Z"},
 		{"path":"cloud.google.com/go/internal","checksumSHA1":"JfGXEtr79UaxukcL05IERkjYm/g=","revision":"f6872d26e2099733e489f2322a878213384f731a","revisionTime":"2019-08-26T22:18:59Z"},
