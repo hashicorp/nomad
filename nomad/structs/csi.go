@@ -135,6 +135,53 @@ func ValidCSIVolumeWriteAccessMode(accessMode CSIVolumeAccessMode) bool {
 	}
 }
 
+// CSIOptions contain optional additional configuration that can be used
+// when specifying that a Volume should be used with VolumeAccessTypeMount.
+type CSIOptions struct {
+	// FSType is an optional field that allows an operator to specify the type
+	// of the filesystem.
+	FSType string
+
+	// MountFlags contains additional options that may be used when mounting the
+	// volume by the plugin. This may contain sensitive data and should not be
+	// leaked.
+	MountFlags []string
+}
+
+func (o *CSIOptions) Copy() *CSIOptions {
+	return &(*o)
+}
+
+func (o *CSIOptions) Merge(p *CSIOptions) {
+	if p == nil {
+		return
+	}
+	if p.FSType != "" {
+		o.FSType = p.FSType
+	}
+	if p.MountFlags != nil {
+		o.MountFlags = p.MountFlags
+	}
+}
+
+// VolumeMountOptions implements the Stringer and GoStringer interfaces to prevent
+// accidental leakage of sensitive mount flags via logs.
+var _ fmt.Stringer = &CSIOptions{}
+var _ fmt.GoStringer = &CSIOptions{}
+
+func (v *CSIOptions) String() string {
+	mountFlagsString := "nil"
+	if len(v.MountFlags) != 0 {
+		mountFlagsString = "[REDACTED]"
+	}
+
+	return fmt.Sprintf("csi.CSIOptions(FSType: %s, MountFlags: %s)", v.FSType, mountFlagsString)
+}
+
+func (v *CSIOptions) GoString() string {
+	return v.String()
+}
+
 // CSIVolume is the full representation of a CSI Volume
 type CSIVolume struct {
 	// ID is a namespace unique URL safe identifier for the volume
@@ -147,6 +194,7 @@ type CSIVolume struct {
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
+	MountOptions   *CSIOptions
 
 	// Allocations, tracking claim status
 	ReadAllocs  map[string]*Allocation
