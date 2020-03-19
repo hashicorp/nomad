@@ -117,6 +117,17 @@ func (v *volumeManager) ensureAllocDir(vol *structs.CSIVolume, alloc *structs.Al
 	return allocPath, !isNotMount, nil
 }
 
+func volumeCapability(vol *structs.CSIVolume, usage *UsageOptions) (*csi.VolumeCapability, error) {
+	capability, err := csi.VolumeCapabilityFromStructs(vol.AttachmentMode, vol.AccessMode)
+	if err != nil {
+		return nil, err
+	}
+
+	capability.MountOptions = usage.MountOptions
+
+	return capability, nil
+}
+
 // stageVolume prepares a volume for use by allocations. When a plugin exposes
 // the STAGE_UNSTAGE_VOLUME capability it MUST be called once-per-volume for a
 // given usage mode before the volume can be NodePublish-ed.
@@ -136,7 +147,7 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume,
 		return nil
 	}
 
-	capability, err := csi.VolumeCapabilityFromStructs(vol.AttachmentMode, vol.AccessMode)
+	capability, err := volumeCapability(vol, usage)
 	if err != nil {
 		return err
 	}
@@ -175,7 +186,7 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 		return &MountInfo{Source: hostTargetPath}, nil
 	}
 
-	capabilities, err := csi.VolumeCapabilityFromStructs(vol.AttachmentMode, vol.AccessMode)
+	capabilities, err := volumeCapability(vol, usage)
 	if err != nil {
 		return nil, err
 	}
