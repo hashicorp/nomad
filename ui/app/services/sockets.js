@@ -1,5 +1,6 @@
 import Service from '@ember/service';
 import config from 'nomad-ui/config/environment';
+import { getOwner } from '@ember/application';
 
 export default Service.extend({
   getTaskStateSocket(taskState, command) {
@@ -20,9 +21,13 @@ export default Service.extend({
         },
       });
     } else {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const applicationAdapter = getOwner(this).lookup('adapter:application');
+      const prefix = `${applicationAdapter.host ||
+        window.location.host}/${applicationAdapter.urlPrefix()}`;
+
       return new WebSocket(
-        // FIXME parameterise host
-        `ws://localhost:4200/v1/client/allocation/${taskState.allocation.id}` +
+        `${protocol}//${prefix}/client/allocation/${taskState.allocation.id}` +
           `/exec?task=${taskState.name}&tty=true` +
           `&command=${encodeURIComponent(`["${command}"]`)}`
       );
