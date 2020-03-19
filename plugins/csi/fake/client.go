@@ -5,6 +5,7 @@ package fake
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/hashicorp/nomad/plugins/base"
@@ -232,5 +233,44 @@ func (c *Client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath s
 
 // Shutdown the client and ensure any connections are cleaned up.
 func (c *Client) Close() error {
+
+	c.NextPluginInfoResponse = nil
+	c.NextPluginInfoErr = fmt.Errorf("closed client")
+
+	c.NextPluginProbeResponse = false
+	c.NextPluginProbeErr = fmt.Errorf("closed client")
+
+	c.NextPluginGetInfoNameResponse = ""
+	c.NextPluginGetInfoVersionResponse = ""
+	c.NextPluginGetInfoErr = fmt.Errorf("closed client")
+
+	c.NextPluginGetCapabilitiesResponse = nil
+	c.NextPluginGetCapabilitiesErr = fmt.Errorf("closed client")
+
+	c.NextControllerGetCapabilitiesResponse = nil
+	c.NextControllerGetCapabilitiesErr = fmt.Errorf("closed client")
+
+	c.NextControllerPublishVolumeResponse = nil
+	c.NextControllerPublishVolumeErr = fmt.Errorf("closed client")
+
+	c.NextControllerUnpublishVolumeResponse = nil
+	c.NextControllerUnpublishVolumeErr = fmt.Errorf("closed client")
+
+	c.NextControllerValidateVolumeErr = fmt.Errorf("closed client")
+
+	c.NextNodeGetCapabilitiesResponse = nil
+	c.NextNodeGetCapabilitiesErr = fmt.Errorf("closed client")
+
+	c.NextNodeGetInfoResponse = nil
+	c.NextNodeGetInfoErr = fmt.Errorf("closed client")
+
+	c.NextNodeStageVolumeErr = fmt.Errorf("closed client")
+
+	c.NextNodeUnstageVolumeErr = fmt.Errorf("closed client")
+
+	c.NextNodePublishVolumeErr = fmt.Errorf("closed client")
+
+	c.NextNodeUnpublishVolumeErr = fmt.Errorf("closed client")
+
 	return nil
 }
