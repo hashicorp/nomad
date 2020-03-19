@@ -126,15 +126,26 @@ func (i *instanceManager) runLoop() {
 				i.client.Close()
 				i.client = nil
 			}
-			close(i.shutdownCh)
-			return
-		case <-timer.C:
-			ctx, cancelFn := i.requestCtxWithTimeout(managerFingerprintInterval)
 
+			// run one last fingerprint so that we mark the plugin as unhealthy.
+			// the client has been closed so this will return quickly with the
+			// plugin's basic info
+			ctx, cancelFn := i.requestCtxWithTimeout(time.Second)
 			info := i.fp.fingerprint(ctx)
 			cancelFn()
-			i.updater(i.info.Name, info)
+			if info != nil {
+				i.updater(i.info.Name, info)
+			}
+			close(i.shutdownCh)
+			return
 
+		case <-timer.C:
+			ctx, cancelFn := i.requestCtxWithTimeout(managerFingerprintInterval)
+			info := i.fp.fingerprint(ctx)
+			cancelFn()
+			if info != nil {
+				i.updater(i.info.Name, info)
+			}
 			timer.Reset(managerFingerprintInterval)
 		}
 	}
