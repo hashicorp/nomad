@@ -123,6 +123,22 @@ pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 		-tags "$(GO_TAGS)" \
 		-o "$@.exe"
 
+pkg/linux_ppc64le/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
+	@CGO_ENABLED=1 GOOS=linux GOARCH=ppc64le \
+		go build \
+		-ldflags $(GO_LDFLAGS) \
+		-tags "$(GO_TAGS)" \
+		-o "$@"
+
+pkg/linux_s390x/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
+	@CGO_ENABLED=1 GOOS=linux GOARCH=s390x \
+		go build \
+		-ldflags $(GO_LDFLAGS) \
+		-tags "$(GO_TAGS)" \
+		-o "$@"
+
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget
 
