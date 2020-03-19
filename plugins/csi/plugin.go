@@ -357,42 +357,11 @@ func (v VolumeAccessType) String() string {
 	}
 }
 
-// VolumeMountOptions contain optional additional configuration that can be used
-// when specifying that a Volume should be used with VolumeAccessTypeMount.
-type VolumeMountOptions struct {
-	// FSType is an optional field that allows an operator to specify the type
-	// of the filesystem.
-	FSType string
-
-	// MountFlags contains additional options that may be used when mounting the
-	// volume by the plugin. This may contain sensitive data and should not be
-	// leaked.
-	MountFlags []string
-}
-
-// VolumeMountOptions implements the Stringer and GoStringer interfaces to prevent
-// accidental leakage of sensitive mount flags via logs.
-var _ fmt.Stringer = &VolumeMountOptions{}
-var _ fmt.GoStringer = &VolumeMountOptions{}
-
-func (v *VolumeMountOptions) String() string {
-	mountFlagsString := "nil"
-	if len(v.MountFlags) != 0 {
-		mountFlagsString = "[REDACTED]"
-	}
-
-	return fmt.Sprintf("csi.VolumeMountOptions(FSType: %s, MountFlags: %s)", v.FSType, mountFlagsString)
-}
-
-func (v *VolumeMountOptions) GoString() string {
-	return v.String()
-}
-
 // VolumeCapability describes the overall usage requirements for a given CSI Volume
 type VolumeCapability struct {
-	AccessType         VolumeAccessType
-	AccessMode         VolumeAccessMode
-	VolumeMountOptions *VolumeMountOptions
+	AccessType   VolumeAccessType
+	AccessMode   VolumeAccessMode
+	MountOptions *structs.CSIOptions
 }
 
 func VolumeCapabilityFromStructs(sAccessType structs.CSIVolumeAttachmentMode, sAccessMode structs.CSIVolumeAccessMode) (*VolumeCapability, error) {
@@ -450,8 +419,8 @@ func (c *VolumeCapability) ToCSIRepresentation() *csipbv1.VolumeCapability {
 	if c.AccessType == VolumeAccessTypeMount {
 		vc.AccessType = &csipbv1.VolumeCapability_Mount{
 			Mount: &csipbv1.VolumeCapability_MountVolume{
-				FsType:     c.VolumeMountOptions.FSType,
-				MountFlags: c.VolumeMountOptions.MountFlags,
+				FsType:     c.MountOptions.FSType,
+				MountFlags: c.MountOptions.MountFlags,
 			},
 		}
 	} else {
