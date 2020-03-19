@@ -171,6 +171,30 @@ func TestDynamicRegistry_DispensePlugin_Works(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestDynamicRegistry_IsolatePluginTypes(t *testing.T) {
+	t.Parallel()
+	r := NewRegistry(nil, nil)
+
+	err := r.RegisterPlugin(&PluginInfo{
+		Type:           PluginTypeCSIController,
+		Name:           "my-plugin",
+		ConnectionInfo: &PluginConnectionInfo{},
+	})
+	require.NoError(t, err)
+
+	err = r.RegisterPlugin(&PluginInfo{
+		Type:           PluginTypeCSINode,
+		Name:           "my-plugin",
+		ConnectionInfo: &PluginConnectionInfo{},
+	})
+	require.NoError(t, err)
+
+	err = r.DeregisterPlugin(PluginTypeCSIController, "my-plugin")
+	require.NoError(t, err)
+	require.Equal(t, len(r.ListPlugins(PluginTypeCSINode)), 1)
+	require.Equal(t, len(r.ListPlugins(PluginTypeCSIController)), 0)
+}
+
 func TestDynamicRegistry_StateStore(t *testing.T) {
 	t.Parallel()
 	dispenseFn := func(i *PluginInfo) (interface{}, error) {

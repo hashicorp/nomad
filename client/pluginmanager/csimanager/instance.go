@@ -86,7 +86,7 @@ func (i *instanceManager) run() {
 
 func (i *instanceManager) setupVolumeManager() {
 	if i.info.Type != dynamicplugins.PluginTypeCSINode {
-		i.logger.Debug("Skipping volume manager setup - not managing a Node plugin", "type", i.info.Type)
+		i.logger.Debug("not a node plugin, skipping volume manager setup", "type", i.info.Type)
 		return
 	}
 
@@ -95,7 +95,7 @@ func (i *instanceManager) setupVolumeManager() {
 		return
 	case <-i.fp.hadFirstSuccessfulFingerprintCh:
 		i.volumeManager = newVolumeManager(i.logger, i.client, i.mountPoint, i.containerMountPoint, i.fp.requiresStaging)
-		i.logger.Debug("Setup volume manager")
+		i.logger.Debug("volume manager setup complete")
 		close(i.volumeManagerSetupCh)
 		return
 	}
