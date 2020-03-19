@@ -274,8 +274,10 @@ job "countdash" {
       #
       # check {
       #   name     = "alive"
-      #   type     = "tcp"
-      #   task     = "api"
+      #   type     = "script"
+      #   task     = "web"
+      #   command  = "/bin/echo"
+      #   args     = ["I", "am", "alive"]
       #   interval = "10s"
       #   timeout  = "2s"
       # }
