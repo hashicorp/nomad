@@ -2,16 +2,13 @@ import ApplicationSerializer from './application';
 
 export default ApplicationSerializer.extend({
   normalize(typeHash, hash) {
-    hash.NamespaceID = hash.Namespace;
-
     hash.PlainID = hash.ID;
 
-    // TODO These shouldn't hardcode `csi/` as part of the IDs,
-    // but it is necessary to make the correct find requests and the
+    // TODO This shouldn't hardcode `csi/` as part of the ID,
+    // but it is necessary to make the correct find request and the
     // payload does not contain the required information to derive
     // this identifier.
-    hash.ID = JSON.stringify([`csi/${hash.ID}`, hash.NamespaceID || 'default']);
-    hash.PluginID = `csi/${hash.PluginID}`;
+    hash.ID = `csi/${hash.ID}`;
 
     return this._super(typeHash, hash);
   },
