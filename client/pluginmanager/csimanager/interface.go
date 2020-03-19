@@ -22,6 +22,7 @@ type UsageOptions struct {
 	ReadOnly       bool
 	AttachmentMode string
 	AccessMode     string
+	MountOptions   *structs.CSIOptions
 }
 
 // ToFS is used by a VolumeManager to construct the path to where a volume
