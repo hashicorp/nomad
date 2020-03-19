@@ -14,7 +14,13 @@ export default Component.extend({
   },
 
   generateUrl() {
-    if (this.allocation) {
+    if (this.taskGroup) {
+      return this.router.urlFor(
+        'exec.task-group',
+        this.job.get('name'),
+        this.taskGroup.get('name')
+      );
+    } else if (this.allocation) {
       let urlOptions = {
         queryParams: {
           allocation: this.allocation.shortId,
