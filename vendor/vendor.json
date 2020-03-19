@@ -365,7 +365,7 @@
 		{"path":"github.com/opencontainers/selinux/go-selinux","checksumSHA1":"I8dSwjoqi6o2WXOEAnhM2yWivcM=","revision":"a2f0d9c2aafc13c9ec6238b20809e4810878dd1b","revisionTime":"2020-03-11T11:16:34Z"},
 		{"path":"github.com/opencontainers/selinux/go-selinux/label","checksumSHA1":"v2UwsAs4sHtr4b3lHr5bIPLzS8s=","revision":"a2f0d9c2aafc13c9ec6238b20809e4810878dd1b","revisionTime":"2020-03-11T11:16:34Z"},
 		{"path":"github.com/opencontainers/selinux/pkg/pwalk","checksumSHA1":"2FmD6NkRP3psb2IfUF3kY9J9i6k=","revision":"a2f0d9c2aafc13c9ec6238b20809e4810878dd1b","revisionTime":"2020-03-11T11:16:34Z"},
-		{"path":"github.com/pkg/errors","checksumSHA1":"Qo2E/26skb9mZQ3b2Mh6QDkpBLs=","revision":"614d223910a179a466c1767a985424175c39b465","revisionTime":"2020-01-14T19:47:44Z"},
+		{"path":"github.com/pkg/errors","checksumSHA1":"Qo2E/26skb9mZQ3b2Mh6QDkpBLs=","revision":"614d223910a179a466c1767a985424175c39b465","revisionTime":"2020-01-14T19:47:44Z","version":"v0.9.1","versionExact":"v0.9.1"},
 		{"path":"github.com/pmezard/go-difflib/difflib","checksumSHA1":"LuFv4/jlrmFNnDb/5SCSEPAM9vU=","revision":"792786c7400a136282c1664665ae0a8db921c6c2","revisionTime":"2016-01-10T10:55:54Z"},
 		{"path":"github.com/posener/complete","checksumSHA1":"rTNABfFJ9wtLQRH8uYNkEZGQOrY=","revision":"9f41f7636a724791a3b8b1d35e84caa1124f0d3c","revisionTime":"2017-08-29T17:11:12Z"},
 		{"path":"github.com/posener/complete/cmd","checksumSHA1":"NB7uVS0/BJDmNu68vPAlbrq4TME=","revision":"9f41f7636a724791a3b8b1d35e84caa1124f0d3c","revisionTime":"2017-08-29T17:11:12Z"},
