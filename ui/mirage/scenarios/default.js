@@ -41,6 +41,7 @@ function smallCluster(server) {
   server.createList('job', 5);
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
+  server.createList('csi-plugin', 2);
 }
 
 function mediumCluster(server) {
