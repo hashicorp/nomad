@@ -431,11 +431,8 @@ func VolumeCapabilityFromStructs(sAccessType structs.CSIVolumeAttachmentMode, sA
 	}
 
 	return &VolumeCapability{
-		AccessType:         accessType,
-		AccessMode:         accessMode,
-		VolumeMountOptions: &VolumeMountOptions{
-			// GH-7007: Currently we have no way to provide these
-		},
+		AccessType: accessType,
+		AccessMode: accessMode,
 	}, nil
 }
 
