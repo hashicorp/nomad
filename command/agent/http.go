@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/rs/cors"
@@ -273,6 +274,12 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/servers", s.wrap(s.AgentServersRequest))
 	s.mux.HandleFunc("/v1/agent/keyring/", s.wrap(s.KeyringOperationRequest))
 	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
+
+	// Monitor is *not* an untrusted endpoint despite the log contents
+	// potentially containing unsanitized user input. Monitor, like
+	// "/v1/client/fs/logs", explicitly sets a "text/plain" or
+	// "application/json" Content-Type depending on the ?plain= query
+	// parameter.
 	s.mux.HandleFunc("/v1/agent/monitor", s.wrap(s.AgentMonitor))
 
 	s.mux.HandleFunc("/v1/agent/pprof/", s.wrapNonJSON(s.AgentPprofRequest))
@@ -621,6 +628,27 @@ func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteReques
 	parseNamespace(req, &w.Namespace)
 	s.parseToken(req, &w.AuthToken)
 	s.parseRegion(req, &w.Region)
+}
+
+// wrapUntrustedContent wraps handlers in a http.ResponseWriter that prevents
+// setting Content-Types that a browser may render (eg text/html). Any API that
+// returns service-generated content (eg /v1/client/fs/cat) must be wrapped.
+func (s *HTTPServer) wrapUntrustedContent(handler handlerFn) handlerFn {
+	return func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+		resp, closeWriter := noxssrw.NewResponseWriter(resp)
+		defer func() {
+			if _, err := closeWriter(); err != nil {
+				// Can't write an error response at this point so just
+				// log. s.wrap does not even log when resp.Write fails,
+				// so log at low level.
+				s.logger.Debug("error writing HTTP response", "error", err,
+					"method", req.Method, "path", req.URL.String())
+			}
+		}()
+
+		// Call the wrapped handler
+		return handler(resp, req)
+	}
 }
 
 // wrapCORS wraps a HandlerFunc in allowCORS and returns a http.Handler
