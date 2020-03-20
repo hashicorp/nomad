@@ -123,10 +123,11 @@ func volumeCapability(vol *structs.CSIVolume, usage *UsageOptions) (*csi.VolumeC
 		return nil, err
 	}
 
-	opts := vol.MountOptions.Copy()
-	if opts == nil {
+	var opts *structs.CSIMountOptions
+	if vol.MountOptions == nil {
 		opts = usage.MountOptions
 	} else {
+		opts = vol.MountOptions.Copy()
 		opts.Merge(usage.MountOptions)
 	}
 
