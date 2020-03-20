@@ -128,6 +128,7 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 			task.Canonicalize(job, g)
 
 			makePort := func(label string) {
+				// check that port hasn't already been defined before adding it to tg
 				for _, p := range g.Networks[0].DynamicPorts {
 					if p.Label == label {
 						return

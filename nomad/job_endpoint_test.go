@@ -263,7 +263,7 @@ func TestJobEndpoint_Register_ConnectProxyExposeChecks(t *testing.T) {
 		ListenerPort:  "v2Port",
 	}, grpcPath)
 
-	// todo: round tripping is probably gonna duplicate since we only append
+	// make sure round tripping does not create duplicate expose paths
 	out.Meta["test"] = "abc"
 	req.Job = out
 	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
@@ -275,7 +275,7 @@ func TestJobEndpoint_Register_ConnectProxyExposeChecks(t *testing.T) {
 	out, err = state.JobByID(ws, job.Namespace, job.ID)
 	r.NoError(err)
 	r.NotNil(out)
-	r.Equal(resp.JobModifyIndex, out.CreateIndex) // todo uhh
+	r.Equal(resp.JobModifyIndex, out.CreateIndex)
 
 	// make sure we are not re-adding what has already been added
 	r.Len(out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths, 2)
