@@ -90,7 +90,7 @@ type VolumeRequest struct {
 	Type         string
 	Source       string
 	ReadOnly     bool
-	MountOptions *CSIOptions
+	MountOptions *CSIMountOptions
 }
 
 func (v *VolumeRequest) Copy() *VolumeRequest {

@@ -361,7 +361,7 @@ func (v VolumeAccessType) String() string {
 type VolumeCapability struct {
 	AccessType   VolumeAccessType
 	AccessMode   VolumeAccessMode
-	MountOptions *structs.CSIOptions
+	MountOptions *structs.CSIMountOptions
 }
 
 func VolumeCapabilityFromStructs(sAccessType structs.CSIVolumeAttachmentMode, sAccessMode structs.CSIVolumeAccessMode) (*VolumeCapability, error) {
