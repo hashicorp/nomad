@@ -47,7 +47,6 @@
 @import '../components/featured-slider-section/style.css';
 @import '../components/learn-nomad/style.css';
 @import '../components/basic-hero/style.css';
-@import '../components/subnav/style.css';
 
 /* Local Pages */
 @import './home/style.css';

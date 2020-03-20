@@ -5,7 +5,6 @@ import { useRouter } from 'next/router'
 export default function NomadSubnav() {
   const router = useRouter()
   return (
-    // Currently targeting .g-subnav in style.css to constrain subnav from full-width
     <Subnav
       titleLink={{
         text: 'nomad',
