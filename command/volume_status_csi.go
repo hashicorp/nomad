@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func (c *VolumeStatusCommand) csiBanner() {
@@ -105,6 +106,7 @@ func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) (string, error) {
 
 		fmt.Sprintf("Access Mode|%s", vol.AccessMode),
 		fmt.Sprintf("Attachment Mode|%s", vol.AttachmentMode),
+		fmt.Sprintf("Mount Options|%s", csiVolMountOption(vol.MountOptions, nil)),
 		fmt.Sprintf("Namespace|%s", vol.Namespace),
 	}
 
@@ -150,4 +152,44 @@ func (c *VolumeStatusCommand) formatTopologies(vol *api.CSIVolume) string {
 	}
 
 	return strings.Join(out, "\n")
+}
+
+func csiVolMountOption(volume, request *api.CSIMountOptions) string {
+	var vol, req, opts *structs.CSIMountOptions
+
+	if volume != nil {
+		vol = &structs.CSIMountOptions{
+			FSType:     volume.FSType,
+			MountFlags: volume.MountFlags,
+		}
+	}
+
+	if request != nil {
+		req = &structs.CSIMountOptions{
+			FSType:     volume.FSType,
+			MountFlags: volume.MountFlags,
+		}
+	}
+
+	if volume == nil {
+		opts = req
+	} else {
+		opts = vol.Copy()
+		opts.Merge(req)
+	}
+
+	if opts == nil {
+		return "<none>"
+	}
+
+	var out string
+	if opts.FSType != "" {
+		out = fmt.Sprintf("fs_type: %s", opts.FSType)
+	}
+
+	if len(opts.MountFlags) > 0 {
+		out = fmt.Sprintf("%s %s", out, strings.Join(opts.MountFlags, ", "))
+	}
+
+	return out
 }
