@@ -38,12 +38,13 @@ BUG FIXES:
  * cli: Fixed a bug where `alloc exec` command in TLS environments may fail [[GH-7274](https://github.com/hashicorp/nomad/issues/7274)]
  * client: Fixed a panic when running in Debian with `/etc/debian_version` is empty [[GH-7350](https://github.com/hashicorp/nomad/issues/7350)]
  * client: Fixed a bug where a multi-task allocation maybe considered healthy despite a task restarting [[GH-7383](https://github.com/hashicorp/nomad/issues/7383)]
+ * consul: Fixed a bug where modified Consul service definitions would not be updated [[GH-6459](https://github.com/hashicorp/nomad/issues/6459)]
 
 ## 0.10.5 (March 24, 2020)
 
 SECURITY:
 
-* server: Override content-type headers for unsafe content. CVE-TBD [[GH-7468](https://github.com/hashicorp/nomad/issues/7468)]
+ * server: Override content-type headers for unsafe content. CVE-TBD [[GH-7468](https://github.com/hashicorp/nomad/issues/7468)]
 
 ## 0.10.4 (February 19, 2020)
 
