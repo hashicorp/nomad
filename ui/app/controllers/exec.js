@@ -1,5 +1,6 @@
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
+import { filterBy, mapBy, uniq } from '@ember/object/computed';
 import escapeTaskName from 'nomad-ui/utils/escape-task-name';
 import ExecCommandEditorXtermAdapter from 'nomad-ui/utils/classes/exec-command-editor-xterm-adapter';
 import ExecSocketXtermAdapter from 'nomad-ui/utils/classes/exec-socket-xterm-adapter';
@@ -18,6 +19,10 @@ export default Controller.extend({
   command: '/bin/bash',
   socketOpen: false,
   taskState: null,
+
+  runningAllocations: filterBy('model.allocations', 'isRunning'),
+  runningTaskGroups: mapBy('runningAllocations', 'taskGroup'),
+  uniqueRunningTaskGroups: uniq('runningTaskGroups'),
 
   init() {
     this._super(...arguments);

@@ -19,7 +19,7 @@ module('Acceptance | exec', function(hooks) {
       server.create('allocation', {
         jobId: this.job.id,
         taskGroup: server.db.taskGroups.find(taskGroupId).name,
-        allowPendingClientStatus: false,
+        forceRunningClientStatus: true,
       });
     });
   });
@@ -79,12 +79,9 @@ module('Acceptance | exec', function(hooks) {
     );
   });
 
-  skip('a task group with no active task states should not be shown', async function(assert) {
+  test('a task group with no running task states should not be shown', async function(assert) {
     let taskGroup = this.job.task_groups.models[0];
-
-    taskGroup.tasks.models.forEach(task => {
-      this.server.db.taskStates.update({ name: task.name }, { finishedAt: new Date() });
-    });
+    this.server.db.allocations.update({ taskGroup: taskGroup.name }, { clientStatus: 'pending' });
 
     await Exec.visitJob({ job: this.job.id });
     assert.notEqual(Exec.taskGroups[0].name, taskGroup.name);
