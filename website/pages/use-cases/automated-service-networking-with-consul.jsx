@@ -18,8 +18,8 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
             {
               text: 'Read More',
               url:
-                '/guides/integrations/consul-integration#automatic-clustering-with-consul',
-              type: 'inbound'
+                'https://learn.hashicorp.com/nomad/operating-nomad/clustering#use-consul-to-automatically-cluster-nodes',
+              type: 'outbound'
             }
           ]
         }}
@@ -40,7 +40,7 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
               {
                 text: 'Read More',
                 url:
-                  '/guides/integrations/consul-integration#service-discovery',
+                  '/docs/integrations/consul-integration#service-discovery',
                 type: 'inbound'
               }
             ]
@@ -61,7 +61,7 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
           links: [
             {
               text: 'Learn More',
-              url: '/guides/integrations/consul-connect',
+              url: '/docs/integrations/consul-connect',
               type: 'inbound'
             }
           ]
