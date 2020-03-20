@@ -180,6 +180,19 @@ SERVICE_NAME: Nomad
         }}
       />
 
+      <TextSplitWithImage
+        textSplit={{
+          heading: 'Run stateful workloads',
+          content:
+            'Natively connect and run stateful services with storage volumes from third-party providers via the Container Storage Interface plugin system.',
+          textSide: 'right'
+        }}
+        image={{
+          url: require('./img/csi.svg'),
+          alt: 'Stateful Workloads'
+        }}
+      />
+
       <FeaturedSliderSection
         heading="Case Studies"
         features={[
