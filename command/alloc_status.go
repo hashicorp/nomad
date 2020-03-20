@@ -781,7 +781,7 @@ FOUND:
 						vol.Provider,
 						vol.Schedulable,
 						volReq.ReadOnly,
-						"n/a", // TODO(tgross): https://github.com/hashicorp/nomad/issues/7007
+						volMountOptionString(vol.MountOptions, volReq.MountOptions)
 					))
 			} else {
 				csiVolumesOutput = append(csiVolumesOutput,
@@ -799,4 +799,25 @@ FOUND:
 		c.Ui.Output(formatList(csiVolumesOutput))
 		c.Ui.Output("") // line padding to next stanza
 	}
+}
+
+func volMountOptionString(volume, request *api.CSIMountOptions) string {
+	var opts *structs.CSIMountOptions
+	if vol.MountOptions == nil {
+		opts = usage.MountOptions
+	} else {
+		opts = vol.MountOptions.Copy()
+		opts.Merge(usage.MountOptions)
+	}
+
+	out := "<none>"
+	if opts.FSType {
+		out = fmt.Sprintf("fs_type: %s", opts.FSType)
+	}
+
+	if len(opts.MountFlags) > 0 {
+		out = fmt.Sprintf("%s %s", out, strings.Join(opts.MountFlags, ", "))
+	}
+
+	return out
 }
