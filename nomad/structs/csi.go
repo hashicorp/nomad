@@ -149,6 +149,9 @@ type CSIMountOptions struct {
 }
 
 func (o *CSIMountOptions) Copy() *CSIMountOptions {
+	if o == nil {
+		return nil
+	}
 	return &(*o)
 }
 
