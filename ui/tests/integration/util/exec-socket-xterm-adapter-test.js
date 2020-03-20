@@ -37,6 +37,31 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
     await settled();
   });
 
+  test('stdout frames without data are ignored', async function(assert) {
+    assert.expect(0);
+
+    let terminal = new Terminal();
+    this.set('terminal', terminal);
+
+    await render(hbs`
+      {{exec-terminal terminal=terminal}}
+    `);
+
+    await settled();
+
+    let mockSocket = new Object({
+      send() {},
+    });
+
+    new ExecSocketXtermAdapter(terminal, mockSocket);
+
+    mockSocket.onmessage({
+      data: '{"stdout":{"exited":"true"}}',
+    });
+
+    await settled();
+  });
+
   test('stderr frames are ignored', async function(assert) {
     let terminal = new Terminal();
     this.set('terminal', terminal);
