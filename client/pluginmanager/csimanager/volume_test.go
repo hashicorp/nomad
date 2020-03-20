@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 	csifake "github.com/hashicorp/nomad/plugins/csi/fake"
-	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
 
@@ -358,7 +357,6 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			require.Equal(t, tc.ExpectedCSICallCount, csiFake.NodePublishVolumeCallCount)
 
 			if tc.ExpectedVolumeCapability != nil {
-				pretty.Log(csiFake.PrevVolumeCapability)
 				require.Equal(t, tc.ExpectedVolumeCapability, csiFake.PrevVolumeCapability)
 			}
 
