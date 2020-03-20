@@ -10,12 +10,11 @@ export default class ExecSocketXtermAdapter {
 
     socket.onopen = () => {
       this.sendTtySize();
-    };
-    // FIXME the onKey handler also shouldn’t be set until this happens
 
-    terminal.onKey(e => {
-      this.handleKeyEvent(e);
-    });
+      terminal.onData(data => {
+        this.handleData(data);
+      });
+    };
 
     socket.onmessage = e => {
       let json = JSON.parse(e.data);
@@ -47,9 +46,8 @@ export default class ExecSocketXtermAdapter {
     );
   }
 
-  handleKeyEvent(e) {
-    this.socket.send(JSON.stringify({ stdin: { data: encodeString(e.key) } }));
-    // FIXME this is untested, difficult with restriction on simulating key events
+  handleData(data) {
+    this.socket.send(JSON.stringify({ stdin: { data: encodeString(data) } }));
   }
 }
 
