@@ -7,6 +7,28 @@
 
 export default [
   {
+    category: 'install',
+    content: [
+      { category: 'quickstart' },
+      {
+        category: 'production',
+        content: [
+          'requirements',
+          'nomad-agent',
+          'reference-architecture',
+          'deployment-guide'
+        ]
+      },
+      'windows-service'
+    ]
+  },
+  { category: 'upgrade', content: ['upgrade-specific'] },
+  {
+    category: 'integrations',
+    content: ['consul-integration', 'consul-connect', 'vault-integration']
+  },
+  '-----------',
+  {
     category: 'internals',
     content: [
       'architecture',
