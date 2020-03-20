@@ -81,7 +81,7 @@ const (
 	CSIVolumeAccessModeMultiNodeMultiWriter  CSIVolumeAccessMode = "multi-node-multi-writer"
 )
 
-type CSIOptions struct {
+type CSIMountOptions struct {
 	FSType       string   `hcl:"fs_type"`
 	MountFlags   []string `hcl:"mount_flags"`
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"` // report unexpected keys
@@ -96,7 +96,7 @@ type CSIVolume struct {
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode     `hcl:"access_mode"`
 	AttachmentMode CSIVolumeAttachmentMode `hcl:"attachment_mode"`
-	MountOptions   *CSIOptions             `hcl:"mount_options"`
+	MountOptions   *CSIMountOptions        `hcl:"mount_options"`
 
 	// Allocations, tracking claim status
 	ReadAllocs  map[string]*Allocation

@@ -122,7 +122,7 @@ func TestParse(t *testing.T) {
 							"foo": {
 								Name: "foo",
 								Type: "host",
-								MountOptions: &api.CSIOptions{
+								MountOptions: &api.CSIMountOptions{
 									MountFlags: []string{
 										"ro",
 									},
