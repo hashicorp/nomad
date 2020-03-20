@@ -44,14 +44,11 @@ func (c *csiHook) Prerun() error {
 			return err
 		}
 
-		options := pair.volume.MountOptions.Copy()
-		options.Merge(pair.request.MountOptions)
-
 		usageOpts := &csimanager.UsageOptions{
 			ReadOnly:       pair.request.ReadOnly,
 			AttachmentMode: string(pair.volume.AttachmentMode),
 			AccessMode:     string(pair.volume.AccessMode),
-			MountOptions:   options,
+			MountOptions:   pair.request.MountOptions,
 		}
 
 		mountInfo, err := mounter.MountVolume(ctx, pair.volume, c.alloc, usageOpts, pair.publishContext)
