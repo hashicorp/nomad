@@ -4,7 +4,7 @@ export default ApplicationSerializer.extend({
   normalize(typeHash, hash) {
     hash.NamespaceID = hash.Namespace;
 
-    hash.PlainID = hash.ID;
+    hash.PlainId = hash.ID;
 
     // TODO These shouldn't hardcode `csi/` as part of the IDs,
     // but it is necessary to make the correct find requests and the

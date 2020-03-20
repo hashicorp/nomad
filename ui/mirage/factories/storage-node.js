@@ -22,7 +22,7 @@ export default Factory.extend({
     AccessibleTopology: {
       key: 'value',
     },
-    RequiersNodeStageVolume: true,
+    RequiresNodeStageVolume: true,
   }),
 
   afterCreate(storageNode, server) {

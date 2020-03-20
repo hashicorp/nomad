@@ -7,7 +7,7 @@ const ACCESS_MODES = ['multi-node-single-writer'];
 const ATTACHMENT_MODES = ['file-system'];
 
 export default Factory.extend({
-  id: i => `csi/${faker.hacker.noun().dasherize()}-${i}`.toLowerCase(),
+  id: i => `${faker.hacker.noun().dasherize()}-${i}`.toLowerCase(),
   name() {
     return this.id;
   },
@@ -28,6 +28,10 @@ export default Factory.extend({
   controllersHealthy: () => faker.random.number(10),
   controllersExpected() {
     return this.controllersHealthy + faker.random.number(10);
+  },
+  nodesHealthy: () => faker.random.number(10),
+  nodesExpected() {
+    return this.nodesHealthy + faker.random.number(10);
   },
 
   afterCreate(volume, server) {
