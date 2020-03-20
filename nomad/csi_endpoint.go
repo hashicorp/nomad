@@ -551,9 +551,6 @@ func (srv *Server) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, r
 		AttachmentMode:  vol.AttachmentMode,
 		AccessMode:      vol.AccessMode,
 		ReadOnly:        req.Claim == structs.CSIVolumeClaimRead,
-		// TODO(tgross): we don't have a way of setting these yet.
-		// ref https://github.com/hashicorp/nomad/issues/7007
-		// MountOptions:   vol.MountOptions,
 	}
 	cReq.PluginID = plug.ID
 	cReq.ControllerNodeID = nodeID
