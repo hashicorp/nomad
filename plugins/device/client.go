@@ -5,9 +5,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/LK4D4/joincontext"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/hashicorp/nomad/helper/pluginutils/grpcutils"
+	"github.com/hashicorp/nomad/internal/joincontext"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device/proto"
 )

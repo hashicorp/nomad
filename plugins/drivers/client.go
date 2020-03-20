@@ -6,11 +6,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/LK4D4/joincontext"
 	"github.com/golang/protobuf/ptypes"
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pluginutils/grpcutils"
+	"github.com/hashicorp/nomad/internal/joincontext"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"

@@ -4,10 +4,9 @@
 package joincontext
 
 import (
+	"context"
 	"sync"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 type joinContext struct {
