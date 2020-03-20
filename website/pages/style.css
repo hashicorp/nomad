@@ -32,6 +32,7 @@
 @import '~@hashicorp/react-call-to-action/dist/style.css';
 @import '~@hashicorp/react-text-split/dist/style.css';
 @import '~@hashicorp/react-text-split-with-code/dist/style.css';
+@import '~@hashicorp/react-alert-banner/dist/style.css';
 
 /* Global Transpiled Components */
 @import '~@hashicorp/react-mega-nav/style.css';

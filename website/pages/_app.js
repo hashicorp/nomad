@@ -6,6 +6,7 @@ import DefaultHeadTags from '../components/default-head-tags'
 import ProductSubnav from '../components/subnav'
 import MegaNav from '@hashicorp/react-mega-nav'
 import Footer from '@hashicorp/react-footer'
+import AlertBanner from '@hashicorp/react-alert-banner'
 import { ConsentManager, open } from '@hashicorp/react-consent-manager'
 import consentManagerConfig from '../lib/consent-manager-config'
 import bugsnagClient from '../lib/bugsnag'
@@ -44,6 +45,14 @@ class NextApp extends App {
     return (
       <ErrorBoundary FallbackComponent={Error}>
         <DefaultHeadTags />
+        <AlertBanner
+          url="https://docs.google.com/forms/d/e/1FAIpQLSeTre9Uvsfohl3yKLdTf0jUACT2GQgvGBsbp4fZvARpFwdv-g/viewform
+          "
+          tag="Free Swag"
+          theme="nomad"
+          text="Share Your Story and Receive a Free Nomad Goodie Pack"
+          linkText="Learn More"
+        />
         <MegaNav product="Nomad" />
         <ProductSubnav />
         <Component {...pageProps} />

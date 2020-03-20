@@ -8,6 +8,7 @@
     "@bugsnag/plugin-react": "^6.5.0",
     "@hashicorp/nextjs-scripts": "^6.0.0-2",
     "@hashicorp/react-alert": "^2.0.0",
+    "@hashicorp/react-alert-banner": "^3.0.11",
     "@hashicorp/react-button": "^2.1.5",
     "@hashicorp/react-call-to-action": "^0.1.2",
     "@hashicorp/react-case-study-slider": "^2.0.6",
