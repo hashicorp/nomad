@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"context"
 	"encoding/gob"
 	"fmt"
 	"net/rpc"
@@ -8,11 +9,10 @@ import (
 	"syscall"
 	"time"
 
-	hclog "github.com/hashicorp/go-hclog"
-	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-plugin"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"golang.org/x/net/context"
 )
 
 const (
