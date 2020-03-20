@@ -67,6 +67,7 @@ type Client struct {
 	NextNodeUnstageVolumeErr   error
 	NodeUnstageVolumeCallCount int64
 
+	PrevVolumeCapability       *csi.VolumeCapability
 	NextNodePublishVolumeErr   error
 	NodePublishVolumeCallCount int64
 
@@ -217,6 +218,7 @@ func (c *Client) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
 
+	c.PrevVolumeCapability = req.VolumeCapability
 	c.NodePublishVolumeCallCount++
 
 	return c.NextNodePublishVolumeErr
