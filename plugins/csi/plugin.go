@@ -359,9 +359,11 @@ func (v VolumeAccessType) String() string {
 
 // VolumeCapability describes the overall usage requirements for a given CSI Volume
 type VolumeCapability struct {
-	AccessType   VolumeAccessType
-	AccessMode   VolumeAccessMode
-	MountOptions *structs.CSIMountOptions
+	AccessType VolumeAccessType
+	AccessMode VolumeAccessMode
+
+	// Indicate that the volume will be accessed via the filesystem API.
+	MountVolume *structs.CSIMountOptions
 }
 
 func VolumeCapabilityFromStructs(sAccessType structs.CSIVolumeAttachmentMode, sAccessMode structs.CSIVolumeAccessMode) (*VolumeCapability, error) {
@@ -419,8 +421,8 @@ func (c *VolumeCapability) ToCSIRepresentation() *csipbv1.VolumeCapability {
 	if c.AccessType == VolumeAccessTypeMount {
 		vc.AccessType = &csipbv1.VolumeCapability_Mount{
 			Mount: &csipbv1.VolumeCapability_MountVolume{
-				FsType:     c.MountOptions.FSType,
-				MountFlags: c.MountOptions.MountFlags,
+				FsType:     c.MountVolume.FSType,
+				MountFlags: c.MountVolume.MountFlags,
 			},
 		}
 	} else {
