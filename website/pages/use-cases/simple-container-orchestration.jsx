@@ -18,8 +18,8 @@ export default function SimpleContainerOrchestrationPage() {
           links: [
             {
               text: 'Read More',
-              url: '/guides/operating-a-job',
-              type: 'inbound'
+              url: 'https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs',
+              type: 'outbound'
             }
           ]
         }}
@@ -91,8 +91,8 @@ SERVICE_NAME: Nomad
           links: [
             {
               text: 'Read more',
-              url: '/guides/operations/federation',
-              type: 'inbound'
+              url: 'https://learn.hashicorp.com/nomad/operating-nomad/federation',
+              type: 'outbound'
             }
           ]
         }}
@@ -126,8 +126,8 @@ SERVICE_NAME: Nomad
           links: [
             {
               text: 'Read more',
-              url: '/guides/operating-a-job/update-strategies',
-              type: 'inbound'
+              url: 'https://learn.hashicorp.com/nomad/update-strategies',
+              type: 'outbound'
             }
           ]
         }}
