@@ -758,7 +758,7 @@ func TestHTTP_Job_GroupScaleStatus(t *testing.T) {
 		require.NoError(err)
 
 		// Check the response
-		status := obj.(*api.ScaleStatusResponse)
+		status := obj.(*api.JobScaleStatusResponse)
 		require.NotEmpty(resp.EvalID)
 		require.Equal(job.TaskGroups[0].Count, status.Value.(int))
 
