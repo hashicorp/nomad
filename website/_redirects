@@ -15,6 +15,7 @@
 /intro/getting-started/next-steps.html  https://learn.hashicorp.com/nomad/getting-started/next-steps
 /intro/getting-started/next-steps       https://learn.hashicorp.com/nomad/getting-started/next-steps
 
+/guides/load-balancing                  https://learn.hashicorp.com/nomad?track=load-balancing#operations-and-development
 /guides/load-balancing/fabio.html       https://learn.hashicorp.com/nomad/load-balancing/fabio
 /guides/load-balancing/fabio            https://learn.hashicorp.com/nomad/load-balancing/fabio
 /guides/load-balancing/nginx.html       https://learn.hashicorp.com/nomad/load-balancing/nginx
@@ -24,15 +25,17 @@
 /guides/load-balancing/traefik.html     https://learn.hashicorp.com/nomad/load-balancing/traefik
 /guides/load-balancing/traefik          https://learn.hashicorp.com/nomad/load-balancing/traefik
 
+/guides/stateful-workloads                    https://learn.hashicorp.com/nomad?track=stateful-workload#operations-and-development
 /guides/stateful-workloads/host-volumes.html  https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes
 /guides/stateful-workloads/host-volumes       https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes
 /guides/stateful-workloads/portworx.html      https://learn.hashicorp.com/nomad/stateful-workloads/portworx
 /guides/stateful-workloads/portworx           https://learn.hashicorp.com/nomad/stateful-workloads/portworx
 
+/guides/web-ui                              https://learn.hashicorp.com/nomad?track=web-ui#getting-started
 /guides/web-ui/access.html                  https://learn.hashicorp.com/nomad/web-ui/access
 /guides/web-ui/accessing                    https://learn.hashicorp.com/nomad/web-ui/access
 /guides/web-ui/submitting-a-job.html        https://learn.hashicorp.com/nomad/web-ui/ui-workload
-/guides/web-ui/submitting-a-jobops          https://learn.hashicorp.com/nomad/web-ui/ui-workload
+/guides/web-ui/submitting-a-job             https://learn.hashicorp.com/nomad/web-ui/ui-workload
 /guides/web-ui/operating-a-job.html         https://learn.hashicorp.com/nomad/web-ui/submit-job
 /guides/web-ui/operating-a-job              https://learn.hashicorp.com/nomad/web-ui/submit-job
 /guides/web-ui/inspecting-the-cluster.html  https://learn.hashicorp.com/nomad/web-ui/inspecting-the-cluster
@@ -40,6 +43,7 @@
 /guides/web-ui/securing.html                https://learn.hashicorp.com/nomad/web-ui/access
 /guides/web-ui/securing                     https://learn.hashicorp.com/nomad/web-ui/access
 
+/guides/governance-and-policy                                https://learn.hashicorp.com/nomad?track=governance-and-policy#operations-and-development
 /guides/governance-and-policy/namespaces.html                https://learn.hashicorp.com/nomad/governance-and-policy/namespaces
 /guides/governance-and-policy/namespaces                     https://learn.hashicorp.com/nomad/governance-and-policy/namespaces
 /guides/governance-and-policy/quotas.html                    https://learn.hashicorp.com/nomad/governance-and-policy/quotas
@@ -50,7 +54,6 @@
 /guides/governance-and-policy/sentinel/job                   https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
 
 /guides/analytical-workloads                           https://learn.hashicorp.com/nomad?track=spark#spark
-/guides/analytical-workloads/                          https://learn.hashicorp.com/nomad?track=spark#spark
 /guides/analytical-workloads/index.html                https://learn.hashicorp.com/nomad?track=spark#spark
 /guides/analytical-workloads/spark/configuration       https://learn.hashicorp.com/nomad/spark/configuration
 /guides/analytical-workloads/spark/configuration.html  https://learn.hashicorp.com/nomad/spark/configuration
@@ -117,6 +120,7 @@
 /guides/operating-a-job/update-strategies/rolling-upgrades                        https://learn.hashicorp.com/nomad/update-strategies/rolling-upgrades
 /guides/operating-a-job/update-strategies/rolling-upgrades.html                   https://learn.hashicorp.com/nomad/update-strategies/rolling-upgrades
 
+/guides/operations                                                  https://learn.hashicorp.com/nomad?track=operating-nomad#operations-and-development
 /guides/operations/autopilot                                        https://learn.hashicorp.com/nomad/operating-nomad/autopilot
 /guides/operations/autopilot.html                                   https://learn.hashicorp.com/nomad/operating-nomad/autopilot
 /guides/operations/cluster/automatic                                https://learn.hashicorp.com/nomad/operating-nomad/clustering

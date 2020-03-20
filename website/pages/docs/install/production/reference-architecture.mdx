@@ -22,7 +22,7 @@ The following topics are addressed:
 - [High Availability](#high-availability)
 - [Failure Scenarios](#failure-scenarios)
 
-This document describes deploying a Nomad cluster in combination with, or with access to, a [Consul cluster](/guides/integrations/consul-integration). We recommend the use of Consul with Nomad to provide automatic clustering, service discovery, health checking and dynamic configuration.
+This document describes deploying a Nomad cluster in combination with, or with access to, a [Consul cluster](/docs/integrations/consul-integration). We recommend the use of Consul with Nomad to provide automatic clustering, service discovery, health checking and dynamic configuration.
 
 ## Reference Architecture ((#ra))
 
@@ -32,11 +32,11 @@ In a Nomad multi-region architecture, communication happens via [WAN gossip](/do
 
 In cloud environments, a single cluster may be deployed across multiple availability zones. For example, in AWS each Nomad server can be deployed to an associated EC2 instance, and those EC2 instances distributed across multiple AZs. Similarly, Nomad server clusters can be deployed to multiple cloud regions to allow for region level HA scenarios.
 
-For more information on Nomad server cluster design, see the [cluster requirements documentation](/guides/install/production/requirements).
+For more information on Nomad server cluster design, see the [cluster requirements documentation](/docs/install/production/requirements).
 
 The design shared in this document is the recommended architecture for production environments, as it provides flexibility and resilience. Nomad utilizes an existing Consul server cluster; however, the deployment design of the Consul server cluster is outside the scope of this document.
 
-Nomad to Consul connectivity is over HTTP and should be secured with TLS as well as a Consul token to provide encryption of all traffic. This is done using Nomad's [Automatic Clustering with Consul](/guides/operations/cluster/automatic).
+Nomad to Consul connectivity is over HTTP and should be secured with TLS as well as a Consul token to provide encryption of all traffic. This is done using Nomad's [Automatic Clustering with Consul](https://learn.hashicorp.com/nomad/operating-nomad/clustering).
 
 ### <a name="one-region"></a>Deployment Topology within a Single Region
 
@@ -56,7 +56,7 @@ By deploying Nomad server clusters in multiple regions, the user is able to inte
 
 Nomad server clusters in different datacenters can be federated using WAN links. The server clusters can be joined to communicate over the WAN on port `4648`. This same port is used for single datacenter deployments over LAN as well.
 
-Additional documentation is available to learn more about [Nomad server federation](/guides/operations/federation).
+Additional documentation is available to learn more about [Nomad server federation](https://learn.hashicorp.com/nomad/operating-nomad/federation).
 
 ## <a name="net"></a>Network Connectivity Details
 
@@ -66,7 +66,7 @@ Nomad servers are expected to be able to communicate in high bandwidth, low late
 
 Nomad client clusters require the ability to receive traffic as noted above in the Network Connectivity Details; however, clients can be separated into any type of infrastructure (multi-cloud, on-prem, virtual, bare metal, etc.) as long as they are reachable and can receive job requests from the Nomad servers.
 
-Additional documentation is available to learn more about [Nomad networking](/guides/install/production/requirements#network-topology).
+Additional documentation is available to learn more about [Nomad networking](/docs/install/production/requirements#network-topology).
 
 ## <a name="system-reqs"></a>Deployment System Requirements
 
@@ -107,7 +107,7 @@ Typical distribution in a cloud environment is to spread Nomad server nodes into
 
 ![Nomad fault tolerance](/img/nomad_fault_tolerance.png)
 
-Additional documentation is available to learn more about [cluster sizing and failure tolerances](/docs/internals/consensus#deployment-table) as well as [outage recovery](/guides/operations/outage).
+Additional documentation is available to learn more about [cluster sizing and failure tolerances](/docs/internals/consensus#deployment-table) as well as [outage recovery](https://learn.hashicorp.com/nomad/operating-nomad/outage).
 
 ### Availability Zone Failure
 
@@ -123,12 +123,12 @@ If the AZ containing a Nomad follower server fails, there is no immediate impact
 
 ### Region Failure
 
-In the event of a region-level failure (which would contain an entire Nomad server cluster), clients will still be able to submit jobs to another region that is properly federated. However, there will likely be data loss as Nomad server clusters do not replicate their data to other region clusters. See [Multi-region Federation](/guides/operations/federation) for more setup information.
+In the event of a region-level failure (which would contain an entire Nomad server cluster), clients will still be able to submit jobs to another region that is properly federated. However, there will likely be data loss as Nomad server clusters do not replicate their data to other region clusters. See [Multi-region Federation](https://learn.hashicorp.com/nomad/operating-nomad/federation) for more setup information.
 
 ## Next Steps
 
-- Read [Deployment Guide](/guides/install/production/deployment-guide) to learn
+- Read [Deployment Guide](/docs/install/production/deployment-guide) to learn
   the steps required to install and configure a single HashiCorp Nomad cluster.
 
-[acl]: /guides/security/acl
+[acl]: https://learn.hashicorp.com/nomad?track=acls#operations-and-development
 [sentinel]: https://learn.hashicorp.com/nomad/governance-and-policy/sentinel

@@ -9,7 +9,7 @@ description: |-
 
 # Upgrade Guides
 
-The [upgrading page](/guides/upgrade) covers the details of doing
+The [upgrading page](/docs/upgrade) covers the details of doing
 a standard upgrade. However, specific versions of Nomad may have more
 details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
@@ -272,12 +272,12 @@ Raft Protocol versions supported by each Nomad version:
   </tbody>
 </table>
 
-In order to enable all [Autopilot](/guides/operations/autopilot) features, all servers
+In order to enable all [Autopilot](https://learn.hashicorp.com/nomad/operating-nomad/autopilot) features, all servers
 in a Nomad cluster must be running with Raft protocol version 3 or later.
 
 #### Upgrading to Raft Protocol 3
 
-This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all servers in order to work. See [Raft Protocol Version Compatibility](/guides/upgrade/upgrade-specific#raft-protocol-version-compatibility) for more details. Also the format of `peers.json` used for outage recovery is different when running with the latest Raft protocol. See [Manual Recovery Using peers.json](https://learn.hashicorp.com/nomad/operating-nomad/outage#manual-recovery-using-peersjson) for a description of the required format.
+This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all servers in order to work. See [Raft Protocol Version Compatibility](/docs/upgrade/upgrade-specific#raft-protocol-version-compatibility) for more details. Also the format of `peers.json` used for outage recovery is different when running with the latest Raft protocol. See [Manual Recovery Using peers.json](https://learn.hashicorp.com/nomad/operating-nomad/outage#manual-recovery-using-peersjson) for a description of the required format.
 
 Please note that the Raft protocol is different from Nomad's internal protocol as shown in commands like `nomad server members`. To see the version of the Raft protocol in use on each server, use the `nomad operator raft list-peers` command.
 
@@ -298,7 +298,7 @@ The `drain` command now blocks until the drain completes. To get the Nomad
 0.7.1 and earlier drain behavior use the command: `nomad node drain -enable -force -detach <node-id>`
 
 See the [`migrate` stanza documentation][migrate] and [Decommissioning Nodes
-guide](/guides/operations/node-draining) for details.
+guide](ttps://learn.hashicorp.com/nomad/operating-nomad/node-draining) for details.
 
 ### Periods in Environment Variable Names No Longer Escaped
 
@@ -473,5 +473,5 @@ deleted and then Nomad 0.3.0 can be launched.
 [validate]: /docs/commands/job/validate
 [vault_grace]: /docs/job-specification/template
 [update]: /docs/job-specification/update
-[tls-guide]: /guides/security/securing-nomad
+[tls-guide]: https://learn.hashicorp.com/nomad/transport-security/enable-tls
 [tls-vault-guide]: /guides/security/vault-pki-integration

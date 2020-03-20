@@ -11,17 +11,17 @@ ea_version: 0.9
 
 # Nomad Reference Install Guide
 
-This deployment guide covers the steps required to install and configure a single HashiCorp Nomad cluster as defined in the [Nomad Reference Architecture](/guides/install/production/reference-architecture).
+This deployment guide covers the steps required to install and configure a single HashiCorp Nomad cluster as defined in the [Nomad Reference Architecture](/docs/install/production/reference-architecture).
 
 These instructions are for installing and configuring Nomad on Linux hosts running the systemd system and service manager.
 
 ## Reference Material
 
-This deployment guide is designed to work in combination with the [Nomad Reference Architecture](/guides/install/production/reference-architecture) and [Consul Deployment Guide](https://www.consul.io/docs/guides/deployment-guide.html). Although it is not a strict requirement to follow the Nomad Reference Architecture, please ensure you are familiar with the overall architecture design. For example, installing Nomad server agents on multiple physical or virtual (with correct anti-affinity) hosts for high-availability.
+This deployment guide is designed to work in combination with the [Nomad Reference Architecture](/docs/install/production/reference-architecture) and [Consul Deployment Guide](https://www.consul.io/docs/guides/deployment-guide.html). Although it is not a strict requirement to follow the Nomad Reference Architecture, please ensure you are familiar with the overall architecture design. For example, installing Nomad server agents on multiple physical or virtual (with correct anti-affinity) hosts for high-availability.
 
 ## Overview
 
-To provide a highly-available single cluster architecture, we recommend Nomad server agents be deployed to more than one host, as shown in the [Nomad Reference Architecture](/guides/install/production/reference-architecture).
+To provide a highly-available single cluster architecture, we recommend Nomad server agents be deployed to more than one host, as shown in the [Nomad Reference Architecture](/docs/install/production/reference-architecture).
 
 ![Reference diagram](/img/nomad_reference_diagram.png)
 
@@ -202,13 +202,13 @@ client {
 
 ### ACL configuration
 
-The [Access Control](/guides/security/acl) guide provides instructions on configuring and enabling ACLs.
+The [Access Control](https://learn.hashicorp.com/nomad?track=acls#operations-and-development) guide provides instructions on configuring and enabling ACLs.
 
 ### TLS configuration
 
 Securing Nomad's cluster communication with mutual TLS (mTLS) is recommended for production deployments and can even ease operations by preventing mistakes and misconfigurations. Nomad clients and servers should not be publicly accessible without mTLS enabled.
 
-The [Securing Nomad with TLS](/guides/security/securing-nomad) guide provides instructions on configuring and enabling TLS.
+The [Securing Nomad with TLS](https://learn.hashicorp.com/nomad/transport-security/enable-tls) guide provides instructions on configuring and enabling TLS.
 
 ## Start Nomad
 
@@ -222,8 +222,8 @@ sudo systemctl status nomad
 
 ## Next Steps
 
-- Read [Outage Recovery](/guides/operations/outage) to learn
+- Read [Outage Recovery](https://learn.hashicorp.com/nomad/operating-nomad/outage) to learn
   the steps required to recover from a Nomad cluster outage.
-- Read [Autopilot](/guides/operations/autopilot) to learn about
+- Read [Autopilot](https://learn.hashicorp.com/nomad/operating-nomad/autopilot) to learn about
   features in Nomad 0.8 to allow for automatic operator-friendly
   management of Nomad servers.

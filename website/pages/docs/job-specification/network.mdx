@@ -28,7 +28,7 @@ they start up.
 Nomad 0.10 enables support for the `network` stanza at the task group level. When
 the `network` stanza is defined at the group level with `bridge` as the networking mode,
 all tasks in the task group share the same network namespace. This is a prerequisite for
-[Consul Connect](/guides/integrations/consul-connect). Tasks running within a
+[Consul Connect](/docs/integrations/consul-connect). Tasks running within a
 network namespace are not visible to applications outside the namespace on the same host.
 This allows [Connect][] enabled applications to bind only to localhost within the shared network stack,
 and use the proxy for ingress and egress traffic.
