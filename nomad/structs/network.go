@@ -354,7 +354,14 @@ func getDynamicPortsPrecise(nodeUsed Bitmap, ask *NetworkResource) ([]int, error
 	}
 
 	// Get the indexes of the unset
-	availablePorts := usedSet.IndexesInRange(false, MinDynamicPort, MaxDynamicPort)
+	minDynamicPort, maxDynamicPort := MinDynamicPort, MaxDynamicPort
+
+	// optionally use custom port range
+	if ask.DynamicPortRange.Min > 0 && ask.DynamicPortRange.Max > 0 {
+		minDynamicPort, maxDynamicPort = ask.DynamicPortRange.Min, ask.DynamicPortRange.Max
+	}
+
+	availablePorts := usedSet.IndexesInRange(false, uint(minDynamicPort), uint(maxDynamicPort))
 
 	// Randomize the amount we need
 	numDyn := len(ask.DynamicPorts)
@@ -390,7 +397,13 @@ func getDynamicPortsStochastic(nodeUsed Bitmap, ask *NetworkResource) ([]int, er
 			return nil, fmt.Errorf("stochastic dynamic port selection failed")
 		}
 
-		randPort := MinDynamicPort + rand.Intn(MaxDynamicPort-MinDynamicPort)
+		minDynamicPort, maxDynamicPort := MinDynamicPort, MaxDynamicPort
+
+		// optionally use custom port range
+		if ask.DynamicPortRange.Min > 0 && ask.DynamicPortRange.Max > 0 {
+			minDynamicPort, maxDynamicPort = ask.DynamicPortRange.Min, ask.DynamicPortRange.Max
+		}
+		randPort := minDynamicPort + rand.Intn(maxDynamicPort-minDynamicPort)
 		if nodeUsed != nil && nodeUsed.Check(uint(randPort)) {
 			goto PICK
 		}

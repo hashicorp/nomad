@@ -270,7 +270,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		}
 
 		t.DispatchPayload = &api.DispatchPayloadConfig{}
-		if err := mapstructure.WeakDecode(m, t.DispatchPayload); err != nil {
+		if err := mapstructure.WeakDecode(m, &t.DispatchPayload); err != nil {
 			return nil, err
 		}
 	}

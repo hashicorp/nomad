@@ -1641,6 +1641,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Value: 2000,
 										},
 									},
+									DynamicPortRange: api.PortRange{
+										Min: 1000,
+										Max: 10000,
+									},
 								},
 							},
 							Devices: []*api.RequestedDevice{
@@ -1988,6 +1992,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Value: 2000,
 										},
 									},
+									DynamicPortRange: structs.PortRange{
+										Min: 1000,
+										Max: 10000,
+									},
 								},
 							},
 							Devices: []*structs.RequestedDevice{
@@ -2154,6 +2162,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Value: 2000,
 										},
 									},
+									DynamicPortRange: api.PortRange{
+										Min: 1000,
+										Max: 10000,
+									},
 								},
 							},
 						},
@@ -2271,6 +2283,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Label: "ssh",
 											Value: 2000,
 										},
+									},
+									DynamicPortRange: structs.PortRange{
+										Min: 1000,
+										Max: 10000,
 									},
 								},
 							},

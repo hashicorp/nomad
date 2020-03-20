@@ -972,6 +972,10 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 			CIDR:  nw.CIDR,
 			IP:    nw.IP,
 			MBits: *nw.MBits,
+			DynamicPortRange: structs.PortRange{
+				Min: nw.DynamicPortRange.Min,
+				Max: nw.DynamicPortRange.Max,
+			},
 		}
 
 		if l := len(nw.DynamicPorts); l != 0 {

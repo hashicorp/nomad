@@ -1080,6 +1080,43 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"dynamic-port-range.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("foo"),
+				Name: helper.StringToPtr("foo"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("example"),
+					Tasks: []*api.Task{{
+						Name: "server",
+						Resources: &api.Resources{
+							Networks: []*api.NetworkResource{{
+								MBits: helper.IntToPtr(200),
+								ReservedPorts: []api.Port{
+									{
+										Label: "lb",
+										Value: 8889,
+									},
+								},
+								DynamicPorts: []api.Port{
+									{
+										Label: "http",
+									},
+									{
+										Label: "https",
+									},
+								},
+								DynamicPortRange: api.PortRange{
+									Min: 4000,
+									Max: 5000,
+								},
+							}},
+						},
+					}},
+				}},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {

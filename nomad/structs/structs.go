@@ -2108,16 +2108,22 @@ type Port struct {
 	To    int
 }
 
+type PortRange struct {
+	Min int
+	Max int
+}
+
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
-	Mode          string // Mode of the network
-	Device        string // Name of the device
-	CIDR          string // CIDR block of addresses
-	IP            string // Host IP address
-	MBits         int    // Throughput
-	ReservedPorts []Port // Host Reserved ports
-	DynamicPorts  []Port // Host Dynamically assigned ports
+	Mode             string    // Mode of the network
+	Device           string    // Name of the device
+	CIDR             string    // CIDR block of addresses
+	IP               string    // Host IP address
+	MBits            int       // Throughput
+	ReservedPorts    []Port    // Host Reserved ports
+	DynamicPorts     []Port    // Host Dynamically assigned ports
+	DynamicPortRange PortRange // Optional dynamic port range
 }
 
 func (nr *NetworkResource) Equals(other *NetworkResource) bool {
@@ -2166,6 +2172,11 @@ func (nr *NetworkResource) Equals(other *NetworkResource) bool {
 		}
 	}
 
+	if nr.DynamicPortRange.Min != other.DynamicPortRange.Min ||
+		nr.DynamicPortRange.Max != other.DynamicPortRange.Max {
+		return false
+	}
+
 	return true
 }
 
@@ -2205,6 +2216,9 @@ func (n *NetworkResource) Copy() *NetworkResource {
 		newR.DynamicPorts = make([]Port, len(n.DynamicPorts))
 		copy(newR.DynamicPorts, n.DynamicPorts)
 	}
+
+	newR.DynamicPortRange = n.DynamicPortRange
+
 	return newR
 }
 

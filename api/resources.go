@@ -89,16 +89,22 @@ type Port struct {
 	To    int `mapstructure:"to"`
 }
 
+type PortRange struct {
+	Min int
+	Max int
+}
+
 // NetworkResource is used to describe required network
 // resources of a given task.
 type NetworkResource struct {
-	Mode          string
-	Device        string
-	CIDR          string
-	IP            string
-	MBits         *int
-	ReservedPorts []Port
-	DynamicPorts  []Port
+	Mode             string
+	Device           string
+	CIDR             string
+	IP               string
+	MBits            *int
+	ReservedPorts    []Port
+	DynamicPorts     []Port
+	DynamicPortRange PortRange
 }
 
 func (n *NetworkResource) Canonicalize() {

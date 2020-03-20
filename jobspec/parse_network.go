@@ -23,6 +23,7 @@ func ParseNetwork(o *ast.ObjectList) (*api.NetworkResource, error) {
 		"mode",
 		"mbits",
 		"port",
+		"dynamic_port_range",
 	}
 	if err := helper.CheckHCLKeys(o.Items[0].Val, valid); err != nil {
 		return nil, multierror.Prefix(err, "network ->")
@@ -56,6 +57,7 @@ func parsePorts(networkObj *ast.ObjectList, nw *api.NetworkResource) error {
 		"mbits",
 		"port",
 		"mode",
+		"dynamic_port_range",
 	}
 	if err := helper.CheckHCLKeys(networkObj, valid); err != nil {
 		return err
@@ -90,6 +92,32 @@ func parsePorts(networkObj *ast.ObjectList, nw *api.NetworkResource) error {
 			nw.DynamicPorts = append(nw.DynamicPorts, res)
 		}
 		knownPortLabels[l] = true
+	}
+
+	if o := networkObj.Filter("dynamic_port_range"); len(o.Items) > 0 {
+		if len(o.Items) > 1 {
+			return fmt.Errorf("only one dynamic_port_range block is allowed in a network resource. Number of dynamic_port_range blocks found: %d", len(o.Items))
+		}
+
+		dynamicPortRangeBlock := o.Items[0]
+
+		// Check for invalid keys
+		valid := []string{
+			"min",
+			"max",
+		}
+		if err := helper.CheckHCLKeys(dynamicPortRangeBlock.Val, valid); err != nil {
+			return multierror.Prefix(err, "dynamic_port_range ->")
+		}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, dynamicPortRangeBlock.Val); err != nil {
+			return err
+		}
+
+		if err := mapstructure.WeakDecode(m, &nw.DynamicPortRange); err != nil {
+			return err
+		}
 	}
 	return nil
 }
