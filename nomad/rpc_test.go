@@ -989,9 +989,22 @@ func TestRPC_Limits_Streaming(t *testing.T) {
 	t.Logf("expect streaming connection 0 to exit with error")
 	streamers[0].Close()
 	<-errCh
-	conn = dialStreamer()
 
-	conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-	_, err = conn.Read(buf)
-	testutil.RequireDeadlineErr(t, err)
+	// Assert that new connections are allowed.
+	// Due to the distributed nature here, server may not immediately recognize
+	// the connection closure, so first attempts may be rejections (i.e. EOF)
+	// but the first non-EOF request must be a read-deadline error
+	testutil.WaitForResult(func() (bool, error) {
+		conn = dialStreamer()
+		conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+		_, err = conn.Read(buf)
+		if err == io.EOF {
+			return false, fmt.Errorf("connection was rejected")
+		}
+
+		testutil.RequireDeadlineErr(t, err)
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
 }
