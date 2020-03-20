@@ -177,8 +177,8 @@ func (j *Jobs) Scale(jobID, group string, count int,
 
 // ScaleStatus is used to retrieve information about a particular
 // job given its unique ID.
-func (j *Jobs) ScaleStatus(jobID string, q *QueryOptions) (*ScaleStatusResponse, *QueryMeta, error) {
-	var resp ScaleStatusResponse
+func (j *Jobs) ScaleStatus(jobID string, q *QueryOptions) (*JobScaleStatusResponse, *QueryMeta, error) {
+	var resp JobScaleStatusResponse
 	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/scale", url.PathEscape(jobID)), &resp, q)
 	if err != nil {
 		return nil, nil, err

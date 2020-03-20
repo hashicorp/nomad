@@ -829,7 +829,7 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 	return nil
 }
 
-// Scale is used to modify one of the scaling targest in the job
+// Scale is used to modify one of the scaling targets in the job
 func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterResponse) error {
 	if done, err := j.srv.forward("Job.Scale", args, args, reply); done {
 		return err
@@ -1676,4 +1676,72 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 	}
 
 	return nil
+}
+
+// ScaleStatus retrieves the scaling status for a job
+func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
+	reply *structs.JobScaleStatusResponse) error {
+
+	if done, err := j.srv.forward("Job.ScaleStatus", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "scale_status"}, time.Now())
+
+	// FINISH
+	// Check for job-autoscaler permissions
+	// if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+	// 	return err
+	// } else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	// 	return structs.ErrPermissionDenied
+	// }
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+
+			// We need the job and the job summary
+			job, err := state.JobByID(ws, args.RequestNamespace(), args.JobID)
+			if err != nil {
+				return err
+			}
+			if job == nil {
+				return structs.NewErrRPCCoded(404, "job does not exist")
+			}
+			deployment, err := state.LatestDeploymentByJobID(ws, args.RequestNamespace(), args.JobID)
+			if err != nil {
+				return err
+			}
+
+			// Setup the output
+			reply.JobModifyIndex = job.ModifyIndex
+			reply.JobCreateIndex = job.CreateIndex
+			reply.JobID = job.ID
+			reply.JobStopped = job.Stop
+
+			for _, tg := range job.TaskGroups {
+				tgScale := &structs.TaskGroupScaleStatus{
+					Desired: tg.Count,
+				}
+				if deployment != nil {
+					if ds, ok := deployment.TaskGroups[tg.Name]; ok {
+						tgScale.Placed = ds.PlacedAllocs
+						tgScale.Healthy = ds.HealthyAllocs
+						tgScale.Unhealthy = ds.UnhealthyAllocs
+					}
+				}
+			}
+
+			if deployment != nil && deployment.ModifyIndex > job.ModifyIndex {
+				reply.Index = deployment.ModifyIndex
+			} else {
+				reply.Index = job.ModifyIndex
+			}
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return j.srv.blockingRPC(&opts)
 }

@@ -5231,3 +5231,61 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 		})
 	}
 }
+
+func TestJobEndpoint_GetScaleStatus(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	job.CreateIndex = resp.JobModifyIndex
+	job.ModifyIndex = resp.JobModifyIndex
+
+	// Fetch the scaling status
+	get := &structs.JobScaleStatusRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp2 structs.JobScaleStatusResponse
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &resp2))
+
+	expectedStatus := structs.JobScaleStatusResponse{
+		JobID:          job.ID,
+		JobCreateIndex: job.CreateIndex,
+		JobModifyIndex: job.ModifyIndex,
+		JobStopped:     job.Stop,
+		TaskGroups: map[string]structs.TaskGroupScaleStatus{
+			job.TaskGroups[0].Name: {
+				Desired:   1,
+				Placed:    1,
+				Running:   1,
+				Healthy:   0,
+				Unhealthy: 0,
+				Events:    nil,
+			},
+		},
+	}
+
+	require.True(reflect.DeepEqual(resp2, expectedStatus))
+}
