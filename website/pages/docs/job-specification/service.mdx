@@ -213,6 +213,11 @@ scripts.
   add the IP of the service and the port, so this is just the relative URL to
   the health check endpoint. This is required for http-based health checks.
 
+- `expose` `(bool: false)` - Specifies whether an [Expose Path](/docs/job-specification/expose#path-parameters)
+  should be automatically generated for this check. Only compatible with
+  Connect-enabled task-group services using the default Connect proxy. Check
+  must be of [`type`][type] `http` or `grpc`.
+
 - `port` `(string: <varies>)` - Specifies the label of the port on which the
   check will be performed. Note this is the _label_ of the port and not the port
   number unless `address_mode = driver`. The port label must match one defined
@@ -684,6 +689,7 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [qemu]: /docs/drivers/qemu 'Nomad qemu Driver'
 [restart_stanza]: /docs/job-specification/restart 'restart stanza'
 [connect]: /docs/job-specification/connect 'Nomad Consul Connect Integration'
+[type]: /docs/job-specification/service#type
 [shutdowndelay]: /docs/job-specification/task#shutdown_delay
 [killsignal]: /docs/job-specification/task#kill_signal
 [killtimeout]: /docs/job-specification/task#kill_timeout
