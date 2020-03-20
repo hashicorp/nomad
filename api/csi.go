@@ -82,8 +82,9 @@ const (
 )
 
 type CSIOptions struct {
-	FSType     string
-	MountFlags []string
+	FSType       string   `hcl:"fs_type"`
+	MountFlags   []string `hcl:"mount_flags"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"` // report unexpected keys
 }
 
 // CSIVolume is used for serialization, see also nomad/structs/csi.go
@@ -95,7 +96,7 @@ type CSIVolume struct {
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode     `hcl:"access_mode"`
 	AttachmentMode CSIVolumeAttachmentMode `hcl:"attachment_mode"`
-	Options        *CSIOptions
+	MountOptions   *CSIOptions             `hcl:"mount_options"`
 
 	// Allocations, tracking claim status
 	ReadAllocs  map[string]*Allocation
