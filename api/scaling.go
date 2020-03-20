@@ -69,12 +69,12 @@ type ScalingPolicyListStub struct {
 	ModifyIndex uint64
 }
 
-// ScaleStatusResponse is the payload for a generic scaling action
-type ScaleStatusResponse struct {
+// JobScaleStatusResponse is the payload for a generic scaling action
+type JobScaleStatusResponse struct {
 	JobID          string
 	JobCreateIndex uint64
 	JobModifyIndex uint64
-	Stopped        bool
+	JobStopped     bool
 	TaskGroups     map[string]TaskGroupScaleStatus
 }
 

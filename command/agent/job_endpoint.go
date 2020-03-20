@@ -490,7 +490,7 @@ func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(404, "job not found")
 	}
 
-	status := &api.ScaleStatusResponse{
+	status := &api.JobScaleStatusResponse{
 		JobID:          out.Job.ID,
 		JobCreateIndex: out.Job.CreateIndex,
 		JobModifyIndex: out.Job.ModifyIndex,

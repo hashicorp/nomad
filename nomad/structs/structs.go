@@ -639,6 +639,12 @@ type JobSummaryRequest struct {
 	QueryOptions
 }
 
+// JobScaleStatusRequest is used to get the scale status for a job
+type JobScaleStatusRequest struct {
+	JobID string
+	QueryOptions
+}
+
 // JobDispatchRequest is used to dispatch a job based on a parameterized job
 type JobDispatchRequest struct {
 	JobID   string
@@ -1226,6 +1232,35 @@ type SingleJobResponse struct {
 type JobSummaryResponse struct {
 	JobSummary *JobSummary
 	QueryMeta
+}
+
+// JobScaleStatusResponse is used to return the scale status for a job
+type JobScaleStatusResponse struct {
+	JobID          string
+	JobCreateIndex uint64
+	JobModifyIndex uint64
+	JobStopped     bool
+	TaskGroups     map[string]TaskGroupScaleStatus
+	QueryMeta
+}
+
+// TaskGroupScaleStatus is used to return the scale status for a given task group
+type TaskGroupScaleStatus struct {
+	Desired   int
+	Placed    int
+	Running   int
+	Healthy   int
+	Unhealthy int
+	Events    []ScalingEvent
+}
+
+// ScalingEvent represents a specific scaling event
+type ScalingEvent struct {
+	Reason *string
+	Error  *string
+	Meta   map[string]interface{}
+	Time   uint64
+	EvalID *string
 }
 
 type JobDispatchResponse struct {
