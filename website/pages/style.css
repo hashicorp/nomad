@@ -33,7 +33,9 @@
 @import '~@hashicorp/react-text-split/dist/style.css';
 @import '~@hashicorp/react-text-split-with-code/dist/style.css';
 
-/* Local Components */
+/* Global Transpiled Components */
+@import '~@hashicorp/react-mega-nav/style.css';
+
 @import '../components/docs-page/style.css';
 @import '../components/placement-table/style.css';
 @import '../components/case-study-carousel/style.css';
@@ -41,7 +43,6 @@
 @import '../components/enterprise-info/style.css';
 @import '../components/mini-cta/style.css';
 @import '../components/homepage-hero/style.css';
-@import '../components/mega-nav/style.css';
 @import '../components/featured-slider/style.css';
 @import '../components/featured-slider-section/style.css';
 @import '../components/learn-nomad/style.css';
@@ -58,6 +59,7 @@
 @import './print.css';
 
 /* Layout Styles */
+
 .g-section-block section {
   padding-top: 96px;
   padding-bottom: 96px;

@@ -31,7 +31,7 @@ const organizationalComplexity = {
 export default function NomadEnterpriseInfo() {
   return (
     <EnterpriseInfo
-      title="When to consider Nomad Enterprise?"
+      title="When to consider Nomad Enterprise"
       itemOne={technicalComplexity}
       itemTwo={organizationalComplexity}
     />
