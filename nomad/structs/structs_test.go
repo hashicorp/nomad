@@ -2867,6 +2867,51 @@ func TestPeriodicConfig_DST(t *testing.T) {
 	require.Equal(e2, n2.UTC())
 }
 
+func TestTaskLifecycleConfig_Validate(t *testing.T) {
+	testCases := []struct {
+		name string
+		tlc  *TaskLifecycleConfig
+		err  error
+	}{
+		{
+			name: "prestart completed",
+			tlc: &TaskLifecycleConfig{
+				Hook:    "prestart",
+				Sidecar: false,
+			},
+			err: nil,
+		},
+		{
+			name: "prestart running",
+			tlc: &TaskLifecycleConfig{
+				Hook:    "prestart",
+				Sidecar: true,
+			},
+			err: nil,
+		},
+		{
+			name: "no hook",
+			tlc: &TaskLifecycleConfig{
+				Sidecar: true,
+			},
+			err: fmt.Errorf("no lifecycle hook provided"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.tlc.Validate()
+			if tc.err != nil {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.err.Error())
+			} else {
+				require.Nil(t, err)
+			}
+		})
+
+	}
+}
+
 func TestRestartPolicy_Validate(t *testing.T) {
 	// Policy with acceptable restart options passes
 	p := &RestartPolicy{

@@ -376,6 +376,36 @@ func TestTask_VolumeMount(t *testing.T) {
 	require.Equal(t, *vm.PropagationMode, "private")
 }
 
+func TestTask_Canonicalize_TaskLifecycle(t *testing.T) {
+	testCases := []struct {
+		name     string
+		expected *TaskLifecycle
+		task     *Task
+	}{
+		{
+			name: "empty",
+			task: &Task{
+				Lifecycle: &TaskLifecycle{},
+			},
+			expected: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tg := &TaskGroup{
+				Name: stringToPtr("foo"),
+			}
+			j := &Job{
+				ID: stringToPtr("test"),
+			}
+			tc.task.Canonicalize(tg, j)
+			require.Equal(t, tc.expected, tc.task.Lifecycle)
+
+		})
+	}
+}
+
 // Ensures no regression on https://github.com/hashicorp/nomad/issues/3132
 func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 	// Job with an Empty() Update

@@ -25,8 +25,8 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-version"
+	multierror "github.com/hashicorp/go-multierror"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
@@ -2937,7 +2937,8 @@ func (n *NodeReservedNetworkResources) ParseReservedHostPorts() ([]uint64, error
 // AllocatedResources is the set of resources to be used by an allocation.
 type AllocatedResources struct {
 	// Tasks is a mapping of task name to the resources for the task.
-	Tasks map[string]*AllocatedTaskResources
+	Tasks          map[string]*AllocatedTaskResources
+	TaskLifecycles map[string]*TaskLifecycleConfig
 
 	// Shared is the set of resource that are shared by all tasks in the group.
 	Shared AllocatedSharedResources
@@ -2958,6 +2959,13 @@ func (a *AllocatedResources) Copy() *AllocatedResources {
 			out.Tasks[task] = resource.Copy()
 		}
 	}
+	if a.TaskLifecycles != nil {
+		out.TaskLifecycles = make(map[string]*TaskLifecycleConfig, len(out.TaskLifecycles))
+		for task, lifecycle := range a.TaskLifecycles {
+			out.TaskLifecycles[task] = lifecycle.Copy()
+		}
+
+	}
 
 	return &out
 }
@@ -2972,9 +2980,29 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 	c := &ComparableResources{
 		Shared: a.Shared,
 	}
-	for _, r := range a.Tasks {
-		c.Flattened.Add(r)
+
+	prestartSidecarTasks := &AllocatedTaskResources{}
+	prestartEphemeralTasks := &AllocatedTaskResources{}
+	main := &AllocatedTaskResources{}
+
+	for taskName, r := range a.Tasks {
+		lc := a.TaskLifecycles[taskName]
+		if lc == nil {
+			main.Add(r)
+		} else if lc.Hook == TaskLifecycleHookPrestart {
+			if lc.Sidecar {
+				prestartSidecarTasks.Add(r)
+			} else {
+				prestartEphemeralTasks.Add(r)
+			}
+		}
 	}
+
+	// update this loop to account for lifecycle hook
+	prestartEphemeralTasks.Max(main)
+	prestartSidecarTasks.Add(prestartEphemeralTasks)
+	c.Flattened.Add(prestartSidecarTasks)
+
 	// Add network resources that are at the task group level
 	for _, network := range a.Shared.Networks {
 		c.Flattened.Add(&AllocatedTaskResources{
@@ -3053,6 +3081,35 @@ func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 	}
 
 	for _, d := range delta.Devices {
+		// Find the matching device
+		idx := AllocatedDevices(a.Devices).Index(d)
+		if idx == -1 {
+			a.Devices = append(a.Devices, d.Copy())
+		} else {
+			a.Devices[idx].Add(d)
+		}
+	}
+}
+
+func (a *AllocatedTaskResources) Max(other *AllocatedTaskResources) {
+	if other == nil {
+		return
+	}
+
+	a.Cpu.Max(&other.Cpu)
+	a.Memory.Max(&other.Memory)
+
+	for _, n := range other.Networks {
+		// Find the matching interface by IP or CIDR
+		idx := a.NetIndex(n)
+		if idx == -1 {
+			a.Networks = append(a.Networks, n.Copy())
+		} else {
+			a.Networks[idx].Add(n)
+		}
+	}
+
+	for _, d := range other.Devices {
 		// Find the matching device
 		idx := AllocatedDevices(a.Devices).Index(d)
 		if idx == -1 {
@@ -3157,6 +3214,16 @@ func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
 	a.CpuShares -= delta.CpuShares
 }
 
+func (a *AllocatedCpuResources) Max(other *AllocatedCpuResources) {
+	if other == nil {
+		return
+	}
+
+	if other.CpuShares > a.CpuShares {
+		a.CpuShares = other.CpuShares
+	}
+}
+
 // AllocatedMemoryResources captures the allocated memory resources.
 type AllocatedMemoryResources struct {
 	MemoryMB int64
@@ -3176,6 +3243,16 @@ func (a *AllocatedMemoryResources) Subtract(delta *AllocatedMemoryResources) {
 	}
 
 	a.MemoryMB -= delta.MemoryMB
+}
+
+func (a *AllocatedMemoryResources) Max(other *AllocatedMemoryResources) {
+	if other == nil {
+		return
+	}
+
+	if other.MemoryMB > a.MemoryMB {
+		a.MemoryMB = other.MemoryMB
+	}
 }
 
 type AllocatedDevices []*AllocatedDeviceResource
@@ -4385,6 +4462,40 @@ func (d *DispatchPayloadConfig) Validate() error {
 	return nil
 }
 
+const (
+	TaskLifecycleHookPrestart = "prestart"
+)
+
+type TaskLifecycleConfig struct {
+	Hook    string
+	Sidecar bool
+}
+
+func (d *TaskLifecycleConfig) Copy() *TaskLifecycleConfig {
+	if d == nil {
+		return nil
+	}
+	nd := new(TaskLifecycleConfig)
+	*nd = *d
+	return nd
+}
+
+func (d *TaskLifecycleConfig) Validate() error {
+	if d == nil {
+		return nil
+	}
+
+	switch d.Hook {
+	case TaskLifecycleHookPrestart:
+	case "":
+		return fmt.Errorf("no lifecycle hook provided")
+	default:
+		return fmt.Errorf("invalid hook: %v", d.Hook)
+	}
+
+	return nil
+}
+
 var (
 	// These default restart policies needs to be in sync with
 	// Canonicalize in api/tasks.go
@@ -5407,6 +5518,8 @@ type Task struct {
 	// DispatchPayload configures how the task retrieves its input from a dispatch
 	DispatchPayload *DispatchPayloadConfig
 
+	Lifecycle *TaskLifecycleConfig
+
 	// Meta is used to associate arbitrary metadata with this
 	// task. This is opaque to Nomad.
 	Meta map[string]string
@@ -5486,6 +5599,7 @@ func (t *Task) Copy() *Task {
 	nt.LogConfig = nt.LogConfig.Copy()
 	nt.Meta = helper.CopyMapStringString(nt.Meta)
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
+	nt.Lifecycle = nt.Lifecycle.Copy()
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
@@ -5663,6 +5777,14 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		if err := t.DispatchPayload.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Dispatch Payload validation failed: %v", err))
 		}
+	}
+
+	// Validate the Lifecycle block if there
+	if t.Lifecycle != nil {
+		if err := t.Lifecycle.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Lifecycle validation failed: %v", err))
+		}
+
 	}
 
 	// Validation for TaskKind field which is used for Consul Connect integration

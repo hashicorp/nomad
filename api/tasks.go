@@ -609,11 +609,26 @@ type DispatchPayloadConfig struct {
 	File string
 }
 
+const (
+	TaskLifecycleHookPrestart = "prestart"
+)
+
+type TaskLifecycle struct {
+	Hook    string `mapstructure:"hook"`
+	Sidecar bool   `mapstructure:"sidecar"`
+}
+
+// Determine if lifecycle has user-input values
+func (l *TaskLifecycle) Empty() bool {
+	return l == nil || (l.Hook == "")
+}
+
 // Task is a single process in a task group.
 type Task struct {
 	Name            string
 	Driver          string
 	User            string
+	Lifecycle       *TaskLifecycle
 	Config          map[string]interface{}
 	Constraints     []*Constraint
 	Affinities      []*Affinity
@@ -664,6 +679,9 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	for _, vm := range t.VolumeMounts {
 		vm.Canonicalize()
+	}
+	if t.Lifecycle.Empty() {
+		t.Lifecycle = nil
 	}
 }
 

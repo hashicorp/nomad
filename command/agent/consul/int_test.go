@@ -143,19 +143,25 @@ func TestConsul_Integration(t *testing.T) {
 		close(consulRan)
 	}()
 
+	// Create a closed channel to mock TaskHookCoordinator.startConditionForTask.
+	// Closed channel indicates this task is not blocked on prestart hooks.
+	closedCh := make(chan struct{})
+	close(closedCh)
+
 	// Build the config
 	config := &taskrunner.Config{
-		Alloc:         alloc,
-		ClientConfig:  conf,
-		Consul:        serviceClient,
-		Task:          task,
-		TaskDir:       taskDir,
-		Logger:        logger,
-		Vault:         vclient,
-		StateDB:       state.NoopDB{},
-		StateUpdater:  logUpdate,
-		DeviceManager: devicemanager.NoopMockManager(),
-		DriverManager: drivermanager.TestDriverManager(t),
+		Alloc:                alloc,
+		ClientConfig:         conf,
+		Consul:               serviceClient,
+		Task:                 task,
+		TaskDir:              taskDir,
+		Logger:               logger,
+		Vault:                vclient,
+		StateDB:              state.NoopDB{},
+		StateUpdater:         logUpdate,
+		DeviceManager:        devicemanager.NoopMockManager(),
+		DriverManager:        drivermanager.TestDriverManager(t),
+		StartConditionMetCtx: closedCh,
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)

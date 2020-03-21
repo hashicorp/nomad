@@ -146,6 +146,8 @@ type allocRunner struct {
 	// servers have been contacted for the first time in case of a failed
 	// restore.
 	serversContactedCh chan struct{}
+
+	taskHookCoordinator *taskHookCoordinator
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -190,6 +192,8 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 	// Create alloc dir
 	ar.allocDir = allocdir.NewAllocDir(ar.logger, filepath.Join(config.ClientConfig.AllocDir, alloc.ID))
 
+	ar.taskHookCoordinator = newTaskHookCoordinator(ar.logger, tg.Tasks)
+
 	// Initialize the runners hooks.
 	if err := ar.initRunnerHooks(config.ClientConfig); err != nil {
 		return nil, err
@@ -207,20 +211,21 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
 		config := &taskrunner.Config{
-			Alloc:               ar.alloc,
-			ClientConfig:        ar.clientConfig,
-			Task:                task,
-			TaskDir:             ar.allocDir.NewTaskDir(task.Name),
-			Logger:              ar.logger,
-			StateDB:             ar.stateDB,
-			StateUpdater:        ar,
-			Consul:              ar.consulClient,
-			ConsulSI:            ar.sidsClient,
-			Vault:               ar.vaultClient,
-			DeviceStatsReporter: ar.deviceStatsReporter,
-			DeviceManager:       ar.devicemanager,
-			DriverManager:       ar.driverManager,
-			ServersContactedCh:  ar.serversContactedCh,
+			Alloc:                ar.alloc,
+			ClientConfig:         ar.clientConfig,
+			Task:                 task,
+			TaskDir:              ar.allocDir.NewTaskDir(task.Name),
+			Logger:               ar.logger,
+			StateDB:              ar.stateDB,
+			StateUpdater:         ar,
+			Consul:               ar.consulClient,
+			ConsulSI:             ar.sidsClient,
+			Vault:                ar.vaultClient,
+			DeviceStatsReporter:  ar.deviceStatsReporter,
+			DeviceManager:        ar.devicemanager,
+			DriverManager:        ar.driverManager,
+			ServersContactedCh:   ar.serversContactedCh,
+			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
 		}
 
 		// Create, but do not Run, the task runner
@@ -357,12 +362,17 @@ func (ar *allocRunner) Restore() error {
 	ar.state.DeploymentStatus = ds
 	ar.stateLock.Unlock()
 
+	states := make(map[string]*structs.TaskState)
+
 	// Restore task runners
 	for _, tr := range ar.tasks {
 		if err := tr.Restore(); err != nil {
 			return err
 		}
+		states[tr.Task().Name] = tr.TaskState()
 	}
+
+	ar.taskHookCoordinator.taskStateUpdated(states)
 
 	return nil
 }
@@ -487,6 +497,8 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 				}
 			}
 		}
+
+		ar.taskHookCoordinator.taskStateUpdated(states)
 
 		// Get the client allocation
 		calloc := ar.clientAlloc(states)

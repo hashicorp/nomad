@@ -58,6 +58,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		"constraint",
 		"affinity",
 		"dispatch_payload",
+		"lifecycle",
 		"driver",
 		"env",
 		"kill_timeout",
@@ -87,6 +88,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 	delete(m, "constraint")
 	delete(m, "affinity")
 	delete(m, "dispatch_payload")
+	delete(m, "lifecycle")
 	delete(m, "env")
 	delete(m, "logs")
 	delete(m, "meta")
@@ -275,6 +277,33 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		}
 	}
 
+	// If we have a lifecycle block parse that
+	if o := listVal.Filter("lifecycle"); len(o.Items) > 0 {
+		if len(o.Items) > 1 {
+			return nil, fmt.Errorf("only one lifecycle block is allowed in a task. Number of lifecycle blocks found: %d", len(o.Items))
+		}
+
+		var m map[string]interface{}
+		lifecycleBlock := o.Items[0]
+
+		// Check for invalid keys
+		valid := []string{
+			"hook",
+			"sidecar",
+		}
+		if err := helper.CheckHCLKeys(lifecycleBlock.Val, valid); err != nil {
+			return nil, multierror.Prefix(err, "lifecycle ->")
+		}
+
+		if err := hcl.DecodeObject(&m, lifecycleBlock.Val); err != nil {
+			return nil, err
+		}
+
+		t.Lifecycle = &api.TaskLifecycle{}
+		if err := mapstructure.WeakDecode(m, t.Lifecycle); err != nil {
+			return nil, err
+		}
+	}
 	return &t, nil
 }
 
