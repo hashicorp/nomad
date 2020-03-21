@@ -452,7 +452,7 @@
 		{"path":"golang.org/x/crypto/blake2b","checksumSHA1":"jfKksm9ENL0+wzoOuMR8kNuIePw=","revision":"891825fb96dfc23279b4a42f710d49e78e05b333","revisionTime":"2020-03-20T06:35:11Z"},
 		{"path":"golang.org/x/crypto/ed25519","checksumSHA1":"LBGzsIWPQD6uFAeSYFg8Bd28Grw=","revision":"891825fb96dfc23279b4a42f710d49e78e05b333","revisionTime":"2020-03-20T06:35:11Z"},
 		{"path":"golang.org/x/crypto/pbkdf2","checksumSHA1":"1MGpGDQqnUoRpv7VEcQrXOBydXE=","revision":"891825fb96dfc23279b4a42f710d49e78e05b333","revisionTime":"2020-03-20T06:35:11Z"},
-		{"path":"golang.org/x/crypto/ssh/terminal","checksumSHA1":"BGm8lKZmvJbf/YOJLeL1rw2WVjA=","revision":"a49355c7e3f8fe157a85be2f77e6e269a0f89602","revisionTime":"2018-06-20T09:14:27Z"},
+		{"path":"golang.org/x/crypto/ssh/terminal","checksumSHA1":"V3AzyHJxzbV6/q3/1e5O39pv7XU=","revision":"891825fb96dfc23279b4a42f710d49e78e05b333","revisionTime":"2020-03-20T06:35:11Z"},
 		{"path":"golang.org/x/net/context","checksumSHA1":"GtamqiJoL7PGHsN454AoffBFMa8=","revision":"c10e9556a7bc0e7c942242b606f0acf024ad5d6a","revisionTime":"2018-11-02T08:55:01Z"},
 		{"path":"golang.org/x/net/context/ctxhttp","checksumSHA1":"WHc3uByvGaMcnSoI21fhzYgbOgg=","revision":"f09c4662a0bd6bd8943ac7b4931e185df9471da4","revisionTime":"2016-09-24T00:10:04Z"},
 		{"path":"golang.org/x/net/html","checksumSHA1":"vqc3a+oTUGX8PmD0TS+qQ7gmN8I=","revision":"66aacef3dd8a676686c7ae3716979581e8b03c47","revisionTime":"2016-09-14T00:11:54Z"},
