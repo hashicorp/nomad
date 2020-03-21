@@ -666,14 +666,14 @@ func TestHTTP_JobDelete(t *testing.T) {
 	})
 }
 
-func TestHTTP_Job_GroupScale(t *testing.T) {
+func TestHTTP_Job_ScaleTaskGroup(t *testing.T) {
 	t.Parallel()
 
 	require := require.New(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
-		job, policy := mock.JobWithScalingPolicy()
+		job := mock.Job()
 		args := structs.JobRegisterRequest{
 			Job: job,
 			WriteRequest: structs.WriteRequest{
@@ -682,22 +682,21 @@ func TestHTTP_Job_GroupScale(t *testing.T) {
 			},
 		}
 		var resp structs.JobRegisterResponse
-		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-
-		// FINISH: cgbaker: do something with args.reason
+		require.NoError(s.Agent.RPC("Job.Register", &args, &resp))
 
 		newCount := job.TaskGroups[0].Count + 1
 		scaleReq := &api.ScalingRequest{
-			JobID:  job.ID,
-			Value:  newCount,
-			Reason: "testing",
+			Count:  int64(newCount),
+			Reason: helper.StringToPtr("testing"),
+			Target: map[string]string{
+				"Job":   job.ID,
+				"Group": job.TaskGroups[0].Name,
+			},
 		}
 		buf := encodeReq(scaleReq)
 
 		// Make the HTTP request to scale the job group
-		req, err := http.NewRequest("POST", policy.Target, buf)
+		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/scale", buf)
 		require.NoError(err)
 		respW := httptest.NewRecorder()
 
@@ -728,14 +727,14 @@ func TestHTTP_Job_GroupScale(t *testing.T) {
 	})
 }
 
-func TestHTTP_Job_GroupScaleStatus(t *testing.T) {
+func TestHTTP_Job_ScaleStatus(t *testing.T) {
 	t.Parallel()
 
 	require := require.New(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
-		job, policy := mock.JobWithScalingPolicy()
+		job := mock.Job()
 		args := structs.JobRegisterRequest{
 			Job: job,
 			WriteRequest: structs.WriteRequest{
@@ -749,7 +748,7 @@ func TestHTTP_Job_GroupScaleStatus(t *testing.T) {
 		}
 
 		// Make the HTTP request to scale the job group
-		req, err := http.NewRequest("GET", policy.Target, nil)
+		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/scale", nil)
 		require.NoError(err)
 		respW := httptest.NewRecorder()
 
@@ -758,9 +757,9 @@ func TestHTTP_Job_GroupScaleStatus(t *testing.T) {
 		require.NoError(err)
 
 		// Check the response
-		status := obj.(*api.JobScaleStatusResponse)
+		status := obj.(*structs.JobScaleStatus)
 		require.NotEmpty(resp.EvalID)
-		require.Equal(job.TaskGroups[0].Count, status.Value.(int))
+		require.Equal(job.TaskGroups[0].Count, status.TaskGroups[job.TaskGroups[0].Name].Desired)
 
 		// Check for the index
 		require.NotEmpty(respW.Header().Get("X-Nomad-Index"))
