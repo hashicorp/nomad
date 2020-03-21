@@ -36,10 +36,13 @@
 <td data-test-client-status class="is-one-line">
   <span class="color-swatch {{allocation.clientStatus}}" /> {{allocation.clientStatus}}
 </td>
+{{#if (eq context "volume")}}
+  <td data-test-client>{{#link-to "clients.client" allocation.node}}{{allocation.node.shortId}}{{/link-to}}</td>
+{{/if}}
 {{#if (or (eq context "taskGroup") (eq context "job"))}}
   <td data-test-job-version>{{allocation.jobVersion}}</td>
   <td data-test-client>{{#link-to "clients.client" allocation.node}}{{allocation.node.shortId}}{{/link-to}}</td>
-{{else if (eq context "node")}}
+{{else if (or (eq context "node") (eq context "volume"))}}
   <td>
     {{#if (or allocation.job.isPending allocation.job.isReloading)}}
       ...
@@ -50,7 +53,9 @@
   </td>
   <td data-test-job-version class="is-1">{{allocation.jobVersion}}</td>
 {{/if}}
-<td data-test-volume>{{if allocation.taskGroup.volumes.length "Yes"}}</td>
+{{#if (not (eq context "volume"))}}
+  <td data-test-volume>{{if allocation.taskGroup.volumes.length "Yes"}}</td>
+{{/if}}
 <td data-test-cpu class="is-1 has-text-centered">
   {{#if allocation.isRunning}}
     {{#if (and (not cpu) fetchStats.isRunning)}}

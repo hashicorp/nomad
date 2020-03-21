@@ -39,9 +39,9 @@
             <th>Modified</th>
             <th>Created</th>
             <th>Status</th>
+            <th>Client</th>
             <th>Job</th>
             <th>Version</th>
-            <th>Volume</th>
             <th>CPU</th>
             <th>Memory</th>
           {{/t.head}}
@@ -49,7 +49,7 @@
             {{allocation-row
               data-test-allocation=row.model.id
               allocation=row.model
-              context="node"
+              context="volume"
               onClick=(action "gotoAllocation" row.model)}}
           {{/t.body}}
         {{/list-table}}
