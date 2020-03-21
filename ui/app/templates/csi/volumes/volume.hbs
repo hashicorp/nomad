@@ -1,1 +1,64 @@
-<h1 class="title">{{model.name}}</h1>
+{{title "CSI Volume " model.name}}
+<section class="section">
+  <h1 class="title">{{model.name}}</h1>
+
+  <div class="boxed-section is-small">
+    <div class="boxed-section-body inline-definitions">
+      <span class="label">Volume Details</span>
+      <span class="pair">
+        <span class="term">health</span>
+        {{if model.schedulable "Schedulable" "Unschedulable"}}
+      </span>
+      <span class="pair">
+        <span class="term">Provider</span>
+        {{model.provider}}
+      </span>
+      <span class="pair">
+        <span class="term">External ID</span>
+        {{model.externalId}}
+      </span>
+      <span class="pair">
+        <span class="term">Namespace</span>
+        {{model.namespace.name}}
+      </span>
+    </div>
+  </div>
+
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Allocations
+    </div>
+    <div class="boxed-section-body {{if model.allocations.length "is-full-bleed"}}">
+      {{#if model.allocations.length}}
+        {{#list-table
+          source=model.allocations
+          class="with-foot" as |t|}}
+          {{#t.head}}
+            <th class="is-narrow"></th>
+            <th>ID</th>
+            <th>Modified</th>
+            <th>Created</th>
+            <th>Status</th>
+            <th>Job</th>
+            <th>Version</th>
+            <th>Volume</th>
+            <th>CPU</th>
+            <th>Memory</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            {{allocation-row
+              data-test-allocation=row.model.id
+              allocation=row.model
+              context="node"
+              onClick=(action "gotoAllocation" row.model)}}
+          {{/t.body}}
+        {{/list-table}}
+      {{else}}
+        <div class="empty-message" data-test-empty-recent-allocations>
+          <h3 class="empty-message-headline" data-test-empty-recent-allocations-headline>No Allocations</h3>
+          <p class="empty-message-body" data-test-empty-recent-allocations-message>No allocations are depending on this volume.</p>
+        </div>
+      {{/if}}
+    </div>
+  </div>
+</section>

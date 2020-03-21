@@ -11,7 +11,7 @@ export default Model.extend({
   plugin: belongsTo('plugin'),
   allocations: hasMany('allocation'),
 
-  externalID: attr('string'),
+  externalId: attr('string'),
   topologies: attr(),
   accessMode: attr('string'),
   attachmentMode: attr('string'),

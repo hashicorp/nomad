@@ -11,7 +11,6 @@ export default Route.extend(WithForbiddenState, {
   ],
 
   model() {
-    // return this.store.findAll('volume', { reload: true }).catch(notifyForbidden(this));
     return this.store
       .query('volume', { type: 'csi' })
       .then(volumes => {
