@@ -473,32 +473,24 @@ func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request,
 func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
 
-	args := structs.JobSpecificRequest{
+	args := structs.JobScaleStatusRequest{
 		JobID: jobName,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
 
-	var out structs.SingleJobResponse
-	if err := s.agent.RPC("Job.GetJob", &args, &out); err != nil {
+	var out structs.JobScaleStatusResponse
+	if err := s.agent.RPC("Job.ScaleStatus", &args, &out); err != nil {
 		return nil, err
 	}
 
 	setMeta(resp, &out.QueryMeta)
-	if out.Job == nil {
+	if out.JobScaleStatus == nil {
 		return nil, CodedError(404, "job not found")
 	}
 
-	status := &api.JobScaleStatusResponse{
-		JobID:          out.Job.ID,
-		JobCreateIndex: out.Job.CreateIndex,
-		JobModifyIndex: out.Job.ModifyIndex,
-		Stopped:        out.Job.Stop,
-		TaskGroups:     nil, // TODO
-	}
-
-	return status, nil
+	return out.JobScaleStatus, nil
 }
 
 func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,

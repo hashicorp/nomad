@@ -69,7 +69,7 @@ type ScalingPolicyListStub struct {
 	ModifyIndex uint64
 }
 
-// JobScaleStatusResponse is the payload for a generic scaling action
+// JobScaleStatusResponse is used to return information about job scaling status
 type JobScaleStatusResponse struct {
 	JobID          string
 	JobCreateIndex uint64
