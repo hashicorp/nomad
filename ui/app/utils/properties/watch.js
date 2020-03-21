@@ -75,3 +75,25 @@ export function watchAll(modelName) {
     }
   }).drop();
 }
+
+export function watchQuery(modelName) {
+  return task(function*(params, throttle = 10000) {
+    const token = new XHRToken();
+    while (isEnabled && !Ember.testing) {
+      try {
+        yield RSVP.all([
+          this.store.query(modelName, params, {
+            reload: true,
+            adapterOptions: { watch: true, abortToken: token },
+          }),
+          wait(throttle),
+        ]);
+      } catch (e) {
+        yield e;
+        break;
+      } finally {
+        token.abort();
+      }
+    }
+  }).drop();
+}

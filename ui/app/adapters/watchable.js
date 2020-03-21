@@ -1,16 +1,22 @@
 import { get } from '@ember/object';
 import { assign } from '@ember/polyfills';
 import { inject as service } from '@ember/service';
+import { AbortError } from '@ember-data/adapter/error';
 import queryString from 'query-string';
 import ApplicationAdapter from './application';
-import { AbortError } from '@ember-data/adapter/error';
+import removeRecord from '../utils/remove-record';
 
 export default ApplicationAdapter.extend({
   watchList: service(),
   store: service(),
 
   ajaxOptions(url, type, options) {
-    const ajaxOptions = this._super(...arguments);
+    // Since ajax has been changed to include query params in the URL,
+    // the query params need to be removed before arguments are passed
+    // to _ajax.
+    const [bareUrl] = url.split('?');
+    const ajaxOptions = this._super(bareUrl, type, options);
+
     const abortToken = (options || {}).abortToken;
     if (abortToken) {
       delete options.abortToken;
@@ -25,6 +31,20 @@ export default ApplicationAdapter.extend({
     }
 
     return ajaxOptions;
+  },
+
+  // Overriding ajax is not advised, but this is a minimal modification
+  // that sets off a series of events that results in query params being
+  // available in handleResponse below. Unfortunately, this is the only
+  // place where what becomes requestData can be modified.
+  //
+  // It's either this weird side-effecting thing that also requires a change
+  // to ajaxOptions or overriding ajax completely.
+  ajax(url, type, options) {
+    const params = { ...options.data };
+    delete params.index;
+
+    return this._super(`${url}?${queryString.stringify(params)}`, type, options);
   },
 
   findAll(store, type, sinceToken, snapshotRecordArray, additionalParams = {}) {
@@ -59,6 +79,47 @@ export default ApplicationAdapter.extend({
         return;
       }
       throw error;
+    });
+  },
+
+  query(store, type, query, snapshotRecordArray, options, additionalParams = {}) {
+    const params = assign({}, query, additionalParams);
+    const url = this.buildURL(type.modelName, null, null, 'query', query);
+
+    if (get(options, 'adapterOptions.watch')) {
+      // The intended query without additional blocking query params is used
+      // to track the appropriate query index.
+      params.index = this.watchList.getIndexFor(`${url}?${queryString.stringify(query)}`);
+    }
+
+    const abortToken = get(options, 'adapterOptions.abortToken');
+    return this.ajax(url, 'GET', {
+      abortToken,
+      data: params,
+    }).then(payload => {
+      const adapter = store.adapterFor(type.modelName);
+
+      // Query params may not necessarily map one-to-one to attribute names.
+      // Adapters are responsible for declaring param mappings.
+      const queryParamsToAttrs = Object.keys(adapter.queryParamsToAttrs).map(key => ({
+        queryParam: key,
+        attr: adapter.queryParamsToAttrs[key],
+      }));
+
+      // Remove existing records that match this query. This way if server-side
+      // deletes have occurred, the store won't have stale records.
+      store
+        .peekAll(type.modelName)
+        .filter(record =>
+          queryParamsToAttrs.some(
+            mapping => get(record, mapping.attr) === query[mapping.queryParam]
+          )
+        )
+        .forEach(record => {
+          removeRecord(store, record);
+        });
+
+      return payload;
     });
   },
 

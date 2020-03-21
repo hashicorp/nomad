@@ -227,28 +227,34 @@ export default function() {
     return new Response(204, {}, '');
   });
 
-  this.get('/volumes', function({ csiVolumes }, { queryParams }) {
-    if (queryParams.type !== 'csi') {
-      return new Response(200, {}, '[]');
-    }
+  this.get(
+    '/volumes',
+    withBlockingSupport(function({ csiVolumes }, { queryParams }) {
+      if (queryParams.type !== 'csi') {
+        return new Response(200, {}, '[]');
+      }
 
-    return this.serialize(csiVolumes.all());
-  });
+      return this.serialize(csiVolumes.all());
+    })
+  );
 
-  this.get('/volume/:id', function({ csiVolumes }, { params }) {
-    if (!params.id.startsWith('csi/')) {
-      return new Response(404, {}, null);
-    }
+  this.get(
+    '/volume/:id',
+    withBlockingSupport(function({ csiVolumes }, { params }) {
+      if (!params.id.startsWith('csi/')) {
+        return new Response(404, {}, null);
+      }
 
-    const id = params.id.replace(/^csi\//, '');
-    const volume = csiVolumes.find(id);
+      const id = params.id.replace(/^csi\//, '');
+      const volume = csiVolumes.find(id);
 
-    if (!volume) {
-      return new Response(404, {}, null);
-    }
+      if (!volume) {
+        return new Response(404, {}, null);
+      }
 
-    return this.serialize(volume);
-  });
+      return this.serialize(volume);
+    })
+  );
 
   this.get('/plugins', function({ csiPlugins }, { queryParams }) {
     if (queryParams.type !== 'csi') {
