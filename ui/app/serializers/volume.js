@@ -37,7 +37,6 @@ export default ApplicationSerializer.extend({
     const allocationRelationshipMeta = typeHash.relationshipsByName.get('allocations');
     const allocationsRelationship = get(partial, 'data.relationships.allocations.data');
 
-    console.log('Embarking?', allocationRelationshipMeta, partial);
     if (!allocationsRelationship) return partial;
 
     partial.included = partial.included || [];
@@ -69,8 +68,6 @@ export default ApplicationSerializer.extend({
     const relationship = { data: hasMany };
     set(partial, 'data.relationships.allocations', relationship);
 
-    console.log('Embedding complete');
-    console.log(partial);
     return partial;
   },
 
