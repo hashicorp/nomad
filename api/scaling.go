@@ -79,11 +79,12 @@ type JobScaleStatusResponse struct {
 }
 
 type TaskGroupScaleStatus struct {
-	Desired uint64
-	Running uint64
-	Started uint64
-	Healthy uint64
-	Events  []ScalingEvent
+	Desired   int
+	Placed    int
+	Running   int
+	Healthy   int
+	Unhealthy int
+	Events    []ScalingEvent
 }
 
 type ScalingEvent struct {
