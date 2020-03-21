@@ -5279,8 +5279,22 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// Create the register request
 	job := mock.Job()
+
+	// check before job registration
+	// Fetch the scaling status
+	get := &structs.JobScaleStatusRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp2 structs.JobScaleStatusResponse
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &resp2))
+	require.Nil(resp2.JobScaleStatus)
+
+	// Create the register request
 	req := &structs.JobRegisterRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
@@ -5295,27 +5309,20 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	job.CreateIndex = resp.JobModifyIndex
 	job.ModifyIndex = resp.JobModifyIndex
 
-	// Fetch the scaling status
-	get := &structs.JobScaleStatusRequest{
-		JobID: job.ID,
-		QueryOptions: structs.QueryOptions{
-			Region:    "global",
-			Namespace: job.Namespace,
-		},
-	}
-	var resp2 structs.JobScaleStatusResponse
+	// check after job registration
 	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &resp2))
+	require.NotNil(resp2.JobScaleStatus)
 
-	expectedStatus := structs.JobScaleStatusResponse{
+	expectedStatus := structs.JobScaleStatus{
 		JobID:          job.ID,
 		JobCreateIndex: job.CreateIndex,
 		JobModifyIndex: job.ModifyIndex,
 		JobStopped:     job.Stop,
-		TaskGroups: map[string]structs.TaskGroupScaleStatus{
+		TaskGroups: map[string]*structs.TaskGroupScaleStatus{
 			job.TaskGroups[0].Name: {
-				Desired:   1,
-				Placed:    1,
-				Running:   1,
+				Desired:   job.TaskGroups[0].Count,
+				Placed:    0,
+				Running:   0,
 				Healthy:   0,
 				Unhealthy: 0,
 				Events:    nil,
@@ -5323,5 +5330,5 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 		},
 	}
 
-	require.True(reflect.DeepEqual(resp2, expectedStatus))
+	require.True(reflect.DeepEqual(*resp2.JobScaleStatus, expectedStatus))
 }

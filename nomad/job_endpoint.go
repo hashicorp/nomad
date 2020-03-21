@@ -1718,7 +1718,8 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 				return err
 			}
 			if job == nil {
-				return structs.NewErrRPCCoded(404, "job does not exist")
+				reply.JobScaleStatus = nil
+				return nil
 			}
 			deployment, err := state.LatestDeploymentByJobID(ws, args.RequestNamespace(), args.JobID)
 			if err != nil {
@@ -1726,10 +1727,13 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 			}
 
 			// Setup the output
-			reply.JobModifyIndex = job.ModifyIndex
-			reply.JobCreateIndex = job.CreateIndex
-			reply.JobID = job.ID
-			reply.JobStopped = job.Stop
+			reply.JobScaleStatus = &structs.JobScaleStatus{
+				JobID:          job.ID,
+				JobCreateIndex: job.CreateIndex,
+				JobModifyIndex: job.ModifyIndex,
+				JobStopped:     job.Stop,
+				TaskGroups:     make(map[string]*structs.TaskGroupScaleStatus),
+			}
 
 			for _, tg := range job.TaskGroups {
 				tgScale := &structs.TaskGroupScaleStatus{
@@ -1742,6 +1746,7 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 						tgScale.Unhealthy = ds.UnhealthyAllocs
 					}
 				}
+				reply.JobScaleStatus.TaskGroups[tg.Name] = tgScale
 			}
 
 			if deployment != nil && deployment.ModifyIndex > job.ModifyIndex {

@@ -1236,12 +1236,16 @@ type JobSummaryResponse struct {
 
 // JobScaleStatusResponse is used to return the scale status for a job
 type JobScaleStatusResponse struct {
+	JobScaleStatus *JobScaleStatus
+	QueryMeta
+}
+
+type JobScaleStatus struct {
 	JobID          string
 	JobCreateIndex uint64
 	JobModifyIndex uint64
 	JobStopped     bool
-	TaskGroups     map[string]TaskGroupScaleStatus
-	QueryMeta
+	TaskGroups     map[string]*TaskGroupScaleStatus
 }
 
 // TaskGroupScaleStatus is used to return the scale status for a given task group
