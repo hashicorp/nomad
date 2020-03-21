@@ -285,7 +285,7 @@ func TestClient_RestartTracker_Lifecycle(t *testing.T) {
 			name: "batch job w/ sidecar prestart hook",
 			taskLifecycleConfig: &structs.TaskLifecycleConfig{
 				Hook:    structs.TaskLifecycleHookPrestart,
-				Sidecar: false,
+				Sidecar: true,
 			},
 			jobType:                structs.JobTypeBatch,
 			shouldRestartOnSuccess: true,
