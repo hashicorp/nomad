@@ -340,8 +340,8 @@ func TestParse(t *testing.T) {
 								Driver: "docker",
 								User:   "",
 								Lifecycle: &api.TaskLifecycle{
-									Hook:       "prestart",
-									BlockUntil: "completed",
+									Hook:    "prestart",
+									Sidecar: true,
 								},
 								Config: map[string]interface{}{
 									"image": "hashicorp/storagelocker",
