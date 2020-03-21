@@ -465,7 +465,6 @@ func (tr *TaskRunner) Run() {
 	case <-tr.startConditionMetCtx:
 		// yay proceed
 	case <-tr.killCtx.Done():
-		return
 	case <-tr.shutdownCtx.Done():
 		return
 	}
