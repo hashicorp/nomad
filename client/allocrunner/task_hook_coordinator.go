@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// TaskHookCoordinator helps coordinates when main start tasks can launch
+// TaskHookCoordinator helps coordinate when main start tasks can launch
 // namely after all Prestart Tasks have run, and after all BlockUntilCompleted have completed
 type taskHookCoordinator struct {
 	logger hclog.Logger
@@ -41,22 +41,32 @@ func newTaskHookCoordinator(logger hclog.Logger, tasks []*structs.Task) *taskHoo
 
 func (c *taskHookCoordinator) setTasks(tasks []*structs.Task) {
 	for _, task := range tasks {
-		if task.Lifecycle == nil || task.Lifecycle.Hook != structs.TaskLifecycleHookPrestart {
+
+		if task.Lifecycle == nil {
 			// move nothing
 			continue
 		}
 
-		// only working with prestart hooks here
-		if task.Lifecycle.Sidecar {
-			c.prestartSidecar[task.Name] = struct{}{}
-		} else {
-			c.prestartEphemeral[task.Name] = struct{}{}
+		switch task.Lifecycle.Hook {
+		case structs.TaskLifecycleHookPrestart:
+			if task.Lifecycle.Sidecar {
+				c.prestartSidecar[task.Name] = struct{}{}
+			} else {
+				c.prestartEphemeral[task.Name] = struct{}{}
+			}
+
+		default:
+			c.logger.Error("invalid lifecycle hook", "hook", task.Lifecycle.Hook)
 		}
 	}
 
-	if len(c.prestartSidecar)+len(c.prestartEphemeral) == 0 {
+	if !c.hasPrestartTasks() {
 		c.mainTaskCtxCancel()
 	}
+}
+
+func (c *taskHookCoordinator) hasPrestartTasks() bool {
+	return len(c.prestartSidecar)+len(c.prestartEphemeral) > 0
 }
 
 func (c *taskHookCoordinator) startConditionForTask(task *structs.Task) <-chan struct{} {
@@ -94,7 +104,7 @@ func (c *taskHookCoordinator) taskStateUpdated(states map[string]*structs.TaskSt
 	}
 
 	// everything well
-	if len(c.prestartSidecar)+len(c.prestartEphemeral) == 0 {
+	if !c.hasPrestartTasks() {
 		c.mainTaskCtxCancel()
 	}
 }
