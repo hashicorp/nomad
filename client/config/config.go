@@ -305,6 +305,7 @@ func DefaultConfig() *Config {
 		},
 		BackwardsCompatibleMetrics: false,
 		RPCHoldTimeout:             5 * time.Second,
+		CNIConfigDir:               "/opt/cni/config",
 	}
 }
 

@@ -2232,53 +2232,23 @@ type NetworkResource struct {
 	DynamicPorts  []Port     // Host Dynamically assigned ports
 }
 
-func (nr *NetworkResource) Equals(other *NetworkResource) bool {
-	if nr.Mode != other.Mode {
-		return false
-	}
-
-	if nr.Device != other.Device {
-		return false
-	}
-
-	if nr.CIDR != other.CIDR {
-		return false
-	}
-
-	if nr.IP != other.IP {
-		return false
-	}
-
-	if nr.MBits != other.MBits {
-		return false
-	}
-
-	if len(nr.ReservedPorts) != len(other.ReservedPorts) {
-		return false
-	}
+func (nr *NetworkResource) Hash() uint32 {
+	var data []byte
+	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%d", nr.Mode, nr.Device, nr.CIDR, nr.IP, nr.MBits))...)
 
 	for i, port := range nr.ReservedPorts {
-		if len(other.ReservedPorts) <= i {
-			return false
-		}
-		if port != other.ReservedPorts[i] {
-			return false
-		}
+		data = append(data, []byte(fmt.Sprintf("%d%s%d%d", i, port.Label, port.Value, port.To))...)
 	}
 
-	if len(nr.DynamicPorts) != len(other.DynamicPorts) {
-		return false
-	}
 	for i, port := range nr.DynamicPorts {
-		if len(other.DynamicPorts) <= i {
-			return false
-		}
-		if port != other.DynamicPorts[i] {
-			return false
-		}
+		data = append(data, []byte(fmt.Sprintf("%d%s%d%d", i, port.Label, port.Value, port.To))...)
 	}
 
-	return true
+	return crc32.ChecksumIEEE(data)
+}
+
+func (nr *NetworkResource) Equals(other *NetworkResource) bool {
+	return nr.Hash() == other.Hash()
 }
 
 func (n *NetworkResource) Canonicalize() {
@@ -2578,6 +2548,7 @@ func (n *NodeResources) Merge(o *NodeResources) {
 	n.Cpu.Merge(&o.Cpu)
 	n.Memory.Merge(&o.Memory)
 	n.Disk.Merge(&o.Disk)
+
 
 	if len(o.Networks) != 0 {
 		n.Networks = o.Networks

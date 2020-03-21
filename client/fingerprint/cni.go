@@ -7,16 +7,16 @@ import (
 
 	"github.com/containernetworking/cni/libcni"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type CNIFingerprint struct {
 	StaticFingerprinter
-	logger   log.Logger
-	networks map[string]struct{}
+	logger log.Logger
 }
 
 func NewCNIFingerprint(logger log.Logger) Fingerprint {
-	return &CNIFingerprint{logger: logger, networks: make(map[string]struct{})}
+	return &CNIFingerprint{logger: logger}
 }
 
 func (f *CNIFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
@@ -57,17 +57,19 @@ func (f *CNIFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 		}
 	}
 
+	var nodeNetworks structs.Networks
+
 	for name := range networks {
-		resp.AddAttribute(fmt.Sprintf("cni.network.%s", name), "1")
+		nodeNetworks = append(nodeNetworks, &structs.NetworkResource{
+			Mode: fmt.Sprintf("cni/%s", name),
+		})
+		f.logger.Debug("detected CNI network", "name", name)
 	}
-	for name := range f.networks {
-		if _, ok := networks[name]; !ok {
-			resp.RemoveAttribute(fmt.Sprintf("cni.network.%s", name))
-		}
+
+	resp.NodeResources = &structs.NodeResources{
+		Networks: nodeNetworks,
 	}
-	f.networks = networks
+
 	resp.Detected = true
 	return nil
 }
-
-func (f *CNIFingerprint) Reload() {}
