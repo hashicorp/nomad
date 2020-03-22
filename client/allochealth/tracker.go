@@ -66,6 +66,10 @@ type Tracker struct {
 	// not needed
 	allocStopped chan struct{}
 
+	// lifecycleTasks is a set of tasks with lifecycle hook set and may
+	// terminate without affecting alloc health
+	lifecycleTasks map[string]bool
+
 	// l is used to lock shared fields listed below
 	l sync.Mutex
 
@@ -106,14 +110,17 @@ func NewTracker(parentCtx context.Context, logger hclog.Logger, alloc *structs.A
 		consulClient:        consulClient,
 		checkLookupInterval: consulCheckLookupInterval,
 		logger:              logger,
+		lifecycleTasks:      map[string]bool{},
 	}
 
 	t.taskHealth = make(map[string]*taskHealthState, len(t.tg.Tasks))
 	for _, task := range t.tg.Tasks {
 		t.taskHealth[task.Name] = &taskHealthState{task: task}
-	}
 
-	for _, task := range t.tg.Tasks {
+		if task.Lifecycle != nil && !task.Lifecycle.Sidecar {
+			t.lifecycleTasks[task.Name] = true
+		}
+
 		for _, s := range task.Services {
 			t.consulCheckCount += len(s.Checks)
 		}
@@ -263,9 +270,9 @@ func (t *Tracker) watchTaskEvents() {
 
 		// Detect if the alloc is unhealthy or if all tasks have started yet
 		latestStartTime := time.Time{}
-		for _, state := range alloc.TaskStates {
+		for taskName, state := range alloc.TaskStates {
 			// One of the tasks has failed so we can exit watching
-			if state.Failed || !state.FinishedAt.IsZero() {
+			if state.Failed || (!state.FinishedAt.IsZero() && !t.lifecycleTasks[taskName]) {
 				t.setTaskHealth(false, true)
 				return
 			}
@@ -458,13 +465,20 @@ func (t *taskHealthState) event(deadline time.Time, minHealthyTime time.Duration
 		if t.state.Failed {
 			return "Unhealthy because of failed task", true
 		}
-		if t.state.State != structs.TaskStateRunning {
-			return "Task not running by deadline", true
-		}
 
-		// We are running so check if we have been running long enough
-		if t.state.StartedAt.Add(minHealthyTime).After(deadline) {
-			return fmt.Sprintf("Task not running for min_healthy_time of %v by deadline", minHealthyTime), true
+		switch t.state.State {
+		case structs.TaskStatePending:
+			return "Task not running by deadline", true
+		case structs.TaskStateDead:
+			// hook tasks are healthy when dead successfully
+			if t.task.Lifecycle == nil || t.task.Lifecycle.Sidecar {
+				return "Unhealthy because of dead task", true
+			}
+		case structs.TaskStateRunning:
+			// We are running so check if we have been running long enough
+			if t.state.StartedAt.Add(minHealthyTime).After(deadline) {
+				return fmt.Sprintf("Task not running for min_healthy_time of %v by deadline", minHealthyTime), true
+			}
 		}
 	}
 
