@@ -402,6 +402,54 @@ func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 	assert.Nil(t, tg.Update)
 }
 
+func TestTaskGroup_Canonicalize_Scaling(t *testing.T) {
+	require := require.New(t)
+
+	job := &Job{
+		ID: stringToPtr("test"),
+	}
+	job.Canonicalize()
+	tg := &TaskGroup{
+		Name:  stringToPtr("foo"),
+		Count: nil,
+		Scaling: &ScalingPolicy{
+			Min:         nil,
+			Max:         10,
+			Policy:      nil,
+			Enabled:     nil,
+			CreateIndex: 0,
+			ModifyIndex: 0,
+		},
+	}
+	job.TaskGroups = []*TaskGroup{tg}
+
+	// both nil => both == 1
+	tg.Canonicalize(job)
+	require.NotNil(tg.Count)
+	require.NotNil(tg.Scaling.Min)
+	require.Equal(1, *tg.Count)
+	require.Equal(int64(*tg.Count), *tg.Scaling.Min)
+
+	tg.Count = nil
+	tg.Scaling.Min = int64ToPtr(5)
+	// count == nil => count = Scaling.Min
+	tg.Canonicalize(job)
+	require.NotNil(tg.Count)
+	require.NotNil(tg.Scaling.Min)
+	require.Equal(5, *tg.Count)
+	require.Equal(int64(*tg.Count), *tg.Scaling.Min)
+
+	// Scaling.Min == nil => Scaling.Min == count
+	tg.Count = intToPtr(5)
+	tg.Scaling.Min = nil
+	// count == nil => count = Scaling.Min
+	tg.Canonicalize(job)
+	require.NotNil(tg.Count)
+	require.NotNil(tg.Scaling.Min)
+	require.Equal(int64(5), *tg.Scaling.Min)
+	require.Equal(*tg.Scaling.Min, int64(*tg.Count))
+}
+
 func TestTaskGroup_Merge_Update(t *testing.T) {
 	job := &Job{
 		ID:     stringToPtr("test"),

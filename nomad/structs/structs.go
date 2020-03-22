@@ -5235,6 +5235,12 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, outer)
 	}
 
+	// Validate the scaling policy
+	if err := tg.validateScalingPolicy(); err != nil {
+		outer := fmt.Errorf("Task group scaling policy validation failed: %v", err)
+		mErr.Errors = append(mErr.Errors, outer)
+	}
+
 	// Validate the tasks
 	for _, task := range tg.Tasks {
 		// Validate the task does not reference undefined volume mounts
@@ -5383,6 +5389,33 @@ func (tg *TaskGroup) validateServices() error {
 			}
 		}
 	}
+	return mErr.ErrorOrNil()
+}
+
+// validateScalingPolicy ensures that the scaling policy has consistent
+// min and max, not in conflict with the task group count
+func (tg *TaskGroup) validateScalingPolicy() error {
+	if tg.Scaling == nil {
+		return nil
+	}
+
+	var mErr multierror.Error
+
+	if tg.Scaling.Min > tg.Scaling.Max {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("Scaling policy invalid: maximum count must not be less than minimum count"))
+	}
+
+	if int64(tg.Count) < tg.Scaling.Min {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("Scaling policy invalid: task group count must not be less than minimum count in scaling policy"))
+	}
+
+	if tg.Scaling.Max < int64(tg.Count) {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("Scaling policy invalid: task group count must not be greater than maximum count in scaling policy"))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
