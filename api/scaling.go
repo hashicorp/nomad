@@ -28,9 +28,19 @@ func (s *Scaling) GetPolicy(ID string, q *QueryOptions) (*ScalingPolicy, *QueryM
 	return &policy, qm, nil
 }
 
-func (p *ScalingPolicy) Canonicalize() {
+func (p *ScalingPolicy) Canonicalize(tg *TaskGroup) {
 	if p.Enabled == nil {
 		p.Enabled = boolToPtr(true)
+	}
+	if p.Min == nil {
+		var m int64
+		if tg.Count != nil {
+			m = int64(*tg.Count)
+		} else {
+			// this should not be at this point, but safeguard here just in case
+			m = 0
+		}
+		p.Min = &m
 	}
 }
 
@@ -51,7 +61,7 @@ type ScalingPolicy struct {
 	ID          string
 	Namespace   string
 	Target      map[string]string
-	Min         int64
+	Min         *int64
 	Max         int64
 	Policy      map[string]interface{}
 	Enabled     *bool

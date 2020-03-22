@@ -1275,6 +1275,8 @@ func JobWithScalingPolicy() (*structs.Job, *structs.ScalingPolicy) {
 	job := Job()
 	policy := &structs.ScalingPolicy{
 		ID:      uuid.Generate(),
+		Min:     int64(job.TaskGroups[0].Count),
+		Max:     int64(job.TaskGroups[0].Count),
 		Policy:  map[string]interface{}{},
 		Enabled: true,
 	}
