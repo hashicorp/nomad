@@ -34,6 +34,7 @@ func TestConfig_Merge(t *testing.T) {
 		Client:         &ClientConfig{},
 		Server:         &ServerConfig{},
 		ACL:            &ACLConfig{},
+		Audit:          &config.AuditConfig{},
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
@@ -82,6 +83,22 @@ func TestConfig_Merge(t *testing.T) {
 			CirconusBrokerID:                   "0",
 			CirconusBrokerSelectTag:            "dc:dc1",
 			PrefixFilter:                       []string{"filter1", "filter2"},
+		},
+		Audit: &config.AuditConfig{
+			Enabled: helper.BoolToPtr(true),
+			Sinks: []*config.AuditSink{
+				{
+					DeliveryGuarantee: "enforced",
+					Name:              "file",
+					Type:              "file",
+					Format:            "json",
+					Path:              "/opt/nomad/audit.log",
+					RotateDuration:    24 * time.Hour,
+					RotateDurationHCL: "24h",
+					RotateBytes:       100,
+					RotateMaxFiles:    10,
+				},
+			},
 		},
 		Client: &ClientConfig{
 			Enabled:   false,
@@ -213,6 +230,22 @@ func TestConfig_Merge(t *testing.T) {
 		DisableUpdateCheck:        helper.BoolToPtr(true),
 		DisableAnonymousSignature: true,
 		BindAddr:                  "127.0.0.2",
+		Audit: &config.AuditConfig{
+			Enabled: helper.BoolToPtr(true),
+			Sinks: []*config.AuditSink{
+				{
+					DeliveryGuarantee: "enforced",
+					Name:              "file",
+					Type:              "file",
+					Format:            "json",
+					Path:              "/opt/nomad/audit.log",
+					RotateDuration:    24 * time.Hour,
+					RotateDurationHCL: "24h",
+					RotateBytes:       100,
+					RotateMaxFiles:    10,
+				},
+			},
+		},
 		Telemetry: &Telemetry{
 			StatsiteAddr:                       "127.0.0.2:8125",
 			StatsdAddr:                         "127.0.0.2:8125",

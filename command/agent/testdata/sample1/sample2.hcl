@@ -17,3 +17,24 @@
 vault = {
   enabled = true
 }
+
+audit {
+  enabled = true
+
+  sink "file" {
+    type               = "file"
+    format             = "json"
+    delivery_guarantee = "enforced"
+    path               = "/opt/nomad/audit.log"
+    rotate_bytes       = 100
+    rotate_duration    = "24h"
+    rotate_max_files   = 10
+  }
+
+  filter "default" {
+    type       = "HTTPEvent"
+    endpoints  = ["/ui/", "/v1/agent/health"]
+    stages     = ["*"]
+    operations = ["*"]
+  }
+}

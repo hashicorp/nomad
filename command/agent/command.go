@@ -72,6 +72,7 @@ func (c *Command) readConfig() *Config {
 		},
 		Vault: &config.VaultConfig{},
 		ACL:   &ACLConfig{},
+		Audit: &config.AuditConfig{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)

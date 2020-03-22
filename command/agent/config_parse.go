@@ -35,6 +35,7 @@ func ParseConfigFile(path string) (*Config, error) {
 	c := &Config{
 		Client:    &ClientConfig{ServerJoin: &ServerJoin{}},
 		ACL:       &ACLConfig{},
+		Audit:     &config.AuditConfig{},
 		Server:    &ServerConfig{ServerJoin: &ServerJoin{}},
 		Consul:    &config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
@@ -48,7 +49,7 @@ func ParseConfigFile(path string) (*Config, error) {
 	}
 
 	// convert strings to time.Durations
-	err = durations([]td{
+	tds := []td{
 		{"gc_interval", &c.Client.GCInterval, &c.Client.GCIntervalHCL},
 		{"acl.token_ttl", &c.ACL.TokenTTL, &c.ACL.TokenTTLHCL},
 		{"acl.policy_ttl", &c.ACL.PolicyTTL, &c.ACL.PolicyTTLHCL},
@@ -61,7 +62,17 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"autopilot.server_stabilization_time", &c.Autopilot.ServerStabilizationTime, &c.Autopilot.ServerStabilizationTimeHCL},
 		{"autopilot.last_contact_threshold", &c.Autopilot.LastContactThreshold, &c.Autopilot.LastContactThresholdHCL},
 		{"telemetry.collection_interval", &c.Telemetry.collectionInterval, &c.Telemetry.CollectionInterval},
-	})
+	}
+
+	// Add enterprise audit sinks for time.Duration parsing
+	for i, sink := range c.Audit.Sinks {
+		tds = append(tds, td{
+			fmt.Sprintf("audit.sink.%d", i), &sink.RotateDuration, &sink.RotateDurationHCL,
+		})
+	}
+
+	// convert strings to time.Durations
+	err = durations(tds)
 	if err != nil {
 		return nil, err
 	}
@@ -142,6 +153,17 @@ func extraKeys(c *Config) error {
 	for _, hv := range c.Client.HostVolumes {
 		removeEqualFold(&c.Client.ExtraKeysHCL, hv.Name)
 		removeEqualFold(&c.Client.ExtraKeysHCL, "host_volume")
+	}
+
+	// Remove AuditConfig extra keys
+	for _, f := range c.Audit.Filters {
+		removeEqualFold(&c.Audit.ExtraKeysHCL, f.Name)
+		removeEqualFold(&c.Audit.ExtraKeysHCL, "filter")
+	}
+
+	for _, s := range c.Audit.Sinks {
+		removeEqualFold(&c.Audit.ExtraKeysHCL, s.Name)
+		removeEqualFold(&c.Audit.ExtraKeysHCL, "sink")
 	}
 
 	for _, k := range []string{"enabled_schedulers", "start_join", "retry_join", "server_join"} {

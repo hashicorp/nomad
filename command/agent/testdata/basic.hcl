@@ -142,6 +142,27 @@ acl {
   replication_token = "foobar"
 }
 
+audit {
+  enabled = true
+
+  sink "file" {
+    type               = "file"
+    delivery_guarantee = "enforced"
+    format             = "json"
+    path               = "/opt/nomad/audit.log"
+    rotate_bytes       = 100
+    rotate_duration    = "24h"
+    rotate_max_files   = 10
+  }
+
+  filter "default" {
+    type       = "HTTPEvent"
+    endpoints  = ["/ui/", "/v1/agent/health"]
+    stages     = ["*"]
+    operations = ["*"]
+  }
+}
+
 telemetry {
   statsite_address             = "127.0.0.1:1234"
   statsd_address               = "127.0.0.1:2345"

@@ -165,3 +165,29 @@ func TestClient_ACL_ResolveToken(t *testing.T) {
 	assert.Equal(t, structs.ErrTokenNotFound, err)
 	assert.Nil(t, out4)
 }
+
+func TestClient_ACL_ResolveSecretToken(t *testing.T) {
+	t.Parallel()
+
+	s1, _, _, cleanupS1 := testACLServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1, cleanup := TestClient(t, func(c *config.Config) {
+		c.RPCHandler = s1
+		c.ACLEnabled = true
+	})
+	defer cleanup()
+
+	token := mock.ACLToken()
+
+	err := s1.State().UpsertACLTokens(110, []*structs.ACLToken{token})
+	assert.Nil(t, err)
+
+	respToken, err := c1.ResolveSecretToken(token.SecretID)
+	assert.Nil(t, err)
+	if assert.NotNil(t, respToken) {
+		assert.NotEmpty(t, respToken.AccessorID)
+	}
+
+}
