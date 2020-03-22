@@ -862,12 +862,22 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	if groupName == "" {
 		return structs.NewErrRPCCoded(400, "missing task group name for scaling action")
 	}
+	if args.Error != nil && args.Reason != nil {
+		return structs.NewErrRPCCoded(400, "scaling action should not contain error and scaling reason")
+	}
+	if args.Error != nil && args.Count != nil {
+		return structs.NewErrRPCCoded(400, "scaling action should not contain error and count")
+	}
 
 	// Check for submit-job permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityScaleJob) {
-		return structs.ErrPermissionDenied
+	} else if aclObj != nil {
+		hasScaleJob := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityScaleJob)
+		hasSubmitJob := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob)
+		if !(hasScaleJob || hasSubmitJob) {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Lookup the job
@@ -884,38 +894,42 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
 	}
 
-	found := false
-	for _, tg := range job.TaskGroups {
-		if groupName == tg.Name {
-			tg.Count = int(args.Count) // TODO: not safe, check this above
-			found = true
-			break
+	index := job.ModifyIndex
+	if args.Count != nil {
+		found := false
+		for _, tg := range job.TaskGroups {
+			if groupName == tg.Name {
+				tg.Count = int(*args.Count) // TODO: not safe, check this above
+				found = true
+				break
+			}
 		}
-	}
-	if !found {
-		return structs.NewErrRPCCoded(400,
-			fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
-	}
-	registerReq := structs.JobRegisterRequest{
-		Job:            job,
-		EnforceIndex:   true,
-		JobModifyIndex: job.ModifyIndex,
-		PolicyOverride: args.PolicyOverride,
-		WriteRequest:   args.WriteRequest,
-	}
+		if !found {
+			return structs.NewErrRPCCoded(400,
+				fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
+		}
+		registerReq := structs.JobRegisterRequest{
+			Job:            job,
+			EnforceIndex:   true,
+			JobModifyIndex: job.ModifyIndex,
+			PolicyOverride: args.PolicyOverride,
+			WriteRequest:   args.WriteRequest,
+		}
 
-	// Commit this update via Raft
-	_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, registerReq)
-	if err != nil {
-		j.logger.Error("job register for scale failed", "error", err)
-		return err
-	}
+		// Commit this update via Raft
+		_, index, err = j.srv.raftApply(structs.JobRegisterRequestType, registerReq)
+		if err != nil {
+			j.logger.Error("job register for scale failed", "error", err)
+			return err
+		}
 
-	// FINISH:
-	// register the scaling event to the scaling_event table, once that exists
+	}
 
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
+
+	// FINISH:
+	// register the scaling event to the scaling_event table, once that exists
 
 	// If the job is periodic or parameterized, we don't create an eval.
 	if job != nil && (job.IsPeriodic() || job.IsParameterized()) {

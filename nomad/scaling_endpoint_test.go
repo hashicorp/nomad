@@ -51,6 +51,35 @@ func TestScalingEndpoint_GetPolicy(t *testing.T) {
 	require.Nil(resp.Policy)
 }
 
+func TestScalingEndpoint_ListPolicies(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	p1 := mock.ScalingPolicy()
+	p2 := mock.ScalingPolicy()
+
+	s1.fsm.State().UpsertScalingPolicies(1000, []*structs.ScalingPolicy{p1, p2})
+
+	// Lookup the policies
+	get := &structs.ScalingPolicyListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	var resp structs.ACLPolicyListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Scaling.ListPolicies", get, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.EqualValues(1000, resp.Index)
+	assert.Len(resp.Policies, 2)
+}
+
 func TestScalingEndpoint_ListPolicies_Blocking(t *testing.T) {
 	t.Parallel()
 
@@ -94,33 +123,4 @@ func TestScalingEndpoint_ListPolicies_Blocking(t *testing.T) {
 	require.Equal(uint64(200), resp.Index, "bad index")
 	require.Len(resp.Policies, 2)
 	require.ElementsMatch([]string{p1.ID, p2.ID}, []string{resp.Policies[0].ID, resp.Policies[1].ID})
-}
-
-func TestScalingEndpoint_ListPolicies(t *testing.T) {
-	assert := assert.New(t)
-	t.Parallel()
-
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create the register request
-	p1 := mock.ScalingPolicy()
-	p2 := mock.ScalingPolicy()
-
-	s1.fsm.State().UpsertScalingPolicies(1000, []*structs.ScalingPolicy{p1, p2})
-
-	// Lookup the policies
-	get := &structs.ScalingPolicyListRequest{
-		QueryOptions: structs.QueryOptions{
-			Region: "global",
-		},
-	}
-	var resp structs.ACLPolicyListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Scaling.ListPolicies", get, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	assert.EqualValues(1000, resp.Index)
-	assert.Len(resp.Policies, 2)
 }

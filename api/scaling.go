@@ -46,7 +46,7 @@ func (p *ScalingPolicy) Canonicalize(tg *TaskGroup) {
 
 // ScalingRequest is the payload for a generic scaling action
 type ScalingRequest struct {
-	Count  int64
+	Count  *int64
 	Target map[string]string
 	Reason *string
 	Error  *string
