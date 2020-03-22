@@ -87,6 +87,69 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 	}
 }
 
+func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
+	t.Parallel()
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	// Wait for a node to be ready
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		for _, node := range nodes {
+			if node.Status == structs.NodeStatusReady {
+				return true, nil
+			}
+		}
+		return false, fmt.Errorf("no ready nodes")
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	ui := new(cli.MockUi)
+	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
+	state := srv.Agent.Server().State()
+
+	a := mock.Alloc()
+	a.Metrics = &structs.AllocMetric{}
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	initTask := tg.Tasks[0].Copy()
+	initTask.Name = "init_task"
+	initTask.Lifecycle = &structs.TaskLifecycleConfig{
+		Hook: "prestart",
+	}
+
+	prestartSidecarTask := tg.Tasks[0].Copy()
+	prestartSidecarTask.Name = "prestart_sidecar"
+	prestartSidecarTask.Lifecycle = &structs.TaskLifecycleConfig{
+		Hook:    "prestart",
+		Sidecar: true,
+	}
+
+	tg.Tasks = append(tg.Tasks, initTask, prestartSidecarTask)
+	a.TaskResources["init_task"] = a.TaskResources["web"]
+	a.TaskResources["prestart_sidecar"] = a.TaskResources["web"]
+	a.TaskStates = map[string]*structs.TaskState{
+		"web":              &structs.TaskState{State: "pending"},
+		"init_task":        &structs.TaskState{State: "running"},
+		"prestart_sidecar": &structs.TaskState{State: "running"},
+	}
+
+	require.Nil(t, state.UpsertAllocs(1000, []*structs.Allocation{a}))
+
+	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out := ui.OutputWriter.String()
+
+	require.Contains(t, out, `Task "init_task" (prestart) is "running"`)
+	require.Contains(t, out, `Task "prestart_sidecar" (prestart sidecar) is "running"`)
+	require.Contains(t, out, `Task "web" is "pending"`)
+}
+
 func TestAllocStatusCommand_Run(t *testing.T) {
 	t.Parallel()
 	srv, client, url := testServer(t, true, nil)

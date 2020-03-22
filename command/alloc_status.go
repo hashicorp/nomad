@@ -364,9 +364,20 @@ func futureEvalTimePretty(evalID string, client *api.Client) string {
 // outputTaskDetails prints task details for each task in the allocation,
 // optionally printing verbose statistics if displayStats is set
 func (c *AllocStatusCommand) outputTaskDetails(alloc *api.Allocation, stats *api.AllocResourceUsage, displayStats bool, verbose bool) {
-	for task := range c.sortedTaskStateIterator(alloc.TaskStates) {
+	taskLifecycles := map[string]*api.TaskLifecycle{}
+	for _, t := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks {
+		taskLifecycles[t.Name] = t.Lifecycle
+	}
+
+	for _, task := range c.sortedTaskStateIterator(alloc.TaskStates, taskLifecycles) {
 		state := alloc.TaskStates[task]
-		c.Ui.Output(c.Colorize().Color(fmt.Sprintf("\n[bold]Task %q is %q[reset]", task, state.State)))
+
+		lcIndicator := ""
+		if lc := taskLifecycles[task]; !lc.Empty() {
+			lcIndicator = " (" + lifecycleDisplayName(lc) + ")"
+		}
+
+		c.Ui.Output(c.Colorize().Color(fmt.Sprintf("\n[bold]Task %q%v is %q[reset]", task, lcIndicator, state.State)))
 		c.outputTaskResources(alloc, task, stats, displayStats)
 		c.Ui.Output("")
 		c.outputTaskVolumes(alloc, task, verbose)
@@ -671,20 +682,12 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 	tasks := make([]string, 0, len(alloc.TaskStates)+1)
 	tasks = append(tasks, "Name|State|Last Event|Time|Lifecycle")
 
-	taskLifecycles := map[string]string{}
+	taskLifecycles := map[string]*api.TaskLifecycle{}
 	for _, t := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks {
-		lc := "main"
-		if t.Lifecycle != nil {
-			sidecar := ""
-			if t.Lifecycle.Sidecar {
-				sidecar = "sidecar"
-			}
-			lc = fmt.Sprintf("%s %s", t.Lifecycle.Hook, sidecar)
-		}
-		taskLifecycles[t.Name] = lc
+		taskLifecycles[t.Name] = t.Lifecycle
 	}
 
-	for task := range c.sortedTaskStateIterator(alloc.TaskStates) {
+	for _, task := range c.sortedTaskStateIterator(alloc.TaskStates, taskLifecycles) {
 		state := alloc.TaskStates[task]
 		lastState := state.State
 		var lastEvent, lastTime string
@@ -697,7 +700,7 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 		}
 
 		tasks = append(tasks, fmt.Sprintf("%s|%s|%s|%s|%s",
-			task, lastState, lastEvent, lastTime, taskLifecycles[task]))
+			task, lastState, lastEvent, lastTime, lifecycleDisplayName(taskLifecycles[task])))
 	}
 
 	c.Ui.Output(c.Colorize().Color("\n[bold]Tasks[reset]"))
@@ -706,8 +709,7 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 
 // sortedTaskStateIterator is a helper that takes the task state map and returns a
 // channel that returns the keys in a sorted order.
-func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState) <-chan string {
-	output := make(chan string, len(m))
+func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState, lifecycles map[string]*api.TaskLifecycle) []string {
 	keys := make([]string, len(m))
 	i := 0
 	for k := range m {
@@ -716,12 +718,36 @@ func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState
 	}
 	sort.Strings(keys)
 
-	for _, key := range keys {
-		output <- key
+	// display prestart then prestart sidecar then main
+	sort.SliceStable(keys, func(i, j int) bool {
+		lci := lifecycles[keys[i]]
+		lcj := lifecycles[keys[j]]
+
+		switch {
+		case lci == nil:
+			return false
+		case lcj == nil:
+			return true
+		case !lci.Sidecar && lcj.Sidecar:
+			return true
+		default:
+			return false
+		}
+	})
+
+	return keys
+}
+
+func lifecycleDisplayName(l *api.TaskLifecycle) string {
+	if l.Empty() {
+		return "main"
 	}
 
-	close(output)
-	return output
+	sidecar := ""
+	if l.Sidecar {
+		sidecar = " sidecar"
+	}
+	return l.Hook + sidecar
 }
 
 func (c *AllocStatusCommand) outputTaskVolumes(alloc *api.Allocation, taskName string, verbose bool) {
