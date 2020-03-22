@@ -30,6 +30,9 @@ func TestParse(t *testing.T) {
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
 							NamespaceCapabilityReadJob,
+							NamespaceCapabilityReadJobScaling,
+							NamespaceCapabilityListScalingPolicies,
+							NamespaceCapabilityReadScalingPolicy,
 						},
 					},
 				},
@@ -46,6 +49,9 @@ func TestParse(t *testing.T) {
 			namespace "secret" {
 				capabilities = ["deny", "read-logs"]
 			}
+            namespace "prod" {
+                policy = "autoscaler"
+            }
 			agent {
 				policy = "read"
 			}
@@ -68,6 +74,9 @@ func TestParse(t *testing.T) {
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
 							NamespaceCapabilityReadJob,
+							NamespaceCapabilityReadJobScaling,
+							NamespaceCapabilityListScalingPolicies,
+							NamespaceCapabilityReadScalingPolicy,
 						},
 					},
 					{
@@ -76,12 +85,16 @@ func TestParse(t *testing.T) {
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
 							NamespaceCapabilityReadJob,
+							NamespaceCapabilityReadJobScaling,
+							NamespaceCapabilityScaleJob,
 							NamespaceCapabilitySubmitJob,
 							NamespaceCapabilityDispatchJob,
 							NamespaceCapabilityReadLogs,
 							NamespaceCapabilityReadFS,
 							NamespaceCapabilityAllocExec,
 							NamespaceCapabilityAllocLifecycle,
+							NamespaceCapabilityListScalingPolicies,
+							NamespaceCapabilityReadScalingPolicy,
 						},
 					},
 					{
@@ -89,6 +102,16 @@ func TestParse(t *testing.T) {
 						Capabilities: []string{
 							NamespaceCapabilityDeny,
 							NamespaceCapabilityReadLogs,
+						},
+					},
+					{
+						Name:   "prod",
+						Policy: PolicyAutoscaler,
+						Capabilities: []string{
+							NamespaceCapabilityReadJobScaling,
+							NamespaceCapabilityScaleJob,
+							NamespaceCapabilityListScalingPolicies,
+							NamespaceCapabilityReadScalingPolicy,
 						},
 					},
 				},
