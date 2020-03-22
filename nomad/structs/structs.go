@@ -619,7 +619,7 @@ type JobScaleRequest struct {
 	Namespace string
 	JobID     string
 	Target    map[string]string
-	Count     int64
+	Count     *int64
 	Reason    *string
 	Error     *string
 	Meta      map[string]interface{}
