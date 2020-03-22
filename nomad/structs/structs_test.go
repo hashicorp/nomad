@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
+
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -120,6 +121,54 @@ func TestJob_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Error(), "datacenter must be non-empty string") {
 		t.Fatalf("err: %s", err)
 	}
+}
+
+func TestJob_ValidateScaling(t *testing.T) {
+	require := require.New(t)
+
+	p := &ScalingPolicy{
+		Policy:  nil, // allowed to be nil
+		Min:     5,
+		Max:     5,
+		Enabled: true,
+	}
+	job := testJob()
+	job.TaskGroups[0].Scaling = p
+	job.TaskGroups[0].Count = 5
+
+	require.NoError(job.Validate())
+
+	// min <= max
+	p.Max = 0
+	p.Min = 10
+	err := job.Validate()
+	require.Error(err)
+	mErr := err.(*multierror.Error)
+	require.Len(mErr.Errors, 1)
+	require.Contains(mErr.Errors[0].Error(), "maximum count must not be less than minimum count")
+	require.Contains(mErr.Errors[0].Error(), "task group count must not be less than minimum count in scaling policy")
+	require.Contains(mErr.Errors[0].Error(), "task group count must not be greater than maximum count in scaling policy")
+
+	// count <= max
+	p.Max = 0
+	p.Min = 5
+	job.TaskGroups[0].Count = 5
+	err = job.Validate()
+	require.Error(err)
+	mErr = err.(*multierror.Error)
+	require.Len(mErr.Errors, 1)
+	require.Contains(mErr.Errors[0].Error(), "maximum count must not be less than minimum count")
+	require.Contains(mErr.Errors[0].Error(), "task group count must not be greater than maximum count in scaling policy")
+
+	// min <= count
+	job.TaskGroups[0].Count = 0
+	p.Min = 5
+	p.Max = 5
+	err = job.Validate()
+	require.Error(err)
+	mErr = err.(*multierror.Error)
+	require.Len(mErr.Errors, 1)
+	require.Contains(mErr.Errors[0].Error(), "task group count must not be less than minimum count in scaling policy")
 }
 
 func TestJob_Warnings(t *testing.T) {
