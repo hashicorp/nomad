@@ -5296,3 +5296,92 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 
 	require.True(reflect.DeepEqual(*resp2.JobScaleStatus, expectedStatus))
 }
+
+func TestJobEndpoint_GetScaleStatus_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create the job
+	job := mock.Job()
+	err := state.UpsertJob(1000, job)
+	require.Nil(err)
+
+	// Get the job scale status
+	get := &structs.JobScaleStatusRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Get without a token should fail
+	var resp structs.JobScaleStatusResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get.AuthToken = invalidToken.SecretID
+	var invalidResp structs.JobScaleStatusResponse
+	require.NotNil(err)
+	err = msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &invalidResp)
+	require.Contains(err.Error(), "Permission denied")
+
+	type testCase struct {
+		authToken string
+		name      string
+	}
+	cases := []testCase{
+		{
+			name:      "mgmt token should succeed",
+			authToken: root.SecretID,
+		},
+		{
+			name: "read disposition should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-read",
+				mock.NamespacePolicy(structs.DefaultNamespace, "read", nil)).
+				SecretID,
+		},
+		{
+			name: "write disposition should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-write",
+				mock.NamespacePolicy(structs.DefaultNamespace, "write", nil)).
+				SecretID,
+		},
+		{
+			name: "autoscaler disposition should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-autoscaler",
+				mock.NamespacePolicy(structs.DefaultNamespace, "autoscaler", nil)).
+				SecretID,
+		},
+		{
+			name: "read-job capability should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-read-job",
+				mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})).SecretID,
+		},
+		{
+			name: "read-job-scaling capability should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-read-job-scaling",
+				mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJobScaling})).
+				SecretID,
+		},
+	}
+
+	for _, tc := range cases {
+		get.AuthToken = tc.authToken
+		var validResp structs.JobScaleStatusResponse
+		err = msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &validResp)
+		require.NoError(err, tc.name)
+		require.NotNil(validResp.JobScaleStatus)
+	}
+}
