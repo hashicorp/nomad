@@ -1698,13 +1698,16 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "scale_status"}, time.Now())
 
-	// FINISH
-	// Check for job-autoscaler permissions
-	// if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
-	// 	return err
-	// } else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
-	// 	return structs.ErrPermissionDenied
-	// }
+	// Check for autoscaler permissions
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil {
+		hasReadJob := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
+		hasReadJobScaling := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJobScaling)
+		if !(hasReadJob || hasReadJobScaling) {
+			return structs.ErrPermissionDenied
+		}
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
