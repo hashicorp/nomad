@@ -11,12 +11,15 @@ import (
 	"time"
 	"unsafe"
 
+	winio "github.com/Microsoft/go-winio"
 	"golang.org/x/sys/windows"
 )
 
 const (
 	// SddlAdministratorsLocalSystem is local administrators plus NT AUTHORITY\System
 	SddlAdministratorsLocalSystem = "D:P(A;OICI;GA;;;BA)(A;OICI;GA;;;SY)"
+	// SddlNtvmAdministratorsLocalSystem is NT VIRTUAL MACHINE\Virtual Machines plus local administrators plus NT AUTHORITY\System
+	SddlNtvmAdministratorsLocalSystem = "D:P(A;OICI;GA;;;S-1-5-83-0)(A;OICI;GA;;;BA)(A;OICI;GA;;;SY)"
 )
 
 // MkdirAllWithACL is a wrapper for MkdirAll that creates a directory
@@ -25,10 +28,9 @@ func MkdirAllWithACL(path string, perm os.FileMode, sddl string) error {
 	return mkdirall(path, true, sddl)
 }
 
-// MkdirAll implementation that is volume path aware for Windows. It can be used
-// as a drop-in replacement for os.MkdirAll()
-func MkdirAll(path string, _ os.FileMode) error {
-	return mkdirall(path, false, "")
+// MkdirAll implementation that is volume path aware for Windows.
+func MkdirAll(path string, _ os.FileMode, sddl string) error {
+	return mkdirall(path, false, sddl)
 }
 
 // mkdirall is a custom version of os.MkdirAll modified for use on Windows
@@ -102,13 +104,13 @@ func mkdirall(path string, applyACL bool, sddl string) error {
 // and Local System.
 func mkdirWithACL(name string, sddl string) error {
 	sa := windows.SecurityAttributes{Length: 0}
-	sd, err := windows.SecurityDescriptorFromString(sddl)
+	sd, err := winio.SddlToSecurityDescriptor(sddl)
 	if err != nil {
 		return &os.PathError{Op: "mkdir", Path: name, Err: err}
 	}
 	sa.Length = uint32(unsafe.Sizeof(sa))
 	sa.InheritHandle = 1
-	sa.SecurityDescriptor = sd
+	sa.SecurityDescriptor = uintptr(unsafe.Pointer(&sd[0]))
 
 	namep, err := windows.UTF16PtrFromString(name)
 	if err != nil {
@@ -130,10 +132,12 @@ func mkdirWithACL(name string, sddl string) error {
 // by the daemon. This SHOULD be treated as absolute from a docker processing
 // perspective.
 func IsAbs(path string) bool {
-	if filepath.IsAbs(path) || strings.HasPrefix(path, string(os.PathSeparator)) {
-		return true
+	if !filepath.IsAbs(path) {
+		if !strings.HasPrefix(path, string(os.PathSeparator)) {
+			return false
+		}
 	}
-	return false
+	return true
 }
 
 // The origin of the functions below here are the golang OS and windows packages,
@@ -233,7 +237,7 @@ func windowsOpenSequential(path string, mode int, _ uint32) (fd windows.Handle, 
 		createmode = windows.OPEN_EXISTING
 	}
 	// Use FILE_FLAG_SEQUENTIAL_SCAN rather than FILE_ATTRIBUTE_NORMAL as implemented in golang.
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
+	//https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
 	const fileFlagSequentialScan = 0x08000000 // FILE_FLAG_SEQUENTIAL_SCAN
 	h, e := windows.CreateFile(pathp, access, sharemode, sa, createmode, fileFlagSequentialScan, 0)
 	return h, e

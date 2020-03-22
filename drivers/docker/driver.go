@@ -719,7 +719,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		StorageOpt:   driverConfig.StorageOpt,
 		VolumeDriver: driverConfig.VolumeDriver,
 
-		PidsLimit: driverConfig.PidsLimit,
+		PidsLimit: &driverConfig.PidsLimit,
 	}
 
 	if _, ok := task.DeviceEnv[nvidiaVisibleDevices]; ok {

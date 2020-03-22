@@ -3,49 +3,49 @@ package mount // import "github.com/docker/docker/pkg/mount"
 // MakeShared ensures a mounted filesystem has the SHARED mount option enabled.
 // See the supported options in flags.go for further reference.
 func MakeShared(mountPoint string) error {
-	return ensureMountedAs(mountPoint, SHARED)
+	return ensureMountedAs(mountPoint, "shared")
 }
 
 // MakeRShared ensures a mounted filesystem has the RSHARED mount option enabled.
 // See the supported options in flags.go for further reference.
 func MakeRShared(mountPoint string) error {
-	return ensureMountedAs(mountPoint, RSHARED)
+	return ensureMountedAs(mountPoint, "rshared")
 }
 
 // MakePrivate ensures a mounted filesystem has the PRIVATE mount option enabled.
 // See the supported options in flags.go for further reference.
 func MakePrivate(mountPoint string) error {
-	return ensureMountedAs(mountPoint, PRIVATE)
+	return ensureMountedAs(mountPoint, "private")
 }
 
 // MakeRPrivate ensures a mounted filesystem has the RPRIVATE mount option
 // enabled. See the supported options in flags.go for further reference.
 func MakeRPrivate(mountPoint string) error {
-	return ensureMountedAs(mountPoint, RPRIVATE)
+	return ensureMountedAs(mountPoint, "rprivate")
 }
 
 // MakeSlave ensures a mounted filesystem has the SLAVE mount option enabled.
 // See the supported options in flags.go for further reference.
 func MakeSlave(mountPoint string) error {
-	return ensureMountedAs(mountPoint, SLAVE)
+	return ensureMountedAs(mountPoint, "slave")
 }
 
 // MakeRSlave ensures a mounted filesystem has the RSLAVE mount option enabled.
 // See the supported options in flags.go for further reference.
 func MakeRSlave(mountPoint string) error {
-	return ensureMountedAs(mountPoint, RSLAVE)
+	return ensureMountedAs(mountPoint, "rslave")
 }
 
 // MakeUnbindable ensures a mounted filesystem has the UNBINDABLE mount option
 // enabled. See the supported options in flags.go for further reference.
 func MakeUnbindable(mountPoint string) error {
-	return ensureMountedAs(mountPoint, UNBINDABLE)
+	return ensureMountedAs(mountPoint, "unbindable")
 }
 
 // MakeRUnbindable ensures a mounted filesystem has the RUNBINDABLE mount
 // option enabled. See the supported options in flags.go for further reference.
 func MakeRUnbindable(mountPoint string) error {
-	return ensureMountedAs(mountPoint, RUNBINDABLE)
+	return ensureMountedAs(mountPoint, "runbindable")
 }
 
 // MakeMount ensures that the file or directory given is a mount point,
@@ -59,13 +59,13 @@ func MakeMount(mnt string) error {
 		return nil
 	}
 
-	return mount(mnt, mnt, "none", uintptr(BIND), "")
+	return Mount(mnt, mnt, "none", "bind")
 }
 
-func ensureMountedAs(mnt string, flags int) error {
-	if err := MakeMount(mnt); err != nil {
+func ensureMountedAs(mountPoint, options string) error {
+	if err := MakeMount(mountPoint); err != nil {
 		return err
 	}
 
-	return mount("", mnt, "none", uintptr(flags), "")
+	return ForceMount("", mountPoint, "none", options)
 }
