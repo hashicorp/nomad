@@ -119,6 +119,10 @@ func NewTracker(parentCtx context.Context, logger hclog.Logger, alloc *structs.A
 		}
 	}
 
+	for _, s := range t.tg.Services {
+		t.consulCheckCount += len(s.Checks)
+	}
+
 	t.ctx, t.cancelFn = context.WithCancel(parentCtx)
 	return t
 }
