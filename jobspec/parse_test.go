@@ -117,11 +117,32 @@ func TestParse(t *testing.T) {
 								Operand: "=",
 							},
 						},
-
 						Volumes: map[string]*api.VolumeRequest{
 							"foo": {
-								Name: "foo",
-								Type: "host",
+								Name:         "foo",
+								Type:         "host",
+								Source:       "/path",
+								ExtraKeysHCL: nil,
+							},
+							"bar": {
+								Name:   "bar",
+								Type:   "csi",
+								Source: "bar-vol",
+								MountOptions: &api.CSIMountOptions{
+									FSType: "ext4",
+								},
+								ExtraKeysHCL: nil,
+							},
+							"baz": {
+								Name:   "baz",
+								Type:   "csi",
+								Source: "bar-vol",
+								MountOptions: &api.CSIMountOptions{
+									MountFlags: []string{
+										"ro",
+									},
+								},
+								ExtraKeysHCL: nil,
 							},
 						},
 						Affinities: []*api.Affinity{
@@ -561,6 +582,30 @@ func TestParse(t *testing.T) {
 										GetterOptions: nil,
 										RelativeDest:  helper.StringToPtr("var/foo"),
 									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"csi-plugin.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("binstore-storagelocker"),
+				Name: helper.StringToPtr("binstore-storagelocker"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("binsl"),
+						Tasks: []*api.Task{
+							{
+								Name:   "binstore",
+								Driver: "docker",
+								CSIPluginConfig: &api.TaskCSIPluginConfig{
+									ID:       "org.hashicorp.csi",
+									Type:     api.CSIPluginTypeMonolith,
+									MountDir: "/csi/test",
 								},
 							},
 						},

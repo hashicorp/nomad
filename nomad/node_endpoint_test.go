@@ -2141,7 +2141,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	start := time.Now()
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2)
 	require.Nil(err)
-	require.NotEqual(0, resp2.Index)
+	require.NotEqual(uint64(0), resp2.Index)
 
 	if diff := time.Since(start); diff < batchUpdateInterval {
 		t.Fatalf("too fast: %v", diff)
@@ -2310,6 +2310,105 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	if l := len(tvc.RevokedTokens); l != 1 {
 		t.Fatalf("Deregister revoked %d tokens; want 1", l)
 	}
+}
+
+func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
+	t.Parallel()
+	srv, shutdown := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	codec := rpcClient(t, srv)
+	state := srv.fsm.State()
+	ws := memdb.NewWatchSet()
+
+	// Create a client node, plugin, and volume
+	node := mock.Node()
+	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early version
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		"csi-plugin-example": {PluginID: "csi-plugin-example",
+			Healthy:        true,
+			NodeInfo:       &structs.CSINodeInfo{},
+			ControllerInfo: &structs.CSIControllerInfo{},
+		},
+	}
+	err := state.UpsertNode(99, node)
+	require.NoError(t, err)
+	volId0 := uuid.Generate()
+	ns := "notTheNamespace"
+	vols := []*structs.CSIVolume{{
+		ID:             volId0,
+		Namespace:      ns,
+		PluginID:       "csi-plugin-example",
+		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+	}}
+	err = state.CSIVolumeRegister(100, vols)
+	require.NoError(t, err)
+	vol, err := state.CSIVolumeByID(ws, ns, volId0)
+	require.NoError(t, err)
+	require.Len(t, vol.ReadAllocs, 0)
+	require.Len(t, vol.WriteAllocs, 0)
+
+	// Create a job with 2 allocations
+	job := mock.Job()
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"_": {
+			Name:     "someVolume",
+			Type:     structs.VolumeTypeCSI,
+			Source:   volId0,
+			ReadOnly: false,
+		},
+	}
+	err = state.UpsertJob(101, job)
+	require.NoError(t, err)
+
+	alloc1 := mock.Alloc()
+	alloc1.JobID = job.ID
+	alloc1.NodeID = node.ID
+	err = state.UpsertJobSummary(102, mock.JobSummary(alloc1.JobID))
+	require.NoError(t, err)
+	alloc1.TaskGroup = job.TaskGroups[0].Name
+
+	alloc2 := mock.Alloc()
+	alloc2.JobID = job.ID
+	alloc2.NodeID = node.ID
+	err = state.UpsertJobSummary(103, mock.JobSummary(alloc2.JobID))
+	require.NoError(t, err)
+	alloc2.TaskGroup = job.TaskGroups[0].Name
+
+	err = state.UpsertAllocs(104, []*structs.Allocation{alloc1, alloc2})
+	require.NoError(t, err)
+
+	// Claim the volumes and verify the claims were set
+	err = state.CSIVolumeClaim(105, ns, volId0, alloc1, structs.CSIVolumeClaimWrite)
+	require.NoError(t, err)
+	err = state.CSIVolumeClaim(106, ns, volId0, alloc2, structs.CSIVolumeClaimRead)
+	require.NoError(t, err)
+	vol, err = state.CSIVolumeByID(ws, ns, volId0)
+	require.NoError(t, err)
+	require.Len(t, vol.ReadAllocs, 1)
+	require.Len(t, vol.WriteAllocs, 1)
+
+	// Update the 1st alloc as terminal/failed
+	alloc1.ClientStatus = structs.AllocClientStatusFailed
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc",
+		&structs.AllocUpdateRequest{
+			Alloc:        []*structs.Allocation{alloc1},
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}, &structs.NodeAllocsResponse{})
+	require.NoError(t, err)
+
+	// Lookup the alloc and verify status was updated
+	out, err := state.AllocByID(ws, alloc1.ID)
+	require.NoError(t, err)
+	require.Equal(t, structs.AllocClientStatusFailed, out.ClientStatus)
+
+	// Verify the eval for the claim GC was emitted
+	// Lookup the evaluations
+	eval, err := state.EvalsByJob(ws, job.Namespace, structs.CoreJobCSIVolumeClaimGC+":"+job.ID)
+	require.NotNil(t, eval)
+	require.Nil(t, err)
 }
 
 func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
@@ -3235,7 +3334,7 @@ func TestClientEndpoint_EmitEvents(t *testing.T) {
 	var resp structs.GenericResponse
 	err = msgpackrpc.CallWithCodec(codec, "Node.EmitEvents", &req, &resp)
 	require.Nil(err)
-	require.NotEqual(0, resp.Index)
+	require.NotEqual(uint64(0), resp.Index)
 
 	// Check for the node in the FSM
 	ws := memdb.NewWatchSet()

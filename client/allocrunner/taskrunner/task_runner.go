@@ -19,7 +19,9 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -186,6 +188,9 @@ type TaskRunner struct {
 	// deviceStatsReporter is used to lookup resource usage for alloc devices
 	deviceStatsReporter cinterfaces.DeviceStatsReporter
 
+	// csiManager is used to manage the mounting of CSI volumes into tasks
+	csiManager csimanager.Manager
+
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
 	devicemanager devicemanager.Manager
@@ -193,6 +198,9 @@ type TaskRunner struct {
 	// driverManager is used to dispense driver plugins and register event
 	// handlers
 	driverManager drivermanager.Manager
+
+	// dynamicRegistry is where dynamic plugins should be registered.
+	dynamicRegistry dynamicplugins.Registry
 
 	// maxEvents is the capacity of the TaskEvents on the TaskState.
 	// Defaults to defaultMaxEvents but overrideable for testing.
@@ -212,6 +220,8 @@ type TaskRunner struct {
 
 	networkIsolationLock sync.Mutex
 	networkIsolationSpec *drivers.NetworkIsolationSpec
+
+	allocHookResources *cstructs.AllocHookResources
 }
 
 type Config struct {
@@ -227,6 +237,9 @@ type Config struct {
 	// ConsulSI is the client to use for managing Consul SI tokens
 	ConsulSI consul.ServiceIdentityAPI
 
+	// DynamicRegistry is where dynamic plugins should be registered.
+	DynamicRegistry dynamicplugins.Registry
+
 	// Vault is the client to use to derive and renew Vault tokens
 	Vault vaultclient.VaultClient
 
@@ -238,6 +251,9 @@ type Config struct {
 
 	// deviceStatsReporter is used to lookup resource usage for alloc devices
 	DeviceStatsReporter cinterfaces.DeviceStatsReporter
+
+	// CSIManager is used to manage the mounting of CSI volumes into tasks
+	CSIManager csimanager.Manager
 
 	// DeviceManager is used to mount devices as well as lookup device
 	// statistics
@@ -285,6 +301,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		taskName:             config.Task.Name,
 		taskLeader:           config.Task.Leader,
 		envBuilder:           envBuilder,
+		dynamicRegistry:      config.DynamicRegistry,
 		consulClient:         config.Consul,
 		siClient:             config.ConsulSI,
 		vaultClient:          config.Vault,
@@ -299,6 +316,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		shutdownCtxCancel:    trCancel,
 		triggerUpdateCh:      make(chan struct{}, triggerUpdateChCap),
 		waitCh:               make(chan struct{}),
+		csiManager:           config.CSIManager,
 		devicemanager:        config.DeviceManager,
 		driverManager:        config.DriverManager,
 		maxEvents:            defaultMaxEvents,
@@ -1391,4 +1409,8 @@ func (tr *TaskRunner) TaskExecHandler() drivermanager.TaskExecHandler {
 
 func (tr *TaskRunner) DriverCapabilities() (*drivers.Capabilities, error) {
 	return tr.driver.Capabilities()
+}
+
+func (tr *TaskRunner) SetAllocHookResources(res *cstructs.AllocHookResources) {
+	tr.allocHookResources = res
 }

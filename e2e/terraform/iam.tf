@@ -48,6 +48,7 @@ data "aws_iam_policy_document" "auto_discover_cluster" {
       "ec2:DescribeTags",
       "ec2:DescribeVolume*",
       "ec2:AttachVolume",
+      "ec2:DetachVolume",
       "autoscaling:DescribeAutoScalingGroups",
     ]
     resources = ["*"]

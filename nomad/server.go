@@ -249,6 +249,8 @@ type endpoints struct {
 	Eval       *Eval
 	Plan       *Plan
 	Alloc      *Alloc
+	CSIVolume  *CSIVolume
+	CSIPlugin  *CSIPlugin
 	Deployment *Deployment
 	Region     *Region
 	Search     *Search
@@ -259,10 +261,11 @@ type endpoints struct {
 	Enterprise *EnterpriseEndpoints
 
 	// Client endpoints
-	ClientStats       *ClientStats
-	FileSystem        *FileSystem
-	Agent             *Agent
-	ClientAllocations *ClientAllocations
+	ClientStats         *ClientStats
+	FileSystem          *FileSystem
+	Agent               *Agent
+	ClientAllocations   *ClientAllocations
+	ClientCSIController *ClientCSIController
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -1092,6 +1095,8 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.Eval = &Eval{srv: s, logger: s.logger.Named("eval")}
 		s.staticEndpoints.Job = NewJobEndpoints(s)
 		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")} // Add but don't register
+		s.staticEndpoints.CSIVolume = &CSIVolume{srv: s, logger: s.logger.Named("csi_volume")}
+		s.staticEndpoints.CSIPlugin = &CSIPlugin{srv: s, logger: s.logger.Named("csi_plugin")}
 		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
 		s.staticEndpoints.Operator = &Operator{srv: s, logger: s.logger.Named("operator")}
 		s.staticEndpoints.Periodic = &Periodic{srv: s, logger: s.logger.Named("periodic")}
@@ -1106,6 +1111,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats")}
 		s.staticEndpoints.ClientAllocations = &ClientAllocations{srv: s, logger: s.logger.Named("client_allocs")}
 		s.staticEndpoints.ClientAllocations.register()
+		s.staticEndpoints.ClientCSIController = &ClientCSIController{srv: s, logger: s.logger.Named("client_csi")}
 
 		// Streaming endpoints
 		s.staticEndpoints.FileSystem = &FileSystem{srv: s, logger: s.logger.Named("client_fs")}
@@ -1120,6 +1126,8 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.Alloc)
 	server.Register(s.staticEndpoints.Eval)
 	server.Register(s.staticEndpoints.Job)
+	server.Register(s.staticEndpoints.CSIVolume)
+	server.Register(s.staticEndpoints.CSIPlugin)
 	server.Register(s.staticEndpoints.Deployment)
 	server.Register(s.staticEndpoints.Operator)
 	server.Register(s.staticEndpoints.Periodic)
@@ -1131,6 +1139,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	s.staticEndpoints.Enterprise.Register(server)
 	server.Register(s.staticEndpoints.ClientStats)
 	server.Register(s.staticEndpoints.ClientAllocations)
+	server.Register(s.staticEndpoints.ClientCSIController)
 	server.Register(s.staticEndpoints.FileSystem)
 	server.Register(s.staticEndpoints.Agent)
 

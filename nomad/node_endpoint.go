@@ -1081,40 +1081,80 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	now := time.Now()
 	var evals []*structs.Evaluation
 
-	for _, alloc := range args.Alloc {
-		alloc.ModifyTime = now.UTC().UnixNano()
+	// A set of de-duplicated IDs for jobs that need volume claim GC.
+	// Later we'll create a gc eval for each job.
+	jobsWithVolumeGCs := make(map[string]*structs.Job)
 
-		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
-		if alloc.ClientStatus == structs.AllocClientStatusFailed {
-			// Only create evaluations if this is an existing alloc,
-			// and eligible as per its task group's ReschedulePolicy
-			if existingAlloc, _ := n.srv.State().AllocByID(nil, alloc.ID); existingAlloc != nil {
-				job, err := n.srv.State().JobByID(nil, existingAlloc.Namespace, existingAlloc.JobID)
-				if err != nil {
-					n.logger.Error("UpdateAlloc unable to find job", "job", existingAlloc.JobID, "error", err)
-					continue
-				}
-				if job == nil {
-					n.logger.Debug("UpdateAlloc unable to find job", "job", existingAlloc.JobID)
-					continue
-				}
-				taskGroup := job.LookupTaskGroup(existingAlloc.TaskGroup)
-				if taskGroup != nil && existingAlloc.FollowupEvalID == "" && existingAlloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
-					eval := &structs.Evaluation{
-						ID:          uuid.Generate(),
-						Namespace:   existingAlloc.Namespace,
-						TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
-						JobID:       existingAlloc.JobID,
-						Type:        job.Type,
-						Priority:    job.Priority,
-						Status:      structs.EvalStatusPending,
-						CreateTime:  now.UTC().UnixNano(),
-						ModifyTime:  now.UTC().UnixNano(),
-					}
-					evals = append(evals, eval)
-				}
+	for _, allocToUpdate := range args.Alloc {
+		allocToUpdate.ModifyTime = now.UTC().UnixNano()
+
+		if !allocToUpdate.TerminalStatus() {
+			continue
+		}
+
+		alloc, _ := n.srv.State().AllocByID(nil, allocToUpdate.ID)
+		if alloc == nil {
+			continue
+		}
+
+		job, err := n.srv.State().JobByID(nil, alloc.Namespace, alloc.JobID)
+		if err != nil {
+			n.logger.Error("UpdateAlloc unable to find job", "job", alloc.JobID, "error", err)
+			continue
+		}
+		if job == nil {
+			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID)
+			continue
+		}
+
+		taskGroup := job.LookupTaskGroup(alloc.TaskGroup)
+		if taskGroup == nil {
+			continue
+		}
+
+		// If the terminal alloc has CSI volumes, add its job to the list
+		// of jobs we're going to call volume claim GC on.
+		for _, vol := range taskGroup.Volumes {
+			if vol.Type == structs.VolumeTypeCSI {
+				jobsWithVolumeGCs[job.ID] = job
 			}
 		}
+
+		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
+		if allocToUpdate.ClientStatus == structs.AllocClientStatusFailed && alloc.FollowupEvalID == "" && alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
+			eval := &structs.Evaluation{
+				ID:          uuid.Generate(),
+				Namespace:   alloc.Namespace,
+				TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
+				JobID:       alloc.JobID,
+				Type:        job.Type,
+				Priority:    job.Priority,
+				Status:      structs.EvalStatusPending,
+				CreateTime:  now.UTC().UnixNano(),
+				ModifyTime:  now.UTC().UnixNano(),
+			}
+			evals = append(evals, eval)
+		}
+	}
+
+	// Add an evaluation for garbage collecting the the CSI volume claims
+	// of jobs with terminal allocs
+	for _, job := range jobsWithVolumeGCs {
+		// we have to build this eval by hand rather than calling srv.CoreJob
+		// here because we need to use the alloc's namespace
+		eval := &structs.Evaluation{
+			ID:          uuid.Generate(),
+			Namespace:   job.Namespace,
+			Priority:    structs.CoreJobPriority,
+			Type:        structs.JobTypeCore,
+			TriggeredBy: structs.EvalTriggerAllocStop,
+			JobID:       structs.CoreJobCSIVolumeClaimGC + ":" + job.ID,
+			LeaderACL:   n.srv.getLeaderAcl(),
+			Status:      structs.EvalStatusPending,
+			CreateTime:  now.UTC().UnixNano(),
+			ModifyTime:  now.UTC().UnixNano(),
+		}
+		evals = append(evals, eval)
 	}
 
 	// Add this to the batch

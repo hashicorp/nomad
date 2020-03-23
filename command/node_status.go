@@ -299,6 +299,40 @@ func nodeDrivers(n *api.Node) []string {
 	return drivers
 }
 
+func nodeCSIControllerNames(n *api.Node) []string {
+	var names []string
+	for name := range n.CSIControllerPlugins {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func nodeCSINodeNames(n *api.Node) []string {
+	var names []string
+	for name := range n.CSINodePlugins {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func nodeCSIVolumeNames(n *api.Node, allocs []*api.Allocation) []string {
+	var names []string
+	for _, alloc := range allocs {
+		tg := alloc.GetTaskGroup()
+		if tg == nil || len(tg.Volumes) == 0 {
+			continue
+		}
+
+		for _, v := range tg.Volumes {
+			names = append(names, v.Name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
 func nodeVolumeNames(n *api.Node) []string {
 	var volumes []string
 	for name := range n.HostVolumes {
@@ -331,6 +365,20 @@ func formatDrain(n *api.Node) string {
 }
 
 func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
+	// Make one API call for allocations
+	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying node allocations: %s", err))
+		return 1
+	}
+
+	var runningAllocs []*api.Allocation
+	for _, alloc := range nodeAllocs {
+		if alloc.ClientStatus == "running" {
+			runningAllocs = append(runningAllocs, alloc)
+		}
+	}
+
 	// Format the header output
 	basic := []string{
 		fmt.Sprintf("ID|%s", node.ID),
@@ -340,15 +388,18 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		fmt.Sprintf("Drain|%v", formatDrain(node)),
 		fmt.Sprintf("Eligibility|%s", node.SchedulingEligibility),
 		fmt.Sprintf("Status|%s", node.Status),
+		fmt.Sprintf("CSI Controllers|%s", strings.Join(nodeCSIControllerNames(node), ",")),
+		fmt.Sprintf("CSI Drivers|%s", strings.Join(nodeCSINodeNames(node), ",")),
 	}
 
 	if c.short {
 		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
+		basic = append(basic, fmt.Sprintf("CSI Volumes|%s", strings.Join(nodeCSIVolumeNames(node, runningAllocs), ",")))
 		basic = append(basic, fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")))
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
 		// Output alloc info
-		if err := c.outputAllocInfo(client, node); err != nil {
+		if err := c.outputAllocInfo(node, nodeAllocs); err != nil {
 			c.Ui.Error(fmt.Sprintf("%s", err))
 			return 1
 		}
@@ -371,7 +422,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	// driver info in the basic output
 	if !c.verbose {
 		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
-
+		basic = append(basic, fmt.Sprintf("CSI Volumes|%s", strings.Join(nodeCSIVolumeNames(node, runningAllocs), ",")))
 		driverStatus := fmt.Sprintf("Driver Status| %s", c.outputTruncatedNodeDriverInfo(node))
 		basic = append(basic, driverStatus)
 	}
@@ -382,6 +433,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	// If we're running in verbose mode, include full host volume and driver info
 	if c.verbose {
 		c.outputNodeVolumeInfo(node)
+		c.outputNodeCSIVolumeInfo(client, node, runningAllocs)
 		c.outputNodeDriverInfo(node)
 	}
 
@@ -389,12 +441,6 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	c.outputNodeStatusEvents(node)
 
 	// Get list of running allocations on the node
-	runningAllocs, err := getRunningAllocs(client, node.ID)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying node for running allocations: %s", err))
-		return 1
-	}
-
 	allocatedResources := getAllocatedResources(client, runningAllocs, node)
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocated Resources[reset]"))
 	c.Ui.Output(formatList(allocatedResources))
@@ -432,7 +478,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		}
 	}
 
-	if err := c.outputAllocInfo(client, node); err != nil {
+	if err := c.outputAllocInfo(node, nodeAllocs); err != nil {
 		c.Ui.Error(fmt.Sprintf("%s", err))
 		return 1
 	}
@@ -440,12 +486,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	return 0
 }
 
-func (c *NodeStatusCommand) outputAllocInfo(client *api.Client, node *api.Node) error {
-	nodeAllocs, _, err := client.Nodes().Allocations(node.ID, nil)
-	if err != nil {
-		return fmt.Errorf("Error querying node allocations: %s", err)
-	}
-
+func (c *NodeStatusCommand) outputAllocInfo(node *api.Node, nodeAllocs []*api.Allocation) error {
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
 	c.Ui.Output(formatAllocList(nodeAllocs, c.verbose, c.length))
 
@@ -492,6 +533,58 @@ func (c *NodeStatusCommand) outputNodeVolumeInfo(node *api.Node) {
 		info := node.HostVolumes[volName]
 		output = append(output, fmt.Sprintf("%s|%v|%s", volName, info.ReadOnly, info.Path))
 	}
+	c.Ui.Output(formatList(output))
+}
+
+func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *api.Node, runningAllocs []*api.Allocation) {
+	c.Ui.Output(c.Colorize().Color("\n[bold]CSI Volumes"))
+
+	// Duplicate nodeCSIVolumeNames to sort by name but also index volume names to ids
+	var names []string
+	requests := map[string]*api.VolumeRequest{}
+	for _, alloc := range runningAllocs {
+		tg := alloc.GetTaskGroup()
+		if tg == nil || len(tg.Volumes) == 0 {
+			continue
+		}
+
+		for _, v := range tg.Volumes {
+			names = append(names, v.Name)
+			requests[v.Source] = v
+		}
+	}
+	if len(names) == 0 {
+		return
+	}
+	sort.Strings(names)
+
+	// Fetch the volume objects with current status
+	// Ignore an error, all we're going to do is omit the volumes
+	volumes := map[string]*api.CSIVolumeListStub{}
+	vs, _ := client.Nodes().CSIVolumes(node.ID, nil)
+	for _, v := range vs {
+		n := requests[v.ID].Name
+		volumes[n] = v
+	}
+
+	// Output the volumes in name order
+	output := make([]string, 0, len(names)+1)
+	output = append(output, "ID|Name|Plugin ID|Schedulable|Provider|Access Mode|Mount Options")
+	for _, name := range names {
+		v := volumes[name]
+		r := requests[v.ID]
+		output = append(output, fmt.Sprintf(
+			"%s|%s|%s|%t|%s|%s|%s",
+			v.ID,
+			name,
+			v.PluginID,
+			v.Schedulable,
+			v.Provider,
+			v.AccessMode,
+			csiVolMountOption(v.MountOptions, r.MountOptions),
+		))
+	}
+
 	c.Ui.Output(formatList(output))
 }
 

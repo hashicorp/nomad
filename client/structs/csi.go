@@ -1,0 +1,131 @@
+package structs
+
+import (
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/csi"
+)
+
+// CSIVolumeMountOptions contains the mount options that should be provided when
+// attaching and mounting a volume with the CSIVolumeAttachmentModeFilesystem
+// attachment mode.
+type CSIVolumeMountOptions struct {
+	// Filesystem is the desired filesystem type that should be used by the volume
+	// (e.g ext4, aufs, zfs). This field is optional.
+	Filesystem string
+
+	// MountFlags contain the mount options that should be used for the volume.
+	// These may contain _sensitive_ data and should not be leaked to logs or
+	// returned in debugging data.
+	// The total size of this field must be under 4KiB.
+	MountFlags []string
+}
+
+// CSIControllerQuery is used to specify various flags for queries against CSI
+// Controllers
+type CSIControllerQuery struct {
+	// ControllerNodeID is the node that should be targeted by the request
+	ControllerNodeID string
+
+	// PluginID is the plugin that should be targeted on the given node.
+	PluginID string
+}
+
+type ClientCSIControllerValidateVolumeRequest struct {
+	VolumeID string
+
+	AttachmentMode structs.CSIVolumeAttachmentMode
+	AccessMode     structs.CSIVolumeAccessMode
+
+	CSIControllerQuery
+}
+
+type ClientCSIControllerValidateVolumeResponse struct {
+}
+
+type ClientCSIControllerAttachVolumeRequest struct {
+	// The ID of the volume to be used on a node.
+	// This field is REQUIRED.
+	VolumeID string
+
+	// The ID of the node. This field is REQUIRED. This must match the NodeID that
+	// is fingerprinted by the target node for this plugin name.
+	ClientCSINodeID string
+
+	// AttachmentMode indicates how the volume should be attached and mounted into
+	// a task.
+	AttachmentMode structs.CSIVolumeAttachmentMode
+
+	// AccessMode indicates the desired concurrent access model for the volume
+	AccessMode structs.CSIVolumeAccessMode
+
+	// MountOptions is an optional field that contains additional configuration
+	// when providing an AttachmentMode of CSIVolumeAttachmentModeFilesystem
+	MountOptions *CSIVolumeMountOptions
+
+	// ReadOnly indicates that the volume will be used in a readonly fashion. This
+	// only works when the Controller has the PublishReadonly capability.
+	ReadOnly bool
+
+	CSIControllerQuery
+}
+
+func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() (*csi.ControllerPublishVolumeRequest, error) {
+	if c == nil {
+		return &csi.ControllerPublishVolumeRequest{}, nil
+	}
+
+	caps, err := csi.VolumeCapabilityFromStructs(c.AttachmentMode, c.AccessMode)
+	if err != nil {
+		return nil, err
+	}
+
+	return &csi.ControllerPublishVolumeRequest{
+		VolumeID:         c.VolumeID,
+		NodeID:           c.ClientCSINodeID,
+		ReadOnly:         c.ReadOnly,
+		VolumeCapability: caps,
+	}, nil
+}
+
+type ClientCSIControllerAttachVolumeResponse struct {
+	// Opaque static publish properties of the volume. SP MAY use this
+	// field to ensure subsequent `NodeStageVolume` or `NodePublishVolume`
+	// calls calls have contextual information.
+	// The contents of this field SHALL be opaque to nomad.
+	// The contents of this field SHALL NOT be mutable.
+	// The contents of this field SHALL be safe for the nomad to cache.
+	// The contents of this field SHOULD NOT contain sensitive
+	// information.
+	// The contents of this field SHOULD NOT be used for uniquely
+	// identifying a volume. The `volume_id` alone SHOULD be sufficient to
+	// identify the volume.
+	// This field is OPTIONAL and when present MUST be passed to
+	// subsequent `NodeStageVolume` or `NodePublishVolume` calls
+	PublishContext map[string]string
+}
+
+type ClientCSIControllerDetachVolumeRequest struct {
+	// The ID of the volume to be unpublished for the node
+	// This field is REQUIRED.
+	VolumeID string
+
+	// The CSI Node ID for the Node that the volume should be detached from.
+	// This field is REQUIRED. This must match the NodeID that is fingerprinted
+	// by the target node for this plugin name.
+	ClientCSINodeID string
+
+	CSIControllerQuery
+}
+
+func (c *ClientCSIControllerDetachVolumeRequest) ToCSIRequest() *csi.ControllerUnpublishVolumeRequest {
+	if c == nil {
+		return &csi.ControllerUnpublishVolumeRequest{}
+	}
+
+	return &csi.ControllerUnpublishVolumeRequest{
+		VolumeID: c.VolumeID,
+		NodeID:   c.ClientCSINodeID,
+	}
+}
+
+type ClientCSIControllerDetachVolumeResponse struct{}

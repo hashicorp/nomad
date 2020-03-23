@@ -26,8 +26,10 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/pluginmanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/state"
@@ -42,6 +44,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	vaultapi "github.com/hashicorp/vault/api"
@@ -258,6 +261,9 @@ type Client struct {
 	// pluginManagers is the set of PluginManagers registered by the client
 	pluginManagers *pluginmanager.PluginGroup
 
+	// csimanager is responsible for managing csi plugins.
+	csimanager csimanager.Manager
+
 	// devicemanger is responsible for managing device plugins.
 	devicemanager devicemanager.Manager
 
@@ -279,6 +285,10 @@ type Client struct {
 	// successfully run once.
 	serversContactedCh   chan struct{}
 	serversContactedOnce sync.Once
+
+	// dynamicRegistry provides access to plugins that are dynamically registered
+	// with a nomad client. Currently only used for CSI.
+	dynamicRegistry dynamicplugins.Registry
 }
 
 var (
@@ -336,6 +346,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.batchNodeUpdates = newBatchNodeUpdates(
 		c.updateNodeFromDriver,
 		c.updateNodeFromDevices,
+		c.updateNodeFromCSI,
 	)
 
 	// Initialize the server manager
@@ -344,10 +355,21 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Start server manager rebalancing go routine
 	go c.servers.Start()
 
-	// Initialize the client
+	// initialize the client
 	if err := c.init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize client: %v", err)
 	}
+
+	// initialize the dynamic registry (needs to happen after init)
+	c.dynamicRegistry =
+		dynamicplugins.NewRegistry(c.stateDB, map[string]dynamicplugins.PluginDispenser{
+			dynamicplugins.PluginTypeCSIController: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "controller"))
+			},
+			dynamicplugins.PluginTypeCSINode: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "client"))
+			}, // TODO(tgross): refactor these dispenser constructors into csimanager to tidy it up
+		})
 
 	// Setup the clients RPC server
 	c.setupClientRpc()
@@ -382,6 +404,16 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Build the white/blacklists of drivers.
 	allowlistDrivers := cfg.ReadStringListToMap("driver.whitelist")
 	blocklistDrivers := cfg.ReadStringListToMap("driver.blacklist")
+
+	// Setup the csi manager
+	csiConfig := &csimanager.Config{
+		Logger:                c.logger,
+		DynamicRegistry:       c.dynamicRegistry,
+		UpdateNodeCSIInfoFunc: c.batchNodeUpdates.updateNodeFromCSI,
+	}
+	csiManager := csimanager.New(csiConfig)
+	c.csimanager = csiManager
+	c.pluginManagers.RegisterAndRun(csiManager.PluginManager())
 
 	// Setup the driver manager
 	driverConfig := &drivermanager.Config{
@@ -1054,9 +1086,12 @@ func (c *Client) restoreState() error {
 			Vault:               c.vaultClient,
 			PrevAllocWatcher:    prevAllocWatcher,
 			PrevAllocMigrator:   prevAllocMigrator,
+			DynamicRegistry:     c.dynamicRegistry,
+			CSIManager:          c.csimanager,
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
+			RPCClient:           c,
 		}
 		c.configLock.RUnlock()
 
@@ -1278,6 +1313,12 @@ func (c *Client) setupNode() error {
 	}
 	if node.Drivers == nil {
 		node.Drivers = make(map[string]*structs.DriverInfo)
+	}
+	if node.CSIControllerPlugins == nil {
+		node.CSIControllerPlugins = make(map[string]*structs.CSIInfo)
+	}
+	if node.CSINodePlugins == nil {
+		node.CSINodePlugins = make(map[string]*structs.CSIInfo)
 	}
 	if node.Meta == nil {
 		node.Meta = make(map[string]string)
@@ -2310,8 +2351,11 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		DeviceStatsReporter: c,
 		PrevAllocWatcher:    prevAllocWatcher,
 		PrevAllocMigrator:   prevAllocMigrator,
+		DynamicRegistry:     c.dynamicRegistry,
+		CSIManager:          c.csimanager,
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
+		RPCClient:           c,
 	}
 	c.configLock.RUnlock()
 

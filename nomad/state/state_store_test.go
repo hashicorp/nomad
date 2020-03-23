@@ -2826,6 +2826,229 @@ func TestStateStore_RestoreJobSummary(t *testing.T) {
 	}
 }
 
+// TestStateStore_CSIVolume checks register, list and deregister for csi_volumes
+func TestStateStore_CSIVolume(t *testing.T) {
+	state := testStateStore(t)
+	index := uint64(1000)
+
+	// Volume IDs
+	vol0, vol1 := uuid.Generate(), uuid.Generate()
+
+	// Create a node running a healthy instance of the plugin
+	node := mock.Node()
+	pluginID := "minnie"
+	alloc := mock.Alloc()
+	alloc.DesiredStatus = "run"
+	alloc.ClientStatus = "running"
+	alloc.NodeID = node.ID
+	alloc.Job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"foo": {
+			Name:   "foo",
+			Source: vol0,
+			Type:   "csi",
+		},
+	}
+
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		pluginID: {
+			PluginID:                 pluginID,
+			AllocID:                  alloc.ID,
+			Healthy:                  true,
+			HealthDescription:        "healthy",
+			RequiresControllerPlugin: false,
+			RequiresTopologies:       false,
+			NodeInfo: &structs.CSINodeInfo{
+				ID:                      node.ID,
+				MaxVolumes:              64,
+				RequiresNodeStageVolume: true,
+			},
+		},
+	}
+
+	index++
+	err := state.UpsertNode(index, node)
+	require.NoError(t, err)
+	defer state.DeleteNode(9999, []string{pluginID})
+
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{alloc})
+	require.NoError(t, err)
+
+	ns := structs.DefaultNamespace
+
+	v0 := structs.NewCSIVolume("foo", index)
+	v0.ID = vol0
+	v0.Namespace = ns
+	v0.PluginID = "minnie"
+	v0.Schedulable = true
+	v0.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
+	v0.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+
+	index++
+	v1 := structs.NewCSIVolume("foo", index)
+	v1.ID = vol1
+	v1.Namespace = ns
+	v1.PluginID = "adam"
+	v1.Schedulable = true
+	v1.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
+	v1.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+
+	index++
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0, v1})
+	require.NoError(t, err)
+
+	ws := memdb.NewWatchSet()
+	iter, err := state.CSIVolumesByNamespace(ws, ns)
+	require.NoError(t, err)
+
+	slurp := func(iter memdb.ResultIterator) (vs []*structs.CSIVolume) {
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			vol := raw.(*structs.CSIVolume)
+			vs = append(vs, vol)
+		}
+		return vs
+	}
+
+	vs := slurp(iter)
+	require.Equal(t, 2, len(vs))
+
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.Equal(t, 1, len(vs))
+
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByNodeID(ws, ns, node.ID)
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.Equal(t, 1, len(vs))
+
+	index++
+	err = state.CSIVolumeDeregister(index, ns, []string{
+		vol1,
+	})
+	require.NoError(t, err)
+
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "adam")
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.Equal(t, 0, len(vs))
+
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByNamespace(ws, ns)
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.Equal(t, 1, len(vs))
+
+	// Claims
+	a0 := &structs.Allocation{ID: "al"}
+	a1 := &structs.Allocation{ID: "gator"}
+	r := structs.CSIVolumeClaimRead
+	w := structs.CSIVolumeClaimWrite
+	u := structs.CSIVolumeClaimRelease
+
+	index++
+	err = state.CSIVolumeClaim(index, ns, vol0, a0, r)
+	require.NoError(t, err)
+	index++
+	err = state.CSIVolumeClaim(index, ns, vol0, a1, w)
+	require.NoError(t, err)
+
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.False(t, vs[0].CanWrite())
+
+	err = state.CSIVolumeClaim(2, ns, vol0, a0, u)
+	require.NoError(t, err)
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.True(t, vs[0].CanReadOnly())
+}
+
+// TestStateStore_CSIPluginNodes uses the state from jobs, and uses node fingerprinting to update health
+func TestStateStore_CSIPluginNodes(t *testing.T) {
+	index := uint64(999)
+	state := testStateStore(t)
+	testStateStore_CSIPluginNodes(t, index, state)
+}
+
+func testStateStore_CSIPluginNodes(t *testing.T, index uint64, state *StateStore) (uint64, *StateStore) {
+	// Create Nodes fingerprinting the plugins
+	ns := []*structs.Node{mock.Node(), mock.Node(), mock.Node()}
+
+	for _, n := range ns {
+		index++
+		err := state.UpsertNode(index, n)
+		require.NoError(t, err)
+	}
+
+	// Fingerprint a running controller plugin
+	n0 := ns[0].Copy()
+	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID:                 "foo",
+			Healthy:                  true,
+			UpdateTime:               time.Now(),
+			RequiresControllerPlugin: true,
+			RequiresTopologies:       false,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsReadOnlyAttach: true,
+				SupportsListVolumes:    true,
+			},
+		},
+	}
+
+	index++
+	err := state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	// Fingerprint two running node plugins
+	for _, n := range ns[1:] {
+		n = n.Copy()
+		n.CSINodePlugins = map[string]*structs.CSIInfo{
+			"foo": {
+				PluginID:                 "foo",
+				Healthy:                  true,
+				UpdateTime:               time.Now(),
+				RequiresControllerPlugin: true,
+				RequiresTopologies:       false,
+				NodeInfo:                 &structs.CSINodeInfo{},
+			},
+		}
+
+		index++
+		err = state.UpsertNode(index, n)
+		require.NoError(t, err)
+	}
+
+	ws := memdb.NewWatchSet()
+	plug, err := state.CSIPluginByID(ws, "foo")
+	require.NoError(t, err)
+
+	require.Equal(t, "foo", plug.ID)
+	require.Equal(t, 1, plug.ControllersHealthy)
+	require.Equal(t, 2, plug.NodesHealthy)
+
+	return index, state
+}
+
+// TestStateStore_CSIPluginBackwards gets the node state first, and the job state second
+func TestStateStore_CSIPluginBackwards(t *testing.T) {
+	index := uint64(999)
+	state := testStateStore(t)
+	index, state = testStateStore_CSIPluginNodes(t, index, state)
+}
+
 func TestStateStore_Indexes(t *testing.T) {
 	t.Parallel()
 

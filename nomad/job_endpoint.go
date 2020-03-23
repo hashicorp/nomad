@@ -107,22 +107,27 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		// Validate Volume Permissions
 		for _, tg := range args.Job.TaskGroups {
 			for _, vol := range tg.Volumes {
-				if vol.Type != structs.VolumeTypeHost {
+				switch vol.Type {
+				case structs.VolumeTypeCSI:
+					if !allowCSIMount(aclObj, args.RequestNamespace()) {
+						return structs.ErrPermissionDenied
+					}
+				case structs.VolumeTypeHost:
+					// If a volume is readonly, then we allow access if the user has ReadOnly
+					// or ReadWrite access to the volume. Otherwise we only allow access if
+					// they have ReadWrite access.
+					if vol.ReadOnly {
+						if !aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadOnly) &&
+							!aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadWrite) {
+							return structs.ErrPermissionDenied
+						}
+					} else {
+						if !aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadWrite) {
+							return structs.ErrPermissionDenied
+						}
+					}
+				default:
 					return structs.ErrPermissionDenied
-				}
-
-				// If a volume is readonly, then we allow access if the user has ReadOnly
-				// or ReadWrite access to the volume. Otherwise we only allow access if
-				// they have ReadWrite access.
-				if vol.ReadOnly {
-					if !aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadOnly) &&
-						!aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadWrite) {
-						return structs.ErrPermissionDenied
-					}
-				} else {
-					if !aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadWrite) {
-						return structs.ErrPermissionDenied
-					}
 				}
 			}
 
@@ -131,6 +136,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 					vol := tg.Volumes[vm.Volume]
 					if vm.PropagationMode == structs.VolumeMountPropagationBidirectional &&
 						!aclObj.AllowHostVolumeOperation(vol.Source, acl.HostVolumeCapabilityMountReadWrite) {
+						return structs.ErrPermissionDenied
+					}
+				}
+
+				if t.CSIPluginConfig != nil {
+					if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityCSIRegisterPlugin) {
 						return structs.ErrPermissionDenied
 					}
 				}

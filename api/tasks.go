@@ -377,10 +377,12 @@ func (m *MigrateStrategy) Copy() *MigrateStrategy {
 
 // VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
 type VolumeRequest struct {
-	Name     string
-	Type     string
-	Source   string
-	ReadOnly bool `mapstructure:"read_only"`
+	Name         string
+	Type         string
+	Source       string
+	ReadOnly     bool             `hcl:"read_only"`
+	MountOptions *CSIMountOptions `hcl:"mount_options"`
+	ExtraKeysHCL []string         `hcl:",unusedKeys" json:"-"`
 }
 
 const (
@@ -643,6 +645,7 @@ type Task struct {
 	Templates       []*Template
 	DispatchPayload *DispatchPayloadConfig
 	VolumeMounts    []*VolumeMount
+	CSIPluginConfig *TaskCSIPluginConfig `mapstructure:"csi_plugin" json:"csi_plugin,omitempty"`
 	Leader          bool
 	ShutdownDelay   time.Duration `mapstructure:"shutdown_delay"`
 	KillSignal      string        `mapstructure:"kill_signal"`
@@ -682,6 +685,9 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	if t.Lifecycle.Empty() {
 		t.Lifecycle = nil
+	}
+	if t.CSIPluginConfig != nil {
+		t.CSIPluginConfig.Canonicalize()
 	}
 }
 
@@ -908,4 +914,49 @@ type TaskEvent struct {
 	TaskSignalReason string
 	TaskSignal       string
 	GenericSource    string
+}
+
+// CSIPluginType is an enum string that encapsulates the valid options for a
+// CSIPlugin stanza's Type. These modes will allow the plugin to be used in
+// different ways by the client.
+type CSIPluginType string
+
+const (
+	// CSIPluginTypeNode indicates that Nomad should only use the plugin for
+	// performing Node RPCs against the provided plugin.
+	CSIPluginTypeNode CSIPluginType = "node"
+
+	// CSIPluginTypeController indicates that Nomad should only use the plugin for
+	// performing Controller RPCs against the provided plugin.
+	CSIPluginTypeController CSIPluginType = "controller"
+
+	// CSIPluginTypeMonolith indicates that Nomad can use the provided plugin for
+	// both controller and node rpcs.
+	CSIPluginTypeMonolith CSIPluginType = "monolith"
+)
+
+// TaskCSIPluginConfig contains the data that is required to setup a task as a
+// CSI plugin. This will be used by the csi_plugin_supervisor_hook to configure
+// mounts for the plugin and initiate the connection to the plugin catalog.
+type TaskCSIPluginConfig struct {
+	// ID is the identifier of the plugin.
+	// Ideally this should be the FQDN of the plugin.
+	ID string `mapstructure:"id"`
+
+	// CSIPluginType instructs Nomad on how to handle processing a plugin
+	Type CSIPluginType `mapstructure:"type"`
+
+	// MountDir is the destination that nomad should mount in its CSI
+	// directory for the plugin. It will then expect a file called CSISocketName
+	// to be created by the plugin, and will provide references into
+	// "MountDir/CSIIntermediaryDirname/VolumeName/AllocID for mounts.
+	//
+	// Default is /csi.
+	MountDir string `mapstructure:"mount_dir"`
+}
+
+func (t *TaskCSIPluginConfig) Canonicalize() {
+	if t.MountDir == "" {
+		t.MountDir = "/csi"
+	}
 }

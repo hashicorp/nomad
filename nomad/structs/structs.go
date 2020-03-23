@@ -86,6 +86,9 @@ const (
 	ClusterMetadataRequestType
 	ServiceIdentityAccessorRegisterRequestType
 	ServiceIdentityAccessorDeregisterRequestType
+	CSIVolumeRegisterRequestType
+	CSIVolumeDeregisterRequestType
+	CSIVolumeClaimRequestType
 )
 
 const (
@@ -160,6 +163,8 @@ const (
 	Namespaces  Context = "namespaces"
 	Quotas      Context = "quotas"
 	All         Context = "all"
+	Plugins     Context = "plugins"
+	Volumes     Context = "volumes"
 )
 
 // NamespacedID is a tuple of an ID and a namespace
@@ -1659,6 +1664,11 @@ type Node struct {
 	// Drivers is a map of driver names to current driver information
 	Drivers map[string]*DriverInfo
 
+	// CSIControllerPlugins is a map of plugin names to current CSI Plugin info
+	CSIControllerPlugins map[string]*CSIInfo
+	// CSINodePlugins is a map of plugin names to current CSI Plugin info
+	CSINodePlugins map[string]*CSIInfo
+
 	// HostVolumes is a map of host volume names to their configuration
 	HostVolumes map[string]*ClientHostVolumeConfig
 
@@ -1705,6 +1715,8 @@ func (n *Node) Copy() *Node {
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	nn.Events = copyNodeEvents(n.Events)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
+	nn.CSIControllerPlugins = copyNodeCSI(nn.CSIControllerPlugins)
+	nn.CSINodePlugins = copyNodeCSI(nn.CSINodePlugins)
 	nn.Drivers = copyNodeDrivers(n.Drivers)
 	nn.HostVolumes = copyNodeHostVolumes(n.HostVolumes)
 	return nn
@@ -1721,6 +1733,21 @@ func copyNodeEvents(events []*NodeEvent) []*NodeEvent {
 	for i, event := range events {
 		c[i] = event.Copy()
 	}
+	return c
+}
+
+// copyNodeCSI is a helper to copy a map of CSIInfo
+func copyNodeCSI(plugins map[string]*CSIInfo) map[string]*CSIInfo {
+	l := len(plugins)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]*CSIInfo, l)
+	for plugin, info := range plugins {
+		c[plugin] = info.Copy()
+	}
+
 	return c
 }
 
@@ -5154,8 +5181,8 @@ func (tg *TaskGroup) Validate(j *Job) error {
 
 	// Validate the Host Volumes
 	for name, decl := range tg.Volumes {
-		if decl.Type != VolumeTypeHost {
-			// TODO: Remove this error when adding new volume types
+		if !(decl.Type == VolumeTypeHost ||
+			decl.Type == VolumeTypeCSI) {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unrecognised type %s", name, decl.Type))
 			continue
 		}
@@ -5556,6 +5583,9 @@ type Task struct {
 	// Used internally to manage tasks according to their TaskKind. Initial use case
 	// is for Consul Connect
 	Kind TaskKind
+
+	// CSIPluginConfig is used to configure the plugin supervisor for the task.
+	CSIPluginConfig *TaskCSIPluginConfig
 }
 
 // UsesConnect is for conveniently detecting if the Task is able to make use
@@ -5593,6 +5623,7 @@ func (t *Task) Copy() *Task {
 	nt.Constraints = CopySliceConstraints(nt.Constraints)
 	nt.Affinities = CopySliceAffinities(nt.Affinities)
 	nt.VolumeMounts = CopySliceVolumeMount(nt.VolumeMounts)
+	nt.CSIPluginConfig = nt.CSIPluginConfig.Copy()
 
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
@@ -5809,6 +5840,19 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		if !MountPropagationModeIsValid(vm.PropagationMode) {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) has an invalid propagation mode: \"%s\"", idx, vm.PropagationMode))
 		}
+	}
+
+	// Validate CSI Plugin Config
+	if t.CSIPluginConfig != nil {
+		if t.CSIPluginConfig.ID == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig must have a non-empty PluginID"))
+		}
+
+		if !CSIPluginTypeIsValid(t.CSIPluginConfig.Type) {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig PluginType must be one of 'node', 'controller', or 'monolith', got: \"%s\"", t.CSIPluginConfig.Type))
+		}
+
+		// TODO: Investigate validation of the PluginMountDir. Not much we can do apart from check IsAbs until after we understand its execution environment though :(
 	}
 
 	return mErr.ErrorOrNil()
@@ -6336,6 +6380,12 @@ const (
 	// TaskRestoreFailed indicates Nomad was unable to reattach to a
 	// restored task.
 	TaskRestoreFailed = "Failed Restoring Task"
+
+	// TaskPluginUnhealthy indicates that a plugin managed by Nomad became unhealthy
+	TaskPluginUnhealthy = "Plugin became unhealthy"
+
+	// TaskPluginHealthy indicates that a plugin managed by Nomad became healthy
+	TaskPluginHealthy = "Plugin became healthy"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -8645,6 +8695,11 @@ const (
 	// deployments. We periodically scan garbage collectible deployments and
 	// check if they are terminal. If so, we delete these out of the system.
 	CoreJobDeploymentGC = "deployment-gc"
+
+	// CoreJobCSIVolumeClaimGC is use for the garbage collection of CSI
+	// volume claims. We periodically scan volumes to see if no allocs are
+	// claiming them. If so, we unclaim the volume.
+	CoreJobCSIVolumeClaimGC = "csi-volume-claim-gc"
 
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"

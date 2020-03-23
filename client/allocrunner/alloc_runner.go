@@ -17,7 +17,9 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -118,6 +120,10 @@ type allocRunner struct {
 	// transistions.
 	runnerHooks []interfaces.RunnerHook
 
+	// hookState is the output of allocrunner hooks
+	hookState   *cstructs.AllocHookResources
+	hookStateMu sync.RWMutex
+
 	// tasks are the set of task runners
 	tasks map[string]*taskrunner.TaskRunner
 
@@ -134,6 +140,14 @@ type allocRunner struct {
 	// prevAllocMigrator allows the migration of a previous allocations alloc dir.
 	prevAllocMigrator allocwatcher.PrevAllocMigrator
 
+	// dynamicRegistry contains all locally registered dynamic plugins (e.g csi
+	// plugins).
+	dynamicRegistry dynamicplugins.Registry
+
+	// csiManager is used to wait for CSI Volumes to be attached, and by the task
+	// runner to manage their mounting
+	csiManager csimanager.Manager
+
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
 	devicemanager devicemanager.Manager
@@ -148,6 +162,15 @@ type allocRunner struct {
 	serversContactedCh chan struct{}
 
 	taskHookCoordinator *taskHookCoordinator
+
+	// rpcClient is the RPC Client that should be used by the allocrunner and its
+	// hooks to communicate with Nomad Servers.
+	rpcClient RPCer
+}
+
+// RPCer is the interface needed by hooks to make RPC calls.
+type RPCer interface {
+	RPC(method string, args interface{}, reply interface{}) error
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -178,9 +201,12 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		deviceStatsReporter:      config.DeviceStatsReporter,
 		prevAllocWatcher:         config.PrevAllocWatcher,
 		prevAllocMigrator:        config.PrevAllocMigrator,
+		dynamicRegistry:          config.DynamicRegistry,
+		csiManager:               config.CSIManager,
 		devicemanager:            config.DeviceManager,
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
+		rpcClient:                config.RPCClient,
 	}
 
 	// Create the logger based on the allocation ID
@@ -218,10 +244,12 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			Logger:               ar.logger,
 			StateDB:              ar.stateDB,
 			StateUpdater:         ar,
+			DynamicRegistry:      ar.dynamicRegistry,
 			Consul:               ar.consulClient,
 			ConsulSI:             ar.sidsClient,
 			Vault:                ar.vaultClient,
 			DeviceStatsReporter:  ar.deviceStatsReporter,
+			CSIManager:           ar.csiManager,
 			DeviceManager:        ar.devicemanager,
 			DriverManager:        ar.driverManager,
 			ServersContactedCh:   ar.serversContactedCh,

@@ -51,6 +51,7 @@ type GenericStack struct {
 	taskGroupConstraint  *ConstraintChecker
 	taskGroupDevices     *DeviceChecker
 	taskGroupHostVolumes *HostVolumeChecker
+	taskGroupCSIVolumes  *CSIVolumeChecker
 
 	distinctHostsConstraint    *DistinctHostsIterator
 	distinctPropertyConstraint *DistinctPropertyIterator
@@ -95,6 +96,7 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 	s.nodeAffinity.SetJob(job)
 	s.spread.SetJob(job)
 	s.ctx.Eligibility().SetJob(job)
+	s.taskGroupCSIVolumes.SetNamespace(job.Namespace)
 
 	if contextual, ok := s.quota.(ContextualIterator); ok {
 		contextual.SetJob(job)
@@ -131,6 +133,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(tg.Volumes)
+	s.taskGroupCSIVolumes.SetVolumes(tg.Volumes)
 	s.distinctHostsConstraint.SetTaskGroup(tg)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
@@ -174,6 +177,7 @@ type SystemStack struct {
 	taskGroupConstraint  *ConstraintChecker
 	taskGroupDevices     *DeviceChecker
 	taskGroupHostVolumes *HostVolumeChecker
+	taskGroupCSIVolumes  *CSIVolumeChecker
 
 	distinctPropertyConstraint *DistinctPropertyIterator
 	binPack                    *BinPackIterator
@@ -205,6 +209,9 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// Filter on task group host volumes
 	s.taskGroupHostVolumes = NewHostVolumeChecker(ctx)
 
+	// Filter on available, healthy CSI plugins
+	s.taskGroupCSIVolumes = NewCSIVolumeChecker(ctx)
+
 	// Filter on task group devices
 	s.taskGroupDevices = NewDeviceChecker(ctx)
 
@@ -213,8 +220,11 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
-	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint, s.taskGroupHostVolumes, s.taskGroupDevices}
-	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs)
+	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint,
+		s.taskGroupHostVolumes,
+		s.taskGroupDevices}
+	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
+	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs, avail)
 
 	// Filter on distinct property constraints.
 	s.distinctPropertyConstraint = NewDistinctPropertyIterator(ctx, s.wrappedChecks)
@@ -267,6 +277,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(tg.Volumes)
+	s.taskGroupCSIVolumes.SetVolumes(tg.Volumes)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.binPack.SetTaskGroup(tg)

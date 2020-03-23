@@ -384,6 +384,10 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 				Source:   "prod-ca-certs",
 				ReadOnly: readonlyVolume,
 			},
+			"csi": {
+				Type:   structs.VolumeTypeCSI,
+				Source: "prod-db",
+			},
 		}
 
 		tg.Tasks[0].VolumeMounts = []*structs.VolumeMount{
@@ -398,17 +402,37 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 		return j
 	}
 
+	newCSIPluginJob := func() *structs.Job {
+		j := mock.Job()
+		t := j.TaskGroups[0].Tasks[0]
+		t.CSIPluginConfig = &structs.TaskCSIPluginConfig{
+			ID:   "foo",
+			Type: "node",
+		}
+		return j
+	}
+
 	submitJobPolicy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob, acl.NamespaceCapabilitySubmitJob})
 
 	submitJobToken := mock.CreatePolicyAndToken(t, s1.State(), 1001, "test-submit-job", submitJobPolicy)
 
 	volumesPolicyReadWrite := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadWrite})
 
-	submitJobWithVolumesReadWriteToken := mock.CreatePolicyAndToken(t, s1.State(), 1002, "test-submit-volumes", submitJobPolicy+"\n"+volumesPolicyReadWrite)
+	volumesPolicyCSIMount := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
+		mock.PluginPolicy("read")
+
+	submitJobWithVolumesReadWriteToken := mock.CreatePolicyAndToken(t, s1.State(), 1002, "test-submit-volumes", submitJobPolicy+
+		volumesPolicyReadWrite+
+		volumesPolicyCSIMount)
 
 	volumesPolicyReadOnly := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadOnly})
 
-	submitJobWithVolumesReadOnlyToken := mock.CreatePolicyAndToken(t, s1.State(), 1003, "test-submit-volumes-readonly", submitJobPolicy+"\n"+volumesPolicyReadOnly)
+	submitJobWithVolumesReadOnlyToken := mock.CreatePolicyAndToken(t, s1.State(), 1003, "test-submit-volumes-readonly", submitJobPolicy+
+		volumesPolicyReadOnly+
+		volumesPolicyCSIMount)
+
+	pluginPolicy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityCSIRegisterPlugin})
+	pluginToken := mock.CreatePolicyAndToken(t, s1.State(), 1005, "test-csi-register-plugin", submitJobPolicy+pluginPolicy)
 
 	cases := []struct {
 		Name        string
@@ -450,6 +474,18 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 			Name:        "with a token that can submit a job, and readonly volume access is enough",
 			Job:         newVolumeJob(true),
 			Token:       submitJobWithVolumesReadOnlyToken.SecretID,
+			ErrExpected: false,
+		},
+		{
+			Name:        "with a token that can submit a job, plugin rejected",
+			Job:         newCSIPluginJob(),
+			Token:       submitJobToken.SecretID,
+			ErrExpected: true,
+		},
+		{
+			Name:        "with a token that also has csi-register-plugin, accepted",
+			Job:         newCSIPluginJob(),
+			Token:       pluginToken.SecretID,
 			ErrExpected: false,
 		},
 	}

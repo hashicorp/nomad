@@ -6,7 +6,9 @@ import (
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -48,6 +50,14 @@ type Config struct {
 	// PrevAllocMigrator allows the migration of a previous allocations alloc dir
 	PrevAllocMigrator allocwatcher.PrevAllocMigrator
 
+	// DynamicRegistry contains all locally registered dynamic plugins (e.g csi
+	// plugins).
+	DynamicRegistry dynamicplugins.Registry
+
+	// CSIManager is used to wait for CSI Volumes to be attached, and by the task
+	// runner to manage their mounting
+	CSIManager csimanager.Manager
+
 	// DeviceManager is used to mount devices as well as lookup device
 	// statistics
 	DeviceManager devicemanager.Manager
@@ -58,4 +68,8 @@ type Config struct {
 	// ServersContactedCh is closed when the first GetClientAllocs call to
 	// servers succeeds and allocs are synced.
 	ServersContactedCh chan struct{}
+
+	// RPCClient is the RPC Client that should be used by the allocrunner and its
+	// hooks to communicate with Nomad Servers.
+	RPCClient RPCer
 }

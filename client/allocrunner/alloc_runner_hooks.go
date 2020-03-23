@@ -7,10 +7,40 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
+
+type hookResourceSetter interface {
+	GetAllocHookResources() *cstructs.AllocHookResources
+	SetAllocHookResources(*cstructs.AllocHookResources)
+}
+
+type allocHookResourceSetter struct {
+	ar *allocRunner
+}
+
+func (a *allocHookResourceSetter) GetAllocHookResources() *cstructs.AllocHookResources {
+	a.ar.hookStateMu.RLock()
+	defer a.ar.hookStateMu.RUnlock()
+
+	return a.ar.hookState
+}
+
+func (a *allocHookResourceSetter) SetAllocHookResources(res *cstructs.AllocHookResources) {
+	a.ar.hookStateMu.Lock()
+	defer a.ar.hookStateMu.Unlock()
+
+	a.ar.hookState = res
+
+	// Propagate to all of the TRs within the lock to ensure consistent state.
+	// TODO: Refactor so TR's pull state from AR?
+	for _, tr := range a.ar.tasks {
+		tr.SetAllocHookResources(res)
+	}
+}
 
 type networkIsolationSetter interface {
 	SetNetworkIsolation(*drivers.NetworkIsolationSpec)
@@ -105,6 +135,10 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	// create network isolation setting shim
 	ns := &allocNetworkIsolationSetter{ar: ar}
 
+	// create hook resource setting shim
+	hrs := &allocHookResourceSetter{ar: ar}
+	hrs.SetAllocHookResources(&cstructs.AllocHookResources{})
+
 	// build the network manager
 	nm, err := newNetworkManager(ar.Alloc(), ar.driverManager)
 	if err != nil {
@@ -134,6 +168,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			logger:         hookLogger,
 		}),
 		newConsulSockHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
+		newCSIHook(hookLogger, alloc, ar.rpcClient, ar.csiManager, hrs),
 	}
 
 	return nil

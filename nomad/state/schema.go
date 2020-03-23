@@ -47,6 +47,8 @@ func init() {
 		autopilotConfigTableSchema,
 		schedulerConfigTableSchema,
 		clusterMetaTableSchema,
+		csiVolumeTableSchema,
+		csiPluginTableSchema,
 	}...)
 }
 
@@ -673,6 +675,55 @@ func clusterMetaTableSchema() *memdb.TableSchema {
 				AllowMissing: false,
 				Unique:       true,
 				Indexer:      singletonRecord, // we store only 1 cluster metadata
+			},
+		},
+	}
+}
+
+// CSIVolumes are identified by id globally, and searchable by driver
+func csiVolumeTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "csi_volumes",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
+				},
+			},
+			"plugin_id": {
+				Name:         "plugin_id",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "PluginID",
+				},
+			},
+		},
+	}
+}
+
+// CSIPlugins are identified by id globally, and searchable by driver
+func csiPluginTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "csi_plugins",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
+				},
 			},
 		},
 	}
