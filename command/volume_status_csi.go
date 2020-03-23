@@ -166,8 +166,8 @@ func csiVolMountOption(volume, request *api.CSIMountOptions) string {
 
 	if request != nil {
 		req = &structs.CSIMountOptions{
-			FSType:     volume.FSType,
-			MountFlags: volume.MountFlags,
+			FSType:     request.FSType,
+			MountFlags: request.MountFlags,
 		}
 	}
 
