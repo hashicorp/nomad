@@ -53,6 +53,9 @@ async function run() {
       console.log(output);
     }
 
+    console.log("logs are working!");
+    console.log(output);
+
     await updateCheck(id, {
       output: Object.assign(
         {},
