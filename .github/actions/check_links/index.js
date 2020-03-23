@@ -44,11 +44,19 @@ async function run() {
       String(execSync("ls -la ./website/node_modules/dart-linkcheck/bin"))
     );
     // Run the link check against the PR preview link
-    const output = String(
-      execSync(
+    let output;
+    try {
+      output = execSync(
         `./website/node_modules/dart-linkcheck/bin/linkcheck-linux ${deployUrl}`
-      )
-    );
+      );
+    } catch (err) {
+      console.log(err);
+      console.log("--------------");
+      console.log(String(err.stdout));
+      console.log("--------------");
+      console.log(output);
+      console.log("--------------");
+    }
 
     // WIP
     console.log(output);
