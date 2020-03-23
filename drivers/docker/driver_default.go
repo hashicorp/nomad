@@ -3,7 +3,7 @@
 package docker
 
 import (
-	"github.com/docker/docker/daemon/caps"
+	"github.com/docker/docker/oci/caps"
 	docker "github.com/fsouza/go-dockerclient"
 )
 
