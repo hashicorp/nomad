@@ -1793,8 +1793,15 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, alloc *s
 	if err != nil {
 		return err
 	}
-	if !volume.Claim(claim, alloc) {
-		return fmt.Errorf("volume max claim reached")
+
+	volume, err = s.CSIVolumeDenormalize(ws, volume)
+	if err != nil {
+		return err
+	}
+
+	err = volume.Claim(claim, alloc)
+	if err != nil {
+		return err
 	}
 
 	volume.ModifyIndex = index
