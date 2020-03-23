@@ -203,11 +203,6 @@ func NewCSIVolumeChecker(ctx Context) *CSIVolumeChecker {
 	}
 }
 
-func (c *CSIVolumeChecker) SetJob(job *structs.Job) {
-	c.jobID = job.ID
-	c.namespace = job.Namespace
-}
-
 func (c *CSIVolumeChecker) SetJobID(jobID string) {
 	c.jobID = jobID
 }
