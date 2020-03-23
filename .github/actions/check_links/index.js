@@ -50,10 +50,15 @@ async function run() {
       // the command fails if any links are broken, but we still want to log the output
       conclusion = "failure";
       output = String(err);
+      console.log(output);
     }
 
     await updateCheck(id, {
-      output: Object.assign({}, { conclusion }, { summary: output })
+      output: Object.assign(
+        {},
+        { conclusion },
+        { title: "test", summary: output }
+      )
     });
   } catch (error) {
     console.log(error);
