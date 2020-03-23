@@ -52,8 +52,8 @@ func testJobWithScalingPolicy() *Job {
 	job := testJob()
 	job.TaskGroups[0].Scaling = &ScalingPolicy{
 		Policy:  map[string]interface{}{},
-		Min: int64ToPtr(1),
-		Max: 1,
+		Min:     int64ToPtr(1),
+		Max:     1,
 		Enabled: boolToPtr(true),
 	}
 	return job
@@ -93,11 +93,6 @@ func testQuotaSpec() *QuotaSpec {
 
 // conversions utils only used for testing
 // added here to avoid linter warning
-
-// int64ToPtr returns the pointer to an int
-func int64ToPtr(i int64) *int64 {
-	return &i
-}
 
 // float64ToPtr returns the pointer to an float64
 func float64ToPtr(f float64) *float64 {
