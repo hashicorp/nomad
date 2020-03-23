@@ -173,7 +173,7 @@
 /docs/jobops/inspecting.html                  /guides/operating-a-job/inspecting-state
 /docs/jobops/inspecting                       /guides/operating-a-job/inspecting-state
 /docs/jobops/resources.html                   /guides/operating-a-job/resource-utilization
-/docs/jobops/resources                         /guides/operating-a-job/resource-utilization
+/docs/jobops/resources                        /guides/operating-a-job/resource-utilization
 /docs/jobops/logs.html                        /guides/operating-a-job/accessing-logs
 /docs/jobops/logs                             /guides/operating-a-job/accessing-logs
 /docs/jobops/updating.html                    /guides/operating-a-job/update-strategies
@@ -222,7 +222,7 @@
 /docs/commands/inspect.html                   /docs/commands/job/inspect
 /docs/commands/inspect                        /docs/commands/job/inspect
 /docs/commands/run.html                       /docs/commands/job/run
-/docs/commands/run                             /docs/commands/job/run
+/docs/commands/run                            /docs/commands/job/run
 /docs/commands/stop.html                      /docs/commands/job/stop
 /docs/commands/stop                           /docs/commands/job/stop
 /docs/commands/plan.html                      /docs/commands/job/plan
