@@ -400,13 +400,26 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 
 	nsPolicy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIReadVolume}) +
 		mock.PluginPolicy("read")
-	nsTok := mock.CreatePolicyAndToken(t, state, 1000, "csi-access", nsPolicy)
+	nsTok := mock.CreatePolicyAndToken(t, state, 1000, "csi-token-name", nsPolicy)
 
+	// Empty list results
+	req := &structs.CSIVolumeListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: nsTok.SecretID,
+			Namespace: ns,
+		},
+	}
+	var resp structs.CSIVolumeListResponse
+	err := msgpackrpc.CallWithCodec(codec, "CSIVolume.List", req, &resp)
+	require.NoError(t, err)
+	require.NotNil(t, resp.Volumes)
+	require.Equal(t, 0, len(resp.Volumes))
+
+	// Create the volume
 	id0 := uuid.Generate()
 	id1 := uuid.Generate()
 	id2 := uuid.Generate()
-
-	// Create the volume
 	vols := []*structs.CSIVolume{{
 		ID:             id0,
 		Namespace:      ns,
@@ -426,19 +439,10 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		PluginID:       "paddy",
 	}}
-	err := state.CSIVolumeRegister(1002, vols)
+	err = state.CSIVolumeRegister(1002, vols)
 	require.NoError(t, err)
 
-	var resp structs.CSIVolumeListResponse
-
 	// Query everything in the namespace
-	req := &structs.CSIVolumeListRequest{
-		QueryOptions: structs.QueryOptions{
-			Region:    "global",
-			AuthToken: nsTok.SecretID,
-			Namespace: ns,
-		},
-	}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.List", req, &resp)
 	require.NoError(t, err)
 
