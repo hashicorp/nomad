@@ -74,8 +74,8 @@ func TestScalingPolicies_GetPolicy(t *testing.T) {
 	job := testJob()
 	policy := &ScalingPolicy{
 		Enabled: boolToPtr(true),
-		Min: int64ToPtr(1),
-		Max: 1,
+		Min:     int64ToPtr(1),
+		Max:     1,
 		Policy: map[string]interface{}{
 			"key": "value",
 		},
@@ -115,4 +115,6 @@ func TestScalingPolicies_GetPolicy(t *testing.T) {
 	require.Equal(expectedTarget, resp.Target)
 	require.Equal(policy.Policy, resp.Policy)
 	require.Equal(policy.Enabled, resp.Enabled)
+	require.Equal(*policy.Min, *resp.Min)
+	require.Equal(policy.Max, resp.Max)
 }
