@@ -71,23 +71,25 @@ job "binstore-storagelocker" {
     count = 5
 
     volume "foo" {
-      type = "host"
+      type   = "host"
       source = "/path"
     }
 
     volume "bar" {
-      type = "csi"
+      type   = "csi"
       source = "bar-vol"
+
       mount_options {
-	fs_type = "ext4"
+        fs_type = "ext4"
       }
     }
 
     volume "baz" {
-      type = "csi"
+      type   = "csi"
       source = "bar-vol"
+
       mount_options {
-	mount_flags = ["ro"]
+        mount_flags = ["ro"]
       }
     }
 
@@ -173,7 +175,7 @@ job "binstore-storagelocker" {
 
       volume_mount {
         volume      = "foo"
-	destination = "/mnt/foo"
+        destination = "/mnt/foo"
       }
 
       logs {
