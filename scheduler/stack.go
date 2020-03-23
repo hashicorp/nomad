@@ -97,6 +97,7 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 	s.spread.SetJob(job)
 	s.ctx.Eligibility().SetJob(job)
 	s.taskGroupCSIVolumes.SetNamespace(job.Namespace)
+	s.taskGroupCSIVolumes.SetJobID(job.ID)
 
 	if contextual, ok := s.quota.(ContextualIterator); ok {
 		contextual.SetJob(job)
