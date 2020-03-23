@@ -541,7 +541,7 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 
 	// Duplicate nodeCSIVolumeNames to sort by name but also index volume names to ids
 	var names []string
-	volNames := map[string]string{}
+	requests := map[string]*api.VolumeRequest{}
 	for _, alloc := range runningAllocs {
 		tg := alloc.GetTaskGroup()
 		if tg == nil || len(tg.Volumes) == 0 {
@@ -550,7 +550,7 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 
 		for _, v := range tg.Volumes {
 			names = append(names, v.Name)
-			volNames[v.Source] = v.Name
+			requests[v.Source] = v
 		}
 	}
 	if len(names) == 0 {
@@ -563,23 +563,25 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 	volumes := map[string]*api.CSIVolumeListStub{}
 	vs, _ := client.Nodes().CSIVolumes(node.ID, nil)
 	for _, v := range vs {
-		n := volNames[v.ID]
+		n := requests[v.ID].Name
 		volumes[n] = v
 	}
 
 	// Output the volumes in name order
 	output := make([]string, 0, len(names)+1)
-	output = append(output, "ID|Name|Plugin ID|Schedulable|Provider|Access Mode")
+	output = append(output, "ID|Name|Plugin ID|Schedulable|Provider|Access Mode|Mount Options")
 	for _, name := range names {
 		v := volumes[name]
+		r := requests[v.ID]
 		output = append(output, fmt.Sprintf(
-			"%s|%s|%s|%t|%s|%s",
+			"%s|%s|%s|%t|%s|%s|%s",
 			v.ID,
 			name,
 			v.PluginID,
 			v.Schedulable,
 			v.Provider,
 			v.AccessMode,
+			csiVolMountOption(v.MountOptions, r.MountOptions),
 		))
 	}
 

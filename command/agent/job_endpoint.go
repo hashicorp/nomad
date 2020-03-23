@@ -762,6 +762,13 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 				Source:   v.Source,
 			}
 
+			if v.MountOptions != nil {
+				vol.MountOptions = &structs.CSIMountOptions{
+					FSType:     v.MountOptions.FSType,
+					MountFlags: v.MountOptions.MountFlags,
+				}
+			}
+
 			tg.Volumes[k] = vol
 		}
 	}

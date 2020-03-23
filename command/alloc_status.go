@@ -781,7 +781,7 @@ FOUND:
 						vol.Provider,
 						vol.Schedulable,
 						volReq.ReadOnly,
-						"n/a", // TODO(tgross): https://github.com/hashicorp/nomad/issues/7007
+						csiVolMountOption(vol.MountOptions, volReq.MountOptions),
 					))
 			} else {
 				csiVolumesOutput = append(csiVolumesOutput,

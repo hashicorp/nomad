@@ -48,6 +48,7 @@ func (c *csiHook) Prerun() error {
 			ReadOnly:       pair.request.ReadOnly,
 			AttachmentMode: string(pair.volume.AttachmentMode),
 			AccessMode:     string(pair.volume.AccessMode),
+			MountOptions:   pair.request.MountOptions,
 		}
 
 		mountInfo, err := mounter.MountVolume(ctx, pair.volume, c.alloc, usageOpts, pair.publishContext)

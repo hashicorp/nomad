@@ -135,6 +135,56 @@ func ValidCSIVolumeWriteAccessMode(accessMode CSIVolumeAccessMode) bool {
 	}
 }
 
+// CSIMountOptions contain optional additional configuration that can be used
+// when specifying that a Volume should be used with VolumeAccessTypeMount.
+type CSIMountOptions struct {
+	// FSType is an optional field that allows an operator to specify the type
+	// of the filesystem.
+	FSType string
+
+	// MountFlags contains additional options that may be used when mounting the
+	// volume by the plugin. This may contain sensitive data and should not be
+	// leaked.
+	MountFlags []string
+}
+
+func (o *CSIMountOptions) Copy() *CSIMountOptions {
+	if o == nil {
+		return nil
+	}
+	return &(*o)
+}
+
+func (o *CSIMountOptions) Merge(p *CSIMountOptions) {
+	if p == nil {
+		return
+	}
+	if p.FSType != "" {
+		o.FSType = p.FSType
+	}
+	if p.MountFlags != nil {
+		o.MountFlags = p.MountFlags
+	}
+}
+
+// VolumeMountOptions implements the Stringer and GoStringer interfaces to prevent
+// accidental leakage of sensitive mount flags via logs.
+var _ fmt.Stringer = &CSIMountOptions{}
+var _ fmt.GoStringer = &CSIMountOptions{}
+
+func (v *CSIMountOptions) String() string {
+	mountFlagsString := "nil"
+	if len(v.MountFlags) != 0 {
+		mountFlagsString = "[REDACTED]"
+	}
+
+	return fmt.Sprintf("csi.CSIOptions(FSType: %s, MountFlags: %s)", v.FSType, mountFlagsString)
+}
+
+func (v *CSIMountOptions) GoString() string {
+	return v.String()
+}
+
 // CSIVolume is the full representation of a CSI Volume
 type CSIVolume struct {
 	// ID is a namespace unique URL safe identifier for the volume
@@ -147,6 +197,7 @@ type CSIVolume struct {
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
+	MountOptions   *CSIMountOptions
 
 	// Allocations, tracking claim status
 	ReadAllocs  map[string]*Allocation
@@ -178,6 +229,7 @@ type CSIVolListStub struct {
 	Topologies          []*CSITopology
 	AccessMode          CSIVolumeAccessMode
 	AttachmentMode      CSIVolumeAttachmentMode
+	MountOptions        *CSIMountOptions
 	CurrentReaders      int
 	CurrentWriters      int
 	Schedulable         bool
@@ -228,6 +280,7 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 		Topologies:         v.Topologies,
 		AccessMode:         v.AccessMode,
 		AttachmentMode:     v.AttachmentMode,
+		MountOptions:       v.MountOptions,
 		CurrentReaders:     len(v.ReadAllocs),
 		CurrentWriters:     len(v.WriteAllocs),
 		Schedulable:        v.Schedulable,

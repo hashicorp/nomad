@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/csi"
 	csifake "github.com/hashicorp/nomad/plugins/csi/fake"
 	"github.com/stretchr/testify/require"
 )
@@ -247,13 +248,14 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 func TestVolumeManager_publishVolume(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		Name                 string
-		Allocation           *structs.Allocation
-		Volume               *structs.CSIVolume
-		UsageOptions         *UsageOptions
-		PluginErr            error
-		ExpectedErr          error
-		ExpectedCSICallCount int64
+		Name                     string
+		Allocation               *structs.Allocation
+		Volume                   *structs.CSIVolume
+		UsageOptions             *UsageOptions
+		PluginErr                error
+		ExpectedErr              error
+		ExpectedCSICallCount     int64
+		ExpectedVolumeCapability *csi.VolumeCapability
 	}{
 		{
 			Name:       "Returns an error when the plugin returns an error",
@@ -281,6 +283,56 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			ExpectedErr:          nil,
 			ExpectedCSICallCount: 1,
 		},
+		{
+			Name:       "Mount options in the volume",
+			Allocation: structs.MockAlloc(),
+			Volume: &structs.CSIVolume{
+				ID:             "foo",
+				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+				MountOptions: &structs.CSIMountOptions{
+					MountFlags: []string{"ro"},
+				},
+			},
+			UsageOptions:         &UsageOptions{},
+			PluginErr:            nil,
+			ExpectedErr:          nil,
+			ExpectedCSICallCount: 1,
+			ExpectedVolumeCapability: &csi.VolumeCapability{
+				AccessType: csi.VolumeAccessTypeMount,
+				AccessMode: csi.VolumeAccessModeMultiNodeMultiWriter,
+				MountVolume: &structs.CSIMountOptions{
+					MountFlags: []string{"ro"},
+				},
+			},
+		},
+		{
+			Name:       "Mount options override in the request",
+			Allocation: structs.MockAlloc(),
+			Volume: &structs.CSIVolume{
+				ID:             "foo",
+				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+				MountOptions: &structs.CSIMountOptions{
+					MountFlags: []string{"ro"},
+				},
+			},
+			UsageOptions: &UsageOptions{
+				MountOptions: &structs.CSIMountOptions{
+					MountFlags: []string{"rw"},
+				},
+			},
+			PluginErr:            nil,
+			ExpectedErr:          nil,
+			ExpectedCSICallCount: 1,
+			ExpectedVolumeCapability: &csi.VolumeCapability{
+				AccessType: csi.VolumeAccessTypeMount,
+				AccessMode: csi.VolumeAccessModeMultiNodeMultiWriter,
+				MountVolume: &structs.CSIMountOptions{
+					MountFlags: []string{"rw"},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -303,6 +355,11 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			}
 
 			require.Equal(t, tc.ExpectedCSICallCount, csiFake.NodePublishVolumeCallCount)
+
+			if tc.ExpectedVolumeCapability != nil {
+				require.Equal(t, tc.ExpectedVolumeCapability, csiFake.PrevVolumeCapability)
+			}
+
 		})
 	}
 }
