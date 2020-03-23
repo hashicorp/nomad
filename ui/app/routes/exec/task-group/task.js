@@ -24,7 +24,7 @@ export default Route.extend({
       return {
         allocation,
         allocationSpecified: allocationQueryParam ? true : false,
-        taskState: allocation.states.find(state => state.name === task_name), // FIXME is this enough?
+        taskState: allocation.states.find(state => state.name === task_name),
       };
     });
   },
