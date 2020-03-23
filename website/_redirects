@@ -16,7 +16,7 @@
 /intro/getting-started/next-steps       https://learn.hashicorp.com/nomad/getting-started/next-steps
 
 /guides/load-balancing                  https://learn.hashicorp.com/nomad?track=load-balancing#operations-and-development
-/guides/load-balancing/fabio.html       https://learn.hashicorp.com/nomad/load-balancing/fabio
+#/guides/load-balancing/fabio.html       https://learn.hashicorp.com/nomad/load-balancing/fabio
 /guides/load-balancing/fabio            https://learn.hashicorp.com/nomad/load-balancing/fabio
 /guides/load-balancing/nginx.html       https://learn.hashicorp.com/nomad/load-balancing/nginx
 /guides/load-balancing/nginx            https://learn.hashicorp.com/nomad/load-balancing/nginx
@@ -72,17 +72,15 @@
 /guides/analytical-workloads/spark/submit              https://learn.hashicorp.com/nomad/spark/submit
 /guides/analytical-workloads/spark/submit.html         https://learn.hashicorp.com/nomad/spark/submit
 
+/guides/operating-a-job                            https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs
 /guides/operating-a-job/accessing-logs             https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs
 /guides/operating-a-job/accessing-logs.html        https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs
 /guides/operating-a-job/configuring-tasks          https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks
 /guides/operating-a-job/configuring-tasks.html     https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks
 /guides/operating-a-job/external                   https://learn.hashicorp.com/nomad?track=using-plugins#using-plugins
-/guides/operating-a-job/external/                  https://learn.hashicorp.com/nomad?track=using-plugins#using-plugins
 /guides/operating-a-job/external/index.html        https://learn.hashicorp.com/nomad?track=using-plugins#using-plugins
 /guides/operating-a-job/external/lxc               https://learn.hashicorp.com/nomad/using-plugins/lxc
 /guides/operating-a-job/external/lxc.html          https://learn.hashicorp.com/nomad/using-plugins/lxc
-/guides/operating-a-job                            https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs
-/guides/operating-a-job/                           https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs
 /guides/operating-a-job/index.html                 https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs
 /guides/operating-a-job/inspecting-state           https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state
 /guides/operating-a-job/inspecting-state.html      https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state
@@ -100,22 +98,20 @@
 /guides/operating-a-job/advanced-scheduling/spread                         https://learn.hashicorp.com/nomad/advanced-scheduling/spread
 /guides/operating-a-job/advanced-scheduling/spread.html                    https://learn.hashicorp.com/nomad/advanced-scheduling/spread
 
+/guides/operating-a-job/failure-handling-strategies                        https://learn.hashicorp.com/nomad/job-failure-handling/failure-handling
 /guides/operating-a-job/failure-handling-strategies/check-restart          https://learn.hashicorp.com/nomad/job-failure-handling/check-restart
 /guides/operating-a-job/failure-handling-strategies/check-restart.html     https://learn.hashicorp.com/nomad/job-failure-handling/check-restart
-/guides/operating-a-job/failure-handling-strategies                        https://learn.hashicorp.com/nomad/job-failure-handling/failure-handling
-/guides/operating-a-job/failure-handling-strategies/                       https://learn.hashicorp.com/nomad/job-failure-handling/failure-handling
 /guides/operating-a-job/failure-handling-strategies/index.html             https://learn.hashicorp.com/nomad/job-failure-handling/failure-handling
 /guides/operating-a-job/failure-handling-strategies/reschedule             https://learn.hashicorp.com/nomad/job-failure-handling/reschedule
 /guides/operating-a-job/failure-handling-strategies/reschedule.html        https://learn.hashicorp.com/nomad/job-failure-handling/reschedule
 /guides/operating-a-job/failure-handling-strategies/restart                https://learn.hashicorp.com/nomad/job-failure-handling/restart
 /guides/operating-a-job/failure-handling-strategies/restart.html           https://learn.hashicorp.com/nomad/job-failure-handling/restart
 
+/guides/operating-a-job/update-strategies                                         https://learn.hashicorp.com/nomad/update-strategies/
 /guides/operating-a-job/update-strategies/blue-green-and-canary-deployments       https://learn.hashicorp.com/nomad/update-strategies/blue-green-and-canary-deployments
 /guides/operating-a-job/update-strategies/blue-green-and-canary-deployments.html  https://learn.hashicorp.com/nomad/update-strategies/blue-green-and-canary-deployments
 /guides/operating-a-job/update-strategies/handling-signals                        https://learn.hashicorp.com/nomad/update-strategies/handling-signals
 /guides/operating-a-job/update-strategies/handling-signals.html                   https://learn.hashicorp.com/nomad/update-strategies/handling-signals
-/guides/operating-a-job/update-strategies                                         https://learn.hashicorp.com/nomad/update-strategies/
-/guides/operating-a-job/update-strategies/                                        https://learn.hashicorp.com/nomad/update-strategies/
 /guides/operating-a-job/update-strategies/index.html                              https://learn.hashicorp.com/nomad/update-strategies/
 /guides/operating-a-job/update-strategies/rolling-upgrades                        https://learn.hashicorp.com/nomad/update-strategies/rolling-upgrades
 /guides/operating-a-job/update-strategies/rolling-upgrades.html                   https://learn.hashicorp.com/nomad/update-strategies/rolling-upgrades
@@ -147,15 +143,17 @@
 /guides/operations/outage                                           https://learn.hashicorp.com/nomad/operating-nomad/outage
 /guides/operations/outage.html                                      https://learn.hashicorp.com/nomad/operating-nomad/outage
 
+/guides/security                             https://learn.hashicorp.com/nomad?track=acls#acls
 /guides/security/acl                         https://learn.hashicorp.com/nomad?track=acls#acls
 /guides/security/acl.html                    https://learn.hashicorp.com/nomad?track=acls#acls
 /guides/security/encryption                  https://learn.hashicorp.com/nomad/transport-security/gossip-encryption
 /guides/security/encryption.html             https://learn.hashicorp.com/nomad/transport-security/gossip-encryption
-/guides/security                             https://learn.hashicorp.com/nomad?track=acls#acls
-/guides/security/                            https://learn.hashicorp.com/nomad?track=acls#acls
 /guides/security/index.html                  https://learn.hashicorp.com/nomad?track=acls#acls
 /guides/security/securing-nomad              https://learn.hashicorp.com/nomad/transport-security/enable-tls
 /guides/security/securing-nomad.html         https://learn.hashicorp.com/nomad/transport-security/enable-tls
+
+/guides    https://learn.hashicorp.com/nomad  301!
+/guides/*  https://learn.hashicorp.com/nomad  301!
 
 # Website
 /community.html                               /resources
@@ -254,7 +252,6 @@
 
 # Moved /docs/operating-a-job/ -> /guides/operating-a-job/
 /docs/operating-a-job                           /guides/operating-a-job
-/docs/operating-a-job/                          /guides/operating-a-job
 /docs/operating-a-job/index.html                /guides/operating-a-job
 /docs/operating-a-job/accessing-logs.html       /guides/operating-a-job/accessing-logs
 /docs/operating-a-job/inspecting-state.html     /guides/operating-a-job/inspecting-state
@@ -263,7 +260,6 @@
 /docs/operating-a-job/submitting-jobs.html      /guides/operating-a-job/submitting-jobs
 
 /docs/operating-a-job/failure-handling-strategies                    /guides/operating-a-job/failure-handling-strategies
-/docs/operating-a-job/failure-handling-strategies/                   /guides/operating-a-job/failure-handling-strategies
 /docs/operating-a-job/failure-handling-strategies/index.html         /guides/operating-a-job/failure-handling-strategies
 /docs/operating-a-job/failure-handling-strategies/check-restart.html /guides/operating-a-job/failure-handling-strategies/check-restart
 /docs/operating-a-job/failure-handling-strategies/check-restart      /guides/operating-a-job/failure-handling-strategies/check-restart
@@ -273,7 +269,6 @@
 /docs/operating-a-job/failure-handling-strategies/restart            /guides/operating-a-job/failure-handling-strategies/restart
 
 /docs/operating-a-job/update-strategies                                        /guides/operating-a-job/update-strategies/
-/docs/operating-a-job/update-strategies/                                       /guides/operating-a-job/update-strategies/
 /docs/operating-a-job/update-strategies/index.html                             /guides/operating-a-job/update-strategies/
 /docs/operating-a-job/update-strategies/blue-green-and-canary-deployments.html /guides/operating-a-job/update-strategies/blue-green-and-canary-deployments
 /docs/operating-a-job/update-strategies/blue-green-and-canary-deployments      /guides/operating-a-job/update-strategies/blue-green-and-canary-deployments
@@ -310,7 +305,6 @@
 
 # Moved guide-like docs to /guides
 /docs/agent                                   /guides/operations/agent
-/docs/agent/                                  /guides/operations/agent
 /docs/agent/index.html                        /guides/operations/agent
 /docs/agent/cloud_auto_join.html              /guides/operations/cluster/cloud_auto_join
 /docs/agent/cloud_auto_join                   /guides/operations/cluster/cloud_auto_join
@@ -318,16 +312,7 @@
 /docs/agent/telemetry                         /guides/operations/monitoring/telemetry
 /docs/agent/encryption.html                   /guides/security/encryption
 /docs/agent/encryption                        /guides/security/encryption
-/docs/install                                 /guides/operations/install
-/docs/install/                                /guides/operations/install
-/docs/install/index.html                      /guides/operations/install
-/docs/upgrade                                 /guides/operations/upgrade
-/docs/upgrade/                                /guides/operations/upgrade
-/docs/upgrade/index.html                      /guides/operations/upgrade
-/docs/upgrade/upgrade-specific.html           /guides/operations/upgrade/upgrade-specific
-/docs/upgrade/upgrade-specific                /guides/operations/upgrade/upgrade-specific
 /docs/service-discovery                       /guides/operations/consul-integration
-/docs/service-discovery/                      /guides/operations/consul-integration
 /docs/service-discovery/index.html            /guides/operations/consul-integration
 
 # Redirect old LXC driver doc to new one in /docs/external
@@ -416,7 +401,6 @@
 /guides/analytical-workloads/spark/spark.html     /guides/analytical-workloads/spark
 /guides/analytical-workloads/spark/spark          /guides/analytical-workloads/spark
 /guides/spark                                     /guides/analytical-workloads/spark
-/guides/spark/                                    /guides/analytical-workloads/spark
 /guides/spark/index.html                          /guides/analytical-workloads/spark
 /guides/spark/spark.html                          /guides/analytical-workloads/spark
 /guides/spark/spark                               /guides/analytical-workloads/spark
@@ -443,15 +427,13 @@
 /guides/operations/vault-integration/index.html   /guides/integrations/vault-integration
 /guides/advanced-scheduling/                      /guides/operating-a-job/advanced-scheduling/
 /guides/external                                  /guides/operating-a-job/external
-/guides/external/                                 /guides/operating-a-job/external
 /guides/external/index.html                       /guides/operating-a-job/external
 /guides/external/lxc.html                         /guides/operating-a-job/external/lxc
 /guides/external/lxc                              /guides/operating-a-job/external/lxc
-/guides/operations/upgrade                        /guides/upgrade
-/guides/operations/upgrade/                       /guides/upgrade
-/guides/operations/upgrade/index.html             /guides/upgrade
-/guides/operations/upgrade/upgrade-specific.html  /guides/upgrade/upgrade-specific
-/guides/operations/upgrade/upgrade-specific       /guides/upgrade/upgrade-specific
+/guides/operations/upgrade                        /docs/upgrade
+/guides/operations/upgrade/index.html             /docs/upgrade
+/guides/operations/upgrade/upgrade-specific.html  /docs/upgrade/upgrade-specific
+/guides/operations/upgrade/upgrade-specific       /docs/upgrade/upgrade-specific
 
 # Multi-part UI guides
 /guides/ui.html  https://learn.hashicorp.com/nomad?track=web-ui#web-ui
@@ -461,17 +443,12 @@
 
 # Reorganized Enterprise into single pager
 /docs/enterprise/namespaces                       /docs/enterprise#namespaces
-/docs/enterprise/namespaces/                      /docs/enterprise#namespaces
 /docs/enterprise/namespaces/index.html            /docs/enterprise#namespaces
 /docs/enterprise/quotas                           /docs/enterprise#resource-quotas
-/docs/enterprise/quotas/                          /docs/enterprise#resource-quotas
 /docs/enterprise/quotas/index.html                /docs/enterprise#resource-quotas
 /docs/enterprise/preemption                       /docs/enterprise#preemption
-/docs/enterprise/preemption/                      /docs/enterprise#preemption
 /docs/enterprise/preemption/index.html            /docs/enterprise#preemption
 /docs/enterprise/sentinel                         /docs/enterprise#sentinel-policies
-/docs/enterprise/sentinel/                        /docs/enterprise#sentinel-policies
 /docs/enterprise/sentinel/index.html              /docs/enterprise#sentinel-policies
 /docs/enterprise/autopilot                        /docs/enterprise#nomad-enterprise-platform
-/docs/enterprise/autopilot/                       /docs/enterprise#nomad-enterprise-platform
 /docs/enterprise/autopilot/index.html             /docs/enterprise#nomad-enterprise-platform
