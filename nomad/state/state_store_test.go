@@ -2972,7 +2972,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
-	require.True(t, vs[0].CanReadOnly())
+	require.True(t, vs[0].ReadSchedulable())
 }
 
 // TestStateStore_CSIPluginNodes uses the state from jobs, and uses node fingerprinting to update health
