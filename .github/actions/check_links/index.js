@@ -37,33 +37,25 @@ async function run() {
   const deployUrl = "https://nomadproject.io";
 
   try {
-    console.log(
-      String(execSync("cat ./website/node_modules/dart-linkcheck/package.json"))
-    );
-    console.log(
-      String(execSync("ls -la ./website/node_modules/dart-linkcheck/bin"))
-    );
     // Run the link check against the PR preview link
+    let conclusion = "success";
     let output;
     try {
       output = execSync(
         `./website/node_modules/dart-linkcheck/bin/linkcheck-linux ${deployUrl}`
       );
     } catch (err) {
-      console.log(err);
-      console.log("--------------");
-      console.log(String(err.stdout));
-      console.log("--------------");
-      console.log(output);
-      console.log("--------------");
+      // the command fails if any links are broken, but we still want to log the output
+      conclusion = "failure";
+      output = err;
     }
 
-    // WIP
-    console.log(output);
-    // await updateCheck(id, { output: { summary: output } });
+    await updateCheck(id, {
+      output: Object.assign({}, { conclusion }, { summary: output })
+    });
   } catch (error) {
     console.log(error);
-    // core.setFailed(`Action failed with message: ${error.message}`);
+    core.setFailed(`Action failed with message: ${error.message}`);
   }
 }
 
