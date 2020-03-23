@@ -248,17 +248,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	err = state.CSIVolumeRegister(1003, vols)
 	require.NoError(t, err)
 
-	// Upsert the job and alloc
-	alloc.NodeID = node.ID
-	summary := mock.JobSummary(alloc.JobID)
-	require.NoError(t, state.UpsertJobSummary(1004, summary))
-	require.NoError(t, state.UpsertAllocs(1005, []*structs.Allocation{alloc}))
-
-	// Now our claim should succeed
-	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
-	require.NoError(t, err)
-
-	// Verify the claim was set
+	// Verify that the volume exists, and is healthy
 	volGetReq := &structs.CSIVolumeGetRequest{
 		ID: id0,
 		QueryOptions: structs.QueryOptions{
@@ -270,11 +260,30 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", volGetReq, volGetResp)
 	require.NoError(t, err)
 	require.Equal(t, id0, volGetResp.Volume.ID)
+	require.True(t, volGetResp.Volume.Schedulable)
+	require.Len(t, volGetResp.Volume.ReadAllocs, 0)
+	require.Len(t, volGetResp.Volume.WriteAllocs, 0)
+
+	// Upsert the job and alloc
+	alloc.NodeID = node.ID
+	summary := mock.JobSummary(alloc.JobID)
+	require.NoError(t, state.UpsertJobSummary(1004, summary))
+	require.NoError(t, state.UpsertAllocs(1005, []*structs.Allocation{alloc}))
+
+	// Now our claim should succeed
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
+	require.NoError(t, err)
+
+	// Verify the claim was set
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", volGetReq, volGetResp)
+	require.NoError(t, err)
+	require.Equal(t, id0, volGetResp.Volume.ID)
 	require.Len(t, volGetResp.Volume.ReadAllocs, 0)
 	require.Len(t, volGetResp.Volume.WriteAllocs, 1)
 
-	// Make another writer claim for a different alloc
+	// Make another writer claim for a different job
 	alloc2 := mock.Alloc()
+	alloc2.JobID = uuid.Generate()
 	summary = mock.JobSummary(alloc2.JobID)
 	require.NoError(t, state.UpsertJobSummary(1005, summary))
 	require.NoError(t, state.UpsertAllocs(1006, []*structs.Allocation{alloc2}))
