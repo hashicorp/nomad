@@ -930,7 +930,7 @@ func TestJobs_ScaleInvalidAction(t *testing.T) {
 		{"i-dont-exist", "me-neither", 1, "404"},
 	}
 	for _, test := range tests {
-		_, _, err := jobs.Scale(test.jobID, test.group, test.value, stringToPtr("reason"), nil, nil, nil)
+		_, _, err := jobs.Scale(test.jobID, test.group, &test.value, stringToPtr("reason"), nil, nil, nil)
 		require.Errorf(err, "expected jobs.Scale(%s, %s) to fail", test.jobID, test.group)
 		require.Containsf(err.Error(), test.want, "jobs.Scale(%s, %s) error doesn't contain %s, got: %s", test.jobID, test.group, test.want, err)
 	}
@@ -943,7 +943,7 @@ func TestJobs_ScaleInvalidAction(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Perform a scaling action with bad group name, verify error
-	_, _, err = jobs.Scale(*job.ID, "incorrect-group-name", 2,
+	_, _, err = jobs.Scale(*job.ID, "incorrect-group-name", intToPtr(2),
 		stringToPtr("because"), nil, nil, nil)
 	require.Error(err)
 	require.Contains(err.Error(), "does not exist")
@@ -1590,7 +1590,7 @@ func TestJobs_ScaleAction(t *testing.T) {
 	groupCount := *job.TaskGroups[0].Count
 
 	// Trying to scale against a target before it exists returns an error
-	_, _, err := jobs.Scale(id, "missing", groupCount+1, stringToPtr("this won't work"), nil, nil, nil)
+	_, _, err := jobs.Scale(id, "missing", intToPtr(groupCount+1), stringToPtr("this won't work"), nil, nil, nil)
 	require.Error(err)
 	require.Contains(err.Error(), "not found")
 
@@ -1602,7 +1602,7 @@ func TestJobs_ScaleAction(t *testing.T) {
 	// Perform scaling action
 	newCount := groupCount + 1
 	resp1, wm, err := jobs.Scale(id, groupName,
-		newCount, stringToPtr("need more instances"), nil, nil, nil)
+		intToPtr(newCount), stringToPtr("need more instances"), nil, nil, nil)
 
 	require.NoError(err)
 	require.NotNil(resp1)

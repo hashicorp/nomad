@@ -155,10 +155,14 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 
 // Scale is used to retrieve information about a particular
 // job given its unique ID.
-func (j *Jobs) Scale(jobID, group string, count int,
+func (j *Jobs) Scale(jobID, group string, count *int,
 	reason, error *string, meta map[string]interface{}, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
+	var count64 *int64
+	if count != nil {
+		count64 = int64ToPtr(int64(*count))
+	}
 	req := &ScalingRequest{
-		Count: int64(count),
+		Count: count64,
 		Target: map[string]string{
 			"Job":   jobID,
 			"Group": group,

@@ -686,7 +686,7 @@ func TestHTTP_Job_ScaleTaskGroup(t *testing.T) {
 
 		newCount := job.TaskGroups[0].Count + 1
 		scaleReq := &api.ScalingRequest{
-			Count:  int64(newCount),
+			Count:  helper.Int64ToPtr(int64(newCount)),
 			Reason: helper.StringToPtr("testing"),
 			Target: map[string]string{
 				"Job":   job.ID,
