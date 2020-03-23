@@ -152,6 +152,11 @@
 /guides/security/securing-nomad              https://learn.hashicorp.com/nomad/transport-security/enable-tls
 /guides/security/securing-nomad.html         https://learn.hashicorp.com/nomad/transport-security/enable-tls
 
+# Multi-part UI guides
+/guides/ui.html  https://learn.hashicorp.com/nomad?track=web-ui#web-ui
+/guides/ui       https://learn.hashicorp.com/nomad?track=web-ui#web-ui
+
+# Guide Catch-all Redirects
 /guides    https://learn.hashicorp.com/nomad  301!
 /guides/*  https://learn.hashicorp.com/nomad  301!
 
@@ -434,10 +439,6 @@
 /guides/operations/upgrade/index.html             /docs/upgrade
 /guides/operations/upgrade/upgrade-specific.html  /docs/upgrade/upgrade-specific
 /guides/operations/upgrade/upgrade-specific       /docs/upgrade/upgrade-specific
-
-# Multi-part UI guides
-/guides/ui.html  https://learn.hashicorp.com/nomad?track=web-ui#web-ui
-/guides/ui       https://learn.hashicorp.com/nomad?track=web-ui#web-ui
 
 # Enterprise
 
