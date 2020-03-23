@@ -49,19 +49,8 @@ async function run() {
     } catch (err) {
       // the command fails if any links are broken, but we still want to log the output
       conclusion = "failure";
-      output = err;
-      console.log(output);
+      output = String(err.stdout);
     }
-
-    console.log("logs are working!");
-    console.log("------- raw error --------");
-    console.log(output);
-    console.log("------- raw stderr --------");
-    console.log(output.stderr);
-    console.log("------- string stderror --------");
-    console.log(String(output.stderr));
-    console.log("------- string stdout --------");
-    console.log(String(output.stdout));
 
     await updateCheck(id, {
       output: Object.assign(
