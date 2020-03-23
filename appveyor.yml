@@ -26,7 +26,7 @@ install:
   # install the go version used for cutting a release
   - cmd: |
       mkdir c:\go
-      appveyor DownloadFile "https://dl.google.com/go/go1.14.windows-amd64.zip" -FileName "%TEMP%\\go.zip"
+      appveyor DownloadFile "https://dl.google.com/go/go1.14.1.windows-amd64.zip" -FileName "%TEMP%\\go.zip"
       
   - ps: Expand-Archive $Env:TEMP\go.zip -DestinationPath C:\
 
