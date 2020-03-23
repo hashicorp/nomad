@@ -88,7 +88,7 @@ var (
 	// InputStream are provided in BuildImageOptions
 	ErrMultipleContexts = errors.New("image build may not be provided BOTH context dir and input stream")
 
-	// ErrMustSpecifyNames is the error returned when the Names field on
+	// ErrMustSpecifyNames is the error rreturned when the Names field on
 	// ExportImagesOptions is nil or empty
 	ErrMustSpecifyNames = errors.New("must specify at least one name to export")
 )
@@ -109,7 +109,7 @@ type ListImagesOptions struct {
 // See https://goo.gl/BVzauZ for more details.
 func (c *Client) ListImages(opts ListImagesOptions) ([]APIImages, error) {
 	path := "/images/json?" + queryString(opts)
-	resp, err := c.do(http.MethodGet, path, doOptions{context: opts.Context})
+	resp, err := c.do("GET", path, doOptions{context: opts.Context})
 	if err != nil {
 		return nil, err
 	}
@@ -129,14 +129,13 @@ type ImageHistory struct {
 	Created   int64    `json:"Created,omitempty" yaml:"Created,omitempty" toml:"Tags,omitempty"`
 	CreatedBy string   `json:"CreatedBy,omitempty" yaml:"CreatedBy,omitempty" toml:"CreatedBy,omitempty"`
 	Size      int64    `json:"Size,omitempty" yaml:"Size,omitempty" toml:"Size,omitempty"`
-	Comment   string   `json:"Comment,omitempty" yaml:"Comment,omitempty" toml:"Comment,omitempty"`
 }
 
 // ImageHistory returns the history of the image by its name or ID.
 //
 // See https://goo.gl/fYtxQa for more details.
 func (c *Client) ImageHistory(name string) ([]ImageHistory, error) {
-	resp, err := c.do(http.MethodGet, "/images/"+name+"/history", doOptions{})
+	resp, err := c.do("GET", "/images/"+name+"/history", doOptions{})
 	if err != nil {
 		if e, ok := err.(*Error); ok && e.Status == http.StatusNotFound {
 			return nil, ErrNoSuchImage
@@ -155,7 +154,7 @@ func (c *Client) ImageHistory(name string) ([]ImageHistory, error) {
 //
 // See https://goo.gl/Vd2Pck for more details.
 func (c *Client) RemoveImage(name string) error {
-	resp, err := c.do(http.MethodDelete, "/images/"+name, doOptions{})
+	resp, err := c.do("DELETE", "/images/"+name, doOptions{})
 	if err != nil {
 		if e, ok := err.(*Error); ok && e.Status == http.StatusNotFound {
 			return ErrNoSuchImage
@@ -182,7 +181,7 @@ type RemoveImageOptions struct {
 // See https://goo.gl/Vd2Pck for more details.
 func (c *Client) RemoveImageExtended(name string, opts RemoveImageOptions) error {
 	uri := fmt.Sprintf("/images/%s?%s", name, queryString(&opts))
-	resp, err := c.do(http.MethodDelete, uri, doOptions{context: opts.Context})
+	resp, err := c.do("DELETE", uri, doOptions{context: opts.Context})
 	if err != nil {
 		if e, ok := err.(*Error); ok && e.Status == http.StatusNotFound {
 			return ErrNoSuchImage
@@ -197,7 +196,7 @@ func (c *Client) RemoveImageExtended(name string, opts RemoveImageOptions) error
 //
 // See https://goo.gl/ncLTG8 for more details.
 func (c *Client) InspectImage(name string) (*Image, error) {
-	resp, err := c.do(http.MethodGet, "/images/"+name+"/json", doOptions{})
+	resp, err := c.do("GET", "/images/"+name+"/json", doOptions{})
 	if err != nil {
 		if e, ok := err.(*Error); ok && e.Status == http.StatusNotFound {
 			return nil, ErrNoSuchImage
@@ -272,7 +271,7 @@ func (c *Client) PushImage(opts PushImageOptions, auth AuthConfiguration) error 
 	name := opts.Name
 	opts.Name = ""
 	path := "/images/" + name + "/push?" + queryString(&opts)
-	return c.stream(http.MethodPost, path, streamOptions{
+	return c.stream("POST", path, streamOptions{
 		setRawTerminal:    true,
 		rawJSONStream:     opts.RawJSONStream,
 		headers:           headers,
@@ -289,7 +288,6 @@ func (c *Client) PushImage(opts PushImageOptions, auth AuthConfiguration) error 
 type PullImageOptions struct {
 	Repository string `qs:"fromImage"`
 	Tag        string
-	Platform   string `ver:"1.32"`
 
 	// Only required for Docker Engine 1.9 or 1.10 w/ Remote API < 1.21
 	// and Docker Engine < 1.9
@@ -320,16 +318,12 @@ func (c *Client) PullImage(opts PullImageOptions, auth AuthConfiguration) error 
 		opts.Repository = parts[0]
 		opts.Tag = parts[1]
 	}
-	return c.createImage(&opts, headers, nil, opts.OutputStream, opts.RawJSONStream, opts.InactivityTimeout, opts.Context)
+	return c.createImage(queryString(&opts), headers, nil, opts.OutputStream, opts.RawJSONStream, opts.InactivityTimeout, opts.Context)
 }
 
-//nolint:golint
-func (c *Client) createImage(opts interface{}, headers map[string]string, in io.Reader, w io.Writer, rawJSONStream bool, timeout time.Duration, context context.Context) error {
-	url, err := c.getPath("/images/create", opts)
-	if err != nil {
-		return err
-	}
-	return c.streamURL(http.MethodPost, url, streamOptions{
+func (c *Client) createImage(qs string, headers map[string]string, in io.Reader, w io.Writer, rawJSONStream bool, timeout time.Duration, context context.Context) error {
+	path := "/images/create?" + qs
+	return c.stream("POST", path, streamOptions{
 		setRawTerminal:    true,
 		headers:           headers,
 		in:                in,
@@ -353,7 +347,7 @@ type LoadImageOptions struct {
 //
 // See https://goo.gl/rEsBV3 for more details.
 func (c *Client) LoadImage(opts LoadImageOptions) error {
-	return c.stream(http.MethodPost, "/images/load", streamOptions{
+	return c.stream("POST", "/images/load", streamOptions{
 		setRawTerminal: true,
 		in:             opts.InputStream,
 		stdout:         opts.OutputStream,
@@ -375,7 +369,7 @@ type ExportImageOptions struct {
 //
 // See https://goo.gl/AuySaA for more details.
 func (c *Client) ExportImage(opts ExportImageOptions) error {
-	return c.stream(http.MethodGet, fmt.Sprintf("/images/%s/get", opts.Name), streamOptions{
+	return c.stream("GET", fmt.Sprintf("/images/%s/get", opts.Name), streamOptions{
 		setRawTerminal:    true,
 		stdout:            opts.OutputStream,
 		inactivityTimeout: opts.InactivityTimeout,
@@ -400,28 +394,7 @@ func (c *Client) ExportImages(opts ExportImagesOptions) error {
 	if opts.Names == nil || len(opts.Names) == 0 {
 		return ErrMustSpecifyNames
 	}
-	// API < 1.25 allows multiple name values
-	// 1.25 says name must be a comma separated list
-	var err error
-	var exporturl string
-	if c.requestedAPIVersion.GreaterThanOrEqualTo(apiVersion125) {
-		str := opts.Names[0]
-		for _, val := range opts.Names[1:] {
-			str += "," + val
-		}
-		exporturl, err = c.getPath("/images/get", ExportImagesOptions{
-			Names:             []string{str},
-			OutputStream:      opts.OutputStream,
-			InactivityTimeout: opts.InactivityTimeout,
-			Context:           opts.Context,
-		})
-	} else {
-		exporturl, err = c.getPath("/images/get", &opts)
-	}
-	if err != nil {
-		return err
-	}
-	return c.streamURL(http.MethodGet, exporturl, streamOptions{
+	return c.stream("GET", "/images/get?"+queryString(&opts), streamOptions{
 		setRawTerminal:    true,
 		stdout:            opts.OutputStream,
 		inactivityTimeout: opts.InactivityTimeout,
@@ -462,7 +435,7 @@ func (c *Client) ImportImage(opts ImportImageOptions) error {
 		opts.InputStream = f
 		opts.Source = "-"
 	}
-	return c.createImage(&opts, nil, opts.InputStream, opts.OutputStream, opts.RawJSONStream, opts.InactivityTimeout, opts.Context)
+	return c.createImage(queryString(&opts), nil, opts.InputStream, opts.OutputStream, opts.RawJSONStream, opts.InactivityTimeout, opts.Context)
 }
 
 // BuildImageOptions present the set of informations available for building an
@@ -471,40 +444,36 @@ func (c *Client) ImportImage(opts ImportImageOptions) error {
 // For more details about the Docker building process, see
 // https://goo.gl/4nYHwV.
 type BuildImageOptions struct {
-	Context             context.Context
-	Name                string   `qs:"t"`
-	Dockerfile          string   `ver:"1.25"`
-	ExtraHosts          string   `ver:"1.28"`
-	CacheFrom           []string `qs:"-" ver:"1.25"`
-	Memory              int64
-	Memswap             int64
-	ShmSize             int64
-	CPUShares           int64
-	CPUQuota            int64 `ver:"1.21"`
-	CPUPeriod           int64 `ver:"1.21"`
-	CPUSetCPUs          string
-	Labels              map[string]string
-	InputStream         io.Reader `qs:"-"`
-	OutputStream        io.Writer `qs:"-"`
-	Remote              string
+	Name                string             `qs:"t"`
+	Dockerfile          string             `qs:"dockerfile"`
+	NoCache             bool               `qs:"nocache"`
+	CacheFrom           []string           `qs:"-"`
+	SuppressOutput      bool               `qs:"q"`
+	Pull                bool               `qs:"pull"`
+	RmTmpContainer      bool               `qs:"rm"`
+	ForceRmTmpContainer bool               `qs:"forcerm"`
+	RawJSONStream       bool               `qs:"-"`
+	Memory              int64              `qs:"memory"`
+	Memswap             int64              `qs:"memswap"`
+	CPUShares           int64              `qs:"cpushares"`
+	CPUQuota            int64              `qs:"cpuquota"`
+	CPUPeriod           int64              `qs:"cpuperiod"`
+	CPUSetCPUs          string             `qs:"cpusetcpus"`
+	Labels              map[string]string  `qs:"labels"`
+	InputStream         io.Reader          `qs:"-"`
+	OutputStream        io.Writer          `qs:"-"`
+	Remote              string             `qs:"remote"`
 	Auth                AuthConfiguration  `qs:"-"` // for older docker X-Registry-Auth header
 	AuthConfigs         AuthConfigurations `qs:"-"` // for newer docker X-Registry-Config header
 	ContextDir          string             `qs:"-"`
-	Ulimits             []ULimit           `qs:"-" ver:"1.18"`
-	BuildArgs           []BuildArg         `qs:"-" ver:"1.21"`
-	NetworkMode         string             `ver:"1.25"`
-	Platform            string             `ver:"1.32"`
+	Ulimits             []ULimit           `qs:"-"`
+	BuildArgs           []BuildArg         `qs:"-"`
+	NetworkMode         string             `qs:"networkmode"`
 	InactivityTimeout   time.Duration      `qs:"-"`
-	CgroupParent        string
-	SecurityOpt         []string
-	Target              string
-	Outputs             string `ver:"1.40"`
-	NoCache             bool
-	SuppressOutput      bool `qs:"q"`
-	Pull                bool `ver:"1.16"`
-	RmTmpContainer      bool `qs:"rm"`
-	ForceRmTmpContainer bool `qs:"forcerm" ver:"1.12"`
-	RawJSONStream       bool `qs:"-"`
+	CgroupParent        string             `qs:"cgroupparent"`
+	SecurityOpt         []string           `qs:"securityopt"`
+	Target              string             `gs:"target"`
+	Context             context.Context
 }
 
 // BuildArg represents arguments that can be passed to the image when building
@@ -547,16 +516,13 @@ func (c *Client) BuildImage(opts BuildImageOptions) error {
 			return err
 		}
 	}
-	qs, ver := queryStringVersion(&opts)
+	qs := queryString(&opts)
 
-	if len(opts.CacheFrom) > 0 {
+	if c.serverAPIVersion.GreaterThanOrEqualTo(apiVersion125) && len(opts.CacheFrom) > 0 {
 		if b, err := json.Marshal(opts.CacheFrom); err == nil {
 			item := url.Values(map[string][]string{})
 			item.Add("cachefrom", string(b))
 			qs = fmt.Sprintf("%s&%s", qs, item.Encode())
-			if ver == nil || apiVersion125.GreaterThan(ver) {
-				ver = apiVersion125
-			}
 		}
 	}
 
@@ -565,9 +531,6 @@ func (c *Client) BuildImage(opts BuildImageOptions) error {
 			item := url.Values(map[string][]string{})
 			item.Add("ulimits", string(b))
 			qs = fmt.Sprintf("%s&%s", qs, item.Encode())
-			if ver == nil || apiVersion118.GreaterThan(ver) {
-				ver = apiVersion118
-			}
 		}
 	}
 
@@ -580,18 +543,10 @@ func (c *Client) BuildImage(opts BuildImageOptions) error {
 			item := url.Values(map[string][]string{})
 			item.Add("buildargs", string(b))
 			qs = fmt.Sprintf("%s&%s", qs, item.Encode())
-			if ver == nil || apiVersion121.GreaterThan(ver) {
-				ver = apiVersion121
-			}
 		}
 	}
 
-	buildURL, err := c.pathVersionCheck("/build", qs, ver)
-	if err != nil {
-		return err
-	}
-
-	return c.streamURL(http.MethodPost, buildURL, streamOptions{
+	return c.stream("POST", fmt.Sprintf("/build?%s", qs), streamOptions{
 		setRawTerminal:    true,
 		rawJSONStream:     opts.RawJSONStream,
 		headers:           headers,
@@ -629,9 +584,10 @@ func (c *Client) TagImage(name string, opts TagImageOptions) error {
 	if name == "" {
 		return ErrNoSuchImage
 	}
-	resp, err := c.do(http.MethodPost, "/images/"+name+"/tag?"+queryString(&opts), doOptions{
+	resp, err := c.do("POST", "/images/"+name+"/tag?"+queryString(&opts), doOptions{
 		context: opts.Context,
 	})
+
 	if err != nil {
 		return err
 	}
@@ -654,7 +610,7 @@ func isURL(u string) bool {
 }
 
 func headersWithAuth(auths ...registryAuth) (map[string]string, error) {
-	headers := make(map[string]string)
+	var headers = make(map[string]string)
 
 	for _, auth := range auths {
 		if auth.isEmpty() {
@@ -685,7 +641,7 @@ type APIImageSearch struct {
 //
 // See https://goo.gl/KLO9IZ for more details.
 func (c *Client) SearchImages(term string) ([]APIImageSearch, error) {
-	resp, err := c.do(http.MethodGet, "/images/search?term="+term, doOptions{})
+	resp, err := c.do("GET", "/images/search?term="+term, doOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -706,7 +662,7 @@ func (c *Client) SearchImagesEx(term string, auth AuthConfiguration) ([]APIImage
 		return nil, err
 	}
 
-	resp, err := c.do(http.MethodGet, "/images/search?term="+term, doOptions{
+	resp, err := c.do("GET", "/images/search?term="+term, doOptions{
 		headers: headers,
 	})
 	if err != nil {
@@ -744,7 +700,7 @@ type PruneImagesResults struct {
 // See https://goo.gl/qfZlbZ for more details.
 func (c *Client) PruneImages(opts PruneImagesOptions) (*PruneImagesResults, error) {
 	path := "/images/prune?" + queryString(opts)
-	resp, err := c.do(http.MethodPost, path, doOptions{context: opts.Context})
+	resp, err := c.do("POST", path, doOptions{context: opts.Context})
 	if err != nil {
 		return nil, err
 	}
