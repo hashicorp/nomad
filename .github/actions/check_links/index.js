@@ -32,9 +32,9 @@ async function updateCheck(id, checkResults) {
 
 async function run() {
   const id = await createCheck();
-  const root = path.join(__dirname, "../../..");
-  // const deployUrl = core.getInput("baseUrl", { required: true });
-  const deployUrl = "https://nomadproject.io";
+  const deployUrl = core.getInput("baseUrl", { required: true });
+
+  console.log(`checking for links on ${deployUrl}`);
 
   try {
     // Run the link check against the PR preview link

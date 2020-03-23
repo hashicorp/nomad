@@ -1,6 +1,6 @@
 name: HashiCorp PR Bot
 
-on: [pull_request]
+on: [deployment_status]
 
 jobs:
   check_links:
