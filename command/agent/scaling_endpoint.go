@@ -82,7 +82,9 @@ func ApiScalingPolicyToStructs(count int, ap *api.ScalingPolicy) *structs.Scalin
 		Policy:  ap.Policy,
 		Target:  map[string]string{},
 	}
-	if ap.Min == nil {
+	if ap.Min != nil {
+		p.Min = *ap.Min
+	} else {
 		p.Min = int64(count)
 	}
 	return &p
