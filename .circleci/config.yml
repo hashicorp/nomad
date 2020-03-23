@@ -689,7 +689,7 @@ jobs:
         command: source ${BASH_ENV} && make pkg/darwin_amd64.zip
     - store_artifacts:
         destination: /builds/nomad_darwin_amd64.zip
-        path: pkg/windows_amd64.zip
+        path: pkg/darwin_amd64.zip
     environment:
     - GIT_PAGER: cat
     - GOLANG_VERSION: 1.14
