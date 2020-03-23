@@ -2947,8 +2947,8 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Equal(t, 1, len(vs))
 
 	// Claims
-	a0 := &structs.Allocation{ID: "al"}
-	a1 := &structs.Allocation{ID: "gator"}
+	a0 := &structs.Allocation{ID: uuid.Generate()}
+	a1 := &structs.Allocation{ID: uuid.Generate()}
 	r := structs.CSIVolumeClaimRead
 	w := structs.CSIVolumeClaimWrite
 	u := structs.CSIVolumeClaimRelease
@@ -2964,7 +2964,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
-	require.False(t, vs[0].CanWrite())
+	require.False(t, vs[0].WriteFreeClaims())
 
 	err = state.CSIVolumeClaim(2, ns, vol0, a0, u)
 	require.NoError(t, err)
