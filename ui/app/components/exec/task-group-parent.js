@@ -25,6 +25,26 @@ export default Component.extend({
     }
   }),
 
+  tasksWithRunningStates: computed('taskGroup', function() {
+    const activeStateTaskNames = this.taskGroup.allocations.reduce(
+      (activeStateTaskNames, allocation) => {
+        activeStateTaskNames = activeStateTaskNames.concat(
+          allocation.states
+            .filter(
+              taskState =>
+                taskState.isActive && taskState.task.taskGroup.name === this.taskGroup.name
+            )
+            .mapBy('name')
+        );
+
+        return activeStateTaskNames;
+      },
+      []
+    );
+
+    return this.taskGroup.tasks.filter(task => activeStateTaskNames.includes(task.name));
+  }),
+
   clickedOpen: false,
 
   actions: {

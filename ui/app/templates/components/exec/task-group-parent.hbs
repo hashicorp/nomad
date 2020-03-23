@@ -4,7 +4,7 @@
 </button>
 {{#if isOpen}}
   <ul class="task-list">
-    {{#each taskGroup.tasks as |task|}}
+    {{#each tasksWithRunningStates as |task|}}
       {{!-- FIXME this needs to include namespace etc query parameters AND be blocked for wrong allocations etc --}}
       {{!-- also this should be when a task has been chosen, not when the socket is open… right? or…? --}}
       {{#if openInNewWindow}}

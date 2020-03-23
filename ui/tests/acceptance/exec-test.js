@@ -1,4 +1,4 @@
-import { module, skip, test } from 'qunit';
+import { module, test } from 'qunit';
 import { currentURL, settled } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -13,7 +13,11 @@ module('Acceptance | exec', function(hooks) {
     server.create('agent');
     server.create('node');
 
-    this.job = server.create('job', { groupsCount: 2, createAllocations: false });
+    this.job = server.create('job', {
+      groupsCount: 2,
+      groupTaskCount: 5,
+      createAllocations: false,
+    });
 
     this.job.task_group_ids.forEach(taskGroupId => {
       server.create('allocation', {
@@ -87,8 +91,24 @@ module('Acceptance | exec', function(hooks) {
     assert.notEqual(Exec.taskGroups[0].name, taskGroup.name);
   });
 
-  skip('an inactive task should not be shown', async function() {
-    // I’m not sure how to make a task group have more than one task so there can be at least one active task
+  test('an inactive task should not be shown', async function(assert) {
+    let notRunningTaskGroup = this.job.task_groups.models[0];
+    this.server.db.allocations.update(
+      { taskGroup: notRunningTaskGroup.name },
+      { clientStatus: 'pending' }
+    );
+
+    let runningTaskGroup = this.job.task_groups.models[1];
+    runningTaskGroup.tasks.models.forEach((task, index) => {
+      if (index > 0) {
+        this.server.db.taskStates.update({ name: task.name }, { finishedAt: new Date() });
+      }
+    });
+
+    await Exec.visitJob({ job: this.job.id });
+    await Exec.taskGroups[0].click();
+
+    assert.equal(Exec.taskGroups[0].tasks.length, 1);
   });
 
   test('visiting a path with a task group should open the group by default', async function(assert) {
