@@ -1,10 +1,23 @@
+parameters:
+  target_directory:
+    type: string
+    default: /usr/local
+
 steps:
   - run:
       name: install golang
       command: |
         set -x
+
+        os="linux"
+        if [[ "$OSTYPE" == "darwin"* ]]
+        then
+          os="darwin"
+        fi
+
         echo installing golang ${GOLANG_VERSION}
-        sudo rm -rf /usr/local/go
-        wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
-        sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+        sudo rm -rf << parameters.target_directory >>/go
+        sudo mkdir -p << parameters.target_directory >>
+        curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+        sudo tar -C << parameters.target_directory >> -xzf /tmp/golang.tar.gz
         rm -rf /tmp/golang.tar.gz

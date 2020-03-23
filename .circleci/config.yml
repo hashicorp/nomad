@@ -24,9 +24,17 @@ jobs:
     - run:
         command: |
           set -x
+
+          os="linux"
+          if [[ "$OSTYPE" == "darwin"* ]]
+          then
+            os="darwin"
+          fi
+
           echo installing golang ${GOLANG_VERSION}
           sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+          sudo mkdir -p /usr/local
+          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
           sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
           rm -rf /tmp/golang.tar.gz
         name: install golang
@@ -100,9 +108,17 @@ jobs:
     - run:
         command: |
           set -x
+
+          os="linux"
+          if [[ "$OSTYPE" == "darwin"* ]]
+          then
+            os="darwin"
+          fi
+
           echo installing golang ${GOLANG_VERSION}
           sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+          sudo mkdir -p /usr/local
+          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
           sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
           rm -rf /tmp/golang.tar.gz
         name: install golang
@@ -176,9 +192,17 @@ jobs:
     - run:
         command: |
           set -x
+
+          os="linux"
+          if [[ "$OSTYPE" == "darwin"* ]]
+          then
+            os="darwin"
+          fi
+
           echo installing golang ${GOLANG_VERSION}
           sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+          sudo mkdir -p /usr/local
+          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
           sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
           rm -rf /tmp/golang.tar.gz
         name: install golang
@@ -252,9 +276,17 @@ jobs:
     - run:
         command: |
           set -x
+
+          os="linux"
+          if [[ "$OSTYPE" == "darwin"* ]]
+          then
+            os="darwin"
+          fi
+
           echo installing golang ${GOLANG_VERSION}
           sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+          sudo mkdir -p /usr/local
+          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
           sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
           rm -rf /tmp/golang.tar.gz
         name: install golang
@@ -328,9 +360,17 @@ jobs:
     - run:
         command: |
           set -x
+
+          os="linux"
+          if [[ "$OSTYPE" == "darwin"* ]]
+          then
+            os="darwin"
+          fi
+
           echo installing golang ${GOLANG_VERSION}
           sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+          sudo mkdir -p /usr/local
+          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
           sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
           rm -rf /tmp/golang.tar.gz
         name: install golang
@@ -490,9 +530,17 @@ jobs:
     - run:
         command: |
           set -x
+
+          os="linux"
+          if [[ "$OSTYPE" == "darwin"* ]]
+          then
+            os="darwin"
+          fi
+
           echo installing golang ${GOLANG_VERSION}
           sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+          sudo mkdir -p /usr/local
+          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
           sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
           rm -rf /tmp/golang.tar.gz
         name: install golang
@@ -605,6 +653,51 @@ jobs:
         path: /tmp/test-reports
     - store_artifacts:
         path: /tmp/test-reports
+  build-darwin-binaries:
+    macos:
+      xcode: 11.3.1
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    steps:
+    - checkout
+    - run:
+        command: echo 'export PATH="${GOPATH}/bin:${HOME}/goinstall/go/bin:$PATH"' >> ${BASH_ENV}
+        name: configure PATH
+    - run:
+        command: |
+          set -x
+
+          os="linux"
+          if [[ "$OSTYPE" == "darwin"* ]]
+          then
+            os="darwin"
+          fi
+
+          echo installing golang ${GOLANG_VERSION}
+          sudo rm -rf ~/goinstall/go
+          sudo mkdir -p ~/goinstall
+          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+          sudo tar -C ~/goinstall -xzf /tmp/golang.tar.gz
+          rm -rf /tmp/golang.tar.gz
+        name: install golang
+    - run:
+        command: source ${BASH_ENV} && make deps
+    - run:
+        command: brew install protobuf
+    - run:
+        command: sudo -E PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs
+    - run:
+        command: source ${BASH_ENV} && make pkg/darwin_amd64.zip
+    - store_artifacts:
+        destination: /builds/nomad_darwin_amd64.zip
+        path: pkg/windows_amd64.zip
+    environment:
+    - GIT_PAGER: cat
+    - GOLANG_VERSION: 1.14
+    - GOMAXPROCS: 1
+    - GOPATH: /Users/distiller/go
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
   test-docker:
     machine:
       image: circleci/classic:201808-01
@@ -625,9 +718,17 @@ jobs:
     - run:
         command: |
           set -x
+
+          os="linux"
+          if [[ "$OSTYPE" == "darwin"* ]]
+          then
+            os="darwin"
+          fi
+
           echo installing golang ${GOLANG_VERSION}
           sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+          sudo mkdir -p /usr/local
+          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
           sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
           rm -rf /tmp/golang.tar.gz
         name: install golang
@@ -761,9 +862,17 @@ jobs:
     - run:
         command: |
           set -x
+
+          os="linux"
+          if [[ "$OSTYPE" == "darwin"* ]]
+          then
+            os="darwin"
+          fi
+
           echo installing golang ${GOLANG_VERSION}
           sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+          sudo mkdir -p /usr/local
+          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
           sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
           rm -rf /tmp/golang.tar.gz
         name: install golang
@@ -827,6 +936,13 @@ workflows:
             - stable-website
             - /^.-ui\b.*/
     - lint-go:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - stable-website
+    - build-darwin-binaries:
         filters:
           branches:
             ignore:
