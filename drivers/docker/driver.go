@@ -745,13 +745,12 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.CPUQuota = int64(task.Resources.LinuxResources.PercentTicks*float64(driverConfig.CPUCFSPeriod)) * int64(numCores)
 	}
 
-	// disable swapiness
-	var swapiness int64 = 0
-	hostConfig.MemorySwappiness = &swapiness
-
 	// Windows does not support MemorySwap/MemorySwappiness #2193
 	if runtime.GOOS == "windows" {
+		var swapiness int64 = 0
+
 		hostConfig.MemorySwap = 0
+		hostConfig.MemorySwappiness = &swapiness
 	} else {
 		hostConfig.MemorySwap = task.Resources.LinuxResources.MemoryLimitBytes // MemorySwap is memory + swap.
 	}
