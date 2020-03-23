@@ -4,16 +4,21 @@ import (
 	"context"
 )
 
-// Eventer describes the interface that must be implemented by an eventer.
-type Eventer interface {
-	// Emit and event
+// Auditor describes the interface that must be implemented by an eventer.
+type Auditor interface {
+	// Emit an event to the auditor
 	Event(ctx context.Context, eventType string, payload interface{}) error
-	// Specifies if the eventer is enabled or not
+
+	// Specifies if the auditor is enabled or not
 	Enabled() bool
 
-	// Reopen signals to eventer to reopen any files they have open.
+	// Reopen signals to auditor to reopen any files they have open.
 	Reopen() error
 
-	// SetEnabled sets the eventer to enabled or disabled.
+	// SetEnabled sets the auditor to enabled or disabled.
 	SetEnabled(enabled bool)
+
+	// DeliveryEnforced returns whether or not delivery of an audit
+	// log must be enforced
+	DeliveryEnforced() bool
 }

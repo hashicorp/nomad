@@ -10,28 +10,30 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
-type noOpEventer struct{}
+type noOpAuditor struct{}
 
-// Ensure noOpEventer is an Eventer
-var _ event.Eventer = &noOpEventer{}
+// Ensure noOpAuditor is an Eventer
+var _ event.Auditor = &noOpAuditor{}
 
-func (e *noOpEventer) Event(ctx context.Context, eventType string, payload interface{}) error {
+func (e *noOpAuditor) Event(ctx context.Context, eventType string, payload interface{}) error {
 	return nil
 }
 
-func (e *noOpEventer) Enabled() bool {
+func (e *noOpAuditor) Enabled() bool {
 	return false
 }
 
-func (e *noOpEventer) Reopen() error {
+func (e *noOpAuditor) Reopen() error {
 	return nil
 }
 
-func (e *noOpEventer) SetEnabled(enabled bool) {}
+func (e *noOpAuditor) SetEnabled(enabled bool) {}
+
+func (e *noOpAuditor) DeliveryEnforced() bool { return false }
 
 func (a *Agent) setupEnterpriseAgent(log hclog.Logger) error {
 	// configure eventer
-	a.eventer = &noOpEventer{}
+	a.eventer = &noOpAuditor{}
 
 	return nil
 }
