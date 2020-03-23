@@ -20,10 +20,11 @@ nomad volume register [options] [file]
 ```
 
 The `volume register` command requires a single argument, specifying
-the path to a file containing a valid [volume specification]. This
-file will be read and the job will be submitted to Nomad for
-scheduling. If the supplied path is "-", the job file is read from
-STDIN. Otherwise it is read from the file at the supplied path.
+the path to a file containing a valid [volume
+specification][volume_specification]. This file will be read and the
+job will be submitted to Nomad for scheduling. If the supplied path is
+"-", the job file is read from STDIN. Otherwise it is read from the
+file at the supplied path.
 
 ## General Options
 
@@ -83,6 +84,7 @@ mount_options {
   - `fs_type`: file system type (ex. `"ext4"`)
   - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
 
+[volume_specification]: #volume-specification
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugin]: /docs/job-specification/csi_plugin
 [csi_volumes]: /docs/job-specification/volume
