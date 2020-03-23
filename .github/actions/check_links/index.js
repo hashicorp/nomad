@@ -56,7 +56,14 @@ async function run() {
       output: Object.assign(
         {},
         { conclusion },
-        { title: "test", summary: String(output) }
+        {
+          title: "test",
+          summary:
+            conclusion === "failure"
+              ? "Broken internal links found"
+              : "All interal links are working!",
+          text: String(output)
+        }
       )
     });
   } catch (error) {
