@@ -195,7 +195,8 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 	writeJobID := "write-efs-" + uuid[0:8]
 	writeAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-efs-volume-write.nomad", writeJobID, "")
-	e2eutil.WaitForAllocRunning(t, nomadClient, writeAllocs[0].ID)
+	writeAllocID := writeAllocs[0].ID
+	e2eutil.WaitForAllocRunning(t, nomadClient, writeAllocID)
 
 	// read data from volume and assert the writer wrote a file to it
 	writeAlloc, _, err := nomadClient.Allocations().Info(writeAllocID, nil)
@@ -219,7 +220,6 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 	// read data from volume and assert the writer wrote a file to it
 	readAlloc, _, err := nomadClient.Allocations().Info(readAllocs[0].ID, nil)
 	require.NoError(err)
-	expectedPath := "/local/test/" + writeAllocs[0].ID
 	_, err = readFile(nomadClient, readAlloc, expectedPath)
 	require.NoError(err)
 }
