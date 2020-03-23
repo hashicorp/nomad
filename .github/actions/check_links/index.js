@@ -1,4 +1,3 @@
-const path = require("path");
 const { execSync } = require("child_process");
 const core = require("../../../website/node_modules/@actions/core");
 const github = require("../../../website/node_modules/@actions/github");
