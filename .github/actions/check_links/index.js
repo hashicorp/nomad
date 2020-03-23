@@ -7,7 +7,7 @@ const { GITHUB_TOKEN, GITHUB_SHA } = process.env;
 
 const CHECK_NAME = "[Check] Broken links";
 
-// const octokit = new github.GitHub(GITHUB_TOKEN);
+const octokit = new github.GitHub(GITHUB_TOKEN);
 
 async function createCheck() {
   const { data } = await octokit.checks.create({
