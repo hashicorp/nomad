@@ -12,19 +12,17 @@ func TestCSIVolumeClaim(t *testing.T) {
 	vol.Schedulable = true
 
 	alloc := &Allocation{ID: "a1"}
-	alloc2 := &Allocation{ID: "a2"}
 
 	vol.ClaimRead(alloc)
-	require.True(t, vol.CanReadOnly())
-	require.True(t, vol.CanWrite())
+	require.True(t, vol.ReadSchedulable())
+	require.True(t, vol.WriteSchedulable())
 	require.True(t, vol.ClaimRead(alloc))
 
 	vol.ClaimWrite(alloc)
-	require.True(t, vol.CanReadOnly())
-	require.False(t, vol.CanWrite())
-	require.False(t, vol.ClaimWrite(alloc2))
+	require.True(t, vol.ReadSchedulable())
+	require.False(t, vol.WriteFreeClaims())
 
 	vol.ClaimRelease(alloc)
-	require.True(t, vol.CanReadOnly())
-	require.True(t, vol.CanWrite())
+	require.True(t, vol.ReadSchedulable())
+	require.True(t, vol.WriteFreeClaims())
 }

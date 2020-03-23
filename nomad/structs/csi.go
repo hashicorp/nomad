@@ -296,7 +296,7 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 	return &stub
 }
 
-func (v *CSIVolume) CanReadOnly() bool {
+func (v *CSIVolume) ReadSchedulable() bool {
 	if !v.Schedulable {
 		return false
 	}
@@ -304,16 +304,26 @@ func (v *CSIVolume) CanReadOnly() bool {
 	return v.ResourceExhausted == time.Time{}
 }
 
-func (v *CSIVolume) CanWrite() bool {
+// WriteSchedulable determines if the volume is schedulable for writes, considering only
+// volume health
+func (v *CSIVolume) WriteSchedulable() bool {
 	if !v.Schedulable {
 		return false
 	}
 
 	switch v.AccessMode {
-	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter:
-		return len(v.WriteAllocs) == 0
-	case CSIVolumeAccessModeMultiNodeMultiWriter:
+	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter, CSIVolumeAccessModeMultiNodeMultiWriter:
 		return v.ResourceExhausted == time.Time{}
+	default:
+		return false
+	}
+}
+
+// WriteFreeClaims determines if there are any free write claims available
+func (v *CSIVolume) WriteFreeClaims() bool {
+	switch v.AccessMode {
+	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter, CSIVolumeAccessModeMultiNodeMultiWriter:
+		return len(v.WriteAllocs) == 0
 	default:
 		return false
 	}
@@ -355,7 +365,7 @@ func (v *CSIVolume) ClaimRead(alloc *Allocation) bool {
 		return true
 	}
 
-	if !v.CanReadOnly() {
+	if !v.ReadSchedulable() {
 		return false
 	}
 	// Allocations are copy on write, so we want to keep the id but don't need the
@@ -371,7 +381,7 @@ func (v *CSIVolume) ClaimWrite(alloc *Allocation) bool {
 		return true
 	}
 
-	if !v.CanWrite() {
+	if !v.WriteSchedulable() {
 		return false
 	}
 	// Allocations are copy on write, so we want to keep the id but don't need the
