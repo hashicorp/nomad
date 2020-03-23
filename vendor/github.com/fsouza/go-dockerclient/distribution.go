@@ -6,7 +6,6 @@ package docker
 
 import (
 	"encoding/json"
-	"net/http"
 
 	"github.com/docker/docker/api/types/registry"
 )
@@ -14,7 +13,7 @@ import (
 // InspectDistribution returns image digest and platform information by contacting the registry
 func (c *Client) InspectDistribution(name string) (*registry.DistributionInspect, error) {
 	path := "/distribution/" + name + "/json"
-	resp, err := c.do(http.MethodGet, path, doOptions{})
+	resp, err := c.do("GET", path, doOptions{})
 	if err != nil {
 		return nil, err
 	}

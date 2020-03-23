@@ -178,7 +178,7 @@ func (eventState *eventMonitoringState) enableEventMonitoring(c *Client) error {
 	return nil
 }
 
-func (eventState *eventMonitoringState) disableEventMonitoring() {
+func (eventState *eventMonitoringState) disableEventMonitoring() error {
 	eventState.Lock()
 	defer eventState.Unlock()
 
@@ -191,6 +191,7 @@ func (eventState *eventMonitoringState) disableEventMonitoring() {
 		close(eventState.C)
 		close(eventState.errC)
 	}
+	return nil
 }
 
 func (eventState *eventMonitoringState) monitorEvents(c *Client) {
@@ -329,18 +330,15 @@ func (c *Client) eventHijack(startTime int64, eventChan chan *APIEvents, errChan
 	if err != nil {
 		return err
 	}
-	//nolint:staticcheck
 	conn := httputil.NewClientConn(dial, nil)
-	req, err := http.NewRequest(http.MethodGet, uri, nil)
+	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return err
 	}
-	//nolint:bodyclose
 	res, err := conn.Do(req)
 	if err != nil {
 		return err
 	}
-	//nolint:staticcheck
 	go func(res *http.Response, conn *httputil.ClientConn) {
 		defer conn.Close()
 		defer res.Body.Close()
