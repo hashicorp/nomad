@@ -31,7 +31,7 @@ async function updateCheck(id, checkResults) {
 }
 
 async function run() {
-  // const id = await createCheck();
+  const id = await createCheck();
   const root = path.join(__dirname, "../../..");
   // const deployUrl = core.getInput("baseUrl", { required: true });
   const deployUrl = "https://nomadproject.io";
