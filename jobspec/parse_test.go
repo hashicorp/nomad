@@ -117,11 +117,26 @@ func TestParse(t *testing.T) {
 								Operand: "=",
 							},
 						},
-
 						Volumes: map[string]*api.VolumeRequest{
 							"foo": {
-								Name: "foo",
-								Type: "host",
+								Name:         "foo",
+								Type:         "host",
+								Source:       "/path",
+								ExtraKeysHCL: nil,
+							},
+							"bar": {
+								Name:   "bar",
+								Type:   "csi",
+								Source: "bar-vol",
+								MountOptions: &api.CSIMountOptions{
+									FSType: "ext4",
+								},
+								ExtraKeysHCL: nil,
+							},
+							"baz": {
+								Name:   "baz",
+								Type:   "csi",
+								Source: "bar-vol",
 								MountOptions: &api.CSIMountOptions{
 									MountFlags: []string{
 										"ro",
