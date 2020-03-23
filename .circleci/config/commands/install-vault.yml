@@ -6,6 +6,6 @@ steps:
   - run:
       name: Install Vault << parameters.version >>
       command: |
-        wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/<< parameters.version >>/vault_<< parameters.version>>_linux_amd64.zip
+        curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/<< parameters.version >>/vault_<< parameters.version>>_linux_amd64.zip
         sudo unzip -d /usr/local/bin /tmp/vault.zip
         rm -rf /tmp/vault*

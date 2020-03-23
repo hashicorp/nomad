@@ -10,7 +10,7 @@ function install_go() {
 		return
 	fi
 
-	wget -q -O /tmp/go.tar.gz ${download}
+	curl -sSL --fail -o /tmp/go.tar.gz ${download}
 
 	tar -C /tmp -xf /tmp/go.tar.gz
 	sudo mv /tmp/go /usr/local

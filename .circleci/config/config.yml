@@ -42,3 +42,12 @@ executors:
     machine:
       image: *go_machine_recent_image
     environment: *machine_env
+
+  go-macos:
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    macos:
+      xcode: 11.3.1
+    environment:
+      <<: *common_envs
+      GOPATH: /Users/distiller/go
+      GOLANG_VERSION: 1.14
