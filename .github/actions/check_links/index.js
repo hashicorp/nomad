@@ -40,10 +40,13 @@ async function run() {
     console.log(
       String(execSync("cat ./website/node_modules/dart-linkcheck/package.json"))
     );
+    console.log(
+      String(execSync("ls -la ./website/node_modules/dart-linkcheck/bin"))
+    );
     // Run the link check against the PR preview link
     const output = String(
       execSync(
-        `./website/node_modules/dart-linkcheck/bin/linkcheck-linux.exe ${deployUrl}`
+        `./website/node_modules/dart-linkcheck/bin/linkcheck-linux ${deployUrl}`
       )
     );
 
