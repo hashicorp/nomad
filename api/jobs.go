@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/gorhill/cronexpr"
-
-	"github.com/hashicorp/nomad/helper"
 )
 
 const (
@@ -161,7 +159,7 @@ func (j *Jobs) Scale(jobID, group string, count *int,
 	reason, error *string, meta map[string]interface{}, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 	var count64 *int64
 	if count != nil {
-		count64 = helper.Int64ToPtr(int64(*count))
+		count64 = int64ToPtr(int64(*count))
 	}
 	req := &ScalingRequest{
 		Count: count64,
