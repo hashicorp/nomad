@@ -15,13 +15,14 @@ import (
 )
 
 const (
-	FilterConstraintHostVolumes                = "missing compatible host volumes"
-	FilterConstraintCSIPlugins                 = "missing CSI plugins"
-	FilterConstraintCSIVolumesLookupFailed     = "CSI volume lookup failed"
-	FilterConstraintCSIVolumeNotFoundTemplate  = "missing CSI Volume %s"
-	FilterConstraintCSIVolumeExhaustedTemplate = "CSI Volume %s has exhausted its available claims"
-	FilterConstraintDrivers                    = "missing drivers"
-	FilterConstraintDevices                    = "missing devices"
+	FilterConstraintHostVolumes               = "missing compatible host volumes"
+	FilterConstraintCSIPlugins                = "missing CSI plugins"
+	FilterConstraintCSIVolumesLookupFailed    = "CSI volume lookup failed"
+	FilterConstraintCSIVolumeNotFoundTemplate = "missing CSI Volume %s"
+	FilterConstraintCSIVolumeNoReadTemplate   = "CSI volume %s has exhausted its available reader claims"
+	FilterConstraintCSIVolumeNoWriteTemplate  = "CSI volume %s has exhausted its available writer claims or is read-only"
+	FilterConstraintDrivers                   = "missing drivers"
+	FilterConstraintDevices                   = "missing devices"
 )
 
 // FeasibleIterator is used to iteratively yield nodes that
@@ -255,12 +256,13 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 		if !(ok && plugin.Healthy) {
 			return false, FilterConstraintCSIPlugins
 		}
-
-		if (req.ReadOnly && !vol.CanReadOnly()) ||
-			!vol.CanWrite() {
-			return false, FilterConstraintCSIPlugins
+		if req.ReadOnly {
+			if !vol.CanReadOnly() {
+				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoReadTemplate, vol.ID)
+			}
+		} else if !vol.CanWrite() {
+			return false, fmt.Sprintf(FilterConstraintCSIVolumeNoWriteTemplate, vol.ID)
 		}
-
 	}
 
 	return true, ""
