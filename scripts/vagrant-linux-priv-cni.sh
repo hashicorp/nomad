@@ -12,7 +12,7 @@ function install_cni() {
 		return
 	fi
 
-	wget -q -O /tmp/cni-plugins.tar.gz ${DOWNLOAD}
+	curl -sSL --fail -o /tmp/cni-plugins.tar.gz ${DOWNLOAD}
 	tar -xf /tmp/cni-plugins.tar.gz -C ${TARGET_DIR}
 	touch ${TARGET_DIR}/${VERSION}
 }

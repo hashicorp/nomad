@@ -12,7 +12,7 @@ function install_consul() {
 		fi
 	fi
 
-	wget -q -O /tmp/consul.zip ${DOWNLOAD}
+	curl -sSL --fail -o /tmp/consul.zip ${DOWNLOAD}
 
 	unzip -d /tmp /tmp/consul.zip
 	mv /tmp/consul /usr/bin/consul
