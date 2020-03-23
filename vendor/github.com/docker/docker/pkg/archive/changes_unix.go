@@ -16,13 +16,7 @@ func statDifferent(oldStat *system.StatT, newStat *system.StatT) bool {
 		oldStat.UID() != newStat.UID() ||
 		oldStat.GID() != newStat.GID() ||
 		oldStat.Rdev() != newStat.Rdev() ||
-		// Don't look at size or modification time for dirs, its not a good
-		// measure of change. See https://github.com/moby/moby/issues/9874
-		// for a description of the issue with modification time, and
-		// https://github.com/moby/moby/pull/11422 for the change.
-		// (Note that in the Windows implementation of this function,
-		// modification time IS taken as a change). See
-		// https://github.com/moby/moby/pull/37982 for more information.
+		// Don't look at size for dirs, its not a good measure of change
 		(oldStat.Mode()&unix.S_IFDIR != unix.S_IFDIR &&
 			(!sameFsTimeSpec(oldStat.Mtim(), newStat.Mtim()) || (oldStat.Size() != newStat.Size()))) {
 		return true
