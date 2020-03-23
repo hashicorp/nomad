@@ -41,13 +41,15 @@ async function run() {
     let conclusion = "success";
     let output;
     try {
-      output = execSync(
-        `./website/node_modules/dart-linkcheck/bin/linkcheck-linux ${deployUrl}`
+      output = String(
+        execSync(
+          `./website/node_modules/dart-linkcheck/bin/linkcheck-linux ${deployUrl}`
+        )
       );
     } catch (err) {
       // the command fails if any links are broken, but we still want to log the output
       conclusion = "failure";
-      output = err;
+      output = String(err);
     }
 
     await updateCheck(id, {
