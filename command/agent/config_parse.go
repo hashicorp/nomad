@@ -140,13 +140,13 @@ func extraKeys(c *Config) error {
 
 	// Remove AuditConfig extra keys
 	for _, f := range c.Audit.Filters {
-		removeEqualFold(&c.Audit.ExtraKeysHCL, f.Name)
-		removeEqualFold(&c.Audit.ExtraKeysHCL, "filter")
+		helper.RemoveEqualFold(&c.Audit.ExtraKeysHCL, f.Name)
+		helper.RemoveEqualFold(&c.Audit.ExtraKeysHCL, "filter")
 	}
 
 	for _, s := range c.Audit.Sinks {
-		removeEqualFold(&c.Audit.ExtraKeysHCL, s.Name)
-		removeEqualFold(&c.Audit.ExtraKeysHCL, "sink")
+		helper.RemoveEqualFold(&c.Audit.ExtraKeysHCL, s.Name)
+		helper.RemoveEqualFold(&c.Audit.ExtraKeysHCL, "sink")
 	}
 
 	for _, k := range []string{"enabled_schedulers", "start_join", "retry_join", "server_join"} {
