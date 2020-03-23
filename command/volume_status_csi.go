@@ -155,14 +155,7 @@ func (c *VolumeStatusCommand) formatTopologies(vol *api.CSIVolume) string {
 }
 
 func csiVolMountOption(volume, request *api.CSIMountOptions) string {
-	var vol, req, opts *structs.CSIMountOptions
-
-	if volume != nil {
-		vol = &structs.CSIMountOptions{
-			FSType:     volume.FSType,
-			MountFlags: volume.MountFlags,
-		}
-	}
+	var req, opts *structs.CSIMountOptions
 
 	if request != nil {
 		req = &structs.CSIMountOptions{
@@ -174,7 +167,10 @@ func csiVolMountOption(volume, request *api.CSIMountOptions) string {
 	if volume == nil {
 		opts = req
 	} else {
-		opts = vol.Copy()
+		opts = &structs.CSIMountOptions{
+			FSType:     volume.FSType,
+			MountFlags: volume.MountFlags,
+		}
 		opts.Merge(req)
 	}
 
@@ -188,7 +184,7 @@ func csiVolMountOption(volume, request *api.CSIMountOptions) string {
 	}
 
 	if len(opts.MountFlags) > 0 {
-		out = fmt.Sprintf("%s %s", out, strings.Join(opts.MountFlags, ", "))
+		out = fmt.Sprintf("%s flags: %s", out, strings.Join(opts.MountFlags, ", "))
 	}
 
 	return out
