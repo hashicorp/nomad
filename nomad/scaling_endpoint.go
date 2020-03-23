@@ -7,6 +7,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -26,31 +27,17 @@ func (a *Scaling) ListPolicies(args *structs.ScalingPolicyListRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "scaling", "list_policies"}, time.Now())
 
-	// Check management level permissions
-	// acl, err := a.srv.ResolveToken(args.AuthToken)
-	// if err != nil {
-	// 	return err
-	// } else if acl == nil {
-	// 	return structs.ErrPermissionDenied
-	// }
-
-	// If it is not a management token determine the policies that may be listed
-	// mgt := acl.IsManagement()
-	// var policies map[string]struct{}
-	// if !mgt {
-	// 	token, err := a.requestACLToken(args.AuthToken)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	if token == nil {
-	// 		return structs.ErrTokenNotFound
-	// 	}
-	//
-	// 	policies = make(map[string]struct{}, len(token.Policies))
-	// 	for _, p := range token.Policies {
-	// 		policies[p] = struct{}{}
-	// 	}
-	// }
+	// Check for list-job permissions
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil {
+		hasListScalingPolicies := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListScalingPolicies)
+		hasListAndReadJobs := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) &&
+			aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
+		if !(hasListScalingPolicies || hasListAndReadJobs) {
+			return structs.ErrPermissionDenied
+		}
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -103,31 +90,17 @@ func (a *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "scaling", "get_policy"}, time.Now())
 
-	// Check management level permissions
-	// acl, err := a.srv.ResolveToken(args.AuthToken)
-	// if err != nil {
-	// 	return err
-	// } else if acl == nil {
-	// 	return structs.ErrPermissionDenied
-	// }
-
-	// If it is not a management token determine the policies that may be listed
-	// mgt := acl.IsManagement()
-	// var policies map[string]struct{}
-	// if !mgt {
-	// 	token, err := a.requestACLToken(args.AuthToken)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	if token == nil {
-	// 		return structs.ErrTokenNotFound
-	// 	}
-	//
-	// 	policies = make(map[string]struct{}, len(token.Policies))
-	// 	for _, p := range token.Policies {
-	// 		policies[p] = struct{}{}
-	// 	}
-	// }
+	// Check for list-job permissions
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil {
+		hasReadScalingPolicy := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadScalingPolicy)
+		hasListAndReadJobs := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) &&
+			aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
+		if !(hasReadScalingPolicy || hasListAndReadJobs) {
+			return structs.ErrPermissionDenied
+		}
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{

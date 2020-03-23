@@ -5540,9 +5540,8 @@ func TestJobEndpoint_GetScaleStatus_ACL(t *testing.T) {
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 	get.AuthToken = invalidToken.SecretID
-	var invalidResp structs.JobScaleStatusResponse
 	require.NotNil(err)
-	err = msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &invalidResp)
+	err = msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &resp)
 	require.Contains(err.Error(), "Permission denied")
 
 	type testCase struct {
