@@ -60,6 +60,8 @@ async function run() {
     console.log(output.stderr);
     console.log("------- string stderror --------");
     console.log(String(output.stderr));
+    console.log("------- string stdout --------");
+    console.log(String(output.stdout));
 
     await updateCheck(id, {
       output: Object.assign(
