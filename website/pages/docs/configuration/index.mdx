@@ -120,6 +120,9 @@ testing.
     this address. Nomad servers will communicate to each other over RPC using
     the advertised Serf IP and advertised RPC Port.
 
+- `audit` `(`[`Audit`]`: nil)` - Enterprise-only. Specifies audit logging 
+  configuration.
+
 - `bind_addr` `(string: "0.0.0.0")` - Specifies which address the Nomad
   agent should bind to for network services, including the HTTP interface as
   well as the internal gossip protocol and RPC mechanism. This should be
@@ -328,6 +331,7 @@ http_api_response_headers {
 ```
 
 [`acl`]: /docs/configuration/acl 'Nomad Agent ACL Configuration'
+[`audit`]: /docs/configuration/audit 'Nomad Agent Audit Logging Configuration'
 [`client`]: /docs/configuration/client 'Nomad Agent client Configuration'
 [`consul`]: /docs/configuration/consul 'Nomad Agent consul Configuration'
 [`plugin`]: /docs/configuration/plugin 'Nomad Agent Plugin Configuration'

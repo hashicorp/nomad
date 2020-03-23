@@ -23,6 +23,7 @@ export default [
     category: 'configuration',
     content: [
       'acl',
+      'audit',
       'autopilot',
       'client',
       'consul',
