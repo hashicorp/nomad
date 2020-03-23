@@ -419,12 +419,12 @@ func (c *VolumeCapability) ToCSIRepresentation() *csipbv1.VolumeCapability {
 	}
 
 	if c.AccessType == VolumeAccessTypeMount {
-		vc.AccessType = &csipbv1.VolumeCapability_Mount{
-			Mount: &csipbv1.VolumeCapability_MountVolume{
-				FsType:     c.MountVolume.FSType,
-				MountFlags: c.MountVolume.MountFlags,
-			},
+		opts := &csipbv1.VolumeCapability_MountVolume{}
+		if c.MountVolume != nil {
+			opts.FsType = c.MountVolume.FSType
+			opts.MountFlags = c.MountVolume.MountFlags
 		}
+		vc.AccessType = &csipbv1.VolumeCapability_Mount{Mount: opts}
 	} else {
 		vc.AccessType = &csipbv1.VolumeCapability_Block{Block: &csipbv1.VolumeCapability_BlockVolume{}}
 	}
