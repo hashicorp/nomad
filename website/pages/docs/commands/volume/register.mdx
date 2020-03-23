@@ -41,6 +41,10 @@ external_id = "vol-23452345"
 plugin_id = "ebs-prod"
 access_mode = "single-node-writer"
 attachment_mode = "file-system"
+mount_options {
+   fs_type = "ext4"
+   mount_flags = ["ro"]
+}
 ```
 
 ## Volume Specification Parameters
@@ -73,6 +77,11 @@ attachment_mode = "file-system"
   `"file-system"`, to mount pre-formatted file system volumes. Some
   storage providers will support `"block-device"`, which will require
   the job be configured with appropriate mount options.
+
+- `mount_options` <code>([mount_options][]:nil)</code> - Options for
+  mounting `block-device`volumes without a pre-formatted file system.
+  - `fs_type`: file system type (ex. `"ext4"`)
+  - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugin]: /docs/job-specification/csi_plugin
