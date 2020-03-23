@@ -31,6 +31,13 @@ const (
 	// ErrEntOnly is the error returned if accessing an enterprise only
 	// endpoint
 	ErrEntOnly = "Nomad Enterprise only endpoint"
+
+	// ContextKeyReqID is a unique ID for a given request
+	ContextKeyReqID = "requestID"
+
+	// MissingRequestID is a placeholder if we cannot retrieve a request
+	// UUID from context
+	MissingRequestID = "<missing request id>"
 )
 
 var (
@@ -48,6 +55,9 @@ var (
 		AllowCredentials: true,
 	})
 )
+
+type handlerFn func(resp http.ResponseWriter, req *http.Request) (interface{}, error)
+type handlerByteFn func(resp http.ResponseWriter, req *http.Request) ([]byte, error)
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
 type HTTPServer struct {
@@ -380,6 +390,32 @@ func handleRootFallthrough() http.Handler {
 	})
 }
 
+func errCodeFromHandler(err error) (int, string) {
+	if err == nil {
+		return 0, ""
+	}
+
+	code := 500
+	errMsg := err.Error()
+	if http, ok := err.(HTTPCodedError); ok {
+		code = http.Code()
+	} else if ecode, emsg, ok := structs.CodeFromRPCCodedErr(err); ok {
+		code = ecode
+		errMsg = emsg
+	} else {
+		// RPC errors get wrapped, so manually unwrap by only looking at their suffix
+		if strings.HasSuffix(errMsg, structs.ErrPermissionDenied.Error()) {
+			errMsg = structs.ErrPermissionDenied.Error()
+			code = 403
+		} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
+			errMsg = structs.ErrTokenNotFound.Error()
+			code = 403
+		}
+	}
+
+	return code, errMsg
+}
+
 // wrap is used to wrap functions to make them more convenient
 func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Request) (interface{}, error)) func(resp http.ResponseWriter, req *http.Request) {
 	f := func(resp http.ResponseWriter, req *http.Request) {
@@ -390,7 +426,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		defer func() {
 			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Now().Sub(start))
 		}()
-		obj, err := handler(resp, req)
+		obj, err := s.auditHandler(handler)(resp, req)
 
 		// Check for an error
 	HAS_ERR:
@@ -462,28 +498,11 @@ func (s *HTTPServer) wrapNonJSON(handler func(resp http.ResponseWriter, req *htt
 		defer func() {
 			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Now().Sub(start))
 		}()
-		obj, err := handler(resp, req)
+		obj, err := s.auditByteHandler(handler)(resp, req)
 
 		// Check for an error
 		if err != nil {
-			code := 500
-			errMsg := err.Error()
-			if http, ok := err.(HTTPCodedError); ok {
-				code = http.Code()
-			} else if ecode, emsg, ok := structs.CodeFromRPCCodedErr(err); ok {
-				code = ecode
-				errMsg = emsg
-			} else {
-				// RPC errors get wrapped, so manually unwrap by only looking at their suffix
-				if strings.HasSuffix(errMsg, structs.ErrPermissionDenied.Error()) {
-					errMsg = structs.ErrPermissionDenied.Error()
-					code = 403
-				} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
-					errMsg = structs.ErrTokenNotFound.Error()
-					code = 403
-				}
-			}
-
+			code, errMsg := errCodeFromHandler(err)
 			resp.WriteHeader(code)
 			resp.Write([]byte(errMsg))
 			s.logger.Error("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)

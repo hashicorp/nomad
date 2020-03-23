@@ -22,6 +22,7 @@ import (
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/command/agent/event"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -53,6 +54,7 @@ type Agent struct {
 	configLock sync.Mutex
 
 	logger     log.InterceptLogger
+	eventer    event.Eventer
 	httpLogger log.Logger
 	logOutput  io.Writer
 
@@ -116,6 +118,9 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 		return nil, err
 	}
 	if err := a.setupClient(); err != nil {
+		return nil, err
+	}
+	if err := a.setupEnterpriseAgent(logger); err != nil {
 		return nil, err
 	}
 	if a.client == nil && a.server == nil {
@@ -996,6 +1001,13 @@ func (a *Agent) Reload(newConfig *Config) error {
 	if updatedLogging {
 		a.config.LogLevel = newConfig.LogLevel
 		a.logger.SetLevel(log.LevelFromString(newConfig.LogLevel))
+	}
+
+	// Update eventer config
+	if newConfig.Audit != nil {
+		if err := a.entReloadEventer(a.config.Audit); err != nil {
+			return err
+		}
 	}
 
 	fullUpdateTLSConfig := func() {

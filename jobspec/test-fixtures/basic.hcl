@@ -293,7 +293,7 @@ job "binstore-storagelocker" {
       driver = "docker"
 
       lifecycle {
-        hook = "prestart"
+        hook    = "prestart"
         sidecar = true
       }
 

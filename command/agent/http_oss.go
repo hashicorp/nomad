@@ -22,3 +22,15 @@ func (s *HTTPServer) registerEnterpriseHandlers() {
 func (s *HTTPServer) entOnly(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	return nil, CodedError(501, ErrEntOnly)
 }
+
+func (s HTTPServer) auditHandler(h handlerFn) handlerFn {
+	return h
+}
+
+func (s *HTTPServer) auditByteHandler(h handlerByteFn) handlerByteFn {
+	return h
+}
+
+func (s *HTTPServer) auditHTTPHandler(h http.Handler) http.Handler {
+	return h
+}
