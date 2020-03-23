@@ -11,14 +11,14 @@ func TestCSIVolumeClaim(t *testing.T) {
 	vol.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
 	vol.Schedulable = true
 
-	alloc := &Allocation{ID: "a1"}
+	alloc := &Allocation{ID: "a1", Namespace: "n", JobID: "j"}
 
-	vol.ClaimRead(alloc)
+	require.NoError(t, vol.ClaimRead(alloc))
 	require.True(t, vol.ReadSchedulable())
 	require.True(t, vol.WriteSchedulable())
-	require.True(t, vol.ClaimRead(alloc))
+	require.NoError(t, vol.ClaimRead(alloc))
 
-	vol.ClaimWrite(alloc)
+	require.NoError(t, vol.ClaimWrite(alloc))
 	require.True(t, vol.ReadSchedulable())
 	require.False(t, vol.WriteFreeClaims())
 
