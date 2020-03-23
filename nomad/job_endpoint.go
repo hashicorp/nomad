@@ -864,11 +864,8 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	if groupName == "" {
 		return structs.NewErrRPCCoded(400, "missing task group name for scaling action")
 	}
-	if args.Error != nil && args.Reason != nil {
-		return structs.NewErrRPCCoded(400, "scaling action should not contain error and scaling reason")
-	}
-	if args.Error != nil && args.Count != nil {
-		return structs.NewErrRPCCoded(400, "scaling action should not contain error and count")
+	if args.Error && args.Count != nil {
+		return structs.NewErrRPCCoded(400, "scaling action should not contain count if error is true")
 	}
 
 	// Check for submit-job permissions
@@ -896,20 +893,29 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
 	}
 
-	jobModifyIndex := job.ModifyIndex
+	var found *structs.TaskGroup
+	for _, tg := range job.TaskGroups {
+		if groupName == tg.Name {
+			found = tg
+			break
+		}
+	}
+	if found == nil {
+		return structs.NewErrRPCCoded(400,
+			fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
+	}
+
+	now := time.Now().UTC().UnixNano()
+
+	// If the count is present, commit the job update via Raft
 	if args.Count != nil {
-		found := false
-		for _, tg := range job.TaskGroups {
-			if groupName == tg.Name {
-				tg.Count = int(*args.Count) // TODO: not safe, check this above
-				found = true
-				break
-			}
-		}
-		if !found {
+		truncCount := int(*args.Count)
+		if int64(truncCount) != *args.Count {
 			return structs.NewErrRPCCoded(400,
-				fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
+				fmt.Sprintf("new scaling count is too large for TaskGroup.Count (int): %v", args.Count))
 		}
+		found.Count = truncCount
+
 		registerReq := structs.JobRegisterRequest{
 			Job:            job,
 			EnforceIndex:   true,
@@ -917,58 +923,73 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			PolicyOverride: args.PolicyOverride,
 			WriteRequest:   args.WriteRequest,
 		}
-
-		// Commit this update via Raft
-		_, jobModifyIndex, err = j.srv.raftApply(structs.JobRegisterRequestType, registerReq)
+		_, jobModifyIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, registerReq)
 		if err != nil {
 			j.logger.Error("job register for scale failed", "error", err)
 			return err
 		}
+		reply.JobModifyIndex = jobModifyIndex
+	} else {
+		reply.JobModifyIndex = job.ModifyIndex
 	}
-
-	// Populate the reply with job information
-	reply.JobModifyIndex = jobModifyIndex
-	reply.Index = reply.JobModifyIndex
-
-	// FINISH:
-	// register the scaling event to the scaling_event table, once that exists
 
 	// If the job is periodic or parameterized, we don't create an eval.
-	if job != nil && (job.IsPeriodic() || job.IsParameterized()) || args.Count == nil {
-		return nil
+	var eval *structs.Evaluation
+	if !job.IsPeriodic() && !job.IsParameterized() && args.Count != nil {
+		eval = &structs.Evaluation{
+			ID:             uuid.Generate(),
+			Namespace:      args.RequestNamespace(),
+			Priority:       structs.JobDefaultPriority,
+			Type:           structs.JobTypeService,
+			TriggeredBy:    structs.EvalTriggerScaling,
+			JobID:          args.JobID,
+			JobModifyIndex: reply.JobModifyIndex,
+			Status:         structs.EvalStatusPending,
+			CreateTime:     now,
+			ModifyTime:     now,
+		}
+		update := &structs.EvalUpdateRequest{
+			Evals:        []*structs.Evaluation{eval},
+			WriteRequest: structs.WriteRequest{Region: args.Region},
+		}
+
+		// Commit this evaluation via Raft
+		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+		if err != nil {
+			j.logger.Error("eval create failed", "error", err, "method", "scale")
+			return err
+		}
+
+		reply.EvalID = eval.ID
+		reply.EvalCreateIndex = evalIndex
+	} else {
+		reply.EvalID = ""
+		reply.EvalCreateIndex = 0
 	}
 
-	// Create a new evaluation
-	// FINISH: only do this if args.Error == nil || ""
-	now := time.Now().UTC().UnixNano()
-	eval := &structs.Evaluation{
-		ID:             uuid.Generate(),
-		Namespace:      args.RequestNamespace(),
-		Priority:       structs.JobDefaultPriority,
-		Type:           structs.JobTypeService,
-		TriggeredBy:    structs.EvalTriggerScaling,
-		JobID:          args.JobID,
-		JobModifyIndex: jobModifyIndex,
-		Status:         structs.EvalStatusPending,
-		CreateTime:     now,
-		ModifyTime:     now,
+	event := &structs.ScalingEventRequest{
+		Namespace: job.Namespace,
+		JobID:     job.ID,
+		TaskGroup: groupName,
+		ScalingEvent: &structs.ScalingEvent{
+			Time:    now,
+			Count:   args.Count,
+			Message: args.Message,
+			Error:   args.Error,
+			Meta:    args.Meta,
+		},
 	}
-	update := &structs.EvalUpdateRequest{
-		Evals:        []*structs.Evaluation{eval},
-		WriteRequest: structs.WriteRequest{Region: args.Region},
+	if eval != nil {
+		event.ScalingEvent.EvalID = &eval.ID
 	}
-
-	// Commit this evaluation via Raft
-	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+	_, eventIndex, err := j.srv.raftApply(structs.ScalingEventRegisterRequestType, event)
 	if err != nil {
-		j.logger.Error("eval create failed", "error", err, "method", "deregister")
+		j.logger.Error("scaling event create failed", "error", err)
 		return err
 	}
 
-	// Populate the reply with eval information
-	reply.EvalID = eval.ID
-	reply.EvalCreateIndex = evalIndex
-	reply.Index = reply.EvalCreateIndex
+	reply.Index = eventIndex
+	j.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
 }
 
@@ -1745,6 +1766,14 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 				return err
 			}
 
+			events, err := state.ScalingEventsByJob(ws, args.RequestNamespace(), args.JobID)
+			if err != nil {
+				return err
+			}
+			if events == nil {
+				events = make(map[string][]*structs.ScalingEvent)
+			}
+
 			// Setup the output
 			reply.JobScaleStatus = &structs.JobScaleStatus{
 				JobID:          job.ID,
@@ -1765,6 +1794,7 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 						tgScale.Unhealthy = ds.UnhealthyAllocs
 					}
 				}
+				tgScale.Events = events[tg.Name]
 				reply.JobScaleStatus.TaskGroups[tg.Name] = tgScale
 			}
 

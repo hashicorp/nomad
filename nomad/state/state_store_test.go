@@ -8552,6 +8552,169 @@ func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
 	require.Equal(expect, found)
 }
 
+func TestStateStore_UpsertScalingEvent(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	job := mock.Job()
+	groupName := job.TaskGroups[0].Name
+
+	newEvent := structs.NewScalingEvent("message 1").SetMeta(map[string]interface{}{
+		"a": 1,
+	})
+
+	wsAll := memdb.NewWatchSet()
+	all, err := state.ScalingEvents(wsAll)
+	require.NoError(err)
+	require.Nil(all.Next())
+
+	ws := memdb.NewWatchSet()
+	out, err := state.ScalingEventsByJob(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.Nil(out)
+
+	err = state.UpsertScalingEvent(1000, &structs.ScalingEventRequest{
+		Namespace:    job.Namespace,
+		JobID:        job.ID,
+		TaskGroup:    groupName,
+		ScalingEvent: newEvent,
+	})
+	require.NoError(err)
+	require.True(watchFired(ws))
+	require.True(watchFired(wsAll))
+
+	ws = memdb.NewWatchSet()
+	out, err = state.ScalingEventsByJob(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.Equal(map[string][]*structs.ScalingEvent{
+		groupName: {newEvent},
+	}, out)
+
+	iter, err := state.ScalingEvents(ws)
+	require.NoError(err)
+
+	count := 0
+	jobsReturned := []string{}
+	var jobEvents *structs.JobScalingEvents
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		jobEvents = raw.(*structs.JobScalingEvents)
+		jobsReturned = append(jobsReturned, jobEvents.JobID)
+		count++
+	}
+	require.Equal(1, count)
+
+	index, err := state.Index("scaling_event")
+	require.NoError(err)
+	require.ElementsMatch([]string{job.ID}, jobsReturned)
+	require.Equal(map[string][]*structs.ScalingEvent{
+		groupName: {newEvent},
+	}, jobEvents.ScalingEvents)
+	require.EqualValues(1000, index)
+	require.False(watchFired(ws))
+}
+
+func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	namespace := uuid.Generate()
+	jobID := uuid.Generate()
+	group1 := uuid.Generate()
+	group2 := uuid.Generate()
+
+	index := uint64(1000)
+	for i := 1; i <= structs.JobTrackedScalingEvents+10; i++ {
+		newEvent := structs.NewScalingEvent("").SetMeta(map[string]interface{}{
+			"i":     i,
+			"group": group1,
+		})
+		err := state.UpsertScalingEvent(index, &structs.ScalingEventRequest{
+			Namespace:    namespace,
+			JobID:        jobID,
+			TaskGroup:    group1,
+			ScalingEvent: newEvent,
+		})
+		index++
+		require.NoError(err)
+
+		newEvent = structs.NewScalingEvent("").SetMeta(map[string]interface{}{
+			"i":     i,
+			"group": group2,
+		})
+		err = state.UpsertScalingEvent(index, &structs.ScalingEventRequest{
+			Namespace:    namespace,
+			JobID:        jobID,
+			TaskGroup:    group2,
+			ScalingEvent: newEvent,
+		})
+		index++
+		require.NoError(err)
+	}
+
+	out, err := state.ScalingEventsByJob(nil, namespace, jobID)
+	require.NoError(err)
+	require.Len(out, 2)
+
+	expectedEvents := []int{}
+	for i := structs.JobTrackedScalingEvents; i > 0; i-- {
+		expectedEvents = append(expectedEvents, i+10)
+	}
+
+	// checking order and content
+	require.Len(out[group1], structs.JobTrackedScalingEvents)
+	actualEvents := []int{}
+	for _, event := range out[group1] {
+		require.Equal(group1, event.Meta["group"])
+		actualEvents = append(actualEvents, event.Meta["i"].(int))
+	}
+	require.Equal(expectedEvents, actualEvents)
+
+	// checking order and content
+	require.Len(out[group2], structs.JobTrackedScalingEvents)
+	actualEvents = []int{}
+	for _, event := range out[group2] {
+		require.Equal(group2, event.Meta["group"])
+		actualEvents = append(actualEvents, event.Meta["i"].(int))
+	}
+	require.Equal(expectedEvents, actualEvents)
+}
+
+func TestStateStore_RestoreScalingEvents(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	jobScalingEvents := &structs.JobScalingEvents{
+		Namespace: uuid.Generate(),
+		JobID:     uuid.Generate(),
+		ScalingEvents: map[string][]*structs.ScalingEvent{
+			uuid.Generate(): {
+				structs.NewScalingEvent(uuid.Generate()),
+			},
+		},
+	}
+
+	restore, err := state.Restore()
+	require.NoError(err)
+
+	err = restore.ScalingEventsRestore(jobScalingEvents)
+	require.NoError(err)
+	restore.Commit()
+
+	ws := memdb.NewWatchSet()
+	out, err := state.ScalingEventsByJob(ws, jobScalingEvents.Namespace,
+		jobScalingEvents.JobID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.EqualValues(jobScalingEvents.ScalingEvents, out)
+}
+
 func TestStateStore_Abandon(t *testing.T) {
 	t.Parallel()
 

@@ -51,6 +51,7 @@ const (
 	ScalingPolicySnapshot
 	CSIPluginSnapshot
 	CSIVolumeSnapshot
+	ScalingEventsSnapshot
 )
 
 // LogApplier is the definition of a function that can apply a Raft log
@@ -269,6 +270,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyCSIVolumeDeregister(buf[1:], log.Index)
 	case structs.CSIVolumeClaimRequestType:
 		return n.applyCSIVolumeClaim(buf[1:], log.Index)
+	case structs.ScalingEventRegisterRequestType:
+		return n.applyUpsertScalingEvent(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -1403,6 +1406,16 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case ScalingEventsSnapshot:
+			jobScalingEvents := new(structs.JobScalingEvents)
+			if err := dec.Decode(jobScalingEvents); err != nil {
+				return err
+			}
+
+			if err := restore.ScalingEventsRestore(jobScalingEvents); err != nil {
+				return err
+			}
+
 		case ScalingPolicySnapshot:
 			scalingPolicy := new(structs.ScalingPolicy)
 			if err := dec.Decode(scalingPolicy); err != nil {
@@ -1629,6 +1642,21 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 	return nil
 }
 
+func (n *nomadFSM) applyUpsertScalingEvent(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_scaling_event"}, time.Now())
+	var req structs.ScalingEventRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertScalingEvent(index, &req); err != nil {
+		n.logger.Error("UpsertScalingEvent failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
 func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "persist"}, time.Now())
 	// Register the nodes
@@ -1694,6 +1722,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistScalingPolicies(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistScalingEvents(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2130,6 +2162,33 @@ func (s *nomadSnapshot) persistScalingPolicies(sink raft.SnapshotSink,
 		// Write out a scaling policy snapshot
 		sink.Write([]byte{byte(ScalingPolicySnapshot)})
 		if err := encoder.Encode(scalingPolicy); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistScalingEvents(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+	// Get all the scaling events
+	ws := memdb.NewWatchSet()
+	jobScalingEvents, err := s.snap.ScalingEvents(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := jobScalingEvents.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		events := raw.(*structs.JobScalingEvents)
+
+		// Write out a scaling events snapshot
+		sink.Write([]byte{byte(ScalingEventsSnapshot)})
+		if err := encoder.Encode(events); err != nil {
 			return err
 		}
 	}

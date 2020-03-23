@@ -1119,7 +1119,7 @@ func TestJobs_ScaleInvalidAction(t *testing.T) {
 		{"i-dont-exist", "me-neither", 1, "404"},
 	}
 	for _, test := range tests {
-		_, _, err := jobs.Scale(test.jobID, test.group, &test.value, stringToPtr("reason"), nil, nil, nil)
+		_, _, err := jobs.Scale(test.jobID, test.group, &test.value, "reason", false, nil, nil)
 		require.Errorf(err, "expected jobs.Scale(%s, %s) to fail", test.jobID, test.group)
 		require.Containsf(err.Error(), test.want, "jobs.Scale(%s, %s) error doesn't contain %s, got: %s", test.jobID, test.group, test.want, err)
 	}
@@ -1133,7 +1133,7 @@ func TestJobs_ScaleInvalidAction(t *testing.T) {
 
 	// Perform a scaling action with bad group name, verify error
 	_, _, err = jobs.Scale(*job.ID, "incorrect-group-name", intToPtr(2),
-		stringToPtr("because"), nil, nil, nil)
+		"because", false, nil, nil)
 	require.Error(err)
 	require.Contains(err.Error(), "does not exist")
 }
@@ -1779,7 +1779,7 @@ func TestJobs_ScaleAction(t *testing.T) {
 	groupCount := *job.TaskGroups[0].Count
 
 	// Trying to scale against a target before it exists returns an error
-	_, _, err := jobs.Scale(id, "missing", intToPtr(groupCount+1), stringToPtr("this won't work"), nil, nil, nil)
+	_, _, err := jobs.Scale(id, "missing", intToPtr(groupCount+1), "this won't work", false, nil, nil)
 	require.Error(err)
 	require.Contains(err.Error(), "not found")
 
@@ -1791,7 +1791,7 @@ func TestJobs_ScaleAction(t *testing.T) {
 	// Perform scaling action
 	newCount := groupCount + 1
 	scalingResp, wm, err := jobs.Scale(id, groupName,
-		intToPtr(newCount), stringToPtr("need more instances"), nil, nil, nil)
+		intToPtr(newCount), "need more instances", false, nil, nil)
 
 	require.NoError(err)
 	require.NotNil(scalingResp)
@@ -1829,7 +1829,7 @@ func TestJobs_ScaleAction_Noop(t *testing.T) {
 
 	// Perform scaling action
 	scaleResp, wm, err := jobs.Scale(id, groupName,
-		nil, stringToPtr("no count, just informative"), nil, nil, nil)
+		nil, "no count, just informative", false, nil, nil)
 
 	require.NoError(err)
 	require.NotNil(scaleResp)
@@ -1845,7 +1845,9 @@ func TestJobs_ScaleAction_Noop(t *testing.T) {
 	require.Empty(scaleResp.EvalCreateIndex)
 	require.Empty(scaleResp.EvalID)
 
-	// TODO: check that scaling event was persisted
+	status, _, err := jobs.ScaleStatus(*job.ID, nil)
+	require.NoError(err)
+	require.NotEmpty(status.TaskGroups[groupName].Events)
 }
 
 // TestJobs_ScaleStatus tests the /scale status endpoint for task group count

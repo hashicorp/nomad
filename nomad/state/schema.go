@@ -51,6 +51,7 @@ func init() {
 		csiVolumeTableSchema,
 		csiPluginTableSchema,
 		scalingPolicyTableSchema,
+		scalingEventTableSchema,
 	}...)
 }
 
@@ -789,7 +790,6 @@ func (s *ScalingPolicyTargetFieldIndex) PrefixFromArgs(args ...interface{}) ([]b
 }
 
 // scalingPolicyTableSchema returns the MemDB schema for the policy table.
-// This table is used to store the policies which are referenced by tokens
 func scalingPolicyTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "scaling_policy",
@@ -839,6 +839,43 @@ func scalingPolicyTableSchema() *memdb.TableSchema {
 					Field: "Enabled",
 				},
 			},
+		},
+	}
+}
+
+// scalingEventTableSchema returns the memdb schema for job scaling events
+func scalingEventTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "scaling_event",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+
+				// Use a compound index so the tuple of (Namespace, JobID) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.StringFieldIndex{
+							Field: "JobID",
+						},
+					},
+				},
+			},
+
+			// "error": {
+			// 	Name:         "error",
+			// 	AllowMissing: false,
+			// 	Unique:       false,
+			// 	Indexer: &memdb.FieldSetIndex{
+			// 		Field: "Error",
+			// 	},
+			// },
 		},
 	}
 }

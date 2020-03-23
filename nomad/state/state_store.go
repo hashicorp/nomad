@@ -627,6 +627,85 @@ func (s *StateStore) DeleteDeployment(index uint64, deploymentIDs []string) erro
 	return nil
 }
 
+// UpsertScalingEvent is used to insert a new scaling event.
+// Only the most recent JobTrackedScalingEvents will be kept.
+func (s *StateStore) UpsertScalingEvent(index uint64, req *structs.ScalingEventRequest) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Get the existing events
+	existing, err := txn.First("scaling_event", "id", req.Namespace, req.JobID)
+	if err != nil {
+		return fmt.Errorf("scaling event lookup failed: %v", err)
+	}
+
+	var jobEvents *structs.JobScalingEvents
+	if existing != nil {
+		jobEvents = existing.(*structs.JobScalingEvents)
+	} else {
+		jobEvents = &structs.JobScalingEvents{
+			Namespace:     req.Namespace,
+			JobID:         req.JobID,
+			ScalingEvents: make(map[string][]*structs.ScalingEvent),
+		}
+	}
+
+	events := jobEvents.ScalingEvents[req.TaskGroup]
+	// prepend this latest event
+	events = append(
+		[]*structs.ScalingEvent{req.ScalingEvent},
+		events...,
+	)
+	// truncate older events
+	if len(events) > structs.JobTrackedScalingEvents {
+		events = events[0:structs.JobTrackedScalingEvents]
+	}
+	jobEvents.ScalingEvents[req.TaskGroup] = events
+
+	// Insert the new event
+	if err := txn.Insert("scaling_event", jobEvents); err != nil {
+		return fmt.Errorf("scaling event insert failed: %v", err)
+	}
+
+	// Update the indexes table for scaling_event
+	if err := txn.Insert("index", &IndexEntry{"scaling_event", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// ScalingEvents returns an iterator over all the job scaling events
+func (s *StateStore) ScalingEvents(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire scaling_event table
+	iter, err := txn.Get("scaling_event", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+func (s *StateStore) ScalingEventsByJob(ws memdb.WatchSet, namespace, jobID string) (map[string][]*structs.ScalingEvent, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("scaling_event", "id", namespace, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("job scaling events lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.JobScalingEvents).ScalingEvents, nil
+	}
+	return nil, nil
+}
+
 // UpsertNode is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
 // of drain/eligibility which is set by the scheduler.
@@ -1405,6 +1484,14 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
 			return fmt.Errorf("index update failed: %v", err)
 		}
+	}
+
+	// Delete the scaling events
+	if _, err = txn.DeleteAll("scaling_event", "id", namespace, jobID); err != nil {
+		return fmt.Errorf("deleting job scaling events failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"scaling_event", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	// Cleanup plugins registered by this job
@@ -5275,6 +5362,13 @@ func (r *StateRestore) CSIPluginRestore(plugin *structs.CSIPlugin) error {
 func (r *StateRestore) CSIVolumeRestore(volume *structs.CSIVolume) error {
 	if err := r.txn.Insert("csi_volumes", volume); err != nil {
 		return fmt.Errorf("csi volume insert failed: %v", err)
+	}
+	return nil
+}
+
+func (r *StateRestore) ScalingEventsRestore(jobEvents *structs.JobScalingEvents) error {
+	if err := r.txn.Insert("scaling_event", jobEvents); err != nil {
+		return fmt.Errorf("scaling event insert failed: %v", err)
 	}
 	return nil
 }
