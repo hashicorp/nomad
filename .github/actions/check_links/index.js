@@ -4,7 +4,7 @@ const github = require("../../../website/node_modules/@actions/github");
 
 const { GITHUB_TOKEN, GITHUB_SHA } = process.env;
 
-const CHECK_NAME = "[Check] Broken links";
+const CHECK_NAME = "Check Broken Links";
 
 const octokit = new github.GitHub(GITHUB_TOKEN);
 
@@ -34,6 +34,7 @@ async function run() {
   const deployUrl = core.getInput("baseUrl", { required: true });
   let output;
 
+  console.log(`check created for ${id}`);
   console.log(`checking for links on ${deployUrl}`);
 
   try {
