@@ -10,9 +10,10 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/pkg/errors"
 )
 
 // Txn is a transaction against a state store.
@@ -1177,6 +1178,10 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
 
+	if err := s.updateJobScalingPolicies(index, job, txn); err != nil {
+		return fmt.Errorf("unable to update job scaling policies: %v", err)
+	}
+
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
@@ -1273,10 +1278,21 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 
 	// Delete the job summary
 	if _, err = txn.DeleteAll("job_summary", "id", namespace, jobID); err != nil {
-		return fmt.Errorf("deleing job summary failed: %v", err)
+		return fmt.Errorf("deleting job summary failed: %v", err)
 	}
 	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	// Delete any job scaling policies
+	numDeletedScalingPolicies, err := txn.DeleteAll("scaling_policy", "target_prefix", namespace, jobID)
+	if err != nil {
+		return fmt.Errorf("deleting job scaling policies failed: %v", err)
+	}
+	if numDeletedScalingPolicies > 0 {
+		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
 	}
 
 	return nil
@@ -3989,6 +4005,46 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 	return nil
 }
 
+// updateJobScalingPolicies upserts any scaling policies contained in the job and removes
+// any previous scaling policies that were removed from the job
+func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, txn *memdb.Txn) error {
+
+	ws := memdb.NewWatchSet()
+
+	scalingPolicies := job.GetScalingPolicies()
+	newTargets := map[string]struct{}{}
+	for _, p := range scalingPolicies {
+		newTargets[p.Target[structs.ScalingTargetGroup]] = struct{}{}
+	}
+	// find existing policies that need to be deleted
+	deletedPolicies := []string{}
+	iter, err := s.ScalingPoliciesByJobTxn(ws, job.Namespace, job.ID, txn)
+	if err != nil {
+		return fmt.Errorf("ScalingPoliciesByJob lookup failed: %v", err)
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		oldPolicy := raw.(*structs.ScalingPolicy)
+		if _, ok := newTargets[oldPolicy.Target[structs.ScalingTargetGroup]]; !ok {
+			deletedPolicies = append(deletedPolicies, oldPolicy.ID)
+		}
+	}
+	err = s.DeleteScalingPoliciesTxn(index, deletedPolicies, txn)
+	if err != nil {
+		return fmt.Errorf("DeleteScalingPolicies of removed policies failed: %v", err)
+	}
+
+	err = s.UpsertScalingPoliciesTxn(index, scalingPolicies, txn)
+	if err != nil {
+		return fmt.Errorf("UpsertScalingPolicies of policies failed: %v", err)
+	}
+
+	return nil
+}
+
 // updateDeploymentWithAlloc is used to update the deployment state associated
 // with the given allocation. The passed alloc may be updated if the deployment
 // status has changed to capture the modify index at which it has changed.
@@ -4657,6 +4713,175 @@ func (s *StateStore) setClusterMetadata(txn *memdb.Txn, meta *structs.ClusterMet
 	}
 
 	return nil
+}
+
+// UpsertScalingPolicy is used to insert a new scaling policy.
+func (s *StateStore) UpsertScalingPolicies(index uint64, scalingPolicies []*structs.ScalingPolicy) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	if err := s.UpsertScalingPoliciesTxn(index, scalingPolicies, txn); err != nil {
+		return err
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// upsertScalingPolicy is used to insert a new scaling policy.
+func (s *StateStore) UpsertScalingPoliciesTxn(index uint64, scalingPolicies []*structs.ScalingPolicy,
+	txn *memdb.Txn) error {
+
+	hadUpdates := false
+
+	for _, policy := range scalingPolicies {
+		// Check if the scaling policy already exists
+		existing, err := txn.First("scaling_policy", "target",
+			policy.Target[structs.ScalingTargetNamespace],
+			policy.Target[structs.ScalingTargetJob],
+			policy.Target[structs.ScalingTargetGroup])
+		if err != nil {
+			return fmt.Errorf("scaling policy lookup failed: %v", err)
+		}
+
+		// Setup the indexes correctly
+		if existing != nil {
+			p := existing.(*structs.ScalingPolicy)
+			if !p.Diff(policy) {
+				continue
+			}
+			policy.ID = p.ID
+			policy.CreateIndex = p.CreateIndex
+			policy.ModifyIndex = index
+		} else {
+			// policy.ID must have been set already in Job.Register before log apply
+			policy.CreateIndex = index
+			policy.ModifyIndex = index
+		}
+
+		// Insert the scaling policy
+		hadUpdates = true
+		if err := txn.Insert("scaling_policy", policy); err != nil {
+			return err
+		}
+	}
+
+	// Update the indexes table for scaling policy
+	if hadUpdates {
+		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func (s *StateStore) DeleteScalingPolicies(index uint64, ids []string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	err := s.DeleteScalingPoliciesTxn(index, ids, txn)
+	if err == nil {
+		txn.Commit()
+	}
+
+	return err
+}
+
+// DeleteScalingPolicies is used to delete a set of scaling policies by ID
+func (s *StateStore) DeleteScalingPoliciesTxn(index uint64, ids []string, txn *memdb.Txn) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	for _, id := range ids {
+		// Lookup the scaling policy
+		existing, err := txn.First("scaling_policy", "id", id)
+		if err != nil {
+			return fmt.Errorf("scaling policy lookup failed: %v", err)
+		}
+		if existing == nil {
+			return fmt.Errorf("scaling policy not found")
+		}
+
+		// Delete the scaling policy
+		if err := txn.Delete("scaling_policy", existing); err != nil {
+			return fmt.Errorf("scaling policy delete failed: %v", err)
+		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	return nil
+}
+
+func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("scaling_policy", "target_prefix", namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+func (s *StateStore) ScalingPoliciesByJob(ws memdb.WatchSet, namespace, jobID string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+	return s.ScalingPoliciesByJobTxn(ws, namespace, jobID, txn)
+}
+
+func (s *StateStore) ScalingPoliciesByJobTxn(ws memdb.WatchSet, namespace, jobID string,
+	txn *memdb.Txn) (memdb.ResultIterator, error) {
+
+	iter, err := txn.Get("scaling_policy", "target_prefix", namespace, jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+func (s *StateStore) ScalingPolicyByID(ws memdb.WatchSet, id string) (*structs.ScalingPolicy, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("scaling_policy", "id", id)
+	if err != nil {
+		return nil, fmt.Errorf("scaling_policy lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.ScalingPolicy), nil
+	}
+
+	return nil, nil
+}
+
+func (s *StateStore) ScalingPolicyByTarget(ws memdb.WatchSet, target map[string]string) (*structs.ScalingPolicy,
+	error) {
+	txn := s.db.Txn(false)
+
+	// currently, only scaling policy type is against a task group
+	namespace := target[structs.ScalingTargetNamespace]
+	job := target[structs.ScalingTargetJob]
+	group := target[structs.ScalingTargetGroup]
+
+	watchCh, existing, err := txn.FirstWatch("scaling_policy", "target", namespace, job, group)
+	if err != nil {
+		return nil, fmt.Errorf("scaling_policy lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.ScalingPolicy), nil
+	}
+
+	return nil, nil
 }
 
 // StateSnapshot is used to provide a point-in-time snapshot

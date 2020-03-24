@@ -427,6 +427,7 @@ type TaskGroup struct {
 	Meta             map[string]string
 	Services         []*Service
 	ShutdownDelay    *time.Duration `mapstructure:"shutdown_delay"`
+	Scaling          *ScalingPolicy
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -443,7 +444,11 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		g.Name = stringToPtr("")
 	}
 	if g.Count == nil {
-		g.Count = intToPtr(1)
+		if g.Scaling != nil && g.Scaling.Min != nil {
+			g.Count = intToPtr(int(*g.Scaling.Min))
+		} else {
+			g.Count = intToPtr(1)
+		}
 	}
 	for _, t := range g.Tasks {
 		t.Canonicalize(g, job)
@@ -542,6 +547,10 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	}
 	for _, s := range g.Services {
 		s.Canonicalize(nil, g, job)
+	}
+
+	if g.Scaling != nil {
+		g.Scaling.Canonicalize(g)
 	}
 }
 

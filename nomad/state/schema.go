@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -49,6 +50,7 @@ func init() {
 		clusterMetaTableSchema,
 		csiVolumeTableSchema,
 		csiPluginTableSchema,
+		scalingPolicyTableSchema,
 	}...)
 }
 
@@ -723,6 +725,118 @@ func csiPluginTableSchema() *memdb.TableSchema {
 				Unique:       true,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "ID",
+				},
+			},
+		},
+	}
+}
+
+// StringFieldIndex is used to extract a field from an object
+// using reflection and builds an index on that field.
+type ScalingPolicyTargetFieldIndex struct {
+	Field string
+}
+
+// FromObject is used to extract an index value from an
+// object or to indicate that the index value is missing.
+func (s *ScalingPolicyTargetFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
+	policy, ok := obj.(*structs.ScalingPolicy)
+	if !ok {
+		return false, nil, fmt.Errorf("object %#v is not a ScalingPolicy", obj)
+	}
+
+	if policy.Target == nil {
+		return false, nil, nil
+	}
+
+	val, ok := policy.Target[s.Field]
+	if !ok {
+		return false, nil, nil
+	}
+
+	// Add the null character as a terminator
+	val += "\x00"
+	return true, []byte(val), nil
+}
+
+// FromArgs is used to build an exact index lookup based on arguments
+func (s *ScalingPolicyTargetFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("must provide only a single argument")
+	}
+	arg, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
+	}
+	// Add the null character as a terminator
+	arg += "\x00"
+	return []byte(arg), nil
+}
+
+// PrefixFromArgs returns a prefix that should be used for scanning based on the arguments
+func (s *ScalingPolicyTargetFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	val, err := s.FromArgs(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Strip the null terminator, the rest is a prefix
+	n := len(val)
+	if n > 0 {
+		return val[:n-1], nil
+	}
+	return val, nil
+}
+
+// scalingPolicyTableSchema returns the MemDB schema for the policy table.
+// This table is used to store the policies which are referenced by tokens
+func scalingPolicyTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "scaling_policy",
+		Indexes: map[string]*memdb.IndexSchema{
+			// Primary index is used for simple direct lookup.
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+
+				// UUID is uniquely identifying
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
+				},
+			},
+			// Target index is used for listing by namespace or job, or looking up a specific target.
+			// A given task group can have only a single scaling policies, so this is guaranteed to be unique.
+			"target": {
+				Name:         "target",
+				AllowMissing: false,
+				Unique:       true,
+
+				// Use a compound index so the tuple of (Namespace, Job, Group) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&ScalingPolicyTargetFieldIndex{
+							Field: "Namespace",
+						},
+
+						&ScalingPolicyTargetFieldIndex{
+							Field: "Job",
+						},
+
+						&ScalingPolicyTargetFieldIndex{
+							Field: "Group",
+						},
+					},
+				},
+			},
+			// Used to filter by enabled
+			"enabled": {
+				Name:         "enabled",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.FieldSetIndex{
+					Field: "Enabled",
 				},
 			},
 		},

@@ -153,6 +153,43 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	return &resp, qm, nil
 }
 
+// Scale is used to retrieve information about a particular
+// job given its unique ID.
+func (j *Jobs) Scale(jobID, group string, count *int,
+	reason, error *string, meta map[string]interface{}, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
+	var count64 *int64
+	if count != nil {
+		count64 = int64ToPtr(int64(*count))
+	}
+	req := &ScalingRequest{
+		Count: count64,
+		Target: map[string]string{
+			"Job":   jobID,
+			"Group": group,
+		},
+		Error:  error,
+		Reason: reason,
+		Meta:   meta,
+	}
+	var resp JobRegisterResponse
+	qm, err := j.client.write(fmt.Sprintf("/v1/job/%s/scale", url.PathEscape(jobID)), req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
+// ScaleStatus is used to retrieve information about a particular
+// job given its unique ID.
+func (j *Jobs) ScaleStatus(jobID string, q *QueryOptions) (*JobScaleStatusResponse, *QueryMeta, error) {
+	var resp JobScaleStatusResponse
+	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/scale", url.PathEscape(jobID)), &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
 // Versions is used to retrieve all versions of a particular job given its
 // unique ID.
 func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {

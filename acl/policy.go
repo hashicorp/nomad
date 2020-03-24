@@ -11,10 +11,11 @@ const (
 	// The following levels are the only valid values for the `policy = "read"` stanza.
 	// When policies are merged together, the most privilege is granted, except for deny
 	// which always takes precedence and supercedes.
-	PolicyDeny  = "deny"
-	PolicyRead  = "read"
-	PolicyList  = "list"
-	PolicyWrite = "write"
+	PolicyDeny       = "deny"
+	PolicyRead       = "read"
+	PolicyList       = "list"
+	PolicyWrite      = "write"
+	PolicyAutoscaler = "autoscaler"
 )
 
 const (
@@ -23,22 +24,26 @@ const (
 	// combined we take the union of all capabilities. If the deny capability is present, it
 	// takes precedence and overwrites all other capabilities.
 
-	NamespaceCapabilityDeny              = "deny"
-	NamespaceCapabilityListJobs          = "list-jobs"
-	NamespaceCapabilityReadJob           = "read-job"
-	NamespaceCapabilitySubmitJob         = "submit-job"
-	NamespaceCapabilityDispatchJob       = "dispatch-job"
-	NamespaceCapabilityReadLogs          = "read-logs"
-	NamespaceCapabilityReadFS            = "read-fs"
-	NamespaceCapabilityAllocExec         = "alloc-exec"
-	NamespaceCapabilityAllocNodeExec     = "alloc-node-exec"
-	NamespaceCapabilityAllocLifecycle    = "alloc-lifecycle"
-	NamespaceCapabilitySentinelOverride  = "sentinel-override"
-	NamespaceCapabilityCSIRegisterPlugin = "csi-register-plugin"
-	NamespaceCapabilityCSIWriteVolume    = "csi-write-volume"
-	NamespaceCapabilityCSIReadVolume     = "csi-read-volume"
-	NamespaceCapabilityCSIListVolume     = "csi-list-volume"
-	NamespaceCapabilityCSIMountVolume    = "csi-mount-volume"
+	NamespaceCapabilityDeny                = "deny"
+	NamespaceCapabilityListJobs            = "list-jobs"
+	NamespaceCapabilityReadJob             = "read-job"
+	NamespaceCapabilitySubmitJob           = "submit-job"
+	NamespaceCapabilityDispatchJob         = "dispatch-job"
+	NamespaceCapabilityReadLogs            = "read-logs"
+	NamespaceCapabilityReadFS              = "read-fs"
+	NamespaceCapabilityAllocExec           = "alloc-exec"
+	NamespaceCapabilityAllocNodeExec       = "alloc-node-exec"
+	NamespaceCapabilityAllocLifecycle      = "alloc-lifecycle"
+	NamespaceCapabilitySentinelOverride    = "sentinel-override"
+	NamespaceCapabilityCSIRegisterPlugin   = "csi-register-plugin"
+	NamespaceCapabilityCSIWriteVolume      = "csi-write-volume"
+	NamespaceCapabilityCSIReadVolume       = "csi-read-volume"
+	NamespaceCapabilityCSIListVolume       = "csi-list-volume"
+	NamespaceCapabilityCSIMountVolume      = "csi-mount-volume"
+	NamespaceCapabilityListScalingPolicies = "list-scaling-policies"
+	NamespaceCapabilityReadScalingPolicy   = "read-scaling-policy"
+	NamespaceCapabilityReadJobScaling      = "read-job-scaling"
+	NamespaceCapabilityScaleJob            = "scale-job"
 )
 
 var (
@@ -121,7 +126,7 @@ type PluginPolicy struct {
 // isPolicyValid makes sure the given string matches one of the valid policies.
 func isPolicyValid(policy string) bool {
 	switch policy {
-	case PolicyDeny, PolicyRead, PolicyWrite:
+	case PolicyDeny, PolicyRead, PolicyWrite, PolicyAutoscaler:
 		return true
 	default:
 		return false
@@ -144,7 +149,8 @@ func isNamespaceCapabilityValid(cap string) bool {
 		NamespaceCapabilitySubmitJob, NamespaceCapabilityDispatchJob, NamespaceCapabilityReadLogs,
 		NamespaceCapabilityReadFS, NamespaceCapabilityAllocLifecycle,
 		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec,
-		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIWriteVolume, NamespaceCapabilityCSIListVolume, NamespaceCapabilityCSIMountVolume, NamespaceCapabilityCSIRegisterPlugin:
+		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIWriteVolume, NamespaceCapabilityCSIListVolume, NamespaceCapabilityCSIMountVolume, NamespaceCapabilityCSIRegisterPlugin,
+		NamespaceCapabilityListScalingPolicies, NamespaceCapabilityReadScalingPolicy, NamespaceCapabilityReadJobScaling, NamespaceCapabilityScaleJob:
 		return true
 	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride:
@@ -162,9 +168,13 @@ func expandNamespacePolicy(policy string) []string {
 		NamespaceCapabilityReadJob,
 		NamespaceCapabilityCSIListVolume,
 		NamespaceCapabilityCSIReadVolume,
+		NamespaceCapabilityReadJobScaling,
+		NamespaceCapabilityListScalingPolicies,
+		NamespaceCapabilityReadScalingPolicy,
 	}
 
 	write := append(read, []string{
+		NamespaceCapabilityScaleJob,
 		NamespaceCapabilitySubmitJob,
 		NamespaceCapabilityDispatchJob,
 		NamespaceCapabilityReadLogs,
@@ -182,6 +192,13 @@ func expandNamespacePolicy(policy string) []string {
 		return read
 	case PolicyWrite:
 		return write
+	case PolicyAutoscaler:
+		return []string{
+			NamespaceCapabilityListScalingPolicies,
+			NamespaceCapabilityReadScalingPolicy,
+			NamespaceCapabilityReadJobScaling,
+			NamespaceCapabilityScaleJob,
+		}
 	default:
 		return nil
 	}

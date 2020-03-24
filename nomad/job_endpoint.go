@@ -14,13 +14,14 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul/lib"
+	"github.com/pkg/errors"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -189,6 +190,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
+	// Ensure that all scaling policies have an appropriate ID
+	if err := propagateScalingPolicyIDs(existingJob, args.Job); err != nil {
+		return err
+	}
+
 	// Ensure that the job has permissions for the requested Vault tokens
 	policies := args.Job.VaultPolicies()
 	if len(policies) != 0 {
@@ -329,6 +335,31 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.EvalID = eval.ID
 	reply.EvalCreateIndex = evalIndex
 	reply.Index = evalIndex
+	return nil
+}
+
+// propagateScalingPolicyIDs propagates scaling policy IDs from existing job
+// to updated job, or generates random IDs in new job
+func propagateScalingPolicyIDs(old, new *structs.Job) error {
+
+	oldIDs := make(map[string]string)
+	if old != nil {
+		// jobs currently only have scaling policies on task groups, so we can
+		// find correspondences using task group names
+		for _, p := range old.GetScalingPolicies() {
+			oldIDs[p.Target[structs.ScalingTargetGroup]] = p.ID
+		}
+	}
+
+	// ignore any existing ID in the policy, they should be empty
+	for _, p := range new.GetScalingPolicies() {
+		if id, ok := oldIDs[p.Target[structs.ScalingTargetGroup]]; ok {
+			p.ID = id
+		} else {
+			p.ID = uuid.Generate()
+		}
+	}
+
 	return nil
 }
 
@@ -806,6 +837,136 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 	}
 
 	reply.Index = index
+	return nil
+}
+
+// Scale is used to modify one of the scaling targets in the job
+func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterResponse) error {
+	if done, err := j.srv.forward("Job.Scale", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "scale"}, time.Now())
+
+	// Validate the arguments
+	namespace := args.Target[structs.ScalingTargetNamespace]
+	jobID := args.Target[structs.ScalingTargetJob]
+	groupName := args.Target[structs.ScalingTargetGroup]
+	if namespace != "" && namespace != args.RequestNamespace() {
+		return structs.NewErrRPCCoded(400, "namespace in payload did not match header")
+	} else if namespace == "" {
+		namespace = args.RequestNamespace()
+	}
+	if jobID != "" && jobID != args.JobID {
+		return fmt.Errorf("job ID in payload did not match URL")
+	}
+	if groupName == "" {
+		return structs.NewErrRPCCoded(400, "missing task group name for scaling action")
+	}
+	if args.Error != nil && args.Reason != nil {
+		return structs.NewErrRPCCoded(400, "scaling action should not contain error and scaling reason")
+	}
+	if args.Error != nil && args.Count != nil {
+		return structs.NewErrRPCCoded(400, "scaling action should not contain error and count")
+	}
+
+	// Check for submit-job permissions
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil {
+		hasScaleJob := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityScaleJob)
+		hasSubmitJob := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob)
+		if !(hasScaleJob || hasSubmitJob) {
+			return structs.ErrPermissionDenied
+		}
+	}
+
+	// Lookup the job
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	ws := memdb.NewWatchSet()
+	job, err := snap.JobByID(ws, namespace, args.JobID)
+	if err != nil {
+		return err
+	}
+	if job == nil {
+		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
+	}
+
+	index := job.ModifyIndex
+	if args.Count != nil {
+		found := false
+		for _, tg := range job.TaskGroups {
+			if groupName == tg.Name {
+				tg.Count = int(*args.Count) // TODO: not safe, check this above
+				found = true
+				break
+			}
+		}
+		if !found {
+			return structs.NewErrRPCCoded(400,
+				fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
+		}
+		registerReq := structs.JobRegisterRequest{
+			Job:            job,
+			EnforceIndex:   true,
+			JobModifyIndex: job.ModifyIndex,
+			PolicyOverride: args.PolicyOverride,
+			WriteRequest:   args.WriteRequest,
+		}
+
+		// Commit this update via Raft
+		_, index, err = j.srv.raftApply(structs.JobRegisterRequestType, registerReq)
+		if err != nil {
+			j.logger.Error("job register for scale failed", "error", err)
+			return err
+		}
+
+	}
+
+	// Populate the reply with job information
+	reply.JobModifyIndex = index
+
+	// FINISH:
+	// register the scaling event to the scaling_event table, once that exists
+
+	// If the job is periodic or parameterized, we don't create an eval.
+	if job != nil && (job.IsPeriodic() || job.IsParameterized()) {
+		return nil
+	}
+
+	// Create a new evaluation
+	// FINISH: only do this if args.Error == nil || ""
+	now := time.Now().UTC().UnixNano()
+	eval := &structs.Evaluation{
+		ID:             uuid.Generate(),
+		Namespace:      args.RequestNamespace(),
+		Priority:       structs.JobDefaultPriority,
+		Type:           structs.JobTypeService,
+		TriggeredBy:    structs.EvalTriggerScaling,
+		JobID:          args.JobID,
+		JobModifyIndex: index,
+		Status:         structs.EvalStatusPending,
+		CreateTime:     now,
+		ModifyTime:     now,
+	}
+	update := &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval},
+		WriteRequest: structs.WriteRequest{Region: args.Region},
+	}
+
+	// Commit this evaluation via Raft
+	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+	if err != nil {
+		j.logger.Error("eval create failed", "error", err, "method", "deregister")
+		return err
+	}
+
+	// Populate the reply with eval information
+	reply.EvalID = eval.ID
+	reply.EvalCreateIndex = evalIndex
+	reply.Index = evalIndex
 	return nil
 }
 
@@ -1540,4 +1701,80 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 	}
 
 	return nil
+}
+
+// ScaleStatus retrieves the scaling status for a job
+func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
+	reply *structs.JobScaleStatusResponse) error {
+
+	if done, err := j.srv.forward("Job.ScaleStatus", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "scale_status"}, time.Now())
+
+	// Check for autoscaler permissions
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil {
+		hasReadJob := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
+		hasReadJobScaling := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJobScaling)
+		if !(hasReadJob || hasReadJobScaling) {
+			return structs.ErrPermissionDenied
+		}
+	}
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+
+			// We need the job and the job summary
+			job, err := state.JobByID(ws, args.RequestNamespace(), args.JobID)
+			if err != nil {
+				return err
+			}
+			if job == nil {
+				reply.JobScaleStatus = nil
+				return nil
+			}
+			deployment, err := state.LatestDeploymentByJobID(ws, args.RequestNamespace(), args.JobID)
+			if err != nil {
+				return err
+			}
+
+			// Setup the output
+			reply.JobScaleStatus = &structs.JobScaleStatus{
+				JobID:          job.ID,
+				JobCreateIndex: job.CreateIndex,
+				JobModifyIndex: job.ModifyIndex,
+				JobStopped:     job.Stop,
+				TaskGroups:     make(map[string]*structs.TaskGroupScaleStatus),
+			}
+
+			for _, tg := range job.TaskGroups {
+				tgScale := &structs.TaskGroupScaleStatus{
+					Desired: tg.Count,
+				}
+				if deployment != nil {
+					if ds, ok := deployment.TaskGroups[tg.Name]; ok {
+						tgScale.Placed = ds.PlacedAllocs
+						tgScale.Healthy = ds.HealthyAllocs
+						tgScale.Unhealthy = ds.UnhealthyAllocs
+					}
+				}
+				reply.JobScaleStatus.TaskGroups[tg.Name] = tgScale
+			}
+
+			if deployment != nil && deployment.ModifyIndex > job.ModifyIndex {
+				reply.Index = deployment.ModifyIndex
+			} else {
+				reply.Index = job.ModifyIndex
+			}
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return j.srv.blockingRPC(&opts)
 }

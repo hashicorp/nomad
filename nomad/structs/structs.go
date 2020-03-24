@@ -25,8 +25,12 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
-	multierror "github.com/hashicorp/go-multierror"
-	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-version"
+	"github.com/mitchellh/copystructure"
+	"github.com/ugorji/go/codec"
+	"golang.org/x/crypto/blake2b"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
@@ -35,9 +39,6 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/mitchellh/copystructure"
-	"github.com/ugorji/go/codec"
-	"golang.org/x/crypto/blake2b"
 )
 
 var (
@@ -617,8 +618,29 @@ type JobPlanRequest struct {
 	WriteRequest
 }
 
+// JobScaleRequest is used for the Job.Scale endpoint to scale one of the
+// scaling targets in a job
+type JobScaleRequest struct {
+	Namespace string
+	JobID     string
+	Target    map[string]string
+	Count     *int64
+	Reason    *string
+	Error     *string
+	Meta      map[string]interface{}
+	// PolicyOverride is set when the user is attempting to override any policies
+	PolicyOverride bool
+	WriteRequest
+}
+
 // JobSummaryRequest is used when we just need to get a specific job summary
 type JobSummaryRequest struct {
+	JobID string
+	QueryOptions
+}
+
+// JobScaleStatusRequest is used to get the scale status for a job
+type JobScaleStatusRequest struct {
 	JobID string
 	QueryOptions
 }
@@ -1045,6 +1067,29 @@ type DeploymentFailRequest struct {
 	WriteRequest
 }
 
+// ScalingPolicySpecificRequest is used when we just need to specify a target scaling policy
+type ScalingPolicySpecificRequest struct {
+	ID string
+	QueryOptions
+}
+
+// SingleScalingPolicyResponse is used to return a single job
+type SingleScalingPolicyResponse struct {
+	Policy *ScalingPolicy
+	QueryMeta
+}
+
+// ScalingPolicyListRequest is used to parameterize a scaling policy list request
+type ScalingPolicyListRequest struct {
+	QueryOptions
+}
+
+// ScalingPolicyListResponse is used for a list request
+type ScalingPolicyListResponse struct {
+	Policies []*ScalingPolicyListStub
+	QueryMeta
+}
+
 // SingleDeploymentResponse is used to respond with a single deployment
 type SingleDeploymentResponse struct {
 	Deployment *Deployment
@@ -1187,6 +1232,39 @@ type SingleJobResponse struct {
 type JobSummaryResponse struct {
 	JobSummary *JobSummary
 	QueryMeta
+}
+
+// JobScaleStatusResponse is used to return the scale status for a job
+type JobScaleStatusResponse struct {
+	JobScaleStatus *JobScaleStatus
+	QueryMeta
+}
+
+type JobScaleStatus struct {
+	JobID          string
+	JobCreateIndex uint64
+	JobModifyIndex uint64
+	JobStopped     bool
+	TaskGroups     map[string]*TaskGroupScaleStatus
+}
+
+// TaskGroupScaleStatus is used to return the scale status for a given task group
+type TaskGroupScaleStatus struct {
+	Desired   int
+	Placed    int
+	Running   int
+	Healthy   int
+	Unhealthy int
+	Events    []ScalingEvent
+}
+
+// ScalingEvent represents a specific scaling event
+type ScalingEvent struct {
+	Reason *string
+	Error  *string
+	Meta   map[string]interface{}
+	Time   uint64
+	EvalID *string
 }
 
 type JobDispatchResponse struct {
@@ -4003,6 +4081,8 @@ func (j *Job) SpecChanged(new *Job) bool {
 	c.JobModifyIndex = j.JobModifyIndex
 	c.SubmitTime = j.SubmitTime
 
+	// cgbaker: FINISH: probably need some consideration of scaling policy ID here
+
 	// Deep equals the jobs
 	return !reflect.DeepEqual(j, c)
 }
@@ -4576,6 +4656,91 @@ const (
 	ReasonWithinPolicy = "Restart within policy"
 )
 
+// ScalingPolicy specifies the scaling policy for a scaling target
+type ScalingPolicy struct {
+	// ID is a generated UUID used for looking up the scaling policy
+	ID string
+
+	// Target contains information about the target of the scaling policy, like job and group
+	Target map[string]string
+
+	// Policy is an opaque description of the scaling policy, passed to the autoscaler
+	Policy map[string]interface{}
+
+	// Min is the minimum allowable scaling count for this target
+	Min int64
+
+	// Max is the maximum allowable scaling count for this target
+	Max int64
+
+	// Enabled indicates whether this policy has been enabled/disabled
+	Enabled bool
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+const (
+	ScalingTargetNamespace = "Namespace"
+	ScalingTargetJob       = "Job"
+	ScalingTargetGroup     = "Group"
+)
+
+// Diff indicates whether the specification for a given scaling policy has changed
+func (p *ScalingPolicy) Diff(p2 *ScalingPolicy) bool {
+	copy := *p2
+	copy.ID = p.ID
+	copy.CreateIndex = p.CreateIndex
+	copy.ModifyIndex = p.ModifyIndex
+	return !reflect.DeepEqual(*p, copy)
+}
+
+func (p *ScalingPolicy) TargetTaskGroup(job *Job, tg *TaskGroup) *ScalingPolicy {
+	p.Target = map[string]string{
+		ScalingTargetNamespace: job.Namespace,
+		ScalingTargetJob:       job.ID,
+		ScalingTargetGroup:     tg.Name,
+	}
+	return p
+}
+
+func (p *ScalingPolicy) Stub() *ScalingPolicyListStub {
+	stub := &ScalingPolicyListStub{
+		ID:          p.ID,
+		Target:      make(map[string]string),
+		Enabled:     p.Enabled,
+		CreateIndex: p.CreateIndex,
+		ModifyIndex: p.ModifyIndex,
+	}
+	for k, v := range p.Target {
+		stub.Target[k] = v
+	}
+	return stub
+}
+
+// GetScalingPolicies returns a slice of all scaling scaling policies for this job
+func (j *Job) GetScalingPolicies() []*ScalingPolicy {
+	ret := make([]*ScalingPolicy, 0)
+
+	for _, tg := range j.TaskGroups {
+		if tg.Scaling != nil {
+			ret = append(ret, tg.Scaling)
+		}
+	}
+
+	return ret
+}
+
+// ScalingPolicyListStub is used to return a subset of scaling policy information
+// for the scaling policy list
+type ScalingPolicyListStub struct {
+	ID          string
+	Enabled     bool
+	Target      map[string]string
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
 // RestartPolicy configures how Tasks are restarted when they crash or fail.
 type RestartPolicy struct {
 	// Attempts is the number of restart that will occur in an interval.
@@ -4927,6 +5092,9 @@ type TaskGroup struct {
 	// all the tasks contained.
 	Constraints []*Constraint
 
+	// Scaling is the list of autoscaling policies for the TaskGroup
+	Scaling *ScalingPolicy
+
 	//RestartPolicy of a TaskGroup
 	RestartPolicy *RestartPolicy
 
@@ -4980,6 +5148,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
 	ntg.Volumes = CopyMapVolumeRequest(ntg.Volumes)
+	ntg.Scaling = CopyScalingPolicy(ntg.Scaling)
 
 	// Copy the network objects
 	if tg.Networks != nil {
@@ -5204,6 +5373,12 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, outer)
 	}
 
+	// Validate the scaling policy
+	if err := tg.validateScalingPolicy(); err != nil {
+		outer := fmt.Errorf("Task group scaling policy validation failed: %v", err)
+		mErr.Errors = append(mErr.Errors, outer)
+	}
+
 	// Validate the tasks
 	for _, task := range tg.Tasks {
 		// Validate the task does not reference undefined volume mounts
@@ -5352,6 +5527,33 @@ func (tg *TaskGroup) validateServices() error {
 			}
 		}
 	}
+	return mErr.ErrorOrNil()
+}
+
+// validateScalingPolicy ensures that the scaling policy has consistent
+// min and max, not in conflict with the task group count
+func (tg *TaskGroup) validateScalingPolicy() error {
+	if tg.Scaling == nil {
+		return nil
+	}
+
+	var mErr multierror.Error
+
+	if tg.Scaling.Min > tg.Scaling.Max {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("Scaling policy invalid: maximum count must not be less than minimum count"))
+	}
+
+	if int64(tg.Count) < tg.Scaling.Min {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("Scaling policy invalid: task group count must not be less than minimum count in scaling policy"))
+	}
+
+	if tg.Scaling.Max < int64(tg.Count) {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("Scaling policy invalid: task group count must not be greater than maximum count in scaling policy"))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -8671,6 +8873,7 @@ const (
 	EvalTriggerRetryFailedAlloc  = "alloc-failure"
 	EvalTriggerQueuedAllocs      = "queued-allocs"
 	EvalTriggerPreemption        = "preemption"
+	EvalTriggerScaling           = "job-scaling"
 )
 
 const (

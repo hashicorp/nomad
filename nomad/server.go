@@ -258,6 +258,7 @@ type endpoints struct {
 	System     *System
 	Operator   *Operator
 	ACL        *ACL
+	Scaling    *Scaling
 	Enterprise *EnterpriseEndpoints
 
 	// Client endpoints
@@ -1102,6 +1103,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.Periodic = &Periodic{srv: s, logger: s.logger.Named("periodic")}
 		s.staticEndpoints.Plan = &Plan{srv: s, logger: s.logger.Named("plan")}
 		s.staticEndpoints.Region = &Region{srv: s, logger: s.logger.Named("region")}
+		s.staticEndpoints.Scaling = &Scaling{srv: s, logger: s.logger.Named("scaling")}
 		s.staticEndpoints.Status = &Status{srv: s, logger: s.logger.Named("status")}
 		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system")}
 		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
@@ -1133,6 +1135,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.Periodic)
 	server.Register(s.staticEndpoints.Plan)
 	server.Register(s.staticEndpoints.Region)
+	server.Register(s.staticEndpoints.Scaling)
 	server.Register(s.staticEndpoints.Status)
 	server.Register(s.staticEndpoints.System)
 	server.Register(s.staticEndpoints.Search)
