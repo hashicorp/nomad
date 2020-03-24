@@ -54,7 +54,7 @@ type Agent struct {
 	configLock sync.Mutex
 
 	logger     log.InterceptLogger
-	eventer    event.Eventer
+	auditor    event.Auditor
 	httpLogger log.Logger
 	logOutput  io.Writer
 
