@@ -2988,14 +2988,11 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Equal(t, 1, len(vs))
 }
 
-// TestStateStore_CSIPluginNodes uses the state from jobs, and uses node fingerprinting to update health
+// TestStateStore_CSIPluginNodes uses node fingerprinting to create a plugin and update health
 func TestStateStore_CSIPluginNodes(t *testing.T) {
 	index := uint64(999)
 	state := testStateStore(t)
-	testStateStore_CSIPluginNodes(t, index, state)
-}
 
-func testStateStore_CSIPluginNodes(t *testing.T, index uint64, state *StateStore) (uint64, *StateStore) {
 	// Create Nodes fingerprinting the plugins
 	ns := []*structs.Node{mock.Node(), mock.Node()}
 
@@ -3077,6 +3074,20 @@ func testStateStore_CSIPluginNodes(t *testing.T, index uint64, state *StateStore
 	require.Equal(t, 0, plug.ControllersHealthy)
 	require.Equal(t, 2, plug.NodesHealthy)
 
+	// Volume using the plugin
+	index++
+	vol := &structs.CSIVolume{
+		ID:        uuid.Generate(),
+		Namespace: "n",
+		PluginID:  "foo",
+	}
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	require.NoError(t, err)
+
+	vol, err = state.CSIVolumeByID(ws, "n", vol.ID)
+	require.NoError(t, err)
+	require.True(t, vol.Schedulable)
+
 	// Node plugin is removed
 	n1 := ns[1].Copy()
 	n1.CSINodePlugins = map[string]*structs.CSIInfo{}
@@ -3101,14 +3112,10 @@ func testStateStore_CSIPluginNodes(t *testing.T, index uint64, state *StateStore
 	require.NoError(t, err)
 	require.Nil(t, plug)
 
-	return index, state
-}
-
-// TestStateStore_CSIPluginBackwards gets the node state first, and the job state second
-func TestStateStore_CSIPluginBackwards(t *testing.T) {
-	index := uint64(999)
-	state := testStateStore(t)
-	index, state = testStateStore_CSIPluginNodes(t, index, state)
+	// Volume exists and is safe to query, but unschedulable
+	vol, err = state.CSIVolumeByID(ws, "n", vol.ID)
+	require.NoError(t, err)
+	require.False(t, vol.Schedulable)
 }
 
 func TestStateStore_Indexes(t *testing.T) {
