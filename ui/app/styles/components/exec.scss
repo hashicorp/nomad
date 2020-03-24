@@ -15,6 +15,10 @@
 
     .terminal {
       height: 100%;
+
+      .xterm .xterm-viewport {
+        overflow-y: auto;
+      }
     }
   }
 }
@@ -25,7 +29,7 @@
   padding: 16px;
   width: 200px;
   flex-shrink: 0;
-  overflow-y: scroll;
+  overflow-y: auto;
 
   .title {
     text-transform: uppercase;
