@@ -48,7 +48,8 @@ function smallCluster(server) {
   const volumes = server.schema.csiVolumes.all().models;
   csiAllocations.forEach(alloc => {
     const volume = pickOne(volumes);
-    volume.allocations.add(alloc);
+    volume.writeAllocs.add(alloc);
+    volume.readAllocs.add(alloc);
     volume.save();
   });
 }
