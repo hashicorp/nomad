@@ -104,7 +104,7 @@ func TestScalingEndpoint_GetPolicy_ACL(t *testing.T) {
 		{
 			name: "autoscaler disposition should succeed",
 			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-autoscaler",
-				mock.NamespacePolicy(structs.DefaultNamespace, "autoscaler", nil)).SecretID,
+				mock.NamespacePolicy(structs.DefaultNamespace, "scale", nil)).SecretID,
 		},
 		{
 			name: "list-jobs+read-job capability should succeed",
@@ -208,7 +208,7 @@ func TestScalingEndpoint_ListPolicies_ACL(t *testing.T) {
 		{
 			name: "autoscaler disposition should succeed",
 			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-autoscaler",
-				mock.NamespacePolicy(structs.DefaultNamespace, "autoscaler", nil)).SecretID,
+				mock.NamespacePolicy(structs.DefaultNamespace, "scale", nil)).SecretID,
 		},
 		{
 			name: "list-scaling-policies capability should succeed",

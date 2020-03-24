@@ -5369,7 +5369,7 @@ func TestJobEndpoint_Scale_ACL(t *testing.T) {
 		{
 			name: "autoscaler disposition should succeed",
 			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-autoscaler",
-				mock.NamespacePolicy(structs.DefaultNamespace, "autoscaler", nil)).
+				mock.NamespacePolicy(structs.DefaultNamespace, "scale", nil)).
 				SecretID,
 		},
 		{
@@ -5568,7 +5568,7 @@ func TestJobEndpoint_GetScaleStatus_ACL(t *testing.T) {
 		{
 			name: "autoscaler disposition should succeed",
 			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-autoscaler",
-				mock.NamespacePolicy(structs.DefaultNamespace, "autoscaler", nil)).
+				mock.NamespacePolicy(structs.DefaultNamespace, "scale", nil)).
 				SecretID,
 		},
 		{
