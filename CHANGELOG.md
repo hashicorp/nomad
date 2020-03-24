@@ -1,4 +1,10 @@
-## 0.10.4 (Unreleased)
+## 0.10.5 (March 24, 2020
+
+SECURITY:
+
+* server: Override content-type headers for unsafe content. CVE-TBD [GH-7468](https://github.com/hashicorp/nomad/issues/7468)
+
+## 0.10.4 (February 19, 2020)
 
 FEATURES:
 
