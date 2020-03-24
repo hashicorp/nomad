@@ -1,4 +1,5 @@
 const REVERSE_WRAPAROUND_MODE = '\x1b[?45h';
+const BACKSPACE_ONE_CHARACTER = '\x08 \x08';
 
 export default class ExecCommandEditorXtermAdapter {
   constructor(terminal, setCommandCallback, command) {
@@ -25,7 +26,7 @@ export default class ExecCommandEditorXtermAdapter {
       this.keyListener.dispose();
     } else if (e.domEvent.key === 'Backspace') {
       if (this.command.length > 0) {
-        this.terminal.write('\x08 \x08');
+        this.terminal.write(BACKSPACE_ONE_CHARACTER);
         this.command = this.command.slice(0, -1);
       }
     } else if (e.key.length > 0) {
