@@ -41,6 +41,9 @@ export default ApplicationAdapter.extend({
   // It's either this weird side-effecting thing that also requires a change
   // to ajaxOptions or overriding ajax completely.
   ajax(url, type, options) {
+    const hasParams = options && options.data && Object.keys(options.data).length;
+    if (!hasParams) return this._super(url, type, options);
+
     const params = { ...options.data };
     delete params.index;
 
