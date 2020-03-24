@@ -1256,7 +1256,9 @@ func ACLManagementToken() *structs.ACLToken {
 
 func ScalingPolicy() *structs.ScalingPolicy {
 	return &structs.ScalingPolicy{
-		ID: uuid.Generate(),
+		ID:  uuid.Generate(),
+		Min: 1,
+		Max: 100,
 		Target: map[string]string{
 			structs.ScalingTargetNamespace: structs.DefaultNamespace,
 			structs.ScalingTargetJob:       uuid.Generate(),

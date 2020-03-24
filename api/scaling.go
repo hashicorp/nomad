@@ -28,18 +28,12 @@ func (s *Scaling) GetPolicy(ID string, q *QueryOptions) (*ScalingPolicy, *QueryM
 	return &policy, qm, nil
 }
 
-func (p *ScalingPolicy) Canonicalize(tg *TaskGroup) {
+func (p *ScalingPolicy) Canonicalize(taskGroupCount int) {
 	if p.Enabled == nil {
 		p.Enabled = boolToPtr(true)
 	}
 	if p.Min == nil {
-		var m int64
-		if tg.Count != nil {
-			m = int64(*tg.Count)
-		} else {
-			// this should not be at this point, but safeguard here just in case
-			m = 0
-		}
+		var m int64 = int64(taskGroupCount)
 		p.Min = &m
 	}
 }

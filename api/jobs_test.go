@@ -1595,18 +1595,20 @@ func TestJobs_ScaleAction(t *testing.T) {
 	require.Contains(err.Error(), "not found")
 
 	// Register the job
-	_, wm, err := jobs.Register(job, nil)
+	regResp, wm, err := jobs.Register(job, nil)
 	require.NoError(err)
 	assertWriteMeta(t, wm)
 
 	// Perform scaling action
 	newCount := groupCount + 1
-	resp1, wm, err := jobs.Scale(id, groupName,
+	scalingResp, wm, err := jobs.Scale(id, groupName,
 		intToPtr(newCount), stringToPtr("need more instances"), nil, nil, nil)
 
 	require.NoError(err)
-	require.NotNil(resp1)
-	require.NotEmpty(resp1.EvalID)
+	require.NotNil(scalingResp)
+	require.NotEmpty(scalingResp.EvalID)
+	require.NotEmpty(scalingResp.EvalCreateIndex)
+	require.Greater(scalingResp.JobModifyIndex, regResp.JobModifyIndex)
 	assertWriteMeta(t, wm)
 
 	// Query the job again
@@ -1614,7 +1616,47 @@ func TestJobs_ScaleAction(t *testing.T) {
 	require.NoError(err)
 	require.Equal(*resp.TaskGroups[0].Count, newCount)
 
-	// TODO: check if reason is stored
+	// TODO: check that scaling event was persisted
+}
+
+func TestJobs_ScaleAction_Noop(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	id := "job-id/with\\troublesome:characters\n?&字\000"
+	job := testJobWithScalingPolicy()
+	job.ID = &id
+	groupName := *job.TaskGroups[0].Name
+	prevCount := *job.TaskGroups[0].Count
+
+	// Register the job
+	regResp, wm, err := jobs.Register(job, nil)
+	require.NoError(err)
+	assertWriteMeta(t, wm)
+
+	// Perform scaling action
+	scaleResp, wm, err := jobs.Scale(id, groupName,
+		nil, stringToPtr("no count, just informative"), nil, nil, nil)
+
+	require.NoError(err)
+	require.NotNil(scaleResp)
+	require.Empty(scaleResp.EvalID)
+	require.Empty(scaleResp.EvalCreateIndex)
+	assertWriteMeta(t, wm)
+
+	// Query the job again
+	resp, _, err := jobs.Info(*job.ID, nil)
+	require.NoError(err)
+	require.Equal(*resp.TaskGroups[0].Count, prevCount)
+	require.Equal(regResp.JobModifyIndex, scaleResp.JobModifyIndex)
+	require.Empty(scaleResp.EvalCreateIndex)
+	require.Empty(scaleResp.EvalID)
+
+	// TODO: check that scaling event was persisted
 }
 
 // TestJobs_ScaleStatus tests the /scale status endpoint for task group count

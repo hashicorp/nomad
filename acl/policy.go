@@ -11,11 +11,11 @@ const (
 	// The following levels are the only valid values for the `policy = "read"` stanza.
 	// When policies are merged together, the most privilege is granted, except for deny
 	// which always takes precedence and supercedes.
-	PolicyDeny       = "deny"
-	PolicyRead       = "read"
-	PolicyList       = "list"
-	PolicyWrite      = "write"
-	PolicyAutoscaler = "autoscaler"
+	PolicyDeny  = "deny"
+	PolicyRead  = "read"
+	PolicyList  = "list"
+	PolicyWrite = "write"
+	PolicyScale = "scale"
 )
 
 const (
@@ -126,7 +126,7 @@ type PluginPolicy struct {
 // isPolicyValid makes sure the given string matches one of the valid policies.
 func isPolicyValid(policy string) bool {
 	switch policy {
-	case PolicyDeny, PolicyRead, PolicyWrite, PolicyAutoscaler:
+	case PolicyDeny, PolicyRead, PolicyWrite, PolicyScale:
 		return true
 	default:
 		return false
@@ -192,7 +192,7 @@ func expandNamespacePolicy(policy string) []string {
 		return read
 	case PolicyWrite:
 		return write
-	case PolicyAutoscaler:
+	case PolicyScale:
 		return []string{
 			NamespaceCapabilityListScalingPolicies,
 			NamespaceCapabilityReadScalingPolicy,

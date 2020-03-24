@@ -1139,6 +1139,8 @@ func TestParse(t *testing.T) {
 					{
 						Name: helper.StringToPtr("group"),
 						Scaling: &api.ScalingPolicy{
+							Min: helper.Int64ToPtr(5),
+							Max: 100,
 							Policy: map[string]interface{}{
 								"foo": "bar",
 								"b":   true,

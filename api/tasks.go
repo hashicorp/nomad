@@ -450,6 +450,9 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 			g.Count = intToPtr(1)
 		}
 	}
+	if g.Scaling != nil {
+		g.Scaling.Canonicalize(*g.Count)
+	}
 	for _, t := range g.Tasks {
 		t.Canonicalize(g, job)
 	}
@@ -547,10 +550,6 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	}
 	for _, s := range g.Services {
 		s.Canonicalize(nil, g, job)
-	}
-
-	if g.Scaling != nil {
-		g.Scaling.Canonicalize(g)
 	}
 }
 

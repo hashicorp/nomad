@@ -27,8 +27,8 @@ func uint64ToPtr(u uint64) *uint64 {
 }
 
 // int64ToPtr returns the pointer to a int64
-func int64ToPtr(u int64) *int64 {
-	return &u
+func int64ToPtr(i int64) *int64 {
+	return &i
 }
 
 // stringToPtr returns the pointer to a string
