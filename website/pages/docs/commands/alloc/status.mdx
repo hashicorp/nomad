@@ -8,12 +8,14 @@ description: |
 
 # Command: alloc status
 
-The `alloc status` command displays status information and metadata about an
-existing allocation and its tasks. It can be useful while debugging to reveal
-the underlying reasons for scheduling decisions or failures, as well as the
-current state of its tasks. As of Nomad 0.7.1, alloc status also shows
-allocation modification time in addition to create time. As of Nomad 0.8, alloc
-status shows information about reschedule attempts.
+The `alloc status` command displays status information and metadata
+about an existing allocation and its tasks. It can be useful while
+debugging to reveal the underlying reasons for scheduling decisions or
+failures, as well as the current state of its tasks. As of Nomad
+0.7.1, alloc status also shows allocation modification time in
+addition to create time. As of Nomad 0.8, alloc status shows
+information about reschedule attempts. As of Nomad 0.11, alloc status
+shows volume claims when a job claims volumes.
 
 ## Usage
 
@@ -87,6 +89,10 @@ Task "redis" is "running"
 Task Resources
 CPU        Memory           Disk     Addresses
 1/500 MHz  6.3 MiB/256 MiB  300 MiB  db: 127.0.0.1:27908
+
+CSI Volumes:
+ID            Plugin  Provider  Schedulable  Mount Options
+vol-4150af42  ebs0    aws.ebs   true         <none>
 
 Task Events:
 Started At     = 07/25/17 16:12:48 UTC

@@ -105,6 +105,7 @@ export default [
           'raft-remove-peer'
         ]
       },
+      { category: 'plugin', content: ['status'] },
       {
         category: 'quota',
         content: ['apply', 'delete', 'init', 'inspect', 'list', 'status']
@@ -114,7 +115,8 @@ export default [
       'status',
       { category: 'system', content: ['gc', 'reconcile-summaries'] },
       'ui',
-      'version'
+      'version',
+      { category: 'volume', content: ['register', 'deregister', 'status'] }
     ]
   },
   '----------',
@@ -126,6 +128,7 @@ export default [
       'check_restart',
       'connect',
       'constraint',
+      'csi_plugin',
       'device',
       'dispatch_payload',
       'env',
