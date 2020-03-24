@@ -52,5 +52,13 @@ module.exports = function(defaults) {
   // please specify an object with the list of modules as keys
   // along with the exports of each module as its value.
 
+  app.import('node_modules/xterm/css/xterm.css');
+  // Issue to move to typical package.json import when released: https://github.com/hashicorp/nomad/issues/7461
+  app.import('vendor/xterm.js', {
+    using: [
+      { transformation: 'amd', as: 'xterm-vendor' },
+    ],
+  });
+
   return app.toTree();
 };

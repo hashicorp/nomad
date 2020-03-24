@@ -5,8 +5,9 @@
   </ul>
 </div>
 <section class="section">
-  <h1 class="title">
-    {{model.name}}
+  <h1 class="title with-flex">
+    <span>{{model.name}}</span>
+    {{exec/open-button job=model.job taskGroup=model}}
   </h1>
 
   <div class="boxed-section is-small">

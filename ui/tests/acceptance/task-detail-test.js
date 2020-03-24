@@ -252,6 +252,10 @@ module('Acceptance | task detail', function(hooks) {
 
     assert.notOk(Task.inlineError.isShown, 'Inline error is no longer shown');
   });
+
+  test('exec button is present', async function(assert) {
+    assert.ok(Task.execButton.isPresent);
+  });
 });
 
 module('Acceptance | task detail (no addresses)', function(hooks) {
@@ -345,6 +349,10 @@ module('Acceptance | task detail (not running)', function(hooks) {
   test('when the allocation for a task is not running, the resource utilization graphs are replaced by an empty message', async function(assert) {
     assert.equal(Task.resourceCharts.length, 0, 'No resource charts');
     assert.equal(Task.resourceEmptyMessage, "Task isn't running", 'Empty message is appropriate');
+  });
+
+  test('exec button is absent', async function(assert) {
+    assert.notOk(Task.execButton.isPresent);
   });
 });
 

@@ -128,6 +128,11 @@ export default Factory.extend({
       withServices: job.withGroupServices,
       shallow: job.shallow,
     };
+
+    if (job.groupTaskCount) {
+      groupProps.count = job.groupTaskCount;
+    }
+
     const groups = job.noHostVolumes
       ? server.createList('task-group', job.groupsCount, 'noHostVolumes', groupProps)
       : server.createList('task-group', job.groupsCount, groupProps);

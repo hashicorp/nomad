@@ -14,34 +14,42 @@
     </div>
   {{/if}}
 
-  <h1 data-test-title class="title with-headroom">
-    Allocation {{model.name}}
-    <span class="bumper-left tag {{model.statusClass}}">{{model.clientStatus}}</span>
-    <span class="tag is-hollow is-small no-text-transform">
-      {{model.id}}
-      {{copy-button clipboardText=model.id}}
-    </span>
-    {{#if model.isRunning}}
-      {{two-step-button
-        data-test-stop
-        idleText="Stop"
-        cancelText="Cancel"
-        confirmText="Yes, Stop"
-        confirmationMessage="Are you sure? This will reschedule the allocation on a different client."
-        awaitingConfirmation=stopAllocation.isRunning
-        disabled=(or stopAllocation.isRunning restartAllocation.isRunning)
-        onConfirm=(perform stopAllocation)}}
-      {{two-step-button
-        data-test-restart
-        idleText="Restart"
-        cancelText="Cancel"
-        confirmText="Yes, Restart"
-        confirmationMessage="Are you sure? This will restart the allocation in-place."
-        awaitingConfirmation=restartAllocation.isRunning
-        disabled=(or stopAllocation.isRunning restartAllocation.isRunning)
-        onConfirm=(perform restartAllocation)}}
-    {{/if}}
+  <h1 data-test-title class="title with-headroom with-flex">
+    <div>
+      Allocation {{model.name}}
+      <span class="bumper-left tag {{model.statusClass}}">{{model.clientStatus}}</span>
+    </div>
+    <div>
+      {{#if model.isRunning}}
+        <div class="two-step-button">
+          {{exec/open-button job=model.job allocation=model}}
+        </div>
+        {{two-step-button
+          data-test-stop
+          idleText="Stop"
+          cancelText="Cancel"
+          confirmText="Yes, Stop"
+          confirmationMessage="Are you sure? This will reschedule the allocation on a different client."
+          awaitingConfirmation=stopAllocation.isRunning
+          disabled=(or stopAllocation.isRunning restartAllocation.isRunning)
+          onConfirm=(perform stopAllocation)}}
+        {{two-step-button
+          data-test-restart
+          idleText="Restart"
+          cancelText="Cancel"
+          confirmText="Yes, Restart"
+          confirmationMessage="Are you sure? This will restart the allocation in-place."
+          awaitingConfirmation=restartAllocation.isRunning
+          disabled=(or stopAllocation.isRunning restartAllocation.isRunning)
+          onConfirm=(perform restartAllocation)}}
+      {{/if}}
+    </div>
   </h1>
+
+  <span class="tag is-hollow is-small is-alone no-text-transform">
+    {{model.id}}
+    {{copy-button clipboardText=model.id}}
+  </span>
 
   <div class="boxed-section is-small">
     <div data-test-allocation-details class="boxed-section-body inline-definitions">

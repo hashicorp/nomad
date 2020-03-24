@@ -1,0 +1,19 @@
+<button {{action "toggleOpen"}} class="toggle-button" data-test-task-group-name>
+  {{x-icon (if isOpen "chevron-down" "chevron-right")}}
+  {{taskGroup.name}}
+</button>
+{{#if isOpen}}
+  <ul class="task-list">
+    {{#each tasksWithRunningStates as |task|}}
+      {{#if openInNewWindow}}
+        <a {{on "click" (action "openInNewWindow" taskGroup.job taskGroup task)}} class="task-item" data-test-task>
+          {{exec/task-contents task=task active=(eq task activeTaskState.task) openInNewWindow=openInNewWindow}}
+        </a>
+      {{else}}
+        {{#link-to "exec.task-group.task" taskGroup.job.name taskGroup.name task.name class="task-item" data-test-task=true}}
+          {{exec/task-contents task=task active=(eq task activeTaskState.task) openInNewWindow=openInNewWindow}}
+        {{/link-to}}
+      {{/if}}
+    {{/each}}
+  </ul>
+{{/if}}

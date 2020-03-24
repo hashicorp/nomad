@@ -1,0 +1,46 @@
+{{title "Exec"}}
+{{!-- the application shows briefly in the background, shouldn’t render at all 😳 --}}
+{{!-- issue to fix: https://github.com/hashicorp/nomad/issues/7460 --}}
+<nav class="navbar is-popup">
+  <div class="navbar-brand">
+    <div class="navbar-item is-logo">
+      {{partial "partials/nomad-logo"}}
+    </div>
+  </div>
+    {{#if system.shouldShowRegions}}
+      <div class="navbar-item">
+        <span class="navbar-label">Region</span>
+        <span data-test-region>{{model.region}}</span>
+      </div>
+    {{/if}}
+
+    {{#if system.shouldShowNamespaces}}
+      <div class="navbar-item">
+        <span class="navbar-label">Namespace</span>
+        <span data-test-namespace>{{model.namespace.id}}</span>
+      </div>
+    {{/if}}
+
+    <div class="navbar-item">
+      <span class="navbar-label">Job</span>
+      <span data-test-job>{{model.name}}</span>
+    </div>
+  <div class="navbar-end">
+    <a href="https://nomadproject.io/docs" target="_blank" rel="noopener" class="navbar-item">Documentation</a>
+    {{x-icon "lock-closed"}}
+  </div>
+</nav>
+
+<div class="tree-and-terminal">
+  <div class="task-group-tree">
+    <h4 class="title is-6">Tasks</h4>
+    <ul>
+      {{#each uniqueRunningTaskGroups as |taskGroup|}}
+        <li data-test-task-group>
+          {{exec/task-group-parent taskGroup=taskGroup openInNewWindow=socketOpen activeTaskState=taskState}}
+        </li>
+      {{/each}}
+    </ul>
+  </div>
+  {{exec-terminal terminal=terminal}}
+</div>

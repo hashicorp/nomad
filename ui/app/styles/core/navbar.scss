@@ -75,6 +75,51 @@
     }
   }
 
+  &.is-popup {
+    background-color: $nomad-green-dark;
+    height: 3.5rem;
+    color: $primary-invert;
+    padding-left: 20px;
+    padding-right: 20px;
+    overflow: hidden;
+
+    .navbar-brand {
+      margin-right: 8px;
+    }
+
+    .navbar-item {
+      color: white;
+
+      .navbar-label {
+        font-weight: 600;
+        margin-right: 1rem;
+      }
+    }
+
+    .navbar-end {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin-left: auto;
+    }
+
+    .navbar-end > a.navbar-item {
+      color: rgba($primary-invert, 0.8);
+      text-decoration: none;
+
+      &:hover {
+        color: $primary-invert;
+        background: transparent;
+      }
+    }
+
+    .navbar-brand > a.navbar-item {
+      &:hover {
+        background: transparent;
+      }
+    }
+  }
+
   .navbar-item {
     display: flex;
     align-items: center;
