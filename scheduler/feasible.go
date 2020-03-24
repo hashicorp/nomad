@@ -15,14 +15,16 @@ import (
 )
 
 const (
-	FilterConstraintHostVolumes               = "missing compatible host volumes"
-	FilterConstraintCSIPlugins                = "missing CSI plugins"
-	FilterConstraintCSIVolumesLookupFailed    = "CSI volume lookup failed"
-	FilterConstraintCSIVolumeNotFoundTemplate = "missing CSI Volume %s"
-	FilterConstraintCSIVolumeNoReadTemplate   = "CSI volume %s has exhausted its available reader claims"
-	FilterConstraintCSIVolumeNoWriteTemplate  = "CSI volume %s has exhausted its available writer claims or is read-only"
-	FilterConstraintDrivers                   = "missing drivers"
-	FilterConstraintDevices                   = "missing devices"
+	FilterConstraintHostVolumes                = "missing compatible host volumes"
+	FilterConstraintCSIPluginTemplate          = "CSI plugin %s is missing from client %s"
+	FilterConstraintCSIPluginUnhealthyTemplate = "CSI plugin %s is unhealthy on client %s"
+	FilterConstraintCSIVolumesLookupFailed     = "CSI volume lookup failed"
+	FilterConstraintCSIVolumeNotFoundTemplate  = "missing CSI Volume %s"
+	FilterConstraintCSIVolumeNoReadTemplate    = "CSI volume %s is unschedulable or has exhausted its available reader claims"
+	FilterConstraintCSIVolumeNoWriteTemplate   = "CSI volume %s is unschedulable or is read-only"
+	FilterConstraintCSIVolumeInUseTemplate     = "CSI volume %s has exhausted its available writer claims" //
+	FilterConstraintDrivers                    = "missing drivers"
+	FilterConstraintDevices                    = "missing devices"
 )
 
 // FeasibleIterator is used to iteratively yield nodes that
@@ -191,6 +193,7 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 type CSIVolumeChecker struct {
 	ctx       Context
 	namespace string
+	jobID     string
 	volumes   map[string]*structs.VolumeRequest
 }
 
@@ -198,6 +201,10 @@ func NewCSIVolumeChecker(ctx Context) *CSIVolumeChecker {
 	return &CSIVolumeChecker{
 		ctx: ctx,
 	}
+}
+
+func (c *CSIVolumeChecker) SetJobID(jobID string) {
+	c.jobID = jobID
 }
 
 func (c *CSIVolumeChecker) SetNamespace(namespace string) {
@@ -231,7 +238,7 @@ func (c *CSIVolumeChecker) Feasible(n *structs.Node) bool {
 func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 	// We can mount the volume if
 	// - if required, a healthy controller plugin is running the driver
-	// - the volume has free claims
+	// - the volume has free claims, or this job owns the claims
 	// - this node is running the node plugin, implies matching topology
 
 	// Fast path: Requested no volumes. No need to check further.
@@ -241,8 +248,6 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 
 	ws := memdb.NewWatchSet()
 	for _, req := range c.volumes {
-		// Get the volume to check that it's healthy (there's a healthy controller
-		// and the volume hasn't encountered an error or been marked for GC
 		vol, err := c.ctx.State().CSIVolumeByID(ws, c.namespace, req.Source)
 		if err != nil {
 			return false, FilterConstraintCSIVolumesLookupFailed
@@ -253,15 +258,32 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 
 		// Check that this node has a healthy running plugin with the right PluginID
 		plugin, ok := n.CSINodePlugins[vol.PluginID]
-		if !(ok && plugin.Healthy) {
-			return false, FilterConstraintCSIPlugins
+		if !ok {
+			return false, fmt.Sprintf(FilterConstraintCSIPluginTemplate, vol.PluginID, n.ID)
 		}
+		if !plugin.Healthy {
+			return false, fmt.Sprintf(FilterConstraintCSIPluginUnhealthyTemplate, vol.PluginID, n.ID)
+		}
+
 		if req.ReadOnly {
-			if !vol.CanReadOnly() {
+			if !vol.ReadSchedulable() {
 				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoReadTemplate, vol.ID)
 			}
-		} else if !vol.CanWrite() {
-			return false, fmt.Sprintf(FilterConstraintCSIVolumeNoWriteTemplate, vol.ID)
+		} else {
+			if !vol.WriteSchedulable() {
+				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoWriteTemplate, vol.ID)
+			}
+			if vol.WriteFreeClaims() {
+				return true, ""
+			}
+
+			// Check the blocking allocations to see if they belong to this job
+			for id := range vol.WriteAllocs {
+				a, err := c.ctx.State().AllocByID(ws, id)
+				if err != nil || a.Namespace != c.namespace || a.JobID != c.jobID {
+					return false, fmt.Sprintf(FilterConstraintCSIVolumeInUseTemplate, vol.ID)
+				}
+			}
 		}
 	}
 

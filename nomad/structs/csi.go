@@ -296,7 +296,7 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 	return &stub
 }
 
-func (v *CSIVolume) CanReadOnly() bool {
+func (v *CSIVolume) ReadSchedulable() bool {
 	if !v.Schedulable {
 		return false
 	}
@@ -304,16 +304,26 @@ func (v *CSIVolume) CanReadOnly() bool {
 	return v.ResourceExhausted == time.Time{}
 }
 
-func (v *CSIVolume) CanWrite() bool {
+// WriteSchedulable determines if the volume is schedulable for writes, considering only
+// volume health
+func (v *CSIVolume) WriteSchedulable() bool {
 	if !v.Schedulable {
 		return false
 	}
 
 	switch v.AccessMode {
-	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter:
-		return len(v.WriteAllocs) == 0
-	case CSIVolumeAccessModeMultiNodeMultiWriter:
+	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter, CSIVolumeAccessModeMultiNodeMultiWriter:
 		return v.ResourceExhausted == time.Time{}
+	default:
+		return false
+	}
+}
+
+// WriteFreeClaims determines if there are any free write claims available
+func (v *CSIVolume) WriteFreeClaims() bool {
+	switch v.AccessMode {
+	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter, CSIVolumeAccessModeMultiNodeMultiWriter:
+		return len(v.WriteAllocs) == 0
 	default:
 		return false
 	}
@@ -337,7 +347,7 @@ func (v *CSIVolume) Copy() *CSIVolume {
 }
 
 // Claim updates the allocations and changes the volume state
-func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) bool {
+func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) error {
 	switch claim {
 	case CSIVolumeClaimRead:
 		return v.ClaimRead(alloc)
@@ -346,46 +356,57 @@ func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) bool {
 	case CSIVolumeClaimRelease:
 		return v.ClaimRelease(alloc)
 	}
-	return false
+	return nil
 }
 
 // ClaimRead marks an allocation as using a volume read-only
-func (v *CSIVolume) ClaimRead(alloc *Allocation) bool {
+func (v *CSIVolume) ClaimRead(alloc *Allocation) error {
 	if _, ok := v.ReadAllocs[alloc.ID]; ok {
-		return true
+		return nil
 	}
 
-	if !v.CanReadOnly() {
-		return false
+	if !v.ReadSchedulable() {
+		return fmt.Errorf("unschedulable")
 	}
+
 	// Allocations are copy on write, so we want to keep the id but don't need the
 	// pointer. We'll get it from the db in denormalize.
 	v.ReadAllocs[alloc.ID] = nil
 	delete(v.WriteAllocs, alloc.ID)
-	return true
+	return nil
 }
 
 // ClaimWrite marks an allocation as using a volume as a writer
-func (v *CSIVolume) ClaimWrite(alloc *Allocation) bool {
+func (v *CSIVolume) ClaimWrite(alloc *Allocation) error {
 	if _, ok := v.WriteAllocs[alloc.ID]; ok {
-		return true
+		return nil
 	}
 
-	if !v.CanWrite() {
-		return false
+	if !v.WriteSchedulable() {
+		return fmt.Errorf("unschedulable")
 	}
+
+	if !v.WriteFreeClaims() {
+		// Check the blocking allocations to see if they belong to this job
+		for _, a := range v.WriteAllocs {
+			if a.Namespace != alloc.Namespace || a.JobID != alloc.JobID {
+				return fmt.Errorf("volume max claim reached")
+			}
+		}
+	}
+
 	// Allocations are copy on write, so we want to keep the id but don't need the
 	// pointer. We'll get it from the db in denormalize.
 	v.WriteAllocs[alloc.ID] = nil
 	delete(v.ReadAllocs, alloc.ID)
-	return true
+	return nil
 }
 
 // ClaimRelease is called when the allocation has terminated and already stopped using the volume
-func (v *CSIVolume) ClaimRelease(alloc *Allocation) bool {
+func (v *CSIVolume) ClaimRelease(alloc *Allocation) error {
 	delete(v.ReadAllocs, alloc.ID)
 	delete(v.WriteAllocs, alloc.ID)
-	return true
+	return nil
 }
 
 // Equality by value

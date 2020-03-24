@@ -76,6 +76,9 @@ type State interface {
 	// AllocsByNode returns all the allocations by node
 	AllocsByNode(ws memdb.WatchSet, node string) ([]*structs.Allocation, error)
 
+	// AllocByID returns the allocation
+	AllocByID(ws memdb.WatchSet, allocID string) (*structs.Allocation, error)
+
 	// AllocsByNodeTerminal returns all the allocations by node filtering by terminal status
 	AllocsByNodeTerminal(ws memdb.WatchSet, node string, terminal bool) ([]*structs.Allocation, error)
 
