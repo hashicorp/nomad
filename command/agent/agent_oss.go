@@ -33,7 +33,7 @@ func (e *noOpAuditor) DeliveryEnforced() bool { return false }
 
 func (a *Agent) setupEnterpriseAgent(log hclog.Logger) error {
 	// configure eventer
-	a.eventer = &noOpAuditor{}
+	a.auditor = &noOpAuditor{}
 
 	return nil
 }
