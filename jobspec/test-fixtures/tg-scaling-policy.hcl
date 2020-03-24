@@ -2,8 +2,8 @@ job "elastic" {
   group "group" {
     scaling {
       enabled = false
-      min = 5
-      max = 100
+      min     = 5
+      max     = 100
 
       policy {
         foo = "bar"
