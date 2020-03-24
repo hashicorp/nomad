@@ -5,8 +5,6 @@
 {{#if isOpen}}
   <ul class="task-list">
     {{#each tasksWithRunningStates as |task|}}
-      {{!-- FIXME this needs to include namespace etc query parameters AND be blocked for wrong allocations etc --}}
-      {{!-- also this should be when a task has been chosen, not when the socket is open… right? or…? --}}
       {{#if openInNewWindow}}
         <a {{on "click" (action "openInNewWindow" taskGroup.job taskGroup task)}} class="task-item" data-test-task>
           {{exec/task-contents task=task active=(eq task activeTaskState.task) openInNewWindow=openInNewWindow}}

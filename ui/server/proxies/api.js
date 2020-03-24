@@ -1,7 +1,6 @@
 'use strict';
 
-// FIXME this is adapted from https://github.com/ember-cli/ember-cli/issues/2508
-// and could use some refinement.
+// Issue to improve: https://github.com/hashicorp/nomad/issues/7465
 const proxyPath = '/v1';
 
 module.exports = function(app, options) {
