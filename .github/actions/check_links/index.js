@@ -17,6 +17,8 @@ async function createCheck() {
     started_at: new Date()
   });
 
+  console.log(data);
+
   return data.id;
 }
 

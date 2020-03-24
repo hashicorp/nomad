@@ -1,10 +1,10 @@
-name: HashiCorp PR Bot
+name: Broken Link Checker
 
 on: [deployment_status]
 
 jobs:
   check_links:
-    name: Check links
+    name: Check Links
     runs-on: ubuntu-latest
     if: github.event.deployment.environment == 'Netlify Preview' && github.event.deployment_status.state == 'success' && github.event.deployment.payload.context == 'deploy-preview'
     steps:
