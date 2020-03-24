@@ -21,6 +21,7 @@ export default [
   'nodes',
   'metrics',
   'operator',
+  'plugins',
   'quotas',
   'regions',
   'search',
@@ -28,5 +29,6 @@ export default [
   'status',
   'system',
   'ui',
-  'validate'
+  'validate',
+  'volumes'
 ]
