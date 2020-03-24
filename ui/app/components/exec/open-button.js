@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import generateExecUrl from 'nomad-ui/utils/generate-exec-url';
+import openExecUrl from 'nomad-ui/utils/open-exec-url';
 
 export default Component.extend({
   tagName: '',
@@ -9,8 +10,7 @@ export default Component.extend({
 
   actions: {
     open() {
-      // FIXME adapted from components#task-group-parent
-      window.open(this.generateUrl(), '_blank', 'width=973,height=490,location=1');
+      openExecUrl(this.generateUrl());
     },
   },
 

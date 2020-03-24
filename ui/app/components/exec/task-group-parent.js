@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { or } from '@ember/object/computed';
 import generateExecUrl from 'nomad-ui/utils/generate-exec-url';
+import openExecUrl from 'nomad-ui/utils/open-exec-url';
 
 export default Component.extend({
   router: service(),
@@ -60,7 +61,7 @@ export default Component.extend({
         task: task.name,
       });
 
-      window.open(url, '_blank', 'width=973,height=490,location=1');
+      openExecUrl(url);
     },
   },
 });
