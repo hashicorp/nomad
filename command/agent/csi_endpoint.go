@@ -7,8 +7,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const errRequiresType = "Missing required parameter type"
-
 func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -19,7 +17,7 @@ func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Reque
 	query := req.URL.Query()
 	qtype, ok := query["type"]
 	if !ok {
-		return nil, CodedError(400, errRequiresType)
+		return []*structs.CSIVolListStub{}, nil
 	}
 	if qtype[0] != "csi" {
 		return nil, nil
@@ -146,7 +144,7 @@ func (s *HTTPServer) CSIPluginsRequest(resp http.ResponseWriter, req *http.Reque
 	query := req.URL.Query()
 	qtype, ok := query["type"]
 	if !ok {
-		return nil, CodedError(400, errRequiresType)
+		return []*structs.CSIPluginListStub{}, nil
 	}
 	if qtype[0] != "csi" {
 		return nil, nil
