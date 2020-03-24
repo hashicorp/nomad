@@ -6,6 +6,7 @@ FEATURES:
  * **Exec UI [beta]**: an in-browser terminal for connecting to running allocations.
  * **Audit Logging (Enterprise) [beta]**: Audit logging support for Nomad
    Enterprise.
+ * **Scaling APIs [beta]**: new scaling policy API and job scaling APIs to support external autoscalers [[GH-7409](https://github.com/hashicorp/nomad/pull/7409)]
 
 IMPROVEMENTS:
 
