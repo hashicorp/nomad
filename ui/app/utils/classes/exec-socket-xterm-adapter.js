@@ -29,8 +29,6 @@ export default class ExecSocketXtermAdapter {
       this.terminal.writeln('');
       this.terminal.write(ANSI_UI_GRAY_400);
       this.terminal.writeln('The connection has closed.');
-      // eslint-disable-next-line
-      console.log('Socket close event', e);
       // Issue to add interpretation of close events: https://github.com/hashicorp/nomad/issues/7464
     };
 
