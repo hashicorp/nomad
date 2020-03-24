@@ -2,7 +2,7 @@ const { execSync } = require("child_process");
 const core = require("../../../website/node_modules/@actions/core");
 const github = require("../../../website/node_modules/@actions/github");
 
-const { GITHUB_TOKEN, GITHUB_SHA } = process.env;
+const { GITHUB_TOKEN } = process.env;
 
 const CHECK_NAME = "Check Broken Links";
 
@@ -12,7 +12,7 @@ async function createCheck() {
   const { data } = await octokit.checks.create({
     ...github.context.repo,
     name: CHECK_NAME,
-    head_sha: GITHUB_SHA,
+    head_sha: github.context.payload.pull_request.head.sha,
     status: "in_progress",
     started_at: new Date()
   });

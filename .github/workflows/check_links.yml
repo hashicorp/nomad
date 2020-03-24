@@ -4,7 +4,7 @@ on: [deployment_status]
 
 jobs:
   check_links:
-    name: Check Links
+    name: "[Action] Check Links"
     runs-on: ubuntu-latest
     if: github.event.deployment.environment == 'Netlify Preview' && github.event.deployment_status.state == 'success' && github.event.deployment.payload.context == 'branch-deploy'
     steps:
@@ -13,7 +13,7 @@ jobs:
       - name: Install Dependencies
         working-directory: ./website
         run: npm install
-      - name: "[Action] Check Broken Links"
+      - name: Check Links
         uses: ./.github/actions/check_links
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
