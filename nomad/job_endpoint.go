@@ -894,7 +894,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
 	}
 
-	index := job.ModifyIndex
+	jobModifyIndex := job.ModifyIndex
 	if args.Count != nil {
 		found := false
 		for _, tg := range job.TaskGroups {
@@ -917,22 +917,22 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		}
 
 		// Commit this update via Raft
-		_, index, err = j.srv.raftApply(structs.JobRegisterRequestType, registerReq)
+		_, jobModifyIndex, err = j.srv.raftApply(structs.JobRegisterRequestType, registerReq)
 		if err != nil {
 			j.logger.Error("job register for scale failed", "error", err)
 			return err
 		}
-
 	}
 
 	// Populate the reply with job information
-	reply.JobModifyIndex = index
+	reply.JobModifyIndex = job.ModifyIndex
+	reply.Index = job.ModifyIndex
 
 	// FINISH:
 	// register the scaling event to the scaling_event table, once that exists
 
 	// If the job is periodic or parameterized, we don't create an eval.
-	if job != nil && (job.IsPeriodic() || job.IsParameterized()) {
+	if job != nil && (job.IsPeriodic() || job.IsParameterized()) || args.Count == nil {
 		return nil
 	}
 
@@ -946,7 +946,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		Type:           structs.JobTypeService,
 		TriggeredBy:    structs.EvalTriggerScaling,
 		JobID:          args.JobID,
-		JobModifyIndex: index,
+		JobModifyIndex: jobModifyIndex,
 		Status:         structs.EvalStatusPending,
 		CreateTime:     now,
 		ModifyTime:     now,
@@ -966,7 +966,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	// Populate the reply with eval information
 	reply.EvalID = eval.ID
 	reply.EvalCreateIndex = evalIndex
-	reply.Index = evalIndex
+	reply.Index = reply.EvalCreateIndex
 	return nil
 }
 
