@@ -8,6 +8,6 @@ export default Model.extend({
   version: attr('string'),
   controllerRequired: attr('boolean'),
 
-  controllers: fragmentArray('storage-controller', { defaultValue: () => [] }),
-  nodes: fragmentArray('storage-node', { defaultValue: () => [] }),
+  // controllers: fragmentArray('storage-controller', { defaultValue: () => [] }),
+  // nodes: fragmentArray('storage-node', { defaultValue: () => [] }),
 });

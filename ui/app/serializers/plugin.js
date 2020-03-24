@@ -10,6 +10,9 @@ export default ApplicationSerializer.extend({
     // this identifier.
     hash.ID = `csi/${hash.ID}`;
 
+    hash.Nodes = hash.Nodes || [];
+    hash.Controllers = hash.Controllers || [];
+
     return this._super(typeHash, hash);
   },
 });

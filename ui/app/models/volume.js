@@ -9,7 +9,9 @@ export default Model.extend({
 
   namespace: belongsTo('namespace'),
   plugin: belongsTo('plugin'),
-  allocations: hasMany('allocation'),
+
+  writeAllocations: hasMany('allocation'),
+  readAllocations: hasMany('allocation'),
 
   externalId: attr('string'),
   topologies: attr(),
