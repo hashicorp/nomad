@@ -29,16 +29,11 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `type` `(string: "")`- Specifies a string to filter volumes based on
-  the volume type. Currently supports only `csi`. This is specified as
-  a query string parameter.
+- `type` `(string: "")`- Specifies the type of plugin to
+  query. Currently only supports `csi`. This is specified as a query
+  string parameter. Returns an empty list if omitted.
 
 ### Sample Request
-
-```shell
-$ curl \
-    https://localhost:4646/v1/plugins
-```
 
 ```shell
 $ curl \
@@ -68,9 +63,9 @@ $ curl \
 Get details of a single plugin, including information about the
 plugin's job and client fingerprint data.
 
-| Method | Path                    | Produces           |
-| ------ | ----------------------- | ------------------ |
-| `GET`  | `/v1/plugin/:plugin_id` | `application/json` |
+| Method | Path                        | Produces           |
+| ------ | --------------------------- | ------------------ |
+| `GET`  | `/v1/plugin/csi/:plugin_id` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/api-docs#blocking-queries) and
@@ -84,7 +79,7 @@ The table below shows this endpoint's support for
 
 ```shell
 $ curl \
-    https://localhost:4646/v1/plugin/example_plugin_id
+    https://localhost:4646/v1/plugin/csi/example_plugin_id
 ```
 
 ### Sample Response
