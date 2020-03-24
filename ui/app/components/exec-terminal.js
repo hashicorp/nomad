@@ -1,8 +1,8 @@
 import Component from '@ember/component';
 import { FitAddon } from 'xterm-addon-fit';
-import $ from 'jquery';
+import WindowResizable from '../mixins/window-resizable';
 
-export default Component.extend({
+export default Component.extend(WindowResizable, {
   classNames: ['terminal-container'],
 
   didInsertElement() {
@@ -13,13 +13,6 @@ export default Component.extend({
     this.terminal.open(this.element.querySelector('.terminal'));
 
     fitAddon.fit();
-
-    this._windowResizeHandler = this.windowResizeHandler.bind(this);
-    $(window).on('resize', this._windowResizeHandler);
-  },
-
-  willDestroyElement() {
-    $(window).off('resize', this._windowResizeHandler);
   },
 
   windowResizeHandler(e) {
