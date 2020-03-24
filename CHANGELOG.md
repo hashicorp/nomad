@@ -7,6 +7,7 @@ FEATURES:
  * **Audit Logging (Enterprise) [beta]**: Audit logging support for Nomad
    Enterprise.
  * **Scaling APIs [beta]**: new scaling policy API and job scaling APIs to support external autoscalers [[GH-7409](https://github.com/hashicorp/nomad/pull/7409)]
+ * **Task Dependencies**: introduces `lifecycle` stanza with prestart and sidecar hooks for tasks within a task group
 
 
 __BACKWARDS INCOMPATIBILITIES:__
