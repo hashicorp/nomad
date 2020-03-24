@@ -2997,7 +2997,7 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 
 func testStateStore_CSIPluginNodes(t *testing.T, index uint64, state *StateStore) (uint64, *StateStore) {
 	// Create Nodes fingerprinting the plugins
-	ns := []*structs.Node{mock.Node(), mock.Node(), mock.Node()}
+	ns := []*structs.Node{mock.Node(), mock.Node()}
 
 	for _, n := range ns {
 		index++
@@ -3026,7 +3026,7 @@ func testStateStore_CSIPluginNodes(t *testing.T, index uint64, state *StateStore
 	require.NoError(t, err)
 
 	// Fingerprint two running node plugins
-	for _, n := range ns[1:] {
+	for _, n := range ns[:] {
 		n = n.Copy()
 		n.CSINodePlugins = map[string]*structs.CSIInfo{
 			"foo": {
@@ -3051,6 +3051,55 @@ func testStateStore_CSIPluginNodes(t *testing.T, index uint64, state *StateStore
 	require.Equal(t, "foo", plug.ID)
 	require.Equal(t, 1, plug.ControllersHealthy)
 	require.Equal(t, 2, plug.NodesHealthy)
+
+	// Controller is unhealthy
+	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID:                 "foo",
+			Healthy:                  false,
+			UpdateTime:               time.Now(),
+			RequiresControllerPlugin: true,
+			RequiresTopologies:       false,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsReadOnlyAttach: true,
+				SupportsListVolumes:    true,
+			},
+		},
+	}
+
+	index++
+	err = state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, "foo")
+	require.NoError(t, err)
+	require.Equal(t, "foo", plug.ID)
+	require.Equal(t, 0, plug.ControllersHealthy)
+	require.Equal(t, 2, plug.NodesHealthy)
+
+	// Node plugin is removed
+	n1 := ns[1].Copy()
+	n1.CSINodePlugins = map[string]*structs.CSIInfo{}
+	index++
+	err = state.UpsertNode(index, n1)
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, "foo")
+	require.NoError(t, err)
+	require.Equal(t, "foo", plug.ID)
+	require.Equal(t, 0, plug.ControllersHealthy)
+	require.Equal(t, 1, plug.NodesHealthy)
+
+	// Last plugin is removed
+	n0 = ns[0].Copy()
+	n0.CSINodePlugins = map[string]*structs.CSIInfo{}
+	index++
+	err = state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, "foo")
+	require.NoError(t, err)
+	require.Nil(t, plug)
 
 	return index, state
 }

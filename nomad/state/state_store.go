@@ -943,9 +943,6 @@ func appendNodeEvents(index uint64, node *structs.Node, events []*structs.NodeEv
 // upsertNodeCSIPlugins indexes csi plugins for volume retrieval, with health. It's called
 // on upsertNodeEvents, so that event driven health changes are updated
 func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) error {
-	if len(node.CSIControllerPlugins) == 0 && len(node.CSINodePlugins) == 0 {
-		return nil
-	}
 
 	loop := func(info *structs.CSIInfo) error {
 		raw, err := txn.First("csi_plugins", "id", info.PluginID)
@@ -973,17 +970,45 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		return nil
 	}
 
+	inUse := map[string]struct{}{}
 	for _, info := range node.CSIControllerPlugins {
 		err := loop(info)
 		if err != nil {
 			return err
 		}
+		inUse[info.PluginID] = struct{}{}
 	}
 
 	for _, info := range node.CSINodePlugins {
 		err := loop(info)
 		if err != nil {
 			return err
+		}
+		inUse[info.PluginID] = struct{}{}
+	}
+
+	// remove the client node from any plugin that's not
+	// running on it.
+	iter, err := txn.Get("csi_plugins", "id")
+	if err != nil {
+		return fmt.Errorf("csi_plugins lookup failed: %v", err)
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		plug := raw.(*structs.CSIPlugin)
+		_, ok := inUse[plug.ID]
+		if !ok {
+			_, asController := plug.Controllers[node.ID]
+			_, asNode := plug.Nodes[node.ID]
+			if asController || asNode {
+				err = deleteNodeFromPlugin(txn, plug.Copy(), node, index)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -1018,19 +1043,9 @@ func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		}
 
 		plug := raw.(*structs.CSIPlugin).Copy()
-		plug.DeleteNode(node.ID)
-		plug.ModifyIndex = index
-
-		if plug.IsEmpty() {
-			err = txn.Delete("csi_plugins", plug)
-			if err != nil {
-				return fmt.Errorf("csi_plugins delete error: %v", err)
-			}
-		} else {
-			err = txn.Insert("csi_plugins", plug)
-			if err != nil {
-				return fmt.Errorf("csi_plugins update error %s: %v", id, err)
-			}
+		err = deleteNodeFromPlugin(txn, plug, node, index)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -1038,6 +1053,30 @@ func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	return nil
+}
+
+func deleteNodeFromPlugin(txn *memdb.Txn, plug *structs.CSIPlugin, node *structs.Node, index uint64) error {
+	plug.DeleteNode(node.ID)
+	plug.ModifyIndex = index
+
+	if plug.IsEmpty() {
+		_, err := txn.Get("csi_volumes", "plugin_id", plug.ID)
+		if err != nil {
+			// don't delete a plugin that has associated volumes, even
+			// if there are no plugin instances running for it
+			return nil
+		}
+		err = txn.Delete("csi_plugins", plug)
+		if err != nil {
+			return fmt.Errorf("csi_plugins delete error: %v", err)
+		}
+	} else {
+		err := txn.Insert("csi_plugins", plug)
+		if err != nil {
+			return fmt.Errorf("csi_plugins update error %s: %v", plug.ID, err)
+		}
+	}
 	return nil
 }
 
