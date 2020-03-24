@@ -925,8 +925,8 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	}
 
 	// Populate the reply with job information
-	reply.JobModifyIndex = job.ModifyIndex
-	reply.Index = job.ModifyIndex
+	reply.JobModifyIndex = jobModifyIndex
+	reply.Index = reply.JobModifyIndex
 
 	// FINISH:
 	// register the scaling event to the scaling_event table, once that exists

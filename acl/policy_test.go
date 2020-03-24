@@ -52,7 +52,7 @@ func TestParse(t *testing.T) {
 				capabilities = ["deny", "read-logs"]
 			}
 			namespace "autoscaler" {
-				policy = "autoscaler"
+				policy = "scale"
 			}
 			agent {
 				policy = "read"
@@ -117,7 +117,7 @@ func TestParse(t *testing.T) {
 					},
 					{
 						Name:   "autoscaler",
-						Policy: PolicyAutoscaler,
+						Policy: PolicyScale,
 						Capabilities: []string{
 							NamespaceCapabilityListScalingPolicies,
 							NamespaceCapabilityReadScalingPolicy,
