@@ -8,8 +8,6 @@ import { Terminal } from 'xterm-vendor';
 module('Integration | Utility | exec-command-editor-xterm-adapter', function(hooks) {
   setupRenderingTest(hooks);
 
-  // FIXME should probably remove this as this functionality will become part of
-  // Xterm.js via reverse-wraparound mode?
   test('it can wrap to a previous line while backspacing', async function(assert) {
     let done = assert.async();
 
