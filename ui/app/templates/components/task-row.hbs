@@ -27,7 +27,13 @@
     {{#each task.task.volumeMounts as |volume|}}
       <li data-test-volume>
         <strong>{{volume.volume}}:</strong>
-        {{volume.source}}
+        {{#if volume.isCSI}}
+          {{#link-to "csi.volumes.volume" volume.volume (query-params volumeNamespace=volume.namespace.id)}}
+            {{volume.source}}
+          {{/link-to}}
+        {{else}}
+          {{volume.source}}
+        {{/if}}
       </li>
     {{/each}}
   </ul>

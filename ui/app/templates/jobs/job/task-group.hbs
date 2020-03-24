@@ -125,7 +125,15 @@
           {{/t.head}}
           {{#t.body as |row|}}
             <tr data-test-volume>
-              <td data-test-volume-name>{{row.model.name}}</td>
+              <td data-test-volume-name>
+                {{#if row.model.isCSI}}
+                  {{#link-to "csi.volumes.volume" row.model.name (query-params volumeNamespace=row.model.namespace.id)}}
+                    {{row.model.name}}
+                  {{/link-to}}
+                {{else}}
+                  {{row.model.name}}
+                {{/if}}
+              </td>
               <td data-test-volume-type>{{row.model.type}}</td>
               <td data-test-volume-source>{{row.model.source}}</td>
               <td data-test-volume-permissions>{{if row.model.readOnly "Read" "Read/Write"}}</td>
