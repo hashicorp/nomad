@@ -28,7 +28,7 @@ export default Controller.extend({
     this._super(...arguments);
 
     this.terminal = new Terminal({ fontFamily: 'monospace', fontWeight: '400' });
-    window.execTerminal = this.terminal; // FIXME tragique, for acceptance tests…?
+    window.execTerminal = this.terminal; // Issue to improve: https://github.com/hashicorp/nomad/issues/7457
 
     this.terminal.write(ANSI_UI_GRAY_400);
     this.terminal.writeln('Select a task to start your session.');

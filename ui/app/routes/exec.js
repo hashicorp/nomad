@@ -3,7 +3,7 @@ import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 
-// FIXME copied from jobs/job
+// copied from jobs/job, issue to improve: https://github.com/hashicorp/nomad/issues/7458
 
 export default Route.extend({
   store: service(),
