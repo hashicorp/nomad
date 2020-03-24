@@ -1445,7 +1445,7 @@ func TestHTTP_XSS_Monitor(t *testing.T) {
 			if tc.JSON {
 				ct = "application/json"
 			}
-			require.Equal(t, []string{ct}, resp.HeaderMap.Values("Content-Type"))
+			require.Equal(t, ct, resp.HeaderMap.Get("Content-Type"))
 
 			// Close response writer and log to make AgentMonitor exit
 			resp.Close()

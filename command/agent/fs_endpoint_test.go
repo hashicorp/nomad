@@ -344,11 +344,11 @@ func TestHTTP_FS_ReadAt_XSS(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, xssLoggerMockDriverStdout, string(buf))
 
-		require.Equal(t, []string{"text/plain"}, resp.Header.Values("Content-Type"))
-		require.Equal(t, []string{"nosniff"}, resp.Header.Values("X-Content-Type-Options"))
-		require.Equal(t, []string{"1; mode=block"}, resp.Header.Values("X-XSS-Protection"))
-		require.Equal(t, []string{"default-src 'none'; style-src 'unsafe-inline'; sandbox"},
-			resp.Header.Values("Content-Security-Policy"))
+		require.Equal(t, "text/plain", resp.Header.Get("Content-Type"))
+		require.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
+		require.Equal(t, "1; mode=block", resp.Header.Get("X-XSS-Protection"))
+		require.Equal(t, "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+			resp.Header.Get("Content-Security-Policy"))
 	})
 }
 
@@ -389,11 +389,11 @@ func TestHTTP_FS_Cat_XSS(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, xssLoggerMockDriverStdout, string(buf))
 
-		require.Equal(t, []string{"text/plain"}, resp.Header.Values("Content-Type"))
-		require.Equal(t, []string{"nosniff"}, resp.Header.Values("X-Content-Type-Options"))
-		require.Equal(t, []string{"1; mode=block"}, resp.Header.Values("X-XSS-Protection"))
-		require.Equal(t, []string{"default-src 'none'; style-src 'unsafe-inline'; sandbox"},
-			resp.Header.Values("Content-Security-Policy"))
+		require.Equal(t, "text/plain", resp.Header.Get("Content-Type"))
+		require.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
+		require.Equal(t, "1; mode=block", resp.Header.Get("X-XSS-Protection"))
+		require.Equal(t, "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+			resp.Header.Get("Content-Security-Policy"))
 	})
 }
 
@@ -560,7 +560,7 @@ func TestHTTP_FS_Logs_XSS(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, xssLoggerMockDriverStdout, string(buf))
 
-		require.Equal(t, []string{"text/plain"}, resp.Header.Values("Content-Type"))
+		require.Equal(t, "text/plain", resp.Header.Get("Content-Type"))
 	})
 }
 

@@ -62,6 +62,8 @@ type HTTPServer struct {
 	wsUpgrader *websocket.Upgrader
 }
 
+type handlerFn func(resp http.ResponseWriter, req *http.Request) (interface{}, error)
+
 // NewHTTPServer starts new HTTP server over the agent
 func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	// Start the listener
