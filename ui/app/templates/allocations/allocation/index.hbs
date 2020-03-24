@@ -20,11 +20,11 @@
       <span class="bumper-left tag {{model.statusClass}}">{{model.clientStatus}}</span>
     </div>
     <div>
-      <div class="two-step-button FIXME how-unfortunate">
-        {{exec/open-button job=model.job allocation=model}}
-        {{!-- FIXME this can open with a sidebar that contains a task group not in the allocation…? --}}
-      </div>
       {{#if model.isRunning}}
+        <div class="two-step-button FIXME how-unfortunate">
+          {{exec/open-button job=model.job allocation=model}}
+          {{!-- FIXME this can open with a sidebar that contains a task group not in the allocation…? --}}
+        </div>
         {{two-step-button
           data-test-stop
           idleText="Stop"
