@@ -20,7 +20,7 @@ export default Route.extend({
     return this.store
       .findRecord('job', fullId, { reload: true })
       .then(job => {
-        return RSVP.all([job.get('allocations'), job.get('evaluations')]).then(() => job);
+        return job.get('allocations').then(() => job);
       })
       .catch(notifyError(this));
   },
