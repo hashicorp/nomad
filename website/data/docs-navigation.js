@@ -146,6 +146,7 @@ export default [
       'reschedule',
       'resources',
       'restart',
+      'scaling',
       'service',
       'sidecar_service',
       'sidecar_task',
