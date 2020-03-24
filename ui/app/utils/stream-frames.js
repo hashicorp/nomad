@@ -15,7 +15,7 @@ export function decode(chunk) {
   const frames = lines.map(line => JSON.parse(line)).filter(frame => frame.Data);
 
   if (frames.length) {
-    frames.forEach(frame => (frame.Data = window.atob(frame.Data)));
+    frames.forEach(frame => (frame.Data = b64DecodeUnicode(frame.Data)));
     return {
       offset: frames[frames.length - 1].Offset,
       message: frames.mapBy('Data').join(''),
@@ -23,4 +23,11 @@ export function decode(chunk) {
   }
 
   return {};
+}
+
+function b64DecodeUnicode(str) {
+  // from bytestream, to percent-encoding, to original string.
+  return decodeURIComponent(window.atob(str).split('').map(function(c) {
+    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+  }).join(''));
 }
