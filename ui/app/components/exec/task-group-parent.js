@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { or } from '@ember/object/computed';
+import generateExecUrl from 'nomad-ui/utils/generate-exec-url';
 
 export default Component.extend({
   router: service(),
@@ -53,7 +54,11 @@ export default Component.extend({
     },
 
     openInNewWindow(job, taskGroup, task) {
-      let url = this.router.urlFor('exec.task-group.task', job.name, taskGroup.name, task.name);
+      let url = generateExecUrl(this.router, {
+        job: job.name,
+        taskGroup: taskGroup.name,
+        task: task.name,
+      });
 
       window.open(url, '_blank', 'width=973,height=490,location=1');
     },

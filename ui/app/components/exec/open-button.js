@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
+import generateExecUrl from 'nomad-ui/utils/generate-exec-url';
 
 export default Component.extend({
   tagName: '',
@@ -14,34 +15,22 @@ export default Component.extend({
   },
 
   generateUrl() {
-    if (this.task) {
-      return this.router.urlFor(
-        'exec.task-group.task',
-        this.job.get('name'),
-        this.taskGroup.get('name'),
-        this.task.get('name'),
-        {
-          queryParams: {
-            allocation: this.allocation.shortId,
-          },
-        }
-      );
-    } else if (this.taskGroup) {
-      return this.router.urlFor(
-        'exec.task-group',
-        this.job.get('name'),
-        this.taskGroup.get('name')
-      );
-    } else if (this.allocation) {
-      let urlOptions = {
-        queryParams: {
-          allocation: this.allocation.shortId,
-        },
-      };
+    let urlSegments = {
+      job: this.job.get('name'),
+    };
 
-      return this.router.urlFor('exec', this.job.get('name'), urlOptions);
-    } else {
-      return this.router.urlFor('exec', this.job.get('name'));
+    if (this.taskGroup) {
+      urlSegments.taskGroup = this.taskGroup.get('name');
     }
+
+    if (this.task) {
+      urlSegments.task = this.task.get('name');
+    }
+
+    if (this.allocation) {
+      urlSegments.allocation = this.allocation.get('shortId');
+    }
+
+    return generateExecUrl(this.router, urlSegments);
   },
 });
