@@ -85,7 +85,7 @@
         height: 100%;
       }
 
-      .active {
+      .is-active {
         position: absolute;
         top: 7.5px;
         left: -9.75px;
@@ -121,7 +121,7 @@
       background-color: $ui-gray-800;
       border-radius: 4px;
 
-      .active {
+      .is-active {
         stroke: $ui-gray-800;
       }
     }
