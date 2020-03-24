@@ -216,10 +216,12 @@ func TestAllocations_GarbageCollect(t *testing.T) {
 
 	a := mock.Alloc()
 	a.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	a.Job.TaskGroups[0].RestartPolicy = &nstructs.RestartPolicy{
+	rp := &nstructs.RestartPolicy{
 		Attempts: 0,
 		Mode:     nstructs.RestartPolicyModeFail,
 	}
+	a.Job.TaskGroups[0].RestartPolicy = rp
+	a.Job.TaskGroups[0].Tasks[0].RestartPolicy = rp
 	a.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "10ms",
 	}
