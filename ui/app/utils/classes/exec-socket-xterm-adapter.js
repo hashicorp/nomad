@@ -25,7 +25,7 @@ export default class ExecSocketXtermAdapter {
       }
     };
 
-    socket.onclose = e => {
+    socket.onclose = () => {
       this.terminal.writeln('');
       this.terminal.write(ANSI_UI_GRAY_400);
       this.terminal.writeln('The connection has closed.');
