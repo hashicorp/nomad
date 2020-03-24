@@ -53,8 +53,7 @@ module.exports = function(defaults) {
   // along with the exports of each module as its value.
 
   app.import('node_modules/xterm/css/xterm.css');
-  // TODO return this to a typical package.json import once this is released:
-  // https://github.com/xtermjs/xterm.js/pull/2724
+  // Issue to move to typical package.json import when released: https://github.com/hashicorp/nomad/issues/7461
   app.import('vendor/xterm.js', {
     using: [
       { transformation: 'amd', as: 'xterm-vendor' },
