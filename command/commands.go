@@ -441,19 +441,16 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-
 		"operator autopilot": func() (cli.Command, error) {
 			return &OperatorAutopilotCommand{
 				Meta: meta,
 			}, nil
 		},
-
 		"operator autopilot get-config": func() (cli.Command, error) {
 			return &OperatorAutopilotGetCommand{
 				Meta: meta,
 			}, nil
 		},
-
 		"operator autopilot set-config": func() (cli.Command, error) {
 			return &OperatorAutopilotSetCommand{
 				Meta: meta,
@@ -474,25 +471,21 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-
 		"operator raft list-peers": func() (cli.Command, error) {
 			return &OperatorRaftListCommand{
 				Meta: meta,
 			}, nil
 		},
-
 		"operator raft remove-peer": func() (cli.Command, error) {
 			return &OperatorRaftRemoveCommand{
 				Meta: meta,
 			}, nil
 		},
-
 		"plan": func() (cli.Command, error) {
 			return &JobPlanCommand{
 				Meta: meta,
 			}, nil
 		},
-
 		"plugin": func() (cli.Command, error) {
 			return &PluginCommand{
 				Meta: meta,
@@ -503,49 +496,41 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-
 		"quota": func() (cli.Command, error) {
 			return &QuotaCommand{
 				Meta: meta,
 			}, nil
 		},
-
 		"quota apply": func() (cli.Command, error) {
 			return &QuotaApplyCommand{
 				Meta: meta,
 			}, nil
 		},
-
 		"quota delete": func() (cli.Command, error) {
 			return &QuotaDeleteCommand{
 				Meta: meta,
 			}, nil
 		},
-
 		"quota init": func() (cli.Command, error) {
 			return &QuotaInitCommand{
 				Meta: meta,
 			}, nil
 		},
-
 		"quota inspect": func() (cli.Command, error) {
 			return &QuotaInspectCommand{
 				Meta: meta,
 			}, nil
 		},
-
 		"quota list": func() (cli.Command, error) {
 			return &QuotaListCommand{
 				Meta: meta,
 			}, nil
 		},
-
 		"quota status": func() (cli.Command, error) {
 			return &QuotaStatusCommand{
 				Meta: meta,
 			}, nil
 		},
-
 		"run": func() (cli.Command, error) {
 			return &JobRunCommand{
 				Meta: meta,
@@ -690,7 +675,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				},
 			}, nil
 		},
-
 		"keygen": func() (cli.Command, error) {
 			return &DeprecatedCommand{
 				Old:  "keygen",
@@ -701,7 +685,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				},
 			}, nil
 		},
-
 		"keyring": func() (cli.Command, error) {
 			return &DeprecatedCommand{
 				Old:  "keyring",
@@ -712,7 +695,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				},
 			}, nil
 		},
-
 		"server-force-leave": func() (cli.Command, error) {
 			return &DeprecatedCommand{
 				Old:  "server-force-leave",
@@ -723,7 +705,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				},
 			}, nil
 		},
-
 		"server-join": func() (cli.Command, error) {
 			return &DeprecatedCommand{
 				Old:  "server-join",
@@ -734,7 +715,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				},
 			}, nil
 		},
-
 		"server-members": func() (cli.Command, error) {
 			return &DeprecatedCommand{
 				Old:  "server-members",
