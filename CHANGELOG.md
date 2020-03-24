@@ -4,6 +4,8 @@ FEATURES:
  * **Container Storage Interface [beta]**: Nomad has expanded support
    of stateful workloads through support for CSI plugins.
  * **Exec UI [beta]**: an in-browser terminal for connecting to running allocations.
+ * **Audit Logging (Enterprise) [beta]**: Audit logging support for Nomad
+   Enterprise.
 
 IMPROVEMENTS:
 
