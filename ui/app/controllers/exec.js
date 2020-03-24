@@ -58,7 +58,7 @@ export default Controller.extend({
 
       this.terminal.write(ANSI_WHITE);
 
-      this.terminal.write('/bin/bash');
+      this.terminal.write(this.command);
 
       if (this.commandEditorAdapter) {
         this.commandEditorAdapter.destroy();
@@ -67,7 +67,7 @@ export default Controller.extend({
       this.commandEditorAdapter = new ExecCommandEditorXtermAdapter(
         this.terminal,
         this.openAndConnectSocket.bind(this),
-        '/bin/bash'
+        this.command
       );
     },
   },
