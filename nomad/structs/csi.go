@@ -330,6 +330,12 @@ func (v *CSIVolume) WriteFreeClaims() bool {
 	}
 }
 
+// InUse tests whether any allocations are actively using the volume
+func (v *CSIVolume) InUse() bool {
+	return len(v.ReadAllocs) != 0 ||
+		len(v.WriteAllocs) != 0
+}
+
 // Copy returns a copy of the volume, which shares only the Topologies slice
 func (v *CSIVolume) Copy() *CSIVolume {
 	copy := *v
