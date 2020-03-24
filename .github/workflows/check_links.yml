@@ -13,7 +13,7 @@ jobs:
       - name: Install Dependencies
         working-directory: ./website
         run: npm install
-      - name: Check Links
+      - name: "[Action] Check Broken Links"
         uses: ./.github/actions/check_links
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
