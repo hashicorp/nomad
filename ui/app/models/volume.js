@@ -13,6 +13,10 @@ export default Model.extend({
   writeAllocations: hasMany('allocation'),
   readAllocations: hasMany('allocation'),
 
+  allocations: computed('writeAllocations.[]', 'readAllocations.[]', function() {
+    return [...this.writeAllocations.toArray(), ...this.readAllocations.toArray()];
+  }),
+
   externalId: attr('string'),
   topologies: attr(),
   accessMode: attr('string'),
