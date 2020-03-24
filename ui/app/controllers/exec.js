@@ -16,7 +16,7 @@ export default Controller.extend({
 
   queryParams: ['allocation'],
 
-  command: '/bin/bash',
+  command: '/bin/bash', // Issue to improve: https://github.com/hashicorp/nomad/issues/7469
   socketOpen: false,
   taskState: null,
 
