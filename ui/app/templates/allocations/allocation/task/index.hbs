@@ -26,7 +26,11 @@
     <div>
       {{#if model.isRunning}}
         <div class="two-step-button">
-          {{exec/open-button job=model.task.taskGroup.job taskGroup=model.task.taskGroup allocation=model.allocation task=model.task}}
+          {{exec/open-button
+            job=model.task.taskGroup.job
+            taskGroup=model.task.taskGroup
+            allocation=model.allocation
+            task=model.task}}
         </div>
         {{two-step-button
           data-test-restart
