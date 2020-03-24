@@ -23,13 +23,13 @@
   background-color: $ui-gray-900;
   color: white;
   padding: 16px;
-  width: 200px; // these px sizes… 🧐
+  width: 200px;
   flex-shrink: 0;
   overflow-y: scroll;
 
   .title {
     text-transform: uppercase;
-    color: $grey-lighter; // This is lightness 86% but the design is 85%
+    color: $grey-lighter;
     font-size: 11px;
   }
 
