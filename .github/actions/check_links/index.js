@@ -32,13 +32,13 @@ async function updateCheck(id, checkResults) {
 async function run() {
   const id = await createCheck();
   const deployUrl = core.getInput("baseUrl", { required: true });
+  let output;
 
   console.log(`checking for links on ${deployUrl}`);
 
   try {
     // Run the link check against the PR preview link
     let conclusion = "success";
-    let output;
     try {
       output = String(
         execSync(
@@ -52,24 +52,26 @@ async function run() {
     }
 
     await updateCheck(id, {
+      conclusion,
+      status: "completed",
       output: Object.assign(
         {},
-        { conclusion },
         {
-          status: "completed",
-          title: "test",
+          title: "Broken Links Check",
           summary:
             conclusion === "failure"
-              ? "Broken internal links found"
-              : "All interal links are working!",
+              ? "🚫 **Broken internal links found**"
+              : "✅ **All interal links are working!**",
           text: String(output)
         }
       )
     });
   } catch (error) {
     console.log(error);
-    core.setFailed(`Action failed with message: ${error.message}`);
+    return core.setFailed(`Action failed with message: ${error.message}`);
   }
+
+  console.log(output);
 }
 
 run().catch(error => {
