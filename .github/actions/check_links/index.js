@@ -56,6 +56,7 @@ async function run() {
         {},
         { conclusion },
         {
+          status: "completed",
           title: "test",
           summary:
             conclusion === "failure"
