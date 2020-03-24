@@ -1,6 +1,5 @@
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
-import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 
 // copied from jobs/job, issue to improve: https://github.com/hashicorp/nomad/issues/7458
