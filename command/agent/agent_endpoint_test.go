@@ -3,13 +3,17 @@ package agent
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -1232,4 +1236,230 @@ func TestHTTP_AgentHealth_BadClient(t *testing.T) {
 			require.Equal(`{"client":{"ok":false,"message":"client not enabled"}}`, err.Error())
 		}
 	})
+}
+
+var (
+	errorPipe = &net.OpError{
+		Op:     "write",
+		Net:    "tcp",
+		Source: &net.TCPAddr{},
+		Addr:   &net.TCPAddr{},
+		Err: &os.SyscallError{
+			Syscall: "write",
+			Err:     syscall.EPIPE,
+		},
+	}
+)
+
+// fakeRW is a fake response writer to ease polling streaming responses in a
+// data-race-free way.
+type fakeRW struct {
+	Code      int
+	HeaderMap http.Header
+	buf       *bytes.Buffer
+	closed    bool
+	mu        sync.Mutex
+
+	// Written is ticked whenever a Write occurs and on WriteHeaders if it
+	// is explicitly called
+	Written chan int
+
+	// ClosedErr is the error Write will return once the writer is closed.
+	// Defaults to EPIPE. Must not be mutated concurrently with writes.
+	ClosedErr error
+}
+
+// Header is for setting headers before writing a response. Tests should check
+// the HeaderMap field directly.
+func (f *fakeRW) Header() http.Header {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if f.Code != 0 {
+		panic("cannot set headers after WriteHeader has been called")
+	}
+
+	return f.HeaderMap
+}
+
+func (f *fakeRW) Write(p []byte) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if f.closed {
+		// Mimic an EPIPE error
+		return 0, f.ClosedErr
+	}
+
+	if f.Code == 0 {
+		f.Code = 200
+	}
+
+	n, err := f.buf.Write(p)
+	select {
+	case f.Written <- 1:
+	default:
+	}
+	return n, err
+}
+
+// WriteHeader sets Code and FinalHeaders
+func (f *fakeRW) WriteHeader(statusCode int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if f.Code != 0 {
+		panic("cannot call WriteHeader more than once")
+	}
+
+	f.Code = statusCode
+	select {
+	case f.Written <- 1:
+	default:
+	}
+}
+
+// Bytes returns the body bytes written to the buffer. Safe for calling
+// concurrent with writes.
+func (f *fakeRW) Bytes() []byte {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	return f.buf.Bytes()
+}
+
+// Close the writer causing an EPIPE error on future writes. Safe to call
+// concurrently with other methods. Safe to call more than once.
+func (f *fakeRW) Close() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.closed = true
+}
+
+func NewFakeRW() *fakeRW {
+	return &fakeRW{
+		HeaderMap: make(map[string][]string),
+		buf:       &bytes.Buffer{},
+		Written:   make(chan int, 1),
+		ClosedErr: errorPipe,
+	}
+}
+
+// TestHTTP_XSS_Monitor asserts /v1/agent/monitor is safe against XSS attacks
+// even when log output contains HTML+Javascript.
+func TestHTTP_XSS_Monitor(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name    string
+		Logline string
+		JSON    bool
+	}{
+		{
+			Name:    "Plain",
+			Logline: "--TEST 123--",
+			JSON:    false,
+		},
+		{
+			Name:    "JSON",
+			Logline: "--TEST 123--",
+			JSON:    true,
+		},
+		{
+			Name:    "XSSPlain",
+			Logline: "<script>alert(document.domain);</script>",
+			JSON:    false,
+		},
+		{
+			Name:    "XSSJson",
+			Logline: "<script>alert(document.domain);</script>",
+			JSON:    true,
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			s := makeHTTPServer(t, nil)
+			defer s.Shutdown()
+
+			path := fmt.Sprintf("%s/v1/agent/monitor?error_level=error&plain=%t", s.HTTPAddr(), !tc.JSON)
+			req, err := http.NewRequest("GET", path, nil)
+			require.NoError(t, err)
+			resp := NewFakeRW()
+			closedErr := errors.New("sentinel error")
+			resp.ClosedErr = closedErr
+			defer resp.Close()
+
+			errCh := make(chan error, 1)
+			go func() {
+				_, err := s.Server.AgentMonitor(resp, req)
+				errCh <- err
+			}()
+
+			deadline := time.After(3 * time.Second)
+
+		OUTER:
+			for {
+				// Log a needle and look for it in the response haystack
+				s.Server.logger.Error(tc.Logline)
+
+				select {
+				case <-time.After(30 * time.Millisecond):
+					// Give AgentMonitor handler goroutine time to start
+				case <-resp.Written:
+					// Something was written, check it
+				case <-deadline:
+					t.Fatalf("timed out waiting for expected log line; body:\n%s", string(resp.Bytes()))
+				case err := <-errCh:
+					t.Fatalf("AgentMonitor exited unexpectedly: err=%v", err)
+				}
+
+				if !tc.JSON {
+					if bytes.Contains(resp.Bytes(), []byte(tc.Logline)) {
+						// Found needle!
+						break
+					} else {
+						// Try again
+						continue
+					}
+				}
+
+				// Decode JSON
+				r := bytes.NewReader(resp.Bytes())
+				dec := json.NewDecoder(r)
+				for {
+					data := struct{ Data []byte }{}
+					if err := dec.Decode(&data); err != nil {
+						// Probably a partial write, continue
+						continue OUTER
+					}
+
+					if bytes.Contains(data.Data, []byte(tc.Logline)) {
+						// Found needle!
+						break OUTER
+					}
+				}
+
+			}
+
+			// Assert default logs are application/json
+			ct := "text/plain"
+			if tc.JSON {
+				ct = "application/json"
+			}
+			require.Equal(t, []string{ct}, resp.HeaderMap.Values("Content-Type"))
+
+			// Close response writer and log to make AgentMonitor exit
+			resp.Close()
+			s.Server.logger.Error("log again to force a write that detects the closed connection")
+			select {
+			case err := <-errCh:
+				require.EqualError(t, closedErr, err.Error())
+			case <-deadline:
+				t.Fatalf("timed out waiting for closing error from handler")
+			}
+		})
+	}
 }
