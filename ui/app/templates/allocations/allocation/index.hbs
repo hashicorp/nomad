@@ -23,7 +23,6 @@
       {{#if model.isRunning}}
         <div class="two-step-button FIXME how-unfortunate">
           {{exec/open-button job=model.job allocation=model}}
-          {{!-- FIXME this can open with a sidebar that contains a task group not in the allocation…? --}}
         </div>
         {{two-step-button
           data-test-stop
