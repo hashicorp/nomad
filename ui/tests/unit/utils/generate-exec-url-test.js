@@ -12,11 +12,13 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
 
   test('it generates an exec job URL', function(assert) {
     generateExecUrl(this.router, { job: 'job-name' });
+
     assert.ok(this.urlForSpy.calledWith('exec', 'job-name', emptyOptions));
   });
 
   test('it generates an exec job URL with an allocation', function(assert) {
     generateExecUrl(this.router, { job: 'job-name', allocation: 'allocation-short-id' });
+
     assert.ok(
       this.urlForSpy.calledWith('exec', 'job-name', {
         queryParams: { allocation: 'allocation-short-id' },
@@ -26,6 +28,7 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
 
   test('it generates an exec task group URL', function(assert) {
     generateExecUrl(this.router, { job: 'job-name', taskGroup: 'task-group-name' });
+
     assert.ok(
       this.urlForSpy.calledWith('exec.task-group', 'job-name', 'task-group-name', emptyOptions)
     );
@@ -57,6 +60,7 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
     };
 
     generateExecUrl(this.router, { job: 'job-name', allocation: 'id' });
+
     assert.ok(
       this.urlForSpy.calledWith('exec', 'job-name', {
         queryParams: { allocation: 'id', namespace: 'a-namespace', region: 'a-region' },
