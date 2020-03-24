@@ -2,17 +2,28 @@ const { execSync } = require("child_process");
 const core = require("../../../website/node_modules/@actions/core");
 const github = require("../../../website/node_modules/@actions/github");
 
-const { GITHUB_TOKEN } = process.env;
+const { GITHUB_TOKEN, GITHUB_SHA } = process.env;
 
 const CHECK_NAME = "Check Broken Links";
 
 const octokit = new github.GitHub(GITHUB_TOKEN);
 
 async function createCheck() {
+  console.log("------------------- GITHUB_SHA ----------------------");
+  console.log(GITHUB_SHA);
+  console.log("------------------- context ----------------------");
+  console.log(github.context);
+  console.log("------------------- payload ----------------------");
+  console.log(github.context.payload);
+  console.log("------------------- pull_request ----------------------");
+  console.log(github.context.pull_request);
+  console.log("------------------- head ----------------------");
+  console.log(github.context.pull_request.head);
+
   const { data } = await octokit.checks.create({
     ...github.context.repo,
     name: CHECK_NAME,
-    head_sha: github.context.payload.pull_request.head.sha,
+    head_sha: GITHUB_SHA,
     status: "in_progress",
     started_at: new Date()
   });
