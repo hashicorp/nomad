@@ -66,6 +66,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		"logs",
 		"meta",
 		"resources",
+		"restart",
 		"service",
 		"shutdown_delay",
 		"template",
@@ -94,6 +95,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 	delete(m, "logs")
 	delete(m, "meta")
 	delete(m, "resources")
+	delete(m, "restart")
 	delete(m, "service")
 	delete(m, "template")
 	delete(m, "vault")
@@ -213,6 +215,13 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		}
 
 		t.Resources = &r
+	}
+
+	// Parse restart policy
+	if o := listVal.Filter("restart"); len(o.Items) > 0 {
+		if err := parseRestartPolicy(&t.RestartPolicy, o); err != nil {
+			return nil, multierror.Prefix(err, "restart ->")
+		}
 	}
 
 	// If we have logs then parse that

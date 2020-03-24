@@ -1674,7 +1674,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Weight:  helper.Int8ToPtr(50),
 							},
 						},
-
+						RestartPolicy: &api.RestartPolicy{
+							Interval: helper.TimeToPtr(2 * time.Second),
+							Attempts: helper.IntToPtr(10),
+							Delay:    helper.TimeToPtr(20 * time.Second),
+							Mode:     helper.StringToPtr("delay"),
+						},
 						Services: []*api.Service{
 							{
 								Id:                "id",
@@ -2022,6 +2027,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 						Env: map[string]string{
 							"hello": "world",
+						},
+						RestartPolicy: &structs.RestartPolicy{
+							Interval: 2 * time.Second,
+							Attempts: 10,
+							Delay:    20 * time.Second,
+							Mode:     "delay",
 						},
 						Services: []*structs.Service{
 							{
@@ -2374,6 +2385,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									},
 								},
 							},
+						},
+						RestartPolicy: &structs.RestartPolicy{
+							Interval: 1 * time.Second,
+							Attempts: 5,
+							Delay:    10 * time.Second,
+							Mode:     "delay",
 						},
 						Meta: map[string]string{
 							"lol": "code",

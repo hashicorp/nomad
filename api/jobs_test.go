@@ -157,9 +157,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
-								KillTimeout: timeToPtr(5 * time.Second),
-								LogConfig:   DefaultLogConfig(),
-								Resources:   DefaultResources(),
+								KillTimeout:   timeToPtr(5 * time.Second),
+								LogConfig:     DefaultLogConfig(),
+								Resources:     DefaultResources(),
+								RestartPolicy: defaultServiceJobRestartPolicy(),
 							},
 						},
 					},
@@ -222,9 +223,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 						Tasks: []*Task{
 							{
-								KillTimeout: timeToPtr(5 * time.Second),
-								LogConfig:   DefaultLogConfig(),
-								Resources:   DefaultResources(),
+								KillTimeout:   timeToPtr(5 * time.Second),
+								LogConfig:     DefaultLogConfig(),
+								Resources:     DefaultResources(),
+								RestartPolicy: defaultBatchJobRestartPolicy(),
 							},
 						},
 					},
@@ -316,10 +318,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
-								Name:        "task1",
-								LogConfig:   DefaultLogConfig(),
-								Resources:   DefaultResources(),
-								KillTimeout: timeToPtr(5 * time.Second),
+								Name:          "task1",
+								LogConfig:     DefaultLogConfig(),
+								Resources:     DefaultResources(),
+								KillTimeout:   timeToPtr(5 * time.Second),
+								RestartPolicy: defaultServiceJobRestartPolicy(),
 							},
 						},
 					},
@@ -362,6 +365,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 									"port_map": []map[string]int{{
 										"db": 6379,
 									}},
+								},
+								RestartPolicy: &RestartPolicy{
+									// inherit other values from TG
+									Attempts: intToPtr(20),
 								},
 								Resources: &Resources{
 									CPU:      intToPtr(500),
@@ -485,6 +492,12 @@ func TestJobs_Canonicalize(t *testing.T) {
 									"port_map": []map[string]int{{
 										"db": 6379,
 									}},
+								},
+								RestartPolicy: &RestartPolicy{
+									Interval: timeToPtr(5 * time.Minute),
+									Attempts: intToPtr(20),
+									Delay:    timeToPtr(25 * time.Second),
+									Mode:     stringToPtr("delay"),
 								},
 								Resources: &Resources{
 									CPU:      intToPtr(500),
@@ -712,10 +725,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
-								Name:        "task1",
-								LogConfig:   DefaultLogConfig(),
-								Resources:   DefaultResources(),
-								KillTimeout: timeToPtr(5 * time.Second),
+								Name:          "task1",
+								LogConfig:     DefaultLogConfig(),
+								Resources:     DefaultResources(),
+								KillTimeout:   timeToPtr(5 * time.Second),
+								RestartPolicy: defaultServiceJobRestartPolicy(),
 							},
 						},
 					},
@@ -755,10 +769,185 @@ func TestJobs_Canonicalize(t *testing.T) {
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
+								Name:          "task1",
+								LogConfig:     DefaultLogConfig(),
+								Resources:     DefaultResources(),
+								KillTimeout:   timeToPtr(5 * time.Second),
+								RestartPolicy: defaultServiceJobRestartPolicy(),
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "restart_merge",
+			input: &Job{
+				Name:     stringToPtr("foo"),
+				ID:       stringToPtr("bar"),
+				ParentID: stringToPtr("lol"),
+				TaskGroups: []*TaskGroup{
+					{
+						Name: stringToPtr("bar"),
+						RestartPolicy: &RestartPolicy{
+							Delay:    timeToPtr(15 * time.Second),
+							Attempts: intToPtr(2),
+							Interval: timeToPtr(30 * time.Minute),
+							Mode:     stringToPtr("fail"),
+						},
+						Tasks: []*Task{
+							{
+								Name: "task1",
+								RestartPolicy: &RestartPolicy{
+									Attempts: intToPtr(5),
+									Delay:    timeToPtr(1 * time.Second),
+								},
+							},
+						},
+					},
+					{
+						Name: stringToPtr("baz"),
+						RestartPolicy: &RestartPolicy{
+							Delay:    timeToPtr(20 * time.Second),
+							Attempts: intToPtr(2),
+							Interval: timeToPtr(30 * time.Minute),
+							Mode:     stringToPtr("fail"),
+						},
+						Tasks: []*Task{
+							{
+								Name: "task1",
+							},
+						},
+					},
+				},
+			},
+			expected: &Job{
+				Namespace:         stringToPtr(DefaultNamespace),
+				ID:                stringToPtr("bar"),
+				Name:              stringToPtr("foo"),
+				Region:            stringToPtr("global"),
+				Type:              stringToPtr("service"),
+				ParentID:          stringToPtr("lol"),
+				Priority:          intToPtr(50),
+				AllAtOnce:         boolToPtr(false),
+				ConsulToken:       stringToPtr(""),
+				VaultToken:        stringToPtr(""),
+				Stop:              boolToPtr(false),
+				Stable:            boolToPtr(false),
+				Version:           uint64ToPtr(0),
+				Status:            stringToPtr(""),
+				StatusDescription: stringToPtr(""),
+				CreateIndex:       uint64ToPtr(0),
+				ModifyIndex:       uint64ToPtr(0),
+				JobModifyIndex:    uint64ToPtr(0),
+				Update: &UpdateStrategy{
+					Stagger:          timeToPtr(30 * time.Second),
+					MaxParallel:      intToPtr(1),
+					HealthCheck:      stringToPtr("checks"),
+					MinHealthyTime:   timeToPtr(10 * time.Second),
+					HealthyDeadline:  timeToPtr(5 * time.Minute),
+					ProgressDeadline: timeToPtr(10 * time.Minute),
+					AutoRevert:       boolToPtr(false),
+					Canary:           intToPtr(0),
+					AutoPromote:      boolToPtr(false),
+				},
+				TaskGroups: []*TaskGroup{
+					{
+						Name:  stringToPtr("bar"),
+						Count: intToPtr(1),
+						EphemeralDisk: &EphemeralDisk{
+							Sticky:  boolToPtr(false),
+							Migrate: boolToPtr(false),
+							SizeMB:  intToPtr(300),
+						},
+						RestartPolicy: &RestartPolicy{
+							Delay:    timeToPtr(15 * time.Second),
+							Attempts: intToPtr(2),
+							Interval: timeToPtr(30 * time.Minute),
+							Mode:     stringToPtr("fail"),
+						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      intToPtr(0),
+							Interval:      timeToPtr(0),
+							DelayFunction: stringToPtr("exponential"),
+							Delay:         timeToPtr(30 * time.Second),
+							MaxDelay:      timeToPtr(1 * time.Hour),
+							Unlimited:     boolToPtr(true),
+						},
+						Update: &UpdateStrategy{
+							Stagger:          timeToPtr(30 * time.Second),
+							MaxParallel:      intToPtr(1),
+							HealthCheck:      stringToPtr("checks"),
+							MinHealthyTime:   timeToPtr(10 * time.Second),
+							HealthyDeadline:  timeToPtr(5 * time.Minute),
+							ProgressDeadline: timeToPtr(10 * time.Minute),
+							AutoRevert:       boolToPtr(false),
+							Canary:           intToPtr(0),
+							AutoPromote:      boolToPtr(false),
+						},
+						Migrate: DefaultMigrateStrategy(),
+						Tasks: []*Task{
+							{
 								Name:        "task1",
 								LogConfig:   DefaultLogConfig(),
 								Resources:   DefaultResources(),
 								KillTimeout: timeToPtr(5 * time.Second),
+								RestartPolicy: &RestartPolicy{
+									Attempts: intToPtr(5),
+									Delay:    timeToPtr(1 * time.Second),
+									Interval: timeToPtr(30 * time.Minute),
+									Mode:     stringToPtr("fail"),
+								},
+							},
+						},
+					},
+					{
+						Name:  stringToPtr("baz"),
+						Count: intToPtr(1),
+						EphemeralDisk: &EphemeralDisk{
+							Sticky:  boolToPtr(false),
+							Migrate: boolToPtr(false),
+							SizeMB:  intToPtr(300),
+						},
+						RestartPolicy: &RestartPolicy{
+							Delay:    timeToPtr(20 * time.Second),
+							Attempts: intToPtr(2),
+							Interval: timeToPtr(30 * time.Minute),
+							Mode:     stringToPtr("fail"),
+						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      intToPtr(0),
+							Interval:      timeToPtr(0),
+							DelayFunction: stringToPtr("exponential"),
+							Delay:         timeToPtr(30 * time.Second),
+							MaxDelay:      timeToPtr(1 * time.Hour),
+							Unlimited:     boolToPtr(true),
+						},
+						Update: &UpdateStrategy{
+							Stagger:          timeToPtr(30 * time.Second),
+							MaxParallel:      intToPtr(1),
+							HealthCheck:      stringToPtr("checks"),
+							MinHealthyTime:   timeToPtr(10 * time.Second),
+							HealthyDeadline:  timeToPtr(5 * time.Minute),
+							ProgressDeadline: timeToPtr(10 * time.Minute),
+							AutoRevert:       boolToPtr(false),
+							Canary:           intToPtr(0),
+							AutoPromote:      boolToPtr(false),
+						},
+						Migrate: DefaultMigrateStrategy(),
+						Tasks: []*Task{
+							{
+								Name:        "task1",
+								LogConfig:   DefaultLogConfig(),
+								Resources:   DefaultResources(),
+								KillTimeout: timeToPtr(5 * time.Second),
+								RestartPolicy: &RestartPolicy{
+									Delay:    timeToPtr(20 * time.Second),
+									Attempts: intToPtr(2),
+									Interval: timeToPtr(30 * time.Minute),
+									Mode:     stringToPtr("fail"),
+								},
 							},
 						},
 					},
