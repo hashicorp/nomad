@@ -8,18 +8,34 @@ FEATURES:
    Enterprise.
  * **Scaling APIs [beta]**: new scaling policy API and job scaling APIs to support external autoscalers [[GH-7409](https://github.com/hashicorp/nomad/pull/7409)]
 
+
+__BACKWARDS INCOMPATIBILITIES:__
+ * driver/rkt: The Rkt driver is no longer packaged with Nomad and is instead
+   distributed separately as a driver plugin. Further, the LXC driver codebase
+   is now in a separate
+   [repository](https://github.com/hashicorp/nomad-driver-rkt).
+
 IMPROVEMENTS:
 
- * build: Updated to Go 1.14 [[GH-7247](https://github.com/hashicorp/nomad/issues/7247)]
+ * core: Optimized streaming RPCs made between Nomad agents [[GH-7044](https://github.com/hashicorp/nomad/issues/7044)]
+ * build: Updated to Go 1.14.1 [[GH-7431](https://github.com/hashicorp/nomad/issues/7431)]
  * consul: Added support for configuring `enable_tag_override` on service stanzas. [[GH-2057](https://github.com/hashicorp/nomad/issues/2057)]
  * client: Updated consul-template library to v0.24.1 - added support for working with consul connect. [Deprecated vault_grace](https://nomadproject.io/guides/upgrade/upgrade-specific/#nomad-0110) [[GH-7170](https://github.com/hashicorp/nomad/pull/7170)]
+ * driver/exec: Added `no_pivot_root` option for ramdisk use [[GH-7149](https://github.com/hashicorp/nomad/issues/7149)]
  * jobspec: Added task environment interpolation to `volume_mount` [[GH-7364](https://github.com/hashicorp/nomad/issues/7364)]
+ * server: Added minimum quorum check to Autopilot with minQuorum option [[GH-7171](https://github.com/hashicorp/nomad/issues/7171)]
 
 BUG FIXES:
 
+ * core: Fixed a bug where group network mode changes were not honored [[GH-7414](https://github.com/hashicorp/nomad/issues/7414)]
+ * core: Optimized and fixed few bugs in underlying RPC handling [[GH-7044](https://github.com/hashicorp/nomad/issues/7044)] [[GH-7045](https://github.com/hashicorp/nomad/issues/7045)]
  * api: Fixed a panic when canonicalizing a jobspec with an incorrect job type [[GH-7207](https://github.com/hashicorp/nomad/pull/7207)]
  * api: Fixed a bug where calling the node GC or GcAlloc endpoints resulted in an error EOF return on successful requests [[GH-5970](https://github.com/hashicorp/nomad/issues/5970)]
+ * api: Fixed a bug where `/client/allocations/...` (e.g. allocation stats) requests may hang in special cases after a leader election [[GH-7370](https://github.com/hashicorp/nomad/issues/7370)]
  * cli: Fixed a panic when displaying device plugins without stats [[GH-7231](https://github.com/hashicorp/nomad/issues/7231)]
+ * cli: Fixed a bug where `alloc exec` command in TLS environments may fail [[GH-7274](https://github.com/hashicorp/nomad/issues/7274)]
+ * client: Fixed a panic when running in Debian with `/etc/debian_version` is empty [[GH-7350](https://github.com/hashicorp/nomad/issues/7350)]
+ * client: Fixed a bug where a multi-task allocation maybe considered healthy despite a task restarting [[GH-7383](https://github.com/hashicorp/nomad/issues/7383)]
 
 ## 0.10.4 (February 19, 2020)
 
