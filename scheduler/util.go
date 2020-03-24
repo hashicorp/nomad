@@ -437,6 +437,10 @@ func networkUpdated(netA, netB []*structs.NetworkResource) bool {
 		an := netA[idx]
 		bn := netB[idx]
 
+		if an.Mode != bn.Mode {
+			return true
+		}
+
 		if an.MBits != bn.MBits {
 			return true
 		}
