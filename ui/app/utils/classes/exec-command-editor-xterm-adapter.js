@@ -11,7 +11,9 @@ export default class ExecCommandEditorXtermAdapter {
       this.handleKeyEvent(e);
     });
 
+    // Allows tests to bypass synthetic keyboard event restrictions
     terminal.simulateCommandKeyEvent = this.handleKeyEvent.bind(this);
+
     terminal.write(REVERSE_WRAPAROUND_MODE);
   }
 
