@@ -6,6 +6,7 @@ jobs:
   check_links:
     name: Check links
     runs-on: ubuntu-latest
+    if: github.event.deployment.environment == 'Netlify Preview' && github.event.deployment_status.state == 'success' && github.event.deployment.payload.context == 'deploy-preview'
     steps:
       - name: Checkout Code
         uses: actions/checkout@master

@@ -74,5 +74,5 @@ async function run() {
 
 run().catch(error => {
   console.log(error);
-  // core.setFailed(error.message)
+  core.setFailed(error.message);
 });
