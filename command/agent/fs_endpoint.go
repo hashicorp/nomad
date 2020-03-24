@@ -39,7 +39,7 @@ func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (int
 	case strings.HasPrefix(path, "stream/"):
 		return s.Stream(resp, req)
 	case strings.HasPrefix(path, "logs/"):
-		// Logs are *not* untrusted content because the endpoint
+		// Logs are *trusted* content because the endpoint
 		// explicitly sets the Content-Type to text/plain or
 		// application/json depending on the value of the ?plain=
 		// parameter.
