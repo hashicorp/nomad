@@ -133,7 +133,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			}
 
 			// Collect results, filter by ACL access
-			var vs []*structs.CSIVolListStub
+			vs := []*structs.CSIVolListStub{}
 
 			for {
 				raw := iter.Next()
@@ -421,7 +421,7 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 			}
 
 			// Collect results
-			var ps []*structs.CSIPluginListStub
+			ps := []*structs.CSIPluginListStub{}
 			for {
 				raw := iter.Next()
 				if raw == nil {
