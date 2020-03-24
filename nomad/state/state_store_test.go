@@ -2928,24 +2928,6 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
 
-	index++
-	err = state.CSIVolumeDeregister(index, ns, []string{
-		vol1,
-	})
-	require.NoError(t, err)
-
-	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByPluginID(ws, ns, "adam")
-	require.NoError(t, err)
-	vs = slurp(iter)
-	require.Equal(t, 0, len(vs))
-
-	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByNamespace(ws, ns)
-	require.NoError(t, err)
-	vs = slurp(iter)
-	require.Equal(t, 1, len(vs))
-
 	// Claims
 	a0 := &structs.Allocation{ID: uuid.Generate()}
 	a1 := &structs.Allocation{ID: uuid.Generate()}
@@ -2973,6 +2955,36 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.True(t, vs[0].ReadSchedulable())
+
+	// Deregister
+	index++
+	err = state.CSIVolumeDeregister(index, ns, []string{vol0})
+	require.Error(t, err, fmt.Sprintf("volume in use: %s", vol0))
+
+	// release claims to unblock deregister
+	index++
+	err = state.CSIVolumeClaim(index, ns, vol0, a0, u)
+	require.NoError(t, err)
+	index++
+	err = state.CSIVolumeClaim(index, ns, vol0, a1, u)
+	require.NoError(t, err)
+
+	index++
+	err = state.CSIVolumeDeregister(index, ns, []string{vol0})
+	require.NoError(t, err)
+
+	// List, now omitting the deregistered volume
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.Equal(t, 0, len(vs))
+
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByNamespace(ws, ns)
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.Equal(t, 1, len(vs))
 }
 
 // TestStateStore_CSIPluginNodes uses the state from jobs, and uses node fingerprinting to update health

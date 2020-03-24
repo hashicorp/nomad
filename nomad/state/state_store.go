@@ -1833,6 +1833,15 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []s
 			return fmt.Errorf("volume not found: %s", id)
 		}
 
+		vol, ok := existing.(*structs.CSIVolume)
+		if !ok {
+			return fmt.Errorf("volume row conversion error: %s", id)
+		}
+
+		if vol.InUse() {
+			return fmt.Errorf("volume in use: %s", id)
+		}
+
 		if err = txn.Delete("csi_volumes", existing); err != nil {
 			return fmt.Errorf("volume delete failed: %s: %v", id, err)
 		}
