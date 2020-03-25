@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -3137,8 +3138,8 @@ func TestStateStore_Indexes(t *testing.T) {
 	}
 
 	expect := &IndexEntry{"nodes", 1000}
-	if l := len(out); l != 1 && l != 2 {
-		t.Fatalf("unexpected number of index entries: %v", out)
+	if l := len(out); l < 1 {
+		t.Fatalf("unexpected number of index entries: %v", pretty.Sprint(out))
 	}
 
 	for _, index := range out {
