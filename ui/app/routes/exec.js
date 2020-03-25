@@ -20,7 +20,7 @@ export default Route.extend(WithWatchers, {
     const name = params.job_name;
     const fullId = JSON.stringify([name, namespace || 'default']);
     return this.store
-      .findRecord('job', fullId, { reload: true })
+      .findRecord('job', fullId)
       .then(job => {
         return job.get('allocations').then(() => job);
       })
