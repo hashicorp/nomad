@@ -1,7 +1,7 @@
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
-import { mapBy, uniq } from '@ember/object/computed';
+import { mapBy, sort, uniq } from '@ember/object/computed';
 import escapeTaskName from 'nomad-ui/utils/escape-task-name';
 import ExecCommandEditorXtermAdapter from 'nomad-ui/utils/classes/exec-command-editor-xterm-adapter';
 import ExecSocketXtermAdapter from 'nomad-ui/utils/classes/exec-socket-xterm-adapter';
@@ -29,6 +29,9 @@ export default Controller.extend({
 
   pendingAndRunningTaskGroups: mapBy('pendingAndRunningAllocations', 'taskGroup'),
   uniquePendingAndRunningTaskGroups: uniq('pendingAndRunningTaskGroups'),
+
+  taskGroupSorting: Object.freeze(['name']),
+  sortedTaskGroups: sort('uniquePendingAndRunningTaskGroups', 'taskGroupSorting'),
 
   init() {
     this._super(...arguments);
