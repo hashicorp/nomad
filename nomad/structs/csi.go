@@ -652,17 +652,31 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) {
 // DeleteNode removes all plugins from the node. Called from state.DeleteNode in a
 // transaction
 func (p *CSIPlugin) DeleteNode(nodeID string) {
-	prev, ok := p.Controllers[nodeID]
-	if ok && prev.Healthy {
-		p.ControllersHealthy -= 1
-	}
-	delete(p.Controllers, nodeID)
+	p.DeleteNodeType(nodeID, CSIPluginTypeMonolith)
+}
 
-	prev, ok = p.Nodes[nodeID]
-	if ok && prev.Healthy {
-		p.NodesHealthy -= 1
+// DeleteNodeType deletes all plugins of type from the node. Called from deleteJobFromPlugin
+// during job Deregistration
+func (p *CSIPlugin) DeleteNodeType(nodeID string, pluginType CSIPluginType) {
+	switch pluginType {
+	case CSIPluginTypeController:
+		prev, ok := p.Controllers[nodeID]
+		if ok && prev.Healthy {
+			p.ControllersHealthy -= 1
+		}
+		delete(p.Controllers, nodeID)
+
+	case CSIPluginTypeNode:
+		prev, ok := p.Nodes[nodeID]
+		if ok && prev.Healthy {
+			p.NodesHealthy -= 1
+		}
+		delete(p.Nodes, nodeID)
+
+	case CSIPluginTypeMonolith:
+		p.DeleteNodeType(nodeID, CSIPluginTypeController)
+		p.DeleteNodeType(nodeID, CSIPluginTypeNode)
 	}
-	delete(p.Nodes, nodeID)
 }
 
 type CSIPluginListStub struct {
