@@ -11,11 +11,17 @@ export default ApplicationAdapter.extend({
   store: service(),
 
   ajaxOptions(url, type, options) {
+    const ajaxOptions = this._super(url, type, options);
+
     // Since ajax has been changed to include query params in the URL,
-    // the query params need to be removed before arguments are passed
-    // to _ajax.
-    const [bareUrl] = url.split('?');
-    const ajaxOptions = this._super(bareUrl, type, options);
+    // we have to remove query params that are in the URL from the data
+    // object so they don't get passed along twice.
+    const [newUrl, params] = ajaxOptions.url.split('?');
+    const queryParams = queryString.parse(params);
+    ajaxOptions.url = !params ? newUrl : `${newUrl}?${queryString.stringify(queryParams)}`;
+    Object.keys(queryParams).forEach(key => {
+      delete ajaxOptions.data[key];
+    });
 
     const abortToken = (options || {}).abortToken;
     if (abortToken) {
@@ -41,8 +47,8 @@ export default ApplicationAdapter.extend({
   // It's either this weird side-effecting thing that also requires a change
   // to ajaxOptions or overriding ajax completely.
   ajax(url, type, options) {
-    const hasParams = options && options.data && Object.keys(options.data).length;
-    if (!hasParams) return this._super(url, type, options);
+    const hasParams = hasNonBlockingQueryParams(options);
+    if (!hasParams || type !== 'GET') return this._super(url, type, options);
 
     const params = { ...options.data };
     delete params.index;
@@ -187,3 +193,12 @@ export default ApplicationAdapter.extend({
     return this._super(...arguments);
   },
 });
+
+function hasNonBlockingQueryParams(options) {
+  if (!options || !options.data) return false;
+  const keys = Object.keys(options.data);
+  if (!keys.length) return false;
+  if (keys.length === 1 && keys[0] === 'index') return false;
+
+  return true;
+}
