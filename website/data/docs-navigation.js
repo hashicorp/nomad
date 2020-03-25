@@ -136,6 +136,7 @@ export default [
       'ephemeral_disk',
       'group',
       'job',
+      'lifecycle',
       'logs',
       'meta',
       'migrate',

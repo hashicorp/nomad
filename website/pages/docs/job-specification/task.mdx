@@ -67,6 +67,9 @@ job "docs" {
   the task group. If set to true, when the leader task completes, all other
   tasks within the task group will be gracefully shutdown.
 
+- `lifecycle` <code>([Lifecycle][]: nil)</code> - Specifies when a task is run
+  within the lifecycle of a task group.
+
 - `logs` <code>([Logs][]: nil)</code> - Specifies logging configuration for the
   `stdout` and `stderr` of the task.
 
@@ -197,6 +200,7 @@ task "server" {
 [env]: /docs/job-specification/env 'Nomad env Job Specification'
 [meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
 [resources]: /docs/job-specification/resources 'Nomad resources Job Specification'
+[lifecycle]: /docs/job-specification/lifecycle 'Nomad lifecycle Job Specification'
 [logs]: /docs/job-specification/logs 'Nomad logs Job Specification'
 [service]: /docs/job-specification/service 'Nomad service Job Specification'
 [vault]: /docs/job-specification/vault 'Nomad vault Job Specification'
