@@ -35,7 +35,7 @@
   <div class="task-group-tree">
     <h4 class="title is-6">Tasks</h4>
     <ul>
-      {{#each uniqueRunningTaskGroups as |taskGroup|}}
+      {{#each uniquePendingAndRunningTaskGroups as |taskGroup|}}
         <li data-test-task-group>
           {{exec/task-group-parent taskGroup=taskGroup openInNewWindow=socketOpen activeTaskState=taskState}}
         </li>

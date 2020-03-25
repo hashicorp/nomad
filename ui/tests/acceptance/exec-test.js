@@ -61,6 +61,7 @@ module('Acceptance | exec', function(hooks) {
     assert.equal(Exec.taskGroups[0].name, this.job.task_groups.models[0].name);
     assert.equal(Exec.taskGroups[0].tasks.length, 0);
     assert.ok(Exec.taskGroups[0].chevron.isRight);
+    assert.notOk(Exec.taskGroups[0].isLoading);
 
     await Exec.taskGroups[0].click();
     assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
@@ -83,9 +84,17 @@ module('Acceptance | exec', function(hooks) {
     );
   });
 
-  test('a task group with no running task states should not be shown', async function(assert) {
+  test('a task group with a pending allocation shows a loading spinner', async function(assert) {
     let taskGroup = this.job.task_groups.models[0];
     this.server.db.allocations.update({ taskGroup: taskGroup.name }, { clientStatus: 'pending' });
+
+    await Exec.visitJob({ job: this.job.id });
+    assert.ok(Exec.taskGroups[0].isLoading);
+  });
+
+  test('a task group with no running task states or pending allocations should not be shown', async function(assert) {
+    let taskGroup = this.job.task_groups.models[0];
+    this.server.db.allocations.update({ taskGroup: taskGroup.name }, { clientStatus: 'failed' });
 
     await Exec.visitJob({ job: this.job.id });
     assert.notEqual(Exec.taskGroups[0].name, taskGroup.name);
@@ -95,7 +104,7 @@ module('Acceptance | exec', function(hooks) {
     let notRunningTaskGroup = this.job.task_groups.models[0];
     this.server.db.allocations.update(
       { taskGroup: notRunningTaskGroup.name },
-      { clientStatus: 'pending' }
+      { clientStatus: 'failed' }
     );
 
     let runningTaskGroup = this.job.task_groups.models[1];

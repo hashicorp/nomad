@@ -26,6 +26,10 @@ export default Component.extend({
     }
   }),
 
+  hasPendingAllocations: computed('taskGroup.allocations.@each.clientStatus', function() {
+    return this.taskGroup.allocations.any(allocation => allocation.clientStatus === 'pending');
+  }),
+
   allocationTaskStatesRecordArrays: mapBy('taskGroup.allocations', 'states'),
   allocationTaskStates: computed('allocationTaskStatesRecordArrays.[]', function() {
     const flattenRecordArrays = (accumulator, recordArray) =>

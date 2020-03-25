@@ -1,6 +1,7 @@
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
-import { filterBy, mapBy, uniq } from '@ember/object/computed';
+import { computed } from '@ember/object';
+import { mapBy, uniq } from '@ember/object/computed';
 import escapeTaskName from 'nomad-ui/utils/escape-task-name';
 import ExecCommandEditorXtermAdapter from 'nomad-ui/utils/classes/exec-command-editor-xterm-adapter';
 import ExecSocketXtermAdapter from 'nomad-ui/utils/classes/exec-socket-xterm-adapter';
@@ -20,9 +21,14 @@ export default Controller.extend({
   socketOpen: false,
   taskState: null,
 
-  runningAllocations: filterBy('model.allocations', 'isRunning'),
-  runningTaskGroups: mapBy('runningAllocations', 'taskGroup'),
-  uniqueRunningTaskGroups: uniq('runningTaskGroups'),
+  pendingAndRunningAllocations: computed('model.allocations.@each.clientStatus', function() {
+    return this.model.allocations.filter(
+      allocation => allocation.clientStatus == 'pending' || allocation.clientStatus == 'running'
+    );
+  }),
+
+  pendingAndRunningTaskGroups: mapBy('pendingAndRunningAllocations', 'taskGroup'),
+  uniquePendingAndRunningTaskGroups: uniq('pendingAndRunningTaskGroups'),
 
   init() {
     this._super(...arguments);

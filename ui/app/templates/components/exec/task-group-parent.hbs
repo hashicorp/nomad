@@ -1,4 +1,4 @@
-<button {{action "toggleOpen"}} class="toggle-button" data-test-task-group-name>
+<button {{action "toggleOpen"}} class="toggle-button {{if hasPendingAllocations "is-loading"}}" data-test-task-group-name>
   {{x-icon (if isOpen "chevron-down" "chevron-right")}}
   {{taskGroup.name}}
 </button>
