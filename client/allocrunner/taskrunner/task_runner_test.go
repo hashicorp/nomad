@@ -2245,13 +2245,15 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 
 	alloc := mock.Alloc()
 	// Make the restart policy try one ctx.update
-	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+	rp := &structs.RestartPolicy{
 		Attempts: 1,
 		Interval: 10 * time.Minute,
 		Delay:    time.Nanosecond,
 		Mode:     structs.RestartPolicyModeFail,
 	}
+	alloc.Job.TaskGroups[0].RestartPolicy = rp
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.RestartPolicy = rp
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
 		"exit_code": "1",
