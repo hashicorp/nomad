@@ -405,7 +405,6 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 func parseExpose(eo *ast.ObjectItem) (*api.ConsulExposeConfig, error) {
 	valid := []string{
 		"path", // an array of path blocks
-		// todo(shoenig) checks boolean
 	}
 
 	if err := helper.CheckHCLKeys(eo.Val, valid); err != nil {
@@ -514,6 +513,7 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"path",
 			"protocol",
 			"port",
+			"expose",
 			"command",
 			"args",
 			"initial_status",
