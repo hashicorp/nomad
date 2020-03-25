@@ -12,6 +12,7 @@ references:
     GOMAXPROCS: 1
     NOMAD_SLOW_TEST: 1
     GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     # disable implicit git paging.  CircleCI runs commands with in a tty
     # making git assume it's an interactive session.
     PAGER: cat
