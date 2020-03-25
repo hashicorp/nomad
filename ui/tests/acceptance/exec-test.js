@@ -128,7 +128,7 @@ module('Acceptance | exec', function(hooks) {
     assert.equal(Exec.taskGroups[0].tasks.length, taskGroup.tasks.length);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
 
-    let task = taskGroup.tasks.models[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
     await Exec.visitTask({ job: this.job.id, task_group: taskGroup.name, task_name: task.name });
 
     assert.equal(Exec.taskGroups[0].tasks.length, taskGroup.tasks.length);
@@ -141,7 +141,7 @@ module('Acceptance | exec', function(hooks) {
     await Exec.taskGroups[0].tasks[0].click();
 
     let taskGroup = this.job.task_groups.models.sortBy('name')[0];
-    let task = taskGroup.tasks.models[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
 
     let taskStates = this.server.db.taskStates.where({
       name: task.name,
@@ -180,7 +180,7 @@ module('Acceptance | exec', function(hooks) {
 
   test('an allocation can be specified', async function(assert) {
     let taskGroup = this.job.task_groups.models.sortBy('name')[0];
-    let task = taskGroup.tasks.models[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
     let allocations = this.server.db.allocations.where({
       jobId: this.job.id,
       taskGroup: taskGroup.name,
@@ -228,7 +228,7 @@ module('Acceptance | exec', function(hooks) {
     this.owner.register('service:sockets', mockSockets);
 
     let taskGroup = this.job.task_groups.models.sortBy('name')[0];
-    let task = taskGroup.tasks.models[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
     let allocations = this.server.db.allocations.where({
       jobId: this.job.id,
       taskGroup: taskGroup.name,
@@ -329,7 +329,7 @@ module('Acceptance | exec', function(hooks) {
     await Exec.taskGroups[0].tasks[0].click();
 
     let taskGroup = this.job.task_groups.models.sortBy('name')[0];
-    let task = taskGroup.tasks.models[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
     let allocation = this.server.db.allocations.findBy({
       jobId: this.job.id,
       taskGroup: taskGroup.name,

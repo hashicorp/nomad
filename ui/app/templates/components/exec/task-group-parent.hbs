@@ -4,7 +4,7 @@
 </button>
 {{#if isOpen}}
   <ul class="task-list">
-    {{#each tasksWithRunningStates as |task|}}
+    {{#each sortedTasks as |task|}}
       {{#if openInNewWindow}}
         <a {{on "click" (action "openInNewWindow" taskGroup.job taskGroup task)}} class="task-item" data-test-task>
           {{exec/task-contents task=task active=(eq task activeTaskState.task) openInNewWindow=openInNewWindow}}
