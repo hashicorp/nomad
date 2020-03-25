@@ -657,7 +657,8 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	}
 
 	agent := &Agent{
-		config: agentConfig,
+		auditor: &noOpAuditor{},
+		config:  agentConfig,
 	}
 
 	newConfig := &Config{
@@ -785,8 +786,9 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	}
 
 	agent := &Agent{
-		logger: logger,
-		config: agentConfig,
+		auditor: &noOpAuditor{},
+		logger:  logger,
+		config:  agentConfig,
 	}
 
 	newConfig := &Config{
