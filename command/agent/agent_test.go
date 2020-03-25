@@ -705,7 +705,8 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 	}
 
 	agent := &Agent{
-		config: agentConfig,
+		auditor: &noOpAuditor{},
+		config:  agentConfig,
 	}
 
 	newConfig := &Config{
