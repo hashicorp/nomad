@@ -176,12 +176,14 @@ module('Unit | Serializer | Volume', function(hooks) {
             CreateTime: +REF_DATE * 1000000,
             ModifyTime: +REF_DATE * 1000000,
             JobID: 'the-job',
+            Namespace: 'namespace-2',
           },
           'alloc-id-2': {
             TaskGroup: 'write-here',
             CreateTime: +REF_DATE * 1000000,
             ModifyTime: +REF_DATE * 1000000,
             JobID: 'the-job',
+            Namespace: 'namespace-2',
           },
         },
         ReadAllocs: {
@@ -190,6 +192,7 @@ module('Unit | Serializer | Volume', function(hooks) {
             CreateTime: +REF_DATE * 1000000,
             ModifyTime: +REF_DATE * 1000000,
             JobID: 'the-job',
+            Namespace: 'namespace-2',
           },
         },
       },
@@ -255,7 +258,7 @@ module('Unit | Serializer | Volume', function(hooks) {
                 data: null,
               },
               job: {
-                data: { type: 'job', id: '["the-job","default"]' },
+                data: { type: 'job', id: '["the-job","namespace-2"]' },
               },
               nextAllocation: {
                 data: null,
@@ -286,7 +289,7 @@ module('Unit | Serializer | Volume', function(hooks) {
                 data: null,
               },
               job: {
-                data: { type: 'job', id: '["the-job","default"]' },
+                data: { type: 'job', id: '["the-job","namespace-2"]' },
               },
               nextAllocation: {
                 data: null,
@@ -317,7 +320,7 @@ module('Unit | Serializer | Volume', function(hooks) {
                 data: null,
               },
               job: {
-                data: { type: 'job', id: '["the-job","default"]' },
+                data: { type: 'job', id: '["the-job","namespace-2"]' },
               },
               nextAllocation: {
                 data: null,
