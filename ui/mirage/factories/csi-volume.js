@@ -47,8 +47,15 @@ export default Factory.extend({
       });
     }
 
-    volume.update({
-      PluginId: volume.plugin.id,
-    });
+    if (!volume.plugin) {
+      const plugin = server.db.csiPlugins.length ? pickOne(server.db.csiPlugins) : null;
+      volume.update({
+        PluginId: plugin && plugin.id,
+      });
+    } else {
+      volume.update({
+        PluginId: volume.plugin.id,
+      });
+    }
   },
 });

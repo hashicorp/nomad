@@ -86,8 +86,9 @@ export default ApplicationAdapter.extend({
   },
 
   query(store, type, query, snapshotRecordArray, options, additionalParams = {}) {
-    const params = assign({}, query, additionalParams);
     const url = this.buildURL(type.modelName, null, null, 'query', query);
+    let [, params] = url.split('?');
+    params = assign(queryString.parse(params) || {}, this.buildQuery(), additionalParams, query);
 
     if (get(options, 'adapterOptions.watch')) {
       // The intended query without additional blocking query params is used

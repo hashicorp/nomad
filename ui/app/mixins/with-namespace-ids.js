@@ -27,6 +27,12 @@ export default Mixin.create({
     return associateNamespace(url, namespace);
   },
 
+  urlForQuery() {
+    const url = this._super(...arguments);
+    const namespace = this.get('system.activeNamespace.id');
+    return associateNamespace(url, namespace);
+  },
+
   urlForFindRecord(id, type, hash) {
     const [name, namespace] = JSON.parse(id);
     let url = this._super(name, type, hash);
