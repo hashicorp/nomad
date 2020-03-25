@@ -833,8 +833,9 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	}
 
 	agent := &Agent{
-		logger: logger,
-		config: agentConfig,
+		logger:  logger,
+		config:  agentConfig,
+		auditor: &noOpAuditor{},
 	}
 
 	newConfig := &Config{
