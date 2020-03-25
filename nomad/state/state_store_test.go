@@ -3173,6 +3173,9 @@ func TestStateStore_CSIPluginJobs(t *testing.T) {
 			ID:        info.AllocID,
 			Namespace: controllerJob.Namespace,
 			JobID:     controllerJob.ID,
+			Job:       controllerJob,
+			TaskGroup: "web",
+			EvalID:    uuid.Generate(),
 			NodeID:    id,
 		})
 	}
@@ -3181,6 +3184,9 @@ func TestStateStore_CSIPluginJobs(t *testing.T) {
 			ID:        info.AllocID,
 			JobID:     nodeJob.ID,
 			Namespace: nodeJob.Namespace,
+			Job:       nodeJob,
+			TaskGroup: "web",
+			EvalID:    uuid.Generate(),
 			NodeID:    id,
 		})
 	}

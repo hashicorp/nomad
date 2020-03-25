@@ -1085,7 +1085,7 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 	ws := memdb.NewWatchSet()
 	allocs, err := s.AllocsByJob(ws, job.Namespace, job.ID, false)
 	if err != nil {
-		return fmt.Errorf("%v", err)
+		return fmt.Errorf("error getting allocations: %v", err)
 	}
 
 	type pair struct {
@@ -1094,13 +1094,11 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 	}
 
 	plugAllocs := []*pair{}
+	plugins := map[string]*structs.CSIPlugin{}
 
 	for _, a := range allocs {
 		tg := job.LookupTaskGroup(a.TaskGroup)
-		if tg == nil {
-			return fmt.Errorf("%v", err)
-		}
-
+		// if its nil, we can just panic
 		for _, t := range tg.Tasks {
 			if t.CSIPluginConfig != nil {
 				plugAllocs = append(plugAllocs, &pair{
@@ -1113,20 +1111,33 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 	}
 
 	for _, x := range plugAllocs {
-		plug, err := s.CSIPluginByID(ws, x.p)
-		if err != nil {
-			return fmt.Errorf("%v", err)
-		}
-		if plug == nil {
-			return fmt.Errorf("%v", err)
+		plug, ok := plugins[x.p]
+
+		if !ok {
+			plug, err = s.CSIPluginByID(ws, x.p)
+			if err != nil {
+				return fmt.Errorf("error getting plugin: %s, %v", x.p, err)
+			}
+			if plug == nil {
+				return fmt.Errorf("plugin missing: %s %v", x.p, err)
+			}
+			// only copy once, so we update the same plugin on each alloc
+			plugins[x.p] = plug.Copy()
+			plug = plugins[x.p]
 		}
 
-		plug = plug.Copy()
-		plug.DeleteAlloc(x.a.NodeID, x.a.ID)
+		plug.DeleteAlloc(x.a.ID, x.a.NodeID)
+	}
+
+	for _, plug := range plugins {
 		err = deleteFromPlugin(index, txn, plug)
 		if err != nil {
-			return fmt.Errorf("%v", err)
+			return err
 		}
+	}
+
+	if err = txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return nil
