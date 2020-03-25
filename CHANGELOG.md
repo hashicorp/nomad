@@ -77,6 +77,7 @@ BUG FIXES:
  * server: Fixed a deadlock that may occur when server leadership flaps very quickly [[GH-6977](https://github.com/hashicorp/nomad/issues/6977)]
  * scheduler: Fixed a bug that caused evicted allocs on a lost node to be stuck in running [[GH-6902](https://github.com/hashicorp/nomad/issues/6902)]
  * scheduler: Fixed a bug where `nomad job plan/apply` returned errors instead of ignoring system job updates for ineligible nodes. [[GH-6996](https://github.com/hashicorp/nomad/issues/6996)]
+ * scheduler: Fixed a bug where canary allocations where not properly stored across servers during deployments [[GH-6975](https://github.com/hashicorp/nomad/pull/6975)]
 
 SECURITY:
 
