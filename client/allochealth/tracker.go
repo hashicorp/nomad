@@ -41,6 +41,10 @@ type Tracker struct {
 	// considered healthy
 	minHealthyTime time.Duration
 
+	// checkLookupInterval is the interval at which we check if the
+	// Consul checks are healthy or unhealthy.
+	checkLookupInterval time.Duration
+
 	// useChecks specifies whether to use Consul healh checks or not
 	useChecks bool
 
@@ -61,6 +65,10 @@ type Tracker struct {
 	// allocStopped is triggered when the allocation is stopped and tracking is
 	// not needed
 	allocStopped chan struct{}
+
+	// lifecycleTasks is a set of tasks with lifecycle hook set and may
+	// terminate without affecting alloc health
+	lifecycleTasks map[string]bool
 
 	// l is used to lock shared fields listed below
 	l sync.Mutex
@@ -92,26 +100,34 @@ func NewTracker(parentCtx context.Context, logger hclog.Logger, alloc *structs.A
 	// this struct should pass in an appropriately named
 	// sub-logger.
 	t := &Tracker{
-		healthy:        make(chan bool, 1),
-		allocStopped:   make(chan struct{}),
-		alloc:          alloc,
-		tg:             alloc.Job.LookupTaskGroup(alloc.TaskGroup),
-		minHealthyTime: minHealthyTime,
-		useChecks:      useChecks,
-		allocUpdates:   allocUpdates,
-		consulClient:   consulClient,
-		logger:         logger,
+		healthy:             make(chan bool, 1),
+		allocStopped:        make(chan struct{}),
+		alloc:               alloc,
+		tg:                  alloc.Job.LookupTaskGroup(alloc.TaskGroup),
+		minHealthyTime:      minHealthyTime,
+		useChecks:           useChecks,
+		allocUpdates:        allocUpdates,
+		consulClient:        consulClient,
+		checkLookupInterval: consulCheckLookupInterval,
+		logger:              logger,
+		lifecycleTasks:      map[string]bool{},
 	}
 
 	t.taskHealth = make(map[string]*taskHealthState, len(t.tg.Tasks))
 	for _, task := range t.tg.Tasks {
 		t.taskHealth[task.Name] = &taskHealthState{task: task}
-	}
 
-	for _, task := range t.tg.Tasks {
+		if task.Lifecycle != nil && !task.Lifecycle.Sidecar {
+			t.lifecycleTasks[task.Name] = true
+		}
+
 		for _, s := range task.Services {
 			t.consulCheckCount += len(s.Checks)
 		}
+	}
+
+	for _, s := range t.tg.Services {
+		t.consulCheckCount += len(s.Checks)
 	}
 
 	t.ctx, t.cancelFn = context.WithCancel(parentCtx)
@@ -171,6 +187,12 @@ func (t *Tracker) setTaskHealth(healthy, terminal bool) {
 	defer t.l.Unlock()
 	t.tasksHealthy = healthy
 
+	// if unhealthy, force waiting for new checks health status
+	if !terminal && !healthy {
+		t.checksHealthy = false
+		return
+	}
+
 	// If we are marked healthy but we also require Consul to be healthy and it
 	// isn't yet, return, unless the task is terminal
 	requireConsul := t.useChecks && t.consulCheckCount > 0
@@ -191,10 +213,13 @@ func (t *Tracker) setTaskHealth(healthy, terminal bool) {
 func (t *Tracker) setCheckHealth(healthy bool) {
 	t.l.Lock()
 	defer t.l.Unlock()
-	t.checksHealthy = healthy
+
+	// check health should always be false if tasks are unhealthy
+	// as checks might be missing from unhealthy tasks
+	t.checksHealthy = healthy && t.tasksHealthy
 
 	// Only signal if we are healthy and so is the tasks
-	if !healthy || !t.tasksHealthy {
+	if !t.checksHealthy {
 		return
 	}
 
@@ -249,17 +274,18 @@ func (t *Tracker) watchTaskEvents() {
 
 		// Detect if the alloc is unhealthy or if all tasks have started yet
 		latestStartTime := time.Time{}
-		for _, state := range alloc.TaskStates {
+		for taskName, state := range alloc.TaskStates {
 			// One of the tasks has failed so we can exit watching
-			if state.Failed || !state.FinishedAt.IsZero() {
+			if state.Failed || (!state.FinishedAt.IsZero() && !t.lifecycleTasks[taskName]) {
 				t.setTaskHealth(false, true)
 				return
 			}
 
-			if state.State != structs.TaskStateRunning {
+			if state.State == structs.TaskStatePending {
 				latestStartTime = time.Time{}
 				break
 			} else if state.StartedAt.After(latestStartTime) {
+				// task is either running or exited successfully
 				latestStartTime = state.StartedAt
 			}
 		}
@@ -276,6 +302,9 @@ func (t *Tracker) watchTaskEvents() {
 		}
 
 		if !latestStartTime.Equal(allStartedTime) {
+			// reset task health
+			t.setTaskHealth(false, false)
+
 			// Avoid the timer from firing at the old start time
 			if !healthyTimer.Stop() {
 				select {
@@ -310,7 +339,7 @@ func (t *Tracker) watchTaskEvents() {
 func (t *Tracker) watchConsulEvents() {
 	// checkTicker is the ticker that triggers us to look at the checks in
 	// Consul
-	checkTicker := time.NewTicker(consulCheckLookupInterval)
+	checkTicker := time.NewTicker(t.checkLookupInterval)
 	defer checkTicker.Stop()
 
 	// healthyTimer fires when the checks have been healthy for the
@@ -440,13 +469,20 @@ func (t *taskHealthState) event(deadline time.Time, minHealthyTime time.Duration
 		if t.state.Failed {
 			return "Unhealthy because of failed task", true
 		}
-		if t.state.State != structs.TaskStateRunning {
-			return "Task not running by deadline", true
-		}
 
-		// We are running so check if we have been running long enough
-		if t.state.StartedAt.Add(minHealthyTime).After(deadline) {
-			return fmt.Sprintf("Task not running for min_healthy_time of %v by deadline", minHealthyTime), true
+		switch t.state.State {
+		case structs.TaskStatePending:
+			return "Task not running by deadline", true
+		case structs.TaskStateDead:
+			// hook tasks are healthy when dead successfully
+			if t.task.Lifecycle == nil || t.task.Lifecycle.Sidecar {
+				return "Unhealthy because of dead task", true
+			}
+		case structs.TaskStateRunning:
+			// We are running so check if we have been running long enough
+			if t.state.StartedAt.Add(minHealthyTime).After(deadline) {
+				return fmt.Sprintf("Task not running for min_healthy_time of %v by deadline", minHealthyTime), true
+			}
 		}
 	}
 
