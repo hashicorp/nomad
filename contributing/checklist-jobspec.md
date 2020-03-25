@@ -17,6 +17,7 @@
   * Implement other methods and tests from `api/` package
 * [ ] Add conversion between `api/` and `nomad/structs` in `command/agent/job_endpoint.go`
 * [ ] Add check for job diff in `nomad/structs/diff.go`
+  * Note that fields must be listed in alphabetical order in `FieldDiff` slices in `nomad/structs/diff_test.go`
 * [ ] Test conversion
 
 ## Docs
