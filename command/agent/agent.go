@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1081,3 +1082,26 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	go a.consulService.Run()
 	return nil
 }
+
+// noOpAuditor is a no-op Auditor that fulfills the
+// event.Auditor interface.
+type noOpAuditor struct{}
+
+// Ensure noOpAuditor is an Auditor
+var _ event.Auditor = &noOpAuditor{}
+
+func (e *noOpAuditor) Event(ctx context.Context, eventType string, payload interface{}) error {
+	return nil
+}
+
+func (e *noOpAuditor) Enabled() bool {
+	return false
+}
+
+func (e *noOpAuditor) Reopen() error {
+	return nil
+}
+
+func (e *noOpAuditor) SetEnabled(enabled bool) {}
+
+func (e *noOpAuditor) DeliveryEnforced() bool { return false }
