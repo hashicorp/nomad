@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { or } from '@ember/object/computed';
+import { filterBy, mapBy, or } from '@ember/object/computed';
 import generateExecUrl from 'nomad-ui/utils/generate-exec-url';
 import openExecUrl from 'nomad-ui/utils/open-exec-url';
 
@@ -26,25 +26,33 @@ export default Component.extend({
     }
   }),
 
-  tasksWithRunningStates: computed('taskGroup', function() {
-    const activeStateTaskNames = this.taskGroup.allocations.reduce(
-      (activeStateTaskNames, allocation) => {
-        activeStateTaskNames = activeStateTaskNames.concat(
-          allocation.states
-            .filter(
-              taskState =>
-                taskState.isActive && taskState.task.taskGroup.name === this.taskGroup.name
-            )
-            .mapBy('name')
-        );
-
-        return activeStateTaskNames;
-      },
-      []
-    );
-
-    return this.taskGroup.tasks.filter(task => activeStateTaskNames.includes(task.name));
+  allocationTaskStatesRecordArrays: mapBy('taskGroup.allocations', 'states'),
+  allocationTaskStates: computed('allocationTaskStatesRecordArrays.[]', function() {
+    const flattenRecordArrays = (accumulator, recordArray) =>
+      accumulator.concat(recordArray.toArray());
+    return this.allocationTaskStatesRecordArrays.reduce(flattenRecordArrays, []);
   }),
+
+  activeTaskStates: filterBy('allocationTaskStates', 'isActive'),
+
+  activeTasks: mapBy('activeTaskStates', 'task'),
+  activeTaskGroups: mapBy('activeTasks', 'taskGroup'),
+
+  tasksWithRunningStates: computed(
+    'taskGroup.name',
+    'activeTaskStates.@each.name',
+    'activeTasks.@each.name',
+    'activeTaskGroups.@each.name',
+    function() {
+      const activeTaskStateNames = this.activeTaskStates
+        .filter(taskState => {
+          return taskState.task && taskState.task.taskGroup.name === this.taskGroup.name;
+        })
+        .mapBy('name');
+
+      return this.taskGroup.tasks.filter(task => activeTaskStateNames.includes(task.name));
+    }
+  ),
 
   clickedOpen: false,
 
