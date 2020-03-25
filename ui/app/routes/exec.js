@@ -5,8 +5,6 @@ import { collect } from '@ember/object/computed';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import { watchRecord, watchRelationship } from 'nomad-ui/utils/properties/watch';
 
-// copied from jobs/job, issue to improve: https://github.com/hashicorp/nomad/issues/7458
-
 export default Route.extend(WithWatchers, {
   store: service(),
   token: service(),
