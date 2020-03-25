@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1005,9 +1006,15 @@ func (a *Agent) Reload(newConfig *Config) error {
 
 	// Update eventer config
 	if newConfig.Audit != nil {
-		if err := a.entReloadEventer(a.config.Audit); err != nil {
+		if err := a.entReloadEventer(newConfig.Audit); err != nil {
 			return err
 		}
+	}
+	// Allow auditor to call reopen regardless of config changes
+	// This is primarily for enterprise audit logging to allow the underlying
+	// file to be reopened if necessary
+	if err := a.auditor.Reopen(); err != nil {
+		return err
 	}
 
 	fullUpdateTLSConfig := func() {
@@ -1081,3 +1088,26 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	go a.consulService.Run()
 	return nil
 }
+
+// noOpAuditor is a no-op Auditor that fulfills the
+// event.Auditor interface.
+type noOpAuditor struct{}
+
+// Ensure noOpAuditor is an Auditor
+var _ event.Auditor = &noOpAuditor{}
+
+func (e *noOpAuditor) Event(ctx context.Context, eventType string, payload interface{}) error {
+	return nil
+}
+
+func (e *noOpAuditor) Enabled() bool {
+	return false
+}
+
+func (e *noOpAuditor) Reopen() error {
+	return nil
+}
+
+func (e *noOpAuditor) SetEnabled(enabled bool) {}
+
+func (e *noOpAuditor) DeliveryEnforced() bool { return false }

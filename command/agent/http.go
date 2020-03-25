@@ -513,7 +513,7 @@ func (s *HTTPServer) wrapNonJSON(handler func(resp http.ResponseWriter, req *htt
 		defer func() {
 			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Now().Sub(start))
 		}()
-		obj, err := s.auditByteHandler(handler)(resp, req)
+		obj, err := s.auditNonJSONHandler(handler)(resp, req)
 
 		// Check for an error
 		if err != nil {

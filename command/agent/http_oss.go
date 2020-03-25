@@ -27,7 +27,7 @@ func (s HTTPServer) auditHandler(h handlerFn) handlerFn {
 	return h
 }
 
-func (s *HTTPServer) auditByteHandler(h handlerByteFn) handlerByteFn {
+func (s *HTTPServer) auditNonJSONHandler(h handlerByteFn) handlerByteFn {
 	return h
 }
 
