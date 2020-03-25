@@ -679,6 +679,25 @@ func (p *CSIPlugin) DeleteNodeType(nodeID string, pluginType CSIPluginType) {
 	}
 }
 
+// DeleteAlloc removes the fingerprint info for the allocation
+func (p *CSIPlugin) DeleteAlloc(allocID, nodeID string) {
+	prev, ok := p.Controllers[nodeID]
+	if ok && prev.AllocID == allocID {
+		if prev.Healthy {
+			p.ControllersHealthy -= 1
+		}
+		delete(p.Controllers, nodeID)
+	}
+
+	prev, ok = p.Nodes[nodeID]
+	if ok && prev.AllocID == allocID {
+		if prev.Healthy {
+			p.NodesHealthy -= 1
+		}
+		delete(p.Nodes, nodeID)
+	}
+}
+
 type CSIPluginListStub struct {
 	ID                  string
 	Provider            string
