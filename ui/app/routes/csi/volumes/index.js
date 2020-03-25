@@ -8,7 +8,6 @@ export default Route.extend(WithWatchers, {
     controller.set('modelWatch', this.watch.perform({ type: 'csi' }));
   },
 
-  // TODO: this needs to be a watchQuery, which needs to be implemented
   watch: watchQuery('volume'),
   watchers: collect('watch'),
 });

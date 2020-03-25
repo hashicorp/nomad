@@ -29,14 +29,14 @@ export default Model.extend({
   controllersHealthy: attr('number'),
   controllersExpected: attr('number'),
 
-  controllersHealthyPercent: computed('controllersHealthy', 'controllersExpected', function() {
+  controllersHealthyProportion: computed('controllersHealthy', 'controllersExpected', function() {
     return this.controllersHealthy / this.controllersExpected;
   }),
 
   nodesHealthy: attr('number'),
   nodesExpected: attr('number'),
 
-  nodesHealthyPercent: computed('nodesHealthy', 'nodesExpected', function() {
+  nodesHealthyProportion: computed('nodesHealthy', 'nodesExpected', function() {
     return this.nodesHealthy / this.nodesExpected;
   }),
 

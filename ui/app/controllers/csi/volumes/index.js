@@ -7,9 +7,9 @@ export default Controller.extend(
   SortableFactory([
     'id',
     'schedulable',
-    'controllersHealthyPercent',
-    'nodesHealthyPercent',
-    'provder',
+    'controllersHealthyProportion',
+    'nodesHealthyProportion',
+    'provider',
   ]),
   {
     system: service(),

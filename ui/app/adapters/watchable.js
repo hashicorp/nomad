@@ -111,7 +111,7 @@ export default ApplicationAdapter.extend({
 
       // Query params may not necessarily map one-to-one to attribute names.
       // Adapters are responsible for declaring param mappings.
-      const queryParamsToAttrs = Object.keys(adapter.queryParamsToAttrs).map(key => ({
+      const queryParamsToAttrs = Object.keys(adapter.queryParamsToAttrs || {}).map(key => ({
         queryParam: key,
         attr: adapter.queryParamsToAttrs[key],
       }));
