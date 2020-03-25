@@ -12,7 +12,7 @@
       {{#if system.shouldShowRegions}}
         <div class="collapsed-only">
           <p class="menu-label">
-            Region
+            Region {{if system.shouldShowNamespaces "& Namespace"}}
           </p>
           <ul class="menu-list">
             <li>
@@ -22,12 +22,9 @@
             </li>
           </ul>
         </div>
-     {{/if}}
-      <p class="menu-label">
-        Workload
-      </p>
-      <ul class="menu-list">
-        {{#if system.shouldShowNamespaces}}
+      {{/if}}
+      {{#if system.shouldShowNamespaces}}
+        <ul class="menu-list">
           <li>
             <div class="menu-item is-wide">
               {{#power-select
@@ -48,8 +45,19 @@
               {{/power-select}}
             </div>
           </li>
-        {{/if}}
+        </ul>
+      {{/if}}
+      <p class="menu-label">
+        Workload
+      </p>
+      <ul class="menu-list">
         <li>{{#link-to "jobs" activeClass="is-active" data-test-gutter-link="jobs"}}Jobs{{/link-to}}</li>
+      </ul>
+      <p class="menu-label is-minor">
+        Integrations
+      </p>
+      <ul class="menu-list">
+        <li>{{#link-to "csi" activeClass="is-active" data-test-gutter-link="csi"}}CSI{{/link-to}}</li>
       </ul>
       <p class="menu-label">
         Cluster

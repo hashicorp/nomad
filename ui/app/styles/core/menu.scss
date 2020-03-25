@@ -1,5 +1,7 @@
 .menu {
   .menu-list {
+    margin-top: 1rem;
+
     a {
       font-weight: $weight-semibold;
       padding: 0.5rem 1.5rem;
@@ -47,6 +49,15 @@
 
     &:not(:first-child) {
       border-top: 1px solid $grey-blue;
+    }
+
+    &.is-minor {
+      border-top: none;
+      margin-top: 0;
+    }
+
+    + .menu-list {
+      margin-top: 0.5rem;
     }
   }
 

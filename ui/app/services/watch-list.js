@@ -1,3 +1,4 @@
+import { computed } from '@ember/object';
 import { readOnly } from '@ember/object/computed';
 import { copy } from 'ember-copy';
 import Service from '@ember/service';
@@ -5,9 +6,9 @@ import Service from '@ember/service';
 let list = {};
 
 export default Service.extend({
-  list: readOnly(function() {
-    return copy(list, true);
-  }),
+  _list: computed(() => copy(list, true)),
+
+  list: readOnly('_list'),
 
   init() {
     this._super(...arguments);

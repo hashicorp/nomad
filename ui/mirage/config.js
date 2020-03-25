@@ -227,6 +227,58 @@ export default function() {
     return new Response(204, {}, '');
   });
 
+  this.get(
+    '/volumes',
+    withBlockingSupport(function({ csiVolumes }, { queryParams }) {
+      if (queryParams.type !== 'csi') {
+        return new Response(200, {}, '[]');
+      }
+
+      return this.serialize(csiVolumes.all());
+    })
+  );
+
+  this.get(
+    '/volume/:id',
+    withBlockingSupport(function({ csiVolumes }, { params }) {
+      if (!params.id.startsWith('csi/')) {
+        return new Response(404, {}, null);
+      }
+
+      const id = params.id.replace(/^csi\//, '');
+      const volume = csiVolumes.find(id);
+
+      if (!volume) {
+        return new Response(404, {}, null);
+      }
+
+      return this.serialize(volume);
+    })
+  );
+
+  this.get('/plugins', function({ csiPlugins }, { queryParams }) {
+    if (queryParams.type !== 'csi') {
+      return new Response(200, {}, '[]');
+    }
+
+    return this.serialize(csiPlugins.all());
+  });
+
+  this.get('/plugin/:id', function({ csiPlugins }, { params }) {
+    if (!params.id.startsWith('csi/')) {
+      return new Response(404, {}, null);
+    }
+
+    const id = params.id.replace(/^csi\//, '');
+    const volume = csiPlugins.find(id);
+
+    if (!volume) {
+      return new Response(404, {}, null);
+    }
+
+    return this.serialize(volume);
+  });
+
   this.get('/namespaces', function({ namespaces }) {
     const records = namespaces.all();
 

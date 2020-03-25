@@ -1,0 +1,102 @@
+{{title "CSI Volume " model.name}}
+<section class="section">
+  <h1 class="title">{{model.name}}</h1>
+
+  <div class="boxed-section is-small">
+    <div class="boxed-section-body inline-definitions">
+      <span class="label">Volume Details</span>
+      <span class="pair">
+        <span class="term">health</span>
+        {{if model.schedulable "Schedulable" "Unschedulable"}}
+      </span>
+      <span class="pair">
+        <span class="term">Provider</span>
+        {{model.provider}}
+      </span>
+      <span class="pair">
+        <span class="term">External ID</span>
+        {{model.externalId}}
+      </span>
+      <span class="pair">
+        <span class="term">Namespace</span>
+        {{model.namespace.name}}
+      </span>
+    </div>
+  </div>
+
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Write Allocations
+    </div>
+    <div class="boxed-section-body {{if model.writeAllocations.length "is-full-bleed"}}">
+      {{#if model.writeAllocations.length}}
+        {{#list-table
+          source=model.writeAllocations
+          class="with-foot" as |t|}}
+          {{#t.head}}
+            <th class="is-narrow"></th>
+            <th>ID</th>
+            <th>Modified</th>
+            <th>Created</th>
+            <th>Status</th>
+            <th>Client</th>
+            <th>Job</th>
+            <th>Version</th>
+            <th>CPU</th>
+            <th>Memory</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            {{allocation-row
+              data-test-allocation=row.model.id
+              allocation=row.model
+              context="volume"
+              onClick=(action "gotoAllocation" row.model)}}
+          {{/t.body}}
+        {{/list-table}}
+      {{else}}
+        <div class="empty-message" data-test-empty-recent-allocations>
+          <h3 class="empty-message-headline" data-test-empty-recent-allocations-headline>No Write Allocations</h3>
+          <p class="empty-message-body" data-test-empty-recent-allocations-message>No allocations are depending on this volume for read/write access.</p>
+        </div>
+      {{/if}}
+    </div>
+  </div>
+
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Read Allocations
+    </div>
+    <div class="boxed-section-body {{if model.readAllocations.length "is-full-bleed"}}">
+      {{#if model.readAllocations.length}}
+        {{#list-table
+          source=model.readAllocations
+          class="with-foot" as |t|}}
+          {{#t.head}}
+            <th class="is-narrow"></th>
+            <th>ID</th>
+            <th>Modified</th>
+            <th>Created</th>
+            <th>Status</th>
+            <th>Client</th>
+            <th>Job</th>
+            <th>Version</th>
+            <th>CPU</th>
+            <th>Memory</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            {{allocation-row
+              data-test-allocation=row.model.id
+              allocation=row.model
+              context="volume"
+              onClick=(action "gotoAllocation" row.model)}}
+          {{/t.body}}
+        {{/list-table}}
+      {{else}}
+        <div class="empty-message" data-test-empty-recent-allocations>
+          <h3 class="empty-message-headline" data-test-empty-recent-allocations-headline>No Read Allocations</h3>
+          <p class="empty-message-body" data-test-empty-recent-allocations-message>No allocations are depending on this volume for read-only access.</p>
+        </div>
+      {{/if}}
+    </div>
+  </div>
+</section>

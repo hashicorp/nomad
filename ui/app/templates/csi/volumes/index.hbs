@@ -1,0 +1,65 @@
+{{title "CSI Volumes"}}
+<section class="section">
+  {{#if isForbidden}}
+    {{partial "partials/forbidden-message"}}
+  {{else}}
+    {{#if sortedVolumes}}
+      {{#list-pagination
+        source=sortedVolumes
+        size=pageSize
+        page=currentPage as |p|}}
+        {{#list-table
+          source=p.list
+          sortProperty=sortProperty
+          sortDescending=sortDescending
+          class="with-foot" as |t|}}
+          {{#t.head}}
+            {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+            {{#t.sort-by prop="schedulable"}}Volume Health{{/t.sort-by}}
+            {{#t.sort-by prop="controllersHealthyProportion"}}Controller Health{{/t.sort-by}}
+            {{#t.sort-by prop="nodesHealthyProportion"}}Node Health{{/t.sort-by}}
+            {{#t.sort-by prop="provider"}}Provider{{/t.sort-by}}
+            <th># Allocs</th>
+          {{/t.head}}
+          {{#t.body key="model.name" as |row|}}
+            <tr class="is-interactive">
+              <td>
+                {{#link-to "csi.volumes.volume" row.model.plainId class="is-primary"}}{{row.model.name}}{{/link-to}}
+              </td>
+              <td>{{if row.model.schedulable "Schedulable" "Unschedulable"}}</td>
+              <td>
+                {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
+                ({{row.model.controllersHealthy}}/{{row.model.controllersExpected}})
+              </td>
+              <td>
+                {{if (gt row.model.nodesHealthy 0) "Healthy" "Unhealthy"}}
+                ({{row.model.nodesHealthy}}/{{row.model.nodesExpected}})
+              </td>
+              <td>{{row.model.provider}}</td>
+              <td>{{row.model.allocations.length}}</td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+        <div class="table-foot">
+          <nav class="pagination">
+            <div class="pagination-numbers">
+              {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedVolumes.length}}
+            </div>
+            {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
+            {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+            <ul class="pagination-list"></ul>
+          </nav>
+        </div>
+      {{/list-pagination}}
+    {{else}}
+      <div data-test-empty-jobs-list class="empty-message">
+        {{#if (eq sortedVolumes.length 0)}}
+          <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Volumes</h3>
+          <p class="empty-message-body">
+            The cluster currently has no CSI volumes.
+          </p>
+        {{/if}}
+      </div>
+    {{/if}}
+  {{/if}}
+</section>
