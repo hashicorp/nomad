@@ -2898,6 +2898,17 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0, v1})
 	require.NoError(t, err)
 
+	// volume registration is idempotent, unless identies are changed
+	index++
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0, v1})
+	require.NoError(t, err)
+
+	index++
+	v2 := v0.Copy()
+	v2.PluginID = "new-id"
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v2})
+	require.Error(t, err, fmt.Sprintf("volume exists: %s", v0.ID))
+
 	ws := memdb.NewWatchSet()
 	iter, err := state.CSIVolumesByNamespace(ws, ns)
 	require.NoError(t, err)
@@ -2958,6 +2969,11 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.True(t, vs[0].ReadSchedulable())
 
 	// Deregister
+	// registration is an error when the volume is in use
+	index++
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0})
+	require.Error(t, err, fmt.Sprintf("volume exists: %s", vol0))
+	// as is deregistration
 	index++
 	err = state.CSIVolumeDeregister(index, ns, []string{vol0})
 	require.Error(t, err, fmt.Sprintf("volume in use: %s", vol0))

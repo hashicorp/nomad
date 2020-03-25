@@ -1687,7 +1687,17 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 			return fmt.Errorf("volume existence check error: %v", err)
 		}
 		if obj != nil {
-			return fmt.Errorf("volume exists: %s", v.ID)
+			// Allow some properties of a volume to be updated in place, but
+			// prevent accidentally overwriting important properties, or
+			// overwriting a volume in use
+			old, ok := obj.(*structs.CSIVolume)
+			if ok &&
+				old.InUse() ||
+				old.ExternalID != v.ExternalID ||
+				old.PluginID != v.PluginID ||
+				old.Provider != v.Provider {
+				return fmt.Errorf("volume exists: %s", v.ID)
+			}
 		}
 
 		if v.CreateIndex == 0 {
