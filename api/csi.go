@@ -128,10 +128,14 @@ type CSIVolume struct {
 // allocations for the UI
 func (v *CSIVolume) allocs() {
 	for _, a := range v.WriteAllocs {
-		v.Allocations = append(v.Allocations, a.Stub())
+		if a != nil {
+			v.Allocations = append(v.Allocations, a.Stub())
+		}
 	}
 	for _, a := range v.ReadAllocs {
-		v.Allocations = append(v.Allocations, a.Stub())
+		if a != nil {
+			v.Allocations = append(v.Allocations, a.Stub())
+		}
 	}
 }
 
