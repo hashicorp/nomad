@@ -1,6 +1,6 @@
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
-import { fragmentArray } from 'ember-data-model-fragments/attributes';
+// import { fragmentArray } from 'ember-data-model-fragments/attributes';
 
 export default Model.extend({
   topologies: attr(),
