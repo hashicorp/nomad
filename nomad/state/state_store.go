@@ -1089,7 +1089,7 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 	}
 
 	type pair struct {
-		p *structs.TaskCSIPluginConfig
+		p string
 		a *structs.Allocation
 	}
 
@@ -1104,7 +1104,7 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 		for _, t := range tg.Tasks {
 			if t.CSIPluginConfig != nil {
 				plugAllocs = append(plugAllocs, &pair{
-					p: t.CSIPluginConfig,
+					p: t.CSIPluginConfig.ID,
 					a: a,
 				})
 
@@ -1113,7 +1113,7 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 	}
 
 	for _, x := range plugAllocs {
-		plug, err := s.CSIPluginByID(ws, x.p.ID)
+		plug, err := s.CSIPluginByID(ws, x.p)
 		if err != nil {
 			return fmt.Errorf("%v", err)
 		}
@@ -1122,7 +1122,7 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 		}
 
 		plug = plug.Copy()
-		plug.DeleteNodeType(x.a.NodeID, x.p.Type)
+		plug.DeleteAlloc(x.a.NodeID, x.a.ID)
 		err = deleteFromPlugin(index, txn, plug)
 		if err != nil {
 			return fmt.Errorf("%v", err)
