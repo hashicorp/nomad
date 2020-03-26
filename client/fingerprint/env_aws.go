@@ -101,7 +101,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 
 	for k, unique := range keys {
 		resp, err := ec2meta.GetMetadata(k)
-		v := strings.TrimSpace(strings.Trim(resp, "\n"))
+		v := strings.TrimSpace(resp)
 		if v == "" {
 			f.logger.Debug("read an empty value", "attribute", k)
 			continue
@@ -219,5 +219,6 @@ func ec2MetaClient(endpoint string, timeout time.Duration) (*ec2metadata.EC2Meta
 
 func isAWS(ec2meta *ec2metadata.EC2Metadata) bool {
 	v, err := ec2meta.GetMetadata("ami-id")
+	v = strings.TrimSpace(v)
 	return err == nil && v != ""
 }
