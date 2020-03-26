@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -503,7 +504,7 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)
 
-	deleteNodes := CreateTestCSIPlugin(srv.fsm.State(), "foo")
+	deleteNodes := state.CreateTestCSIPlugin(srv.fsm.State(), "foo")
 	defer deleteNodes()
 
 	state := srv.fsm.State()

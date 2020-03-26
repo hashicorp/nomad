@@ -3134,6 +3134,89 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 	require.False(t, vol.Schedulable)
 }
 
+func TestStateStore_CSIPluginJobs(t *testing.T) {
+	s := testStateStore(t)
+	deleteNodes := CreateTestCSIPlugin(s, "foo")
+	defer deleteNodes()
+
+	index := uint64(1001)
+
+	controllerJob := mock.Job()
+	controllerJob.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
+		ID:   "foo",
+		Type: structs.CSIPluginTypeController,
+	}
+
+	nodeJob := mock.Job()
+	nodeJob.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
+		ID:   "foo",
+		Type: structs.CSIPluginTypeNode,
+	}
+
+	err := s.UpsertJob(index, controllerJob)
+	require.NoError(t, err)
+	index++
+
+	err = s.UpsertJob(index, nodeJob)
+	require.NoError(t, err)
+	index++
+
+	// Get the plugin, and make better fake allocations for it
+	ws := memdb.NewWatchSet()
+	plug, err := s.CSIPluginByID(ws, "foo")
+	require.NoError(t, err)
+	index++
+
+	as := []*structs.Allocation{}
+	for id, info := range plug.Controllers {
+		as = append(as, &structs.Allocation{
+			ID:        info.AllocID,
+			Namespace: controllerJob.Namespace,
+			JobID:     controllerJob.ID,
+			Job:       controllerJob,
+			TaskGroup: "web",
+			EvalID:    uuid.Generate(),
+			NodeID:    id,
+		})
+	}
+	for id, info := range plug.Nodes {
+		as = append(as, &structs.Allocation{
+			ID:        info.AllocID,
+			JobID:     nodeJob.ID,
+			Namespace: nodeJob.Namespace,
+			Job:       nodeJob,
+			TaskGroup: "web",
+			EvalID:    uuid.Generate(),
+			NodeID:    id,
+		})
+	}
+
+	err = s.UpsertAllocs(index, as)
+	require.NoError(t, err)
+	index++
+
+	// Delete a job
+	err = s.DeleteJob(index, controllerJob.Namespace, controllerJob.ID)
+	require.NoError(t, err)
+	index++
+
+	// plugin still exists
+	plug, err = s.CSIPluginByID(ws, "foo")
+	require.NoError(t, err)
+	require.NotNil(t, plug)
+	require.Equal(t, 0, len(plug.Controllers))
+
+	// Delete a job
+	err = s.DeleteJob(index, nodeJob.Namespace, nodeJob.ID)
+	require.NoError(t, err)
+	index++
+
+	// plugin was collected
+	plug, err = s.CSIPluginByID(ws, "foo")
+	require.NoError(t, err)
+	require.Nil(t, plug)
+}
+
 func TestStateStore_Indexes(t *testing.T) {
 	t.Parallel()
 
