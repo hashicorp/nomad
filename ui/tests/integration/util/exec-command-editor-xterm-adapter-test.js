@@ -50,4 +50,41 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
 
     await terminal.simulateCommandKeyEvent({ domEvent: { key: 'Enter' } });
   });
+
+  test('it supports typing ^U to delete the entire command', async function(assert) {
+    let done = assert.async();
+
+    await render(hbs`
+      <div id='terminal'></div>
+    `);
+
+    let terminal = new Terminal({ cols: 10 });
+    terminal.open(document.getElementById('terminal'));
+
+    terminal.write('to-delete');
+
+    new ExecCommandEditorXtermAdapter(
+      terminal,
+      command => {
+        assert.equal(command, '!');
+        done();
+      },
+      'to-delete'
+    );
+
+    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'u', ctrlKey: true } });
+
+    await settled();
+
+    assert.equal(
+      terminal.buffer
+        .getLine(0)
+        .translateToString()
+        .trim(),
+      ''
+    );
+
+    await terminal.simulateCommandKeyEvent({ key: '!', domEvent: {} });
+    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'Enter' } });
+  });
 });
