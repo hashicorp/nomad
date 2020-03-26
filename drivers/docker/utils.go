@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/docker/cli/cli/config/configfile"
@@ -206,6 +208,16 @@ func validateCgroupPermission(s string) bool {
 // expandPath returns the absolute path of dir, relative to base if dir is relative path.
 // base is expected to be an absolute path
 func expandPath(base, dir string) string {
+	if runtime.GOOS == "windows" {
+		pipeExp := regexp.MustCompile(`^` + rxPipe + `$`)
+		match := pipeExp.FindStringSubmatch(strings.ToLower(dir))
+
+		if len(match) == 1 {
+			// avoid resolving dot-segment in named pipe
+			return dir
+		}
+	}
+
 	if filepath.IsAbs(dir) {
 		return filepath.Clean(dir)
 	}
