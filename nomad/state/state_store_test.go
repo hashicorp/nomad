@@ -2968,7 +2968,6 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	vs = slurp(iter)
 	require.True(t, vs[0].ReadSchedulable())
 
-	// Deregister
 	// registration is an error when the volume is in use
 	index++
 	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0})
