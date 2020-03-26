@@ -163,6 +163,33 @@ module('Unit | Serializer | Node', function(hooks) {
                 healthy: false,
               },
             ],
+            hostVolumes: [],
+          },
+          relationships: {
+            allocations: {
+              links: {
+                related: '/v1/node/test-node/allocations',
+              },
+            },
+          },
+        },
+      },
+    },
+
+    {
+      name: 'Null hash values',
+      in: {
+        ID: 'test-node',
+        Drivers: null,
+        HostVolumes: null,
+      },
+      out: {
+        data: {
+          id: 'test-node',
+          type: 'node',
+          attributes: {
+            hostVolumes: [],
+            drivers: [],
           },
           relationships: {
             allocations: {
