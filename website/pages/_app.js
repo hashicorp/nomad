@@ -5,6 +5,7 @@ import Router from 'next/router'
 import ProductSubnav from '../components/subnav'
 import MegaNav from '@hashicorp/react-mega-nav'
 import Footer from '@hashicorp/react-footer'
+import AlertBanner from '@hashicorp/react-alert-banner'
 import { ConsentManager, open } from '@hashicorp/react-consent-manager'
 import consentManagerConfig from '../lib/consent-manager-config'
 import bugsnagClient from '../lib/bugsnag'
@@ -70,6 +71,13 @@ class NextApp extends App {
             { href: '/fonts/metro-sans/bold.woff2', as: 'font' },
             { href: '/fonts/dejavu/mono.woff2', as: 'font' },
           ]}
+        />
+        <AlertBanner
+          url="https://www.hashicorp.com/blog/announcing-hashicorp-nomad-0-11-beta/"
+          tag="Announcing"
+          theme="nomad"
+          text="HashiCorp Nomad 0.11 Beta is now available"
+          linkText="Learn More"
         />
         <MegaNav product="Nomad" />
         <ProductSubnav />
