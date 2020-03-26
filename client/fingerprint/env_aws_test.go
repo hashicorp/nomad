@@ -180,8 +180,8 @@ func TestNetworkFingerprint_AWS_NoNetwork(t *testing.T) {
 	require.Nil(t, response.NodeResources)
 }
 
-func TestNetworkFingerprint_AWS_IncompleteImmitation(t *testing.T) {
-	endpoint, cleanup := startFakeEC2Metadata(t, incompleteAWSImmitationStubs)
+func TestNetworkFingerprint_AWS_IncompleteImitation(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t, incompleteAWSImitationStubs)
 	defer cleanup()
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
@@ -222,9 +222,9 @@ type routes struct {
 }
 
 type endpoint struct {
-	Uri         string
-	ContentType string
-	Body        string
+	Uri         string `json:"uri"`
+	ContentType string `json:"content-type"`
+	Body        string `json:"body"`
 }
 
 // awsStubs mimics normal EC2 instance metadata
@@ -326,9 +326,9 @@ var noNetworkAWSStubs = []endpoint{
 	},
 }
 
-// incompleteAWSImmitationsStub mimics environments where some AWS endpoints
+// incompleteAWSImitationsStub mimics environments where some AWS endpoints
 // return empty, namely Hetzner
-var incompleteAWSImmitationStubs = []endpoint{
+var incompleteAWSImitationStubs = []endpoint{
 	{
 		Uri:         "/latest/meta-data/hostname",
 		ContentType: "text/plain",
