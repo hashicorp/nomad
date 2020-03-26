@@ -622,14 +622,19 @@ func (p *CSIPlugin) Copy() *CSIPlugin {
 
 // AddPlugin adds a single plugin running on the node. Called from state.NodeUpdate in a
 // transaction
-func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) {
+func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 	if info.ControllerInfo != nil {
 		p.ControllerRequired = info.RequiresControllerPlugin &&
 			info.ControllerInfo.SupportsAttachDetach
 
 		prev, ok := p.Controllers[nodeID]
-		if ok && prev.Healthy {
-			p.ControllersHealthy -= 1
+		if ok {
+			if prev == nil {
+				return fmt.Errorf("plugin missing controller: %s", nodeID)
+			}
+			if prev.Healthy {
+				p.ControllersHealthy -= 1
+			}
 		}
 		p.Controllers[nodeID] = info
 		if info.Healthy {
@@ -639,63 +644,94 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) {
 
 	if info.NodeInfo != nil {
 		prev, ok := p.Nodes[nodeID]
-		if ok && prev.Healthy {
-			p.NodesHealthy -= 1
+		if ok {
+			if prev == nil {
+				return fmt.Errorf("plugin missing node: %s", nodeID)
+			}
+			if prev.Healthy {
+				p.NodesHealthy -= 1
+			}
 		}
 		p.Nodes[nodeID] = info
 		if info.Healthy {
 			p.NodesHealthy += 1
 		}
 	}
+
+	return nil
 }
 
 // DeleteNode removes all plugins from the node. Called from state.DeleteNode in a
 // transaction
-func (p *CSIPlugin) DeleteNode(nodeID string) {
-	p.DeleteNodeType(nodeID, CSIPluginTypeMonolith)
+func (p *CSIPlugin) DeleteNode(nodeID string) error {
+	return p.DeleteNodeForType(nodeID, CSIPluginTypeMonolith)
 }
 
-// DeleteNodeType deletes all plugins of type from the node. Called from deleteJobFromPlugin
-// during job Deregistration
-func (p *CSIPlugin) DeleteNodeType(nodeID string, pluginType CSIPluginType) {
+// DeleteNodeForType deletes a client node from the list of controllers or node instance of
+// a plugin. Called from deleteJobFromPlugin during job deregistration, in a transaction
+func (p *CSIPlugin) DeleteNodeForType(nodeID string, pluginType CSIPluginType) error {
 	switch pluginType {
 	case CSIPluginTypeController:
 		prev, ok := p.Controllers[nodeID]
-		if ok && prev.Healthy {
-			p.ControllersHealthy -= 1
+		if ok {
+			if prev == nil {
+				return fmt.Errorf("plugin missing controller: %s", nodeID)
+			}
+			if prev.Healthy {
+				p.ControllersHealthy -= 1
+			}
 		}
 		delete(p.Controllers, nodeID)
 
 	case CSIPluginTypeNode:
 		prev, ok := p.Nodes[nodeID]
-		if ok && prev.Healthy {
-			p.NodesHealthy -= 1
+		if ok {
+			if prev == nil {
+				return fmt.Errorf("plugin missing node: %s", nodeID)
+			}
+			if prev.Healthy {
+				p.NodesHealthy -= 1
+			}
 		}
 		delete(p.Nodes, nodeID)
 
 	case CSIPluginTypeMonolith:
-		p.DeleteNodeType(nodeID, CSIPluginTypeController)
-		p.DeleteNodeType(nodeID, CSIPluginTypeNode)
+		p.DeleteNodeForType(nodeID, CSIPluginTypeController)
+		p.DeleteNodeForType(nodeID, CSIPluginTypeNode)
 	}
+
+	return nil
 }
 
 // DeleteAlloc removes the fingerprint info for the allocation
-func (p *CSIPlugin) DeleteAlloc(allocID, nodeID string) {
+func (p *CSIPlugin) DeleteAlloc(allocID, nodeID string) error {
 	prev, ok := p.Controllers[nodeID]
-	if ok && prev.AllocID == allocID {
-		if prev.Healthy {
-			p.ControllersHealthy -= 1
+	if ok {
+		if prev == nil {
+			return fmt.Errorf("plugin missing controller: %s", nodeID)
 		}
-		delete(p.Controllers, nodeID)
+		if prev.AllocID == allocID {
+			if prev.Healthy {
+				p.ControllersHealthy -= 1
+			}
+			delete(p.Controllers, nodeID)
+		}
 	}
 
 	prev, ok = p.Nodes[nodeID]
-	if ok && prev.AllocID == allocID {
-		if prev.Healthy {
-			p.NodesHealthy -= 1
+	if ok {
+		if prev == nil {
+			return fmt.Errorf("plugin missing node: %s", nodeID)
 		}
-		delete(p.Nodes, nodeID)
+		if prev.AllocID == allocID {
+			if prev.Healthy {
+				p.NodesHealthy -= 1
+			}
+			delete(p.Nodes, nodeID)
+		}
 	}
+
+	return nil
 }
 
 type CSIPluginListStub struct {

@@ -959,7 +959,11 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 			plug.Version = info.ProviderVersion
 		}
 
-		plug.AddPlugin(node.ID, info)
+		err = plug.AddPlugin(node.ID, info)
+		if err != nil {
+			return err
+		}
+
 		plug.ModifyIndex = index
 
 		err = txn.Insert("csi_plugins", plug)
@@ -1057,12 +1061,15 @@ func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 }
 
 func deleteNodeFromPlugin(txn *memdb.Txn, plug *structs.CSIPlugin, node *structs.Node, index uint64) error {
-	plug.DeleteNode(node.ID)
-	return deleteFromPlugin(index, txn, plug)
+	err := plug.DeleteNode(node.ID)
+	if err != nil {
+		return err
+	}
+	return updateOrGCPlugin(index, txn, plug)
 }
 
-// deleteFromPlugin updates a plugin but will delete it if the plugin is empty
-func deleteFromPlugin(index uint64, txn *memdb.Txn, plug *structs.CSIPlugin) error {
+// updateOrGCPlugin updates a plugin but will delete it if the plugin is empty
+func updateOrGCPlugin(index uint64, txn *memdb.Txn, plug *structs.CSIPlugin) error {
 	plug.ModifyIndex = index
 
 	if plug.IsEmpty() {
@@ -1079,8 +1086,8 @@ func deleteFromPlugin(index uint64, txn *memdb.Txn, plug *structs.CSIPlugin) err
 	return nil
 }
 
-// deleteJobFromPlugin removes allocations from this job from the plugins those jobs are
-// running, possibly deleting the plugin. It's called in DeleteJobTxn
+// deleteJobFromPlugin removes the allocations of this job from any plugins the job is
+// running, possibly deleting the plugin if it's no longer in use. It's called in DeleteJobTxn
 func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *structs.Job) error {
 	ws := memdb.NewWatchSet()
 	allocs, err := s.AllocsByJob(ws, job.Namespace, job.ID, false)
@@ -1089,8 +1096,8 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 	}
 
 	type pair struct {
-		p string
-		a *structs.Allocation
+		pluginID string
+		alloc    *structs.Allocation
 	}
 
 	plugAllocs := []*pair{}
@@ -1102,8 +1109,8 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 		for _, t := range tg.Tasks {
 			if t.CSIPluginConfig != nil {
 				plugAllocs = append(plugAllocs, &pair{
-					p: t.CSIPluginConfig.ID,
-					a: a,
+					pluginID: t.CSIPluginConfig.ID,
+					alloc:    a,
 				})
 
 			}
@@ -1111,26 +1118,29 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 	}
 
 	for _, x := range plugAllocs {
-		plug, ok := plugins[x.p]
+		plug, ok := plugins[x.pluginID]
 
 		if !ok {
-			plug, err = s.CSIPluginByID(ws, x.p)
+			plug, err = s.CSIPluginByID(ws, x.pluginID)
 			if err != nil {
-				return fmt.Errorf("error getting plugin: %s, %v", x.p, err)
+				return fmt.Errorf("error getting plugin: %s, %v", x.pluginID, err)
 			}
 			if plug == nil {
-				return fmt.Errorf("plugin missing: %s %v", x.p, err)
+				return fmt.Errorf("plugin missing: %s %v", x.pluginID, err)
 			}
 			// only copy once, so we update the same plugin on each alloc
-			plugins[x.p] = plug.Copy()
-			plug = plugins[x.p]
+			plugins[x.pluginID] = plug.Copy()
+			plug = plugins[x.pluginID]
 		}
 
-		plug.DeleteAlloc(x.a.ID, x.a.NodeID)
+		err := plug.DeleteAlloc(x.alloc.ID, x.alloc.NodeID)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, plug := range plugins {
-		err = deleteFromPlugin(index, txn, plug)
+		err = updateOrGCPlugin(index, txn, plug)
 		if err != nil {
 			return err
 		}
