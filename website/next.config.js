@@ -9,7 +9,6 @@ module.exports = withHashicorp({
   experimental: {
     css: true,
     modern: true,
-    polyfillsOptimization: true,
     rewrites: () => [
       {
         source: '/api/:path*',

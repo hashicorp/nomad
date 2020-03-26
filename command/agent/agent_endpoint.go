@@ -201,6 +201,14 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 		return nil, CodedError(400, "Cannot target node and server simultaneously")
 	}
 
+	// Force the Content-Type to avoid Go's http.ResponseWriter from
+	// detecting an incorrect or unsafe one.
+	if plainText {
+		resp.Header().Set("Content-Type", "text/plain")
+	} else {
+		resp.Header().Set("Content-Type", "application/json")
+	}
+
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
 	// Make the RPC

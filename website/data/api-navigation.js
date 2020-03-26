@@ -24,6 +24,7 @@ export default [
   'plugins',
   'quotas',
   'regions',
+  'scaling-policies',
   'search',
   'sentinel-policies',
   'status',

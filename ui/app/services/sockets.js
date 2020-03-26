@@ -5,7 +5,9 @@ import { getOwner } from '@ember/application';
 export default Service.extend({
   getTaskStateSocket(taskState, command) {
     const mirageEnabled =
-      config['ember-cli-mirage'] && config['ember-cli-mirage'].enabled !== false;
+      config.environment !== 'production' &&
+      config['ember-cli-mirage'] &&
+      config['ember-cli-mirage'].enabled !== false;
 
     if (mirageEnabled) {
       return new Object({

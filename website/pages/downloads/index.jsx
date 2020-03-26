@@ -13,12 +13,18 @@ export default function DownloadsPage({ downloadData }) {
         version={VERSION}
         downloads={downloadData}
         community="/resources"
+        prerelease={{
+          type: 'Beta 1',
+          name: 'v0.11.0',
+          version: '0.11.0-beta1'
+        }}
+
       />
     </div>
   )
 }
 
-export async function unstable_getStaticProps() {
+export async function getStaticProps() {
   return fetch(`https://releases.hashicorp.com/nomad/${VERSION}/index.json`)
     .then(r => r.json())
     .then(r => {
