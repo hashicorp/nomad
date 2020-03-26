@@ -61,6 +61,14 @@ func (d *Driver) fingerprintSuccessful() bool {
 func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerprint) {
 	defer close(ch)
 	ticker := time.NewTimer(0)
+
+	defer func() {
+		// Ensures that the channel is empty by stopping and draining the ticker.
+		if !ticker.Stop() {
+			<-ticker.C
+		}
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
