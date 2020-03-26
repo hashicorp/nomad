@@ -26,3 +26,36 @@ func TestCSIVolumeClaim(t *testing.T) {
 	require.True(t, vol.ReadSchedulable())
 	require.True(t, vol.WriteFreeClaims())
 }
+
+func TestCSIPluginCleanup(t *testing.T) {
+	plug := NewCSIPlugin("foo", 1000)
+	plug.AddPlugin("n0", &CSIInfo{
+		PluginID:                 "foo",
+		AllocID:                  "a0",
+		Healthy:                  true,
+		Provider:                 "foo-provider",
+		RequiresControllerPlugin: true,
+		RequiresTopologies:       false,
+		ControllerInfo:           &CSIControllerInfo{},
+	})
+
+	plug.AddPlugin("n0", &CSIInfo{
+		PluginID:                 "foo",
+		AllocID:                  "a0",
+		Healthy:                  true,
+		Provider:                 "foo-provider",
+		RequiresControllerPlugin: true,
+		RequiresTopologies:       false,
+		NodeInfo:                 &CSINodeInfo{},
+	})
+
+	require.Equal(t, 1, plug.ControllersHealthy)
+	require.Equal(t, 1, plug.NodesHealthy)
+
+	plug.DeleteNode("n0")
+	require.Equal(t, 0, plug.ControllersHealthy)
+	require.Equal(t, 0, plug.NodesHealthy)
+
+	require.Equal(t, 0, len(plug.Controllers))
+	require.Equal(t, 0, len(plug.Nodes))
+}

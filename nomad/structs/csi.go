@@ -244,9 +244,9 @@ type CSIVolListStub struct {
 }
 
 // NewCSIVolume creates the volume struct. No side-effects
-func NewCSIVolume(pluginID string, index uint64) *CSIVolume {
+func NewCSIVolume(volumeID string, index uint64) *CSIVolume {
 	out := &CSIVolume{
-		ID:          pluginID,
+		ID:          volumeID,
 		CreateIndex: index,
 		ModifyIndex: index,
 	}
