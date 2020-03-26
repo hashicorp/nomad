@@ -8,15 +8,16 @@ export default function NomadSubnav() {
     <Subnav
       titleLink={{
         text: 'nomad',
-        url: '/'
+        url: '/',
       }}
       ctaLinks={[
         { text: 'GitHub', url: 'https://www.github.com/hashicorp/nomad' },
-        { text: 'Download', url: '/downloads' }
+        { text: 'Download', url: '/downloads' },
       ]}
       currentPath={router.pathname}
       menuItemsAlign="right"
       menuItems={subnavItems}
+      constrainWidth
     />
   )
 }

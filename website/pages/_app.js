@@ -3,7 +3,7 @@ import App from 'next/app'
 import NProgress from 'nprogress'
 import Router from 'next/router'
 import ProductSubnav from '../components/subnav'
-import MegaNav from '../components/mega-nav'
+import MegaNav from '@hashicorp/react-mega-nav'
 import Footer from '@hashicorp/react-footer'
 import { ConsentManager, open } from '@hashicorp/react-consent-manager'
 import consentManagerConfig from '../lib/consent-manager-config'
@@ -14,7 +14,7 @@ import HashiHead from '@hashicorp/react-head'
 
 Router.events.on('routeChangeStart', NProgress.start)
 Router.events.on('routeChangeError', NProgress.done)
-Router.events.on('routeChangeComplete', url => {
+Router.events.on('routeChangeComplete', (url) => {
   setTimeout(() => window.analytics.page(url), 0)
   NProgress.done()
 })
@@ -54,8 +54,8 @@ class NextApp extends App {
             { href: '/css/nprogress.css' },
             {
               href:
-                'https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700&display=swap'
-            }
+                'https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700&display=swap',
+            },
           ]}
           icon={[{ href: '/favicon.ico' }]}
           preload={[
@@ -68,7 +68,7 @@ class NextApp extends App {
             { href: '/fonts/metro-sans/regular.woff2', as: 'font' },
             { href: '/fonts/metro-sans/semi-bold.woff2', as: 'font' },
             { href: '/fonts/metro-sans/bold.woff2', as: 'font' },
-            { href: '/fonts/dejavu/mono.woff2', as: 'font' }
+            { href: '/fonts/dejavu/mono.woff2', as: 'font' },
           ]}
         />
         <MegaNav product="Nomad" />
