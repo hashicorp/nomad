@@ -15,7 +15,7 @@
     "@hashicorp/react-code-block": "^1.2.6",
     "@hashicorp/react-consent-manager": "^2.0.6",
     "@hashicorp/react-content": "^3.0.0-0",
-    "@hashicorp/react-docs-page": "^0.1.1-alpha.1939",
+    "@hashicorp/react-docs-page": "^1.0.0",
     "@hashicorp/react-docs-sidenav": "^3.0.4",
     "@hashicorp/react-docs-sitemap": "^1.0.0",
     "@hashicorp/react-footer": "^3.1.11",
