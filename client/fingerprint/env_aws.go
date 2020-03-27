@@ -485,6 +485,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		nodeResources = new(structs.NodeResources)
 		nodeResources.Networks = []*structs.NetworkResource{
 			{
+				Mode:   "host",
 				Device: "eth0",
 				IP:     val,
 				CIDR:   val + "/32",
