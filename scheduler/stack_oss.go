@@ -37,6 +37,9 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Filter on available, healthy CSI plugins
 	s.taskGroupCSIVolumes = NewCSIVolumeChecker(ctx)
 
+	// Filter on available client networks
+	s.taskGroupNetwork = NewNetworkChecker(ctx)
+
 	// Create the feasibility wrapper which wraps all feasibility checks in
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
@@ -45,7 +48,8 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	tgs := []FeasibilityChecker{s.taskGroupDrivers,
 		s.taskGroupConstraint,
 		s.taskGroupHostVolumes,
-		s.taskGroupDevices}
+		s.taskGroupDevices,
+		s.taskGroupNetwork}
 	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs, avail)
 

@@ -314,6 +314,44 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 	return true, ""
 }
 
+// NetworkChecker is a FeasibilityChecker which returns whether a node has the
+// network resources necessary to schedule the task group
+type NetworkChecker struct {
+	ctx         Context
+	networkMode string
+}
+
+func NewNetworkChecker(ctx Context) *NetworkChecker {
+	return &NetworkChecker{ctx: ctx, networkMode: "host"}
+}
+
+func (c *NetworkChecker) SetNetworkMode(netMode string) {
+	c.networkMode = netMode
+}
+
+func (c *NetworkChecker) Feasible(option *structs.Node) bool {
+	if c.hasNetwork(option) {
+		return true
+	}
+
+	c.ctx.Metrics().FilterNode(option, "missing network")
+	return false
+}
+
+func (c *NetworkChecker) hasNetwork(option *structs.Node) bool {
+	if option.NodeResources == nil {
+		return false
+	}
+
+	for _, nw := range option.NodeResources.Networks {
+		if nw.Mode == c.networkMode {
+			return true
+		}
+	}
+
+	return false
+}
+
 // DriverChecker is a FeasibilityChecker which returns whether a node has the
 // drivers necessary to scheduler a task group.
 type DriverChecker struct {

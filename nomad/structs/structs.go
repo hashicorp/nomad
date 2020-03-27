@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"math"
 	"net"
 	"os"
@@ -2549,9 +2550,8 @@ func (n *NodeResources) Merge(o *NodeResources) {
 	n.Memory.Merge(&o.Memory)
 	n.Disk.Merge(&o.Disk)
 
-
 	if len(o.Networks) != 0 {
-		n.Networks = o.Networks
+		n.Networks = append(n.Networks, o.Networks...)
 	}
 
 	if len(o.Devices) != 0 {

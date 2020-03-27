@@ -52,6 +52,7 @@ type GenericStack struct {
 	taskGroupDevices     *DeviceChecker
 	taskGroupHostVolumes *HostVolumeChecker
 	taskGroupCSIVolumes  *CSIVolumeChecker
+	taskGroupNetwork     *NetworkChecker
 
 	distinctHostsConstraint    *DistinctHostsIterator
 	distinctPropertyConstraint *DistinctPropertyIterator
@@ -135,6 +136,9 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(tg.Volumes)
 	s.taskGroupCSIVolumes.SetVolumes(tg.Volumes)
+	if len(tg.Networks) > 0 {
+		s.taskGroupNetwork.SetNetworkMode(tg.Networks[0].Mode)
+	}
 	s.distinctHostsConstraint.SetTaskGroup(tg)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
