@@ -51,6 +51,7 @@
 
 /* Local Pages */
 @import './home/style.css';
+@import './404/style.css';
 @import './downloads/style.css';
 @import './security/style.css';
 @import './resources/style.css';

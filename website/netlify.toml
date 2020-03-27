@@ -11,3 +11,8 @@
 
 [context.deploy-preview]
   environment = { HASHI_ENV = "staging" }
+
+[[redirects]]
+  from = "/*"
+  to = "/404/index.html"
+  status = 404
