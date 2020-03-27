@@ -310,7 +310,9 @@ func DefaultConfig() *Config {
 		},
 		BackwardsCompatibleMetrics: false,
 		RPCHoldTimeout:             5 * time.Second,
+		CNIPath:                    "/opt/cni/bin",
 		CNIConfigDir:               "/opt/cni/config",
+		CNIInterfacePrefix:         "eth",
 	}
 }
 
