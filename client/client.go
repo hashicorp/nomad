@@ -410,6 +410,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		Logger:                c.logger,
 		DynamicRegistry:       c.dynamicRegistry,
 		UpdateNodeCSIInfoFunc: c.batchNodeUpdates.updateNodeFromCSI,
+		TriggerNodeEvent:      c.triggerNodeEvent,
 	}
 	csiManager := csimanager.New(csiConfig)
 	c.csimanager = csiManager
