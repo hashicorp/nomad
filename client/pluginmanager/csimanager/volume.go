@@ -31,8 +31,9 @@ const (
 // volumes are stored by an enriched volume usage struct as the CSI Spec requires
 // slightly different usage based on the given usage model.
 type volumeManager struct {
-	logger hclog.Logger
-	plugin csi.CSIPlugin
+	logger  hclog.Logger
+	eventer TriggerNodeEvent
+	plugin  csi.CSIPlugin
 
 	usageTracker *volumeUsageTracker
 
@@ -49,9 +50,10 @@ type volumeManager struct {
 	requiresStaging bool
 }
 
-func newVolumeManager(logger hclog.Logger, plugin csi.CSIPlugin, rootDir, containerRootDir string, requiresStaging bool) *volumeManager {
+func newVolumeManager(logger hclog.Logger, eventer TriggerNodeEvent, plugin csi.CSIPlugin, rootDir, containerRootDir string, requiresStaging bool) *volumeManager {
 	return &volumeManager{
 		logger:              logger.Named("volume_manager"),
+		eventer:             eventer,
 		plugin:              plugin,
 		mountRoot:           rootDir,
 		containerMountPoint: containerRootDir,
@@ -238,6 +240,18 @@ func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume,
 
 	v.usageTracker.Claim(alloc, vol, usage)
 
+	success := "true"
+	if err != nil {
+		success = "false"
+	}
+	event := structs.NewNodeEvent().
+		SetSubsystem(structs.NodeEventSubsystemCSI).
+		SetMessage("Mount volume").
+		AddDetail("Volume namespace", vol.Namespace).
+		AddDetail("Volume ID", vol.ID).
+		AddDetail("Success", success)
+	v.eventer(event)
+
 	return mountInfo, nil
 }
 
@@ -315,5 +329,19 @@ func (v *volumeManager) UnmountVolume(ctx context.Context, vol *structs.CSIVolum
 		return nil
 	}
 
-	return v.unstageVolume(ctx, vol, usage)
+	err = v.unstageVolume(ctx, vol, usage)
+
+	success := "true"
+	if err != nil {
+		success = "false"
+	}
+	event := structs.NewNodeEvent().
+		SetSubsystem(structs.NodeEventSubsystemCSI).
+		SetMessage("Unmount volume").
+		AddDetail("Volume namespace", vol.Namespace).
+		AddDetail("Volume ID", vol.ID).
+		AddDetail("Success", success)
+	v.eventer(event)
+
+	return err
 }
