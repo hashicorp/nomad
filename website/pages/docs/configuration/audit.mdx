@@ -121,10 +121,10 @@ logging as well as reducing the amount of events generated.
 `endpoints`, `stages`, and `operations` support [globbed pattern](https://github.com/ryanuber/go-glob/blob/master/README.md#example) matching.
 
 ```hcl
-# Filter all requests and all stages for /ui/ and /v1/agent/health
+# Filter all requests and all stages for /v1/agent/health
 filter "default" {
   type       = "HTTPEvent"
-  endpoints  = ["/ui/", "/v1/agent/health"]
+  endpoints  = ["/v1/agent/health"]
   stages     = ["*"]
   operations = ["*"]
 }

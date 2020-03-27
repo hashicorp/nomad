@@ -387,12 +387,12 @@ func (e *codedError) Code() int {
 }
 
 func (s *HTTPServer) handleUI(h http.Handler) http.Handler {
-	return s.auditHTTPHandler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		header := w.Header()
 		header.Add("Content-Security-Policy", "default-src 'none'; connect-src *; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'")
 		h.ServeHTTP(w, req)
 		return
-	}))
+	})
 }
 
 func (s *HTTPServer) handleRootFallthrough() http.Handler {
