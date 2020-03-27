@@ -106,7 +106,7 @@ func (fp *FingerprintManager) Run() error {
 	return nil
 }
 
-// Reload will reload any registered ReloadableFingerprinters and immediatly call Fingerprint
+// Reload will reload any registered ReloadableFingerprinters and immediately call Fingerprint
 func (fm *FingerprintManager) Reload() {
 	for name, fp := range fm.reloadableFps {
 		fm.logger.Info("reloading fingerprinter", "fingerprinter", name)

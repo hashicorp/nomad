@@ -117,7 +117,7 @@ type Fingerprint interface {
 }
 
 // ReloadableFingerprint can be implemented if the fingerprinter needs to be run during client reload.
-// If implemented, the client will call Reload during client reload then immediatly Fingerprint
+// If implemented, the client will call Reload during client reload then immediately Fingerprint
 type ReloadableFingerprint interface {
 	Fingerprint
 	Reload()

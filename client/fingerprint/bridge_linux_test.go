@@ -9,6 +9,6 @@ import (
 func TestBridgeFingerprint_checkKMod(t *testing.T) {
 	require := require.New(t)
 	f := &BridgeFingerprint{}
-	require.NoError(f.checkKMod("hid"))
+	require.NoError(f.checkKMod("ip_tables"))
 	require.Error(f.checkKMod("nonexistentmodule"))
 }

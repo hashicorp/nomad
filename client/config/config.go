@@ -238,6 +238,11 @@ type Config struct {
 	// client will use this path when fingerprinting CNI networks.
 	CNIConfigDir string
 
+	// CNIInterfacePrefix is the prefix to use when creating CNI network interfaces. This
+	// defaults to 'eth', therefore the first interface created by CNI inside the alloc
+	// network will be 'eth0'.
+	CNIInterfacePrefix string
+
 	// BridgeNetworkName is the name to use for the bridge created in bridge
 	// networking mode. This defaults to 'nomad' if not set
 	BridgeNetworkName string
