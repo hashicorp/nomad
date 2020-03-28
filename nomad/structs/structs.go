@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
@@ -320,7 +319,7 @@ func (q QueryOptions) HasTimedOut(start time.Time, rpcHoldTimeout time.Duration)
 		} else if q.MaxQueryTime <= 0 {
 			q.MaxQueryTime = DefaultBlockingRPCQueryTime
 		}
-		q.MaxQueryTime += lib.RandomStagger(q.MaxQueryTime / JitterFraction)
+		q.MaxQueryTime += helper.RandomStagger(q.MaxQueryTime / JitterFraction)
 
 		return time.Since(start) > (q.MaxQueryTime + rpcHoldTimeout)
 	}

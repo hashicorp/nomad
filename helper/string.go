@@ -1,4 +1,5 @@
-package lib
+// These functions are coming from consul/lib/string.go
+package helper
 
 // StrContains checks if a list contains a string
 func StrContains(l []string, s string) bool {

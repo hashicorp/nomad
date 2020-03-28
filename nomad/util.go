@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"os"
-	"path/filepath"
 	"strconv"
 
 	memdb "github.com/hashicorp/go-memdb"
@@ -19,14 +17,6 @@ import (
 // normalization of Plan in SubmitPlan, and the denormalization raft log entry committed
 // in ApplyPlanResultsRequest
 var MinVersionPlanNormalization = version.Must(version.NewVersion("0.9.2"))
-
-// ensurePath is used to make sure a path exists
-func ensurePath(path string, dir bool) error {
-	if !dir {
-		path = filepath.Dir(path)
-	}
-	return os.MkdirAll(path, 0755)
-}
 
 // serverParts is used to return the parts of a server role
 type serverParts struct {

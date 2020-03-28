@@ -42,7 +42,7 @@ type networkHook struct {
 	networkStatusSetter networkStatusSetter
 
 	// manager is used when creating the network namespace. This defaults to
-	// bind mounting a network namespace descritor under /var/run/netns but
+	// bind mounting a network namespace descriptor under /var/run/netns but
 	// can be created by a driver if nessicary
 	manager drivers.DriverNetworkManager
 
