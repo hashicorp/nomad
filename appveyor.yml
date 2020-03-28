@@ -1,5 +1,5 @@
 version: "build-{branch}-{build}"
-image: Visual Studio 2017
+image: Visual Studio 2019
 
 clone_folder: c:\gopath\src\github.com\hashicorp\nomad
 
