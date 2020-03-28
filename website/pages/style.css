@@ -99,22 +99,8 @@
 }
 
 /* Permalink adjustment for sticky nav */
-.g-content {
-  & h1,
-  & h2,
-  & h3,
-  & h4,
-  & h5,
-  & h6,
-  & li {
-    position: relative;
-
-    & .__target-h,
-    & .__target-lic {
-      position: absolute;
-      top: -75px;
-    }
-  }
+.g-subnav ~ * :target {
+  scroll-margin-top: calc(64px + 0.5em);
 }
 
 /* Web Fonts */
