@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/cli/cli/config/configfile"
 	"github.com/docker/distribution/reference"
+	ctypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/registry"
 	docker "github.com/fsouza/go-dockerclient"
 )
@@ -115,9 +116,22 @@ func authFromDockerConfig(file string) authBackend {
 			return nil, err
 		}
 
+		authConfigs := make(map[string]ctypes.AuthConfig)
+		for k, c := range cfile.AuthConfigs {
+			authConfigs[k] = ctypes.AuthConfig{
+				Username:      c.Username,
+				Password:      c.Password,
+				Auth:          c.Auth,
+				Email:         c.Email,
+				ServerAddress: c.ServerAddress,
+				IdentityToken: c.IdentityToken,
+				RegistryToken: c.RegistryToken,
+			}
+		}
+
 		return firstValidAuth(repo, []authBackend{
 			func(string) (*docker.AuthConfiguration, error) {
-				dockerAuthConfig := registry.ResolveAuthConfig(cfile.AuthConfigs, repoInfo.Index)
+				dockerAuthConfig := registry.ResolveAuthConfig(authConfigs, repoInfo.Index)
 				auth := &docker.AuthConfiguration{
 					Username:      dockerAuthConfig.Username,
 					Password:      dockerAuthConfig.Password,
