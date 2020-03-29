@@ -273,16 +273,26 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		require.NotZero(respW.HeaderMap.Get("X-Nomad-Index"))
 
 		// Check the response
-		_, ok := obj.(structs.NodeDrainUpdateResponse)
+		dresp, ok := obj.(structs.NodeDrainUpdateResponse)
 		require.True(ok)
+
+		t.Logf("response index=%v node_update_index=0x%x", respW.HeaderMap.Get("X-Nomad-Index"),
+			dresp.NodeModifyIndex)
 
 		// Check that the node has been updated
 		state := s.Agent.server.State()
 		out, err := state.NodeByID(nil, node.ID)
 		require.Nil(err)
-		require.True(out.Drain)
-		require.NotNil(out.DrainStrategy)
-		require.Equal(10*time.Second, out.DrainStrategy.Deadline)
+
+		// the node must either be in drain mode or in elligible
+		// once the node is recognize as not having any running allocs
+		if out.Drain {
+			require.True(out.Drain)
+			require.NotNil(out.DrainStrategy)
+			require.Equal(10*time.Second, out.DrainStrategy.Deadline)
+		} else {
+			require.Equal(structs.NodeSchedulingIneligible, out.SchedulingEligibility)
+		}
 
 		// Make the HTTP request to unset drain
 		drainReq.DrainSpec = nil
