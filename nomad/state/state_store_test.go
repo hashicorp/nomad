@@ -8089,30 +8089,22 @@ func TestStateStore_ClusterMetadataRestore(t *testing.T) {
 
 func TestStateStore_RestoreScalingPolicy(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 
 	state := testStateStore(t)
 	scalingPolicy := mock.ScalingPolicy()
 
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(err)
 
 	err = restore.ScalingPolicyRestore(scalingPolicy)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(err)
 	restore.Commit()
 
 	ws := memdb.NewWatchSet()
 	out, err := state.ScalingPolicyByID(ws, scalingPolicy.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(out, scalingPolicy) {
-		t.Fatalf("Bad: %#v %#v", out, scalingPolicy)
-	}
+	require.NoError(err)
+	require.EqualValues(out, scalingPolicy)
 }
 
 func TestStateStore_UpsertScalingPolicy(t *testing.T) {
@@ -8198,29 +8190,27 @@ func TestStateStore_UpsertScalingPolicy_Namespace(t *testing.T) {
 
 	iter, err = state.ScalingPoliciesByNamespace(nil, structs.DefaultNamespace)
 	require.NoError(err)
-	policiesInDefaultNamespace := map[string]struct{}{}
+	policiesInDefaultNamespace := []string{}
 	for {
 		raw := iter.Next()
 		if raw == nil {
 			break
 		}
-		policiesInDefaultNamespace[raw.(*structs.ScalingPolicy).ID] = struct{}{}
+		policiesInDefaultNamespace = append(policiesInDefaultNamespace, raw.(*structs.ScalingPolicy).ID)
 	}
-	require.Equal(1, len(policiesInDefaultNamespace))
-	require.Contains(policiesInDefaultNamespace, policy.ID)
+	require.ElementsMatch([]string{policy.ID}, policiesInDefaultNamespace)
 
 	iter, err = state.ScalingPoliciesByNamespace(nil, otherNamespace)
 	require.NoError(err)
-	policiesInOtherNamespace := map[string]struct{}{}
+	policiesInOtherNamespace := []string{}
 	for {
 		raw := iter.Next()
 		if raw == nil {
 			break
 		}
-		policiesInOtherNamespace[raw.(*structs.ScalingPolicy).ID] = struct{}{}
+		policiesInOtherNamespace = append(policiesInOtherNamespace, raw.(*structs.ScalingPolicy).ID)
 	}
-	require.Equal(1, len(policiesInOtherNamespace))
-	require.Contains(policiesInOtherNamespace, policy2.ID)
+	require.ElementsMatch([]string{policy2.ID}, policiesInOtherNamespace)
 }
 
 func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
