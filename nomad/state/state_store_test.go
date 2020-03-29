@@ -8087,6 +8087,34 @@ func TestStateStore_ClusterMetadataRestore(t *testing.T) {
 	require.Equal(now, out.CreateTime)
 }
 
+func TestStateStore_RestoreScalingPolicy(t *testing.T) {
+	t.Parallel()
+
+	state := testStateStore(t)
+	scalingPolicy := mock.ScalingPolicy()
+
+	restore, err := state.Restore()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = restore.ScalingPolicyRestore(scalingPolicy)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	restore.Commit()
+
+	ws := memdb.NewWatchSet()
+	out, err := state.ScalingPolicyByID(ws, scalingPolicy.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, scalingPolicy) {
+		t.Fatalf("Bad: %#v %#v", out, scalingPolicy)
+	}
+}
+
 func TestStateStore_UpsertScalingPolicy(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -8095,19 +8123,27 @@ func TestStateStore_UpsertScalingPolicy(t *testing.T) {
 	policy := mock.ScalingPolicy()
 	policy2 := mock.ScalingPolicy()
 
-	ws := memdb.NewWatchSet()
-	_, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	wsAll := memdb.NewWatchSet()
+	all, err := state.ScalingPolicies(wsAll)
 	require.NoError(err)
+	require.Nil(all.Next())
 
-	_, err = state.ScalingPolicyByTarget(ws, policy2.Target)
+	ws := memdb.NewWatchSet()
+	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
 	require.NoError(err)
+	require.Nil(out)
+
+	out, err = state.ScalingPolicyByTarget(ws, policy2.Target)
+	require.NoError(err)
+	require.Nil(out)
 
 	err = state.UpsertScalingPolicies(1000, []*structs.ScalingPolicy{policy, policy2})
 	require.NoError(err)
 	require.True(watchFired(ws))
+	require.True(watchFired(wsAll))
 
 	ws = memdb.NewWatchSet()
-	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	out, err = state.ScalingPolicyByTarget(ws, policy.Target)
 	require.NoError(err)
 	require.Equal(policy, out)
 
@@ -8115,7 +8151,7 @@ func TestStateStore_UpsertScalingPolicy(t *testing.T) {
 	require.NoError(err)
 	require.Equal(policy2, out)
 
-	iter, err := state.ScalingPoliciesByNamespace(ws, policy.Target[structs.ScalingTargetNamespace])
+	iter, err := state.ScalingPolicies(ws)
 	require.NoError(err)
 
 	// Ensure we see both policies
@@ -8133,6 +8169,58 @@ func TestStateStore_UpsertScalingPolicy(t *testing.T) {
 	require.NoError(err)
 	require.True(1000 == index)
 	require.False(watchFired(ws))
+}
+
+func TestStateStore_UpsertScalingPolicy_Namespace(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	otherNamespace := "not-default-namespace"
+	state := testStateStore(t)
+	policy := mock.ScalingPolicy()
+	policy2 := mock.ScalingPolicy()
+	policy2.Target[structs.ScalingTargetNamespace] = otherNamespace
+
+	ws1 := memdb.NewWatchSet()
+	iter, err := state.ScalingPoliciesByNamespace(ws1, structs.DefaultNamespace)
+	require.NoError(err)
+	require.Nil(iter.Next())
+
+	ws2 := memdb.NewWatchSet()
+	iter, err = state.ScalingPoliciesByNamespace(ws2, otherNamespace)
+	require.NoError(err)
+	require.Nil(iter.Next())
+
+	err = state.UpsertScalingPolicies(1000, []*structs.ScalingPolicy{policy, policy2})
+	require.NoError(err)
+	require.True(watchFired(ws1))
+	require.True(watchFired(ws2))
+
+	iter, err = state.ScalingPoliciesByNamespace(nil, structs.DefaultNamespace)
+	require.NoError(err)
+	policiesInDefaultNamespace := map[string]struct{}{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		policiesInDefaultNamespace[raw.(*structs.ScalingPolicy).ID] = struct{}{}
+	}
+	require.Equal(1, len(policiesInDefaultNamespace))
+	require.Contains(policiesInDefaultNamespace, policy.ID)
+
+	iter, err = state.ScalingPoliciesByNamespace(nil, otherNamespace)
+	require.NoError(err)
+	policiesInOtherNamespace := map[string]struct{}{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		policiesInOtherNamespace[raw.(*structs.ScalingPolicy).ID] = struct{}{}
+	}
+	require.Equal(1, len(policiesInOtherNamespace))
+	require.Contains(policiesInOtherNamespace, policy2.ID)
 }
 
 func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {

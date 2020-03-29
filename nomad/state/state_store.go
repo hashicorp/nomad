@@ -4945,6 +4945,21 @@ func (s *StateStore) DeleteScalingPoliciesTxn(index uint64, ids []string, txn *m
 	return nil
 }
 
+// ScalingPolicies returns an iterator over all the scaling policies
+func (s *StateStore) ScalingPolicies(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire scaling_policy table
+	iter, err := txn.Get("scaling_policy", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
@@ -5226,6 +5241,14 @@ func (r *StateRestore) SchedulerConfigRestore(schedConfig *structs.SchedulerConf
 func (r *StateRestore) ClusterMetadataRestore(meta *structs.ClusterMetadata) error {
 	if err := r.txn.Insert("cluster_meta", meta); err != nil {
 		return fmt.Errorf("inserting cluster meta failed: %v", err)
+	}
+	return nil
+}
+
+// ScalingPolicyRestore is used to restore a scaling policy
+func (r *StateRestore) ScalingPolicyRestore(scalingPolicy *structs.ScalingPolicy) error {
+	if err := r.txn.Insert("scaling_policy", scalingPolicy); err != nil {
+		return fmt.Errorf("scaling policy insert failed: %v", err)
 	}
 	return nil
 }
