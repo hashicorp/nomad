@@ -1214,7 +1214,7 @@ func TestConsul_PeriodicSync(t *testing.T) {
 	defer ctx.ServiceClient.Shutdown()
 
 	// Lower periodic sync interval to speed up test
-	ctx.ServiceClient.periodicInterval = 2 * time.Millisecond
+	ctx.ServiceClient.periodicInterval = 1 * time.Millisecond
 
 	// Run for 10ms and assert hits >= 5 because each sync() calls multiple
 	// Consul APIs
