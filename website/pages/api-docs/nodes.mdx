@@ -18,8 +18,8 @@ This endpoint lists all nodes registered with Nomad.
 | `GET`  | `/v1/nodes` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api#blocking-queries) and
-[required ACLs](/api#acls).
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -130,8 +130,8 @@ This endpoint queries the status of a client node.
 | `GET`  | `/v1/node/:node_id` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api#blocking-queries) and
-[required ACLs](/api#acls).
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -391,8 +391,8 @@ and the values of dynamically assigned resources, like ports.
 | `GET`  | `/v1/node/:node_id/allocations` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api#blocking-queries) and
-[required ACLs](/api#acls).
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
 
 | Blocking Queries | ACL Required                   |
 | ---------------- | ------------------------------ |
@@ -764,8 +764,8 @@ force a run of the scheduling logic.
 | `POST` | `/v1/node/:node_id/evaluate` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api#blocking-queries) and
-[required ACLs](/api#acls).
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -825,15 +825,15 @@ $ curl \
 This endpoint toggles the drain mode of the node. When draining is enabled, no
 further allocations will be assigned to this node, and existing allocations will
 be migrated to new nodes. See the [Workload Migration
-Guide](/guides/operations/node-draining) for suggested usage.
+Guide](https://learn.hashicorp.com/nomad/operating-nomad/node-draining) for suggested usage.
 
 | Method | Path                      | Produces           |
 | ------ | ------------------------- | ------------------ |
 | `POST` | `/v1/node/:node_id/drain` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api#blocking-queries) and
-[required ACLs](/api#acls).
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -901,8 +901,8 @@ they are alive.
 | `POST` | `/v1/node/:node_id/purge` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api#blocking-queries) and
-[required ACLs](/api#acls).
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -947,8 +947,8 @@ This endpoint toggles the scheduling eligibility of the node.
 | `POST` | `/v1/node/:node_id/eligibility` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api#blocking-queries) and
-[required ACLs](/api#acls).
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |

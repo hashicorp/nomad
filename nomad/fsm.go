@@ -48,6 +48,9 @@ const (
 	SchedulerConfigSnapshot
 	ClusterMetadataSnapshot
 	ServiceIdentityTokenAccessorSnapshot
+	ScalingPolicySnapshot
+	CSIPluginSnapshot
+	CSIVolumeSnapshot
 )
 
 // LogApplier is the definition of a function that can apply a Raft log
@@ -1400,6 +1403,36 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case ScalingPolicySnapshot:
+			scalingPolicy := new(structs.ScalingPolicy)
+			if err := dec.Decode(scalingPolicy); err != nil {
+				return err
+			}
+
+			if err := restore.ScalingPolicyRestore(scalingPolicy); err != nil {
+				return err
+			}
+
+		case CSIPluginSnapshot:
+			plugin := new(structs.CSIPlugin)
+			if err := dec.Decode(plugin); err != nil {
+				return err
+			}
+
+			if err := restore.CSIPluginRestore(plugin); err != nil {
+				return err
+			}
+
+		case CSIVolumeSnapshot:
+			plugin := new(structs.CSIVolume)
+			if err := dec.Decode(plugin); err != nil {
+				return err
+			}
+
+			if err := restore.CSIVolumeRestore(plugin); err != nil {
+				return err
+			}
+
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -1657,6 +1690,18 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistDeployments(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistScalingPolicies(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistCSIPlugins(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistCSIVolumes(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2059,6 +2104,93 @@ func (s *nomadSnapshot) persistClusterMetadata(sink raft.SnapshotSink,
 		return err
 	}
 
+	return nil
+}
+
+func (s *nomadSnapshot) persistScalingPolicies(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	// Get all the scaling policies
+	ws := memdb.NewWatchSet()
+	scalingPolicies, err := s.snap.ScalingPolicies(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := scalingPolicies.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		scalingPolicy := raw.(*structs.ScalingPolicy)
+
+		// Write out a scaling policy snapshot
+		sink.Write([]byte{byte(ScalingPolicySnapshot)})
+		if err := encoder.Encode(scalingPolicy); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistCSIPlugins(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	// Get all the CSI plugins
+	ws := memdb.NewWatchSet()
+	plugins, err := s.snap.CSIPlugins(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := plugins.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		plugin := raw.(*structs.CSIPlugin)
+
+		// Write out a plugin snapshot
+		sink.Write([]byte{byte(CSIPluginSnapshot)})
+		if err := encoder.Encode(plugin); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistCSIVolumes(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	// Get all the CSI volumes
+	ws := memdb.NewWatchSet()
+	volumes, err := s.snap.CSIVolumes(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := volumes.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		volume := raw.(*structs.CSIVolume)
+
+		// Write out a volume snapshot
+		sink.Write([]byte{byte(CSIVolumeSnapshot)})
+		if err := encoder.Encode(volume); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

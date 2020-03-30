@@ -323,14 +323,14 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/operator/scheduler/configuration", s.wrap(s.OperatorSchedulerConfiguration))
 
 	if uiEnabled {
-		s.mux.Handle("/ui/", http.StripPrefix("/ui/", handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
+		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
 	} else {
 		// Write the stubHTML
 		s.mux.HandleFunc("/ui/", func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(stubHTML))
 		})
 	}
-	s.mux.Handle("/", handleRootFallthrough())
+	s.mux.Handle("/", s.handleRootFallthrough())
 
 	if enableDebug {
 		if !s.agent.config.DevMode {
@@ -386,7 +386,7 @@ func (e *codedError) Code() int {
 	return e.code
 }
 
-func handleUI(h http.Handler) http.Handler {
+func (s *HTTPServer) handleUI(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		header := w.Header()
 		header.Add("Content-Security-Policy", "default-src 'none'; connect-src *; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'")
@@ -395,14 +395,14 @@ func handleUI(h http.Handler) http.Handler {
 	})
 }
 
-func handleRootFallthrough() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+func (s *HTTPServer) handleRootFallthrough() http.Handler {
+	return s.auditHTTPHandler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == "/" {
 			http.Redirect(w, req, "/ui/", 307)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
-	})
+	}))
 }
 
 func errCodeFromHandler(err error) (int, string) {

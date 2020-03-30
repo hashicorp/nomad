@@ -153,7 +153,7 @@ var basicConfig = &Config{
 			{
 				Name:       "default",
 				Type:       "HTTPEvent",
-				Endpoints:  []string{"/ui/", "/v1/agent/health"},
+				Endpoints:  []string{"/v1/metrics"},
 				Stages:     []string{"*"},
 				Operations: []string{"*"},
 			},
@@ -623,7 +623,7 @@ var sample0 = &Config{
 			{
 				Name:       "default",
 				Type:       "HTTPEvent",
-				Endpoints:  []string{"/ui/", "/v1/agent/health"},
+				Endpoints:  []string{"/v1/metrics"},
 				Stages:     []string{"*"},
 				Operations: []string{"*"},
 			},
@@ -711,7 +711,7 @@ var sample1 = &Config{
 			{
 				Name:       "default",
 				Type:       "HTTPEvent",
-				Endpoints:  []string{"/ui/", "/v1/agent/health"},
+				Endpoints:  []string{"/v1/metrics"},
 				Stages:     []string{"*"},
 				Operations: []string{"*"},
 			},

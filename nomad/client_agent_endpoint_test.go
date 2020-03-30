@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -231,11 +232,13 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 			require := require.New(t)
 
 			// send some specific logs
-			doneCh := make(chan struct{})
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			go func() {
 				for {
 					select {
-					case <-doneCh:
+					case <-ctx.Done():
 						return
 					default:
 						tc.logger.Warn(tc.expectedLog)
@@ -310,7 +313,7 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 
 						received += string(frame.Data)
 						if strings.Contains(received, tc.expectedLog) {
-							close(doneCh)
+							cancel()
 							require.Nil(p2.Close())
 							break OUTER
 						}

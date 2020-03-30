@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
@@ -761,7 +762,7 @@ func TestSearch_PrefixSearch_CSIPlugin(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	id := uuid.Generate()
-	CreateTestCSIPlugin(s.fsm.State(), id)
+	state.CreateTestCSIPlugin(s.fsm.State(), id)
 
 	prefix := id[:len(id)-2]
 

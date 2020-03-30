@@ -8,7 +8,7 @@ description: The /acl/policy endpoints are used to configure and manage ACL poli
 # ACL Policies HTTP API
 
 The `/acl/policies` and `/acl/policy/` endpoints are used to manage ACL policies.
-For more details about ACLs, please see the [ACL Guide](/guides/security/acl).
+For more details about ACLs, please see the [ACL Guide](https://learn.hashicorp.com/nomad?track=acls#operations-and-development).
 
 ## List Policies
 
@@ -20,8 +20,8 @@ to the region, and may lag behind the authoritative region.
 | `GET`  | `/acl/policies` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api#blocking-queries), [consistency modes](/api#consistency-modes) and
-[required ACLs](/api#acls).
+[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
+[required ACLs](/api-docs#acls).
 
 | Blocking Queries | Consistency Modes | ACL Required                                                                                                                     |
 | ---------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -67,8 +67,8 @@ authoritative region.
 | `POST` | `/acl/policy/:policy_name` | `(empty body)` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api#blocking-queries) and
-[required ACLs](/api#acls).
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -112,8 +112,8 @@ replicated to the region, and may lag behind the authoritative region.
 | `GET`  | `/acl/policy/:policy_name` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api#blocking-queries), [consistency modes](/api#consistency-modes) and
-[required ACLs](/api#acls).
+[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
+[required ACLs](/api-docs#acls).
 
 | Blocking Queries | Consistency Modes | ACL Required                                |
 | ---------------- | ----------------- | ------------------------------------------- |
@@ -148,8 +148,8 @@ authoritative region.
 | `DELETE` | `/acl/policy/:policy_name` | `(empty body)` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api#blocking-queries) and
-[required ACLs](/api#acls).
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
