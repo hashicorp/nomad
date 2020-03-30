@@ -75,13 +75,25 @@ const (
 	deregisterProbationPeriod = time.Minute
 )
 
+// Additional Consul ACLs required
+// - Consul Template: key:read
+//   Used in tasks with template stanza that use Consul keys.
+
 // CatalogAPI is the consul/api.Catalog API used by Nomad.
+//
+// ACL requirements
+// - node:read (listing datacenters)
+// - service:read
 type CatalogAPI interface {
 	Datacenters() ([]string, error)
 	Service(service, tag string, q *api.QueryOptions) ([]*api.CatalogService, *api.QueryMeta, error)
 }
 
 // AgentAPI is the consul/api.Agent API used by Nomad.
+//
+// ACL requirements
+// - agent:read
+// - service:write
 type AgentAPI interface {
 	Services() (map[string]*api.AgentService, error)
 	Checks() (map[string]*api.AgentCheck, error)
@@ -94,6 +106,9 @@ type AgentAPI interface {
 }
 
 // ACLsAPI is the consul/api.ACL API subset used by Nomad Server.
+//
+// ACL requirements
+// - acl:write (server only)
 type ACLsAPI interface {
 	// We are looking up by [operator token] SecretID, which implies we need
 	// to use this method instead of the normal TokenRead, which can only be
