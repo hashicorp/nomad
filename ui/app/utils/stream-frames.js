@@ -1,3 +1,8 @@
+import { TextDecoderLite } from 'text-encoder-lite';
+import base64js from 'base64-js';
+
+const decoder = new TextDecoderLite('utf-8');
+
 /**
  *
  * @param {string} chunk
@@ -15,7 +20,7 @@ export function decode(chunk) {
   const frames = lines.map(line => JSON.parse(line)).filter(frame => frame.Data);
 
   if (frames.length) {
-    frames.forEach(frame => (frame.Data = b64DecodeUnicode(frame.Data)));
+    frames.forEach(frame => (frame.Data = b64decode(frame.Data)));
     return {
       offset: frames[frames.length - 1].Offset,
       message: frames.mapBy('Data').join(''),
@@ -25,9 +30,6 @@ export function decode(chunk) {
   return {};
 }
 
-function b64DecodeUnicode(str) {
-  // from bytestream, to percent-encoding, to original string.
-  return decodeURIComponent(window.atob(str).split('').map(function(c) {
-    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-  }).join(''));
+function b64decode(str) {
+  return decoder.decode(base64js.toByteArray(str));
 }
