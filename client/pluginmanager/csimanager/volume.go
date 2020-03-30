@@ -160,11 +160,8 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume,
 		return err
 	}
 
-	// We currently treat all explicit CSI NodeStageVolume errors (aside from timeouts, codes.ResourceExhausted, and codes.Unavailable)
-	// as fatal.
-	// In the future, we can provide more useful error messages based on
-	// different types of error. For error documentation see:
-	// https://github.com/container-storage-interface/spec/blob/4731db0e0bc53238b93850f43ab05d9355df0fd9/spec.md#nodestagevolume-errors
+	// CSI NodeStageVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
 	return v.plugin.NodeStageVolume(ctx,
 		vol.ID,
 		publishContext,
@@ -199,6 +196,8 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 		return nil, err
 	}
 
+	// CSI NodePublishVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
 	err = v.plugin.NodePublishVolume(ctx, &csi.NodePublishVolumeRequest{
 		VolumeID:          vol.RemoteID(),
 		PublishContext:    publishContext,
@@ -249,6 +248,9 @@ func (v *volumeManager) unstageVolume(ctx context.Context, vol *structs.CSIVolum
 	logger := hclog.FromContext(ctx)
 	logger.Trace("Unstaging volume")
 	stagingPath := v.stagingDirForVolume(v.containerMountPoint, vol, usage)
+
+	// CSI NodeUnstageVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
 	return v.plugin.NodeUnstageVolume(ctx,
 		vol.ID,
 		stagingPath,
@@ -274,6 +276,8 @@ func combineErrors(maybeErrs ...error) error {
 func (v *volumeManager) unpublishVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions) error {
 	pluginTargetPath := v.allocDirForVolume(v.containerMountPoint, vol, alloc, usage)
 
+	// CSI NodeUnpublishVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
 	rpcErr := v.plugin.NodeUnpublishVolume(ctx, vol.ID, pluginTargetPath,
 		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
 		grpc_retry.WithMax(3),

@@ -159,6 +159,7 @@ func (c *client) SetConfig(_ *base.Config) error {
 }
 
 func (c *client) PluginProbe(ctx context.Context) (bool, error) {
+	// note: no grpc retries should be done here
 	req, err := c.identityClient.Probe(ctx, &csipbv1.ProbeRequest{})
 	if err != nil {
 		return false, err
@@ -209,7 +210,10 @@ func (c *client) PluginGetCapabilities(ctx context.Context) (*PluginCapabilitySe
 		return nil, fmt.Errorf("Client not initialized")
 	}
 
-	resp, err := c.identityClient.GetPluginCapabilities(ctx, &csipbv1.GetPluginCapabilitiesRequest{})
+	// note: no grpc retries needed here, as this is called in
+	// fingerprinting and will get retried by the caller
+	resp, err := c.identityClient.GetPluginCapabilities(ctx,
+		&csipbv1.GetPluginCapabilitiesRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +233,10 @@ func (c *client) ControllerGetCapabilities(ctx context.Context) (*ControllerCapa
 		return nil, fmt.Errorf("controllerClient not initialized")
 	}
 
-	resp, err := c.controllerClient.ControllerGetCapabilities(ctx, &csipbv1.ControllerGetCapabilitiesRequest{})
+	// note: no grpc retries needed here, as this is called in
+	// fingerprinting and will get retried by the caller
+	resp, err := c.controllerClient.ControllerGetCapabilities(ctx,
+		&csipbv1.ControllerGetCapabilitiesRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -333,6 +340,8 @@ func (c *client) NodeGetCapabilities(ctx context.Context) (*NodeCapabilitySet, e
 		return nil, fmt.Errorf("Client not initialized")
 	}
 
+	// note: no grpc retries needed here, as this is called in
+	// fingerprinting and will get retried by the caller
 	resp, err := c.nodeClient.NodeGetCapabilities(ctx, &csipbv1.NodeGetCapabilitiesRequest{})
 	if err != nil {
 		return nil, err
@@ -351,6 +360,8 @@ func (c *client) NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error) 
 
 	result := &NodeGetInfoResponse{}
 
+	// note: no grpc retries needed here, as this is called in
+	// fingerprinting and will get retried by the caller
 	resp, err := c.nodeClient.NodeGetInfo(ctx, &csipbv1.NodeGetInfoRequest{})
 	if err != nil {
 		return nil, err
