@@ -245,7 +245,7 @@ func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume,
 		success = "false"
 	}
 	event := structs.NewNodeEvent().
-		SetSubsystem(structs.NodeEventSubsystemCSI).
+		SetSubsystem(structs.NodeEventSubsystemStorage).
 		SetMessage("Mount volume").
 		AddDetail("Volume namespace", vol.Namespace).
 		AddDetail("Volume ID", vol.ID).
@@ -336,7 +336,7 @@ func (v *volumeManager) UnmountVolume(ctx context.Context, vol *structs.CSIVolum
 		success = "false"
 	}
 	event := structs.NewNodeEvent().
-		SetSubsystem(structs.NodeEventSubsystemCSI).
+		SetSubsystem(structs.NodeEventSubsystemStorage).
 		SetMessage("Unmount volume").
 		AddDetail("Volume namespace", vol.Namespace).
 		AddDetail("Volume ID", vol.ID).
