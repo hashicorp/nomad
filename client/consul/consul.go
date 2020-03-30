@@ -6,7 +6,7 @@ import (
 )
 
 // ConsulServiceAPI is the interface the Nomad Client uses to register and
-// remove services and checks from Consul.css
+// remove services and checks from Consul.
 //
 // ACL requirements
 // - service:write
