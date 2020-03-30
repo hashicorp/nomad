@@ -1798,6 +1798,21 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 	return nil
 }
 
+// CSIVolumes returns the unfiltered list of all volumes
+func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+	defer txn.Abort()
+
+	iter, err := txn.Get("csi_volumes", "id")
+	if err != nil {
+		return nil, fmt.Errorf("csi_volumes lookup failed: %v", err)
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 // CSIVolumeByID is used to lookup a single volume. Returns a copy of the volume
 // because its plugins are denormalized to provide accurate Health.
 func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*structs.CSIVolume, error) {
@@ -2071,6 +2086,8 @@ func (s *StateStore) CSIPlugins(ws memdb.WatchSet) (memdb.ResultIterator, error)
 	if err != nil {
 		return nil, fmt.Errorf("csi_plugins lookup failed: %v", err)
 	}
+
+	ws.Add(iter.WatchCh())
 
 	return iter, nil
 }
@@ -5249,6 +5266,22 @@ func (r *StateRestore) ClusterMetadataRestore(meta *structs.ClusterMetadata) err
 func (r *StateRestore) ScalingPolicyRestore(scalingPolicy *structs.ScalingPolicy) error {
 	if err := r.txn.Insert("scaling_policy", scalingPolicy); err != nil {
 		return fmt.Errorf("scaling policy insert failed: %v", err)
+	}
+	return nil
+}
+
+// CSIPluginRestore is used to restore a CSI plugin
+func (r *StateRestore) CSIPluginRestore(plugin *structs.CSIPlugin) error {
+	if err := r.txn.Insert("csi_plugins", plugin); err != nil {
+		return fmt.Errorf("csi plugin insert failed: %v", err)
+	}
+	return nil
+}
+
+// CSIVolumeRestore is used to restore a CSI volume
+func (r *StateRestore) CSIVolumeRestore(volume *structs.CSIVolume) error {
+	if err := r.txn.Insert("csi_volumes", volume); err != nil {
+		return fmt.Errorf("csi volume insert failed: %v", err)
 	}
 	return nil
 }
