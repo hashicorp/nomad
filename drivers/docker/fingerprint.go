@@ -62,12 +62,7 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 	defer close(ch)
 
 	ticker := time.NewTimer(0)
-	defer func() {
-		// Ensures that the channel is empty by stopping and draining the ticker.
-		if !ticker.Stop() {
-			<-ticker.C
-		}
-	}()
+	defer ticker.Stop()
 
 	for {
 		select {
