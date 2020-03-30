@@ -1469,7 +1469,7 @@ const (
 	NodeEventSubsystemDriver    = "Driver"
 	NodeEventSubsystemHeartbeat = "Heartbeat"
 	NodeEventSubsystemCluster   = "Cluster"
-	NodeEventSubsystemCSI       = "CSI"
+	NodeEventSubsystemStorage   = "Storage"
 )
 
 // NodeEvent is a single unit representing a node’s state change
