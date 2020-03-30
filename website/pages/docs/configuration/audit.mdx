@@ -129,6 +129,14 @@ filter "default" {
   operations = ["*"]
 }
 
+# Filter out requests where endpoint matches globbed pattern
+filter "globbed example" {
+  type       = "HTTPEvent"
+  endpoints  = ["/v1/evaluation/*/allocations"]
+  stages     = ["*"]
+  operations = ["*"]
+}
+
 # Filter out OperationReceived GET requests for all endpoints
 filter "OperationReceived GETs" {
   type       = "HTTPEvent"
