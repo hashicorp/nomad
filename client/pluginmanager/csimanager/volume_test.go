@@ -445,31 +445,44 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
 	ctx := context.Background()
 	vol := &structs.CSIVolume{
-		ID:             "vol",
-		Namespace:      "ns",
-		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-		AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+		ID:         "vol",
+		Namespace:  "ns",
+		AccessMode: structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 	}
 	alloc := mock.Alloc()
 	usage := &UsageOptions{}
 	pubCtx := map[string]string{}
 
 	_, err := manager.MountVolume(ctx, vol, alloc, usage, pubCtx)
-	require.NoError(t, err)
-
+	require.Error(t, err, "Unknown volume attachment mode: ")
 	require.Equal(t, 1, len(events))
 	e := events[0]
 	require.Equal(t, "Mount volume", e.Message)
 	require.Equal(t, "Storage", e.Subsystem)
 	require.Equal(t, "vol", e.Details["Volume ID"])
 	require.Equal(t, "ns", e.Details["Volume namespace"])
+	require.Equal(t, "false", e.Details["Success"])
+	require.Equal(t, "Unknown volume attachment mode: ", e.Details["Error"])
+	events = events[1:]
+
+	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	_, err = manager.MountVolume(ctx, vol, alloc, usage, pubCtx)
+	require.NoError(t, err)
+
+	require.Equal(t, 1, len(events))
+	e = events[0]
+	require.Equal(t, "Mount volume", e.Message)
+	require.Equal(t, "Storage", e.Subsystem)
+	require.Equal(t, "vol", e.Details["Volume ID"])
+	require.Equal(t, "ns", e.Details["Volume namespace"])
 	require.Equal(t, "true", e.Details["Success"])
+	events = events[1:]
 
 	err = manager.UnmountVolume(ctx, vol, alloc, usage)
 	require.NoError(t, err)
 
-	require.Equal(t, 2, len(events))
-	e = events[1]
+	require.Equal(t, 1, len(events))
+	e = events[0]
 	require.Equal(t, "Unmount volume", e.Message)
 	require.Equal(t, "Storage", e.Subsystem)
 	require.Equal(t, "vol", e.Details["Volume ID"])
