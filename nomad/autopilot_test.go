@@ -39,7 +39,9 @@ func wantRaft(servers []*Server) error {
 			want[s.config.RaftConfig.LocalID] = true
 		}
 
+		found := make([]raft.ServerID, 0, len(c.Servers))
 		for _, s := range c.Servers {
+			found = append(found, s.ID)
 			if !want[s.ID] {
 				return fmt.Errorf("don't want %q", s.ID)
 			}
@@ -47,7 +49,7 @@ func wantRaft(servers []*Server) error {
 		}
 
 		if len(want) > 0 {
-			return fmt.Errorf("didn't find %v", want)
+			return fmt.Errorf("didn't find %v in %#+v", want, found)
 		}
 		return nil
 	}
@@ -199,9 +201,11 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 	})
 
 	// Add one more server like we are doing a rolling update.
+	t.Logf("adding server s4")
 	s4, cleanupS4 := TestServer(t, conf)
 	defer cleanupS4()
 	TestJoin(t, s1, s4)
+
 	servers = append(servers, s4)
 	retry.Run(t, func(r *retry.R) {
 		r.Check(wantRaft(servers))
@@ -211,6 +215,7 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 	})
 
 	// Now kill one of the "old" nodes like we are doing a rolling update.
+	t.Logf("shutting down server s3")
 	s3.Shutdown()
 
 	isVoter := func() bool {
@@ -226,6 +231,8 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 		t.Fatalf("didn't find s4")
 		return false
 	}
+
+	t.Logf("waiting for s4 to stabalize and be promoted")
 
 	// Wait for s4 to stabilize, get promoted to a voter, and for s3 to be
 	// removed.
