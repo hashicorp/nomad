@@ -23,7 +23,7 @@ export default Controller.extend({
 
   pendingAndRunningAllocations: computed('model.allocations.@each.clientStatus', function() {
     return this.model.allocations.filter(
-      allocation => allocation.clientStatus == 'pending' || allocation.clientStatus == 'running'
+      allocation => allocation.clientStatus === 'pending' || allocation.clientStatus === 'running'
     );
   }),
 
