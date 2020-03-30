@@ -747,12 +747,15 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	// Windows does not support MemorySwap/MemorySwappiness #2193
 	if runtime.GOOS == "windows" {
-		var swapiness int64 = 0
-
 		hostConfig.MemorySwap = 0
-		hostConfig.MemorySwappiness = &swapiness
+		hostConfig.MemorySwappiness = nil
 	} else {
 		hostConfig.MemorySwap = task.Resources.LinuxResources.MemoryLimitBytes // MemorySwap is memory + swap.
+
+		// disable swap explicitly in non-Windows environments
+		var swapiness int64 = 0
+		hostConfig.MemorySwappiness = &swapiness
+
 	}
 
 	loggingDriver := driverConfig.Logging.Type
