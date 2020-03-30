@@ -3217,6 +3217,47 @@ func TestStateStore_CSIPluginJobs(t *testing.T) {
 	require.Nil(t, plug)
 }
 
+func TestStateStore_RestoreCSIPlugin(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	plugin := mock.CSIPlugin()
+
+	restore, err := state.Restore()
+	require.NoError(err)
+
+	err = restore.CSIPluginRestore(plugin)
+	require.NoError(err)
+	restore.Commit()
+
+	ws := memdb.NewWatchSet()
+	out, err := state.CSIPluginByID(ws, plugin.ID)
+	require.NoError(err)
+	require.EqualValues(out, plugin)
+}
+
+func TestStateStore_RestoreCSIVolume(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	plugin := mock.CSIPlugin()
+	volume := mock.CSIVolume(plugin)
+
+	restore, err := state.Restore()
+	require.NoError(err)
+
+	err = restore.CSIVolumeRestore(volume)
+	require.NoError(err)
+	restore.Commit()
+
+	ws := memdb.NewWatchSet()
+	out, err := state.CSIVolumeByID(ws, "default", volume.ID)
+	require.NoError(err)
+	require.EqualValues(out, volume)
+}
+
 func TestStateStore_Indexes(t *testing.T) {
 	t.Parallel()
 
