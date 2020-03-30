@@ -233,7 +233,7 @@ func (c *client) ControllerGetCapabilities(ctx context.Context) (*ControllerCapa
 	return NewControllerCapabilitySet(resp), nil
 }
 
-func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPublishVolumeRequest) (*ControllerPublishVolumeResponse, error) {
+func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPublishVolumeRequest, opts ...grpc.CallOption) (*ControllerPublishVolumeResponse, error) {
 	if c == nil {
 		return nil, fmt.Errorf("Client not initialized")
 	}
@@ -247,7 +247,7 @@ func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPub
 	}
 
 	pbrequest := req.ToCSIRepresentation()
-	resp, err := c.controllerClient.ControllerPublishVolume(ctx, pbrequest)
+	resp, err := c.controllerClient.ControllerPublishVolume(ctx, pbrequest, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +257,7 @@ func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPub
 	}, nil
 }
 
-func (c *client) ControllerUnpublishVolume(ctx context.Context, req *ControllerUnpublishVolumeRequest) (*ControllerUnpublishVolumeResponse, error) {
+func (c *client) ControllerUnpublishVolume(ctx context.Context, req *ControllerUnpublishVolumeRequest, opts ...grpc.CallOption) (*ControllerUnpublishVolumeResponse, error) {
 	if c == nil {
 		return nil, fmt.Errorf("Client not initialized")
 	}
@@ -270,7 +270,7 @@ func (c *client) ControllerUnpublishVolume(ctx context.Context, req *ControllerU
 	}
 
 	upbrequest := req.ToCSIRepresentation()
-	_, err = c.controllerClient.ControllerUnpublishVolume(ctx, upbrequest)
+	_, err = c.controllerClient.ControllerUnpublishVolume(ctx, upbrequest, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +278,7 @@ func (c *client) ControllerUnpublishVolume(ctx context.Context, req *ControllerU
 	return &ControllerUnpublishVolumeResponse{}, nil
 }
 
-func (c *client) ControllerValidateCapabilties(ctx context.Context, volumeID string, capabilities *VolumeCapability) error {
+func (c *client) ControllerValidateCapabilities(ctx context.Context, volumeID string, capabilities *VolumeCapability, opts ...grpc.CallOption) error {
 	if c == nil {
 		return fmt.Errorf("Client not initialized")
 	}
@@ -301,7 +301,7 @@ func (c *client) ControllerValidateCapabilties(ctx context.Context, volumeID str
 		},
 	}
 
-	resp, err := c.controllerClient.ValidateVolumeCapabilities(ctx, req)
+	resp, err := c.controllerClient.ValidateVolumeCapabilities(ctx, req, opts...)
 	if err != nil {
 		return err
 	}
