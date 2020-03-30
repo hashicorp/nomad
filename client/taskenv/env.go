@@ -656,7 +656,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		}
 	}
 	if len(upstreams) > 0 {
-		b.SetUpstreams(upstreams)
+		b.setUpstreamsLocked(upstreams)
 	}
 
 	return b
@@ -752,8 +752,12 @@ func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet
 // SetUpstreams defined by connect enabled group services
 func (b *Builder) SetUpstreams(upstreams []structs.ConsulUpstream) *Builder {
 	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.setUpstreamsLocked(upstreams)
+}
+
+func (b *Builder) setUpstreamsLocked(upstreams []structs.ConsulUpstream) *Builder {
 	b.upstreams = upstreams
-	b.mu.Unlock()
 	return b
 }
 
