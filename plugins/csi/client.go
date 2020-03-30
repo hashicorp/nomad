@@ -129,7 +129,11 @@ func newGrpcConn(addr string, logger hclog.Logger) (*grpc.ClientConn, error) {
 // PluginInfo describes the type and version of a plugin as required by the nomad
 // base.BasePlugin interface.
 func (c *client) PluginInfo() (*base.PluginInfoResponse, error) {
-	name, version, err := c.PluginGetInfo(context.TODO())
+	// note: no grpc retries needed here, as this is called in
+	// fingerprinting and will get retried by the caller.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	name, version, err := c.PluginGetInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
