@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/require"
-	"github.com/ugorji/go/codec"
 )
 
 var _ drivers.DriverPlugin = (*MockDriver)(nil)

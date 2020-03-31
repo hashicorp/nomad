@@ -6,7 +6,7 @@ import (
 	"io"
 	"text/template"
 
-	"github.com/ugorji/go/codec"
+	"github.com/hashicorp/go-msgpack/codec"
 )
 
 var (

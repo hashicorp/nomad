@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	codec "github.com/hashicorp/go-msgpack/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client"
@@ -18,7 +19,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
-	codec "github.com/ugorji/go/codec"
 )
 
 func TestClientFS_List_Local(t *testing.T) {
