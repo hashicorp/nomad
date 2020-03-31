@@ -157,21 +157,21 @@ bootstrap: deps lint-deps git-hooks # Install all dependencies
 .PHONY: deps
 deps:  ## Install build and development dependencies
 	@echo "==> Updating build dependencies..."
-	go get -u github.com/kardianos/govendor
-	go get -u github.com/hashicorp/go-bindata/go-bindata
-	go get -u github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs
-	go get -u github.com/a8m/tree/cmd/tree
-	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
-	go get -u gotest.tools/gotestsum
-	go get -u github.com/fatih/hclfmt
+	GO111MODULE=on go get -u github.com/kardianos/govendor
+	GO111MODULE=on go get -u github.com/hashicorp/go-bindata/go-bindata
+	GO111MODULE=on go get -u github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs
+	GO111MODULE=on go get -u github.com/a8m/tree/cmd/tree
+	GO111MODULE=on go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
+	GO111MODULE=on go get -u gotest.tools/gotestsum
+	GO111MODULE=on go get -u github.com/fatih/hclfmt
+	GO111MODULE=on go get -u github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	@bash -C "$(PROJECT_ROOT)/scripts/install-codecgen.sh"
-	@bash -C "$(PROJECT_ROOT)/scripts/install-protoc-gen-go.sh"
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
-	go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-	go get -u github.com/client9/misspell/cmd/misspell
+	GO111MODULE=on go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+	GO111MODULE=on go get -u github.com/client9/misspell/cmd/misspell
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
