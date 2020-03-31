@@ -242,13 +242,13 @@ func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume,
 	event := structs.NewNodeEvent().
 		SetSubsystem(structs.NodeEventSubsystemStorage).
 		SetMessage("Mount volume").
-		AddDetail("Volume namespace", vol.Namespace).
-		AddDetail("Volume ID", vol.ID)
+		AddDetail("volume_namespace", vol.Namespace).
+		AddDetail("volume_id", vol.ID)
 	if err == nil {
-		event.AddDetail("Success", "true")
+		event.AddDetail("success", "true")
 	} else {
-		event.AddDetail("Success", "false")
-		event.AddDetail("Error", err.Error())
+		event.AddDetail("success", "false")
+		event.AddDetail("error", err.Error())
 	}
 
 	v.eventer(event)
@@ -332,13 +332,13 @@ func (v *volumeManager) UnmountVolume(ctx context.Context, vol *structs.CSIVolum
 	event := structs.NewNodeEvent().
 		SetSubsystem(structs.NodeEventSubsystemStorage).
 		SetMessage("Unmount volume").
-		AddDetail("Volume namespace", vol.Namespace).
-		AddDetail("Volume ID", vol.ID)
+		AddDetail("volume_namespace", vol.Namespace).
+		AddDetail("volume_id", vol.ID)
 	if err == nil {
-		event.AddDetail("Success", "true")
+		event.AddDetail("success", "true")
 	} else {
-		event.AddDetail("Success", "false")
-		event.AddDetail("Error", err.Error())
+		event.AddDetail("success", "false")
+		event.AddDetail("error", err.Error())
 	}
 
 	v.eventer(event)
