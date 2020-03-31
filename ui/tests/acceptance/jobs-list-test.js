@@ -2,7 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import { selectChoose } from 'ember-power-select/test-support';
+import pageSizeSelect from './behaviors/page-size-select';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 
 let managementToken, clientToken;
@@ -341,42 +341,14 @@ module('Acceptance | jobs list', function(hooks) {
     assert.equal(JobsList.jobs.length, 1, 'Only one job shown due to query param');
   });
 
-  test('the number of jobs shown is equal to the localStorage user setting for page size', async function(assert) {
-    const storedPageSize = 10;
-    window.localStorage.nomadPageSize = storedPageSize;
-
-    server.createList('job', JobsList.pageSize, { shallow: true, createAllocations: false });
-
-    await JobsList.visit();
-
-    assert.equal(JobsList.jobs.length, storedPageSize);
-    assert.equal(JobsList.pageSizeSelect.selectedOption, '10');
-  });
-
-  test('when the page size user setting is unset, the default page size is 25', async function(assert) {
-    server.createList('job', JobsList.pageSize, { shallow: true, createAllocations: false });
-
-    await JobsList.visit();
-
-    assert.equal(JobsList.jobs.length, JobsList.pageSize);
-    assert.equal(JobsList.pageSizeSelect.selectedOption, JobsList.pageSize);
-  });
-
-  test('changing the page size updates the jobs list and also updates the user setting in localStorage', async function(assert) {
-    const desiredPageSize = 10;
-    server.createList('job', JobsList.pageSize, { shallow: true, createAllocations: false });
-
-    await JobsList.visit();
-
-    assert.equal(window.localStorage.nomadPageSize, null);
-    assert.equal(JobsList.jobs.length, JobsList.pageSize);
-    assert.equal(JobsList.pageSizeSelect.selectedOption, JobsList.pageSize);
-
-    await selectChoose('[data-test-page-size-select]', desiredPageSize);
-
-    assert.equal(window.localStorage.nomadPageSize, desiredPageSize);
-    assert.equal(JobsList.jobs.length, desiredPageSize);
-    assert.equal(JobsList.pageSizeSelect.selectedOption, desiredPageSize);
+  pageSizeSelect({
+    resourceName: 'job',
+    pageObject: JobsList,
+    pageObjectList: JobsList.jobs,
+    async setup() {
+      server.createList('job', JobsList.pageSize, { shallow: true, createAllocations: false });
+      await JobsList.visit();
+    },
   });
 
   function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
