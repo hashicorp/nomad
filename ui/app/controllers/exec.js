@@ -4,6 +4,7 @@ import { filterBy, mapBy, uniq } from '@ember/object/computed';
 import escapeTaskName from 'nomad-ui/utils/escape-task-name';
 import ExecCommandEditorXtermAdapter from 'nomad-ui/utils/classes/exec-command-editor-xterm-adapter';
 import ExecSocketXtermAdapter from 'nomad-ui/utils/classes/exec-socket-xterm-adapter';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 import { Terminal } from 'xterm-vendor';
 
@@ -16,7 +17,7 @@ export default Controller.extend({
 
   queryParams: ['allocation'],
 
-  command: '/bin/bash', // Issue to improve: https://github.com/hashicorp/nomad/issues/7469
+  command: localStorageProperty('nomadExecCommand', '/bin/bash'),
   socketOpen: false,
   taskState: null,
 
@@ -74,6 +75,7 @@ export default Controller.extend({
 
   openAndConnectSocket(command) {
     this.set('socketOpen', true);
+    this.set('command', command);
     this.socket = this.sockets.getTaskStateSocket(this.taskState, command);
 
     new ExecSocketXtermAdapter(this.terminal, this.socket);

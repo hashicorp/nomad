@@ -10,6 +10,8 @@ module('Acceptance | exec', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function() {
+    window.localStorage.removeItem('nomadExecCommand');
+
     server.create('agent');
     server.create('node');
 
@@ -305,6 +307,7 @@ module('Acceptance | exec', function(hooks) {
     let mockSockets = Service.extend({
       getTaskStateSocket(taskState, command) {
         assert.equal(command, '/sh');
+        localStorage.getItem('nomadExecCommand', JSON.stringify('/sh'));
 
         assert.step('Socket built');
 
@@ -361,6 +364,35 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.verifySteps(['Socket built']);
+  });
+
+  test('a persisted customised command is recalled', async function(assert) {
+    localStorage.setItem('nomadExecCommand', JSON.stringify('/bin/sh'));
+
+    let taskGroup = this.job.task_groups.models[0];
+    let task = taskGroup.tasks.models[0];
+    let allocations = this.server.db.allocations.where({
+      jobId: this.job.id,
+      taskGroup: taskGroup.name,
+    });
+    let allocation = allocations[allocations.length - 1];
+
+    await Exec.visitTask({
+      job: this.job.id,
+      task_group: taskGroup.name,
+      task_name: task.name,
+      allocation: allocation.id.split('-')[0],
+    });
+
+    await settled();
+
+    assert.equal(
+      window.execTerminal.buffer
+        .getLine(4)
+        .translateToString()
+        .trim(),
+      `$ nomad alloc exec -i -t -task ${task.name} ${allocation.id.split('-')[0]} /bin/sh`
+    );
   });
 });
 
