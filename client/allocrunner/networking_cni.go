@@ -85,13 +85,18 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	// where two alloc attempt to create the nomad bridge at the same time, resulting
 	// in one of them to fail. This rety attempts to overcome any
 	const retry = 3
+	var firstError error
 	for attempt := 1; ; attempt++ {
 		//TODO eventually returning the IP from the result would be nice to have in the alloc
 		if _, err := c.cni.Setup(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc))); err != nil {
 			c.logger.Warn("failed to configure network", "err", err, "attempt", attempt)
-			if attempt == retry {
-				return fmt.Errorf("failed to configure network: %v", err)
+			switch attempt {
+			case 1:
+				firstError = err
+			case retry:
+				return fmt.Errorf("failed to configure network: %v", firstError)
 			}
+
 			// Sleep for 1 second + jitter
 			time.Sleep(time.Second + (time.Duration(c.rand.Int63n(1000)) * time.Millisecond))
 			continue
