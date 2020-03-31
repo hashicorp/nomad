@@ -1873,15 +1873,6 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb
 	if err != nil {
 		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
-	snap, err := s.Snapshot()
-	if err != nil {
-		return nil, fmt.Errorf("alloc lookup failed: %v", err)
-	}
-
-	allocs, err = snap.DenormalizeAllocationSlice(allocs)
-	if err != nil {
-		return nil, fmt.Errorf("alloc lookup failed: %v", err)
-	}
 
 	// Find volume ids for CSI volumes in running allocs, or allocs that we desire to run
 	ids := map[string]string{} // Map volumeID to Namespace
@@ -5067,6 +5058,8 @@ func (s *StateSnapshot) DenormalizeAllocationsMap(nodeAllocations map[string][]*
 // DenormalizeAllocationSlice queries the Allocation for each allocation diff
 // represented as an Allocation and merges the updated attributes with the existing
 // Allocation, and attaches the Job provided.
+//
+// This should only be called on terminal allocs, particularly stopped or preempted allocs
 func (s *StateSnapshot) DenormalizeAllocationSlice(allocs []*structs.Allocation) ([]*structs.Allocation, error) {
 	allocDiffs := make([]*structs.AllocationDiff, len(allocs))
 	for i, alloc := range allocs {
