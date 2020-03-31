@@ -413,7 +413,7 @@ service {
     name     = "Postgres Check"
     type     = "script"
     command  = "/usr/local/bin/pg-tools"
-    args     = ["verify", "database" "prod", "up"]
+    args     = ["verify", "database", "prod", "up"]
     interval = "5s"
     timeout  = "2s"
   }
