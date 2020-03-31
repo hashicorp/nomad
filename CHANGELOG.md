@@ -44,7 +44,7 @@ BUG FIXES:
  * connect: Fixed a bug where Connect enabled allocation would not stop after promotion [[GH-7540](https://github.com/hashicorp/nomad/issues/7540)]
  * driver/docker: Fixed handling of seccomp `security_opts` option [[GH-7554](https://github.com/hashicorp/nomad/issues/7554)]
  * driver/docker: Fixed a bug causing docker containers to use swap memory unexpectedly [[GH-7550](https://github.com/hashicorp/nomad/issues/7550)]
- * ui: Fixed handling of UTF-8 characters and emojis in allocation log view [[GH-7470](https://github.com/hashicorp/nomad/issues/7470)]
+ * ui: Fixed handling of UTF-8 characters and emojis in allocation log view [[GH-7470](https://github.com/hashicorp/nomad/issues/7470)] [[GH-7551](https://github.com/hashicorp/nomad/pull/7551)]
 
 ## 0.10.5 (March 24, 2020)
 
