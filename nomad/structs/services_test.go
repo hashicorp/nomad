@@ -174,7 +174,6 @@ func TestConsulConnect_CopyEquals(t *testing.T) {
 }
 
 func TestSidecarTask_MergeIntoTask(t *testing.T) {
-
 	task := MockJob().TaskGroups[0].Tasks[0]
 	sTask := &SidecarTask{
 		Name:   "sidecar",
@@ -226,5 +225,102 @@ func TestSidecarTask_MergeIntoTask(t *testing.T) {
 
 	sTask.MergeIntoTask(task)
 	require.Exactly(t, expected, task)
+}
 
+func TestConsulUpstream_upstreamEquals(t *testing.T) {
+	t.Parallel()
+
+	up := func(name string, port int) ConsulUpstream {
+		return ConsulUpstream{
+			DestinationName: name,
+			LocalBindPort:   port,
+		}
+	}
+
+	t.Run("size mismatch", func(t *testing.T) {
+		a := []ConsulUpstream{up("foo", 8000)}
+		b := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
+		require.False(t, upstreamsEquals(a, b))
+	})
+
+	t.Run("different", func(t *testing.T) {
+		a := []ConsulUpstream{up("bar", 9000)}
+		b := []ConsulUpstream{up("foo", 8000)}
+		require.False(t, upstreamsEquals(a, b))
+	})
+
+	t.Run("identical", func(t *testing.T) {
+		a := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
+		b := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
+		require.True(t, upstreamsEquals(a, b))
+	})
+
+	t.Run("unsorted", func(t *testing.T) {
+		a := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
+		b := []ConsulUpstream{up("bar", 9000), up("foo", 8000)}
+		require.True(t, upstreamsEquals(a, b))
+	})
+}
+
+func TestConsulExposePath_exposePathsEqual(t *testing.T) {
+	t.Parallel()
+
+	expose := func(path, protocol, listen string, local int) ConsulExposePath {
+		return ConsulExposePath{
+			Path:          path,
+			Protocol:      protocol,
+			LocalPathPort: local,
+			ListenerPort:  listen,
+		}
+	}
+
+	t.Run("size mismatch", func(t *testing.T) {
+		a := []ConsulExposePath{expose("/1", "http", "myPort", 8000)}
+		b := []ConsulExposePath{expose("/1", "http", "myPort", 8000), expose("/2", "http", "myPort", 8000)}
+		require.False(t, exposePathsEqual(a, b))
+	})
+
+	t.Run("different", func(t *testing.T) {
+		a := []ConsulExposePath{expose("/1", "http", "myPort", 8000)}
+		b := []ConsulExposePath{expose("/2", "http", "myPort", 8000)}
+		require.False(t, exposePathsEqual(a, b))
+	})
+
+	t.Run("identical", func(t *testing.T) {
+		a := []ConsulExposePath{expose("/1", "http", "myPort", 8000)}
+		b := []ConsulExposePath{expose("/1", "http", "myPort", 8000)}
+		require.True(t, exposePathsEqual(a, b))
+	})
+
+	t.Run("unsorted", func(t *testing.T) {
+		a := []ConsulExposePath{expose("/2", "http", "myPort", 8000), expose("/1", "http", "myPort", 8000)}
+		b := []ConsulExposePath{expose("/1", "http", "myPort", 8000), expose("/2", "http", "myPort", 8000)}
+		require.True(t, exposePathsEqual(a, b))
+	})
+}
+
+func TestConsulExposeConfig_Copy(t *testing.T) {
+	require.Nil(t, (*ConsulExposeConfig)(nil).Copy())
+	require.Equal(t, &ConsulExposeConfig{
+		Paths: []ConsulExposePath{{
+			Path: "/health",
+		}},
+	}, (&ConsulExposeConfig{
+		Paths: []ConsulExposePath{{
+			Path: "/health",
+		}},
+	}).Copy())
+}
+
+func TestConsulExposeConfig_Equals(t *testing.T) {
+	require.True(t, (*ConsulExposeConfig)(nil).Equals(nil))
+	require.True(t, (&ConsulExposeConfig{
+		Paths: []ConsulExposePath{{
+			Path: "/health",
+		}},
+	}).Equals(&ConsulExposeConfig{
+		Paths: []ConsulExposePath{{
+			Path: "/health",
+		}},
+	}))
 }
