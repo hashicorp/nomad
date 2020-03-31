@@ -719,7 +719,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		StorageOpt:   driverConfig.StorageOpt,
 		VolumeDriver: driverConfig.VolumeDriver,
 
-		PidsLimit: driverConfig.PidsLimit,
+		PidsLimit: &driverConfig.PidsLimit,
 	}
 
 	if _, ok := task.DeviceEnv[nvidiaVisibleDevices]; ok {
@@ -748,9 +748,14 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	// Windows does not support MemorySwap/MemorySwappiness #2193
 	if runtime.GOOS == "windows" {
 		hostConfig.MemorySwap = 0
-		hostConfig.MemorySwappiness = -1
+		hostConfig.MemorySwappiness = nil
 	} else {
 		hostConfig.MemorySwap = task.Resources.LinuxResources.MemoryLimitBytes // MemorySwap is memory + swap.
+
+		// disable swap explicitly in non-Windows environments
+		var swapiness int64 = 0
+		hostConfig.MemorySwappiness = &swapiness
+
 	}
 
 	loggingDriver := driverConfig.Logging.Type
