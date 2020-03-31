@@ -235,7 +235,7 @@
 		{"path":"github.com/hashicorp/go-hclog","checksumSHA1":"tNgHh706sto5/99XYD5jIuBDqa8=","revision":"0e86804c9e4bede0738cbbc370e705ef82580e7e","revisionTime":"2020-01-11T00:06:39Z","version":"v0.11.0","versionExact":"v0.11.0"},
 		{"path":"github.com/hashicorp/go-immutable-radix","checksumSHA1":"Cas2nprG6pWzf05A2F/OlnjUu2Y=","revision":"8aac2701530899b64bdea735a1de8da899815220","revisionTime":"2017-07-25T22:12:15Z"},
 		{"path":"github.com/hashicorp/go-memdb","checksumSHA1":"FMAvwDar2bQyYAW4XMFhAt0J5xA=","revision":"20ff6434c1cc49b80963d45bf5c6aa89c78d8d57","revisionTime":"2017-08-31T20:15:40Z"},
-		{"path":"github.com/hashicorp/go-msgpack/codec","checksumSHA1":"CKGYNUDKre3Z2g4hHNVfp5nTcfA=","revision":"96ddbed8d05bad59f3f49c638367bd757ed56d3d","revisionTime":"2019-11-01T19:38:46Z","version":"b-fix-gomod","versionExact":"b-fix-gomod"},
+		{"path":"github.com/hashicorp/go-msgpack/codec","checksumSHA1":"CKGYNUDKre3Z2g4hHNVfp5nTcfA=","revision":"cc7dbc9ee9335986a7245d8c29e1a9e2aa0cc8c7","revisionTime":"2019-11-01T19:38:46Z","version":"v1.1.5","versionExact":"v1.1.5"},
 		{"path":"github.com/hashicorp/go-multierror","checksumSHA1":"qb0WcbXXZyWv538gMYVHAq/qOlw=","revision":"72917a1559e17f38638ade54020ab372ba848d67","revisionTime":"2019-11-20T19:21:20Z"},
 		{"path":"github.com/hashicorp/go-plugin","checksumSHA1":"Nwod22KYiOycjys2ITllhNE9mtE=","revision":"809113480b559c989ea9cfcff62e9d387961f60b","revisionTime":"2019-10-04T17:18:45Z"},
 		{"path":"github.com/hashicorp/go-plugin/internal/plugin","checksumSHA1":"uTvnRQ5UWn/bhRxbW/UCfYFseSc=","revision":"809113480b559c989ea9cfcff62e9d387961f60b","revisionTime":"2019-10-04T17:18:45Z"},
