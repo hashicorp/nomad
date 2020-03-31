@@ -81,12 +81,13 @@
             {{/t.body}}
           {{/list-table}}
           <div class="table-foot">
+            {{page-size-select onChange=(action resetPagination)}}
             <nav class="pagination">
               <div class="pagination-numbers">
                 {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
               </div>
-              {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
-              {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+              {{#p.prev class="pagination-previous"}}{{x-icon "chevron-left"}}{{/p.prev}}
+              {{#p.next class="pagination-next"}}{{x-icon "chevron-right"}}{{/p.next}}
               <ul class="pagination-list"></ul>
             </nav>
           </div>

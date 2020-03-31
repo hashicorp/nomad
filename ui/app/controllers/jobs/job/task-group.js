@@ -1,4 +1,5 @@
-import { alias } from '@ember/object/computed';
+import { alias, readOnly } from '@ember/object/computed';
+import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
@@ -6,6 +7,8 @@ import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 
 export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
+  userSettings: service(),
+
   queryParams: {
     currentPage: 'page',
     searchTerm: 'search',
@@ -14,7 +17,7 @@ export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
   },
 
   currentPage: 1,
-  pageSize: 10,
+  pageSize: readOnly('userSettings.pageSize'),
 
   sortProperty: 'modifyIndex',
   sortDescending: true,
