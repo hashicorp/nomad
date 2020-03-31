@@ -1151,6 +1151,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 					Path:          check.Path,
 					Protocol:      check.Protocol,
 					PortLabel:     check.PortLabel,
+					Expose:        check.Expose,
 					AddressMode:   check.AddressMode,
 					Interval:      check.Interval,
 					Timeout:       check.Timeout,

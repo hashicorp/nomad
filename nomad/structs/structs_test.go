@@ -1487,6 +1487,26 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 	if !strings.Contains(err.Error(), "relative http path") {
 		t.Fatalf("err: %v", err)
 	}
+
+	t.Run("check expose", func(t *testing.T) {
+		t.Run("type http", func(t *testing.T) {
+			require.NoError(t, (&ServiceCheck{
+				Type:     ServiceCheckHTTP,
+				Interval: 1 * time.Second,
+				Timeout:  1 * time.Second,
+				Path:     "/health",
+				Expose:   true,
+			}).validate())
+		})
+		t.Run("type tcp", func(t *testing.T) {
+			require.EqualError(t, (&ServiceCheck{
+				Type:     ServiceCheckTCP,
+				Interval: 1 * time.Second,
+				Timeout:  1 * time.Second,
+				Expose:   true,
+			}).validate(), "expose may only be set on HTTP or gRPC checks")
+		})
+	})
 }
 
 // TestTask_Validate_Service_Check_AddressMode asserts that checks do not

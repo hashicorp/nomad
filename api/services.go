@@ -81,6 +81,7 @@ type ServiceCheck struct {
 	Path          string
 	Protocol      string
 	PortLabel     string `mapstructure:"port"`
+	Expose        bool
 	AddressMode   string `mapstructure:"address_mode"`
 	Interval      time.Duration
 	Timeout       time.Duration
@@ -183,7 +184,6 @@ type ConsulUpstream struct {
 
 type ConsulExposeConfig struct {
 	Path []*ConsulExposePath `mapstructure:"path"`
-	// todo(shoenig): add magic for 'checks' option
 }
 
 type ConsulExposePath struct {

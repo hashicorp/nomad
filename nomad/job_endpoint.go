@@ -61,10 +61,12 @@ func NewJobEndpoints(s *Server) *Job {
 		mutators: []jobMutator{
 			jobCanonicalizer{},
 			jobConnectHook{},
+			jobExposeCheckHook{},
 			jobImpliedConstraints{},
 		},
 		validators: []jobValidator{
 			jobConnectHook{},
+			jobExposeCheckHook{},
 			jobValidate{},
 		},
 	}
