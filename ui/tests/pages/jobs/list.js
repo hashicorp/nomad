@@ -13,7 +13,7 @@ import {
 import facet from 'nomad-ui/tests/pages/components/facet';
 
 export default create({
-  pageSize: 10,
+  pageSize: 25,
 
   visit: visitable('/jobs'),
 
@@ -57,6 +57,17 @@ export default create({
   namespaceSwitcher: {
     isPresent: isPresent('[data-test-namespace-switcher]'),
     open: clickable('[data-test-namespace-switcher] .ember-power-select-trigger'),
+    options: collection('.ember-power-select-option', {
+      testContainer: '#ember-testing',
+      resetScope: true,
+      label: text(),
+    }),
+  },
+
+  pageSizeSelect: {
+    isPresent: isPresent('[data-test-page-size-select]'),
+    open: clickable('[data-test-page-size-select] .ember-power-select-trigger'),
+    selectedOption: text('[data-test-page-size-select] .ember-power-select-selected-item'),
     options: collection('.ember-power-select-option', {
       testContainer: '#ember-testing',
       resetScope: true,
