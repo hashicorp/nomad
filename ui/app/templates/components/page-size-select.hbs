@@ -5,7 +5,10 @@
     class="field-body"
     @options={{pageSizeOptions}}
     @selected={{userSettings.pageSize}}
-    @onChange={{action (mut userSettings.pageSize)}} as |option|>
+    @onChange={{action (queue
+      (action (mut userSettings.pageSize))
+      (action onChange)
+    )}} as |option|>
     {{option}}
   </PowerSelect>
 </div>
