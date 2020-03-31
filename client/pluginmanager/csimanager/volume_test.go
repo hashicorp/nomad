@@ -459,10 +459,10 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	e := events[0]
 	require.Equal(t, "Mount volume", e.Message)
 	require.Equal(t, "Storage", e.Subsystem)
-	require.Equal(t, "vol", e.Details["Volume ID"])
-	require.Equal(t, "ns", e.Details["Volume namespace"])
-	require.Equal(t, "false", e.Details["Success"])
-	require.Equal(t, "Unknown volume attachment mode: ", e.Details["Error"])
+	require.Equal(t, "vol", e.Details["volume_id"])
+	require.Equal(t, "ns", e.Details["volume_namespace"])
+	require.Equal(t, "false", e.Details["success"])
+	require.Equal(t, "Unknown volume attachment mode: ", e.Details["error"])
 	events = events[1:]
 
 	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
@@ -473,9 +473,9 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	e = events[0]
 	require.Equal(t, "Mount volume", e.Message)
 	require.Equal(t, "Storage", e.Subsystem)
-	require.Equal(t, "vol", e.Details["Volume ID"])
-	require.Equal(t, "ns", e.Details["Volume namespace"])
-	require.Equal(t, "true", e.Details["Success"])
+	require.Equal(t, "vol", e.Details["volume_id"])
+	require.Equal(t, "ns", e.Details["volume_namespace"])
+	require.Equal(t, "true", e.Details["success"])
 	events = events[1:]
 
 	err = manager.UnmountVolume(ctx, vol, alloc, usage)
@@ -485,7 +485,7 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	e = events[0]
 	require.Equal(t, "Unmount volume", e.Message)
 	require.Equal(t, "Storage", e.Subsystem)
-	require.Equal(t, "vol", e.Details["Volume ID"])
-	require.Equal(t, "ns", e.Details["Volume namespace"])
-	require.Equal(t, "true", e.Details["Success"])
+	require.Equal(t, "vol", e.Details["volume_id"])
+	require.Equal(t, "ns", e.Details["volume_namespace"])
+	require.Equal(t, "true", e.Details["success"])
 }
