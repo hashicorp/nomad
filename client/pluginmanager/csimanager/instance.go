@@ -14,8 +14,9 @@ const managerFingerprintInterval = 30 * time.Second
 // instanceManager is used to manage the fingerprinting and supervision of a
 // single CSI Plugin.
 type instanceManager struct {
-	info   *dynamicplugins.PluginInfo
-	logger hclog.Logger
+	info    *dynamicplugins.PluginInfo
+	logger  hclog.Logger
+	eventer TriggerNodeEvent
 
 	updater UpdateNodeCSIInfoFunc
 
@@ -42,11 +43,12 @@ type instanceManager struct {
 	client csi.CSIPlugin
 }
 
-func newInstanceManager(logger hclog.Logger, updater UpdateNodeCSIInfoFunc, p *dynamicplugins.PluginInfo) *instanceManager {
+func newInstanceManager(logger hclog.Logger, eventer TriggerNodeEvent, updater UpdateNodeCSIInfoFunc, p *dynamicplugins.PluginInfo) *instanceManager {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	logger = logger.Named(p.Name)
 	return &instanceManager{
 		logger:  logger,
+		eventer: eventer,
 		info:    p,
 		updater: updater,
 
@@ -94,7 +96,7 @@ func (i *instanceManager) setupVolumeManager() {
 	case <-i.shutdownCtx.Done():
 		return
 	case <-i.fp.hadFirstSuccessfulFingerprintCh:
-		i.volumeManager = newVolumeManager(i.logger, i.client, i.mountPoint, i.containerMountPoint, i.fp.requiresStaging)
+		i.volumeManager = newVolumeManager(i.logger, i.eventer, i.client, i.mountPoint, i.containerMountPoint, i.fp.requiresStaging)
 		i.logger.Debug("volume manager setup complete")
 		close(i.volumeManagerSetupCh)
 		return

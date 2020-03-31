@@ -31,8 +31,9 @@ const (
 // volumes are stored by an enriched volume usage struct as the CSI Spec requires
 // slightly different usage based on the given usage model.
 type volumeManager struct {
-	logger hclog.Logger
-	plugin csi.CSIPlugin
+	logger  hclog.Logger
+	eventer TriggerNodeEvent
+	plugin  csi.CSIPlugin
 
 	usageTracker *volumeUsageTracker
 
@@ -49,9 +50,10 @@ type volumeManager struct {
 	requiresStaging bool
 }
 
-func newVolumeManager(logger hclog.Logger, plugin csi.CSIPlugin, rootDir, containerRootDir string, requiresStaging bool) *volumeManager {
+func newVolumeManager(logger hclog.Logger, eventer TriggerNodeEvent, plugin csi.CSIPlugin, rootDir, containerRootDir string, requiresStaging bool) *volumeManager {
 	return &volumeManager{
 		logger:              logger.Named("volume_manager"),
+		eventer:             eventer,
 		plugin:              plugin,
 		mountRoot:           rootDir,
 		containerMountPoint: containerRootDir,
@@ -220,24 +222,37 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 // modes from the CSI Hook.
 // It then uses this state to stage and publish the volume as required for use
 // by the given allocation.
-func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions, publishContext map[string]string) (*MountInfo, error) {
+func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions, publishContext map[string]string) (mountInfo *MountInfo, err error) {
 	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
 	ctx = hclog.WithContext(ctx, logger)
 
 	if v.requiresStaging {
-		if err := v.stageVolume(ctx, vol, usage, publishContext); err != nil {
-			return nil, err
-		}
+		err = v.stageVolume(ctx, vol, usage, publishContext)
 	}
 
-	mountInfo, err := v.publishVolume(ctx, vol, alloc, usage, publishContext)
-	if err != nil {
-		return nil, err
+	if err == nil {
+		mountInfo, err = v.publishVolume(ctx, vol, alloc, usage, publishContext)
 	}
 
-	v.usageTracker.Claim(alloc, vol, usage)
+	if err == nil {
+		v.usageTracker.Claim(alloc, vol, usage)
+	}
 
-	return mountInfo, nil
+	event := structs.NewNodeEvent().
+		SetSubsystem(structs.NodeEventSubsystemStorage).
+		SetMessage("Mount volume").
+		AddDetail("volume_namespace", vol.Namespace).
+		AddDetail("volume_id", vol.ID)
+	if err == nil {
+		event.AddDetail("success", "true")
+	} else {
+		event.AddDetail("success", "false")
+		event.AddDetail("error", err.Error())
+	}
+
+	v.eventer(event)
+
+	return mountInfo, err
 }
 
 // unstageVolume is the inverse operation of `stageVolume` and must be called
@@ -305,19 +320,32 @@ func (v *volumeManager) unpublishVolume(ctx context.Context, vol *structs.CSIVol
 	return rpcErr
 }
 
-func (v *volumeManager) UnmountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions) error {
+func (v *volumeManager) UnmountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions) (err error) {
 	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
 	ctx = hclog.WithContext(ctx, logger)
 
-	err := v.unpublishVolume(ctx, vol, alloc, usage)
-	if err != nil {
-		return err
+	err = v.unpublishVolume(ctx, vol, alloc, usage)
+
+	if err == nil {
+		canRelease := v.usageTracker.Free(alloc, vol, usage)
+		if v.requiresStaging && canRelease {
+			err = v.unstageVolume(ctx, vol, usage)
+		}
 	}
 
-	canRelease := v.usageTracker.Free(alloc, vol, usage)
-	if !v.requiresStaging || !canRelease {
-		return nil
+	event := structs.NewNodeEvent().
+		SetSubsystem(structs.NodeEventSubsystemStorage).
+		SetMessage("Unmount volume").
+		AddDetail("volume_namespace", vol.Namespace).
+		AddDetail("volume_id", vol.ID)
+	if err == nil {
+		event.AddDetail("success", "true")
+	} else {
+		event.AddDetail("success", "false")
+		event.AddDetail("error", err.Error())
 	}
 
-	return v.unstageVolume(ctx, vol, usage)
+	v.eventer(event)
+
+	return err
 }
