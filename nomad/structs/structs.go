@@ -1944,6 +1944,7 @@ func (n *Node) Stub() *NodeListStub {
 		Status:                n.Status,
 		StatusDescription:     n.StatusDescription,
 		Drivers:               n.Drivers,
+		HostVolumes:           n.HostVolumes,
 		CreateIndex:           n.CreateIndex,
 		ModifyIndex:           n.ModifyIndex,
 	}
@@ -1963,6 +1964,7 @@ type NodeListStub struct {
 	Status                string
 	StatusDescription     string
 	Drivers               map[string]*DriverInfo
+	HostVolumes           map[string]*ClientHostVolumeConfig
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }
