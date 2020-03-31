@@ -1,0 +1,11 @@
+<div class="field is-horizontal">
+  <span class="field-label is-small">Per page</span>
+  <PowerSelect
+    @tagName="div"
+    class="field-body"
+    @options={{pageSizeOptions}}
+    @selected={{userSettings.pageSize}}
+    @onChange={{action (mut userSettings.pageSize)}} as |option|>
+    {{option}}
+  </PowerSelect>
+</div>
