@@ -2238,11 +2238,11 @@ func (nr *NetworkResource) Hash() uint32 {
 	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%d", nr.Mode, nr.Device, nr.CIDR, nr.IP, nr.MBits))...)
 
 	for i, port := range nr.ReservedPorts {
-		data = append(data, []byte(fmt.Sprintf("%d%s%d%d", i, port.Label, port.Value, port.To))...)
+		data = append(data, []byte(fmt.Sprintf("r%d%s%d%d", i, port.Label, port.Value, port.To))...)
 	}
 
 	for i, port := range nr.DynamicPorts {
-		data = append(data, []byte(fmt.Sprintf("%d%s%d%d", i, port.Label, port.Value, port.To))...)
+		data = append(data, []byte(fmt.Sprintf("d%d%s%d%d", i, port.Label, port.Value, port.To))...)
 	}
 
 	return crc32.ChecksumIEEE(data)

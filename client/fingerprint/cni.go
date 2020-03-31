@@ -30,7 +30,7 @@ func (f *CNIFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 
 	files, err := libcni.ConfFiles(confDir, []string{".conf", ".conflist", ".json"})
 	if err != nil {
-		return fmt.Errorf("failed to read cni conf files: %v", err)
+		return fmt.Errorf("failed to detect CNI conf files: %v", err)
 	}
 
 	for _, confFile := range files {
@@ -40,7 +40,7 @@ func (f *CNIFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 				return fmt.Errorf("failed to load CNI config list file %s: %v", confFile, err)
 			}
 			if _, ok := networks[confList.Name]; ok {
-				f.logger.Warn("multiple CNI config names found, ignoring file", "name", confList.Name, "file", confFile)
+				f.logger.Warn("duplicate CNI config names found, ignoring file", "name", confList.Name, "file", confFile)
 				continue
 			}
 			networks[confList.Name] = struct{}{}
@@ -50,7 +50,7 @@ func (f *CNIFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 				return fmt.Errorf("failed to load CNI config file %s: %v", confFile, err)
 			}
 			if _, ok := networks[conf.Network.Name]; ok {
-				f.logger.Warn("multiple CNI config names found, ignoring file", "name", conf.Network.Name, "file", confFile)
+				f.logger.Warn("duplicate CNI config names found, ignoring file", "name", conf.Network.Name, "file", confFile)
 				continue
 			}
 			networks[conf.Network.Name] = struct{}{}
@@ -73,3 +73,5 @@ func (f *CNIFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 	resp.Detected = true
 	return nil
 }
+
+func (f *CNIFingerprint) Reload() {}

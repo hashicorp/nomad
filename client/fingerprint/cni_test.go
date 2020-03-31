@@ -9,6 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Test that CNI fingerprinter is reloadable
+var _ ReloadableFingerprint = &CNIFingerprint{}
+
 func TestCNIFingerprint(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -63,16 +66,19 @@ func TestCNIFingerprint(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			require := require.New(t)
+			r := require.New(t)
 			fp := NewCNIFingerprint(testlog.HCLogger(t))
 			resp := &FingerprintResponse{}
 			err := fp.Fingerprint(c.req, resp)
 			if c.err {
-				require.Error(err)
-				require.Contains(err.Error(), c.errMatch)
+				r.Error(err)
+				r.Contains(err.Error(), c.errMatch)
 			} else {
-				require.NoError(err)
-				require.Exactly(c.exp, resp)
+				r.NoError(err)
+				r.Equal(c.exp.Detected, resp.Detected)
+				if resp.NodeResources != nil || c.exp.NodeResources != nil {
+					r.ElementsMatch(c.exp.NodeResources.Networks, resp.NodeResources.Networks)
+				}
 			}
 		})
 	}

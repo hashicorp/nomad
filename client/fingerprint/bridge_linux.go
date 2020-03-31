@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"strings"
+	"regexp"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -36,9 +36,12 @@ func (f *BridgeFingerprint) checkKMod(mod string) error {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+	pattern := fmt.Sprintf("%s\\s+.*$", mod)
 	for scanner.Scan() {
-		if strings.HasPrefix(scanner.Text(), mod+" ") {
+		if matched, err := regexp.MatchString(pattern, scanner.Text()); matched {
 			return nil
+		} else if err != nil {
+			return fmt.Errorf("could not parse /proc/modules: %v", err)
 		}
 	}
 

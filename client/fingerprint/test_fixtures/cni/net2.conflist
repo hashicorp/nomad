@@ -19,8 +19,7 @@
       "type": "portmap",
       "capabilities": {
         "portMappings": true
-      },
-      "externalSetMarkChain": "KUBE-MARK-MASQ"
+      }
     }
   ]
 }
