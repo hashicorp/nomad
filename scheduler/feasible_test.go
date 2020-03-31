@@ -253,21 +253,21 @@ func TestCSIVolumeChecker(t *testing.T) {
 		"foo": {
 			PluginID: "foo",
 			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{},
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
 		},
 	}
 	nodes[1].CSINodePlugins = map[string]*structs.CSIInfo{
 		"foo": {
 			PluginID: "foo",
 			Healthy:  false,
-			NodeInfo: &structs.CSINodeInfo{},
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
 		},
 	}
 	nodes[2].CSINodePlugins = map[string]*structs.CSIInfo{
 		"bar": {
 			PluginID: "bar",
 			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{},
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
 		},
 	}
 
