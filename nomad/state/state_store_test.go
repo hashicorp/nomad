@@ -2936,7 +2936,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Equal(t, 1, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByNodeID(ws, ns, node.ID)
+	iter, err = state.CSIVolumesByNodeID(ws, node.ID)
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
