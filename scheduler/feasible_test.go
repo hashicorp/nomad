@@ -239,6 +239,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
+		mock.Node(),
 	}
 
 	// Register running plugins on some nodes
@@ -253,21 +254,28 @@ func TestCSIVolumeChecker(t *testing.T) {
 		"foo": {
 			PluginID: "foo",
 			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{},
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
 		},
 	}
 	nodes[1].CSINodePlugins = map[string]*structs.CSIInfo{
 		"foo": {
 			PluginID: "foo",
 			Healthy:  false,
-			NodeInfo: &structs.CSINodeInfo{},
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
 		},
 	}
 	nodes[2].CSINodePlugins = map[string]*structs.CSIInfo{
 		"bar": {
 			PluginID: "bar",
 			Healthy:  true,
-			NodeInfo: &structs.CSINodeInfo{},
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
+		},
+	}
+	nodes[4].CSINodePlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID: "foo",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
 		},
 	}
 
@@ -288,6 +296,37 @@ func TestCSIVolumeChecker(t *testing.T) {
 	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 	err := state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
 	require.NoError(t, err)
+	index++
+
+	// Create some other volumes in use on nodes[3] to trip MaxVolumes
+	vid2 := uuid.Generate()
+	vol2 := structs.NewCSIVolume(vid2, index)
+	vol2.PluginID = "foo"
+	vol2.Namespace = structs.DefaultNamespace
+	vol2.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
+	vol2.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol2})
+	require.NoError(t, err)
+	index++
+
+	alloc := mock.Alloc()
+	alloc.NodeID = nodes[4].ID
+	alloc.Job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		vid2: {
+			Name:   vid2,
+			Type:   "csi",
+			Source: vid2,
+		},
+	}
+	err = state.UpsertJob(index, alloc.Job)
+	require.NoError(t, err)
+	index++
+	summary := mock.JobSummary(alloc.JobID)
+	require.NoError(t, state.UpsertJobSummary(index, summary))
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{alloc})
+	require.NoError(t, err)
+	index++
 
 	// Create volume requests
 	noVolumes := map[string]*structs.VolumeRequest{}
@@ -340,6 +379,11 @@ func TestCSIVolumeChecker(t *testing.T) {
 		},
 		{ // Volumes requested, none available
 			Node:             nodes[3],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{ // Volumes requested, MaxVolumes exceeded
+			Node:             nodes[4],
 			RequestedVolumes: volumes,
 			Result:           false,
 		},

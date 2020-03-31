@@ -1868,23 +1868,14 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 }
 
 // CSIVolumesByNodeID looks up CSIVolumes in use on a node
-func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, namespace, nodeID string) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb.ResultIterator, error) {
 	allocs, err := s.AllocsByNode(ws, nodeID)
-	if err != nil {
-		return nil, fmt.Errorf("alloc lookup failed: %v", err)
-	}
-	snap, err := s.Snapshot()
-	if err != nil {
-		return nil, fmt.Errorf("alloc lookup failed: %v", err)
-	}
-
-	allocs, err = snap.DenormalizeAllocationSlice(allocs)
 	if err != nil {
 		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 
 	// Find volume ids for CSI volumes in running allocs, or allocs that we desire to run
-	ids := map[string]struct{}{}
+	ids := map[string]string{} // Map volumeID to Namespace
 	for _, a := range allocs {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
@@ -1898,14 +1889,14 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, namespace, nodeID str
 			if v.Type != structs.VolumeTypeCSI {
 				continue
 			}
-			ids[v.Source] = struct{}{}
+			ids[v.Source] = a.Namespace
 		}
 	}
 
 	// Lookup the raw CSIVolumes to match the other list interfaces
 	iter := NewSliceIterator()
 	txn := s.db.Txn(false)
-	for id := range ids {
+	for id, namespace := range ids {
 		raw, err := txn.First("csi_volumes", "id", namespace, id)
 		if err != nil {
 			return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
@@ -5067,6 +5058,8 @@ func (s *StateSnapshot) DenormalizeAllocationsMap(nodeAllocations map[string][]*
 // DenormalizeAllocationSlice queries the Allocation for each allocation diff
 // represented as an Allocation and merges the updated attributes with the existing
 // Allocation, and attaches the Job provided.
+//
+// This should only be called on terminal allocs, particularly stopped or preempted allocs
 func (s *StateSnapshot) DenormalizeAllocationSlice(allocs []*structs.Allocation) ([]*structs.Allocation, error) {
 	allocDiffs := make([]*structs.AllocationDiff, len(allocs))
 	for i, alloc := range allocs {
