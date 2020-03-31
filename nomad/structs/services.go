@@ -290,7 +290,6 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	hashString(h, sc.Path)
 	hashString(h, sc.Protocol)
 	hashString(h, sc.PortLabel)
-	hashBool(h, sc.Expose, "Expose")
 	hashString(h, sc.Interval.String())
 	hashString(h, sc.Timeout.String())
 	hashString(h, sc.Method)
@@ -309,6 +308,11 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 
 	// use name "true" to maintain ID stability
 	hashBool(h, sc.GRPCUseTLS, "true")
+
+	// Hash is used for diffing against the Consul check definition, which does
+	// not have an expose parameter. Instead we rely on implied changes to
+	// other fields if the Expose setting is changed in a nomad service.
+	// hashBool(h, sc.Expose, "Expose")
 
 	// maintain use of hex (i.e. not b32) to maintain ID stability
 	return fmt.Sprintf("%x", h.Sum(nil))
