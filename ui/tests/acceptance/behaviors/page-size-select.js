@@ -12,7 +12,7 @@ export default function pageSizeSelect({ resourceName, pageObject, pageObjectLis
     await setup.call(this);
 
     assert.equal(pageObjectList.length, storedPageSize);
-    assert.equal(pageObject.pageSizeSelect.selectedOption, '10');
+    assert.equal(pageObject.pageSizeSelect.selectedOption, storedPageSize);
   });
 
   test('when the page size user setting is unset, the default page size is 25', async function(assert) {

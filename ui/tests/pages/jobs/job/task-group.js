@@ -13,7 +13,7 @@ import allocations from 'nomad-ui/tests/pages/components/allocations';
 import error from 'nomad-ui/tests/pages/components/error';
 
 export default create({
-  pageSize: 10,
+  pageSize: 25,
 
   visit: visitable('/jobs/:id/:name'),
 
@@ -50,5 +50,16 @@ export default create({
 
   emptyState: {
     headline: text('[data-test-empty-allocations-list-headline]'),
+  },
+
+  pageSizeSelect: {
+    isPresent: isPresent('[data-test-page-size-select]'),
+    open: clickable('[data-test-page-size-select] .ember-power-select-trigger'),
+    selectedOption: text('[data-test-page-size-select] .ember-power-select-selected-item'),
+    options: collection('.ember-power-select-option', {
+      testContainer: '#ember-testing',
+      resetScope: true,
+      label: text(),
+    }),
   },
 });

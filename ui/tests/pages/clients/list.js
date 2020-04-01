@@ -14,6 +14,8 @@ import {
 import facet from 'nomad-ui/tests/pages/components/facet';
 
 export default create({
+  pageSize: 25,
+
   visit: visitable('/clients'),
 
   search: fillable('.search-box input'),
@@ -57,6 +59,17 @@ export default create({
   isEmpty: isPresent('[data-test-empty-clients-list]'),
   empty: {
     headline: text('[data-test-empty-clients-list-headline]'),
+  },
+
+  pageSizeSelect: {
+    isPresent: isPresent('[data-test-page-size-select]'),
+    open: clickable('[data-test-page-size-select] .ember-power-select-trigger'),
+    selectedOption: text('[data-test-page-size-select] .ember-power-select-selected-item'),
+    options: collection('.ember-power-select-option', {
+      testContainer: '#ember-testing',
+      resetScope: true,
+      label: text(),
+    }),
   },
 
   error: {
