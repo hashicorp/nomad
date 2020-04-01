@@ -33,7 +33,7 @@ jobs:
         name: install ui dependencies
     - run:
         command: |
-          . ~/.nvm/vvm
+          . ~/.nvm/nvm
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make prerelease
         name: generate ui assets and run code generation
     - run:
@@ -251,7 +251,7 @@ workflows:
 #         name: install ui dependencies
 #     - run:
 #         command: |
-#           . ~/.nvm/vvm
+#           . ~/.nvm/nvm
 #           sudo -E PATH=\"$GOPATH/bin:/usr/local/go/bin:$PATH\" make prerelease
 #         name: generate ui assets and run code generation
 #     - run: make pkg/windows_amd64.zip pkg/linux_amd64.zip

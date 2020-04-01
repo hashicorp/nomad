@@ -12,7 +12,7 @@ steps:
   - run:
       name: generate ui assets and run code generation
       command: |
-        . ~/.nvm/vvm
+        . ~/.nvm/nvm
         sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make prerelease
   - run: make pkg/windows_amd64.zip pkg/linux_amd64.zip
   - store_artifacts:
