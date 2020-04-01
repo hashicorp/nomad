@@ -454,7 +454,7 @@ jobs:
         command: cd ui && yarn run lint:hbs
         name: lint:hbs
     - run:
-        command: mkdir -p /tmp/test-reports && cd ui && yarn test --filter exec
+        command: mkdir -p /tmp/test-reports && cd ui && yarn test
         name: Ember tests
     - store_test_results:
         path: /tmp/test-reports
