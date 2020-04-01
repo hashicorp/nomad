@@ -21,6 +21,16 @@
         }
       }
 
+      &.is-beta::after {
+        content: 'beta';
+        color: $grey;
+        font-size: 0.8em;
+        font-weight: $weight-normal;
+        position: relative;
+        top: -0.8em;
+        left: -0.8em;
+      }
+
       .icon {
         margin-right: 0.5em;
         fill: lighten($text, 30%);
