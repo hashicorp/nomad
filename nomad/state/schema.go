@@ -868,6 +868,7 @@ func scalingEventTableSchema() *memdb.TableSchema {
 				},
 			},
 
+			// TODO: need to figure out whether we want to index these or the jobs or ...
 			// "error": {
 			// 	Name:         "error",
 			// 	AllowMissing: false,

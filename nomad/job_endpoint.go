@@ -908,6 +908,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	now := time.Now().UTC().UnixNano()
 
 	// If the count is present, commit the job update via Raft
+	// for now, we'll do this even if count didn't change
 	if args.Count != nil {
 		truncCount := int(*args.Count)
 		if int64(truncCount) != *args.Count {
@@ -933,10 +934,10 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		reply.JobModifyIndex = job.ModifyIndex
 	}
 
-	// If the job is periodic or parameterized, we don't create an eval.
-	var eval *structs.Evaluation
+	// only create an eval for non-dispatch jobs and if the count was provided
+	// for now, we'll do this even if count didn't change
 	if !job.IsPeriodic() && !job.IsParameterized() && args.Count != nil {
-		eval = &structs.Evaluation{
+		eval := &structs.Evaluation{
 			ID:             uuid.Generate(),
 			Namespace:      args.RequestNamespace(),
 			Priority:       structs.JobDefaultPriority,
@@ -979,8 +980,8 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			Meta:    args.Meta,
 		},
 	}
-	if eval != nil {
-		event.ScalingEvent.EvalID = &eval.ID
+	if reply.EvalID != "" {
+		event.ScalingEvent.EvalID = &reply.EvalID
 	}
 	_, eventIndex, err := j.srv.raftApply(structs.ScalingEventRegisterRequestType, event)
 	if err != nil {

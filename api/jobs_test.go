@@ -1779,7 +1779,8 @@ func TestJobs_ScaleAction(t *testing.T) {
 	groupCount := *job.TaskGroups[0].Count
 
 	// Trying to scale against a target before it exists returns an error
-	_, _, err := jobs.Scale(id, "missing", intToPtr(groupCount+1), "this won't work", false, nil, nil)
+	_, _, err := jobs.Scale(id, "missing", intToPtr(groupCount+1), "this won't work",
+		false, nil, nil)
 	require.Error(err)
 	require.Contains(err.Error(), "not found")
 
@@ -1791,7 +1792,10 @@ func TestJobs_ScaleAction(t *testing.T) {
 	// Perform scaling action
 	newCount := groupCount + 1
 	scalingResp, wm, err := jobs.Scale(id, groupName,
-		intToPtr(newCount), "need more instances", false, nil, nil)
+		intToPtr(newCount), "need more instances", false,
+		map[string]interface{}{
+			"meta": "data",
+		}, nil)
 
 	require.NoError(err)
 	require.NotNil(scalingResp)
@@ -1805,7 +1809,71 @@ func TestJobs_ScaleAction(t *testing.T) {
 	require.NoError(err)
 	require.Equal(*resp.TaskGroups[0].Count, newCount)
 
-	// TODO: check that scaling event was persisted
+	// Check for the scaling event
+	status, _, err := jobs.ScaleStatus(*job.ID, nil)
+	require.NoError(err)
+	require.Len(status.TaskGroups[groupName].Events, 1)
+	scalingEvent := status.TaskGroups[groupName].Events[0]
+	require.False(scalingEvent.Error)
+	require.Equal("need more instances", scalingEvent.Message)
+	require.Equal(map[string]interface{}{
+		"meta": "data",
+	}, scalingEvent.Meta)
+	require.Greater(scalingEvent.Time, uint64(0))
+	require.NotNil(scalingEvent.EvalID)
+	require.Equal(scalingResp.EvalID, *scalingEvent.EvalID)
+}
+
+func TestJobs_ScaleAction_Error(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	id := "job-id/with\\troublesome:characters\n?&字\000"
+	job := testJobWithScalingPolicy()
+	job.ID = &id
+	groupName := *job.TaskGroups[0].Name
+	prevCount := *job.TaskGroups[0].Count
+
+	// Register the job
+	regResp, wm, err := jobs.Register(job, nil)
+	require.NoError(err)
+	assertWriteMeta(t, wm)
+
+	// Perform scaling action
+	scaleResp, wm, err := jobs.Scale(id, groupName, nil, "something bad happened", true,
+		map[string]interface{}{
+			"meta": "data",
+		}, nil)
+
+	require.NoError(err)
+	require.NotNil(scaleResp)
+	require.Empty(scaleResp.EvalID)
+	require.Empty(scaleResp.EvalCreateIndex)
+	assertWriteMeta(t, wm)
+
+	// Query the job again
+	resp, _, err := jobs.Info(*job.ID, nil)
+	require.NoError(err)
+	require.Equal(*resp.TaskGroups[0].Count, prevCount)
+	require.Equal(regResp.JobModifyIndex, scaleResp.JobModifyIndex)
+	require.Empty(scaleResp.EvalCreateIndex)
+	require.Empty(scaleResp.EvalID)
+
+	status, _, err := jobs.ScaleStatus(*job.ID, nil)
+	require.NoError(err)
+	require.Len(status.TaskGroups[groupName].Events, 1)
+	errEvent := status.TaskGroups[groupName].Events[0]
+	require.True(errEvent.Error)
+	require.Equal("something bad happened", errEvent.Message)
+	require.Equal(map[string]interface{}{
+		"meta": "data",
+	}, errEvent.Meta)
+	require.Greater(errEvent.Time, uint64(0))
+	require.Nil(errEvent.EvalID)
 }
 
 func TestJobs_ScaleAction_Noop(t *testing.T) {
@@ -1828,8 +1896,10 @@ func TestJobs_ScaleAction_Noop(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Perform scaling action
-	scaleResp, wm, err := jobs.Scale(id, groupName,
-		nil, "no count, just informative", false, nil, nil)
+	scaleResp, wm, err := jobs.Scale(id, groupName, nil, "no count, just informative",
+		false, map[string]interface{}{
+			"meta": "data",
+		}, nil)
 
 	require.NoError(err)
 	require.NotNil(scaleResp)
@@ -1847,7 +1917,15 @@ func TestJobs_ScaleAction_Noop(t *testing.T) {
 
 	status, _, err := jobs.ScaleStatus(*job.ID, nil)
 	require.NoError(err)
-	require.NotEmpty(status.TaskGroups[groupName].Events)
+	require.Len(status.TaskGroups[groupName].Events, 1)
+	noopEvent := status.TaskGroups[groupName].Events[0]
+	require.False(noopEvent.Error)
+	require.Equal("no count, just informative", noopEvent.Message)
+	require.Equal(map[string]interface{}{
+		"meta": "data",
+	}, noopEvent.Meta)
+	require.Greater(noopEvent.Time, uint64(0))
+	require.Nil(noopEvent.EvalID)
 }
 
 // TestJobs_ScaleStatus tests the /scale status endpoint for task group count
@@ -1867,7 +1945,7 @@ func TestJobs_ScaleStatus(t *testing.T) {
 	require.Contains(err.Error(), "not found")
 
 	// Register the job
-	job := testJobWithScalingPolicy()
+	job := testJob()
 	job.ID = &id
 	groupName := *job.TaskGroups[0].Name
 	groupCount := *job.TaskGroups[0].Count

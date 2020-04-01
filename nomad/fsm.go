@@ -2171,14 +2171,14 @@ func (s *nomadSnapshot) persistScalingPolicies(sink raft.SnapshotSink,
 func (s *nomadSnapshot) persistScalingEvents(sink raft.SnapshotSink, encoder *codec.Encoder) error {
 	// Get all the scaling events
 	ws := memdb.NewWatchSet()
-	jobScalingEvents, err := s.snap.ScalingEvents(ws)
+	iter, err := s.snap.ScalingEvents(ws)
 	if err != nil {
 		return err
 	}
 
 	for {
 		// Get the next item
-		raw := jobScalingEvents.Next()
+		raw := iter.Next()
 		if raw == nil {
 			break
 		}

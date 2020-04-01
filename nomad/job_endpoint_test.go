@@ -5415,6 +5415,7 @@ func TestJobEndpoint_Scale(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
 	require.NoError(err)
 	require.NotEmpty(resp.EvalID)
+	require.Greater(resp.EvalCreateIndex, resp.JobModifyIndex)
 }
 
 func TestJobEndpoint_Scale_ACL(t *testing.T) {
@@ -5564,13 +5565,14 @@ func TestJobEndpoint_Scale_NoEval(t *testing.T) {
 	state := s1.fsm.State()
 
 	job := mock.Job()
+	groupName := job.TaskGroups[0].Name
 	err := state.UpsertJob(1000, job)
 	require.Nil(err)
 
 	scale := &structs.JobScaleRequest{
 		JobID: job.ID,
 		Target: map[string]string{
-			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
+			structs.ScalingTargetGroup: groupName,
 		},
 		Count:   nil, // no count => no eval
 		Message: "something informative",
@@ -5593,11 +5595,15 @@ func TestJobEndpoint_Scale_NoEval(t *testing.T) {
 	require.Empty(resp.EvalID)
 	require.Empty(resp.EvalCreateIndex)
 
-	events, err := state.ScalingEventsByJob(nil, job.Namespace, job.ID)
+	jobEvents, err := state.ScalingEventsByJob(nil, job.Namespace, job.ID)
 	require.NoError(err)
-	require.NotNil(events)
-	require.Contains(events, job.TaskGroups[0].Name)
-	require.NotEmpty(events[job.TaskGroups[0].Name])
+	require.NotNil(jobEvents)
+	require.Len(jobEvents, 1)
+	require.Contains(jobEvents, groupName)
+	groupEvents := jobEvents[groupName]
+	require.Len(groupEvents, 1)
+	event := groupEvents[0]
+	require.Nil(event.EvalID)
 }
 
 func TestJobEndpoint_GetScaleStatus(t *testing.T) {
