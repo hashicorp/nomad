@@ -19,13 +19,14 @@ export default class ExecCommandEditorXtermAdapter {
   }
 
   handleKeyEvent(e) {
-    // Issue to handle arrow keys etc: https://github.com/hashicorp/nomad/issues/7463
     if (e.domEvent.key === 'u' && e.domEvent.ctrlKey) {
       for (let i = 0; i < this.command.length; i++) {
         this.terminal.write(BACKSPACE_ONE_CHARACTER);
       }
 
       this.command = '';
+    } else if (['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'].includes(e.domEvent.key)) {
+      // Ignore arrow keys
     } else if (e.domEvent.key === 'Enter') {
       this.terminal.writeln('');
       this.setCommandCallback(this.command);
