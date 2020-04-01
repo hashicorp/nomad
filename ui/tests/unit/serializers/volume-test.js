@@ -9,7 +9,10 @@ module('Unit | Serializer | Volume', function(hooks) {
     this.subject = () => this.store.serializerFor('volume');
   });
 
+  // Set the milliseconds to avoid possible floating point precision
+  // issue that arises from converting to nanos and back.
   const REF_DATE = new Date();
+  REF_DATE.setMilliseconds(0);
 
   const normalizationTestCases = [
     {
