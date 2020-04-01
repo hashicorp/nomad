@@ -16,7 +16,7 @@ jobs:
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
-    - GO_TAGS: codegen_generated
+    - GO_TAGS: ui codegen_generated
     steps:
     - checkout
     - run:
@@ -29,7 +29,9 @@ jobs:
           sudo ./scripts/vagrant-linux-priv-protoc.sh
         name: install protoc
     - run:
-        command: sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-all static-assets
+        command: ./scripts/vagrant-linux-unpriv-ui.sh
+    - run:
+        command: sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make prerelease
     - run:
         command: make pkg/windows_amd64.zip pkg/linux_amd64.zip
     - store_artifacts:
@@ -233,14 +235,15 @@ workflows:
 # jobs:
 #   build-binaries:
 #     environment:
-#       GO_TAGS: codegen_generated
+#       GO_TAGS: ui codegen_generated
 #     executor: go
 #     steps:
 #     - checkout
 #     - run: apt-get update; apt-get install -y sudo unzip zip
 #     - run: make deps
 #     - install-protoc
-#     - run: sudo -E PATH=\"$GOPATH/bin:/usr/local/go/bin:$PATH\" make generate-all static-assets
+#     - run: ./scripts/vagrant-linux-unpriv-ui.sh
+#     - run: sudo -E PATH=\"$GOPATH/bin:/usr/local/go/bin:$PATH\" make prerelease
 #     - run: make pkg/windows_amd64.zip pkg/linux_amd64.zip
 #     - store_artifacts:
 #         destination: /builds/nomad_windows_amd64.zip
